@@ -1,10 +1,9 @@
-"""The money data: the month's cost one line per source with the owner's own figures where nothing measured is whole,
-a total that says it is not whole while a line is partial or missing, the environment against its stop line, the owner-only
-figure entry, and a hosted page never getting a broken picture."""
+"""The money data: the month's cost one line per source as the runner read it, a total that says it is not whole while
+a line is partial or missing, the environment against the stop the last batch's yes wrote (no stop is set from the
+cockpit), and a hosted page never getting a broken picture."""
 import pytest
 from django.test import override_settings
 
-from score.dashboard.pages import actions
 from score.dashboard.state import money
 from score.dashboard.state.models import CostLine, MoneyView, Spend
 from score.dashboard.tests.api_test import api
@@ -24,41 +23,34 @@ def measured(stop=None):
 
 def test_a_partial_line_is_never_the_total():
     shown = money.view(measured())
-    assert [line.source for line in shown.lines] == ["cloud", "models", "subscriptions"]
-    assert not shown.total.whole and set(shown.total.gaps) == {"Model calls", "Subscriptions"}
+    assert [line.source for line in shown.lines] == ["cloud", "models"]
+    assert not shown.total.whole and shown.total.gaps == ["Model calls"]
     assert shown.total.euros == 2517.93
     assert shown.stop is None and "no stop set" in shown.note
 
 
-def test_the_owners_figures_make_the_month_whole():
-    assert actions.enter_cost("joey", "models", "1012.50", "the bill", MONTH).startswith("entered")
-    assert actions.enter_cost("joey", "subscriptions", "800", "four seats", "2026-09").startswith("entered")
-    shown = money.view(measured(stop=900.0))
-    by_source = {line.source: line for line in shown.lines}
-    assert by_source["models"].euros == 1012.5 and not by_source["models"].partial
-    assert "ledger counts EUR 400.00" in by_source["models"].origin
-    assert by_source["subscriptions"].euros == 800.0 and "four seats" in by_source["subscriptions"].origin
-    assert shown.total.whole and shown.total.euros == 3930.43
+def test_a_month_the_runner_could_not_read_has_no_figure_and_is_not_whole():
+    unread = Spend(world="world1", month=MONTH, lines=[
+        CostLine(source="cloud", label="Cloud compute", euros=2117.93, origin="the cloud bill"),
+        CostLine(source="models", label="Model calls", euros=None, partial=True, origin="the export holds no rows")])
+    shown = money.view(unread)
+    assert shown.lines[1].euros is None and not shown.total.whole and shown.total.euros == 2117.93
+    assert [line.source for line in money.view(Spend(note="spend not read")).lines] == ["cloud", "models"]
+
+
+def test_the_runners_whole_lines_make_the_month_whole_against_the_last_batchs_stop():
+    whole = measured(stop=900.0)
+    whole.lines[1] = CostLine(source="models", label="Model calls", euros=1012.5, origin="the billing export")
+    shown = money.view(whole)
+    assert shown.total.whole and shown.total.euros == 3130.43
     assert (shown.stop, shown.world_spent, shown.in_flight) == (900.0, 120.0, 30.0)
 
 
-def test_a_model_bill_stands_for_its_own_month_only():
-    actions.enter_cost("joey", "models", "1000", "", "2026-09")
-    assert money.view(measured()).lines[1].euros == 400.0
-
-
-def test_an_entry_that_is_not_a_figure_is_refused():
-    assert actions.enter_cost("joey", "cloud", "5", "", MONTH).startswith("refused")
-    assert actions.enter_cost("joey", "models", "lots", "", MONTH).startswith("refused")
-    assert actions.enter_cost("joey", "models", "-3", "", MONTH).startswith("refused")
-
-
-def test_only_the_owner_enters_a_figure_and_anyone_signed_in_reads_the_money(world):
-    assert api("mallory").post("/api/money/owner-costs", json={"source": "models", "euros": 5}).status_code == 403
+def test_anyone_signed_in_reads_the_money_and_no_stop_or_cost_is_set_from_the_cockpit(world):
     owner = api("joey")
-    assert owner.post("/api/money/owner-costs", json={"source": "models", "euros": 5}).status_code == 200
-    assert owner.post("/api/money/owner-costs", json={"source": "cloud", "euros": 5}).status_code == 422
     MoneyView.model_validate(owner.get("/api/money").json())
+    for route in ("/api/money/owner-costs", "/api/money/stop", "/api/money/month"):
+        assert owner.post(route, json={"euros": 5}).status_code in (404, 405)
 
 
 @override_settings(SCORE_MODE="hosted")

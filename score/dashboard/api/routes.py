@@ -9,9 +9,9 @@ from score.dashboard import state
 from score.dashboard.api.deps import owner_only, signed_in
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions
-from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan
+from score.dashboard.pages.models import BasketChoice, BasketItem, ChangeRequest, Launch, Plan
 from score.dashboard.proposals import records as basket
-from score.dashboard.state import money
+from score.dashboard.state import library, money, screens
 from score.dashboard.state.files import SHA, content_type
 from score.dashboard.state.models import MoneyView, PlaceDetail, Spend, StepDetail, WorldState
 
@@ -160,24 +160,8 @@ def money_view(user=Depends(signed_in)):
     return money.view(actions.spend())
 
 
-class OwnerCostIn(BaseModel):
-    source: str  # models: this month's model provider bill; subscriptions: the fixed monthly figure
-    euros: float
-    words: str = ""
-
-
-@api.post("/money/owner-costs", response_model=Said)
-def owner_cost(body: OwnerCostIn, user=Depends(owner_only)):
-    said = actions.enter_cost(user.username, body.source, str(body.euros), body.words,
-                              money.this_month(actions.spend()))
-    if not said.startswith("entered"):
-        raise HTTPException(422, said)
-    return Said(said=said)
-
-
 class FigureIn(BaseModel):
     euros: float
-    reason: str = ""
 
 
 def said_or_refused(said):
@@ -185,18 +169,6 @@ def said_or_refused(said):
     if said.startswith(("refused", "decisions are off")):
         raise HTTPException(409, said)
     return Said(said=said)
-
-
-@api.post("/money/stop", response_model=Said)
-def stop_line(body: FigureIn, user=Depends(owner_only)):
-    """The owner's stop line for the environment, his money yes (applied on the store's machine when hosted)."""
-    return said_or_refused(actions.set_stop(user.username, body.euros, body.reason))
-
-
-@api.post("/money/month", response_model=Said)
-def month_stop(body: FigureIn, user=Depends(owner_only)):
-    """The owner's month's stop, which switches launching on and caps the runner's month."""
-    return said_or_refused(actions.set_month(user.username, body.euros))
 
 
 @api.post("/money/books-figure", response_model=Said)
@@ -399,3 +371,39 @@ def basket_file(place: str, name: str, user=Depends(signed_in)):
     if path is None:
         raise HTTPException(404, "no such basket file")
     return FileResponse(path, media_type=content_type(path.name))
+
+
+# --- each cockpit screen's data, one small JSON object a screen (state/screens.py); the month's money read once a
+# request through the same reader as GET /api/money (actions' spend, a FastAPI dependency) ------------------------
+
+@api.get("/screens/environment")
+def environment_screen(user=Depends(signed_in), month: Spend = Depends(actions.spend)):
+    return screens.environment(state.source(), month, library.library())
+
+
+@api.get("/screens/place/{place}")
+def place_screen(place: str, user=Depends(signed_in)):
+    source = state.source()
+    if place not in source.places():
+        raise HTTPException(404, f"no place {place}")
+    return screens.place(source, place, library.library())
+
+
+@api.get("/screens/buy")
+def buy_screen(user=Depends(signed_in), month: Spend = Depends(actions.spend)):
+    """The basket's items with the owner's choice; a choice made on another version of its item counts as none."""
+    items = basket.items(basket_root())
+    versions = {item["id"]: item["version"] for item in items}
+    choices = {choice.item: choice.choice for choice in BasketChoice.objects.all()
+               if versions.get(choice.item) == choice.version}
+    return screens.buy(items, choices, month)
+
+
+@api.get("/screens/stats")
+def stats_screen(user=Depends(signed_in), month: Spend = Depends(actions.spend)):
+    return screens.stats(state.source(), month)
+
+
+@api.get("/screens/library")
+def library_screen(user=Depends(signed_in)):
+    return screens.library_counts(library.library())

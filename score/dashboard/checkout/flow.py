@@ -1,7 +1,7 @@
 """The owner's one checkout of the basket items he chose to buy. His signed-in checkout is his money yes: refused
 before anything happens when any reason below holds; then, in order, the runner's own plan of each item is checked to
 buy only the nodes he saw priced, the environment's stop line is written at the spend so far plus the basket's high
-total (score.review.web.stop, refused in an agent's process), the runner's own spend reading must show room for it,
+total plus 10%, the batch's own stop (score.review.web.stop, refused in an agent's process), the runner's own spend reading must show room for it,
 and ONE batch launches through the compute backend (a run command an item, side by side), whose runner clears every
 paid node again. Nothing here stops a run once started.
 """
@@ -21,6 +21,7 @@ from score.dashboard.pages.models import Checkout, Launch, Plan, is_owner
 from score.dashboard.proposals import records
 
 ACTIVE = ("launching",)
+BUFFER = 1.10  # a batch's stop is its high plus 10%, set by the owner's yes, never a figure he sets (owner, 2026-10-20)
 _checking_out = threading.Lock()
 
 
@@ -42,8 +43,6 @@ def place_refusals():
         found.append("this cockpit was started from an agent's shell: only the owner's own server checks out")
     if not settings.SCORE_STORE_WRITABLE:
         found.append("the store is read-only here (SCORE_STORE_WRITABLE=0)")
-    if not guard.month_stop():
-        found.append(guard.MONTH_UNSET)
     return found
 
 
@@ -206,11 +205,11 @@ def spend_now(chosen):
 
 
 def write_line(record, chosen):
-    """The owner's money yes: the environment's stop line at the spend so far, what is in flight and the basket's high
-    (pricing.cleared_high: the guessed nodes' estimates with it)."""
+    """The owner's money yes: the environment's stop line at the spend so far, what is in flight and the batch's own
+    stop, its high (pricing.cleared_high: the guessed nodes' estimates with it) plus BUFFER (CONTEXT.md "batch")."""
     from score.review import web
     spent, reserved = spend_now(chosen)
-    euros = round(spent + reserved + pricing.cleared_high(record.totals), 2)
+    euros = round(spent + reserved + pricing.cleared_high(record.totals) * BUFFER, 2)
     bought = ", ".join(label(item) for item in record.items)
     line = web.stop(state.source().store, WORLD, euros, f"checkout {record.pk}: {bought}", by=record.by)
     record.stop_line = {"euros": line["euros"], "before": line["before"], "at": line["at"], "spent": spent,

@@ -35,6 +35,33 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   cockpit prices nothing: every price is the runner's, ADR-0006); `gaps.py` gives each named gap its step and a
   picture of what it names (local source only), `plain.py` says each problem in one plain sentence (the step
   pages' and the viewer's; the five screens show numbers).
+- **The screens' data (#42): one small JSON object a screen, numbers, states, names and links, no sentences**
+  (`state/screens.py`, routes in `api/routes.py`, signed in, GET):
+  - `/api/screens/environment`: `money` {month, cloud, models (None: not read, never the call ledger alone), total,
+    whole, stop (the last batch's: its high plus 10%; None before one), against_stop (spent since the first stop line
+    plus in flight), in_flight, refused}; `remake` {likely, high (prepare's whole prop route, takes waiting on lost
+    inputs counted, plus the holes price of every paid step off it), route {likely, high, unpriced, takes, bought,
+    made, library, predicted_holes, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
+    high_minutes (None unless every step is timed), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
+    {kind: count}; `places` [{place, title, status, picture (a thumbnail link: the store's hero or still, else the
+    library's place entry, else any entry made there), picture_from (store, library, None), progress {made, needed}
+    (its line's steps accepted), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status)}].
+  - `/api/screens/place/<place>`: picture, `web3d` (`/web/<place>/<place>.glb`, else the library place entry's GLB at
+    `/library-files/files/<sha>`) and `web3d_from`, `view`, progress, complete, gaps, worst, takes, `steps` [{node,
+    stage, label, state, paid, thumb}], `items` (its holes, the scene tree's leaves by `prim` path) [{id, prim, kind,
+    row, node, paid, work, picture}], `prices` {node: {likely, high, priced, unpriced}} (each filling node's chain
+    once; None while the holes price is stale), price_stale.
+  - `/api/screens/buy`: `items` [{id, title, place, places, layers, likely, high, guessed, nodes, unmeasured,
+    blocked, choice (buy, later, None; a choice on another version is None)}], `chosen`, `total` (the chosen items,
+    each node once) and `basket` (every item) {likely, high, guessed, nodes, unmeasured}, `eta` {likely_minutes,
+    high_minutes, untimed}, `stop` (what the yes would write: the high with the guesses, plus 10%), `money`.
+  - `/api/screens/stats`: money, `bill_days` [{day, cloud, models}] (the bills as read each day on the store's
+    machine), `days` (the ledgers' own counts, low), `prices` {measured, steps, by_basis, stale}, `remake_layers`,
+    gaps, `places` {complete, total}.
+  - `/api/screens/library`: `kinds` [{kind, count, draft, locked, withdrawn, pictured, scored}], `total`; a branch's
+    children and an item stay `/api/library/list` and `/api/library/entry`, pictures `/library-files/thumbs/<sha>.jpg`.
+  The library's bytes come from its blob folder, else the library cache the sync pass fills (`$PROPS_HOME/cache/
+  library/score_lib/`); `SCORE_LIB_ROOT` defaults to the score_lib checkout beside score's.
 - **`auth/`** `proxy.py` the outermost guard (only a trusted proxy may send `Remote-User`/`Remote-Email`; an
   underscore spelling is refused from every peer), `backends.py` the allow-list, `owner.py` the local owner account
   (a terminal, a 12+ character password, loopback bind only without a proxy).
@@ -73,8 +100,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the
   runner through `checkout/pricing.totals`, every launch refusal in words).
 - **`checkout/`** the owner's one checkout of the basket items he bought, also under `/api/checkout`: each item's
-  plan checked against what was priced, the environment's stop line at the basket's high (`score.review.web.stop`),
-  one batch through the backend. Its own overlay has the rules.
+  plan checked against what was priced, the environment's stop line at the basket's high plus 10% (the batch's own
+  stop, `flow.BUFFER`; no stop is set any other way, CONTEXT.md "batch"), one batch through the backend. Its own overlay has the rules.
 - **`previews/`** a picture for each step whose output has none of its own, drawn from its files on the store's
   machine, kept per output, never imported by a hosted process.
 - **`sync/`** hosted mode: `building.py` the export, `endpoints.py` the hosted side (token only), `client.py` and
@@ -83,10 +110,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   Each pass first runs the library sweep (`score.stages.library.sweep`, the environment against its library), so its
   problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
   The holes (`score.stages.complete.holes`, in a process of its own: it reads OpenUSD) are written right after it,
-  the same way. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
+  the same way, then prepare's remake figure (`score.stages.complete.prepare`, `remake_prepared`) and the library's
+  place pictures into the library cache (`score.stages.library.pictures`, `library_pictures`), each a line. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
   does not hold (`tree_refusal`), or when the runner's price after the holes (`score price <environment> --holes`,
   `runner_price`) fails, so no stale plan or price is ever sent. The owner's money buttons and his waiver
-  (`applying.OWNER_FIGURES`: the stop line, the month's stop, the books' figure, the read-back, a waiver) are applied
+  (`applying.OWNER_FIGURES`: the books' figure, the read-back, a waiver) are applied
   like his decisions: only when the request's user is this machine's `SCORE_OWNER`, through the same
   `pages/actions.py` function as the local cockpit, which refuses in an agent's process. Never tell the owner to
   type a command: an owner-only action is a button (#39). The owner's timer (`timer.py`, `install-sync`, the
@@ -112,15 +140,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 Rules:
 
 - **Read only, except the owner's own decisions.** The dashboard writes its SQLite and `$SCORE_DASHBOARD_HOME`
-  (thumbs, inbox, plans, status snapshots, exports, the month's stop). The store and the books are written only
+  (thumbs, inbox, plans, status snapshots, exports, `bill-days.json`: the month's bills as read each day). The store and the books are written only
   through `score.review.web` (`decide`, `waived`, `stop`, `google_month`), which the store, the guard and the books
   refuse in a process an agent started. Never call `Runner.drive`, `rebuy.buys`,
   `compute.clearance` or `rejudged_accepted` in the web process: plans, spend and freshness are subprocesses of the
   `score` command.
 - **Never launch from a test or an agent against the real runner.** Tests use `tests/fixture.py:FakeBackend`; a launch
-  needs the owner signed in, the month's stop set (`guard.month_stop`: his money card's figure, kept on the store's
-  machine in `$SCORE_DASHBOARD_HOME/month-stop.json`, else `SCORE_MONTH_EUROS`) and every refusal of
-  `guard.refusals` clear; the dashboard
+  needs the owner signed in, room under the stop his last checkout's yes wrote and every refusal of
+  `guard.refusals` clear; there is no stop he sets (no month's stop, no stop button: owner, 2026-10-20); the dashboard
   never stops a run.
 - **No module on sys.path, no stage imports this package.** Import dotted from `score.dashboard`; never a bare
   `views`, `models`, `urls`, `settings`, `apps` or `admin` (they would be hashed into stage keys). Do not edit

@@ -22,6 +22,10 @@ import pytest  # noqa: E402
 
 django.setup()  # pytest-django reads the settings module before this file runs, so it is set up here
 
+from django.conf import settings  # noqa: E402
+
+settings.SCORE_LIB_ROOT = None  # its default is the real score_lib beside score: a test brings its own (library_test)
+
 
 @pytest.fixture
 def world(tmp_path, monkeypatch):

@@ -102,3 +102,8 @@ class ExportedSource:
         detail = self.place_detail(place)
         return detail.web3d if detail else None
 
+
+    def holes(self, place):
+        """The place's holes as its exported detail carries them; [] for a place the export lacks."""
+        detail = self.place_detail(place)
+        return detail.holes if detail else []

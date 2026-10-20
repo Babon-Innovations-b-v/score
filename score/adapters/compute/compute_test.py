@@ -433,6 +433,30 @@ def test_the_owners_google_month_is_refused_in_an_agents_process():
     assert not written
 
 
+def test_the_cockpits_google_line_is_the_bill_else_the_owners_figure_else_no_figure():
+    """The cockpit's Google month (`score spend`'s line): the billing export's bill once read back, else the owner's
+    books figure plus the ledger since, else no figure at all, never the call ledger alone (it showed EUR 0.00 for a
+    month Google billed about EUR 1,030)."""
+    from score import __main__ as command
+    kept = BOOKS.BOOKS
+    BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
+    month = BOOKS.this_month()
+    try:
+        BOOKS.write_books({"month": month, "state": "lost", "google_unread": "the export holds no rows yet"})
+        unread = command.google_line()
+        assert unread["euros"] is None and unread["partial"] and unread["origin"] == "the export holds no rows yet"
+        BOOKS.write_books({"month": month, "state": "known", "google_before": 1030.0, "google_at": "t"})
+        assert command.google_line()["euros"] == 1030.0 + google_spend.month_euros(month)
+        BOOKS.write_books({"month": month, "state": "known", "google_bill": 1031.5, "google_bill_at": "t",
+                           "google_before": 1030.0})
+        billed = command.google_line()
+        assert billed["euros"] == 1031.5 and not billed["partial"] and "billing export" in billed["origin"]
+        days = command.ledger_days(month)
+        assert days[0]["day"] == f"{month}-01" and set(days[-1]) == {"day", "cloud", "models"}
+    finally:
+        BOOKS.BOOKS = kept
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

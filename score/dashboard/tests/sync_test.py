@@ -28,9 +28,16 @@ SPEND = Spend(spent=100.0, reserved=10.0, ceiling=250.0, as_of=MADE)
 PRICED = "priced by the runner: EUR 1.00 to 2.00 measured, 3 paid steps with no measured price"
 
 
+def offline(monkeypatch):
+    """Prepare and the library's pictures as lines, so no test pass reads the real library or fetches a picture."""
+    monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
+    monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
+
+
 def fed(monkeypatch):
     """A clean checkout origin's main holds, and the runner's price made: [the environments priced]."""
     priced = []
+    offline(monkeypatch)
     monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
     monkeypatch.setattr(client, "runner_price", lambda repo, environment: priced.append(environment) or (PRICED, None))
     return priced
@@ -279,17 +286,15 @@ def test_a_decision_from_someone_not_the_local_owner_is_refused(world):
 
 def owner_figures(world):
     """One request of each owner's money figure and waiver kind, by user name: {kind: payload}."""
-    return {"stop": {"euros": 40.0, "reason": "the October remake"}, "month": {"euros": 300.0},
-            "books-figure": {"euros": 12.5},
+    return {"books-figure": {"euros": 12.5},
             "waiver": {"node": "closeup@beta", "output": world.outputs["closeup@beta"], "check": "looks",
                        "reason": "three faults are fine here"}}
 
 
 @pytest.fixture
 def owner_books(world, monkeypatch, settings):
-    """The fixture world with no agent marks, no books and no month's stop yet (both under this run's temp
-    PROPS_HOME and dashboard home), the stop's first books given; the month's stop taken away after."""
-    from score.dashboard.launch import guard
+    """The fixture world with no agent marks and no books yet (under this run's temp PROPS_HOME), the stop's first
+    books given."""
     from score.review import web
     from score.store import AGENT_MARKERS
     for name in AGENT_MARKERS:
@@ -297,30 +302,28 @@ def owner_books(world, monkeypatch, settings):
     monkeypatch.setattr(web, "books_now", lambda: {"month": "2026-10", "bill": 1.0, "ledger": 1.0})
     world.books = settings.SCORE_PROPS_HOME / "cloud" / "books.json"
     world.books.unlink(missing_ok=True)
-    guard.month_file().unlink(missing_ok=True)
     yield world
-    guard.month_file().unlink(missing_ok=True)
     world.books.unlink(missing_ok=True)
 
 
 def test_the_owners_figures_and_waiver_are_applied_for_him_and_refused_for_anyone_else(owner_books):
     """Each owner request kind from the cockpit's buttons: someone not the local owner writes nothing; the owner's
-    goes through the same owner-only function as his local cockpit, recorded with his name."""
-    from score.dashboard.launch import guard
+    goes through the same owner-only function as his local cockpit, recorded with his name; no request sets a stop
+    (a batch's stop is written by his checkout's yes)."""
     from score.review import web
     world = owner_books
     key = world.store.records("closeup@beta")[-1]["key"]
     for kind, payload in owner_figures(world).items():
         applied = applying.apply({"kind": kind, "user": "mallory", "payload": payload}, world.source)
         assert applied.state == "refused" and "not this store's owner" in applied.detail, (kind, applied)
-    assert web.stop_line(world.store, "world1") is None and guard.month_record() is None
     assert not world.books.exists() and not world.store.waivers("closeup@beta", key)
     for kind, payload in owner_figures(world).items():
         applied = applying.apply({"kind": kind, "user": "joey", "payload": payload}, world.source)
         assert applied.state == "done", (kind, applied)
-    line = web.stop_line(world.store, "world1")
-    assert line["euros"] == 40.0 and line["by"] == "joey"
-    assert guard.month_record()["by"] == "joey" and guard.month_stop() == "300"
+    assert web.stop_line(world.store, "world1") is None
+    for kind in ("stop", "month"):
+        assert applying.apply({"kind": kind, "user": "joey", "payload": {"euros": 40.0}}, world.source).state == \
+            "refused"
     books = json.loads(world.books.read_text())
     assert books["google_before"] == 12.5 and books["google_by"] == "joey" and books["state"] == "known"
     assert world.store.waivers("closeup@beta", key)["looks"]["by"] == "joey"
@@ -331,7 +334,7 @@ def test_the_owners_figures_are_refused_in_an_agents_process(owner_books, monkey
     from score.dashboard.pages import actions
     from score.review import web
     monkeypatch.setattr(actions, "agent_started", lambda: True)
-    for kind in ("stop", "month", "books-figure", "waiver"):
+    for kind in ("books-figure", "waiver"):
         applied = applying.apply({"kind": kind, "user": "joey", "payload": owner_figures(owner_books)[kind]},
                                  owner_books.source)
         assert applied.state == "refused", (kind, applied)
@@ -344,17 +347,16 @@ def test_the_hosted_buttons_queue_the_owners_request_and_refuse_anyone_else(worl
     from score.dashboard.pages import actions
     settings.SCORE_MODE = settings.HOSTED
     try:
-        assert actions.set_stop("joey", 40, "the October remake").startswith("queued")
-        assert actions.set_month("joey", 300).startswith("queued")
         assert actions.set_books_figure("joey", 12.5).startswith("queued")
         assert actions.read_books_back("joey").startswith("queued")
         assert actions.waive_check("joey", "beta", "closeup", "abc", "looks", "fine").startswith("queued")
-        assert actions.set_stop("joey", "nan-ish", "x").startswith("refused")
+        assert actions.set_books_figure("joey", "nan-ish").startswith("refused")
     finally:
         settings.SCORE_MODE = settings.LOCAL
     queued = {item.kind: item for item in SyncRequest.objects.all()}
-    assert set(queued) == {"stop", "month", "books-figure", "read-back", "waiver"}
-    assert queued["stop"].user == "joey" and queued["stop"].payload["euros"] == 40.0 and queued["stop"].created
+    assert set(queued) == {"books-figure", "read-back", "waiver"}
+    figure = queued["books-figure"]
+    assert figure.user == "joey" and figure.payload["euros"] == 12.5 and figure.created
     user = get_user_model().objects.create_user("mallory", password="a long enough password")
     pages = Client()
     pages.force_login(user)
@@ -401,13 +403,15 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     assert "library problems" in said, said  # the library sweep ran before the export was built
     # and the holes after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
     assert "holes failed: exit 1: no store at " in said, said
-    assert said.endswith(PRICED) and priced == [world.source.world.name]  # the runner priced it before the push
+    assert said.endswith(f"{PRICED}; remake batch (estimate): test; library pictures: test")  # priced before the push
+    assert priced == [world.source.world.name]
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
 
 def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_price_fails(world, monkeypatch):
     from score.dashboard.tests.fixture import FakeBackend
     hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}}])
+    offline(monkeypatch)
     monkeypatch.setattr(client, "tree_refusal", lambda repo: "commit 0123abcd is not on origin's main: push it first")
     said = client.sync_pass(hosted, world.source, FakeBackend())
     assert said == "REFUSED: nothing synced: commit 0123abcd is not on origin's main: push it first"
@@ -415,6 +419,7 @@ def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_p
     monkeypatch.setattr(client, "runner_price", lambda repo, environment: (None, "the runner's price failed: exit 1"))
     said = client.sync_pass(hosted, world.source, FakeBackend())
     assert said.startswith("REFUSED: nothing synced: the runner's price failed: exit 1; ") and "holes" in said
+    assert said.endswith("; remake batch (estimate): test; library pictures: test")
     assert hosted.commits == [] and hosted.chunks == [] and hosted.reports == []
 
 

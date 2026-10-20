@@ -140,8 +140,6 @@ def apply_answer(item):
 # The owner's money figures and waiver: each applied here only when its user is this machine's owner, through the
 # same owner-only function as on the local cockpit (pages/actions.py), whose words start "refused" when it was not.
 OWNER_FIGURES = {
-    "stop": lambda user, payload: actions.set_stop(user, payload.get("euros"), payload.get("reason", "")),
-    "month": lambda user, payload: actions.set_month(user, payload.get("euros")),
     "books-figure": lambda user, payload: actions.set_books_figure(user, payload.get("euros")),
     "read-back": lambda user, payload: actions.read_books_back(user),
     "waiver": lambda user, payload: actions.waive_check(user, *place_and_stage(payload.get("node", "")),
@@ -151,7 +149,7 @@ OWNER_FIGURES = {
 
 
 def apply_owner_figure(item):
-    """The owner's stop line, month's stop, books figure, read-back or waiver, applied here by his signed-in name;
+    """The owner's books figure, read-back or waiver, applied here by his signed-in name;
     refused for anyone else."""
     if not from_owner(item):
         return Applied("refused", f"{item['user']} is not this store's owner")

@@ -11,12 +11,11 @@ import threading
 import time
 
 from django.conf import settings
-from django.utils import timezone
 
 from score.dashboard import state
 from score.dashboard.launch import guard
 from score.dashboard.pages import seen
-from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, OwnerCost, Plan, SyncRequest, is_owner
+from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, SyncRequest, is_owner
 from score.dashboard.state.models import Spend
 
 SPEND_SECONDS = 600
@@ -50,23 +49,6 @@ def decisions_on():
     return decisions_off_why() is None
 
 
-# --- the month's spend ------------------------------------------------------------------------------------------
-
-def enter_cost(user, source, euros, words, month):
-    """Keep the owner's figure for a cost source this dashboard cannot read (the model provider bill's month, the fixed
-    monthly subscriptions); what was done, in words. It is shown, never used to clear or launch anything."""
-    if source not in ("models", "subscriptions"):
-        return f"refused: {source!r} is not a source the owner enters"
-    try:
-        amount = float(euros)
-    except ValueError:
-        return f"refused: {euros!r} is not an amount in euros"
-    if not 0 <= amount < 1_000_000:
-        return f"refused: EUR {amount} is not a monthly figure"
-    OwnerCost.objects.create(source=source, month=month, euros=amount, words=words.strip()[:200], by=user)
-    return f"entered {source} EUR {amount:.2f} for {month}"
-
-
 # --- the owner's money figures: each his signed-in request, applied on the store's machine ----------------------
 
 def euro_amount(euros):
@@ -92,30 +74,6 @@ def owner_figure_off_why(user):
     if agent_started():
         return "refused: this server was started from an agent's shell: only the owner's own process sets a figure"
     return None
-
-
-def set_stop(user, euros, reason):
-    """The owner's stop line for the environment (score.review.web.stop, his money yes), in words: local written,
-    hosted queued."""
-    amount = euro_amount(euros)
-    if amount is None:
-        return f"refused: {euros!r} is not an amount in euros"
-    if not reason.strip():
-        return "refused: say what the stop is for"
-    if hosted():
-        return queued_for_store("stop", user, {"euros": amount, "reason": reason.strip()}, "writes the stop line")
-    why = owner_figure_off_why(user)
-    if why:
-        return why
-    from score import review
-    from score.review import web
-    source = state.source()
-    try:
-        line = web.stop(source.store, source.world.name, amount, reason.strip(), by=user)
-    except (review.Refused, PermissionError) as refused:
-        return f"refused: {refused}"
-    _spend["at"] = 0.0
-    return f"stop set at EUR {line['euros']:.2f} by {line['by']}"
 
 
 def set_books_figure(user, euros):
@@ -154,22 +112,6 @@ def read_books_back(user):
     books = json.loads(done.stdout.strip().splitlines()[-1])
     unread = books.get("google_unread")
     return f"bills read back: the books are {books.get('state')}" + (f" ({unread})" if unread else "")
-
-
-def set_month(user, euros):
-    """The owner's month's stop (launch.guard.month_stop: switches launching on and caps the runner's month), in
-    words: local kept on this machine, hosted queued."""
-    amount = euro_amount(euros)
-    if amount is None:
-        return f"refused: {euros!r} is not an amount in euros"
-    if hosted():
-        return queued_for_store("month", user, {"euros": amount}, "sets the month's stop")
-    why = owner_figure_off_why(user)
-    if why:
-        return why
-    record = {"euros": amount, "by": user, "at": timezone.now().isoformat(timespec="seconds")}
-    guard.month_file().write_text(json.dumps(record))
-    return f"the month's stop is EUR {amount:.2f}, set by {user}"
 
 
 def waive_check(user, place, stage, output, check, reason):

@@ -35,9 +35,10 @@ class Spend(BaseModel):
     stop_at: str | None = None
     month: str | None = None
     lines: list[CostLine] = []
+    days: list[dict] = []  # [{day, cloud, models}] this month by the ledgers (they miss what the bills hold: low)
+    bill_days: list[dict] = []  # [{day, cloud, models}] the month so far as last read each day (money.with_bill_days)
     credit_note: str = ""  # the shared cloud account's credit, a note only, never SCORE's budget
     paid_refused: str | None = None  # why paid work is refused while the month's books are not known (score spend)
-    month_stop: float | None = None  # the owner's month's stop on the store's machine (launch.guard.month_stop)
 
 
 class MonthTotal(BaseModel):
@@ -59,7 +60,6 @@ class MoneyView(BaseModel):
     in_flight: float | None = None
     note: str = ""
     credit_note: str = ""
-    month_stop: float | None = None  # the owner's month's stop, which switches launching on
     paid_refused: str | None = None  # why paid work is refused while the month's books are not known
 
 
@@ -161,6 +161,22 @@ class HolesPrice(BaseModel):
     stale: str | None = None
 
 
+class Remake(BaseModel):
+    """Prepare's one-shot figure of the whole remake (score/stages/complete/prepare, its record
+    WORK/checks/prepare/remake.json, read as written): every take of the prop route priced once, the takes that wait on
+    lost inputs counted in; the layers with no measured per unit named (`unpriced`), its ETA, its take counts, each
+    place's takes by status, and why it no longer prices this checkout (`stale`, None while current)."""
+    made_at: str
+    priced_on: dict = {}
+    likely_euros: float | None = None
+    high_euros: float | None = None
+    unpriced: list[str] = []
+    eta: dict = {}  # {likely_minutes, high_minutes, at_least_minutes, untimed}
+    counts: dict = {}  # {takes, bought, made, library, predicted_holes, blocked}
+    places: dict[str, dict] = {}  # {place: {takes, bought, made, library, predicted_holes, blocked}}
+    stale: str | None = None
+
+
 class WorldState(BaseModel):
     made_at: str
     source: str  # "store" or "export <made_at>"
@@ -170,6 +186,7 @@ class WorldState(BaseModel):
     spend: Spend = Spend()
     holes_total: HolesTotal | None = None
     holes_price: HolesPrice | None = None
+    remake: Remake | None = None
 
 
 class GateVerdict(BaseModel):

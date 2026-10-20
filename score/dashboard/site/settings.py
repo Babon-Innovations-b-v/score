@@ -20,6 +20,16 @@ def listed(name):
     return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
 
 
+def sibling_library():
+    """score_lib's checkout beside score's main checkout (found from a worktree's .git file too), as the library
+    command's own default does (tools/library/library_files.py default_root); None when there is none (a hosted
+    image)."""
+    git = REPO / ".git"
+    main = pathlib.Path(git.read_text().split(":", 1)[1].strip()).parents[2] if git.is_file() else REPO
+    found = main.parent / "score_lib"
+    return str(found) if (found / "entries").is_dir() else None
+
+
 def secret_key(home):
     """SCORE_DASHBOARD_SECRET_KEY, else one generated once into the dashboard's home (mode 0600)."""
     given = os.environ.get("SCORE_DASHBOARD_SECRET_KEY")
@@ -52,12 +62,11 @@ SCORE_OWNER = os.environ.get("SCORE_OWNER", "").strip()
 SCORE_STORE_WRITABLE = os.environ.get("SCORE_STORE_WRITABLE", "1") == "1"
 SCORE_COMPUTE_BACKEND = os.environ.get("SCORE_COMPUTE_BACKEND", "score.dashboard.launch.localrun:LocalBackend")
 SCORE_LEDGER_FILES = [pathlib.Path(item) for item in os.environ.get("SCORE_LEDGER_FILES", "").split(":") if item]
-SCORE_MONTH_EUROS = os.environ.get("SCORE_MONTH_EUROS", "").strip() or None
 # The fresh 3D web copies (python -m score.dashboard web3d <place>), made from each accepted assembly.
 SCORE_WEB_COPIES = pathlib.Path(os.environ.get("SCORE_WEB_COPIES", SCORE_HOME / "web3d"))
 # The creator's library (state/library.py): its folder, the folder of its file bytes, and its own command, run there
 # for the owner's lock and withdraw. Unset: no Library page.
-SCORE_LIB_ROOT = os.environ.get("SCORE_LIB_ROOT", "").strip() or None
+SCORE_LIB_ROOT = os.environ.get("SCORE_LIB_ROOT", "").strip() or sibling_library()
 SCORE_LIB_BLOBS_DIR = os.environ.get("SCORE_LIB_BLOBS_DIR", "").strip() or None
 SCORE_LIB_COMMAND = os.environ.get("SCORE_LIB_COMMAND", "score-lib")
 SCORE_SYNC_TOKEN = os.environ.get("SCORE_SYNC_TOKEN", "")
