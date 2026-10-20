@@ -26,7 +26,7 @@ EARTH, SHIP, VIEWS, PIXAL, OTHER, DATA, PICTURE = ("earth-seed", "ship-seed", "v
 # What a lost path under the work folder is, by its start there: (kind, the code work that makes it again).
 KINDS = (("usd-r3/", EARTH, "earth seed lost: a seed row that exports each place's base from its accepted "
                             "surfaces-bake models and its kit (tools/usd/export.py), replacing the round-three folder; "
-                            "terrain and every row after it stay blocked until it lands"),
+                            "the assembly, the light rows and every row after them stay blocked until it lands"),
          ("usd-ship/", SHIP, "ship seed lost: ship_kit@{place} (paid, the ship kits' own table) made again, then a "
                              "free ship-seed row that exports its base from that output's models (tools/usd/export.py "
                              "write_base) in place of the usd-ship folder"),

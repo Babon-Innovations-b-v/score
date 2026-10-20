@@ -1,23 +1,18 @@
-"""The terrain stage's gates, each measured on the made grounds and on the places that stand on them:
+"""The terrain stage's gates, measured on the made grounds:
 
     scale      every named landform as big as its plan says (a crater's depth and rim diameter, a hill range's
                crest), the waterfront at its level, and no height clipped by the record's sixteen bits
     slope      the held flats under every seat level (their steepest slope) and the paths walkable
-    under      ground under every object: every object that stood on the old ground has the made ground under its
-               whole footprint, at its feet (a flat world) or no rougher than before (a ball, where the export
-               stands each piece on the ground under it), and none over water
-    openings   no void past an opening: every doorway of a judged place opens onto a floor or ground on both sides,
-               and no view from inside runs out below the horizon into nothing (sight.py), the doors judged open
 
-A judged place is composed from its old stage (the seed in `{seeds}/usd-r3`) with its old ground made inactive, the
-made ground written in its frame and the neighbours its scene record names that the stage lacks (outside.py). The
-`measure_*` functions take any place stage, so the same measures run on the old stage for the before and after.
+and the measures ground-fit@<place> (fit.py) takes on a place's own stage standing on its made ground: the ground
+under its objects (`measure_under`) and its openings (`measure_openings`). The `measure_*` functions take any place
+stage.
 """
 import json
 import pathlib
 
 import numpy as np
-from pxr import Sdf, Usd, UsdGeom
+from pxr import Usd, UsdGeom
 
 from score import checks
 from score.stages.terrain import measures, outside, record, sight
@@ -42,11 +37,6 @@ PROBE_GRID = 5
 
 # --- the places -------------------------------------------------------------------------------------------------
 
-def seed_stage(seeds, place):
-    """A place's old stage, as it stands."""
-    return Usd.Stage.Open(str(pathlib.Path(seeds) / place / f"{place}.usda"))
-
-
 def footprint(scene, kit):
     """The place's own box (across, along): its scene record's floor, else its kit's pieces."""
     if scene.get("floor"):
@@ -56,25 +46,11 @@ def footprint(scene, kit):
 
 
 def place_files(inputs, place):
-    """A place's scene record, kit (or None) and motion record (or None)."""
+    """A place's scene record, kit (or None) and motion record (or None, also when no motion folder is read)."""
     def read(folder):
-        path = pathlib.Path(inputs[folder]) / f"{place}.json"
-        return json.loads(path.read_text()) if path.exists() else None
+        path = pathlib.Path(inputs[folder]) / f"{place}.json" if folder in inputs else None
+        return json.loads(path.read_text()) if path and path.exists() else None
     return read("scenes") or {}, read("kits"), read("motion")
-
-
-def composed(inputs, made, place):
-    """The place's old stage with the made ground over its old one and its record's missing neighbours (from the
-    seeds), in a session layer; the stage, the Ground it stands on and the neighbours added."""
-    scene, kit, _ = place_files(inputs, place)
-    stage = seed_stage(inputs["seeds"], place)
-    stage.SetEditTarget(stage.GetSessionLayer())
-    zoned, laid = outside.meshes(made, made["places"][place], (kit or {}).get("on_seat", [0.0, 0.0]),
-                                 footprint(scene, kit))
-    seeds = pathlib.Path(inputs["seeds"])
-    added = outside.write(stage, place, made, zoned, laid, scene,
-                          lambda name: str(seeds / name / f"{name}.usda"))
-    return stage, laid, added
 
 
 def leaves(stage, place, kit, motion):
@@ -162,10 +138,11 @@ def probes(rays, scene, kit, up):
     return spots[floor <= PROBE_FLOOR]
 
 
-def measure_openings(stage, place, inputs, ball=None, up=(0.0, 1.0, 0.0)):
-    """A place stage's openings: every doorway's floors and the void rays from inside, the doors open; `ball` the
-    world's middle and radius in the place's frame on a small world (its horizon dips)."""
-    scene, kit, motion = place_files(inputs, place)
+def measure_openings(stage, place, records, ball=None, up=(0.0, 1.0, 0.0)):
+    """A place stage's openings: every doorway's floors and the void rays from inside, the doors open; `records` its
+    (scene record, kit or None, motion record or None); `ball` the world's middle and radius in the place's frame on
+    a small world (its horizon dips)."""
+    scene, kit, motion = records
     seen = sight.gathered(stage, leaves(stage, place, kit, motion))
     rays = caster(seen)
     doors = door_floors(rays, kit_doors(kit) + shell_doors(scene), up)
@@ -268,58 +245,19 @@ def judge_slope(output, inputs, evidence):
                           {"faults": len(findings), **steepest}, {"faults": "lower"}, tuple(findings))
 
 
-def judge_places(output, inputs, measure):
-    """Run one place measure over every judged place of every made ground: {place: measures}."""
-    plans = plans_of(inputs)
-    found = {}
-    for ground, made in grounds_of(output).items():
-        for place in plans[ground].get("judged", []):
-            found[place] = measure(inputs, made, plans[ground], place)
-    return found
-
-
-def under_of(inputs, made, plan_record, place):
-    """One judged place's objects on the made ground."""
-    stage = seed_stage(inputs["seeds"], place)
-    _, kit, _ = place_files(inputs, place)
-    on_seat = (kit or {}).get("on_seat", [0.0, 0.0])
-    laid = outside.placed_ground(made, made["places"][place], on_seat)
-    old = old_ground(inputs, plan_record, place, on_seat)
-    water = made["water"]["level"] - laid.drop if made.get("water") else None
-    return measure_under(object_boxes(stage, place), old, laid, water)
-
-
-def old_ground(inputs, plan_record, place, on_seat):
-    """The old ground's height under spots of the place: the copied ground record's on a ball, the old disc's level
-    on the Earth."""
+def old_ground(grounds, plan_record, place, on_seat):
+    """The old ground's height under spots of the place: the copied ground record's (in the `grounds` folder) on a
+    ball, the old disc's level on the Earth."""
     copied = plan_record["copied"]
     if "disc" in copied:
         level = copied["disc"]["levels"][place]
         return lambda spots: np.full(len(np.atleast_2d(spots)), level)
-    folder = pathlib.Path(inputs["grounds"])
+    folder = pathlib.Path(grounds)
     old = {**json.loads((folder / copied["record"]).read_text()), "folder": str(folder)}
     if place not in old["places"]:
         return lambda spots: np.full(len(np.atleast_2d(spots)), -np.inf)  # it stood on no ground before
     laid = outside.placed_ground(old, old["places"][place], on_seat)
     return lambda spots: heights_under(laid, spots)
-
-
-def judge_under(output, inputs, evidence):
-    """Fail on any object that stood on the old ground and has no made ground under its whole footprint."""
-    found = judge_places(output, inputs, under_of)
-    findings = [f"{place}: {fault}" for place, measured in found.items() for fault in measured["faults"]]
-    standing = sum(measured["standing"] for measured in found.values())
-    reason = f"{len(findings)} of {standing} objects on the ground lack ground under them" if findings else \
-        f"ground under all {standing} objects that stand on it"
-    return checks.Verdict("under", checks.FAIL if findings else checks.PASS, reason,
-                          {"faults": len(findings), "standing": standing}, {"faults": "lower"}, tuple(findings))
-
-
-def openings_of(inputs, made, plan_record, place):
-    """One judged place's openings on the made ground."""
-    stage, laid, added = composed(inputs, made, place)
-    measured = measure_openings(stage, place, inputs, ball_of(laid))
-    return {**measured, "neighbours_added": added}
 
 
 def ball_of(laid):
@@ -329,25 +267,4 @@ def ball_of(laid):
     return laid.in_place_frame(np.zeros(3))[0], laid.radius - outside.BALL_BELOW
 
 
-def judge_openings(output, inputs, evidence):
-    """Fail on any doorway that opens onto nothing or any view that runs out below the horizon into nothing."""
-    found = judge_places(output, inputs, openings_of)
-    findings = []
-    for place, measured in found.items():
-        findings += [f"{place}: {door['door']} opens onto nothing (floor {door['drops']} m under the sill)"
-                     for door in measured["doors"] if door["open_onto_nothing"]]
-        if measured["void_rays"]:
-            findings.append(f"{place}: {measured['void_rays']} of {measured['rays']} view rays run out below the "
-                            f"horizon into nothing (worst from {measured['worst_probe']['at']})")
-    doors = sum(len(measured["doors"]) for measured in found.values())
-    voids = sum(measured["void_rays"] for measured in found.values())
-    reason = "; ".join(findings[:3]) + (f" and {len(findings) - 3} more" if len(findings) > 3 else "") if findings \
-        else f"all {doors} doorways open onto a floor, no view runs out into nothing ({len(found)} places)"
-    return checks.Verdict("openings", checks.FAIL if findings else checks.PASS, reason,
-                          {"doors onto nothing": sum(m["doors_onto_nothing"] for m in found.values()),
-                           "void rays": voids, "places": len(found)},
-                          {"doors onto nothing": "lower", "void rays": "lower"}, tuple(findings))
-
-
-CHECKS = (checks.Check("scale", judge_scale), checks.Check("slope", judge_slope),
-          checks.Check("under", judge_under), checks.Check("openings", judge_openings))
+CHECKS = (checks.Check("scale", judge_scale), checks.Check("slope", judge_slope))

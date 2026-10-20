@@ -187,19 +187,6 @@
  },
  "levels": [],
  "dents": {},
- "relief": {
-  "amplitude": 6.0,
-  "fine": 160.0,
-  "quiet": 0.0,
-  "only": {
-   "landform": "kowloon_hills",
-   "over": 20.0
-  }
- },
- "picture": {
-  "candidates": 4,
-  "wording": "Image 1 is a shaded relief of a square of land and sea 8 km across round a harbour, seen straight down, north up, lit from the north-west: the flat dark blue is the sea, the grey is the land, its light and shade a range of steep hills to the east and the low flat land by the water. Repaint image 1 as one seamless orthographic aerial photograph of that same land and sea taken straight down from high above (nadir, no perspective, no horizon, no tilt), filling the frame edge to edge with no border or margin, keeping the coastline and every hill, ridge, spur and valley exactly where and as big as image 1 has them, so the photograph lies exactly on image 1. Wooded hills with ravines and bare granite crags, the low land a dense city ground, the sea dark and calm. Soft light from the north-west. No grid, lines, labels, text or boats."
- },
  "zones": [
   {
    "surface": "concrete_dark",
@@ -291,13 +278,6 @@
    "outdoor": true
   }
  },
- "judged": [
-  "flat",
-  "stairwell",
-  "street",
-  "square",
-  "launch"
- ],
  "copied": {
   "disc": {
    "radius": 320.0,

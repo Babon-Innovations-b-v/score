@@ -109,8 +109,9 @@ stage as each stage is built; nothing moves before.
   tool vendored and forgotten).
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
-  `complete`. `terrain` (one environment node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
-  scale, slope, ground under objects and openings (its overlay). `surfaces` (step 1) is each place's own line of
+  `complete`. `terrain` (one environment node, free, the code fallback until its prop-pipeline adapter lands) makes
+  every ground from its plan in `data/ground/plan/`, gated on scale and slope; `ground-fit@<place>` (free) judges each
+  seated place's stage on it: ground under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish route to checked bake (its overlay; per-place data in
   `data/surfaces/`). `effects-layer` (experimental: the launch, airlock, garage, hangar, greenhouse, habitat, flat, camp and campgrounds) makes a place's effects layer from its record in
   `data/effects/`, gated on attached, footage, light and outside, and the assembly takes it; `effects-look` (paid) renders it

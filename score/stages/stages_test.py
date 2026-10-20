@@ -142,8 +142,7 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
                       "score/adapters/compute/__init__.py", "score/stages/effects/__init__.py",
                       "score/stages/assembly/__init__.py", "score/stages/surfaces/__init__.py"):
         assert terrain_code_after_editing(unrelated) == before, unrelated
-    for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/landforms.py", "tools/usd/ground.py",
-                "tools/props/cloud/depth.py"):
+    for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/landforms.py", "tools/usd/ground.py"):
         assert terrain_code_after_editing(own) != before, own
 
 

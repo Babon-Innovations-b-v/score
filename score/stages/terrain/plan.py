@@ -2,7 +2,7 @@
 in order, each laying one thing on the grid, and this module runs them.
 
     shaped = plan.shape(record)      # Shaped: the grid, heights, held flats, paths, craters, the land (Earth)
-    plan.drawing(shaped, record)     # the plan drawn straight down for the diorama picture (shade, contours, flats)
+    plan.drawing(shaped, record)     # the plan drawn straight down for reading (shade, contours, flats)
 
 The steps (`shape` in the plan): `tilt` (a plain's own gentle tilt), `noise` (a seeded swell), `add` and `over` (a
 landform added, or laid over what is there keeping `keep` of it), `craters` (the named ones and the small ones, oldest
@@ -16,7 +16,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy import ndimage
 
-from score.stages.terrain import landforms, relief
+from score.stages.terrain import landforms
 
 LANDFORMS = {"ridge": landforms.ridge, "butte": landforms.butte, "dunes": landforms.dunes, "swell": landforms.swell,
              "canyon": landforms.canyon, "hills": landforms.hills}
@@ -164,19 +164,17 @@ def shape(record):
 
 def held_crests(shaped, record):
     """Each hill range's own rise lowered, in place, just enough that the made ground tops out under the range's
-    planned `high` over the datum: the builder's crest stands on the plain the range rises from, and the relief laid
-    later lifts any spot by up to its clip, so both are taken off the rise. A range already under it is left as it
-    is."""
-    reach = relief.CLIP * record["relief"]["amplitude"]
+    planned `high` over the datum: the builder's crest stands on the plain the range rises from, so the plain is taken
+    off the rise. A range already under it is left as it is."""
     for name, spec in record.get("landforms", {}).items():
         if "high" not in spec or name not in shaped.masks:
             continue
         rise = shaped.masks[name]
-        rising = rise > 1.0  # under a metre of rise the plain and the relief alone stand far under a range's high
+        rising = rise > 1.0  # under a metre of rise the plain alone stands far under a range's high
         if not rising.any():
             continue
         plain = shaped.heights - rise
-        kept = min(1.0, float(((spec["high"] - reach - plain[rising]) / rise[rising]).min()))
+        kept = min(1.0, float(((spec["high"] - plain[rising]) / rise[rising]).min()))
         shaped.heights = shaped.heights - (1.0 - kept) * rise
         shaped.masks[name] = rise * kept
 
@@ -194,19 +192,6 @@ def shaded(heights, cell):
     normal = np.stack([-rise_columns, -rise_rows, np.ones_like(rise_columns)], axis=-1)
     normal /= np.linalg.norm(normal, axis=-1, keepdims=True)
     return np.clip(normal @ (light / np.linalg.norm(light)), 0, 1)
-
-
-def shading(shaped, size=1024):
-    """The plan's large shape seen straight down, north up, as the diorama picture is drawn over it: the heights lit
-    from the north-west, high (grey), the water (where the plan has a coastline) a flat dark blue; no lines or
-    labels, so the picture model keeps every shape and invents none."""
-    scale = size / shaped.grid.points
-    heights = ndimage.zoom(shaped.heights, scale, order=1)
-    cell = shaped.grid.side / (size - 1)
-    picture = np.stack([shaded(heights, cell) * 215 + 25] * 3, -1)
-    if shaped.land is not None:
-        picture[ndimage.zoom(shaped.land, scale, order=1) < 0] = np.array([30, 45, 80])
-    return Image.fromarray(np.clip(picture, 0, 255).astype(np.uint8))
 
 
 def drawing(shaped, record, size=1024):

@@ -6,8 +6,8 @@
     runner.drive(stages.places(runner.world))   # every line of the environment to its end (python -m score run world1)
 
 Step 0 holds the worked example: assembly (P5) on environment 1's round-three stages as unverified seeds, and complete
-(P11). Terrain (the paper's Methods, "Terrain") makes every ground of the environment from its plan, one environment node, paid
-(pictures and depth in the cloud, cleared by the runner). The surface stage (step 1, its overlay) is each place's
+(P11). Terrain (the paper's Methods, "Terrain") makes every ground of the environment from its plan, one environment node,
+free (the code fallback until its prop-pipeline adapter lands), and ground-fit judges each seated place on it. The surface stage (step 1, its overlay) is each place's
 own line of rows, split to checked bake, beside the environment's seed of the finish registry. Effects (experimental) makes
 each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
@@ -38,14 +38,19 @@ import score.stages.props.prop_data as prop_data
 import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
-from score.stages.terrain import inputs as terrain_inputs, look
+from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs, look
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 WORLD1 = REPO / "data/definitions/world.json"
 
-TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain_inputs.FILES,
-                      paid=True, euros=terrain.EUROS)
+TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain_inputs.FILES)
+# Each seated place's own stage judged standing on its made ground (score/stages/terrain/fit.py): under, floating,
+# continuous, openings; free, on its neighbours output where it shows other places, else its assembly.
+GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT, ground_fit.CHECKS,
+                         files=ground_fit.files, after={"assembly": ("openusd-stage", 1),
+                                                        "neighbours": ("openusd-stage", 1), "terrain": ("grounds", 1)},
+                         applies=ground_fit.applies)
 # Experimental (PRD #6) until the owner reviews it: each staged place's effects layer (effects.STAGED), which its
 # assembly takes.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
@@ -427,7 +432,7 @@ DEMO_STILLS = dataclasses.replace(DEMO_FILM, name="demo-stills", make=demo_still
 
 STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS,
-          TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
+          GROUND_FIT, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
