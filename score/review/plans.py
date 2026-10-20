@@ -127,18 +127,25 @@ def pick_of(store, place):
 
 def inventory_of(store, place):
     """The place's scene inventory read from its picked concept, else None (CONTEXT.md "scene inventory": none counts
-    before the pick, an older one never does): its reading (score/review/reading.py), else a data/inventory file
-    whose concept_pick is that pick."""
+    before the pick, an older one never does): its reading (score/review/reading.py), with the shell's room layout of
+    its data/inventory file (walls, doors, roof opening: the plan's numbers, no object of an older concept), else a
+    data/inventory file whose concept_pick is that pick."""
     from score.review import reading
+    filed = filed_inventory(place)
     found = reading.reading_of(store, place)
     if found and found.get("inventory"):
-        return found["inventory"]
+        # its rows' boxes are pixels of the picture's size
+        return {**found["inventory"], "picture": found.get("size"), **({"room": filed["room"]} if "room" in filed else {})}
+    pick = pick_of(store, place)
+    return filed if pick and (filed.get("concept_pick") or {}).get("sha256") == pick else None
+
+
+def filed_inventory(place):
+    """The place's data/inventory file (its plan's `inventory` name, else its own), {} with none."""
     plan_path = DATA / "plans" / f"{place}.json"
     name = json.loads(plan_path.read_text()).get("inventory", place) if plan_path.is_file() else place
     path = DATA / "inventory" / f"{name}.json"
-    filed = json.loads(path.read_text()) if path.is_file() else {}
-    pick = pick_of(store, place)
-    return filed if pick and (filed.get("concept_pick") or {}).get("sha256") == pick else None
+    return json.loads(path.read_text()) if path.is_file() else {}
 
 
 def counts(store, place):
@@ -218,6 +225,23 @@ def anchor_of(row):
     return anchor[3:] if anchor.startswith("on:") else anchor
 
 
+WHOLE = 0.6  # a row whose surest box spans this share of the picture both ways is the place itself (its ground, sky)
+
+
+def whole(row, picture):
+    """Whether a row is the place itself rather than a thing in it: its surest box spans most of the picture."""
+    box = (row.get("boxes") or [None])[0]
+    return bool(box and picture and (box[2] - box[0]) >= WHOLE * picture[0] and (box[3] - box[1]) >= WHOLE * picture[1])
+
+
+def from_picture(box, picture, plan, wide, deep):
+    """(x, y) of a box (wide, deep) on the plan where a row's box on the picked concept stands, read straight off the
+    picture: its middle across, its foot down (the concept is a three-quarter view: a first guess he drags)."""
+    x = (box[0] + box[2]) / 2 / picture[0] * plan["w"] - wide / 2
+    y = box[3] / picture[1] * plan["d"] - deep
+    return min(max(0.0, x), max(0.0, plan["w"] - wide)), min(max(0.0, y), max(0.0, plan["d"] - deep))
+
+
 def row_items(rows):
     """[(name, row id, spot or None)] of every floor instance of the inventory's rows: one per laid spot, else one
     per count; rows on the walls, the ceiling or another row are left to `walls_rows` and `children`."""
@@ -227,7 +251,9 @@ def row_items(rows):
             continue
         label = str(row.get("id")).replace("_", " ").upper()
         spots = row.get("at") or [None] * int(row.get("count", 1) or 1)
-        found += [(f"{label} {number}", row["id"], spot) for number, spot in enumerate(spots, 1)]
+        boxes = row.get("boxes") or []
+        found += [(f"{label} {number}", row["id"], spot, boxes[number - 1] if number <= len(boxes) else None)
+                  for number, spot in enumerate(spots, 1)]
     return found
 
 
@@ -258,37 +284,57 @@ def laid_along(boxes, wide):
 
 
 def items_from(plan, inventory):
-    """(items, rows) of the plan from its scene inventory: each floor instance a box at its laid spot (else laid
-    along the walls), tied to its row and the rows riding on it; one walls-and-ceiling item over the whole floor."""
-    rows, riders = inventory.get("rows", []), children(inventory.get("rows", []))
+    """(items, rows) of the plan from its scene inventory: each floor instance a box at its laid spot, else where its
+    box on the picked concept stands (`from_picture`), else laid along the walls, tied to its row and the rows riding
+    on it; one walls-and-ceiling item over the whole floor, the rows that are the place itself (`whole`) on it."""
+    picture = inventory.get("picture")
+    rows = [row for row in inventory.get("rows", []) if not whole(row, picture)]
+    riders = children(rows)
     instances = row_items(rows)
     by_id = {row["id"]: row for row in rows}
-    unplaced = [footprint(by_id[row_id], None) for _, row_id, spot in instances if spot is None]
+    unplaced = [footprint(by_id[row_id], None) for _, row_id, spot, box in instances if spot is None
+                and not (box and picture)]
     free = iter(laid_along(unplaced, plan["w"]))
     items, tied = [], {}
-    for name, row_id, spot in instances:
+    for name, row_id, spot, box in instances:
         facing = facing_of(spot) if spot else None
         wide, deep = footprint(by_id[row_id], facing)
         if spot:
             middle_x, middle_y = to_plan(plan, spot)
             x, y = middle_x - wide / 2, middle_y - deep / 2
+        elif box and picture:
+            x, y = from_picture(box, picture, plan, wide, deep)
         else:
             x, y = next(free)
         items.append([name, round(x, 3), round(y, 3), round(wide, 3), round(deep, 3), facing, "item"])
         tied[name] = [row_id, *riders.get(row_id, [])]
-    if on_walls := walls_rows(rows):
+    on_walls = walls_rows(rows) + [row["id"] for row in inventory.get("rows", []) if whole(row, picture)]
+    if on_walls:
         items.append([WALLS_ITEM, 0.0, 0.0, plan["w"], plan["d"], None, "item"])
         tied[WALLS_ITEM] = on_walls
     return items, tied
+
+
+def sized_doors(plan, filed):
+    """The plan's doors, each wall door whose words give no size given the one its leaf has in the data/inventory
+    file (`W x H m`, as the plan stage reads a door's height; the leaf is the shell's, not an object of a concept)."""
+    from score.stages.scene_record.plan import SIDES as WALLS, SIZE, leaf_tall
+    kinds = (filed.get("room") or {}).get("layout", {}).get("doors", {})
+    found = []
+    for door in plan.get("doors", []):
+        tall = (leaf_tall(filed, kinds[WALLS[door[0]]]) if door[0] in SIDES and not SIZE.search(str(door[3]))
+                and kinds.get(WALLS[door[0]]) and filed.get("rows") else None)
+        found.append([*door[:3], f"{door[3]} ({float(door[2]):g} x {tall:g} m)", *door[4:]] if tall else door)
+    return found
 
 
 def keep_clear(plan):
     """A keep-clear zone reaching CLEAR into the room in front of each wall door (N, S, E, W)."""
     found = []
     for door in plan.get("doors", []):
-        side, at, wide = door[0], float(door[1]), float(door[2])
-        if side not in SIDES:
+        if door[0] not in SIDES:  # a faceted room's door by bearing, a tube's end: no wall to stand clear of
             continue
+        side, at, wide = door[0], float(door[1]), float(door[2])
         span = wide + 0.4
         x, y, zone_wide, zone_deep = {"N": (at - span / 2, 0.0, span, CLEAR),
                                       "S": (at - span / 2, plan["d"] - CLEAR, span, CLEAR),
@@ -307,30 +353,54 @@ def held_size(place):
 
 
 def holding_row(rows, place):
-    """The id of the holder's inventory row an inside place stands in: one named as the place, else one whose id
-    within.json's reading of the place names (the hangar's `ship` for its rooms); None: the holder's own walls."""
+    """The id of the holder's inventory row an inside place stands in: one named as the place, else one whose id ends
+    in the place's name (the base's `central_hub` for the hub, `connecting_tube_1` for the tube), else one whose id within.json's reading of the place
+    names or ends in a thing it names that is no place (the hangar's `spaceship` for its rooms, "the ship"); None:
+    the holder's own walls (he sets it on the plan page)."""
     ids = [row["id"] for row in rows]
     if place in ids:
         return place
+    worded = [row_id for row_id in ids if re.sub(r"(_\d+)+$", "", row_id).split("_")[-1] == place]
+    if worded:
+        return min(worded, key=len)
     said = json.loads((DATA / "places/within.json").read_text()).get("within", {}).get(place, {}).get("from", "") \
         if (DATA / "places/within.json").is_file() else ""
-    named = [row_id for row_id in ids if re.search(rf"\b{re.escape(row_id)}\b", said)]
-    return max(named, key=len) if named else None
+    # a thing it names that is no place (the hangar's rooms: "the ship"), as the end of a row's id ("spaceship")
+    places = {path.stem for path in (DATA / "plans").glob("*.json")} | set(within_file()[0]) | set(within_file()[1])
+    words = {word for word in re.findall(r"[a-z]{4,}", said.lower()) if word not in places}
+    named = [row_id for row_id in ids if re.search(rf"\b{re.escape(row_id)}\b", said)
+             or any(re.sub(r"(_\d+)+$", "", row_id).endswith(word) for word in words)]
+    return min(named, key=len) if named else None
 
 
 def holds_of(store, place, plan, rows):
     """The plan's inside places, each a box {place, row, x, y, w, d}: those standing in one of its rows laid in rows
-    inside that row's item (the hangar's rooms in its ship), the others in the outline."""
+    inside that row's item (the hangar's rooms in its ship), the item grown round them when it is smaller (a
+    reading's row is 1 x 1 m until its close-up is measured), the others in the outline."""
     names = proposed_inside(store, place)
-    boxes = {plan["rows"][item[0]][0]: item[1:5] for item in plan["items"] if plan["rows"].get(item[0])}
+    items = {plan["rows"][item[0]][0]: item for item in plan["items"] if plan["rows"].get(item[0])}
     found = []
     for row in dict.fromkeys(holding_row(rows, name) for name in names):
         group = [name for name in names if holding_row(rows, name) == row]
         sizes = [held_size(name) for name in group]
-        x0, y0, wide = (*boxes[row][:2], boxes[row][2]) if row in boxes else (0.0, 0.0, plan["w"] or square(sizes))
+        item = items.get(row)
+        spots = laid_along(sizes, max(item[3], square(sizes)) if item else plan["w"] or square(sizes))
+        x0 = y0 = 0.0
+        if item:
+            grown(item, spots, sizes, plan)
+            x0, y0 = item[1], item[2]
         found += [{"place": name, "row": row, "x": round(x0 + x, 3), "y": round(y0 + y, 3), "w": size[0],
-                   "d": size[1]} for name, (x, y), size in zip(group, laid_along(sizes, wide), sizes)]
+                   "d": size[1]} for name, (x, y), size in zip(group, spots, sizes)]
     return sorted(found, key=lambda hold: names.index(hold["place"]))
+
+
+def grown(item, spots, sizes, plan):
+    """A row's item grown round the inside places laid in it at `spots`, then moved back inside the outline."""
+    item[3] = round(max(item[3], max(x + size[0] for (x, _), size in zip(spots, sizes)) + GAP), 3)
+    item[4] = round(max(item[4], max(y + size[1] for (_, y), size in zip(spots, sizes)) + GAP), 3)
+    if plan["w"] and plan["d"]:
+        item[1] = round(min(max(0.0, item[1]), max(0.0, plan["w"] - item[3])), 3)
+        item[2] = round(min(max(0.0, item[2]), max(0.0, plan["d"] - item[4])), 3)
 
 
 def square(sizes):
@@ -353,6 +423,7 @@ def derived(store, place):
     plan = copy.deepcopy(base_plan(place))
     plan.pop("holds", None)  # a hand plan's {place: row} (concepts.holding_row's fallback): laid out here instead
     plan["w"], plan["d"] = outline_from_holder(store, place, plan)
+    plan["doors"] = sized_doors(plan, filed_inventory(place))
     inventory = inventory_of(store, place)
     items, tied = items_from(plan, inventory)
     zones = keep_clear(plan)
