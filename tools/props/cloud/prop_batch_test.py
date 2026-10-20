@@ -52,6 +52,21 @@ def test_price_is_measured():
     assert plan["per_prop"]["likely"] == round(plan["likely"] / 2, 3)
 
 
+def test_each_job_is_priced_once_with_its_predicted_holes_beside():
+    """A batch runs every job once (CONTEXT.md, owner 2026-10-20): the close-up was priced at two asks and Pixal3D at
+    its jobs times one plus the failure share, as reruns."""
+    lines, google = measured_ledgers()
+    google += [{"caller": "pro", "state": "failed", "call": "pro-x"}] * 2
+    plan = prop_batch.price(PROPS * 2, lines, google)
+    assert plan["steps"]["closeup"]["high"] == round(4 * 0.14, 4), plan["steps"]["closeup"]  # four asks, never eight
+    assert plan["steps"]["closeup"]["predicted_holes"] == 1  # 2 failed of 12 ended calls, over four jobs
+    one_run = prop_batch.preflight.batch(4, prop_batch.card_numbers(lines, "pixal", "L4"), prop_batch.CAP,
+                                         prop_batch.STEPS[1].slots)
+    assert plan["steps"]["image-to-3d"]["likely"] == round(one_run["euros"] * prop_batch.BILL_SHARE, 4)
+    assert plan["predicted_holes"]["image-to-3d"] == 1  # a quarter of four Pixal3D jobs
+    assert not hasattr(prop_batch.STEPS[0], "tries")
+
+
 def test_unmeasured_step_is_said_not_guessed():
     lines, google = measured_ledgers()
     plan = prop_batch.price(PROPS, [line for line in lines if line["kind"] != "library"], google)
