@@ -40,7 +40,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
-from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs, join as ground_join, look
+from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs, join as ground_join
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -111,10 +111,6 @@ COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PL
 COMPLETE_BOXES = graph.Stage("complete-boxes", "place", complete_boxes.make_boxes, complete_boxes.CONTRACT,
                              complete_boxes.CHECKS, files=complete_boxes.files, paid=True, euros=complete_boxes.EUROS,
                              applies=lambda place: ship_place(place) and complete_boxes.has_rows(place))
-# Experimental (PRD #6) until the owner reviews it: the proof place's before and after its made ground, rendered.
-TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.CHECKS, files=look.files,
-                           after={"assembly": ("openusd-stage", 1)}, paid=True, euros=look.EUROS,
-                           applies=lambda place: place in look.LOOKED)
 EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
                            euros=effects_look.EUROS, applies=lambda place: place in effects_look.LOOKED)
@@ -441,7 +437,7 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
 
 STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS, ENVIRONMENT_FILM,
-          GROUND_FIT, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
+          GROUND_FIT, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(paint_baked, map(feet_checked, map(bake_checked, surfaces.ROWS))))),
@@ -789,8 +785,7 @@ EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed
                          neighbours=assembly.claiming_places, applies=earth_place)
 SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}
 # Every row that read a place's round-three seed (`{seeds}/usd-r3/<place>`), each now reading earth-seed instead
-# (earth_seeded); stages_test.py holds the list to the declared files. terrain-look keeps its own: its paid horizon
-# check waits on the owner's decision (#27).
+# (earth_seeded); stages_test.py holds the list to the declared files. terrain-look, the last reader, is retired (#27).
 EARTH_SEEDED = ("assembly", "settle", "effects-layer", "effects-look", "physics-trial", "cast", "motion",
                 "motion-models", "light-layer", "light-passes", "light-haze", "light", "scene-record")
 

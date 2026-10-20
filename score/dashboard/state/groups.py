@@ -27,7 +27,7 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "motion-models": "motion models", "motion-models-boxes": "motion model boxes", "characters-layer": "people layer",
           "cast": "cast", "assembly": "OpenUSD stage", "neighbours": "with neighbours", "complete": "completion",
           "complete-boxes": "completion boxes", "demo-film": "film", "demo-film-extra": "extra film",
-          "demo-stills": "stills", "terrain": "ground", "terrain-look": "ground renders", "settle": "settle",
+          "demo-stills": "stills", "terrain": "ground", "settle": "settle",
           "sound": "sound", "motion": "motion", "physics-layer": "physics", "physics-trial": "physics trial",
           "surface-tiles": "surface tiles", "ship_kit": "ship kit", "concept_people": "people concepts",
           "concept-views": "concept views", "library": "library handover", "library-world": "library handover",

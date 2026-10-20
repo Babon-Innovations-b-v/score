@@ -114,7 +114,7 @@ stage as each stage is built; nothing moves before.
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `earth-kit` (paid) and `earth-seed` (free, `stages/earth_seed`, its overlay) make each kit-laid earth
   place's base stage again from git and the rows' outputs, and every row that read the lost round-three seed reads it
-  (`stages.earth_seeded`; terrain-look excepted until the owner decides it). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
+  (`stages.earth_seeded`). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
   every ground from its plan in `data/ground/plan/`, gated on scale and slope; `ground-fit@<place>` (free) judges each
   seated place's stage on it: ground under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish route to checked bake (its overlay; per-place data in

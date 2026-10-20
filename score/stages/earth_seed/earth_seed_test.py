@@ -1,5 +1,5 @@
 """The earth seed rows' own checks, with no spend: the kit row plans only code-built pieces, every row that read a
-round-three seed reads earth-seed instead (terrain-look kept for the owner), a reader is handed its seeds under their
+round-three seed reads earth-seed instead, a reader is handed its seeds under their
 old names, the export leaves out and names a piece no row made, and the gates fail by name.
 
 Run: .venv/bin/python score/stages/earth_seed/earth_seed_test.py
@@ -31,7 +31,7 @@ def test_the_kit_row_plans_the_code_built_pieces_only():
     assert earth_seed.kit_jobs("wreck") >= 1
 
 
-def test_no_row_reads_an_earth_place_s_round_three_seed_but_terrain_look():
+def test_no_row_reads_an_earth_place_s_round_three_seed():
     readers = set()
     for row in stages.STAGES:
         for place in PLACES:
@@ -40,7 +40,7 @@ def test_no_row_reads_an_earth_place_s_round_three_seed_but_terrain_look():
             found = row.files(place) if callable(row.files) else row.files
             if any(stages.seed_named(path, place) for path in found.values()):
                 readers.add(row.name)
-    assert readers <= {"terrain-look"}, readers
+    assert not readers, readers  # terrain-look, the last, retired (#27)
     reading = {row.name for row in stages.STAGES if "earth-seed" in row.after} - {stages.library.PLACE_ROW}
     assert reading == set(stages.EARTH_SEEDED), reading ^ set(stages.EARTH_SEEDED)
 

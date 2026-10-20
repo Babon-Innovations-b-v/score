@@ -261,9 +261,8 @@ def test_lost_inputs_are_place_holes_with_their_code_work():
     assert not any("data/scene/cockpit.json" in hole["sentence"] for hole in cockpit.values())
     launch = {hole["id"]: hole for hole in inputs.lost(runner, "launch")}
     assert "lost:data:surfaces/launch.json:bake entry far_rocket_1" in launch, sorted(launch)
-    # terrain-look keeps the round-three seeds until the owner decides its horizon check (#27)
-    assert launch["lost:earth-seed:launch"]["sentence"].endswith("read by terrain-look@launch"), launch
-    assert "lost:earth-seed:far_city" in launch
+    # no row reads the launch's own round-three seed since terrain-look was retired (#27)
+    assert "lost:earth-seed:launch" not in launch and "lost:earth-seed:far_city" in launch, sorted(launch)
     found = [dict(hole, low=None, high=None) for hole in lost_holes(runner, "launch")]
     assert holes_faults({"findings": found}) == [] and all(hole["rule"] == "place" for hole in found)
 

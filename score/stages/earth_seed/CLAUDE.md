@@ -15,8 +15,8 @@ has the rows, the output and the gates.
 - **Readers are rewired in the table, not here.** `stages.earth_seeded` turns every declared `{seeds}/usd-r3/<place>`
   of a kit-laid earth place into a read of `earth-seed` (the place's own as an `after`, another's beside) and hands
   the make, judges and gatherers the seed folder under its old name; `stages.EARTH_SEEDED` lists the rows and
-  `earth_seed_test.py` holds it to the declared files. `terrain-look` keeps the round-three seed until the owner
-  decides its paid horizon check.
+  `earth_seed_test.py` holds it to the declared files; no row reads the round-three seed (`terrain-look`, the last,
+  was retired on 2026-10-20, #27).
 - **Priced warm** (`tools/costs/per_unit.py` `earth-kit`): a make_kit job at the library jobs' measured warm seconds
   on L4; its units are forecast free from the installed kit (`kit_jobs`). `earth-seed` is free.
 - Test: `earth_seed_test.py` (no spend).

@@ -25,8 +25,7 @@ EARTH, SHIP, VIEWS, PIXAL, OTHER, DATA, PICTURE = ("earth-seed", "ship-seed", "v
                                                    "reference")
 # What a lost path under the work folder is, by its start there: (kind, the code work that makes it again).
 KINDS = (("usd-r3/", EARTH, "earth seed lost: the earth-seed row exports a place's base from its kit once the kit is "
-                            "laid (score/stages/earth_seed); a place with no kit laid has none, and terrain-look still "
-                            "reads the round-three folder until the owner decides its horizon check (#27)"),
+                            "laid (score/stages/earth_seed); a place with no kit laid has none"),
          ("usd-ship/", SHIP, "ship seed lost: ship_kit@{place} (paid, the ship kits' own table) made again, then a "
                              "free ship-seed row that exports its base from that output's models (tools/usd/export.py "
                              "write_base) in place of the usd-ship folder"),
