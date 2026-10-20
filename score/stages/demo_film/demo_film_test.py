@@ -20,6 +20,47 @@ from score.stages import demo_film  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
 SMALL = (64, 36)
+# A stage with a plain-card puff emitter (fog), as tools/usd/effects.py writes one.
+FOGGED = """#usda 1.0
+(
+    defaultPrim = "hall"
+)
+def Xform "hall"
+{
+    def Xform "Effects"
+    {
+        def Xform "pump_fog"
+        {
+            token score:effect:look = "puff"
+            token score:effect:card = "plain"
+        }
+    }
+}
+"""
+GLASSED = """#usda 1.0
+(
+    defaultPrim = "hall"
+)
+def Xform "hall"
+{
+    def Material "pane"
+    {
+        def Shader "surface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            float inputs:opacity = 0.3
+        }
+    }
+    def Material "wall"
+    {
+        def Shader "surface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            float inputs:opacity = 1
+        }
+    }
+}
+"""
 
 
 def folder():
@@ -28,8 +69,21 @@ def folder():
 
 
 def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
+    """#21: a film is a batch the creator said yes to (its record's `final`); one without it has no node."""
     own = [name for name, film in demo_film.films().items() if film["place"] == name]
-    assert all(demo_film.applies(place) for place in own) and not demo_film.applies("no such place")
+    assert all(demo_film.applies(place) == (demo_film.films()[place].get("final") is True) for place in own)
+    assert not demo_film.applies("no such place")
+    root = folder()
+    real = demo_film.FILMS
+    try:
+        for name, film in (("hall", {"place": "hall", "camera": "door"}),
+                           ("yard", {"place": "yard", "camera": "gate", "final": True})):
+            (root / f"{name}.json").write_text(json.dumps(film))
+        demo_film.FILMS = root
+        assert not demo_film.applies("hall") and demo_film.applies("yard")
+    finally:
+        demo_film.FILMS = real
+        shutil.rmtree(root)
     found = demo_film.files("hub")
     assert found["scene"] == "{data}/scene/hub.json"
     assert "scene" not in demo_film.files("cockpit"), "a ship room has no seed record; its assembly's record is read"
@@ -54,7 +108,8 @@ def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alon
     real = demo_film.FILMS
     try:
         for name, place, camera in (("hangar", "hangar", "across"), ("hull", "hangar", "ship")):
-            (root / f"{name}.json").write_text(json.dumps({"place": place, "camera": camera}))
+            (root / f"{name}.json").write_text(json.dumps({"place": place, "camera": camera, "final": True}))
+        (root / "nose.json").write_text(json.dumps({"place": "hangar", "camera": "ship"}))  # no yes: no film
         demo_film.FILMS = root
         assert demo_film.extras("hangar") == ["hull"] and demo_film.applies_extra("hangar")
         assert not demo_film.applies_extra("hub") and not demo_film.applies("hull")
@@ -94,26 +149,29 @@ def test_the_plan_asks_look_only_frames_at_its_size():
         shutil.rmtree(root)
 
 
-def test_a_film_is_a_small_preview_until_the_creator_says_final():
-    """#20: a film before the creator's yes is drawn at PREVIEW_SIZE with the review's samples; its record's `final`
-    makes it once at SIZE with the films' own; the gate holds each film to the size its views planned."""
+def test_a_film_is_one_batch_dealt_over_the_forecast_s_cards_with_its_high_deadline():
+    """#21: the frames are rendered once at SIZE with the films' samples, over the jobs the forecast sizes, each job's
+    deadline its frames at the forecast's high frame minutes; the gate holds each film to the size its views
+    planned."""
     demo, film_checks = demo_film.film_tools()
     root = folder()
     real_plan, real_render, real_cut = demo.plan, demo_film.render, demo.cut
-    planned = []
+    planned, deadlines = [], []
 
     def plan(work, stages, given, jobs_each, size, ink, shots, seconds, start):
-        planned.append(tuple(size))
+        planned.append((tuple(size), jobs_each))
         (work / "views").mkdir(parents=True, exist_ok=True)
         (work / "jobs").mkdir(parents=True, exist_ok=True)
-        views = [{"name": "shot0-000", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1], "fov": 70}]
-        written = demo.film_jobs(work, "hall", stages / "hall/hall.usda", [], views, "look", 1, size, ink)
+        views = [{"name": f"shot0-{number:03d}", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1], "fov": 70}
+                 for number in range(4)]
+        written = demo.film_jobs(work, "hall", stages / "hall/hall.usda", [], views, "look", 2, size, ink)
         (work / "views/hall.json").write_text(json.dumps({"size": list(size), "views": views, "moves": []}))
         return written
 
     def render(jobs, log_folder):
         asked = [json.loads(pathlib.Path(json.loads(path.read_text())["args"][1]).read_text()) for path in jobs]
-        rendered.append([view.get("review", False) for view in asked])
+        deadlines.extend(json.loads(path.read_text())["minutes"] for path in jobs)
+        assert not any(view.get("review") for job in asked for view in job["views"])
         frames = log_folder / ".work/frames/hall"
         frames.mkdir(parents=True)
         Image.new("RGB", tuple(asked[0]["size"]), (90, 90, 90)).save(frames / "shot0-000-look.png")
@@ -122,19 +180,19 @@ def test_a_film_is_a_small_preview_until_the_creator_says_final():
         (work / "videos").mkdir()
         (work / "videos/hall.mp4").write_bytes(b"")
 
-    rendered = []
     try:
         demo.plan, demo_film.render, demo.cut = plan, render, cut
         (root / "stage").mkdir()
-        (root / "stage/hall.usda").write_text("#usda 1.0\n")
+        (root / "stage/hall.usda").write_text(FOGGED)
         (root / "stage/scene.json").write_text(json.dumps({"views": [{"name": "door", "eye": [0, 1.6, 0],
                                                                       "aim": [0, 1.6, -1]}]}))
-        for name, film in (("preview", {"place": "hall", "camera": "door"}),
-                           ("final", {"place": "hall", "camera": "door", "final": True})):
-            demo_film.film_one(root / "stage", "hall", film, root / name, root / f"log-{name}")
-        assert planned == [demo_film.PREVIEW_SIZE, demo_film.SIZE], planned
-        assert rendered == [[True], [False]], rendered  # the review's samples for the preview only
-        assert Image.open(root / "preview/concept.png").size == demo_film.PREVIEW_SIZE
+        demo_film.film_one(root / "stage", "hall", {"place": "hall", "camera": "door", "final": True}, root / "out",
+                           root / "log")
+        expected = demo_film.forecast(root / "stage/hall.usda", 1)
+        assert planned == [(demo_film.SIZE, expected["jobs"])], planned
+        high = demo_film.FOG_FRAME_MINUTES
+        assert deadlines == [round(demo_film.JOB_LEAD_MINUTES + high * 2)] * 2, deadlines
+        assert Image.open(root / "out/concept.png").size == demo_film.SIZE
     finally:
         demo.plan, demo_film.render, demo.cut = real_plan, real_render, real_cut
         shutil.rmtree(root)
@@ -153,6 +211,27 @@ def test_a_film_is_a_small_preview_until_the_creator_says_final():
         assert size == SMALL and not any("size" in fault for fault in faults), faults
     finally:
         film_checks.clearance_checks = clearance
+        shutil.rmtree(root)
+
+
+def test_the_forecast_prices_fog_and_glass_at_the_high_frame_time_and_a_plain_stage_at_the_measured_one():
+    """#21: the free scan finds a plain-card puff (fog) and a see-through surface (glass), never an opaque one; a stage
+    with either is priced high at FOG_FRAME_MINUTES a frame, a plain one at demo.FRAME_MINUTES likely and high."""
+    demo, _ = demo_film.film_tools()
+    root = folder()
+    try:
+        for name, text in (("plain", "#usda 1.0\ndef Xform \"hall\"\n{\n}\n"), ("fog", FOGGED), ("glass", GLASSED)):
+            (root / f"{name}.usda").write_text(text)
+        plain, fog, glass = (demo_film.forecast(root / f"{name}.usda", demo_film.SHOTS)
+                             for name in ("plain", "fog", "glass"))
+        assert plain["frames"] == 192 and plain["high_frame_minutes"] == demo.FRAME_MINUTES
+        assert plain["euros"] == plain["high_euros"] == demo_film.EUROS
+        assert fog["slow"] == {"fog": 1, "volumes": 0, "glass": 0}, fog["slow"]
+        assert glass["slow"] == {"fog": 0, "volumes": 0, "glass": 1}, glass["slow"]
+        assert fog["high_frame_minutes"] == glass["high_frame_minutes"] == demo_film.FOG_FRAME_MINUTES
+        assert fog["high_euros"] > 20 * fog["euros"] and fog["jobs"] == plain["jobs"] >= 1
+        assert "1 fog" in demo_film.forecast_line(fog), demo_film.forecast_line(fog)
+    finally:
         shutil.rmtree(root)
 
 

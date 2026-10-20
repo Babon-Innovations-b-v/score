@@ -24,16 +24,20 @@ own sound; paid and cleared by the runner like any paid row.
   built at another size), with `fov` and `stand` (a small room's shot stands and turns rather than walking into a
   wall). The planner keeps clear of people and movers (camera_paths), glides at one speed between eased ends and
   rounds its corners (demo.py). About EUR 3.2 a place (twice a measured 96-frame film).
-- **A preview first, the final once** (#20, owner 2026-10-20): until a film's record says `"final": true`, its film
-  is a preview at 640x360 (`PREVIEW_SIZE`) with the review's 16 samples (its card time not yet measured). The
-  creator writes `final` after the film gate has passed the preview and he has said yes; that edit re-keys that one
-  film alone, which is then rendered once at 1280x720 with the films' own samples. Never write `final` for him. The
-  gate holds each film to the size its views.json planned.
+- **A film is one batch** (#21, owner 2026-10-20, replacing #20's paid preview): everything before the yes is free,
+  the local preview (`tools/review/film_preview.py`) and the forecast (`python -m score.stages.demo_film forecast
+  <place>`: frames, cards, card minutes and euros likely and high, from a scan of the accepted stage for fog,
+  volumes and glass, priced high at `FOG_FRAME_MINUTES` a frame). A film whose record lacks `"final": true` has no
+  node, so nothing is priced or bought; the creator writes `final` once he has seen both. Never write it for him.
+  The final is rendered once at 1280x720 over the cards `capacity.machines_for` sizes (no fixed card count), each
+  job's deadline its frames at the forecast's high; a job that dies or passes it is a hole, never run again inside
+  the batch, and filming it again is a new batch and a new yes. The gate holds each film to the size its views.json
+  planned.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether a film reads well is the creator's call.
 - **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts a second before the
   first one-off moment of its place's motion record, `motion_start`: the launch's from 5 s, so its lift-off at 6 s
   lands 1 s into the shot; places whose motions loop start at 0); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
-- Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place
-  passes complete, or fails it only on its named gaps, in any environment run). Test: `demo_film_test.py` (no Blender, no spend).
+- Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film the creator said yes to starts by
+  itself once its place passes complete, or fails it only on its named gaps, in any environment run). Test: `demo_film_test.py` (no Blender, no spend).

@@ -7,20 +7,28 @@ tools/review/demo.py plans them).
                                                and optionally "eye" and "aim" or "across" (a spot of its own for
                                                that camera, own_cameras), "then" (its second shot's camera: a
                                                record camera's name or a spot of its own), "start", "leave_out",
-                                               "final" (the creator's yes to its preview: true)}
+                                               "final" (the creator's yes: true)}
 
 A film named for its place (<place>.json) is the place's own film, the demo-film row; any other film of a place (the
 ship's hull through the hangar: hull.json, place hangar) is the demo-film-extra row's, which makes all of them for
 that place. One file a film, so adding a film moves no other film's key; a place with no file has no node.
 
+A film is one batch (#21, the owner's batch of 2026-10-20): its frames are bought once, after the creator's yes, and
+never again inside it. Before the yes everything is free: the creator looks at the free local preview
+(tools/review/film_preview.py: the same plan, a few frames drawn on this PC) and the forecast (`python -m
+score.stages.demo_film forecast <place>`: frames, cards, card minutes and euros, likely and high, from a scan of the
+stage for fog, volumes and glass); then he writes `"final": true` in the film's record. A film without it has no
+node, so nothing is priced or bought for it. A frame job that dies or passes its deadline is a hole: its film fails
+the gate, and a new film is a new batch and a new yes.
+
     make   the final stage (the neighbours output where the place shows others, else its assembly), copied into a tree
            of its own; demo.py's plan with a camera path a shot, SHOTS shots: the first starting at the film's camera
            and the second at its `then`, else at the record camera standing furthest from the first (its first frame that
            camera's view, unless the planner had to move its start clear or level it: views.json's moves say),
-           frames over SECONDS at demo.RATE, look only (no ink); the frames rendered: a preview at PREVIEW_SIZE with
-           the review's samples (usd_views.py "review") until the film's record says `final` (the creator's yes,
-           after the film gate passed its preview), then once at SIZE with the films' samples (#20);
-           demo.py's cut with the stage's sound layer. Per film:
+           frames over SECONDS at demo.RATE, look only (no ink); the frames rendered once at SIZE with the films'
+           samples, dealt over the jobs `forecast` sizes (capacity.machines_for on the likely frame minutes), each
+           job's deadline its frames at the forecast's high frame minutes; demo.py's cut with the stage's sound
+           layer. Per film:
            film.mp4, views.json (each frame's view, the moves, the planner's commit) and concept.png, the first frame
            (for the place's own film, demo K8's still beside the concept), and bed.wav where the stage has sound (what
            the camera hears standing at its first view before it walks, demo.BED_SECONDS, which the showcase lays under
@@ -44,9 +52,6 @@ from score import checks, contracts
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FILMS = REPO / "data/definitions/demo_films"
 SIZE = (1280, 720)
-# A film before the creator's yes (#20): a quarter of the pixels at the review's 16 samples, so a reshoot of a place's
-# film costs its preview, and the final is rendered once.
-PREVIEW_SIZE = (640, 360)
 # Two shots a place, each from its own camera, so a finished place stays on screen about 7 s unbroken instead of 3.5 s
 # (the finish plan for world 1, 2026-10-18); a place whose record holds one camera only gets one.
 SHOTS = 2
@@ -64,10 +69,15 @@ ACROSS_AIM = 1.2
 LEAD = 1.0
 # Workbench and Cycles on a card; the cheapest first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb,gpu-48gb"
-JOBS = 8  # a film's frames over 8 cards: the airlock's went from 47 s to 17 min a frame on 2 (2026-10-18)
 # Two shots of 96 frames: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger 2026-10-18:
 # greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6.
 EUROS = 3.2
+# A frame's card minutes, the forecast's high, where the stage holds fog, a volume or glass: the airlock's frames
+# inside its pump's fog took 47 s to 17 min each (2026-10-18). Its likely, and both for a stage without them, is
+# demo.FRAME_MINUTES (0.7, the measured 42 s).
+FOG_FRAME_MINUTES = 17.0
+# A frame job's minutes before its frames (demo.film_jobs' 10): the stage and its shown places loaded.
+JOB_LEAD_MINUTES = 10
 TOOLS = ("tools/review/demo.py", "tools/review/film_checks.py", "tools/review/renders.py",
          "tools/review/viewer/viewpoints.py", "tools/usd/camera_paths.py", "tools/usd/scene.py", "tools/usd/sound.py",
          "tools/usd/hearing.py", "tools/blender/inside/usd_views.py")
@@ -79,13 +89,19 @@ def films():
     return {path.stem: json.loads(path.read_text()) for path in sorted(FILMS.glob("*.json"))}
 
 
+def said_yes(film):
+    """Whether the creator said yes to the film (its record's `final`), after its free preview and forecast."""
+    return film.get("final") is True
+
+
 def extras(place):
-    """The names of the place's films other than its own."""
-    return [name for name, film in films().items() if film["place"] == place and name != place]
+    """The names of the place's films other than its own that the creator said yes to."""
+    return [name for name, film in films().items() if film["place"] == place and name != place and said_yes(film)]
 
 
 def applies(place):
-    return films().get(place, {}).get("place") == place
+    film = films().get(place, {})
+    return film.get("place") == place and said_yes(film)
 
 
 def applies_extra(place):
@@ -184,11 +200,11 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     cameras = own_cameras(work / "stages" / place / "scene.json", film)
     leave_out(work / "stages" / place / f"{place}.usda", film)
     given = f"{place}={','.join(cameras)}" if name == place else f"{name}@{place}={','.join(cameras)}"
-    final = bool(film.get("final"))
-    jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE if final else PREVIEW_SIZE, ink=False,
+    planned = forecast(work / "stages" / place / f"{place}.usda", len(cameras))
+    print(f"{name}: {forecast_line(planned)}", flush=True)
+    jobs = demo.plan(work, work / "stages", [given], jobs_each=planned["jobs"], size=SIZE, ink=False,
                      shots=len(cameras), seconds=SECONDS, start=start)
-    if not final:
-        as_preview(jobs)
+    with_deadlines(jobs, planned["high_frame_minutes"])
     render(jobs, log_folder)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(work / "frames" / name / "shot0-000-look.png", out / "concept.png")
@@ -201,11 +217,64 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     shutil.rmtree(work)
 
 
-def as_preview(jobs):
-    """Each frame job's views drawn at the review's samples (usd_views.py "review")."""
+def slow_parts(stage_path):
+    """What in the stage makes a frame slow, by a free scan of its composed prims: {"fog": plain-card puff emitters
+    (steam, fog, mist), "volumes": UsdVol volumes, "glass": UsdPreviewSurfaces drawn see-through (opacity under 1)},
+    each a list of prim paths."""
+    from pxr import Usd, UsdShade, UsdVol
+    stage = Usd.Stage.Open(str(stage_path))
+    found = {"fog": [], "volumes": [], "glass": []}
+    for prim in stage.Traverse():
+        look, card = prim.GetAttribute("score:effect:look"), prim.GetAttribute("score:effect:card")
+        if look and look.Get() == "puff" and card and card.Get() == "plain":
+            found["fog"].append(str(prim.GetPath()))
+        elif prim.IsA(UsdVol.Volume):
+            found["volumes"].append(str(prim.GetPath()))
+        elif prim.IsA(UsdShade.Shader) and UsdShade.Shader(prim).GetIdAttr().Get() == "UsdPreviewSurface":
+            opacity = UsdShade.Shader(prim).GetInput("opacity")
+            if opacity and opacity.Get() is not None and float(opacity.Get()) < 1.0:
+                found["glass"].append(str(prim.GetPath()))
+    return found
+
+
+def forecast(stage_path, shots):
+    """A film's free forecast before the creator's yes: its frames; the jobs they are dealt over
+    (capacity.machines_for on the likely frame minutes and blender_cloud's set-up, a card a job); the likely and high
+    minutes a frame (demo.FRAME_MINUTES; FOG_FRAME_MINUTES high where the scan finds fog, a volume or glass); the card
+    minutes and the euros, likely and high (EUROS scaled from its measured film by frames and frame minutes); and what
+    the scan found."""
+    demo, _ = film_tools()
+    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    import blender_cloud
+    import capacity
+    frames = round(shots * SECONDS * demo.RATE)
+    slow = slow_parts(stage_path)
+    likely = demo.FRAME_MINUTES
+    high = FOG_FRAME_MINUTES if any(slow.values()) else likely
+    euros = EUROS * frames / round(SHOTS * SECONDS * demo.RATE)
+    return {"frames": frames, "jobs": capacity.machines_for(frames, likely, blender_cloud.SETUP_MINUTES),
+            "frame_minutes": likely, "high_frame_minutes": high, "card_minutes": round(frames * likely),
+            "high_card_minutes": round(frames * high), "euros": round(euros, 2),
+            "high_euros": round(euros * high / likely, 2),
+            "slow": {kind: len(paths) for kind, paths in slow.items()}}
+
+
+def forecast_line(planned):
+    """The forecast in one line, as the creator reads it before his yes."""
+    slow = ", ".join(f"{count} {kind}" for kind, count in planned["slow"].items() if count) or "no fog, volume or glass"
+    return (f"{planned['frames']} frames on {planned['jobs']} cards, EUR {planned['euros']} likely and "
+            f"{planned['high_euros']} high ({planned['card_minutes']} to {planned['high_card_minutes']} card minutes; "
+            f"{slow})")
+
+
+def with_deadlines(jobs, frame_minutes):
+    """Each frame job's deadline from its frames at `frame_minutes` (the forecast's high): a job past it is stopped
+    and its frames are a hole, never run again inside the batch."""
     for job_path in jobs:
-        views_path = pathlib.Path(json.loads(pathlib.Path(job_path).read_text())["args"][1])
-        views_path.write_text(json.dumps(dict(json.loads(views_path.read_text()), review=True), indent=1))
+        job = json.loads(pathlib.Path(job_path).read_text())
+        views = json.loads(pathlib.Path(job["args"][1]).read_text())["views"]
+        job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))
+        pathlib.Path(job_path).write_text(json.dumps(job, indent=1))
 
 
 def own_cameras(record_path, film):
@@ -311,7 +380,7 @@ def planned_seconds(shots):
 
 
 def film_measures(folder, stage_folder):
-    """One film's video checks, at the size its views planned (a preview's or the final's), its length within
+    """One film's video checks, at the size its views planned, its length within
     LENGTH_SLACK of its planned length for the shots its views hold, and its frames' clearance: (seconds, mean dB,
     size, faults)."""
     demo, film_checks = film_tools()
