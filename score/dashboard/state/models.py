@@ -244,6 +244,7 @@ class PlanReview(BaseModel):
     how: str
     at: str | None = None
     by: str | None = None
+    drawing: FileRef | None = None  # the top-down drawing its written plan was measured from (review/plan_drawing.py)
 
 
 class ConceptWording(BaseModel):

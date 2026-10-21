@@ -21,7 +21,16 @@ ROUND = 24  # sides of a circle's polygon
 FLOOR_ANCHORS = ("floor", "ground")
 PEOPLE = {"person", "people", "crowd", "man", "woman", "child", "figure", "pedestrian", "astronaut", "worker"}
 AFAR = {"distant", "far", "background", "faraway"}
-KINDS = ("placed", "outside", "overlap", "reach", "tiling")  # the gaps' kinds these checks write
+KINDS = ("placed", "outside", "overlap", "reach", "tiling", "arrangement", "joined")  # the gaps' kinds written here
+# The arrangement against the concept: two rows' order counts where clear in both, the concept's as shares of its
+# picture, the plan's as a share of its reach; left and right only for rows at about one depth (perspective).
+SAME_DEPTH = 0.12
+CLEAR_SEEN = 0.06
+CLEAR_LAID = 0.08
+TURNS = 5  # degrees between the viewer's ways tried
+CONNECTORS = {"tube", "tubes", "tunnel", "corridor", "walkway", "bridge", "passage", "connector", "link"}
+JOIN_SEEN = 0.01  # share of the picture two boxes may stand apart and still meet in the concept
+JOIN_LAID = 1.0  # metres a connector may stand from a part and still meet it on the plan
 
 
 def polygon_of(item, shape):
@@ -342,6 +351,127 @@ def hold_gaps(plan, grid, outline):
     return gaps
 
 
+# --- the arrangement against the concept --------------------------------------------------------------------------
+
+def laid_boxes(plan):
+    """{row id: [[x0, y0, x1, y1], ...]} in plan metres of each row's items and of the inside places it holds."""
+    found = collections.defaultdict(list)
+    for item, row, shape in placed_items(plan):
+        corners = numpy.asarray(polygon_of(item, shape), dtype=float)
+        found[row].append([*corners.min(axis=0), *corners.max(axis=0)])
+    for hold in plan.get("holds", []):
+        if hold.get("row"):
+            found[hold["row"]].append([hold["x"], hold["y"], hold["x"] + hold["w"], hold["y"] + hold["d"]])
+    return found
+
+
+def concept_spots(plan, inventory):
+    """{row id: (across, middle, foot, box)} of each row standing on the floor or the ground, counted once, placed on
+    the plan and boxed by SAM 3 on the concept: its box's middle across and down and its foot (the box's bottom, nearer
+    the lower), as shares of the picture, and the box in pixels. People, rows seen far off, the place itself and rows
+    beyond it are left out."""
+    picture, placed = inventory.get("picture"), set(laid_boxes(plan))
+    if not picture:
+        return {}
+    from score.review.plans import whole
+    left_out = people(inventory) | afar(inventory) | set(plan.get("beyond", [])) | (set(plan.get(
+        "structure", [])) - placed)
+    found = {}
+    for row in inventory.get("rows", []):
+        boxes = [box for box in row.get("boxes") or ([row["box"]] if row.get("box") else []) if box]
+        if (row.get("anchor") or "floor") in FLOOR_ANCHORS and int(row.get("count", 1) or 1) == 1 and len(boxes) == 1 \
+                and row["id"] in placed and row["id"] not in left_out and not whole(row, picture):
+            box = boxes[0]
+            found[row["id"]] = ((box[0] + box[2]) / 2 / picture[0], (box[1] + box[3]) / 2 / picture[1],
+                                box[3] / picture[1], box)
+    return found
+
+
+def plan_spots(plan, rows):
+    """{row id: [x, y]} the middle of each of `rows`' items and inside places on the plan (their mean when several)."""
+    return {row: numpy.mean([[(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] for box in boxes], axis=0)
+            for row, boxes in laid_boxes(plan).items() if row in rows}
+
+
+def relations(seen, laid, turn):
+    """[(first, second, axis, said, drawn)] of every pair of rows whose order is clear both in the concept (`seen`) and
+    on the plan (`laid`) with the viewer turned `turn` degrees from looking north: across (left of, right of) for pairs
+    at about one depth, depth (behind, in front of) where the feet and the middles agree (a big building's foot
+    alone reaches far forward); `said` and `drawn` the signs."""
+    right = numpy.array([math.cos(math.radians(turn)), math.sin(math.radians(turn))])
+    toward = numpy.array([-right[1], right[0]])  # toward the viewer: south when looking north
+    reach = max(float(numpy.ptp(numpy.array(list(laid.values())), axis=0).max()), FINEST) if laid else 1.0
+    found = []
+    rows = sorted(seen)
+    for number, first in enumerate(rows):
+        for second in rows[number + 1:]:
+            (across, middle, foot, _), (other_across, other_middle, other_foot, _) = seen[first], seen[second]
+            apart = laid[first] - laid[second]
+            if abs(foot - other_foot) <= SAME_DEPTH and abs(across - other_across) > CLEAR_SEEN \
+                    and abs(apart @ right) > CLEAR_LAID * reach:
+                found.append((first, second, "across", numpy.sign(across - other_across), numpy.sign(apart @ right)))
+            if abs(foot - other_foot) > CLEAR_SEEN and abs(middle - other_middle) > CLEAR_SEEN \
+                    and numpy.sign(foot - other_foot) == numpy.sign(middle - other_middle) \
+                    and abs(apart @ toward) > CLEAR_LAID * reach:
+                found.append((first, second, "depth", numpy.sign(foot - other_foot), numpy.sign(apart @ toward)))
+    return found
+
+
+def best_turn(seen, laid):
+    """The way the viewer looks (degrees from north, TURNS apart) under which the plan agrees with the concept most."""
+    return max(range(0, 360, TURNS), key=lambda turn: sum(said == drawn for *_, said, drawn
+                                                          in relations(seen, laid, turn)))
+
+
+SAID = {("across", 1): "right of", ("across", -1): "left of", ("depth", 1): "in front of", ("depth", -1): "behind"}
+
+
+def order_gaps(plan, inventory):
+    """A gap for each two rows whose order on the plan is not the concept's (left of, right of, behind, in front of),
+    the plan seen from the way that agrees with the concept most."""
+    seen = concept_spots(plan, inventory)
+    laid = plan_spots(plan, set(seen))
+    seen = {row: spot for row, spot in seen.items() if row in laid}
+    if len(seen) < 2:
+        return []
+    return [{"kind": "arrangement", "item": first, "row": first, "with": second, "at": [round(float(value), 2) for value
+                                                                                      in laid[first]],
+             "words": f"{said_name(first)} is {SAID[(axis, int(said))]} {said_name(second)} in the concept, "
+                      f"{SAID[(axis, int(drawn))]} it on the plan"}
+            for first, second, axis, said, drawn in relations(seen, laid, best_turn(seen, laid)) if said != drawn]
+
+
+def connector(row):
+    """Whether a row joins parts (a tube, a corridor, a walkway, a bridge)."""
+    return bool(last_words(row) & CONNECTORS)
+
+
+def touching(box, other, margin):
+    """Whether two boxes [x0, y0, x1, y1] meet within `margin`."""
+    return box[0] - margin <= other[2] and other[0] - margin <= box[2] and box[1] - margin <= other[3] \
+        and other[1] - margin <= box[3]
+
+
+def join_gaps(plan, inventory):
+    """A gap for each row a connector (a tube, a corridor) meets in the concept that no connector meets on the plan."""
+    picture = inventory.get("picture")
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    joins = [row for row in rows.values() if connector(row)]
+    if not picture or not joins:
+        return []
+    seen = concept_spots(plan, inventory)
+    margin = JOIN_SEEN * max(picture)
+    joined = {row for row, (*_, box) in seen.items() if not connector(rows[row]) and any(
+        touching(box, join_box, margin) for join in joins for join_box in join.get("boxes") or [] if join_box)}
+    boxes = laid_boxes(plan)
+    laid_joins = [box for join in joins for box in boxes.get(join["id"], [])]
+    joiner = said_name(joins[0]["id"])
+    return [{"kind": "joined", "item": row, "row": row, "at": middle_of([boxes[row][0][:2], boxes[row][0][2:]]),
+             "words": f"{said_name(row)} is joined by a {joiner} in the concept, by none on the plan"}
+            for row in sorted(joined) if boxes.get(row)
+            and not any(touching(box, join_box, JOIN_LAID) for box in boxes[row] for join_box in laid_joins)]
+
+
 def checked(plan, inventory, structure=()):
     """Every free check's gaps on `plan` against its scene inventory (`structure`: the rows that are the place's own
     shell, walls, floor, roof or ground, drawn as the plan's walls and levels, never items: an item of one, a backdrop
@@ -355,4 +485,4 @@ def checked(plan, inventory, structure=()):
     outline = grid.covered(outline_of(plan))
     return (count_gaps(plan, inventory, set(structure)) + outside_gaps(plan, inventory, grid, outline)
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
-            + hold_gaps(plan, grid, outline))
+            + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + join_gaps(plan, inventory))

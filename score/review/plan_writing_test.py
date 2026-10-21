@@ -1,14 +1,17 @@
-"""Plan writing (score/review/plan_writing.py) and its free checks (plan_checks.py) on stand-in data, with a stand-in
-for Gemini (no call is made, nothing is spent): the answer made into a plan of the stage table's schema with its
-architecture and shapes, each check's failure a named gap, his edit checked again; under the standing allowance it
-runs on its own, with the flag off only inside his yes."""
+"""Plan writing (score/review/plan_writing.py) and its free checks (plan_checks.py) on stand-in data, with stand-ins
+for Gemini and the top-down drawing (no call is made, nothing is spent): the answer, in units of the drawing, measured
+by the rows' metres into a plan of the stage table's schema with its architecture and shapes, each check's failure a
+named gap, his edit checked again; under the standing allowance it runs on its own, with the flag off only inside his
+yes."""
+import io
 import json
 import subprocess
 
 import pytest
+from PIL import Image
 
 from score.adapters import compute
-from score.review import plan_checks, plan_writing, plans, web
+from score.review import plan_checks, plan_drawing, plan_writing, plans, web
 from score.review.plans_test import data, picked, store  # noqa: F401 (the fixtures)
 
 ANSWER = {
@@ -36,15 +39,26 @@ def response(answer):
     return {"candidates": [{"content": {"parts": [{"text": json.dumps(answer)}]}}], "usageMetadata": {}}
 
 
+UNITS = 100  # drawing units a metre in the stand-in answer: the rows' metres measure it back
+
+
 @pytest.fixture
 def gemini(monkeypatch):
-    asked = []
+    asked, drawn = [], []
     monkeypatch.setattr(plan_writing, "call_euros", lambda found: 0.04)
     monkeypatch.setattr(compute, "books_refusal", lambda: None)
 
+    def drawing(wording, pictures):
+        drawn.append(wording)
+        buffer = io.BytesIO()
+        Image.new("RGB", (500, 400), (255, 255, 255)).save(buffer, "PNG")
+        return buffer.getvalue(), 0.12, 1.0
+    monkeypatch.setattr(plan_drawing, "called", drawing)
+
     def ask(body):
         asked.append(body)
-        return response(ANSWER), 1.0
+        return response(plan_writing.metred(ANSWER, (UNITS, UNITS), (0, 0))), 1.0
+    ask.drawn = drawn
     return asked, ask
 
 
@@ -60,8 +74,13 @@ def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a
     picked(store, "shed")
     assert plans.current(store, "shed")["how"] == "derived"
     clears = []
+    price = plan_writing.price(store)
     record, = plan_writing.write(store, ["shed"], "the allowance", clear=cleared(clears), ask=ask)
-    assert clears == [(compute.PLAN_WRITING, ["shed"], 0.05)] and record["euros"] == 0.04
+    assert clears == [(compute.PLAN_WRITING, ["shed"], price)] and record["euros"] == 0.04
+    assert record["drawing_euros"] == 0.12 and record["measured"] == {"metres a unit": [0.01, 0.01],
+                                                                      "by": "its rows' metres"}
+    assert "must NOT copy its viewpoint" in ask.drawn[0] and "a bench, 2 a crate" in ask.drawn[0] and len(asked[0]["contents"][0]["parts"]) == 3
+    assert plan_writing.spent(store, ["shed"]) == 0.16 and plan_writing.price(store) == 0.16
     told = asked[0]["contents"][0]["parts"][0]["text"]
     assert '"fixed doors"' in told and '"leads to": "yard"' in told and '"metres [wide, deep, tall]"' in told
     plan = plans.current(store, "shed")["plan"]
@@ -108,6 +127,39 @@ def test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap():
     assert not [word for word in plan_checks.checked(plan, inventory) if "reached" in word]
 
 
+def test_a_footprint_answered_as_box_2d_is_measured_from_its_box():
+    answer = {"outline": [[0, 0], [1000, 0], [1000, 1000], [0, 1000]],
+              "items": [{"row": "bench", "box_2d": [100, 200, 160, 400]}],
+              "places": [{"place": "nook", "box_2d": [500, 500, 700, 800]}]}
+    inventory = {"rows": [{"id": "bench", "size": [2.0, 0.6, 0.9]}]}
+    found, skeleton, how = plan_writing.measured(answer, {"w": 1.0, "d": 1.0}, inventory, held=False)
+    assert how == {"metres a unit": [0.01, 0.01], "by": "its rows' metres"} and (skeleton["w"], skeleton["d"]) == (10, 10)
+    assert {key: found["items"][0][key] for key in ("x", "y", "wide", "deep")} == {"x": 3.0, "y": 1.3, "wide": 2.0,
+                                                                                    "deep": 0.6}
+    assert {key: found["places"][0][key] for key in ("x", "y", "w", "d")} == {"x": 5.0, "y": 5.0, "w": 3.0, "d": 2.0}
+
+
+def test_an_arrangement_not_the_concepts_and_a_tube_joining_nothing_are_gaps():
+    # the concept: a hub in the middle, a dome left of it, a hangar behind it, a tube from the hub to the dome
+    inventory = {"picture": [1000, 1000], "rows": [
+        {"id": "hub", "count": 1, "boxes": [[400, 400, 600, 600]]},
+        {"id": "dome", "count": 1, "boxes": [[100, 420, 250, 580]]},
+        {"id": "hangar", "count": 1, "boxes": [[350, 50, 650, 200]]},
+        {"id": "tube", "count": 1, "boxes": [[250, 480, 400, 520]]}]}
+    rows = {"HUB 1": ["hub"], "DOME 1": ["dome"], "HANGAR 1": ["hangar"], "TUBE 1": ["tube"]}
+    laid = [["HUB 1", 20.0, 20.0, 10.0, 10.0, None, "item"], ["DOME 1", 2.0, 21.0, 8.0, 8.0, None, "item"],
+            ["HANGAR 1", 15.0, 0.0, 20.0, 10.0, None, "item"], ["TUBE 1", 10.0, 24.0, 10.0, 2.0, None, "item"]]
+    plan = {"w": 40.0, "d": 40.0, "doors": [], "people": [[30.0, 35.0]], "items": laid, "rows": rows}
+    gaps = [gap for gap in plan_checks.checked(plan, inventory) if gap["kind"] in ("arrangement", "joined")]
+    assert gaps == []  # as the concept, seen from the south
+    packed = [["HUB 1", 20.0, 20.0, 10.0, 10.0, None, "item"], ["DOME 1", 31.0, 21.0, 8.0, 8.0, None, "item"],
+              ["HANGAR 1", 15.0, 0.0, 20.0, 10.0, None, "item"], ["TUBE 1", 2.0, 34.0, 10.0, 2.0, None, "item"]]
+    words = [gap["words"] for gap in plan_checks.checked({**plan, "items": packed}, inventory)
+             if gap["kind"] in ("arrangement", "joined")]
+    assert "dome is left of hub in the concept, right of it on the plan" in words
+    assert "hub is joined by a tube in the concept, by none on the plan" in words
+
+
 def test_people_things_seen_far_off_and_rows_beyond_the_place_are_no_gaps():
     plan = {"w": 6.0, "d": 4.0, "doors": [], "people": [],
             "items": [["CRATE 1", 1.0, 1.0, 1.0, 1.0, None, "item"], ["DINER 1", 1.2, 1.2, 0.5, 0.5, None, "item"],
@@ -133,9 +185,10 @@ def test_with_the_flag_off_a_writing_runs_only_inside_his_yes(store, gemini, mon
 
     with pytest.raises(web.review.Refused, match="not today's price"):
         web.plan_write(store, "shed", 0.09, "joey", run=run)
-    assert web.plan_write(store, "shed", 0.05, "joey", run=run)["place"] == "shed"
+    price = plan_writing.price(store)  # the writing and its top-down drawing
+    assert web.plan_write(store, "shed", price, "joey", run=run)["place"] == "shed"
     yes, = [store.read(key) for key in store.objects.keys("spend-yes/") if "plan-write-shed" in key]
-    assert yes["euros"] == 0.05 and yes["by"] == "joey"
+    assert yes["euros"] == price and yes["by"] == "joey"
     assert plans.current(store, "shed")["how"] == "written"
 
 

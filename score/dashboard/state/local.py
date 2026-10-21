@@ -642,11 +642,22 @@ class LocalSource:
             shown = plans.current(self.store, node)
             if shown is None:
                 continue
-            found[node] = PlanReview(**shown)
+            found[node] = PlanReview(**shown, drawing=self.plan_drawing_ref(node))
         nodes = self.design_nodes()
         return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros(),
                 "plan_write_euros": plan_writing.price(self.store), "plan_automatic": plan_writing.AUTOMATIC,
                 "plan_spend": plan_writing.spent(self.store, nodes)}
+
+    def plan_drawing_ref(self, node):
+        """The FileRef of the top-down drawing `node`'s written plan was measured from (score/review/plan_drawing.py),
+        None while none is written or its bytes are not in the store's blobs."""
+        from score.review import plan_writing
+        sha = (plan_writing.written_of(self.store, node) or {}).get("drawing")
+        blob = self.blob_path(sha) if sha else None
+        if not blob or not blob.is_file():
+            return None
+        self.known.add(sha, f"{node}-plan-drawing.png", blob)
+        return file_ref(sha, f"{node}-plan-drawing.png", blob.stat().st_size)
 
     def design_nodes(self):
         """Every place and shell a concept is designed for: the places, the shells, and the inside places only his kept
