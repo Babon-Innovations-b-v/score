@@ -152,6 +152,19 @@ def test_a_child_standing_where_the_plan_lays_out_nothing_fails():
         shutil.rmtree(root)
 
 
+def test_a_scene_with_no_plan_read_is_unknown_not_passed():
+    """The yard's tree made with no plan of its own read (a parent scene whose plan is not kept yet): it stands no
+    child, and what it should hold cannot be told, so the gate answers unknown, never pass."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        yard, inputs = tree_of(root, "yard", a_scene(root / "made", "yard", (0.0, 0.0, 0.0)), None, {})
+        verdict = scene_tree.judge_children(yard, inputs, None)
+        assert verdict.answer == checks.UNKNOWN
+        assert verdict.reason == "no plan of yard read: which child scenes it holds cannot be told"
+    finally:
+        shutil.rmtree(root)
+
+
 def test_the_plans_read_and_a_scene_holding_itself_refused():
     """The plan read is the kept one where there is one, else the data's; each child's plan is declared; a plan laying
     out a scene above it is refused."""

@@ -191,11 +191,15 @@ def child_faults(stage, scene, plan, child, inputs):
 
 def judge_children(output, inputs, evidence):
     """Fail when a child scene the plan lays out does not stand at its hold, resolve and hold something, or a child
-    stands that the plan lays out nowhere."""
+    stands that the plan lays out nowhere; unknown with no plan read, since what the scene holds cannot be told (a
+    parent scene whose plan is not kept yet would otherwise pass holding nothing)."""
     from pxr import Usd
     stage = Usd.Stage.Open(str(stage_file(pathlib.Path(output))))
     scene = stage.GetDefaultPrim().GetName()
     plan = read_plan(inputs.get("plan"))
+    if plan is None:
+        return checks.Verdict("child scenes", checks.UNKNOWN,
+                              f"no plan of {scene} read: which child scenes it holds cannot be told")
     scope = stage.GetPrimAtPath(f"/{scene}/{SCENES}")
     standing = {prim.GetName() for prim in (scope.GetChildren() if scope else [])}
     read = {name.partition("@")[2] for name in inputs if name.startswith(f"{TREE}@")}
