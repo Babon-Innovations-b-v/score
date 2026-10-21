@@ -178,6 +178,33 @@ def test_a_room_changed_on_the_holders_plan_puts_draws_on_it_out_of_date_and_fla
     assert stages.places(world, store) == ["yard"]  # the build follows him: no stage line for it
 
 
+def test_a_scene_he_added_in_the_app_is_a_place_once_its_design_is_done(store, data, tmp_path):
+    """A child scene he added on a plan (no file of it in the data) is a scene in design, no place, until its concept
+    is locked, its inventory read and its plan written or edited; then the build lists it and its plan row reads its
+    kept plan, with no hand edit (owner, 2026-10-21)."""
+    from score.review import reading
+
+    def read(place):
+        reading.kept(store, {"place": place, "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
+                             "size": [64, 40], "inventory": {"concept_pick": {"sha256": PICK}, "rows": []}})
+    picked(store, "yard")
+    read("yard")
+    plan = plans.current(store, "yard")["plan"]
+    plans.edited(store, "yard", {**plan, "holds": [*plan["holds"], {**plan["holds"][0], "place": "hut", "x": 0.0}]},
+                 "joey")
+    world = graph.Environment("world1", 3, {"data": str(data)})
+    assert stages.places(world, store) == ["shed", "yard"]  # in design: its concept not locked
+    picked(store, "hut")
+    read("hut")
+    shown = plans.current(store, "hut")
+    assert shown["how"] == "derived" and stages.places(world, store) == ["shed", "yard"]  # its plan not written
+    assert plans.keep(store, ["hut"]) == ([], []) and not stages.plan_written("hut")
+    plans.edited(store, "hut", shown["plan"], "joey")
+    assert stages.places(world, store) == ["hut", "shed", "yard"]
+    assert plans.keep(store, ["hut"]) == (["hut"], ["hut"]) and (tmp_path / "kept/hut.json").is_file()
+    assert stages.plan_written("hut") and stages.kept_plan_only(lambda place: 1 / 0)("hut") == {"plans": "{data}/plans"}
+
+
 def test_overlapped_rooms_are_one_shared_room_and_a_box_dropped_in_a_room_a_thing_in_it(store):
     """Owner, 2026-10-21: two rooms overlapped on the plan above are one shared room named from both; the add-scene
     box dropped inside a room is a thing kept with that room, no scene of its own, named with its spot in the room's

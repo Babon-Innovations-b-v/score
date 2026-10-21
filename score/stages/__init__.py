@@ -156,6 +156,26 @@ def creator_plan(files):
     return declared
 
 
+def filed_plan(place):
+    return (REPO / "data/plans" / f"{place}.json").is_file()
+
+
+def kept_plan_only(files):
+    """The plan row's files for a scene he added in the app, with no plan in data/plans: only the other places' plans
+    there, its own plan, inventory and concept being the kept ones (creator_plan). Wrapped here, in the table, so every
+    filed place keeps its key."""
+    @functools.wraps(files)
+    def declared(place):
+        return files(place) if filed_plan(place) else {"plans": "{data}/plans"}
+    return declared
+
+
+def plan_written(place):
+    """Whether the plan row makes the place's plan: its plan in data/plans says where its doors lead
+    (scene_record.written), or, for a scene he added in the app (none there), its kept plan stands (plans.keep)."""
+    return scene_record.written(place) or (not filed_plan(place) and (plans.KEPT / f"{place}.json").is_file())
+
+
 def plan_as_kit(function, position):
     """A plan row function (make, or a judge) reading a place with no kit laid: its `kit` input (argument `position`)
     is the plan itself, which lays no pieces and is named for the place, so the row reads a kit with nothing on it."""
@@ -177,7 +197,7 @@ def shell_of(place):
 PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
-                   files=creator_plan(kit_if_laid(scene_record.plan.files)), applies=scene_record.written,
+                   files=creator_plan(kit_if_laid(kept_plan_only(scene_record.plan.files))), applies=plan_written,
                    beside={"shell-split": ("shell-split", 1)}, upward=True, neighbours=shell_of)
 # Shapes first (CONTEXT.md "shell split"): an outside shell's plan split into the shapes of its inside places, free and
 # local, for a place whose plan has a `split`; each inside place's plan reads its shell's split beside it (PLAN's
@@ -968,24 +988,35 @@ def world1():
 
 def places(world, store=None):
     """An environment's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
-    none for an environment without data, the images environment), less every scene the creator took out: those
-    places/within.json names `merged` into another (navigation into the cockpit, the owner 2026-10-21), and those his
-    kept plans in `store` (the framework's by default) no longer lay out, removed or merged into a shared room on the
-    plan above (plans.removed, the cockpit's own reading), so the build follows the app without a hand edit."""
+    none for an environment without data, the images environment) and each scene the creator added in the app whose
+    design is done (added_by_him), less every scene he took out: those places/within.json names `merged` into another
+    (navigation into the cockpit, the owner 2026-10-21), and those his kept plans in `store` (the framework's by
+    default) no longer lay out, removed or merged into a shared room on the plan above (plans.removed, the cockpit's
+    own reading), so the build follows the app without a hand edit."""
     if "data" not in world.roots:
         return []
     data = pathlib.Path(world.roots["data"])
     path = data / "places/within.json"
     found = json.loads(path.read_text()) if path.exists() else {}
     within = {name: entry["within"] for name, entry in found.get("within", {}).items()}
-    gone = {*found.get("merged", {}), *(removed_by_him(store or Store.default(), within) if within else ())}
-    return sorted({path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")} - gone)
+    filed = {path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")}
+    store = (store or Store.default()) if within else None
+    gone = {*found.get("merged", {}), *(removed_by_him(store, within) if within else ())}
+    return sorted((filed | set(added_by_him(store, within, filed) if within else ())) - gone)
 
 
 def removed_by_him(store, within):
     """The places of `within` his kept plans removed (plans.removed), asked once a moment (a cockpit page lists the
     places many times; plans.one_moment)."""
     return plans.once("removed", store, tuple(sorted(within.items())), lambda: plans.removed(store, within))
+
+
+def added_by_him(store, within, filed):
+    """The scenes his kept plans lay out with nothing of theirs `filed` in the data (a child scene he added on a plan in
+    the app) whose design is done (plans.design_done); one still in design is no place yet: the cockpit shows it as a
+    scene in design and no row of the batch reads it."""
+    return plans.once("added", store, (tuple(sorted(within.items())), tuple(sorted(filed))), lambda: sorted(
+        place for place in plans.overlaid(store, within) if place not in filed and plans.design_done(store, place)))
 
 
 WORLDS = {"world1": world1, "images": images.image_world}
