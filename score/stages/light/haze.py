@@ -22,7 +22,7 @@ def read(path):
 def glowing(inventory_path):
     """The ids of an inventory's rows whose row kind glows (score/stages/row_kinds.py): its lamps."""
     import sys
-    sys.path.insert(0, str(passes.REPO / "score/stages"))
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))  # score/stages, never a test's repo
     import row_kinds
     return {row["id"] for row in row_kinds.rows_that(read(inventory_path), "glows", row_kinds.table())}
 

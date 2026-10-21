@@ -273,6 +273,28 @@ def check_shafts_from_rows():
     assert haze.shafted_kinds("launch") == {"launch_far_pad_floodlight"}
 
 
+def check_lamps_hang_over_their_own_floor():
+    """A kit shell's hung lamp reaches by how high it hangs over the kit floor under it, never over the plan's ground
+    floor: the stairwell's seven landing lights, one per half landing 1.5 m apart, each hang the same 2.33 m over their
+    own landing, so each gets the same reach, the library wall lamp's for that height (11.65 m when every lamp was
+    measured from the ground floor), and the game lamp's energy at the wall lamp's share of it."""
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene
+    from score.stages import row_kinds
+    from score.stages.scene_record import kit_shell
+    name = json.loads((REPO / "data/plans/stairwell.json").read_text()).get("inventory", "stairwell")
+    inventory = json.loads((REPO / f"data/inventory/{name}.json").read_text())
+    kit = json.loads((REPO / "data/kit/stairwell.json").read_text())
+    glowing = [row for row in row_kinds.rows_that(inventory, "glows", row_kinds.table()) if row["id"] == "cage_bulkhead"]
+    lights = kit_shell.lamps({"floor_height": 0.0}, kit, glowing, REPO / "data/library/lamps.json", inventory["rows"])
+    wall = json.loads((REPO / "data/library/lamps.json").read_text())["mounts"]["wall"]
+    reach = round(wall["reach_per_height"] * 2.33, 2)
+    assert len(lights) == 7 and {light["range"] for light in lights} == {reach}, lights
+    assert all(light["energy"] == round(scene.LAMP_ENERGY * round(wall["strength_per_reach"] * reach, 3), 4)
+               for light in lights), lights
+    assert len({light["at"][1] for light in lights}) == 7  # seven heights, one reach
+
+
 def check_needs():
     """An outdoor place no ground seats lacks its seat and its sky; seated, it still lacks its sky until its kept sky
     has a site and a scene time on the environment's physics; a room under a roof needs neither, whatever an old
@@ -366,23 +388,25 @@ def check_design_rows():
 
 
 def check_haze_from_the_kit():
-    """light-haze applies at a place no list names whose kit lays a sky record's shafted lamp row, and at none whose
-    kit lays only unshafted kinds."""
+    """light-haze applies at a place no list names whose kit lays a glowing row (row kind) its plan aims, and at none
+    whose plan aims no glowing row: one that aims nothing, or aims a row that does not glow."""
     import tempfile
     from score.stages.light import haze, passes
-    sky = json.loads(haze.SKY.read_text())
-    row = next(row for body in sky.values() if isinstance(body, dict)
-               for row, lamp in (body.get("lamps") or {}).items() if lamp.get("shaft"))
+    rows = [{"id": "mast_lamp", "name": "mast lamp"}, {"id": "desk", "name": "desk"}]
+    aims = {"yard": {"mast_lamp": {"at": "pad"}}, "hall": {}, "shed": {"desk": {"at": "pad"}}}
     repo = passes.REPO
     with tempfile.TemporaryDirectory() as folder:
-        (pathlib.Path(folder) / "data/kit").mkdir(parents=True)
-        for place, kind in (("yard", f"yard_{row}"), ("hall", "hall_desk")):
+        for kind in ("kit", "plans", "inventory"):
+            (pathlib.Path(folder) / f"data/{kind}").mkdir(parents=True)
+        for place, aimed in aims.items():
             (pathlib.Path(folder) / f"data/kit/{place}.json").write_text(json.dumps(
-                {"room": place, "pieces": [{"kind": kind, "part": "glow"}]}))
+                {"room": place, "pieces": [{"kind": f"{place}_{row['id']}", "part": "glow"} for row in rows]}))
+            (pathlib.Path(folder) / f"data/plans/{place}.json").write_text(json.dumps({"aims": aimed}))
+            (pathlib.Path(folder) / f"data/inventory/{place}.json").write_text(json.dumps({"rows": rows}))
         passes.REPO = pathlib.Path(folder)
         try:
-            assert haze.shafted_kinds("yard") == {f"yard_{row}"} and haze.applies("yard")
-            assert not haze.applies("hall") and not haze.applies("nowhere")
+            assert haze.shafted_kinds("yard") == {"yard_mast_lamp"} and haze.applies("yard")
+            assert not haze.applies("hall") and not haze.applies("shed") and not haze.applies("nowhere")
         finally:
             passes.REPO = repo
 
@@ -425,6 +449,7 @@ def main():
     check_glow_from_sky_record()
     check_copy_leaves_its_input()
     check_shafts_from_rows()
+    check_lamps_hang_over_their_own_floor()
     check_neighbour_keeps_its_pictures()
     check_magenta()
     check_heads()
