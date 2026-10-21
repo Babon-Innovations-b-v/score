@@ -71,7 +71,7 @@ def where_of(site):
             f"{abs(site['longitude']):.4f}° {'E' if site['longitude'] >= 0 else 'W'}")
 
 
-def sky_tip(found):
+def overhead_tip(found):
     """A site's sky at its scene time in one line, worked out from the setting (never set here): each light's height and
     each body above its horizon, where, how big and how much lit; "" before it has a scene time."""
     if not found:
@@ -82,7 +82,7 @@ def sky_tip(found):
             size = "a point" if world["across"] < 0.05 else f"{world['across']:.1f}°"
             words.append(f"{world['name']} {world['altitude']:.0f}° {COMPASS[round(world['azimuth'] / 45) % 8]}, "
                          f"{size}, {world['lit'] * 100:.0f}% lit")
-    return "Its sky, from the setting: " + "; ".join(words)
+    return "Overhead, from the setting: " + "; ".join(words)
 
 
 def plan_page(request, world):
@@ -92,7 +92,7 @@ def plan_page(request, world):
     plan = shown.get("plan") or {"maps": [], "gaps": []}
     names = {**groups.short_names(world_state), **world_state.shells}
     maps = [{**found, "svg": map_svg(found, names), "rows": [{
-        **site, "title": names.get(site["place"], site["name"]), "sky_tip": sky_tip(site.get("overhead")),
+        **site, "title": names.get(site["place"], site["name"]), "overhead_tip": overhead_tip(site.get("overhead")),
         "where": where_of(site), "blockout": world_state.blockouts.get(site["place"])}
         for site in found["sites"]]} for found in plan["maps"]]
     can = is_owner(request.user) and actions.decisions_on()

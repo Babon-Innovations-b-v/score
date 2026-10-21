@@ -30,7 +30,7 @@ def test_the_plan_page_shows_each_world_and_keeps_his_scene_times(world):
     world.source.refresh()
     page = owner.get(f"/environments/{name}/plan/").content.decode()
     assert ">Sky<" not in page and ">Sun<" not in page  # the sky is no column: it follows from the setting
-    assert "Its sky, from the setting: Sun" in page and "Earth " in page  # on hover over its time
+    assert "Overhead, from the setting: Sun" in page and "Earth " in page  # on hover over its time
     refused = signed_in("joey2").post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),
                                       content_type="application/json")
     assert refused.status_code == 403

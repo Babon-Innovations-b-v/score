@@ -21,8 +21,8 @@
       <tbody>{% for site in map.rows %}<tr data-row="site" data-place="{{ site.place }}">
         <td><b data-v>{{ site.title }}</b></td>
         {% if can %}<td><input type="text" data-f="size" value="{{ site.size|join:' x '|unlocalize }}" title="wide x deep x tall, metres"></td>
-        <td title="{{ site.sky_tip }}"><input type="text" data-f="time" value="{{ site.time|default_if_none:'' }}" placeholder="2099-06-01T20:00:00Z" title="{{ site.sky_tip }}"></td>
-        {% else %}<td data-v>{{ site.size|join:' x '|unlocalize }} m</td><td title="{{ site.sky_tip }}" data-v>{{ site.time|default_if_none:'?' }}</td>{% endif %}
+        <td title="{{ site.overhead_tip }}"><input type="text" data-f="time" value="{{ site.time|default_if_none:'' }}" placeholder="2099-06-01T20:00:00Z" title="{{ site.overhead_tip }}"></td>
+        {% else %}<td data-v>{{ site.size|join:' x '|unlocalize }} m</td><td title="{{ site.overhead_tip }}" data-v>{{ site.time|default_if_none:'?' }}</td>{% endif %}
         <td data-v>{{ site.where }}</td>
         <td>{% if site.blockout %}<a href="{{ site.blockout.url }}" target="_blank" rel="noopener"><img class="ep-blockout" src="{{ site.blockout.thumb_url }}" alt="{{ site.title }} blockout" loading="lazy"></a>{% else %}<span class="unknown" data-v>none</span>{% endif %}</td>
       </tr>{% endfor %}</tbody>
