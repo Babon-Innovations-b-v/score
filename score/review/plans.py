@@ -1053,12 +1053,17 @@ def main(argv):
     from score.store import Store
     store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
     if argv == ["keep"]:
-        kept, changed = keep(store, sorted({*(path.stem for path in (DATA / "plans").glob("*.json")),
-                                            *tree(store)["within"]}))
+        from score.review import plan_writing
+        places = sorted({*(path.stem for path in (DATA / "plans").glob("*.json")), *tree(store)["within"]})
+        # a locked, read place with no plan written from its reading (a reading before today's METHOD, a run cut off)
+        # gets it on its own under the standing allowance; kept on a later pass
+        owed = plan_writing.owed(store, places) if plan_writing.AUTOMATIC else []
+        writing = f"; plans of {', '.join(owed)} being written: {plan_writing.started(store, owed)}" if owed else ""
+        kept, changed = keep(store, places)
         # changed, or not made yet (a run refused while another held the store is asked again next pass)
         again = [place for place in sorted({*changed, *kept}) if place in changed or not made(store, place)]
         print(f"plans for the plan stage: {len(kept)} kept, {len(changed)} changed"
-              + (f"; plan rows of {len(again)} made again: {made_again(again)}" if again else ""))
+              + (f"; plan rows of {len(again)} made again: {made_again(again)}" if again else "") + writing)
         return 0
     place, request, by = argv
     try:

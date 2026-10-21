@@ -41,6 +41,7 @@ import contextlib
 import json
 import math
 import os
+import statistics
 import sys
 import time
 import urllib.error
@@ -686,6 +687,36 @@ def to_write(store, places):
     return [place for place in places if plans.counts(store, place) and not written_of(store, place)]
 
 
+def refused_now(store, place):
+    """Whether the place's newest writing was refused from its lock and reading in force by today's METHOD."""
+    last = (writings(store, place) or [{}])[-1]
+    return bool(last.get("refused")) and last.get("method") == METHOD and last.get("concept") == concepts.picked(
+        store, place) and last.get("reading") == reading_at(store, place)
+
+
+def owed(store, places):
+    """The places of `places` written on their own (`to_write`), less those `refused_now`: never paid for again on
+    every sync pass, his Make plan writes them again."""
+    return [place for place in to_write(store, places) if not refused_now(store, place)]
+
+
+def started(store, places, start=None):
+    """The plans of `places` written in a process of its own that outlives the caller (the sync pass's `plans keep`
+    goes on); its log's path. Each place's lock makes a second run wait and find it written."""
+    import shutil
+    import subprocess
+    log = store.cache / AREA / "logs" / f"{stamp_key(concepts.now())}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    # Under a systemd service (the sync) in a scope of its own, so the service's end does not kill it (web.reading_started).
+    scope = (["systemd-run", "--user", "--scope", "--quiet", "--collect"]
+             if os.environ.get("INVOCATION_ID") and shutil.which("systemd-run") else [])
+    with log.open("w") as out:
+        (start or subprocess.Popen)([*scope, sys.executable, "-m", "score.review.plan_writing", *places],
+                                    env={**os.environ, "SCORE_SPEND_STORE": str(store.cache.parent)}, stdout=out,
+                                    stderr=subprocess.STDOUT, start_new_session=True, cwd=str(concepts.REPO))
+    return str(log)
+
+
 def spent(store, places):
     """The euros every writing of `places` and every top-down drawing it was measured from cost, in sum (the cockpit's
     running total beside the readings')."""
@@ -693,17 +724,20 @@ def spent(store, places):
                  + plan_drawing.spent(store, places), 4)
 
 
-def dearest(store, area):
-    """The dearest measured call kept under `area`, None with none."""
-    found = [store.read(key)["euros"] for key in store.objects.keys(f"{area}/")] if store else []
-    return max(found) if found else None
+def typical(store, area, method=None):
+    """The median euros of the calls kept under `area` (of `method` only, when given), None with none."""
+    found = [record["euros"] for record in (store.read(key) for key in store.objects.keys(f"{area}/"))
+             if method is None or record.get("method") == method] if store else []
+    return statistics.median(found) if found else None
 
 
 def price(store=None):
-    """The euros one writing is priced at: its call (the dearest measured writing of any place, else ESTIMATE) and its
-    top-down drawing (the dearest measured drawing, else a concept draw's price), rounded up to the cent."""
-    call = dearest(store, AREA) if dearest(store, AREA) is not None else ESTIMATE
-    drawing = dearest(store, plan_drawing.AREA)
+    """The euros one writing is priced at: its call (the median measured writing of today's METHOD, else ESTIMATE:
+    an older method's call asked another question) and its top-down drawing (the median measured drawing, else a
+    concept draw's price), rounded up to the cent: what one costs, not the dearest one ever."""
+    call = typical(store, AREA, METHOD)
+    call = call if call is not None else ESTIMATE
+    drawing = typical(store, plan_drawing.AREA)
     drawing = drawing if drawing is not None else (concepts.draw_euros() or DRAWING_ESTIMATE)
     return math.ceil(round((call + drawing) * 100, 6)) / 100
 

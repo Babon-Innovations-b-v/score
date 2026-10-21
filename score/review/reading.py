@@ -651,7 +651,7 @@ def main(argv):
         print(json.dumps({"place": record["place"], "rows": len(record["inventory"]["rows"]),
                           "gaps": len(record["gaps"]), "skipped": len(record["skipped"]),
                           "merged": len(record["merged"]), "euros": record["euros"], "seconds": record["seconds"]}))
-    return planned(store, [record["place"] for record in found], options.by)
+    return planned(store, options.places, options.by)  # one already read with no plan written gets it too
 
 
 def planned(store, places, by):

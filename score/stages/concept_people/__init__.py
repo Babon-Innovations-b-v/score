@@ -58,10 +58,12 @@ QUESTION = ("The first picture is part of a concept painting of a place; one fig
 
 def inventory_of(place, inventory_folder):
     """The inventory a place's cast reads its count by (tools/usd/stage_inputs.inventory_path's rule): its own, else
-    the place its kit belongs to (the flat's is prologue_flat)."""
-    if (pathlib.Path(inventory_folder) / f"{place}.json").exists():
+    the place its kit belongs to (the flat's is prologue_flat), else its own name (a scene he added in the app has no
+    data files)."""
+    kit = REPO / "data/kit" / f"{place}.json"
+    if (pathlib.Path(inventory_folder) / f"{place}.json").exists() or not kit.is_file():
         return place
-    return json.loads((REPO / "data/kit" / f"{place}.json").read_text()).get("place", place)
+    return json.loads(kit.read_text()).get("place", place)
 
 
 def designed_views(inventory_folder):

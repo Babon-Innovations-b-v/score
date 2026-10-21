@@ -248,3 +248,19 @@ def test_with_the_flag_on_his_click_asks_no_yes_and_a_reading_writes_its_plan(st
     assert plans.current(store, "shed")["how"] == "written"
     monkeypatch.setattr(plan_writing, "AUTOMATIC", False)
     assert reading.planned(store, ["yard"], "the allowance") == 0 and plan_writing.writings(store, "yard") == []
+
+
+def test_a_read_place_with_no_plan_is_owed_unless_refused_and_an_older_methods_call_sets_no_price(store, gemini):
+    picked(store, "shed")
+    assert plan_writing.owed(store, ["shed", "yard"]) == ["shed"]
+    record = {"place": "shed", "concept": plans.pick_of(store, "shed"), "method": plan_writing.METHOD,
+              "reading": plan_writing.reading_at(store, "shed"), "at": "2026-10-21T00:00:00+00:00", "euros": 0.2,
+              "refused": "no plan"}
+    plan_writing.kept(store, record)
+    assert plan_writing.to_write(store, ["shed"]) == ["shed"] and plan_writing.owed(store, ["shed"]) == []
+    price = plan_writing.price(store)
+    plan_writing.kept(store, {**record, "method": 1, "at": "2026-10-21T00:00:01+00:00", "euros": 0.9})
+    assert plan_writing.price(store) == price  # an older method's dearer call is no price of today's
+    started = []
+    assert plan_writing.started(store, ["shed"], start=lambda argv, **named: started.append(argv)).endswith(".log")
+    assert started[0][-2:] == ["score.review.plan_writing", "shed"]
