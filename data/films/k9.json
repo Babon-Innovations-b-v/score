@@ -348,17 +348,6 @@
   {
    "cut": "walk-through",
    "shows": {
-    "place": "navigation"
-   },
-   "transition": "cross-fade",
-   "sound": "place",
-   "text": "Navigation",
-   "line": "The ship",
-   "seconds": 7.0
-  },
-  {
-   "cut": "walk-through",
-   "shows": {
     "place": "galley"
    },
    "transition": "cross-fade",

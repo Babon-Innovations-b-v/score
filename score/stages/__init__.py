@@ -967,11 +967,14 @@ def world1():
 
 def places(world):
     """An environment's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
-    none for an environment without data, the images environment)."""
+    none for an environment without data, the images environment), less the scenes places/within.json names `merged`
+    into another (no stage line of their own: the owner, 2026-10-21, navigation into the cockpit)."""
     if "data" not in world.roots:
         return []
     data = pathlib.Path(world.roots["data"])
-    return sorted({path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")})
+    within = data / "places/within.json"
+    merged = json.loads(within.read_text()).get("merged", {}) if within.exists() else {}
+    return sorted({path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")} - set(merged))
 
 
 WORLDS = {"world1": world1, "images": images.image_world}

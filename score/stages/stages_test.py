@@ -194,6 +194,10 @@ def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
             (root / part).parent.mkdir(parents=True, exist_ok=True)
             (root / part).write_text("{}")
         assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid", "new"]
+        # a scene merged into another has no stage line, though its plan stands
+        (root / "places").mkdir()
+        (root / "places/within.json").write_text(json.dumps({"merged": {"new": {"into": "laid"}}}))
+        assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid"]
     finally:
         shutil.rmtree(root)
 

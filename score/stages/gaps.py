@@ -27,7 +27,7 @@ WRITTEN = "gaps.json"
 # The places whose gaps file every gap row has keyed since 2026-10-14, the accepted paint among them: they keep it, so
 # no accepted output moves. shortcut: a judged-only input (in the judgement's state, not the key; a change to
 # score/graph) would let these read only their own gaps too.
-KEYED_WHOLE = ("campgrounds", "galley", "garage", "greenhouse", "hangar", "navigation", "wreck")
+KEYED_WHOLE = ("campgrounds", "galley", "garage", "greenhouse", "hangar", "wreck")
 # The rows that keyed those files whole: a gate given gaps later (complete-boxes) reads only the gaps naming it.
 KEYED_ROWS = ("assembly", "surfaces-check", "surfaces-paint")
 

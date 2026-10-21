@@ -21,7 +21,7 @@ import score.stages.complete.boxes as boxes  # noqa: E402
 import score.stages.motion.models.boxes as model_boxes  # noqa: E402
 import contents  # noqa: E402
 
-SHIP = ("cockpit", "quarters", "navigation", "galley", "storage", "engineroom", "shiplock", "walkway")
+SHIP = ("cockpit", "quarters", "galley", "storage", "engineroom", "shiplock", "walkway")
 
 
 def inventory(place):
