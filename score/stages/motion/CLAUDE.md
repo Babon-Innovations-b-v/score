@@ -41,15 +41,18 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   (`clear`), its speed in the cited range of its kind (`data/checks/motion.json`, every range with its source), its
   loop joins (`loops`), and it stays on what it moves on (`grounded`). Never widen a kind's range to pass a gate: find
   a better source, or put the path right.
-- **Every moving kind moves, or says why not.** `covered` fails a prim of a moving kind (`data/checks/motion.json`'s
-  prims, or an object of a row whose kind moves) the layer leaves standing unless the record's `still` gives the
-  reason.
+- **Every moving row moves, or says why not.** `covered` fails an object of a row whose kind moves that the layer
+  leaves standing unless the record's `still` gives the reason; a prim merely named like an old record's moving kind
+  (`data/checks/motion.json`'s `prims`) on no moving row is not asked for.
 - **Designed pass-throughs are written, never assumed.** A motion that passes through a still thing by its design (a
   door's edges in its wall's track) is the record's `through` ({motion: {prim pattern: why}}), shown in `clear`'s
   findings; a rule that needs one says so in `data/checks/row-kinds.json`, never in a record for one scene. A thing standing in a
   track by layout (the garage's pressure gauge in the big door's way) is a fault of the place, not a pass-through.
-- **Hatches are fitted by the gate.** A hatch opens into its room as far as `clear` allows (100 degrees down to 60);
-  one that strikes at every angle stays shut with the strike as its `still` reason.
+- **Swings are fitted by the gate** (`fitted`, in the make): a swing that strikes is tried the other way, then
+  `FIT_STEP` degrees less either way down to `FIT_LEAST` (60), the first that `clear` passes kept and said in its
+  `from`; one that strikes every way stands with the strike as its `still` reason, so a door against a wall or a
+  crane over a neighbour never stops the line. A thing lying lower than it is wide both ways (a floor hatch, a crane
+  spanning a hall) never swings: a swing turns about an upright line (`from_design.LYING`).
 - **A thing it starts inside is its mount** (a boom's rail, a hatch's frame), named in `clear`'s findings and not
   judged; a moving thing on a `rail` must keep touching one of them.
 - **Over the place's accepted scene record, the place alone.** Where the place has a scene-record row the layer is

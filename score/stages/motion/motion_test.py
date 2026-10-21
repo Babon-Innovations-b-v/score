@@ -1,7 +1,9 @@
 """The motion stage made from a scene's design on a small stage made here (no record written for the scene): its door
 swings a right angle on the hinge at its own left edge and shuts again, its fan turns a whole number of times a
 round, its rover stands parked with its rule's reason, and every gate passes; with nobody in the scene the door
-stands shut with its reason; a row that moves with no object on the stage fails `designed`.
+stands shut with its reason; a row that moves with no object on the stage fails `designed`. A door whose swing strikes
+something is fitted by the gate: swung the other way where that keeps clear, else standing with its strike as the
+reason; a hatch lying flat stands, since a swing turns about an upright line.
 
 Run: .venv/bin/python score/stages/motion/motion_test.py
 """
@@ -45,9 +47,9 @@ def thing(stage, name, at, low, high):
     box(stage, f"/{PLACE}/Objects/{name}/body", low, high)
 
 
-def toy_place(folder):
+def toy_place(folder, extra=()):
     """The scene's stage folder: a floor, a wall the door's hinge edge stands in, a ceiling the fan hangs in, a door,
-    a fan, a rover and an astronaut."""
+    a fan, a rover and an astronaut, and `extra` things (name, at, low, high)."""
     seed = pathlib.Path(folder) / "seeds" / PLACE
     (seed / "layers").mkdir(parents=True)
     stage = Usd.Stage.CreateNew(str(seed / "layers/base.usda"))
@@ -59,6 +61,8 @@ def toy_place(folder):
     thing(stage, "fan_1", (-3.0, 2.6, -3.0), (-0.6, 0.0, -0.6), (0.6, 0.25, 0.6))
     thing(stage, "rover_1", (-3.0, 0.0, 3.0), (-1.0, 0.0, -0.7), (1.0, 1.0, 0.7))
     thing(stage, "astronaut_1", (0.0, 0.0, -4.0), (-0.25, 0.0, -0.15), (0.25, 1.8, 0.15))
+    for name, at, low, high in extra:
+        thing(stage, name, at, low, high)
     stage.GetRootLayer().Save()
     top = Sdf.Layer.CreateNew(str(seed / f"{PLACE}.usda"))
     top.subLayerPaths.append("./layers/base.usda")
@@ -68,11 +72,11 @@ def toy_place(folder):
     return seed
 
 
-def toy_inputs(folder, rows=ROWS):
+def toy_inputs(folder, rows=ROWS, extra=()):
     folder = pathlib.Path(folder)
     (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
     return {"design": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
-            "kinds": REPO / "data/checks/motion.json", "seed": toy_place(folder)}
+            "kinds": REPO / "data/checks/motion.json", "seed": toy_place(folder, extra)}
 
 
 def made(inputs, folder):
@@ -130,6 +134,68 @@ def test_a_row_that_moves_with_no_object_fails_designed():
         verdict = next(check for check in motion.CHECKS if check.name == "designed").judge(out, inputs, None)
     assert verdict.answer == checks.FAIL
     assert verdict.findings == ("crane moves (swing), and no object of it stands on the stage",), verdict.findings
+
+
+# A post standing in the quarter the door sweeps opening its rule's way (rotateY +90: from +x of its hinge (2.55, 1)
+# toward -z): its corner (2.8, 0.6) lies 0.47 m from the hinge, inside the leaf's 0.9 m; and its mirror over the
+# door's line (z = 1), in the quarter it sweeps the other way.
+POST = ("wall_2", (3.0, 0.0, 0.4), (-0.2, 0.0, -0.2), (0.2, 1.0, 0.2))
+MIRROR = ("wall_3", (3.0, 0.0, 1.6), (-0.2, 0.0, -0.2), (0.2, 1.0, 0.2))
+
+
+def test_a_door_that_strikes_its_rule_s_way_is_fitted_to_swing_the_other_way():
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = toy_inputs(folder, extra=(POST,))
+        out, record = made(inputs, folder)
+        clear = next(check for check in motion.CHECKS if check.name == "clear").judge(out, inputs, None)
+        opened = middle_at(out, inputs, f"/{PLACE}/Objects/door_1", 8.0)
+    door = next(entry for entry in record["moves"] if entry["name"] == "door_1")
+    assert door["swing"]["angle"] == -90.0 and "fitted by the clear gate" in door["from"], door
+    assert clear.answer == checks.PASS, (clear.reason, clear.findings)
+    # a quarter turn the other way (rotateY -90: x to +z) carries the middle 0.45 m from +x of the hinge to +z of it
+    assert np.allclose(opened, (2.55, 1.0, 1.45), atol=1e-4), opened
+
+
+def test_a_door_that_strikes_every_way_stands_with_its_strike():
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = toy_inputs(folder, extra=(POST, MIRROR))
+        out, record = made(inputs, folder)
+        clear = next(check for check in motion.CHECKS if check.name == "clear").judge(out, inputs, None)
+    assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
+    reason = record["still"][f"/{PLACE}/Objects/door_1"]
+    # at 60 degrees, the least tried, the leaf still sweeps the post's corner (48 degrees round, 0.67 m out) either way
+    assert reason.startswith("it strikes at every way it was tried") and "wall_" in reason, reason
+    assert clear.answer == checks.PASS, (clear.reason, clear.findings)
+
+
+def test_a_hatch_lying_flat_stands():
+    rows = ROWS + [{"id": "hatch", "name": "floor hatch", "noun": "hatch"}]
+    flat = ("hatch_1", (-1.0, 0.0, -1.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
+    with tempfile.TemporaryDirectory() as folder:
+        _, record = made(toy_inputs(folder, rows, extra=(flat,)), folder)
+    assert sorted(entry["name"] for entry in record["moves"]) == ["door_1", "fan_1"]
+    assert record["still"][f"/{PLACE}/Objects/hatch_1"] == from_design.LYING
+
+
+def test_covered_asks_for_the_design_s_moving_rows_only():
+    # a rocket named as an old record's moving kind (data/checks/motion.json's prims), on no moving row, is not asked
+    # for; the design's door taken out of the record (neither moved nor standing with a reason) is
+    rocket = ("rocket_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
+    rows = ROWS + [{"id": "rocket", "name": "rocket", "noun": "rocket"}]
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = toy_inputs(folder, rows, extra=(rocket,))
+        out, record = made(inputs, folder)
+        covered = next(check for check in motion.CHECKS if check.name == "covered")
+        kept = covered.judge(out, inputs, None)
+        (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[entry for entry in record["moves"]
+                                                                        if entry["name"] != "door_1"])))
+        dropped = covered.judge(out, inputs, None)
+    assert kept.answer == checks.PASS and kept.measures["moving kinds"] == 3, (kept.reason, kept.findings)
+    assert dropped.answer == checks.FAIL and dropped.findings == (f"/{PLACE}/Objects/door_1 (door)",), dropped.findings
+
+
+def test_a_swing_is_tried_its_rule_s_way_and_the_other_down_to_sixty_degrees():
+    assert motion.swing_angles(90.0) == [90.0, -90.0, 80.0, -80.0, 70.0, -70.0, 60.0, -60.0]
 
 
 def test_a_speed_is_the_middle_of_its_kind_s_cited_range():

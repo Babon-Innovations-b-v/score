@@ -27,9 +27,9 @@ move, so two places that show each other never load each other round.
              grounded  each moving thing stays on what it moves on: on water or ground every corner of its footprint has
                        that surface under it and it keeps its rest height over it (within HEIGHT_MOST); on a rail it
                        keeps touching what it is mounted on (within TOUCH); in the air it stays AIR_LEAST over all
-             covered   every prim of a moving kind in the place (its objects, fixtures and structure) and every
-                       object of an inventory row whose kind moves moves in the layer, or the record says why it
-                       stands still (`still`)
+             covered   every object of an inventory row whose kind moves moves in the layer, or the record says
+                       why it stands still (`still`); a prim named like an old record's moving kind
+                       (data/checks/motion.json `prims`) that no moving row has is not asked for
              designed  every move and every still thing is an object of a row of the scene's inventory, and every
                        row whose kind moves has an object on the stage
              follows, steps, moving area
@@ -45,6 +45,7 @@ import json
 import pathlib
 import re
 import sys
+import tempfile
 
 import numpy as np
 
@@ -64,6 +65,9 @@ TURN_STEP = 30.0
 # How deep a point may lie in a moving thing's hull before it is a strike, metres: a hull is the moving thing's convex outline, so
 # a little reach is its own looseness, not a touch.
 REACH_MOST = 0.03
+# A swing that strikes is tried the other way, then FIT_STEP degrees less each time, down to FIT_LEAST (a hatch opens
+# into its room as far as `clear` allows); one that strikes at every angle stands, its strike its reason.
+FIT_STEP, FIT_LEAST = 10.0, 60.0
 # Points over a surface this share of a moving thing's thinnest size apart (within SPACING_RANGE), metres: a wall crossing a
 # hatch's 12 cm leaf still leaves points inside it, and a rail under a 1 m trolley is read every 10 cm.
 SPACING_SHARE, SPACING_RANGE = 0.25, (0.02, 0.1)
@@ -163,9 +167,9 @@ def stands(stage, entry):
 def make(inputs, out, seed, params):
     """The scene's rigid record made from its design over its stage, and its motion layer from it."""
     with built(inputs) as source:
-        record = from_design.record(place_of(inputs), read_json(inputs["design"]),
-                                    row_kinds.table(inputs["row kinds"]), kinds_of(inputs),
-                                    layer_base.opened(source))
+        record = fitted(from_design.record(place_of(inputs), read_json(inputs["design"]),
+                                           row_kinds.table(inputs["row kinds"]), kinds_of(inputs),
+                                           layer_base.opened(source)), inputs, source)
         (out / RECORD).write_text(json.dumps(record, indent=1))
         write_motion(dict(inputs, moves=out / RECORD), out, source)
 
@@ -328,8 +332,10 @@ def designed(near, place, entry, through):
                        for pattern in allowed)}
 
 
-def judge_clear(output, inputs, evidence):
-    """Pass when no moving thing reaches into a still thing or another moving thing over the layer's seconds."""
+def strikes(output, inputs):
+    """What `clear` reads off the layer over the place's stage: ([(prim, its strike)] of each moving thing that reaches
+    into a still thing or another moving thing, the later of two that meet named), {"<name> reach": metres},
+    {prim: the still things it is mounted on}, and how many prims move."""
     stage, place = composed(output, inputs), place_of(inputs)
     through = read_json(inputs["moves"]).get("through", {})
     named = {entry["prim"]: entry for entry in bodies(inputs, output)}
@@ -337,7 +343,7 @@ def judge_clear(output, inputs, evidence):
     codes = [moment * rate for moment in moments(seconds)]
     moving = sorted({entry["prim"] for entry in bodies(inputs, output)})
     if not moving:
-        return checks.Verdict("clear", checks.PASS, "nothing moves in the place")
+        return [], {}, {}, 0
     found = shapes(stage, moving)
     stills = space.still_meshes(stage, place, moving)
     faults, measures, mounted = [], {}, {}
@@ -347,7 +353,7 @@ def judge_clear(output, inputs, evidence):
         mounted[path] = sorted(mounts)
         measures[f"{path.rsplit('/', 1)[-1]} reach"] = round(max(worst, 0.0), 3)
         if worst > REACH_MOST:
-            faults.append(f"{path}: reaches {worst:.2f} m into {where[0]} at {where[1] / rate:.2f} s")
+            faults.append((path, f"{path}: reaches {worst:.2f} m into {where[0]} at {where[1] / rate:.2f} s"))
     for first, second in [(a, b) for a in moving for b in moving if a < b]:
         one, other = found[first], found[second]
         start = max(float(one.depth(other.in_world(other.surface, 0.0), 0.0).max()),
@@ -362,19 +368,83 @@ def judge_clear(output, inputs, evidence):
             depth = max(float(one.depth(other.in_world(other.surface, code), code).max()),
                         float(other.depth(one.in_world(one.surface, code), code).max()))
             if depth > REACH_MOST:
-                faults.append(f"{first} and {second} meet {depth:.2f} m deep at {code / rate:.2f} s")
+                faults.append((second, f"{first} and {second} meet {depth:.2f} m deep at {code / rate:.2f} s"))
                 break
-    reason = (f"{len(faults)} strikes among {len(moving)} moving prims" if faults else
-              f"{len(moving)} moving prims keep clear of every still thing and of each other over {seconds:.0f} s")
+    return faults, measures, mounted, len(moving)
+
+
+def judge_clear(output, inputs, evidence):
+    """Pass when no moving thing reaches into a still thing or another moving thing over the layer's seconds."""
+    faults, measures, mounted, moving = strikes(output, inputs)
+    if not moving:
+        return checks.Verdict("clear", checks.PASS, "nothing moves in the place")
+    through = read_json(inputs["moves"]).get("through", {})
+    reason = (f"{len(faults)} strikes among {moving} moving prims" if faults else
+              f"{moving} moving prims keep clear of every still thing and of each other over "
+              f"{seconds_of(output):.0f} s")
     return checks.Verdict("clear", checks.FAIL if faults else checks.PASS, reason, measures,
                           {name: "lower" for name in measures},
-                          tuple(faults) or tuple(f"{path}: mounted on {', '.join(paths) or 'nothing'}"
-                                                 for path, paths in mounted.items())
+                          tuple(text for _, text in faults)
+                          or tuple(f"{path}: mounted on {', '.join(paths) or 'nothing'}"
+                                   for path, paths in mounted.items())
                           + tuple(f"{name}: passes through {prefix} by design: {why}"
                                   for name, allowed in through.items() for prefix, why in allowed.items()))
 
 
-# --- speeds -------------------------------------------------------------------------------------------------------
+# --- fitted by the gate ---------------------------------------------------------------------------------------------
+
+def swing_angles(angle):
+    """The angles a swing is tried at, in order: its rule's either way, then FIT_STEP less each time, down to
+    FIT_LEAST."""
+    sizes = np.arange(abs(float(angle)), FIT_LEAST - 1e-9, -FIT_STEP)
+    return [round(float(size), 6) * sign for size in sizes for sign in (1.0, -1.0)]
+
+
+def struck_moves(record, inputs, source):
+    """{prim: its first strike} of the record's moves written over the built stage, as `clear` reads them."""
+    layer_base.SCRATCH.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="fit-", dir=layer_base.SCRATCH) as scratch:
+        trial = pathlib.Path(scratch)
+        (trial / RECORD).write_text(json.dumps(record, indent=1))
+        trial_inputs = dict(inputs, built=source, moves=trial / RECORD)
+        write_motion(trial_inputs, trial, source)
+        found = {}
+        for path, text in strikes(trial, trial_inputs)[0]:
+            found.setdefault(path, text)
+        return found
+
+
+def turned_to(move, angle):
+    """A swing turned `angle` degrees (signed: the rule's way or the other), saying it was fitted."""
+    way = "its rule's way" if angle > 0 else "the other way"
+    return dict(move, swing=dict(move["swing"], angle=angle),
+                **{"from": f"{move['from']}; fitted by the clear gate: {abs(angle):g} degrees {way}, the first of "
+                           f"{FIT_LEAST:g} degrees up to its rule's either way that keeps clear"})
+
+
+def fitted(record, inputs, source):
+    """The record with each move that strikes fitted (a hatch opens as far as `clear` allows): a swing tried the other
+    way, then FIT_STEP less, down to FIT_LEAST degrees; a move that strikes at every angle tried stands, its strike
+    the reason."""
+    first = {move["prim"]: move for move in record["moves"]}
+    left = {prim: swing_angles(move["swing"]["angle"])[1:] if "swing" in move else []
+            for prim, move in first.items()}
+    moves, still = list(record["moves"]), dict(record["still"])
+    while True:
+        struck = struck_moves(dict(record, moves=moves, still=still), inputs, source)
+        if not struck:
+            return dict(record, moves=moves, still=still)
+        kept = []
+        for move in moves:
+            prim = move["prim"]
+            if prim not in struck:
+                kept.append(move)
+            elif left[prim]:
+                kept.append(turned_to(first[prim], left[prim].pop(0)))
+            else:
+                still[prim] = f"it strikes at every way it was tried, so it stands: {struck[prim]}"
+        moves = kept
+
 
 def turn_between(first, second):
     """The angle turned between two transforms, degrees (each one's scale taken off its rows)."""
@@ -572,21 +642,6 @@ def judge_grounded(output, inputs, evidence):
 
 # --- covered ------------------------------------------------------------------------------------------------------
 
-def moving_kind_prims(stage, place, kinds):
-    """{path: kind} of every prim of a moving kind in the place's own scopes."""
-    found = {}
-    for scope in MOVING_SCOPES:
-        holder = stage.GetPrimAtPath(f"/{place}/{scope}")
-        if not holder:
-            continue
-        for child in holder.GetChildren():
-            kind = next((kind for kind, rule in kinds.items()
-                         if any(of_kind(child.GetName(), prefix) for prefix in rule["prims"])), None)
-            if kind:
-                found[str(child.GetPath())] = kind
-    return found
-
-
 def moving_row_prims(stage, place, inputs):
     """{path: row kind} of every object on the stage of an inventory row whose kind moves."""
     kinds = row_kinds.table(inputs["row kinds"])
@@ -595,12 +650,12 @@ def moving_row_prims(stage, place, inputs):
 
 
 def judge_covered(output, inputs, evidence):
-    """Pass when every prim of a moving kind moves in the layer or its standing still is written down."""
+    """Pass when every object of a row whose kind moves moves in the layer or its standing still is written down."""
     stage, place = composed(output, inputs), place_of(inputs)
     moved = {entry["prim"] for entry in bodies(inputs, output)}
     record = read_json(inputs["moves"])
     still, removed = record.get("still", {}), record.get("removed", {})
-    wanted = {**moving_kind_prims(stage, place, kinds_of(inputs)), **moving_row_prims(stage, place, inputs)}
+    wanted = moving_row_prims(stage, place, inputs)
     unmoved = [f"{path} ({kind})" for path, kind in sorted(wanted.items())
                if path not in moved and path not in still and path.rsplit("/", 1)[-1] not in still]
     gone = [line.split(":", 1)[0] for line in gone_of(output)]
