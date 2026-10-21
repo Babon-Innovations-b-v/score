@@ -188,7 +188,8 @@ def look_words(look, entry):
 def crowd_look(place, row, line=None):
     """A crowd row's far look, from its words (its name and noun): the people line's look (`line`, {look: take entry},
     bodies.looks()) sharing the most of them, a crowd word (CROWD_WORDS) counting only between looks that share no
-    other, a far-only look first on a tie; a new look `<place>_<row>_1-new` when no look shares a word."""
+    other, a far-only look first on a tie; a new look `<place>_<row>_1-new` when no look shares a word, or when the
+    row names who is in it (a word beyond the crowd words: aliens, colonists) and no look shares one of those."""
     if line is None:
         from score.stages.people_bodies import bodies
         line = bodies.looks()
@@ -198,7 +199,8 @@ def crowd_look(place, row, line=None):
         shared = said & look_words(look, line[look])
         return len(shared - CROWD_WORDS), len(shared & CROWD_WORDS), bool(line[look].get("far_only"))
     best = max(sorted(line), key=score, default=None)
-    return best if best and score(best)[:2] != (0, 0) else f"{place}_{row['id']}_1-new"
+    needed = 1 if said - CROWD_WORDS else 0  # who the row names must be matched, not just that it is a crowd
+    return best if best and score(best)[0] >= needed and score(best)[:2] != (0, 0) else f"{place}_{row['id']}_1-new"
 
 
 def default_choice(place, row):
