@@ -224,7 +224,10 @@ stage as each stage is built; nothing moves before.
   is a scene's assembly with each child scene its plan lays out referenced at its hold from the child's own tree (read
   beside, `Stage.downward`: a child's tree before its parent's), gated on `child scenes`; a parent scene with no data of
   its own (the Moon base) is a place once its design is done, and `stages.places` lists each parent scene before its
-  children. `complete` is the completion gate on what
+  children; a scene merged into another and a part of another scene's outside (`data/places/within.json` `parts`,
+  the launch) are no place of the build: no stage line, nothing waits on one, and the scene a part belongs to builds
+  it, its inventory rows and plan area that scene's design (the owner, 2026-10-21, to "Shall Launch stop being a
+  place the batch builds, so the Square's build covers it?": "yes"). `complete` is the completion gate on what
   the place holds: `tools/usd/complete.py`'s own checks (all but resting, the assembly's gate) on the place's
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
   (`stages/complete/complete_test.py` holds them equal). The library check (`stages/complete/library`, its overlay) is

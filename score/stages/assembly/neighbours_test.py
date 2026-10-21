@@ -70,6 +70,8 @@ def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
         seed.rmdir()
     assert "seen far_city" not in neighbours.files("launch") and neighbours.lost("launch") == ["far_city"]
     assert neighbours.applies("square") and not neighbours.applies("nowhere")
+    # a part of another scene's outside has no stage line, so no place reads its assembly (the owner, 2026-10-21)
+    assert "launch" in neighbours.parts() and "launch" not in neighbours.neighbours("flat")
     root = pathlib.Path(tempfile.mkdtemp())
     try:
         launch = a_place(root / "kept", "launch", ("square", "far_city"))

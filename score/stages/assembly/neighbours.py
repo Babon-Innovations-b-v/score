@@ -50,8 +50,16 @@ def shown(place):
 
 
 def neighbours(place):
-    """The shown places that are places of the world (a kit each), whose assembly the stage reads beside."""
-    return [other for other in shown(place) if (REPO / f"data/kit/{other}.json").exists()]
+    """The shown places that are places of the world (a kit each), whose assembly the stage reads beside. A part of
+    another scene's outside (data/places/within.json `parts`, the launch) is none: it has no stage line, the scene it
+    is part of builds it (the owner, 2026-10-21), so no place waits on its assembly."""
+    return [other for other in shown(place) if (REPO / f"data/kit/{other}.json").exists() and other not in parts()]
+
+
+def parts():
+    """The parts of another scene's outside (data/places/within.json `parts`)."""
+    path = REPO / "data/places/within.json"
+    return set(json.loads(path.read_text()).get("parts", {})) if path.exists() else set()
 
 
 def lost(place):

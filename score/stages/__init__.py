@@ -529,12 +529,23 @@ DEMO_STILLS = dataclasses.replace(DEMO_FILM, name="demo-stills", make=demo_still
                                   checks=demo_stills.CHECKS, files=demo_stills.files, applies=demo_stills.applies,
                                   euros=demo_stills.euros())
 
+
+def filmed_places(place=None):
+    """The places the locked scripts' films show (demo_film_final.shown_places) that are places of the batch
+    (`places`): a part of another scene's outside (the launch) or a merged scene has no film row, so the environment's
+    film never waits on one; a segment showing it is named missing by the cut (final.sources). Here in the table, as
+    it lists the environment's places."""
+    shown = demo_film_final.shown_places(place)
+    batch = set(places(world1())) if shown else set()
+    return [other for other in shown if other in batch]
+
+
 # The environment's own final film (#28), cut locally from each film script locked in the cockpit over the place films
 # it shows, read beside: an environment node the runner plans and prices with the paid films it reads, free itself.
 ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make, demo_film_final.CONTRACT,
                                demo_film_final.CHECKS, files=demo_film_final.files,
                                beside={"demo-film": ("demo-film", 1), "demo-film-extra": ("demo-film-extra", 1)},
-                               neighbours=demo_film_final.shown_places)
+                               neighbours=filmed_places)
 
 
 STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
@@ -829,9 +840,10 @@ def earth_place(place):
     plan kept under {home}/design/plans: a ship room, a scene he added in the app), the earth's and the ship's alike
     (the owner, 2026-10-21: every designed scene's base from its own design, never from a lost seed), and it has a
     style to make it in (earth_seed.styled: a top scene place.json does not name has none, so its seed stays a lost
-    input, named, never a crash)."""
+    input, named, never a crash). A part of another scene's outside (the launch) is none: it has no stage line, so
+    no row reads its earth seed beside (the owner, 2026-10-21; `places`)."""
     return place is not None and (kit_laid(place) or earth_seed.locked_plan(place) is not None) and \
-        earth_seed.styled(place)
+        earth_seed.styled(place) and place not in neighbours.parts()
 
 
 def kit_based(place):
@@ -976,7 +988,10 @@ def places(world, store=None):
     scene he took out: those places/within.json names `merged` into another (navigation into the cockpit, the owner
     2026-10-21), and those his kept plans in `store` (the framework's by default) no longer lay out, removed or merged
     into a shared room on the plan above (plans.removed, the cockpit's own reading), so the build follows the app
-    without a hand edit. In the scene tree's order (parent_first): each parent scene before its child scenes."""
+    without a hand edit. A part of another scene's outside (within.json `parts`: the launch, the Square's) is no place
+    of the build either: the scene it is part of builds it, its inventory rows and plan area that scene's design (the
+    owner, 2026-10-21, asked "Shall Launch stop being a place the batch builds, so the Square's build covers it?":
+    "yes"). In the scene tree's order (parent_first): each parent scene before its child scenes."""
     if "data" not in world.roots:
         return []
     data = pathlib.Path(world.roots["data"])
@@ -985,7 +1000,7 @@ def places(world, store=None):
     within = {name: entry["within"] for name, entry in found.get("within", {}).items()}
     filed = {path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")}
     store = (store or Store.default()) if within else None
-    gone = {*found.get("merged", {}), *(removed_by_him(store, within) if within else ())}
+    gone = {*found.get("merged", {}), *found.get("parts", {}), *(removed_by_him(store, within) if within else ())}
     kept = (filed | set(added_by_him(store, within, filed) if within else ())) - gone
     return parent_first(kept, laid_out(store, within) if within else {})
 

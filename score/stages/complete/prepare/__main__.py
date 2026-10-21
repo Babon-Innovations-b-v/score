@@ -158,11 +158,10 @@ def design_route(runner):
 
 
 def inventoried_places(world_places):
-    """The places a scene inventory is read for: the environment's places and its outside shells, its places' parts
-    (no concept of their own) left out (data/places/within.json)."""
+    """The places a scene inventory is read for: the environment's places (no part of another scene's outside among
+    them, stages.places) and its outside shells (data/places/within.json)."""
     from score.review import concepts
-    tree = concepts.tree()
-    return sorted({*world_places, *tree["shells"]} - set(tree["parts"]))
+    return sorted({*world_places, *concepts.tree()["shells"]})
 
 
 def remake(runner, data, root, work, stock=None, moved=None):
