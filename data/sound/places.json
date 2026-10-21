@@ -1,198 +1,22 @@
 {
-	"is": "each place's sounds that its scene's bed and its inventory rows do not give: the sounds of a thing in the place whose inventory row names none (objects: the sound and the inventory row id or scene object it plays at, spatial), each place's additions said in `added`, and its voices (voices: a sound and the person of its cast, data/characters/<place>.json, it plays at, spatial, at /<place>/Characters/<person>), what its people say (#29: voices where people are). A scene's bed (its room tone, or what the suit lets through outside where no air carries sound) is never listed here: score/stages/sound/beds.py works it out from its design and the library beds' briefs (`bed` in data/sound/sounds.json). The sound stage (score/stages/sound) makes the place's sound layer from these.",
+	"is": "nothing a scene plays is listed here any more: its bed is worked out from its design (score/stages/sound/beds.py), its objects' sounds from its scene inventory rows' kinds (data/checks/row-kinds.json `sound`) and its people's voice from data/sound/voices.json. Its place keys stay, empty, only while tools/usd/contents.py's sound check still reads them (no entry: unknown).",
 	"places": {
-		"habitat": {
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "bram"
-				}
-			]
-		},
-		"greenhouse": {
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "bram"
-				}
-			]
-		},
-		"workshop": {
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "bram"
-				}
-			]
-		},
-		"airlock": {
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "bram"
-				}
-			]
-		},
-		"lab": {
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "nev"
-				}
-			]
-		},
-		"garage": {
-			"objects": [
-				{
-					"sound": "rover_idle",
-					"on": "rover"
-				}
-			],
-			"added": "rover_idle at the rover: world 1's checklist of 2026-10-12: the place had no such sound (no rover sounds)",
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "bram"
-				}
-			]
-		},
-		"hangar": {
-			"objects": [
-				{
-					"sound": "ship_idle",
-					"on": "ship"
-				}
-			],
-			"added": "ship_idle at the ship (data/scene/hangar.json): world 1's checklist of 2026-10-12: the place had no such sound (base_hum only)",
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "bram"
-				}
-			]
-		},
-		"camp": {
-			"voices": [
-				{
-					"sound": "crew_talk",
-					"on": "bram"
-				}
-			]
-		},
-		"street": {
-			"objects": [
-				{
-					"sound": "car_idle",
-					"on": "car"
-				}
-			],
-			"added": "car_idle at the car (data/scene/street.json): world 1's checklist of 2026-10-12: the place had no such sound (no car idle, which the game had)"
-		},
-		"square": {
-			"added": "leader_speech at the podium (data/characters/square.json: the leader speaking from the podium): world 1's checklist of 2026-10-12: the place had no such sound (no speech); leader_speech moved onto the leader (voices, #29: a voice plays at the person speaking)",
-			"voices": [
-				{
-					"sound": "leader_speech",
-					"on": "leader"
-				}
-			]
-		},
-		"cockpit": {
-			"objects": [
-				{
-					"sound": "console_hum",
-					"on": "main_console"
-				},
-				{
-					"sound": "console_hum",
-					"on": "overhead_console"
-				},
-				{
-					"sound": "vent_air",
-					"on": "overhead_vent"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the consoles' cooling fans and the cabin vent",
-			"voices": [
-				{
-					"sound": "radio_chatter",
-					"on": "pilot_port"
-				}
-			]
-		},
-		"quarters": {
-			"objects": [
-				{
-					"sound": "vent_air",
-					"on": "overhead_vent"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the vent alone, the quietest room"
-		},
-		"galley": {
-			"objects": [
-				{
-					"sound": "glovebox_hum",
-					"on": "galley_counter"
-				},
-				{
-					"sound": "vent_air",
-					"on": "overhead_vent"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the counter's cooler and air pump (glovebox_hum, a small pump and filter fan) and the vent"
-		},
-		"storage": {
-			"objects": [
-				{
-					"sound": "junction_hum",
-					"on": "ceiling_equipment"
-				},
-				{
-					"sound": "vent_air",
-					"on": "overhead_vent"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the power gear in the ceiling (junction_hum) and the vent"
-		},
-		"engineroom": {
-			"objects": [
-				{
-					"sound": "base_hum",
-					"on": "power_core"
-				},
-				{
-					"sound": "junction_hum",
-					"on": "junction_box"
-				},
-				{
-					"sound": "vent_air",
-					"on": "overhead_vent"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the power core's deep drone (base_hum: a power plant heard through steel), the junction box and the vent"
-		},
-		"shiplock": {
-			"objects": [
-				{
-					"sound": "vent_air",
-					"on": "overhead_vent"
-				},
-				{
-					"sound": "lamp_buzz",
-					"on": "ceiling_light_panel"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the vent and the light panel's buzz"
-		},
-		"walkway": {
-			"objects": [
-				{
-					"sound": "lamp_buzz",
-					"on": "ceiling_light_panel"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the light panels' buzz"
-		}
+		"habitat": {},
+		"greenhouse": {},
+		"workshop": {},
+		"airlock": {},
+		"lab": {},
+		"garage": {},
+		"hangar": {},
+		"camp": {},
+		"street": {},
+		"square": {},
+		"cockpit": {},
+		"quarters": {},
+		"galley": {},
+		"storage": {},
+		"engineroom": {},
+		"shiplock": {},
+		"walkway": {}
 	}
 }

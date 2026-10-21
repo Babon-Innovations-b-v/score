@@ -1,5 +1,6 @@
 """The sound stage's make and gates on places whose sounds are all picked already (no take is made, nothing rented):
-the hub passes every gate and the airlock all but `voices`; a silent moving thing fails `events` and people with no voice
+the hub and the airlock pass every gate; a new scene's objects and people sound from its design alone (its inventory
+rows' kinds, its cast); a silent moving thing fails `events` and people with no voice
 fail `voices`; a sound with no file fails `sources`, as does an object sound at a row
 the place does not hold; a file made too loud fails `level`; a MOSS sound under the CLAP floor fails `likeness`; a
 Freesound recording the owner did not choose fails `no freesound`.
@@ -56,11 +57,9 @@ def read(name):
 
 
 def test_picked_places_pass():
-    """The hub passes every gate; the airlock, its voice (crew_talk, still to make) left out so nothing is rented,
-    passes every gate but voices: Bram stands at its bench with no voice."""
-    places = read("places")
-    places["places"]["airlock"].pop("voices")
-    for place, changes, failing in (("hub", None, set()), ("airlock", {"places": places}, {"voices"})):
+    """The hub passes every gate; so does the airlock, its people left out so their voice (crew_talk, still to make)
+    is not, and nothing is rented."""
+    for place, changes, failing in (("hub", None, set()), ("airlock", {"cast": {"people": []}}, set())):
         with tempfile.TemporaryDirectory() as folder:
             inputs, out = made(place, folder, changes)
             found = verdicts(out, inputs)
@@ -110,12 +109,13 @@ def test_needs_name_what_the_library_does_not_answer():
 
 
 def test_a_missing_sound_and_a_lost_row_fail_sources():
-    places = read("places")
-    row = read_json_rows("hub")[0]["id"]
-    places["places"]["hub"] = {"objects": [{"sound": "no_such_sound", "on": row},
-                                           {"sound": "base_hum", "on": "no_such_row"}]}
     with tempfile.TemporaryDirectory() as folder:
-        inputs, out = made("hub", folder, {"places": places})
+        inputs, out = made("hub", folder)
+        record = gates.record_of(out)
+        record["uses"] += [{"sound": "no_such_sound", "role": "object", "on": read_json_rows("hub")[0]["id"],
+                            "from": "the test"},
+                           {"sound": "base_hum", "role": "object", "on": "no_such_row", "from": "the test"}]
+        (out / gates.RECORD).write_text(json.dumps(record))
         verdict = gates.judge_sources(out, inputs, None)
     assert verdict.answer == checks.FAIL and len(verdict.findings) == 2, verdict
 
@@ -240,7 +240,7 @@ def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again(
 def test_moving_things_sound_off_their_own_moves():
     """A hatch's latch plays as it starts to open (the lab's; the hub's stand shut, so make no sound) and its bolts as it is shut tight (its swing's angle over its speed
     later), in the stage's seconds, once for the leaf, wheel and window moving as one; the rover's drive loops over its
-    drive; the ship rooms hear their own machines; and moving.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
+    drive; and moving.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
     lab = sound.uses_of("lab", inputs_for("lab", None))
     hatch = [(use["sound"], use["at"]) for use in lab if use["on"] == "/lab/Objects/hatch_leaf_1"]
     assert hatch == [("hatch_open", 4.0), ("airlock_hatch_seal_clunk", 18.0)], hatch
@@ -257,10 +257,43 @@ def test_moving_things_sound_off_their_own_moves():
                    {"start": 0.0, "length": 86.0, "loop": True}):
         assert moving.rounds_of(motion) == layer.rounds_of(motion), motion
     assert moving.SOUND_SPAN_SECONDS == layer.SOUND_SPAN_SECONDS
-    rooms = {place: sorted(use["sound"] for use in sound.uses_of(place, inputs_for(place, None))
-                           if use["role"] in ("room", "object"))
-             for place in ("cockpit", "galley", "engineroom", "quarters")}
-    assert len({tuple(found) for found in rooms.values()}) == len(rooms), rooms
+
+
+def test_a_new_scene_sounds_from_its_design_alone():
+    """A scene no sound table names (its plan, scene inventory and cast only, read from a new concept): each row whose
+    kind sounds plays its kind's library sound at that row (a console its hum, a duct the vent's air, a rover its idle,
+    a ceiling light its buzz; a lantern, a noun its kind leaves silent, nothing), its first person the people's voice;
+    every target stands in its design, and its voice need reads the same records."""
+    from score.stages.sound import needs
+    rows = [{"id": "main_desk", "name": "main desk", "noun": "console"}, {"id": "roof_duct", "noun": "duct"},
+            {"id": "buggy", "noun": "rover"}, {"id": "panel_light", "noun": "light"},
+            {"id": "paper_lantern", "noun": "lantern"}, {"id": "table", "noun": "table"},
+            {"id": "pilot", "noun": "person"}]
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        inputs = {name: path for name, path in inputs_for("hub", folder).items() if name not in ("motion", "moves")}
+        inputs.update({"plan": folder / "new_scene.json", "scene inventory": folder / "inventory.json",
+                       "cast": folder / "cast.json"})
+        inputs["plan"].write_text(json.dumps({"leads": {}, "rows": {"DESK": ["main_desk"]}}))
+        inputs["scene inventory"].write_text(json.dumps({"rows": rows}))
+        inputs["cast"].write_text(json.dumps({"people": [{"name": "pilot"}, {"name": "officer"}]}))
+        assert sound.place_of(inputs) == "new_scene"
+        uses = sound.uses_of("new_scene", inputs)
+        heard = sorted((use["sound"], use["on"]) for use in uses if use["role"] == "object")
+        assert heard == [("console_hum", "main_desk"), ("crew_talk", "pilot"), ("lamp_buzz", "panel_light"),
+                         ("rover_idle", "buggy"), ("vent_air", "roof_duct")], heard
+        assert {use["on"] for use in uses if use["role"] == "object"} <= gates.standing(inputs)
+        data = folder / "data"
+        (data / "sound").mkdir(parents=True)
+        for name in ("sounds", "catalogue", "voices"):
+            shutil.copyfile(REPO / f"data/sound/{name}.json", data / f"sound/{name}.json")
+        (data / "characters").mkdir()
+        shutil.copyfile(inputs["cast"], data / "characters/new_scene.json")
+        (data / "checks").mkdir()
+        shutil.copyfile(REPO / "data/checks/row-kinds.json", data / "checks/row-kinds.json")
+        voice = next(need for need in needs.needs("new_scene", data) if need["kind"] == "voice")
+    assert (voice["sounds"], voice["state"], voice["prim"]) == (
+        ["crew_talk"], needs.MAKE, "/new_scene/Characters/pilot"), voice
 
 
 def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():

@@ -480,7 +480,7 @@
    },
    "forecast": {
     "rule": "sound_takes",
-    "source": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief and seed, each counted once at the first place in data/sound/places.json that plays it"
+    "source": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief and seed, each counted once at the first scene with a plan (beds.places) that plays it"
    }
   },
   "finish-route-list": {

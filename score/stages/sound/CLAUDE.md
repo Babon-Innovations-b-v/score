@@ -23,8 +23,9 @@ gates; `takes.py` the paid part.
   `tone`, the first that asks more than how it is heard, else the first plain one. A new kind of room gets a library
   bed with its own `bed` brief, never a place name; what the design lacks (no plan, no site, no surface pressure) is a
   named gap, never a guess.
-- **Every source has a sound.** A place's sources are its bed, its `objects` and
-  `voices` (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds`, the sounds
+- **Every source has a sound.** A place's sources are its bed, its objects' sounds (each scene inventory row whose
+  row kind sounds plays its kind's `sound` from `data/checks/row-kinds.json` at that row), its people's voice
+  (`data/sound/voices.json` on its cast's first person), its motions' `sounds`, the sounds
   `data/sound/moving.json` gives its moving things and silent motions by their row kind
   (`score/stages/row_kinds.py`: the inventory row's, else the kind whose motion the record's `kind` is) and move, never by
   a place's or a prim's name (`moving.py`: a door's latch as it swings open, a vehicle's drive over its path, timed off
@@ -46,7 +47,7 @@ gates; `takes.py` the paid part.
   come back usable has no sound, its uses left out of the record (so the assembly plays nothing there) and named in
   its gap. A picked sound under the floor is no take of the batch and still fails. A new take (another seed, the
   brief's next prompt) is a new batch, never inside this one.
-- **One take across places** (#29): a brief several places play (crew_talk, in eight) is one take. Each take is
+- **One take across places** (#29): a brief several places play (crew_talk, wherever people stand) is one take. Each take is
   locked while its batch runs (`takes.held`), so the first line to reach it makes it on its card and the others wait
   and read it; a take its batch asked for and did not get (lost, failed, no card) is a named failure and a gap on
   every place that plays it, never asked again by a waiting line (`takes.asked_here`: one ask a take a score run, the
@@ -57,10 +58,15 @@ gates; `takes.py` the paid part.
   `footsteps_steel_plate`), so the library holds it once.
 - **What a place needs is worked out free** (`needs.py`, #29): its bed (`beds.py`), one event sound for each thing
   that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its
-  cast stands people (`voices` in `data/sound/places.json`, each on a person, played at `/<place>/Characters/<name>`).
+  cast stands people (`data/sound/voices.json`, on its first person, played at `/<place>/Characters/<name>`).
   Each need is answered from the library, by a brief this row makes, or not at all; the gaps check shows the last
   two (`score/stages/complete/gaps/layers.py`), and the `events` and `voices` gates fail a place's output that
   leaves one silent. Keep needs generic: read them off the records, never a list of places.
+- **The design decides, never a list** (owner, 2026-10-21: the framework is agnostic): the row's places, its objects'
+  sounds and its people's voice come from the design (plan, scene inventory and cast, kept under `{home}/design`
+  where the creator's are, else `data/`) and general rules (row kinds, voices.json); no per-place or per-object table.
+  What the people say (a speech, a radio call) is not in the cast, so the voice is one sound for every place's
+  people until a rule or a recorded model call reads it from the concept.
 - **Unit cost: measured** in `data/costs/per-unit.json` over the takes each batch's ledger line names (`takes.plan_for`
   writes them; tools/costs/per_unit.py `SOUND_TAKES` holds the airlock's and the square's, written before): two runs
   so far, the airlock's one take EUR 0.23 and the square's 11 for EUR 0.05. Before them (the 2026-10-06
@@ -74,5 +80,5 @@ gates; `takes.py` the paid part.
   fails it. Replacing them is his call, not the stage's.
 - **Never lower `gates.CLAP_FLOOR` to pass a sound**: write a better prompt (what it is, its size, material and
   place, and what is not in it). The floor is the tenth percentile of the environment's 55 MOSS picks.
-- `sound_test.py` runs the make and the gates on the hub and the airlock (nothing rented: the airlock's voice, still
-  to make, left out) and breaks each gate once.
+- `sound_test.py` runs the make and the gates on the hub and the airlock (nothing rented: the airlock's people, whose
+  voice is still to make, left out), sounds a new scene from its design alone, and breaks each gate once.

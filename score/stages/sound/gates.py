@@ -38,14 +38,14 @@ def record_of(output):
 # --- sources --------------------------------------------------------------------------------------------------------
 
 def standing(inputs):
-    """What an object sound may play at: the inventory's row ids, the scene record's named objects and the cast's
-    people (a voice)."""
+    """What an object sound may play at: the design's rows (the scene inventory's row ids and those its plan lays)
+    and the cast's people (a voice)."""
     names = set()
-    if "inventory" in inputs:
-        names |= {row["id"] for row in read_json(inputs["inventory"]).get("rows", [])}
-    scene = read_json(inputs["scene"])
-    for part in ("objects", "structure"):
-        names |= {entry["name"] for entry in scene.get(part, []) if isinstance(entry, dict) and entry.get("name")}
+    for part in ("scene inventory", "inventory"):
+        if part in inputs:
+            names |= {row["id"] for row in read_json(inputs[part]).get("rows", [])}
+    if "plan" in inputs:
+        names |= {row for rows in (read_json(inputs["plan"]).get("rows") or {}).values() for row in rows}
     if "cast" in inputs:
         names |= set(needs.people(read_json(inputs["cast"])))
     return names
@@ -58,7 +58,7 @@ def judge_sources(output, inputs, evidence):
     there = standing(inputs)
     faults = [f"{use['sound']} ({use['role']}, {use['from']}): no sound" for use in record["uses"]
               if not record["sounds"].get(use["sound"], {}).get("files")]
-    faults += [f"{use['sound']} plays at {use['on']}, which the place's inventory, scene and cast do not hold"
+    faults += [f"{use['sound']} plays at {use['on']}, which the place's inventory, plan and cast do not hold"
                for use in record["uses"] if use["role"] == "object" and use["on"] not in there]
     if not record["uses"]:
         return checks.Verdict("sources", checks.UNKNOWN, "the place names no source of sound")

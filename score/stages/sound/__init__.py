@@ -2,9 +2,10 @@
 place plays with its files, its level, where it plays and who made it, for the place's assembly to write into its
 OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions' sounds, the surfaces' bank).
 
-    make     every source the place names (its bed, beds.py: its room tone, or what the suit lets through outside
-             where no air carries sound, worked out from its design; data/sound/places.json: its `objects` and its
-             `voices`, each on a person of its cast; its inventory rows' `sound`; its motions'
+    make     every source the place's design names (its bed, beds.py: its room tone, or what the suit lets through
+             outside where no air carries sound; each scene inventory row whose row kind sounds
+             (data/checks/row-kinds.json `sound`) at that row; a voice (data/sound/voices.json) on its cast's first
+             person; its motions'
              `sounds`; the sounds data/sound/moving.json gives its moving things and its silent motions by each one's
              row kind and move, timed off their moves (moving.py); every surface's footstep, impact and scrape in
              data/sound/surfaces.json) answered by
@@ -14,7 +15,7 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
              by the picker's rule (its CLAP match to its prompt less its faults, tools/sound/picker); `sound.json` and
              the files under `files/`
     gates    sources   every source has a sound with its files, and every object it plays at stands in the place's
-                       inventory, scene record or cast
+                       scene inventory, plan or cast
              level     every file, measured: its true peak under the ceiling, its loudness within its category's
                        target (tools/sound/loudness), its length within its brief
              likeness  every MOSS-made sound's CLAP match to its prompt at least gates.CLAP_FLOOR
@@ -23,7 +24,9 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
              events    every thing that moves in the place (needs.events: its motion and moving things records) plays a sound
              voices    a place whose cast stands people plays a voice on one of them (#29: voices where people are)
 
-Every designed scene has the row (score/stages/design_layers.py, the stage table's and the assembly's one answer).
+Every designed scene has the row (score/stages/design_layers.py, the stage table's and the assembly's one answer);
+its plan and scene inventory are the design's (beds.files: under {home}/design, where the creator's are kept), else
+data/'s.
 """
 import json
 import pathlib
@@ -33,8 +36,8 @@ import sys
 from score import checks, contracts
 from score.stages import batch_gaps
 from score.stages.sound import beds
-from score.stages.sound import gates
 from score.stages import row_kinds
+from score.stages.sound import gates
 from score.stages.sound import moving
 from score.stages.sound import needs
 from score.stages.sound import takes as moss_takes
@@ -60,12 +63,12 @@ EUROS = 1.0
 
 
 def files(place):
-    """What the stage reads: the sound data (each file a versioned library reference), the place's own scene,
-    inventory, motion and cast records (where its sounds play), and its bed's design (beds.files)."""
+    """What the stage reads: the sound data (each file a versioned library reference), the row kinds, the place's
+    design (beds.files: its plan and scene inventory, and its bed's setting) and its motion and cast records (where its
+    sounds play)."""
     found = {"sounds": "{data}/sound/sounds.json", "catalogue": "{data}/sound/catalogue.json",
-             "places": "{data}/sound/places.json", "surfaces": "{data}/sound/surfaces.json",
-             "licences": "{data}/sound/licences.json",
-             "scene": "{data}/scene/{place}.json"}
+             "surfaces": "{data}/sound/surfaces.json", "licences": "{data}/sound/licences.json",
+             "voices": "{data}/sound/voices.json"}
     inventory = stage_inputs.inventory_path(place)
     if inventory.exists():
         found["inventory"] = "{data}/inventory/" + inventory.name
@@ -81,24 +84,55 @@ def files(place):
 
 
 def place_of(inputs):
-    return pathlib.Path(inputs["scene"]).stem
+    """The place, by its design's name (its plan, else its scene inventory: each named for it)."""
+    return pathlib.Path(inputs.get("plan") or inputs["scene inventory"]).stem
+
+
+def inventory_rows(inputs):
+    """The place's scene inventory rows: its design's (beds.files' `scene inventory`), else data/inventory's."""
+    path = inputs.get("scene inventory") or inputs.get("inventory")
+    return read_json(path).get("rows", []) if path else []
 
 
 # --- the sources ----------------------------------------------------------------------------------------------------
 
+def row_sound(row, kind, kinds):
+    """The library sound a row of a sounding kind plays: its kind's one sound, or the one its reading noun names
+    (None: a noun the kind leaves silent)."""
+    named = kinds[kind].get("sound")
+    if isinstance(named, dict):
+        return named.get(row_kinds.words(row.get("noun")) or row_kinds.words(row.get("name") or row.get("id"))
+                         .rsplit(" ", 1)[-1])
+    return named
+
+
+def object_uses(inputs):
+    """The sounds of the scene inventory's objects: each row whose kind sounds (data/checks/row-kinds.json), its
+    kind's sound at the row."""
+    kinds = row_kinds.table(inputs["row kinds"])
+    uses = []
+    for row in row_kinds.rows_that({"rows": inventory_rows(inputs)}, "sounds", kinds):
+        name = row_sound(row, row["row_kind"], kinds)
+        if name:
+            uses.append({"sound": name, "role": "object", "on": row["id"],
+                         "from": f"scene inventory row {row['id']}, a {row['row_kind']} (data/checks/row-kinds.json)"})
+    return uses
+
+
+def voice_uses(inputs):
+    """The voice of the place's people (data/sound/voices.json), on its cast's first person; none with no one."""
+    people = needs.people(read_json(inputs["cast"])) if "cast" in inputs else []
+    if not people:
+        return []
+    return [{"sound": read_json(inputs["voices"])["people"], "role": "object", "on": people[0],
+             "from": "data/sound/voices.json people, its cast's first person"}]
+
+
 def uses_of(place, inputs):
     """Every place the place plays a sound from: [{sound, role, on, from}]."""
-    record = read_json(inputs["places"])["places"].get(place, {})
     uses = [{"sound": name, "role": "room", "on": None, "from": "the scene's design (score/stages/sound/beds.py)"}
             for name in beds.of_place(place, inputs)["sounds"]]
-    uses += [{"sound": entry["sound"], "role": "object", "on": entry["on"], "from": "data/sound/places.json objects"}
-             for entry in record.get("objects", [])]
-    uses += [{"sound": entry["sound"], "role": "object", "on": entry["on"], "from": "data/sound/places.json voices"}
-             for entry in record.get("voices", [])]
-    if "inventory" in inputs:
-        uses += [{"sound": row["sound"], "role": "object", "on": row["id"],
-                  "from": f"{pathlib.Path(inputs['inventory']).name} row {row['id']}"}
-                 for row in read_json(inputs["inventory"]).get("rows", []) if row.get("sound")]
+    uses += object_uses(inputs) + voice_uses(inputs)
     if "motion" in inputs:
         uses += [{"sound": sound["name"], "role": "motion", "on": motion.get("prim", ""), "at": sound.get("at"),
                   "loops_until": sound.get("loops_until"), "from": sound.get("from", "")}
@@ -112,7 +146,7 @@ def moving_uses(inputs):
     if "moving sounds" not in inputs:
         return []
     table, kinds = read_json(inputs["moving sounds"]), row_kinds.table(inputs["row kinds"])
-    rows = read_json(inputs["inventory"]).get("rows", []) if "inventory" in inputs else []
+    rows = inventory_rows(inputs)
     moves = read_json(inputs["moves"]) if "moves" in inputs else {}
     motions = read_json(inputs["motion"]).get("motions", []) if "motion" in inputs else []
     renamed = moves.get("renamed", {})

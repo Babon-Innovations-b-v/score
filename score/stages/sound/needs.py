@@ -4,11 +4,11 @@
             design (beds.py), never listed per place
     event   each thing that moves (data/motion/<place>.json motions and data/motion/rigid/<place>.json moving things with a move: a
             slide, swing, path, spin, climb or turn; a motion that only lights is none): its own `sounds`, else the
-            sounds data/sound/moving.json gives its row kind's move (moving.sounds_for: the kind of its inventory row,
-            data/inventory, by data/checks/row-kinds.json). Things moving exactly together (a hatch's wheel and window
+            sounds data/sound/moving.json gives its row kind's move (moving.sounds_for: the kind of its scene inventory
+            row, inventory_of, by data/checks/row-kinds.json). Things moving exactly together (a hatch's wheel and window
             riding its leaf) are one event
-    voice   the people of its cast (data/characters/<place>.json, counted off the concept): a sound of the place's
-            `voices` (data/sound/places.json, each on one of them)
+    voice   the people of its cast (data/characters/<place>.json, counted off the concept): the people's voice
+            (data/sound/voices.json), on the first of them
 
 Each need is in one state: `library` (every sound named has a library file), `make` (a sound named has a brief with
 prompts and no file: the sound row's batch makes it) or `none` (nothing named, or a name with neither file nor
@@ -18,7 +18,6 @@ import json
 import pathlib
 import sys
 
-from score.stages import row_kinds
 from score.stages.sound import beds
 from score.stages.sound import moving
 
@@ -78,16 +77,22 @@ def state_of(names, catalogue, sounds):
     return LIBRARY if all(has_file(name) for name in names) else MAKE
 
 
+def inventory_of(place, data, design=beds.DESIGN):
+    """The place's scene inventory: the creator's kept one (under `design`), else data/'s."""
+    kept = design / "inventory" / f"{place}.json"
+    return kept if kept.is_file() else pathlib.Path(data) / "inventory" / stage_inputs.inventory_path(place).name
+
+
 def needs(place, data, design=beds.DESIGN):
     """Every sound need of the place: [{"kind", "item", "prim", "sounds", "state"}], the bed's with what its design
     does not give (`missing`)."""
     data = pathlib.Path(data)
-    record = read(data / "sound/places.json").get("places", {}).get(place, {})
+    voice = read(data / "sound/voices.json").get("people")
     catalogue = read(data / "sound/catalogue.json").get("sounds", {})
     sounds = read(data / "sound/sounds.json").get("sounds", {})
     rigid_record = read(data / f"motion/rigid/{place}.json")
-    rows = read(data / "inventory" / stage_inputs.inventory_path(place).name).get("rows", [])
-    kinds, table = row_kinds.table(data / "checks/row-kinds.json"), read(data / "sound/moving.json")
+    rows = read(inventory_of(place, data, design)).get("rows", [])
+    kinds, table = read(data / "checks/row-kinds.json").get("kinds", {}), read(data / "sound/moving.json")
     found = []
     bed = beds.of_place(place, beds.paths(place, data, design))
     found.append({"kind": "bed", "item": "room", "prim": f"/{place}", "sounds": bed["sounds"],
@@ -99,7 +104,7 @@ def needs(place, data, design=beds.DESIGN):
     cast = people(read(data / f"characters/{place}.json"))
     if cast:
         found.append({"kind": "voice", "item": "people", "prim": f"/{place}/Characters/{cast[0]}",
-                      "sounds": [voice["sound"] for voice in record.get("voices", []) if voice["on"] in cast]})
+                      "sounds": [voice] if voice else []})
     return [dict(need, state=state_of(need["sounds"], catalogue, sounds)) for need in found]
 
 
@@ -109,8 +114,8 @@ WORK = {"bed": "a library bed whose brief fits the place (`bed` in data/sound/so
         "design": "its design: {missing}",
         "event": "give {item}'s inventory row a kind (data/checks/row-kinds.json) and that kind's move its sound in "
                  "data/sound/moving.json: a library sound first, else a brief in data/sound/sounds.json",
-        "voice": "name a voice on one of the place's people in data/sound/places.json voices: a library sound first, "
-                 "else a brief in data/sound/sounds.json"}
+        "voice": "name the people's voice in data/sound/voices.json: a library sound first, else a brief in "
+                 "data/sound/sounds.json"}
 
 
 def gaps(place, data, design=beds.DESIGN):

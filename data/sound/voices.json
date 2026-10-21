@@ -1,0 +1,4 @@
+{
+ "is": "The voice a place's people play, worked out from its design, never a list of places or people (score/stages/sound): wherever the place's cast (data/characters/<place>.json, counted off its concept) stands people, `people` (a sound of data/sound/sounds.json) plays on its first person, at /<place>/Characters/<name>. What the people say (a speech, a radio call) is not in the cast, so no rule here picks it.",
+ "people": "crew_talk"
+}
