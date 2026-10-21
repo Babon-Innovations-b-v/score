@@ -10,7 +10,7 @@ Once a take row is accepted, its take joins data/surfaces/people.json and the pe
 (data/people/bodies.json) like every look.
 
 Gates (unknown blocks): `close-ups` (at least one close-up with its arms apart), `take` (a kept take whose finished
-Pixal3D model is on disk).
+Pixal3D model is in the output: its three files, `take/`, kept in the store, #26).
 """
 import json
 import pathlib
@@ -23,6 +23,10 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 MAKER = REPO / "tools/characters/maker"
 TAKES = REPO / "data/people/takes.json"
 PIXAL = pathlib.Path.home() / ".farm-factory-props/work/pixal"
+# A take's files as the Pixal3D batch brings them (score/stages/props/pixal_row.SUFFIXES), kept in the output's
+# TAKE_FILES folder.
+SUFFIXES = (".glb", "-final.glb", ".svviews")
+TAKE_FILES = "take"
 # Two klein close-ups on an L4 with its set-up (about 30 minutes at EUR 0.79 an hour) and two Pixal3D runs.
 EUROS = 1.5
 ROW = "people-take"
@@ -40,8 +44,19 @@ def make_take(inputs, out, seed, params):
     folder = prop_person.folder_of(spec, outfit)
     shutil.copytree(folder / "closeup", out / "closeup")
     shutil.copy2(folder / "mesh" / "takes.json", out / "takes.json")
+    stored(kept["kept"], out / TAKE_FILES)
     (out / "take.json").write_text(json.dumps({"take": kept["kept"], "spec": params["spec"], "outfit": outfit,
-                                               "finished": str(PIXAL / f"{kept['kept']}-final.glb")}, indent=1))
+                                               "finished": f"{TAKE_FILES}/{kept['kept']}-final.glb"}, indent=1))
+
+
+def stored(take, target):
+    """The kept take's Pixal3D files (its raw model, its finished model and its close-up with its camera) copied out of
+    the work folder the batch brought them to into the row's output, so the store keeps them (#26: the work folder
+    was lost on 2026-10-19 with every take in it)."""
+    target.mkdir(parents=True)
+    for suffix in SUFFIXES:
+        source = PIXAL / f"{take}{suffix}"
+        (shutil.copytree if source.is_dir() else shutil.copy2)(source, target / source.name)
 
 
 def take_faults(folder):
@@ -58,9 +73,9 @@ def judge_closeups(output, inputs, evidence):
 
 def judge_take(output, inputs, evidence):
     found = json.loads((output / "take.json").read_text())
-    there = pathlib.Path(found["finished"]).exists()
+    there = (output / found["finished"]).exists()
     return checks.Verdict("take", checks.PASS if there else checks.FAIL,
-                          f"{found['take']} kept, its finished model {'on disk' if there else 'missing'}")
+                          f"{found['take']} kept, its finished model {'in the output' if there else 'missing'}")
 
 
 def guarded(name, judge):

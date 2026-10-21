@@ -49,6 +49,11 @@
   "leader_wide-state-suit": {
    "spec": "data/characters/makes/leader_wide_prop.json",
    "outfit": "state-suit"
+  },
+  "kit_m_avg-coat-grey": {
+   "spec": "data/characters/makes/kit_m_avg_prop.json",
+   "outfit": "coat-grey",
+   "why": "the crowd's one far look (the square's crowd and the street's far crowd, data/people/rows.json), a take row of its own like every look (#26)"
   }
  }
 }
