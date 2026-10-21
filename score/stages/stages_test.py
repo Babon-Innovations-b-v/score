@@ -7,6 +7,7 @@ The store is a folder of its own under $PROPS_HOME (never /tmp, never the framew
 Run: .venv/bin/python score/stages/stages_test.py
 """
 import dataclasses
+import functools
 import inspect
 import json
 import pathlib
@@ -117,13 +118,31 @@ def test_the_worked_example_on_world_1s_seeds():
         shutil.rmtree(root)
 
 
+@functools.cache
+def code_hashed(functions):
+    """The runner's code version of these functions and {file: its hash} of each file it hashed, worked out once a
+    process: the import walk parses every module behind a row, and the tests below ask it hundreds of times."""
+    from unittest import mock
+    hashed = {}
+    # The walk's per-module answers are the same for every row while the tree holds still, so each is worked out once.
+    with mock.patch.object(graph._code, "module_files", MODULE_FILES), \
+            mock.patch.object(graph._code, "imported_names", IMPORTED_NAMES):
+        version = graph._code.code_version(list(functions), lambda path: hashed.setdefault(path, file_hash(path)))
+    return version, hashed
+
+
+MODULE_FILES = functools.cache(graph._code.module_files)
+IMPORTED_NAMES = functools.cache(graph._code.imported_names)
+
+
 def code_after_editing(stage, edited):
     """A stage's code version, as the runner works it out, as if the repository file `edited` had changed (its hash
     moved; nothing written)."""
-    functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks),
-                 *([stage.files] if callable(stage.files) else []), *([stage.neighbours] if stage.neighbours else [])]
-    return graph._code.code_version(functions, lambda path: file_hash(path) + ("+edit" if path == REPO / edited
-                                                                               else ""))
+    functions = (stage.make, stage.contract.faults, *(check.judge for check in stage.checks),
+                 *([stage.files] if callable(stage.files) else []), *([stage.neighbours] if stage.neighbours else []))
+    version, hashed = code_hashed(functions)
+    path = REPO / edited
+    return [part + "+edit" if path in hashed and part == f"{edited} {hashed[path]}" else part for part in version]
 
 
 def terrain_code_after_editing(edited):
