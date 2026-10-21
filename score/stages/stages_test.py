@@ -189,6 +189,21 @@ def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
         assert stage.params == {"surface": stage.name.partition("-in-")[2]} and stage.name in table["cast"].after
 
 
+def test_a_worn_dress_row_applies_only_where_its_look_wears_that_fabric():
+    """Today's designs dress no line look in a fabric of its own, so the table above holds no `-in-` row: the row a
+    design would add applies where a person row wears its look in that fabric, and the plain row no longer there."""
+    from unittest import mock
+
+    from score.stages import people
+    worn_row, plain_row = (stages.worn(people.dress_row("player_wide-work", surface))
+                           for surface in ("jacket_blue", None))
+    dressed = {"deck": {("player_wide-work", "jacket_blue")}, "hold": {("player_wide-work", None)}}
+    with mock.patch.object(stages.characters_layer, "dressed_looks", lambda place: dressed.get(place, set())):
+        assert worn_row.applies("deck") and not worn_row.applies("hold") and not worn_row.applies("nowhere")
+        assert plain_row.applies("hold") and not plain_row.applies("deck")
+    assert worn_row.params == {"surface": "jacket_blue"}
+
+
 def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch():
     """scene-tree@<scene> reads its own assembly and, beside, the tree of each child scene its plan lays out that is a
     scene of the batch (one in design is none: the tree's gate names it); a place of every scene but a line no place
