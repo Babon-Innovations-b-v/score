@@ -18,9 +18,6 @@ import library  # noqa: E402
 import sorter  # noqa: E402
 import stored  # noqa: E402
 
-sys.path.insert(0, str(library.REPO / "tools/library"))
-import library_files  # noqa: E402
-
 
 def scene_library(folder, families):
     """A scene's surface library as the surface-library row writes it (the method's recipes, its own tokens), with
@@ -128,15 +125,6 @@ def test_a_fitting_s_parts_check_holds_its_code_fallback_but_never_routes_it():
     assert sorter.route("hub_wall_lower_vent", {"hub_wall_lower_vent": {"failure": "every take failed"}}) == "code"
 
 
-def test_no_generated_piece_keeps_its_picture_s_colours():
-    """Method B: the pipeline gives shape only; a generated piece's job never carries its picture model, so no piece
-    brings its own rust, stains or streaks (round four's picture layer). Read from route.py's text: this check runs
-    with the system python, which has no numpy to import the route with."""
-    text = (HERE / "route.py").read_text()
-    jobs = text[text.index("def jobs("):text.index("def middle_high(")]
-    assert '"picture"' not in jobs and "picture.obj" not in jobs
-
-
 def chunky_default_wall():
     """make_chunky's default_wall with the constants it reads, taken from its text (make_chunky needs Blender)."""
     tree = ast.parse((HERE / "inside/make_chunky.py").read_text())
@@ -155,25 +143,11 @@ def test_a_job_naming_no_wall_takes_two_voxels_but_never_under_5_mm():
     assert abs(default_wall([8.0, 8.0, 60.0]) - 0.4) < 1e-9  # the launch rocket: two 0.2 m voxels, not lace
 
 
-def test_every_room_job_names_its_wall():
-    """route.py's room pieces keep the 5 mm wall hub round six was accepted at: each job names it, so make_chunky's
-    two-voxel default never thickens a room piece into a slab."""
-    text = (HERE / "route.py").read_text()
-    jobs = text[text.index("def jobs("):text.index("def density_of(")]
-    assert '"wall": own.get("wall", ROOM_WALL)' in jobs
-    assert re.search(r"^ROOM_WALL = 0\.005$", text, re.M)
-
-
-# Earth's builder modules beside pieces.py: the flat and stairwell, and the outdoor places (world 1).
-EARTH_MODULES = ("earth_flat", "earth_stairwell", "pieces_earth")
-
-
 def builder_texts():
-    """pieces.py and the builder modules beside it: Earth's rooms' (the prologue build), the ship rooms', the hangar
-    ship's and the bodies of big objects seen up close."""
-    return [(HERE / "inside/pieces.py").read_text()] + [(HERE / f"inside/{name}.py").read_text()
-                                                       for name in EARTH_MODULES + ("pieces_ship", "pieces_hull",
-                                                                                    "pieces_bodies")]
+    """pieces.py and the builder module it takes its builders from: the bodies of big objects seen up close (the old
+    kits' builders, the hub's, the camp's, the Earth rooms', the ship rooms' and the hangar ship's, went with the old
+    kits on 2026-10-21)."""
+    return [(HERE / "inside" / name).read_text() for name in ("pieces.py", "pieces_bodies.py")]
 
 
 def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
@@ -183,69 +157,21 @@ def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
         assert f"def {name}(size, laid):" in text, name
 
 
-@pytest.mark.xfail(strict=True, reason="the old fittings' builders (pieces*.py) stay until they are deleted; the "
-                                       "fittings record that allowed them retired with the old models (2026-10-21)")
-def test_every_code_builder_is_on_the_allow_list():
-    """pieces.py builds only plain kinds and method B's room fittings: a builder for anything else is a piece made
-    by hand from a sentence."""
-    texts = builder_texts()
-    names = re.findall(r'"(\w+)"', texts[0][texts[0].index("BUILDERS = "):texts[0].index("EARTH_ROOMS")])
-    for text in texts[1:]:
-        names += re.findall(r'"(\w+)"', text[text.index("BUILDERS = "):])
-    # A body builder (pieces_bodies) builds a big object's main shapes under its take's details, the owner's rule
-    # for big objects seen up close (2026-10-18, PRD #10); bodies.BODIES names each take it is used for.
-    bodies_text = texts[-1]
-    body_builders = set(re.findall(r'"(\w+)"', bodies_text[bodies_text.index("BUILDERS = "):]))
-    off = sorted(name for name in names
-                 if name not in sorter.PLAIN and name not in sorter.fittings() and name not in body_builders)
-    assert not off, f"code builders for kinds that are not plain plates, pipes, trims or fittings: {', '.join(off)}"
+def test_every_code_builder_is_a_body_a_take_names():
+    """pieces.py builds only the bodies of big objects seen up close (the owner's rule of 2026-10-18, PRD #10), each
+    one bodies.BODIES names for a take: no other piece is built from a sentence in code."""
+    pieces, bodies_text = builder_texts()
+    assert "BUILDERS = dict(pieces_bodies.BUILDERS)" in pieces and "def " in pieces
+    builders = set(re.findall(r'"(\w+)"', bodies_text[bodies_text.index("BUILDERS = "):]))
+    named = {body["builder"] for body in body_registry().values()}
+    assert builders == named, builders ^ named
 
 
-@pytest.mark.xfail(strict=True, reason="#41: every kit room installed before #19 is made again through the loop; "
-                                       "the mark goes when the last room is remade")
-def test_every_model_a_kit_room_lays_was_made_on_its_kind_s_route():
-    """Every model a kit room lays (data/kit/<room>.json: kit and furniture) says the route it was made on, and that is
-    its kind's route: code only for a kind the pipeline-failure record names, the prop pipeline for every other (#41's
-    acceptance: a test fails when a model layer reaches a model without going through the loop). Every kit installed
-    before #19 fails it until its room is made again through the loop."""
-    off = {}
-    for path in sorted((library.REPO / "data/kit").glob("*.json")):
-        layout = json.loads(path.read_text())
-        kinds = {found["model"]: found["kind"] for found in layout["pieces"] if "part" not in found}
-        kinds.update({name: f"{path.stem}_{name.rsplit('_', 1)[0]}" for name, about in layout["models"].items()
-                      if "prop" in about})
-        wrong = sorted({kind for name, kind in kinds.items()
-                        if layout["models"][name].get("route") != sorter.route(kind)})
-        if wrong:
-            off[path.stem] = wrong
-    assert not off, (f"{sum(map(len, off.values()))} kinds in {len(off)} kit rooms not made on their kind's route: "
-                     + "; ".join(f"{room} {len(wrong)} ({', '.join(wrong[:3])}...)" for room, wrong in off.items()))
-
-
-def test_every_kind_of_every_kit_room_gets_a_route():
-    for path in sorted((library.REPO / "data/kit").glob("*.json")):
-        layout = json.loads(path.read_text())
-        found = sorter.sorted_kinds(layout)
-        # A room of props alone (the expedition camp's grounds) lays no kit pieces; its props' routes are held above.
-        props = any("prop" in about for about in layout["models"].values())
-        assert (found or props) and all(entry["route"] in ("code", "model", "decal") for entry in found.values()), \
-            path.stem
-
-
-def test_a_room_s_baked_pictures_are_stored_as_webp_and_its_models_point_at_them():
-    """stored.py: no baked PNG left in a kit room's installed models (route.py install, the made folder), every glTF
-    picture a WebP through EXT_texture_webp (stored as PNG the hub's alone were 414 MB). Read where a room is
-    installed on this machine."""
-    for folder in sorted((library_files.made_folder() / "models").glob("*_kit")):
-        assert not [name for name in folder.rglob("*.png") if name.parent.name == "textures"
-                    and stored.kind_of(name.name)], folder.name
-        for gltf in folder.glob("*.gltf"):
-            found = json.loads(gltf.read_text())
-            for image in found.get("images", []):
-                if stored.kind_of(image.get("uri", "")):
-                    assert image["uri"].endswith(".webp") and image["mimeType"] == "image/webp", gltf.name
-            assert all("source" not in texture for texture in found.get("textures", [])
-                       if "EXT_texture_webp" in texture.get("extensions", {})), gltf.name
+def body_registry():
+    """bodies.BODIES, read from its plain Python beside the builders."""
+    sys.path.insert(0, str(HERE / "inside"))
+    import bodies
+    return bodies.BODIES
 
 
 def test_a_gltf_is_pointed_at_its_webp_pictures():

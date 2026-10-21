@@ -482,13 +482,6 @@ def judge_likeness(stage, place, inventory, outputs):
     return outcome(faults, f"{len(generated)} generated rows held to their close-ups")
 
 
-def code_built(place):
-    """The models the place's kit (data/kit/<place>.json) lays by the code route: their builder paints them, never the
-    surface stage's bake, whatever their row's kind (the flat's pillow: a generated row the sorter routes to code)."""
-    kit = record("kit", place) or {}
-    return {name for name, about in kit.get("models", {}).items() if about.get("route") == "code"}
-
-
 # The mark the assembly writes on a waiting record entry it lays straight from the surface line's bake
 # (score/stages/assembly/made_waiting.py, score:from): no seed paint was ever laid, so nothing is left to repaint.
 LAID_FROM_BAKE = "; laid by the assembly with the surface line's baked "
@@ -509,9 +502,7 @@ def repainted(prim, from_bake=frozenset()):
 
 def judge_painted(stage, place, inventory, outputs):
     """Every generated model on the stage repainted by the surface stage's bake, and the place's paint checked."""
-    built = code_built(place)
-    models = [prim for prim in model_prims(stage, place, generated_rows(inventory, place))  # a kit file's stem is its name
-              if pathlib.PurePosixPath(prim.GetAttribute("score:model").Get()).stem not in built]
+    models = model_prims(stage, place, generated_rows(inventory, place))  # the old kits' code models went with them
     if not models:
         return PASS, [], "no generated model on the stage"
     from_bake = set(made_pieces(stage).values())

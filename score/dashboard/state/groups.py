@@ -27,7 +27,7 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "demo-film": "film", "demo-film-extra": "extra film",
           "demo-stills": "stills", "terrain": "ground", "settle": "settle",
           "sound": "sound", "motion": "motion", "physics-layer": "physics", "physics-trial": "physics trial",
-          "surface-tiles": "surface tiles", "ship_kit": "ship kit", "concept_people": "people concepts",
+          "surface-tiles": "surface tiles", "concept_people": "people concepts",
           "library": "library handover", "library-world": "library handover",
           "demo-turntables": "turntable films",
           "people-made": "people from the loop", "people-clips": "people clips"}

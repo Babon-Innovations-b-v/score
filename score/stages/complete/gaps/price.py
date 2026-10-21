@@ -35,9 +35,7 @@ The record:
 
 A node is priced once, however many gaps share it. A Blocked node or a missing input is something to make, so it is
 in the chain and priced; nothing is skipped. A lost input read by several places (its id names the thing) counts
-once. A count of 0 or a rule whose source is missing is no count (a guess), never a free make. A node of a table of
-its own (OWN_TABLES: the ship kits', `ship_kit@<place>`) is priced the same way on its own row, its chain the node
-alone: no row of this table reads it, so what the place's completion reads after it is in the place's other chains.
+once. A count of 0 or a rule whose source is missing is no count (a guess), never a free make.
 """
 import hashlib
 import json
@@ -57,12 +55,6 @@ PIXAL_WORK = ((r"^Pixal3D take lost", "pixal: the lost Pixal3D takes made again"
 TAKE_RULES = ("prop_takes", "models")  # the forecast rules counting a place's takes (a designed place's: design_takes)
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
 BILL_SHARE = compute.BILL_SHARE  # the runner's (compute.bill_share); prop_batch.py prices its card steps by it too
-
-
-def own_tables():
-    """{stage name: its row} of the tables of their own a gap's node may name (fill.SHIP_KIT: the ship kits')."""
-    from score.stages import ship_kits
-    return {fill.SHIP_KIT: ship_kits.STAGE}
 
 
 def findings_of(root, place):
@@ -155,9 +147,6 @@ def rule_units(rule, found, data, place):
         return light_jobs(data, place)
     if rule == "sound_takes":
         return sound_takes(data, place)
-    if rule == "kit_jobs":
-        from score.stages import earth_seed
-        return earth_seed.kit_jobs(place)
     raise ValueError(f"unknown forecast rule {rule!r} in {compute.PER_UNIT}")
 
 
@@ -275,9 +264,6 @@ def chained(runner, found, places):
             at = record["chains"].setdefault(place, {})
             if node not in at:
                 at[node] = node_chain(runner, node, place, places, reading)
-        elif node.partition("@")[0] in own_tables():
-            record["gaps"].setdefault(place, {})[gap["id"]] = node
-            record["chains"].setdefault(place, {})[node] = {node: bool(own_tables()[node.partition("@")[0]].paid)}
         else:
             record["outside"][node] = record["outside"].get(node, 0) + 1
     return record
@@ -347,7 +333,7 @@ def run_cap():
 
 def plan_rows(runner, every, places):
     """[node] of the plan's rows (`every`, {node: whether paid}) in the stage table's order (runner.nodes, the walk's
-    tie-break), a row of a table of its own (own_tables) after them."""
+    tie-break), a row the table does not order after them."""
     order = [graph.node_name(*node) for node in runner.nodes(places)]
     return [node for node in order if node in every] + sorted(node for node in every if node not in order)
 
@@ -431,6 +417,6 @@ def gaps_price(runner, world, root, places, store=None, made_at=None):
                   "outside": counted(({"node": node}, count) for node, count in record["outside"].items()),
                   "eta": eta, "not_current": stale, "not_checked": unchecked,
                   "lines": {place: sorted(nodes) for place, nodes in lines.items()}}
-        priced["milestones"] = milestones.milestones(runner, {**runner.stages, **own_tables()}, priced, found,
+        priced["milestones"] = milestones.milestones(runner, runner.stages, priced, found,
                                                      lost_readers(runner, places), books_refused())
     return priced

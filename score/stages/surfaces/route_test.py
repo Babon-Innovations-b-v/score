@@ -654,6 +654,23 @@ def test_the_empty_library_is_a_named_missing_input():
             raise AssertionError("a surface read from the empty library")
 
 
+def test_the_scene_s_shell_surfaces_are_its_library_s_for_the_shell_kinds():
+    """The shell laid from the locked plan and a prop's paint take one answer (palette_library.SHELL_KINDS): each
+    shell part the first variant the scene library gives one of its kinds; none while no library is read."""
+    from score.stages.surfaces import palette_library
+    with tempfile.TemporaryDirectory() as folder:
+        library = pathlib.Path(folder) / "materials.json"
+        library.write_text(json.dumps({"kinds": {"floor": ["deck_plate", "rubber_mat"], "ceiling": ["ceiling_panel"],
+                                                 "wall": [], "crate": ["crate_wood"]}}))
+        palette = {"tokens": {}, "wear": {}, "library": str(library)}
+        assert palette_library.shell_surfaces(palette) == ["ceiling_panel", "deck_plate"]  # no wall surface, no crate
+        content = json.loads(library.read_text())
+        assert palette_library.shell_surface("stair", content) == "deck_plate"  # no stairs kind: the floor's
+        assert palette_library.shell_surface("roof", content) == "ceiling_panel"
+        assert palette_library.shell_surface("wall", content) is None
+    assert palette_library.shell_surfaces({"tokens": {}, "wear": {}}) == []
+
+
 def test_paid_asks_refuse_outside_a_cleared_run():
     from score.adapters import compute
     try:

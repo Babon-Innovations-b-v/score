@@ -396,14 +396,15 @@ def rendered(out, name, kind="look"):
 
 def lamp_heads(place, inputs):
     """Each floodlight head a place's views show, its own and those of the places it shows (passes.shown_in): every
-    glow part of a kit kind whose lamps light a shaft (haze.shafted_kinds), as (its lens middle, half its bank's width,
-    the nearest of its owner's shafted lights, its front)."""
+    glow part of a kind its design kit lays (its `kit`, a shown place's `kit <place>`: earth_seed's kit.json) whose
+    lamps light a shaft (haze.shafted_kinds), as (its lens middle, half its bank's width, the nearest of its owner's
+    shafted lights, its front)."""
     found = []
     for owner in (place, *passes.shown_in(inputs)):
-        kinds = haze.shafted_kinds(owner)
+        kit = json.loads(pathlib.Path(inputs["kit" if owner == place else f"kit {owner}"]).read_text())
+        kinds = haze.shafted_kinds(owner, kit)
         if not kinds:
             continue
-        kit = json.loads((REPO / f"data/kit/{owner}.json").read_text())
         lights = [entry for entry in passes.record_of(owner, inputs).get("lights", []) if entry.get("shaft")]
         for laid in kit["pieces"]:
             if laid["kind"] not in kinds or laid.get("part") != "glow":

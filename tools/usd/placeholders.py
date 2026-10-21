@@ -5,7 +5,7 @@
 The owner's rule (2026-10-07, held again after the demo of 2026-10-09: "I saw a ton of placeholder assets still"):
 code may build only plain plates, pipes and trims; everything with detail is a made piece, the game's own model
 placed, a code piece that passes the parts check, or a model from the prop pipeline. The stage is read as composed,
-and every prim drawn (not a guide, not made invisible) is judged by four rules:
+and every prim drawn (not a guide, not made invisible) is judged by three rules:
 
     plain     a mesh the scene record's code drew (score:builder, in any group) must say which plain thing it
               is: its record entry's `plain`, written as score:plain, or a record group's own kind when that is plain
@@ -16,9 +16,8 @@ and every prim drawn (not a guide, not made invisible) is judged by four rules:
               (SHELL_BUILDERS: room walls, decks and roofs, stairs, a tube's arcs, a heightfield's ground, the stars,
               specks, the haze and a light's beam) draw the place's own shell and pass without saying; a new builder
               is judged until it is put on that list.
-    sorter    a kit piece (/<place>/Objects) whose model the place's kit built in code (`route` code in
-              data/kit/<place>.json) must be a kind the sorter sends to code (tools/props/library/sorter.py: one
-              the pipeline-failure record, data/library/pipeline_failures.json, names; #19).
+    (sorter   a kit piece built in code against the sorter's route: retired with the old kits, data/kit, on
+              2026-10-21; a design lays no kit piece, so no piece is built in code by a kit)
     material  a mesh with no material, or with a surface that has no colour of its own (a UsdPreviewSurface whose
               diffuseColor is neither set nor connected: the reader's default grey), fails.
     proxy     a prim drawn for the proxy purpose, or named as a proxy, a placeholder or a debug mesh, fails.
@@ -35,11 +34,7 @@ import sys
 
 from pxr import Usd, UsdGeom, UsdShade
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "tools/props/library"))
-import sorter  # noqa: E402
 
-KITS = REPO / "data/kit"
 # The scene record's builders that draw the place's own shell and nothing else (scene.BUILDERS, and the sky's beams):
 # every other builder, a primitive or one that puts a thing together, must say which plain thing it drew.
 SHELL_BUILDERS = frozenset(("room_walls", "room_deck", "dome_roof", "walls", "wall_strip", "pyramid_roof", "stairs",
@@ -103,24 +98,6 @@ def plain_group_kind(prim):
     return kind if kind in PLAIN_KINDS else None
 
 
-def kit_routes(place, kits=KITS):
-    """{model: route} of the place's kit (data/kit/<place>.json), empty when the place has no kit."""
-    path = pathlib.Path(kits) / f"{place}.json"
-    if not path.exists():
-        return {}
-    return {name: entry.get("route") for name, entry in json.loads(path.read_text()).get("models", {}).items()}
-
-
-def sorter_fault(prim, routes):
-    """Why a kit piece fails the sorter rule, or None when it passes."""
-    model, kind = attribute(prim, "score:model"), attribute(prim, "score:kind")
-    if model is None or kind is None or routes.get(model) != "code":
-        return None
-    if sorter.route(kind) == "code":
-        return None
-    return f"{kind} built in code, but the sorter sends it to the prop pipeline (no pipeline failure named for it)"
-
-
 def default_grey(material):
     """Whether a material's surface has no colour of its own: a UsdPreviewSurface whose diffuseColor is neither set
     nor connected draws in the reader's default grey. A surface drawn wholly clear (opacity 0: the haze's shell, which
@@ -164,21 +141,17 @@ def proxy_fault(prim):
     return f"named as a {word}" if word else None
 
 
-def faults_of(prim, routes):
+def faults_of(prim):
     """Every rule one prim fails, as (rule, why)."""
     found = [("proxy", proxy_fault(prim)), ("material", material_fault(prim)), ("plain", plain_fault(prim))]
-    group = prim.GetPath().pathElementCount > 1 and prim.GetPath().GetPrefixes()[1].name
-    if group == "Objects":
-        found.append(("sorter", sorter_fault(prim, routes)))
     return [(rule, why) for rule, why in found if why]
 
 
-def check(stage_path, kits=KITS):
+def check(stage_path):
     """Every fault on the stage: [{"prim", "rule", "why"}], empty when nothing stands in for a made piece."""
     stage = Usd.Stage.Open(str(stage_path))
-    routes = kit_routes(stage.GetDefaultPrim().GetName(), kits)
     return [{"prim": str(prim.GetPath()), "rule": rule, "why": why}
-            for prim in judged_prims(stage) for rule, why in faults_of(prim, routes)]
+            for prim in judged_prims(stage) for rule, why in faults_of(prim)]
 
 
 def main():

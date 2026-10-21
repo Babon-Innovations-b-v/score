@@ -15,7 +15,8 @@ placed by the first rule that applies:
               turned about up by `facing` as export.turn_in_seat turns it (a kit piece by its own axes); on a place
               with ground, stood as export.stand_on stands it: on the ground under its spot, lifted by that y and
               turned with its seat
-    wall      a wall spot (`wall`, `across`, `bottom`): room_kit.on_side over the inventory's room
+    wall      a wall spot (`wall`, `across`, `bottom`): unplaced (it was laid against an old inventory's room
+              layout, room_kit.on_side, retired with the old kits on 2026-10-21; a design's row has none)
     on        a row anchored `on:<parent>`: every object at the middle of the parent's top (the inventory gives no
               layout on it); on the made parent's world box, or nested under the parent's own box when the parent is
               missing too
@@ -133,32 +134,17 @@ def floor_spots(row, kit, spots, ground):
             for (across, along), piece in zip(spots, kit_pieces(row, kit))]
 
 
-def wall_spots(row, room):
-    """The row's wall spots as frames {origin, axes} against the room's walls (room_kit.on_side), or None for a
-    spot on a wall the room's layout does not have (a faceted or outdoor place's)."""
-    sys.path.insert(0, str(REPO / "tools/props/scene"))
-    import room_kit
-    layout = room.get("layout", {})
-    walls = {side["name"]: side for side in room_kit.sides(layout)} if "inside" in layout and "corner" in layout else {}
-    if not any("wall" in spot for spot in row.get("at", [])):
-        return []  # a design's ground or sky row has no size and no wall spot
-    wide, deep, tall = row["size"]
-    found = []
-    for spot in row.get("at", []):
-        if "wall" not in spot:
-            continue
-        side = walls.get(spot["wall"])
-        laid = side and room_kit.on_side(room.get("name", ""), row["id"], side, float(spot["across"]),
-                                         float(spot["bottom"]), (wide, tall, deep), out=float(spot.get("out", 0.0)))
-        found.append({"origin": laid["at"], "axes": [laid["x"], laid["y"], laid["z"]]} if laid else None)
-    return found
+def wall_spots(row):
+    """The row's wall spots, each unplaced (None): one was laid against an old inventory's room layout
+    (room_kit.on_side), retired with the old kits on 2026-10-21, and a design's row has none."""
+    return [None for spot in row.get("at", []) if "wall" in spot]
 
 
-def frames(row, kit, room, spots, ground):
+def frames(row, kit, spots, ground):
     """[(placed, frame or None)] for each object of a row that does not stand on another: its spots, then its wall
     spots; its count unplaced when it has neither."""
     found = [(SPOT, frame) for frame in floor_spots(row, kit, spots.get(row["id"], []), ground)]
-    found += [(WALL, frame) for frame in wall_spots(row, room)]
+    found += [(WALL, frame) for frame in wall_spots(row)]
     if not found:
         return [(UNPLACED, None)] * max(1, int(row.get("count", 1)))
     return [(placed if frame else UNPLACED, frame) for placed, frame in found]
@@ -212,7 +198,6 @@ def box(place, row, number, placed, frame, under):
 def boxes(stage, place, written, kit, rows):
     """Every object of the missing rows as a box, parents before children."""
     spots = plans.row_spots(written, kit) if written else {}
-    room = dict(written.get("room", {}), name=kit.get("room", "")) if written else {}
     ground = grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))
     made = made_objects(stage, place)
     missing_ids = {row["id"] for row in rows}
@@ -225,7 +210,7 @@ def boxes(stage, place, written, kit, rows):
             top = None if parent in missing_ids else parent_top(stage, made, parent)
             laid = on_frames(row, top, nested)
         else:
-            laid = [(placed, frame, None) for placed, frame in frames(row, kit, room, spots, ground)]
+            laid = [(placed, frame, None) for placed, frame in frames(row, kit, spots, ground)]
         for number, (placed, frame, under) in enumerate(laid, start=1):
             found.append(box(place, row, number, placed, frame, under))
         own = found[-len(laid)]

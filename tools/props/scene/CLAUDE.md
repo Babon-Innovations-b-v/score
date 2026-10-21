@@ -71,36 +71,21 @@ serve: skill `make-scene`, bible "How a scene is designed".
 - `cutsize_test.py` is the gate's check of the cut-out limit.
 - The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
   window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.
-- **The per-place kit scripts lay the old concepts' rooms** (owner, 2026-10-21: no hand-written per-scene list decides
-  what a scene gets). Their data/kit/<place>.json is never a designed scene's base (`score/stages/earth_seed`
-  `kit_is_base`: the base and the plan row read it only where no design is locked), so earth-kit bakes none of it for
-  a designed scene. data/kit, data/inventory and data/scene were retired on 2026-10-21, so these scripts have nothing
-  to lay and their tests went with the data; the scene record, assembly, light and settle rows still name the kit and
-  wait on it by name until a design-made shell replaces it, and each script goes once nothing imports it.
-- **Kit layouts for the route** (`route.py`'s input): `hub_kit.py` for the hub's twelve walls, `room_kit.py <room>` for
-  a rounded module room from its inventory's `room.layout` (the shell's own outline, its dome's rings, the floor's
-  cross and corner fans, door spots, the rows' spots; the habitat and the airlock, modules batch one), and
-  `tube_kit.py` for one bay and one end of a walkway tube, which the game lays along any tube (`TubeKit`).
-  (`greenhouse_kit.py` and the per-room kit tests were retired with the old inventories, 2026-10-21.)
-- **A kit's lamps come from the design** (owner, 2026-10-21: no per-scene list decides what a scene gets): every
-  kit builder's kinds table takes a kind's light from `lamps.py`, a row whose row kind glows (its reading `noun`,
+- **The per-place kit scripts are retired** (owner, 2026-10-21: "remove all old, all old stuff is retired"): the
+  hub's, the rounded rooms', the bay's, the camp's, the ship rooms' and the walkway tube's kit layouts (`*_kit.py`)
+  went with data/kit; every scene's shell is laid from its locked plan by its earth seed
+  (`score/stages/earth_seed/design_shell.py`), and every reader of an old kit reads the design's kit there.
+- **A kit's lamps come from the design** (owner, 2026-10-21: no per-scene list decides what a scene gets): `lamps.py`
+  gives a lamp its light (the scene record's kit shell reads it, `score/stages/scene_record/kit_shell.py`): a row whose row kind glows (its reading `noun`,
   `score/stages/row_kinds.py`) lit by the library's lamp for its mount (`data/library/lamps.json`: ceiling, wall or
   stands; reach from its laid pieces' height, the starting strength the light sweep then measures, shadows by mount).
   A reading's row anchored `on:<row>` is mounted as that row is (the library's `mount_words` in its noun, else its
-  own anchor, else what it rests on in turn), so builders pass the inventory's rows to `light_of`. No row carries typed `light` numbers and no builder keeps a lamp list.
-- `ship_kit.py <room> <out.json>` lays a ship room's kit (the ship as an environment 1 place, 2026-10-14; the bridge first)
-  from its plan alone (`w`, `d`, the ceiling in its height words, its doors, its `kit` block: the nose's cut corners,
-  the windows' sill, head and pillar) and its inventory's spots: walls in two bands of plain plates round the wedge
-  outline, a doorway left clear, the cut corners and the front glazed, the floor and ceiling in grids with a triangle in
-  each cut corner. A tapered room (the kit block's `front_wide`, `ceiling_front`, `glazed: roof`, `windows_from`:
-  the cockpit) narrows straight to its front under a sloping ceiling, its upper wall plates reaching the ceiling over
-  each plate, its floor and roof in rows with tapering slivers at the sides, its windows lights in the sloping roof.
-  Shell plates take the sorter's plain names; a room's name is one word (`bridge`), as the route's
-  kinds are `<room>_<own>`. `ship_kit_test.py` checks it on a bridge-shaped room.
-- `camp_kit.py` lays the expedition camp habitat's kit on Mars (data/kit/camp.json via route.py) from the camp scripts' own numbers (its test retired with data/scene, 2026-10-21). `camp_shots.tscn` draws the habitat from cameras in its own frame (run with `--mars`, so the game's own check stays on Mars while it shoots).
+  own anchor, else what it rests on in turn), so a caller passes the inventory's rows to `light_of`. No row carries typed `light` numbers and no builder keeps a lamp list.
 - `ship_floor.py <out>` is the ship's floor plan inside its 46 m hull (the owner's loop, 2026-10-19: the outside's
-  plan split into the inside's rooms): data/definitions/ship_floor.json names each room's span, side, floors and doors;
-  every size and section is measured from the hull (`../library/inside/ship_outline.py`), people keep their size
+  plan split into the inside's rooms): data/definitions/ship_floor.json names each room's span, side, floors and doors
+  and carries its own hull (`hull`: plan v7's stations at 46 m, their section, the nose spike and the side ring,
+  written in when data/definitions/ship.json was retired, 2026-10-21); every size and section is measured from that
+  hull, people keep their size
   (0.9 x 2.0 m doors, a 2.6 m ceiling), and its faults (overlaps, a floor under the keel, a door to nowhere, a room
   naming no place of data/definitions/place.json) exit 1.
   It draws the plan (`ship-floor.png`) and, with `--views`, each room's concept request in concept_views.json's form.

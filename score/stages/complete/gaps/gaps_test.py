@@ -145,7 +145,8 @@ def test_missing_rows_are_guide_boxes_at_their_spots_and_never_made_objects(ran)
     # turned 90 degrees about up: its width runs along z
     assert found["missing:shelf_1"]["low"] == pytest.approx([2.75, 0, 1]) and \
         found["missing:shelf_1"]["high"] == pytest.approx([3.25, 1, 3])
-    assert found["missing:panel_1"]["placed"] == "wall" and found["missing:panel_1"]["low"][1] == pytest.approx(1)
+    # a wall spot of an old inventory's room layout: unplaced, never laid by guess (room_kit retired, 2026-10-21)
+    assert found["missing:panel_1"]["placed"] == "unplaced" and found["missing:panel_1"].get("low") is None
     assert not any(prim.HasAttribute("score:row") for prim in Usd.PrimRange(stage.GetPrimAtPath(f"/{PLACE}/Gaps")))
 
 
@@ -204,9 +205,8 @@ def test_a_shown_place_s_objects_are_never_the_place_s_own(ran):
 
 def test_a_kit_piece_with_no_named_failure_is_filled_by_the_loop():
     beam = INVENTORY["rows"][6]  # #19: a kit piece is the shared loop's unless the pipeline-failure record names it
-    for in_kit in (True, False):
-        node, work = fill.missing_row(beam, PLACE, in_kit)
-        assert node == f"pixal@{PLACE}" or "design hand-in" in work, (node, work)
+    node, work = fill.missing_row(beam, PLACE)
+    assert node == f"pixal@{PLACE}" or "design hand-in" in work, (node, work)
 
 
 def test_the_place_lacks_its_concept_plan_and_rough_model(ran):
@@ -243,10 +243,9 @@ def test_the_contract_refuses_what_it_names():
     assert len(gaps_faults({"findings": [good, *bad]})) == 5
 
 
-def test_every_filler_is_a_stage_of_the_table_or_the_ship_kit():
-    names = {row.name for row in stages.STAGES} | {fill.SHIP_KIT}
-    named = ({stage for stage, _ in fill.FILLERS.values() if stage} | set(fill.COMPLETE_GATES.values())
-             | {fill.ASSEMBLY})
+def test_every_filler_is_a_stage_of_the_table():
+    names = {row.name for row in stages.STAGES}
+    named = {stage for stage, _ in fill.FILLERS.values() if stage} | set(fill.COMPLETE_GATES.values())
     assert named <= names, named - names
 
 

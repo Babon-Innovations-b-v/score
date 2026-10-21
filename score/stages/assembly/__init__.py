@@ -11,7 +11,7 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                       (score:waiting) for complete. The record built from is written beside the stage (scene.json), the
                       one the neighbours stage reads
              layers   each layer stage of LAYERS the table holds (effects, motion, light, motion models, crops, settle,
-                      characters, the kit's shell sections; all experimental) as a sublayer of its own with its
+                      characters; all experimental) as a sublayer of its own with its
                       assets, in place of the seed's of that name,
                       the root's sublayers in ORDER and its time range as long as the longest layer's
              bakes    a place's baked models (surfaces-bake) in place of the seed's assets, each laid object stamped
@@ -86,8 +86,7 @@ LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets
           "light": (("light", 1), "layers/light.usda", "assets/light"),
           "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets"),
           "settle": (("settle-layer", 1), "layers/settle.usda", None),
-          "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters"),
-          "kit-sections": (("kit-sections", 1), "layers/sections.usda", None)}
+          "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters")}
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
 READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surface-tiles": ("surface-tiles", 1),
          **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
@@ -202,7 +201,7 @@ def stage_file(output):
 
 def judge_placeholders(output, inputs, evidence):
     """Fail on every visible mesh that stands in for a made piece."""
-    faults = placeholders.check(stage_file(output), kits=inputs["kit"].parent)
+    faults = placeholders.check(stage_file(output))
     findings = tuple(f"{fault['prim']}: {fault['rule']}: {fault['why']}" for fault in faults)
     reason = f"{len(faults)} meshes stand in for made pieces" if faults else "nothing stands in for a made piece"
     return checks.Verdict("placeholders", checks.FAIL if faults else checks.PASS, reason, {"faults": len(faults)},

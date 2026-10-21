@@ -61,10 +61,9 @@ def library_files(place):
 
 
 def parts_files(place):
-    """The parts row's files: library_files and the place's kit with the code its kit surfaces are read from
-    (surface_data.parts_files' kit entries), so a finish takes the room's own kit surface."""
-    kit = {name: pattern for name, pattern in data.parts_files(place).items() if name.startswith("kit")}
-    return {**library_files(place), **kit}
+    """The parts row's files: library_files (a finish takes the scene's own shell surface from its surface library,
+    an input: palette_library.shell_surfaces)."""
+    return library_files(place)
 
 
 def takes(inputs, params):

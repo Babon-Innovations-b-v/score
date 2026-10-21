@@ -445,10 +445,11 @@ def child_pieces(place, kit, inventory, composites):
     return found
 
 
-def library_materials(stage, place, root):
-    """Every library surface the place takes, as a flat-coloured UsdPreviewSurface under <root>/Library (its
-    palette colour, roughness and metal), for the creator to give a part; recipe and token ride along."""
-    for name, spec in library.by_library(place).items():
+def library_materials(stage, place, root, specs=None):
+    """Every library surface the place takes (`specs`, a scene library's library.library_specs, else the place's
+    by_library), as a flat-coloured UsdPreviewSurface under <root>/Library (its palette colour, roughness and metal),
+    for the creator to give a part; recipe and token ride along."""
+    for name, spec in (library.by_library(place) if specs is None else specs).items():
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
             raise ValueError(f"library surface '{name}' is not a USD prim name")
         material = UsdShade.Material.Define(stage, f"{root}/Library/{name}")

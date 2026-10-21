@@ -246,22 +246,8 @@ def likeness_and_paint_both_ways():
                                                               {**NONE, "likeness": likeness}), contents.FAIL),
                  ("an unrepainted generated model", judged("painted", path, inventory,
                                                            {**NONE, "surfaces-check": check}), contents.FAIL)]
-        kit = folder / "data/kit" / f"{PLACE}.json"
-        kit.parent.mkdir()
-        kit.write_text(json.dumps({"models": {"chair-b": {"route": "code"}}}))
-        cases.append(("a generated row's model the kit builds in code", judged("painted", path, inventory,
-                                                                             {**NONE, "surfaces-check": check}),
-                      contents.PASS))
-        chair.GetAttribute("score:model").Set("models/testplace_kit/chair-b.gltf")
-        stage.GetRootLayer().Save()
-        cases.append(("the kit's code-built model laid as its file", judged("painted", path, inventory,
-                                                                          {**NONE, "surfaces-check": check}),
-                      contents.PASS))
-        kit.unlink()
-        cases.append(("that file with no code route in the kit", judged("painted", path, inventory,
-                                                                       {**NONE, "surfaces-check": check}),
-                      contents.FAIL))
-        chair.GetAttribute("score:model").Set("chair-b")
+        # a model an old kit built in code went with the old kits (data/kit, 2026-10-21): every generated model is
+        # held to the bake's paint
         chair.CreateAttribute("score:motion_model", Sdf.ValueTypeNames.String).Set("chair-s1")
         stage.GetRootLayer().Save()
         cases.append(("a model the motion models layer lays from its take's bake", judged(

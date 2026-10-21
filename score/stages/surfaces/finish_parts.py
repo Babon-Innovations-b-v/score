@@ -209,8 +209,8 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
 
 
 def kit_taken(record, colour, every, kit):
-    """A finish that fits by colour given the room's own kit surface (`kit`: kit_surfaces.surfaces) where one of its
-    surface's family lies within COLOUR_DELTA_E of the close-up's colour, the nearest such; as it was otherwise, and
+    """A finish that fits by colour given the scene's own shell surface (`kit`: palette_library.shell_surfaces) where
+    one of its surface's family lies within COLOUR_DELTA_E of the close-up's colour, the nearest such; as it was otherwise, and
     always for glass, glow, light and print, judged by their own colour (the materials audit, 2026-10-18: the hangar's
     ship took painted_grey_light, 165 L* grey, beside kit walls of painted_panel)."""
     import numpy as np

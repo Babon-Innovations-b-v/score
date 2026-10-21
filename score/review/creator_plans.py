@@ -1,6 +1,6 @@
 """Creator data wins (the owner, 2026-10-21): where the creator has approved a plan of a thing a place holds, the plan
 writer lays that plan as given, scaled and placed, and never reinvents it. Today one: the ship's floor plan
-(data/definitions/ship_floor.json inside the owner's plan v7 hull, data/definitions/ship.json, at its 46 m), held by
+(data/definitions/ship_floor.json, its rooms inside its own hull, the owner's plan v7's at its 46 m), held by
 the row of the hangar that holds its rooms. Its hull outline from above (the nose spike and the hull at its waist,
 as tools/props/scene/ship_floor.py draws it) and every room's outline come from tools/props/scene/ship_floor.py, in
 the ship's frame: x across (starboard positive), y back from the nose spike's tip, metres.
@@ -24,12 +24,8 @@ def ship():
     if str(SCENE) not in sys.path:
         sys.path.insert(0, str(SCENE))
     import ship_floor
-    import ship_outline
-    built = ship_outline.read_plan(ship_floor.SHIP)
     floor = ship_floor.read_floor()
-    hull = ship_floor.hull_plan(built, floor)
-    spike = ship_outline.spike({**built, "drawn_length": built.get("drawn_length", built["length"]),
-                                "length": floor["length"]})
+    hull, spike = ship_floor.hull_of(floor), floor["hull"]["spike"]
     side = [(row["half"], row["y"]) for row in hull]
     outline = [(spike["tip"], 0.0)] + side + [(-half, along) for half, along in reversed(side)] + [(-spike["tip"], 0.0)]
     rooms = {space["place"]: ship_floor.outline_points(hull, floor, space) for space in ship_floor.spaces(floor)}

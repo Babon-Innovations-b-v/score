@@ -234,10 +234,9 @@ def earth_face_baked(stage, place, written, out):
 
 
 def planned_ground(place):
-    """The place's planned ground (tools/usd/ground.py, seated as its kit says), or None for a flat place."""
-    kit = REPO / f"data/kit/{place}.json"
-    on_seat = json.loads(kit.read_text()).get("on_seat", [0.0, 0.0]) if kit.exists() else [0.0, 0.0]
-    return grounds.place_ground(place, on_seat)
+    """The place's planned ground (tools/usd/ground.py), the place on its seat by its middle (its design kit names no
+    seat offset: the old kits' `on_seat` were retired with them, 2026-10-21), or None for a flat place."""
+    return grounds.place_ground(place, [0.0, 0.0])
 
 
 def write_sky(stage, place, record, out, kept=None):

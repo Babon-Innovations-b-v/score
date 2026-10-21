@@ -27,24 +27,34 @@ def glowing(inventory_path):
     return {row["id"] for row in row_kinds.rows_that(read(inventory_path), "glows", row_kinds.table())}
 
 
-def shafted_kinds(place):
-    """The kit kinds the place lays whose lamps light a shaft of haze (its floodlights): each inventory row whose row
-    kind glows that the place's plan aims (`aims`), the library's aimed lamp, when that lamp has a shaft
-    (data/library/lamps.json), laid as `<room>_<row>`, as the scene-record row lights them (scene_record/kit_shell)."""
-    kit_path, plan = passes.REPO / f"data/kit/{place}.json", passes.plan_of(place)
-    if not kit_path.is_file() or not plan or not read(LAMPS)["aimed"].get("shaft"):
-        return set()
+def shafted_rows(place):
+    """The rows of the place whose lamps light a shaft of haze (its floodlights): each inventory row whose row kind
+    glows that the place's plan aims (`aims`), the library's aimed lamp, when that lamp has a shaft
+    (data/library/lamps.json), as the scene-record row lights them (scene_record/kit_shell)."""
+    plan = passes.plan_of(place)
     inventory = passes.KEPT / "inventory" / f"{place}.json"  # the design's scene inventory
-    if not plan.get("aims") or not inventory.is_file():
+    if not plan or not plan.get("aims") or not inventory.is_file() or not read(LAMPS)["aimed"].get("shaft"):
         return set()
-    kit = read(kit_path)
-    kinds = {f"{kit.get('room', place)}_{row}" for row in glowing(inventory) & set(plan["aims"])}
+    return glowing(inventory) & set(plan["aims"])
+
+
+def shafted_kinds(place, kit):
+    """The kit kinds `kit` lays (the place's design kit, earth_seed's kit.json) of its shafted rows, each laid as
+    `<room>_<row>`."""
+    kinds = {f"{kit.get('room', place)}_{row}" for row in shafted_rows(place)}
     return kinds & {laid["kind"] for laid in kit["pieces"]}
 
 
+def design_kit(place):
+    """The place's kit as its design lays it (earth_seed's kit.json): no piece. The old kits (data/kit) were retired
+    with the old concepts, 2026-10-21."""
+    return {"room": place, "pieces": []}
+
+
 def applies(place):
-    """A place whose kit lays a lamp with a shaft (the table adds: and whose design is lit)."""
-    return place is not None and bool(shafted_kinds(place))
+    """A place whose kit lays a lamp with a shaft (the table adds: and whose design is lit): none while a design lays
+    no kit piece (design_kit)."""
+    return place is not None and bool(shafted_kinds(place, design_kit(place)))
 
 
 def without_shafts(folder, place):

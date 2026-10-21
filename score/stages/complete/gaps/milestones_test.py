@@ -135,12 +135,6 @@ def test_the_code_work_waits_at_its_step_and_the_books_at_the_first_paid_one():
     assert by_key(planned(books=None))["ground"]["owner"] == []
 
 
-def test_a_node_of_a_table_of_its_own_is_what_the_place_holds_never_a_lines_end():
-    found = by_key(planned(findings=[{"id": "missing:kit_1", "rule": "missing", "node": "ship_kit@hangar"}]))
-    assert "ship_kit" in [entry["stage"] for entry in found["made"]["stages"]]
-    assert "ship_kit" not in [entry["stage"] for entry in found["after"]["stages"]]
-
-
 def test_a_route_step_no_row_does_yet_is_still_a_milestone_unpriced_with_why():
     unsplit = [row("scene-record", ("rough-model",)) if stage.name == "scene-record" else stage
                for stage in TABLE if stage.name != "shell-split"]

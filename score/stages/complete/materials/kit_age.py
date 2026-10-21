@@ -26,7 +26,7 @@ ROUTES = {"code": INSIDE / "make_kit.py", "generate": INSIDE / "make_chunky.py"}
 ROUTE_WORDS = {"code": "code-built", "generate": "generated"}
 # Where a route's bare imports are found when it runs (inside/runtime.py's PATHS, the repository's own).
 FOLDERS = (INSIDE, INSIDE.parent)
-BODIES = {"pieces.py", "pieces_ship.py", "pieces_earth.py", "shapes.py"}
+BODIES = {"pieces.py", "pieces_bodies.py", "shapes.py"}
 MANIFEST = "data/assets/world1.json"
 
 

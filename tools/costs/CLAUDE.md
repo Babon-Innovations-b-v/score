@@ -19,7 +19,7 @@ in the test.
   `price_note` where the measured price was asked otherwise than today, as the lists' standard tier), which
   `score price --gaps` counts; `--add --ledger <live ledger>` writes in place the stages that ledger holds lines
   of (a line whose ticket names its node is that stage's alone; sound, over the takes its line names (`SOUND_TAKES` for the two lines written before it named them); a WARM stage priced on its
-  own timed jobs, as earth-kit@airlock's 15 of 2026-10-20, kept so by every later mode), every other stage kept;
+  own timed jobs, kept so by every later mode), every other stage kept;
   `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
   kept, as the old disk took the live ledgers (2026-10-19). Never edit the rules in the JSON by hand.
 - **Each entry's `time` comes from the same lines as its euros** (#14): a unit's seconds (median and p90: the

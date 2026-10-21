@@ -14,6 +14,8 @@ the scene palette (scene_palette.py, `palette.json`: read from its locked concep
                                   check's)
     offered(palette)              the surfaces a scene's models may take: every variant in one of its palette tokens
     take_surfaces(entry, palette) a take's: offered, less what an object never is, its kind's own list on top
+    shell_surface(part, library)  the variant the scene library gives a shell part (SHELL_KINDS), else None
+    shell_surfaces(palette)       the scene's own shell surfaces (a prop's finish takes one that fits, finish_parts)
     wear(palette)                 (wear, dirt) as numbers
 
 Standard library only: the prop environment and the framework both read it.
@@ -30,6 +32,12 @@ if str(LIBRARY_TOOLS) not in sys.path:
 import library  # noqa: E402
 
 ROW = "surface-library"  # the row whose output is a scene's surface library (scene_library.py)
+# The scene library's kinds each part of a scene's shell takes its surface from, the first it names a variant for (a
+# take's kind in the scene's surface data, which its library answers: the floor plates', the wall panels', the
+# ceiling's). The shell laid from the locked plan reads it (score/stages/earth_seed/design_shell.py), and so does the
+# paint (shell_surfaces): a prop's finish that one of the shell's own surfaces fits takes it.
+SHELL_KINDS = {"deck": ("floor", "deck"), "level": ("floor", "deck"), "wall": ("wall", "walls"),
+               "roof": ("roof", "ceiling"), "stair": ("stairs", "stair", "steps", "ramp", "floor")}
 # What an object is never painted as (labels.NOT_ON_OBJECTS): the floor's deck plates.
 NOT_ON_OBJECTS = ("deck",)
 
@@ -83,6 +91,26 @@ def take_surfaces(entry, palette):
     found = {name: spec for name, spec in offered(palette).items() if name not in NOT_ON_OBJECTS}
     found.update({name: every[name] for name in kind_list(entry.get("kind"), palette) if name in every})
     return found
+
+
+def shell_surface(part, library):
+    """The variant a scene library (its materials.json content, or None) gives a shell part of kind `part`: the first
+    of its SHELL_KINDS it names one for, else None."""
+    kinds = (library or {}).get("kinds") or {}
+    return next((kinds[wanted][0] for wanted in SHELL_KINDS[part] if kinds.get(wanted)), None)
+
+
+def shell_surfaces(palette):
+    """The scene's own shell surfaces, sorted: each variant its library gives a shell part (shell_surface); none while
+    the row reads no library."""
+    library = library_of(palette)
+    return sorted({found for part in SHELL_KINDS if (found := shell_surface(part, library)) is not None})
+
+
+def library_of(palette):
+    """The scene library's content where the row reads one and it is made, else None."""
+    path = palette.get("library")
+    return json.loads(pathlib.Path(path).read_text()) if path and pathlib.Path(path).is_file() else None
 
 
 def wear(palette):

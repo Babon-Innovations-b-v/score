@@ -20,7 +20,9 @@ gates.
   light-haze applies where the kit lays a lamp with a shaft (`haze.shafted_kinds`: the glowing rows, by row kind,
   its plan aims, the library's aimed lamp with its shaft; a floodlight's shaft is its row's, never a hand-kept lamp of
   one place), and the floodlight heads are those
-  kinds' glow parts, the place's and its shown places'. Never add a place name, a kind name or a picture's pixels to decide what a row does.
+  kinds' glow parts, the place's and its shown places', read from each one's design kit (earth-seed's kit.json, the
+  rows' `kit` and `kit <place>`), never data/kit (retired, 2026-10-21); a design lays no kit piece, so light-haze
+  applies nowhere until one does (`haze.design_kit`). Never add a place name, a kind name or a picture's pixels to decide what a row does.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in

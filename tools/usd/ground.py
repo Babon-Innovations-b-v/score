@@ -8,10 +8,9 @@ the ball's curve. This module repeats that arithmetic (Seat.frame, Seat.spot_of,
 stands each object where the game does, and gives the ground round the place as a mesh.
 
 Everything here is in the place's frame: the seat under the place's middle (its `on_seat`), x across, y out, z along,
-its origin on the round surface under the middle. A place with no ground record is flat (the ground is y = 0).
-
-    .venv/bin/python tools/usd/ground.py level <place>   # hold the ground under its pieces at one height (its yard)
-    .venv/bin/python tools/usd/ground.py dent <place> <row>_<n> ...   # a shallow dent under thrown pieces
+its origin on the round surface under the middle. A place with no ground record is flat (the ground is y = 0). Its
+old commands, `level` and `dent`, edited the ground under an old kit's pieces (data/kit), and went with the old kits
+(2026-10-21).
 """
 import json
 import math
@@ -25,13 +24,6 @@ GROUNDS = REPO / "data/ground"
 # How far the ground mesh reaches past the place's pieces, and how far apart its points are, in metres.
 GROUND_MARGIN = 30.0
 GROUND_STEP = 0.25
-# How far past a place's pieces its yard is levelled, and over how many metres the level eases back into the ground.
-LEVEL_MARGIN = 2.0
-LEVEL_BLEND = 4.0
-# A dent under a thrown piece: this deep in the middle (metres), as wide as the piece's widest side times DENT_WIDTH
-# (radius), so a sphere rests in it rather than rolling off.
-DENT_DEPTH = 0.08
-DENT_WIDTH = 0.9
 # The ground dug out under the base's pit (the game's Ground.DUG_PAST, DUG_CLEAR, DUG_BACK, ground.gd:99-104): down
 # past the pit's floor by DUG_PAST over all of the pit and DUG_CLEAR further out, coming back up over DUG_BACK more.
 DUG_PAST = 0.3
@@ -169,130 +161,3 @@ def place_ground(place, on_seat):
     """The place's Ground, or None when no ground record names it (the place is flat)."""
     record, entry = ground_record(place)
     return None if record is None else Ground(record, entry, on_seat)
-
-
-def footprint(kit):
-    """The ground a place's pieces stand on, in its own flat numbers: (low, high) across and along, each piece's spot
-    widened by half its widest side."""
-    corners = []
-    for piece in kit["pieces"]:
-        reach = max(piece["size"][0], piece["size"][2]) / 2
-        corners += [[piece["at"][0] - reach, piece["at"][2] - reach], [piece["at"][0] + reach, piece["at"][2] + reach]]
-    corners = np.array(corners)
-    return corners.min(axis=0), corners.max(axis=0)
-
-
-def plan_box(laid, low, high):
-    """A box of the place's flat numbers as the box of the plan's flat numbers it covers."""
-    corners = [laid.direction(laid.frame, laid.origin, across, along)
-               for across in (low[0], high[0]) for along in (low[1], high[1])]
-    _, flat = laid.plan_height(np.array(corners))
-    return flat.min(axis=0), flat.max(axis=0)
-
-
-def levelled(heights, side, low, high, height, blend):
-    """The plan's heights with a box of its flat numbers (low, high) held at one height, eased back into the ground
-    round it over `blend` metres (smoothstep), so the yard is flat and its edge is a gentle bank."""
-    size = heights.shape[0]
-    at = (np.arange(size) / (size - 1) - 0.5) * side
-    across, along = np.meshgrid(at, at)
-    outside = np.maximum.reduce([low[0] - across, across - high[0], low[1] - along, along - high[1],
-                                 np.zeros_like(across)])
-    share = np.clip(outside / blend, 0.0, 1.0)
-    share = share * share * (3 - 2 * share)
-    return height * (1 - share) + heights * share
-
-
-def level(place, margin=LEVEL_MARGIN, blend=LEVEL_BLEND):
-    """Level the ground under a place's pieces in its ground record's heights picture, at the planned height under its
-    middle, and note it in the record; the box levelled (plan flat numbers) and its height."""
-    record, entry = ground_record(place)
-    kit = json.loads((REPO / f"data/kit/{place}.json").read_text())
-    laid = Ground(record, entry, kit.get("on_seat", [0.0, 0.0]))
-    low, high = footprint(kit)
-    box_low, box_high = plan_box(laid, low - margin, high + margin)
-    height = float(laid.plan_height(laid.origin / np.linalg.norm(laid.origin))[0][0])
-    heights = levelled(laid.heights, laid.side, box_low, box_high, height, blend)
-    save_heights(record, laid, heights)
-    note(place, "level", {"box": [round(float(value), 2) for value in (*box_low, *box_high)],
-                          "height": round(height, 4), "blend": blend})
-    return box_low, box_high, height
-
-
-def dented(laid, heights, across, along, radius, depth):
-    """The plan's heights with a shallow round dent at a flat place of the place (a bowl `depth` deep in the middle,
-    easing to nothing at `radius`), as a thrown sphere digs where it lands."""
-    size = heights.shape[0]
-    box_low, box_high = plan_box(laid, np.array([across, along]) - radius - 0.5, np.array([across, along]) + radius + 0.5)
-    at = (np.arange(size) / (size - 1) - 0.5) * laid.side
-    columns = np.nonzero((at >= box_low[0]) & (at <= box_high[0]))[0]
-    rows = np.nonzero((at >= box_low[1]) & (at <= box_high[1]))[0]
-    plan_x, plan_z = np.meshgrid(at[columns], at[rows])
-    directions = laid.plan[1] * laid.radius + plan_x.reshape(-1, 1) * laid.plan[0] + plan_z.reshape(-1, 1) * laid.plan[2]
-    directions /= np.linalg.norm(directions, axis=1, keepdims=True)
-    flat = laid.in_place_frame(directions * laid.radius)[:, [0, 2]]
-    reach = np.linalg.norm(flat - [across, along], axis=1) / radius
-    bowl = np.where(reach < 1.0, depth * 0.5 * (1.0 + np.cos(np.pi * np.minimum(reach, 1.0))), 0.0)
-    found = heights.copy()
-    found[np.ix_(rows, columns)] -= bowl.reshape(len(rows), len(columns))
-    return found
-
-
-def dent(place, names, depth=DENT_DEPTH, radius=None):
-    """Dent the ground under each named piece of a place's layout (`<row>_<n>`), as wide as the piece, and note it in
-    the record; the dents made (across, along, radius)."""
-    record, entry = ground_record(place)
-    kit = json.loads((REPO / f"data/kit/{place}.json").read_text())
-    laid = Ground(record, entry, kit.get("on_seat", [0.0, 0.0]))
-    rows = {}
-    for piece in kit["pieces"]:
-        rows.setdefault(piece["row"], []).append(piece)
-    heights, made = laid.heights, {}
-    for name in names:
-        row, number = name.rsplit("_", 1)
-        piece = rows[row][int(number) - 1]
-        reach = radius or max(piece["size"][0], piece["size"][2]) * DENT_WIDTH
-        heights = dented(laid, heights, piece["at"][0], piece["at"][2], reach, depth)
-        made[name] = {"at": [piece["at"][0], piece["at"][2]], "radius": round(reach, 3), "depth": depth}
-    save_heights(record, laid, heights)
-    note(place, "dents", made)
-    return made
-
-
-def save_heights(record, laid, heights):
-    """The heights written back into the record's picture (sixteen bits in red and green)."""
-    folder = pathlib.Path(record["folder"])
-    pixels = np.asarray(Image.open(folder / record["heights"]).convert("RGB")).copy()
-    code = np.clip(np.round((heights + laid.low) / laid.span * 65535), 0, 65535).astype(np.int64)
-    pixels[..., 0], pixels[..., 1] = code >> 8, code & 255
-    Image.fromarray(pixels).save(folder / record["heights"])
-
-
-def note(place, key, value):
-    """A change to a place's ground noted in its entry of the ground record."""
-    path = next(path for path in sorted(GROUNDS.glob("*.json")) if place in json.loads(path.read_text())["places"])
-    saved = json.loads(path.read_text())
-    saved["places"][place].setdefault(key, {}).update(value)
-    path.write_text(json.dumps(saved, indent=1) + "\n")
-
-
-def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="Level the planned ground under a place (its yard), or dent it "
-                                                 "under pieces of its layout.")
-    parser.add_argument("action", choices=["level", "dent"])
-    parser.add_argument("place")
-    parser.add_argument("pieces", nargs="*", help="dent: the pieces (<row>_<n>) to dent the ground under")
-    parser.add_argument("--depth", type=float, default=DENT_DEPTH, help="dent: how deep in the middle, metres")
-    parser.add_argument("--radius", type=float, help="dent: its radius, metres (else the piece's widest side)")
-    arguments = parser.parse_args()
-    if arguments.action == "dent":
-        for name, made in dent(arguments.place, arguments.pieces, arguments.depth, arguments.radius).items():
-            print(f"{name}: a dent of {made['radius']} m radius, {made['depth'] * 100:.0f} cm deep in the middle")
-        return
-    box_low, box_high, height = level(arguments.place)
-    print(f"{arguments.place}: plan {box_low.round(2)} to {box_high.round(2)} held at {height:.3f} m")
-
-
-if __name__ == "__main__":
-    main()

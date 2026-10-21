@@ -1,15 +1,13 @@
 """Check the placeholder check on a stage made here: a box that says it is a plain plate passes and one that says
-nothing fails, a lathe called a ship fails, a room's own walls pass, a kit piece built in code passes when the sorter
-sends its kind to code (its pipeline failure named) and fails when the sorter sends it to the prop pipeline, a mesh with no material or in the
-default grey fails, a clear haze shell passes, a proxy fails, and a guide mesh and another place's stage are not
+nothing fails, a lathe called a ship fails, a room's own walls pass, a placed piece in a library colour passes (the
+sorter's rule on kit pieces went with the old kits, 2026-10-21), a mesh with no material or in the default grey fails, a clear haze shell passes, a proxy fails, and a guide mesh and another place's stage are not
 judged. The hangar's case (the owner's demo of 2026-10-11: the check passed the code-built ship he saw as a
 placeholder): the ship_hull and ship_legs its record drew until 2026-10-18 fail and a made model in their place passes,
 and today's hangar stage (HANGAR_STAGE, when this machine has it) fails while it still holds them (since 2026-10-18 the
-record lays no ship: the kit's code-built ship stands on the pads, judged by the sorter rule).
+record lays no ship).
 
 Run: .venv/bin/python tools/usd/placeholders_test.py   (make tests runs it with the framework's environment)
 """
-import json
 import pathlib
 import sys
 import tempfile
@@ -53,8 +51,6 @@ RECORD = {"structure": [
     {"name": "ship_body", "builder": "lathe", "profile": [[0.0, 1.6, 5.0, 1.6]], "centre": [3.0, 0.0, 3.0],
      "surface": "hull_white_gloss", "plain": "ship"},
 ]}
-KIT = {"models": {"wall_lower_plain_1": {"route": "code"}, "pipe_straight_1": {"route": "code"},
-                  "rover_1": {"route": "code"}, "locker_1": {"route": "model"}}}
 
 
 def square(stage, path):
@@ -141,17 +137,9 @@ def test_stage(folder):
 def every_rule_catches_its_case():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        record = folder / "pipeline_failures.json"  # the old record is retired (2026-10-21): this test names its own
-        record.write_text(json.dumps({"kinds": {"hub_pipe_straight": {"failure": "a test's", "evidence": "", "on": ""}}}))
-        placeholders.sorter.failures.__defaults__ = (record,)
-        (folder / "kits").mkdir()
-        (folder / "kits" / f"{PLACE}.json").write_text(json.dumps(KIT))
-        found = {(fault["prim"].rsplit("/", 1)[-1], fault["rule"])
-                 for fault in placeholders.check(test_stage(folder), kits=folder / "kits")}
-    # A plain wall plate built in code fails too since #19: only a kind the pipeline-failure record names (the hub's
-    # straight pipe) may be code-built.
-    expected = {("door_leaf", "plain"), ("ship_body", "plain"), ("rover_1", "sorter"), ("wall_lower_plain_1", "sorter"),
-                ("bare", "material"), ("grey", "material"), ("stand_in", "proxy")}
+        found = {(fault["prim"].rsplit("/", 1)[-1], fault["rule"]) for fault in placeholders.check(test_stage(folder))}
+    expected = {("door_leaf", "plain"), ("ship_body", "plain"), ("bare", "material"), ("grey", "material"),
+                ("stand_in", "proxy")}
     problems = [f"{name} was not caught by the {rule} rule" for name, rule in sorted(expected - found)]
     problems += [f"{name} was caught by the {rule} rule, wrongly" for name, rule in sorted(found - expected)]
     return problems
@@ -179,12 +167,10 @@ def hangar_stage(folder, ship_made):
 def hangar_ship_fails_until_made():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        (folder / "kits").mkdir()
-        (folder / "kits" / "hangar.json").write_text(json.dumps({"models": {"ship_1": {"route": "model"}}}))
         (folder / "built").mkdir()
         (folder / "made").mkdir()
-        built = placeholders.check(hangar_stage(folder / "built", ship_made=False), kits=folder / "kits")
-        made = placeholders.check(hangar_stage(folder / "made", ship_made=True), kits=folder / "kits")
+        built = placeholders.check(hangar_stage(folder / "built", ship_made=False))
+        made = placeholders.check(hangar_stage(folder / "made", ship_made=True))
     caught = {fault["prim"].rsplit("/", 1)[-1].rstrip("_0123456789") for fault in built if fault["rule"] == "plain"}
     problems = [f"the code-built {name} was not caught" for name in HANGAR_SHIP if name not in caught]
     problems += [f"{fault['prim']} was caught by the {fault['rule']} rule with a made ship" for fault in made]

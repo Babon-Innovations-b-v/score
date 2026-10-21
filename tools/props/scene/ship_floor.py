@@ -1,11 +1,9 @@
 """The ship's floor plan inside its hull (the owner's loop, 2026-10-19: the outside's plan split into the inside's
-rooms, each measured from the hull), read from data/definitions/ship_floor.json and the hull's own numbers
-(../library/inside/ship_outline.py over data/definitions/ship.json, at the floor plan's length).
+rooms, each measured from the hull), read from data/definitions/ship_floor.json alone: its rooms and its own hull
+(`hull`: the stations of plan v7's hull built at the floor plan's length, their section, the nose spike and the side
+ring, written into it when the old plan v7 file, data/definitions/ship.json, was retired on 2026-10-21).
 
     python3 tools/props/scene/ship_floor.py <out folder>           # ship-floor.png and ship-floor.json; faults exit 1
-
-Needs the hull's reader, ../library/inside/ship_outline.py, which lands with the 46 m hull (fix-ship-hull); until then
-run it with that file's folder on PYTHONPATH (git show fix-ship-hull:tools/props/library/inside/ship_outline.py).
 
 Plain Python (matplotlib only for the picture). Frame as the ship plan's, built metres: y back from the spike's tip, x
 across (starboard positive), z up from the ground the ship stands on.
@@ -16,12 +14,6 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
-sys.path.insert(0, str(HERE.parent / "library" / "inside"))
-# The hull's reader comes with the 46 m hull (branch fix-ship-hull, in the owner's basket): it sits in the bake's
-# declared folder, so landing it alone would re-buy every place's bake. Until then this module does not import.
-import ship_outline  # noqa: E402
-
-SHIP = REPO / "data/definitions/ship.json"
 FLOOR = REPO / "data/definitions/ship_floor.json"
 PLACES = REPO / "data/definitions/place.json"
 # How far apart the hull is read along a room (metres).
@@ -35,17 +27,47 @@ def read_floor(path=FLOOR):
     return json.loads(pathlib.Path(path).read_text())
 
 
-def hull_plan(ship, floor):
-    """The hull's stations front to back (ship_outline.stations), the ship plan built at the floor plan's length:
-    plan v7 is drawn at its `drawn_length` (its `length` until the hull branch lands)."""
-    built = {**ship, "drawn_length": ship.get("drawn_length", ship["length"]), "length": floor["length"]}
-    return ship_outline.stations(built)
+def hull_of(floor):
+    """The hull's stations front to back, {y, half, keel, top}, as the floor plan holds them (`hull`)."""
+    return floor["hull"]["stations"]
+
+
+def interpolated(rows, at):
+    """A table's value at `at` (rows: sorted (key, value) pairs), straight between rows, the end rows' value beyond
+    them."""
+    if at <= rows[0][0]:
+        return rows[0][1]
+    for (before, low), (after, high) in zip(rows, rows[1:]):
+        if at <= after:
+            return low + (high - low) * ((at - before) / (after - before) if after > before else 0.0)
+    return rows[-1][1]
 
 
 def station_at(hull, along):
     """The hull's station `along` metres from the tip, straight between its stations."""
-    return {key: ship_outline.interpolated([(row["y"], row[key]) for row in hull], along)
+    return {key: interpolated([(row["y"], row[key]) for row in hull], along)
             for key in ("half", "keel", "top")} | {"y": along}
+
+
+def section(floor, station):
+    """A station's corners up its starboard side from the keel as (x, z): the floor plan's hull `section`, each
+    corner a share of the station's half width and of its height from the keel."""
+    height = station["top"] - station["keel"]
+    return [(station["half"] * out, station["keel"] + height * up) for out, up in floor["hull"]["section"]]
+
+
+def side_x(floor, station, height):
+    """How far out the hull's starboard side is at a height of a station (on its section's facets)."""
+    corners = section(floor, station)
+    for (low_out, low), (high_out, high) in zip(corners, corners[1:]):
+        if low <= height <= high:
+            return low_out + (high_out - low_out) * ((height - low) / (high - low) if high > low else 0.0)
+    return corners[-1][0] if height > corners[-1][1] else corners[0][0]
+
+
+def waist(floor, station):
+    """The height of a station's waist, its widest corner (the section's third)."""
+    return section(floor, station)[2][1]
 
 
 def samples(span):
@@ -67,7 +89,7 @@ def inner_half(hull, floor, along, height):
     """The hull's inner half width at `along` for a floor at `height`: the narrower of its floor and a person's head
     over it, less the lining."""
     here = station_at(hull, along)
-    return min(ship_outline.side_x(here, height), ship_outline.side_x(here, height + floor["head"])) - floor["lining"]
+    return min(side_x(floor, here, height), side_x(floor, here, height + floor["head"])) - floor["lining"]
 
 
 def inner_top(hull, floor, along):
@@ -100,13 +122,13 @@ def measured(hull, floor, room):
     stations = samples(room["y"])
     widths = [across(hull, floor, room, along) for along in stations]
     middle = station_at(hull, (front + back) / 2)
-    waist = ship_outline.section(middle)[2][1] - floor_at(room, floor, (front + back) / 2)
+    over_floor = waist(floor, middle) - floor_at(room, floor, (front + back) / 2)
     return {"name": room["name"], "place": room["place"], "side": room["side"], "y": [front, back],
             "long": round(back - front, 2), "wide": [round(widths[0], 2), round(widths[-1], 2)],
             "narrowest": round(min(widths), 2), "widest": round(max(widths), 2),
             "clear": [round(clear(hull, floor, room, front), 2), round(clear(hull, floor, room, back), 2)],
             "floors": sorted({round(floor_at(room, floor, along), 2) for along in stations}),
-            "area": round(sum(widths) / len(widths) * (back - front), 1), "waist_over_floor": round(waist, 2)}
+            "area": round(sum(widths) / len(widths) * (back - front), 1), "waist_over_floor": round(over_floor, 2)}
 
 
 def spaces(floor):
@@ -147,7 +169,7 @@ def hull_faults(hull, floor, room):
     return found
 
 
-def door_faults(floor, ship):
+def door_faults(floor):
     """Doors that lead nowhere or stand outside their room, rooms with no door to the walkway, and a hull door that is
     not the side ring."""
     found, names = [], {space["name"] for space in spaces(floor)}
@@ -158,22 +180,12 @@ def door_faults(floor, ship):
                 found.append(f"{space['name']}: a door at {door['y']} m stands outside it")
             if door["wall"] != "hull" and door["leads"] not in names:
                 found.append(f"{space['name']}: a door leads to {door['leads']}, no space of the plan")
-            if door["wall"] == "hull" and (space["side"] != side_ring(ship)["side"]
-                                           or abs(door["y"] - ring_y(ship, floor)) > 0.01):
+            if door["wall"] == "hull" and (space["side"] != floor["hull"]["side_ring"]["side"]
+                                           or abs(door["y"] - floor["hull"]["side_ring"]["y"]) > 0.01):
                 found.append(f"{space['name']}: a hull door that is not the side ring")
         if space["name"] != "walkway" and not any(door["leads"] == "walkway" for door in doors):
             found.append(f"{space['name']}: no door to the walkway")
     return found
-
-
-def side_ring(ship):
-    """The ship plan's side ring (named `hull_detail` until the hull branch lands, the record it corrects)."""
-    return ship.get("side_ring") or ship["hull_detail"]
-
-
-def ring_y(ship, floor):
-    """Where the side ring stands along the ship built at the floor plan's length."""
-    return round(side_ring(ship)["y"] * floor["length"] / ship.get("drawn_length", ship["length"]), 2)
 
 
 def place_faults(floor, path=PLACES):
@@ -184,16 +196,16 @@ def place_faults(floor, path=PLACES):
             if space["place"] not in places]
 
 
-def faults(ship, floor):
+def faults(floor):
     """Everything wrong with the floor plan against the hull, its doors and the places it names."""
-    hull = hull_plan(ship, floor)
+    hull = hull_of(floor)
     return (overlap_faults(floor) + [fault for space in spaces(floor) for fault in hull_faults(hull, floor, space)]
-            + door_faults(floor, ship) + place_faults(floor))
+            + door_faults(floor) + place_faults(floor))
 
 
-def rooms_measured(ship, floor):
+def rooms_measured(floor):
     """Every space's measures, front to back."""
-    hull = hull_plan(ship, floor)
+    hull = hull_of(floor)
     return sorted((measured(hull, floor, space) for space in spaces(floor)), key=lambda found: found["y"][0])
 
 
@@ -219,14 +231,14 @@ def outline_points(hull, floor, space):
             + [(sign * inner, stations[-1])])
 
 
-def picture(ship, floor, destination):
+def picture(floor, destination):
     """The plan drawing: the ship from above with its rooms, doors and side ring, and from the side with its decks,
     ceilings and hull, each room named with its size."""
     import matplotlib
     matplotlib.use("Agg")
     from matplotlib import pyplot
 
-    hull, found = hull_plan(ship, floor), {room["name"]: room for room in rooms_measured(ship, floor)}
+    hull, found = hull_of(floor), {room["name"]: room for room in rooms_measured(floor)}
     stations = hull
     figure, (above, side) = pyplot.subplots(2, 1, figsize=(16, 11), gridspec_kw={"height_ratios": [1.5, 1]})
     colours = pyplot.get_cmap("tab10")
@@ -246,7 +258,7 @@ def picture(ship, floor, destination):
         above.text(sum(space["y"]) / 2, middle_x, label, ha="center", va="center", fontsize=7)
         for door in space.get("doors", []):
             above.plot([door["y"]], [door_x(floor, space, door, hull)], marker="s", color="black", ms=5)
-    ring = ring_y(ship, floor)
+    ring = floor["hull"]["side_ring"]["y"]
     above.plot([ring], [inner_half(hull, floor, ring, floor["deck"]) + floor["lining"]], marker="o", ms=11,
                mfc="none", mec="darkorange", mew=2.5, label="side ring: docking hatch and people airlock")
     above.plot([], [], marker="s", color="black", ls="none", label="door")
@@ -289,11 +301,11 @@ def door_x(floor, space, door, hull):
 def main(arguments):
     out = pathlib.Path(arguments[0])
     out.mkdir(parents=True, exist_ok=True)
-    ship, floor = ship_outline.read_plan(SHIP), read_floor()
-    found = faults(ship, floor)
-    rooms = rooms_measured(ship, floor)
+    floor = read_floor()
+    found = faults(floor)
+    rooms = rooms_measured(floor)
     (out / "ship-floor.json").write_text(json.dumps({"rooms": rooms, "faults": found}, indent=1))
-    picture(ship, floor, out / "ship-floor.png")
+    picture(floor, out / "ship-floor.png")
     print(f"{len(rooms)} spaces, {len(found)} faults; wrote {out}/ship-floor.png, ship-floor.json")
     return 1 if found else 0
 

@@ -1,8 +1,8 @@
-"""Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
+"""Check the settle's write-back on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; a tip onto uneven feet (the water tank's legs, or a base the clusters read as one foot) is refused while a crate's is written; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
-levelled box of the plan is flat and eases back into the ground.
+marked, while 1 m debris may turn so; a tip onto uneven feet (the water tank's legs, or a base the clusters read as one foot) is refused while a crate's is written; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop.
+(The levelled yard and the dent went with the old grounds and kits, 2026-10-21.)
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
 """
@@ -17,7 +17,6 @@ from scipy.spatial.transform import Rotation
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import ground  # noqa: E402
 import resting  # noqa: E402
 import resting_test  # noqa: E402
 import settle  # noqa: E402
@@ -59,20 +58,6 @@ def a_settled_pose_round_trips_through_the_layout():
         if off > 1e-4:
             problems.append(f"the exported piece stands {off:.5f} off the pose it rested in")
         return problems
-
-
-def a_levelled_yard_is_flat_and_eases_out():
-    heights = np.tile(np.linspace(-2.0, 2.0, 65), (65, 1))
-    found = ground.levelled(heights, 64.0, np.array([-5.0, -5.0]), np.array([5.0, 5.0]), 0.25, 4.0)
-    at = (np.arange(65) / 64 - 0.5) * 64.0
-    inside = (np.abs(at) <= 5.0)
-    problems = []
-    if np.abs(found[np.ix_(inside, inside)] - 0.25).max() > 1e-9:
-        problems.append("the levelled box is not held at its height")
-    far = np.abs(at) > 9.5
-    if np.abs(found[np.ix_(far, far)] - heights[np.ix_(far, far)]).max() > 1e-9:
-        problems.append("the ground past the bank was changed")
-    return problems
 
 
 def a_big_turn_is_marked_not_made():
@@ -167,31 +152,6 @@ def a_tip_onto_a_base_joined_as_one_foot_is_refused():
         if not settle.tips_on_uneven_feet(settled["wedge_1"]) or settle.tips_on_uneven_feet(settled["crate_1"]):
             problems.append("the wedge's tip onto its sloping base was written, or the crate's refused")
         return problems
-
-def a_dent_is_a_shallow_bowl():
-    with tempfile.TemporaryDirectory() as temporary:
-        sloped = resting_test.sloping_ground(pathlib.Path(temporary))
-        before = sloped.heights.copy()
-        after = ground.dented(sloped, before, 2.0, 1.0, 0.6, 0.08)
-        change = after - before
-        problems = []
-        middle = sloped.direction(sloped.frame, sloped.origin, 2.0, 1.0)
-        sloped.heights = before
-        was = sloped.plan_height(middle)[0][0]
-        sloped.heights = after
-        now = sloped.plan_height(middle)[0][0]
-        if not 0.05 < was - now <= 0.08:
-            problems.append(f"the dent's middle is {(was - now) * 100:.1f} cm deep, not about 8")
-        if change.max() > 0 or change.min() < -0.0801:
-            problems.append("the dent raised the ground or went deeper than asked")
-        far = sloped.direction(sloped.frame, sloped.origin, 6.0, 1.0)
-        sloped.heights = before
-        far_before = sloped.plan_height(far)[0][0]
-        sloped.heights = after
-        if abs(sloped.plan_height(far)[0][0] - far_before) > 1e-9:
-            problems.append("the ground 4 m from the dent moved")
-        return problems
-
 
 def only_floor_pieces_are_dropped():
     """A crate on the floor is dropped; a kit's floor plate (a shell group the triage holds fixed) and a row on the wall
@@ -474,7 +434,7 @@ CHECKS = (a_cloud_drop_asks_the_small_processor_class_only, a_piece_on_a_slope_r
           a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
           a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, what_lies_on_a_settled_piece_moves_with_it, a_big_turn_is_marked_not_made,
-          a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl, a_tip_onto_uneven_feet_is_refused,
+          a_tip_onto_uneven_feet_is_refused,
           a_tip_onto_a_base_joined_as_one_foot_is_refused)
 
 

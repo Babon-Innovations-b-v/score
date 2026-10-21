@@ -5,7 +5,8 @@ parts (the likeness, the machines) take it as they took the finish-map method's.
 Each finish's surface is checked against its colour before the bake, free (finish_parts.checked_finishes, the same
 check the finish-map method ran): its colour here is the median CIELAB of the model's own texture over its faces'
 pixels in every view (route_views), never painted, only measured. A finish off its listed surface takes the nearest
-surface of its family that fits, or the room's own kit surface; one no surface fits is marked off its colour with a
+surface of its family that fits, or one of the scene's own shell surfaces (palette_library.shell_surfaces: the variants
+its surface library gives the shell laid from its locked plan); one no surface fits is marked off its colour with a
 proposed surface, and the paint's gate "colour against the close-up" fails it by name. Each part takes its finish's
 checked surface (finish_parts.part_rows), and the list's settings where its finish kept the surface the list named
 (route_settings.applied: the bake paints and bakes the surface with them).
@@ -58,7 +59,7 @@ def part_finish(mesh, part_of, finish_of, part):
 
 def parts_take(folders, entry, finishes, surfaces):
     """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record. `surfaces`: the take's
-    library surfaces (palette_library.take_surfaces) and the room's kit surfaces."""
+    library surfaces (palette_library.take_surfaces) and the scene's shell surfaces (palette_library.shell_surfaces)."""
     finish_of = np.load(folders["split"] / "finish.npy").astype(int)
     part_of = np.load(folders["split"] / "parts.npy").astype(int)
     mesh = route_split.model_of(folders["views"])
@@ -78,11 +79,11 @@ def parts_take(folders, entry, finishes, surfaces):
 def make_parts(inputs, out, seed, params):
     """Every split take's parts; parts.json, with the takes the split made gaps (or the list left out) as left
     out."""
-    import kit_surfaces
     views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
     split = pathlib.Path(inputs["finish-route-split"])
-    place, takes = route_data.takes_written(out, inputs, params)
-    kit, palette = kit_surfaces.surfaces(place), palette_library.read(inputs)
+    _, takes = route_data.takes_written(out, inputs, params)
+    palette = palette_library.read(inputs)
+    kit = palette_library.shell_surfaces(palette)
     split_takes = json.loads((split / "split.json").read_text())
     named = {take: entry["name"] for entry in batch_gaps.of(inputs) for take in entry["objects"]}
     found, left = {}, {}
