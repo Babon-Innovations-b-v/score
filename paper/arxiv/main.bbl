@@ -1,4 +1,4 @@
-\begin{thebibliography}{60}
+\begin{thebibliography}{58}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -26,11 +26,6 @@ Diego Arg{\"u}ello.
 {Pixar Animation Studios} and {Alliance for OpenUSD}.
 \newblock {OpenUSD}: Universal scene description, 2026.
 \newblock URL \url{https://openusd.org/}.
-
-\bibitem[Oquab et~al.(2023)Oquab, Darcet, Moutakanni, et~al.]{oquab2023dinov2}
-Maxime Oquab, Timoth{\'e}e Darcet, Th{\'e}o Moutakanni, et~al.
-\newblock {DINOv2}: Learning robust visual features without supervision.
-\newblock \emph{arXiv preprint arXiv:2304.07193}, 2023.
 
 \bibitem[Bruce et~al.(2024)Bruce, Dennis, Edwards, Parker-Holder,
   et~al.]{bruce2024genie}
@@ -114,12 +109,48 @@ Lei Yin, Wentao Cheng, Zhida Qin, Tianyu Huang, et~al.
   multi-agent systems.
 \newblock \emph{arXiv preprint arXiv:2603.07106}, 2026.
 
+\bibitem[He et~al.(2026)He, Luo, Ma, and Averbuch-Elor]{he2026thinking}
+Guangzhao He, Rundong Luo, Wei-Chiu Ma, and Hadar Averbuch-Elor.
+\newblock Thinking in {Blender}: Staged executable inverse graphics with
+  vision-language models.
+\newblock \emph{arXiv preprint arXiv:2606.02580}, 2026.
+
+\bibitem[Wang et~al.(2026)Wang, Cai, Chen, Chi, Sun, Dai, Hung, Guo, Ren, Yao,
+  Liu, Long, Duan, Gao, Lyu, Liu, and Wu]{wang2026codeasworlds}
+Hanyang Wang, Yimo Cai, Weiliang Chen, Jiawei Chi, Haowen Sun, Qiyu Dai,
+  Yi-Hsin Hung, Xingzhuo Guo, Jinshan Ren, Runmao Yao, Ziwei Liu, Mingsheng
+  Long, Yueqi Duan, Jun Gao, Jiangran Lyu, Fangfu Liu, and Jialong Wu.
+\newblock Code as worlds: Agentic discovery of executable world representations
+  for physical reasoning.
+\newblock \emph{arXiv preprint arXiv:2608.27549}, 2026.
+
+\bibitem[Gao et~al.(2026)Gao, Shu, Ye, Xiong, Makadia, Guo, Itti, and
+  Chen]{gao2026codebench3d}
+Yipeng Gao, Lei Shu, Genzhi Ye, Xi~Xiong, Ameesh Makadia, Meiqi Guo, Laurent
+  Itti, and Jindong Chen.
+\newblock {3DCodeBench}: Benchmarking agentic procedural {3D} modeling via
+  code.
+\newblock \emph{arXiv preprint arXiv:2606.01057}, 2026.
+
 \bibitem[Li et~al.(2026{\natexlab{b}})Li, Shi, Dong, Zhang, Xu, Lee, Chang,
   Xiang, Pan, and Jiang]{li2026lego}
 Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
   Shuaichen Chang, Yi~Xiang, Lin Pan, and Jiarong Jiang.
 \newblock {LEGO-Anything}: Coding agents for {3D} scene reconstruction.
 \newblock \emph{arXiv preprint arXiv:2609.36380}, 2026{\natexlab{b}}.
+
+\bibitem[Shen et~al.(2026)Shen, Kova{\v{c}}i{\v{c}}, Kulits, Wang, Li,
+  Tenenbaum, Yuille, Chen, and Wu]{shen2026codebench4d}
+Ruihong Shen, {\v{Z}}iga Kova{\v{c}}i{\v{c}}, Peter Kulits, Xingrui Wang,
+  Zizhang Li, Joshua~B. Tenenbaum, Alan Yuille, Jieneng Chen, and Jiajun Wu.
+\newblock {4DCodeBench}: Benchmarking agents on inverse graphics of dynamic
+  scenes.
+\newblock \emph{arXiv preprint arXiv:2610.03715}, 2026.
+
+\bibitem[Oquab et~al.(2023)Oquab, Darcet, Moutakanni, et~al.]{oquab2023dinov2}
+Maxime Oquab, Timoth{\'e}e Darcet, Th{\'e}o Moutakanni, et~al.
+\newblock {DINOv2}: Learning robust visual features without supervision.
+\newblock \emph{arXiv preprint arXiv:2304.07193}, 2023.
 
 \bibitem[Li et~al.(2026{\natexlab{c}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
   Hu]{li2026pixal3d}
@@ -163,49 +194,6 @@ Zhifei Yang, Guangyao Zhai, Keyang Lu, YuYang Yin, Chao Zhang, Zhen Xiao, Jieyi
   graph rectified flow.
 \newblock \emph{arXiv preprint arXiv:2603.19598}, 2026{\natexlab{a}}.
 
-\bibitem[He et~al.(2026)He, Luo, Ma, and Averbuch-Elor]{he2026thinking}
-Guangzhao He, Rundong Luo, Wei-Chiu Ma, and Hadar Averbuch-Elor.
-\newblock Thinking in {Blender}: Staged executable inverse graphics with
-  vision-language models.
-\newblock \emph{arXiv preprint arXiv:2606.02580}, 2026.
-
-\bibitem[Wang et~al.(2026)Wang, Cai, Chen, Chi, Sun, Dai, Hung, Guo, Ren, Yao,
-  Liu, Long, Duan, Gao, Lyu, Liu, and Wu]{wang2026codeasworlds}
-Hanyang Wang, Yimo Cai, Weiliang Chen, Jiawei Chi, Haowen Sun, Qiyu Dai,
-  Yi-Hsin Hung, Xingzhuo Guo, Jinshan Ren, Runmao Yao, Ziwei Liu, Mingsheng
-  Long, Yueqi Duan, Jun Gao, Jiangran Lyu, Fangfu Liu, and Jialong Wu.
-\newblock Code as worlds: Agentic discovery of executable world representations
-  for physical reasoning.
-\newblock \emph{arXiv preprint arXiv:2608.27549}, 2026.
-
-\bibitem[Zhang et~al.(2026)Zhang, Wang, Zhang, and Tang]{zhang2026code2worlds}
-Yi~Zhang, Yunshuang Wang, Zeyu Zhang, and Hao Tang.
-\newblock {Code2Worlds}: Empowering coding {LLMs} for {4D} world generation.
-\newblock In \emph{International Conference on Machine Learning (ICML)}, 2026.
-
-\bibitem[Liu et~al.(2026)Liu, Wang, Chen, Zhao, Yang, and
-  Jeni]{liu2026simworlds}
-Chunjiang Liu, Xiaoyuan Wang, Haoyu Chen, Yizhou Zhao, Ming-Hsuan Yang, and
-  L{\'a}szl{\'o}~A. Jeni.
-\newblock {SimWorlds}: A multi-agent system for dynamic {3D} scene creation.
-\newblock \emph{arXiv preprint arXiv:2607.01766}, 2026.
-
-\bibitem[Gao et~al.(2026)Gao, Shu, Ye, Xiong, Makadia, Guo, Itti, and
-  Chen]{gao2026codebench3d}
-Yipeng Gao, Lei Shu, Genzhi Ye, Xi~Xiong, Ameesh Makadia, Meiqi Guo, Laurent
-  Itti, and Jindong Chen.
-\newblock {3DCodeBench}: Benchmarking agentic procedural {3D} modeling via
-  code.
-\newblock \emph{arXiv preprint arXiv:2606.01057}, 2026.
-
-\bibitem[Shen et~al.(2026)Shen, Kova{\v{c}}i{\v{c}}, Kulits, Wang, Li,
-  Tenenbaum, Yuille, Chen, and Wu]{shen2026codebench4d}
-Ruihong Shen, {\v{Z}}iga Kova{\v{c}}i{\v{c}}, Peter Kulits, Xingrui Wang,
-  Zizhang Li, Joshua~B. Tenenbaum, Alan Yuille, Jieneng Chen, and Jiajun Wu.
-\newblock {4DCodeBench}: Benchmarking agents on inverse graphics of dynamic
-  scenes.
-\newblock \emph{arXiv preprint arXiv:2610.03715}, 2026.
-
 \bibitem[{Google}(2026{\natexlab{a}})]{gemini31pro}
 {Google}.
 \newblock {Gemini 3.1 Pro} (gemini-3.1-pro-preview) through the gemini {API},
@@ -227,13 +215,6 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
 \newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
   generation in {Python}.
 \newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
-
-\bibitem[Li et~al.(2026{\natexlab{d}})Li, Feng, Huang, Chen, Nie, Hou, Fan, Hu,
-  Wang, Li, and Sheng]{li2026segvigen}
-Lin Li, Haoran Feng, Zehuan Huang, Haohua Chen, Wenbo Nie, Shaohua Hou, Keqing
-  Fan, Pan Hu, Sheng Wang, Buyu Li, and Lu~Sheng.
-\newblock {SegviGen}: Repurposing {3D} generative model for part segmentation.
-\newblock \emph{arXiv preprint arXiv:2603.16869}, 2026{\natexlab{d}}.
 
 \bibitem[{OpenMOSS-Team}(2026)]{moss2026}
 {OpenMOSS-Team}.
@@ -294,6 +275,13 @@ Maureen Stone, Danielle~Albers Szafir, and Vidya Setlur.
 Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
 \newblock {DINOv3}.
 \newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
+
+\bibitem[Li et~al.(2026{\natexlab{d}})Li, Feng, Huang, Chen, Nie, Hou, Fan, Hu,
+  Wang, Li, and Sheng]{li2026segvigen}
+Lin Li, Haoran Feng, Zehuan Huang, Haohua Chen, Wenbo Nie, Shaohua Hou, Keqing
+  Fan, Pan Hu, Sheng Wang, Buyu Li, and Lu~Sheng.
+\newblock {SegviGen}: Repurposing {3D} generative model for part segmentation.
+\newblock \emph{arXiv preprint arXiv:2603.16869}, 2026{\natexlab{d}}.
 
 \bibitem[Deng et~al.(2025)Deng, Yang, Sun, Liu, Liu, Liang, and
   Cao]{deng2025geosam2}
