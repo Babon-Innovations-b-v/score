@@ -10,7 +10,7 @@ film-preview <film>`): nothing rented, nothing bought, no button that spends eve
    own player at its moment; each segment's captions and picture-in-picture over it.
 3. Each segment's frames made a clip (kept in `<film>-takes/`, where the environment-film row cuts its recorded
    segments from), the clips joined by the script's transitions on its clock (script.timeline) under one grade (GRADE:
-   a gentle contrast curve and a soft vignette, the same for every segment), the sound bed (a library sound, `bed`)
+   a gentle contrast curve, the same for every segment), the sound bed (a library sound, `bed`)
    under the whole film at one loudness, started where its strongest onsets fall on the cuts (beat_offset), silence
    where a segment says so.
 
@@ -41,8 +41,8 @@ SCALE = 2  # each frame drawn at twice its size and brought down to it, so the c
 TARGET_LUFS = -16.0  # demo_film/final.py's TARGET_LUFS: one loudness for the whole film
 BED_FADE = (1.0, 2.0)
 # The film's one grade, every segment alike: a gentle S curve (shadows down, highlights up a little) and a soft
-# vignette; nothing added to what is shown. demo_film/final.py grades the environment film the same way.
-GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1',vignette=angle=PI/7"
+# nothing added to what is shown. demo_film/final.py grades the environment film the same way.
+GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1'"  # no vignette (owner 2026-10-21)
 # A bed's onsets are found on hops of a frame; a start is taken only when its onsets on the cuts stand this many
 # deviations over the average start's (a steady hum has none, and starts at 0).
 ONSET_RATE = 12000

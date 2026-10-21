@@ -42,14 +42,8 @@ def eased(share):
 
 
 def card_ground(size):
-    """The card's ground: the title colours' radial fall from a little above the middle (film.css .film-words)."""
-    wide, tall = size
-    rows, columns = np.mgrid[0:tall, 0:wide].astype(float)
-    reach = np.hypot(columns - wide * 0.5, rows - tall * 0.4) / (0.7 * math.hypot(wide, tall) / 2)
-    share = np.clip(reach, 0.0, 1.0)[..., None]
-    near, far = np.asarray(token("film-title-from")[:3], float), np.asarray(token("film-title-to")[:3], float)
-    return Image.fromarray((near * (1 - share) + far * share).astype(np.uint8), "RGB")
-
+    """The card's ground: one flat title colour, no spotlight (owner 2026-10-21; film.css .film-words)."""
+    return Image.new("RGB", size, tuple(int(part) for part in token("film-title-to")[:3]))
 
 def spaced(draw, middle, top, words, font, tracking, fill):
     """`words` centred on `middle` with `tracking` pixels between letters; its height."""
