@@ -23,6 +23,11 @@ FILM_CUTS = ("walk-through", "orbit")
 NEW_CUTS = ("exploded", "isolate", "layer-focus", "layer-split")
 WORD_CUTS = ("title", "text")
 PICTURE_CUTS = ("step-card", "before-after")
+# Made in headless Chromium on the store's machine (films/preview), free in the preview and in the final alike: a
+# screen take of a cockpit page, the setting's own physics drawn by three.js.
+LOCAL_CUTS = ("screen-take", "setting-animation")
+# A scale zoom's legs that show a place's finished state: in the final their frames are film frames of that place.
+FILMED_LAYERS = ("place", "room")
 # The frames an accepted place film is rendered with (score/stages/demo_film: 4 s at 24 frames a second).
 FILM_FRAMES = 96
 
@@ -72,6 +77,16 @@ def still_item(number, segment, media):
     return item(number, segment, NEW, "one new frame", 1, "look")
 
 
+def zoom_item(number, segment, rate):
+    """A scale zoom: its setting, world and site legs drawn locally (free); its place and room legs film frames of the
+    finished places, priced at the frame of the place it zooms to (else the median), which exist only once the remake
+    made them."""
+    frames = round(sum(leg["seconds"] for leg in segment.get("legs", []) if leg.get("layer") in FILMED_LAYERS) * rate)
+    if not frames:
+        return item(number, segment, FREE, "the setting, world and site drawn locally")
+    return item(number, segment, NEW, "the place and room legs filmed in the finished places", frames, "film")
+
+
 def segment_item(number, segment, seconds, rate, media):
     """The render item of one segment."""
     cut = segment["cut"]
@@ -83,6 +98,10 @@ def segment_item(number, segment, seconds, rate, media):
         return walk_item(number, segment, seconds, rate, media)
     if cut == "hero-still":
         return still_item(number, segment, media)
+    if cut in LOCAL_CUTS:
+        return item(number, segment, FREE, "recorded locally in headless Chromium")
+    if cut == "scale-zoom":
+        return zoom_item(number, segment, rate)
     if cut == "orbit":
         return item(number, segment, NEW, "new film frames round the place", round(seconds * rate), "film")
     return item(number, segment, NEW, f"new frames: no row renders {script.CUTS[cut]['label'].lower()} yet",

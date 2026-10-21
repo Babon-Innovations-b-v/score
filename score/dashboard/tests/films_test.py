@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from score.dashboard.films import render, script
+from score.dashboard.films import render, script, takes
 from score.dashboard.pages.models import BasketItem
 
 pytestmark = pytest.mark.django_db
@@ -168,3 +168,95 @@ def test_a_new_film_starts_with_its_title_card(world, tmp_path, monkeypatch):
     assert origin == "saved" and film["segments"][0]["cut"] == "title" and film["title"] == "A teaser"
     client.post("/film/new/", {"film": "new", "title": "x"})
     assert script.read(tmp_path / "repo", settings.SCORE_HOME, "new")[0] is None
+
+
+def test_a_screen_take_never_clicks_what_spends_and_a_scale_zoom_goes_down_only():
+    take = {"cut": "screen-take", "shows": {"page": "/concept/hub/"}, "take": [
+        {"at": 0.5, "do": "click", "on": "#concept-draw", "words": "Redraw with notes EUR 0.30"},
+        {"at": 1.0, "do": "type", "on": "#concept-note", "text": "taller\n"},
+        {"at": 1.5, "do": "spin", "on": "#x"},
+        {"at": 2.0, "do": "move"}]}
+    zoom = {"cut": "scale-zoom", "shows": {"place": "alpha"}, "seconds": 9.0,
+            "legs": [{"layer": "world", "seconds": 4}, {"layer": "setting", "seconds": 4},
+                     {"layer": "attic", "seconds": 1}]}
+    found = script.faults(a_script([take, zoom, {"cut": "title", "pip": {"corner": "middle"}}]))
+    assert any("segment 1 step 1: refused" in fault for fault in found)
+    assert "segment 1 step 2: typing never presses Enter (it could send a form)" in found
+    assert "segment 1 step 3: no step 'spin'" in found and "segment 1 step 4: move names the element it is `on`" in found
+    assert "segment 2: a scale zoom goes down through the layers, never back up" in found
+    assert "segment 2: no layer 'attic'" in found
+    assert any(fault.startswith("segment 3: a picture-in-picture") for fault in found)
+    for word in ("Draw fresh", "Pick", "Buy", "Keep", "Make plan", "Unlock", "EUR 0.15"):
+        assert takes.SPEND.search(word), word
+    assert not takes.SPEND.search("hub, picked") and not takes.SPEND.search("Places")
+
+
+def test_recorded_cuts_are_free_but_a_zoom_into_finished_places_is_film_frames():
+    film = a_script([{"cut": "screen-take", "shows": {"page": "/"}},
+                     {"cut": "setting-animation", "shows": {"world": "world1"}},
+                     {"cut": "scale-zoom", "shows": {"place": "hub"}, "seconds": 10,
+                      "legs": [{"layer": "setting", "seconds": 3}, {"layer": "world", "seconds": 2},
+                               {"layer": "place", "seconds": 2}, {"layer": "room", "seconds": 3}]},
+                     {"cut": "scale-zoom", "shows": {"place": "hub"}, "seconds": 5,
+                      "legs": [{"layer": "setting", "seconds": 3}, {"layer": "world", "seconds": 2}]}])
+    items = render.items(film, {})
+    assert [item["how"] for item in items] == ["free", "free", "new", "free"]
+    assert items[2]["frames"] == 120 and items[2]["euros"] == round(120 * render.FILM_FRAME_EUROS["hub"], 2)
+
+
+def test_the_preview_joins_on_the_scripts_own_clock():
+    from score.dashboard.films.preview import make
+    film = a_script([{"cut": "title", "transition": "fade-through-black", "seconds": 4},
+                     {"cut": "text", "transition": "fade-through-black", "seconds": 3},
+                     {"cut": "text", "transition": "cross-fade", "seconds": 3},
+                     {"cut": "text", "transition": "push", "seconds": 2}])
+    joined, made, total = make.joined_filter(film, [4, 3, 3, 2])
+    assert total == script.total_seconds(film) == 11.0 and made == "j3"
+    assert "transition=fade:duration=0.5:offset=6.500" in joined and "transition=slideleft" in joined
+    assert "concat=n=2" in joined and "fade=t=out:st=3.750" in joined
+
+
+def test_the_setting_is_drawn_from_its_own_physics_to_the_pictures_scale():
+    from score.dashboard.films.preview import scenes
+    from score.review import setting
+    bodies = setting.now()["bodies"]
+    scale = scenes.scales(bodies)
+    placed = scenes.placed(bodies, 0.0, scale)
+    assert placed["sun"] == [0.0, 0.0, 0.0]
+    mars_far = max(sum(value * value for value in scenes.placed(bodies, day, scale)["mars"]) ** 0.5
+                   for day in range(0, 700, 10))
+    mars = next(body for body in bodies if body["body"] == "mars")
+    assert abs(mars_far - scenes.UNITS * (1 + mars["eccentricity"])) < 0.5  # its orbit's size the scene's 100 units
+    moon = [a - b for a, b in zip(placed["moon"], placed["earth"])]
+    earth = next(body for body in bodies if body["body"] == "earth")
+    ring = (scenes.disc_size(earth) + 22.0) * scenes.UNITS / scenes.REACH
+    assert 0.9 * ring < sum(value * value for value in moon) ** 0.5 < 1.1 * ring  # enlarged as the picture draws it
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_path, monkeypatch):
+    from score.dashboard.tests.api_test import api
+    monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
+    film = a_script([{"cut": "title"}, {"cut": "screen-take", "shows": {"page": "/"}, "seconds": 2}])
+    script.save(settings.SCORE_HOME, film)
+    video, record = script.preview_files(settings.SCORE_HOME, False, "trailer")
+    video.parent.mkdir(parents=True)
+    video.write_bytes(bytes(range(256)) * 40)
+    record.write_text(json.dumps({"made_at": "2026-10-21T12:00:00+00:00", "seconds": 5.5, "script": film,
+                                  "segments": [{"index": 1, "start": 0.0}, {"index": 2, "start": 3.5}]}))
+    client = api()
+    editor = editor_of(client.get("/film/trailer/").text)
+    assert editor["preview"]["url"].startswith("/film-preview/trailer.mp4") and "screen-take" in editor["recorded"]
+    part = client.get("/film-preview/trailer.mp4", headers={"Range": "bytes=100-199"})
+    assert part.status_code == 206 and part.content == (bytes(range(256)) * 40)[100:200]
+    assert client.get("/film-preview/other.mp4").status_code == 404
+
+
+def test_environment_1_demo_is_sound_and_marks_what_waits():
+    film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "env1_demo")
+    assert origin == "starter" and script.faults(film) == []
+    cuts = [segment["cut"] for segment in film["segments"]]
+    assert cuts == ["title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take",
+                    "scale-zoom"]
+    assert [segment for segment in film["segments"] if segment.get("waiting")] == film["segments"][5:]
+    assert script.total_seconds(film) <= film["target_seconds"]

@@ -371,7 +371,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `answer`). The page's lower part keeps the steps he queued by hand.
 - **`films/`** the film script (its own overlay): the FILM pages' editor, free three.js preview on the web copies and
   films, and render items priced from measured frames; scripts saved in `$SCORE_DASHBOARD_HOME/films/`, starters in
-  `data/films/`.
+  `data/films/`; `film-preview <film>` renders its free preview end to end (screen takes, setting animation, scale
+  zoom), which the FILM page plays and the export carries.
 - **`deploy/`** templates only, every host and name a `<placeholder>`; `Dockerfile` and `docker-compose.yml` beside.
 
 Rules:

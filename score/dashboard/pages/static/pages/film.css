@@ -97,3 +97,5 @@
              background: var(--surface, var(--panel)); color: var(--ink); font-size: 13px; cursor: pointer; }
 .film-item-pic { display: block; aspect-ratio: 16 / 9; border-radius: 6px; background: var(--raised, var(--line)) center / cover no-repeat; margin-bottom: 4px; }
 .film-defaults { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 16px; }
+.film-rendered { margin-bottom: 24px; }
+.film-rendered video { display: block; width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; background: var(--color-media); border-radius: var(--radius, 12px); }

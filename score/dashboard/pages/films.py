@@ -93,12 +93,30 @@ def film_new(request):
     return redirect(f"/film/{film}/")
 
 
+def shells_of(source):
+    """{outside shell: its short name} (the Base): a scale zoom may go down to one. Read from within.json on the store's
+    machine (its whole world state is slow there), from the export hosted."""
+    return source.hierarchy()["shells"] if hasattr(source, "hierarchy") else source.world_state().shells
+
+
+def preview_of(film):
+    """The rendered preview's record with its link ({url, made_at, seconds, script, segments}), or None. The video is
+    served by api/routes.py's `film_preview` (ranges, so the player seeks)."""
+    video, record = script.preview_files(settings.SCORE_HOME, settings.SCORE_MODE == settings.HOSTED, film)
+    if not (video.is_file() and record.is_file()):
+        return None
+    found = json.loads(record.read_text())
+    return {**found, "url": f"/film-preview/{film}.mp4?at={found['made_at']}"}
+
+
 def editor_data(request, film_script, origin, source, known):
     """What the editor's script reads (json_script): the script, the words and defaults, every place (`known`)."""
     return {"script": film_script, "origin": origin, "cuts": script.CUTS, "transitions": script.TRANSITIONS,
             "sounds": script.SOUNDS, "steps": script.STEPS, "stack": STACK_ORDER,
             "transition_seconds": script.TRANSITION_SECONDS, "film_shot_from": script.FILM_SHOT_FROM,
             "film_shot_seconds": script.FILM_SHOT_SECONDS, "places": known,
+            "shells": shells_of(source), "recorded": script.RECORDED, "legs": script.LAYERS,
+            "preview": preview_of(film_script["film"]),
             "pictures": {place: media.step_pictures(source, place) for place in pictured_places(film_script)},
             "can_save": is_owner(request.user),
             "urls": {"save": f"/film/{film_script['film']}/save/", "compile": f"/film/{film_script['film']}/compile/",
@@ -110,7 +128,7 @@ def film_page(request, film):
     source = state.source()
     known = media_of(source, source.places())
     return render(request, "pages/film.html", {
-        "film": film_script, "origin": origin, "measured": compiler.MEASURED,
+        "film": film_script, "origin": origin, "measured": compiler.MEASURED, "preview": preview_of(film),
         "editor": {**editor_data(request, film_script, origin, source, known),
                    "answer": compile_answer(film_script, known)}})
 
@@ -123,7 +141,8 @@ def posted_script(request, film):
         return None, ["the body is not JSON"]
     if not isinstance(body, dict) or body.get("film") != film:
         return None, [f"the script is not film {film}'s"]
-    return body, script.faults(body, set(state.source().places()))
+    source = state.source()
+    return body, script.faults(body, set(source.places()) | set(shells_of(source)))
 
 
 def compile_answer(film_script, known):

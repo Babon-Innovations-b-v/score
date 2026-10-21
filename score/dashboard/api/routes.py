@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from score.dashboard import state
+from score.dashboard.films import script
 from score.dashboard.api.deps import owner_only, signed_in
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions
@@ -341,6 +342,17 @@ def file(sha: str, user=Depends(signed_in)):
         return on_its_way(sha)
     name, path = found
     return FileResponse(path, media_type=content_type(name), headers=IMMUTABLE)
+
+
+@files.get("/film-preview/{film}.mp4")
+def film_preview(film: str, user=Depends(signed_in)):
+    """A film script's rendered free preview (films/preview), served with ranges so the FILM page's player seeks."""
+    if not script.NAME.match(film):
+        raise HTTPException(404, "no such film")
+    video, _ = script.preview_files(settings.SCORE_HOME, settings.SCORE_MODE == settings.HOSTED, film)
+    if not video.is_file():
+        raise HTTPException(404, "no rendered preview of this film yet")
+    return FileResponse(video, media_type="video/mp4")
 
 
 @files.get("/thumbs/{sha}.jpg")

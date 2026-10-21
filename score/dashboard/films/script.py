@@ -5,9 +5,11 @@ import os
 import pathlib
 import re
 
+from score.dashboard.films import takes
+
 FORMAT = "score-film-script"
 VERSION = 1
-NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
+NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 SEED_FOLDER = "data/films"
 SAVED_FOLDER = "films"
 # The overlap of a cross-fade or a push (tools/review/demo.py FADE_SECONDS).
@@ -48,7 +50,19 @@ CUTS = {
               "sound": "bed", "words": "the film's title"},
     "text": {"label": "Text card", "seconds": 3.0, "needs": (), "transition": "cross-fade", "sound": "bed",
              "words": "a line of words"},
+    "screen-take": {"label": "Screen take", "seconds": 8.0, "needs": ("page",), "transition": "cross-fade",
+                    "sound": "bed", "words": "a real cockpit page, its cursor, clicks and highlights scripted"},
+    "setting-animation": {"label": "Setting animation", "seconds": 4.0, "needs": ("world",),
+                          "transition": "cross-fade", "sound": "bed",
+                          "words": "the setting's bodies on their orbits, time sped up"},
+    "scale-zoom": {"label": "Scale zoom", "seconds": 20.0, "needs": ("place",), "transition": "cross-fade",
+                   "sound": "bed", "words": "one camera path from the setting down to the place's rooms"},
 }
+# The cuts the free preview renders itself in headless Chromium (films/preview), not the editor's live player.
+RECORDED = ("screen-take", "setting-animation", "scale-zoom")
+# A scale zoom's layers, top down (CONTEXT.md "scale zoom"), and the corners a picture-in-picture may sit in.
+LAYERS = ("setting", "world", "site", "place", "room")
+CORNERS = ("top-left", "top-right", "bottom-left", "bottom-right")
 TRANSITIONS = {"cut": "Cut", "cross-fade": "Cross-fade", "fade-through-black": "Fade through black",
                "push": "Push"}
 OVERLAPPING = ("cross-fade", "push")
@@ -101,6 +115,9 @@ def segment_faults(script, number, segment):
               if not shows.get(need)]
     if cut == "step-card" and shows.get("step") and shows["step"] not in STEPS:
         found.append(f"segment {number}: no framework step {shows['step']!r}")
+    found += takes.faults(number, segment) if cut == "screen-take" else []
+    found += zoom_faults(number, segment) if cut == "scale-zoom" else []
+    found += pip_faults(number, segment.get("pip"))
     if segment.get("transition", "cut") not in TRANSITIONS:
         found.append(f"segment {number}: no transition {segment.get('transition')!r}")
     if segment.get("sound", "bed") not in SOUNDS:
@@ -109,6 +126,34 @@ def segment_faults(script, number, segment):
     if length is not None and not (isinstance(length, (int, float)) and SHORTEST <= length <= LONGEST):
         found.append(f"segment {number}: {length!r} s is not between {SHORTEST} and {LONGEST}")
     return found
+
+
+def zoom_faults(number, segment):
+    """What is wrong with a scale zoom's legs: each a layer of LAYERS, top down, with its seconds summing to the
+    segment's."""
+    legs = segment.get("legs")
+    if not isinstance(legs, list) or not legs:
+        return [f"segment {number}: a scale zoom lists its legs"]
+    found = [f"segment {number}: no layer {leg.get('layer')!r}" for leg in legs if leg.get("layer") not in LAYERS]
+    order = [LAYERS.index(leg["layer"]) for leg in legs if leg.get("layer") in LAYERS]
+    if order != sorted(order):
+        found.append(f"segment {number}: a scale zoom goes down through the layers, never back up")
+    if any(not isinstance(leg.get("seconds"), (int, float)) or leg["seconds"] <= 0 for leg in legs):
+        found.append(f"segment {number}: every leg names its seconds")
+    elif segment.get("seconds") is not None and abs(sum(leg["seconds"] for leg in legs) - segment["seconds"]) > 1e-6:
+        found.append(f"segment {number}: its legs last {sum(leg['seconds'] for leg in legs):g} s, not its "
+                     f"{segment['seconds']:g} s")
+    return found
+
+
+def pip_faults(number, pip):
+    """What is wrong with a segment's picture-in-picture (none is sound)."""
+    if pip is None:
+        return []
+    if not isinstance(pip, dict) or not (pip.get("concept") or pip.get("picture")):
+        return [f"segment {number}: a picture-in-picture names a place's concept or a picture"]
+    return [f"segment {number}: no corner {pip.get('corner')!r}"] if pip.get("corner", "top-right") not in CORNERS \
+        else []
 
 
 def faults(script, places=None):
@@ -146,6 +191,13 @@ def seed_path(repo, film):
 
 def saved_path(home, film):
     return pathlib.Path(home) / SAVED_FOLDER / f"{film}.json"
+
+
+def preview_files(home, hosted, film):
+    """(the film's rendered free preview, its record) where a cockpit holds them: its home's previews
+    (films/preview/make.py), hosted the export's copy."""
+    folder = pathlib.Path(home) / ("export/current/films" if hosted else "films/previews")
+    return folder / f"{film}.mp4", folder / f"{film}.json"
 
 
 def names(repo, home):

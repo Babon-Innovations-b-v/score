@@ -7,6 +7,7 @@
                                _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero and concept pictures; <sha>-360.jpg thumbnails (the concepts' first, newest 8 a
                                node); <sha>.mp4 accepted films
+    <out>/films/<film>.mp4     each film script's rendered free preview and its record (<film>.json), after the films
     <out>/web3d/<place>/       each place's fresh 3D copy (web3d/convert.py): sidecar and preview, then the whole one
     <out>/proposals/           the basket (proposals/exporting.py): its index, each place's details, inputs and 3D copies
                                right after the heroes, the whole 3D copies after the places' own
@@ -248,6 +249,11 @@ def build(source, out, made_at, cap_mb, spend, repo):
     library.export_takes(shelf, shelved, filler)
     for film in films(world):
         filler.copy(source.file(film.sha)[1], f"{film.sha}.mp4", f"film {film.name}")
+    for video in sorted((source.home / "films" / "previews").glob("*.mp4")):  # the FILM pages' rendered previews
+        record = video.with_suffix(".json")
+        if record.is_file():  # the video first: the FILM page shows a preview only when both are there
+            filler.place_copy(video, f"films/{video.name}", f"film preview {video.stem}")
+            filler.place_copy(record, f"films/{record.name}", f"film preview {video.stem}'s record")
     web3d_copies(source, filler, ("{place}.json", "{place}-light.glb"))
     for what, picture in large_step_pictures(bundles):  # the breakdowns' pictures before the whole copies
         found = source.file(picture["sha"])
