@@ -210,6 +210,15 @@ def plan_part(world, place):
             "plan_pending": pending and pending.created.isoformat(), "plan_refused": plans.refused_of(place, review and review["at"])}
 
 
+def parents_of(world, place, names):
+    """[{place, name}] of the scenes `place` sits within, outermost first (world.within), for the page's trail."""
+    chain, seen = [], {place}
+    while (place := world.within.get(place)) and place not in seen:
+        seen.add(place)
+        chain.append({"place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place))})
+    return chain[::-1]
+
+
 def concept_page(request, place):
     """The design page of one place (module docstring): its concept, its inventory and its plan, each a part."""
     source = state.source()
@@ -227,7 +236,7 @@ def concept_page(request, place):
     planned = plan_part(world, place)
     return render(request, "pages/concept.html", {
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
-        "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "replan": place in world.plan_changed, "euros": world.concept_draw_euros, "redraw_euros": world.concept_redraw_euros,
+        "parents": parents_of(world, place, names), "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "replan": place in world.plan_changed, "euros": world.concept_draw_euros, "redraw_euros": world.concept_redraw_euros,
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
         "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
