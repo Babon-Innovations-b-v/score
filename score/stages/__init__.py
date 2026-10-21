@@ -701,29 +701,6 @@ STAGES = tuple(grained(accepted_gaps(layered(worn(row), {stage.name for stage in
 characters_layer.loaded("cast")
 
 
-def has_old_record(place):
-    return place is not None and (REPO / "data" / "scene" / f"{place}.json").exists()
-
-
-def sounded_from_plan(files):
-    """The sound row's environment files for a place with no old scene record (the ship's): its plan stands as `scene`. The
-    row reads only the place's name (the file's stem) and the objects and structure the record names, for where object
-    sounds may play; a ship place's plan names none, so its sounds play at its inventory rows alone (2026-10-15: the
-    runner refused the ship's run on the missing data/scene/<place>.json); a place with no plan in data/plans (one
-    the creator planned alone: the Moon base) its kept plan, the one its bed reads. A place with an old record reads
-    it as before; wrapped here, in the table, so no place's key moves."""
-    def declared(place):
-        found = files(place)
-        if place is None or has_old_record(place):
-            return found
-        if not (REPO / "data/plans" / f"{place}.json").exists() and "plan" in found:
-            return dict(found, scene=found["plan"])
-        return dict(found, scene="{data}/plans/" + f"{place}.json")
-    return functools.wraps(files)(declared)
-
-
-STAGES = tuple(dataclasses.replace(row, files=sounded_from_plan(row.files)) if row.name == "sound" else row
-               for row in STAGES)
 def hazed(applies):
     """light-haze's `applies` at a designed place (designed("light")) whose kit lays a lamp with a shaft
     (haze.applies)."""

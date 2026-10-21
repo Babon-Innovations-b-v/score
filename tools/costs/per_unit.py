@@ -78,7 +78,7 @@ FORECASTS = {
                 "pieces (data/kit/<place>.json), one make_kit job a set",
     "one": "one a place (one for an environment node)",
     "sound_takes": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief "
-                   "and seed, each counted once at the first scene with a plan (beds.places) that plays it",
+                   "and seed, each counted once at the first scene with a sound row (needs.sounded) that plays it",
 }
 CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
 # Per stage: the unit, the ledger lines of its work, the units a line made, how a node's units are counted in its
