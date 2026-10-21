@@ -74,7 +74,6 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools/library"))
 import library_files  # noqa: E402
 SCENES = REPO / "data/scene"
-SHARED_PAINT = REPO / "data/library/shared_paint.json"
 # A game directional light of energy 1 as a sun in W/m^2: a white surface it faces then reads about as bright as in
 # the game (the game draws diffuse light without the 1/pi a physical renderer divides by).
 SUN_PER_ENERGY = math.pi
@@ -336,8 +335,8 @@ def turn(xform, entry):
 
 def fixture(stage, path, entry, out, world, boxes):
     """One gameplay object where the game stands it: its model at `at`, turned (`turn`), scaled by `scale` or to
-    `height` metres tall, worn in a `glow` the game paints over it when it has one, in the game's shared paints by
-    its surfaces' names when `shared_paint` (its children too); the things standing on it
+    `height` metres tall, worn in a `glow` the game paints over it when it has one, its surfaces named by the game's
+    shared paints marked missing when `shared_paint` (its children too: `shared_paint` below); the things standing on it
     (`children`, each the same in its parent's frame, or a `label`) under it. A `stretch` (x, y, z) presses it
     unevenly after that, as the game draws a model pressed to other proportions."""
     if "label" in entry:
@@ -375,40 +374,22 @@ def fixture(stage, path, entry, out, world, boxes):
         fixture(stage, f"{path}/{stem}_{number}", child, out, world, boxes)
 
 
-def shared_paint_material(stage, path, paint):
-    """One of the game's shared paints (data/library/shared_paint.json) as a UsdPreviewSurface: its flat colour, its
-    roughness and metal, given off as light when the game draws it unshaded."""
-    material = UsdShade.Material.Define(stage, path)
-    shader = UsdShade.Shader.Define(stage, f"{path}/surface")
-    shader.CreateIdAttr("UsdPreviewSurface")
-    linear = Gf.Vec3f(*(channel ** 2.2 for channel in paint["colour"]))
-    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(linear)
-    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(paint.get("roughness", 0.7)))
-    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(paint.get("metal", 0.0)))
-    if paint.get("unshaded"):
-        shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(linear)
-    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
-    material.GetPrim().CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(paint["from"])
-    return material
-
-
 def shared_paint(stage, prim, path):
-    """Paint a game model as the game does (part_model.gd: a surface named after one of its shared materials is drawn
-    in that material, which takes its colour from the tokens): each of the model's meshes whose own material carries
-    a shared paint's name is bound to that paint; a surface named nothing shared keeps the model's own look."""
-    paints = json.loads(SHARED_PAINT.read_text())["paints"]
-    made = {}
+    """A game model the game drew in its shared paints (part_model.gd: a surface named after a shared material): those
+    paints were the old game's materials, retired with every old material (owner, 2026-10-21: "all materials"), so
+    each of its meshes whose own material is named is marked as missing its library surface by that name
+    (`score:surface`, `score:surface:missing`, as bind_surface says it), never painted in the game's colour."""
     for part in Usd.PrimRange(prim):
         if not part.IsA(UsdGeom.Mesh):
             continue
         own = UsdShade.MaterialBindingAPI(part).ComputeBoundMaterial()[0]
         name = own.GetPrim().GetAttribute("score:material").Get() if own and own.GetPrim().HasAttribute(
             "score:material") else None
-        if name not in paints:
-            continue
-        if name not in made:
-            made[name] = shared_paint_material(stage, f"{path}_paint/{name}", paints[name])
-        UsdShade.MaterialBindingAPI.Apply(part).Bind(made[name])
+        if name:
+            part.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(name)
+            part.CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
+                f"{path}: the game's shared paint {name} is retired; the library has no surface {name} yet "
+                "(surface library empty: run surface-library first)")
 
 
 def row_of(prim, entry, world):
