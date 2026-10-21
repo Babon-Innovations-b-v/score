@@ -7,11 +7,13 @@ import pathlib
 import sys
 import tempfile
 
+import numpy as np
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import check  # noqa: E402
 
+FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 GREY = (205, 205, 205)
 SIZE = (0.6, 0.5, 1.0)
 
@@ -62,10 +64,17 @@ def test_a_wrong_proportion_is_faulted():
     assert "proportions off the row's box" in check.measured_faults(check.measure(path, (0.4, 0.4, 1.2)))
 
 
-def a_person(arms_out, side=512):
-    """A dark figure on the grey: head, torso and legs apart, its arms angled down `arms_out` pixels clear of the
-    torso at the hands (0: hanging against it); its path."""
-    picture = Image.new("RGB", (side, side), GREY)
+def shaded_backdrop(side):
+    """A studio backdrop as Nano Banana Pro draws it: grey at the edges, about 20 lighter behind the figure."""
+    rows, columns = np.mgrid[0:side, 0:side] / side - 0.5
+    light = 200 + 22 * np.clip(1 - 2 * np.hypot(rows, columns), 0, 1)
+    return Image.fromarray(np.repeat(light[..., None], 3, axis=2).astype(np.uint8))
+
+
+def a_person(arms_out, side=512, shaded=False):
+    """A dark figure on the grey (`shaded`: lighter behind the figure): head, torso and legs apart, its arms angled
+    down `arms_out` pixels clear of the torso at the hands (0: hanging against it); its path."""
+    picture = shaded_backdrop(side) if shaded else Image.new("RGB", (side, side), GREY)
     draw = ImageDraw.Draw(picture)
     dark = (60, 70, 80)
     draw.ellipse((236, 60, 276, 100), fill=dark)  # head
@@ -86,6 +95,16 @@ def test_a_persons_close_up_needs_its_arms_clear_of_the_body_not_a_box_s_proport
     assert check.person_faults(a_person(arms_out=70)) == []
     assert any(fault.startswith("arms not clear of the body") for fault in check.person_faults(a_person(arms_out=0)))
     assert check.measure(a_person(arms_out=70), None)["proportion_error"] is None
+
+
+def test_a_persons_arms_are_found_apart_on_a_backdrop_lighter_behind_the_figure():
+    """Nano Banana Pro's backdrop is lighter in the middle than at the edges; the first people benchmark's two
+    close-ups (#26, 2026-10-21, arms well apart) scored 0.00 when the backdrop came from the edges alone."""
+    for picture in ("pro-player_wide-work.jpg", "pro-kit_m_avg-coat-grey.jpg"):
+        assert check.person_faults(FIXTURES / picture) == [], picture
+    assert check.person_faults(a_person(arms_out=70, shaded=True)) == []
+    assert any(fault.startswith("arms not clear of the body")
+               for fault in check.person_faults(a_person(arms_out=0, shaded=True)))
 
 
 def test_the_answer_is_the_last_json_object_in_the_reply():

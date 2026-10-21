@@ -28,6 +28,7 @@ ROWS = REPO / "data/people/rows.json"
 LINE = "people"
 LINE_FILES = {"props": REPO / "data/props/people.json", "inventory": REPO / "data/inventory/people.json",
               "surfaces": REPO / "data/surfaces/people.json"}
+MAKES = REPO / "data/characters/makes"
 # The people line's one far look (kit_m_avg in the grey coat, the crowd's body since 2026-10-13).
 CROWD_LOOK = "kit_m_avg-coat-grey"
 # A crowd's colour palettes, library surfaces of the people place (skin, clothes, boots): the grey, navy, charcoal,
@@ -240,6 +241,20 @@ def drawn_from(origin, kept):
     return {"view": place, "box": read["box"], "grounded": handin.GROUNDED}
 
 
+def description_of(look):
+    """Who a look is, from its character's spec (data/characters/makes/<character>_prop.json, the prop route the
+    people are made by): "a Chinese man in his thirties, ...", which the reading's words, the clothes alone, lack."""
+    character, _ = split_look(look)
+    return json.loads((MAKES / f"{character}_prop.json").read_text())["description"]
+
+
+def described(look, row):
+    """A line row's words, the close-up's (score/stages/props/closeup_row.py reads `name`): its spec's description,
+    then the clothes as read (`clothes`, kept on the row so a second write does not describe it twice)."""
+    clothes = row.get("clothes", row["name"])
+    return {"name": f"{description_of(look)}; {clothes}", "clothes": clothes}
+
+
 def line_inventory(inventory, rows):
     """The line's inventory of `rows`: a view a place its rows are drawn from (its kept concept), approved by the
     creator's picks that map them (handin.APPROVED_BY, which the Pixal3D batch takes)."""
@@ -252,8 +267,8 @@ def line_inventory(inventory, rows):
 
 def line_rows(found, props, inventory, surfaces, kept=None):
     """The people line's three records narrowed to the looks the designs map, each inventory row and bake entry with
-    the look's size (size_of) and each row drawn from its mapping person's view and box (drawn_from): (props,
-    inventory, surfaces)."""
+    the look's size (size_of), each row's words its spec's description and clothes (described) and each row drawn
+    from its mapping person's view and box (drawn_from): (props, inventory, surfaces)."""
     from score.review import plans
     from score.stages.props import compare
     kept = kept or plans.KEPT_INVENTORY
@@ -265,7 +280,7 @@ def line_rows(found, props, inventory, surfaces, kept=None):
             size, origin = size_of(row["id"], found)
             rows.append({**{key: value for key, value in row.items() if key not in ("view", "box", "grounded")},
                          "prop": row["id"], "size": size, "size_from": f"{origin} of data/people/rows.json",
-                         "view": None, "box": None, **drawn_from(origin, kept)})
+                         "view": None, "box": None, **drawn_from(origin, kept), **described(row["id"], row)})
     takes = {props["objects"][look]["take"] for look in wanted}
     models = {look: take for look, take in surfaces["bake"]["models"].items() if look in wanted}
     entries = {look: compare.bake_entry(LINE, {"id": look, "size": next(row["size"] for row in rows

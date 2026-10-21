@@ -92,25 +92,29 @@ def expected_proportion(size):
     return seen_tall / seen_wide
 
 
-def background_fit(pixels, ring):
-    """The background as a smooth surface fitted to the border ring (studio light falls off towards the corners),
-    per pixel: a quadratic in x and y per colour channel, by least squares over the ring."""
+def ring_of(shape, ring):
+    """Which pixels of a picture of `shape` lie in its border ring, `ring` pixels wide."""
+    in_ring = np.zeros(shape[:2], dtype=bool)
+    in_ring[:ring], in_ring[-ring:], in_ring[:, :ring], in_ring[:, -ring:] = True, True, True, True
+    return in_ring
+
+
+def background_fit(pixels, where):
+    """The background as a smooth surface fitted to the pixels `where` is true (studio light falls off towards the
+    corners), per pixel: a quadratic in x and y per colour channel, by least squares."""
     height, width = pixels.shape[:2]
     rows, columns = np.mgrid[0:height, 0:width]
     x, y = columns / width - 0.5, rows / height - 0.5
     terms = np.stack([np.ones_like(x), x, y, x * x, y * y, x * y], axis=-1)
-    in_ring = np.zeros((height, width), dtype=bool)
-    in_ring[:ring], in_ring[-ring:], in_ring[:, :ring], in_ring[:, -ring:] = True, True, True, True
-    weights, *_ = np.linalg.lstsq(terms[in_ring], pixels[in_ring], rcond=None)
-    return terms @ weights, in_ring
+    weights, *_ = np.linalg.lstsq(terms[where], pixels[where], rcond=None)
+    return terms @ weights
 
 
 def object_mask(picture):
     """Per pixel, how far it is from the fitted background, and which pixels are the border ring."""
     pixels = np.asarray(picture, dtype=float)
-    ring = max(1, round(RING * min(pixels.shape[:2])))
-    background, in_ring = background_fit(pixels, ring)
-    return np.linalg.norm(pixels - background, axis=2), in_ring
+    in_ring = ring_of(pixels.shape, max(1, round(RING * min(pixels.shape[:2]))))
+    return np.linalg.norm(pixels - background_fit(pixels, in_ring), axis=2), in_ring
 
 
 def measure(path, size):
@@ -162,22 +166,29 @@ def measured_faults(measures):
 # the body instead, or Pixal3D fuses them to the torso (Nev, 2026-10-10). Between the armpits and the wrists (ARM_ROWS
 # of the figure's height from its top), a row counts where open background at least ARM_GAP of the figure's height
 # wide lies between each arm and the body; at least ARMS_APART of the rows must. The figure is every pixel off its
-# row's background (the median of the row's two edges, as the backdrop shades from top to floor) by BACKGROUND_STEP,
+# backdrop by BACKGROUND_STEP. The backdrop is the smooth surface (background_fit) fitted to the border ring, then
+# refitted twice to every pixel within BACKDROP_NEAR of the last fit: Nano Banana Pro's studio backdrop is lighter
+# behind the figure than at the edges, so a fit to the edges alone took that lighter middle for figure (the first
+# people benchmark, #26, 2026-10-21: 0.56 and 0.45 of the frame, both scored 0.00 with their arms well apart). It is
 # closed, its largest piece with its holes filled (a white suit on a light grey backdrop reads as holes). The player's
 # close-ups had 0.67 of their rows so; Nev's two fused takes none, her four drawn after the pose picture 0.35 to 0.51
-# (2026-10-11; the maker's klein close-ups, tools/characters/maker/prop_person.py, which reads it from here).
+# (2026-10-11; the maker's klein close-ups, tools/characters/maker/prop_person.py, which reads it from here); Pro's two
+# of #26, with the refitted backdrop, 0.66 and 0.67.
 ARM_ROWS = (0.25, 0.47)
 ARM_GAP = 0.01
 ARMS_APART = 0.3
 BACKGROUND_STEP = 18
+BACKDROP_NEAR = 40          # the figure is 70 and more off the backdrop, its shading at most about 20
 
 
 def figure_of(path):
     """A close-up's figure as a mask (the rules above)."""
     colours = np.asarray(Image.open(path).convert("RGB")).astype(float)
-    backdrop = np.median(np.concatenate([colours[:, :8], colours[:, -8:]], 1), 1)
-    figure = ndimage.binary_closing(np.linalg.norm(colours - backdrop[:, None], axis=2) > BACKGROUND_STEP,
-                                    np.ones((3, 3)))
+    backdrop = ring_of(colours.shape, max(1, round(RING * min(colours.shape[:2]))))
+    for _ in range(3):
+        distance = np.linalg.norm(colours - background_fit(colours, backdrop), axis=2)
+        backdrop = distance < BACKDROP_NEAR
+    figure = ndimage.binary_closing(distance > BACKGROUND_STEP, np.ones((3, 3)))
     label, _ = ndimage.label(figure)
     return ndimage.binary_fill_holes(label == np.bincount(label.ravel())[1:].argmax() + 1)
 
