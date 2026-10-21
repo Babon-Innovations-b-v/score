@@ -28,6 +28,8 @@ there (`holder_of`: the row, its SAM box, its outline); `shape_sent` draws its s
     SCORE_SPEND_TICKET="override <key>" python -m score.review.plans <place> <request.json> <by>
     python -m score.review.plans keep      # every place's plan where the plan stage reads it (the sync pass)
 """
+import contextlib
+import contextvars
 import copy
 import hashlib
 import io
@@ -88,7 +90,7 @@ def tree(store):
     """{within, shells}: data/places/within.json (environment 1's starting list) with the inside places his edits
     laid out (`overlaid`)."""
     within, shells = within_file()
-    return {"within": overlaid(store, within), "shells": shells}
+    return once("tree", store, None, lambda: {"within": overlaid(store, within), "shells": shells})
 
 
 def overlaid(store, within):
@@ -570,10 +572,43 @@ def checked_again(plan, inventory):
     return CHECKED[key]
 
 
+HELD = contextvars.ContextVar("plans_held", default=None)  # {(what, store id, key): answer} inside one_moment()
+
+
+@contextlib.contextmanager
+def one_moment():
+    """Inside it each answer `once` is asked for is made once and handed out as copies: a read-only page state is
+    built from one moment's store and data and asked the same plans hundreds of times (a cockpit page took 33 s,
+    2026-10-21). Never open it round a write."""
+    token = HELD.set({}) if HELD.get() is None else None
+    try:
+        yield
+    finally:
+        if token is not None:
+            HELD.reset(token)
+
+
+def once(what, store, key, make, shared=False):
+    """`make()`, the answer of `what` for `key` in `store`: inside `one_moment` made once and handed out as copies
+    (a caller may change its own), or the one answer itself when `shared` (every reader only reads it), else made
+    now."""
+    memo = HELD.get()
+    if memo is None:
+        return make()
+    if (what, id(store), key) not in memo:
+        memo[what, id(store), key] = make()
+    return memo[what, id(store), key] if shared else copy.deepcopy(memo[what, id(store), key])
+
+
 def current(store, place):
     """{plan, how, at, by} of the plan shown: the newer of his newest edit made on the current pick (how: edited or
     revised) and the plan made without him (`made_plan`: written, else derived); None while its inventory does not
     count."""
+    return once("plan", store, place, lambda: shown_plan(store, place))
+
+
+def shown_plan(store, place):
+    """`current`'s answer, made now."""
     made_one = made_plan(store, place)
     edit = newest_edit(store, place) if made_one else None
     if edit and (made_one["at"] is None or edit["at"] > made_one["at"]):

@@ -8,9 +8,11 @@ Writes nothing to the store: owner decisions go through score.review.web.decide,
 import datetime
 import hashlib
 import json
+import os
 import pathlib
 import re
 import subprocess
+import threading
 from collections import Counter
 
 from score import review, stages
@@ -502,13 +504,17 @@ class LocalSource:
         return found
 
     def world_state(self, spend=None):
-        return WorldState(made_at=self.read_at(), source=self.name, world=self.world.name,
-                          engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
-                          world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
-                          gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
-                          remake=self.remake(), concepts=self.concepts(), **self.concept_review(),
-                          **self.environment_concept(), **self.plan_review(), **self.hierarchy(),
-                          **self.environment_plan())
+        """The whole state, read in one moment: each plan made once (plans.one_moment), the concept review read once."""
+        from score.review import plans
+        with plans.one_moment():
+            review = self.concept_review()
+            return WorldState(made_at=self.read_at(), source=self.name, world=self.world.name,
+                              engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
+                              world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
+                              gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
+                              remake=self.remake(), concepts=self.concepts(review), **review,
+                              **self.environment_concept(), **self.plan_review(), **self.hierarchy(),
+                              **self.environment_plan())
 
     def environment_plan(self):
         """{environment_plan, blockouts} (score/review/environment_plan.py, blockout.py): the environment's plan as its
@@ -536,7 +542,9 @@ class LocalSource:
         path = self.home / "blockouts" / f"{blockout.scene_key(scene)}.png"
         if not path.is_file():
             path.parent.mkdir(parents=True, exist_ok=True)
-            blockout.drawn(scene).save(path)
+            partial = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.partial")
+            blockout.drawn(scene).save(partial, format="PNG")
+            partial.replace(path)  # whole or absent: pages, and test runs sharing renders, read it side by side
         sha = self.remembered(("blockout", str(path)), lambda: hashlib.sha256(path.read_bytes()).hexdigest())
         self.known.add(sha, f"{node}-blockout.png", path)
         return file_ref(sha, f"{node}-blockout.png", path.stat().st_size)
@@ -559,8 +567,8 @@ class LocalSource:
         return {"environment_concept": shown, "environment_ask_euros": environment_concept.ask_euros(),
                 "environment_pictures": pictures}
 
-    def concepts(self):
-        """{place or shell: FileRef} of each concept picture: the concept review's picked draw, else its newest draw unless all its draws are from an older wording,
+    def concepts(self, review):
+        """{place or shell: FileRef} of each concept picture: the concept `review`'s picked draw, else its newest draw unless all its draws are from an older wording,
         else the one data/places/concepts.json names, where its bytes stand in the store's blobs; a place it lists
         as lost with no draw, or whose blob is not here, has none."""
         path = self.data / "places" / "concepts.json"
@@ -571,7 +579,6 @@ class LocalSource:
             if blob.is_file():
                 self.known.add(concept["sha256"], concept["name"], blob)
                 refs[node] = file_ref(concept["sha256"], concept["name"], blob.stat().st_size)
-        review = self.concept_review()
         for node, draws in review["concept_draws"].items():
             chosen = review["concept_picked"].get(node)
             if not chosen and node in review["concept_undrawn"]:
@@ -584,30 +591,31 @@ class LocalSource:
         inventories} of the concept review (score/review/concepts.py): each place's draws whose bytes stand in the
         store's blobs, oldest first, its picked draw's sha, the places and shells with no draw yet that Draw all draws
         now, why the others wait, and each place's scene inventory with the concept it was read from."""
-        from score.review import concepts
-        draws, picked = {}, {}
-        for node in concepts.placed(self.store):
-            found = []
-            for record in concepts.draws(self.store, node):
-                blob = self.blob_path(record["sha"])
-                if blob.is_file():
-                    self.known.add(record["sha"], record["name"], blob)
-                    found.append(ConceptDraw(picture=file_ref(record["sha"], record["name"], blob.stat().st_size),
-                                             **{name: record.get(name) for name in ("at", "by", "euros", "base")},
-                                             marks=record.get("marks") or [], note=record.get("note") or ""))
-            if found:
-                draws[node] = found
-            if concepts.picked(self.store, node):
-                picked[node] = concepts.picked(self.store, node)
-        nodes = self.design_nodes()
-        reads = self.inventory_reads()
-        ready, waiting = concepts.undrawn(self.store, nodes)
-        return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
-                "concept_redraw_euros": concepts.redraw_euros(),
-                "concept_undrawn": ready, "concept_unready": waiting,
-                "concept_wordings": {node: self.concept_wording(node) for node in nodes},
-                "inventories": {place: read for place, read in reads.items() if read},
-                **self.inventory_readings(concepts.placed(self.store))}
+        from score.review import concepts, plans
+        with plans.one_moment():  # each plan made once (the Draw all page asks it alone)
+            draws, picked = {}, {}
+            for node in concepts.placed(self.store):
+                found = []
+                for record in concepts.draws(self.store, node):
+                    blob = self.blob_path(record["sha"])
+                    if blob.is_file():
+                        self.known.add(record["sha"], record["name"], blob)
+                        found.append(ConceptDraw(picture=file_ref(record["sha"], record["name"], blob.stat().st_size),
+                                                 **{name: record.get(name) for name in ("at", "by", "euros", "base")},
+                                                 marks=record.get("marks") or [], note=record.get("note") or ""))
+                if found:
+                    draws[node] = found
+                if concepts.picked(self.store, node):
+                    picked[node] = concepts.picked(self.store, node)
+            nodes = self.design_nodes()
+            reads = self.inventory_reads()
+            ready, waiting = concepts.undrawn(self.store, nodes)
+            return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
+                    "concept_redraw_euros": concepts.redraw_euros(),
+                    "concept_undrawn": ready, "concept_unready": waiting,
+                    "concept_wordings": {node: self.concept_wording(node) for node in nodes},
+                    "inventories": {place: read for place, read in reads.items() if read},
+                    **self.inventory_readings(concepts.placed(self.store))}
 
     def inventory_readings(self, places):
         """{inventory_readings, inventory_spend} (score/review/reading.py): each place's reading of its picked draw

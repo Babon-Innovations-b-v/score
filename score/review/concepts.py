@@ -288,9 +288,19 @@ def resolved(path):
     return pathlib.Path(filled.replace("{data}", str(DATA)))
 
 
+LOOKS = {}  # {(path, mtime, size): place.json parsed}: look_of is asked tens of thousands of times a page
+
+
 def look_of(place):
-    """The look in place.json a place takes: one whose `scenes` lists it, else `prologue_<place>`, else `<place>`."""
-    looks = json.loads((DATA / "definitions/place.json").read_text())
+    """The look in place.json a place takes: one whose `scenes` lists it, else `prologue_<place>`, else `<place>`
+    (shared, never to be changed: its callers only read it)."""
+    path = DATA / "definitions/place.json"
+    stat = path.stat()
+    key = (str(path), stat.st_mtime_ns, stat.st_size)
+    if key not in LOOKS:
+        LOOKS.clear()
+        LOOKS[key] = json.loads(path.read_text())
+    looks = LOOKS[key]
     for look in looks.values():
         if isinstance(look, dict) and place in (look.get("scenes") or []):
             return look
@@ -334,7 +344,7 @@ def tree(store=None):
     within = {name: entry["within"] for name, entry in found["within"].items()}
     if store is not None:
         from score.review import plans
-        within = plans.overlaid(store, within)
+        within = plans.once("within", store, None, lambda: plans.overlaid(store, within))
     return {"within": within,
             "shells": {name: entry["name"] for name, entry in found["shells"].items()},
             "parts": {name: (entry["of"], entry["as"]) for name, entry in found.get("parts", {}).items()}}

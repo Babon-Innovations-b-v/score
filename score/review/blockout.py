@@ -955,7 +955,13 @@ def inside_parts(place, holder_plan, mine_plan, camera_way):
 def scene_of(store, node):
     """(parts, framed, worlds, light) of `node`'s blockout from its parent's plan (module docstring): `framed` the box
     [x, y, wide, deep, tall] the view frames (None: every part), `light` the Sun's (azimuth, altitude) over its site
-    at its scene time (None: NO_SUN); Missing while that plan is not there."""
+    at its scene time (None: NO_SUN); Missing while that plan is not there. Inside plans.one_moment built once."""
+    from score.review import plans
+    return plans.once("blockout scene", store, node, lambda: built_scene(store, node), shared=True)  # read only
+
+
+def built_scene(store, node):
+    """`scene_of`'s answer, built now."""
     from score.review import concepts, plans
     above = concepts.above(node, store)
     if above:

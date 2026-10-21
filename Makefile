@@ -15,22 +15,28 @@ PYTHON := $(CURDIR)/.venv/bin/python
 SANDBOX := python3 $(CURDIR)/.claude/scripts/sandbox-home.py --
 TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py')
 MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
+# The files run side by side, at most JOBS at once (JOBS=1: one after another), each its own sandbox and memory cap;
+# a file's line prints as it ends, a failure's tail with it in one write.
+JOBS ?= 6
+
+# One file (its path the first argument), in the shell xargs starts: its line, and its path added to $$FAILED.
+define ONE_TEST
+test=$$1; log=$$(mktemp); runner="$(PYTHON)";
+if grep -q '^def test_' $$test && ! grep -q '^if __name__' $$test; then runner="$(PYTHON) -m pytest -q -p no:cacheprovider"; fi;
+if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) $$runner $$test > $$log 2>&1; then echo "ok    $$test";
+else { echo "FAIL  $$test"; tail -n 15 $$log; } > $$log.fail; cat $$log.fail; rm -f $$log.fail; echo $$test >> $$FAILED; fi;
+rm -f $$log
+endef
+export ONE_TEST
 
 env:
 	uv sync -q --group dashboard
 
 tests: env
-	@failed=""; log=$$(mktemp); for test in $(TESTS); do \
-		runner="$(PYTHON)"; \
-		if grep -q '^def test_' $$test && ! grep -q '^if __name__' $$test; then \
-			runner="$(PYTHON) -m pytest -q -p no:cacheprovider"; fi; \
-		if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) $$runner $$test > $$log 2>&1; then \
-			echo "ok    $$test"; \
-		else \
-			echo "FAIL  $$test"; tail -n 15 $$log; failed="$$failed $$test"; \
-		fi; \
-	done; rm -f $$log; \
-	if [ -n "$$failed" ]; then echo "failed:$$failed"; exit 1; fi
+	@FAILED=$$(mktemp); export FAILED; \
+	printf '%s\n' $(TESTS) | xargs -P $(JOBS) -n 1 sh -c "$$ONE_TEST" one; \
+	failed=$$(paste -sd ' ' $$FAILED); rm -f $$FAILED; \
+	if [ -n "$$failed" ]; then echo "failed: $$failed"; exit 1; fi
 
 # Rebuild the paper's PDF and LaTeX from paper/source/score.md (pandoc + xelatex or tectonic).
 paper:
