@@ -42,9 +42,11 @@ own sound; paid and cleared by the runner like any paid row.
   shot without a sound under it. Whether a film reads well is the creator's call. One card class (`CLASSES`
   gpu-24gb): a dearer class taken when it is out of stock would be a fallback chain inside the batch.
 - **The environment's own film** (`final.py`, the environment-film row, #28): one environment node, free (a local
-  ffmpeg cut), reading every film script in `data/films/` and, beside it, the place films they show
-  (demo-film, demo-film-extra), so the runner plans and prices it with them. Blocked until the script says
-  `"final": true`; every segment names its `seconds` and is a cut it makes (title, text, walk-through, hero still),
+  ffmpeg cut), reading every film script the creator locked on the cockpit's Film step
+  (`$SCORE_DASHBOARD_HOME/films/locked/<film>.json`, the environment's `dashboard` root; a new lock moves its key)
+  and, beside it, the place films they show (demo-film, demo-film-extra), so the runner plans and prices it with
+  them. Blocked while none is locked (the lock is his yes; the starters in `data/films/` are read by nothing here
+  but needs.py's film gaps); every segment names its `seconds` and is a cut it makes (title, text, walk-through, hero still),
   else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards, before and after need
   frames no row makes yet). The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
   (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps

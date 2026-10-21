@@ -15,7 +15,8 @@ gaps price of every other paid step (ROUTE leaves out the prop route's steps, wh
 """
 from collections import Counter
 
-from score.dashboard.checkout import pricing
+from score.dashboard.checkout import WORLD, pricing
+from score.dashboard.films import script
 from score.dashboard.proposals import benchmarks
 from score.dashboard.state import groups, gaps as gap_sums, money
 
@@ -335,10 +336,20 @@ def layer_of(stage):
 
 def now_items(items, approved):
     """The basket items the Buy screen's batch yes buys: every item a run on main buys now but the Benchmarks, the
-    ones waiting on a missing input and any at a place whose design the creator has not approved (`approved`,
-    CONTEXT.md "design": no step is bought on a concept he did not approve; none before one is approved)."""
+    ones waiting on a missing input, any at a place whose design the creator has not approved (`approved`,
+    CONTEXT.md "design": no step is bought on a concept he did not approve; none before one is approved) and any
+    holding a film row while no film script is locked (`film_waits`, the Film step)."""
+    waits = film_waits()
     return [item for item in items if item["id"] != benchmarks.ID and not item.get("missing")
-            and approved and set(item.get("places", [])) <= set(approved)]
+            and approved and set(item.get("places", [])) <= set(approved)
+            and not (waits and any(script.films_node(node) for node in item.get("nodes", {})))]
+
+
+def film_waits():
+    """"film script not locked" while the environment has no locked film script (the Film step: the lock is his
+    approval of the film the batch makes), else ""."""
+    from django.conf import settings
+    return "" if script.locked_films(settings.SCORE_HOME, WORLD) else "film script not locked"
 
 
 GAME = "complete/game"  # the gate that finds a place's layout still taken from the source game

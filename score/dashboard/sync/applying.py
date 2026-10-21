@@ -4,7 +4,8 @@ local SCORE_OWNER), a launch basket planned and checked with the same guard as a
 marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
 owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
 owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, Discusses, picks and back to the generated wording (CONCEPT_KINDS), his
-environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS) and his plan review's clicks (PLAN_KINDS),
+environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS), his plan review's clicks (PLAN_KINDS) and
+his film script's Lock and Unlock (film-lock),
 each through the local cockpit's own owner-only function."""
 import dataclasses
 import json
@@ -274,6 +275,9 @@ def apply(item, source, chosen=None):
         return apply_environment_reference(item, source)
     if kind in PLAN_KINDS:
         return apply_concept_said(item, PLAN_KINDS[kind])
+    if kind == "film-lock":  # his Lock or Unlock of a film script, which the environment-film row reads here
+        from score.dashboard.pages import films
+        return apply_concept_said(item, films.film_locked)
     if kind in OWNER_FIGURES:
         return apply_owner_figure(item)
     return Applied("refused", f"unknown request kind {kind!r}")

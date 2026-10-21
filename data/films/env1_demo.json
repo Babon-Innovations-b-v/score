@@ -4,6 +4,7 @@
  "film": "env1_demo",
  "title": "SCORE: Environment 1",
  "world": "world1",
+ "default": true,
  "target_seconds": 70,
  "size": [1280, 720],
  "rate": 24,

@@ -8,14 +8,16 @@
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
 } }
 </script>
-<p class="crumbs"><a href="/film/">Films</a><span>/</span><span>{{ film.film }}</span></p>
+<p class="crumbs"><a href="/film/all/">Films</a><span>/</span><span>{{ film.film }}</span></p>
 <div class="page-head film-head">
   <h1>{{ film.title }}</h1>
   <div class="film-length-readout" id="length" aria-live="polite"></div>
-  <span class="status quiet" id="origin">{% if origin == "saved" %}saved in the cockpit{% else %}the starter script{% endif %}</span>
+  <span class="status quiet" id="origin"{% if default %} title="the environment's own film"{% endif %}>{% if origin == "saved" %}saved in the cockpit{% elif origin == "default" %}the default film{% else %}the starter script{% endif %}</span>
+  <span class="status {% if locked %}done{% else %}review{% endif %}" id="lock-state" data-v title="the lock is your approval: the batch films this script and Buy waits for it; unlock to change it until a batch is bought">{% if locked %}locked{% else %}not locked{% endif %}</span>
   <span class="grow"></span>
   <output class="small soft" id="said"></output>
-  {% if owner %}<button class="primary" id="save" type="button" disabled>Saved</button>{% endif %}
+  {% if owner %}<button class="primary" id="save" type="button" disabled>Saved</button>
+  <button class="{% if locked %}button{% else %}primary{% endif %}" id="lock" type="button">{% if locked %}Unlock{% else %}Lock{% endif %}</button>{% endif %}
 </div>
 
 {% if preview %}<section class="film-rendered" aria-label="the rendered free preview">

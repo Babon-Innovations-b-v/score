@@ -13,12 +13,14 @@ from django.db import IntegrityError, transaction
 
 from score.dashboard import state
 from score.dashboard.checkout import WORLD, pricing
+from score.dashboard.films import script
 from score.dashboard.launch import guard
 from score.dashboard.launch.backend import GroupPlan, RunGroup
 from score.dashboard.pages import actions
 from score.dashboard.pages.basket import basket_root
 from score.dashboard.pages.models import Checkout, Launch, Plan, is_owner
 from score.dashboard.proposals import records
+from score.dashboard.state import screens
 
 ACTIVE = ("launching",)
 BUFFER = 1.10  # a batch's stop is its high plus 10%, set by the owner's yes, never a figure he sets (owner, 2026-10-20)
@@ -71,6 +73,9 @@ def item_refusals(items):
         unpriced = pricing.totals(item["nodes"])["unpriced"]
         if unpriced:
             found.append(f"{label(item)}: the runner could not price {', '.join(unpriced[:5])}")
+    filming = [item for item in items if any(script.films_node(node) for node in item["nodes"])]
+    if filming and screens.film_waits():
+        found.append(f"{label(filming[0])}: {screens.film_waits()} (the Film step)")
     return found
 
 

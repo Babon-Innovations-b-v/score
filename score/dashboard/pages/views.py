@@ -140,7 +140,7 @@ def buy(request):
     return render(request, "pages/buy.html", {
         "design": design, "batch": batch, "estimate": cockpit.estimate(batch["estimate"]), "money": found["view"],
         "last": basket_items.last_batch(), "figure": cockpit.month_money(found["view"])["models"] is None,
-        "key": uuid.uuid4().hex})
+        "key": uuid.uuid4().hex, "film_waits": screens.film_waits()})
 
 
 def place_page(request, place):

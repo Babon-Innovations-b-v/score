@@ -398,7 +398,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   it is made from, the price and his questions with our recommended answers; his buy or not now (`BasketChoice`) and
   his answers (`BasketAnswer`; kept in `answers.json` on the store's machine, hosted through a SyncRequest of kind
   `answer`). The page's lower part keeps the steps he queued by hand.
-- **`films/`** the film script (its own overlay): the FILM pages' editor, free three.js preview on the web copies and
+- **`films/`** the film script (its own overlay): the top bar's Film, the design step after the scenes and before
+  Buy (`/film/`, the environment's default film; his Lock its approval, which the environment-film row reads and Buy
+  waits for, "film script not locked" on the Buy screen), the FILM pages' editor, free three.js preview on the web copies and
   films, and render items priced from measured frames; scripts saved in `$SCORE_DASHBOARD_HOME/films/`, starters in
   `data/films/`; `film-preview <film>` renders its free preview end to end (screen takes, setting animation, scale
   zoom), which the FILM page plays and the export carries.

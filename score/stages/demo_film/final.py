@@ -1,12 +1,15 @@
-"""environment-film: the environment's own final film, cut once from its film script (CONTEXT.md "film script",
-`data/films/<film>.json`) over its places' accepted films; one environment node, free (a local cut with ffmpeg, no
-card), so the runner plans and prices it with the films it reads (the paid demo-film and demo-film-extra rows).
+"""environment-film: the environment's own final film, cut once from each film script the creator locked (CONTEXT.md
+"film script", "lock": the Film step's Lock in the cockpit keeps a copy in the cockpit's home,
+`$SCORE_DASHBOARD_HOME/films/locked/<film>.json`, on the store's machine, hosted through the sync) over its places'
+accepted films; one environment node, free (a local cut with ffmpeg, no card), so the runner plans and prices it with
+the films it reads (the paid demo-film and demo-film-extra rows). A new lock moves its key; the starters in
+data/films/ and his unlocked edits are read by nothing here.
 
-    files      every film script in data/films/, and the cut's tools
+    files      every locked film script, and the cut's tools
     beside     demo-film@<place> and demo-film-extra@<place> for each place a script's walk-through or hero still
                shows (shown_places), each where that row applies
 
-A script is cut only after the creator's yes: until it says `"final": true` the node stands Blocked, and the free
+A script is cut only after the creator's yes, his lock: with none locked the node stands Blocked, and the free
 preview is the FILM page's (score/dashboard/films). Before anything is cut every segment must say its `seconds` (a
 final cut holds no default that could move under it) and be a cut this row makes (MADE: title and text cards, a
 place's walk-through from its accepted film, a hero still from its film's first frame), its walk-through's sound its
@@ -26,6 +29,7 @@ layer focus and split, step cards, before and after, orbit).
                    node reads only films that passed it.
 """
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -33,9 +37,13 @@ import sys
 
 from score import checks, contracts, graph
 from score.stages import demo_film
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-SCRIPTS = REPO / "data/films"
+# The cockpit's home (score/dashboard/site/settings.py SCORE_HOME), the environment's `dashboard` root, and the locked
+# scripts in it (score/dashboard/films/script.py LOCKED_FOLDER).
+DASHBOARD = pathlib.Path(os.environ.get("SCORE_DASHBOARD_HOME", PROPS_HOME / "dashboard"))
+LOCKED = "films/locked"
 OWN, EXTRA = "demo-film", "demo-film-extra"
 # The cuts this row makes from what its films hold; every other cut needs frames no row renders yet.
 WORDS, WALK, STILL = ("title", "text"), "walk-through", "hero-still"
@@ -52,15 +60,15 @@ OUTPUTS = ("film.mp4", "timeline.json")
 
 
 def scripts():
-    """{film: its script} of every film script in data/films/."""
-    return {path.stem: json.loads(path.read_text()) for path in sorted(SCRIPTS.glob("*.json"))}
+    """{film: its script} of every locked film script."""
+    return {path.stem: json.loads(path.read_text()) for path in sorted((DASHBOARD / LOCKED).glob("*.json"))}
 
 
 def files(place=None):
-    """Every film script, keyed `script <film>`, and every tool file the cut is made with (the place films' and
-    showcase.py), so a change to them makes the film again."""
+    """Every locked film script, keyed `script <film>`, and every tool file the cut is made with (the place films'
+    and showcase.py), so a lock or a change to them makes the film again."""
     tools = {f"tool {path}": "{repo}/" + path for path in (*demo_film.TOOLS, "tools/review/showcase.py")}
-    return {**tools, **{f"script {film}": "{data}/films/" + film + ".json" for film in scripts()}}
+    return {**tools, **{f"script {film}": "{dashboard}/" + f"{LOCKED}/{film}.json" for film in scripts()}}
 
 
 def shown(script):
@@ -84,11 +92,9 @@ def film_node(segment):
 
 
 def require_yes(named):
-    """Blocked while a script of `named` ({film: script}) lacks the creator's `"final": true`."""
-    waiting = sorted(film for film, script in named.items() if script.get("final") is not True)
-    if waiting:
-        raise graph.Blocked(f"no yes yet for the film {', '.join(waiting)}: play it free on the FILM page, then "
-                            "write \"final\": true in its script")
+    """Blocked while no script is locked (`named` {film: script}, the locked ones): the lock is the creator's yes."""
+    if not named:
+        raise graph.Blocked("no film script locked: play it free on the Film step, then lock it")
 
 
 def plan_faults(script):

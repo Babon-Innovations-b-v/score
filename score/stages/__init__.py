@@ -475,8 +475,8 @@ DEMO_STILLS = dataclasses.replace(DEMO_FILM, name="demo-stills", make=demo_still
                                   checks=demo_stills.CHECKS, files=demo_stills.files, applies=demo_stills.applies,
                                   euros=demo_stills.euros())
 
-# The environment's own final film (#28), cut locally from its film script (data/films/) over the place films it
-# shows, read beside: an environment node the runner plans and prices with the paid films it reads, free itself.
+# The environment's own final film (#28), cut locally from each film script locked in the cockpit over the place films
+# it shows, read beside: an environment node the runner plans and prices with the paid films it reads, free itself.
 ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make, demo_film_final.CONTRACT,
                                demo_film_final.CHECKS, files=demo_film_final.files,
                                beside={"demo-film": ("demo-film", 1), "demo-film-extra": ("demo-film-extra", 1)},
@@ -983,7 +983,7 @@ def world1():
     """Environment 1: its record, its data in the repository, its old outputs in the work folder, the prop tools' home (the
     raw models, the routes' bake jobs) and the repository (the code a stage hands to a rented machine)."""
     return graph.Environment.from_file(WORLD1, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"),
-                                 home=str(PROPS_HOME), repo=str(REPO))
+                                 home=str(PROPS_HOME), repo=str(REPO), dashboard=str(demo_film_final.DASHBOARD))
 
 
 def places(world, store=None):
