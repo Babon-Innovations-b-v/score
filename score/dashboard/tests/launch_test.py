@@ -186,10 +186,12 @@ def test_the_result_line_gives_the_state(tmp_path):
 
 def test_the_real_detached_start_line_is_read_and_followed_to_its_result_line():
     """The real `score run --detach` in this test's own PROPS_HOME (conftest), a run with nothing to make and nothing
-    paid: the backend reads its start line, sees it running or ended, and ends on its result line."""
+    paid: the backend reads its start line, sees it running or ended, and ends on its result line. The camp's
+    physics layer: a stage for the places with physics data only (the habitat), so the run holds no node at all
+    (terrain, an empty store's first row, builds the grounds for minutes)."""
     import time
     backend = localrun.LocalBackend()
-    handle = backend.launch(RunGroup(("camp",), ("terrain",)), 1, None)
+    handle = backend.launch(RunGroup(("camp",), ("physics-layer",)), 1, None)
     assert handle.refused is None and handle.pid and pathlib.Path(handle.log).is_file(), handle
     deadline = time.time() + 120
     while (found := backend.poll(handle)).state == "running" and time.time() < deadline:
