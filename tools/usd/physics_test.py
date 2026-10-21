@@ -1,7 +1,7 @@
 """Check the physics layers on a small place made here, without Blender: each object's mass from its area, its
 material and triangles, a drop lifted over its target, a blocked fall refused, the hinge at its pins' middle with its
-limits and its motor's window, the hand's path, the layers' order under the edit layer, and a run's motion played
-back by time samples.
+limits and its motor's window, the hand's path, the layers' order under the edit layer, a run's motion played back by
+time samples, and a record without the environment's gravity refused.
 
 Run: .venv/bin/python tools/usd/physics_test.py [<folder>]   (a folder keeps the toy place, for a Blender run)
 """
@@ -164,6 +164,19 @@ def a_blocked_fall_is_refused():
         assert found["faults"] == ["crate_1: table_1 stands in its fall"], found["faults"]
 
 
+def a_record_without_gravity_is_refused():
+    """The pull is the environment concept's physics, carried by the record; none is refused by name, no fallback."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = toy_place(pathlib.Path(temporary) / PLACE)
+        record = {key: value for key, value in RECORD.items() if key != "gravity"}
+        try:
+            physics.write(folder, record, MATERIALS)
+        except SystemExit as refusal:
+            assert "no physics for moon" in str(refusal), refusal
+        else:
+            raise AssertionError("a record without gravity was written")
+
+
 def main():
     kept = sys.argv[1] if len(sys.argv) > 1 else None
     with tempfile.TemporaryDirectory() as temporary:
@@ -174,6 +187,7 @@ def main():
         if not kept:
             the_motion_plays_back(folder)
     a_blocked_fall_is_refused()
+    a_record_without_gravity_is_refused()
     print("physics_test: ok")
 
 
