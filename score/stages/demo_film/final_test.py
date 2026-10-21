@@ -17,9 +17,9 @@ from score import checks, graph  # noqa: E402
 from score.stages.demo_film import final, needs  # noqa: E402
 
 
-def a_script(segments, ready=True):
+def a_script(segments):
     return {"format": "score-film-script", "version": 1, "film": "toy", "size": [1280, 720], "rate": 24,
-            "segments": segments, **({"final": True} if ready else {})}
+            "segments": segments}
 
 
 WALKS = [{"cut": "title", "shows": {"world": "toy"}, "sound": "bed", "text": "Toy", "seconds": 2.0},
@@ -36,7 +36,7 @@ def refused(call):
 
 
 def test_nothing_is_cut_before_the_creators_yes_and_a_sound_plan():
-    assert "no yes yet for the film toy" in refused(lambda: final.require_yes({"toy": a_script(WALKS, ready=False)}))
+    assert "no film script locked" in refused(lambda: final.require_yes({}))
     final.require_yes({"toy": a_script(WALKS)})
     assert final.plan_faults(a_script(WALKS)) == []
     unsound = a_script([{"cut": "exploded", "shows": {"place": "alpha"}},
@@ -57,13 +57,51 @@ def test_the_owners_pacing_fails_a_place_cut_at_three_and_a_half_seconds():
     assert final.pacing_faults(final.script_segments(a_script(two_shots))) == []
 
 
+def locked_in(home, *films):
+    """The cockpit's home `home` holding `films` ({film: script}) locked, as the Film step's Lock keeps them."""
+    folder = home / final.LOCKED
+    folder.mkdir(parents=True, exist_ok=True)
+    for path in folder.glob("*.json"):
+        path.unlink()
+    for film, script in films:
+        (folder / f"{film}.json").write_text(json.dumps(script))
+    final.DASHBOARD = home
+
+
 def test_world1s_script_is_paced_and_names_the_cuts_no_row_makes_yet():
-    k9 = final.scripts()["k9"]
+    k9 = json.loads((REPO / "data/films/k9.json").read_text())
     assert final.pacing_faults(final.script_segments(k9)) == []
     faults = final.plan_faults(k9)
     assert faults and all("no row makes" in fault for fault in faults), faults
-    assert len(final.shown_places()) == 25 and final.film_node(
-        {"shows": {"place": "hangar", "film": "hull"}}) == ("demo-film-extra@hangar", "hull")
+    kept = final.DASHBOARD
+    locked_in(pathlib.Path(tempfile.mkdtemp()), ("k9", k9))
+    try:
+        assert len(final.shown_places()) == 25 and final.film_node(
+            {"shows": {"place": "hangar", "film": "hull"}}) == ("demo-film-extra@hangar", "hull")
+    finally:
+        final.DASHBOARD = kept
+
+
+def test_the_locked_script_is_the_rows_input_and_a_new_lock_moves_its_key():
+    """The Film step's seam: the environment-film row reads only the locked scripts in the cockpit's home, so a lock,
+    a changed lock and an unlock each move the files part of its key; the starters and his unlocked edits do not."""
+    from score import stages
+    from score.store import Store
+    home, kept = pathlib.Path(tempfile.mkdtemp()), final.DASHBOARD
+    world = graph.Environment("world1", 0, {**stages.world1().roots, "dashboard": str(home)})
+    runner = graph.Runner(stages.STAGES, world, Store.in_folder(home / "store"))
+    row = runner.stages["environment-film"]
+    try:
+        locked_in(home)
+        assert not any(name.startswith("script ") for name in runner.file_keys(row, None))
+        locked_in(home, ("toy", a_script(WALKS)))
+        first = runner.file_keys(row, None)["script toy"]
+        assert final.shown_places() == ["alpha", "beta"]
+        locked_in(home, ("toy", a_script(WALKS[:2])))
+        assert runner.file_keys(row, None)["script toy"] != first
+        assert final.shown_places() == ["alpha"]
+    finally:
+        final.DASHBOARD = kept
 
 
 def test_a_place_a_script_shows_needs_its_film_record_its_yes_and_two_shots():

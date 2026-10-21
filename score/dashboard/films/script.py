@@ -223,3 +223,56 @@ def save(home, script):
     partial.write_text(json.dumps(script, indent=1) + "\n")
     partial.replace(path)
     return path
+
+
+# The lock (CONTEXT.md "lock", "film script"): the creator's approval of a script, a copy of it as he locked it. The
+# environment-film row reads only these (score/stages/demo_film/final.py), so a new lock moves its key.
+LOCKED_FOLDER = "films/locked"
+# The rows that film (the place films and the environment's cut): Buy refuses them while no script is locked.
+FILM_STAGES = ("demo-film", "demo-film-extra", "environment-film")
+
+
+def locked_path(home, film):
+    return pathlib.Path(home) / LOCKED_FOLDER / f"{film}.json"
+
+
+def locked(home, film):
+    """The film's script as he locked it, or None while it is not locked."""
+    path = locked_path(home, film)
+    return json.loads(path.read_text()) if path.is_file() else None
+
+
+def lock(home, script):
+    """Keep the script as locked, swapped in whole; its path."""
+    path = locked_path(home, script["film"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_suffix(f".{os.getpid()}.partial")
+    partial.write_text(json.dumps(script, indent=1) + "\n")
+    partial.replace(path)
+    return path
+
+
+def unlock(home, film):
+    locked_path(home, film).unlink(missing_ok=True)
+
+
+def locked_films(home, world):
+    """The names of the environment's locked scripts, sorted."""
+    folder = pathlib.Path(home) / LOCKED_FOLDER
+    return sorted(path.stem for path in folder.glob("*.json")
+                  if json.loads(path.read_text()).get("world") == world) if folder.is_dir() else []
+
+
+def films_node(node):
+    """Whether a node is one of the film rows (FILM_STAGES)."""
+    return node.partition("@")[0] in FILM_STAGES
+
+
+def default_name(repo, home, world):
+    """The environment's own film: the script of it marked `"default": true` (a starter or his saved one), else
+    `<world>-film`, built from default.py until he saves it."""
+    for film in names(repo, home):
+        found = read(repo, home, film)[0]
+        if found.get("world") == world and found.get("default") is True:
+            return film
+    return f"{world}-film"

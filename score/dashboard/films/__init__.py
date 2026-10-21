@@ -2,8 +2,8 @@
 places' 3D web copies and existing films, and compiled to render items priced before anything is bought.
 
 One JSON file a film. The repository's copy, `data/films/<film>.json`, is the starter; the cockpit saves the creator's
-edits to `$SCORE_DASHBOARD_HOME/films/<film>.json`, which is read first. No stage reads either file today, so neither
-moves a key.
+edits to `$SCORE_DASHBOARD_HOME/films/<film>.json`, which is read first. No stage reads either; his Lock keeps a copy
+in `$SCORE_DASHBOARD_HOME/films/locked/<film>.json`, which the environment-film row reads (script.lock).
 
     {"format": "score-film-script", "version": 1, "film": "k9", "title": "World 1: 2099", "world": "world1",
      "target_seconds": 180, "size": [1280, 720], "rate": 24, "why": "...",

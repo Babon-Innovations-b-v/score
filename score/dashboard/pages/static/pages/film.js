@@ -86,7 +86,7 @@ function segmentWords(segment) {
 function changed() {
   dirty = true;
   const save = $("save");
-  if (save) { save.disabled = false; save.textContent = "Save"; }
+  if (save && !given.locked) { save.disabled = false; save.textContent = "Save"; }
   drawTimeline();
   drawLength();
   player.reset();
@@ -453,6 +453,26 @@ async function save() {
   $("origin").textContent = "saved in the cockpit";
   $("said").textContent = "";
   drawRender();
+}
+
+// His Lock posts the script as the editor shows it (also saved as his); Unlock posts nothing. Locked, nothing saves.
+async function lockOrUnlock() {
+  const reply = await fetch(given.urls.lock, { method: "POST", credentials: "same-origin",
+                                               body: JSON.stringify(given.locked ? {} : doc),
+                                               headers: { "Content-Type": "application/json", "X-CSRFToken": token() } });
+  const body = await reply.json();
+  if (!reply.ok) { $("said").textContent = (body.faults || ["refused"]).join("; "); return; }
+  given.locked = body.locked;
+  dirty = false;
+  $("lock").textContent = given.locked ? "Unlock" : "Lock";
+  $("lock").className = given.locked ? "button" : "primary";
+  $("lock-state").textContent = given.locked ? "locked" : "not locked";
+  $("lock-state").className = `status ${given.locked ? "done" : "review"}`;
+  $("save").style.display = given.locked ? "none" : "";
+  $("save").disabled = true;
+  $("save").textContent = "Saved";
+  if (given.locked) $("origin").textContent = "saved in the cockpit";
+  $("said").textContent = "";
 }
 
 async function loadPictures(place) {
@@ -1053,6 +1073,8 @@ $("play").onclick = () => player.toggle();
 $("scrub").oninput = () => player.seek(Number($("scrub").value));
 $("whole").onchange = () => { places.clear(); player.reset(); };
 if ($("save")) $("save").onclick = save;
+if ($("lock")) $("lock").onclick = lockOrUnlock;
+if ($("save") && given.locked) $("save").style.display = "none";
 window.filmPlayer = player;  // the page's own handle, for a headless look at a given moment
 
 drawLength();

@@ -1,7 +1,7 @@
 # score/dashboard/films/
 
 The film script (CONTEXT.md): `__init__.py`'s docstring has the format and the render hook; `script.py` the cut types,
-their defaults, the clock and the checks; `media.py` what exists per place (films, hero, 3D copy, layers, step
+their defaults, the clock, the checks and the lock; `default.py` an environment's default film; `media.py` what exists per place (films, hero, 3D copy, layers, step
 pictures); `render.py` the render items. The pages are `pages/films.py`, `templates/pages/film*.html` and
 `static/pages/film.js` (the editor and the three.js preview), `film.css`. `takes.py` is a screen take's steps and
 its refusal (CONTEXT.md "screen take"). `preview/` (store's machine only, never imported hosted) renders a script's
@@ -18,8 +18,22 @@ Rules:
 - **Plain files, both modes.** Nothing here imports `score.stages`, `score.store` or `tools.*`: the hosted process
   reads it too. The format is plain JSON so showcase.py and the demo-film rows read it without importing this package.
 - **The cockpit writes only its home** (`$SCORE_DASHBOARD_HOME/films/<film>.json`); `data/films/<film>.json` is the
-  starter, changed by a commit, never by the page. No stage reads either, so no key moves; a stage that reads one
-  later declares it on purpose.
+  starter, changed by a commit, never by the page. No stage reads either, so no key moves.
+- **The lock is the one input a stage reads** (owner, 2026-10-21: the film is a design step, after the scenes and
+  before Buy, the top bar's Film). His Lock (`/film/<film>/lock/`, SyncRequest `film-lock`, applied on the store's
+  machine by `pages/films.film_locked`, hosted through the sync and on the hosted home at once) saves the script as
+  the editor shows it and keeps a copy in `$SCORE_DASHBOARD_HOME/films/locked/<film>.json` (`script.lock`); the
+  environment-film row reads only those (`score/stages/demo_film/final.py`, the environment's `dashboard` root), so a
+  lock, a changed lock or an unlock moves its key. Locked, nothing saves over it; Unlock is refused once a checkout
+  since the lock bought a film row (`script.FILM_STAGES`; hosted, any checkout sent since). Buy waits for it as for a
+  scene's design: while the environment has no locked script (`screens.film_waits`) the Buy screen says "film script
+  not locked", `screens.now_items` leaves out every item holding a film row and the checkout refuses one.
+- **Every environment opens on its default film** (owner, 2026-10-21: "just do my script as the default setup u can
+  then change"): `/film/` goes to the environment's film (`script.default_name`: its script marked `"default": true`,
+  environment 1's `env1_demo` starter, else `<world>-film`), built until he saves it by `default.py` from his script's
+  structure filled in from the environment's own setting and scenes (the site holding the most scenes, its first
+  three rooms, each body's library surface as earlier scripts drew it); never tied to one environment by name. The
+  list of every film is `/film/all/`.
 - **Free preview, priced renders.** The preview uses only what exists (the web copies, accepted films, step
   pictures). A render item is priced only from measured runs (`render.MEASURED`, film frames per place in
   `render.FILM_FRAME_EUROS`, read from the cloud ledgers; stills as look frames); a kind never rendered on a card reads "not measured

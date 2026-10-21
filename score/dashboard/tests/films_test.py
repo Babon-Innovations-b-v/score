@@ -112,7 +112,7 @@ def test_the_film_pages_render_with_the_preview_data(world, tmp_path, monkeypatc
         {"cut": "walk-through", "shows": {"place": "alpha"}, "text": "Alpha", "seconds": 3.5},
         {"cut": "layer-split", "shows": {"place": "alpha"}}]))
     client = signed_in()
-    listing = client.get("/film/").content.decode()
+    listing = client.get("/film/all/").content.decode()
     assert "/film/trailer/" in listing and "A trailer" in listing
     html = client.get("/film/trailer/").content.decode()
     editor = editor_of(html)
@@ -255,3 +255,88 @@ def test_environment_1_demo_is_sound():
     film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "env1_demo")
     assert origin == "starter" and script.faults(film) == []
     assert script.total_seconds(film) <= film["target_seconds"]
+
+
+def locking(client, film, body):
+    return client.post(f"/film/{film}/lock/", json.dumps(body), content_type="application/json")
+
+
+def test_a_lock_is_kept_where_the_film_row_reads_it_and_stands_once_a_batch_bought_on_it(world, tmp_path, monkeypatch):
+    """The Film step's Lock: the script as the editor shows it saved and locked in the cockpit's home (what the
+    environment-film row reads), nothing saved over it while locked, Unlock until a batch buys a film row on it."""
+    from score.dashboard.pages.models import Checkout
+    monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
+    film = a_script([{"cut": "walk-through", "shows": {"place": "alpha"}}])
+    owner = signed_in()
+    assert locking(signed_in("other"), "trailer", film).status_code == 403
+    assert locking(owner, "trailer", {**film, "film": "other"}).status_code == 409
+    answer = locking(owner, "trailer", film)
+    assert answer.status_code == 200 and answer.json() == {"said": "locked trailer", "locked": True}
+    assert script.locked(settings.SCORE_HOME, "trailer") == film == script.read(tmp_path / "repo", settings.SCORE_HOME,
+                                                                              "trailer")[0]
+    assert script.locked_films(settings.SCORE_HOME, "world1") == ["trailer"]
+    refused = owner.post("/film/trailer/save/", json.dumps(film), content_type="application/json")
+    assert refused.status_code == 409 and refused.json()["faults"] == ["it is locked: unlock it to change it"]
+    assert editor_of(owner.get("/film/trailer/").text)["locked"] is True
+    assert locking(owner, "trailer", {}).json() == {"said": "unlocked trailer", "locked": False}
+    assert script.locked(settings.SCORE_HOME, "trailer") is None
+    locking(owner, "trailer", film)
+    Checkout.objects.create(key="k" * 32, by="joey", state="launched",
+                            items=[{"id": "beta-films", "nodes": {"demo-film@beta": {}}}])
+    stands = locking(owner, "trailer", {})
+    assert stands.status_code == 409 and "bought its film rows on this lock" in stands.json()["faults"][0]
+    assert script.locked(settings.SCORE_HOME, "trailer") == film
+
+
+def test_buy_leaves_out_the_film_rows_until_a_film_script_is_locked(world, tmp_path, monkeypatch):
+    """Buy waits for the Film step as it waits for a scene's design: an item holding a film row is not bought, and
+    the checkout refuses one, while no film script is locked."""
+    import shutil
+    from score.dashboard.checkout import flow
+    from score.dashboard.state import screens
+    shutil.rmtree(settings.SCORE_HOME / script.LOCKED_FOLDER, ignore_errors=True)  # the home is the session's
+    price = {"likely_euros": 1.0, "high_euros": 2.0, "runs": 1}
+    items = [{"id": f"alpha-{layer}", "place": "alpha", "layers": [layer], "places": ["alpha"],
+              "nodes": {node: price}, "missing": []}
+             for layer, node in (("stage", "assembly@alpha"), ("films", "demo-film@alpha"))]
+    assert screens.film_waits() == "film script not locked"
+    assert [item["id"] for item in screens.now_items(items, ["alpha"])] == ["alpha-stage"]
+    assert any("film script not locked" in refusal for refusal in flow.item_refusals(items))
+    html = signed_in().get("/buy/").content.decode()
+    assert "film script not locked" in html and 'href="/film/"' in html
+    script.lock(settings.SCORE_HOME, a_script([{"cut": "walk-through", "shows": {"place": "alpha"}}]))
+    assert screens.film_waits() == ""
+    assert [item["id"] for item in screens.now_items(items, ["alpha"])] == ["alpha-stage", "alpha-films"]
+    assert not any("film" in refusal for refusal in flow.item_refusals(items))
+
+
+SETTING = {"bodies": [{"body": "sun", "kelvin": 5772}, {"body": "kepler", "reference": "kepler"},
+                      {"body": "tess", "reference": "tess"}],
+           "sites": [{"place": "port", "on": "tess"}, {"place": "camp", "on": "kepler"}]}
+
+
+def test_an_environments_default_film_is_the_owners_structure_filled_from_its_own_scenes():
+    """The owner's script for environment 1 as every environment's default (2026-10-21): the app's steps, then one
+    shot from the setting down into the top scene's rooms, here an environment that shares no name with his."""
+    from score.dashboard.films import default
+    within = {"dock": "port", "bar": "port", "hold": "port", "deck": "port", "tent": "camp"}
+    facts = default.facts_of("world7", "Environment 7", SETTING, within, {"port": "The Port"}, {"tess": "tess_dust"})
+    assert facts["top"] == "port" and [room for room, _ in facts["rooms"]] == ["dock", "bar", "hold"]
+    film = default.built("world7-film", facts)
+    assert script.faults(film, {"port", "camp", "dock", "bar", "hold", "deck", "tent"}) == []
+    assert [segment["cut"] for segment in film["segments"]] == [
+        "title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take", "scale-zoom"]
+    pages = [segment["shows"].get("page") for segment in film["segments"] if segment["cut"] == "screen-take"]
+    assert pages == ["/environments/world7/", "/environments/world7/", "/concept/dock/", "/concept/port/"]
+    zoom = film["segments"][-1]
+    assert zoom["legs"][-1]["rooms"] == ["dock", "bar", "hold"] and zoom["legs"][3]["into"] == "dock"
+    assert zoom["surfaces"] == {"tess": "tess_dust", "ground": "tess_dust"} and "kepler" in zoom["waiting"]
+    assert ".sp-card:nth-child(3)" in json.dumps(film["segments"][1]) and "world1" not in json.dumps(film)
+    assert default.facts_of("world7", "E", {"bodies": [], "sites": []}, within, {}, {}) is None
+
+
+def test_the_film_step_opens_on_the_environments_own_film(world, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
+    assert signed_in().get("/film/")["Location"] == "/film/world1-film/"
+    script.save(settings.SCORE_HOME, {**a_script([]), "film": "mine", "default": True})
+    assert signed_in("other").get("/film/")["Location"] == "/film/mine/"
