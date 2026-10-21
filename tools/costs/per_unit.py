@@ -71,8 +71,9 @@ FORECASTS = {
                   "is this stage's there, by their take",
     "models": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast "
               "to make at the place (prop_takes)",
-    "light_jobs": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record "
-                  "(data/scene/<place>.json), VIEWS_A_JOB a job",
+    "light_jobs": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record: its accepted "
+                  "scene-record output's views, else those the scene-record row writes from its filed plan "
+                  "(price.planned_views: a standing spot one, a door one but outdoors), VIEWS_A_JOB a job",
     "kit_jobs": "score/stages/earth_seed kit_jobs: route.py late-plan's picture sets of the place's code-built kit "
                 "pieces (data/kit/<place>.json), one make_kit job a set",
     "one": "one a place (one for an environment node)",

@@ -277,6 +277,43 @@ def test_the_forecast_rules_one_and_unknown():
             raise AssertionError("an unknown forecast rule must be refused")
 
 
+def test_the_light_jobs_are_the_accepted_records_views_else_the_plans():
+    """Before its scene record stands accepted a place's light jobs are the views the scene-record row writes from its
+    plan (a door and a standing spot each, an outdoor place's spots only); once it does, that record's views; no plan
+    with leads, none counted. Never an old hand-kept record's."""
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "plans").mkdir()
+    (data / "scene").mkdir()
+    doors = [["n", 1.0, 1.0, "door"]] * 3
+    (data / "plans/room.json").write_text(json.dumps({"shell": "kit", "doors": doors, "people": [[0, 0]] * 2,
+                                                      "leads": {}}))
+    (data / "plans/yard.json").write_text(json.dumps({"shell": "outdoor", "inside": False, "doors": doors,
+                                                      "people": [[0, 0]] * 5, "leads": {}}))
+    (data / "plans/sketch.json").write_text(json.dumps({"shell": "kit", "doors": doors}))
+    (data / "scene/sketch.json").write_text(json.dumps({"views": [{}] * 9}))
+
+    class Accepted:
+        def __init__(self, held):
+            self.held = held
+
+        def accepted(self, node):
+            return node if node in self.held else None
+
+        def read_file(self, output, name):
+            return self.held[output]
+
+    default = Store.default
+    try:
+        Store.default = classmethod(lambda cls: Accepted({}))
+        assert price.light_jobs(data, "room") == 2  # five views, four a job
+        assert price.light_jobs(data, "yard") == 2  # five spots, no door view outdoors
+        assert price.light_jobs(data, "sketch") is None and price.light_jobs(data, "nowhere") is None
+        Store.default = classmethod(lambda cls: Accepted({"scene-record@room": {"views": [{}] * 9}}))
+        assert price.light_jobs(data, "room") == 3
+    finally:
+        Store.default = default
+
+
 def test_score_price_gaps_writes_its_record_whole_and_says_it_in_one_line():
     import score.__main__ as cli
     import score.store
