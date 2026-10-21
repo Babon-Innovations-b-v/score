@@ -12,8 +12,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`state/`** where the pages read from. `local.py` reads the store beside it, read-only, through `index.py` (the
   small areas walked once with os.scandir, every folder store of that root answering `keys` from it, rebuilt when
   older than 60 s); `exported.py` reads a pushed state export; both give the pydantic models of `models.py`.
-  A card a scene of the design (`local.scenes`: the places of the build, `stages.places`, and every scene drawn or
-  locked in the concept review; no kit or plan filed in the data names one since 2026-10-21), so a scene in design
+  A card a scene of the design (`local.scenes`: the places of the build, `stages.places`, the scenes of the tree as
+  his kept plans lay out within.json, its shells and the kept environment concept's places, less the removed, merged
+  and parts; a draw alone makes no scene: the old `ship`, drawn and then taken out, 2026-10-20), so a scene in design
   keeps its card and concept page before it is a place.
   A place's problems are its stopped steps, its accepted gaps and every standalone check's findings
   (`WORK/checks/<check>/<place>/findings.json`, `check_findings`, read while the outputs it judged stay accepted).

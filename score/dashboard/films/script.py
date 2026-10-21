@@ -276,10 +276,13 @@ def films_node(node):
 
 
 def default_name(repo, home, world):
-    """The environment's own film: the script of it marked `"default": true` (a starter or his saved one), else
-    `<world>-film`, built from default.py until he saves it."""
-    for film in names(repo, home):
-        found = read(repo, home, film)[0]
+    """The environment's own film: the starter of it marked `"default": true` (env1_demo; a saved copy of it stays
+    the default even when saved without the mark), else his saved one so marked, else `<world>-film`, built from
+    default.py until he saves it. A saved `<world>-film` is marked too, so it never wins over the starter."""
+    starters = [(film, json.loads(seed_path(repo, film).read_text())) for film in names(repo, home)
+                if seed_path(repo, film).is_file()]
+    saved = [(film, read(repo, home, film)[0]) for film in names(repo, home)]
+    for film, found in (*starters, *saved):
         if found.get("world") == world and found.get("default") is True:
             return film
     return f"{world}-film"

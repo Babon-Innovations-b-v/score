@@ -251,9 +251,12 @@ class LocalSource:
 
     def scenes(self):
         """Every scene of the design, done or not: the places of the build and each scene drawn or locked in the
-        concept review (no kit or plan names one since 2026-10-21)."""
+        concept review (no kit or plan names one since 2026-10-21), less those the design took out (within.json's
+        merged, his kept plans' removed, `hierarchy`) and the parts of another scene's outside: a draw kept in the
+        store never brings a taken-out scene back (the old ship, merged into the hangar, owner 2026-10-20)."""
         from score.review import concepts
-        return sorted({*self.places(), *concepts.placed(self.store)})
+        found = self.hierarchy()
+        return sorted({*self.places(), *concepts.placed(self.store)} - {*found["removed"], *found["parts"]})
 
     def looks(self):
         path = self.data / "definitions/place.json"

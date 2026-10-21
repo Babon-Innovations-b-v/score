@@ -395,6 +395,13 @@ def test_the_film_step_opens_on_the_environments_own_film(world, tmp_path, monke
     assert signed_in().get("/film/")["Location"] == "/film/world1-film/"
     script.save(settings.SCORE_HOME, {**a_script([]), "film": "mine", "default": True})
     assert signed_in("other").get("/film/")["Location"] == "/film/mine/"
+    # the hosted home of 2026-10-21: a saved world1-film marked default and a saved copy of the starter without the
+    # mark; the starter marked default still opens
+    (tmp_path / "repo/data/films").mkdir(parents=True)
+    (tmp_path / "repo/data/films/zz_demo.json").write_text(json.dumps({**a_script([]), "film": "zz_demo",
+                                                                        "default": True}))
+    script.save(settings.SCORE_HOME, {**a_script([]), "film": "zz_demo"})
+    assert signed_in("third").get("/film/")["Location"] == "/film/zz_demo/"
 
 
 def test_the_bed_starts_where_its_beats_fall_on_the_cuts_and_a_hum_at_its_start():

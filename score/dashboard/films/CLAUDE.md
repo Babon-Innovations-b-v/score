@@ -29,8 +29,9 @@ Rules:
   scene's design: while the environment has no locked script (`screens.film_waits`) the Buy screen says "film script
   not locked", `screens.now_items` leaves out every item holding a film row and the checkout refuses one.
 - **Every environment opens on its default film** (owner, 2026-10-21: "just do my script as the default setup u can
-  then change"): `/film/` goes to the environment's film (`script.default_name`: its script marked `"default": true`,
-  environment 1's `env1_demo` starter, else `<world>-film`), built until he saves it by `default.py` from his script's
+  then change"): `/film/` goes to the environment's film (`script.default_name`: its starter marked `"default": true`,
+  environment 1's `env1_demo`, even where a saved copy lost the mark; else a saved script so marked; else
+  `<world>-film`), built until he saves it by `default.py` from his script's
   structure filled in from the environment's own setting and scenes (the site holding the most scenes, its first
   three rooms, each body's library surface as earlier scripts drew it), then the whole environment (owner,
   2026-10-21: "its needs to show all of env 1"): every other top scene, the rest of its body's first, then body by

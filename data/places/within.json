@@ -26,7 +26,8 @@
   "street": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it"}
  },
  "merged": {
-  "navigation": {"into": "cockpit", "from": "the owner, 2026-10-21, on the hangar's plan: \"changed cockpit to cockpit and nav ; and removed nav ; ... i wanne merge them\""}
+  "navigation": {"into": "cockpit", "from": "the owner, 2026-10-21, on the hangar's plan: \"changed cockpit to cockpit and nav ; and removed nav ; ... i wanne merge them\""},
+  "ship": {"into": "hangar", "from": "the owner, 2026-10-20: the ship is no layer of its own, its rooms sit within the hangar (see within); its one old draw stays in the store, never a card (2026-10-21)"}
  },
  "parts": {
   "launch": {"of": "square", "as": "across the water in the distance, the rocket launch", "from": "the owner, 2026-10-21: \"the launch concept can just go; it's now the same as the main (Square)\": no concept of its own, its look in the Square's; the Square's build covers it (the owner, 2026-10-21)"}
