@@ -157,7 +157,7 @@ function kitRow(kind, label, count) {
   const row = document.createElement("li");
   row.dataset.kind = kind;
   row.tabIndex = 0;
-  row.title = kind ? "one alone" : "as its place lays it";
+  row.title = kind ? "one alone" : "as its scene lays it";
   row.append(Object.assign(document.createElement("span"), { textContent: label }), " ",
     Object.assign(document.createElement("span"), { textContent: `× ${count}`, className: "small" }));
   row.querySelectorAll("span").forEach((span) => span.setAttribute("data-v", ""));

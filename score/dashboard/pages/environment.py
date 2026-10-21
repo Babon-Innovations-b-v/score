@@ -26,12 +26,12 @@ from score.dashboard.state.files import file_ref
 ASK, SAVE, REFERENCE = "environment-ask", "environment-save", "environment-reference"
 QUESTIONS = (  # score/review/environment_concept.QUESTIONS (environment_test holds them equal): hosted imports none
     ("style", "Style", "What style holds the whole environment, in one short line?"),
-    ("setting", "Setting", "What does everything stand on: a plot of ground, a world, or several bodies that move one "
+    ("setting", "Physics", "What does everything stand on: a plot of ground, a world, or several bodies that move one "
                            "another? Name real bodies or give an invented one's values, what lights it and what is "
                            "too far to move, and say where each first place stands."),
     ("references", "Reference pictures", "Which pictures guide the look, and what is each one for?"),
-    ("places", "Places", "Which places come first?"),
-    ("insides", "Insides", "What places may each of them hold inside?"),
+    ("places", "Scenes", "Which places come first?"),
+    ("insides", "Child scenes", "What places may each of them hold inside?"),
 )
 LONGEST_PICTURE_TEXT = 17 * 1024 * 1024  # base64 of environment_concept.LARGEST_PICTURE
 # an export made before the environment concept was read into it: nothing to show, nothing to edit, until the next
@@ -65,7 +65,7 @@ BACKDROP_COLUMNS = (
     ("kelvin", "K", "its light's colour, when it has one"))
 PLOT_COLUMNS = (("name", "Plot", "flat ground with no body under it"), ("gravity", "Gravity m/s²", "its pull"))
 SITE_COLUMNS = (
-    ("place", "Site", "the top place standing there"), ("on", "On", "the body or plot it stands on"),
+    ("place", "Site", "the top scene standing there"), ("on", "On", "the body or plot it stands on"),
     ("latitude", "Lat °", "on a body: degrees north"), ("longitude", "Lon °", "on a body: degrees east"),
     ("x", "x m", "on a plot: metres east"), ("y", "y m", "on a plot: metres south"),
     ("height_m", "Height m", "over the ground's mean level"))

@@ -4,51 +4,51 @@
 <nav class="trail" aria-label="where"><a href="/" data-v>Home</a> <span class="sep">&rsaquo;</span> <b data-v>{{ title }}</b></nav>
 <section class="ec-head" aria-label="{{ title }}">
   <h1 class="phead-name" data-v>{{ title }}</h1>
-  <span class="ec-state" title="{% if shown.locked %}every place's concept is drawn from this; unlock to change it{% else %}being changed: no place is drawn until it is locked again{% endif %}{% if not shown.prefilled %} (version {{ shown.versions }}, {{ shown.by }}, {{ shown.at|slice:':16' }}){% endif %}">{% include "pages/c/dot.html" with tone=shown.locked|yesno:"done,review" tip=None %} <b data-v>{{ shown.locked|yesno:"locked,unlocked" }}</b></span>
+  <span class="ec-state" title="{% if shown.locked %}every scene's concept is drawn from this; unlock to change it{% else %}being changed: no scene is drawn until it is locked again{% endif %}{% if not shown.prefilled %} (version {{ shown.versions }}, {{ shown.by }}, {{ shown.at|slice:':16' }}){% endif %}">{% include "pages/c/dot.html" with tone=shown.locked|yesno:"done,review" tip=None %} <b data-v>{{ shown.locked|yesno:"locked,unlocked" }}</b></span>
   <div class="phead-actions">
-    <a class="button primary big" href="/places/" title="its places, each drawn from this concept" data-v>Places</a>
-    <a class="button big" href="/environments/{{ world }}/plan/" title="its plan: a map a ground of its setting, each top place's site and sky" data-v>Plan</a>
+    <a class="button primary big" href="/places/" title="its scenes, each drawn from this concept" data-v>Scenes</a>
+    <a class="button big" href="/environments/{{ world }}/plan/" title="its plan: a map a ground of its physics, each top scene's site and sky" data-v>Plan</a>
     {% if can %}{% if shown.locked %}<details class="ec-unlock"><summary class="button" title="change it">Unlock</summary>
-      <div class="ec-confirm"><p data-v>Every place's concept goes out of date and is drawn again.</p>
+      <div class="ec-confirm"><p data-v>Every scene's concept goes out of date and is drawn again.</p>
         <form data-yes data-reload data-url="/environments/{{ world }}/save/" data-body='{{ unlock_body }}'><button type="submit" class="button bad" data-slot="post-label" data-v>Unlock</button><i class="dot" data-slot="said" hidden></i></form></div>
-    </details>{% elif not pending %}<form class="inline" data-yes data-reload data-fields data-url="/environments/{{ world }}/save/" data-body='{{ lock_body }}'><button type="submit" class="button primary big" data-slot="post-label" title="every place's concept is drawn from it from now on" data-v>Lock</button><i class="dot" data-slot="said" hidden></i></form>{% endif %}{% endif %}
+    </details>{% elif not pending %}<form class="inline" data-yes data-reload data-fields data-url="/environments/{{ world }}/save/" data-body='{{ lock_body }}'><button type="submit" class="button primary big" data-slot="post-label" title="every scene's concept is drawn from it from now on" data-v>Lock</button><i class="dot" data-slot="said" hidden></i></form>{% endif %}{% endif %}
   </div>
 </section>
 <div class="ec-layout{% if shown.locked %} solo{% endif %}" data-reread{% if pending %} data-drawing{% endif %}>
   <div class="ec-fields" data-concept>
-    <section class="card" aria-label="style"><h2 class="eyebrow" title="one short line every place's concept is drawn in">Style</h2>
+    <section class="card" aria-label="style"><h2 class="eyebrow" title="one short line every scene's concept is drawn in">Style</h2>
       {% if editable %}<input type="text" class="ec-wide" data-f="style" value="{{ concept.style }}" maxlength="300">{% else %}<p class="ec-text" data-v>{{ concept.style }}</p>{% endif %}</section>
-    <section class="card" aria-label="setting"><h2 class="eyebrow" title="what everything stands on and in, each thing in the form its scale calls for: a body moves under the physics, a light is a far source of light, a backdrop is too far to move; and where each top place stands">Setting</h2>
+    <section class="card" aria-label="physics"><h2 class="eyebrow" title="what everything stands on and in, each thing in the form its scale calls for: a body moves under the physics, a light is a far source of light, a backdrop is too far to move; and where each top scene stands">Physics</h2>
       {% for found in setting.pictures %}<figure class="sp-figure">{{ found.svg }}<figcaption class="soft small" data-v>{{ found.note }}</figcaption></figure>{% endfor %}
       <div class="sp-cards">{% for card in setting.cards %}<div class="sp-card" title="{{ card.tip }}">
         <div><b data-v>{{ card.name }}</b> <span class="sp-kind {{ card.kind }}" data-v>{{ card.kind }}</span></div>
         <p class="sp-line" data-v>{{ card.line }}</p>
         {% if card.sites %}<p class="soft small" data-v>{{ card.sites|join:", " }}</p>{% endif %}
       </div>{% empty %}<span class="soft" data-v>none</span>{% endfor %}</div>
-      {% if editable %}<details class="sp-form"><summary class="soft" title="every value, as the setting keeps it">Values</summary>
+      {% if editable %}<details class="sp-form"><summary class="soft" title="every value, as the physics keeps it">Values</summary>
         {% for group in setting_form %}<div class="sp-group">{% for row in group.rows %}<div class="sp-row" data-row="{{ group.kind }}" data-keep="{{ row.keep }}">{% for field, label, tip, value in row.fields %}<label title="{{ tip }}"><span>{{ label }}</span><input type="text" data-f="{{ field }}" value="{{ value }}"></label>{% endfor %}</div>{% endfor %}
           <div class="sp-row ec-new" data-row="{{ group.kind }}" data-keep="{}" title="add {{ group.adds }}">{% for field, label, tip, value in group.new.fields %}<label title="{{ tip }}"><span>{{ label }}</span><input type="text" data-f="{{ field }}"{% if forloop.first %} placeholder="+"{% endif %}></label>{% endfor %}</div></div>{% endfor %}
       </details>{% endif %}</section>
-    <section class="card" aria-label="reference pictures"><h2 class="eyebrow" title="pictures that guide a place's look; each is sent only with its own place's draw">Reference pictures</h2>
+    <section class="card" aria-label="reference pictures"><h2 class="eyebrow" title="pictures that guide a scene's look; each is sent only with its own scene's draw">Reference pictures</h2>
       <div class="ec-refs">{% for ref in references %}<figure class="ec-ref" data-row="references" data-picture="{{ ref.picture }}">
         <div class="ec-ref-pic">{% if ref.file %}<a href="{{ ref.file.url }}" target="_blank" rel="noopener"><img src="{{ ref.file.thumb_url }}" alt="" loading="lazy"></a>{% else %}<span class="ptile-missing" title="not on the store's machine" data-v>not here</span>{% endif %}</div>
         {% if editable %}<input type="text" data-f="shows" value="{{ ref.shows }}" title="what it is for">
-        <input type="text" data-f="place" value="{{ ref.place|default_if_none:'' }}" title="the place it goes with">
+        <input type="text" data-f="place" value="{{ ref.place|default_if_none:'' }}" title="the scene it goes with">
         <label class="ec-drop" title="leave it out"><input type="checkbox" data-f="drop"> &times;</label>
         {% else %}<figcaption title="{{ ref.shows }}"><b data-v>{{ ref.place|default_if_none:''|capfirst }}</b> <span class="soft" data-v>{{ ref.shows }}</span></figcaption>{% endif %}
       </figure>{% empty %}{% if not editable %}<span class="soft" data-v>none</span>{% endif %}{% endfor %}
       {% if editable %}<form class="ec-ref ec-add" data-yes data-reload data-upload data-url="/environments/{{ world }}/reference/" data-body='{}'>
         <input type="file" accept="image/png,image/jpeg,image/webp" data-f="file" title="a PNG, JPEG or WebP picture; kept in the private bucket">
         <input type="text" data-f="shows" placeholder="for" title="what it is for">
-        <input type="text" data-f="place" placeholder="place" title="the place it goes with">
+        <input type="text" data-f="place" placeholder="scene" title="the scene it goes with">
         <span><button type="submit" class="button" data-slot="post-label" data-v>Add</button><i class="dot" data-slot="said" hidden></i></span>
       </form>{% endif %}</div></section>
-    <section class="card" aria-label="places"><h2 class="eyebrow" title="the first places, and the places each may hold inside">Places</h2>
+    <section class="card" aria-label="scenes"><h2 class="eyebrow" title="the first scenes, and the scenes each may hold inside">Scenes</h2>
       <div class="ec-scroll"><table class="ec-rows">
-        <thead><tr><th>Place</th><th title="the places it may hold inside">Inside</th></tr></thead>
+        <thead><tr><th>Scene</th><th title="the scenes it may hold inside">Inside</th></tr></thead>
         <tbody>{% for row in concept.places %}{% if editable %}<tr data-row="places" data-place="{{ row.place|default:'' }}"><td><input type="text" data-f="name" value="{{ row.name }}"></td><td><input type="text" class="ec-wide" data-f="holds" value="{{ row.holds|join:', ' }}"></td></tr>
         {% else %}<tr><td><b data-v>{{ row.name }}</b></td><td class="soft" data-v>{{ row.holds|join:', ' }}</td></tr>{% endif %}{% endfor %}
-        {% if editable %}<tr data-row="places" class="ec-new" data-place=""><td><input type="text" data-f="name" placeholder="+" title="add a place"></td><td><input type="text" class="ec-wide" data-f="holds"></td></tr>{% endif %}</tbody>
+        {% if editable %}<tr data-row="places" class="ec-new" data-place=""><td><input type="text" data-f="name" placeholder="+" title="add a scene"></td><td><input type="text" class="ec-wide" data-f="holds"></td></tr>{% endif %}</tbody>
       </table></div></section>
     {% if editable %}<form data-yes data-reload data-fields data-url="/environments/{{ world }}/save/" data-body='{{ save_body }}'><button type="submit" class="button" data-slot="post-label" title="keep it as a new version, still unlocked" data-v>Save</button><i class="dot" data-slot="said" hidden></i></form>{% endif %}
   </div>

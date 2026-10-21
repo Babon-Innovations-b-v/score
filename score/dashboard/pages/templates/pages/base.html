@@ -16,7 +16,7 @@
   <span class="steps"><button type="button" class="quiet" data-step="back" title="back" aria-label="back">&#8592;</button><button type="button" class="quiet" data-step="forward" title="forward" aria-label="forward">&#8594;</button></span>
   <nav>
     <a href="/places/"{% if request.path == "/places/" or request.path|slice:":14" == "/environments/" %} class="here"{% endif %}>Environment</a>
-    {% if request.path|slice:":7" == "/place/" %}<a href="{{ request.path }}" class="here">Place</a>{% endif %}
+    {% if request.path|slice:":7" == "/place/" %}<a href="{{ request.path }}" class="here">Scene</a>{% endif %}
     <a href="/buy/"{% if request.path == "/buy/" %} class="here"{% endif %}>Buy{% if basket_count %} <span class="count" data-v>{{ basket_count }}</span>{% endif %}</a>
     <a href="/stats/"{% if request.path == "/stats/" %} class="here"{% endif %}>Stats</a>
     <a href="/library/"{% if request.path|slice:":9" == "/library/" %} class="here"{% endif %}>Library</a>

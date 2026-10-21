@@ -9,7 +9,7 @@
       <div class="ptile-foot">
         {% include "pages/c/dot.html" with tone=env.locked|yesno:"done,review" tip=env.locked|yesno:"its concept is locked,its concept is unlocked: being edited" %}
         <span class="ptile-name" data-v>{{ env.title }}</span>
-        <span class="soft small" title="the places its concept starts from" data-v>{{ env.places }} <small>places</small></span>
+        <span class="soft small" title="the scenes its concept starts from" data-v>{{ env.places }} <small>scenes</small></span>
       </div>
     </a>{% endfor %}
   </div>
@@ -19,7 +19,7 @@
   <div class="nums">
     {% include "pages/c/number.html" with label="Spent" value=money.spent unit="EUR" of=None bar=None tone=None tip="this month so far, every environment" unknown_tip=money.missing %}
     <a class="num-card num-link" href="/stats/" title="money, progress and prices"><div class="num-label">Stats</div><div class="num-value" data-v>&rsaquo;</div></a>
-    <a class="num-card num-link" href="/library/" title="what every place is made from"><div class="num-label">Library</div><div class="num-value" data-v>&rsaquo;</div></a>
+    <a class="num-card num-link" href="/library/" title="what every scene is made from"><div class="num-label">Library</div><div class="num-value" data-v>&rsaquo;</div></a>
     <a class="num-card num-link" href="/buy/" title="what a batch would make, and its price"><div class="num-label">Buy</div><div class="num-value" data-v>&rsaquo;</div></a>
   </div>
 </section>

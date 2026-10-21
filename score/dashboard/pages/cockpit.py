@@ -93,7 +93,7 @@ DESIGN_WORDS = {"draw": ("to draw", "no concept yet: draw it"),
                 "plan": ("plan to make", "its scene inventory is read from its picked concept (its concept page); "
                                          "its plan is not made from it yet"),
                 "check": ("gaps to check", "its scene inventory is read; its gaps are not checked from it yet"),
-                "design": ("in design", "no place in it has a scene inventory read from its picked concept yet")}
+                "design": ("in design", "no scene in it has a scene inventory read from its picked concept yet")}
 
 
 def place_tiles(world, names, rows):
@@ -322,10 +322,10 @@ def gap_panel(gap, place, step, price):
 
 
 # the Stats screen's gap kinds, most first in a remake: their plain words and hover text
-KIND_WORDS = {"missing": ("not made yet", "a part a place needs that no step has made yet"),
+KIND_WORDS = {"missing": ("not made yet", "a part a scene needs that no step has made yet"),
               "gate": ("failing a check", "made, but a check fails on it"),
-              "route": ("steps of the route still to do", "a step of a place's route that has not run yet"),
-              "lost": ("inputs lost", "a file a step reads that is gone; counted once however many places read it")}
+              "route": ("steps of the route still to do", "a step of a scene's route that has not run yet"),
+              "lost": ("inputs lost", "a file a step reads that is gone; counted once however many scenes read it")}
 
 
 def gaps_by_kind(total):

@@ -5,16 +5,16 @@
   <section class="buy-list" aria-label="design, then the batch">
     {% if batch.stale and design.approved %}<div class="num-card buy-stale" title="{{ batch.stale|join:'; ' }}">{% include "pages/c/dot.html" with tone="bad" tip=None %} <span data-v>prices out of date</span></div>{% endif %}
     <div class="topbar">
-      <div class="topbar-num" title="each place's concept and its plan: drawn, picked and approved by you on the place's card, before any batch">
+      <div class="topbar-num" title="each scene's concept and its plan: drawn, picked and approved by you on the scene's card, before any batch">
         <div class="num-label">Design first</div>
         <div class="num-value" data-v>{{ design.approved|length }} <small>of</small> {{ design.places|length }} <small>approved</small></div>
-        <div class="num-sub" data-v><small>on the place's card</small></div>
+        <div class="num-sub" data-v><small>on the scene's card</small></div>
       </div>
-      <div class="topbar-num buy-now" title="{% if not design.approved and estimate %}estimate from the scene inventories of {{ estimate.places }} places, every model once through the prop route, measured likely to high, the places' own steps not in it; {% endif %}after design: the batch from the approved design to the finished place, every layer, priced from that design; bought only for approved designs">
+      <div class="topbar-num buy-now" title="{% if not design.approved and estimate %}estimate from the scene inventories of {{ estimate.places }} scenes, every model once through the prop route, measured likely to high, the scenes' own steps not in it; {% endif %}after design: the batch from the approved design to the finished scene, every layer, priced from that design; bought only for approved designs">
         <div class="num-label">After design</div>
-        {% if not design.approved and estimate %}{% include "pages/c/estimate.html" with est=estimate %}{% else %}<div class="num-value" data-v>{% if not design.approved %}{{ design.places|length }} <small>places await design</small>{% elif batch.stale %}<span class="unknown" title="{{ batch.stale|join:'; ' }}">unknown</span>{% else %}<small>EUR</small> {{ batch.total.likely|floatformat:2 }}&ndash;{{ batch.total.high|floatformat:2 }}{% endif %}</div>{% endif %}
+        {% if not design.approved and estimate %}{% include "pages/c/estimate.html" with est=estimate %}{% else %}<div class="num-value" data-v>{% if not design.approved %}{{ design.places|length }} <small>scenes await design</small>{% elif batch.stale %}<span class="unknown" title="{{ batch.stale|join:'; ' }}">unknown</span>{% else %}<small>EUR</small> {{ batch.total.likely|floatformat:2 }}&ndash;{{ batch.total.high|floatformat:2 }}{% endif %}</div>{% endif %}
         {% if design.approved and batch.total.no_price and not batch.stale %}<div class="num-sub unknown" data-v title="not in the figure: no price yet">+ {{ batch.total.no_price|length }} <small>kinds of step with no price</small></div>{% endif %}
-        {% if owner and design.approved and batch.now.steps %}<form class="buy-yes" data-yes data-reload data-url="/buy/yes/" data-body='{"key": "{{ key }}", "batch": "now"}'><button type="submit" class="primary big" data-slot="post-label" title="buys the batch of the {{ design.approved|length }} approved places, EUR {{ batch.now.likely|floatformat:2 }} to {{ batch.now.high|floatformat:2 }}; it stops at EUR {{ batch.now.stop|floatformat:2 }}">Buy</button><i class="dot" data-slot="said" hidden></i></form>{% endif %}
+        {% if owner and design.approved and batch.now.steps %}<form class="buy-yes" data-yes data-reload data-url="/buy/yes/" data-body='{"key": "{{ key }}", "batch": "now"}'><button type="submit" class="primary big" data-slot="post-label" title="buys the batch of the {{ design.approved|length }} approved scenes, EUR {{ batch.now.likely|floatformat:2 }} to {{ batch.now.high|floatformat:2 }}; it stops at EUR {{ batch.now.stop|floatformat:2 }}">Buy</button><i class="dot" data-slot="said" hidden></i></form>{% endif %}
       </div>
     </div>
     <ul class="buy-layers buy-design">

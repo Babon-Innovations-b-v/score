@@ -17,7 +17,7 @@
     <h2 class="eyebrow" title="{{ map.ground|default:'its sites on its ground' }}">{{ map.name }}</h2>
     {{ map.svg }}
     <div class="ec-scroll"><table class="ec-rows">
-      <thead><tr><th>Site</th><th title="wide, deep, tall in metres">Size</th><th title="its scene time in UTC, your choice; its sky follows from the setting's bodies at its place and this moment (hover a time to see it)">Time</th><th title="where it stands on its ground, set in the environment concept's setting: latitude and longitude on a body, metres on a plot">Where</th><th title="the structure picture its next draw is drawn on">Blockout</th></tr></thead>
+      <thead><tr><th>Site</th><th title="wide, deep, tall in metres">Size</th><th title="its scene time in UTC, your choice; its sky follows from the physics' bodies at its scene and this moment (hover a time to see it)">Time</th><th title="where it stands on its ground, set in the environment concept's physics: latitude and longitude on a body, metres on a plot">Where</th><th title="the structure picture its next draw is drawn on">Blockout</th></tr></thead>
       <tbody>{% for site in map.rows %}<tr data-row="site" data-place="{{ site.place }}">
         <td><b data-v>{{ site.title }}</b></td>
         {% if can %}<td><input type="text" data-f="size" value="{{ site.size|join:' x '|unlocalize }}" title="wide x deep x tall, metres"></td>

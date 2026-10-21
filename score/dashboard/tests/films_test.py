@@ -51,7 +51,7 @@ def test_a_script_says_what_is_wrong_in_words():
     assert "segment 2 (Isolate a part) names no part" in found
     assert "segment 3: no framework step 'paint'" in found
     assert "segment 4: no transition 'wipe'" in found and any("99" in fault for fault in found)
-    assert "segment 4: no place 'gamma'" in found
+    assert "segment 4: no scene 'gamma'" in found
     assert script.faults({**film, "film": "Bad Name"}) and script.faults({"format": "other"})
 
 
@@ -139,7 +139,7 @@ def test_saving_writes_the_cockpit_home_only_and_refuses_others(world, tmp_path,
     assert not (tmp_path / "repo").exists()
     wrong = {**film, "segments": [{"cut": "orbit", "shows": {"place": "nowhere"}}]}
     refused = owner.post("/film/trailer/save/", json.dumps(wrong), content_type="application/json")
-    assert refused.status_code == 400 and "segment 1: no place 'nowhere'" in refused.json()["faults"]
+    assert refused.status_code == 400 and "segment 1: no scene 'nowhere'" in refused.json()["faults"]
     other = signed_in("other")
     assert other.post("/film/trailer/save/", json.dumps(changed), content_type="application/json").status_code == 403
     assert other.post("/film/trailer/compile/", json.dumps(changed), content_type="application/json").status_code == 200

@@ -202,7 +202,7 @@ def node_of(tree, node_id):
 def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
     for kind, count in (("Models", 3), ("Surfaces", 2), ("Kits", 1), ("Motion", 1), ("Effects", 1), ("Skies", 1),
-                        ("Lamps", 1), ("Sound", 1), ("Physics", 0), ("Places", 3)):
+                        ("Lamps", 1), ("Sound", 1), ("Physics", 0), ("Scenes", 3)):
         assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
     assert 'data-v>Algorithms<' not in html  # the shelf holds physics setups only: code sits where its work does
     assert 'data-v>Films<' not in html  # camera paths are the film route's own step, no library entry

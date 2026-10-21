@@ -14,7 +14,7 @@ from score.dashboard.state.files import file_ref
 from score.dashboard.state.models import AcceptedGap
 
 IN_FILM, ON_PLAN, STEP_PICTURE = "ringed in the film", "ringed on the plan", "its step's picture"
-THE_PLACE, THE_LAYOUT = "the place in its film", "the place's layout"
+THE_PLACE, THE_LAYOUT = "the scene in its film", "the scene's layout"
 LAYOUT_CHECKS = ("game",)  # a gap about where things stand is pictured by the plan
 SHOWN = {".jpg": IN_FILM, ".png": ON_PLAN}
 MOST_RINGS = 8

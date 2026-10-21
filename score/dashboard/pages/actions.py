@@ -520,7 +520,7 @@ def plan_named(user, payload):
     from score.review import web
     names = payload.get("names") or []
     return plan_said(user, lambda store, by: web.plan_named(store, str(payload["place"]), names, by),
-                     lambda record: f"{len(record['names'])} inside places named")
+                     lambda record: f"{len(record['names'])} child scenes named")
 
 
 def plan_write(user, payload):

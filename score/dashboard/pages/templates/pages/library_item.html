@@ -47,11 +47,11 @@
   </div>
   {% elif view == "diagram" %}
   <figure class="item-pic item-only diagram" title="no example of its work is here yet: {{ diagram.why }}">
-    <div class="diagram-box" title="what it reads"><span data-v>{% for read in diagram.reads %}{{ read }}{% if not forloop.last %}, {% endif %}{% empty %}its place's records{% endfor %}</span></div>
+    <div class="diagram-box" title="what it reads"><span data-v>{% for read in diagram.reads %}{{ read }}{% if not forloop.last %}, {% endif %}{% empty %}its scene's records{% endfor %}</span></div>
     <span class="diagram-arrow">&rarr;</span>
     <div class="diagram-box diagram-it"{% if entry.about %} title="{{ entry.about }}"{% endif %}><span data-v>{{ entry.title }}</span></div>
     <span class="diagram-arrow">&rarr;</span>
-    <div class="diagram-box" title="what it makes, and in how many places"><span data-v>{{ diagram.makes }}{% if diagram.steps %} &times; {{ diagram.steps }}{% endif %}</span></div>
+    <div class="diagram-box" title="what it makes, and in how many scenes"><span data-v>{{ diagram.makes }}{% if diagram.steps %} &times; {{ diagram.steps }}{% endif %}</span></div>
   </figure>
   {% elif view == "sound" %}
   <div class="takes">{% for take in takes %}<figure class="take">

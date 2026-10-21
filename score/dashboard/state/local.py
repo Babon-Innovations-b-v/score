@@ -833,7 +833,7 @@ class LocalSource:
         made = path.stat().st_mtime
         newer = [found for found in (self.props_home / "work" / CHECKS / GAPS).glob("*/findings.json")
                  if found.stat().st_mtime > made]
-        return (f"the gaps check ran again at {len(newer)} place{'' if len(newer) == 1 else 's'} since the price "
+        return (f"the gaps check ran again at {len(newer)} scene{'' if len(newer) == 1 else 's'} since the price "
                 "was made") if newer else None
 
     def faults(self, place):
@@ -907,7 +907,7 @@ class LocalSource:
         missing = [groups.label(row.name) for row in self.rows if row.grain == "place" and row.name not in rows]
         found = [f"{entry.name}: {entry.reason} (accepted gap)" for entry in self.accepted_gaps(place)]
         if missing:
-            found.append(f"not in this place's line: {', '.join(missing)}")
+            found.append(f"not in this scene's line: {', '.join(missing)}")
         return found
 
     def place_detail(self, place):

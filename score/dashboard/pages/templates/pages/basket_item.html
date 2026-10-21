@@ -1,7 +1,7 @@
 {% extends "pages/base.html" %}
 {% block title %}{{ name }}{% endblock %}
 {% block content %}
-<nav class="crumbs"><a href="/basket/">Basket</a><span>/</span>{% if item.places|length == 1 %}<a href="/place/{{ place }}/">{{ place_name|capfirst }}</a>{% elif item.places %}{{ item.places|length }} places{% else %}the environment{% endif %}</nav>
+<nav class="crumbs"><a href="/basket/">Basket</a><span>/</span>{% if item.places|length == 1 %}<a href="/place/{{ place }}/">{{ place_name|capfirst }}</a>{% elif item.places %}{{ item.places|length }} scenes{% else %}the environment{% endif %}</nav>
 <div class="page-head item-head">
   <div class="grow">
     <h1>{{ name }}</h1>

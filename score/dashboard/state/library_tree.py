@@ -121,7 +121,7 @@ class Builder:
 
     def by_place(self, parent, entries):
         groups = small_ones_together(grouped(entries, lambda entry: entry.place or OTHER))
-        return [self.node(f"{parent}/@{key}", f"from {label_of(key).lower()}" if key != OTHER else "Other places",
+        return [self.node(f"{parent}/@{key}", f"from {label_of(key).lower()}" if key != OTHER else "Other scenes",
                           members, []) for key, members in in_order(groups)]
 
 
