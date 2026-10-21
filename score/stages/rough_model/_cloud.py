@@ -6,7 +6,7 @@ clearance at every rent point, the machines, the ledger line, the finish), run i
 
 with one check of it replaced. The batch builds only the scenes' rows (from_the_inventory: every model's name on an
 approved inventory's row); a rough model is the place's whole concept, on no row, so it keeps the rest of that check:
-the inventory approved by the owner and its place's style text. batch.py is loaded from its file and left as it is:
+the inventory approved by the owner. batch.py is loaded from its file and left as it is:
 the pixal row declares it, so an edit there would move that paid row's key.
 """
 import importlib.util
@@ -25,10 +25,10 @@ def load_batch():
 
 
 def concept_check(batch):
-    """batch.from_the_inventory without its rows: each inventory approved and its place's style text written."""
+    """batch.from_the_inventory without its rows: each inventory approved."""
     def approved(models, paths):
         for path in paths:
-            batch.place.style_text(batch.inventories.approved_inventory(path)["place"])
+            batch.inventories.approved_inventory(path)
     return approved
 
 

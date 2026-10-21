@@ -3,7 +3,9 @@
     ~/.farm-factory-props/env/bin/python tools/props/cloud/pictures.py <jobs.json> [--cards N] [--model klein] [--dry-run]
 
 The list is picture.py's own (--list): a JSON array of {"name", "sentence", "seed", "form", "refs"},
-and "place" to word a scene's object in its place's style text (place.json).
+and "place" to word a scene's object in its scene's style (../scene/place.py: the environment concept's style line
+and the look of the scene's locked concept; a look not read yet is read inside the run, one Gemini call each, said
+before the estimate).
 Every job is worded here by picture.wording, at picture.py's steps and guidance, so a picture made
 up there is the one the owner's card would make. The list is cut into a share for each card of as many machines as
 draw it in about the setup's time (spread.py, capacity.machines_for; --cards caps them); each machine installs the
@@ -73,18 +75,44 @@ class Run:
         self.dropped = set()
 
 
-def jobs_to_make(path, model="klein"):
-    """The list's pictures not yet made, each worded as picture.py would word it, with `model`'s settings."""
+def listed(path):
+    """The list's jobs whose picture is not made yet, as the list gives them."""
+    return [job for job in json.loads(pathlib.Path(path).read_text()) if not (PICTURES / f"{job['name']}.png").exists()]
+
+
+def scenes_of(jobs):
+    """The scenes the jobs are worded in (a job's "place": the scene id the design store keeps its concept by)."""
+    return sorted({job["place"] for job in jobs if job.get("place")})
+
+
+def styles_of(scenes):
+    """{scene: its style} (place.style_text: the environment's style line and its locked concept's look, a look not
+    read yet read now, one call each inside this cleared run)."""
+    return {scene: place.style_text(scene) for scene in scenes}
+
+
+def looks_to_read(scenes):
+    """Say the looks this run reads before it draws (place.unread), each one call at its measured price; those
+    scenes."""
+    unread = place.unread(scenes)
+    if unread:
+        euros = place.look_euros()
+        each = f"EUR {euros:.2f}" if euros is not None else "an unmeasured price"
+        batch.say(f"{len(unread)} scene looks to read first, one Gemini 3.1 Pro call each at {each}: "
+                  f"{', '.join(unread)}")
+    return unread
+
+
+def jobs_to_make(path, model="klein", styles=None):
+    """The list's pictures not yet made, each worded as picture.py would word it, with `model`'s settings; a job
+    naming its scene is worded in that scene's style too (`styles`: styles_of)."""
     jobs = []
-    for job in json.loads(pathlib.Path(path).read_text()):
-        if (PICTURES / f"{job['name']}.png").exists():
-            continue
+    for job in listed(path):
         # A job may carry its whole wording, for a picture that is not an object on its own (a
-        # flat facade to tile); otherwise it is worded as picture.py words an object. A job naming
-        # its place (place.json) is worded in that place's style text as well.
+        # flat facade to tile); otherwise it is worded as picture.py words an object.
         wording = job.get("wording") or picture.wording(job["sentence"], job.get("form") or picture.FORM)
         if job.get("place"):
-            wording = f"{wording}, in the look of this place: {place.style_text(job['place'])}"
+            wording = f"{wording}, in the look of this place: {(styles or {})[job['place']]}"
         jobs.append({"name": job["name"],
                      "wording": wording,
                      "seed": job.get("seed", 7), "steps": MODELS[model]["steps"], "call": MODELS[model]["call"],
@@ -241,18 +269,21 @@ def draw_on_cluster(jobs, model, dry_run):
 def draw_list(path, model="klein", cards=None, dry_run=False):
     """Draw the list's pictures not yet made with `model`, spread over rented machines (at most `cards`), into
     WORK/pictures; the run's ledger entry, or None when nothing was rented."""
-    jobs = jobs_to_make(path, model)
-    if not jobs:
+    waiting = listed(path)
+    if not waiting:
         batch.say("every picture in the list is already made")
         return None
+    scenes = scenes_of(waiting)
+    looks_to_read(scenes)
     if provider.on_cluster():
-        return draw_on_cluster(jobs, model, dry_run)
+        return draw_on_cluster(waiting if dry_run else jobs_to_make(path, model, styles_of(scenes)), model, dry_run)
     account = cloud.account()
     batch.sweep(account)
-    machines = machines_for(len(jobs), model, cards)
-    found, allowed_minutes = price(jobs, machines, account, model)
+    machines = machines_for(len(waiting), model, cards)
+    found, allowed_minutes = price(waiting, machines, account, model)
     if dry_run:
         return None
+    jobs = jobs_to_make(path, model, styles_of(scenes))
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     started = time.time()

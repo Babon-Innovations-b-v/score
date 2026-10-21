@@ -19,9 +19,10 @@ what to run, in this order:
      "build":   {"prefix": "lab-", "faces": 40000, "options": {"bench": "--feet"}}}
 
 Nothing runs without the scene's inventory approved by the owner (page A, the scene workflow of
-2026-10-04, #121; inventory.py) and its place's style text (place.json, place.py): the target and
-every redraw are worded from the place, never from words in the plan, so a target carries no
-sentence of its own, and an object with no cut-out ("none:...") is refused, since every object is
+2026-10-04, #121; inventory.py) and its concept locked: the target and every redraw are worded in the scene's
+style from its design (../scene/place.py: the environment concept's style line and its locked concept's look, read
+in the run when not kept yet, one Gemini call said before the machine is rented), never from words in the plan, so
+a target carries no sentence of its own, and an object with no cut-out ("none:...") is refused, since every object is
 a row boxed on the plan.
 
 Every key but "room" and "inventory" is optional. "target" draws takes for the owner to pick from, so it runs alone:
@@ -60,6 +61,8 @@ from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 REMOTE_REPO = pathlib.PurePosixPath("/root/repo")
 REMOTE_HOME = pathlib.PurePosixPath("/root/props")
 REMOTE_INPUTS = REMOTE_HOME / "inputs"
+# What stands for the scene's style in a dry run's printout, before its look is read (style_of).
+UNREAD = "<the scene's style, its look read in the run>"
 # The SAM 3 weights this box's cut-outs were made with (2026-10-02): the gated facebook/sam3 is not
 # open to the account. SAM3_WEIGHTS here names another, as for cutout.py.
 SAM3_WEIGHTS = os.environ.get("SAM3_WEIGHTS", "jetjodh/sam3")
@@ -101,9 +104,28 @@ def check(plan):
     if "build" in plan and "objects" not in plan:
         raise SystemExit("build needs objects to redraw")
     if "sentence" in plan.get("target", {}):
-        raise SystemExit("a target's words come from its place's style text (place.json), not from the plan")
+        raise SystemExit("a target's words come from its scene's style (place.py: its design), not from the plan")
     if any(item.startswith("none:") for item in plan.get("objects", [])):
         raise SystemExit("an object with no cut-out is refused: no box, no row (inventory.py)")
+    place.unread([place_of(plan)])  # refused while the scene's concept is not locked
+
+
+def style_of(plan):
+    """The scene's style its target and redraws are worded in (place.kept_style), once read_style read its look;
+    before then (a dry run) the words that stand for it in the printout."""
+    return place.kept_style(place_of(plan)) or UNREAD
+
+
+def say_look(plan):
+    """Say, with the estimate, the look the run reads first when the scene's is not kept yet (one call)."""
+    if place.unread([place_of(plan)]):
+        euros = place.look_euros()
+        batch.say(f"{plan['room']}: its scene's look is read first, one Gemini 3.1 Pro call at "
+                  + (f"EUR {euros:.2f}" if euros is not None else "an unmeasured price"))
+
+
+def read_style(plan):
+    """Read the scene's look inside this cleared run when it is not kept yet (place.style_text: one Gemini call)."""
     place.style_text(place_of(plan))
 
 
@@ -151,7 +173,7 @@ def steps(plan):
         found.append(("depth", ["tools/props/scene/depth.py", room]))
     if plan.get("objects"):
         found.append(("redraw", ["tools/props/scene/redraw.py", room, *plan["objects"],
-                                 "--place", place_of(plan), "--seeds", str(plan.get("seeds", "7")),
+                                 "--style", style_of(plan), "--seeds", str(plan.get("seeds", "7")),
                                  "--side", str(plan.get("side", 1536)), *view_arguments(plan, placed)]))
     return found
 
@@ -160,7 +182,7 @@ def target_jobs(plan):
     """target.py's --list for the plan's target, its references at their places on the machine."""
     target = plan["target"]
     placed = dict(uploads(plan))
-    return [{"scene": plan["room"], "sentence": place.style_text(place_of(plan)), "shot": target.get("shot", "inside"),
+    return [{"scene": plan["room"], "sentence": style_of(plan), "shot": target.get("shot", "inside"),
              "refs": [str(placed[pathlib.Path(ref).expanduser()]) for ref in target.get("refs", [])]}]
 
 
@@ -310,6 +332,7 @@ def main_on_cluster(plan, options):
 
     if options.dry_run:
         return
+    read_style(plan)
     folder = batch.BATCHES / time.strftime(f"scene-k8s-{plan['room']}-%Y%m%d-%H%M%S-{os.getpid()}")
     folder.mkdir(parents=True)
     if cluster_jobs.run("scene", [cluster_job(plan, folder / "targets.json")], options.who, image="sam"):
@@ -327,6 +350,7 @@ def main():
     plan = json.loads(options.plan.read_text())
     for step, arguments in steps(plan):
         print(f"{step}: {shlex.join(arguments)}")
+    say_look(plan)
     if provider.on_cluster():
         main_on_cluster(plan, options)
         return
@@ -335,6 +359,7 @@ def main():
     found, allowed_minutes = price(plan, account)
     if options.dry_run:
         return
+    read_style(plan)
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     import pictures  # its picture module loads torch, which the gate's plain python lacks

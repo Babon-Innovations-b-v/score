@@ -147,8 +147,9 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
         inventory = {"scene": "hub", "place": "habitat", "plan": {"views": [{"id": "v1"}]},
                      "approved": "", "migrated": "",
                      "room": {"shell": "", "light": "place", "backdrop": "", "wall_fill": []}, "rows": rows}
+        # A place named by no place.json entry builds all the same: Pixal3D is worded by nothing (place.py).
         for wanted, change in (("no inventory", None), ("not approved", {}), (None, {"approved": "2026-10-05"}),
-                               ("no place", {"approved": "2026-10-05", "place": "no_such_place"})):
+                               (None, {"approved": "2026-10-05", "place": "no_such_place"})):
             if change is not None:
                 path.write_text(json.dumps(dict(inventory, **change)))
             try:

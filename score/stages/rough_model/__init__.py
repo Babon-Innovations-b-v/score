@@ -51,10 +51,9 @@ TRIANGLES = 4  # a glTF primitive's mode for triangles, its default
 
 def files(place):
     """The concept picture and the inventory the place's plan row reads (scene_record.plan.files: the batch builds
-    only from an approved inventory), the places' style texts and the tools the make runs."""
+    only from an approved inventory) and the tools the make runs; no style: Pixal3D is worded by nothing."""
     read = plan_row.files(place)
-    return {**({"concept": read["concept"]} if "concept" in read else {}), "inventory": read["inventory"],
-            "places": "{data}/definitions/place.json", **TOOLS}
+    return {**({"concept": read["concept"]} if "concept" in read else {}), "inventory": read["inventory"], **TOOLS}
 
 
 def plan_record(inputs):

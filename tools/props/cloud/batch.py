@@ -9,7 +9,7 @@ The list has one model a line, `<name> <picture> [pixal.py options]`, e.g.
 `crate ~/pics/crate.png --faces 12000 --feet`; `#` starts a comment. The pictures must be ones the
 owner approved. A batch builds scenes' rows (the scene workflow of 2026-10-04, #121; several scenes
 in one batch since modules batch one, 2026-10-07): it is refused without each scene's inventory
-approved by the owner (inventory.py) and its place's style text (place.json), and every model's
+approved by the owner (inventory.py), and every model's
 name is one of their `generate` or `mechanic` rows, by the row's id or its prop kind, alone or after
 a prefix (`habitat-locker`) or before a take (`locker-b`).
 
@@ -70,7 +70,6 @@ import provider  # noqa: E402
 import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
 import pixal  # noqa: E402
-import place  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 
@@ -175,13 +174,11 @@ def built_from(path):
 
 
 def from_the_inventory(models, paths):
-    """The approved inventories a batch builds from (built_from); refused without one, without a place's style
-    text, or with a model on none of their rows."""
+    """The approved inventories a batch builds from (built_from); refused without one, or with a model on none of
+    their rows. Pixal3D is worded by nothing, so no style is asked here (the close-ups' is, ../scene/place.py)."""
     kinds = set()
     for path in paths:
-        approved = built_from(path)
-        place.style_text(approved["place"])
-        kinds |= row_kinds(approved)
+        kinds |= row_kinds(built_from(path))
     strays = [options.name for options in models if not on_a_row(options.name, kinds)]
     if strays:
         raise SystemExit(f"on no row of {', '.join(map(str, paths))}: {', '.join(strays)}; a batch builds only "

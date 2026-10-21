@@ -9,9 +9,9 @@
     ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> generate --pano --seed 7 --place <place>
     ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> splats
 
-The words of a painting or a world are the place's style text from data/definitions/place.json
-(--place). The one exception is the owner's look pick, the first review of a place, which comes
-before its style text exists: `--look --text "<one look>"` paints a take for that page.
+The words of a painting or a world are the scene's style from its design (--place, place.py: the environment
+concept's style line and its locked concept's look, read inside the cleared run when not kept yet). The one
+exception is the owner's look pick, the first review of a place, which comes before its concept is locked: `--look --text "<one look>"` paints a take for that page.
 
 `paint` turns a depth panorama of one of our own rooms (depth_pano.tscn, pano.py) into a colour
 panorama with pano:depth_to_rgb and makes it the room's target; `generate --pano` then builds the
@@ -260,14 +260,14 @@ def depth(room, out):
 
 
 def words_for(options):
-    """The words a painting or a world is made with: the place's style text, or a look take's own
+    """The words a painting or a world is made with: the scene's style (place.style_text), or a look take's own
     words while the owner picks the look; refused otherwise, so no room is worded from a session's
     head."""
     if options.place and not options.text:
         return place.style_text(options.place)
     if options.look and options.text and not options.place:
         return options.text
-    raise SystemExit("paint and generate take --place <place> (its style text in place.json), or "
+    raise SystemExit("paint and generate take --place <place> (its style from its design), or "
                      "--look --text \"...\" for a take on the owner's look pick, never both")
 
 
@@ -282,7 +282,7 @@ def main():
     parser.add_argument("--depth-png", type=pathlib.Path, help="paint: pano.py's depth panorama")
     parser.add_argument("--z-max", type=float, help="paint: the depth panorama's far end (pano.py's scales.json)")
     parser.add_argument("--ledger", type=pathlib.Path, help="a JSON file every paid call is added to, with its credits")
-    parser.add_argument("--place", help="paint and generate in this place's style text (place.json)")
+    parser.add_argument("--place", help="paint and generate in this scene's style (place.py, from its design)")
     parser.add_argument("--look", action="store_true",
                         help="a take for the owner's look pick, worded with --text before the place has a style")
     options = parser.parse_args()
