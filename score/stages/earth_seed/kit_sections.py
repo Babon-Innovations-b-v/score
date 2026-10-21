@@ -28,7 +28,7 @@ import zlib
 from score import checks, contracts
 import score.stages.earth_seed as earth_seed
 import score.stages.shapes_first.made as made
-from score.stages.surfaces import surface_data
+import score.stages.surfaces.surface_data as surface_data  # the module alone in the key, not the surface line
 
 OUTPUT = "sections.json"
 LAYER = "layers/sections.usda"

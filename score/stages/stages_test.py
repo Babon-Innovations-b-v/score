@@ -143,6 +143,18 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
         assert terrain_code_after_editing(own) != before, own
 
 
+def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():
+    """earth-seed and kit-sections read a place's surface data through surface_data.py alone: an edit to the surface
+    line's rows leaves their keys, an edit to the reader moves them (its package's __init__ pulled the whole line in,
+    2026-10-21)."""
+    table = {stage.name: stage for stage in stages.STAGES}
+    for name in ("earth-seed", "kit-sections"):
+        before = code_after_editing(table[name], "nothing")
+        for unrelated in ("score/stages/surfaces/__init__.py", "score/stages/surfaces/place_line.py"):
+            assert code_after_editing(table[name], unrelated) == before, (name, unrelated)
+        assert code_after_editing(table[name], "score/stages/surfaces/surface_data.py") != before, name
+
+
 def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
     """Editing the surface line's paint, bake and check code (place_line.py, bake_check.py, feet.py), the resting
     triage, the settle, the pick check or the completion gate leaves the paid rows that do not run them alone: the
