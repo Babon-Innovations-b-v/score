@@ -120,7 +120,7 @@
 \title{SCORE: A Framework for Synthesizing Complete, Owned, Responsive
 Environments}
 \author{J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands}
-\date{Working draft, 17 October 2026}
+\date{Working draft, 21 October 2026}
 
 \begin{document}
 \maketitle
@@ -131,17 +131,21 @@ give frames no engine opens, or one fused scene without separate objects
 or clear rights. Studios build environments in stages, from concept art
 to review. SCORE keeps these stages and automates them with open vision
 foundation models, procedural tools and coding agents, while the creator
-chooses and reviews. Every stage is a node of one runner: its output is
-keyed on its inputs and code, judged by gates that answer pass, fail or
-unknown, and accepted only when nothing got worse, so a fault is fixed
-in its own stage and only what follows it runs again; paid steps are
-cleared against a budget read from the provider's bill. Every model
-allows commercial use of its output, so the creator stays the author. We
-describe the framework as built for its first environment, the game
-environment of 2099 with 28 places, and the measured gates of its
-surfaces, resting, light, motion, effects, sound and people. Code and
-paper are available at https://github.com/Babon-Innovations-b-v/score
-(MIT license).
+designs and reviews. The creator locks an environment concept and picks
+each place's concept; the pick is read into a scene inventory and
+written into a plan, and only such a design starts paid work, bought as
+one batch with one estimate and a stop at its high estimate plus 10
+percent. Every stage is a node of one runner: its output is keyed on its
+inputs and code, judged by gates that answer pass, fail or unknown, and
+accepted only when nothing got worse, so a fault is fixed in its own
+stage and only what follows it runs again. Every model allows commercial
+use of its output, so the creator stays the author. We describe the
+framework with its first environment, 26 places derived from the game
+2099, as the worked example, and separate what its runs prove, what is
+built but has not run, and what is missing: the first run brought every
+place through its completion gate, but its video was not accepted, and
+the remake from new designs has not run. Code and paper are available at
+https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}
 
 \makeatletter\def\fps@figure{tp}\makeatother\renewcommand{\topfraction}{0.9}\renewcommand{\textfraction}{0.1}
@@ -186,30 +190,36 @@ which this gap between static and dynamic scenes supports.
 
 Studios build environments in stages, each with an output a person can
 check; SCORE keeps these stages and automates them. Its environments are
-\textbf{complete}: every object, surface, light and sound exists
-wherever the player looks. They are \textbf{owned}: every model in the
-framework allows commercial use of its output, so the creator stays the
-author, holding the full commercial rights. They are
-\textbf{responsive}: every object has real collision, mass and material.
-And they can be any kind of \textbf{environment}. To our knowledge, no
-other openly available environment generation work joins vision
-foundation models into engine-ready scenes that are built from reference
-pictures, steered by a person's choices at each step, and made only with
-models that allow commercial use of their output.
+meant to be \textbf{complete}: every object, surface, light and sound
+exists wherever the viewer looks. They are \textbf{owned}: every model
+in the framework allows commercial use of its output, so the creator
+stays the author, holding the full commercial rights. They are meant to
+be \textbf{responsive}: every object has real collision, mass and
+material. And they can be any kind of \textbf{environment}, from a house
+on a plot of ground to a system of worlds. To our knowledge, no other
+openly available environment generation work joins vision foundation
+models into engine-ready scenes that are built from reference pictures,
+steered by a person's choices at each step, and made only with models
+that allow commercial use of their output.
 
-We contribute \textbf{the SCORE framework}, stages as nodes of one
-runner that keys, judges and accepts every output over one canonical
-scene (Section 2); \textbf{measured gates} for every layer of a place
-and a completion gate over them (Section 3); and \textbf{evidence from a
-first environment}, with its spend per stage (Section 4).
+We contribute \textbf{the SCORE framework}, a design step the creator
+owns and stages as nodes of one runner that keys, judges and accepts
+every output over one canonical scene (Section 2); \textbf{measured
+gates} for every layer of a place and a completion gate over them
+(Section 3); and \textbf{evidence from a first environment}, which
+separates what its runs prove from what is built but has not run and
+what is missing (Section 4).
 
 \section{The framework}\label{the-framework}
 
-An environment is a table of stages; environment 1's has 95 rows. A
-\textbf{node} is one stage for one place (\texttt{assembly@hangar}) or
-for the environment, and one runner makes, judges and accepts every
-node. The creator's picks (concepts, style, references) are the inputs;
-from there everything runs without a typed yes, and the creator reviews.
+An environment is a table of stages; environment 1's has 149 rows, 89 of
+them one for each person's look, dress or take. A \textbf{node} is one
+stage for one place (\texttt{assembly@hangar}) or for the environment,
+and one runner makes, judges and accepts every node. The creator works
+in the creator cockpit, one signed-in web page: there he designs each
+place (Section 2.2), buys paid work as batches and reviews what the
+runner reports. From an approved design everything runs without a
+further yes.
 
 \subsection{Keys, gates and accepts}\label{keys-gates-and-accepts}
 
@@ -229,36 +239,45 @@ blocks like fail. The runner accepts an output by itself when every gate
 passed and it is no worse than the one accepted before: no answer
 dropped, no measure moved the wrong way by a step a viewer could see, no
 gate missing. Later nodes read only accepted outputs. The creator keeps
-four commands, from the creator's own terminal: reject an accepted
-output (it moves back to the one before, and every node that read it is
-stale), accept a worse one with a reason, waive one gate for one key,
-and override the runner for one paid run. When the creator accepts a
-worse output, that accept records what was allowed, and a later output
-no worse than the one taken is accepted with that accept named. None is
-needed for a run; a barrier keeps agents from them (a terminal, a store
-that refuses the creator's records from an agent's process, and a hook).
+four actions, buttons in the cockpit applied on his own PC: reject an
+accepted output (it moves back to the one before, and every node that
+read it is stale), accept a worse one with a reason, waive one gate for
+one key, and override the runner for one paid run. When the creator
+accepts a worse output, that accept records what was allowed, and a
+later output no worse than the one taken is accepted with that accept
+named. None is needed for a run; a barrier keeps agents from them (a
+store that refuses the creator's records from an agent's process, and a
+hook).
 
-\textbf{Spending and review.} A paid node is cleared only when every
-gate on its inputs passed and the month's ceiling has room for its
-estimate (Section 3.7); everything that rents a machine or calls a paid
-model refuses without that ticket, and buying again more than EUR 5 of
-accepted outputs needs a written reason. Each node's review page is
-built from the store alone, and the creator reviews a place in a USD
-viewer on the store's copy of its accepted assembly; nothing is rendered
-for review.
+\textbf{Batches.} Paid work is bought as a batch. Before it starts, the
+runner gives one estimate and one ETA from measured unit costs (Section
+3.7); the creator's yes to that estimate is the only spend decision, and
+the batch's stop is its own high estimate plus 10 percent. Inside a
+batch every paid job runs once, with no retry; its checks only sort each
+output into a success or a named failure, and a failure becomes a batch
+gap that the line carries to the completion gate instead of stopping.
+Spending more on a gap is a new batch and a new yes. A paid node is
+cleared only when every gate on its inputs passed, the month's books are
+known from the providers' bills, and its batch's stop has room for its
+forecast; everything that rents a machine or calls a paid model refuses
+without that clearance, and buying again more than EUR 5 of accepted
+outputs needs a written reason. Each node's review page is built from
+the store alone, and the creator reviews a place in a 3D viewer on the
+store's copy of its accepted assembly.
 
 \textbf{The creator steers: the ship.} Figure 1 shows the creator's
-control on one piece of environment 1, the ship. The creator's picks
-were found pictures of a shuttle, a one-deck cutaway, a cockpit and crew
-quarters; we do not show them. From them an agent planned the bridge
-alone (v1, a 4.6 by 4.6 m room of 27 pieces). The creator corrected the
-plan in words: a smaller cockpit, rooms the game needs, a long flat
-wedge rather than a rocket, a nose less pointed, and an outline measured
-from drawings rather than shaped from words. Each correction made a new
-plan, and the creator accepted the seventh. Every plan is ours and cost
-nothing; the two drawings the outline was traced from cost EUR 0.28 and
-are not shown. The ship's shape follows found artwork the creator chose
-to use: shuttle concept by PAUL (zana), found online.
+control on one piece of environment 1, the ship, in its first run. The
+creator's picks were found pictures of a shuttle, a one-deck cutaway, a
+cockpit and crew quarters; we do not show them. From them an agent
+planned the bridge alone (v1, a 4.6 by 4.6 m room of 27 pieces). The
+creator corrected the plan in words: a smaller cockpit, the rooms
+environment 1 needs, a long flat wedge rather than a rocket, a nose less
+pointed, and an outline measured from drawings rather than shaped from
+words. Each correction made a new plan, and the creator accepted the
+seventh. Every plan is ours and cost nothing; the two drawings the
+outline was traced from cost EUR 0.28 and are not shown. The ship's
+shape follows found artwork the creator chose to use: shuttle concept by
+PAUL (zana), found online.
 
 \begin{figure}
 \centering
@@ -279,6 +298,49 @@ ours. Shuttle concept by PAUL (zana), found online.}
 
 \subsection{From concept to scene}\label{from-concept-to-scene}
 
+\textbf{The design.} Before any paid batch the creator decides each
+place's design: its concept and its plan. He first locks an environment
+concept, in a short interview with Gemini 3.1 Pro {[}29{]} in the
+cockpit: its style, his reference pictures, its first places with the
+places each may hold, and its \textbf{setting}, what everything stands
+on and in at the scale he sets: a plot of ground with a gravity and a
+sun path, one world, or a system of bodies that move one another, a real
+body taking its values from a cited table and an invented one given by
+its radius, mass, orbit and spin. Each thing in the setting takes the
+form its scale calls for: a body near enough to matter moves under the
+physics, a far source of light is a light, and what is too far to move
+is a backdrop. An environment plan, written by the plan writer below,
+places each top place's site on the setting's ground at true size and
+works out each site's sky at its scene time. Concepts are drawn layer by
+layer on a concept review page, each draw one Nano Banana Pro {[}30{]}
+call that the creator's click pays for, where he marks areas and asks
+for a new draw. Every new draw is sent a \textbf{blockout} first: a grey
+model built in code from its parent's plan at real sizes and rendered
+free from the fixed concept view, so the draw keeps its layout and
+proportions and adds the look. A place within another is drawn only once
+its holder is picked and planned, on a crop of the holder's concept and
+its own shell inside the holder's, so inside places fit the shell they
+stand in.
+
+\textbf{Inventory and plan.} The creator's pick is the approval. It
+starts the scene inventory reading: Gemini 3.1 Pro lists every object of
+the picked concept as a row with its kind, count, anchor and size in
+metres, judged against the place's outline, and SAM 3 {[}18{]} boxes
+each row on the concept; a row without metres, or a disagreement between
+the two, is a named gap. One more Gemini 3.1 Pro call writes the plan in
+metres, element by element, as environment 1's hand-written plans were:
+outline, walls, openings with their swing, levels, stairs, roofs,
+terrain heights, each item's shape and a section. The SAM 3 boxes only
+order the items, since boxes from a perspective painting laid flat put
+objects in the wrong place. Free checks follow, each failure a gap said
+where it is: every row placed as often as it counts, inside the outline,
+no two floor items in each other, every door and standing spot reached
+on foot, and the inside places tiling the shell. On the plan review page
+the creator moves, resizes and corrects, and his edits redo what
+follows. Readings and plan writings run without a yes under the
+creator's standing allowance, their cost shown in the cockpit. Only a
+place with a design gets the rows of a batch.
+
 \textbf{Shapes first.} The route is one loop, the same at every scale. A
 place starts as its big shape, the outside shell, with a concept, a plan
 and a rough model: the concept goes through picture to model whole, and
@@ -288,28 +350,28 @@ each sized inside the shell. Once those shapes are fixed, every place's
 concept, rough model, close-ups and finishes are made in parallel, since
 from then on each is a matter of proportions inside a fixed shape;
 zooming into an inside place repeats the same steps. This is the
-creator's order of 19 October 2026, and the runner does not follow it
-yet: it has no rough-model stage and no stage that splits a shell's plan
-into the shapes of its inside places, so each place's concept, plan and
-inventory are made on their own, and the ship's room concepts were drawn
-before its hull was planned (Table 3).
+creator's order of 19 October 2026. The runner has its two rows:
+\texttt{rough-model} puts a place's concept through Pixal3D whole after
+its plan, and \texttt{shell-split}, free, cuts an outside shell's plan
+into its inside places' shapes, gated on \texttt{tiled},
+\texttt{reached} and \texttt{bounded}, which each inside place's plan
+reads. Neither has run on environment 1: no rough model has been made,
+and no plan of it has a split yet.
 
-\textbf{Inventory, plan and record.} A coding agent lists every visible
-element of the concept as an inventory row (kind, anchor, size, count)
-or drops it with a written reason; nothing is made or placed that is not
-a row. It draws a dimensioned plan, gated on \texttt{mapped} (every
-element a row, a door or a written drop; every door says where it
-leads). The scene record is written from the plan, inventory, made
-ground and sky, gated on \texttt{game-free} (the record cites nothing
-from the game the environment came from), \texttt{plan-matched} (the
-shell within 5 cm of the plan), \texttt{openings} (every doorway onto a
-floor, no view into nothing) and \texttt{seed-matched} (every old entry
-matched or dropped with a reason). The \texttt{game-free} gate sees
-cited numbers only. On environment 1 the records cite nothing, but in 18
-of its 28 places the data they are written from still take positions
-from the source game (Section 4).
+\textbf{Plan and scene record.} Nothing is made or placed that is not an
+inventory row. The plan stage is gated on \texttt{mapped} (every element
+a row, a door or a written drop; every door says where it leads). The
+scene record is written from the plan, inventory, made ground and sky,
+gated on \texttt{game-free} (the record cites nothing from the game the
+environment came from), \texttt{plan-matched} (the shell within 5 cm of
+the plan), \texttt{openings} (every doorway onto a floor, no view into
+nothing) and \texttt{seed-matched} (every old entry matched or dropped
+with a reason). The \texttt{game-free} gate sees cited numbers only. In
+environment 1's first run a coding agent wrote the inventories and
+plans, and in 18 of its places the data still took positions from the
+source game (Section 4).
 
-\textbf{The canonical scene.} Every place is one OpenUSD stage {[}29{]};
+\textbf{The canonical scene.} Every place is one OpenUSD stage {[}31{]};
 each object, one per real-world object, carries its kind, transform,
 collision and each part's library surface. Its layers lie in a fixed
 order: a slot for the creator's edit layer on top, then people, sound,
@@ -323,18 +385,19 @@ its \texttt{layers} gate answers unknown while a needed layer has none,
 and an old output never stands in.
 
 \textbf{Models, generation first.} Every object goes the prop route
-first: Nano Banana Pro {[}30{]} draws its close-up from its crop of the
+first: Nano Banana Pro draws its close-up once from its crop of the
 concept, Pixal3D {[}17{]} builds it, the surface stage paints it, and a
-likeness gate compares its outline from eight sides with its close-up.
-Only an object whose checks fail is built by a code builder a coding
-agent writes, reversing the earlier parts check (the creator's choice,
-12 October 2026). On 13 of the hub's objects both orders end the same
-(Table 1, Figure 2), but generation first draws a close-up of every
-object. Every close-up of eight thin and flat objects failed the shape
-check, so code builds carry them. The hatch wheel shows the gain: its
-code build's outline overlap was 0.45, a fail, and its generated model's
-0.60. Most of environment 1's models predate the change and enter as
-unverified seeds.
+likeness gate compares its outline from eight sides with its close-up. A
+close-up that fails the shape check's measured half (a plain border, one
+object filling the frame, the row's proportions) is a batch gap, so
+Pixal3D is never paid for it. Only an object whose checks fail is built
+by a code builder a coding agent writes, reversing the earlier parts
+check (the creator's choice, 12 October 2026). On 13 of the hub's
+objects both orders end the same (Table 1, Figure 2), but generation
+first draws a close-up of every object. Every close-up of eight thin and
+flat objects failed the shape check, so code builds carry them. The
+hatch wheel shows the gain: its code build's outline overlap was 0.45, a
+fail, and its generated model's 0.60.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
@@ -362,23 +425,16 @@ Code first & 4 & 7 & 2 \\
 
 \textbf{Big objects seen up close.} A generated model is right in its
 details and lumpy in its main shapes, which shows on a big object the
-player walks up to, so such an object gets a body built in code, under
+viewer walks up to, so such an object gets a body built in code under
 only the generated details its entry names (a console's screens and
 lamps), both baked as one model in library surfaces (the creator, 18
 October 2026). A re-audit of environment 1's 479 code-built inventory
 rows kept 396 as code, sent 80 to the prop route and 3 to a code body
 with generated details, and listed 46 picture-made kinds that are big
-objects seen up close; eight have a body builder so far (a cockpit
-console, a station module, a power core, fuel and water tanks, a lander,
-a rover and a crane). A bodied object's parts come from its code, so a
-re-made take skips the finish map and the split: each kept face takes
-the surface of the nearest face of the accepted take, and a take whose
-faces lie too far from it is refused. A prop whose body has no builder
-stops before its first paid step; without that stop, eight of the
-trial's ten props, whose bodies had no builder then, would have paid
-Pixal3D before the parts check refused them. Pixal3D now runs from
-image-to-3dlab 0.4.6. The trial of the eight bodied props has not run
-yet.
+objects seen up close; eight have a body builder (a cockpit console, a
+station module, a power core, fuel and water tanks, a lander, a rover
+and a crane). A prop whose body has no builder stops before its first
+paid step. The trial of the bodied props has not run.
 
 \begin{figure}
 \centering
@@ -401,7 +457,7 @@ builder. Generated models are split into library surfaces, not baked.}
 
 \section{Stages and their gates}\label{stages-and-their-gates}
 
-\subsection{Surfaces: the finish map}\label{surfaces-the-finish-map}
+\subsection{Surfaces: the finish route}\label{surfaces-the-finish-route}
 
 Everything a place shows comes from the creator's library, score\_lib,
 or is a written exception: every model, kit, finish, effect, light,
@@ -411,17 +467,29 @@ style holds across them: a picture-made model keeps its geometry and its
 finish is replaced, never kept as the picture's own texture, its
 baked-in colour or a default grey. Every part takes one surface from a
 shared library of rule-based surfaces, written as ProcFunc functions
-{[}31{]} on Infinigen's shaders {[}9{]}, coloured from the place's
-palette and worn only where wear has a cause (Appendix D). Gemini 3.1
-Pro {[}32{]} lists the close-up's finishes and names a library surface
-for each. Nano Banana Pro draws the close-up again with one flat colour
-per finish, up to three times until the map fits the close-up's outline,
-then draws unlit renders of the raw model's sides and back against it.
-SegviGen {[}33{]} splits the mesh guided by the close-up's map, every
-map votes on the faces its view sees, and a part whose second finish
-holds a fifth of it fails. Each part is painted from its library surface
-and baked, never in the picture's colours, which gave every piece its
-own rust and stains (Appendix A).
+{[}32{]} on Infinigen's shaders {[}9{]}, coloured from the place's
+palette and worn only where wear has a cause (Appendix D).
+
+The finish route gives each model its finishes (the creator's choice of
+20 October 2026). Free renders of the raw model cover every face from as
+many angles as a coverage check needs, and each view is split into
+colour regions of the model's own texture. One Gemini 3.1 Pro answer a
+model, a place's models in one batch, lists its finishes, each matched
+first to a library surface with its settings (palette token, roughness,
+metal, seed), and labels each region of each view. Before anything is
+baked, a free check compares each region with its label's surface and
+makes a model whose colours lie more than ΔE 32 off a gap; the labels
+then vote across views into one finish a face, and a face no label
+reaches or whose views disagree is a gap too. Each part is painted from
+its library surface and baked in one paid job, and one batch recheck
+against the close-up sorts each model into a pass or the named gap ``no
+library surface fits''. This route replaced the finish-map route of
+environment 1's first run, in which Nano Banana Pro drew the close-up
+again with one flat colour per finish, up to three times, and SegviGen
+{[}33{]} split the mesh along that map; that route gave every piece its
+own rust and stains until the parts were painted from the library
+(Appendix A). The finish route has run its free views on two places; its
+paid steps have not run.
 
 The bake is checked against the close-up. A finish's surface must lie
 within ΔE 32 of its colour there, else a nearer surface of its family is
@@ -430,24 +498,22 @@ name. From the greenhouse's water tank, which the creator found baked as
 three near greys and tipped, came two checks: a bake fails when it
 darkens a finish the close-up shows lighter, or turns all surfaces into
 one grey; and short legs are stretched onto one level plane, a foot over
-3 cm off the floor failing. Dirt follows the close-up.
+3 cm off the floor failing. The bake's finish borders follow the model's
+real edges, as the cut-down copy it bakes onto is shaded smooth except
+at folds of 60 degrees or more.
 
-The bake's finish borders follow the model's real edges: the cut-down
-copy it bakes onto is shaded smooth except at folds of 60 degrees or
-more, and its cage stands four voxels out, so a border no longer breaks
-into steps along the remeshed facets. Three free checks over each
-place's accepted assembly, outside the gates, measure texture detail
-near the cameras against the room's kit, how ragged each part's finish
-borders are, and kit bakes older than their bake code; the hangar's ship
-fails, with 56 pixels a metre at 0.5 m against its kit's 617. A written
-exception names the place, the object, what it is, why it is not from
-the library, who allowed it and when; only the creator allows one, and
-one without a reason or an owner refuses the whole file. A free library
-check traces every material, model, emitter, light, sound source and
-character of a place's accepted assembly to a library entry, by content
-hash or a recorded origin, and lists what does not trace. It is not a
-gate of any row yet, since wiring it in would move the keys of paid
-rows; the creator cockpit shows its findings as the place's problems.
+A written exception names the place, the object, what it is, why it is
+not from the library, who allowed it and when; only the creator allows
+one, and one without a reason or an owner refuses the whole file. A free
+library check traces every material, model, emitter, light, sound source
+and character of a place's accepted assembly to a library entry, by
+content hash or a recorded origin, and the cockpit shows what does not
+trace as the place's problems. It is not a gate of the completion gate,
+since wiring it in would move the keys of paid rows; instead the library
+rows at the end of every line, which hand each accepted output to the
+library, fail when an output is covered by no entry or written
+exception, so nothing reaches the library untraced. Each new entry then
+gets a preview clip, rendered in the batch with the films' renderer.
 
 \subsection{Resting}\label{resting}
 
@@ -462,16 +528,15 @@ fault that appears with the layer and not without it).
 \subsection{Light}\label{light}
 
 Lamp strengths are measured, never copied from the source game. The
-light layer places live lamps from the scene record, with the sky, the
-sun and the Earth. One paid render per place gives every lamp its own
-Cycles light group on the place's views; because light adds up, the look
-at any strengths is mixed from these passes without rendering again, and
-a free sweep chooses the scale that brings the place's brightness within
-1.5 times its concept's, halving any lamp that turns what it lights
-white. Outdoors the suns are swept after the lamps. A lamp whose fixture
-stops 90 percent of its rays moves out of it, and one behind a clear
-lens stands just outside, as Cycles passes no light through a glowing
-lens.
+light layer places live lamps from the scene record, with the sky and
+its bodies. One paid render per place gives every lamp its own Cycles
+light group on the place's views; because light adds up, the look at any
+strengths is mixed from these passes without rendering again, and a free
+sweep chooses the scale that brings the place's brightness within 1.5
+times its concept's, halving any lamp that turns what it lights white.
+Outdoors the suns are swept after the lamps. A lamp whose fixture stops
+90 percent of its rays moves out of it, and one behind a clear lens
+stands just outside, as Cycles passes no light through a glowing lens.
 
 \subsection{Motion, effects and sound}\label{motion-effects-and-sound}
 
@@ -486,11 +551,11 @@ dust devils), gated on \texttt{attached}, \texttt{footage},
 \texttt{light} (the flame lights the pad at least twice as brightly as
 the place's lamps) and \texttt{outside} (no open-sky particle inside a
 room). \textbf{Sound:} every source a place names (room tones, objects,
-motions, each surface's steps) gets the environment's picked file or the
-best of eight MOSS-SoundEffect {[}34{]} takes of its brief, gated on
-\texttt{sources}, \texttt{level}, \texttt{likeness} (CLAP {[}35{]} score
-at least 0.30, the tenth percentile of the environment's picks) and
-\texttt{no\ freesound}.
+motions, each surface's steps) gets the environment's picked file or one
+MOSS-SoundEffect {[}34{]} take of its brief, gated on \texttt{sources},
+\texttt{level}, \texttt{likeness} (CLAP {[}35{]} score at least 0.30,
+the tenth percentile of the environment's picks; a take under it is a
+gap) and \texttt{no\ freesound}.
 
 \subsection{People}\label{people}
 
@@ -503,11 +568,11 @@ when 99 percent of its soft points lie within 5 cm of the body, its
 worst point recorded. Hard parts ride one joint, belts are cloth, each
 clip gets its own verdict (tucks, hard parts stretched, cloth or body
 through cloth) and casts use only passing clips; a far-only look is
-judged on its far body (Appendix B). \textbf{Casts:} SAM 3 {[}18{]}
-finds the concept's figures, a judge tells people from pictures,
-reflections and empty suits, and casts are gated on \texttt{counted},
-\texttt{standing}, \texttt{clear}, \texttt{made} and \texttt{drapes}; no
-crowd copy fills a tenth of a view's height.
+judged on its far body (Appendix B). \textbf{Casts:} SAM 3 finds the
+concept's figures, a judge tells people from pictures, reflections and
+empty suits, and casts are gated on \texttt{counted}, \texttt{standing},
+\texttt{clear}, \texttt{made} and \texttt{drapes}; no crowd copy fills a
+tenth of a view's height.
 
 \subsection{Completion}\label{completion}
 
@@ -515,81 +580,113 @@ A place is complete when its gate passes on its final assembly: every
 row made or dropped with a reason, nothing unmade, no placeholder or
 resting fault, the creator's picks shown, every layer and shown place
 present, nothing cited from the source game. \textbf{Accepted gaps.} A
-fault the creator decides to ship with today is written down as an
-accepted gap: who decided, when, why, the objects and their measured
-faults. It moves only those objects' faults from the gate where they
-arise to the completion gate, which fails each gap by name with the
-numbers: a place whose accepted gaps are its only fail is complete apart
-from accepted gaps, every gap listed with who decided it; any other
-fault leaves it not complete, and the gate is never loosened. A cast's
-person with no accepted body is an accepted gap the same way. A hook
-stops an agent claiming a place is done while its gate fails: agents
-judging their own scenes agree with a measured geometry score only 45.8
-percent of the time {[}15{]}.
+fault the creator decides to ship with is written down as an accepted
+gap: who decided, when, why, the objects and their measured faults. It
+moves only those objects' faults from the gate where they arise to the
+completion gate, which fails each gap by name with the numbers: a place
+whose accepted gaps are its only fail is complete apart from accepted
+gaps, every gap listed with who decided it; any other fault leaves it
+not complete, and the gate is never loosened. A batch gap moves the same
+way, the creator's yes to the batch being its decision, and is listed
+with the batch run that made it. A hook stops an agent claiming a place
+is done while its gate fails: agents judging their own scenes agree with
+a measured geometry score only 45.8 percent of the time {[}15{]}.
 
-\subsection{Budget and ledgers}\label{budget-and-ledgers}
+\subsection{Prices and ledgers}\label{prices-and-ledgers}
 
-Machines and Google calls write ledger lines with their node's ticket;
-the month's spend is the higher of ledgers and bill, which caught
-misses: EUR 1,554 billed against EUR 1,387 in the cloud ledger on 12
-October 2026, and EUR 549 billed by Google for a day the earlier ledger
-put at EUR 30. Over 13.8 hours of environment 1's run the ledgers hold
-EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting
-(EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR
-16.09) and the light passes (EUR 10.17).
+Machines and Google calls write ledger lines with their node's
+clearance; the month's spend is the higher of ledgers and bill, which
+caught misses: EUR 1,554 billed against EUR 1,387 in the cloud ledger on
+12 October 2026, and EUR 549 billed by Google for a day the earlier
+ledger put at EUR 30. Over 13.8 hours of environment 1's first run the
+ledgers hold EUR 117.45 of machines and EUR 34.19 of Google calls, most
+for painting (EUR 37.61), the finish maps (EUR 26.59), the people's
+bodies (EUR 16.09) and the light passes (EUR 10.17).
 
-\textbf{Forecast.} Before a paid piece runs, its estimate is written
-down with the measured unit cost it rests on (the ledgers' medians per
-node, model or picture); after it, the ledger's actual. The projected
-total for the month is reported against a hard stop the creator sets.
-The record shows which estimates to trust: measured unit costs held (22
-close-ups for the ship estimated at EUR 3.10 to 6.20, actual 3.50; seven
-box checks 1.75, actual 2.19; the ship's six rooms 27.40, actual about
-16.70; its eight shell kits 1.20, actual 0.60), while the runner's flat
-table figure overstated work it could carry over (the prologue's
-surfaces and light, EUR 101.50 in the table, cost 0.86). The runner's
-forecast for a run is a ceiling, not an estimate: the four runs of 15
-October were forecast at up to EUR 72.57, 33, 70.50 and 24 and cost
-10.13, 10.14, 0.67 and 0.60, the last two stopped early because they ran
-older code. One ship run spent EUR 13.58 before it stopped on missing
-free inputs; the rule since then is a free pass over every input before
-a paid run. The bill runs about 21 percent over the ledgers, so the
-forecast multiplies every ledger-priced estimate by 1.21; on 15 October
-it put the month at EUR 495 to 507 against the creator's hard stop of
-EUR 510.
-
-\textbf{Held and run, 15 October.} Before the night's runs the runner
-listed every stale node with its price. All people work was held for
-next month, EUR 89.50: 23 bodies (EUR 56.50, 6 to be made again after
-changes to the people maker, 17 not made yet), 12 takes (EUR 18), their
-maps, names, parts and paint (EUR 14) and one likeness calibration (EUR
-1). Three review renders (EUR 14) were left out, as neither the
-completion gate nor the films read them. The place films, EUR 0.70 each,
-have not run.
+\textbf{Prices.} Every paid stage is priced from a unit cost measured on
+the ledgers (a close-up EUR 0.07 from 135 calls; a Pixal3D model EUR
+0.11 likely and 0.20 high from 52 jobs; a preview clip EUR 0.16 from one
+run of six), times the units its forecast rule counts, times the bill's
+share over the ledger. A stage with no measured run has no price: its
+estimate is shown apart as a guess and never added to a price. The
+finish route's list and recheck are priced from the earlier route's 275
+list calls at the batch tier's half price, not yet from the route
+itself. The batch estimate and the runner use the same unit prices, and
+on 21 October they agreed to the cent per stage and per model on every
+designed place whose line could start. Before, the runner priced a run
+from a flat figure in its table, which overstated work it could carry
+over: the four runs of 15 October were forecast at up to EUR 72.57, 33,
+70.50 and 24 and cost 10.13, 10.14, 0.67 and 0.60, while measured unit
+costs held (22 close-ups for the ship estimated at EUR 3.10 to 6.20,
+actual 3.50; seven box checks 1.75, actual 2.19; its eight shell kits
+1.20, actual 0.60). One ship run spent EUR 13.58 before it stopped on
+missing free inputs; since then every input is checked free before a
+paid run.
 
 \section{Evidence}\label{evidence}
 
-Four environments are planned; environment 1's 28 places are judged once
-their layers stand accepted.
+Environment 1 is the worked example: 26 places, from a city square and a
+flat to a Moon base, a ship and Mars, derived from the game 2099. Its
+first run ended on 18 October; its remake from new designs has not run.
+Table 3 sorts the framework's parts into what these runs prove, what is
+built but has not run, and what is missing.
 
-\textbf{Layouts from the source game.} The framework's own layout, made
-from the plan and the concept, is proven only on the ship's 8 places and
-the 2 door kits. The other 18 places still take their layouts from the
-source game: 507 entries in their data cite the game, 338 of them
-positions, and 7 kits are laid in the game's frame, with 6,432 piece
-positions. The module rooms' shells, laid from the game's shell numbers,
-are not in these counts. The check sees cited numbers only, so an
-uncited copy passes: the launch's accepted scene record still lights the
-rocket at the game's position. Each of the 18 places ships this as an
-accepted gap of the completion gate's game check (Table 3); deriving
-their layouts again from plan and concept is a rebuild not yet priced.
+\textbf{The first run.} Each place was filmed once its completion gate
+passed or failed only on its accepted gaps: a 2 s title card, then one
+walk of 4 s (96 frames at 24 fps) on a path the planner keeps clear of
+walls, objects and people, with the place's own sound. The film gate
+measures each film (its size, a sound track that is not silent, no black
+or frozen stretch after the title card, its length and the clearance)
+and the runner accepts it; no person reviewed the films before the cut,
+and the coding agent that made the cut checked only its order, frames
+and sound. On 18 October the cut held all 27 films, 26 places and the
+ship's hull, 3 min 9 s (Figure 3). The final completion gate, run again
+on every place on 17 and 18 October, left all 26 places complete apart
+from accepted gaps (2 to 19 each) and none complete; many of those gaps
+were decided by the overseer, the coding-agent session that guards the
+run under the creator's rules, and wait for the creator's confirmation.
+The creator watched the video on 18 October and did not accept it,
+naming five faults: the ship looks poor, weakest where his own direction
+stopped; the films cut too fast, about 3.5 s a place; no people appear;
+the sound is only ambient, with no voices or event sounds; and moving
+things do not move convincingly. On 19 October the disk holding the
+store, both spend ledgers and the work folder was lost; the code, the
+cloud bucket and the library's entry records survived, and the store is
+rebuilt only by today's keys and gates, so most of the run's outputs
+must be made again.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.92\linewidth,height=\textheight,keepaspectratio,alt={The
+environment 1 video (demo K9) of the first run, 18 October: the middle
+frame of each of its 27 films' walks, in story order. Every frame is the
+runner's accepted film of a place that was complete apart from accepted
+gaps; nothing was retouched or picked by hand. The creator did not
+accept this video.}]{figures/fig-k9.jpg}
+\caption{The environment 1 video (demo K9) of the first run, 18 October:
+the middle frame of each of its 27 films' walks, in story order. Every
+frame is the runner's accepted film of a place that was complete apart
+from accepted gaps; nothing was retouched or picked by hand. The creator
+did not accept this video.}
+\end{figure}
+
+\textbf{Layouts from the source game.} In the first run the framework's
+own layout, made from the plan and the concept, was proven only on the
+ship's 8 places and the 2 door kits. The other 18 places took their
+layouts from the source game: 507 entries in their data cite the game,
+338 of them positions, and 7 kits are laid in the game's frame, with
+6,432 piece positions. The check sees cited numbers only, so an uncited
+copy passes: the launch's accepted scene record still lit the rocket at
+the game's position. Each of the 18 places shipped this as an accepted
+gap of the completion gate's game check. The remake's plans are written
+from each place's own concept and setting instead.
 
 \textbf{People.} Scored on what is drawn, no clip of any look is clean
 (Table 2). Takes in a wider A-pose crossed less at the bind and more in
 motion (10,610 visible crossings on the player's clips against 4,078),
-with no clip clean in either pose. People therefore ship as accepted
-gaps: the characters layer lays the people whose bodies stand accepted,
-and the completion gate fails every missing one by name.
+with no clip clean in either pose. People therefore shipped as accepted
+gaps in the first run: the characters layer lays the people whose bodies
+stand accepted, and the completion gate fails every missing one by name.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
@@ -619,135 +716,85 @@ Kit, average man, wider pose (olive) & fail: shell & 0 & not run & 0 \\
 
 \endgroup
 
+\textbf{The design step, 20 and 21 October.} For the remake the creator
+drew 95 concepts, EUR 14.28 together, and picked 18 of them. Their
+readings (41, one refused) cost EUR 2.56: the latest of each place holds
+560 rows, 541 of them with metres on three sides, and 893 gaps where the
+reading and SAM 3 disagree or a row has no metres. The plan writer wrote
+all 18 plans without a refusal, EUR 0.13 to 0.74 and 62 to 325 s each,
+EUR 5.09 together, and the plan row accepted 17 of them (the base, an
+outside shell with no plan record of its own, has none). The environment
+plan was written twice, EUR 0.20 each. Eight draws, one for each of the
+ship's rooms, were drawn on a blockout; none is picked yet.
+
+\textbf{The remake.} On 21 October the estimate for the batch of the 18
+designed places stood at EUR 186.50 likely and 271.89 high for 456
+models, with 45 gaps predicted from the hub's measured failures priced
+apart and not bought, and an ETA of at least 247 minutes with nine
+layers still untimed. The runner's own plan for every line priced 158 of
+its 231 paid rows from measured units, EUR 208.87 likely and 314.78
+high; the other 73 rows (EUR 194.23 of estimates, among them the films,
+rough models, people takes, light passes and surface tiles) have no
+measured run and so no price. Two benchmark batches measured stages
+before it: six preview clips for EUR 0.96, five right and one effect
+blank and refused by its check, and eleven sound takes for EUR 0.05, two
+of them gaps by their likeness check. Nothing of the remake has run.
+
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
-\textbf{Table 3.} Accepted gaps on 15 October (the shapes-first row
-added 19 October): what environment 1 ships without, failed by name in
-the completion gate or left out of this paper. The overseer, the
-coding-agent session that guards the run under the creator's rules,
-decided the gaps marked ``to confirm'' on the night of 15 October; they
-wait for the creator's confirmation.
+\textbf{Table 3.} What environment 1's runs prove, what is built but has
+not run, and what is missing, on 21 October.
 
 \begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
-Gap
+Part
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Where
+Status
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Why, and who decided
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Next
+Record
 \end{minipage} \\
 \midrule\noalign{}
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Layouts from the source game & 18 of 28 places: 507 citations, 338
-positions; 7 kits in the game's frame, 6,432 piece positions & the
-framework's own layout is proven only on the ship's 8 places and the 2
-door kits; overseer, to confirm & layouts from plan and concept, to be
-priced \\
-People with no accepted body & every cast: the street's driver and
-guard, the square's leader, front row of 24 and crowd, two at the flat
-and two in the stairwell & no clip clean on what is drawn (Table 2); the
-creator's rule, 13 Oct; per place, overseer, to confirm & next month's
-people work \\
-Likeness not checked & the prologue: street, launch, square, flat,
-stairwell & no props file, so generated models are not held to their
-close-ups; up to EUR 55 a place, outside environment 1's budget;
-overseer, to confirm & props files \\
-Cloth that stands still & the square's flags, banners and lanterns &
-cloth motion not built; overseer, to confirm & cloth motion \\
-Two far towers & launch: the housing slab and the pencil tower & no
-stage builds the far city; overseer, to confirm & new code and the
-launch's prop data, about EUR 20 \\
-Finishes no library surface fits & cockpit: the throttle pedestal and
-the flight stick (5 finishes; four lie ΔE 25.6 to 34.7 from the nearest
-surface) & no red or orange plastic and no dark bare steel in the
-library; overseer, to confirm & new library surfaces, the creator's
-choice \\
-A caster off the floor & lab: both desk chairs (4 cm) & the baked
-chair's caster sits above the others; overseer, to confirm & the model's
-feet \\
-A foot off the floor & camp grounds' crane, greenhouse's seed tray & the
-level rule uses 1 percent, not 3 cm; overseer, 14 Oct & the same fix \\
-The ship, code-built & hangar (12 pieces) & no made model yet; the
-creator, 14 Oct & the made ship, from the plan of Figure 1 \\
-Pieces that do not rest & wreck (5) & the settle drops models from
-before their bake; overseer, 14 Oct & the settle fix \\
-Paint or bake off the close-up & garage (4), galley (1), navigation (1)
-& library surfaces held until next month; overseer, 14 Oct & new library
-surfaces \\
-Results per place, place pictures & all & not made by this draft & after
-the place films \\
-Pictures of the stages on the hub with its review page, of shape and
-surface apart, of light, and of things that move & hub, greenhouse, old
-station, launch, garage & not made by 07:30 on 15 Oct & after those
-places' completion gates \\
-An edit that survives a regenerated base & all & no edit layer yet & an
-edit layer the assembly carries \\
-Physics in an engine & one room & no engine adapter & an adapter \\
-Shapes first & the ship first, then every place with inside places & no
-rough-model stage, no inside places' shapes split from a shell's plan;
-the ship's room concepts predate its hull's plan; the creator, 19 Oct &
-the ship through the loop \\
-Environments 2 to 4 & & not started & \\
+Runner: keys, gates, automatic accepts, stale nodes & proven: first run,
+every place & Section 2; K9 \\
+Clearance, ledgers, books from the bills & proven: caught ledger misses
+& Section 3.7 \\
+Surfaces (finish-map route), resting, light, motion, effects, sound,
+completion gate, films & proven on the first run; video not accepted &
+Section 4; K9 \\
+Environment concept, concept review, inventory reading, plan writing and
+checks & ran at 18 places & design step \\
+Measured prices, estimate and runner in agreement & priced; no batch
+spent & Section 3.7 \\
+Preview clips, one take a sound & one benchmark each & the remake \\
+One-shot batch, its stop, batch gaps & built, tested on fixtures; no
+batch bought & Section 2.1 \\
+Finish route & free views at 2 places; paid steps not run & Section
+3.1 \\
+Shapes first: rough model, shell split & built; never run & Section
+2.2 \\
+Code bodies for big objects & 8 builders; trial not run & Section 2.2 \\
+Blockouts, environment plan, setting & 8 draws, 2 environment plans;
+none picked & design step \\
+Usable people & missing: no clip clean on what is drawn & Table 2 \\
+Physics and interaction in a game engine & missing: no engine adapter;
+one place's physics trial, experimental & Section 5 \\
+Creator edits that survive a rebuild & missing: the edit layer is a slot
+& Section 2.2 \\
+Environments 2 to 4 & not started & \\
 \end{longtable}
 }
 
 \endgroup
-
-\begin{figure}
-\centering
-\includegraphics[width=0.92\linewidth,height=\textheight,keepaspectratio,alt={The
-environment 1 video (demo K9) on 18 October: the middle frame of each of
-its 27 films' walks, in story order. Every frame is the runner's
-accepted film of a place that is complete apart from accepted gaps;
-nothing was retouched or picked by hand.}]{figures/fig-k9.jpg}
-\caption{The environment 1 video (demo K9) on 18 October: the middle
-frame of each of its 27 films' walks, in story order. Every frame is the
-runner's accepted film of a place that is complete apart from accepted
-gaps; nothing was retouched or picked by hand.}
-\end{figure}
-
-\textbf{The environment 1 video.} Each place is filmed once its
-completion gate passes or fails only on its accepted gaps: a 2 s title
-card, then one walk of 4 s (96 frames at 24 fps) on a path the planner
-keeps clear of walls, objects and people, with the place's own sound.
-The film gate measures each film (its size, a sound track that is not
-silent, no black or frozen stretch after the title card, its length and
-the clearance) and the runner accepts it; no person reviewed the films
-before the cut, and the coding agent that made the cut checked only its
-order, frames and sound. One cut opens with the creator's concept for
-every place, then takes the places in story order, the prologue, the
-Moon base and the Moon, the ship, then Mars: each place's concept, plan
-and pieces where it has them, then 3.5 s of its accepted film's walk,
-with the ship's hull after the hangar; it closes on the layer stack of
-one place and what environment 1 delivers for score\_lib. On 18 October
-it held all 27 films, 26 places and the hull, 3 min 9 s (Figure 3). Four
-of them, the greenhouse, the garage, the hangar and the hull, were
-filmed again that day: the ground outside a joined tube stood up to 2 m
-inside those rooms, because the scene writer (tools/usd/scene.py,
-write\_places) does not switch off a shown place's outside, and in the
-greenhouse it buried the crop bed; their film records now leave that
-ground out of the film's copy of the stage, and the fix in the scene
-writer is next month's. The airlock's film starts 6 s into its cycle,
-after its pump's fog: inside that fog a frame took from 47 s to 17 min
-on a card, and its first run, started in the fog, was stopped at the
-spend stop with its frames lost. Every filmed place was filmed after a
-completion gate that left it complete apart from accepted gaps. The
-final completion gate, run again on every place on 17 and 18 October,
-left all 26 places complete apart from accepted gaps (2 to 19 each) and
-none complete. The 2 door kits are not filmed; they are seen in the
-places they close.
 
 \textbf{Agent tools.} With them an agent used about half the output and
 cost on two of three places; on the third it left more faults; one run
@@ -756,15 +803,18 @@ each (Appendix E).
 \section{Limitations, future work and
 conclusion}\label{limitations-future-work-and-conclusion}
 
-One creator judges; the creator accepted the hub before the runner.
-Closed models (Nano Banana Pro, Gemini 3.1 Pro) may change or go. Hard
-belts failed deep bends; light is live, measured on earlier layouts;
-objects are not interactive; 18 of 28 places still take their layouts
-from the source game. Next: layouts from plan and concept in every
-place, three environments, an engine adapter, interaction, baked lamps,
-open models, locked parts, LEGO-Bench {[}15{]}. In short, SCORE keeps,
-keys and judges every stage's output, so a fault is fixed where it
-happens; completed places will show if it holds.
+One creator judges, and he has not yet accepted a run of environment 1.
+Closed models (Nano Banana Pro, Gemini 3.1 Pro) draw the concepts and
+close-ups and read and plan every place; they may change or go. Much of
+the first run was lost with its disk, and the new design step, the
+finish route, the shapes-first loop and the code bodies have not yet
+carried a place through a batch; people are not usable, light is live,
+objects are not interactive, and no game engine opens the result yet.
+Next: the remake's batch, the shapes-first loop on the ship, people, an
+engine adapter with physics and interaction, an edit layer the assembly
+carries, three more environments, open models, LEGO-Bench {[}15{]}. In
+short, SCORE keeps, keys and judges every stage's output, so a fault is
+fixed where it happens; an accepted environment will show if it holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -945,11 +995,11 @@ arXiv:2606.01057}, 2026.}
 agents on inverse graphics of dynamic scenes,''} \emph{arXiv preprint
 arXiv:2610.03715}, 2026.}
 
-\bibitem[\citeproctext]{ref-openusd}
+\bibitem[\citeproctext]{ref-gemini31pro}
 \CSLLeftMargin{{[}29{]} }%
-\CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
-{``{OpenUSD}: Universal scene description.''} 2026. Available:
-\url{https://openusd.org/}}
+\CSLRightInline{Google, {``{Gemini 3.1 Pro} (gemini-3.1-pro-preview)
+through the gemini {API}.''} 2026. Available:
+\url{https://ai.google.dev/}}
 
 \bibitem[\citeproctext]{ref-nanobananapro}
 \CSLLeftMargin{{[}30{]} }%
@@ -957,17 +1007,17 @@ arXiv:2610.03715}, 2026.}
 through the Gemini {API}}.''} 2026. Available:
 \url{https://ai.google.dev/}}
 
-\bibitem[\citeproctext]{ref-raistrick2026procfunc}
+\bibitem[\citeproctext]{ref-openusd}
 \CSLLeftMargin{{[}31{]} }%
+\CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
+{``{OpenUSD}: Universal scene description.''} 2026. Available:
+\url{https://openusd.org/}}
+
+\bibitem[\citeproctext]{ref-raistrick2026procfunc}
+\CSLLeftMargin{{[}32{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``{ProcFunc}:
 Function-oriented abstractions for procedural {3D} generation in
 {Python},''} \emph{arXiv preprint arXiv:2604.26943}, 2026.}
-
-\bibitem[\citeproctext]{ref-gemini31pro}
-\CSLLeftMargin{{[}32{]} }%
-\CSLRightInline{Google, {``{Gemini 3.1 Pro} (gemini-3.1-pro-preview)
-through the gemini {API}.''} 2026. Available:
-\url{https://ai.google.dev/}}
 
 \bibitem[\citeproctext]{ref-li2026segvigen}
 \CSLLeftMargin{{[}33{]} }%
@@ -1243,10 +1293,10 @@ four, and 187 MB on disk, against 487 MB.
   {[}16{]} similarity must reach a least set the same way; without that
   calibration the gate answers unknown.
 \item
-  \textbf{Finish maps:} a close-up's map passes when its outline
-  overlaps the close-up's by at least 0.85 and it uses every listed
-  finish; a part whose second finish holds 20 percent of its voted area
-  mixes finishes and fails.
+  \textbf{Finish maps (the first run's route):} a close-up's map passes
+  when its outline overlaps the close-up's by at least 0.85 and it uses
+  every listed finish; a part whose second finish holds 20 percent of
+  its voted area mixes finishes and fails.
 \item
   \textbf{Bake check:} each baked part within ΔE 20 (CIE76) of its
   surface's colour, worn and dirtied as far as its place's wear and
@@ -1368,7 +1418,7 @@ American Academy of Orthopaedic Surgeons, except hip extension of 24 and
 27 degrees (limit 20) in two clips.
 
 \textbf{Decisions recorded in these checks.} Three people's gates are
-decisions of the captain, the agent session that runs environment 1,
+decisions of the captain, the agent session that then ran environment 1,
 taken on 12 and 13 October 2026 under the creator's rules and open to
 the creator's reversal. (1) The shell gate counts 99 percent of the soft
 points rather than every point, with the worst point recorded: the
@@ -1416,24 +1466,24 @@ Licence
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Nano Banana Pro {[}30{]} & concepts, close-ups on the prop route and
-those the open model fails, ground skins & paid API \\
-Nano Banana Pro {[}30{]} & finish maps: the close-up drawn again with
-one flat colour per finish & paid API \\
-Gemini 3.1 Pro {[}32{]} & each model's finishes listed on its close-up,
-and their library surfaces named & paid API \\
-Qwen-Image-Edit-2511 {[}40{]} & close-ups, first (before the prop route)
-& Apache-2.0 \\
-Qwen3.8-27B {[}41{]} & the close-ups' shape check; each part's material
-& Apache-2.0 \\
+Nano Banana Pro {[}30{]} & concepts, close-ups on the prop route, ground
+skins; in the first run, finish maps (the close-up drawn again with one
+flat colour per finish) & paid API \\
+Gemini 3.1 Pro {[}29{]} & the environment concept's interview; scene
+inventories and plans; each model's finishes listed and labelled,
+matched to library surfaces, and rechecked & paid API \\
+Qwen-Image-Edit-2511 {[}40{]} & close-ups, first, in the first run's
+close-up stage & Apache-2.0 \\
+Qwen3.8-27B {[}41{]} & the first run's close-up shape check judge; each
+part's material & Apache-2.0 \\
 Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}42{]} for its
 encoder \\
 PartCrafter {[}20{]} & parts & MIT; its non-commercial background
 remover not used \\
-SegviGen {[}33{]} & lays the close-up's finish map onto the 3D shape
-(surface stage) & MIT, on TRELLIS.2 (MIT); DINOv3 licence for its
-encoder; its non-commercial background remover and nvdiffrast not
-used \\
+SegviGen {[}33{]} & laid the close-up's finish map onto the 3D shape
+(the first run's surface stage) & MIT, on TRELLIS.2 (MIT); DINOv3
+licence for its encoder; its non-commercial background remover and
+nvdiffrast not used \\
 GeoSAM2 {[}43{]} & parts of our own model, seeded by the close-up's
 regions (trial) & Apache-2.0 \\
 Depth Anything V2 Small {[}44{]} & ground relief & Apache-2.0 \\
@@ -1444,8 +1494,8 @@ by paid users \\
 FLUX.2 klein 4B {[}36{]} & earlier prop pictures; the characters' A-pose
 pictures from words and their hair's clay pictures & Apache-2.0 \\
 MoGe-2 {[}19{]}, SAM 3 {[}18{]} & measuring and finding objects in
-pictures; counting people and crops on the concepts & MIT; SAM
-Licence \\
+pictures; boxing each inventory row on its concept; counting people and
+crops & MIT; SAM Licence \\
 Kimodo {[}37{]} & the characters' motion from sentences & Apache-2.0
 code; NVIDIA Open Model License for the Kimodo-SOMA-RP-v1.1 weights,
 commercial use allowed \\
@@ -1493,8 +1543,10 @@ the closed model's first pictures drew the room or dimension lines; all
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
-\textbf{Table C2.} The close-up stage on environment 1. Cloud is rented
-card time in euros; the closed model's pictures are in dollars.
+\textbf{Table C2.} The close-up stage on environment 1's first run; the
+runner's close-up row now draws one Nano Banana Pro picture an object.
+Cloud is rented card time in euros; the closed model's pictures are in
+dollars.
 
 \begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
@@ -1536,13 +1588,15 @@ Environment 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06
 
 \endgroup
 
-The picture-to-3D step, the part splitting, the surface bakes, the sound
-generation, all checks and the assembly run automatically. Coding agents
-(Claude Code {[}58{]}) write the plans, the inventories and every code
-builder; in the hub's final round, 86 of its 98 models were built in
-code. Some steps were still done by hand: some generated objects were
-turned to face the right way by eye, and a few labels were placed by
-hand before a rule took over that job. The concepts and the verdicts are
+The inventory readings, the plan writings, the picture-to-3D step, the
+finish route, the surface bakes, the sound generation, all checks and
+the assembly run automatically. Coding agents (Claude Code {[}58{]})
+write the framework's code and every code builder, and wrote environment
+1's first-run inventories and plans; in the hub's final round, 86 of its
+98 models were built in code. Some steps were still done by hand: some
+generated objects were turned to face the right way by eye, and a few
+labels were placed by hand before a rule took over that job. The concept
+picks, the corrections drawn on concepts and plans, and the verdicts are
 the creator's own choices.
 
 \section{The surface library}\label{the-surface-library}
@@ -1554,7 +1608,7 @@ the hub's second round it held 71 variants made from 14 ProcFunc
 recipes; it now holds 369 variants in 26 families made from 22 recipes.
 Each variant is a recipe with settings, takes its colours only from the
 palette, and is baked into base-colour, metal-roughness and normal maps
-at a texture density that depends on how close the player can get. Wear
+at a texture density that depends on how close a viewer can get. Wear
 has three levels and comes from causes: edges, and kicks within 32 cm of
 the floor that a piece stands on. A surface the finish-map route
 proposes enters an append-only registry and joins the library only when

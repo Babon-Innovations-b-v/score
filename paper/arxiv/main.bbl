@@ -201,17 +201,24 @@ Ruihong Shen, {\v{Z}}iga Kova{\v{c}}i{\v{c}}, Peter Kulits, Xingrui Wang,
   scenes.
 \newblock \emph{arXiv preprint arXiv:2610.03715}, 2026.
 
+\bibitem[{Google}(2026{\natexlab{a}})]{gemini31pro}
+{Google}.
+\newblock {Gemini 3.1 Pro} (gemini-3.1-pro-preview) through the gemini {API},
+  2026{\natexlab{a}}.
+\newblock URL \url{https://ai.google.dev/}.
+\newblock Paid service. Vendor material.
+
+\bibitem[{Google}(2026{\natexlab{b}})]{nanobananapro}
+{Google}.
+\newblock {Gemini 3 Pro Image (``Nano Banana Pro'') through the Gemini {API}},
+  2026{\natexlab{b}}.
+\newblock URL \url{https://ai.google.dev/}.
+\newblock Paid service. Vendor material.
+
 \bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
 {Pixar Animation Studios} and {Alliance for OpenUSD}.
 \newblock {OpenUSD}: Universal scene description, 2026.
 \newblock URL \url{https://openusd.org/}.
-
-\bibitem[{Google}(2026{\natexlab{a}})]{nanobananapro}
-{Google}.
-\newblock {Gemini 3 Pro Image (``Nano Banana Pro'') through the Gemini {API}},
-  2026{\natexlab{a}}.
-\newblock URL \url{https://ai.google.dev/}.
-\newblock Paid service. Vendor material.
 
 \bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
   Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
@@ -220,13 +227,6 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
 \newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
   generation in {Python}.
 \newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
-
-\bibitem[{Google}(2026{\natexlab{b}})]{gemini31pro}
-{Google}.
-\newblock {Gemini 3.1 Pro} (gemini-3.1-pro-preview) through the gemini {API},
-  2026{\natexlab{b}}.
-\newblock URL \url{https://ai.google.dev/}.
-\newblock Paid service. Vendor material.
 
 \bibitem[Li et~al.(2026{\natexlab{d}})Li, Feng, Huang, Chen, Nie, Hou, Fan, Hu,
   Wang, Li, and Sheng]{li2026segvigen}
