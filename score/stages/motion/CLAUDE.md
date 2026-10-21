@@ -6,10 +6,9 @@ adds what moves it. `stages.MOTION_LAYER` names each module's rows in the stage 
 
 | module | rows | what it adds | source of the movement |
 |---|---|---|---|
-| models | `motion-models`, `motion-models-boxes` (`models/`, its overlay) | the prop pipeline's models of rigid moving things, laid on what holds them up | none: layout |
 | rigid | `motion` (this folder) | joints and paths: hinge (swing), rail (slide), lane (path), spin | the design's moving rows by their kind's rule (`from_design.py`, `data/checks/row-kinds.json`) |
 | physics | `settle` (`../settling`), `physics-layer`, `physics-trial` (`../physics`) | settling, falling, cloth | simulation (`tools/usd/settle.py`, Bullet) |
-| bodies | `cast`, `characters-layer` (`../cast`), `people-body-*`, `people-dress-*`, `people-clips` (`../people_bodies`, `tools/characters`) | rigging (UniRig), body reading (SAM 3D Body), generated body motion (Kimodo), drapes (GarmentCode) | generated motion |
+| bodies | `cast`, `characters-layer` (`../cast`), `people-body-*`, `people-dress-*`, `people-clips` (`../people_bodies`, `tools/characters`) | rigging (UniRig), body reading (SAM 3D Body), generated body motion (Kimodo) | generated motion |
 | growth | `crops-layer` (`../crops`) | growth stages and sway of plants | formula |
 
 Every paid job of the layer is one shot in a batch: no paid retry, no fallback chain, no tweak loop; a job that fails
@@ -58,11 +57,11 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
 - **Over the place's accepted scene record, the place alone.** Where the place has a scene-record row the layer is
   written over its accepted record as the assembly writes it (`../layer_base.py`), else over the seed; the places it
   shows are left out (but their prims that move), since neighbours show each other.
-- **Models move where the models step lays them.** A place with a motion models record (the garage's rover) has its
-  accepted `motion-models` layer in the stage, as the assembly takes it; its motion waits on that row. A moving thing on the
-  `ground` drives on every still thing under its footprint up to CLIMB_MOST over its underside (floor, sill, yard),
-  rising and falling with it; an open path (`closed`: false) ends where it stops, and `relative` points are offsets
-  from where the moving thing rests.
+- **A moving row's models are the prop pipeline's**, laid by the assembly like any other object; the motion layer only
+  moves them (the `motion-models` rows, which laid a record of models per place, were retired with the records,
+  2026-10-21). A moving thing on the `ground` drives on every still thing under its footprint up to CLIMB_MOST over its
+  underside (floor, sill, yard), rising and falling with it; an open path (`closed`: false) ends where it stops, and
+  `relative` points are offsets from where the moving thing rests.
 - **Only scenes whose design shows a row that moves have the row** (the table's `designed("motion")`). The assembly takes the
   accepted layer (`assembly.LAYERS`) in place of the seed's `layers/motion.usda`.
 - Effects tied to motion (dust, exhaust) are the effects stage's (`follows`, `on`).

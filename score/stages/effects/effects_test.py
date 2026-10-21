@@ -1,6 +1,6 @@
 """The effects stage made from a scene's design on a small stage made here (no record written for the scene): the stove
 and the kettle of its inventory carry the measured steam of their kinds, each at the spot its effect names on the
-object's own box, and every gate passes; a row that emits with no object on the stage fails `designed`; the look's projection lands a point where the picture shows it.
+object's own box, and every gate passes; a row that emits with no object on the stage fails `designed`.
 
 Run: .venv/bin/python score/stages/effects/effects_test.py
 """
@@ -13,7 +13,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks  # noqa: E402
 from score.stages import effects  # noqa: E402
-from score.stages.effects import look  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACE = "toy"
@@ -98,15 +97,6 @@ def test_a_row_that_emits_with_no_object_fails_designed():
         _, found = answers(toy_inputs(folder, inventory={"rows": rows}), folder)
     assert found["designed"].answer == checks.FAIL, found["designed"].reason
     assert found["designed"].findings == ("humidifier emits humidifier_mist, and no object of it stands on the stage",)
-
-
-def test_a_point_ahead_lands_mid_picture_and_one_to_the_right_right_of_it():
-    view = {"eye": [0.0, 10.0, 0.0], "aim": [-100.0, 10.0, 0.0], "fov": 90.0}
-    size = (200, 100)
-    assert look.projected(view, [-50.0, 10.0, 0.0], size) == (100.0, 50.0)
-    right = look.projected(view, [-50.0, 10.0, -10.0], size)  # looking down -x, -z is to the right
-    assert right[0] > 100.0 and abs(right[1] - 50.0) < 1e-9
-    assert look.projected(view, [50.0, 10.0, 0.0], size) is None
 
 
 if __name__ == "__main__":

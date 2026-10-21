@@ -226,8 +226,8 @@ stage as each stage is built; nothing moves before.
   and no row's places are a hand-written list. `effects-layer` (experimental: a place whose design shows a row that
   emits) makes its effects layer from its design (`stages/effects/from_design.py`: each object of an emitting row
   carries its kind's measured effects, `data/checks/effects.json`), gated on attached, footage, light, outside and
-  designed, and the assembly takes it; `effects-look` (paid) renders it
-  before and after (its overlay). `neighbours` (experimental, `stages/assembly/neighbours.py`) stands each place's
+  designed, and the assembly takes it (its overlay; the paid `effects-look`, the old launch's stills, was retired
+  2026-10-21). `neighbours` (experimental, `stages/assembly/neighbours.py`) stands each place's
   neighbours (its scene record's `places`) in its assembly, each read beside (`Stage.beside`, `Stage.neighbours`:
   another place's accepted output, versioned and waited on like `after`) as its own accepted assembly, gated on
   `neighbours` (every shown place stands, resolves and has children). `scene-tree` (free, `stages/assembly/scene_tree.py`)
@@ -265,10 +265,9 @@ stage as each stage is built; nothing moves before.
   `stages/people_rows.py`, #26: each inventory people row a look of the shared people line, a crowd one far look)
   and measures them on the seed's geometry (counted, standing, clear, made);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
-  body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `motion-models` (experimental, `stages/motion/models`, its overlay) lays each place's
-  rigid moving models (`data/motion/models/<place>.json`: none since the garage's, the old concept's, was retired
-  2026-10-21) on what holds them up, gated on outline,
-  parts present and resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
+  body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer (a moving row's
+  models are the prop pipeline's, laid by the assembly like any other: the `motion-models` rows, which laid a record
+  per place, were retired 2026-10-21). `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
   overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place whose design shows a loose row,
   the trial made from its design (`stages/physics/design.py`: its loose objects dropped where they stand, its body's
   gravity). `motion` (experimental, a place whose design shows a row that moves) writes its motion layer

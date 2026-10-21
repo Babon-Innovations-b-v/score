@@ -15,8 +15,7 @@ shows a layer of kind:
     light, sound   every designed scene (EVERY_SCENE)
 
 A place with no kept inventory (its concept not locked, or not read) has no design: no layer row applies there, and
-its assembly's layers gate answers unknown. A layer row kept on a record of its own (motion-models: the old rover's
-models record) is read by the assembly where it applies and never waited on.
+its assembly's layers gate answers unknown.
 """
 import functools
 import json

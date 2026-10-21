@@ -284,13 +284,6 @@ def test_a_take_a_pixal_row_makes_is_that_row_s_gap_and_one_none_makes_has_its_w
     assert pliers["node"] is None and pliers["work"] and "demo-turntables" in pliers["sentence"], pliers
 
 
-def test_an_earth_place_s_views_copy_names_the_rows_that_read_it():
-    from score.stages.complete.gaps import inputs
-    runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
-    views = {gap["id"]: gap for gap in inputs.lost(runner, "launch")}["lost:views:launch.json"]
-    assert "effects-look@launch" in views["work"] and "light" not in views["work"], views
-
-
 def test_a_lost_input_many_places_read_counts_once():
     from score.stages.complete.gaps import inputs
     gaps = [{"id": "place:lost:earth-seed:usd-r3"}, {"id": "place:concept"}, {"id": "place:lost:earth-seed:usd-r3"},

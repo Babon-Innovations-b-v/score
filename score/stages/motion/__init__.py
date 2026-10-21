@@ -105,22 +105,10 @@ def game_record(inputs):
     return read_json(inputs["motion"]) if "motion" in inputs else None
 
 
-def models_step(inputs):
-    """The step that takes the place's accepted motion models layer into the built stage as the assembly takes it
-    (the models the moves drive), or None for a place without one."""
-    if "motion-models" not in inputs:
-        return None
-
-    def take(folder):
-        from score.stages import assembly
-        layer, assets = assembly.LAYERS["motion-models"][1:]
-        assembly.take_layer(pathlib.Path(inputs["motion-models"]), folder / f"{folder.name}.usda", layer, assets)
-    return take
-
-
 def built(inputs):
-    """The scene's stage built for the make and each gate (layer_base.built), with its motion models."""
-    return layer_base.built(inputs, models_step(inputs))
+    """The scene's stage built for the make and each gate (layer_base.built): its moving rows' objects are the prop
+    pipeline's, laid there like any other."""
+    return layer_base.built(inputs)
 
 
 def on_built(judge):

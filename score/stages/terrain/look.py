@@ -1,4 +1,4 @@
-"""What `effects-look` and `physics-trial` render a place's stage with (the retired terrain look's, #27): the tree of a
+"""What `physics-trial` renders a place's stage with (the retired terrain look's, #27): the tree of a
 place's stage beside its neighbours, the jobs run on rented cards through tools/props/cloud/blender_cloud.py inside
 the runner's clearance, and a view's rendered picture found back.
 """

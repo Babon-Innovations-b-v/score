@@ -28,7 +28,6 @@ SAM 3 did not find (a kind's nouns are its inventory row's words; never typed as
 """
 import json
 import math
-import pathlib
 import statistics
 
 from score import checks

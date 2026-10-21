@@ -37,7 +37,7 @@ from score.stages.library import backend, checks, handover
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACE_ROW, WORLD_ROW = "library", "library-world"
 # The showcase renders: read once they stand, never waited on.
-SHOWCASE = ("demo-film", "demo-film-extra", "demo-stills", "effects-look", "environment-film")
+SHOWCASE = ("demo-film", "demo-film-extra", "demo-stills", "environment-film")
 WORLD_RECORD, PLACE_RECORD = "world record", "place record"
 FREE, EXCEPTIONS = "library free", "exceptions"
 DECLARED = (WORLD_RECORD, PLACE_RECORD, FREE, EXCEPTIONS)

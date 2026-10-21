@@ -27,7 +27,7 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 WORK = PROPS_HOME / "work"
 OUT = WORK / "checks" / "prepare" / "remake.json"
 WORLD = "world1"
-NOT_IN_FIGURE = ("the places' own paid rows (settle, light passes, effects look, tiles): `score price world1 --gaps`",
+NOT_IN_FIGURE = ("the places' own paid rows (settle, light passes, tiles): `score price world1 --gaps`",
                  "the places waiting on inventory (no reading of their picked concept yet): no euros until read",
                  "films, sound and the ground: their layers' prepare steps are #21 tracks C's (a reading's terrain "
                  "rows are models through the prop pipeline, its people rows models with the motion layer after)",
