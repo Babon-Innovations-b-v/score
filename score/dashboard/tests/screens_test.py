@@ -324,3 +324,14 @@ def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_re
                       {"place": "alpha", "sha": None, "by": "joey", "at": "2026-10-20T10:00:00+00:00"})
     shown = alpha()  # unlocked: its inventory counts for nothing again
     assert (shown["design"], shown["progress"]) == ("review", None)
+
+
+def test_a_withdrawn_library_place_is_no_3d_for_its_place_screen():
+    """The owner, 2026-10-21: every old place withdrawn from the library; its GLB is never the Place screen's 3D."""
+    from types import SimpleNamespace
+    no_copy = SimpleNamespace(web3d=lambda place: False)
+    entry = SimpleNamespace(kind="place", entry_id="alpha", state="withdrawn", web3d=SimpleNamespace(sha="ab12"))
+    shelf_of = SimpleNamespace(entries=lambda: [entry])
+    assert screens.web3d_link(no_copy, "alpha", shelf_of) == (None, None)
+    entry.state = "draft"
+    assert screens.web3d_link(no_copy, "alpha", shelf_of) == ("/library-files/files/ab12", "library")
