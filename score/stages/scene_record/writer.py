@@ -39,8 +39,10 @@ from score import contracts
 from score.stages import row_kinds
 from score.stages.scene_record import kit_shell, plan as place_plan
 from score.stages.terrain import outside, record as ground_records
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+KEPT = PROPS_HOME / "design" / "plans"  # the kept plans (score/review/plans.py keep), the design's
 # The shell's backing stands this far behind the plan's inside line, where the kit's wall panels stand.
 BACKING = 0.15
 # The deck lies just under the kit's floor plates (0.04 thick, their tops at the floor).
@@ -77,8 +79,8 @@ def files(place):
     shows), the row-kind rules and the library's lamp (a kit shell's lamps); and for the gates the old record (the seed) and the old stages of the place and of each place a door leads
     to (`seed <stage>`, seed_stages: what the views are cut by and the openings compose; the table reads each from its
     earth-seed row)."""
-    return {"inventory": f"{{data}}/inventory/{place_plan.inventory_name(place)}.json", "kits": "{data}/kit",
-            "plans": "{data}/plans",
+    return {"inventory": "{home}/design/inventory/{place}.json", "kits": "{data}/kit",
+            "plans": "{home}/design/plans",
             "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
             "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
             "places": "{data}/definitions/place.json",
@@ -94,7 +96,7 @@ NOT_PLACES = {"outside", "sealed"}
 def seed_stages(place):
     """The places whose old stage the writer and its gates stand: the place's own (its stage in the base, for a module
     of it: data/definitions/base.json) and each place a door of its plan leads to."""
-    path = REPO / "data/plans" / f"{place}.json"
+    path = KEPT / f"{place}.json"
     leads = read(path).get("leads", {}) if path.exists() else {}
     own = read(REPO / "data/definitions/base.json")["modules"].get(place, {}).get("stage", place)
     return sorted({own, *(lead["to"] for lead in leads.values())} - NOT_PLACES)
@@ -536,7 +538,7 @@ def record_of(place, plan, inputs):
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     inventory = read(inputs["inventory"])
     return {"place": place,
-            "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
+            "about": f"{plan['title']}, written by SCORE's scene-record stage from its kept plan (the design's), "
                      "its inventory, the made ground's seats and the world's sky record. Frame: the room's middle on "
                      "its floor, x east, z south.",
             "floor": plan["floor"], "ceiling": round(walls["high"] + walls["rise"], 4), "inside": True,
@@ -564,7 +566,7 @@ def ground_free_record(place, plan, inputs, grounds):
     kit_path = pathlib.Path(inputs["kits"]) / f"{place}.json"
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     return {"place": place,
-            "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
+            "about": f"{plan['title']}, written by SCORE's scene-record stage from its kept plan (the design's), "
                      f"a ground-free interior ({ground_free(place, inputs)}): no seat and nothing outside; its kit "
                      f"holds its walls and floors, its air is the {body} base's indoor air from the world's sky "
                      "record. Frame: the room's middle on its floor, x east, z south.",
@@ -587,7 +589,7 @@ def kit_record(place, plan, inputs, grounds):
     pose = kit_shell.shared_pose(place, grounds, sky, pose_in)
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     record = {"place": place,
-              "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
+              "about": f"{plan['title']}, written by SCORE's scene-record stage from its kept plan (the design's), "
                        f"its kit's lamps, the made ground's seats and the world body's air record (its sky is the "
                        f"light layer's, from the environment concept's physics). Frame: its kit's, "
                        f"{sky['frame_of']}'s frame moved to its seat.",

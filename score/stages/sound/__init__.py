@@ -70,9 +70,8 @@ def files(place):
     found = {"sounds": "{data}/sound/sounds.json", "catalogue": "{data}/sound/catalogue.json",
              "surfaces": "{data}/sound/surfaces.json", "licences": "{data}/sound/licences.json",
              "voices": "{data}/sound/voices.json"}
-    inventory = stage_inputs.inventory_path(place)
-    if inventory.exists():
-        found["inventory"] = "{data}/inventory/" + inventory.name
+    if stage_inputs.inventory_path(place).exists():
+        found["inventory"] = stage_inputs.inventory_pattern(place)
     found["moving sounds"] = "{data}/sound/moving.json"
     found["row kinds"] = "{data}/checks/row-kinds.json"
     found["people"] = ("{data}/people/rows.json", people_rows.place_part(place))

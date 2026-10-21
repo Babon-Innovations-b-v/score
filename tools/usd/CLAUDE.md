@@ -200,7 +200,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `export_test.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
   test itself; `resting_test.py` the resting check and the planned ground; `settle_test.py` the settle's write-back
   (a pose round-trips through the layout and the export) and the levelled yard, without Blender.
-- **The scene record** (`data/scene/<place>.json`, read by `scene.py`) is what the game drew in its own code and no kit
+- **The scene record** (the scene-record row's output, `record/<place>.json`, read by `scene.py`; the game-transcribed
+  `data/scene/<place>.json` records were retired with the old concepts on 2026-10-21) is what the game drew in its own code and no kit
   piece covers: room shells and the building round a room, stairs and stepped floors, the gameplay objects it places
   from code (a world's own model file, `glb_asset.py`), the ground past the place and Mars's or the Moon's ball, the
   water, the far backdrop, other places seen from this one (their own stages referenced), every light (UsdLux, the

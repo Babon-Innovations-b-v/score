@@ -40,8 +40,8 @@ SCRIPT = "score/stages/surfaces/inside/paint_bake.py"
 PAINT_MINUTES, MODEL_MINUTES = place_line.PAINT_MINUTES, 1.5
 HEAD, CHUNKY = "bake head", "bake chunky job"  # the listing's: the job's head with the take's models; its job
 # What of the repository the job reads besides the paint's: the bake's library code (tools/library: route.py's
-# library_files), the place's kit, ProcFunc and infinigen2 (library_bake.SHIPPED).
-BAKE_REPO = ("tools/library", "data/kit", "vendor/procfunc/src", "vendor/infinigen2")
+# library_files), ProcFunc and infinigen2 (library_bake.SHIPPED).
+BAKE_REPO = ("tools/library", "vendor/procfunc/src", "vendor/infinigen2")
 
 
 def named_records(records):

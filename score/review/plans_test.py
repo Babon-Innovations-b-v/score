@@ -17,26 +17,22 @@ from score.store import Store
 PICK = "a" * 64
 
 
+# Each place's scene inventory as its reading of the pick gives it (score/review/reading.py): the design alone, no
+# filed plan or inventory (retired with the old concepts, 2026-10-21).
+ROWS = {"shed": [{"id": "bench", "name": "a bench", "anchor": "floor", "size": [2.0, 0.6, 0.9], "count": 1,
+                  "at": [{"x": 0.0, "z": -1.0, "facing": 0}]},
+                 {"id": "crate", "name": "a crate", "anchor": "floor", "size": [0.5, 0.5, 0.5], "count": 2, "at": []},
+                 {"id": "vice", "name": "a vice", "anchor": "bench", "size": [0.2, 0.2, 0.2], "count": 1},
+                 {"id": "lamp", "name": "a wall lamp", "anchor": "wall", "size": [0.3, 0.2, 0.3], "count": 1}],
+        "yard": []}
+
+
 @pytest.fixture
 def data(tmp_path):
-    """A holder `yard` (a plan with no leads: no plan row) holding `shed` (a plan row: it says where its door leads)."""
+    """A holder `yard` holding `shed` (data/places/within.json, the one data file a design reads here)."""
     folder = tmp_path / "data"
-    for name in ("plans", "inventory", "places"):
-        (folder / name).mkdir(parents=True)
-    (folder / "plans/yard.json").write_text(json.dumps({"title": "YARD", "shell": "outdoor", "w": 20.0, "d": 12.0,
-                                                        "height": "", "doors": [], "items": []}))
-    (folder / "plans/shed.json").write_text(json.dumps({
-        "title": "SHED", "shell": "kit", "w": 4.0, "d": 3.0, "height": "ceiling 2.5 m",
-        "doors": [["S", 2.0, 0.9, "DOOR to the yard"]], "leads": {"S": {"to": "yard", "why": "its one door"}},
-        "items": [], "people": []}))
+    (folder / "places").mkdir(parents=True)
     (folder / "places/within.json").write_text(json.dumps({"within": {"shed": {"within": "yard"}}, "shells": {}}))
-    rows = [{"id": "bench", "name": "a bench", "anchor": "floor", "size": [2.0, 0.6, 0.9], "count": 1,
-             "at": [{"x": 0.0, "z": -1.0, "facing": 0}]},
-            {"id": "crate", "name": "a crate", "anchor": "floor", "size": [0.5, 0.5, 0.5], "count": 2, "at": []},
-            {"id": "vice", "name": "a vice", "anchor": "bench", "size": [0.2, 0.2, 0.2], "count": 1},
-            {"id": "lamp", "name": "a wall lamp", "anchor": "wall", "size": [0.3, 0.2, 0.3], "count": 1}]
-    (folder / "inventory/shed.json").write_text(json.dumps({"concept_pick": {"sha256": PICK}, "rows": rows}))
-    (folder / "inventory/yard.json").write_text(json.dumps({"concept_pick": {"sha256": PICK}, "rows": []}))
     return folder
 
 
@@ -56,39 +52,49 @@ def store(tmp_path, monkeypatch, data):
     return found
 
 
-def picked(store, place):
+def read(store, place, rows, at=None, size=None):
+    """A reading of the place's pick by today's method: its scene inventory (`rows`), its picture `size` in pixels
+    where given (a row's boxes are pixels of it)."""
+    from score.review import reading
+    reading.kept(store, {"place": place, "concept": PICK, "at": at or concepts.now(), "method": reading.METHOD,
+                         **({"size": size} if size else {}),
+                         "inventory": {"concept_pick": {"sha256": PICK}, "rows": rows}})
+
+
+def picked(store, place, rows=None, size=None):
+    """The place's draw picked and read: `rows` its reading's rows, else ROWS' (none for a place it does not name)."""
     store.write_once(f"concepts/{place}/draws/1.json", {"place": place, "sha": PICK, "at": "2026-10-21T00:00"})
     concepts.pick(store, place, PICK, "joey")
+    read(store, place, ROWS.get(place, []) if rows is None else rows, at="2026-10-21T00:01", size=size)
+
+
+def written(store, place, plan):
+    """The place's plan as plan_writing keeps a writing of its reading."""
+    from score.review import plan_writing
+    plan_writing.kept(store, {"place": place, "concept": PICK, "reading": plan_writing.reading_at(store, place),
+                              "method": plan_writing.METHOD, "by": "test", "at": concepts.now(), "plan": plan})
 
 
 def test_no_plan_before_the_inventory_counts_then_each_item_tied_to_its_row(store, data):
     assert plans.current(store, "shed") is None  # not picked: no inventory counts
+    picked(store, "yard")  # the plan above lays the shed's room
     picked(store, "shed")
     shown = plans.current(store, "shed")
     plan = shown["plan"]
-    assert shown["how"] == "derived" and plan["leads"]["S"]["to"] == "yard"
+    # no filed plan (retired 2026-10-21): a bare one in its room on the plan above, 6 x 6 m with no plan of its own
+    assert shown["how"] == "derived" and (plan["w"], plan["d"]) == (6.0, 6.0) and plan["doors"] == []
     names = {item[0]: item for item in plan["items"]}
     assert plan["rows"]["BENCH 1"] == ["bench", "vice"] and plan["rows"]["CRATE 2"] == ["crate"]
-    assert names["BENCH 1"][1:5] == [1.0, 0.2, 2.0, 0.6]  # laid at its spot: its middle 2 m east, 0.5 m south
+    assert names["BENCH 1"][1:5] == [2.0, 1.7, 2.0, 0.6]  # laid at its spot: its middle 1 m south of the room's
     assert plan["rows"][plans.WALLS_ITEM] == ["lamp"]
-    assert names["KEEP CLEAR S 2"][6] == "zone" and plan["people"] == [[2.0, 1.5]]
+    assert plan["people"] == [[3.0, 3.0]]
     assert plan["elements"][0] == {"element": "a bench", "rows": ["bench"]}
 
 
-def test_a_doors_leaf_on_a_row_this_concept_lacks_is_a_gap_and_its_door_keeps_its_lead(store, data):
-    shed = json.loads((data / "plans/shed.json").read_text())
-    leads = {"S": {**shed["leads"]["S"], "leaf": {"row": "door_leaf", "name": "shed_door"}},
-             "N": {"to": "sealed", "why": "a blind wall", "leaf": {"row": "crate", "name": "crate_door"}}}
-    (data / "plans/shed.json").write_text(json.dumps({**shed, "leads": leads}))
-    picked(store, "shed")
-    plan = plans.current(store, "shed")["plan"]
-    assert plan["leads"]["S"] == {"to": "yard", "why": "its one door"}  # its leaf dropped: the plan stage maps it
-    assert plan["leads"]["N"]["leaf"] == {"row": "crate", "name": "crate_door"}  # a row the reading holds stays
-    assert [(gap["kind"], gap["row"]) for gap in plan["gaps"]] == [("leaf", "door_leaf")]
-
-
 def test_his_edit_is_kept_as_his_own_and_checked(store):
+    picked(store, "yard")
     picked(store, "shed")
+    written(store, "shed", {**plans.current(store, "shed")["plan"], "doors": [["S", 2.0, 0.9, "DOOR to the yard"]]})
     plan = plans.current(store, "shed")["plan"]
     plan["items"][0][1] = 0.5
     plan["doors"][0] = ["E", 1.0, 0.9, "moved"]
@@ -109,28 +115,27 @@ def test_an_inside_place_waits_for_the_holders_plan_then_gets_its_shape_and_its_
     plans.name_inside(store, "yard", ["Tool Hut"], "joey")
     picked(store, "yard")  # the pick is the approval: its inventory read, its plan is made
     holds = plans.current(store, "yard")["plan"]["holds"]
-    assert [hold["place"] for hold in holds] == ["shed", "tool_hut"] and holds[0]["w"] == 4.0
-    assert plans.made(store, "yard")  # the yard has no plan row: its plan shown is its plan made
+    assert [hold["place"] for hold in holds] == ["shed", "tool_hut"] and holds[0]["w"] == 6.0  # no plan of its own
+    assert plans.made(store, "yard")  # its plan shown is its plan made
     _, path = plans.shape_sent(store, "shed")[0]
     assert Image.open(path).size[0] > 100
     assert plans.holder_of(store, "shed") == {"holder": "yard", "row": None, "box": None, "view": None,
-                                              "outline": [0.3, 0.3, 4.0, 3.0]}  # the yard's own ground holds it
+                                              "outline": [0.3, 0.3, 6.0, 6.0]}  # the yard's own ground holds it
 
 
 def test_his_inside_places_and_rows_redo_what_follows(store, data):
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": [],
              "box": [10, 20, 300, 200], "view": "v1"}]
-    (data / "inventory/yard.json").write_text(json.dumps({"concept_pick": {"sha256": PICK}, "rows": rows}))
-    picked(store, "yard")
+    picked(store, "yard", rows)
     plan = plans.current(store, "yard")["plan"]
     plan["holds"] = [{**plan["holds"][0], "place": "loft", "row": "barn", "x": 2.0}]
     plans.edited(store, "yard", plan, "joey")
     assert plans.tree(store)["within"].get("loft") == "yard" and "shed" not in plans.tree(store)["within"]
     # the concept review reads the same: the loft's draw waits on the yard, its holder now
     assert concepts.above("loft", store) == "yard" and concepts.inside_of("yard", store) == ["loft"]
-    assert concepts.step_refusal(store, "loft", "draw") == "waits for yard's scene inventory to be read"
+    assert concepts.step_refusal(store, "loft", "draw") is None  # the yard read and planned: the loft may be drawn
     assert plans.holder_of(store, "loft") == {"holder": "yard", "row": "barn", "box": [10, 20, 300, 200],
-                                              "view": "v1", "outline": [2.0, 0.3, 4.0, 3.0]}
+                                              "view": "v1", "outline": [2.0, 0.3, 6.0, 6.0]}
     with pytest.raises(plans.Refused, match="no inventory row"):
         plans.edited(store, "yard", {**plan, "holds": [{**plan["holds"][0], "row": "silo"}]}, "joey")
 
@@ -140,8 +145,7 @@ def test_a_room_adjoining_rooms_a_row_holds_is_held_by_that_row_over_one_it_only
     the ship"; a room its row names (the hub's central_hub) or on its own floor keeps its own."""
     rows = [{"id": row, "name": row, "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []}
             for row in ("ship", "crane", "loft")]
-    (data / "inventory/yard.json").write_text(json.dumps({"concept_pick": {"sha256": PICK}, "rows": rows}))
-    picked(store, "yard")
+    picked(store, "yard", rows)
     plan = plans.current(store, "yard")["plan"]
     room = {"x": 2.0, "y": 2.0, "w": 4.0, "d": 3.0}
     plan["holds"] = [{**room, "place": "shed", "row": "ship"}, {**room, "place": "cabin", "row": "ship", "y": -1.0},
@@ -165,12 +169,14 @@ def test_a_room_changed_on_the_holders_plan_puts_draws_on_it_out_of_date_and_fla
                                                     "at": concepts.now()})  # a Redraw with notes on it
     store.write_once("concepts/shed/draws/0.json", {"place": "shed", "sha": "d" * 64,
                                                     "at": "2026-10-01T00:00"})  # from before rooms were recorded
-    assert drawn["room"]["w"] == 4.0 and not concepts.plan_changed(store, "shed")
+    assert drawn["room"]["w"] == 6.0 and not concepts.plan_changed(store, "shed")
     assert plans.moved_draws(store, "shed") == set()
-    plans.edited(store, "yard", {**plan, "holds": [{**plan["holds"][0], "w": 6.0}]}, "joey")  # resized
+    plans.edited(store, "yard", {**plan, "holds": [{**plan["holds"][0], "w": 8.0}]}, "joey")  # resized
     assert concepts.plan_changed(store, "shed")
     assert plans.moved_draws(store, "shed") == {PICK, "c" * 64, "d" * 64}  # the older one: a plan above made since
     assert plans.removed(store, plans.within_file()[0]) == []
+    read(store, "shed", ROWS["shed"])
+    plans.edited(store, "shed", plans.current(store, "shed")["plan"], "joey")  # its design done: a place of the build
     world = graph.Environment("world1", 3, {"data": str(data)})
     assert stages.places(world, store) == ["yard", "shed"]  # the scene tree's order: the parent scene first
     plans.edited(store, "yard", {**plan, "holds": []}, "joey")  # merged away
@@ -208,49 +214,41 @@ def test_rewriting_a_parent_keeps_its_locked_childrens_rooms_and_only_his_edit_m
 def test_a_scene_he_added_in_the_app_is_a_place_once_its_design_is_done(store, data, tmp_path):
     """A child scene he added on a plan (no file of it in the data) is a scene in design, no place, until its concept
     is locked, its inventory read and its plan written or edited; then the build lists it and its plan row reads its
-    kept plan, with no hand edit (owner, 2026-10-21)."""
-    from score.review import reading
-
-    def read(place):
-        reading.kept(store, {"place": place, "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
-                             "size": [64, 40], "inventory": {"concept_pick": {"sha256": PICK}, "rows": []}})
+    kept plan, with no hand edit (owner, 2026-10-21). Every scene is one: no plan is filed in the data (2026-10-21)."""
     picked(store, "yard")
-    read("yard")
     plan = plans.current(store, "yard")["plan"]
     plans.edited(store, "yard", {**plan, "holds": [*plan["holds"], {**plan["holds"][0], "place": "hut", "x": 0.0}]},
                  "joey")
     world = graph.Environment("world1", 3, {"data": str(data)})
-    assert stages.places(world, store) == ["yard", "shed"]  # in design: its concept not locked
+    assert stages.places(world, store) == ["yard"]  # the shed and the hut in design: their concepts not locked
     picked(store, "hut")
-    read("hut")
     shown = plans.current(store, "hut")
-    assert shown["how"] == "derived" and stages.places(world, store) == ["yard", "shed"]  # its plan not written
+    assert shown["how"] == "derived" and stages.places(world, store) == ["yard"]  # its plan not written
     assert plans.keep(store, ["hut"]) == ([], []) and not stages.plan_written("hut")
     plans.edited(store, "hut", shown["plan"], "joey")
-    assert stages.places(world, store) == ["yard", "hut", "shed"]
-    assert plans.keep(store, ["hut"]) == (["hut"], ["hut"]) and (tmp_path / "kept/hut.json").is_file()
-    assert stages.plan_written("hut") and stages.kept_plan_only(lambda place: 1 / 0)("hut") == {"plans": "{data}/plans"}
+    assert stages.places(world, store) == ["yard", "hut"]
+    assert plans.keep(store, ["hut"]) == (["hut"], []) and (tmp_path / "kept/hut.json").is_file()  # kept at his edit
+    assert stages.plan_written("hut") and stages.PLAN.files("hut")["plan"] == "{home}/design/plans/{place}.json"
 
 
 def test_a_parent_scene_with_no_data_of_its_own_is_a_place_once_its_design_is_done(store, data, tmp_path):
     """A parent scene holding others with no file of its own in the data (the Moon base, a shell) is a place of the
     batch once its design is done, listed before the scenes it holds, and the sync keeps its plan where the plan stage
     and the scene tree read it."""
-    from score.review import reading
     (data / "places/within.json").write_text(json.dumps({"within": {"shed": {"within": "yard"},
                                                                     "yard": {"within": "farm"}},
                                                          "shells": {"farm": {"name": "Farm"}}}))
     world = graph.Environment("world1", 3, {"data": str(data)})
-    assert stages.places(world, store) == ["yard", "shed"]  # the farm in design: no place yet
+    picked(store, "yard")
+    plans.edited(store, "yard", plans.current(store, "yard")["plan"], "joey")
+    assert stages.places(world, store) == ["yard"]  # the farm in design: no place yet
     picked(store, "farm")
-    reading.kept(store, {"place": "farm", "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
-                         "size": [64, 40], "inventory": {"concept_pick": {"sha256": PICK}, "rows": []}})
     shown = plans.current(store, "farm")
     assert shown["how"] == "derived" and [hold["place"] for hold in shown["plan"]["holds"]] == ["yard"]
-    assert stages.places(world, store) == ["yard", "shed"]  # its plan not written
+    assert stages.places(world, store) == ["yard"]  # its plan not written
     plans.edited(store, "farm", shown["plan"], "joey")
-    assert stages.places(world, store) == ["farm", "yard", "shed"]
-    assert plans.keep(store, ["farm"]) == (["farm"], ["farm"]) and (tmp_path / "kept/farm.json").is_file()
+    assert stages.places(world, store) == ["farm", "yard"]  # the parent scene first
+    assert plans.keep(store, ["farm"]) == (["farm"], []) and (tmp_path / "kept/farm.json").is_file()  # at his edit
 
 
 def test_overlapped_rooms_are_one_shared_room_and_a_box_dropped_in_a_room_a_thing_in_it(store):
@@ -264,7 +262,7 @@ def test_overlapped_rooms_are_one_shared_room_and_a_box_dropped_in_a_room_a_thin
     plans.edited(store, "yard", plan, "joey")  # kept as laid: no key added to a room he did not touch
     assert plans.room_of(store, "shed") == shed
     store.write_once("concepts/shed/draws/1.json", {"place": "shed", "sha": PICK, "at": concepts.now(), "room": shed})
-    merged = {**shed, "w": 8.0, "name": "Shed and tool hut",
+    merged = {**shed, "w": 8.0, "d": 3.0, "name": "Shed and tool hut",
               "things": [{"name": "workbench", "x": 3.0, "y": 1.0, "w": 2.0, "d": 1.0},
                          {"name": "lathe", "x": 6.5, "y": 0.2, "w": 1.0, "d": 0.6}]}
     plans.edited(store, "yard", {**plan, "holds": [merged]}, "joey")
@@ -281,15 +279,13 @@ def test_overlapped_rooms_are_one_shared_room_and_a_box_dropped_in_a_room_a_thin
 
 
 def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_its_boxes_the_holders(store, data):
-    from score.review import reading
-    (data / "inventory/yard.json").unlink()  # no file: the reading in the store is the inventory
-    picked(store, "yard")
+    store.write_once("concepts/yard/draws/1.json", {"place": "yard", "sha": PICK, "at": "2026-10-21T00:00"})
+    concepts.pick(store, "yard", PICK, "joey")  # picked, not read yet: no inventory, no plan
     assert plans.current(store, "yard") is None and not plans.made(store, "yard")
     rows = [{"id": "barn", "name": "a barn", "kind": "generate", "anchor": "ground", "size": "two storeys",
              "count": 1, "boxes": [[5, 6, 70, 80], [1, 1, 2, 2]]},
             {"id": "bell", "name": "a bell", "kind": "generate", "anchor": "on:barn", "size": "small", "count": 1}]
-    reading.kept(store, {"place": "yard", "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
-                         "inventory": {"concept_pick": {"sha256": PICK}, "rows": rows}})
+    read(store, "yard", rows)
     plan = plans.current(store, "yard")["plan"]
     assert plan["rows"]["BARN 1"] == ["barn", "bell"] and plan["items"][0][3:5] == [1.0, 1.0]  # sizes in words: 1 m
     plan["holds"][0]["row"] = "barn"
@@ -299,40 +295,34 @@ def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_it
 
 
 def test_items_are_sized_by_their_reading_and_ordered_by_their_boxes_and_what_has_no_size_or_row_is_a_gap(store, data):
-    from score.review import reading
-    yard = json.loads((data / "plans/yard.json").read_text())
-    (data / "plans/yard.json").write_text(json.dumps({**yard, "lamps": [{"name": "post", "row": "lamp_post"}],
-                                                      "beams": [{"name": "far", "row": "mast", "place": "camp"}]}))
-    (data / "inventory/yard.json").unlink()
-    picked(store, "yard")
-    rows = [{"id": "barn", "name": "a barn", "anchor": "ground", "size": [8.0, 6.0, 5.0], "size_words": "two storeys",
+    rows = [{"id": "barn", "name": "a barn", "anchor": "ground", "size": [3.0, 2.0, 5.0], "size_words": "two storeys",
              "count": 1, "boxes": [[10, 10, 60, 35]]},
             {"id": "cart", "name": "a cart", "anchor": "ground", "size": [1.5, 1.0, 1.2],
              "size_words": "two strides long", "count": 1, "boxes": []},
             {"id": "rock", "name": "a rock", "anchor": "ground", "size": None, "size_words": "waist high",
              "count": 1, "boxes": [[0, 40, 50, 50]]}]
-    reading.kept(store, {"place": "yard", "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
-                         "size": [100, 50], "inventory": {"concept_pick": {"sha256": PICK}, "rows": rows}})
+    picked(store, "yard", rows, size=[100, 50])
     plan = plans.current(store, "yard")["plan"]
     items = {item[0]: item for item in plan["items"]}
-    assert items["ROCK 1"][1:3] == [0.3, 0.3] and items["BARN 1"][1:5] == [1.6, 0.3, 8.0, 6.0]  # its metres, laid
+    assert items["ROCK 1"][1:3] == [0.3, 0.3] and items["BARN 1"][1:5] == [1.6, 0.3, 3.0, 2.0]  # its metres, laid
     # along the walls after the rock, whose box stands left of its: a box orders, it is never projected (owner, 2026-10-21)
     assert items["CART 1"][3:5] == [1.5, 1.0]  # its metres, laid along the walls: no box
     assert items["ROCK 1"][3:5] == [1.0, 1.0]  # a box but no metres: SAM 3 gives where, never size
-    assert [gap["words"] for gap in plan["gaps"]] == ["lamp post: no lamp post in this concept", "Rock 1: no size"]
-    assert plan["lamps"] == [] and plan["beams"] == [{"name": "far", "row": "mast", "place": "camp"}]
+    assert [gap["words"] for gap in plan["gaps"]] == ["Rock 1: no size"]
     plan["items"] = [[*item[:3], 2.0, 2.0, *item[5:]] if item[0] == "ROCK 1" else item for item in plan["items"]]
     plans.edited(store, "yard", plan, "joey")  # he sized the rock: its gap is gone
-    assert [gap["kind"] for gap in plans.current(store, "yard")["plan"]["gaps"]] == ["lamp"]
+    assert plans.current(store, "yard")["plan"]["gaps"] == []
 
 
 def test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes(store, tmp_path):
+    picked(store, "yard")
     picked(store, "shed")
-    assert plans.keep(store, ["shed", "yard"]) == (["shed"], ["shed"])  # the yard has no plan row: none kept
+    written(store, "shed", plans.current(store, "shed")["plan"])  # its plan written: its design done
+    assert plans.keep(store, ["shed", "yard"]) == (["shed"], ["shed"])  # the yard's plan only derived: none kept
     kept = tmp_path / "kept/shed.json"
-    written = json.loads(kept.read_text())
-    assert written == {**plans.current(store, "shed")["plan"], "concept": {**written["concept"], "pick": PICK}}
-    assert written["concept"]["picture"] == "{home}/design/concepts/shed.png"  # the picked concept, its input
+    kept_plan = json.loads(kept.read_text())
+    assert kept_plan == {**plans.current(store, "shed")["plan"], "concept": {**kept_plan["concept"], "pick": PICK}}
+    assert kept_plan["concept"]["picture"] == "{home}/design/concepts/shed.png"  # the picked concept, its input
     assert (tmp_path / "kept-concepts/shed.png").read_bytes() == store.objects.read_bytes(f"blobs/{PICK}")
     assert json.loads((tmp_path / "kept-inventory/shed.json").read_text())["rows"][0]["id"] == "bench"
     plan = plans.current(store, "shed")["plan"]
@@ -346,6 +336,7 @@ def test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes(store, tm
 
 
 def test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit(store, monkeypatch):
+    picked(store, "yard")
     picked(store, "shed")
     asked = []
 
@@ -371,6 +362,7 @@ def test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit(
 
 
 def test_a_correction_with_no_note_sends_his_kept_edits_and_with_none_is_refused_before_any_spend(store, monkeypatch):
+    picked(store, "yard")
     picked(store, "shed")
     monkeypatch.setattr(plans, "revise_euros", lambda: 0.05)
     bare = {"marks": [], "context_marks": [], "note": ""}
@@ -387,9 +379,9 @@ def test_a_correction_with_no_note_sends_his_kept_edits_and_with_none_is_refused
 
 def test_a_holder_with_no_outline_of_its_own_gets_one_round_its_inside_places_before_its_items(store, data):
     from score.review import reading
-    (data / "plans/yard.json").unlink()  # a shell with no plan (the base): the shed, 4 x 3 m, is inside it
-    assert plans.outline_from_inside(store, "yard") == (4.6, 3.6)
-    assert reading.outline_of(store, "yard") == (4.6, 3.6)  # the reading sizes its rows against it
+    # a holder with no outline of its own (the base): the shed, 6 x 6 m with no plan of its own, is inside it
+    assert plans.outline_from_inside(store, "yard") == (6.6, 6.6)
+    assert reading.outline_of(store, "yard") == (6.6, 6.6)  # the reading sizes its rows against it
     assert reading.outline_of(store, "nowhere") is None
     picked(store, "yard")
-    assert plans.current(store, "yard")["plan"]["w"] == 4.6
+    assert plans.current(store, "yard")["plan"]["w"] == 6.6

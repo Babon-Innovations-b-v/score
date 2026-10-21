@@ -30,8 +30,10 @@ import numpy as np
 
 from score.stages.complete.gaps import layer
 from score.stages.scene_record import plan as plans
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
+DESIGN = PROPS_HOME / "design"
 sys.path.insert(0, str(REPO / "tools/usd"))  # already on the path by the complete stage's import
 import complete  # noqa: E402
 import ground as grounds  # noqa: E402
@@ -39,13 +41,23 @@ import ground as grounds  # noqa: E402
 SPOT, WALL, ON, UNPLACED = "spot", "wall", "on", "unplaced"
 
 
+def design_or_data(data, folder, place):
+    """The place's record of `folder` (inventory, plans): its design's ({home}/design/<folder>, kept by plans.keep from
+    the locked concept), else `data`'s (the people line's, a test's own), or None when neither has one."""
+    for path in (DESIGN / folder / f"{place}.json", pathlib.Path(data) / folder / f"{place}.json"):
+        if path.exists():
+            return json.loads(path.read_text())
+    return None
+
+
 def inventory(data, place):
-    """The place's scene inventory (its plan's `inventory` name, the prologue's rooms', else the place's own), or
-    None when it has none."""
-    plan = pathlib.Path(data) / "plans" / f"{place}.json"
-    name = json.loads(plan.read_text()).get("inventory", place) if plan.exists() else place
-    path = pathlib.Path(data) / "inventory" / f"{name}.json"
-    return json.loads(path.read_text()) if path.exists() else None
+    """The place's scene inventory (design_or_data), or None when it has none."""
+    return design_or_data(data, "inventory", place)
+
+
+def plan(data, place):
+    """The place's plan (design_or_data: his kept plan), or None when it has none."""
+    return design_or_data(data, "plans", place)
 
 
 def made_objects(stage, place):

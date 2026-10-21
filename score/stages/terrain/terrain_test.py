@@ -143,46 +143,6 @@ def test_a_library_surface_added_for_a_model_leaves_terrains_key_alone():
     shutil.rmtree(root)
 
 
-def test_a_layout_edit_terrain_never_reads_leaves_its_key_alone():
-    """Fault (2026-10-12): terrain keyed the whole data/kit, data/scene and data/motion folders, so every light,
-    scene-record and machine edit re-keyed the EUR 6 ground and every place's assembly after it."""
-    import shutil
-    import tempfile
-    from score import graph
-    from score.stages import terrain
-    from score.stages.terrain import inputs
-    from score.store import Store
-    root = pathlib.Path(tempfile.mkdtemp())
-    for folder in ("ground/plan", "scene", "kit"):
-        shutil.copytree(REPO / "data" / folder, root / folder)
-    plans = [json.loads(path.read_text()) for path in (root / "ground/plan").glob("*.json")]
-    seated = set().union(*(set(plan["seats"]) for plan in plans))
-    assert set().union(*(plan.get("dents", {}) for plan in plans)) <= seated  # dented reads a seated kit only
-    files = {name: inputs.FILES[name] for name in ("scenes", "kits")}
-    stage = graph.Stage("terrain", "world", None, terrain.GROUNDS, files=files)
-    runner = graph.Runner((stage,), graph.Environment("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
-    before = runner.file_keys(stage, None)
-
-    def edit(folder, place, change):
-        path = root / folder / f"{place}.json"
-        record = json.loads(path.read_text())
-        change(record)
-        path.write_text(json.dumps(record))
-
-    edit("scene", "camp", lambda scene: scene.update(lights=[{"kind": "lamp", "at": [1, 2, 3]}]))
-    edit("kit", "camp", lambda kit: kit.update(materials={"any": "thing"}))
-    edit("kit", "lab", lambda kit: kit.update(on_seat=[9.0, 9.0]))  # no ground seats the lab (a base module)
-    edit("kit", "camp", lambda kit: kit["pieces"].append({"kind": "lamp", "at": [0, 0, 0], "model": "lamp_a"}))
-    edit("scene", "launch", lambda scene: scene.update(places=scene.get("places", []) + [{"name": "x", "stage": "x",
-                                                                                           "at": [0, 0, 0]}]))
-    assert runner.file_keys(stage, None) == before
-    edit("kit", "camp", lambda kit: kit.update(on_seat=[1.0, 1.0]))
-    edit("scene", "launch", lambda scene: scene.update(floor=[[-9.0, -9.0], [9.0, 9.0]]))
-    after = runner.file_keys(stage, None)
-    assert after["kits"] != before["kits"] and after["scenes"] != before["scenes"]  # what terrain reads moves it
-    shutil.rmtree(root)
-
-
 if __name__ == "__main__":
     import pathlib
     import runpy

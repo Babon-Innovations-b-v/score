@@ -1,7 +1,7 @@
 """The neighbours stage (experimental, PRD #6): a place's accepted assembly with every other place its scene record
 shows (`places`: the square and the launch past the flat's balcony) standing in it, each read from the store, so a
 view looks out onto the other place and not onto empty space. The record is the one the assembly built from (its
-scene.json: the accepted scene-record output where the place has one, else data/scene/<place>.json).
+scene.json: the accepted scene-record output; the old data/scene records were retired, 2026-10-21).
 
     make     copies the place's accepted assembly, then each neighbour's accepted assembly (read beside, as the runner
              reads `after`: versioned and waited on) into places/<neighbour>/, and points each layer's reference (the
@@ -32,14 +32,13 @@ OUTSIDE = "Outside"
 
 def record_of(place):
     """The scene record the place's assembly builds from: its accepted scene-record output (the framework's store)
-    where its plan has the row, else its seed record in data/scene; {} for a place with neither."""
+    where its plan has the row; {} before it stands (the old seed records were retired, 2026-10-21)."""
     if scene_record.written(place):
         store = Store.default()
         output = store.accepted(f"scene-record@{place}")
         if output:
             return store.read_file(output, f"record/{place}.json")
-    path = REPO / f"data/scene/{place}.json"
-    return json.loads(path.read_text()) if path.exists() else {}
+    return {}
 
 
 def shown(place):
@@ -49,10 +48,11 @@ def shown(place):
 
 
 def neighbours(place):
-    """The shown places that are places of the world (a kit each), whose assembly the stage reads beside. A part of
+    """The shown places that are places of the build (a kept plan with its leads each, scene_record.written), whose
+    assembly the stage reads beside. A part of
     another scene's outside (data/places/within.json `parts`, the launch) is none: it has no stage line, the scene it
     is part of builds it (the owner, 2026-10-21), so no place waits on its assembly."""
-    return [other for other in shown(place) if (REPO / f"data/kit/{other}.json").exists() and other not in parts()]
+    return [other for other in shown(place) if scene_record.written(other) and other not in parts()]
 
 
 def parts():
@@ -68,8 +68,9 @@ def lost(place):
 
 
 def files(place):
-    """The scene record."""
-    return {"scene record": "{data}/scene/{place}.json"}
+    """None: the scene record is the store's accepted scene-record output (record_of), so the row is keyed again once
+    it stands (the old data/scene records were retired, 2026-10-21)."""
+    return {}
 
 
 def lost_gap(place, other):

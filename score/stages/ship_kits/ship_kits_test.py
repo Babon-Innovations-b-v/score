@@ -1,6 +1,5 @@
-"""The ship-kit stage keeps only a layout's code pieces, and a ship deck leaves no seam round a set-in grate, without a
-card or Blender."""
-import json
+"""The ship-kit stage keeps only a layout's code pieces and lays the kit from the design, without a card or Blender.
+(The test of the old cockpit's deck round its grate went with its filed plan and inventory, retired 2026-10-21.)"""
 import pathlib
 import sys
 
@@ -30,63 +29,20 @@ def test_the_kit_keeps_only_the_named_pipeline_failures():
     assert set(kept["kinds"]) == set(kept["counts"]) == {"cockpit_thrust_indicator"}
 
 
-def grate_openings(cut):
-    """The cockpit's floor grate's footprint along the room (z) and the openings cut for it in the deck plates under
-    it, both as z spans in the room's frame, with the deck cut by `cut` (room_kit.cut_openings, its gap given)."""
-    with prop_data.tools("props/scene"):
-        import room_kit
-        import ship_kit
-        plan, inventory = (json.loads((REPO / f"data/{kind}/cockpit.json").read_text())
-                           for kind in ("plans", "inventory"))
-        kept = room_kit.cut_openings
-        room_kit.cut_openings = cut(room_kit, kept)
-        try:
-            pieces = ship_kit.layout("cockpit", plan, inventory)["pieces"]
-        finally:
-            room_kit.cut_openings = kept
-    grate = next(piece for piece in pieces if piece["kind"] == "cockpit_floor_grate")
-    span = sorted((grate["at"][2], grate["at"][2] + grate["y"][2] * grate["size"][1]))
-    gaps = [sorted((piece["at"][2] + piece["y"][2] * low, piece["at"][2] + piece["y"][2] * high))
-             for piece in pieces if piece["kind"] == "cockpit_ring_floor_plate"
-             for _, low, _, high in piece.get("openings", [])]
-    return span, gaps
-
-
-def test_a_ship_deck_has_no_seam_round_a_grate():
-    """Both ways (the cockpit's 3 view rays into nothing, 2026-10-15): with room_kit's 4 mm gap the openings run past
-    the grate's ends, a seam the ground-free ship shows nothing under; the ship kit cuts them to the grate itself."""
-    span, gaps = grate_openings(lambda room_kit, cut: cut)
-    assert round(min(low for low, _ in gaps), 4) == round(span[0], 4), (span, gaps)
-    assert round(max(high for _, high in gaps), 4) == round(span[1], 4), (span, gaps)
-    span, gaps = grate_openings(lambda room_kit, cut: lambda room, found, gap=None: cut(room, found))
-    assert round(span[0] - min(low for low, _ in gaps), 4) == 0.004, (span, gaps)
-
-
 def test_the_kit_reads_the_creators_kept_design():
-    """Where his plan and scene inventory are kept ({home}/design), the kit lays from them, never the filed ones; the
-    picked concept is no input of it; a place with none kept keeps the filed plan and inventory."""
-    import tempfile
-    import score.stages as stages
-    held = stages.PROPS_HOME
-    with tempfile.TemporaryDirectory() as folder:
-        stages.PROPS_HOME = pathlib.Path(folder)
-        try:
-            for kind, suffix in (("plans", "json"), ("inventory", "json"), ("concepts", "png")):
-                (stages.PROPS_HOME / "design" / kind).mkdir(parents=True)
-                (stages.PROPS_HOME / "design" / kind / f"quarters.{suffix}").write_text("{}")
-            kept, cockpit = ship_kits.STAGE.files("quarters"), ship_kits.STAGE.files("cockpit")
-        finally:
-            stages.PROPS_HOME = held
-    assert kept["plan"] == "{home}/design/plans/{place}.json", kept
-    assert kept["inventory"] == "{home}/design/inventory/{place}.json", kept
-    assert "concept" not in kept and set(kept) == set(ship_kits.filed("quarters"))
-    assert cockpit == ship_kits.filed("cockpit"), cockpit
+    """The kit lays from his kept plan and scene inventory ({home}/design), never a filed one (retired 2026-10-21);
+    the picked concept is no input of it."""
+    found = ship_kits.STAGE.files("quarters")
+    assert found["plan"] == "{home}/design/plans/quarters.json", found
+    assert found["inventory"] == "{home}/design/inventory/quarters.json", found
+    assert "concept" not in found and not any("{data}/plans" in str(path) or "{data}/inventory" in str(path)
+                                              for path in found.values()), found
+
 
 if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     test_the_kit_keeps_only_the_named_pipeline_failures()
-    test_a_ship_deck_has_no_seam_round_a_grate()
     test_the_kit_reads_the_creators_kept_design()
-    print("ship_kits: 3 tests pass")
+    print("ship_kits: 2 tests pass")

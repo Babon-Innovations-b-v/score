@@ -28,11 +28,9 @@ when its bytes change, so a key moves only with what the design says; a place no
 out.
 """
 import json
-import pathlib
 
 from score.stages.complete.prepare import estimate, groups
 
-ROOT = pathlib.Path(__file__).resolve().parents[4]
 APPROVED_BY = "the creator's pick"  # what the Pixal3D batch takes as a design's approval (batch.py DESIGNED)
 GROUNDED = "SAM 3's box in the reading of the picked concept"  # the box gate passes it (box_check.row_verdict)
 # A row SAM 3 found none of is framed by Gemini's region round it in the same reading (groups.boxed_by), said so.
@@ -51,10 +49,11 @@ def handed(take):
 
 
 def library_of(place):
-    """The name the library and data/definitions/place.json know the place by (its data/surfaces file's `library`,
-    the street's prologue_street), else its own."""
-    old = ROOT / "data/surfaces" / f"{place}.json"
-    return json.loads(old.read_text()).get("library", place) if old.is_file() else place
+    """The name the library and data/definitions/place.json know the place by: its design surface data's `library`
+    as prepare wrote it (the street's prologue_street, the camp's expedition_camp), else its own."""
+    from score.stages.surfaces import surface_data
+    kept = surface_data.DESIGN / f"{place}.json"
+    return json.loads(kept.read_text()).get("library", place) if kept.is_file() else place
 
 
 def hand_in(place, inventory, takes, route):
@@ -108,14 +107,12 @@ def written(path, record):
 def kept(store, record, route, designed):
     """Every `designed` place's hand-in and surface data written from prepare's `record` (route: its prop route's
     stages), the rest taken out; ([places kept], [places whose files changed])."""
-    from score.review import plans
     from score.stages.props import prop_data
     from score.stages.surfaces import surface_data
     inventories, _ = groups.current(store, designed)
     changed = []
     for place in sorted(inventories):
-        inventory = {"room": plans.filed_inventory(place).get("room", {}), **inventories[place]}
-        record_in = hand_in(place, inventory, [take for take in record["takes"] if take["place"] == place], route)
+        record_in = hand_in(place, inventories[place], [take for take in record["takes"] if take["place"] == place], route)
         moved = written(prop_data.DESIGN / f"{place}.json", record_in)
         moved |= written(surface_data.DESIGN / f"{place}.json", surface_record(place, record_in))
         if moved:

@@ -25,6 +25,11 @@ RECORD = {"place": "greenhouse", "concept": {"view": crop_data.DESIGN_VIEW, "plo
                     "herb": {"row": "crop_herb", "nouns": ["rosemary", "small shrub"]},
                     "greens": {"row": "crop_greens", "nouns": ["leafy bush"],
                                "canopy": "bushes whose leaves meet: laid one bush width apart"}}}
+# A scene record's 25 start beds, 0.6 m squares in a 5 x 5 grid, as the greenhouse's were laid (its old record was
+# retired with the old concepts, 2026-10-21).
+SCENE = {"structure": [{"name": f"bed_{column}_{row}", "centre": [round(-5.7 + 0.6 * column, 3), 0.03,
+                                                                 round(4.7 - 0.6 * row, 3)], "size": [0.6, 0.06, 0.6]}
+                       for column in range(5) for row in range(5)]}
 SQUARE_PLOT = {"plot:raised garden bed": [{"box": [0, 0, 2000, 2000], "score": 0.9, "inside": 1.0, "fills": 1.0}]}
 
 
@@ -95,8 +100,9 @@ def test_measured_gate():
 def laid_on_greenhouse(folder, spacing_widths):
     """The greenhouse's beds shared and laid at `spacing_widths` plant widths for every kind, plants 0.2 m wide; the
     gates' inputs and output folder."""
-    scene = crop_data.REPO / "data/scene/greenhouse.json"
-    beds = layer.beds_of(json.loads(scene.read_text()), RECORD["beds"])
+    scene = folder / "scene.json"
+    scene.write_text(json.dumps(SCENE))
+    beds = layer.beds_of(SCENE, RECORD["beds"])
     shared = layer.shared_out(beds, {kind: 1.0 for kind in RECORD["kinds"]})
     widths = {kind: 0.2 for kind in RECORD["kinds"]}
     spots = layer.laid_spots(beds, shared, {kind: spacing_widths * 0.2 for kind in RECORD["kinds"]}, 7)
@@ -164,7 +170,7 @@ def test_layer_says_what_made_its_crops():
 def test_look_finds_the_floor_again():
     """A point of the beds' top drawn by a look camera (the effects look's projection) is taken back onto it."""
     import score.stages.effects.look as effects_look
-    beds = layer.beds_of(json.loads((crop_data.REPO / "data/scene/greenhouse.json").read_text()), RECORD["beds"])
+    beds = layer.beds_of(SCENE, RECORD["beds"])
     for view in look.views_of(beds):
         for point in ((-5.7, 0.06, 4.7), (-3.3, 0.06, 2.3), (-4.5, 0.06, 3.5)):
             pixel = effects_look.projected(view, point, look.SIZE)
@@ -176,8 +182,7 @@ def test_look_finds_the_floor_again():
 def test_look_counts_a_plant_the_kind_of_its_bed():
     """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on."""
     import score.stages.effects.look as effects_look
-    beds = {bed["name"]: bed for bed in layer.beds_of(json.loads((crop_data.REPO / "data/scene/greenhouse.json")
-                                                                 .read_text()), RECORD["beds"])}
+    beds = {bed["name"]: bed for bed in layer.beds_of(SCENE, RECORD["beds"])}
     view = look.views_of(list(beds.values()))[0]
     foot_x, foot_y = effects_look.projected(view, (-5.7, 0.06, 4.7), look.SIZE)
     box = [foot_x - 20, foot_y - 60, foot_x + 20, foot_y]
@@ -188,21 +193,6 @@ def test_look_counts_a_plant_the_kind_of_its_bed():
     spots_record = {"spots": [], "widths": {kind: 0.2 for kind in RECORD["kinds"]}}
     seen = look.seen_on_beds(RECORD, view, instances, beds, shared, spots_record)
     assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen
-
-
-def test_the_foliage_bakes_pack_face_by_face():
-    """The leafy crops' bake entries ask make_chunky for per-face packing (bake.packed_per_face: smart_project split
-    the herb into 2,913 one-triangle islands, 1% of its square, 72% baked black, 2026-10-16), and the bake's job hands
-    it on; the potato, a solid, keeps the island packing."""
-    sys.path.append(str(crop_data.REPO / "score/stages/surfaces"))
-    import place_line
-    surfaces = crop_data.REPO / "data/surfaces/greenhouse.json"  # the crops are the greenhouse's own takes
-    labelled = {take: pathlib.Path("/labelled") / take for take in json.loads(surfaces.read_text())["takes"]
-                if take.startswith("crop_") and not take.startswith("crop_crate")}
-    _, chunky = place_line.bake_entries({"surfaces": surfaces}, labelled)
-    per_face = {entry["name"]: entry.get("per_face", False) for entry in chunky}
-    assert per_face == {"crop_lettuce_1": True, "crop_potato_1": False, "crop_herb_1": True,
-                        "crop_greens_1": True}, per_face
 
 
 if __name__ == "__main__":

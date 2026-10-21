@@ -39,31 +39,12 @@ def test_the_kit_row_plans_its_named_code_fallbacks_only():
     assert [piece["model"] for piece in pieces] == ["wall_1", "lamp_1"], pieces
     assert pieces[0]["y"] == [0.0, 0.0, 1.0] and pieces[1]["y"] == earth_seed.UPRIGHT, pieces
     assert [piece["model"] for piece in earth_seed.code_layout(KIT, "x", {"lamp": "why"})["pieces"]] == ["lamp_1"]
-    assert earth_seed.kit_jobs("wreck") >= 1
 
 
 def test_a_row_handed_to_the_loop_leaves_the_kit_row():
     assert set(earth_seed.fallbacks(KIT, "x", {"wall", "crane"})) == {"lamp"}  # the wall's and crane's are the loop's
     handed = earth_seed.handed_in({"wall": {"route": "prop", "layer": "kit"}, "chair": {"route": "prop"}})
     assert handed == {"wall"}, handed  # a row with no layer is the objects layer's (closeup_row.layer_of)
-
-
-def test_every_earth_kit_code_piece_is_a_named_fallback():
-    """No earth place's kit row bakes a code piece its record does not name with why, and only the loop's own rows
-    leave its bake (#41)."""
-    for place in (path.stem for path in sorted((REPO / "data/kit").glob("*.json")) if stages.earth_place(path.stem)):
-        kit = json.loads((REPO / "data/kit" / f"{place}.json").read_text())
-        handed = earth_seed.handed_rows(place)
-        named = earth_seed.fallbacks(kit, place, handed)
-        baked = earth_seed.code_layout(kit, place, named)["pieces"]
-        assert all(named.get(earth_seed.piece_row(piece, kit, place)) for piece in baked), place
-        code = {earth_seed.piece_row(piece, kit, place) for piece in kit["pieces"] if earth_seed.code_built(piece, kit)}
-        left = code - {earth_seed.piece_row(piece, kit, place) for piece in baked}
-        assert left <= handed, (place, left)
-        # a picture-made piece (route `model`, laid from a stored take) is the loop's or named too, never unrecorded
-        rows = {earth_seed.piece_row(piece, kit, place) for piece in kit["pieces"] if "part" not in piece}
-        assert rows - handed == set(named), (place, rows - handed - set(named))
-        assert all(entry["why"] for entry in named.values()), place
 
 
 def write(folder, name, record):
@@ -151,35 +132,23 @@ def test_kit_sections_lay_one_style_one_finish_and_wear_across_the_seams():
         shutil.rmtree(root)
 
 
-def test_the_kit_adapter_is_on_the_loop_and_every_plan_section_is_laid():
+def test_the_kit_adapter_is_on_the_loop_and_no_place_lays_a_kit():
+    """The kit adapter stays on the loop; no place lays a kit now (the old concepts' kits were retired, 2026-10-21),
+    so no place has kit sections and every base is its design's."""
     from score.stages import assembly, shapes_first
     assert shapes_first.KIT in shapes_first.ADAPTERS and shapes_first.KIT.layer == earth_seed.KIT_LAYER
     step = next(row for row in shapes_first.rows() if row.name == "kit-sections")
     assert not step.applies("hangar")  # no kit row handed to the loop yet (earth_seed.NOT_HANDED)
     from score.stages.earth_seed import kit_sections
     kept = earth_seed.DESIGN
-    root = with_designs({})  # no locked plan: each kit is its base's, so only the filed plans' sections decide
+    root = with_designs({})
     try:
-        assert kit_sections.applies("hangar") and not kit_sections.applies("wreck")  # wreck's plan marks no sections
-        ships = [place for place in ("shiplock", "cockpit", "engineroom") if stages.ship_place(place)]
-        assert ships and not any(kit_sections.applies(place) for place in ships), ships  # their plans mark no sections
-        with_designs({"hangar": {"w": 32.0, "d": 64.0}})  # any locked design, even the filed room's size
-        assert not kit_sections.applies("hangar")
+        assert not any(kit_sections.applies(place) or earth_seed.kit_is_base(place)
+                       for place in ("hangar", "wreck", "cockpit", "street"))
     finally:
         shutil.rmtree(root, ignore_errors=True)
-        shutil.rmtree(earth_seed.DESIGN, ignore_errors=True)
         earth_seed.DESIGN = kept
     assert "kit-sections" in assembly.LAYERS
-    for path in sorted((REPO / "data/plans").glob("*.json")):
-        sections = json.loads(path.read_text()).get("sections", [])
-        if not sections:
-            continue
-        kit = json.loads((REPO / "data/kit" / path.name).read_text())
-        laid = {earth_seed.piece_row(piece, kit, path.stem) for piece in kit["pieces"]}
-        rows = [row for section in sections for row in section["rows"]]
-        assert len(rows) == len(set(rows)) and set(rows) <= laid, (path.stem, set(rows) - laid)
-        assert {section["surface"] for section in sections} <= {"walls", "floor", "ceiling"}, path.stem
-
 
 
 def test_no_row_reads_an_earth_place_s_round_three_seed():
@@ -294,23 +263,14 @@ def with_designs(plans):
     return root
 
 
-def test_a_kit_is_the_base_s_only_where_no_design_is_locked():
-    """The cockpit's kit was laid for data/plans/cockpit.json's 6.53 x 3.0 m room: with no locked plan it is all the
-    cockpit has; any locked plan, even one keeping that room's size (the hangar's did, and was still the old room,
-    2026-10-21), makes its base its design's, the kit left out; a scene added in the app (no kit, not in place.json)
-    takes the style of the scene whose plan holds it, and one nothing holds has none."""
+def test_a_designed_base_takes_its_style_from_its_own_entry_else_the_scene_holding_it():
+    """A design's base is its design's, never a kit's (the old concepts' kits were retired, 2026-10-21); a scene added
+    in the app (not in place.json) takes the style of the scene whose plan holds it, and one nothing holds has none."""
     kept = earth_seed.DESIGN
-    filed = json.loads((REPO / "data/plans/cockpit.json").read_text())
-    assert (filed["w"], filed["d"]) == (6.53, 3.0)
-    root = with_designs({})
+    root = with_designs({"cockpit": {"w": 9.414, "d": 9.8},
+                         "hangar": {"holds": [{"place": "cockpit", "row": "spaceship"},
+                                              {"place": "docking_bay", "row": "spaceship"}]}})
     try:
-        assert earth_seed.kit_is_base("cockpit") and "kit" in earth_seed.seed_files("cockpit")
-        with_designs({"cockpit": {"w": 6.53, "d": 3.0}})
-        assert not earth_seed.kit_is_base("cockpit") and "kit" not in earth_seed.seed_files("cockpit")
-        shutil.rmtree(earth_seed.DESIGN)
-        with_designs({"cockpit": {"w": 9.414, "d": 9.8},
-                      "hangar": {"holds": [{"place": "cockpit", "row": "spaceship"},
-                                           {"place": "docking_bay", "row": "spaceship"}]}})
         assert not earth_seed.kit_is_base("cockpit")
         declared = earth_seed.seed_files("cockpit")
         assert "kit" not in declared and declared["design plan"] == "{home}/design/plans/cockpit.json", declared
@@ -337,29 +297,22 @@ def test_a_kit_is_the_base_s_only_where_no_design_is_locked():
 def test_the_seed_and_its_sections_read_the_design_s_surface_data():
     """A place's earth seed and kit sections declare its design's surface data where it has one (surface_data.pattern,
     the one its finish route paints), the places it claims models from are that data's `elsewhere`, through the
-    registered row too, and a design base declares no old scene record (data/scene) though one is filed for it."""
+    registered row too, and a design base declares no old scene record."""
     from score.stages.earth_seed import kit_sections
     from score.stages.surfaces import surface_data
     kept_surfaces, kept = surface_data.DESIGN, earth_seed.DESIGN
     root = with_designs({"hub": {"w": 12.0, "d": 12.0}})
     surface_data.DESIGN = root / "surfaces"
     surface_data.DESIGN.mkdir()
-    for place in ("hangar", "hub"):
-        (surface_data.DESIGN / f"{place}.json").write_text(json.dumps(
-            {"library": place, "takes": {}, "elsewhere": {"rack_1": {"take": "rack-x", "place": "lab"}}}))
+    (surface_data.DESIGN / "hub.json").write_text(json.dumps(
+        {"library": "hub", "takes": {}, "elsewhere": {"rack_1": {"take": "rack-x", "place": "lab"}}}))
     try:
-        assert earth_seed.kit_is_base("hangar") and not earth_seed.kit_is_base("hub")
-        declared = earth_seed.seed_files("hangar")
-        assert declared["surfaces"] == "{home}/design/surfaces/hangar.json", declared
-        assert declared["scene"] == "{data}/scene/hangar.json", declared  # a kit base still lays its scene record
-        assert earth_seed.claiming_places("hangar") == ["lab"]
-        assert stages.EARTH_SEED.neighbours("hangar") == ["lab"]  # the registered row reads the design's claims
-        assert kit_sections.files("hangar")["surfaces"] == "{home}/design/surfaces/hangar.json"
-        assert kit_sections.applies("hangar")
-        assert (REPO / "data/scene/hub.json").exists()
+        assert not earth_seed.kit_is_base("hub")
         declared = earth_seed.seed_files("hub")
         assert "scene" not in declared and declared["surfaces"] == "{home}/design/surfaces/hub.json", declared
-        assert earth_seed.seed_files("launch")["surfaces"] == "{data}/surfaces/launch.json"  # no design data
+        assert earth_seed.claiming_places("hub") == ["lab"]
+        assert stages.EARTH_SEED.neighbours("hub") == ["lab"]  # the registered row reads the design's claims
+        assert kit_sections.files("hub")["surfaces"] == "{home}/design/surfaces/hub.json"
     finally:
         surface_data.DESIGN, earth_seed.DESIGN = kept_surfaces, kept
         shutil.rmtree(root, ignore_errors=True)

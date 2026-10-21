@@ -363,10 +363,11 @@ def concept_picture(store, sha):
 
 
 def refresh(store):
-    """rows.json from every place's current reading and plan (a place with none is left out); written."""
+    """rows.json from every place's current reading and plan (a place with none is left out; the places are those
+    whose scene inventory the design keeps, plans.KEPT_INVENTORY); written."""
     from score.review import plans
     from score.stages.complete.prepare import groups
-    places = sorted(path.stem for path in (REPO / "data/inventory").glob("*.json") if path.stem != LINE)
+    places = sorted(path.stem for path in plans.KEPT_INVENTORY.glob("*.json") if path.stem != LINE)
     inventories, _ = groups.current(store, places)
     old = read() if ROWS.exists() else {"places": {}}
     found = {place: refreshed_place(place, inventory, (plans.current(store, place) or {}).get("plan"),

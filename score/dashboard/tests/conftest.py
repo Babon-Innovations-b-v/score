@@ -1,6 +1,5 @@
 """Every dashboard test runs in temp folders: PROPS_HOME and the dashboard's home are made here before Django's
 settings are read, so no test can reach the real store or write beside it."""
-import json
 import os
 import pathlib
 import sys
@@ -39,11 +38,27 @@ def blockouts():
 
 @pytest.fixture
 def world(tmp_path, monkeypatch, blockouts):
-    """The fixture environment (tests/fixture.py) served as this process's source, decisions on."""
+    """The fixture environment (tests/fixture.py) served as this process's source, decisions on, both places
+    designed."""
+    return served(fixture_built(tmp_path, True), monkeypatch, blockouts)
+
+
+@pytest.fixture
+def drafting(tmp_path, monkeypatch, blockouts):
+    """The fixture environment still in design (alpha drawn, beta not, nothing locked) served the same way."""
+    return served(fixture_built(tmp_path, False), monkeypatch, blockouts)
+
+
+def fixture_built(tmp_path, design):
+    from score.dashboard.tests import fixture
+    return fixture.build(tmp_path, design)
+
+
+def served(built, monkeypatch, blockouts):
+    """`built` served as this process's source, decisions on."""
     from score.dashboard import state
     from score.dashboard.pages import actions
     from score.dashboard.tests import fixture
-    built = fixture.build(tmp_path)
     built.source.home.mkdir(parents=True, exist_ok=True)
     (built.source.home / "blockouts").symlink_to(blockouts)
     monkeypatch.setattr(state, "source", lambda: built.source)
@@ -54,11 +69,7 @@ def world(tmp_path, monkeypatch, blockouts):
 
 @pytest.fixture
 def read(world):
-    """alpha's and beta's concepts picked and their scene inventories read from them, so their numbers count
-    (CONTEXT.md "scene inventory"; alpha's its concepts.json picture, beta's a sha of its own: its picture is lost)."""
-    from score.dashboard.tests import fixture
-    alpha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
-    for place, sha in (("alpha", alpha), ("beta", "b" * 64)):
-        fixture.an_inventory_read(world.store, world.data, place, sha)
+    """alpha's and beta's scene inventories read from their picked concepts, so their numbers count (CONTEXT.md
+    "scene inventory"): the fixture designs both (fixture.designed); alpha's its drawn picture, beta's lost."""
     world.source.refresh()
     return world

@@ -32,7 +32,7 @@ from score import contracts
 from score.stages.terrain import gates, measures, outside, plan, record, rocks
 
 FILES = {"grounds": "{data}/ground", "library": ("{data}/library/materials.json", record.ground_surfaces),
-         "tokens": "{data}/../design/tokens/tokens.json", "scenes": "{data}/scene", "kits": "{data}/kit"}
+         "tokens": "{data}/../design/tokens/tokens.json"}
 DRAWING_SIDE = 1024
 CHECKS = gates.CHECKS
 # What made every ground here (#27): the code fallback, named; the terrain adapter's pieces join over it.

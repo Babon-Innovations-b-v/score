@@ -24,24 +24,16 @@ NAME = "gaps"
 WRITTEN = "gaps.json"
 
 
-# The places whose gaps file every gap row has keyed since 2026-10-14, the accepted paint among them: they keep it, so
-# no accepted output moves. shortcut: a judged-only input (in the judgement's state, not the key; a change to
-# score/graph) would let these read only their own gaps too.
-KEYED_WHOLE = ("campgrounds", "galley", "garage", "greenhouse", "hangar", "wreck")
-# The rows that keyed those files whole: a gate given gaps later (complete-boxes) reads only the gaps naming it.
-KEYED_ROWS = ("assembly", "surfaces-check", "surfaces-paint")
-
-
 def files(place, row=None):
     """{"gaps": its pattern} for a place with a gaps file, else nothing (no key of another place moves): for the
     completion gate (`row` None) always, as it fails every gap by name; for a row whose gate a gap may move from, only
     where a gap of the file names that row, so a gap is never an input of a row it does not reach (the street's gaps
-    of complete re-keyed the paid paint at three places, overseer 2026-10-15); the KEYED_WHOLE places as before."""
+    of complete re-keyed the paid paint at three places, overseer 2026-10-15). The gaps decided for the old concepts
+    were retired with them (2026-10-21): a place has a file again only on the owner's next decision."""
     path = FOLDER / f"{place}.json"
     if not path.exists():
         return {}
-    if row is not None and not (place in KEYED_WHOLE and row in KEYED_ROWS) and not any(
-            entry["row"] == row for entry in json.loads(path.read_text())["gaps"]):
+    if row is not None and not any(entry["row"] == row for entry in json.loads(path.read_text())["gaps"]):
         return {}
     return {NAME: "{data}/checks/gaps/" + f"{place}.json"}
 

@@ -249,6 +249,12 @@ class LocalSource:
     def places(self):
         return stages.places(self.world, self.store)
 
+    def scenes(self):
+        """Every scene of the design, done or not: the places of the build and each scene drawn or locked in the
+        concept review (no kit or plan names one since 2026-10-21)."""
+        from score.review import concepts
+        return sorted({*self.places(), *concepts.placed(self.store)})
+
     def looks(self):
         path = self.data / "definitions/place.json"
         return json.loads(path.read_text()) if path.exists() else {}
@@ -491,7 +497,7 @@ class LocalSource:
     def style_groups(self):
         looks = self.looks()
         found = []
-        for look, places in groups.styles(self.places(), looks).items():
+        for look, places in groups.styles(self.scenes(), looks).items():  # a scene in design gets its card
             entry = looks.get(look) if isinstance(looks.get(look), dict) else {}
             pictures = (entry.get("pictures") or {}).get("do") or [] if isinstance(entry.get("pictures"), dict) else []
             first = pictures[0] if pictures else {}
@@ -555,7 +561,7 @@ class LocalSource:
         the environment concept as its page shows it, one interview answer's euros and the pictures of its
         references that stand on this machine (its local copy of the private bucket's references/)."""
         from score.review import concepts, environment_concept
-        shown = environment_concept.current(self.store, self.world.name, self.places())
+        shown = environment_concept.current(self.store, self.world.name, self.scenes())
         pictures = {}
         for ref in shown["concept"]["references"]:
             path = concepts.resolved(ref["picture"])
@@ -569,24 +575,15 @@ class LocalSource:
                 "environment_pictures": pictures}
 
     def concepts(self, review):
-        """{place or shell: FileRef} of each concept picture: the concept `review`'s picked draw, else its newest draw,
-        else the one data/places/concepts.json names, where its bytes stand in the store's blobs; a place it lists
-        as lost with no draw, or whose blob is not here, has none, and so has one whose draws are out of date (every
-        draw from an older wording, or its pick or every draw on a room the plan above has since changed: owner,
-        2026-10-21), so its card offers the draw again, never an old picture as current."""
-        path = self.data / "places" / "concepts.json"
-        found = json.loads(path.read_text())["concepts"] if path.is_file() else {}
+        """{place or shell: FileRef} of each concept picture: the concept `review`'s picked draw, else its newest draw;
+        a place with no draw has none (the old plans' concept pictures were retired, 2026-10-21), and so has one whose
+        draws are out of date (every draw from an older wording, or its pick or every draw on a room the plan above has
+        since changed: owner, 2026-10-21), so its card offers the draw again, never an old picture as current."""
         refs = {}
-        for node, concept in found.items():
-            blob = self.blob_path(concept["sha256"])
-            if blob.is_file():
-                self.known.add(concept["sha256"], concept["name"], blob)
-                refs[node] = file_ref(concept["sha256"], concept["name"], blob.stat().st_size)
         for node, draws in review["concept_draws"].items():
             chosen = review["concept_picked"].get(node)
             if (not chosen and node in review["concept_undrawn"]) or node in review["plan_changed"]:
-                refs.pop(node, None)  # out of date: kept in its history, never on its card
-                continue
+                continue  # out of date: kept in its history, never on its card
             refs[node] = next((draw.picture for draw in draws if draw.picture.sha == chosen), draws[-1].picture)
         return refs
 
@@ -692,7 +689,7 @@ class LocalSource:
         plans name (no line of their own yet: CONTEXT.md "plan review")."""
         from score.review import environment_concept
         found = self.hierarchy()
-        top = [entry["place"] for entry in environment_concept.places_in_force(self.store, self.places())]
+        top = [entry["place"] for entry in environment_concept.places_in_force(self.store, self.scenes())]
         return [node for node in dict.fromkeys([*top, *found["shells"],
                                                 *[node for node in found["within"] if node not in found["parts"]]])
                 if node not in found["removed"]]
@@ -796,13 +793,13 @@ class LocalSource:
         return self.remembered(("gaps total", self.gaps_written(), counted), read)
 
     def inventory_reads(self):
-        """{place: {concept, rows, checked} or None} of each place's scene inventory file
+        """{place: {concept, rows, checked} or None} of each scene's kept scene inventory file
         (score/review/concepts.inventory_read), `checked` False when its gaps findings were written before the pick
         standing: those were read from an older inventory."""
         from score.review import concepts
         found = {}
-        for place in self.places():
-            read = concepts.inventory_read(place, self.data / "inventory")
+        for place in self.scenes():
+            read = concepts.inventory_read(place, self.props_home / "design" / "inventory")
             picks = concepts.records(self.store, place, "picks")
             written = written_at(self.props_home / "work" / CHECKS / GAPS / place / "findings.json")
             picked_ns = datetime.datetime.fromisoformat(picks[-1]["at"]).timestamp() * 1e9 if picks else None

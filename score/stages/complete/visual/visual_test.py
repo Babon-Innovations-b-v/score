@@ -1,16 +1,10 @@
-"""The visual check: its known-bad fixture fails and its clean place passes, the surfaces it reads off a stage are
-the ones the stage holds, and a run writes findings, marked pictures and a contact sheet.
-
-The fixture (data/checks/visual/<place>/) is real evidence measured from the store on 2026-10-18 (measure.py), two
-pictures a place: old_station's film, where a neighbour's flat untextured ground cuts across the view, the wreck's,
-whose floor has no texture, the airlock's, where the walkway tube's panels stand inside the room, and the
-workshop's, which is clean.
+"""The visual check: the surfaces it reads off a stage are the ones the stage holds, and a neighbour standing inside
+a room is found. (Its fixture of the old concepts' films, data/checks/visual, was retired with them on 2026-10-21; a
+fixture is measured again from today's films with measure.gather.)
 
 Run: .venv/bin/python score/stages/complete/visual/visual_test.py
 """
-import json
 import pathlib
-import shutil
 import sys
 import tempfile
 
@@ -18,32 +12,7 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO))
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade  # noqa: E402
 
-from score.stages.complete.visual import __main__ as run  # noqa: E402
-from score.stages.complete.visual import judge, room, seen  # noqa: E402
-
-FIXTURE = REPO / "data/checks/visual"
-EXPECTED = {"old_station": "fail", "wreck": "fail", "airlock": "fail", "workshop": "pass"}
-
-
-def fixture_answers():
-    """Each fixture place's answer against the one it must give, and the faults it must name."""
-    problems = []
-    found = {}
-    for place, wanted in EXPECTED.items():
-        evidence = judge.read(FIXTURE / place)
-        found[place] = judge.findings(evidence, FIXTURE / place)
-        answer = judge.verdict(evidence, found[place])
-        if answer != wanted:
-            problems.append(f"{place}: {answer}, not {wanted} ({[item['sentence'] for item in found[place]]})")
-    named = {(item["rule"], item["prim"]) for item in found["old_station"]}
-    if (judge.BLOCKING, "/old_station/Places/habitat_tube/Outside/near") not in named:
-        problems.append(f"old_station: the neighbour's ground across the view is not named as a blocking plane: {named}")
-    if not any(item["rule"] == judge.UNTEXTURED and "Outside/near" in item["prim"] for item in found["wreck"]):
-        problems.append(f"wreck: its untextured ground is not named: {[item['prim'] for item in found['wreck']]}")
-    if not any(item["rule"] == judge.INSIDE and "/Places/lab_tube/" in item["prim"] for item in found["airlock"]):
-        problems.append(f"airlock: the tube inside the room is not named: {[item['prim'] for item in found['airlock']]}")
-    return problems
-
+from score.stages.complete.visual import room, seen  # noqa: E402
 
 def quad(stage, path, corners):
     """A one-face mesh with texture coordinates."""
@@ -129,32 +98,11 @@ def neighbours_read_inside_a_room():
     return [] if found == wanted else [f"a room's neighbours inside read {found}, not {wanted}"]
 
 
-def a_run_writes_its_pictures():
-    """A judge-only run over a copy of the fixture: findings.json per place, a marked picture per finding, the
-    contact sheet and the summary."""
-    with tempfile.TemporaryDirectory() as temporary:
-        out = pathlib.Path(temporary)
-        for place in EXPECTED:
-            shutil.copytree(FIXTURE / place, out / place)
-        run.main(["--judge-only", "--out", str(out), *[part for place in EXPECTED for part in ("--place", place)]])
-        problems = []
-        for place, wanted in EXPECTED.items():
-            written = json.loads((out / place / run.FINDINGS).read_text())
-            if written["answer"] != wanted:
-                problems.append(f"{place}: findings.json says {written['answer']}, not {wanted}")
-            problems += [f"{place}: no picture {item['picture']}" for item in written["findings"]
-                         if not (out / place / item["picture"]).is_file()]
-        if not (out / "contact_sheet.png").is_file() or not (out / "summary.json").is_file():
-            problems.append("no contact sheet or summary")
-        return problems
-
-
 if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[4] / "conftest.py"))["refuse_outside_sandbox"]()
-    failures = (fixture_answers() + kinds_read_off_a_stage() + neighbours_read_inside_a_room()
-                + a_run_writes_its_pictures())
+    failures = kinds_read_off_a_stage() + neighbours_read_inside_a_room()
     for failure in failures:
         print(failure)
     print("ok" if not failures else f"{len(failures)} failed")

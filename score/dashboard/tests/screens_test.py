@@ -285,25 +285,25 @@ def test_a_library_with_no_blob_folder_reads_its_pictures_from_the_store_sides_c
     assert bare.blob(alpha.picture) == kept and bare.picture_path(alpha.picture, 64).is_file()
 
 
-def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_read_from_its_picked_concept(world):
+def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_read_from_its_picked_concept(drafting):
     from score.dashboard.tests import fixture
     from score.dashboard.tests.pages_test import signed_in
     from score.review import concepts
+    world = drafting
 
     def alpha():
         world.source.refresh()
         return next(place for place in screens.environment(world.source, MONTH)["places"] if place["place"] == "alpha")
     shown = alpha()
-    assert (shown["design"], shown["progress"], shown["gaps"]) == ("review", None, None)  # drawn, not picked
+    assert (shown["design"], shown["progress"], shown["gaps"]) == ("draw", None, None)  # its one draw out of date
     html = signed_in().get("/places/").content.decode()
     # its design steps done in place of the ring and gaps (owner, 2026-10-21: numbers, not prose)
     assert 'class="design-steps" title="concept locked no' in html and "data-v>0/3</b>" in html
-    assert "its concept is not locked" in html and 'class="ring' not in html
+    assert "no concept yet" in html and 'class="ring' not in html
     assert 'href="/place/alpha/"' not in html and 'class="ptile" href="/concept/alpha/"' in html  # no Place screen
-    page = signed_in("joey2").get("/place/alpha/").content.decode()
-    assert "<iframe" not in page and 'href="/concept/alpha/"' in page and "data-v>in review</span>" in page
-    sha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
-    fixture.an_inventory_read(world.store, world.data, "alpha", sha)
+    assert signed_in("joey2").get("/place/alpha/").status_code == 404  # in design: no place of the build yet
+    sha = fixture.concept_of(world.store, "alpha")
+    fixture.designed(world.store, "alpha", sha, world.root / "props")  # locked, read and its plan written: a place of the build
     shown = alpha()
     assert shown["design"] is None and shown["progress"]["needed"] > 0 and shown["gaps"] is not None
     assert screens.place(world.source, "alpha", None)["progress"] is not None
@@ -314,16 +314,15 @@ def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_re
     os.utime(findings, (1760000000, 1760000000))  # gaps checked before the pick: read from an older inventory
     assert alpha()["design"] == "check"
     findings.unlink()
-    inventory = world.data / "inventory/alpha.json"
-    inventory.write_text(inventory.read_text().replace(sha, "o" * 64))  # read from an older concept
-    shown = alpha()
+    concepts.recorded(world.store, "concepts/alpha/picks/2026-10-20T10-00-00.json",  # another draw locked
+                      {"place": "alpha", "sha": "o" * 64, "by": "joey", "at": "2026-10-20T10:00:00+00:00"})
+    shown = alpha()  # its reading was of the older concept: counts for nothing
     assert (shown["design"], shown["progress"], shown["gaps"]) == ("read", None, None)
     assert screens.place(world.source, "alpha", None)["items"] == []  # no gap of it, in 3D either
-    inventory.write_text(inventory.read_text().replace("o" * 64, sha))
-    concepts.recorded(world.store, "concepts/alpha/picks/2026-10-20T10-00-00.json",
-                      {"place": "alpha", "sha": None, "by": "joey", "at": "2026-10-20T10:00:00+00:00"})
+    concepts.recorded(world.store, "concepts/alpha/picks/2026-10-20T11-00-00.json",
+                      {"place": "alpha", "sha": None, "by": "joey", "at": "2026-10-20T11:00:00+00:00"})
     shown = alpha()  # unlocked: its inventory counts for nothing again
-    assert (shown["design"], shown["progress"]) == ("review", None)
+    assert (shown["design"], shown["progress"]) == ("draw", None)
 
 
 def test_a_withdrawn_library_place_is_no_3d_for_its_place_screen():

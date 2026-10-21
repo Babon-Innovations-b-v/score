@@ -177,7 +177,7 @@ class Remake(BaseModel):
     counts: dict = {}  # {takes, bought, made, library, predicted_gaps, blocked}
     places: dict[str, dict] = {}  # {place: {takes, bought, made, library, predicted_gaps, blocked}}
     layers: dict[str, dict] = {}  # {stage: {takes, likely, high, places: {place: takes}}}: prepare's per-unit × count
-    design: dict = {}  # {places: {place: {concept, plan, output, hint}}, approved}: prepare/design.py
+    design: dict = {}  # {places: {place: {concept, plan, output}}, approved}: prepare/design.py
     # {read: [place], waiting: [place]}: the places priced from their current scene inventory reading, and those
     # waiting on one (no euros); {} in a record made before prepare read the readings.
     inventory: dict = {}
@@ -198,7 +198,7 @@ class WorldState(BaseModel):
     parts: list[str] = []  # places that are part of another's outside, no concept and no card of their own
     removed: list[str] = []  # places his kept plans no longer lay out (merged into another): no card at all
     shells: dict[str, str] = {}  # {outside shell that is no place of its own: its short name}
-    concepts: dict[str, FileRef] = {}  # {place or shell: its concept picture} (data/places/concepts.json); absent: lost
+    concepts: dict[str, FileRef] = {}  # {place or shell: its concept picture} (its concept review's draw); absent: none
     # The concept review's (score/review/concepts.py): each place's draws oldest first, the draw picked (locked) for
     # it, and the euros of one draw (None: not measured).
     concept_draws: dict[str, list["ConceptDraw"]] = {}
@@ -245,7 +245,7 @@ class WorldState(BaseModel):
 
 
 class PlanReview(BaseModel):
-    """One place's plan as its plan page shows it: the plan (data/plans' schema, its holds the inside places it lays
+    """One place's plan as its plan page shows it: the plan (the house plan schema, its holds the inside places it lays
     out), how it was made (derived, written, edited, revised), and when and by whom (None: derived)."""
     plan: dict
     how: str

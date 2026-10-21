@@ -54,8 +54,8 @@ LAYER = "terrain"  # areas.LAYER: the rows this after-step joins
 
 
 def files(place):
-    """The place's inventory (its detail area rows)."""
-    return {"inventory": "{data}/inventory/" + f"{place}.json"}
+    """The place's scene inventory, the design's (its detail area rows)."""
+    return {"inventory": "{home}/design/inventory/" + f"{place}.json"}
 
 
 def place_layer(terrain, place, out):

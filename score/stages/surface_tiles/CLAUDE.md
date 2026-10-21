@@ -10,5 +10,7 @@ surfaces instead of a flat colour, one paid row `surface-tiles@<place>` in world
   repeat as KHR_texture_transform.
 - **Glass, glow, light and print keep the flat surface**: a tile carries no opacity or glow (`UNTILED_FAMILIES`).
 - **Its surfaces come from the seed scene record** (`data/scene/<place>.json`); a surface the tiles lack is drawn
-  flat, as before. A place with no scene record or no tiled surface has no row.
+  flat, as before. A place with no scene record or no tiled surface has no row: the old records were retired on
+  2026-10-21, so no place has the row until it reads the scene-record row's output (the test writes a record of its
+  own).
 - **No bake on this PC.** A local preview of `make_tiles.py` is small, low-resolution and under the gate's lock.

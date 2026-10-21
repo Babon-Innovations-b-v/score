@@ -80,7 +80,7 @@ def test_a_library_model_matches_by_kind_and_ratio_and_only_todays_route_or_lock
 
 
 def test_the_hub_table_makes_every_rod_a_predicted_gap_and_a_lone_sheet_only_a_risk():
-    rates = predict.hub_rates(REPO / "data")
+    rates = predict.hub_rates()
     assert (rates["rod"]["failed"], rates["rod"]["of"]) == (5, 5), rates
     assert rates["sheet"]["of"] < predict.MIN_MEASURED
     rod = predict.predicted([0.1, 0.1, 1.0], rates)
@@ -223,7 +223,23 @@ def a_read_store(place, sha, rows, concept=None, picture=None):
                                        "rows": rows},
                          "gaps": [], "euros": {"rows": 0.03, "boxes": 0.01, "total": 0.04},
                          **({"size": picture} if picture else {})})
+    written(store, place)
     return store
+
+
+def written(store, place):
+    """The place's plan written from its reading (plan_writing's record): its design done, so it is a place of the
+    build (stages.places: no plan is filed in the data since 2026-10-21)."""
+    from score.review import concepts, plan_writing, plans
+    shown = plans.current(store, place)
+    if shown is None:
+        return
+    plan = shown["plan"]  # the rough plan, less the items of rows its reading gave no size (no size of its own)
+    unsized = {gap["row"] for gap in plan.get("gaps", []) if gap["kind"] == "size"}
+    plan = {**plan, "items": [item for item in plan["items"] if not set(plan["rows"].get(item[0], [])) & unsized]}
+    plan_writing.kept(store, {"place": place, "concept": concepts.picked(store, place),
+                              "reading": plan_writing.reading_at(store, place), "method": plan_writing.METHOD,
+                              "by": "test", "at": concepts.now(), "plan": plan})
 
 
 def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
@@ -321,8 +337,7 @@ def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     assert "every job once" in record["line"]
     assert record["moved"] == {"not_run": "--moved not given"}
     assert record["across_places"]["takes"] <= counts["bought"]
-    assert record["design"]["places"]["garage"]["hint"] == "K04"  # the old plan's pick, a hint only
-    assert set(record["design"]["places"]) == set(stages.places(runner.world))
+    assert set(record["design"]["places"]) == set(stages.places(runner.world, runner.store)) == {"wreck"}
 
 
 def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_them():
@@ -387,34 +402,19 @@ def test_a_design_row_s_bake_entry_and_kind_come_from_its_row_never_an_old_conce
     assert entry["size"] == [1.6, 1.1, 0.8]  # x wide, y tall, z deep
 
 
-class NoKeys:
-    def keys(self, prefix):
-        return []
-
-
-class Accepts:
-    """A store's current accepts, {node: accept}, and no concept review records."""
-    def __init__(self, accepts):
-        self.accepts = accepts
-        self.objects = NoKeys()
-
-    def current_accept(self, node):
-        return self.accepts.get(node)
-
-
 def test_a_concept_review_draw_is_drawn_and_its_pick_picked_until_unlocked():
     from score.review import concepts
     from score.store import Store
+    from score.review import reading
     data, store = pathlib.Path(tempfile.mkdtemp()), Store.in_folder(tempfile.mkdtemp())
-    (data / "places").mkdir()
-    (data / "places" / "concepts.json").write_text(json.dumps({"concepts": {"a": {"sha256": "1"}}}))
+    assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "missing"
     store.write_once("concepts/a/draws/1.json", {"place": "a", "sha": "f" * 64, "at": "2026-10-21T09:00"})
     assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "drawn"
     concepts.pick(store, "a", "f" * 64, "joey")
     assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "picked"
     assert design.designs(store, data, ["a"])["places"]["a"]["inventory"] == "to read"
-    (data / "inventory").mkdir()
-    (data / "inventory" / "a.json").write_text(json.dumps({"concept_pick": {"sha256": "f" * 64}, "rows": []}))
+    reading.kept(store, {"place": "a", "concept": "f" * 64, "at": "2026-10-21T10:00", "method": reading.METHOD,
+                         "inventory": {"concept_pick": {"sha256": "f" * 64}, "rows": []}})  # read from the pick
     assert design.designs(store, data, ["a"])["places"]["a"]["inventory"] == "made"
     concepts.pick(store, "a", None, "joey")  # an unlock: its inventory is out of date again
     assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "drawn"
@@ -463,75 +463,37 @@ class Locked:
 def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_waits_with_why():
     from score.review import plans
     data = pathlib.Path(tempfile.mkdtemp())
-    for folder in ("places", "plans", "inventory"):
-        (data / folder).mkdir()
+    (data / "places").mkdir()
     (data / "places" / "within.json").write_text(json.dumps({"within": {}, "shells": {}}))
-    for place in ("rowed", "rowed_old"):  # places with a plan row: their plan says where their doors lead
-        (data / "plans" / f"{place}.json").write_text(json.dumps({"leads": {}}))
-    was = plans.DATA  # where plan rows, within.json and inventory files are read
+    was = plans.DATA  # where within.json is read
     plans.DATA = data
     try:
         made = Locked()
-        for place in ("done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again",
-                      "rowed", "rowed_old"):
+        for place in ("done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again"):
             made.locked(place, room="the room it had" if place == "moved" else None)
             if place != "unread":
                 made.read(place, "2026-10-21T10:00", method=-1 if place == "old_reading" else None)
-        # read by an older method only: its data/inventory file, read from the lock, still makes its inventory
-        (data / "inventory" / "old_reading.json").write_text(json.dumps({"concept_pick": {"sha256": Locked.SHA},
-                                                                        "rows": []}))
-        for place in ("done", "moved", "rowed", "rowed_old"):
+        for place in ("done", "moved"):
             made.written(place, "2026-10-21T11:00", "2026-10-21T10:00")
         made.written("old_method", "2026-10-21T11:00", "2026-10-21T10:00", method=-1)
         made.edited("edited", "2026-10-21T11:00")
         made.edited("read_again", "2026-10-21T09:30")  # his edit on the lock, made before the reading in force
-        made.accepts.update({"plan@rowed": {"output": "p" * 64, "at": "2099-01-01T00:00"},  # after the lock
-                             "plan@rowed_old": {"output": "p" * 64, "at": "2026-10-20T10:00"}})  # before it
         places = sorted(["done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again",
-                         "rowed", "rowed_old", "never"])
+                         "never"])
         found = design.designs(made.store, data, places)
     finally:
         plans.DATA = was
     why = {place: row["waits"] for place, row in found["places"].items()}
     assert why == {
-        "done": None, "edited": None, "rowed": None,
+        "done": None, "edited": None,
         "moved": "room moved since its draw",
         "unread": "concept not locked, or its inventory not read from it",
-        "old_reading": "inventory not read from its lock by today's method",
+        "old_reading": "concept not locked, or its inventory not read from it",  # no inventory file stands in now
         "derived": "plan not written by today's method", "old_method": "plan not written by today's method",
         "read_again": "plan made before its inventory was read again",
-        "rowed_old": "plan row not accepted",
         "never": "concept not locked, or its inventory not read from it"}, why
-    assert found["approved"] == ["done", "edited", "rowed"], found["approved"]
+    assert found["approved"] == ["done", "edited"], found["approved"]
     assert {place for place, row in found["places"].items() if row["plan"] == "approved"} == set(found["approved"])
-    assert found["places"]["rowed"]["output"] == "p" * 64
-
-
-def test_a_registered_pick_with_its_inventory_file_is_made_but_waits_on_its_reading_and_plan():
-    data = pathlib.Path(tempfile.mkdtemp())
-    (data / "places").mkdir()
-    (data / "places" / "concepts.json").write_text(json.dumps({"concepts": {
-        "a": {"sha256": "1", "picked": "2026-10-21T09:00"}, "b": {"sha256": "2", "picked": "2026-10-21T09:00"},
-        "c": {"sha256": "3", "picked": "2026-10-21T09:00"}, "d": {"sha256": "4"},
-        "f": {"sha256": "6", "picked": "2026-10-21T09:00"}}}))
-    (data / "inventory").mkdir()
-    for place, sha in {"a": "1", "b": "2", "c": "3", "f": "an older concept's"}.items():
-        (data / "inventory" / f"{place}.json").write_text(json.dumps({"concept_pick": {"sha256": sha}, "rows": []}))
-    plan = {"output": "p" * 64}
-    store = Accepts({"plan@a": {**plan, "by": "joey", "at": "2026-10-21T10:00"},
-                     "plan@b": {**plan, "by": "runner", "at": "2026-10-21T10:00"},
-                     "plan@c": {**plan, "by": "joey", "at": "2026-10-20T10:00"},  # before the pick: an old plan
-                     "plan@d": {**plan, "by": "joey", "at": "2026-10-21T10:00"},
-                     "plan@f": {**plan, "by": "joey", "at": "2026-10-21T10:00"}})  # read from an older inventory
-    found = design.designs(store, data, ["a", "b", "c", "d", "e", "f"])
-    states = {place: (row["concept"], row["inventory"], row["plan"]) for place, row in found["places"].items()}
-    # its inventory file read from the pick makes its inventory, yet no reading of the lock: still in design
-    assert states == {"a": ("picked", "made", "remake"), "b": ("picked", "made", "remake"),
-                      "c": ("picked", "made", "remake"), "d": ("drawn", None, "remake"),
-                      "e": ("missing", None, "remake"), "f": ("picked", "to read", "remake")}, states
-    assert found["places"]["a"]["waits"] == "inventory not read from its lock by today's method"
-    assert found["approved"] == [] and found["places"]["b"]["output"] == "p" * 64
-    assert found["places"]["d"]["output"] is None and found["places"]["e"]["hint"] is None
 
 
 if __name__ == "__main__":

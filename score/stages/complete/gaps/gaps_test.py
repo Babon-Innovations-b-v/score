@@ -202,7 +202,7 @@ def test_a_kit_piece_with_no_named_failure_is_filled_by_the_loop():
     beam = INVENTORY["rows"][6]  # #19: a kit piece is the shared loop's unless the pipeline-failure record names it
     for in_kit in (True, False):
         node, work = fill.missing_row(beam, PLACE, in_kit)
-        assert node == f"pixal@{PLACE}" or "data/props" in work, (node, work)
+        assert node == f"pixal@{PLACE}" or "design hand-in" in work, (node, work)
 
 
 def test_the_place_lacks_its_concept_plan_and_rough_model(ran):

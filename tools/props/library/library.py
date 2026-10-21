@@ -64,15 +64,20 @@ def variants(library):
 
 
 def wear_of(place_id, path=PLACES, library_path=LIBRARY):
-    """A place's wear and dirt as numbers: (wear, dirt), from its named wear level."""
-    chosen = json.loads(pathlib.Path(path).read_text())[place_id]["wear"]
+    """A place's wear and dirt as numbers: (wear, dirt), from its named wear level; refused by name for a place
+    place.json holds no wear for (the per-place wear was retired on 2026-10-21: a scene's wear is its scene palette's,
+    score/stages/surfaces/scene_palette.py)."""
+    chosen = json.loads(pathlib.Path(path).read_text()).get(place_id, {}).get("wear")
+    if chosen is None:
+        raise LibraryEmpty(f"{place_id}: no wear in {path} (per-place wear retired 2026-10-21; a scene's wear is its "
+                           "scene palette's)")
     return float(theme_library(library_path)["wear_levels"][chosen["level"]]), float(chosen["dirt"])
 
 
 def dirt_token_of(place_id, path=PLACES):
     """The token a place's dirt is drawn in: its own (`wear.dirt_token`, Mars's dust on the camp, 2026-10-07), else
-    none and the library's."""
-    return json.loads(pathlib.Path(path).read_text())[place_id]["wear"].get("dirt_token")
+    none and the library's (a place place.json holds no wear for: the per-place wear was retired on 2026-10-21)."""
+    return (json.loads(pathlib.Path(path).read_text()).get(place_id, {}).get("wear") or {}).get("dirt_token")
 
 
 def spec(library, name, token, colours, dirt=None):
@@ -116,7 +121,7 @@ def resolved(place_id, path=PLACES, library_path=LIBRARY):
     colours = token_colours(library)
     found = {}
     dirt = dirt_token_of(place_id, path)
-    for name, entry in json.loads(pathlib.Path(path).read_text())[place_id]["materials"].items():
+    for name, entry in json.loads(pathlib.Path(path).read_text()).get(place_id, {}).get("materials", {}).items():
         if "library" in entry:
             found[name] = spec(library, entry["library"], entry["token"], colours, dirt)
     return found

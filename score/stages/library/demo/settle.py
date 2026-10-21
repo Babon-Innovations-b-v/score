@@ -1,7 +1,7 @@
 """Settle at work in the workshop: every loose object where it came to rest (settle.json of the library's settle
 layer entry), sorted by what the settle did to it: let down onto what holds it, dropped and turned to rest, carried
 with what it lies on, or left as laid; each object's own sentence is its label."""
-import json
+from score.stages.library.demo import _trial
 
 ALGORITHM = "settle"
 PLACE = "workshop"
@@ -34,7 +34,7 @@ def floor_outline(scene):
 
 def made(inputs):
     record = inputs.json(ENTRY, "settle.json")
-    scene = json.loads((inputs.repo / "data/scene" / f"{PLACE}.json").read_text())
+    scene = _trial.scene(inputs, PLACE)
     objects = record["objects"]
     done = {name: done_of(entry["said"]) for name, entry in objects.items()}
     steps = [{"label": "Every loose object of the room",

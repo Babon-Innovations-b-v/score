@@ -1,4 +1,4 @@
-"""plan@<place>: the place's dimensioned plan (data/plans/<place>.json) brought into the store in metres and the
+"""plan@<place>: the place's dimensioned plan (his kept plan, {home}/design/plans/<place>.json) brought into the store in metres and the
 place's own frame (contract `place-plan` v2: v1 had no shell, frame, block, levels or shows), beside what its concept was read into.
 
     shell     what holds the place's walls (the plan's `shell`): `domed` (the record's room_walls, deck and dome; the
@@ -65,21 +65,12 @@ CEILING = re.compile(r"ceiling (\d+(?:\.\d+)?) m")
 STOREY = re.compile(r"floor to floor (\d+(?:\.\d+)?) m")
 
 
-def inventory_name(place):
-    """The place's inventory's name: the plan's `inventory` (the prologue's rooms keep theirs as prologue_<place>),
-    else the place's own."""
-    return json.loads((REPO / "data/plans" / f"{place}.json").read_text()).get("inventory", place)
-
-
 def files(place):
-    """The plan, the place's inventory and kit, every plan (a door leads to another place's door) and the concept's
-    picture the plan names."""
-    plan = json.loads((REPO / "data/plans" / f"{place}.json").read_text())
-    found = {"plan": "{data}/plans/{place}.json", "plans": "{data}/plans",
-             "inventory": f"{{data}}/inventory/{inventory_name(place)}.json", "kit": "{data}/kit/{place}.json"}
-    if plan.get("concept", {}).get("picture"):
-        found["concept"] = plan["concept"]["picture"]
-    return found
+    """Every kept plan (a door leads to another place's door): the place's own plan, its scene inventory and its
+    picked concept are the design's, which the table adds where they are kept (stages.creator_plan); a place with none
+    of them blocks on its missing plan by name."""
+    return {"plans": "{home}/design/plans", "plan": "{home}/design/plans/{place}.json",
+            "inventory": "{home}/design/inventory/{place}.json"}
 
 
 def read(path):
@@ -424,8 +415,7 @@ def judge_mapped(output, inputs, evidence):
     record = read(pathlib.Path(output) / "plan.json")
     inventory = read(inputs["inventory"])
     ids = {row["id"] for row in inventory["rows"]}
-    places = {path.stem for path in (REPO / "data/kit").glob("*.json")} | \
-        {path.stem for path in pathlib.Path(inputs["plans"]).glob("*.json")}
+    places = {path.stem for path in pathlib.Path(inputs["plans"]).glob("*.json")}
     doors = {door["plan_side"] for door in record["doors"]} | {door["name"] for door in record["doors"]}
     faults = [fault for item in record["items"]
               for fault in item_faults(item, ids, record["objects"].get(item["name"]))]

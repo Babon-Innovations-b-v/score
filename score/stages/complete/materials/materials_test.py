@@ -1,66 +1,19 @@
-"""The materials checks on real evidence (data/checks/materials/<place>.json.gz, measured from the store on
-2026-10-18) and their measures on small meshes of known shape.
+"""The materials checks' measures on small meshes of known shape, and the kit bake code they hold a kit's bake to.
+(Their fixtures of real evidence, data/checks/materials/<place>.json.gz from the old concepts' places, were retired
+with those places on 2026-10-21; measure a place again with measure.gather when a rule needs a case.)
 
-Known bad and known good, a pair each:
-    texture detail   hangar: the ship seen from 0.5 m at 56 px/m against the room's kit at 617 fails;
-                     cockpit: its consoles and seat, seen from under a metre, at 475 to 1084 against 568 pass
-    finish borders   hangar's ship (1.24 to 1.43) and the cockpit's pilot seat fail; the garage's wheel stand (1.02)
-                     passes, as a straight border between two finishes measures 1.00 and a 45 degree staircase 1.4
-    kit bake age     hangar: its kit baked by 2026-10-09 is older than five commits to the kit bake code; the
-                     cockpit's kit, baked by 2026-10-15, against the bake code as it stood before b6808d0d (the one
-                     later commit) passes
+    finish borders   a straight border between two finishes measures 1.00, a 45 degree staircase 1.4
+    texture detail   a metre square painted from a 512 picture holds 512 pixels a metre
+    kit bake age     the bake code is the route and its bake, never the piece builders
 """
-import gzip
-import json
-import pathlib
-
 import numpy as np
 from PIL import Image
 
 from score.stages.complete.materials import borders, judge, kit_age, meshes, texel
 
-REPO = pathlib.Path(__file__).resolve().parents[4]
-FIXTURES = REPO / "data/checks/materials"
 
-
-def evidence(place):
-    """A place's real evidence as measured."""
-    with gzip.open(FIXTURES / f"{place}.json.gz", "rt") as found:
-        return json.load(found)
-
-
-def models_of(found, rule):
-    return {item["model"] for item in found if item["rule"] == rule}
-
-
-def test_the_ship_seen_close_at_a_tenth_of_the_kit_is_soft():
-    found = texel.findings(evidence("hangar"))
-    ship = next(item for item in found if item["model"] == "ship_1")
-    assert ship["px_per_m"] < 60 and ship["kit_px_per_m"] > 600 and ship["near"] < 1.0
-    assert "blurred" in ship["sentence"]
-
-
-def test_the_cockpit_consoles_hold_the_kit_detail():
-    found = texel.findings(evidence("cockpit"))
-    assert found == []
-    near = [entry for entry in evidence("cockpit")["objects"]
-            if entry["model"] in ("main_console_1", "pilot_seat_1") and entry["near"] is not None]
-    assert near and all(entry["near"] < 1.0 for entry in near)
-
-
-def test_a_place_with_no_kit_is_held_to_the_worlds_kit():
-    place = evidence("cockpit")
-    without_kit = dict(place, objects=[entry for entry in place["objects"] if not texel.is_kit(entry)])
-    assert texel.findings(without_kit) == []
-    held = texel.findings(without_kit, world=5000.0)
-    assert held and "the world's kit" in held[0]["sentence"]
-
-
-def test_the_ship_and_the_pilot_seat_have_ragged_borders_the_wheel_stand_does_not():
-    assert "ship_1" in models_of(borders.findings(evidence("hangar")), borders.RULE)
-    assert "pilot_seat_1" in models_of(borders.findings(evidence("cockpit")), borders.RULE)
-    garage = models_of(borders.findings(evidence("garage")), borders.RULE)
-    assert "wheel_stand_1" not in garage and "workbench_1" in garage
+def test_a_place_fails_on_any_finding_and_passes_with_none():
+    assert judge.verdict([{"rule": borders.RULE}]) == "fail" and judge.verdict([]) == "pass"
 
 
 def plane_mesh(border):
@@ -99,20 +52,6 @@ def test_a_metre_square_painted_from_a_512_picture_holds_512_pixels_a_metre(tmp_
     assert abs(texel.density([square], area_scale=4.0) - 256) < 1e-6
 
 
-def test_the_hangar_kit_is_older_than_its_bake_code():
-    found = kit_age.findings(evidence("hangar"))
-    assert [item["route"] for item in found] == ["code"]
-    assert len(found[0]["models"]) == 66 and len(found[0]["commits"]) == 5
-
-
-def test_the_cockpit_kit_was_fresh_before_the_one_later_bake_code_commit():
-    cockpit = evidence("cockpit")
-    assert kit_age.findings(cockpit)[0]["commits"] == ["b6808d0d"]
-    before = {route: [commit for commit in commits if commit["commit"] != "b6808d0d"]
-              for route, commits in cockpit["bake_code"].items()}
-    assert kit_age.findings(dict(cockpit, bake_code=before)) == []
-
-
 def test_the_bake_code_is_the_route_and_its_bake_not_the_piece_builders():
     code = {path.name for path in kit_age.bake_files(kit_age.ROUTES["code"])}
     generated = {path.name for path in kit_age.bake_files(kit_age.ROUTES["generate"])}
@@ -120,8 +59,3 @@ def test_the_bake_code_is_the_route_and_its_bake_not_the_piece_builders():
     assert {"make_chunky.py", "bake.py", "recipes.py"} <= generated and "shapes.py" not in generated
 
 
-def test_a_place_fails_on_any_finding_and_names_kit_pieces_with_no_bake_time():
-    cockpit = evidence("cockpit")
-    found = judge.findings(cockpit)
-    assert judge.verdict(found) == "fail" and judge.verdict([]) == "pass"
-    assert "not from the seed" in judge.reason(cockpit, found)

@@ -11,11 +11,10 @@ one paid node `ship_kit@<place>` of its own runner (`python -m score.stages.ship
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **ship_kit.py writes the whole layout** from the place's plan and inventory: the creator's kept ones
-  ({home}/design/plans, {home}/design/inventory, the plan row's `creator_plan`) where kept, the filed ones only
-  for a place with none kept; the stage keeps the code pieces only
-  (a prop-route row's pieces come from its own take, which the assembly lays where this layout puts them:
-  `assembly/ship_made.py`, from the bake of the place that paints the take); route.py plan makes the make_kit jobs; library_bake.py bakes them
-  in the cloud. Nothing heavy runs on this PC.
+  ({home}/design/plans, {home}/design/inventory; the filed ones were retired on 2026-10-21, so a place with none
+  kept blocks on them by name); the stage keeps the code pieces only (a prop-route row's pieces are its own
+  take's; the old ship kit's made pieces laid from other places' bakes, `assembly/ship_made.py`, went with the old
+  kits); route.py plan makes the make_kit jobs; library_bake.py bakes them in the cloud. Nothing heavy runs on this PC.
 - **Gates are the late-bake stage's**: every planned model made, every slot a library surface.
 - **After it passes**, route.py `layout` and `install` put each kit in place (data/kit/<place>.json), all ship places in
   one push: an installed kit re-keys every place's free scene-record.

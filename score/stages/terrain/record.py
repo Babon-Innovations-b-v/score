@@ -69,11 +69,11 @@ def seat_plane(record, seat, points):
     return record["radius"] / (toward @ out) - record["radius"]
 
 
-def dented(heights, record, folder, kits):
-    """The plan's dents under thrown pieces, each made where the place's seat puts its spot on the plan."""
+def dented(heights, record, folder):
+    """The plan's dents under thrown pieces, each made where the place's seat puts its spot on the plan (the place's
+    middle on its seat: the old kits' seat offsets were retired with them, 2026-10-21)."""
     for place, dents in record.get("dents", {}).items():
-        on_seat = json.loads((pathlib.Path(kits) / f"{place}.json").read_text()).get("on_seat", [0.0, 0.0])
-        laid = grounds.Ground(ground_fields(record, folder), record["seats"][place], on_seat)
+        laid = grounds.Ground(ground_fields(record, folder), record["seats"][place], [0.0, 0.0])
         for dent in dents.values():
             heights = grounds.dented(laid, heights, dent["at"][0], dent["at"][1], dent["radius"], dent["depth"])
     return heights
@@ -174,7 +174,7 @@ def write(folder, record, shaped, heights, laid_rocks, inputs):
     small = levelled(small, record)
     heights_code(small, record["low"], record["span"]).save(folder / "heights.png")
     if record.get("dents"):
-        small = dented(small, record, folder, inputs["kits"])
+        small = dented(small, record, folder)
         heights_code(small, record["low"], record["span"]).save(folder / "heights.png")
     found, surfaces = zones(shaped, record, heights)
     found = ndimage.zoom(found, points / found.shape[0], order=0) if points != found.shape[0] else found

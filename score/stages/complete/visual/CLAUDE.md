@@ -16,6 +16,7 @@ trimesh, read only), no Blender, no cloud. `judge.py`'s docstring has the rules.
 - Run: `.venv/bin/python -m score.stages.complete.visual [--place P] [--judge-only]` under
   `systemd-run --user --scope -q -p MemoryMax=16G -p CPUQuota=400%`, in the background; it writes
   `WORK/checks/visual/<place>/` and `contact_sheet.png`.
-- The fixture `data/checks/visual/<place>/` is real evidence (old_station and wreck fail, workshop passes); measure
-  it again with `measure.gather` only when the rules need a case it lacks.
+- The fixture of real evidence (`data/checks/visual/<place>/`, the old concepts' films) was retired with those places
+  on 2026-10-21; the test holds the surfaces read off a stage and a neighbour inside a room. Measure a place again with
+  `measure.gather` when the rules need a case of real evidence.
 - Test: `visual_test.py`.

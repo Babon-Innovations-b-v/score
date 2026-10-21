@@ -4,11 +4,12 @@ the room, dropped onto what is under it, kept when it hits nothing. The slider r
 
 Note: the room's furniture models are not on this machine, so the boxes of the scene record stand for what is
 there; run it on the place's composed stage once its models are fetched here."""
-import json
 import sys
 
 import numpy as np
 import trimesh
+
+from score.stages.library.demo import _trial
 
 ALGORITHM = "snap"
 PLACE = "greenhouse"
@@ -43,7 +44,7 @@ def tone_of(name):
 def made(inputs):
     sys.path.insert(0, str(inputs.repo / "tools/usd"))
     import snap
-    scene = json.loads((inputs.repo / "data/scene" / f"{PLACE}.json").read_text())
+    scene = _trial.scene(inputs, PLACE)
     meshes = boxes(scene)
     laid = {"place": PLACE, "objects": meshes, "matrices": {}, "statics": {}, "ground": snap.flat_ground(),
             "height": lambda flat: np.zeros(len(flat))}

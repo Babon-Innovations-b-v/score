@@ -62,7 +62,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(REPO / "tools/props"))
 sys.path.insert(0, str(HERE))
 from paths import WORK  # noqa: E402
-from stage_inputs import (INPUTS, INVENTORIES, KITS, file_hash, input_name, inventory_path, model_hash,  # noqa: E402,F401
+from stage_inputs import (INPUTS, INVENTORIES, file_hash, input_name, inventory_path, model_hash,  # noqa: E402,F401
                           now, record_inputs, recorded_inventory)
 import contents  # noqa: E402
 

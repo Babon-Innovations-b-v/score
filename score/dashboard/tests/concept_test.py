@@ -22,8 +22,19 @@ from score.review import environment_concept, web
 from score.store import runtime_store
 
 pytestmark = pytest.mark.django_db(transaction=True)
+
+
+@pytest.fixture
+def world(drafting):
+    """The fixture environment still in design: its concepts are drawn and locked here."""
+    return drafting
 PRICE = 0.15
 REDRAW_PRICE = 0.19  # a Redraw with notes: the prompt correction and the draw
+
+
+def made_draws(store, place):
+    """The place's draws made in the test, oldest first: not the fixture's own (tests/fixture.py, drawn the day before)."""
+    return [draw for draw in drawing.draws(store, place) if draw["at"] != "2026-10-20T07:00:00+00:00"]
 
 
 def a_png(colour):
@@ -83,7 +94,7 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
     assert answer.status_code == 200, answer.content
     state = owner.get("/concept/beta/state/").json()
     assert state["pending"] is False and state["refused"] is None and state["newest"]
-    yes = world.source.store.spend_yes("override", drawing.draws(world.source.store, "beta")[0]["yes"])
+    yes = world.source.store.spend_yes("override", made_draws(world.source.store, "beta")[0]["yes"])
     assert yes["by"] == "joey" and yes["euros"] == PRICE and "beta" in yes["purpose"]
     marks = [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "note": "a window"}]
     owner.post("/concept/beta/draw/", json.dumps({"marks": marks, "base": state["newest"], "euros": REDRAW_PRICE}),
@@ -108,7 +119,7 @@ def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wor
     assert page.count('id="concept-draw"') == 1 and '<span data-slot="label" data-v>Draw fresh</span>' in page
     owner.post("/concept/beta/draw/", json.dumps({"marks": [], "note": "", "base": None, "euros": PRICE}),
                content_type="application/json")  # what the button posts with nothing asked of the shown draw
-    first, fresh = drawing.draws(world.source.store, "beta")
+    first, fresh = made_draws(world.source.store, "beta")
     assert fresh["base"] is None and fresh["marks"] == [] and fresh["sha"] != first["sha"]
     assert stand_in[-1] == stand_in[0] and "Box" not in stand_in[-1]  # the place's own first-draw wording again
     assert fresh["yes"] != first["yes"] and fresh["euros"] == PRICE  # its own spend yes, one call
@@ -154,7 +165,7 @@ def test_a_draw_at_another_price_or_by_anyone_else_is_refused(world, stand_in):
     owner = signed_in()
     owner.post("/concept/beta/draw/", json.dumps({"euros": 0.05}), content_type="application/json")
     assert "measured price" in owner.get("/concept/beta/state/").json()["refused"]
-    assert drawing.draws(world.source.store, "beta") == []
+    assert made_draws(world.source.store, "beta") == []
     other = signed_in("mallory")
     assert other.post("/concept/beta/draw/", json.dumps({"euros": PRICE}),
                       content_type="application/json").status_code == 403
@@ -219,7 +230,7 @@ def test_draw_all_draws_every_undrawn_place_at_once_its_click_the_yes_for_that_t
                         content_type="application/json")
     assert answer.status_code == 200, answer.content
     for place in ("alpha", "beta"):
-        found = drawing.draws(world.source.store, place)
+        found = made_draws(world.source.store, place)
         assert len(found) == 1 and found[0]["base"] is None and found[0]["euros"] == PRICE
         yes = world.source.store.spend_yes("override", found[0]["yes"])
         assert yes["euros"] == PRICE and "Draw all, 2 first draws for EUR 0.30" in yes["purpose"]
@@ -237,7 +248,7 @@ def test_draw_all_is_refused_when_the_total_or_the_places_changed_or_for_anyone_
     owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
     with pytest.raises(web.review.Refused, match="changed"):  # on the store's machine: drawn since the click
         web.concept_draw(world.source.store, "beta", {}, PRICE, by="joey", first=True)
-    assert len(drawing.draws(world.source.store, "beta")) == 1
+    assert len(made_draws(world.source.store, "beta")) == 1
 
 
 def test_the_page_lists_the_pictures_a_draw_sends_and_why_it_waits(world, stand_in, monkeypatch):
@@ -271,7 +282,7 @@ def test_the_listener_answers_a_draw_alls_draws_side_by_side(world, stand_in, se
     with override_settings(SCORE_SYNC_TOKEN=TOKEN):
         answered = listen.round_once(remote_of(hosted_client()), world.source)
     assert sorted(state for _, state in answered) == ["done", "done"]
-    assert all(len(drawing.draws(world.source.store, place)) == 1 for place in places)
+    assert all(len(made_draws(world.source.store, place)) == 1 for place in places)
 
 
 def test_draws_on_their_way_show_on_the_button_and_their_cards_until_they_land(world, stand_in):
@@ -290,24 +301,24 @@ def test_draws_on_their_way_show_on_the_button_and_their_cards_until_they_land(w
 
 def test_a_picked_concepts_page_shows_its_scene_inventory_made_or_to_read(world):
     from score.dashboard.tests import fixture
-    alpha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
+    from score.review import concepts as drawn
     assert "concept-inventory" not in signed_in().get("/concept/alpha/").content.decode()  # not picked: none
-    fixture.an_inventory_read(world.store, world.data, "alpha", alpha)
+    fixture.an_inventory_read(world.store, world.data, "alpha", fixture.concept_of(world.store, "alpha"))
     world.source.refresh()
     page = signed_in("joey2").get("/concept/alpha/").content.decode()
-    assert "concept-inventory" in page and "data-v>lamp</span>" in page and "&times;2" in page
-    older = world.data / "inventory/alpha.json"
-    older.write_text(older.read_text().replace(alpha, "o" * 64))  # read from an older concept: counts for nothing
-    world.source.refresh()
+    assert "concept-reading" in page and "data-v>lamp</span>" in page and "&times;2" in page  # its reading shown
+    drawn.recorded(world.store, "concepts/alpha/picks/2026-10-20T10-00-00.json",
+                   {"place": "alpha", "sha": "o" * 64, "by": "joey", "at": "2026-10-20T10:00:00+00:00"})
+    world.source.refresh()  # another draw picked: its reading counts for nothing
     page = signed_in("joey3").get("/concept/alpha/").content.decode()
-    assert "data-v>lamp</span>" not in page and "data-v>to read</span>" in page and "older concept" in page
+    assert "data-v>lamp</span>" not in page and "data-v>to read</span>" in page
 
 
 def test_the_page_shows_the_picked_concept_a_draw_is_drawn_on_to_mark_beside_it(world, stand_in, monkeypatch):
     owner = signed_in()
     owner.post("/concept/alpha/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
     owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
-    above = drawing.draws(world.source.store, "alpha")[-1]["sha"]
+    above = made_draws(world.source.store, "alpha")[-1]["sha"]
     monkeypatch.setattr(drawing, "sent_picks", lambda store, place: {"alpha": above} if place == "beta" else {})
     page = owner.get("/concept/beta/").content.decode()
     assert 'class="concept-marks" data-on="alpha"' in page and f"/{above}" in page
@@ -316,8 +327,9 @@ def test_the_page_shows_the_picked_concept_a_draw_is_drawn_on_to_mark_beside_it(
 def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_running_total(world):
     """The reading of the picked draw (score/review/reading.py): its rows numbered beside the picture, each instance
     found boxed on it, its gaps listed; every reading's euros summed on the Environment and Stats."""
+    from score.dashboard.tests import fixture
     from score.review import concepts as drawn, reading
-    alpha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
+    alpha = fixture.concept_of(world.store, "alpha")
     store = world.source.store
     drawn.recorded(store, "concepts/alpha/draws/2026-10-20T08-00-00.json", {
         "place": "alpha", "sha": alpha, "name": "alpha-concept.png", "at": "2026-10-20T08:00:00+00:00", "by": "joey"})
@@ -368,7 +380,7 @@ def test_draw_and_pick_are_disabled_with_the_reason_while_the_layer_above_is_not
     pick = page[page.index('id="concept-pick"'):].split(">", 1)[0]
     assert " disabled" in draw and "waits for yard&#x27;s plan to be made" in draw
     assert " disabled" in pick and "waits for yard&#x27;s plan to be made" in pick
-    sha = drawing.draws(world.source.store, "beta")[-1]["sha"]
+    sha = made_draws(world.source.store, "beta")[-1]["sha"]
     answer = owner.post("/concept/beta/pick/", json.dumps({"sha": sha}), content_type="application/json")
     assert answer.status_code == 409 and "plan to be made" in answer.json()["detail"]  # the server refuses the same
     assert drawing.picked(world.source.store, "beta") is None

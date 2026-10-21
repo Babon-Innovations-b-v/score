@@ -167,7 +167,7 @@ def per_place(price, details):
 # Each unfillable work line folded into its code task: the first pattern it matches names the task; a line no
 # pattern matches is its own task, said by its first clause.
 WORK_TASKS = (
-    (r"^prop data for ", "Prop data: a props file per scene, so the prop route can price and make its rows"),
+    (r"^prop data for ", "Prop data: a design hand-in per scene (prepare), so the prop route can price and make its rows"),
     (r"^no props file |no likeness output holds", "Likeness of the props laid without a props file"),
     (r"^a code body \(", "Code bodies per kit (body parts)"),
     (r"^Pixal3D take lost", "Lost Pixal3D takes made again"),
@@ -180,7 +180,7 @@ WORK_TASKS = (
     (r"^a plain code piece against a concept", "Plain code pieces against a concept drawn before the plan"),
     (r"^no effect of the ", "Effects on the follow-up list"),
     (r"^the owner supplies ", "Your own reference pictures"),
-    (r"^a concept view request for |^data/plans/\w+\.json with its leads", "A concept view and a plan"),
+    (r"^a concept view request for |^a kept plan of \w+ with its leads", "A concept view and a plan"),
     (r"library surfaces", "Library surfaces held until next month"),
     (r"settle drops|paint level uses|^fix next week", "Settle and paint fixes"),
 )

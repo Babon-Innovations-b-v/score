@@ -78,7 +78,7 @@ NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(nam
                                 (checks.Check("made", made),), applies=lambda place: False)
                     for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
                                  "sound", "scene-record", "motion", "light", "crops-layer", "settle",
-                                 "characters-layer", "motion-models", "complete-boxes", "surface-tiles"))
+                                 "characters-layer", "motion-models", "surface-tiles"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
@@ -237,47 +237,57 @@ def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch(
         "base", "hangar", "cockpit", "hub", "camp", "wreck"]
 
 
-def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
-    """A new place (the ship's bridge) has its plan before its kit is laid; the runner lists it with the laid ones."""
+def designed(store, place):
+    """`place`'s design done in `store`: a concept locked, its scene inventory read from it and its plan written from
+    that reading (plans.design_done)."""
+    from score.review import concepts, plan_writing, reading
+    sha = place.ljust(64, "0")
+    concepts.recorded(store, f"concepts/{place}/picks/2026-10-20T09-00-00.json",
+                      {"place": place, "sha": sha, "by": "joey", "at": "2026-10-20T09:00:00+00:00"})
+    reading.kept(store, {"place": place, "concept": sha, "at": "2026-10-20T09:10:00+00:00", "method": reading.METHOD,
+                         "inventory": {"rows": [{"id": "desk", "name": "desk", "count": 1}]}})
+    plan_writing.kept(store, {"place": place, "concept": sha, "reading": "2026-10-20T09:10:00+00:00",
+                              "method": plan_writing.METHOD, "at": "2026-10-20T09:30:00+00:00", "by": "test", "euros": 0.0,
+                              "plan": {"title": place.upper(), "w": 3.0, "d": 3.0, "items": [], "doors": []}})
+
+
+def test_a_place_is_a_scene_whose_design_is_done():
+    """No kit or plan filed in the data names a place since 2026-10-21: a place is a scene of the design whose concept
+    is locked, its inventory read and its plan written; one only drawn is still in design."""
     (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
     root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
     try:
-        for part in ("kit/laid.json", "plans/laid.json", "plans/new.json"):
+        store = Store.in_folder(root / "store")
+        for part in ("kit/old.json", "plans/old.json"):  # an old filed kit and plan: no place
             (root / part).parent.mkdir(parents=True, exist_ok=True)
             (root / part).write_text("{}")
-        assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid", "new"]
-        # a scene merged into another has no stage line, though its plan stands
+        designed(store, "laid")
+        designed(store, "new")
+        from score.review import concepts
+        concepts.recorded(store, "concepts/drawn/draws/2026-10-20T08-00-00.json",
+                          {"place": "drawn", "sha": "d" * 64, "by": "joey", "at": "2026-10-20T08:00:00+00:00"})
+        world = graph.Environment("world1", 3, {"data": str(root)})
+        assert stages.places(world, store) == ["laid", "new"]
+        # a scene merged into another has no stage line, though its design is done
         (root / "places").mkdir()
         (root / "places/within.json").write_text(json.dumps({"merged": {"new": {"into": "laid"}}}))
-        assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid"]
+        assert stages.places(world, store) == ["laid"]
         # nor has a part of another scene's outside: the scene it is part of builds it (the owner, 2026-10-21)
         (root / "places/within.json").write_text(json.dumps({"parts": {"new": {"of": "laid", "as": "far off"}}}))
-        assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid"]
+        assert stages.places(world, store) == ["laid"]
     finally:
         shutil.rmtree(root)
 
 
-def test_the_plan_row_reads_a_laid_kit_only_where_no_design_is_locked():
-    """The plan row reads a place's kit through wrappers in the table (its code version stays): a laid kit with no
-    design locked for the place is read (the launch's); none laid, or a design locked (its kit was laid for the old
-    concept's room), the plan reads no kit, its spots its design's."""
+def test_the_plan_row_keeps_the_plan_stages_code_version():
+    """The plan row is the scene record's plan step as it stands (its code version kept), reading no kit: its files
+    are the step's own."""
     plain = graph.Stage("plan", "place", stages.scene_record.plan.make, stages.scene_record.plan.PLACE_PLAN,
                         stages.scene_record.plan.CHECKS, files=stages.scene_record.plan.files)
     assert code_after_editing(stages.PLAN, "nothing") == code_after_editing(plain, "nothing")
     assert stages.earth_seed.locked_plan("launch") is None
     assert stages.PLAN.files("launch") == stages.scene_record.plan.files("launch")
-    declared = stages.kit_if_base(lambda place: {"plan": f"{place}.plan", "kit": f"{place}.kit"})
-    assert declared("no_kit_laid") == {"plan": "no_kit_laid.plan"}
-    kept, root = stages.earth_seed.DESIGN, pathlib.Path(tempfile.mkdtemp())
-    try:
-        (root / "plans").mkdir()
-        stages.earth_seed.DESIGN = root
-        assert declared("lab") == {"plan": "lab.plan", "kit": "lab.kit"}
-        (root / "plans/lab.json").write_text(json.dumps({"w": 6.0, "d": 6.0}))
-        assert declared("lab") == {"plan": "lab.plan"}
-    finally:
-        stages.earth_seed.DESIGN = kept
-        shutil.rmtree(root)
+    assert "kit" not in stages.PLAN.files("launch")
 
 
 def test_the_plan_row_maps_a_place_with_no_kit():
@@ -374,12 +384,7 @@ def test_the_cast_crowds_from_its_plan_never_a_hand_written_record():
 # The environment data's paths into the work folder still standing, per file, and why: the work folder is no store
 # (it went with the old disk on 2026-10-19). Shrinks to empty as the Pixal3D takes move into their row's output
 # (the inputs track's item 6); a new one fails below.
-WORK_PATHS_LEFT = {
-    **{f"data/props/{room}.json": 24 for room in ("campgrounds", "engineroom", "galley", "hangar",
-                                                   "quarters", "storage")},
-    "data/props/cockpit.json": 25, "data/props/shiplock.json": 25,  # Pixal3D takes and hub-round6 models
-    "data/inventory/garage.json": 1,  # a citation of the coordinator's audit file in a `needed` note, no path read
-}
+WORK_PATHS_LEFT = {}  # the old hand-ins and inventories that named them were retired, 2026-10-21
 
 
 def test_the_environment_data_names_no_new_path_into_the_work_folder():

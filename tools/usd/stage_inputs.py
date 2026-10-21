@@ -6,22 +6,26 @@ moves no export's or terrain's code version.
 import datetime
 import hashlib
 import json
+import os
 import pathlib
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 INVENTORIES = REPO / "data/inventory"
-KITS = REPO / "data/kit"
+# A designed place's scene inventory: its locked concept's reading, kept where the plan stage reads it (plans.keep).
+DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "design/inventory"
 INPUTS = "inputs.json"
 
 
 def inventory_path(place):
-    """The place's inventory, or that of the place its kit belongs to (a room of the flat keeps the flat's)."""
-    own = INVENTORIES / f"{place}.json"
-    if own.exists():
-        return own
-    kit = KITS / f"{place}.json"
-    belongs = json.loads(kit.read_text()).get("place") if kit.exists() else None
-    return INVENTORIES / f"{belongs}.json" if belongs else own
+    """The place's scene inventory: its design's, else data/inventory's (the people line's)."""
+    designed = DESIGN / f"{place}.json"
+    return designed if designed.exists() else INVENTORIES / f"{place}.json"
+
+
+def inventory_pattern(place):
+    """inventory_path as a stage's file pattern ({home} or {data})."""
+    folder = "{home}/design/inventory/" if (DESIGN / f"{place}.json").exists() else "{data}/inventory/"
+    return folder + f"{place}.json"
 
 
 def now():

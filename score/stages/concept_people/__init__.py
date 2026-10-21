@@ -56,20 +56,10 @@ QUESTION = ("The first picture is part of a concept painting of a place; one fig
             "crouching, lying, working or none.")
 
 
-def inventory_of(place, inventory_folder):
-    """The inventory a place's cast reads its count by (tools/usd/stage_inputs.inventory_path's rule): its own, else
-    the place its kit belongs to (the flat's is prologue_flat), else its own name (a scene he added in the app has no
-    data files)."""
-    kit = REPO / "data/kit" / f"{place}.json"
-    if (pathlib.Path(inventory_folder) / f"{place}.json").exists() or not kit.is_file():
-        return place
-    return json.loads(kit.read_text()).get("place", place)
-
-
-def designed_views(inventory_folder):
-    """{inventory: {"concept": its picked design concept}} of every designed place (prop_data.designed: the old
-    concept views went with the old disk, 2026-10-19; rough-model reads the same picture, stages.designed_rough)."""
-    return {inventory_of(path.stem, inventory_folder): {"concept": "{home}/design/concepts/" + f"{path.stem}.png"}
+def designed_views():
+    """{place: {"concept": its picked design concept}} of every designed place (prop_data.designed: the old concept
+    views went with the old disk, 2026-10-19; rough-model reads the same picture, stages.designed_rough)."""
+    return {path.stem: {"concept": "{home}/design/concepts/" + f"{path.stem}.png"}
             for path in sorted(prop_data.DESIGN.glob("*.json"))}
 
 
@@ -81,7 +71,7 @@ def place_views(inventory_folder):
         record = json.loads(path.read_text())
         views = (record.get("plan") or {}).get("views", [])
         found[path.stem] = {view["id"]: view["picture"].replace("WORK/", "{seeds}/") for view in views}
-    return {**found, **designed_views(inventory_folder)}
+    return {**found, **designed_views()}
 
 
 def views_text(inventory_folder):

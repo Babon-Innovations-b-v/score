@@ -154,7 +154,10 @@ def test_the_runner_makes_and_accepts_a_shells_split_after_its_plan():
                            (checks.Check("mapped", lambda output, inputs, evidence: checks.Verdict(
                                "mapped", checks.PASS, "a toy plan")),), files={"plan": "{data}/plans/{place}.json"})
     row = dataclasses.replace(stages.SHELL_SPLIT, applies=None)
-    world = graph.Environment("toy", 7, {"data": root})
+    home = folder()  # the shell's kept plan, the design's, where shell-split reads it
+    (home / "design").mkdir()
+    shell_plan(home / "design", TOY)
+    world = graph.Environment("toy", 7, {"data": root, "home": home})
     runner = graph.Runner((plan_row, row), world, Store.in_folder(folder()), model_record=lambda kind: {"kind": kind})
     found = runner.run(["toyship"])
     assert found["shell-split@toyship"] == "made: pass, accepted automatically", found

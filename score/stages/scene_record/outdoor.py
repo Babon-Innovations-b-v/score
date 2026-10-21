@@ -202,7 +202,7 @@ def record_of(place, plan, inputs, grounds):
     eye = writer.read(inputs["places"])["shared"]["scale"]["eye_height"]
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan "
-                       f"(data/plans/{place}.json), "
+                       "(its kept plan, the design's), "
                        "its inventory, the made ground's seats and the world body's air record (its sky is the light "
                        "layer's, from the environment concept's physics); the ground and its rocks "
                        "are the terrain stage's place layer. Frame: the place's seat, x across, z along, y up.",

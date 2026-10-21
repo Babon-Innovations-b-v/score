@@ -32,8 +32,8 @@ seated place's own stage standing on it. `__init__.py`'s and `fit.py`'s docstrin
   model, a depth reading, a height field from anything but the plan's code): the plan's code shape here is the named
   fallback, said so in every ground's `measures.json` (`made_by`, `MADE_BY`). The diorama pictures and their depth
   (Qwen-Image-Edit, Depth Anything) were retired on 2026-10-20 for this rule.
-- **Free and from the repository alone.** Terrain reads the plans, the copied grounds beside them, the library, the
-  design tokens and the seated places' scene records and kits; never the work folder (its round-three seeds were lost
+- **Free and from the repository alone.** Terrain reads the plans, the copied grounds beside them, the library and the
+  design tokens; never the work folder (its round-three seeds were lost
   with the old disk, 2026-10-19, and blocked every line behind it). Its place layers carry the ground only: a place's
   shown places are its own stage's and the neighbours row's.
 - **The plan is the input; the method is here.** A plan lists its steps (`shape`) and its landforms' settings; the
@@ -49,9 +49,10 @@ seated place's own stage standing on it. `__init__.py`'s and `fit.py`'s docstrin
   `for`, not at one height: a room 46 m long on the Moon's 220 m ball stands on its seat's tangent plane, which rises
   off the ball towards its ends (`record.seat_plane`). A yard and its bank are the level's, not the base's held flats: the
   slope gate measures the flats off every level's box grown by its blend (`measures.yards`).
-- **Its layout inputs are keyed on what it reads only** (`inputs.py`, 2026-10-12): of `data/scene` and `data/kit` only
-  each seated place's fields terrain's make reads (floor, water mirror, seat offset, pieces' spots), so a light, view,
-  door, machine or people edit moves no ground. A new read of those records here needs its field added in `inputs.py`.
+- **No place record is an input** (2026-10-21): the old scene records and kits (`data/scene`, `data/kit`), whose
+  floor, water mirror, seat offset and pieces' spots terrain once read, were retired with the old concepts, and
+  `inputs.py` with them. A place sits on its seat by its middle; a detail area's patch is its kept plan's floor
+  (`areas.patch_box`). A new read of a place's design here is declared in the row's files.
 - **The place gates measure the place's own stage, not pictures** (`ground-fit`, free): its neighbours output where
   it shows other places, else its assembly, which takes `places/<place>.usdc` over its old ground. `under` compares
   every object that stood on the old ground with the made one; `floating` fails an object hanging over the ground;

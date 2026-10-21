@@ -25,7 +25,7 @@ MISSING = "missing"  # gaps' rule for a row with nothing made for it (score/stag
 def area_gaps(place, data):
     """A missing gap for each detail area the place's inventory has no row of."""
     from score.stages.complete.gaps import fill
-    path = pathlib.Path(data) / "inventory" / f"{place}.json"
+    path = areas.KEPT_PLANS.parent / "inventory" / f"{place}.json"  # the design's scene inventory
     have = {row["id"] for row in json.loads(path.read_text())["rows"]} if path.is_file() else set()
     node, work = fill.filled(*fill.FILLERS[fill.ROUTE], place)
     return [{"id": f"ground:area:{place}:{area['id']}", "rule": MISSING, "row": area["id"], "prim": f"/{place}",
@@ -40,7 +40,7 @@ def gaps(place, data):
     detail area's]."""
     data = pathlib.Path(data)
     record = light_needs.read(data / "scene" / f"{place}.json")
-    plan = light_needs.read(data / "plans" / f"{place}.json")
+    plan = light_needs.read(areas.KEPT_PLANS / f"{place}.json")
     if not light_needs.outdoor(record, plan):
         return []
     if light_needs.body_of(place, data) is None:

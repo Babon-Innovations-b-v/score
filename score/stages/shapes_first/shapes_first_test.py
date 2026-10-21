@@ -151,9 +151,15 @@ def test_an_after_step_must_read_the_loop_s_ends_and_runs_only_where_its_layer_h
         shapes_first.rows((shapes_first.OBJECTS, shapes_first.Adapter("objects")))
     found = shapes_first.rows((shapes_first.Adapter("terrain", (row("join", dict(made.ENDS)),)),))
     join = found[-1]
-    assert join.name == "join" and not join.applies("campgrounds")  # its rows are all on the objects layer
-    objects = shapes_first.rows((shapes_first.Adapter("objects", (row("lay", dict(made.ENDS)),)),))[-1]
-    assert objects.applies("campgrounds") and not objects.applies("hub")
+    kept, prop_data.DESIGN = prop_data.DESIGN, pathlib.Path(tempfile.mkdtemp())  # a hand-in of the test's own
+    (prop_data.DESIGN / "campgrounds.json").write_text(json.dumps({"objects": {"cairn": {"route": "prop",
+                                                                                         "take": "cairn-p1"}}}))
+    try:
+        assert join.name == "join" and not join.applies("campgrounds")  # its rows are all on the objects layer
+        objects = shapes_first.rows((shapes_first.Adapter("objects", (row("lay", dict(made.ENDS)),)),))[-1]
+        assert objects.applies("campgrounds") and not objects.applies("hub")
+    finally:
+        prop_data.DESIGN = kept
 
 
 def test_the_table_runs_the_loop_in_its_order():
@@ -192,7 +198,7 @@ MAKES_NO_MODEL = {
     "effects-look": "renders", "physics-trial": "a physics trial", "concept_people": "people's concept pictures",
     "motion-models-boxes": "measured boxes", "light-passes": "renders", "light-haze": "renders",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
-    "complete-boxes": "measured boxes", "surface-tiles": "surface tiles", "library-clips*": "preview clips (renders)",
+    "surface-tiles": "surface tiles", "library-clips*": "preview clips (renders)",
     "people-clips-made": "Kimodo clips and the mean rig",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.

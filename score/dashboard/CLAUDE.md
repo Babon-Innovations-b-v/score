@@ -12,6 +12,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`state/`** where the pages read from. `local.py` reads the store beside it, read-only, through `index.py` (the
   small areas walked once with os.scandir, every folder store of that root answering `keys` from it, rebuilt when
   older than 60 s); `exported.py` reads a pushed state export; both give the pydantic models of `models.py`.
+  A card a scene of the design (`local.scenes`: the places of the build, `stages.places`, and every scene drawn or
+  locked in the concept review; no kit or plan filed in the data names one since 2026-10-21), so a scene in design
+  keeps its card and concept page before it is a place.
   A place's problems are its stopped steps, its accepted gaps and every standalone check's findings
   (`WORK/checks/<check>/<place>/findings.json`, `check_findings`, read while the outputs it judged stay accepted).
   Its gaps (CONTEXT.md "gap") are the gaps check's findings (`score/stages/complete/gaps`), listed apart
@@ -61,8 +64,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     outside shells that are no place of their own). The hierarchy is `data/places/within.json` (shapes first: each
     place's `within` and the data it was read from; `parts`, a part of a place's own outside that is no place to the creator, the Street's square and launch view, sits within that place), read on the store's machine into the WorldState
     (`within`, `shells`), so the export carries it; a place it does not name is an outside place. The concepts are
-    `data/places/concepts.json` (each place's or shell's concept picture: its sha256 in the store's blobs and where
-    its bytes were found, hash-checked; the lost ones named with why), read into the WorldState's `concepts`
+    each place's or shell's concept review draws (its picked draw, else its newest; the old index of the filed plans'
+    pictures, `data/places/concepts.json`, was retired on 2026-10-21), read into the WorldState's `concepts`
     {node: FileRef}; the export carries their thumbnails before every other picture.
   - `/api/screens/place/<place>`: picture, `web3d` (`/web/<place>/<place>.glb`, else the library place entry's GLB at
     `/library-files/files/<sha>`) and `web3d_from`, `view`, progress, complete, gaps, worst, takes, `steps` [{node,
@@ -205,7 +208,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the page.
 - **No number from an inventory that does not count** (CONTEXT.md "scene inventory", owner 2026-10-20: "inventory
   can't exist" before the lock): a place's scene inventory counts only while it was read from its locked draw
-  (`data/inventory/<place>.json` `concept_pick.sha256` equal to the lock's sha: `screens.inventory_current`, the
+  (its reading, else its design's kept inventory `{home}/design/inventory/<place>.json`, `concept_pick.sha256` equal to the lock's sha: `screens.inventory_current`, the
   store's `WorldState.inventories` read by `score/review/concepts.inventory_read`; prepare's `design.py` the same rule,
   its `inventory` state), and its numbers only once its gaps findings are not older than the lock (`screens.counted`,
   `local.inventory_reads` `checked`: earlier ones were read from an older inventory). Until then its tile and head
@@ -225,7 +228,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   "skipped N, merged M" note listing what the readers' agreement left out as hover text, and "show skipped" drawing
   those faint and dashed, each saying why on hover; a row and its boxes light together on hover), and
   every reading's euros in sum show on the Environment's top bar under spent and on Stats. Prepare's remake figure
-  reads the readings (its `estimate`); the gaps check and the plan still read `data/inventory/`.
+  reads the readings (its `estimate`); the gaps check reads the design's kept inventories (`{home}/design/inventory/`).
 - **The environment concept** (CONTEXT.md "environment concept", owner 2026-10-21; `pages/environment.py`,
   `environment_concept.html`, `static/pages/environment.js`): `/environments/<world>/` shows four cards (owner
   2026-10-21: "this page is confusing"): Style (its line), Setting (CONTEXT.md "setting", `pages/setting_picture.py`,
@@ -269,8 +272,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   and locks (`score/review/concepts.py`), each draw copied to the private bucket as it is made
   (`concept-draws/<sha>`), and a lock or unlock is handed to score_lib (`score-lib concept`: the locked draw locked as
   `concept/<place>`, withdrawn on an unlock), whose entry the Library shows in its place's folder on the Places shelf
-  (`shelf_of`); the lock's answer says what the library did. A place's card shows its locked draw, else its newest unless every draw is from an older wording (then none: out of date), else
-  `data/places/concepts.json`'s. The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
+  (`shelf_of`); the lock's answer says what the library did. A place's card shows its locked draw, else its newest unless every draw is from an older wording (then none: out of date). The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
   answered draw (its record as the request's detail, its pictures in `SCORE_HOME/request-files`, served by
   `ExportedSource` beside the export's) and a lock since the export show at once; the cards follow at the next export.
   A place's page names the places listed inside it that its draw is asked to hold (`asked_to_hold`). Under the

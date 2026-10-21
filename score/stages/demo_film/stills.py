@@ -38,12 +38,10 @@ def applies(place):
 
 
 def files(place):
-    """The place's stills record, its seed scene record where it has one, and the renderer."""
-    found = {"stills": "{data}/definitions/demo_stills/" + place + ".json",
-             "renderer": "{repo}/tools/blender/inside/usd_views.py"}
-    if (REPO / "data/scene" / f"{place}.json").exists():
-        found["scene"] = "{data}/scene/" + place + ".json"
-    return found
+    """The place's stills record and the renderer (its cameras are its own stage's record: the seed records were
+    retired, 2026-10-21)."""
+    return {"stills": "{data}/definitions/demo_stills/" + place + ".json",
+            "renderer": "{repo}/tools/blender/inside/usd_views.py"}
 
 
 def euros(place=None):
