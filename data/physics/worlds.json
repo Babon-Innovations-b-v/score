@@ -1,0 +1,8 @@
+{
+ "about": "The worlds of environment 1 as the environment concept shows them (score/review/environment_concept.py physics_now): each one's name, its gravity at the surface in m/s² and what it orbits. Earth's and the Moon's gravity are the game 2099's (tools/usd/orbits.py PULL; environment_concept_test holds them equal); Mars's is the owner's (2026-10-21: \"Mars 3.71 m/s²\"). The Moon orbits Earth and the pair orbits the Sun, Mars the Sun on its own (orbits.py). Which places stand on a world is its ground plan's seats (data/ground/plan/<world>.json), never listed here.",
+ "worlds": {
+  "earth": {"name": "Earth", "gravity": 9.81, "orbits": "the Sun"},
+  "moon": {"name": "Moon", "gravity": 1.62, "orbits": "Earth"},
+  "mars": {"name": "Mars", "gravity": 3.71, "orbits": "the Sun"}
+ }
+}

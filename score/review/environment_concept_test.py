@@ -49,10 +49,11 @@ def test_environment_1s_concept_is_todays_data_shown_locked(store):
     assert shown["locked"] and shown["prefilled"] and shown["versions"] == 0
     assert concept["style"] == ec.style_now() and concept["style"].startswith("2099 space base")
     assert {(ref["place"], ref["picture"].rsplit("/", 1)[-1]) for ref in concept["references"]} == {
-        ("hangar", "shuttle-screenshot.png"), ("cockpit", "cockpit.png"), ("quarters", "quarters.png")}
-    pulls = {row["world"]: row for row in concept["physics"]}
-    assert pulls["moon"]["gravity"] == 1.62 and pulls["earth"]["gravity"] == 9.81
-    assert pulls["moon"]["moves"] == ["earth"] and "habitat" in pulls["moon"]["places"]
+        ("hangar", "shuttle-screenshot.png")}  # the owner, 2026-10-21: the cockpit's and quarters' pictures removed
+    assert concept["physics"] == [
+        {"world": "Earth", "gravity": 9.81, "orbits": "the Sun", "places": ["Square"]},
+        {"world": "Moon", "gravity": 1.62, "orbits": "Earth", "places": ["Wreck", "Old station", "Base"]},
+        {"world": "Mars", "gravity": 3.71, "orbits": "the Sun", "places": ["Campgrounds"]}]
     places = {row["name"]: row for row in concept["places"]}
     assert places["Base"]["place"] == "base" and "Hangar" in places["Base"]["holds"]
     assert "launch" not in [row.get("place") for row in concept["places"]]  # a part of the square: no place
@@ -64,7 +65,15 @@ def test_environment_1s_concept_is_todays_data_shown_locked(store):
 
 def test_with_no_version_kept_the_draws_read_todays_data_word_for_word(store):
     assert concepts.style(store) == f"Style: {ec.style_now()}"
-    assert concepts.references_of(store, "cockpit") == concepts.inputs_of("cockpit")["references"]
+    assert concepts.references_of(store, "hangar") == concepts.inputs_of("hangar")["references"]
+    assert concepts.references_of(store, "cockpit") == concepts.references_of(store, "quarters") == []
+
+
+def test_the_worlds_gravity_is_the_games_where_the_game_has_one(monkeypatch):
+    monkeypatch.syspath_prepend(str(concepts.REPO / "tools/usd"))
+    import orbits
+    worlds = json.loads((concepts.DATA / "physics/worlds.json").read_text())["worlds"]
+    assert {world: worlds[world]["gravity"] for world in orbits.PULL} == orbits.PULL
 
 
 def test_a_locked_version_is_what_every_draw_reads(store):
@@ -120,14 +129,14 @@ def test_an_ask_runs_only_inside_the_owners_yes_and_proposes_checked_fields(stor
 
     def model(question, pictures):
         asked.append((question, pictures))
-        return '```json\n{"physics": [{"world": "mars", "gravity": 3.71, "moves": [], "places": []}]}\n```'
+        return '```json\n{"physics": [{"world": "mars", "gravity": 3.71, "orbits": "the Sun", "places": []}]}\n```'
 
     with pytest.raises(compute.Refused):
         ec.ask(store, WORLD, request, "joey", reviser=model)
     key = said_yes(store, monkeypatch)
     record = ec.ask(store, WORLD, request, "joey", reviser=model)
     assert record["yes"] == key and record["proposed"] == {
-        "physics": [{"world": "mars", "gravity": 3.71, "moves": [], "places": []}]}
+        "physics": [{"world": "mars", "gravity": 3.71, "orbits": "the Sun", "places": []}]}
     assert "Mars too" in asked[0][0] and ec.question_of("physics") in asked[0][0]
     assert ec.asks(store, WORLD) == [record]
     with pytest.raises(ec.Refused, match="no JSON"):
