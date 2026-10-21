@@ -193,7 +193,7 @@ MAKES_NO_MODEL = {
     "effects-look": "renders", "physics-trial": "a physics trial", "concept_people": "people's concept pictures",
     "motion-models-boxes": "measured boxes", "light-passes": "renders", "light-haze": "renders",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
-    "complete-boxes": "measured boxes", "surface-tiles": "surface tiles",
+    "complete-boxes": "measured boxes", "surface-tiles": "surface tiles", "library-clips*": "preview clips (renders)",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
 MADE_OUTSIDE = {

@@ -212,7 +212,7 @@ stage as each stage is built; nothing moves before.
   overlay, #41) is every model layer's one way to a model: rough model, `rough-align` (its registration to the plan,
   free), the parts split, close-up, Pixal3D, the finish route, likeness, then each layer adapter's after-steps. `cast`
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
-  environment node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes);
+  environment node of the table) and measured on the seed's geometry (counted, standing, clear, made);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
   body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `motion-models` (experimental, `stages/motion/models`, its overlay) lays each place's
   rigid moving models (`data/motion/models/<place>.json`: the garage's rover) on what holds them up, gated on outline,
