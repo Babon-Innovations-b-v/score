@@ -258,7 +258,7 @@
     const short = name.toLowerCase().split(/[(:,]/)[0].trim().slice(0, 28);
     const fits = Math.min(text, (w * 0.92) / (short.length * 0.56), d * 0.5);  // its label inside it, else none
     if (fits >= longest / 260 && kind === "zone") label(short, x + fits * 0.3, y + fits * 1.2, fits * 0.8, "zone", group);  // its corner: a zone holds things
-    else if (fits >= longest / 260) label(short, x + w / 2, y + d / 2 + fits * 0.35, fits, "item", group, "middle");
+    else if (fits >= longest / 260 && !over) label(short, x + w / 2, y + d / 2 + fits * 0.35, fits, "item", group, "middle");
     if (facing) {  // its front: a tick on that side
       const front = { N: [[x + w * 0.35, y], [x + w * 0.65, y]], S: [[x + w * 0.35, y + d], [x + w * 0.65, y + d]],
                       W: [[x, y + d * 0.35], [x, y + d * 0.65]], E: [[x + w, y + d * 0.35], [x + w, y + d * 0.65]] }[facing];
@@ -353,6 +353,11 @@
     shape("path", { d: "M0,0 L10,5 L0,10 z", class: "plan-arrow-head" }, arrow);
   };
 
+  // a thing drawn on the plan: no zone, not the walls-and-ceiling item, no shell or ground row, and no backdrop the
+  // writer placed far wider than the place (a skyline)
+  const structure = new Set(plan.structure || []);
+  const drawn = (item) => item[0] !== WALLS && item[6] !== "zone" && !rows_of(item[0]).some((row) => structure.has(row)) &&
+    !(item[3] > wide * 1.5 || item[4] > deep * 1.5);
   const numbers = document.getElementById("plan-numbers");
   const draw = () => {
     svg.replaceChildren();
@@ -379,7 +384,7 @@
       tip(group, `spot height ${level(height)}`);
     }
     (plan.stairs || []).forEach(draw_stair);
-    plan.items.filter((item) => item[0] !== WALLS && item[6] !== "zone" && !((plan.shapes[item[0]] || {}).base >= LOW)).forEach(item_shape);
+    plan.items.filter((item) => drawn(item) && !((plan.shapes[item[0]] || {}).base >= LOW)).forEach(item_shape);
     plan.items.filter((item) => item[6] === "zone").forEach(item_shape);
     plan.holds.forEach(hold_shape);  // over the items: the hangar's rooms in its ship
     for (const wall of walls()) {
@@ -387,7 +392,7 @@
       tip(found, `wall ${wall.thick || 0.2} m thick${wall.tall ? `, ${wall.tall} m high` : ""}`);
     }
     openings().forEach(draw_opening);
-    plan.items.filter((item) => item[0] !== WALLS && item[6] !== "zone" && (plan.shapes[item[0]] || {}).base >= LOW).forEach(item_shape);
+    plan.items.filter((item) => drawn(item) && (plan.shapes[item[0]] || {}).base >= LOW).forEach(item_shape);
     for (const roof of plan.roofs || []) {
       const group = shape("g", { class: `plan-roof ${roof.kind}` });
       polygon(roof.points, "", group);
@@ -406,7 +411,7 @@
     north();
     scale_bar();
     if (lit && lit.at) shape("circle", { cx: lit.at[0], cy: lit.at[1], r: longest / 30, class: "plan-ring" });
-    const things = plan.items.filter((item) => item[6] === "item" && item[0] !== WALLS).length;
+    const things = plan.items.filter(drawn).length;
     numbers.textContent = `${round(wide)} x ${round(deep)} m, ${things} things`;
     section();
   };
@@ -441,7 +446,7 @@
     if (!cut) return;
     cut.replaceChildren();
     const y = section_y();
-    const crossed = plan.items.filter((item) => item[6] === "item" && item[0] !== WALLS)
+    const crossed = plan.items.filter(drawn)
       .map((item) => ({ item, form: plan.shapes[item[0]] || {}, spans: spans(footprint(item), y) }))
       .filter((found) => found.spans.length);
     const heights = [0, ...(plan.levels || []).map((area) => area.height), ...(plan.roofs || []).flatMap((roof) => [roof.eave, roof.top]),
