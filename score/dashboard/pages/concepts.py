@@ -159,7 +159,7 @@ def reading_view(world, place, picked):
     named = {row["id"]: row for row in rows}
     gaps = [{"number": named[row]["number"], "name": named[row]["name"],
              "words": [gap["words"] for gap in found["gaps"] if gap["row"] == row]}
-            for row in dict.fromkeys(gap["row"] for gap in found["gaps"])]
+            for row in dict.fromkeys(gap["row"] for gap in found["gaps"]) if row in named]
     skipped = [{**item, "at": item["box"] and at(item["box"])} for item in found.get("skipped", [])]
     merged = [{**item, "into": named[item["into"]]["name"]} for item in found.get("merged", []) if item["into"] in named]
     return {"rows": rows, "gaps": gaps, "skipped": skipped, "merged": merged, "euros": found["euros"]["total"],
