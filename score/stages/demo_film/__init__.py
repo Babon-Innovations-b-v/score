@@ -463,8 +463,13 @@ def seen_faults(stage, views, people=0):
 
 
 def cast_people(cast):
-    """How many people the place's cast record stands (data/characters/<place>.json `people`; 0 with none)."""
-    return len(json.loads(pathlib.Path(cast).read_text()).get("people", [])) if cast else 0
+    """How many people the place's cast record stands (data/characters/<place>.json: its `people`, each group's
+    `count` and the crowd's `count`; 0 with none)."""
+    if not cast:
+        return 0
+    record = json.loads(pathlib.Path(cast).read_text())
+    return (len(record.get("people", [])) + sum(group["count"] for group in record.get("groups", []))
+            + (record.get("crowd") or {}).get("count", 0))
 
 
 def film_verdict(folders, inputs):

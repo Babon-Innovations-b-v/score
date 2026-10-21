@@ -81,6 +81,10 @@ def test_a_place_reads_only_the_looks_its_cast_names():
               "crowd": {"name": "crowd", "character": "kit_m_avg", "body": "far"}}
     assert layer.dealt_looks(json.dumps(record)) == {"bram-work", "kit_m_avg-far"}
     assert layer.dealt_looks(json.dumps({"people": []})) == frozenset()
+    named = {**record, "crowd": {**record["crowd"], "look": "kit_m_avg_coat-grey"}}  # the square's crowd names its look
+    assert layer.dealt_looks(json.dumps(named)) == {"bram-work", "kit_m_avg-coat-grey"}
+    square = json.loads((REPO / "data/characters/square.json").read_text())
+    assert "kit_m_avg-coat-grey" in layer.dealt_looks(json.dumps(square))
 
 
 if __name__ == "__main__":

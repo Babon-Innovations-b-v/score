@@ -68,6 +68,21 @@ def test_a_cast_that_stands_people_fails_a_stage_that_holds_none():
     assert not any("cast" in fault for fault in demo_film.seen_faults(a_stage(door_sound=True), film, people=0))
 
 
+def test_a_cast_of_groups_and_a_crowd_counts_its_people():
+    """A cast that stands only a group and a crowd stands people too (the square: one speaker, a front row of 24 and a
+    far crowd): the film gate counts every member and copy, not the named people alone."""
+    import json
+    from score.stages import demo_film
+    with tempfile.TemporaryDirectory() as folder:
+        cast = pathlib.Path(folder) / "square.json"
+        cast.write_text(json.dumps({"people": [{"name": "leader"}], "groups": [{"name": "front_row", "count": 24}],
+                                    "crowd": {"name": "crowd", "count": 10000}}))
+        assert demo_film.cast_people(cast) == 10025
+        cast.write_text(json.dumps({"groups": [{"name": "front_row", "count": 3}]}))
+        assert demo_film.cast_people(cast) == 3
+    assert demo_film.cast_people(None) == 0
+
+
 def test_a_thing_seen_moving_needs_a_sound_of_its_own():
     """The owner's review of 2026-10-18: the sound only ambient, no event sounds. A door seen sliding with no sound
     under it is named; with its sound, or looked away from, it is not."""

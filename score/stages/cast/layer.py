@@ -192,6 +192,7 @@ def dealt_looks(text):
     named = {person["name"]: person.get("look") for person in record.get("people", [])}
     singles = [dict(single, look=named.get(single["name"])) for single in loaded("cast").characters_of(record)]
     looks = {look_of(single) for single in singles}
-    if record.get("crowd"):
-        looks.add((record["crowd"]["character"], record["crowd"].get("body", "far")))
+    if record.get("crowd"):  # its named look, else the record's far body, as the cast stage deals it (crowd_of)
+        crowd = record["crowd"]
+        looks.add(look_of(crowd) or (crowd["character"], crowd.get("body", "far")))
     return frozenset("-".join(look) for look in looks if look)
