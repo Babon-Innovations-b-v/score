@@ -230,14 +230,27 @@ def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
         shutil.rmtree(root)
 
 
-def test_the_plan_row_keeps_its_code_version_and_a_laid_place_s_files():
-    """The plan row reads a place with no kit through wrappers in the table, so no laid place's key moves."""
+def test_the_plan_row_reads_a_laid_kit_only_where_no_design_is_locked():
+    """The plan row reads a place's kit through wrappers in the table (its code version stays): a laid kit with no
+    design locked for the place is read (the launch's); none laid, or a design locked (its kit was laid for the old
+    concept's room), the plan reads no kit, its spots its design's."""
     plain = graph.Stage("plan", "place", stages.scene_record.plan.make, stages.scene_record.plan.PLACE_PLAN,
                         stages.scene_record.plan.CHECKS, files=stages.scene_record.plan.files)
     assert code_after_editing(stages.PLAN, "nothing") == code_after_editing(plain, "nothing")
-    assert stages.PLAN.files("lab") == stages.scene_record.plan.files("lab")
-    declared = stages.kit_if_laid(lambda place: {"plan": f"{place}.plan", "kit": f"{place}.kit"})
+    assert stages.earth_seed.locked_plan("launch") is None
+    assert stages.PLAN.files("launch") == stages.scene_record.plan.files("launch")
+    declared = stages.kit_if_base(lambda place: {"plan": f"{place}.plan", "kit": f"{place}.kit"})
     assert declared("no_kit_laid") == {"plan": "no_kit_laid.plan"}
+    kept, root = stages.earth_seed.DESIGN, pathlib.Path(tempfile.mkdtemp())
+    try:
+        (root / "plans").mkdir()
+        stages.earth_seed.DESIGN = root
+        assert declared("lab") == {"plan": "lab.plan", "kit": "lab.kit"}
+        (root / "plans/lab.json").write_text(json.dumps({"w": 6.0, "d": 6.0}))
+        assert declared("lab") == {"plan": "lab.plan"}
+    finally:
+        stages.earth_seed.DESIGN = kept
+        shutil.rmtree(root)
 
 
 def test_the_plan_row_maps_a_place_with_no_kit():

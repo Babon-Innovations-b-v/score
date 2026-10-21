@@ -36,11 +36,11 @@ AFTER = {**made.ENDS, "earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EA
 
 
 def applies(place):
-    """A kit place whose plan marks shell sections: its kit laid (data/kit) and its base's (earth_seed.kit_of_design:
-    laid for the room its locked plan keeps; a base of its design alone lays no kit piece to section) and `sections`
+    """A kit place whose plan marks shell sections: its kit laid (data/kit) and its base's (earth_seed.kit_is_base:
+    no design locked for it; a base of its design alone lays no kit piece to section) and `sections`
     in data/plans/<place>.json (stages.kit_based's rule, read here so the table stays out of the code)."""
     plan = earth_seed.REPO / "data/plans" / f"{place}.json"
-    if place is None or not earth_seed.kit_of_design(place) or not plan.exists():
+    if place is None or not earth_seed.kit_is_base(place) or not plan.exists():
         return False
     return bool(read(plan).get("sections"))
 

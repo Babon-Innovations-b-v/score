@@ -163,7 +163,7 @@ def test_the_kit_adapter_is_on_the_loop_and_every_plan_section_is_laid():
         assert kit_sections.applies("hangar") and not kit_sections.applies("wreck")  # wreck's plan marks no sections
         ships = [place for place in ("shiplock", "cockpit", "engineroom") if stages.ship_place(place)]
         assert ships and not any(kit_sections.applies(place) for place in ships), ships  # their plans mark no sections
-        with_designs({"hangar": {"w": 55.666, "d": 58.613}})  # a locked room the hangar's kit was not laid for
+        with_designs({"hangar": {"w": 32.0, "d": 64.0}})  # any locked design, even the filed room's size
         assert not kit_sections.applies("hangar")
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -294,28 +294,28 @@ def with_designs(plans):
     return root
 
 
-def test_a_kit_is_the_base_s_only_when_laid_for_its_design_s_room():
+def test_a_kit_is_the_base_s_only_where_no_design_is_locked():
     """The cockpit's kit was laid for data/plans/cockpit.json's 6.53 x 3.0 m room: with no locked plan it is all the
-    cockpit has, a locked plan keeping that room keeps it, his 9.414 x 9.8 m room of 2026-10-21 does not (its base is
-    its design's, the kit left out); a scene added in the app (no kit, not in place.json) takes the style of the scene
-    whose plan holds it, and one nothing holds has none."""
+    cockpit has; any locked plan, even one keeping that room's size (the hangar's did, and was still the old room,
+    2026-10-21), makes its base its design's, the kit left out; a scene added in the app (no kit, not in place.json)
+    takes the style of the scene whose plan holds it, and one nothing holds has none."""
     kept = earth_seed.DESIGN
     filed = json.loads((REPO / "data/plans/cockpit.json").read_text())
     assert (filed["w"], filed["d"]) == (6.53, 3.0)
     root = with_designs({})
     try:
-        assert earth_seed.kit_of_design("cockpit") and "kit" in earth_seed.seed_files("cockpit")
+        assert earth_seed.kit_is_base("cockpit") and "kit" in earth_seed.seed_files("cockpit")
         with_designs({"cockpit": {"w": 6.53, "d": 3.0}})
-        assert earth_seed.kit_of_design("cockpit")
+        assert not earth_seed.kit_is_base("cockpit") and "kit" not in earth_seed.seed_files("cockpit")
         shutil.rmtree(earth_seed.DESIGN)
         with_designs({"cockpit": {"w": 9.414, "d": 9.8},
                       "hangar": {"holds": [{"place": "cockpit", "row": "spaceship"},
                                            {"place": "docking_bay", "row": "spaceship"}]}})
-        assert not earth_seed.kit_of_design("cockpit")
+        assert not earth_seed.kit_is_base("cockpit")
         declared = earth_seed.seed_files("cockpit")
         assert "kit" not in declared and declared["design plan"] == "{home}/design/plans/cockpit.json", declared
         assert not any(name.startswith("holder ") for name in declared), declared  # place.json names the cockpit
-        assert not earth_seed.kit_of_design("docking_bay")
+        assert not earth_seed.kit_is_base("docking_bay")
         declared = earth_seed.seed_files("docking_bay")
         assert declared["holder hangar"] == "{home}/design/plans/hangar.json", declared
         inputs = {"places": REPO / "data/definitions/place.json",
