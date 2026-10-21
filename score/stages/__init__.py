@@ -177,13 +177,14 @@ def kit_laid(place):
     return (REPO / "data/kit" / f"{place}.json").exists()
 
 
-def kit_if_laid(files):
-    """The plan row's environment files without `kit` for a place whose kit is not laid, so its plan runs before it.
-    Wrapped here, in the table, so the plan's code version and every laid place's key stay as they were."""
+def kit_if_base(files):
+    """The plan row's environment files without `kit` for a place whose kit is not its base's (earth_seed.kit_is_base:
+    none laid, so its plan runs before it, or a design locked for it, whose plan's spots are its design's, never a kit
+    laid for the old concept's room). Wrapped here, in the table, so the plan's code version stays as it was."""
     @functools.wraps(files)
     def declared(place):
         found = files(place)
-        return found if kit_laid(place) else {name: path for name, path in found.items() if name != "kit"}
+        return found if earth_seed.kit_is_base(place) else {name: path for name, path in found.items() if name != "kit"}
     return declared
 
 
@@ -247,7 +248,7 @@ def shell_of(place):
 PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
-                   files=creator_plan(kit_if_laid(kept_plan_only(scene_record.plan.files))), applies=plan_written,
+                   files=creator_plan(kit_if_base(kept_plan_only(scene_record.plan.files))), applies=plan_written,
                    beside={"shell-split": ("shell-split", 1)}, upward=True, neighbours=shell_of)
 # Shapes first (CONTEXT.md "shell split"): an outside shell's plan split into the shapes of its inside places, free and
 # local, for a place whose plan has a `split`; each inside place's plan reads its shell's split beside it (PLAN's
@@ -847,9 +848,9 @@ def earth_place(place):
 
 
 def kit_based(place):
-    """A place whose base lays its kit (earth_seed.kit_of_design: laid for the room its locked plan keeps): the
-    earth-kit row bakes it; any other earth place's base is its design's alone."""
-    return earth_place(place) and earth_seed.kit_of_design(place)
+    """A place whose base lays its kit (earth_seed.kit_is_base: laid, and no design locked for it): the earth-kit row
+    bakes it; any other earth place's base is its design's alone."""
+    return earth_place(place) and earth_seed.kit_is_base(place)
 
 
 # earth-kit bakes the kit's named code fallbacks only, the rows not handed to the shared loop (#41;

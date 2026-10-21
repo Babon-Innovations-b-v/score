@@ -1,8 +1,8 @@
 """A designed scene's room shell, laid in its base layer from the plan the creator locked (CONTEXT.md "design",
 "plan"; the owner, 2026-10-21: every designed scene's base from its own design, never from a lost seed). It is laid
-for an inside room whose plan's shell is `kit` (its walls and floors are its kit's; `laid_for`) and whose base has no
-kit laid for its design (earth_seed.kit_of_design): the ship's rooms, whose kits were laid for the plans before his
-layout of 2026-10-21, and a scene he added in the app, which has none. A domed or outdoor shell is the scene record's,
+for an inside room whose plan's shell is `kit` (its walls and floors are its kit's; `laid_for`) in every designed
+scene, whose base never lays data/kit (earth_seed.kit_is_base: those kits were laid for the old concepts' rooms; a
+scene he added in the app has none). A domed or outdoor shell is the scene record's,
 which the assembly lays (scene_record.writer), and an open place (`inside` false: the street, the square) has no room
 to close, so nothing is laid here for either.
 

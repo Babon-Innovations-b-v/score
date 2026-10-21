@@ -5,10 +5,10 @@ price everything after it. Its places are every place with a kit laid and every 
 locked, kept under {home}/design/plans: the ship's rooms, a scene he added in the app), the earth's and the ship's
 alike (the owner, 2026-10-21: every designed scene's base from its own design).
 
-A place's kit is its base's when it is its design's (kit_of_design): laid (data/kit) for the room its locked plan
-keeps, the filed plan's size (data/plans, which the kit was laid from) the same as the locked plan's; a place with no
-locked plan has only its kit. Otherwise (the ship's rooms, whose kits were laid for the plans before his layout of
-2026-10-21; a scene added in the app, which has none) its base is its design's alone: no kit piece, its room shell
+A place's kit is its base's only when no design is locked for it (kit_is_base): a place with no locked plan has
+only its kit. A designed scene's base is always its design's (data/kit was laid by per-place scripts from the filed
+plans, the old concepts' rooms, whatever their size; the hangar's matched its locked plan's 32 x 64 m and was still
+the old room, 2026-10-21): no kit piece, its room shell
 from its locked plan (design_shell.py), its inventory the design's, its style its own place.json entry's, else that
 of the scene holding it (style_of); nothing here bakes or lays a kit laid for another room. A place with no style
 (styled: a top scene place.json does not name) has no base row until it has one.
@@ -57,7 +57,6 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = PROPS_HOME / "env/bin/python"
 DESIGN = PROPS_HOME / "design"  # the locked designs, where the plan stage reads them (score/review/plans.KEPT's folder)
 KIT_FILE = "kit.json"  # a design base's kit: no piece, and why (make_design_seed)
-SAME_SIZE = 0.01  # metres a locked plan's w or d may differ from the filed plan's and keep its kit's room
 ROUTE = REPO / "tools/props/library/route.py"
 GAPS = "gaps.json"
 FALLBACKS = "fallbacks.json"
@@ -206,18 +205,11 @@ def locked_plan(place):
     return read(path) if path.is_file() else None
 
 
-def kit_of_design(place):
-    """Whether the place's kit (data/kit) is its base's: laid, and either no locked plan (the kit is all it has) or the
-    locked plan keeps the room the kit was laid for (the filed plan's w and d, within SAME_SIZE)."""
-    if not (REPO / "data/kit" / f"{place}.json").exists():
-        return False
-    locked, filed = locked_plan(place), REPO / "data/plans" / f"{place}.json"
-    if locked is None:
-        return True
-    if not filed.exists():
-        return False
-    laid_for = read(filed)
-    return all(abs(float(locked[side]) - float(laid_for[side])) <= SAME_SIZE for side in ("w", "d"))
+def kit_is_base(place):
+    """Whether the place's kit (data/kit) is its base's: laid, and no design locked for the place. A designed scene's
+    base is always its design's (the owner, 2026-10-21: no hand-written per-scene list decides what a scene gets): a
+    kit laid by a per-place script from a filed plan is the old concept's room, whatever its size."""
+    return (REPO / "data/kit" / f"{place}.json").exists() and locked_plan(place) is None
 
 
 def holder_of(name, plans):
@@ -283,7 +275,7 @@ def seed_files(place):
     found = {"kit": "{data}/kit/" + f"{place}.json", "inventories": "{data}/inventory", "parts": "{data}/parts",
              "grounds": "{data}/ground", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
              "places": "{data}/definitions/place.json", "export": "{repo}/tools/usd/export.py"}
-    if not kit_of_design(place):
+    if not kit_is_base(place):
         found = {**{name: path for name, path in found.items() if name != "kit"}, **design_files(place)}
     if (REPO / "data/scene" / f"{place}.json").exists():
         found["scene"] = "{data}/scene/" + f"{place}.json"

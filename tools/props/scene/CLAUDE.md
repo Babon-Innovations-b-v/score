@@ -73,6 +73,10 @@ serve: skill `make-scene`, bible "How a scene is designed".
 - `cutsize_test.py` is the gate's check of the cut-out limit.
 - The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
   window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.
+- **The per-place kit scripts lay the old concepts' rooms** (owner, 2026-10-21: no hand-written per-scene list decides
+  what a scene gets). Their data/kit/<place>.json is never a designed scene's base (`score/stages/earth_seed`
+  `kit_is_base`: the base and the plan row read it only where no design is locked), so earth-kit bakes none of it for
+  a designed scene. The scene record, assembly, terrain and surface rows still read data/kit; a script goes once none does.
 - **Kit layouts for the route** (`route.py`'s input): `hub_kit.py` for the hub's twelve walls, `room_kit.py <room>` for
   a rounded module room from its inventory's `room.layout` (the shell's own outline, its dome's rings, the floor's
   cross and corner fans, door spots, the rows' spots; the habitat and the airlock, modules batch one), and
