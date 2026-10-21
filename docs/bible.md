@@ -503,9 +503,8 @@ is meant to fix, where it is marked, and what proves it.
   brightness, lamps (unlit, blown), sky elements, floodlight heads, the Earth, the Mars sky and stage_no_worse. The
   layer holds live lights (the owner, 2026-10-12: no baked per-lamp layers this month); the passes are that idea on
   the views only. The strengths are measured on the round-three seeds' layouts with the layer, not on the final
-  assembly, which does not take the layer yet; the measurement moves there once it does. The light stage's own
-  additions live in `data/light/<place>.json` (the launch: concept K01's two pad floodlights on the far side with
-  their lamps and the night glow). Measured cost: one L4 render a place, EUR 0.10 to 0.26. Proven when a place's line
+  assembly, which does not take the layer yet; the measurement moves there once it does. No place has a light
+  file of its own: its lamps are its inventory's lamp rows, its glow its body's night air (the sky record). Measured cost: one L4 render a place, EUR 0.10 to 0.26. Proven when a place's line
   ends accepted on its gates and the owner has seen its looks.
 - **The neighbours stage** (`score/stages/assembly/neighbours.py`). A place's views looked out onto empty space: the
   seeds' references to the places they show (`../../launch/launch.usda`) resolve to nothing once each place is its own

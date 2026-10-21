@@ -289,13 +289,8 @@ PASSES = contracts.Contract("light-passes", 1, passes_faults, {"length": "metre"
 
 
 def place_files(name):
-    """The files a place's light layer is written from besides its scene record (a stored output): its kit, its light
-    data when it has one."""
-    found = {f"kit {name}": f"{{data}}/kit/{name}.json"}
-    if (REPO / f"data/light/{name}.json").exists():  # its kit moves read the site's numbers through the layout
-        found[f"light data {name}"] = f"{{data}}/light/{name}.json"
-        found["site numbers"] = "{data}/definitions/earth_site.json"
-    return found
+    """The files a place's light layer is written from besides its scene record (a stored output): its kit."""
+    return {f"kit {name}": f"{{data}}/kit/{name}.json"}
 
 
 def passes_files(place):
