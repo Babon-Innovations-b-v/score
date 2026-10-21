@@ -40,7 +40,7 @@ FOLDER = "films/previews"
 SCALE = 2  # each frame drawn at twice its size and brought down to it, so the cockpit's text stays sharp
 TARGET_LUFS = -16.0  # demo_film/final.py's TARGET_LUFS: one loudness for the whole film
 BED_FADE = (1.0, 2.0)
-# The film's one grade, every segment alike: a gentle S curve (shadows down, highlights up a little) and a soft
+# The film's one grade, every segment alike: a gentle S curve (shadows down, highlights up a little);
 # nothing added to what is shown. demo_film/final.py grades the environment film the same way.
 GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1'"  # no vignette (owner 2026-10-21)
 # A bed's onsets are found on hops of a frame; a start is taken only when its onsets on the cuts stand this many
