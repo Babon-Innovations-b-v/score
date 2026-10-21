@@ -514,7 +514,10 @@
         tip(group, `${item[0].toLowerCase()}: ${tall} m high${base ? `, at ${level(base)}` : ""}`);
       }
     }
-    const marked = [...new Set(heights.map((height) => Math.round(height * 100) / 100))].sort((a, b) => a - b);
+    // the floors' and roofs' levels, each far enough from the last to be read
+    const marked = [...new Set([0, ...(plan.levels || []).map((area) => area.height),
+                                ...(plan.roofs || []).flatMap((roof) => [roof.eave, roof.top])].map(round))]
+      .sort((a, b) => a - b).filter((height, index, all) => index === 0 || height - all[index - 1] >= text * 1.4);
     for (const height of marked) {
       level_mark(height, [-margin * 0.85, up(height)], "", cut);
       draw_cut("line", { x1: -margin * 0.3, y1: up(height), x2: 0, y2: up(height), class: "plan-dim-ext" });

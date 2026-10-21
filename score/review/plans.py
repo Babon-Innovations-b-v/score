@@ -545,8 +545,23 @@ def made_plan(store, place):
         return None
     found = written(store, place)
     if found:
-        return {"plan": found["plan"], "how": "written", "at": found["at"], "by": found["by"]}
+        plan = {**found["plan"], "gaps": checked_again(found["plan"], inventory_of(store, place))}
+        return {"plan": plan, "how": "written", "at": found["at"], "by": found["by"]}
     return {"plan": derived(store, place), "how": "derived", "at": None, "by": None}
+
+
+CHECKED = {}  # {plan sha: its gaps}: a written plan checked once a process
+
+
+def checked_again(plan, inventory):
+    """A written plan's gaps by today's free checks (plan_checks; its inside places not laid out kept as written), so
+    a check sharpened since it was written counts without writing it again."""
+    from score.review import plan_checks
+    key = plan_sha(plan)
+    if key not in CHECKED:
+        CHECKED[key] = [gap for gap in plan.get("gaps", []) if gap["kind"] == "place"] + plan_checks.checked(
+            plan, inventory, plan.get("structure", []))
+    return CHECKED[key]
 
 
 def current(store, place):

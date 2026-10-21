@@ -101,6 +101,9 @@ def test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap():
     assert any(word.startswith("the standing spot (north-west)") and "reached" in word for word in words) or \
         any(word.startswith("the door on the south wall") and "reached" in word for word in words)
     assert "a and b overlap" in words and "c sticks out of the place" in words
+    plan["shapes"] = {"WALL OF CRATES 1": {"shape": "rect", "tall": 0.05}}  # a cable on the floor: walked over
+    assert not [word for word in plan_checks.checked(plan, inventory) if "reached" in word]
+    plan["shapes"] = {}
     plan["items"][0][3] = 4.0  # a way round the crates: every door and spot reached
     assert not [word for word in plan_checks.checked(plan, inventory) if "reached" in word]
 

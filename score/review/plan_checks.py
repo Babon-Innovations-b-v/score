@@ -16,6 +16,7 @@ OVERLAP = 0.15  # two items overlap when they share more than this share of the 
 STEP_IN = 0.6  # metres a door's seed is moved into the place before it is looked for
 NEAREST = 1.0  # metres a blocked seed may look for a free cell
 LOW = 0.5  # metres: an item standing higher than this (its base) does not block the floor
+FLAT = 0.15  # metres: an item no taller than this lies flat on the floor, under the rest
 ROUND = 24  # sides of a circle's polygon
 FLOOR_ANCHORS = ("floor", "ground")
 KINDS = ("placed", "outside", "overlap", "reach", "tiling")  # the gaps' kinds these checks write
@@ -182,10 +183,11 @@ def outside_gaps(plan, grid, outline):
 
 def blocking(plan, inventory):
     """[(item, row, shape)] of the items that stand on the floor: anchored on the floor or the ground, base below
-    LOW."""
+    LOW, and taller than FLAT (a cable, a mat or a track lies under what stands on it and is walked over)."""
     anchored = anchors(inventory)
     return [(item, row, shape) for item, row, shape in placed_items(plan)
-            if anchored.get(row, "floor") in FLOOR_ANCHORS and float((shape or {}).get("base") or 0.0) < LOW]
+            if anchored.get(row, "floor") in FLOOR_ANCHORS and float((shape or {}).get("base") or 0.0) < LOW
+            and float((shape or {}).get("tall") or 1.0) > FLAT]
 
 
 def attached(first, second, anchored):
