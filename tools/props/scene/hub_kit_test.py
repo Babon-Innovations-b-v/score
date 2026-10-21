@@ -80,6 +80,15 @@ def test_a_doors_parts_go_with_its_leaf_when_it_stands_open():
         assert np.allclose(nearest["z"], leaf["z"], atol=1e-6), "a wheel faces the way its leaf does"
 
 
+def test_the_hub_s_lamps_are_its_glowing_rows_lit_by_the_library_s_lamp():
+    """The hub keeps no lamp list: its roof fixture (a ceiling lamp) casts shadows, its wall lamps do not, and a kind
+    whose row does not glow has no light."""
+    table = hub_kit.kinds_table(INVENTORY, PIECES)
+    lit = {kind: about["light"] for kind, about in table.items() if "light" in about}
+    assert set(lit) == {"hub_roof_light_fixture", "hub_door_strip_lamp", "hub_wall_cage_lamp"}, sorted(lit)
+    assert lit["hub_roof_light_fixture"]["shadows"] and not lit["hub_wall_cage_lamp"]["shadows"]
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:
