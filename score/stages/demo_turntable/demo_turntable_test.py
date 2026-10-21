@@ -77,6 +77,11 @@ def test_the_drawer_still_ends_with_the_call_the_wrapper_holds_back():
     assert (REPO / demo_turntable.DRAWER).read_text().rstrip().endswith("\nmain()")
 
 
+def test_turntables_rent_one_card_class():
+    """A batch job runs on its one priced class; no stock is a gap, never a larger card (#21)."""
+    assert "," not in demo_turntable.CLASSES, demo_turntable.CLASSES
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

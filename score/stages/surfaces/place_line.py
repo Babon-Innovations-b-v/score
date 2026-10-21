@@ -40,7 +40,7 @@ BAKE_DELTA_E = 20.0
 DARK_SURFACE, BLOTCH_L, BLOTCH_SHARE = 35.0, 12.0, 0.05
 PART_LEAST = 0.01
 PART_POINTS = 60000  # labelled points kept per model to name each baked triangle (export.PART_POINTS)
-CLASSES = "gpu-24gb,gpu-48gb,gpu-80gb"
+CLASSES = "gpu-24gb"  # one class, the L4 the bake is priced on; never a fallback to a larger card (#21)
 BAKE_EUROS = 2.0
 # Two neighbouring parts of one surface join only when their colours lie within this (Lab) (MaPa's merge: same class
 # and same unlit colour, its CIE threshold 2 on albedo is too fine for a picture's).
@@ -73,7 +73,7 @@ BASE_CELL, BASE_ON_PLANE = 1 / 16, 0.8
 # eight machines of 3.3 to 4.7 min each for EUR 5.83 at 5; a job about 1.5 min, crane-r1 alone 34.8 GB at its peak); the
 # keys of a take's listing besides the make's inputs (prop_env.short reads each as a path: the take is its name); the
 # repository folders its code and data come from.
-PAINT_CLASSES = "cpu-32c-128gb,cpu-32c-64gb,cpu-32c-256gb,cpu-16c-64gb"
+PAINT_CLASSES = "cpu-32c-128gb"  # one class, the one the paint was timed on; no fallback (#21)
 PAINT_MINUTES, PAINT_EUROS = 2, 0.5
 TAKE, RECORDS, HOME, CODE = "paint take", "paint records", "props home", "paint repo"
 # A floor a scene reads as a row (on_floor) is a slab: its height at most this share of its narrower side (the
