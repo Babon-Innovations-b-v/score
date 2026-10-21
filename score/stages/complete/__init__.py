@@ -30,23 +30,24 @@ READS = ("assembly", "neighbours", "surfaces-check", "likeness")
 GATE = tuple(check for check in complete.CHECKS if check != "resting")
 # The world folders the checks read (complete.py and contents.py read them from the repository's data, the same
 # folders for world 1), declared so a change to any reruns the gate.
-FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit", "casts": "{data}/characters",
+FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit",
          "effects": "{data}/effects", "motions": "{data}/motion", "scenes": "{data}/scene",
-         "sound table": "{data}/sound/places.json", "expected contents": "{data}/checks/contents.json",
+         "sound table": "{data}/sound/places.json", "row kinds": "{data}/checks/row-kinds.json",
          "designed people": "{data}/people/rows.json"}
 
 
 def files(place):
-    """The world folders, the place's rigid record when it has one, and the built body's report of every body the
-    place's cast draws."""
+    """The world folders, the place's design (its locked concept's scene inventory) and rigid record where it has
+    them, and the built body's report of every body the cast its design gives draws."""
     moves = {"moves": "{data}/motion/rigid/{place}.json"} if contents.record("motion/rigid", place) else {}
-    cast = contents.record("characters", place) or {}
+    design = {"design": "{home}/design/inventory/{place}.json"} if contents.design(place) is not None else {}
+    cast = contents.cast_of(place) or {}
     bodies = {person["character"] for person in cast.get("people", [])}
     bodies |= {cast["crowd"]["character"]} if cast.get("crowd") else set()
     bodies |= {path.stem for path in contents.BODIES.glob("kit_*.json")} if cast.get("groups") else set()  # dealt mixes
     reports = {f"body {body}": str(contents.BODIES / f"{body}.json") for body in sorted(bodies)
                if (contents.BODIES / f"{body}.json").exists()}  # a missing one the people check fails by name
-    return {**FILES, **moves, **reports}
+    return {**FILES, **moves, **design, **reports}
 
 
 def make_manifest(inputs, out, seed, params):

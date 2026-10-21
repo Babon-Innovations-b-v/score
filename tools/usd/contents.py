@@ -4,21 +4,28 @@ only that the stages before it passed. One source for both ways in: tools/usd/co
 place's assembled stage (the accepted outputs it reads). Each answers pass, fail or unknown with its faults; unknown
 blocks like fail.
 
-    people      the stage's characters are the cast's (data/characters/<place>.json): every person and group member
-                by name, the crowd with its count; every look a made model: the place's accepted characters layer
-                (characters-layer@<place>, the cast stage) wrote every person of it with no look missing and none
+    people      the stage's characters are the cast its design gives (its people rows mapped in
+                data/people/rows.json, score/stages/people_rows.cast_record): every person by name, the crowd with
+                its count (any count above none while the design gives none); every look a made model: the
+                place's accepted characters layer (characters-layer@<place>, the cast stage) wrote every person of it with no look missing and none
                 the licence rule refused; without one, the stage's bodies are the seed's, each judged by its built
                 body's report, and a body of SOMA's mesh in drapes is no made model (the owner, #5, 2026-10-10:
                 "soma is for the rig, not the mesh"); and no far-only look (one the design does not make in
                 full: score/stages/people_bodies/full.py on data/people/rows.json; the crowd's far body always) stands near enough to fill over FAR_SHARE of the frame
                 height in any of the record's views, as the cast stage measures it (score/stages/cast/spread.py).
-                No cast: unknown
-    effects     every need the place has (data/checks/contents.json) is an entry of its effects record that stands
-                under /<place>/Effects (in any variant), under its name or as its cells (`<name>_<row>_<column>`)
+                No people mapped for its design: unknown
+    effects     every row of the place's design that emits (its row kind, score/stages/row_kinds.py) has an effect
+                standing: an entry of its effects record that stands under /<place>/Effects (in any variant), under
+                its name or as its cells (`<name>_<row>_<column>`), or an emitter laid on one of the row's objects,
+                with the row's id in its name or its holder's
     motion      every motion of its records (data/motion, and data/motion/rigid: what SCORE moves that the game left
-                standing) moves on the stage (time samples), and every need is one of them
-    crops       where crops apply: the share of soil tiles (meshes said `soil`) with a plant of the crops layer
-                (/<place>/Crops, a point instancer a kind) over them, at least the place's planted share
+                standing) moves on the stage (time samples), and every row of its design that moves is one of them
+                or written down as still with why
+    crops       where its design shows crops (score/stages/design_layers.py): the share of soil tiles (meshes said
+                `soil`) with a plant of the crops layer (/<place>/Crops, a point instancer a kind) over them, at
+                least PLANTED_SHARE
+    The design is the place's locked concept's scene inventory, kept under DESIGN; a place with none answers unknown
+    on effects, motion and crops.
     likeness    every generated row's object (inventory kind `generate`) held to its close-up: the place's accepted
                 likeness output (the props rows) names it, or a ship place's made piece the likeness of the place
                 whose bake laid it (read beside); none for a place with generated models is unknown
@@ -57,7 +64,11 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 DATA = REPO / "data"
 BODIES = pathlib.Path(os.environ.get("MOTION_WORK", pathlib.Path.home() / ".farm-factory-motion/work")) / "bodies"
-EXPECTED = "checks/contents.json"
+DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "design/inventory"
+ROW_KINDS = "checks/row-kinds.json"
+# The share of a place's soil tiles its crops must plant where its design shows crops: a tenth left for the paths
+# and bare ends a concept shows between beds.
+PLANTED_SHARE = 0.9
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 LIGHT_LAYER = "./layers/light.usda"
 ASSEMBLED_SCENE = "scene.json"  # the record the assembly stage built the stage from, beside its root
@@ -84,9 +95,38 @@ def record(kind, place):
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def expected(place):
-    """What the place must hold beyond its rows (data/checks/contents.json), or None when it is not listed."""
-    return json.loads((DATA / EXPECTED).read_text())["places"].get(place)
+def design(place):
+    """The place's design: its locked concept's scene inventory (DESIGN/<place>.json), None while it has none."""
+    path = DESIGN / f"{place}.json"
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def row_rules():
+    """The row-kind rules (data/checks/row-kinds.json's kinds)."""
+    return json.loads((DATA / ROW_KINDS).read_text())["kinds"]
+
+
+def stages_module(name):
+    """score.stages.<name>, the repository put on the path first (tools/usd/complete.py runs alone too)."""
+    import importlib
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    return importlib.import_module(f"score.stages.{name}")
+
+
+def rows_doing(found, what):
+    """The ids of a design's rows whose kind does `what` (score/stages/row_kinds.py)."""
+    return [row["id"] for row in stages_module("row_kinds").rows_that(found, what, row_rules())]
+
+
+def cast_of(place):
+    """The cast the place's design gives (its people rows mapped in data/people/rows.json, people_rows.cast_record),
+    None while its people are not mapped."""
+    path = DATA / DESIGNED_PEOPLE
+    found = json.loads(path.read_text()) if path.exists() else {"places": {}}
+    if place not in found["places"]:
+        return None
+    return stages_module("people_rows").cast_record(place, found)
 
 
 def root_layers(stage):
@@ -154,9 +194,9 @@ def layer_faults(layer):
 def judge_people(stage, place, inventory, outputs):
     """The stage's characters against the cast: each by name, the crowd's count, every look a made model."""
     from pxr import UsdGeom
-    cast = record("characters", place)
+    cast = cast_of(place)
     if cast is None:
-        return UNKNOWN, [], f"no cast (data/characters/{place}.json): who is here is not recorded"
+        return UNKNOWN, [], f"no people mapped for its design ({DESIGNED_PEOPLE}): who is here is not known"
     scope = stage.GetPrimAtPath(f"/{place}/Characters")
     standing = {prim.GetName(): prim for prim in (scope.GetChildren() if scope else [])}
     wanted = cast_names(cast)
@@ -169,8 +209,9 @@ def judge_people(stage, place, inventory, outputs):
     if crowd:
         instancer = UsdGeom.PointInstancer(standing.get(crowd["name"])) if crowd["name"] in standing else None
         shown = len(instancer.GetPositionsAttr().Get() or []) if instancer else 0
-        if shown != crowd["count"]:
-            faults.append(f"{crowd['name']}: the cast's crowd is {crowd['count']}, the stage shows {shown}")
+        wrong = not shown if crowd["count"] is None else shown != crowd["count"]
+        if wrong:
+            faults.append(f"{crowd['name']}: the cast's crowd is {crowd['count'] or 'some'}, the stage shows {shown}")
         bodies |= set() if layer else {crowd["character"]}
     extra = sorted(set(standing) - set(wanted) - ({crowd["name"]} if crowd else set()))
     faults += [f"{name}: on the stage, not in the cast" for name in extra]
@@ -287,18 +328,31 @@ def unmet(needs, names):
     return [need for need in needs if not any(need in name for name in names)]
 
 
+def effect_holders(stage, place):
+    """The names of every prim of the place holding an emitter the effects layer laid (score:effect:kind)."""
+    from pxr import Usd
+    root = stage.GetPrimAtPath(f"/{place}")
+    return {prim.GetParent().GetName() for prim in (Usd.PrimRange(root) if root else [])
+            if prim.HasAttribute(EFFECT_KIND)}
+
+
+NO_DESIGN = "{place} has no design ({folder}/{place}.json): what it must show is not known"
+
+
 def judge_effects(stage, place, inventory, outputs):
-    """Every need of the place an entry of its effects record that stands on the stage."""
-    wants = expected(place)
-    if wants is None:
-        return UNKNOWN, [], f"{EXPECTED} lists no expectations for {place}"
+    """Every row of the place's design that emits has an effect standing on the stage: an entry of its effects record
+    with the row's id in its name, or an emitter laid on one of the row's objects."""
+    found = design(place)
+    if found is None:
+        return UNKNOWN, [], NO_DESIGN.format(place=place, folder=DESIGN)
+    needs = rows_doing(found, "emits")
     effects = record("effects", place) or {}
     standing = effects_standing(stage, place)
     made = {entry["name"] for entry in effects.get("effects", []) if stands(entry["name"], standing)}
-    faults = [f"{need}: no effect of the record stands on the stage with it in its name" + (
-        "" if effects else f" (no effects record, data/effects/{place}.json)")
-        for need in unmet(wants.get("effects", []), made)]
-    return outcome(faults, f"{len(made)} effects stand; needs met: {', '.join(wants.get('effects', [])) or 'none'}")
+    faults = [f"{need}: the design's row emits, and no effect of the record stands on the stage with it in its name "
+              "or on its object" + ("" if effects else f" (no effects record, data/effects/{place}.json)")
+              for need in unmet(needs, made | effect_holders(stage, place))]
+    return outcome(faults, f"{len(made)} effects stand; rows that emit met: {', '.join(needs) or 'none'}")
 
 
 def moving(prim):
@@ -307,11 +361,13 @@ def moving(prim):
 
 
 def judge_motion(stage, place, inventory, outputs):
-    """Every motion and moving thing of the place's records moving on the stage, and every need of the place one of them or
-    covered: a thing of the moving kind its rigid record writes down as rightly still, with why (`still`)."""
-    wants = expected(place)
-    if wants is None:
-        return UNKNOWN, [], f"{EXPECTED} lists no expectations for {place}"
+    """Every motion and moving thing of the place's records moving on the stage, and every row of its design that moves
+    one of them (its name or its prim's holding the row's id) or covered: a thing its rigid record writes down as
+    rightly still, with why (`still`)."""
+    found = design(place)
+    if found is None:
+        return UNKNOWN, [], NO_DESIGN.format(place=place, folder=DESIGN)
+    needs = rows_doing(found, "moves")
     moves = record("motion/rigid", place) or {}
     names = moves.get("renamed", {})  # the game's prims as the scene record names them, as the motion layer writes them
     motions = [dict(motion, prim=names.get(motion["prim"], motion["prim"]))
@@ -321,10 +377,11 @@ def judge_motion(stage, place, inventory, outputs):
     covered = {name.rsplit("/", 1)[-1] for name, why in moves.get("still", {}).items() if str(why).strip()}
     still = [f"{motion['name']}: {motion['prim']} does not move on the stage" for motion in motions
              if motion["name"] not in made]
-    faults = still + [f"{need}: no motion of the records moves with it in its name"
-                      for need in unmet(wants.get("motion", []), made | covered)]
-    return outcome(faults, f"{len(made)} motions move, {len(covered)} written down as still; needs met: "
-                           f"{', '.join(wants.get('motion', [])) or 'none'}")
+    moved = {motion["prim"].rsplit("/", 1)[-1] for motion in motions if motion["name"] in made}
+    faults = still + [f"{need}: the design's row moves, and no motion of the records moves it or keeps it still"
+                      for need in unmet(needs, made | moved | covered)]
+    return outcome(faults, f"{len(made)} motions move, {len(covered)} written down as still; rows that move met: "
+                           f"{', '.join(needs) or 'none'}")
 
 
 # --- crops ----------------------------------------------------------------------------------------------------------
@@ -345,14 +402,15 @@ def plants(stage, place):
 
 
 def judge_crops(stage, place, inventory, outputs):
-    """Where crops apply, the share of soil tiles with a plant of the crops layer over them at least the place's."""
+    """Where the place's design shows crops, the share of soil tiles with a plant of the crops layer over them at least
+    PLANTED_SHARE."""
     from pxr import Usd, UsdGeom
-    wants = expected(place)
-    if wants is None:
-        return UNKNOWN, [], f"{EXPECTED} lists no expectations for {place}"
-    if not wants.get("crops"):
+    found = design(place)
+    if found is None:
+        return UNKNOWN, [], NO_DESIGN.format(place=place, folder=DESIGN)
+    if "crops" not in stages_module("design_layers").kinds_of(found, row_rules()):
         return PASS, [], "no crops here"
-    least = wants["crops"]["planted_share"]
+    least = PLANTED_SHARE
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     soil = [cache.ComputeWorldBound(prim).ComputeAlignedRange() for prim in stage.Traverse()
             if prim.IsA(UsdGeom.Mesh) and prim.HasAttribute("score:plain")
@@ -559,8 +617,8 @@ def game_records(stage, place, outputs):
     records = {str(beside): json.loads(beside.read_text()) if beside.exists() else None,
                f"data/scene/{place}.json": record("scene", place),
                f"scene-record output {made}": json.loads(made.read_text()) if made and made.exists() else None}
-    records.update({f"data/{kind}/{place}.json": record(kind, place)
-                    for kind in ("characters", "effects", "motion", "moves")})
+    records.update({f"data/{kind}/{place}.json": record(kind, place) for kind in ("effects", "motion", "moves")})
+    records[f"its cast ({DESIGNED_PEOPLE})"] = cast_of(place)
     records["data/sound/places.json"] = json.loads((DATA / "sound/places.json").read_text())["places"].get(place)
     return records
 

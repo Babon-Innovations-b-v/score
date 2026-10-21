@@ -22,7 +22,8 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
                        and lean of one stood upright for the paint aside); what is left is named, for the assembly's
                        own drop and triage to judge on the baked models
 
-Only the places in stages.SETTLED have the row; the assembly of any other place lays the seed's poses. The surface
+Only a place whose design shows a loose object has the row (score/stages/design_layers.py, physics), and its
+assembly waits on it; any other place's assembly lays the seed's poses. The surface
 stage's bakes are dropped, the very models the assembly lays (take_bakes, 2026-10-15): the seed's models, dropped so
 the row need not wait on the paint, rested otherwise than the repainted bakes laid under their poses (the hangar's
 control desk 2 degrees over, its keyboards on its sloping front).

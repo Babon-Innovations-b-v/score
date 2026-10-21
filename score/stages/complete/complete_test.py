@@ -1,10 +1,9 @@
 """The complete stage's gates are tools/usd/complete.py's checks: on a place made here, every gate of the stage answers
 what complete.py answers on the same stage, both on a place that holds what it should (all pass) and on one whose cast
-names a person not on the stage (people fails in both).
+shows a person not on the stage (people fails in both).
 
 Run: .venv/bin/python score/stages/complete/complete_test.py
 """
-import json
 import pathlib
 import sys
 import tempfile
@@ -18,6 +17,7 @@ from score.stages import complete as stage  # noqa: E402
 import complete  # noqa: E402
 import complete_test  # noqa: E402
 import contents  # noqa: E402
+import contents_test  # noqa: E402
 import resting_test  # noqa: E402
 
 
@@ -52,9 +52,7 @@ def gates_agree_both_ways():
                      if mine != theirs]
         if {mine for mine, _ in found.values()} != {checks.PASS}:
             problems.append(f"a place that holds what it should does not pass every gate: {found}")
-        cast = {"place": resting_test.PLACE, "people": [{"name": "bram", "character": "bram", "doing": "idle",
-                                                         "at": [0, 0, 0], "facing_to": [0, 0, 1], "why": "a test"}]}
-        (contents.DATA / "characters" / f"{resting_test.PLACE}.json").write_text(json.dumps(cast))
+        contents_test.people_mapped(contents_test.BRAM, resting_test.PLACE)
         found = answers(folder)
         if found["people"] != (checks.FAIL, checks.FAIL):
             problems.append(f"a cast person not on the stage reads {found['people']} (stage, complete.py)")

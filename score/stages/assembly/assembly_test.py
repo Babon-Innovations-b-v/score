@@ -299,30 +299,53 @@ def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said
         assert stage.GetRootLayer().subLayerPaths[2] == "./layers/sound.usda"
 
 
+# Row-kind rules written here (data/checks/row-kinds.json's shape), so the test does not follow the house's table.
+KINDS = {"person": {"nouns": ["astronaut"], "does": ["acts"]}, "kettle": {"nouns": ["kettle"], "does": ["emits"]},
+         "door": {"nouns": ["door"], "does": ["moves"]}, "plant": {"nouns": ["plants", "planter"], "does": ["grows"]},
+         "loose": {"nouns": ["crate"], "does": ["loose"]}}
+# A design showing a person, a kettle, a door hung on its wall as code, and plants on a raised planter.
+DESIGN = {"rows": [{"id": "wall", "noun": "wall", "kind": "code", "anchor": "floor"},
+                   {"id": "pilot", "noun": "astronaut", "kind": "generate", "anchor": "floor"},
+                   {"id": "kettle", "noun": "kettle", "kind": "generate", "anchor": "floor"},
+                   {"id": "door", "noun": "door", "kind": "code", "anchor": "on:wall"},
+                   {"id": "bed", "noun": "planter", "kind": "generate", "anchor": "floor"},
+                   {"id": "greens", "noun": "plants", "kind": "generate", "anchor": "on:bed"}]}
+
+
+def test_a_place_needs_the_layers_its_design_shows():
+    """The layers a place needs are read off its design alone: the person its characters layer, the kettle its
+    effects, the door its motion, the plants on the planter its crops; no loose row, so no settle; light and sound always. A bare room needs light and sound only, and a crate
+    on the floor its settle."""
+    assert assembly.needed_layers(DESIGN, KINDS) == ["characters-layer", "crops-layer", "effects-layer", "motion",
+                                                     "light", "sound"]
+    bare = {"rows": [{"id": "wall", "noun": "wall", "kind": "code", "anchor": "floor"}]}
+    assert assembly.needed_layers(bare, KINDS) == ["light", "sound"]
+    crate = {"id": "crate", "noun": "crate", "kind": "generate", "anchor": "floor"}
+    assert assembly.needed_layers({"rows": [*bare["rows"], crate]}, KINDS) == ["settle", "light", "sound"]
+
+
 def test_a_place_waits_on_every_layer_it_needs():
-    """The layers gate: unknown while a layer the place needs (data/checks/contents.json) has no accepted output
-    taken, never the seed's in its place; pass once all are; nothing needed of a part of another place; fail on a
-    sound placed nowhere; unknown for a place the contents do not list."""
+    """The layers gate: unknown while a layer the place's design needs has no accepted output taken, never the seed's
+    in its place; pass once all are; fail on a sound placed nowhere; unknown for a place with no design."""
     with tempfile.TemporaryDirectory() as temporary:
         output = pathlib.Path(temporary)
         (output / f"{TOY}.usda").write_text("#usda 1.0\n")
-        expected = output / "contents.json"
+        (output / "design.json").write_text(json.dumps(DESIGN))
+        (output / "row-kinds.json").write_text(json.dumps({"kinds": KINDS}))
+        designed = {"design": output / "design.json", "row kinds": output / "row-kinds.json"}
 
-        def judged(needs, layers, unplaced=()):
-            expected.write_text(json.dumps({"places": {TOY: needs} if needs is not None else {}}))
+        def judged(layers, unplaced=(), inputs=designed):
             (output / "origin.json").write_text(json.dumps({"layers": dict.fromkeys(layers, "x"), "record": "r",
                                                             "unplaced sounds": list(unplaced)}))
-            return assembly.judge_layers(output, {"expected contents": expected}, None)
+            return assembly.judge_layers(output, inputs, None)
 
-        needs = {"effects": ["steam"], "motion": [], "crops": {"planted_share": 0.9}}
-        waiting = judged(needs, ["sound", "effects-layer"])
-        assert waiting.answer == checks.UNKNOWN and waiting.findings == (f"light@{TOY}", f"crops-layer@{TOY}"), waiting
-        assert judged(needs, ["sound", "light", "effects-layer", "crops-layer"]).answer == checks.PASS
-        assert judged({"part_of": "host", "effects": ["x"]}, []).answer == checks.PASS
-        assert judged(needs, ["sound", "light", "effects-layer", "crops-layer"], ["hum"]).answer == checks.FAIL
-        assert judged(None, ["sound"]).answer == checks.UNKNOWN
-        assert assembly.needed_layers(TOY, {"places": {TOY: {}}}, {"people": [{"name": "bram"}]})[-1] == \
-            "characters-layer"  # a cast with anybody needs its characters layer
+        every = ["characters-layer", "crops-layer", "effects-layer", "motion", "light", "sound"]
+        waiting = judged(["sound", "effects-layer", "motion", "light"])
+        assert waiting.answer == checks.UNKNOWN and waiting.findings == (f"characters-layer@{TOY}",
+                                                                         f"crops-layer@{TOY}"), waiting
+        assert judged(every).answer == checks.PASS
+        assert judged(every, ["hum"]).answer == checks.FAIL
+        assert judged(every, inputs={"row kinds": output / "row-kinds.json"}).answer == checks.UNKNOWN
 
 
 def test_a_tube_s_lamps_hang_on_every_bay_of_its_way():

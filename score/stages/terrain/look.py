@@ -18,8 +18,10 @@ WHO = "score terrain look"
 
 
 def neighbours(place):
-    """The other places a place's stage references (its scene record's `places`), by their stage's name."""
-    record = json.loads((REPO / f"data/scene/{place}.json").read_text())
+    """The other places a place's stage references (its scene record's `places`), by their stage's name; none for a
+    place with no scene record in the repository (one the game never had: the ship's rooms, a scene added in the app)."""
+    path = REPO / f"data/scene/{place}.json"
+    record = json.loads(path.read_text()) if path.is_file() else {}
     return sorted({entry["stage"] for entry in record.get("places", [])})
 
 

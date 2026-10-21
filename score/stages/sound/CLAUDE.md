@@ -1,7 +1,9 @@
 # score/stages/sound/
 
 The sound stage (the paper's Methods, "The canonical scene": sound, and "Shape and surface apart": sound by MOSS;
-experimental, PRD #6, until the owner has heard it): row `sound`, one per scene with a plan (`beds.places`). It makes
+experimental, PRD #6, until the owner has heard it): row `sound`, one per designed scene (`score/stages/design_layers.py`,
+the stage table's and the assembly's one answer: every scene with a design has its sound, and its assembly waits on
+it; `beds.places` are the scenes a bed is worked out for). It makes
 the place's sound layer data, `sound.json` and its files under `files/`, which the place's assembly writes into its
 OpenUSD stage (`tools/usd/sound.py`'s layout). `__init__.py`'s docstring has the make and the gates; `gates.py` the
 gates; `takes.py` the paid part.

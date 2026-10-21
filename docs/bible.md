@@ -392,8 +392,13 @@ is meant to fix, where it is marked, and what proves it.
   assemblies that copied the round-three seed's own record, sound and layers: each place is assembled once, from every
   layer stage's accepted output (`assembly.READS`: scene record, sound, effects, motion, light, machines, crops), each
   joining the assembly's reads the day its row joins the table (`stages.layered`), and the `layers` gate answers
-  unknown while a layer the place needs (`data/checks/contents.json`; sound and light everywhere) has none, never
-  letting the seed's stand in. The neighbours stage reads the record the assembly built from (`scene.json` beside the
+  unknown while a layer the place's design shows has none, never letting the seed's stand in. Which layers a scene
+  has is read off its design alone (`score/stages/design_layers.py`, the owner 2026-10-21: "the modules are not
+  agnostic"): its locked concept's scene inventory, each row's row kind (people where a row acts, crops where a row
+  grows on a bed, effects where one emits, motion where one moves, settle and physics where one is loose; light and
+  sound in every designed scene). The stage table's rows (`stages.designed`) and the gate (`assembly.needed_layers`, the kept inventory its `design` input) give that one
+  answer, so the gate never waits on a layer no row makes and no list is written per place; a place with no design
+  answers unknown. The neighbours stage reads the record the assembly built from (`scene.json` beside the
   stage). Its free `collision` gate (`tools/usd/colliders.py`, 2026-10-21) fails every wall, floor, stair or ground
   without UsdPhysics collision and every model without a collider of its own: the scene record's structure and ground
   collide (an exact box for a box square to the place, else its triangles simplified; a body in the sky, `plain` sky, never), a made model by its convex
@@ -414,7 +419,7 @@ is meant to fix, where it is marked, and what proves it.
   seed's loose objects on the made ground once (each stood upright first, meeting what it is stacked on), snaps held
   ones onto their holders as they rest, lets floating fixed ones down, and lays where each rests as
   `layers/settle.usda`, which the assembly takes; gated on `rested` (the drop did not break) and `resting` (nothing
-  rests worse with the layer than without). Only the places in `SETTLED` (`score/stages/__init__.py`) have the row.
+  rests worse with the layer than without). Only a place whose design shows a loose row has the row (`score/stages/design_layers.py`).
   Proven when a place's assembly passes its own drop and triage with the layer, and the owner has seen its racks
   stand.
 - **The effects stage and its look** (`score/stages/effects`, its overlay; `data/effects/launch.json`). For the 15 of
@@ -426,9 +431,8 @@ is meant to fix, where it is marked, and what proves it.
   record that lights nothing says why, `no_light`) and `outside` (no open-sky particle inside the record's `interiors`);
   the assembly takes the layer in place of the seed's.
   `effects-look@launch` (paid) renders the review cameras before and after at four moments round lift-off, gated on
-  `shown` and `lit`. `effects.STAGED` holds the launch, airlock, garage, hangar, greenhouse, habitat, flat, camp
-  and campgrounds;
-  `look.LOOKED` the launch only. Run
+  `shown` and `lit`. A place has `effects-layer` where its design shows a row that emits
+  (`score/stages/design_layers.py`); `look.LOOKED` the launch only. Run
   with `python -m score run world1 --place launch --stage effects-look`. Proven when the owner has seen the launch's
   stills; then each place's record (pump-downs, steam, dust) from footage, and films on his go. 2026-10-12: all five
   gates pass on the launch (the `loose` footage check added after the first stills showed lone flakes: 10 % of the
