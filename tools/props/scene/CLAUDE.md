@@ -68,8 +68,6 @@ serve: skill `make-scene`, bible "How a scene is designed".
   `redraw/report.json` lists every object with its cut-out size and the way it took.
 - `inventory_test.py` checks the inventory's shape, the refusals and the place file;
   `match_test.py` runs the match over the real tree on every change to game/, sim/ or data/.
-- `earth_kit.py` lays the prologue's kit rooms (the flat with its balcony, the stairwell) from EarthSite's own numbers
-  (`earth_kit_test.py` reads them in the script), as the route's input; `placed.py` reads their installed layouts.
 - `cutsize_test.py` is the gate's check of the cut-out limit.
 - The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
   window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.
