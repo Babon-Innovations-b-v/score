@@ -1,15 +1,12 @@
-"""What a place needs to be lit and to have its sky, worked out free from its own records (#27), as the gaps check's
+"""What a place needs to be lit and to have its sky, worked out free from its design (#27), as the gaps check's
 layer gaps (score/stages/complete/gaps/layers.py):
 
-    record  the record its light is written from: its scene record (data/scene/<place>.json), else its plan
-            (data/plans/<place>.json), which the scene-record row writes the record from; with neither, the route's
-            own plan gap stands (gaps/route.py) and nothing is added here
-    views   the views its light is judged on: its record's (an old record's `views`, else the ones the scene-record
-            row writes from its plan's doors and standing spots); none is a gap
-    sky     an outdoor place (its record's environment not `inside`, or its plan's shell `outdoor` or `inside` false)
-            needs its sky from the environment concept's physics: its kept sky (score/review/scene_sky.py: its top
-            scene's site and scene time on the environment's plan) with a position overhead.py can work from; none
-            is a gap
+    plan    the plan its light is written from (data/plans/<place>.json): the scene-record row writes its record, its
+            lights and its views from it; with none, the route's own plan gap stands (gaps/route.py) and nothing is
+            added here. A record with no view is the light-layer row's own fault, once the record is written
+    sky     an outdoor place (its plan's shell `outdoor` or `inside` false) needs its sky from the environment
+            concept's physics: its kept sky (score/review/scene_sky.py: its top scene's site and scene time on the
+            environment's plan) with a position overhead.py can work from; none is a gap
 
 Whether the place's light passes, sweep and sky gates pass is the light row's own (gate gaps, from its node).
 """
@@ -50,16 +47,11 @@ def gaps(place, data, skies=None):
     """The place's light and sky needs not met: [{"id", "prim", "sentence", "node", "work"}]; `skies` the folder of
     the scenes' kept skies (scene_sky.KEPT)."""
     data = pathlib.Path(data)
-    record, plan = read(data / "scene" / f"{place}.json"), read(data / "plans" / f"{place}.json")
-    if record is None and plan is None:
+    plan = read(data / "plans" / f"{place}.json")
+    if plan is None:
         return []  # the route's own gap: no plan (gaps/route.py), which its record, lights and views come from
     found = []
-    if record is not None and not record.get("views"):
-        found.append({"id": f"light:views:{place}", "prim": f"/{place}", "node": None,
-                      "sentence": "its scene record holds no view to judge its light on",
-                      "work": f"views in {place}'s scene record (data/scene/{place}.json `views`), from its plan's "
-                              "doors and standing spots"})
-    if outdoor(record, plan) and not sky_known(place, skies or scene_sky.KEPT):
+    if outdoor(None, plan) and not sky_known(place, skies or scene_sky.KEPT):
         found.append({"id": f"sky:site:{place}", "prim": f"/{place}", "node": None,
                       "sentence": "an outdoor place with no sky: its site or its scene time is not on the "
                                   "environment's plan",
