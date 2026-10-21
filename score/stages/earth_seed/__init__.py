@@ -51,7 +51,7 @@ import sys
 
 from score import checks, contracts
 from score.stages.earth_seed import design_shell
-from score.stages.surfaces import surface_data
+import score.stages.surfaces.surface_data as surface_data  # the module alone in the key, not the surface line
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
