@@ -68,10 +68,19 @@ def answer_keys(folder_store_class, root, fresh):
     whole = folder_store_class.keys
 
     def keys(self, prefix):
-        if fresh.current is not None and prefix.split("/")[0] in AREAS and os.path.realpath(self.root) == root:
+        if os.path.realpath(self.root) != root:
+            return whole(self, prefix)
+        if fresh.current is not None and prefix.split("/")[0] in AREAS:
             return fresh.current.prefixed(prefix)
-        return whole(self, prefix)
+        return scoped(root, prefix) if "/" in prefix else whole(self, prefix)
     folder_store_class.keys = keys
+
+
+def scoped(root, prefix):
+    """The keys starting with `prefix`, walking only the folder it names (a draw's checks asked `concepts/<place>/`
+    hundreds of times, each a walk of the whole store: 44 s a draw, 2026-10-21)."""
+    folder = prefix.rsplit("/", 1)[0]
+    return sorted(key for key in walk(root, folder) if key.startswith(prefix))
 
 
 class Fresh:
