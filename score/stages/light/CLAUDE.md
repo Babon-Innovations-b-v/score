@@ -62,11 +62,10 @@ gates.
   are.
 - **Strengths are measured on the round-three seeds' layouts** (2026-10-12, tonight's cut): the passes render the
   seed with the layer, not the final assembly; once the assembly takes the layer the measurement moves onto it.
-- **The light data** (`data/light/<place>.json`) holds the light stage's own additions, never the scene record's:
-  the camera's glow the record left out, and kit kinds the seed laid where the kit no longer has them (`kit_moves`:
-  the launch's pad floodlights moved to concept K01's far side, 2026-10-12, because seen from the balcony the old
-  ones stood 70 to 170 degrees off their own beams and never glared). Never lamps: a lamp is its inventory row's (the
-  sky record's lamp rows), the pad floodlights' shaft too since 2026-10-21.
+- **No per-place light file** (2026-10-21: `data/light/` is gone). A lamp is its inventory row's (the sky record's
+  lamp rows, on its kit glow part, aimed at the plan's `aims`), the pad floodlights' shaft too; the camera's glow is
+  the body's night air's (`data/definitions/sky.json` `<body>.night.glow`), in the record's environment, which the
+  layer writes; the kit pieces stand where the earth seed lays them from the design, never re-laid here.
 - **Never edit what a running light node reads** (its layer code, the place's and its neighbours' records, kits and
   light data): the runner stores nothing for a node whose input changed while it ran (2026-10-12: six renders lost).
   The rows declare each place's own files, never a whole data folder.

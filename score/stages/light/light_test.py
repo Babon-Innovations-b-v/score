@@ -144,6 +144,34 @@ def check_layer():
         assert held.GetPrimAtPath("/tiny/Lights/light_1").GetAttribute("inputs:intensity").Get() == 5.0
 
 
+def check_glow_from_sky_record():
+    """The camera's glow is the body's night air's (the sky record), carried into each place's record environment by
+    the scene-record row and written by the layer from there; no place's hand-kept light file adds it."""
+    import tempfile
+    from pxr import Usd, UsdLux
+    from score.stages.scene_record import kit_shell
+    sky = json.loads((REPO / "data/definitions/sky.json").read_text())["earth"]
+    environment = kit_shell.environment({"inside": False}, dict(sky, body="earth"), [[0.0, 0.0, 0.0]])
+    assert environment["glow"] == sky["night"]["glow"] and environment["glow"]["threshold"] == 0.85, environment
+    assert not (REPO / "data/light").exists()
+    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=PROPS_HOME / "store-tests") as folder:
+        seed, out = pathlib.Path(folder) / "seed", pathlib.Path(folder) / "out"
+        tiny_seed(seed)
+        base = Usd.Stage.Open(str(seed / "layers/base.usda"))
+        UsdLux.DomeLight.Define(base, "/tiny/Environment")
+        base.Save()
+        layer.write("tiny", {"lights": [], "environment": environment}, seed, out)
+        written = Usd.Stage.Open(str(out / layer.LAYER))  # kept: a prim of a stage nobody holds is gone
+        dome = written.GetPrimAtPath("/tiny/Environment")
+        assert abs(dome.GetAttribute("score:glow_threshold").Get() - 0.85) < 1e-6, dome
+        assert list(dome.GetAttribute("score:glow_levels").Get()) == [3, 5]
+        layer.write("tiny", {"lights": []}, seed, pathlib.Path(folder) / "dark")
+        dark = Usd.Stage.Open(str(pathlib.Path(folder) / "dark" / layer.LAYER))
+        held = dark.GetPrimAtPath("/tiny/Environment")
+        assert not held or not held.HasAttribute("score:glow_threshold")
+
+
 def check_copy_leaves_its_input():
     """Fault (2026-10-12, light@camp): the strengths were saved over the input layer, a read-only checkout. The make
     writes its own copy and the input stays as it was."""
@@ -221,7 +249,7 @@ def check_magenta():
 def check_shafts_from_rows():
     """A floodlight's shaft is its inventory row's lamp's (the sky record's lamp row), never a hand-kept lamp of one
     place: the launch's pad floodlights get theirs in the record the scene-record row writes from its plan and kit,
-    and no place's light data adds lamps."""
+    and no hand-kept light file adds lamps."""
     from score.stages.light import haze
     from score.stages.scene_record import kit_shell
     sky = json.loads((REPO / "data/definitions/sky.json").read_text())["earth"]
@@ -234,7 +262,6 @@ def check_shafts_from_rows():
     lenses = [laid for laid in kit["pieces"]
               if laid["kind"] == "launch_far_pad_floodlight" and laid.get("part") == "glow"]
     assert len(pads) == len(lenses) > 0 and all(light.get("shaft") for light in pads), pads
-    assert not [path for path in (REPO / "data/light").glob("*.json") if "kit_lamps" in json.loads(path.read_text())]
     assert haze.shafted_kinds("launch") == {"launch_far_pad_floodlight"}
 
 
@@ -333,6 +360,7 @@ def main():
     check_exposure()
     check_sweep()
     check_layer()
+    check_glow_from_sky_record()
     check_copy_leaves_its_input()
     check_shafts_from_rows()
     check_neighbour_keeps_its_pictures()

@@ -194,7 +194,7 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 
 
 def layer_files(place):
-    """The kit (its seat, its lenses) and the light data (passes.place_files), the seed, the grounds the sky stands
+    """The kit (its seat, its lenses: passes.place_files), the seed, the grounds the sky stands
     on, and the scene's kept sky (sky.kept_input) when it has one; the record is the scene-record row's output."""
     return {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
             **passes.place_files(place), **sky.kept_input(place)}

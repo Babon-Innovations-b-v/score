@@ -49,47 +49,9 @@ ENCLOSED = 0.9
 RAYS = 256
 
 
-def light_data(place):
-    """The light stage's own additions to a place (data/light/<place>.json), kept out of its scene record, which
-    holds what the game drew: the camera's glow (`glow`) and kit kinds
-    the seed laid where the kit no longer has them (`kit_moves`)."""
-    path = REPO / f"data/light/{place}.json"
-    return json.loads(path.read_text()) if path.exists() else {}
-
-
 def lens_middle(laid):
     """A kit piece's lens middle: its foot raised half its height along its own up."""
     return np.asarray(laid["at"], dtype=float) + np.asarray(laid["y"], dtype=float) * laid["size"][1] / 2
-
-
-def laid_again(stage, place, data):
-    """The seed's kit pieces of each `kit_moves` kind laid where the place's kit layout puts them now
-    (tools/props/scene/earth_outside_kit.py, whose layout the seed was exported from): the n-th body and the n-th lens
-    of the kind on the n-th laid piece, the seed's extra ones made inactive. How many moved and left out."""
-    from pxr import Gf, UsdGeom
-    if not data.get("kit_moves"):
-        return {}
-    sys.path.insert(0, str(REPO / "tools/props/scene"))
-    import earth_outside_kit
-    layout = earth_outside_kit.layout_of(place)["pieces"]
-    done = {}
-    for kind in data["kit_moves"]:
-        laid = [piece for piece in layout if piece["kind"] == kind]
-        seeded = [prim for prim in stage.Traverse() if prim.GetAttribute("score:kind").Get() == kind]
-        number = lambda prim: int(prim.GetName().rsplit("_", 1)[1])  # noqa: E731 (the layout's order)
-        for group in ([prim for prim in seeded if "_glow_" not in prim.GetName()],
-                      [prim for prim in seeded if "_glow_" in prim.GetName()]):
-            for index, prim in enumerate(sorted(group, key=number)):
-                if index >= len(laid):
-                    prim.SetActive(False)
-                    continue
-                piece = laid[index]
-                rows = [list(piece[axis]) + [0.0] for axis in ("x", "y", "z")] + [list(piece["at"]) + [1.0]]
-                xform = UsdGeom.Xformable(prim)
-                xform.ClearXformOpOrder()
-                xform.AddTransformOp().Set(Gf.Matrix4d(*[value for row in rows for value in row]))
-        done[kind] = {"laid": len(laid), "seed": len(seeded)}
-    return done
 
 
 def own_lamps(stage, place):
@@ -318,8 +280,8 @@ def pictures_moved(out, layer):
 
 
 def write(place, record, seed_folder, out, kept=None):
-    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lamps, its sky from the physics (`kept`: its kept sky inputs, scene_sky.py), and the light
-    data's glow on the place's sky."""
+    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lamps, its sky from the physics (`kept`: its kept sky inputs, scene_sky.py), and the glow of the
+    record's environment (its body's night air, the sky record's) on the place's sky."""
     from pxr import Sdf, Usd
     out = pathlib.Path(out)
     (out / "layers").mkdir(parents=True, exist_ok=True)
@@ -329,12 +291,11 @@ def write(place, record, seed_folder, out, kept=None):
     composed.subLayerPaths.append(str(pathlib.Path(seed_folder) / f"{place}.usda"))
     stage = Usd.Stage.Open(composed)
     stage.SetEditTarget(Usd.EditTarget(layer))
-    moves = laid_again(stage, place, light_data(place))
     placed = placed_lamps(stage, place, record)
     fixtures = lamps_through_fixtures(stage, place)
     sky_written = write_sky(stage, place, record, out, kept)
-    glow = light_data(place).get("glow")
-    if glow:
+    glow = (record.get("environment") or {}).get("glow")
+    if glow and stage.GetPrimAtPath(f"/{place}/Environment"):
         scene.write_glow(stage.GetPrimAtPath(f"/{place}/Environment"), glow)
         sky_written["glow"] = True
     pictures_moved(out, layer)
@@ -349,7 +310,7 @@ def write(place, record, seed_folder, out, kept=None):
     found = {"place": place, "lamps": lamps, "placed": placed, "sky": sky_written}
     if fixtures:
         found["fixtures"] = fixtures
-    return dict(found, moved=moves) if moves else found
+    return found
 
 
 def strengths(layer_path, place, scales):

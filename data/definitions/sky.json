@@ -85,6 +85,7 @@
    "ambient": {"colour": "#9fb8e6", "energy": 0.05},
    "exposure": 0.85,
    "haze": {"shape": "ring", "radius": 297.0, "tall": 150.0, "centre": [0.0, 0.0], "segments": 96, "faint": 0.15, "thicken_from": 50.0, "thickest_at": 84.0, "thickest": 0.35, "gone_by": 150.0, "ground_haze": 0.97, "ground_height": 24.0, "gap": [302.0, 58.0], "gap_edge": 4.0, "horizon": "#03335f", "zenith": "#020c22", "deepest_at": 0.7, "deepening": 0.55, "eye": 1.7},
+   "glow": {"threshold": 0.85, "intensity": 0.8, "hdr_scale": 2.0, "levels": [3, 5], "from": "the game's night glow while the eye is at the Earth site, over every place there (night.gd:35-37,128-138: NIGHT_GLOW_THRESHOLD 0.85; lighting.json bounce_tuned glow_intensity 0.8; Godot's Environment defaults for the rest), as the square's old record held it; once data/light/launch.json, a hand-kept file of one place"},
    "from": "seed: the night sky, ambient, exposure and haze ring the street's and the flat's old records held"
   },
   "kit_glow": {"strength": 0.9, "ramp": 0.15, "from": "seed: how the night lights a kit's glowing kinds, as the outdoor places' old records held it"},
