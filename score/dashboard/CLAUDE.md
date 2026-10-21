@@ -387,7 +387,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   again from the runner's plan on this checkout (`basket_made`, `proposals/make.py` plan only, free; its index says
   when, on which commit and in which checkout), then fails a checkout left launching by a process that is gone and
   takes an ended batch's stop line back (`checkouts_tidied`, `checkout/flow.tidied`); a pass whose checkout moved to another commit
-  while it ran pushes no export (prepare's and the price's records would read stale) and still applies requests. The owner's money buttons and his waiver
+  while it ran still pushes its export, so his locks and designs reach the cockpit, with the price shown stale and Buy waiting for the next pass, and still applies requests. The owner's money buttons and his waiver
   (`applying.OWNER_FIGURES`: the books' figure, the read-back, a waiver) are applied
   like his decisions: only when the request's user is this machine's `SCORE_OWNER`, through the same
   `pages/actions.py` function as the local cockpit, which refuses in an agent's process. Never tell the owner to
