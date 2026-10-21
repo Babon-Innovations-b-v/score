@@ -16,6 +16,10 @@ outputs, in place of the round-three folders (`usd-r3/<place>`, the ship's `usd-
   deck, walls with their openings cut, roof, BACKING behind the plan's line as the scene record's backing shell,
   painted with its library surface, `score:plain shell`). A domed or outdoor shell is the scene record's; an open
   place (the street, the square) gets none. No special case by place name.
+- **The surface data is the design's** (`surface_data.pattern`, its design's where designed, the one the finish route
+  paints): earth-seed and kit-sections declare it, and earth-seed claims models from its `elsewhere`
+  (`earth_seed.claiming_places`). The old scene record (`data/scene`) is declared only by a base that lays its kit
+  (the hangar, the launch view), whose export still lays it; a design base never reads it.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
@@ -38,8 +42,8 @@ outputs, in place of the round-three folders (`usd-r3/<place>`, the ship's `usd-
   (`data/library/details.json` `turn`), which no loop row measures, and a handed row the loop makes no model for
   fails `likeness` and stops the place's line instead of leaving a gap. Handing a row in before both close stops
   that place's line.
-- **Shell sections** (CONTEXT.md "shell section"): a plan's `sections` (`data/plans/<place>.json`: name, the concept
-  element it was read from; surface; rows) are laid by the kit adapter's after-step `kit-sections@<place>` (free,
+- **Shell sections** (CONTEXT.md "shell section"): a plan's `sections` (the locked plan, `{home}/design/plans`, else
+  the filed one its kit was laid from, `earth_seed.plan_of`: name, the concept element it was read from; surface; rows) are laid by the kit adapter's after-step `kit-sections@<place>` (free,
   `kit_sections.py`, after the loop's ends, the place's earth seed and earth-kit; only an Earth kit place whose plan
   marks sections): one style (the section's rows, each a
   pipeline-made variant, else earth-kit's named fallback, else a gap row), one finish (the library surface over most
