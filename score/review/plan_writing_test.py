@@ -160,13 +160,13 @@ def test_an_arrangement_not_the_concepts_and_a_tube_joining_nothing_are_gaps():
     assert "hub is joined by a tube in the concept, by none on the plan" in words
 
 
-def test_a_row_off_to_the_side_or_facing_the_wrong_way_is_a_gap_and_a_run_of_crates_counts_whole():
+def test_a_row_off_to_the_side_or_facing_the_wrong_way_is_a_gap_and_a_run_of_crates_counts_whole_unless_spread():
     # the concept: a pad in the middle, a desk on the left, a rack on the right, all at about one depth
     inventory = {"picture": [1000, 1000], "rows": [
         {"id": "pad", "count": 1, "boxes": [[400, 600, 600, 700]]},
         {"id": "desk", "count": 1, "boxes": [[50, 600, 150, 700]]},
         {"id": "rack", "count": 1, "boxes": [[850, 600, 950, 700]]},
-        {"id": "crate", "count": 6, "boxes": [[0, 0, 10, 10]]}]}
+        {"id": "crate", "count": 6, "size": [0.8, 0.8, 0.8], "boxes": [[0, 0, 10, 10]]}]}
     rows = {"PAD 1": ["pad"], "DESK 1": ["desk"], "RACK 1": ["rack"], "CRATE 1": ["crate"]}
     laid = [["PAD 1", 14.0, 10.0, 4.0, 4.0, None, "item"], ["DESK 1", 1.0, 10.0, 2.0, 1.0, "S", "item"],
             ["RACK 1", 28.0, 10.0, 2.0, 1.0, None, "item"], ["CRATE 1", 1.0, 1.0, 4.0, 1.0, None, "item"]]
@@ -177,6 +177,9 @@ def test_a_row_off_to_the_side_or_facing_the_wrong_way_is_a_gap_and_a_run_of_cra
     words = [gap["words"] for gap in plan_checks.checked({**plan, "items": off}, inventory)]
     assert "pad stands in the middle of the concept (50% across), on the right of the plan (81% across)" in words
     assert "desk 1 faces toward in the concept, away on the plan" in words
+    spread = [*laid[:3], ["CRATE 1", 1.0, 1.0, 12.0, 8.0, None, "item"]]  # 6 crates boxed round half the place
+    words = [gap["words"] for gap in plan_checks.checked({**plan, "items": spread}, inventory)]
+    assert "crate 1 boxes 6 things drawn apart as one (12.0 x 8.0 m), not one run" in words
 
 
 def test_a_thing_the_creator_planned_is_laid_from_his_plan_where_and_the_way_it_is_drawn(monkeypatch):

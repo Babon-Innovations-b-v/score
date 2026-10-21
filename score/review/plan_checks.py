@@ -32,6 +32,8 @@ FRAME_APART = 0.25  # share of the view a row's place across it may differ by be
 CONNECTORS = {"tube", "tubes", "tunnel", "corridor", "walkway", "bridge", "passage", "connector", "link"}
 JOIN_SEEN = 0.01  # share of the picture two boxes may stand apart and still meet in the concept
 JOIN_LAID = 1.0  # metres a connector may stand from a part and still meet it on the plan
+SPREAD = 4.0  # times its things' footprints side by side a run's box may cover before it is things drawn apart
+SPREAD_SLACK = 4.0  # square metres more than its things a run's box may always cover (a small run's loose box)
 
 
 def polygon_of(item, shape):
@@ -513,6 +515,21 @@ def facing_gaps(plan, inventory):
     return gaps
 
 
+def run_gaps(plan, inventory):
+    """A gap for each item counting several of its row (a run: shelving, a stack of crates) whose box covers far more
+    than its things side by side: things drawn apart boxed as one, each to be laid where it stands."""
+    sizes = {row["id"]: row["size"] for row in inventory.get("rows", []) if isinstance(row.get("size"), list)}
+    gaps = []
+    for item, row, shape in placed_items(plan):
+        count, size = int((shape or {}).get("count") or 1), sizes.get(row) or [None, None]
+        things = count * size[0] * size[1] if size[0] and size[1] else None
+        if count > 1 and things and item[3] * item[4] > max(SPREAD * things, things + SPREAD_SLACK):
+            gaps.append({"kind": "arrangement", "item": item[0], "row": row, "at": middle_of(polygon_of(item, shape)),
+                         "words": f"{said_name(item[0])} boxes {count} things drawn apart as one "
+                                  f"({item[3]:.1f} x {item[4]:.1f} m), not one run"})
+    return gaps
+
+
 def connector(row):
     """Whether a row joins parts (a tube, a corridor, a walkway, a bridge)."""
     return bool(last_words(row) & CONNECTORS)
@@ -558,4 +575,4 @@ def checked(plan, inventory, structure=()):
     return (count_gaps(plan, inventory, set(structure)) + outside_gaps(plan, inventory, grid, outline)
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
             + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + frame_gaps(plan, inventory)
-            + facing_gaps(plan, inventory) + join_gaps(plan, inventory))
+            + facing_gaps(plan, inventory) + run_gaps(plan, inventory) + join_gaps(plan, inventory))
