@@ -3,8 +3,11 @@ place's light layer, its lamps' strengths measured from one render of every lamp
 holds, as three rows of the stage table.
 
     light-layer   (free) layers/light.usda over the place's round-three seed, from today's scene record with
-                  tools/usd/scene.py's own writers (layer.py): each lamp where the record puts it, the Earth on its
-                  ball with NASA's surface, Mars's day sky with the sun's disc, the floodlights' shafts; lamps.json
+                  tools/usd/scene.py's own writers (layer.py): each lamp where the record puts it, the floodlights'
+                  shafts; its sky from the environment concept's physics overhead at its site at its scene time
+                  (sky.py: each light, shining body's disc, other body and backdrop, the old sky turned off), a
+                  picture-faced world with its picture (the Earth's NASA surface), the day dome its air scatters;
+                  lamps.json
     light-passes  (paid) the seed with that layer rendered on the views of the place's own scene record (the
                   layer's views.json, passes.record_views), once, at passes.CHECK_SIZE, on one card class, each of
                   the place's own lamps in a Cycles light group of its own (inside/light_passes.py): per view the
@@ -14,11 +17,16 @@ holds, as three rows of the stage table.
                   lamp turned down; those strengths written into the layer; the look at them mixed from the passes
                   (looks/), and every fault measured on it
 
+    gates (light-layer)  lamps placed  every lamp of the record stands in the layer
+                         sky elements  as below, before anything is rendered
+                         sky bodies    the sky's bodies, lights and backdrops where overhead.py has them at the
+                                       scene's site at its scene time (sky.faults on the layer's geometry)
+
     gates (light)  brightness      the place's brightness within BRIGHT_WITHIN of its concept's, each view within
                                    VIEW_WITHIN (mix.py has the rules)
                    lamps           no lamp on screen unlit, none blown out
-                   sky elements    every element the record's sky holds is in the layer: the Earth with NASA's
-                                   surface, the day dome and the sun's disc, the shafts
+                   sky elements    every element the sky calls for is in the layer: a picture-faced world with its
+                                   picture (the Earth's NASA surface), the day dome, the shafts
                    heads           floodlight heads facing the eye glow as concept K04's (halo, fill, beam, veil)
                    earth           the Earth's disc at most SMOOTH_MOST flat paint (concept C4's 0.0)
                    sky             an outdoor place's sky within SKY_GAP_MOST levels of its concept's sky colour,
@@ -42,7 +50,7 @@ import numpy as np
 from PIL import Image
 
 from score import checks, contracts, graph
-from score.stages.light import haze, layer, measure, mix, needs, passes
+from score.stages.light import haze, layer, measure, mix, needs, passes, sky
 from score.stages.light.passes import groups_of, neighbours, views_of
 from score.store import PROPS_HOME
 
@@ -110,10 +118,12 @@ def applies(place):
 
 def make_layer(inputs, out, seed, params):
     """The place's light layer over its stage as the assembly lays it before its layers (passes.source: the seed with
-    its accepted scene record), and lamps.json (each lamp, its strength there, whether it has a shaft)."""
+    its accepted scene record), its sky from the physics over its site (its kept sky, `sky` input), and lamps.json
+    (each lamp, its strength there, whether it has a shaft)."""
     place = place_of(inputs)
     stage = passes.source(place, inputs, out / "source")
-    found = layer.write(place, passes.record_of(place, inputs), stage, out)
+    found = layer.write(place, passes.record_of(place, inputs), stage, out, sky.read(inputs["sky"]) if "sky" in inputs
+                        else None)
     record = passes.record_of(place, inputs)
     if not found["lamps"] or not (record.get("environment") or {}).get("inside"):
         found["lamps"] += sun_lamps(place, out, stage)
@@ -162,6 +172,25 @@ def missing_elements(found):
             if held < wanted]
 
 
+def judge_sky_bodies(output, inputs, evidence):
+    """The sky's bodies, lights and backdrops stand where overhead.py says they are at the scene's site at its scene
+    time, read off the layer's geometry (sky.held, sky.faults); unknown while the scene's site or scene time is not on
+    the environment's plan (no kept sky)."""
+    from pxr import Usd
+    seen = sky.seen_of(sky.read(inputs["sky"])) if "sky" in inputs else None
+    if seen is None:
+        return checks.Verdict("sky bodies", checks.UNKNOWN, "no sky over this scene yet: its site or its scene time is "
+                              "not on the environment's plan (score/review/scene_sky.py)")
+    place = json.loads((output / "lamps.json").read_text())["place"]
+    held = sky.held(Usd.Stage.Open(str(output / layer.LAYER)), place)
+    faults = sky.faults(seen, held)
+    counts = {group: len(held[group]) for group in ("bodies", "lights", "discs", "backdrops")}
+    return verdict("sky bodies", not faults, "; ".join(faults[:3]) or
+                   f"the sky as overhead.py has it: {counts['bodies']} bodies, {counts['lights']} lights, "
+                   f"{counts['discs']} discs, {counts['backdrops']} backdrops", {"faults": len(faults), **counts},
+                   {"faults": "lower"}, faults)
+
+
 def judge_layer_sky(output, inputs, evidence):
     """Every element the record's sky holds is in the layer (sky_elements), before anything is rendered."""
     place = json.loads((output / "lamps.json").read_text())["place"]
@@ -175,10 +204,10 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 
 
 def layer_files(place):
-    """The record, the kit (its seat, its lenses) and the light data (passes.place_files), the seed and the grounds the
-    sky stands on."""
+    """The record, the kit (its seat, its lenses) and the light data (passes.place_files), the seed, the grounds the
+    sky stands on, and the scene's kept sky (sky.kept_input) when it has one."""
     return {"scene": "{data}/scene/{place}.json", "seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground",
-            "kit": "{data}/kit/{place}.json", **passes.place_files(place)}
+            "kit": "{data}/kit/{place}.json", **passes.place_files(place), **sky.kept_input(place)}
 
 
 # --- light: the sweep, the strengths and the measures ------------------------------------------------------------
@@ -423,17 +452,36 @@ def head_measures(place, out, record):
     return {"heads": found, "veil": veils}
 
 
-def earth_measures(place, out, passes_folder, record):
-    """The Earth's disc in every view that shows it: its colours and its smooth share on its lit pixels that the
-    place's lamps do not light (EARTH_LAMP_MOST of their light at most: the greenhouse's roof trusses, lit purple by
-    its grow lights, stand across its Earth)."""
+def sky_prims(folder, kind):
+    """The light layer's own sky prims of one kind (sky.py: "sky light", "sky body", "sky disc", "sky backdrop")."""
+    from pxr import Usd
+    stage = Usd.Stage.Open(str(folder / layer.LAYER))
+    return stage, [prim for prim in stage.TraverseAll() if sky.tag(prim, "kind") == kind]
+
+
+def faced_balls(folder):
+    """[{"centre", "radius"}] of each body of the layer's sky (sky.py) painted with a picture of its own face (a
+    framework look, shaders.LOOKS: the Earth's NASA surface), read off the layer's geometry."""
+    from pxr import Usd, UsdGeom
+    stage, bodies = sky_prims(folder, "sky body")
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"])
+    found = []
+    for prim in (prim for prim in bodies if sky.tag(prim, "surface") in sky.shaders.LOOKS):
+        box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+        found.append({"centre": list(box.GetMidpoint()), "radius": (box.GetMax()[1] - box.GetMin()[1]) / 2.0})
+    return found
+
+
+def earth_measures(place, out, passes_folder, balls):
+    """Each picture-faced world's disc (faced_balls) in every view that shows it: its colours and its smooth share on
+    its lit pixels that the place's lamps do not light (EARTH_LAMP_MOST of their light at most: the greenhouse's roof
+    trusses, lit purple by its grow lights, stand across its Earth)."""
     lamps = {view: held for view, (held, _, _) in view_passes(passes_folder, place).items()}
-    entry = next(item for root, kind, item in layer.earth_entries(record))
     size, views = views_of(out)
     after = rendered(out, place)
     found = []
-    for view in views:
-        x, y, depth, focal = measure.where(view, size, entry.get("placed_at", entry["centre"]))
+    for view, entry in ((view, entry) for view in views for entry in balls):
+        x, y, depth, focal = measure.where(view, size, entry["centre"])
         if x is None or view["name"] not in after:
             continue
         radius = focal * entry["radius"] / depth
@@ -493,8 +541,9 @@ def fault_measures(place, out, passes_folder, record):
     if place in LAMP_KINDS:
         heads = head_measures(place, out, record)
         found["heads"], found["veil"] = heads["heads"], heads["veil"]
-    if layer.earth_entries(record):
-        found["earth"] = earth_measures(place, out, passes_folder, record)
+    balls = faced_balls(out)
+    if balls:
+        found["earth"] = earth_measures(place, out, passes_folder, balls)
     if needs.outdoor(record, None):
         found["sky"] = sky_measures(place, out)
     found["exposure"] = exposure_measures(place, out)
@@ -521,19 +570,20 @@ def exposure_measures(place, out):
 
 
 def sky_elements(place, out, record):
-    """What the record's sky holds against what the light layer holds: {element: [wanted, found]}."""
-    from pxr import Usd
-    held = Usd.Stage.Open(str(out / layer.LAYER))
+    """What the record's air and the physics' sky call for against what the light layer holds: {element: [wanted,
+    found]}: a picture-faced world with its picture baked into the layer (the Earth's NASA surface), the day dome
+    where the record's air scatters one and the physics gives it a light, each floodlight's shaft. Where each body
+    and light stands is the gate "sky bodies"."""
+    held, faced = sky_prims(out, "sky body")
     lights = layer.lights_of(place, record)
     paths = {str(prim.GetPath()) for prim in held.TraverseAll()}
     picture = held.GetPrimAtPath(f"/{place}/Looks/earth_face/picture")
     nasa = bool(picture) and str(picture.GetAttribute("inputs:file").Get().path).endswith(
         f"{layer.ASSETS}/earth_surface.png")
     shafts = sum(path.startswith(f"/{place}/Shafts/shaft_") and "_look" not in path for path in paths)
-    return {"earth": [len(layer.earth_entries(record)) > 0, nasa],
-            "sky_dome": [bool((record.get("environment") or {}).get("sky_dome")), f"/{place}/Sky/Dome" in paths],
-            "sun_disc": [any(entry["type"] == "sun" and not entry.get("name") and float(entry.get("energy", 0)) > 0
-                             for entry in lights), f"/{place}/Sky/sun_disc_0" in paths],
+    domed = bool((record.get("environment") or {}).get("sky_dome")) and bool(sky_prims(out, "sky light")[1])
+    return {"earth": [any(sky.tag(prim, "surface") in sky.shaders.LOOKS for prim in faced), nasa],
+            "sky_dome": [domed, f"/{place}/Sky/Dome" in paths],
             "shafts": [sum(bool(entry.get("shaft")) for entry in lights), shafts]}
 
 
@@ -594,8 +644,8 @@ def judge_lamps(output, inputs, evidence):
 
 
 def judge_sky_elements(output, inputs, evidence):
-    """Every element the record's sky holds is in the light layer: the Earth with NASA's surface, the day dome, the
-    sun's disc, each floodlight's shaft."""
+    """Every element the sky calls for is in the light layer: a picture-faced world with its picture (the Earth's
+    NASA surface), the day dome, each floodlight's shaft (sky_elements)."""
     found = measures_of(output)["sky_elements"]
     missing = missing_elements(found)
     return verdict("sky elements", not missing, "; ".join(missing) or f"every element the record holds: {found}",
@@ -736,7 +786,8 @@ def light_files(place):
 LIT = contracts.Contract("light", 1, light_faults, {"length": "metre", "up axis": "Y"})
 RECORD = {"scene-record": ("scene-record", 1)}  # read where the place has the row (Runner.reads)
 LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
-                          (checks.Check("lamps placed", judge_placed), checks.Check("sky elements", judge_layer_sky)),
+                          (checks.Check("lamps placed", judge_placed), checks.Check("sky elements", judge_layer_sky),
+                           checks.Check("sky bodies", judge_sky_bodies)),
                           files=layer_files, after=RECORD, applies=applies)
 PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.PASSES,
                            (checks.Check("rendered", passes.judge_rendered),

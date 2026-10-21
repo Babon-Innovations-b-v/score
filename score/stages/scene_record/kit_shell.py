@@ -6,15 +6,15 @@ the stairwell) and its open places (the street, the square, the launch view). Th
                  the street to just under the room's floor over the room's floor grown by the block's walls; none for
                  an open place
     lights       one at each lamp the kit lays of the world body's lamp rows (the sky record's `lamps`): on its glow
-                 part's middle, else just in front of the piece; a spot aimed where the plan's `aims` says; and the
-                 body's moonlight
-    environment  the body's night sky (the sky record), its haze ring standing on the body's shared ground
-    moon, kit_glow, water   the body's (the sky record), in the place's frame; the water at the made ground's level
+                 part's middle, else just in front of the piece; a spot aimed where the plan's `aims` says
+    environment  the body's night air (the sky record), its haze ring standing on the body's shared ground
+    kit_glow, water   the body's (the sky record), in the place's frame; the water at the made ground's level
     objects      each plan item a released world model makes (the plan's `objects`), on its item's middle
     places       the seated places (writer.neighbours) and what the plan `shows` (the far city), where its frame stands
 
 The body's shared frame is the frame its sky record's numbers are written in (`frame_of`: the street's, EarthSite's
-own); the made ground's seats stand it in this place's frame.
+own); the made ground's seats stand it in this place's frame. Its sky (the Moon, its light, the stars) is the
+environment concept's physics, the light layer's (score/stages/light/sky.py), never the record's.
 """
 import json
 import math
@@ -132,17 +132,10 @@ def lamps(plan, kit, sky):
     return found
 
 
-def moonlight(sky, pose):
-    light = sky["moonlight"]
-    return {**{key: value for key, value in light.items() if key != "from"},
-            "toward": np.round(np.asarray(light["toward"], dtype=float) @ pose[1], 6).tolist(),
-            "from": f"sky record (data/definitions/sky.json) {sky['body']} moonlight ({light['from']})"}
-
-
-# --- the body's sky, moon, glow and water -----------------------------------------------------------------------
+# --- the body's air, glow and water -------------------------------------------------------------------------------
 
 def environment(plan, sky, pose):
-    """The body's night sky, inside or out as the plan says, its haze ring standing on the shared ground."""
+    """The body's night air, inside or out as the plan says, its haze ring standing on the shared ground."""
     night = sky["night"]
     ground = float(pose[0][1])
     haze = dict(night["haze"])
@@ -151,14 +144,6 @@ def environment(plan, sky, pose):
             "haze": haze,
             "from": f"sky record (data/definitions/sky.json) {sky['body']} night ({night['from']}); the haze ring on "
                     f"the shared ground ({sky['frame_of']}'s frame, its seat)"}
-
-
-def moon(sky, pose):
-    found = sky["moon"]
-    return {**{key: value for key, value in found.items() if key != "from"},
-            "way": np.round(np.asarray(found["way"], dtype=float) @ pose[1], 6).tolist(),
-            "eye": np.round(in_place(found["eye"], pose), 4).tolist(),
-            "from": f"sky record (data/definitions/sky.json) {sky['body']} moon ({found['from']})"}
 
 
 def water(sky, made, pose):

@@ -1,23 +1,22 @@
 """The outdoor shell writer (plan `kind` "outdoor": the wreck, the old station, the camp grounds): a place with no
 walls, whose ground is the terrain stage's place layer and whose things are its inventory rows. Its record holds what
-stands round those and over them, every entry from the plan, the inventory, the seats or the world body's sky record:
+stands round those and over them, every entry from the plan, the inventory, the seats or the world body's air record
+(data/definitions/sky.json `outdoor`); its sky (the suns, the worlds, the stars) is the environment concept's physics,
+the light layer's (score/stages/light/sky.py), never the record's:
 
-    structure    the sky's bodies (the Earth over the Moon): each sphere hung its record's distance out along its way
-                 from the place, turned by its axes, both turned from the body's frame into the place's by its seat
-    lights       the body's suns (data/definitions/sky.json `outdoor`) turned into the place's frame, and each plan
-                 lamp's light at its inventory row's laid spot on the made ground, `high` up the row's height
-    environment  the body's outdoor sky record, with each plan beam (a column of light) stood on its row's spot, up
+    lights       each plan lamp's light at its inventory row's laid spot on the made ground, `high` up the row's height
+    environment  the body's outdoor air record, with each plan beam (a column of light) stood on its row's spot, up
                  straight out from the body's middle there
     ground_decals  each plan decal (what is painted on the near ground: the wreck's burn), coloured by its design token
     objects      each plan item a released world model makes (the plan's `objects`: the camp grounds' boot rock, the
                  camp's furniture), on the made ground (on the place's own floor inside its kit's walls); one whose
                  model is not made yet carries the plan's `waiting` (the camp grounds' cairn)
-    blocks       each plan block (structure: a plain box outside the kit, the camp airlock's footing and ramp)
+    structure    each plan block (a plain box outside the kit, the camp airlock's footing and ramp)
     views        one from each of the plan's standing spots, at eye height over the made ground, to the site's middle
     places       every other place seated on the same made ground (writer.neighbours)
 
 The floor is the plan's site (its w and d, laid by its frame): the openings gate's probes stand over it. A place
-inside its kit's walls on open ground (the camp's domes, plan `inside`) gets the body's outdoor sky too (its windows
+inside its kit's walls on open ground (the camp's domes, plan `inside`) gets the body's outdoor air too (its windows
 see it), its lamps where the kit hangs them, its ceiling and its views from its own floor.
 """
 import json
@@ -53,35 +52,6 @@ def srgb(hex_colour):
 def in_place(way, laid):
     """A way in the body's frame turned into the place's (rows: across, up, along)."""
     return np.asarray(way, dtype=float) @ laid.frame.T
-
-
-def bodies(sky, laid):
-    """The sky's bodies, each a sphere hung out along its way from the place."""
-    found = []
-    for body in sky.get("bodies", []):
-        at = in_place(body["way"], laid) * float(body["distance"])
-        axes = np.asarray(body["axes"], dtype=float) @ laid.frame.T
-        found.append({"name": body["name"], "builder": "sphere", "centre": [0.0, 0.0, 0.0], "radius": body["radius"],
-                      "surface": body["surface"], "plain": "sky", "placed_at": np.round(at, 2).tolist(),
-                      "placed_turn": writer.quaternion(axes),
-                      "from": f"sky record (data/definitions/sky.json) {body['name']}, turned into the place's frame "
-                              "by its seat"})
-    return found
-
-
-def suns(sky, laid, body):
-    """The sky's suns, their ways turned into the place's frame; the main sun unnamed, as the stage builds it."""
-    found = []
-    for sun in sky["suns"]:
-        toward = in_place(sun["toward"], laid)
-        entry = {"type": "sun", "toward": np.round(toward / np.linalg.norm(toward), 5).tolist(),
-                 "colour": sun["colour"], "energy": sun["energy"], "shadows": sun["shadows"],
-                 "from": f"sky record (data/definitions/sky.json) {body} outdoor {sun['name']}, turned into the "
-                         "place's frame by its seat"}
-        if sun["name"] != "sun":
-            entry["name"] = sun["name"]
-        found.append(entry)
-    return found
 
 
 def row_spots(inventory):
@@ -164,7 +134,7 @@ def decals(plan, tokens):
 
 
 def environment(sky, body, plan, rows, laid, grounds, kits):
-    """The body's outdoor sky record, with the plan's beams."""
+    """The body's outdoor air record, with the plan's beams."""
     found = {**json.loads(json.dumps(sky["environment"])),
              "from": f"sky record (data/definitions/sky.json) {body} outdoor"}
     stood = beams(plan, rows, laid, grounds, kits)
@@ -233,11 +203,12 @@ def record_of(place, plan, inputs, grounds):
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan "
                        f"(data/plans/{place}.json), "
-                       "its inventory, the made ground's seats and the world's sky record; the ground and its rocks "
+                       "its inventory, the made ground's seats and the world body's air record (its sky is the light "
+                       "layer's, from the environment concept's physics); the ground and its rocks "
                        "are the terrain stage's place layer. Frame: the place's seat, x across, z along, y up.",
               "floor": plan["floor"], "inside": plan["inside"],
-              "structure": bodies(sky, laid) + blocks(plan),
-              "lights": suns(sky, laid, body) + lamps(plan, rows, laid, kit),
+              "structure": blocks(plan),
+              "lights": lamps(plan, rows, laid, kit),
               "environment": environment(sky, body, plan, rows, laid, grounds, inputs["kits"]),
               # A place inside its kit's walls is viewed from its own floor, not the ground under it.
               "views": writer.views(plan, eye) if plan["inside"] else views(plan, laid, eye),

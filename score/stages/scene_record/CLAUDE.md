@@ -12,8 +12,11 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   reads; a seed entry the writer leaves out on purpose needs a reason in `gates.SEED_REASONS`, never a quiet drop.
   Numbers that moved are shown on the page, never judged.
 - **Nothing cites the game** (`game-free`): every `from` names the plan element, inventory row, ground seat or environment
-  record it was made from. The environment's sky and room fill come from `data/definitions/sky.json`, itself an unverified
-  seed (the old records' shared numbers) until the light stage's sweep sets them against each concept.
+  record it was made from. The environment's air and room fill come from `data/definitions/sky.json`, itself an unverified
+  seed (the old records' shared numbers) until the light stage's sweep sets them against each concept. The sky itself
+  (suns, worlds, stars, the Moon and its light) is never the record's: it is the environment concept's physics, which
+  the light layer writes (`score/stages/light/sky.py`); `seed-matched` names the old records' sky entries so
+  (`gates.SKY_REASON`).
 - **Neighbours come from the made ground's seats** (the terrain stage's ground records), the ball's curve turning each
   (`rotation`); a door joined to another place's door stands the tube's stage between the two doorways, stretched
   to the run. A place with no seat on a made ground cannot be judged outside: `openings` fails it by name. Only the
@@ -23,13 +26,13 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
 - **Shell writers**, by the plan's `shell`: `domed` (walls with a dome: room_walls, room_deck, dome_roof,
   doors in each wall's middle) and `kit` (`kit_shell.py`: the Earth's rooms and open places, whose kit holds their
   walls and floors; the record adds the block round a room, a light at each lamp of the sky record's lamp rows the kit
-  lays, the body's night, moon, glow and harbour, the plan's `objects` and `shows`). A kit shell's plan stands in the
+  lays, the body's night air, glow and harbour, the plan's `objects` and `shows`). A kit shell's plan stands in the
   kit's frame by its `frame` (an anchor, and a `toward` for a plan drawn down a view); its doors are the kit's
   doorways (`plan-matched` holds each to the plan within 0.05 m along its wall), a door's fifth number its sill's
   level, its lead `<side>@<level>` where a wall has doors at several levels. `outdoor` (`outdoor.py`: the wreck, the
   old station, the camp grounds, the camp) has no walls of the record's: the plan's w and d are its site, laid by its `frame`; the record
-  holds the body's outdoor sky from `sky.json` (its ways in the body's own frame, turned into each place's by its
-  seat: suns, the Earth over the Moon, Mars's air, dust and sky dome) and the plan's `lamps`, `decals`, `beams`,
+  holds the body's outdoor air from `sky.json` (its ways in the body's own frame, turned into each place's by its
+  seat: Mars's air, dust and sky dome) and the plan's `lamps`, `decals`, `beams`,
   `blocks` and `objects` stood on their rows' laid spots over the made ground; its views and the `openings` viewers
   stand on the made ground. The camp is `outdoor` with `inside`: its kit holds its domes, its lamps are lit where the
   kit hangs them, its furniture is plan `objects` (the released camp models) on its own floor, its views stand on its

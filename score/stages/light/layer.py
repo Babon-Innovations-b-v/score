@@ -5,16 +5,18 @@ the sky and the lamps the assembly shows are today's records' and not the round-
               scene record now puts it (a light of the record whose spot the seed does not hold takes the nearest
               unmatched seed light of its kind within MOVE_MOST, else it is added); its strength stays the seed's here
               and is set by the light stage from the per-lamp passes (strengths)
-    sky       what the record's sky holds and the seed lacks or drew the old way: the Earth on its ball with NASA's
-              surface (shaders.earth_look's picture, the seed's cartoon picture left unread), the day sky's dome over
-              Mars (mars_sky.py), the sun's disc along the sky's sun, the floodlights' shafts; the environment, the
-              sky's stars and haze and the record's lights where the seed has none (the camp grounds' seed)
+    sky       the environment concept's physics overhead at the scene's site at its scene time (sky.py): each light
+              a distant light from its direction, each shining body's disc and every other body a ball at its true
+              direction and size, each backdrop; the old sky of the seed and the record turned off (its suns, sun
+              discs, Moon pictures, star field, worlds hung as structure); and the air the record holds where the
+              seed has none: the environment and its haze, the day dome its air scatters (mars_sky.py) from the
+              physics' brightest light, the floodlights' shafts
 
 The writers draw into a stage made of the light layer over the seed (its edit target the light layer), so they find
 the seed's library and write only the layer. Pictures they bake go into `assets/light/`, never `assets/textures/`,
 where the seed's own pictures of the same names lie.
 
-    write(place, record, seed_folder, out) -> {"lamps": [...], "sky": {...}}
+    write(place, record, seed_folder, out, kept) -> {"lamps": [...], "sky": {...}}
     strengths(layer_path, place, scales)      each lamp's intensity times its scale, written into the layer
 """
 import json
@@ -29,6 +31,8 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 import ground as grounds  # noqa: E402
 import scene  # noqa: E402
 import shaders  # noqa: E402
+
+from score.stages.light import sky  # noqa: E402
 
 LAYER = "layers/light.usda"
 ASSETS = "assets/light"
@@ -141,10 +145,9 @@ def record_lamps(record):
 
 def placed_lamps(stage, place, record):
     """Each record lamp matched to a seed lamp (where it stands, or the nearest unmatched one of its kind within
-    MOVE_MOST, which is moved), else written new; the record's suns written where the seed has no light at all.
-    Returns what was done to each record light."""
+    MOVE_MOST, which is moved), else written new (the sky's lights are the physics', sky.py). Returns what was done
+    to each record lamp."""
     seeded = own_lamps(stage, place)
-    lit = bool(stage.GetPrimAtPath(f"/{place}/Lights"))
     free = {path: (spot, shaped) for path, spot, shaped in seeded}
     done = []
     wanted = record_lamps(record)
@@ -168,12 +171,6 @@ def placed_lamps(stage, place, record):
             path = f"/{place}/Lights/{name}_record"
         scene.write_light(stage, path, entry)
         done.append({"record": name, "path": path, "done": "added"})
-    if not lit:
-        suns = [(name, entry) for name, entry in zip(scene.light_names(record.get("lights", [])),
-                                                     record.get("lights", [])) if entry["type"] == "sun"]
-        for name, entry in suns:
-            scene.write_light(stage, f"/{place}/Lights/{name}", entry)
-            done.append({"record": name, "path": f"/{place}/Lights/{name}", "done": "added"})
     return done
 
 
@@ -286,31 +283,24 @@ def lamps_through_fixtures(stage, place):
     return found
 
 
-def earth_entries(record):
-    """The record's Earth on its ball: (group root, kind, entry) for each structure or ground entry named earth."""
-    return [(root, kind, entry) for group, root, kind in (("structure", "Structure", "structure"),
-                                                         ("ground", "Terrain", "ground"))
-            for entry in record.get(group, []) if entry.get("name") == "earth"]
-
-
-def write_earth(stage, place, record, out):
-    """The Earth's ball as the record lays it (turned to face the place) with NASA's surface: the seed's earth_face
-    material, when it has one, pointed at the picture baked here."""
+def earth_face_baked(stage, place, written, out):
+    """NASA's surface (shaders.earth_look's picture) on every body of the physics' sky painted earth_face, baked into
+    the layer's pictures and pointed at, the seed's own earth_face picture, when it has one, left unread; how many."""
     from pxr import Sdf, UsdShade
-    found = earth_entries(record)
-    for root, kind, entry in found:
-        scene.write_structure(stage, place, [entry], root=root, kind=kind, out=out)
-    if not found:
-        return 0
-    shaders.earth.write(out / ASSETS / shaders.EARTH_PICTURE, shaders.EARTH_WIDTH)
+    faced = [body for body in (written or {}).get("bodies", []) if body["surface"] == "earth_face"]
     material = stage.GetPrimAtPath(f"/{place}/Looks/earth_face")
+    if not faced or not material:
+        return 0
+    if (out / "assets/textures" / shaders.EARTH_PICTURE).exists():
+        return len(faced)  # earth_look made the look in this layer and baked it there (pictures_moved moves it)
+    shaders.earth.write(out / ASSETS / shaders.EARTH_PICTURE, shaders.EARTH_WIDTH)
     picture = UsdShade.Shader(stage.GetPrimAtPath(f"/{place}/Looks/earth_face/picture"))
     picture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(f"../{ASSETS}/{shaders.EARTH_PICTURE}")
     for key, value in (("score:shader", "earth"),
                        ("score:from", "NASA Visible Earth: Blue Marble Next Generation (July 2004) and its cloud "
                                       "cover, baked by tools/usd/earth.py (the light stage's layer)")):
         material.CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
-    return len(found)
+    return len(faced)
 
 
 def planned_ground(place):
@@ -320,27 +310,28 @@ def planned_ground(place):
     return grounds.place_ground(place, on_seat)
 
 
-def write_sky(stage, place, record, out):
-    """The record's sky where the seed lacks it or drew it the old way: the environment and its stars and haze when
-    the seed has none, the day dome, the sun's disc and the floodlights' shafts. What was written, by name."""
+def write_sky(stage, place, record, out, kept=None):
+    """The scene's sky from the environment concept's physics (sky.py: what is overhead at its site at its scene time,
+    from its kept sky inputs; the old sky turned off first), and the air the record holds where the seed lacks it: the
+    environment and its haze when the seed has none, the day dome scattered from the physics' brightest light, the
+    floodlights' shafts. What was written, by name; `physics` None while the scene's sky is not known."""
     from pxr import UsdGeom
-    environment = record.get("environment") or {}
-    done = {"earth": write_earth(stage, place, record, out)}
+    environment = {key: value for key, value in (record.get("environment") or {}).items() if key != "stars"}
+    seen = sky.seen_of(kept)
+    done = {"retired": sky.retired(stage, place), "physics": sky.write(stage, place, seen, out) if seen else None}
+    done["earth"] = earth_face_baked(stage, place, done["physics"], out)
     if environment and not stage.GetPrimAtPath(f"/{place}/Environment"):
         scene.write_environment(stage, place, environment)
         scene.write_sky(stage, place, environment, out, planned_ground(place))
         done["environment"] = True
-    if environment.get("sky_dome"):
+    if environment.get("sky_dome") and seen and seen["lights"]:
         UsdGeom.Scope.Define(stage, f"/{place}/Sky")
-        scene.write_sky_dome(stage, place, environment["sky_dome"], record.get("lights", []), out)
+        scene.write_sky_dome(stage, place, environment["sky_dome"], sky.sun_entries(seen), out)
         done["sky_dome"] = True
-    if any(entry["type"] == "sun" and not entry.get("name") for entry in record.get("lights", [])):
-        done["sun_discs"] = shaders.sun_discs(stage, place, record.get("lights", []),
-                                              lambda path, centre, radius: scene.sun_ball(stage, place, path, centre,
-                                                                                         radius))
-    if any(entry.get("shaft") for entry in record.get("lights", [])):
+    lights = record.get("lights", [])
+    if any(entry.get("shaft") for entry in lights):
         UsdGeom.Scope.Define(stage, f"/{place}/Shafts")
-        done["shafts"] = scene.write_shafts(stage, place, record.get("lights", []))
+        done["shafts"] = scene.write_shafts(stage, place, lights)
     return done
 
 
@@ -358,9 +349,10 @@ def pictures_moved(out, layer):
     layer.ImportFromString(text)
 
 
-def write(place, record, seed_folder, out):
-    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lights with the
-    light data's lamps among them, and the light data's glow on the place's sky."""
+def write(place, record, seed_folder, out, kept=None):
+    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lamps with the
+    light data's lamps among them, its sky from the physics (`kept`: its kept sky inputs, scene_sky.py), and the light
+    data's glow on the place's sky."""
     from pxr import Sdf, Usd
     out = pathlib.Path(out)
     record = dict(record, lights=lights_of(place, record))
@@ -374,11 +366,11 @@ def write(place, record, seed_folder, out):
     moves = laid_again(stage, place, light_data(place))
     placed = placed_lamps(stage, place, record)
     fixtures = lamps_through_fixtures(stage, place)
-    sky = write_sky(stage, place, record, out)
+    sky_written = write_sky(stage, place, record, out, kept)
     glow = light_data(place).get("glow")
     if glow:
         scene.write_glow(stage.GetPrimAtPath(f"/{place}/Environment"), glow)
-        sky["glow"] = True
+        sky_written["glow"] = True
     pictures_moved(out, layer)
     layer.Save()
     lamps = [{"path": path, "spot": [round(float(value), 4) for value in spot], "shaped": shaped,
@@ -388,7 +380,7 @@ def write(place, record, seed_folder, out):
                if dict(record_lamps(record)).get(entry["record"], {}).get("shaft")}
     for lamp in lamps:
         lamp["shaft"] = lamp["path"] in shafted
-    found = {"place": place, "lamps": lamps, "placed": placed, "sky": sky}
+    found = {"place": place, "lamps": lamps, "placed": placed, "sky": sky_written}
     if fixtures:
         found["fixtures"] = fixtures
     return dict(found, moved=moves) if moves else found

@@ -401,27 +401,6 @@ def pcg32_floats(seed, count, increment=1442695040888963407):
     return found
 
 
-def stars(count, seed, sky_distance, distance, radius, smallest, largest, surface):
-    """The game's star field (2099's Sky._stars): `count` stars from a Godot RandomNumberGenerator seeded with `seed`,
-    each a direction of three draws in -1..1 and a size of one draw in smallest..largest, drawn as the game's star (a
-    sphere of `radius` with four sides and two rings: an octahedron) at `sky_distance` scaled by its size; here hung
-    at `distance` with its radius scaled by as much, so each star is as wide seen from the middle."""
-    numbers = iter(pcg32_floats(seed, count * 4))
-    spread = np.float32(2.0)
-    points, triangles = [], []
-    corners = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 0, -1], [0, -1, 0]], dtype=np.float64)
-    faces = [[0, 2, 1], [0, 3, 2], [0, 4, 3], [0, 1, 4], [5, 1, 2], [5, 2, 3], [5, 3, 4], [5, 4, 1]]
-    for number in range(count):
-        way = np.array([next(numbers) * spread - np.float32(1.0) for _ in range(3)], dtype=np.float32)
-        size = next(numbers) * (np.float32(largest) - np.float32(smallest)) + np.float32(smallest)
-        way = way.astype(np.float64) / np.linalg.norm(way.astype(np.float64))
-        across = radius * float(size) * distance / sky_distance
-        points.append(way * distance + corners * across)
-        triangles.append(np.asarray(faces) + 6 * number)
-    points = np.vstack(points)
-    return mesh(points, np.vstack(triangles), np.zeros((len(points), 2)), surface)
-
-
 def specks(points, across, surface):
     """A small octahedron `across` metres wide at each point (n x 3): fine grains of dust, each a few pixels wide, as
     the game draws one as a round speck facing the eye."""

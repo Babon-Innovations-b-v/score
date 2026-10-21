@@ -5,12 +5,13 @@ the square of its distance; a far light's from its path) and every backdrop. The
 concept's draw and its blockout take one moment of it, the place's scene time.
 
     seen(setting, site, when)
-        -> {lights: [{name, of, azimuth, altitude, kelvin, lux}],
+        -> {lights: [{name, of, azimuth, altitude, kelvin, lux, across?}],
             bodies: [{body, name, azimuth, altitude, across, lit, lit_from}],
             backdrops: [{name, shape, lux, kelvin?}]}
 
 Degrees throughout: azimuth from north towards east, altitude over the level horizon. A light's `of` is the body that
-gives it, None for a far light; the lights brightest first. A body's `across` is its true angular diameter, `lit` the
+gives it, None for a far light; the lights brightest first. A body's `across` is its true angular diameter (a shining
+body's light carries its own; a far light has none), `lit` the
 share of its face the brightest shining body lights as seen from here (0 new, 1 full), `lit_from` the way from the body
 to that light in the site's [east, north, up], so a drawing lights its phase from the right side.
 """
@@ -156,9 +157,11 @@ def from_body(bodies, on, latitude, longitude, when, height_m=0.0):
         if star["body"] == on:
             continue
         azimuth, altitude = bearing(unit(places[star["body"]] - eye), axes)
-        lux = star["lux"] * (star["lux_at_km"] / float(np.linalg.norm(places[star["body"]] - eye))) ** 2
+        apart = float(np.linalg.norm(places[star["body"]] - eye))
+        lux = star["lux"] * (star["lux_at_km"] / apart) ** 2
         lights.append({"name": star["name"], "of": star["body"], "azimuth": azimuth, "altitude": altitude,
-                       "kelvin": star["kelvin"], "lux": float(f"{lux:.4g}")})
+                       "kelvin": star["kelvin"], "lux": float(f"{lux:.4g}"),
+                       "across": round(math.degrees(2.0 * math.asin(star["radius_km"] / apart)), 5)})
     lights.sort(key=lambda light: -light["lux"])
     lighter = lights[0]["of"] if lights else next(body["body"] for body in bodies if not body.get("around"))
     found = []

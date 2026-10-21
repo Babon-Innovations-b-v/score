@@ -1,12 +1,12 @@
 """scene-record@<place>: the place's scene record written by SCORE from its plan (plan@<place>), the inventory, the
-made ground's seats (the terrain stage) and the world's sky record, never from the game and never from the old record
+made ground's seats (the terrain stage) and the world's air record, never from the game and never from the old record
 (which only the `seed-matched` gate reads). Contract `scene-record` v1 is today's record schema, so tools/usd/scene.py
 and builders.py build it unchanged; it lands as record/<place>.json in the output.
 
     shell        a domed room (plan shell `domed`): room_walls, room_deck and dome_roof on the plan's inside grown by
                  BACKING (the shell stands behind the kit's wall panels, which stand on the plan's line), its corners,
                  walls' height, the dome's rise and run, and a doorway cut in each door that leads somewhere; a place
-                 whose kit holds its walls (plan shell `kit`: the Earth's) gets its block, lamps, night sky, moon,
+                 whose kit holds its walls (plan shell `kit`: the Earth's) gets its block, lamps, night air,
                  water and objects from kit_shell.py instead; a domed plan's `shape` makes a faceted room's shell
                  (facet_shell), a walkway tube's (tube_shell) or a flat-roofed room's (flat_shell: the hangar's roof
                  slabs round its door opening), its layout's glass_dome a glass dome; a sloped item outside is a plate
@@ -581,12 +581,12 @@ def kit_record(place, plan, inputs, grounds):
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
-                       f"its kit's lamps, the made ground's seats and the world's sky record. Frame: its kit's, "
+                       f"its kit's lamps, the made ground's seats and the world body's air record (its sky is the "
+                       f"light layer's, from the environment concept's physics). Frame: its kit's, "
                        f"{sky['frame_of']}'s frame moved to its seat.",
               "floor": plan["floor"], "inside": plan["inside"], "structure": kit_shell.block(plan),
               "objects": kit_shell.objects(plan, kit),
-              "lights": kit_shell.lamps(plan, kit, sky) + [kit_shell.moonlight(sky, pose)],
-              "moon": kit_shell.moon(sky, pose), "kit_glow": kit_shell.kit_glow(sky),
+              "lights": kit_shell.lamps(plan, kit, sky), "kit_glow": kit_shell.kit_glow(sky),
               "environment": kit_shell.environment(plan, sky, pose), "views": views(plan, eye),
               "places": places_of(place, plan, inputs, grounds)}
     if seated.made.get("water"):

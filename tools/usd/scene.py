@@ -24,11 +24,10 @@ as numbers copied from the game (each entry names the game file it came from), a
                 the lit things over it it gives back as streaks (`mirror` `lit`, the harbour's lit columns)
     ground      a ground the game makes in code (a far disc, Mars's plain): structure entries with the ground's surface,
                 static colliders as the structure
-    lights      the game's lights, UsdLux (/<place>/Lights): an omni a sphere light, a spot one shaped to its cone, the
-                sun or moon a distant light; the game's own numbers ride on each as `score:game:*`
+    lights      the game's lights, UsdLux (/<place>/Lights): an omni a sphere light, a spot one shaped to its cone, a
+                sun a distant light; the game's own numbers ride on each as `score:game:*`
     environment the sky the camera sees and the ambient light (a dome light, `/<place>/Environment`), the exposure;
-                its `stars` (the game's star field, its own seed's, turned as the game turns it at the base minute
-                its `turn` gives: tools/usd/orbits.py) and its `haze` (a body of fog the game fills a room or Mars's
+                its `haze` (a body of fog the game fills a room or Mars's
                 air with, as a see-through shell carrying the fog's numbers; on Earth the haze ring), its `dust` (the
                 fine grains Mars's wind carries along the ground, at one moment) and its `beams` (a column of light
                 the game stands up into the sky) under /<place>/Sky; its `glow` (what the game blooms over the
@@ -36,8 +35,6 @@ as numbers copied from the game (each entry names the game file it came from), a
     places      other places seen from this one, their own stages referenced where the game stands them (`yaw` or a
                 whole `rotation`, as objects; `scale` for one shown at another length; `leave_out` what of it the game
                 does not draw here, and why): /<place>/Places/<name>
-    moon        the Moon on the night sky as the game's sky shader draws it (its face with its seas, and its halo in the
-                city's air), each a picture on a square far out along its way: /<place>/Sky/moon, /<place>/Sky/halo
     moved       kit pieces the game moves in its own code (a door it slides open), by the piece's `node`: shifted `by`
                 metres in the place's frame before the kit is laid (moved_pieces)
     kit_glow    how the night lights a kit's lights (a kind's `night_glow` in the kit): `strength` and `ramp` of the
@@ -201,15 +198,6 @@ def placed(built, entry):
                      [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
                      [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
     return dict(built, points=built["points"] @ turn.T + np.asarray(entry.get("placed_at", (0.0, 0.0, 0.0)), dtype=float))
-
-
-def sun_ball(stage, place, path, centre, radius):
-    """A ball in the sky painted with the library's `sun_disc`, drawn on its own (no shadow, no collision)."""
-    UsdGeom.Scope.Define(stage, str(Sdf.Path(path).GetParentPath()))
-    prim = mesh_prim(stage, path, builders.sphere(list(map(float, centre)), float(radius), "sun_disc", 12, 24))
-    bind_surface(stage, prim, place, "sun_disc")
-    prim.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("sky")
-    return prim
 
 
 def write_structure(stage, place, entries, root="Structure", kind="structure", out=None, tiles=None):
@@ -548,107 +536,10 @@ def moved_pieces(pieces, moves):
     return found
 
 
-def smoothstep(low, high, value):
-    inside = np.clip((value - low) / (high - low), 0.0, 1.0)
-    return inside * inside * (3.0 - 2.0 * inside)
-
-
-def sky_frame(way):
-    """The Moon's way and the two ways across its face, as the game's sky shader sets them (night_dome.gdshader)."""
-    toward = np.asarray(way, dtype=np.float64)
-    toward /= np.linalg.norm(toward)
-    right = np.cross([0.0, 1.0, 0.0], toward)
-    right /= np.linalg.norm(right)
-    return toward, right, np.cross(toward, right)
-
-
-def sky_rays(half_angle, pixels):
-    """For a square picture `pixels` across on a plane square to the way, `half_angle` radians either side of it: each
-    pixel's ray as its share across (x) and up (y) the face of the sky, and how far it is from the way, in radians."""
-    edge = math.tan(half_angle)
-    across = (np.arange(pixels) + 0.5) / pixels * 2.0 - 1.0
-    x_side, y_side = np.meshgrid(across * edge, -across * edge)
-    length = np.sqrt(1.0 + x_side ** 2 + y_side ** 2)
-    return x_side / length, y_side / length, np.arccos(np.clip(1.0 / length, -1.0, 1.0))
-
-
-def face_noise(at_x, at_y):
-    """The sky shader's smooth noise on the Moon's face, from 0 to 1 (its hash2 and face_noise)."""
-    def hashed(cell_x, cell_y):
-        return np.modf(np.sin(cell_x * 127.1 + cell_y * 311.7) * 43758.5453)[0] % 1.0
-    cell_x, cell_y = np.floor(at_x), np.floor(at_y)
-    blend_x = (at_x - cell_x) ** 2 * (3.0 - 2.0 * (at_x - cell_x))
-    blend_y = (at_y - cell_y) ** 2 * (3.0 - 2.0 * (at_y - cell_y))
-    low = hashed(cell_x, cell_y) * (1 - blend_x) + hashed(cell_x + 1, cell_y) * blend_x
-    high = hashed(cell_x, cell_y + 1) * (1 - blend_x) + hashed(cell_x + 1, cell_y + 1) * blend_x
-    return low * (1 - blend_y) + high * blend_y
-
-
 def srgb_bytes(linear):
     linear = np.clip(linear, 0.0, 1.0)
     srgb = np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
     return (srgb * 255.0 + 0.5).astype(np.uint8)
-
-
-def moon_face_picture(entry, pixels=1024):
-    """The Moon's face as the sky shader draws it on a full Moon: its colour, its seas darker, `brightness` times
-    (kept to 1, a picture's most), its rim smoothed off; RGBA, the alpha how much of the sky it covers."""
-    half = math.radians(float(entry["across"])) / 2.0
-    on_x, on_y, _ = sky_rays(half * 1.05, pixels)
-    across = math.sin(half)
-    face_x, face_y = on_x / across, on_y / across
-    covered = 1.0 - smoothstep(0.96, 1.0, np.hypot(face_x, face_y))
-    seas = smoothstep(0.45, 0.75, face_noise(face_x * 2.2 + 4.0, face_y * 2.2 + 4.0)) * float(entry["seas"])
-    lit = float(entry["brightness"]) * float(entry.get("lit", 1.0))
-    rgb = np.stack([channel * (1.0 - seas) * lit for channel in colour(entry["colour"])], axis=-1)
-    return np.dstack([srgb_bytes(rgb), (np.clip(covered, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)]), half * 1.05
-
-
-def moon_halo_picture(entry, pixels=512):
-    """The Moon's glow in the city's air as the sky shader draws it: the Moon's colour laid over the sky by
-    `halo` times its lit share, falling off as exp(-angle / `halo_fall`) from its way; RGBA."""
-    half = 6.0 * float(entry["halo_fall"])
-    _, _, angle = sky_rays(half, pixels)
-    glow = np.clip(float(entry["halo"]) * float(entry.get("lit", 1.0)) * np.exp(-angle / float(entry["halo_fall"])),
-                   0.0, 1.0)
-    rgb = np.broadcast_to(np.asarray(colour(entry["colour"])), (pixels, pixels, 3))
-    # Dithered by a fixed half step either way, so the faint glow far out does not fall into rings of one byte each.
-    dither = np.random.default_rng(0).uniform(-0.5, 0.5, glow.shape)
-    alpha = np.clip(glow * 255.0 + 0.5 + dither, 0.0, 255.0).astype(np.uint8)
-    return np.dstack([srgb_bytes(rgb), alpha]), half
-
-
-def sky_square(stage, path, entry, half_angle, distance, picture_file):
-    """A square far out along the Moon's way from its `eye`, square to the way, `half_angle` across either side,
-    drawn with its picture as the sky shows it (unlit, laid over by its alpha)."""
-    toward, right, up = sky_frame(entry["way"])
-    middle = np.asarray(entry["eye"], dtype=np.float64) + toward * distance
-    edge = distance * math.tan(half_angle)
-    corners = [middle + (right * side_x + up * side_y) * edge for side_x, side_y in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    built = builders.quad(corners, "sky")
-    built["uvs"] = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
-    prim = mesh_prim(stage, path, built)
-    material = backdrop_material(stage, f"{path}_look", picture_file, threshold=0.0)
-    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
-    for key, value in (("score:kind", "sky"), ("score:from", entry.get("from", ""))):
-        prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
-
-
-def write_moon(stage, place, entry, out):
-    """The Moon as the game's sky draws it at infinity, here `distance` metres out along its way from the eye it is
-    seen from (far past everything else, so it moves little across the place): its face, and behind it its halo."""
-    if not entry:
-        return
-    from PIL import Image
-    UsdGeom.Scope.Define(stage, f"/{place}/Sky")
-    textures = out / "assets/textures"
-    textures.mkdir(parents=True, exist_ok=True)
-    distance = float(entry.get("distance", 1800.0))
-    for name, (picture, half), farther in (("halo", moon_halo_picture(entry), 10.0),
-                                           ("moon", moon_face_picture(entry), 0.0)):
-        target = textures / f"sky_{name}.png"
-        Image.fromarray(picture, "RGBA").save(target)
-        sky_square(stage, f"/{place}/Sky/{name}", entry, half, distance + farther, f"../assets/textures/{target.name}")
 
 
 def game_values(prim, entry):
@@ -861,21 +752,6 @@ def unlit_material(stage, path, value):
     return material
 
 
-def write_stars(stage, place, entry, ground=None):
-    """The game's star field (builders.stars) as one mesh, /<place>/Sky/Stars, in the stars' unlit colour, turned as
-    the game turns it at the record's base minute (stars_turn)."""
-    built = builders.stars(int(entry["count"]), int(entry["seed"]), float(entry["sky_distance"]),
-                           float(entry["distance"]), float(entry["radius"]), float(entry["size"][0]),
-                           float(entry["size"][1]), None)
-    if "turn" in entry:
-        built["points"] = built["points"] @ stars_turn(entry["turn"], ground).T
-    prim = mesh_prim(stage, f"/{place}/Sky/Stars", built)
-    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(
-        unlit_material(stage, f"/{place}/Sky/star_look", entry["colour"]))
-    for key, value in (("score:kind", "stars"), ("score:from", entry.get("from", ""))):
-        prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
-
-
 def haze_centre(entry, ground):
     """A haze body's middle: its own `centre`, or with `"ball"` the middle of the place's world (the planned ground's
     ball, in the place's frame), as Mars's air is centred on Mars."""
@@ -1001,20 +877,6 @@ def write_dust(stage, place, entry, ground):
         prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
 
 
-def stars_turn(turn, ground):
-    """Which way the game has its stars turned in a place's frame at a base minute (orbits.stars_turn, sky.gd
-    `_stars_turn`): `turn` gives the `minute` and the `axes` the place is drawn in, the Moon's own space turned onto
-    the place's seat (`seat`: the place's ground's frame) or the Earth site's, which hangs off the Moon unturned
-    (`site`)."""
-    if turn["axes"] == "site":
-        frame = np.eye(3)
-    elif turn["axes"] == "seat" and ground is not None:
-        frame = ground.frame
-    else:
-        raise ValueError(f"the stars' turn needs the place's seat, and it has no ground: {turn}")
-    return orbits.stars_turn(float(turn["minute"]), frame)
-
-
 def write_beams(stage, place, entries):
     """Columns of light standing up into the sky (the camp mast's beam): each an open round wall `radius` metres
     across from `low` to `high` metres along its `way` from its `foot`, in its colour times its `glow`, lit by nothing,
@@ -1123,15 +985,14 @@ def turn_up_onto(way):
 
 
 def write_sky(stage, place, environment, out, ground=None):
-    """What the game hangs in the place's air and sky that the camera sees: the stars (environment `stars`), the
-    haze (environment `haze`: a body of fog, or with shape `ring` the Earth site's haze ring), the wind's dust
-    (environment `dust`) and columns of light (environment `beams`), under /<place>/Sky."""
+    """What the game hangs in the place's air that the camera sees: the haze (environment `haze`: a body of fog, or
+    with shape `ring` the Earth site's haze ring), the wind's dust (environment `dust`) and columns of light
+    (environment `beams`), under /<place>/Sky. The sky itself (its suns, worlds and stars) is the environment
+    concept's physics, which the light layer writes (score/stages/light/sky.py)."""
     environment = environment or {}
-    if not (environment.get("stars") or environment.get("haze") or environment.get("dust") or environment.get("beams")):
+    if not (environment.get("haze") or environment.get("dust") or environment.get("beams")):
         return
     UsdGeom.Scope.Define(stage, f"/{place}/Sky")
-    if environment.get("stars"):
-        write_stars(stage, place, environment["stars"], ground)
     write_beams(stage, place, environment.get("beams", []))
     if environment.get("dust"):
         write_dust(stage, place, environment["dust"], ground)
@@ -1155,17 +1016,16 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
     write_objects(stage, place, scene.get("objects", []), out, world)
     write_rocks(stage, place, scene.get("planned_rocks"), out, world, ground)
     write_places(stage, place, scene.get("places", []))
-    write_moon(stage, place, scene.get("moon"), out)
     lights = (kit_lights(kit, pieces) if kit is not None and scene.get("kit_lights", True) else []) + \
         scene.get("lights", [])
     write_lights(stage, place, lights)
     write_environment(stage, place, scene.get("environment"))
     write_sky(stage, place, scene.get("environment"), out, ground)
-    if (scene.get("environment") or {}).get("sky_dome"):
+    # the day dome is scattered from the record's sun; with none (its sky is the physics') the light layer writes it
+    if (scene.get("environment") or {}).get("sky_dome") and any(entry["type"] == "sun" and not entry.get("name")
+                                                                for entry in scene.get("lights", [])):
         UsdGeom.Scope.Define(stage, f"/{place}/Sky")
         write_sky_dome(stage, place, scene["environment"]["sky_dome"], scene.get("lights", []), out)
     if any(entry.get("shaft") for entry in lights):
         UsdGeom.Scope.Define(stage, f"/{place}/Shafts")
         write_shafts(stage, place, lights)
-    shaders.sun_discs(stage, place, scene.get("lights", []), lambda path, centre, radius: sun_ball(stage, place, path,
-                                                                                                 centre, radius))

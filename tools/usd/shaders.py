@@ -12,22 +12,13 @@ UsdPreviewSurface over a picture the framework bakes, so every USD reader (Blend
 A built mesh painted with one of these surfaces (scene.bind_surface) is bound to /<place>/Looks/<surface> in place of
 the library's flat /<place>/Library/<surface>, and still says its library surface in `score:surface`. Without the
 stage's folder (a stage only in memory) the library's flat surface is bound instead.
-
-The sun's disc in the sky is drawn here too (sun_discs): a ball along each of the record's unnamed sun lights (the
-sky's sun; the earthshine and the moonlight are named), as wide as the game draws it, in the library's `sun_disc`.
 """
-import math
 import pathlib
 
-import numpy as np
 from pxr import Sdf, UsdShade
 
 import earth
 
-# How far out the sun's disc hangs: inside the views' reach (2000 m) and in front of the stars (1900 m, scene.py).
-SUN_DISC_DISTANCE = 1880.0
-# How wide the sun looks from the ground, in degrees (the game's sky.gd SUN_ACROSS_ON_THE_GROUND_DEGREES).
-SUN_ACROSS_DEGREES = 1.51
 EARTH_PICTURE = "earth_surface.png"
 EARTH_WIDTH = 4096
 
@@ -145,20 +136,3 @@ def tile_channel(shader, texture, role):
         shader.CreateInput("normal", Sdf.ValueTypeNames.Normal3f).ConnectToSource(
             texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
 
-
-def sun_discs(stage, place, lights, sphere_prim):
-    """A ball in the sky along each unnamed sun light (the sky's sun), as wide as the game draws it; how many.
-    `sphere_prim(path, centre, radius)` builds and paints the ball (scene.py's builders)."""
-    count = 0
-    for entry in lights:
-        if entry.get("type") != "sun" or entry.get("name") or float(entry.get("energy", 0.0)) <= 0.0:
-            continue
-        toward = np.asarray(entry["toward"], dtype=np.float64)
-        centre = -toward / np.linalg.norm(toward) * SUN_DISC_DISTANCE
-        radius = SUN_DISC_DISTANCE * math.sin(math.radians(SUN_ACROSS_DEGREES) / 2.0)
-        prim = sphere_prim(f"/{place}/Sky/sun_disc_{count}", centre, radius)
-        prim.GetPrim().CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(
-            "the game 2099's game/world/sky/sky.gd:33-38,462,512 (the sun's disc hung along the light, "
-            f"{SUN_ACROSS_DEGREES} degrees across from the ground), its light's own way: {entry.get('from', '')}")
-        count += 1
-    return count

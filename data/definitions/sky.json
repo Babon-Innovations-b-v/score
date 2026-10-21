@@ -1,5 +1,5 @@
 {
- "about": "Each world body's sky and indoor air, as the scene-record stage writes them into a place's record (score/stages/scene_record): what a room's air holds and how the camera is exposed. Unverified seed numbers: these are the values every Moon room's old record held (the game's sky and fill), kept here once instead of in each record until the light stage's sweep against each place's concept sets them.",
+ "about": "Each world body's air and indoor air, as the scene-record stage writes them into a place's record (score/stages/scene_record): what a room's air holds, how the camera is exposed, the haze, dust and day dome of a body's air, its lamp rows, harbour and kit glow. Its sky is not here: the suns, the worlds overhead and the stars are the environment concept's physics, worked out at each scene's site at its scene time and written by the light layer (score/stages/light/sky.py; the owner, 2026-10-21: no fixed sky). Unverified seed numbers: these are the values every Moon room's old record held, kept here once instead of in each record until the light stage's sweep against each place's concept sets them.",
  "moon": {
   "indoor": {
    "background": "#030409",
@@ -10,64 +10,7 @@
    "from": "seed: the indoor environment, haze and room fill every Moon room's old scene record held alike (airlock, garage, greenhouse, habitat, lab, workshop, hangar, hub), not yet measured against a concept"
   },
   "outdoor": {
-   "about": "Ways (`toward`, `way`, a body's turned `axes` as rows) are in the body's own frame (the ball's middle, as the terrain stage's grounds are laid), so one sky stands over every place on the body; the writer turns it into each place's frame through its seat.",
-   "suns": [
-    {
-     "name": "sun",
-     "toward": [
-      -0.87681,
-      0.14956,
-      0.45699
-     ],
-     "colour": "#fff5e6",
-     "energy": 1.25,
-     "shadows": true,
-     "from": "seed: the Sun's way the wreck's and the old station's old records set by eye to their shots' shadows (8.1 degrees apart), their middle, in the Moon's own frame; energy in full sun"
-    },
-    {
-     "name": "earthshine",
-     "toward": [
-      0.34657,
-      -0.12184,
-      0.93008
-     ],
-     "colour": "#9fb8e6",
-     "energy": 0.1,
-     "shadows": false,
-     "from": "seed: the earthshine both old outdoor Moon records held, from the Earth's way"
-    }
-   ],
-   "bodies": [
-    {
-     "name": "earth",
-     "way": [
-      -0.34657,
-      0.12184,
-      -0.93008
-     ],
-     "distance": 1100.0,
-     "radius": 220.0,
-     "surface": "earth_face",
-     "axes": [
-      [
-       0.909612,
-       -0.407843,
-       0.079184
-      ],
-      [
-       0.411359,
-       0.910836,
-       -0.034085
-      ],
-      [
-       -0.058222,
-       0.063577,
-       0.996277
-      ]
-     ],
-     "from": "seed: the Earth both old outdoor Moon records hung 1100 m out (radius 220 m, about 23 degrees across; their ways 0.03 degrees apart), turned as photographs of the Earth from the Moon show it: its equator square to the way from the place, north up"
-    }
-   ],
+   "about": "A body's outdoor air over every place on it, in the body's own frame (the ball's middle, as the terrain stage's grounds are laid), turned into each place's frame through its seat.",
    "environment": {
     "background": "#030409",
     "ambient": {
@@ -75,46 +18,13 @@
      "energy": 0.22
     },
     "exposure": 1.05,
-    "from": "seed: the old outdoor records' numbers, not yet measured against a concept",
-    "stars": {
-     "count": 1800,
-     "seed": 9,
-     "sky_distance": 700.0,
-     "distance": 1900.0,
-     "radius": 0.7,
-     "size": [
-      0.4,
-      1.3
-     ],
-     "colour": "#eef2ff",
-     "turn": {
-      "minute": 700.75,
-      "axes": "seat",
-      "from": "seed: the base minute the wreck's old record measured its stars at (one moment for the whole Moon)"
-     },
-     "from": "seed: the star field the old outdoor Moon records hung at 1900 m"
-    }
+    "from": "seed: the old outdoor records' numbers, not yet measured against a concept"
    }
   }
  },
  "mars": {
   "outdoor": {
-   "about": "Ways (`toward`, `way`, a body's turned `axes` as rows) are in the body's own frame (the ball's middle, as the terrain stage's grounds are laid), so one sky stands over every place on the body; the writer turns it into each place's frame through its seat.",
-   "suns": [
-    {
-     "name": "sun",
-     "toward": [
-      -0.97649,
-      0.0,
-      0.21559
-     ],
-     "colour": "#fff5e6",
-     "energy": 1.25,
-     "shadows": true,
-     "from": "seed: the Sun's way the camp's and the camp grounds' old records held (the afternoon Sun about 50 degrees up over the camp and going down), in Mars's own frame"
-    }
-   ],
-   "bodies": [],
+   "about": "A body's outdoor air over every place on it, in the body's own frame (the ball's middle, as the terrain stage's grounds are laid), turned into each place's frame through its seat.",
    "environment": {
     "background": "#030409",
     "ambient": {
@@ -136,19 +46,6 @@
      "forward": 0.5,
      "reach": 160.0,
      "from": "seed: Mars's air the old Mars records held, a body of fog round the ball 70 m deep"
-    },
-    "stars": {
-     "count": 1800,
-     "seed": 9,
-     "sky_distance": 700.0,
-     "distance": 1900.0,
-     "radius": 0.7,
-     "size": [
-      0.4,
-      1.3
-     ],
-     "colour": "#eef2ff",
-     "from": "seed: the star field the old Mars records hung at 1900 m, turned with the place's own axes"
     },
     "dust": {
      "count": 30000,
@@ -188,11 +85,8 @@
    "ambient": {"colour": "#9fb8e6", "energy": 0.05},
    "exposure": 0.85,
    "haze": {"shape": "ring", "radius": 297.0, "tall": 150.0, "centre": [0.0, 0.0], "segments": 96, "faint": 0.15, "thicken_from": 50.0, "thickest_at": 84.0, "thickest": 0.35, "gone_by": 150.0, "ground_haze": 0.97, "ground_height": 24.0, "gap": [302.0, 58.0], "gap_edge": 4.0, "horizon": "#03335f", "zenith": "#020c22", "deepest_at": 0.7, "deepening": 0.55, "eye": 1.7},
-   "stars": {"count": 1800, "seed": 9, "sky_distance": 700.0, "distance": 1900.0, "radius": 0.7, "size": [0.4, 1.3], "colour": "#eef2ff", "turn": {"minute": 60.25, "axes": "site"}},
-   "from": "seed: the night sky, ambient, exposure, haze ring and stars the street's and the flat's old records held"
+   "from": "seed: the night sky, ambient, exposure and haze ring the street's and the flat's old records held"
   },
-  "moonlight": {"type": "sun", "name": "moonlight", "toward": [0.90042, -0.39071, 0.1913], "colour": "#e6ebf2", "energy": 0.08, "shadows": true, "from": "seed: the full Moon's light every Earth place's old record held"},
-  "moon": {"way": [-0.90042, 0.39071, -0.1913], "eye": [-4.0, 9.0, -3.5], "across": 4.4, "colour": "#e6ebf2", "brightness": 1.2, "seas": 0.4, "halo": 0.35, "halo_fall": 0.09, "lit": 1.0, "distance": 1800.0, "from": "seed: the Moon over the rocket as the old records held it, seen from the flat's balcony (its eye)"},
   "kit_glow": {"strength": 0.9, "ramp": 0.15, "from": "seed: how the night lights a kit's glowing kinds, as the outdoor places' old records held it"},
   "harbour": {"low": [-320.0, -320.0], "high": [-110.0, 320.0], "step": 10.0, "mirror": {"along": 0.65, "down": 0.2, "ripple_tip": 0.03, "ripple_size": 0.2, "lit": [{"name": "rocket", "at": [-270.0, -60.0], "low": 0.0, "high": 60.0, "half_width": 9.48, "colour": "#f3f1ea", "strength": 1.6}], "column_smear": 0.35, "column_soft": 0.6}, "from": "seed: the harbour's reach from the quay (x -110) out to the old far disc's 320 m, and how its water mirrors the lit rocket, as the old records held it"},
   "lamps": {

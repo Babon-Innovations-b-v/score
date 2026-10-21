@@ -38,6 +38,13 @@ def test_the_suns_light_stands_where_it_does_over_greenwich_at_the_equinox_at_it
     assert sun["lux"] == pytest.approx(128000, rel=0.02)  # March: Earth near its mean distance
 
 
+def test_the_suns_disc_is_widest_in_january_and_narrowest_in_july():
+    sun = [overhead.from_body(BODIES, "earth", 0.0, 0.0, when)["lights"][0]["across"]
+           for when in ("2024-01-03T00:00:00Z", "2024-07-05T00:00:00Z")]
+    # the Sun's apparent diameter at perihelion and aphelion: 32.53 and 31.46 arc minutes
+    assert sun[0] == pytest.approx(32.53 / 60, abs=0.005) and sun[1] == pytest.approx(31.46 / 60, abs=0.005)
+
+
 def test_earth_hangs_still_about_two_degrees_across_over_a_near_side_moon_site_and_its_phase_turns():
     seen = [at(overhead.from_body(BODIES, "moon", 55.0, 0.0, f"2099-06-{day:02d}T12:00:00Z"), "earth")
             for day in (1, 8, 15)]
