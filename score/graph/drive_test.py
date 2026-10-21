@@ -1209,9 +1209,10 @@ def make_failing(inputs, out, seed, params):
     raise RuntimeError("names failed")
 
 
-def test_once_a_line_stops_nothing_later_on_it_starts():
-    """Fault (2026-10-12): the people line stopped at people-names, then still started people-segvigen, which reads
-    people-maps, not people-names. A node already running when the line stops may finish."""
+def test_a_node_running_when_its_line_stops_finishes_and_one_reading_it_still_runs():
+    """A node already running when a node of its line stops may finish, and a later node that reads only it, not the
+    stopped node, still runs (a stopped node stops only the nodes that read it; 2026-10-21, it was every later node of
+    the line since the people-names fault of 2026-10-12)."""
     data, world = a_world_of(["hangar"])
     slow = graph.Stage("slow", "place", made_slowly(data), TEXT, MET)
     names = graph.Stage("names", "place", make_failing, TEXT, MET)
@@ -1221,7 +1222,7 @@ def test_once_a_line_stops_nothing_later_on_it_starts():
     found = runner.drive(["hangar"], say=quiet)
     assert found["names@hangar"].startswith("error: RuntimeError: names failed"), found
     assert found["slow@hangar"] == "made: pass, accepted automatically", found
-    assert found["after-slow@hangar"] == "not run: its line stopped at names@hangar", found
+    assert found["after-slow@hangar"] == "made: pass, accepted automatically", found
 
 
 def make_count_of_slow(inputs, out, seed, params):
