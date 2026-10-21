@@ -30,19 +30,22 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   proportions (the rig sizes the body). **The line holds the looks the picked designs map** (`data/people/rows.json`,
   `../people_rows.py`, #26): each look's size and bake entry the metres of the person row that maps it, written by
   `python -m score.stages.people_rows`; a person no line look fits is a named new look there until it has a spec and
-  a take row. **Accepted gaps today:** a hair finish fails the paint's colour
-  gate by name (the old people-paint left hair out, `hair.py`, deleted with it); `people-take-<look>` still makes
-  each look's close-up and its Pixal3D take before the loop (its pose and limbs-apart retries).
-- **A body is the maker's** (`tools/characters/maker/prop_person.py` build, settle, checks; its parts its own priced
+  a take row. **Each line row is drawn from the person that maps it** (`people_rows.drawn_from`, #26): its view the
+  mapping place's kept concept, its box SAM 3's in that concept's reading (`grounded`), the line's inventory
+  approved by those picks (the creator's pick, which the Pixal3D batch takes), and no close-up named, so
+  `closeup@people` draws it (Pro, `stage.PERSON`) and `pixal@people` makes its take (`<look>-s1`): the whole line,
+  bodies included, is one `score run`, with no take row first. **Accepted gaps today:** a hair finish fails the
+  paint's colour gate by name (the old people-paint left hair out, `hair.py`, deleted with it).
+- **A body is the maker's** (`tools/characters/maker/prop_person.py` build, route, checks; its parts its own priced
   row, `people-look-parts-<look>`, #21), worked in its candidate folder and copied into the row's output
   (`../people_bodies/bodies.py`). The body rows live in a package of their own, `people_bodies` (with clips.py and far.py): this package imports the
   surface stage, so here a surface edit re-keyed every body (2026-10-13). The maker's and people tools' folders are
   declared files: they run by path, so a code change there re-makes the bodies.
 - **Gates measure, unknown blocks**: joins, tucks (5 mm), cloth through cloth (the shipped body's count per clip),
   rigid (1.2x), body through cloth (per part, no clip frame deeper than 3 mm more often than the bind: the 3 mm is
-  the settle's cloth thickness, `bodycloth.MARGIN_MM`), outline (outline.py) and likeness (the props' gate on the
-  body, `score/stages/props/likeness.py`), triangles. Never loosen one to pass; fix the method (the clips' clearance,
-  the settle) and measure again.
+  the cloth's thickness, `bodycloth.MARGIN_MM`), outline (outline.py) and likeness (the props' gate on the
+  body, `score/stages/props/likeness.py`), triangles (the route's body as drawn). Never loosen one to pass; fix the
+  method (the clips' clearance, the route) and measure again.
 - **The dress is the loop's library surfaces, nothing else** (`dress.py`): colour, roughness and metalness from the
   library surface the loop's bake painted; the face print keeps its picture. Tests: `people_test.py`.
 - **The concept decides the clothes** (owner, 2026-10-13): a place `data/people/colours.json` names wears its

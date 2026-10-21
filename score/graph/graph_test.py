@@ -492,6 +492,22 @@ SHOW = graph.Stage("show", "place", make_show, TEXT, (checks.Check("counted", ju
                    neighbours=lambda place: [other for other in PLACES if other != place])
 
 
+GATHER = graph.Stage("gather", "world", make_show, TEXT, (checks.Check("counted", judge_count),),
+                     beside={"clean": ("toy-text", 1)}, neighbours=lambda place: ["hangar"])
+
+
+def test_an_environment_stage_named_with_a_place_runs_with_the_place_it_reads_beside():
+    """#26: the people's bodies are environment rows reading the people line beside; `--place people --stage <body>`
+    keeps the line and the named environment row in one run, where before the environment row was left out (no place
+    node reads it)."""
+    world, store, _ = ready_world()
+    runner = a_runner(world, store, (CLEAN, COUNT, GATHER))
+    assert {graph.node_name(*node) for node in runner.line_nodes(["hangar"], whole=False, only=["gather"])} == {
+        "clean@hangar", "gather"}
+    assert {graph.node_name(*node) for node in runner.line_nodes(["hangar"], whole=False, only=["count"])} == {
+        "clean@hangar", "count@hangar"}, "an environment stage not named stays out"
+
+
 def test_a_stage_reads_other_places_beside_without_a_cycle():
     """Fault (2026-10-12): a place's references to the places it shows pointed at old seed files, so its views looked
     onto empty space. Each place reads the other's accepted output beside its own, versioned and waited on."""
