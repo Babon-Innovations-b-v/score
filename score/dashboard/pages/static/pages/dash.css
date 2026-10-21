@@ -500,15 +500,18 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .concept-boxes { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
 .concept-box { position: absolute; border: 2px solid var(--accent); border-radius: 2px; pointer-events: auto; }
 .concept-box b { position: absolute; top: 0; left: 0; padding: 0 4px; font-size: var(--fs-xs); background: var(--accent); color: var(--accent-ink); }
-.concept-box.unnamed { border-style: dashed; border-color: var(--review); }
-.concept-box.unnamed b { background: var(--review); color: var(--bg); }
-.concept-box.lit { border-width: 3px; border-color: var(--done); z-index: 1; }
+.concept-box.skipped { display: none; border: 1px dashed var(--faint); opacity: 0.7; }
+.concept-boxes.skipped-shown .concept-box.skipped { display: block; }
+.concept-box.lit, .concept-box.held { border-width: 3px; border-color: var(--done); z-index: 1; }
+.concept-box.skipped.lit { border-style: dashed; border-color: var(--review); opacity: 1; }
 .concept-reading .concept-rows { max-height: 320px; padding-left: 30px; }
 .draw-busy[hidden] { display: none; }
-.concept-boxes.quiet .concept-box:not(.lit) { display: none; }
-#concept-boxes-quiet { padding: 1px 8px; font-size: var(--fs-xs); }
-#concept-boxes-quiet[aria-pressed="true"] { border-color: var(--done); }
-.concept-rows li.lit, .concept-gaps li.lit { color: var(--done); }
+.concept-boxes.quiet .concept-box:not(.lit):not(.held) { display: none; }
+#concept-boxes-quiet, #concept-skipped-shown { padding: 1px 8px; font-size: var(--fs-xs); }
+#concept-boxes-quiet[aria-pressed="true"], #concept-skipped-shown[aria-pressed="true"] { border-color: var(--done); }
+.concept-rows li.lit, .concept-gaps li.lit, .concept-rows li.held, .concept-gaps li.held { color: var(--done); }
+.concept-gaps li { cursor: pointer; }
+.concept-skipped-note { cursor: help; }
 .concept-gaps { list-style: none; margin: 4px 0 0; padding: 0; max-height: 200px; overflow-y: auto; font-size: var(--fs-sm); }
 .concept-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .concept-notes li { display: flex; gap: 6px; align-items: center; }

@@ -9,20 +9,30 @@ reading's cost is recorded and its running total shown in the cockpit). Its plan
    in words, where it stands, children on their parent) in the inventory's row schema
    (tools/props/scene/inventory.py: `size` the metres, `size_words` the words), one direct call on the Google ledger.
    A row whose metres are not three lengths has no size, a gap of its place (`gaps`); SAM 3 gives where, never size.
-2. SAM 3 finds each row's noun in the concept (tools/props/scene/box_masks.py on one rented card through
-   tools/props/cloud/box_masks_cloud.py, every place of one reading run on the same card), each instance's pixel box
-   kept on its row, and asks PROBES, generic words, for what no row names. Where the two disagree it is a gap on the
-   place (`gaps`), never guessed past: a row SAM 3 finds none of, a count SAM 3 finds another number of, a thing
-   found that no row's instances cover.
+2. SAM 3 finds each row in the concept by its own words first, then its noun (tools/props/scene/box_masks.py on one
+   rented card through tools/props/cloud/box_masks_cloud.py, every place of one reading run on the same card), each
+   instance's pixel box kept on its row, and asks PROBES, generic words, for what no row names.
+3. Their agreement is the confidence cut-off (`agreed`, the owner, 2026-10-21): an object is a row only where Gemini
+   named it and SAM 3 found it, its count the instances SAM 3 found of it; a row SAM 3 found none of and a find no
+   row names are `skipped`, kept in the record with why and shown muted on the concept page, never a row, a gap, nor
+   read by prepare or the plan. The place's structure and ground (`structural`: STRUCTURE's walls, floors, shells,
+   modules, tubes, terrain, sky, and a row holding an inside place) is no object detection and stays as read.
+   Duplicates go first: one thing found twice is one box, two rows of one thing whose boxes overlap are one row
+   (`merged_rows`), a box two rows hold goes to the one it fits best (`unshared`). The gaps left are a kept row whose
+   size or anchor was not read.
 
 A run is cleared by compute.reading_clearance (the owner's standing allowance, or a benchmark grant when
 SCORE_BENCHMARK_GRANT names one) and each place's reading kept in the store, written once:
 
-    inventory-readings/<place>/<time>.json  {place, concept, above, at, by, size [w, h], inventory {scene, place,
-                                             concept_pick {sha256}, rows}, gaps [{kind, row, words, ...}],
-                                             euros {rows, boxes, total}, seconds {rows, boxes, card}, clearance}
+    inventory-readings/<place>/<time>.json  {place, concept, above, at, by, size [w, h], answered (Gemini's rows),
+                                             inventory {scene, place, concept_pick {sha256}, rows}, gaps [{kind,
+                                             row, words}], skipped [{name, row, why, box}], merged [{name, row,
+                                             into}], from (the earlier reading of the same pick whose answered rows
+                                             it was read again from, SAM 3 only), euros {rows, boxes, total},
+                                             seconds {rows, boxes, card}, clearance}
 
-A place whose picked draw has a reading already is not read again (`to_read`). A place whose rows answer is off the
+A place whose picked draw has a reading by today's METHOD is not read again (`to_read`); one read by an older method
+is read again from its own rows, no Gemini call (`earlier_rows`). A place whose rows answer is off the
 row schema is kept with `refused` (why) and its call's euros, no SAM 3 asked for it, and is read again next time.
 
     python -m score.review.reading <place> [<place> ...] [--by <name>]
@@ -63,8 +73,17 @@ MARGIN = 0.05
 # The reading's method: a reading made by another counts for nothing and is read again (2: rows with regions, SAM 3
 # asked once a noun and its instances given to the row whose region holds them; 3: terrain features are rows, tagged
 # `terrain`, and letters drawn onto the picture are none: owner, 2026-10-21; 4: each row's size in metres, against
-# the place's outline: #10, 2026-10-21).
-METHOD = 4
+# the place's outline: #10, 2026-10-21; 5: only what both readers agree on is a row, duplicates merged, the rest
+# skipped: owner, 2026-10-21).
+METHOD = 5
+# A row whose noun names one of these is the place's structure or ground, kept as read whatever SAM 3 finds.
+STRUCTURE = {"wall", "walls", "floor", "floors", "ceiling", "ceilings", "roof", "roofs", "shell", "hull", "tube",
+             "tubes", "tunnel", "tunnels", "ground", "terrain", "sea", "ocean", "sky", "skyline", "deck", "plaza",
+             "dome", "building", "buildings", "module", "modules", "facade", "opening", "openings", "doorway",
+             "doorways", "window", "windows", "plate", "plates", "ribs", "beam", "beams", "pillars", "landscape",
+             "surface", "ramp", "ramps", "pad", "grate", "grates", "hatch"}
+ONLY_GEMINI = "only Gemini named it"
+ONLY_SAM = "only the outline finder found it"
 ASKED = """You are reading a concept painting of one place of a game environment into its scene inventory: the hard
 list of exactly what the picture shows, every object one row. {within}
 
@@ -240,12 +259,16 @@ def keep_of(rows, noun):
 
 
 def sam_job(place, picture, rows, size):
-    """box_masks.py's job for one concept: each noun the rows name once (`<place>.=<noun>`) and each probe
-    (`<place>.~<word>`), over the whole picture."""
+    """box_masks.py's job for one concept: each row's own words where they are more than its noun
+    (`<place>.#<id>`), each noun the rows name once (`<place>.=<noun>`) and each probe (`<place>.~<word>`), over the
+    whole picture."""
     whole = [0, 0, size[0], size[1]]
     return {"picture": str(picture),
-            "rows": [{"key": f"{place}.={noun}", "nouns": [noun], "box": whole, "keep": keep_of(rows, noun)}
-                     for noun in sorted({row["noun"] for row in rows})]
+            "rows": [{"key": f"{place}.#{row['id']}", "nouns": [row["name"]], "box": whole,
+                      "keep": min(KEEP_MOST, max(5, 2 * row["count"]))}
+                     for row in rows if row["name"].strip().lower() != row["noun"].strip().lower()]
+            + [{"key": f"{place}.={noun}", "nouns": [noun], "box": whole, "keep": keep_of(rows, noun)}
+               for noun in sorted({row["noun"] for row in rows})]
             + [{"key": f"{place}.~{word}", "nouns": [word], "box": whole, "keep": PROBE_KEEP} for word in PROBES]}
 
 
@@ -268,11 +291,11 @@ def distinct(boxes):
     return kept
 
 
-def pixels(region, size):
-    """A 0 to 1000 [ymin, xmin, ymax, xmax] region as a pixel box [left, top, right, bottom], widened by MARGIN."""
+def pixels(region, size, margin=MARGIN):
+    """A 0 to 1000 [ymin, xmin, ymax, xmax] region as a pixel box [left, top, right, bottom], widened by `margin`."""
     wide, tall = size
-    return [(region[1] / 1000 - MARGIN) * wide, (region[0] / 1000 - MARGIN) * tall,
-            (region[3] / 1000 + MARGIN) * wide, (region[2] / 1000 + MARGIN) * tall]
+    return [(region[1] / 1000 - margin) * wide, (region[0] / 1000 - margin) * tall,
+            (region[3] / 1000 + margin) * wide, (region[2] / 1000 + margin) * tall]
 
 
 def holder_of(box, rows, size):
@@ -288,14 +311,19 @@ def holder_of(box, rows, size):
 
 
 def boxed_rows(place, rows, measured, size):
-    """(the rows with the pixel boxes of SAM 3's instances of their noun given to them (`boxes`, surest first, one
-    thing once; the surest as `box`), [{noun, box}] of the instances no row of their noun holds)."""
+    """(the rows with the pixel boxes of SAM 3's instances given to them (`boxes`, surest first, one thing once; the
+    surest as `box`): those of the row's own words in its region when there are any, else those of its noun;
+    [{noun, box}] of a noun's instances no row of it holds)."""
     given, loose = {row["id"]: [] for row in rows}, []
     for noun in sorted({row["noun"] for row in rows}):
         naming = [row for row in rows if row["noun"] == noun]
         for box in distinct([item["box"] for item in measured.get(f"{place}.={noun}", [])]):
             holder = holder_of(box, naming, size)
             (given[holder["id"]] if holder else loose).append(box if holder else {"noun": noun, "box": box})
+    for row in rows:
+        own = distinct([item["box"] for item in measured.get(f"{place}.#{row['id']}", [])
+                        if holder_of(item["box"], [row], size)])
+        given[row["id"]] = own or given[row["id"]]
     return [{**{key: value for key, value in row.items() if key != "metres"}, "view": "v1",
              "box": (given[row["id"]] or [None])[0], "boxes": given[row["id"]], "size": metres_of(row.get("metres")),
              "size_words": row["size"], "thing": ""} for row in rows], loose
@@ -312,24 +340,116 @@ def unnamed(place, rows, measured, size):
     return [{"word": next(word for word, box in loose if box is kept_box), "box": kept_box} for kept_box in kept]
 
 
-def gaps(rows, things, loose=()):
-    """Where Gemini's rows and SAM 3's instances disagree, a gap each (CONTEXT.md "gap"), never guessed past: an
-    anchor, region or size not read, a row none of whose noun is found in its region, a count found otherwise, an
-    instance of a row's noun where no row of it stands, a thing found that no row names."""
-    found = [{"kind": name, "row": row["id"], "words": f"its {name} not read"}
-             for row in rows for name in ("anchor", "region", "size") if not row[name]]
+def same(first, second):
+    """Whether two boxes are one thing (they share SAME of their union)."""
+    return shared(first, second) >= SAME * (area(first) + area(second) - shared(first, second))
+
+
+def structural(row):
+    """Whether a row is the place's structure or ground (STRUCTURE, terrain, the sky, a row that holds an inside
+    place: `holds_place`): no object detection."""
+    return (row["terrain"] or row["anchor"] == "sky" or row.get("holds_place", False)
+            or bool(STRUCTURE & set(row["noun"].lower().split())))
+
+
+def holding(store, place):
+    """The ids of the place's inventory rows that hold one of its inside places (the greenhouse's dome on the
+    base's): the holds of its newest plan writing from its pick, and concepts.holding_row of each inside place."""
+    from score.review import plan_writing
+    sha = concepts.picked(store, place)
+    written = next((found for found in reversed(plan_writing.writings(store, place))
+                    if found.get("concept") == sha and not found.get("refused")), {})
+    rows = {hold.get("row") for hold in written.get("plan", {}).get("holds", [])}
+    return (rows | {concepts.holding_row(store, inside) for inside in concepts.inside_of(place, store)}) - {None}
+
+
+def head(row):
+    """A row's head noun (its noun's last word, singular): "storage cabinets" and "cabinet" both "cabinet"."""
+    return row["noun"].lower().split()[-1].removesuffix("s")
+
+
+def fit(box, row, size):
+    """How well a box fits a row: the share of it inside the row's region (unwidened), 0 without one."""
+    region = row["region"] and pixels(row["region"], size, 0)
+    return shared(box, region) / max(area(box), 1) if region else 0.0
+
+
+def overlapping(first, second, size):
+    """Whether two rows are one thing in the picture: a box of each the same, or their regions the same."""
+    return (any(same(one, other) for one in first["boxes"] for other in second["boxes"])
+            or bool(first["region"] and second["region"]
+                    and same(pixels(first["region"], size, 0), pixels(second["region"], size, 0))))
+
+
+def merged_rows(rows, size):
+    """(the rows, each one's boxes distinct, with every later object row of an earlier one's head noun whose boxes
+    or region overlap it merged into it, its boxes added; [{name, row, into}] of those merged)."""
+    kept, merged = [], []
     for row in rows:
-        seen, keep = len(row["boxes"]), keep_of(rows, row["noun"])
-        if not seen:
-            found.append({"kind": "not found", "row": row["id"], "words": f"no {row['noun']} found"})
-        elif seen != row["count"]:
-            more = "at least " if seen >= keep else ""
-            found.append({"kind": "count", "row": row["id"], "rows_count": row["count"], "found": seen,
-                          "words": f"{row['count']} read, {more}{seen} found"})
-    return found + [{"kind": "outside", "row": None, "box": item["box"],
-                     "words": f"a {item['noun']} found where no row of it stands"} for item in loose] + [
-        {"kind": "unnamed", "row": None, "box": thing["box"], "words": f"a {thing['word']} found that no row names"}
-        for thing in things]
+        into = next((other for other in kept if not structural(row) and not structural(other)
+                     and head(other) == head(row) and overlapping(other, row, size)), None)
+        if into:
+            into["boxes"] = distinct(into["boxes"] + row["boxes"])
+            merged.append({"name": row["name"], "row": row["id"], "into": into["id"]})
+        else:
+            kept.append({**row, "boxes": distinct(row["boxes"])})
+    return kept, merged
+
+
+def unshared(rows, size):
+    """The rows with a box two object rows hold kept only by the one it fits best (`fit`, the earlier on a tie)."""
+    objects = [row for row in rows if not structural(row)]
+    claims = [(box, number) for number, row in enumerate(objects) for box in row["boxes"]]
+    best = {id(box): max((fit(other, objects[holder], size), -holder) for other, holder in claims if same(box, other))
+            for box, _ in claims}
+    for number, row in enumerate(objects):
+        row["boxes"] = [box for box in row["boxes"] if best[id(box)] == (fit(box, row, size), -number)]
+    return rows
+
+
+def reanchored(rows, gone):
+    """The rows with an anchor on a row gone (`gone`: its id to the anchor it leaves) pointed where that one went,
+    followed until it names a row that stands."""
+    for row in rows:
+        while row["anchor"] and row["anchor"].startswith("on:") and row["anchor"][3:] in gone:
+            row["anchor"] = gone[row["anchor"][3:]]
+    return rows
+
+
+def agreed(rows, loose, things, size):
+    """(the inventory's rows: the structure as read and every object row SAM 3 found, its count the instances found;
+    [{name, row, why, box}] skipped: an object row SAM 3 found none of (its region its box), a find no row names;
+    [{name, row, into}] merged), duplicates gone first (`merged_rows`, `unshared`)."""
+    rows, merged = merged_rows([dict(row) for row in rows], size)
+    rows = unshared(rows, size)
+    kept = [{**row, "count": len(row["boxes"]), "box": row["boxes"][0]} if row["boxes"] and not structural(row)
+            else row for row in rows if structural(row) or row["boxes"]]
+    skipped = [{"name": row["name"], "row": row["id"], "why": ONLY_GEMINI,
+                "box": row["region"] and [round(value, 1) for value in pixels(row["region"], size, 0)]}
+               for row in rows if not structural(row) and not row["boxes"]]
+    skipped += [{"name": item["noun"], "row": None, "why": ONLY_SAM, "box": item["box"]} for item in loose]
+    skipped += [{"name": thing["word"], "row": None, "why": ONLY_SAM, "box": thing["box"]} for thing in things]
+    anchors = {row["id"]: row["anchor"] for row in rows}
+    gone = {item["row"]: f"on:{item['into']}" for item in merged}
+    gone |= {item["row"]: anchors[item["row"]] for item in skipped if item["row"]}
+    return reanchored(kept, gone), skipped, merged
+
+
+def gaps(rows):
+    """What the inventory's kept rows still lack, a gap each (CONTEXT.md "gap"), never guessed past: a size or what
+    it stands on not read."""
+    said = {"size": "its size in metres not read", "anchor": "what it stands on not read"}
+    return [{"kind": name, "row": row["id"], "words": words} for row in rows for name, words in said.items()
+            if not row[name]]
+
+
+def settled(place, rows, measured, size, holds=()):
+    """The reading's {rows, gaps, skipped, merged} from Gemini's rows and SAM 3's instances (`agreed`); the rows of
+    `holds` (ids) marked `holds_place`."""
+    rows = [{**row, "holds_place": True} if row["id"] in holds else row for row in rows]
+    boxed, loose = boxed_rows(place, rows, measured, size)
+    kept, skipped, merged = agreed(boxed, loose, unnamed(place, boxed, measured, size), size)
+    return {"rows": kept, "gaps": gaps(kept), "skipped": skipped, "merged": merged}
 
 
 def card_estimate(jobs):
@@ -379,6 +499,30 @@ def asked_rows(store, place, folder):
     return rows, call_euros(response), seconds, concept, Image.open(concept).size
 
 
+def earlier_rows(store, place):
+    """(Gemini's rows of the newest earlier reading of the place's picked draw, as it answered them, its key), or
+    None without one: a reading by an older method is read again from its own rows, SAM 3 only (no Gemini call)."""
+    sha = concepts.picked(store, place)
+    found = next((key for key in reversed(sorted(store.objects.keys(f"{AREA}/{place}/")))
+                  if (record := store.read(key))["concept"] == sha and not record.get("refused")), None)
+    if not found:
+        return None
+    record = store.read(found)
+    if "answered" in record:
+        return record["answered"], found
+    dropped = ("view", "box", "boxes", "thing", "size", "size_words")  # METHOD 4 kept every row it was answered
+    return [{**{name: value for name, value in row.items() if name not in dropped}, "size": row["size_words"],
+             "metres": row["size"]} for row in record["inventory"]["rows"]], found
+
+
+def asked_again(store, place, folder):
+    """Step 1 for a place read before: asked_rows' answer from its earlier reading's rows, nothing paid; and its key."""
+    from PIL import Image
+    rows, key = earlier_rows(store, place)
+    concept = picture_path(store, concepts.picked(store, place), folder)
+    return (rows, 0.0, 0.0, concept, Image.open(concept).size), key
+
+
 def read(store, places, by, **steps):
     """read_now holding each place's lock (taken in order, across processes), so a second run of the same place (a
     second pick, the backfill) waits for the first and then finds it read: nothing is paid twice."""
@@ -402,13 +546,16 @@ def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of):
         return []
     folder = store.cache / AREA / stamp_key(concepts.now())
     folder.mkdir(parents=True, exist_ok=True)
-    estimate = compute.READING_GEMINI_EUROS * len(places) + (card_estimate([None] * len(places))[0]
-                                                             if boxes is boxes_of else 0.0)
+    again = {place: asked_again(store, place, folder) for place in places if earlier_rows(store, place)}
+    new = [place for place in places if place not in again]
+    estimate = compute.READING_GEMINI_EUROS * len(new) + (card_estimate([None] * len(places))[0]
+                                                          if boxes is boxes_of else 0.0)
     ticket = (clear or compute.reading_clearance)(store, places, round(estimate, 4))
     with compute.spending(ticket):
         compute.require_cleared("a scene inventory reading", store)
-        with concurrent.futures.ThreadPoolExecutor(len(places)) as pool:  # the asks side by side, each its own call
-            asked_places = dict(zip(places, pool.map(lambda place: ask(store, place, folder), places)))
+        with concurrent.futures.ThreadPoolExecutor(max(1, len(new))) as pool:  # the asks side by side, each its own
+            asked_places = dict(zip(new, pool.map(lambda place: ask(store, place, folder), new)))
+        asked_places |= {place: answer for place, (answer, _) in again.items()}
         refused = {place: answer for place, answer in asked_places.items() if isinstance(answer[0], str)}
         for place, (why, euros, seconds, _, _) in refused.items():
             kept(store, {"place": place, "concept": concepts.picked(store, place), "at": concepts.now(), "by": by,
@@ -422,15 +569,17 @@ def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of):
     working, card = card_seconds(entry)
     found = []
     for place, (rows, euros, seconds, _, size) in asked_places.items():
-        boxed, loose = boxed_rows(place, rows, measured, size)
+        agreement = settled(place, rows, measured, size, holding(store, place))
         share = round(entry["euros"] / len(asked_places), 6)
         record = {"place": place, "concept": concepts.picked(store, place), "at": concepts.now(), "by": by,
+                  **({"from": again[place][1]} if place in again else {}), "answered": rows,
                   "above": (holder := concepts.above(place, store)) and concepts.picked(store, holder),
                   "size": list(size),
                   "inventory": {"scene": place, "place": place, "concept_pick": {"sha256": concepts.picked(store, place)},
                                 "plan": {"views": [{"id": "v1", "picture": f"blobs/{concepts.picked(store, place)}"}]},
-                                "rows": boxed},
-                  "gaps": gaps(boxed, unnamed(place, boxed, measured, size), loose), "method": METHOD,
+                                "rows": agreement["rows"]},
+                  "gaps": agreement["gaps"], "skipped": agreement["skipped"], "merged": agreement["merged"],
+                  "method": METHOD,
                   "euros": {"rows": euros, "boxes": share, "total": round(euros + share, 6)},
                   "seconds": {"rows": seconds, "boxes": round(working / len(asked_places), 1), "card": card},
                   "clearance": {"node": ticket["node"], "key": ticket["key"]}}
@@ -459,7 +608,8 @@ def main(argv):
         return 1
     for record in found:
         print(json.dumps({"place": record["place"], "rows": len(record["inventory"]["rows"]),
-                          "gaps": len(record["gaps"]), "euros": record["euros"], "seconds": record["seconds"]}))
+                          "gaps": len(record["gaps"]), "skipped": len(record["skipped"]),
+                          "merged": len(record["merged"]), "euros": record["euros"], "seconds": record["seconds"]}))
     return planned(store, [record["place"] for record in found], options.by)
 
 

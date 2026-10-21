@@ -193,18 +193,28 @@
       }
     });
   }
-  // A read row and its boxes light together on hover (the reading's rows beside the picture).
+  // A read row and its boxes light together on hover (the reading's rows beside the picture); a gap's click keeps
+  // its row lit until the next click; "show skipped" draws what the agreement left out, faint.
   if (document.getElementById("concept-reading")) {
-    const lit = (key, on) => document.querySelectorAll(`[${key}]`).forEach((element) => element.classList.toggle("lit", on));
+    const boxes = document.querySelector(".concept-boxes");
+    const lit = (key, on, name = "lit") => document.querySelectorAll(`[${key}]`).forEach((element) => element.classList.toggle(name, on));
     document.querySelectorAll(".concept-reading li, .concept-box").forEach((element) => {
-      const key = element.dataset.row ? `data-row="${element.dataset.row}"` : `data-gap="${element.dataset.gap}"`;
+      const key = element.dataset.row ? `data-row="${element.dataset.row}"` : `data-skip="${element.dataset.skip}"`;
       element.addEventListener("mouseenter", () => lit(key, true));
       element.addEventListener("mouseleave", () => lit(key, false));
     });
-    const quiet = document.getElementById("concept-boxes-quiet");
-    quiet.addEventListener("click", () => {
-      const on = document.querySelector(".concept-boxes").classList.toggle("quiet");
-      quiet.setAttribute("aria-pressed", String(on));
-    });
+    document.querySelectorAll(".concept-gaps li").forEach((element) => element.addEventListener("click", () => {
+      const key = `data-row="${element.dataset.row}"`;
+      const on = !element.classList.contains("held");
+      document.querySelectorAll(".held").forEach((other) => other.classList.remove("held"));
+      lit(key, on, "held");
+    }));
+    const toggle = (id, name) => {
+      const button = document.getElementById(id);
+      if (!button) return;
+      button.addEventListener("click", () => button.setAttribute("aria-pressed", String(boxes.classList.toggle(name))));
+    };
+    toggle("concept-boxes-quiet", "quiet");
+    toggle("concept-skipped-shown", "skipped-shown");
   }
 })();
