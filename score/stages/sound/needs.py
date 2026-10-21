@@ -3,7 +3,8 @@
     bed     its room tone: data/sound/places.json `loops` (or what the suit lets through, `heard_through`)
     event   each thing that moves (data/motion/<place>.json motions and data/motion/rigid/<place>.json moving things with a move: a
             slide, swing, path, spin, climb or turn; a motion that only lights is none): its own `sounds`, else the
-            sounds data/sound/moving.json gives its name. Things moving exactly together (a hatch's wheel and window
+            sounds data/sound/moving.json gives its row kind's move (moving.sounds_for: the kind of its inventory row,
+            data/inventory, by data/checks/row-kinds.json). Things moving exactly together (a hatch's wheel and window
             riding its leaf) are one event
     voice   the people of its cast (data/characters/<place>.json, counted off the concept): a sound of the place's
             `voices` (data/sound/places.json, each on one of them)
@@ -14,10 +15,14 @@ brief): the gaps check (score/stages/complete/gaps) shows make and none as the p
 """
 import json
 import pathlib
+import sys
 
+from score.stages import row_kinds
 from score.stages.sound import moving
 
-MOVES = ("slide", "swing", "path", "spin", "climb", "turn")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/usd"))
+import stage_inputs  # noqa: E402
+
 LIBRARY, MAKE, NONE = "library", "make", "none"
 
 
@@ -32,7 +37,7 @@ def events(motions, rigid, renamed):
     found, by_move = [], {}
     for entry in [*(dict(motion, table="motions") for motion in motions),
                   *(dict(move, table="moves") for move in rigid)]:
-        moves = {key: entry[key] for key in MOVES if key in entry}
+        moves = {key: entry[key] for key in moving.MOVES if key in entry}
         if not moves:
             continue
         key = json.dumps([moves, entry.get("start"), entry.get("length")], sort_keys=True)
@@ -50,12 +55,11 @@ def people(cast):
     return [person["name"] for person in cast.get("people", [])]
 
 
-def event_sounds(event, table):
-    """The sounds an event plays: each entry's own, else the moving sounds table's for its name."""
+def event_sounds(event, rows, kinds, table):
+    """The sounds an event plays: each entry's own, else the moving sounds table's for its row kind and move."""
     named = []
     for entry in event["entries"]:
-        own = entry.get("sounds") or (moving.sounds_for(entry["name"], table.get(entry["table"], {})) or {}).get(
-            "sounds", [])
+        own = entry.get("sounds") or (moving.sounds_for(entry, rows, kinds, table) or {}).get("sounds", [])
         named += [sound["name"] for sound in own]
     return list(dict.fromkeys(named))
 
@@ -79,13 +83,15 @@ def needs(place, data):
     catalogue = read(data / "sound/catalogue.json").get("sounds", {})
     sounds = read(data / "sound/sounds.json").get("sounds", {})
     rigid_record = read(data / f"motion/rigid/{place}.json")
+    rows = read(data / "inventory" / stage_inputs.inventory_path(place).name).get("rows", [])
+    kinds, table = row_kinds.table(data / "checks/row-kinds.json"), read(data / "sound/moving.json")
     found = []
     bed = record.get("loops", []) + record.get("heard_through", [])
     found.append({"kind": "bed", "item": "room", "prim": f"/{place}", "sounds": bed})
     for event in events(read(data / f"motion/{place}.json").get("motions", []), rigid_record.get("moves", []),
                         rigid_record.get("renamed", {})):
         found.append({"kind": "event", "item": event["name"], "prim": event["prims"][0],
-                      "sounds": event_sounds(event, read(data / "sound/moving.json"))})
+                      "sounds": event_sounds(event, rows, kinds, table)})
     cast = people(read(data / f"characters/{place}.json"))
     if cast:
         found.append({"kind": "voice", "item": "people", "prim": f"/{place}/Characters/{cast[0]}",
@@ -96,8 +102,8 @@ def needs(place, data):
 SENTENCES = {"bed": "no room tone", "event": "{item} moves without a sound", "voice": "people here, no voice"}
 WORK = {"bed": "name the place's room tone in data/sound/places.json loops: a library sound first, else a brief in "
                 "data/sound/sounds.json",
-        "event": "name {item}'s sound in data/sound/moving.json: a library sound first, else a brief in "
-                 "data/sound/sounds.json",
+        "event": "give {item}'s inventory row a kind (data/checks/row-kinds.json) and that kind's move its sound in "
+                 "data/sound/moving.json: a library sound first, else a brief in data/sound/sounds.json",
         "voice": "name a voice on one of the place's people in data/sound/places.json voices: a library sound first, "
                  "else a brief in data/sound/sounds.json"}
 

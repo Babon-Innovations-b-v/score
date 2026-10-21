@@ -15,8 +15,10 @@ gates; `takes.py` the paid part.
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Every source has a sound.** A place's sources are its room tones, what the suit lets through, its `objects` and
   `voices` (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds`, the sounds
-  `data/sound/moving.json` gives its moving things and silent motions (`moving.py`: a hatch's latch as it opens, a rover's
-  drive over its drive, timed off the record's own moves, so a moving thing that stops moving stops sounding) and the whole
+  `data/sound/moving.json` gives its moving things and silent motions by their row kind
+  (`score/stages/row_kinds.py`: the inventory row's, else the kind whose motion the record's `kind` is) and move, never by
+  a place's or a prim's name (`moving.py`: a door's latch as it swings open, a vehicle's drive over its path, timed off
+  the record's own moves, so a moving thing that stops moving stops sounding; things moving as one sound once) and the whole
   surface bank (`data/sound/surfaces.json`). That table names only picked sounds; one still to make is in its
   `wanted` until its brief is written and made. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.

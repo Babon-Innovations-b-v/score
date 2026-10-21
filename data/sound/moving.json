@@ -1,107 +1,90 @@
 {
- "is": "what the things that move sound like, where neither the game nor a record plays a sound with them: the moving things SCORE gives the things the game left standing (data/motion/rigid, by the moving thing's name) and the game's own motions that play none (data/motion with `sounds: []`, by the motion's name; a name may end in * for every one it starts). Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path moving thing's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound) plays them in every round of the moving thing's or motion's loop. Only sounds with a picked file are named here: one that still needs making is said in `wanted`, never named until its take is picked.",
- "moves": {
-  "hatch_door_leaf_*": {
-   "sounds": [
-    {
-     "name": "hatch_open",
-     "part": "start",
-     "when": "open"
-    },
-    {
-     "name": "airlock_hatch_seal_clunk",
-     "part": "end",
-     "when": "shut"
-    }
-   ],
-   "from": "a pressure hatch swung open by hand: its latch and hinge (hatch_open) as it opens, its locking bolts (airlock_hatch_seal_clunk) as it closes; only the leaf sounds, its wheel and window ride it"
+ "is": "what the things that move sound like, where no record plays a sound with them: the library's sounds for a moving thing by what moves and how, keyed by its row's kind (data/checks/row-kinds.json, score/stages/row_kinds.py: door, crane, fan, vehicle, lift) and its move (slide, swing, path, spin, climb, turn), never by a place or a prim's name. A moving thing's kind is its inventory row's (the row its record names, else the row its prim is an object of), else the kind whose motion its record's `kind` is. Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound/moving.py) plays them in every round of the moving thing's or motion's loop. Only sounds with a picked file are named here: one that still needs making is said in `wanted`, never named until its take is picked.",
+ "kinds": {
+  "door": {
+   "swing": {
+    "sounds": [
+     {
+      "name": "hatch_open",
+      "part": "start",
+      "when": "open"
+     },
+     {
+      "name": "airlock_hatch_seal_clunk",
+      "part": "end",
+      "when": "shut"
+     }
+    ],
+    "from": "a door swung open by hand: its latch and hinge (hatch_open) as it opens, its locking bolts (airlock_hatch_seal_clunk) as it closes"
+   },
+   "slide": {
+    "sounds": [
+     {
+      "name": "door_slide_open",
+      "part": "start",
+      "when": "open"
+     },
+     {
+      "name": "door_slide_close",
+      "part": "start",
+      "when": "shut"
+     }
+    ],
+    "from": "a sliding door: its run on its track as it starts to open and as it starts to shut (the library's sliding pressure door; a lighter door's own take is wanted)"
+   }
   },
-  "rover_*": {
-   "sounds": [
-    {
-     "name": "rover_motor",
-     "part": "drive"
-    },
-    {
-     "name": "rover_wheels_gravel",
-     "part": "drive"
-    }
-   ],
-   "from": "the rover's electric drive and its wheels on the ground while it drives (the game's rover/ sounds, game/sound/rover)"
+  "crane": {
+   "swing": {
+    "sounds": [
+     {
+      "name": "lift_start",
+      "part": "start",
+      "when": "either"
+     },
+     {
+      "name": "lift_travel",
+      "part": "travel",
+      "when": "either"
+     },
+     {
+      "name": "lift_stop",
+      "part": "end",
+      "when": "either"
+     }
+    ],
+    "from": "a crane slewing on its motor: a heavy electric drive's start, its drone while it turns and its brake (the freight lift's, the same class of drive)"
+   }
   },
-  "ceiling_fan": {
-   "sounds": [
-    {
-     "name": "vent_air",
-     "part": "always"
-    }
-   ],
-   "from": "the moving air of the turning fan: the base's vent air loop stands in for its whoosh until its own take (wanted: ceiling_fan) is picked"
+  "fan": {
+   "spin": {
+    "sounds": [
+     {
+      "name": "vent_air",
+      "part": "always"
+     }
+    ],
+    "from": "the moving air of a turning fan: the vent air loop stands in for its whoosh until its own take (wanted: fan spin) is picked"
+   }
   },
-  "crane_trolley_*": {
-   "sounds": [
-    {
-     "name": "lift_start",
-     "part": "start",
-     "when": "either"
-    },
-    {
-     "name": "lift_travel",
-     "part": "travel",
-     "when": "either"
-    },
-    {
-     "name": "lift_stop",
-     "part": "end",
-     "when": "either"
-    }
-   ],
-   "from": "the bridge crane's trolley motor: the freight lift's start, its drone along the rail and its brake at the end (the same class of heavy electric drive)"
-  }
- },
- "motions": {
-  "big_door_*": {
-   "sounds": [
-    {
-     "name": "lift_start",
-     "part": "start",
-     "when": "either"
-    },
-    {
-     "name": "lift_stop",
-     "part": "end",
-     "when": "either"
-    }
-   ],
-   "from": "the garage's big door leaves, driven: a motor spinning up and its brake as each leaf stops (1 s of travel, so no drone between)"
-  },
-  "roof_leaf_*": {
-   "sounds": [
-    {
-     "name": "lift_start",
-     "part": "start",
-     "when": "either"
-    },
-    {
-     "name": "lift_travel",
-     "part": "travel",
-     "when": "either"
-    },
-    {
-     "name": "lift_stop",
-     "part": "end",
-     "when": "either"
-    }
-   ],
-   "from": "the hangar's roof leaves, 11 m each on their rails: a heavy drive's start, its drone while they run and its brake"
+  "vehicle": {
+   "path": {
+    "sounds": [
+     {
+      "name": "rover_motor",
+      "part": "drive"
+     },
+     {
+      "name": "rover_wheels_gravel",
+      "part": "drive"
+     }
+    ],
+    "from": "a vehicle's electric drive and its wheels on the ground while it drives"
+   }
   }
  },
  "wanted": {
-  "ferry_engine": "the harbour ferries (data/motion/rigid/launch.json): a diesel ferry's engine and wash heard from a few hundred metres",
-  "ceiling_fan": "the flat's ceiling fan at 120 rpm: a soft rhythmic whoosh and a faint motor hum",
-  "irrigation_boom_motor": "the greenhouse's 16 irrigation booms: a small geared motor creeping along a rail, very quiet",
-  "footsteps_wood": "the flat's floorboards: steps on old wooden boards, a light creak",
-  "footsteps_concrete": "the stairwell, street and square: steps on concrete and paving",
-  "glass_door_slide": "the flat's glass balcony door sliding open on its track (the base's sliding door recording is a heavy pressure door, wrong for it)"
+  "fan spin": "ceiling_fan: a ceiling fan at 120 rpm, a soft rhythmic whoosh and a faint motor hum",
+  "door slide": "glass_door_slide: a light glass door sliding open on its track (the sliding door recording is a heavy pressure door)",
+  "footsteps": "footsteps_wood and footsteps_concrete: steps on old wooden boards with a light creak, and on concrete and paving"
  }
 }
