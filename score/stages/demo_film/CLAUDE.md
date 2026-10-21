@@ -23,7 +23,9 @@ own sound; paid and cleared by the runner like any paid row.
   `aim`, or `across` the record's floor as shares of it (the ship's rooms: the spot keeps its place when a room is
   built at another size), with `fov` and `stand` (a small room's shot stands and turns rather than walking into a
   wall). The planner keeps clear of people and moving things (camera_paths), glides at one speed between eased ends and
-  rounds its corners (demo.py). About EUR 3.2 a place likely and 3.5 high (twice a measured 96-frame film's 1.6 and 1.75).
+  rounds its corners (demo.py); every frame carries the camera's motion blur towards the next (`motion_blurred`, drawn by
+  `blender/film_frames.py`, its overlay: a 180 degree shutter, shorter where the picture moves fast, none standing still; no
+  mesh deformation blurred). About EUR 3.2 a place likely and 3.5 high (twice a measured 96-frame film's 1.6 and 1.75).
 - **A film is one batch** (#21, owner 2026-10-20, replacing #20's paid preview): everything before the yes is free,
   the local preview (`tools/review/film_preview.py`) and the forecast (`python -m score.stages.demo_film forecast
   <place>`: frames, cards, card minutes and euros likely and high, from a scan of the accepted stage for fog,
@@ -47,8 +49,11 @@ own sound; paid and cleared by the runner like any paid row.
   and, beside it, the place films they show (demo-film, demo-film-extra), so the runner plans and prices it with
   them. Blocked while none is locked (the lock is his yes; the starters in `data/films/` are read by nothing here
   but needs.py's film gaps); every segment names its `seconds` and is a cut it makes (title, text, walk-through, hero still),
-  else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards, before and after need
-  frames no row makes yet). The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
+  a screen take, physics animation or scale zoom cut from the free preview's take of that very segment
+  (`<film>-takes/` beside the preview; one recorded from another script is Blocked until the preview is rendered
+  again), else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards, before and after
+  need frames no row makes yet). Cards and lower thirds are in the cockpit's type (`lettering.py`), the films are
+  matched in exposure, the whole graded as the preview is (`GRADE`), cards and takes over the script's bed. The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
   (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps
   check's film gaps: a film a script shows with no record, no yes, or one shot only.
 - **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts a second before the

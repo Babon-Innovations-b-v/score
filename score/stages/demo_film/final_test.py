@@ -44,7 +44,8 @@ def test_nothing_is_cut_before_the_creators_yes_and_a_sound_plan():
     assert final.plan_faults(unsound) == ["segment 1 (exploded) names no seconds",
                                           "segment 1: no row makes exploded frames yet",
                                           "segment 2: a walk-through plays its place's own sound, not bed"]
-    assert final.plan_faults(a_script(WALKS[:1])) == ["it shows no place's film"]
+    assert final.plan_faults(a_script(WALKS[:1])) == ["it shows no place's film and names no bed"]
+    assert final.plan_faults(dict(a_script(WALKS[:1]), bed="sound/hum")) == []
 
 
 def test_the_owners_pacing_fails_a_place_cut_at_three_and_a_half_seconds():
@@ -149,6 +150,35 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing():
     (out / "toy" / "timeline.json").write_text(json.dumps(timeline))
     verdict = final.judge(out, inputs, {})
     assert verdict.answer == checks.FAIL and "toy: alpha: on screen 3.5 s, under 7 s" in verdict.findings, verdict
+
+
+def test_a_recorded_segment_is_cut_from_the_previews_take_of_that_very_segment():
+    """A screen take, physics animation or scale zoom is the free preview's take, only while the preview was recorded
+    from the segment the lock holds; then cut with the cards on the script's bed, every film matched in exposure."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    take = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
+    script = a_script([WALKS[0], take, WALKS[1]])
+    (root / "toy.json").write_text(json.dumps({"script": script}))
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    "testsrc2=size=1280x720:rate=24:duration=3", "-pix_fmt", "yuv420p", str(root / "002.mp4")],
+                   check=True)
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    "sine=frequency=220:duration=5", str(root / "bed.wav")], check=True)
+    inputs = {"preview toy": root / "toy.json", "take toy 2": root / "002.mp4"}
+    assert final.takes("toy", script, inputs) == {2: root / "002.mp4"}
+    assert set(final.recorded_files("toy", script)) == {"preview toy", "take toy 2"}
+    moved = dict(script, segments=[WALKS[0], dict(take, seconds=4.0), WALKS[1]])
+    assert "segment(s) 2 of the free preview" in refused(lambda: final.takes("toy", moved, inputs))
+    assert final.matched_gain(116.0, 116.0) == 1.0 and final.matched_gain(40.0, 200.0) == final.GAIN_RANGE[1]
+    alpha = a_film(root / "alpha", 330, 0.2) / "film.mp4"
+    still = {"cut": "hero-still", "shows": {"place": "alpha"}, "sound": "bed", "text": "Alpha", "seconds": 3.0}
+    out = root / "out"
+    final.cut_one(dict(script, segments=[*script["segments"], still]), {3: alpha, 4: alpha}, out,
+                  {2: root / "002.mp4"}, root / "bed.wav")
+    timeline = json.loads((out / "timeline.json").read_text())
+    assert [segment["cut"] for segment in timeline["segments"]] == ["title", "screen-take", "walk-through",
+                                                                    "hero-still"]
+    assert timeline["segments"][2]["exposure_gain"] == 1.0 and timeline["seconds"] == 13.5
 
 
 if __name__ == "__main__":

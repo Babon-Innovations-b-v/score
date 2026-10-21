@@ -340,3 +340,16 @@ def test_the_film_step_opens_on_the_environments_own_film(world, tmp_path, monke
     assert signed_in().get("/film/")["Location"] == "/film/world1-film/"
     script.save(settings.SCORE_HOME, {**a_script([]), "film": "mine", "default": True})
     assert signed_in("other").get("/film/")["Location"] == "/film/mine/"
+
+
+def test_the_bed_starts_where_its_beats_fall_on_the_cuts_and_a_hum_at_its_start():
+    from score.dashboard.films.preview import make
+    import numpy
+    rises = numpy.zeros(240)
+    rises[[10, 58, 106, 154, 202]] = 5.0  # a beat every 2 s at 24 a second, the first 10 frames in
+    assert make.beat_offset(rises, [4.0, 6.0], 24) == round(10 / 24, 3)
+    assert make.beat_offset(numpy.full(240, 0.1), [4.0, 6.0], 24) == 0.0
+    film = a_script([{"cut": "title", "transition": "fade-through-black", "seconds": 4},
+                     {"cut": "text", "transition": "cross-fade", "seconds": 3},
+                     {"cut": "text", "transition": "fade-through-black", "seconds": 3}])
+    assert make.cut_moments(film) == [3.75, 6.5]

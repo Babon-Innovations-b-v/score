@@ -27,10 +27,10 @@
    "transition": "fade-through-black",
    "sound": "bed",
    "seconds": 6.0,
-   "captions": [{"from": 0.4, "to": 5.8, "line": "1 · Setting", "text": "What everything stands on: the Sun, Earth, Moon and Mars, from real data"}],
+   "captions": [{"from": 0.4, "to": 5.8, "line": "1 · Physics", "text": "What everything stands on: the Sun, Earth, Moon and Mars, from real data"}],
    "take": [
-    {"at": 0.3, "do": "scroll", "on": "section[aria-label=setting]", "over": 1.1},
-    {"at": 1.6, "do": "box", "on": "section[aria-label=setting] svg", "for": 2.0, "words": "The setting"},
+    {"at": 0.3, "do": "scroll", "on": "section[aria-label=physics]", "over": 1.1},
+    {"at": 1.6, "do": "box", "on": "section[aria-label=physics] svg", "for": 2.0, "words": "The physics"},
     {"at": 2.0, "do": "move", "on": ".sp-card:nth-child(3)", "over": 0.9},
     {"at": 3.5, "do": "box", "on": ".sp-card:nth-child(3)", "for": 2.4, "words": "The Moon: where the Base stands"}
    ]
@@ -44,7 +44,7 @@
    "days_per_second": 30,
    "surfaces": {"earth": "earth_face", "moon": "moon_regolith", "mars": "mars_regolith"},
    "note": "sizes and the Moon's orbit enlarged to read",
-   "captions": [{"from": 0.5, "to": 4.3, "line": "Setting animation", "text": "Their real orbits, 30 days a second"}]
+   "captions": [{"from": 0.5, "to": 4.3, "line": "Physics animation", "text": "Their real orbits, 30 days a second"}]
   },
   {
    "cut": "screen-take",
@@ -98,8 +98,8 @@
     {"from": 4.0, "to": 9.8, "line": "Environment plan", "text": "Every site on the Moon, true metres apart, each with its blockout"}
    ],
    "take": [
-    {"at": 0.6, "do": "move", "on": ".concept-inventory", "over": 0.9},
-    {"at": 0.8, "do": "box", "on": ".concept-inventory", "for": 2.4, "words": "Scene inventory: waits on its reading"},
+    {"at": 0.6, "do": "move", "on": "#inventory-part", "over": 0.9},
+    {"at": 0.8, "do": "box", "on": "#inventory-part", "for": 2.4, "words": "Scene inventory"},
     {"at": 3.4, "do": "goto", "page": "/environments/world1/plan/"},
     {"at": 3.6, "do": "scroll", "on": "section[aria-label=Moon]", "over": 1.0},
     {"at": 4.8, "do": "box", "on": "section[aria-label=Moon] svg", "for": 2.4, "words": "The Moon's sites"},
@@ -125,7 +125,7 @@
    ],
    "pip": {"concept": "base", "corner": "top-left", "label": "Concept", "from": 11.8, "to": 16.4},
    "captions": [
-    {"from": 0.3, "to": 3.3, "line": "5 · One shot, every scale", "text": "The setting"},
+    {"from": 0.3, "to": 3.3, "line": "5 · One shot, every scale", "text": "The physics"},
     {"from": 3.7, "to": 7.3, "line": "World", "text": "The Moon"},
     {"from": 7.7, "to": 11.3, "line": "Site", "text": "The Base's site, from the environment plan"},
     {"from": 11.7, "to": 16.2, "line": "Place", "text": "The Base from outside, its concept beside it"},

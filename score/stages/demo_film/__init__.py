@@ -27,8 +27,10 @@ the gate, and a new film is a new batch and a new yes.
            of its own; demo.py's plan with a camera path a shot, SHOTS shots: the first starting at the film's camera
            and the second at its `then`, else at the record camera standing furthest from the first (its first frame that
            camera's view, unless the planner had to move its start clear or level it: views.json's moves say),
-           frames over SECONDS at demo.RATE, look only (no ink); the frames rendered once at SIZE with the films'
-           samples, dealt over the jobs `forecast` sizes (capacity.machines_for on the likely frame minutes), each
+           frames over SECONDS at demo.RATE, look only (no ink), each with the camera's motion blur
+           (motion_blurred: the next frame's camera and a shutter set by how fast the picture moves, drawn by
+           blender/film_frames.py); the frames rendered once at SIZE with the films' samples, dealt over the jobs
+           `forecast` sizes (capacity.machines_for on the likely frame minutes), each
            job's deadline its frames at the forecast's high frame minutes; demo.py's cut with the stage's sound
            layer. Per film:
            film.mp4, views.json (each frame's view, the moves, the planner's commit) and concept.png, the first frame
@@ -89,9 +91,18 @@ FRAME_SPREAD = 1.75 / 1.6
 FOG_FRAME_MINUTES = 17.0
 # A frame job's minutes before its frames (demo.film_jobs' 10): the stage and its shown places loaded.
 JOB_LEAD_MINUTES = 10
+# The frames' Blender script: usd_views.py's views, each with the camera's motion blur.
+FRAMES_SCRIPT = "score/stages/demo_film/blender/film_frames.py"
 TOOLS = ("tools/review/demo.py", "tools/review/film_checks.py", "tools/review/renders.py",
          "tools/review/viewer/viewpoints.py", "tools/usd/camera_paths.py", "tools/usd/scene.py", "tools/usd/sound.py",
-         "tools/usd/hearing.py", "tools/blender/inside/usd_views.py")
+         "tools/usd/hearing.py", "tools/blender/inside/usd_views.py", FRAMES_SCRIPT)
+# A frame's motion blur (owner, 2026-10-21: "make the animations very profesional looking"): the shutter open for
+# half a frame (a film camera's 180 degrees), shortened where the picture moves so fast it would streak further than
+# MOST_STREAK of its width in one frame; a camera whose picture moves under STILL_PIXELS a frame gets none. Only the
+# camera's move and the stage's moving transforms blur (film_frames.py), so a frame costs what it did: unmeasured.
+SHUTTER = 0.5
+MOST_STREAK = 0.012
+STILL_PIXELS = 0.5
 OUTPUTS = ("film.mp4", "views.json", "concept.png")
 
 
@@ -227,6 +238,7 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     jobs = demo.plan(work, work / "stages", [given], jobs_each=planned["jobs"], size=SIZE, ink=False,
                      shots=len(cameras), seconds=SECONDS, start=start)
     with_deadlines(jobs, planned["high_frame_minutes"])
+    motion_blurred(jobs, json.loads((work / "views" / f"{name}.json").read_text())["views"], SIZE[0])
     render(jobs, log_folder)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(work / "frames" / name / "shot0-000-look.png", out / "concept.png")
@@ -318,6 +330,55 @@ def with_deadlines(jobs, frame_minutes):
         views = json.loads(pathlib.Path(job["args"][1]).read_text())["views"]
         job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))
         pathlib.Path(job_path).write_text(json.dumps(job, indent=1))
+
+
+def picture_speed(view, later, wide):
+    """How far the picture moves from `view` to `later` (the next frame's), pixels across a picture `wide` pixels: the
+    line of sight's turn and the eye's move across it at the aim's distance, at the view's focal length."""
+    eye, aim = np.asarray(view["eye"], dtype=float), np.asarray(view["aim"], dtype=float)
+    then_eye, then_aim = np.asarray(later["eye"], dtype=float), np.asarray(later["aim"], dtype=float)
+    look, then_look = aim - eye, then_aim - then_eye
+    distance = float(np.linalg.norm(look))
+    look, then_look = look / distance, then_look / float(np.linalg.norm(then_look))
+    turn = float(np.arccos(np.clip(look @ then_look, -1.0, 1.0)))
+    move = then_eye - eye
+    across = float(np.linalg.norm(move - (move @ look) * look))
+    focal = wide / 2.0 / np.tan(np.radians(float(view["fov"])) / 2.0)
+    return float(focal * (turn + across / distance))
+
+
+def shutter_for(speed, wide):
+    """The share of a frame the shutter stays open for a picture moving `speed` pixels a frame (SHUTTER, shortened so
+    nothing streaks further than MOST_STREAK of the width); 0 under STILL_PIXELS."""
+    return 0.0 if speed < STILL_PIXELS else round(min(SHUTTER, MOST_STREAK * wide / speed), 3)
+
+
+def blur_of(view, later, wide):
+    """A view's "blur" for film_frames.py, the camera of its shot's next frame `later` (None for a shot's last frame,
+    or a camera standing still): {"eye", "aim", "up", "shutter", "codes": the time codes between the two}."""
+    if later is None:
+        return None
+    shutter = shutter_for(picture_speed(view, later, wide), wide)
+    if not shutter:
+        return None
+    return {"eye": later["eye"], "aim": later["aim"], "up": later.get("up", [0.0, 1.0, 0.0]), "shutter": shutter,
+            "codes": max(1, int(later.get("frame", 1)) - int(view.get("frame", 0)))}
+
+
+def motion_blurred(jobs, views, wide):
+    """Each frame job drawn by FRAMES_SCRIPT, every view in it given its blur (blur_of) towards the next frame of its
+    shot among the film's `views` (in order), at a picture `wide` pixels."""
+    demo, _ = film_tools()
+    following = {view["name"]: (later if demo.shot_of(later) == demo.shot_of(view) else None)
+                 for view, later in zip(views, [*views[1:], None]) if later is not None}
+    for job_path in jobs:
+        job = json.loads(pathlib.Path(job_path).read_text())
+        listing = pathlib.Path(job["args"][1])
+        dealt = json.loads(listing.read_text())
+        blurred = [dict(view, blur=found) if (found := blur_of(view, following.get(view["name"]), wide)) else view
+                   for view in dealt["views"]]
+        listing.write_text(json.dumps(dict(dealt, views=blurred), indent=1))
+        pathlib.Path(job_path).write_text(json.dumps(dict(job, script=FRAMES_SCRIPT), indent=1))
 
 
 def own_cameras(record_path, film):

@@ -17,11 +17,17 @@ const STILL = "*, *::before, *::after { transition: none !important; animation: 
   " html { scrollbar-width: none; } ::-webkit-scrollbar { display: none; }";
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
+// How far a screen take's page slowly closes in over the take (a held shot's drift; the page itself, never the words over it).
+const DRIFT = 0.03;
 const eased = (value) => { const share = clamp01(value); return share * share * (3 - 2 * share); };
 
 // --- the overlay: caption, picture-in-picture, cursor and highlight boxes, drawn over any page ----------------------
 
 function drawOverlay(state) {
+  if (state.drift) {  // the page closes in about the middle of what shows; the overlay is outside the body, so it stays
+    document.body.style.transformOrigin = `${window.scrollX + window.innerWidth / 2}px ${window.scrollY + window.innerHeight / 2}px`;
+    document.body.style.transform = `scale(${state.drift})`;
+  }
   let layer = document.getElementById("film-overlay");
   if (!layer) {
     layer = document.createElement("div");
@@ -220,7 +226,8 @@ async function take(context, segment) {
     if (cursor.down && !steps.some((step) => step.do === "drag" && step.started && !step.done) && (!ring || local - ring.at > 0.15)) cursor.down = false;
     const ringShown = ring && local - ring.at < 0.5 ? { x: ring.x, y: ring.y, share: (local - ring.at) / 0.5 } : null;
     shown = shown || steps.some((step) => step.started && ["move", "hover", "click", "drag"].includes(step.do));
-    await page.evaluate(drawOverlay, { ...wordsAt(segment, local), boxes, cursor: shown ? cursor : null, ring: ringShown, k });
+    await page.evaluate(drawOverlay, { ...wordsAt(segment, local), boxes, cursor: shown ? cursor : null, ring: ringShown, k,
+      drift: 1 + DRIFT * local / segment.seconds });
     await save(page, segment, frame);
   }
   await page.close();

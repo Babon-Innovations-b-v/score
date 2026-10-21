@@ -415,3 +415,30 @@ def test_a_film_record_leaves_out_the_prims_it_names_in_its_copy_only():
 def test_a_film_record_may_name_its_own_start():
     assert demo_film.film_start({"camera": "spot-1", "start": 6}, {}) == 6.0
     assert demo_film.film_start({"camera": "spot-1"}, {}) == 0.0, "no motion record: the stage's start"
+
+
+def test_a_frame_blurs_by_how_fast_its_picture_moves_towards_the_next_frame_of_its_shot():
+    """The camera's motion blur: half a frame open (180 degrees), shorter where the picture would streak further than
+    MOST_STREAK of its width, none for a camera standing still or a shot's last frame; the jobs drawn by film_frames."""
+    wide = demo_film.SIZE[0]
+    first = {"name": "shot0-000", "eye": [0, 1.6, 5], "aim": [0, 1.2, 0], "up": [0, 1, 0], "fov": 75, "frame": 0}
+    walked = dict(first, name="shot0-001", eye=[0.02, 1.6, 4.98], frame=1)
+    turned = dict(first, name="shot0-001", aim=[0.6, 1.2, 0], frame=1)
+    assert demo_film.blur_of(first, dict(first, name="shot0-001", frame=1), wide) is None, "a camera standing still"
+    assert demo_film.blur_of(first, None, wide) is None, "a shot's last frame"
+    slow = demo_film.blur_of(first, walked, wide)
+    assert slow["shutter"] == demo_film.SHUTTER and slow["codes"] == 1 and slow["eye"] == walked["eye"], slow
+    fast = demo_film.blur_of(first, turned, wide)
+    speed = demo_film.picture_speed(first, turned, wide)
+    assert speed > 40 and abs(fast["shutter"] - demo_film.MOST_STREAK * wide / speed) < 1e-3, (speed, fast)
+    root = folder()
+    views = [first, walked, dict(walked, name="shot1-000", eye=[3, 1.6, 3], frame=2)]
+    listing, job = root / "views.json", root / "job.json"
+    listing.write_text(json.dumps({"size": list(demo_film.SIZE), "views": views}))
+    job.write_text(json.dumps({"script": "tools/blender/inside/usd_views.py", "args": ["stage", str(listing), "out"]}))
+    demo_film.motion_blurred([job], views, wide)
+    blurred = json.loads(listing.read_text())["views"]
+    assert "blur" in blurred[0] and "blur" not in blurred[1] and "blur" not in blurred[2], "never across a cut"
+    assert json.loads(job.read_text())["script"] == demo_film.FRAMES_SCRIPT
+    assert "tool " + demo_film.FRAMES_SCRIPT in demo_film.common_files("launch")
+    shutil.rmtree(root)
