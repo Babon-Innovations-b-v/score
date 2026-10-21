@@ -140,6 +140,8 @@ def wall_spots(row, room):
     import room_kit
     layout = room.get("layout", {})
     walls = {side["name"]: side for side in room_kit.sides(layout)} if "inside" in layout and "corner" in layout else {}
+    if not any("wall" in spot for spot in row.get("at", [])):
+        return []  # a design's ground or sky row has no size and no wall spot
     wide, deep, tall = row["size"]
     found = []
     for spot in row.get("at", []):
@@ -227,6 +229,6 @@ def boxes(stage, place, written, kit, rows):
         for number, (placed, frame, under) in enumerate(laid, start=1):
             found.append(box(place, row, number, placed, frame, under))
         own = found[-len(laid)]
-        first[row["id"]] = (own["path"], float(row["size"][2]) if own["placed"] != UNPLACED else None)
+        first[row["id"]] = (own["path"], float(row["size"][2]) if own["placed"] != UNPLACED and row.get("size") else None)
     return found
 

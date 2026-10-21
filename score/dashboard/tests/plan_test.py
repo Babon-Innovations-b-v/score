@@ -166,6 +166,8 @@ def test_a_scene_merged_into_another_has_no_card_even_with_draws(planned, tmp_pa
     html, shown = hosted_page(planned, tmp_path, monkeypatch, settings, "/places/")
     assert shown.removed == ["beta"]
     assert 'href="/concept/beta/"' not in html and 'href="/place/beta/"' not in html
+    # no scene of the design either, so no Draw all offers it (the old ship, 2026-10-21)
+    assert "beta" not in planned.source.scenes() and "beta" not in shown.concept_undrawn
 
 
 def test_a_draw_on_a_room_the_plan_above_changed_is_no_concept_on_its_card(planned, tmp_path, monkeypatch, settings):

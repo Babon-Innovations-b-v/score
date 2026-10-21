@@ -65,7 +65,8 @@ INVENTORY = {"room": {"layout": {"inside": [6.0, 6.0], "corner": 1.0, "wall": 3.
     {"id": "beam", "name": "a beam", "kind": "code", "made": "kit piece", "anchor": "ceiling", "size": [3, 0.2, 0.2],
      "count": 1, "at": [{"x": 0, "y": 2.5, "z": 1, "facing": 0}]},
     {"id": "old", "name": "a dropped thing", "kind": "generate", "anchor": "floor", "size": [1, 1, 1], "count": 1,
-     "at": [], "dropped": "not in the concept"}]}
+     "at": [], "dropped": "not in the concept"},
+    {"id": "ground", "name": "the ground", "kind": "generate", "anchor": "ground", "size": None, "count": 1}]}
 GAP = {"name": f"{PLACE}: the crate's placeholder", "row": "assembly", "check": "placeholders", "objects": ["crate_1"],
        "reason": "its model comes next month", "decided": "owner, 2026-10-19", "faults": []}
 ROWS_GAP = {"name": f"{PLACE}: the shelf comes later", "row": "complete", "check": "rows", "objects": ["shelf"],
@@ -135,7 +136,7 @@ def test_missing_rows_are_guide_boxes_at_their_spots_and_never_made_objects(ran)
     folder, written, stage = ran
     found = by_id(written)
     assert {item["row"] for item in written["findings"] if item["rule"] == "missing"} == {
-        "shelf", "panel", "cup", "lamp", "rug", "beam"}
+        "shelf", "panel", "cup", "lamp", "rug", "beam", "ground"}
     shelf = stage.GetPrimAtPath(f"/{PLACE}/Gaps/shelf_1")
     assert shelf.GetAttribute("score:gap:row").Get() == "shelf" and shelf.GetAttribute("score:gap").Get() == "missing"
     box = UsdGeom.Cube(stage.GetPrimAtPath(f"/{PLACE}/Gaps/shelf_1/box"))
@@ -164,6 +165,9 @@ def test_a_row_with_no_spot_has_no_transform_and_no_box(ran):
     assert rug["placed"] == "unplaced" and rug["low"] is None and rug["high"] is None
     assert "no spot" in rug["sentence"]
     assert not UsdGeom.Xformable(stage.GetPrimAtPath(rug["prim"])).GetOrderedXformOps()
+    # a design row read with no metres (its ground) is a gap with no box
+    ground = by_id(written)["missing:ground_1"]
+    assert ground["low"] is None and not stage.GetPrimAtPath(f"{ground['prim']}/box")
 
 
 def test_gate_marks_merge_on_the_prim_they_name_and_a_gap_is_a_decided_fault(ran):
@@ -215,7 +219,7 @@ def test_the_place_lacks_its_concept_plan_and_rough_model(ran):
     # a layer's own gap (layers.py): the toy has no plan, so the sound layer names what its design lacks for a bed
     sound = found["place:sound:bed:room"]
     assert sound["source"] == "layer:sound" and sound["node"] is None and "no plan" in sound["work"], sound
-    assert written["counts"] == {"missing": 7, "gate": 4, "place": 4}
+    assert written["counts"] == {"missing": 8, "gate": 4, "place": 4}
 
 
 def test_the_contract_holds_and_the_rows_gate_still_lists_every_unmade_row(ran):
@@ -228,7 +232,7 @@ def test_the_contract_holds_and_the_rows_gate_still_lists_every_unmade_row(ran):
     assert outputs[f"assembly@{PLACE}"]  # complete failed: not accepted, so null like the three never made
     assert [outputs[f"{stage}@{PLACE}"] for stage in ("neighbours", "plan", "rough-model", "complete")] == [None] * 4
     assert {fault["row"] for fault in complete.rows_faults(folder / "gaps.usda", INVENTORY, PLACE)} == {
-        "shelf", "panel", "cup", "lamp", "rug", "beam"}
+        "shelf", "panel", "cup", "lamp", "rug", "beam", "ground"}
 
 
 def test_the_contract_refuses_what_it_names():

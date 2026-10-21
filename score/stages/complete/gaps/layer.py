@@ -62,14 +62,16 @@ def write_box(stage, box, values):
     xform = UsdGeom.Xform.Define(stage, box["path"])
     if box["frame"] is not None:
         xform.AddTransformOp().Set(Gf.Matrix4d(matrix_of(box["frame"])))
+    prim = xform.GetPrim()
+    strings(prim, values)
+    if not box["row"].get("size"):
+        return  # a design row read with no metres (a ground, the sky): its gap has no box
     wide, deep, tall = (float(value) for value in box["row"]["size"])
     cube = UsdGeom.Cube.Define(stage, f"{box['path']}/{BOX}")
     cube.CreateSizeAttr(1.0)
     cube.CreatePurposeAttr(UsdGeom.Tokens.guide)
     cube.AddTranslateOp().Set(Gf.Vec3d(0.0, tall / 2, 0.0))
     cube.AddScaleOp().Set(Gf.Vec3f(wide, tall, deep))
-    prim = xform.GetPrim()
-    strings(prim, values)
     prim.CreateAttribute("score:gap:size", Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(wide, deep, tall))
 
 
