@@ -138,12 +138,17 @@ def test_layers_run_each_take_once_shells_skip_the_surface_line_and_cards_carry_
 
 def test_the_clips_layer_is_priced_from_its_measured_per_unit_once_it_has_one():
     from score.stages.library import clips
-    found = estimate.clip_layer({"hub": 2, "lab": 1, "flat": 0})
+    found = estimate.clip_layer({"hub": 9, "lab": 1, "flat": 0}, 50)
     measured = compute.per_unit(clips.ROW)
     assert measured is not None  # library-clips-sample, 2026-10-21 (tools/costs/per_unit.py RECORDED)
-    assert found["units"] == 3 and "estimated_from" not in found["price"]
-    assert found["price"]["likely_euros"] == round(measured["likely_euros"] * 3 * price.BILL_SHARE, 2)
-    assert estimate.totals({clips.ROW: found})["estimated"] == []
+    assert found["units"] == 10 and "estimated_from" not in found["price"]
+    assert found["price"]["likely_euros"] == round(measured["likely_euros"] * 10 * price.BILL_SHARE, 2)
+    # the hub's 9 clips on two cards (7 and 2), the lab's on one: the minutes are a card's 7 clips and one set-up
+    time = measured["time"]
+    one_card = round(time["setup_minutes"]["likely"] + 7 * time["unit_seconds"]["likely"] / 60, 1)
+    assert found["minutes"] == {"likely_minutes": one_card, "high_minutes": one_card, "cards": 3}, found["minutes"]
+    squeezed = estimate.clip_minutes({"hub": 9, "lab": 1}, 2)  # three cards' shares on two: a second round
+    assert squeezed["cards"] == 2 and squeezed["likely_minutes"] > one_card + 80, squeezed
 
 
 def test_the_eta_walks_the_layers_in_the_routes_order_and_a_layer_of_no_units_takes_no_time():
@@ -201,8 +206,9 @@ def a_read_row(row_id, kind, noun, count=1, terrain=False):
             "boxes": boxes, "size": None, "size_words": "waist high", "thing": ""}
 
 
-def a_read_store(place, sha, rows, concept=None):
-    """A store with `place`'s draw `sha` picked and one reading of `concept` (else of the pick) by today's method."""
+def a_read_store(place, sha, rows, concept=None, picture=None):
+    """A store with `place`'s draw `sha` picked and one reading of `concept` (else of the pick) by today's method,
+    its picture `picture` pixels wide and high (None: not said)."""
     from score.review import concepts, reading
     from score.store import Store
     store = Store.in_folder(tempfile.mkdtemp())
@@ -214,8 +220,30 @@ def a_read_store(place, sha, rows, concept=None):
     reading.kept(store, {"place": place, "concept": read, "at": "2026-10-21T10:00:00Z", "method": reading.METHOD,
                          "inventory": {"scene": place, "place": place, "concept_pick": {"sha256": read},
                                        "rows": rows},
-                         "gaps": [], "euros": {"rows": 0.03, "boxes": 0.01, "total": 0.04}})
+                         "gaps": [], "euros": {"rows": 0.03, "boxes": 0.01, "total": 0.04},
+                         **({"size": picture} if picture else {})})
     return store
+
+
+def test_a_take_is_sized_by_its_plan_item_and_routed_by_its_noun():
+    rows = [a_read_row("fuel_drum", "generate", "drum", 2), a_read_row("astronaut", "generate", "astronaut"),
+            {**a_read_row("wall_lamp", "code", "wall lamp"), "anchor": "wall"},
+            {**a_read_row("night_sky", "generate", "sky"), "anchor": "sky"}]
+    store = a_read_store("wreck", "a" * 64, rows, picture=[100, 100])
+    found, _ = groups.current(store, ["wreck"])
+    by_id = {row["id"]: row for row in found["wreck"]["rows"]}
+    # the wreck's outline is 28 x 29 m: a box 8 px of 100 is 2.24 m across and 2.32 m deep, as tall as it is wide
+    assert by_id["fuel_drum"]["size"] == [2.24, 2.32, 2.24], by_id["fuel_drum"]
+    assert by_id["wall_lamp"]["size"] is None and by_id["night_sky"]["size"] is None  # no item of their own
+    assert [by_id[name]["route"] for name in ("fuel_drum", "astronaut", "wall_lamp", "night_sky")] == [
+        "prop", "people", "prop", "sky"]
+    runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
+    record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
+    takes = {take["rows"][0]: take for take in record["takes"]}
+    assert "no size of three sides" not in takes["fuel_drum"]["inputs"] and takes["night_sky"]["inputs"] == []
+    assert "no size of three sides" in takes["wall_lamp"]["inputs"]  # the plan's gap stays the take's
+    assert record["layers"]["motion"]["takes"] == 1 and record["layers"]["sky"]["takes"] == 1
+    assert record["layers"]["pixal"]["takes"] == 3 and "sky" in record["totals"]["unpriced"]  # the sky: no prop route
 
 
 def test_a_places_current_reading_is_its_inventory_and_a_place_with_none_waits():

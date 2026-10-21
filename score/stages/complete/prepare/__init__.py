@@ -26,9 +26,9 @@ The record (`WORK/checks/prepare/remake.json` by default):
                                           library_code_only: a library model matched, but the take is remade)
      "rates": {shape: {failed, of, objects}},             (the measured close-up failures by shape, predict.py)
      "library": {"root", "models"} or {"root": null, "why"},
-     "takes": [{place, rows, take, key, shell, instances, crop, library, prediction, inputs, upscale, status,
-                key_diff}],                               (status: library, predicted gap or bought)
-     "layers": {stage: {takes, units, price, minutes, settings}},
+     "takes": [{place, rows, take, key, route, shell, instances, crop, library, prediction, inputs, upscale, status,
+                key_diff}],                               (status: library, predicted gap or bought; route groups.ROUTES')
+     "layers": {stage: {takes, units, price, minutes, settings, runs: {routes, shell}}},
      "totals": {likely_euros, high_euros, unpriced}, "eta": schedule.schedule's, "expected_gaps",
      "predicted_gaps_if_bought": {likely_euros, high_euros},
      "moved": {"rows": [{node, euros, why, again}]} or {"not_run": why},

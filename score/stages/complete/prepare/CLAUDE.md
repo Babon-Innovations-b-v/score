@@ -11,10 +11,17 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 - **The rows are the scene inventory readings** (owner, 2026-10-21; `groups.current`): each place's and outside
   shell's current reading (`score/review/reading.reading_of`: read from its picked draw by today's method), never
   `data/inventory/` (still read for the library models' sizes and the hub's measured rates only). A place with none
-  waits on inventory, no euros (`inventory.waiting`). A reading measures no size, so each row is its own take
-  (only `_<n>` copies share one), every take waits on "no size" and matches the library by kind alone; a code row
-  of a shell noun (`groups.SHELL_NOUNS`) is a shell piece; every other row, terrain and people too, is a model
-  through the prop pipeline. Plans may refine positions later, never the count.
+  waits on inventory, no euros (`inventory.waiting`). A reading measures no size: each row's size is its place's
+  current plan's (`groups.plan_sizes`, `score/review/plans.current`: the first item tied to the row, its wide and
+  deep as laid, its tall off its SAM box at that wide's scale); a row the plan does not size (a size gap on the
+  plan, on a wall or in the sky, riding on another row, no box) has none and its take waits on "no size". Rows of
+  one model (kind, size ratio, kit) share a take. Each row's route is its noun's (`groups.ROUTES`, owner's rules,
+  CONTEXT.md "layer adapter", "motion"): a code row of a shell noun (`groups.SHELL_NOUNS`), a window, stairs or
+  building shell is a shell piece (`estimate.SHELL_ROUTE`); people are models of the prop pipeline with the motion
+  layer's steps after (`estimate.OWN_ROUTES`); the sky, the effects (water, rain, smoke, mist) and the far city
+  are their own routes, priced only by their own measured per unit (unpriced until then), their inputs their
+  route's own (not checked here); every other row, terrain too, is a model through the prop pipeline. Each layer
+  names the routes it runs (`runs`). Plans may refine positions later, never the count.
 - **Every job once.** The figure prices each take's layers one run each (`estimate.one_shot`: one Pro wording a row,
   one draw a map, no finish asked again); no retry share, no second take, no fallback class. A shell piece takes its
   library surface with no maps (`estimate.SHELL_ROUTE`). Card and processor layers carry the bill share
@@ -24,10 +31,9 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   gap, not bought, and priced apart (`predicted_gaps_if_bought`); fewer measured rows is `at risk`, still bought.
   The crop's upscale is said, never a prediction (no failure was measured against it).
 - **Unmeasured stays unknown.** A layer with no per unit is unpriced and named; one with no measured minutes is
-  untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`). One exception, the owner's
-  (2026-10-20): the preview clips' layer (`estimate.clip_layer`, one clip a bought take) is priced from the films'
-  measured seconds a frame until library-clips has its own per unit, marked `estimated_from` and named in
-  `totals.estimated` and the line.
+  untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`). The preview clips' layer
+  (`estimate.clip_layer`, one clip a bought take) is priced and timed from library-clips' measured run, its minutes
+  the places' clips spread over warm cards as the row spreads them (`clips.shares`, `estimate.clip_minutes`).
 - **One class and zone a layer** (`machines.py`): the runner's first class in its kind's order, the zone with the
   best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as gaps.
 - **Library reuse only under today's route** (owner, 2026-10-20, #21/#41: "wouldn't lock anything"): a matching

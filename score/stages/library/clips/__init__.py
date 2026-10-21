@@ -6,8 +6,9 @@ other than unchanged or refused) and with no standing clip are rendered.
 
     make   the wanted entries from the handover report; the library's `clip-plan` says what each opens (its entries
            fetched into a work folder); each item's stage written with its sample shapes (sample.py: a surface on a
-           ball, a sky or lamps over a sample room); one Blender job on one card (blender/render_clips.py, every item
-           in turn on the one machine: no machine started per item), the frames back, each item's clip encoded here
+           ball, a sky or lamps over a sample room); the items in shares of CLIPS_A_CARD, one Blender job a share
+           (blender/render_clips.py, its items in turn), the jobs in one call spread over warm cards side by side
+           (blender_cloud.py: one card a share), the frames back, each item's clip encoded here
            (ffmpeg, H.264 at the films' rate), then the library's `clip-attach` puts each clip into its draft entry
            and saves. The output: clips.json (per wanted entry: address, shelf, slug, why, planned), <slug>.mp4
            and <slug>.png (its first frame), attach.json (the library's report), plan.json (the library's plan).
@@ -20,7 +21,7 @@ place; a sky or a place's lamps light a sample room the eye sweeps round. A soun
 (its demo), a place (its films) or the other layers.
 
 The price (`per_item`, `forecast`): unmeasured until the first clips run, so estimated from the films' measured render
-seconds a frame (ESTIMATED_FROM) at the L4's billed price, every frame once, with the one machine's set-up; the make
+seconds a frame (ESTIMATED_FROM) at the L4's billed price, every frame once, with each card's set-up; the make
 refuses (Blocked) a batch whose forecast high passes what its run was cleared at, a new ask at the forecast's price.
 """
 import json
@@ -53,13 +54,19 @@ ESTIMATED_FROM = ("estimated from the films' measured render seconds a frame (14
                   "tools/review/demo.py, 2026-10-10) at the L4's billed EUR 0.7875 an hour; no clip measured yet")
 CARD_EUROS_A_MINUTE = 0.7875 / 60  # the L4's bill (data/costs/per-unit.json light-passes' machine price, 2026-10-10)
 OVERHEAD = 1.10  # time outside jobs on a warm card, the owner's target (per-unit.json's overhead, 2026-10-20)
-SETUP_MINUTES = 8  # the one machine's set-up (tools/props/cloud/blender_cloud.py SETUP_MINUTES)
+SETUP_MINUTES = 8  # a card's set-up (tools/props/cloud/blender_cloud.py SETUP_MINUTES)
 # An item's stage brought into Blender before its frames: not measured; a place's whole stage takes about 10 min
 # (score/stages/demo_film JOB_LEAD_MINUTES), one item a small share of that.
 ITEM_LEAD_MINUTES = 0.5
 # The row's reservation while unmeasured: the most bought takes at one place in the remake's prepare record (the hub's
 # 62, WORK/checks/prepare/remake.json, 2026-10-20), each a new model to clip.
 PLACE_ITEMS = 62
+# A card's share of a place's clips (owner's one-shot rules: waste is time on one card, never a lower setting): a
+# card works about as long as the remake's longest timed layer (Pixal3D, about 90 min likely in prepare's record of
+# 2026-10-21), at the measured 12 min a clip (library-clips-sample: 4223.7 s for 6 clips on one L4), so a place's
+# clips end near the batch's other steps; one card's set-up (about 1.5 min, EUR 0.02) a share.
+CARD_MINUTES, CLIP_MINUTES = 90, 12
+CLIPS_A_CARD = CARD_MINUTES // CLIP_MINUTES
 SPREAD_LEAST = 4.0  # a first frame whose pixels spread less than this is blank (score/stages/demo_turntable's)
 CLIPS, ATTACH, PLAN = "clips.json", "attach.json", "plan.json"
 
@@ -75,16 +82,23 @@ def per_item(seconds=FRAME_SECONDS):
     return {**found, "frames": framing.FRAMES, "from": ESTIMATED_FROM}
 
 
+def shares(items):
+    """`items` in shares of CLIPS_A_CARD, in order: one Blender job and one card each."""
+    items = list(items)
+    return [items[start:start + CLIPS_A_CARD] for start in range(0, len(items), CLIPS_A_CARD)]
+
+
 def forecast(items):
-    """{items, frames, likely_euros, high_euros, high_minutes} of `items` clips on one machine: each item's price
-    and the machine's set-up once (none for no items)."""
+    """{items, frames, likely_euros, high_euros, high_minutes} of `items` clips spread over cards (shares): each
+    item's price and each card's set-up once, the minutes the biggest share's (none for no items)."""
     if not items:
         return {"items": 0, "frames": 0, "likely_euros": 0.0, "high_euros": 0.0, "high_minutes": 0.0}
-    one, setup = per_item(), SETUP_MINUTES * CARD_EUROS_A_MINUTE * OVERHEAD
+    one, cards = per_item(), len(shares(range(items)))
+    setup = cards * SETUP_MINUTES * CARD_EUROS_A_MINUTE * OVERHEAD
     return {"items": items, "frames": items * one["frames"],
             "likely_euros": round(items * one["likely_euros"] + setup, 2),
             "high_euros": round(items * one["high_euros"] + setup, 2),
-            "high_minutes": round(items * one["high_minutes"] + SETUP_MINUTES, 1)}
+            "high_minutes": round(min(items, CLIPS_A_CARD) * one["high_minutes"] + SETUP_MINUTES, 1)}
 
 
 EUROS = forecast(PLACE_ITEMS)["high_euros"]
@@ -135,14 +149,18 @@ def item_entry(row, folder):
             "per_second": row["per_second"] or framing.RATE}
 
 
-def render(manifest, frames, minutes, log):
-    """The one Blender job on one card (the runner's clearance names it); its log kept beside the output."""
-    job = manifest.parent / "job.json"
-    job.write_text(json.dumps({"script": SCRIPT, "args": [str(manifest), str(frames)],
-                               "inputs": [str(manifest.parent)], "outputs": [str(frames)],
-                               "minutes": round(minutes)}, indent=1))
+def render(jobs, log):
+    """The Blender jobs, [(manifest, frames folder, minutes)] one a share, in one call that spreads them over cards
+    side by side (the runner's clearance names it); its log kept beside the output."""
+    written = []
+    for manifest, frames, minutes in jobs:
+        job = manifest.with_suffix(".job.json")
+        job.write_text(json.dumps({"script": SCRIPT, "args": [str(manifest), str(frames)],
+                                   "inputs": [str(manifest.parent)], "outputs": [str(frames)],
+                                   "minutes": round(minutes)}, indent=1))
+        written.append(str(job))
     python = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
-    done = subprocess.run([str(python), str(REPO / "tools/props/cloud/blender_cloud.py"), str(job),
+    done = subprocess.run([str(python), str(REPO / "tools/props/cloud/blender_cloud.py"), *written,
                            "--who", ROW, "--classes", CLASSES], cwd=REPO, capture_output=True, text=True)
     log.write_text(done.stdout[-30000:] + "\n" + done.stderr[-30000:])
     if done.returncode:
@@ -160,17 +178,28 @@ def encode(frames, film):
     return "" if done.returncode == 0 else f"ffmpeg: {done.stderr.strip()[-300:]}"
 
 
-def clip_rows(planned, frames, out, rendered):
-    """[{address, shelf, slug, why}] of the planned items, each encoded into <slug>.mp4 and <slug>.png; why says
-    what went wrong ('' when its clip is made)."""
+def gathered(jobs):
+    """{slug: its render record} of every share's rendered.json, each with the `frames` folder its share brought
+    back; a share whose job brought nothing back leaves its items out (not rendered)."""
+    found = {}
+    for _, frames, _ in jobs:
+        listed = frames / "rendered.json"
+        for slug, record in (json.loads(listed.read_text()) if listed.is_file() else {}).items():
+            found[slug] = {**record, "frames": str(frames / slug)}
+    return found
+
+
+def clip_rows(planned, out, rendered):
+    """[{address, shelf, slug, why}] of the planned items, each encoded from its frames (`rendered`, gathered) into
+    <slug>.mp4 and <slug>.png; why says what went wrong ('' when its clip is made)."""
     rows = []
     for row in planned:
         slug = slug_of(row["address"])
         why = (rendered.get(slug) or {}).get("why") or ("" if slug in rendered else "not rendered")
         if not why:
-            why = encode(frames / slug, out / f"{slug}.mp4")
+            why = encode(pathlib.Path(rendered[slug]["frames"]), out / f"{slug}.mp4")
         if not why:
-            shutil.copy(frames / slug / "f000-look.png", out / f"{slug}.png")
+            shutil.copy(pathlib.Path(rendered[slug]["frames"]) / "f000-look.png", out / f"{slug}.png")
         rows.append({"address": row["address"], "shelf": row["shelf"], "slug": slug, "why": why})
     return rows
 
@@ -194,15 +223,18 @@ def attach(rows, out):
 
 
 def rendered_rows(planned, library, frames, out):
-    """The planned items rendered in one job, encoded and put into their entries; their clip rows."""
+    """The planned items rendered in one job a share (shares), encoded and put into their entries; their clip rows."""
     if not planned:
         return []
     refuse_over_clearance(forecast(len(planned)), cleared_euros())
-    manifest = library / "manifest.json"
-    items = [item_entry(row, library / "stages") for row in planned]
-    manifest.write_text(json.dumps({"search": str(library), "size": list(SIZE), "items": items}, indent=1))
-    render(manifest, frames, forecast(len(planned))["high_minutes"], out / "render.log")
-    rows = clip_rows(planned, frames, out, json.loads((frames / "rendered.json").read_text()))
+    jobs = []
+    for number, share in enumerate(shares(planned)):
+        manifest = library / f"manifest-{number}.json"
+        items = [item_entry(row, library / "stages") for row in share]
+        manifest.write_text(json.dumps({"search": str(library), "size": list(SIZE), "items": items}, indent=1))
+        jobs.append((manifest, frames / f"share-{number}", forecast(len(share))["high_minutes"]))
+    render(jobs, out / "render.log")
+    rows = clip_rows(planned, out, gathered(jobs))
     faults = [fault for row in rows for fault in whole_faults(out, row)]
     if faults:  # the gate fails before attach: no clip of a failed batch goes into the library
         handover.write(out / ATTACH, {"attached": [], "refused": [], "saved": {

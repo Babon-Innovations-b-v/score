@@ -130,7 +130,14 @@ RECORDED = {
                                 "source": "ledger batch blender-20261021-005907-4020565 (library-clips-sample, "
                                           "2026-10-21, benchmark grant 20261020T224639): 6 clips (4 models, a "
                                           "surface, an effect) of 96 frames at 1280x720 on one L4, 72.2 min, its "
-                                          "output fdfb21959984's clips.json"}]},
+                                          "output fdfb21959984's clips.json"}],
+                      # its line's own times: 4223.7 s of work for the 6 clips, a fresh L4's start wait 0.37 min
+                      # and set-up 1.08 min; one run, so likely and high alike
+                      "time": {"unit_seconds": {"likely": 703.95, "high": 703.95},
+                               "setup_minutes": {"likely": 1.45, "high": 1.45}, "slots": 1,
+                               "slots_from": "one job at a time on its one card", "holds": "machines", "lines": 1,
+                               "from": ["ledger batch blender-20261021-005907-4020565 (its machine's unit_seconds "
+                                        "over the 6 clips of its clips.json)"]}},
     "concept_people": {"unit": "make of the environment's people concept", "forecast": "one",
                        "runs": [{"euros": 2.41, "units": 1,
                                  "source": f"{STAGE_EUROS_13} line 12 (world 1's ticketed run, 16 rows), its re-buy "
@@ -413,7 +420,7 @@ def times(lines, calls, google_path):
              for stage, spec in SPECS.items()}
     lost = {"why": "priced from runs written down when they ran, euros and units but no time; their ledger lines "
                    "went with the old disk (2026-10-19)"}
-    return {**{stage: lost for stage in RECORDED}, **found}
+    return {**{stage: spec.get("time", lost) for stage, spec in RECORDED.items()}, **found}
 
 
 def node_minutes(records, store):
@@ -470,6 +477,7 @@ def with_rules(body):
     measured = {stage: found for stage, found in body["stages"].items() if stage in SPECS}
     rebuilt = with_forecasts(measured)
     kept = {stage: found["time"] for stage, found in body["stages"].items() if "time" in found}
+    kept.update({stage: spec["time"] for stage, spec in RECORDED.items() if "time" in spec})  # its run's own times
     return {**body, "stages": {stage: {**found, **({"time": kept[stage]} if stage in kept else {})}
                                for stage, found in rebuilt.items()}}
 

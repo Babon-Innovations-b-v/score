@@ -28,8 +28,10 @@ OUT = WORK / "checks" / "prepare" / "remake.json"
 WORLD = "world1"
 NOT_IN_FIGURE = ("the places' own paid rows (settle, light passes, effects look, tiles): `score price world1 --gaps`",
                  "the places waiting on inventory (no reading of their picked concept yet): no euros until read",
-                 "films, sound and the ground: their layers' prepare steps are #21 tracks C's (a reading's people and "
-                 "terrain rows are priced as models through the prop pipeline)",
+                 "films, sound and the ground: their layers' prepare steps are #21 tracks C's (a reading's terrain "
+                 "rows are models through the prop pipeline, its people rows models with the motion layer after)",
+                 "the sky's, the effects' and the far city's takes: their own routes, unpriced until measured, their "
+                 "inputs that route's own (not the prop pipeline's contract, so not checked here)",
                  "the likeness calibration and any layer listed unpriced: no measured per unit")
 
 
@@ -70,11 +72,17 @@ def take_entry(group, record, index, rates, work):
     """One take of the batch: its group with its library match, prediction, input faults, crop upscale, status and
     key-diff status."""
     match = library.match(group, index)
-    prediction = predict.predicted(group["size"], rates)
+    model = group["route"] in groups.MODEL_ROUTES
+    prediction = predict.predicted(group["size"], rates) if model else OWN_ROUTE
     is_made = made(group["take"])
-    return {**group, "library": match, "prediction": prediction, "inputs": contract.faults(record, group, work),
+    return {**group, "library": match, "prediction": prediction,
+            "inputs": contract.faults(record, group, work) if model else [],
             "upscale": contract.upscale(group["box"]), "status": status_of(match, prediction, is_made),
             "key_diff": "made: its take stands, not bought again" if is_made else "new: no take of it stands"}
+
+
+OWN_ROUTE = {"outcome": "pass", "shape": None, "pass_share": None, "mode": None,
+             "measured": "its own route: no close-up, so no close-up failure is measured against it"}
 
 
 def take_counts(takes):
@@ -114,17 +122,22 @@ def moved_rows(runner):
 
 
 def priced_layers(route, takes, fixed):
-    """(layers of the bought takes, layers of the predicted gaps) on the route."""
+    """(layers of the bought takes, layers of the predicted gaps): the prop route's of the models (groups.MODEL_ROUTES),
+    then each take's own route's (estimate.own_route_layers)."""
     rules = estimate.one_shot()
-    bought = [take for take in takes if take["status"] == "bought"]
-    gaps = [take for take in takes if take["status"] == "predicted gap"]
-    return estimate.layers(route, bought, rules, fixed), estimate.layers(route, gaps, rules, fixed)
+    found = []
+    for status in ("bought", "predicted gap"):
+        chosen = [take for take in takes if take["status"] == status]
+        models = [take for take in chosen if take["route"] in groups.MODEL_ROUTES]
+        found.append({**estimate.layers(route, models, rules, fixed), **estimate.own_route_layers(chosen)})
+    return tuple(found)
 
 
 def across_places(route, takes, fixed):
     """{takes, totals} of the bought takes if one take served a model (kind, size ratio, kit) in every place: the
     owner's call, since a place's style may differ, so never the figure itself."""
-    shared = list({tuple(map(str, take["key"])): take for take in takes if take["status"] == "bought"}.values())
+    shared = list({tuple(map(str, take["key"])): take for take in takes
+                   if take["status"] == "bought" and take["route"] in groups.MODEL_ROUTES}.values())
     return {"takes": len(shared), "totals": estimate.totals(estimate.layers(route, shared, estimate.one_shot(), fixed))}
 
 
@@ -148,7 +161,7 @@ def remake(runner, data, root, work, stock=None, moved=None):
     fixed = fixed_machines(route, stock)
     found, gaps = priced_layers(route, takes, fixed)
     found[clips.ROW] = estimate.clip_layer(collections.Counter(take["place"] for take in takes
-                                                               if take["status"] == "bought"))
+                                                               if take["status"] == "bought"), price.run_cap())
     edges = estimate.route_edges(runner.stages, [*route, clips.ROW])
     record = {"made_at": graph.now(), "priced_on": price.priced_on(),
               "inventory": {"read": sorted(inventories), "waiting": waiting},

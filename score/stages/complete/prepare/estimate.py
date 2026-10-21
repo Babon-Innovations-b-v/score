@@ -13,8 +13,13 @@ import math
 
 from score.adapters import compute
 from score.stages.complete.gaps import price, schedule
+from score.stages.complete.prepare import groups
 
 SHELL_ROUTE = ("closeup", "pixal", "surfaces-bake")
+# {route: its layer's stage} of a take's layers past or in place of the prop pipeline (groups.ROUTES): a person's
+# model is the prop pipeline's, then the motion layer's steps (CONTEXT.md "motion"); the sky, the effects and the far
+# city are layers without models, each its own route (CONTEXT.md "layer adapter").
+OWN_ROUTES = {"people": "motion", "sky": "sky", "effects": "effects-look", "skyline": "skyline"}
 GOOGLE = "google calls"  # a per-unit entry's source of Google calls: the bill share does not apply
 DEADLINE_TIMES = 2  # a job's watchdog deadline: twice its measured high seconds (guard.py's runaway limit)
 
@@ -67,7 +72,8 @@ def layers(route, groups_bought, rules, fixed):
     found = {}
     for stage, takes in takes_a_layer(route, groups_bought).items():
         found[stage] = {"takes": takes, **layer_cost(stage, takes, rules),
-                        "settings": settings(stage, rules, fixed.get(stage))}
+                        "settings": settings(stage, rules, fixed.get(stage)),
+                        "runs": {"routes": list(groups.MODEL_ROUTES), "shell": stage in SHELL_ROUTE}}
     return found
 
 
@@ -87,27 +93,46 @@ def layer_cost(stage, takes, rules):
     return {"units": units, "price": layer_price(stage, units), "minutes": compute.unit_minutes(stage, units)}
 
 
-def clip_layer(places, fixed_machine=None):
-    """The preview clips' layer (score/stages/library/clips): one clip a bought take, each a new model the handover
-    makes; `places` {place: bought takes}. At its measured per unit once library-clips has one; until then estimated
-    from the films' measured render seconds a frame (clips.per_item, marked `estimated_from`): one card a place's
-    node, its set-up once, the places side by side (the minutes are the busiest place's)."""
+def own_route_layers(groups_bought):
+    """{stage: {takes, units, price, minutes, settings, runs}} of the layers a take adds past the prop pipeline or in
+    place of it (OWN_ROUTES): the motion layer's steps after a person's model, the sky's, the effects' and the far
+    city's own routes; each at its stage's measured per unit, else unpriced and untimed (layer_cost)."""
+    found = {}
+    for route, stage in OWN_ROUTES.items():
+        takes = sum(group["route"] == route for group in groups_bought)
+        if takes:
+            found[stage] = {"takes": takes, **layer_cost(stage, takes, {}), "settings": settings(stage, {}, None),
+                            "runs": {"routes": [route], "shell": True}}
+    return found
+
+
+def clip_layer(places, cap, fixed_machine=None):
+    """The preview clips' layer (score/stages/library/clips): one clip a bought take, each a new item the handover
+    makes; `places` {place: bought takes}, at its measured per unit, its minutes `clip_minutes`."""
     from score.stages.library import clips
     items = sum(places.values())
-    if compute.per_unit(clips.ROW) is not None:
-        return layers([clips.ROW], [{"shell": False}] * items, {}, {clips.ROW: fixed_machine})[clips.ROW]
-    one, nodes = clips.per_item(), [clips.forecast(count) for count in places.values() if count]
-    busiest = max(places.values(), default=0)
-    return {"takes": items, "units": items,
-            "price": {"likely_euros": round(sum(node["likely_euros"] for node in nodes), 2),
-                      "high_euros": round(sum(node["high_euros"] for node in nodes), 2),
-                      "unit": "preview clip of a new item", "unit_likely_euros": one["likely_euros"],
-                      "unit_high_euros": one["high_euros"], "estimated_from": one["from"]},
-            "minutes": {"likely_minutes": round(busiest * one["likely_minutes"] + clips.SETUP_MINUTES, 1)
-                        if busiest else 0.0,
-                        "high_minutes": clips.forecast(busiest)["high_minutes"], "cards": len(nodes) or None},
-            "settings": {"seed": 1, "units_a_take": 1, "why": "one clip a new item, every frame once",
-                         "frames": one["frames"], "size": list(clips.SIZE), "machine": fixed_machine}}
+    found = {**layers([clips.ROW], [{"shell": False}] * items, {}, {clips.ROW: fixed_machine})[clips.ROW],
+             "runs": {"routes": ["prop", *groups.ROUTES], "shell": True}}
+    if items and found["units"] is not None:
+        found["minutes"] = clip_minutes(places, cap)
+    return found
+
+
+def clip_minutes(places, cap):
+    """{likely_minutes, high_minutes, cards} of the places' clips spread over warm cards (clips.shares: CLIPS_A_CARD
+    a card, so a card works about as long as the batch's longest layer), the places' nodes side by side within the
+    run's `cap` cards, on library-clips' measured seconds a clip and set-up; {minutes_why} where unmeasured."""
+    from score.stages.library import clips
+    time = (compute.per_unit(clips.ROW) or {}).get("time") or {}
+    setup = time.get("setup_minutes") or {}
+    if "unit_seconds" not in time or "likely" not in setup:
+        return {"minutes_why": time.get("why") or setup.get("why") or f"{clips.ROW}: no measured time"}
+    counts = [count for count in places.values() if count]
+    cards = sum(len(clips.shares(range(count))) for count in counts)
+    busiest = max(len(share) for count in counts for share in clips.shares(range(count)))
+    rounds = math.ceil(cards / cap)
+    return {which: round(setup[key] + rounds * busiest * time["unit_seconds"][key] / 60, 1)
+            for which, key in (("likely_minutes", "likely"), ("high_minutes", "high"))} | {"cards": min(cards, cap)}
 
 
 def route_edges(table, route):
@@ -160,8 +185,6 @@ def line(record):
     minutes = (f"{time['likely_minutes']:.0f} to {time['high_minutes']:.0f} min" if time["likely_minutes"] is not None
                else f"at least {time['at_least_minutes']:.0f} min ({len(time['unknown'])} layers untimed)")
     unpriced = f", unpriced: {', '.join(money['unpriced'])}" if money["unpriced"] else ""
-    unpriced += (f", estimated from the films' frame time: {', '.join(money['estimated'])}"
-                 if money.get("estimated") else "")
     inventory = record["inventory"]
     return (f"remake batch (estimate) of the {len(inventory['read'])} places with a scene inventory "
             f"({len(inventory['waiting'])} waiting on inventory, no euros): "

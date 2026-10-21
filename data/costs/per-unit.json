@@ -68,6 +68,23 @@
    "forecast": {
     "rule": "models",
     "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
+   },
+   "time": {
+    "unit_seconds": {
+     "likely": 703.95,
+     "high": 703.95
+    },
+    "setup_minutes": {
+     "likely": 1.45,
+     "high": 1.45
+    },
+    "slots": 1,
+    "slots_from": "one job at a time on its one card",
+    "holds": "machines",
+    "lines": 1,
+    "from": [
+     "ledger batch blender-20261021-005907-4020565 (its machine's unit_seconds over the 6 clips of its clips.json)"
+    ]
    }
   },
   "concept_people": {
@@ -443,10 +460,6 @@
      "prove-20261021-005847-4017578"
     ]
    },
-   "forecast": {
-    "rule": "sound_takes",
-    "source": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief and seed, each counted once at the first place in data/sound/places.json that plays it"
-   },
    "time": {
     "unit_seconds": {
      "likely": 19.332,
@@ -464,6 +477,10 @@
     "from": [
      "$PROPS/cloud/ledger.jsonl"
     ]
+   },
+   "forecast": {
+    "rule": "sound_takes",
+    "source": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief and seed, each counted once at the first place in data/sound/places.json that plays it"
    }
   },
   "finish-route-list": {
