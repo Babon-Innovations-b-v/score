@@ -27,7 +27,8 @@ holds, as three rows of the stage table.
                    lamps           no lamp on screen unlit, none blown out
                    sky elements    every element the sky calls for is in the layer: a picture-faced world with its
                                    picture (the Earth's NASA surface), the day dome, the shafts
-                   heads           floodlight heads facing the eye glow as concept K04's (halo, fill, beam, veil)
+                   heads           floodlight heads facing the eye glow (halo, fill, beam, veil: the rules set on
+                                   environment 1's concept K04 on 2026-10-11)
                    earth           the Earth's disc at most SMOOTH_MOST flat paint (concept C4's 0.0)
                    sky             an outdoor place's sky within SKY_GAP_MOST levels of its concept's sky colour,
                                    its blue to red within BLUE_TO_RED_WITHIN
@@ -38,8 +39,11 @@ The owner's plan for light is baked per-lamp layers mixed live (memory, project-
 its first half on the views: one pass a lamp, mixed at any strengths with no render again. The layer it delivers holds
 live lights (UsdLux) at the measured strengths; no lamp's light is baked into the surfaces yet.
 
-The lightkit row (kit.py: the square's proscenium and floodlight towers, baked) keeps its own runner
-(`python -m score.stages.light run lightkit`).
+Every row reads the place's design only (2026-10-21): it applies at every designed place (the table's
+designed("light")), reads the place's record from the scene-record row's output only (passes.record_of), renders
+the places that record shows (passes.neighbours) each lit by its own record read beside, buys light-haze where the
+kit lays a lamp with a shaft (haze.shafted_kinds), and measures the floodlight heads of those kinds; no hand-kept
+record, place or kind list.
 """
 import json
 import pathlib
@@ -61,11 +65,6 @@ import placeholders  # noqa: E402
 import stage_inputs  # noqa: E402
 
 WORK = PROPS_HOME / "work"
-# The concepts each fault is measured against (the coordinator's picks, data/inventory/<place>.json), worked out by
-# measure.py on 2026-10-11: K04's two floodlight heads, C4's Earth. A sky is measured against the place's own concepts.
-CONCEPTS = {"square": WORK / "scene/square/views/K04.png", "old_station": WORK / "scene/old_station/views/C4.png"}
-CONCEPT_HEADS = (((663, 532), 49.0), ((1332, 558), 44.5))
-CONCEPT_EARTH = ((719, 262), 53.0)
 # The pass rules of 2026-10-11 (the light stage's first rows), set before any after-picture was made: half the
 # concept's head halo and fill, a beam that lights its air, the place washed out by its haze at most VEIL_MOST, only
 # heads whose lit face turns toward the eye judged (FACING_LEAST); an Earth disc at most a quarter smooth; a sky
@@ -95,23 +94,14 @@ BLACK = 4.0 / 255.0
 BLOWN = 251.0 / 255.0
 BLACK_OVER = 0.05
 BLOWN_OVER = 0.02
-# The floodlights each place's views show: its own, and the square's towers seen from the launch view.
-LAMP_KINDS = {"square": (("square", "square_far_floodlight_tower"),),
-              "launch": (("launch", "launch_far_pad_floodlight"), ("square", "square_far_floodlight_tower"))}
-
-
-def place_of(inputs):
-    return json.loads(pathlib.Path(inputs["scene"]).read_text())["place"]
-
-
-def scene_of(place):
-    return json.loads((REPO / f"data/scene/{place}.json").read_text())
+place_of = passes.place_of
 
 
 def applies(place):
-    """A place with a scene record in the repository (its views and lights). Its
-    seed is an input like any other: a lost one is the place's gap, never a reason to leave the place unlit."""
-    return place is not None and (REPO / "data/scene" / f"{place}.json").is_file()
+    """A place whose scene record the scene-record row writes from its design (passes.recorded): its views and
+    lights are that record's. Its seed is an input like any other: a lost one is the place's gap, never a reason to
+    leave the place unlit."""
+    return passes.recorded(place)
 
 
 # --- light-layer ----------------------------------------------------------------------------------------------------
@@ -204,10 +194,10 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 
 
 def layer_files(place):
-    """The record, the kit (its seat, its lenses) and the light data (passes.place_files), the seed, the grounds the
-    sky stands on, and the scene's kept sky (sky.kept_input) when it has one."""
-    return {"scene": "{data}/scene/{place}.json", "seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground",
-            "kit": "{data}/kit/{place}.json", **passes.place_files(place), **sky.kept_input(place)}
+    """The kit (its seat, its lenses) and the light data (passes.place_files), the seed, the grounds the sky stands
+    on, and the scene's kept sky (sky.kept_input) when it has one; the record is the scene-record row's output."""
+    return {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
+            **passes.place_files(place), **sky.kept_input(place)}
 
 
 # --- light: the sweep, the strengths and the measures ------------------------------------------------------------
@@ -319,20 +309,21 @@ def look_at(held, curve, look, scales):
     return Image.fromarray(np.clip(rgb * full[..., None], 0, 255).astype(np.uint8))
 
 
-def floodlight_sweep(place, passes_folder, scales, shafted, out, record, haze_folder=None):
+def floodlight_sweep(place, passes_folder, scales, shafted, out, inputs, haze_folder=None):
     """The floodlights' strength (their shafts' light with them): the least of FLOODLIGHT_SCALES at which the heads
     rule holds on the looks mixed at it, else the layer's own (1), set into `scales`; the looks at the final strengths
     are left in out/looks. The layer's own strength is tried first and kept when it meets the rule: a floodlight is
     dimmed or brightened only where its gate needs it (2026-10-13: dimmed to the least passing strength, the square's
     heads read worse than its earlier accepted output while passing). What was tried, {scale: passed}."""
     tried = {}
+    heads = bool(shafted) and bool(lamp_heads(place, inputs))
     order = (1.0, *(scale for scale in FLOODLIGHT_SCALES if scale != 1.0))
-    for scale in (order if shafted and place in LAMP_KINDS else (1.0,)):
+    for scale in (order if heads else (1.0,)):
         scales.update(dict.fromkeys(shafted, scale))
         mixed_looks(passes_folder, scales, shafted, out, haze_folder)
-        if not (shafted and place in LAMP_KINDS):
+        if not heads:
             break
-        summary = heads_summary(head_measures(place, out, record))
+        summary = heads_summary(head_measures(place, out, inputs))
         tried[scale] = bool(summary and summary[0])
         if tried[scale]:
             return tried
@@ -384,7 +375,7 @@ def make_light(inputs, out, seed, params):
     shafted = [group for group, path in by_group.items()
                if next(lamp for lamp in found["lamps"] if lamp["path"] == path)["shaft"]]
     record = passes.record_of(place, inputs)
-    swept["floodlights"] = floodlight_sweep(place, passes_folder, scales, shafted, out, record, haze_folder)
+    swept["floodlights"] = floodlight_sweep(place, passes_folder, scales, shafted, out, inputs, haze_folder)
     for lamp in found["lamps"]:
         group = next((name for name, path in by_group.items() if path == lamp["path"]), None)
         lamp["scale"] = scales.get(group, 1.0)
@@ -392,9 +383,8 @@ def make_light(inputs, out, seed, params):
                                                for group, scale in scales.items()})
     layer.lamps_file(found, out)
     measures = {"place": place, "brightness": swept, "sky_elements": sky_elements(place, out, record),
-                "concept": concept_measures() if "square concepts" in inputs else None,
                 "stage_checks": stage_checks(place, layer_folder, inputs, out)}
-    measures.update(fault_measures(place, out, passes_folder, record))
+    measures.update(fault_measures(place, out, passes_folder, inputs))
     (out / "measures.json").write_text(json.dumps(measures, indent=1) + "\n")
 
 
@@ -404,15 +394,19 @@ def rendered(out, name, kind="look"):
     return {path.name.removesuffix(f"-{kind}.png"): path for path in out.glob(f"looks/{name}/*-{kind}.png")}
 
 
-def lamp_heads(place, record):
-    """Each floodlight lamp a place's views show as (its lens middle, half its bank's width, its light, its front)."""
+def lamp_heads(place, inputs):
+    """Each floodlight head a place's views show, its own and those of the places it shows (passes.shown_in): every
+    glow part of a kit kind whose lamps light a shaft (haze.shafted_kinds), as (its lens middle, half its bank's width,
+    the nearest of its owner's shafted lights, its front)."""
     found = []
-    for owner, kind in LAMP_KINDS[place]:
+    for owner in (place, *passes.shown_in(inputs)):
+        kinds = haze.shafted_kinds(owner)
+        if not kinds:
+            continue
         kit = json.loads((REPO / f"data/kit/{owner}.json").read_text())
-        owned = record if owner == place else scene_of(owner)
-        lights = [entry for entry in layer.lights_of(owner, owned) if entry.get("shaft")]
+        lights = [entry for entry in layer.lights_of(owner, passes.record_of(owner, inputs)) if entry.get("shaft")]
         for laid in kit["pieces"]:
-            if laid["kind"] != kind or laid.get("part") != "glow":
+            if laid["kind"] not in kinds or laid.get("part") != "glow":
                 continue
             middle = layer.lens_middle(laid)
             light = min(lights, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - middle)) if lights else None
@@ -420,7 +414,7 @@ def lamp_heads(place, record):
     return found
 
 
-def head_measures(place, out, record):
+def head_measures(place, out, inputs):
     """Every floodlight head on screen in every view, with its shafted lamps off (before) and on (after), and its
     beam's gain."""
     size, views = views_of(out)
@@ -434,7 +428,7 @@ def head_measures(place, out, record):
         # node has one (light-haze), else against the floodlights off (their floor light in it too).
         veiled = measure.picture(unhazed[view["name"]]) if view["name"] in unhazed else before_rgb
         veils[view["name"]] = measure.veil(veiled, after_rgb)
-        for middle, half, light, front in lamp_heads(place, record):
+        for middle, half, light, front in lamp_heads(place, inputs):
             x, y, depth, focal = measure.where(view, size, middle)
             if x is None or not (0 <= x < size[0] and 0 <= y < size[1]):
                 continue
@@ -529,17 +523,12 @@ def sky_measures(place, out):
     return {"concept": concept, "views": found}
 
 
-def concept_measures():
-    square, old = measure.picture(CONCEPTS["square"]), measure.picture(CONCEPTS["old_station"])
-    (x, y), radius = CONCEPT_EARTH
-    return {"heads": [measure.head(square, hx, hy, hr) for (hx, hy), hr in CONCEPT_HEADS],
-            "earth": measure.disc(old, x, y, radius)}
-
-
-def fault_measures(place, out, passes_folder, record):
+def fault_measures(place, out, passes_folder, inputs):
+    """The heads (where the views show a floodlight), the Earth, the sky and the exposure, measured on the looks."""
+    record = passes.record_of(place, inputs)
     found = {}
-    if place in LAMP_KINDS:
-        heads = head_measures(place, out, record)
+    if lamp_heads(place, inputs):
+        heads = head_measures(place, out, inputs)
         found["heads"], found["veil"] = heads["heads"], heads["veil"]
     balls = faced_balls(out)
     if balls:
@@ -762,29 +751,24 @@ def light_faults(folder):
 
 
 def light_files(place):
-    """What the sweep and the measures read: the records and kits, the seed and the places it shows (the stage
-    checks), the concepts; the views come with the layer."""
+    """What the sweep and the measures read besides the scene records: the kits, the seed and the places it shows
+    (the stage checks, their floodlight heads), the concepts; the views come with the layer."""
     inventory = stage_inputs.inventory_path(place)
-    found = {"scene": "{data}/scene/{place}.json", "seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground",
-             "kit": "{data}/kit/{place}.json", **passes.place_files(place),
-             "inventory": "{data}/inventory/" + inventory.name}
-    if designed(place):  # its picked concept; the old K04 and C4 the reference measures read went with the old disk
+    found = {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
+             **passes.place_files(place), "inventory": "{data}/inventory/" + inventory.name,
+             "sky": "{data}/definitions/sky.json"}  # which lamp rows light a shaft (haze.shafted_kinds)
+    if designed(place):  # its picked concept
         found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
     else:
-        found.update({"concepts": f"{{seeds}}/scene/{inventory.stem}/views",
-                      "square concepts": "{seeds}/scene/square/views",
-                      "old station concepts": "{seeds}/scene/old_station/views"})
+        found["concepts"] = f"{{seeds}}/scene/{inventory.stem}/views"
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
-        if (REPO / f"data/scene/{name}.json").exists():
-            found.update(passes.place_files(name))
-    for owner, _ in LAMP_KINDS.get(place, ()):
-        found.update(passes.place_files(owner))
+        found.update(passes.place_files(name))
     return found
 
 
 LIT = contracts.Contract("light", 1, light_faults, {"length": "metre", "up axis": "Y"})
-RECORD = {"scene-record": ("scene-record", 1)}  # read where the place has the row (Runner.reads)
+RECORD = {passes.RECORD: ("scene-record", 1)}  # the place's own as an after, each shown place's beside
 LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
                           (checks.Check("lamps placed", judge_placed), checks.Check("sky elements", judge_layer_sky),
                            checks.Check("sky bodies", judge_sky_bodies)),
@@ -793,13 +777,13 @@ PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.P
                            (checks.Check("rendered", passes.judge_rendered),
                             checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
                            after={"light-layer": ("light-layer", 1), **RECORD}, paid=True, euros=passes.EUROS,
-                           applies=applies)
+                           beside=RECORD, neighbours=neighbours, applies=applies)
 HAZE_STAGE = graph.Stage("light-haze", "place", haze.make_haze, contracts.Contract("light-haze", 1,
                                                                                    passes.passes_faults),
                          (checks.Check("rendered", passes.judge_rendered),
                           checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
                          after={"light-layer": ("light-layer", 1), **RECORD}, paid=True, euros=haze.EUROS,
-                         applies=lambda place: place in haze.HAZED)
+                         beside=RECORD, neighbours=neighbours, applies=haze.applies)
 LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                           (checks.Check("brightness", judge_brightness), checks.Check("lamps", judge_lamps),
                            checks.Check("sky elements", judge_sky_elements), checks.Check("heads", judge_heads),
@@ -808,5 +792,5 @@ LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                           files=light_files, after={"light-layer": ("light-layer", 1),
                                                     "light-passes": ("light-passes", 1),
                                                     "light-haze": ("light-haze", 1), **RECORD},
-                          applies=applies)
+                          beside=RECORD, neighbours=neighbours, applies=applies)
 ROWS = (LAYER_STAGE, PASSES_STAGE, HAZE_STAGE, LIGHT_STAGE)

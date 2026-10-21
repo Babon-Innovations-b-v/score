@@ -108,12 +108,16 @@ def surface_takes(data, place):
 
 def light_jobs(place):
     """The light passes' render jobs a place's make sends (passes.pass_jobs: its scene record's views, VIEWS_A_JOB a
-    job), or None while its views are not known (a place whose record the scene-record row has still to write)."""
+    job), or None while its views are not known (a place whose record the scene-record row has still to write): its
+    accepted scene-record output's views, which its light layer renders."""
     from score.stages.light import passes
-    scene = passes.REPO / f"data/scene/{place}.json"
-    if not scene.is_file():
+    from score.store import Store
+    store = Store.default()
+    output = store.accepted(f"{passes.RECORD}@{place}")
+    record = store.read_file(output, f"record/{place}.json") if output else None
+    if record is None:
         return None
-    return math.ceil(len(passes.scene_of(place).get("views") or []) / passes.VIEWS_A_JOB)
+    return math.ceil(len(record.get("views") or []) / passes.VIEWS_A_JOB)
 
 
 def sound_takes(data, place):

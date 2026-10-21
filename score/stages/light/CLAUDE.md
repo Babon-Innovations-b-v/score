@@ -4,11 +4,22 @@ The light stage (experimental, PRD #6; paper-vs-world-1 items 9 and 17) as three
 `light-layer@<place>` (free: `layers/light.usda` over the round-three seed from today's scene record, `layer.py`),
 `light-passes@<place>` (paid: the seed with that layer rendered on its own scene record's views, every own lamp in a
 Cycles light group of its own, `inside/light_passes.py`) and `light@<place>` (free: the sweep on the passes, `mix.py`;
-the strengths written into the layer; the gates). A row of every place with a scene record (`applies`), ship places
-too (through the table's wrappers); `needs.py` gives the gaps check what a place needs lit and its sky (#27);
-`sky.py` its sky from the environment concept's physics. Run with `python -m score run world1 --place <place> --stage light
---detach`. `__init__.py`'s docstring has the rows and the gates; `lightkit` (kit.py, the square's proscenium) keeps
-its own runner (`python -m score.stages.light run lightkit`).
+the strengths written into the layer; the gates), and `light-haze@<place>` (paid, `haze.py`: the same render with
+the shafts off). A row of every designed place (the table's `designed("light")`, `stages/design_layers.py`), ship
+places too, its record the scene-record row's (a place that row writes none for is refused by name,
+`passes.place_of`); `needs.py` gives the gaps check what a place needs lit and its sky (#27), from its plan;
+`sky.py` its sky from the environment concept's physics. Run with
+`python -m score run world1 --place <place> --stage light --detach`. `__init__.py`'s docstring has the rows and the
+gates.
+
+- **The design decides, never a hand-kept list** (2026-10-21, the hand-written-inputs sweep). A row reads the place's
+  scene record from the scene-record row's output only (`passes.record_of`), never `data/scene/<place>.json` (the old
+  game-transcribed records, which only scene-record's `seed-matched` reads); the places rendered with it are the ones
+  its accepted record shows (`passes.neighbours`: its doors' places and what its views see over the made ground),
+  each lit by its own record read beside (`scene-record@<name>`) on its earth seed (`stages.SHOWN_SEEDED`);
+  light-haze applies where the kit lays a lamp with a shaft (`haze.shafted_kinds`: the sky record's shafted lamp
+  rows, the light data's shafted kit lamps), and the floodlight heads are those kinds' glow parts, the place's and
+  its shown places'. Never add a place name, a kind name or a picture's pixels to decide what a row does.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
@@ -32,8 +43,8 @@ its own runner (`python -m score.stages.light run lightkit`).
 - **A rule is set before any picture it judges is made** (mix.py's docstring holds the brightness and lamp rules, the
   module's constants the old faults' rules); a rule changed later says why where it is set.
 - **Every fault is measured on the looks mixed from the node's own passes**, never on an older render (the demo's
-  frames are not inputs): a floodlight's head, beam and veil with its lamps off and on, against K04; the Earth's
-  smooth share against C4; an outdoor place's sky colour against its own concepts' sky; every view's black and blown
+  frames are not inputs): a floodlight's head, beam and veil with its lamps off and on, against the rules set on
+  K04; the Earth's smooth share against the rule set on C4; an outdoor place's sky colour against its own concepts' sky; every view's black and blown
   shares against its concepts' (`exposure`, the owner's "no black or blown areas").
 - **A mixed look is clean** (owner, 2026-10-20: the Library's Camp picture full of specks): only the render's
   combined light is denoised, never a lamp group, so a look's mix ratio is smoothed on the rendered look
@@ -63,9 +74,9 @@ its own runner (`python -m score.stages.light run lightkit`).
   magenta). The lit tree is refused when it names a missing picture, and the render rows gate on the looks'
   missing-texture magenta (`passes.judge_magenta`).
 - **A designed place is measured against its locked concept** (`{home}/design/concepts/<place>.png`, as
-  rough-model reads it; `concept_pictures`, `light_files`): its old views and the K04 and C4 the reference measures
-  read went with the old disk (2026-10-19), so `measures.json`'s `concept` is None there. A shown place no stage makes
-  whose seed is lost (the far city) is left out of the render (`passes.neighbours`); the neighbours row names it a gap.
+  rough-model reads it; `concept_pictures`, `light_files`). The K04 and C4 reference measures (fixed pixels of two
+  environment-1 pictures, lost with the old disk) are gone (2026-10-21). A shown place the design has no plan for
+  (the far city) is left out of the render (`passes.neighbours`); the neighbours row names it a gap.
 - **The sky is the environment concept's physics** (the owner, 2026-10-21: no fixed sky; CONTEXT.md "physics"):
   `sky.py` writes what overhead.py says is overhead at the scene's site at its scene time (each light over the horizon a distant light, one under it none,
   a shining body's disc and every other body a ball at its true direction and size, each backdrop), from the scene's

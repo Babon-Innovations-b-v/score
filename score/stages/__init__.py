@@ -18,7 +18,6 @@ place's scene record from its plan and concept. Cast (experimental) places each 
 (concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its game motions
 and its rigid moves. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
-import contextlib
 import dataclasses
 import functools
 import json
@@ -712,47 +711,6 @@ def has_old_record(place):
     return place is not None and (REPO / "data" / "scene" / f"{place}.json").exists()
 
 
-@contextlib.contextmanager
-def shows_no_neighbours():
-    """The light stage's neighbours (the places a place's old scene record shows) answered as none while the block
-    runs: a place the game never had (the ship's) has no old record to read them from (2026-10-15: score status died
-    in light-passes for the cockpit on data/scene/cockpit.json)."""
-    kept = light.passes.neighbours, light.neighbours
-    light.passes.neighbours = light.neighbours = lambda place: []
-    try:
-        yield
-    finally:
-        light.passes.neighbours, light.neighbours = kept
-
-
-def no_old_record(files):
-    """A light row's environment files for a place with no old scene record: no neighbours and no `scene` file (its record
-    is the scene-record row's output, which the row reads); a place with one declares them as before. Wrapped here, in
-    the table, so no place's key moves."""
-    def declared(place):
-        if has_old_record(place) or place is None:
-            return files(place)
-        with shows_no_neighbours():
-            found = files(place)
-        return {name: path for name, path in found.items() if name not in ("scene", f"scene {place}")}
-    return functools.wraps(files)(declared)
-
-
-def made_without_old_record(make):
-    """A light row's make for a place with no old scene record, showing no neighbours (shows_no_neighbours); a place
-    with one is made as before."""
-    def made(inputs, out, seed, params):
-        place = pathlib.Path(inputs["kit"]).stem
-        if has_old_record(place):
-            return make(inputs, out, seed, params)
-        # the place's record is its scene-record output's (light.passes.record_of reads it first); `scene` names it
-        # only so light.place_of finds the place
-        inputs = dict(inputs, scene=pathlib.Path(inputs["scene-record"]) / "record" / f"{place}.json")
-        with shows_no_neighbours():
-            return make(inputs, out, seed, params)
-    return functools.wraps(make)(made)
-
-
 def sounded_from_plan(files):
     """The sound row's environment files for a place with no old scene record (the ship's): its plan stands as `scene`. The
     row reads only the place's name (the file's stem) and the objects and structure the record names, for where object
@@ -769,11 +727,22 @@ def sounded_from_plan(files):
 
 STAGES = tuple(dataclasses.replace(row, files=sounded_from_plan(row.files)) if row.name == "sound" else row
                for row in STAGES)
+def hazed(applies):
+    """light-haze's `applies` at a designed place (designed("light")) whose kit lays a lamp with a shaft
+    (haze.applies)."""
+    shown = designed("light")
+
+    def applied(place):
+        return shown(place) and applies(place)
+    return functools.wraps(applies)(applied)
+
+
 # The light rows of every designed place (designed("light")), a ship place's too: its base stage is usd-ship/<place>
-# (ship_seeded reads it as the seed) and its views are its own scene-record output's, which its light layer writes
-# into views.json.
-STAGES = tuple(dataclasses.replace(row, applies=designed("light"), files=no_old_record(row.files),
-                                   make=made_without_old_record(row.make))
+# (ship_seeded reads it as the seed); every place's views and lights are its own scene-record output's, which its
+# light layer writes into views.json (a designed place the scene-record row writes no record for is refused by name:
+# light.passes.place_of). light-haze only where the kit lays a shafted lamp.
+STAGES = tuple(dataclasses.replace(row, applies=hazed(row.applies)) if row.name == "light-haze" else
+               dataclasses.replace(row, applies=designed("light"))
                if row.name in ("light-layer", "light-passes", "light") else row for row in STAGES)
 
 
@@ -921,6 +890,12 @@ EARTH_SEEDED = ("assembly", "settle", "effects-layer", "effects-look", "physics-
                 "motion-models", "light-layer", "light-passes", "light-haze", "light", "scene-record")
 
 
+# The rows reading beside the places they show (their scene records) and those places' seeds with them: the light
+# rows that render or check a place with its neighbours (light.passes.neighbours), each shown place's earth seed
+# read beside too. Every other row reading beside reads no other place's seed.
+SHOWN_SEEDED = ("light-passes", "light-haze", "light")
+
+
 def seed_named(pattern, place):
     """The earth place whose round-three seed a declared file pattern is (`{place}` the node's own), else None."""
     start = f"{{seeds}}/{OLD_SEED}/"
@@ -971,7 +946,7 @@ def earth_seeded(row):
             return function(*arguments)
         return read
 
-    beside = row.beside or SEED_READ
+    beside = {**row.beside, **SEED_READ} if row.name in SHOWN_SEEDED else row.beside or SEED_READ
     return dataclasses.replace(
         row, files=functools.wraps(files)(declared) if callable(files) else declared,
         after={**row.after, **SEED_READ}, beside=beside, neighbours=row.neighbours or others,

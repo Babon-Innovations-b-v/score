@@ -30,21 +30,44 @@ MINUTES_A_VIEW = 5
 # The size the passes are rendered at: the sweep and the gates read them, nothing ships from them.
 CHECK_SIZE = [960, 540]
 VIEWS = "views.json"  # in the light layer's output: the views the place's light is rendered and judged on
+RECORD = "scene-record"  # the row writing a place's scene record: the node's own place's an after, a shown one's beside
 # Four to eight views of one stage on one or two rented cards, each set up once (the camp's first: EUR 0.18).
 EUROS = 2.0
-
-
-def scene_of(place):
-    return json.loads((REPO / f"data/scene/{place}.json").read_text())
 
 
 # --- the render ---------------------------------------------------------------------------------------------------
 
 def neighbours(place):
-    """The places the place's record shows, but one no stage makes (no kit) whose seed went with the old disk
-    (2026-10-19: the far city): it is lit and rendered without it, and the neighbours row names it a gap."""
-    return sorted(name for name in {entry["stage"] for entry in scene_of(place).get("places", [])} - {place}
-                  if (REPO / f"data/kit/{name}.json").exists() or (PROPS_HOME / "work/usd-r3" / name).exists())
+    """The other places the place's accepted scene record shows (its `places`: the place each of its plan's doors
+    opens onto, and those its views see over the made ground's seats), each a place of the design: one whose filed
+    plan says where its doors lead, so the scene-record row writes its lights too (scene_record.written's rule). The
+    places rendered, each lit by its own record, through the doorways and past the edges. None before the place's
+    scene record stands accepted (every light row reads it, so it is keyed again once it does); a shown place the
+    design has no plan for (the far city) is left out of the render, and the neighbours row names it a gap."""
+    from score.store import Store
+    store = Store.default()
+    output = store.accepted(f"{RECORD}@{place}")
+    record = store.read_file(output, f"record/{place}.json") if output else None
+    shown = {entry["stage"] for entry in (record or {}).get("places", [])} - {place}
+    return sorted(name for name in shown if recorded(name))
+
+
+def plan_of(name):
+    """A place's filed plan (data/plans/<name>.json), {} for a place with none."""
+    path = REPO / "data/plans" / f"{name}.json"
+    return json.loads(path.read_text()) if path.is_file() else {}
+
+
+def recorded(place):
+    """Whether the scene-record row writes the place's record (and so its lights and views): its filed plan says where
+    its doors lead (scene_record.written's rule, read here so the paid rows never hash the writer's code)."""
+    return place is not None and "leads" in plan_of(place)
+
+
+def shown_in(inputs):
+    """The places a node's inputs show: each other place whose scene record it reads beside (`scene-record@<name>`),
+    as the runner gave them from neighbours."""
+    return sorted(node.split("@", 1)[1] for node in inputs if node.startswith(f"{RECORD}@"))
 
 
 def take(layer_folder, folder, place):
@@ -71,12 +94,22 @@ def take(layer_folder, folder, place):
     return root
 
 
+def place_of(inputs):
+    """The place a light node is made for: the one record its scene-record output holds. Refused by name for a place
+    the scene-record row writes no record for (its filed plan says nowhere where its doors lead): its lights and
+    views are that record's."""
+    if RECORD not in inputs:
+        raise RuntimeError(f"no scene record to light (the {RECORD} row does not apply here: no filed plan with leads, "
+                           f"kit {pathlib.Path(inputs.get('kit', '?')).stem})")
+    return next((pathlib.Path(inputs[RECORD]) / "record").glob("*.json")).stem
+
+
 def record_of(place, inputs):
-    """The place's scene record: its accepted scene-record output's where it has one (what the assembly lays), else
-    data/scene's."""
-    if "scene-record" in inputs:
-        return json.loads((pathlib.Path(inputs["scene-record"]) / "record" / f"{place}.json").read_text())
-    return scene_of(place)
+    """A place's scene record as the scene-record row wrote it from its plan, inventory and sky (what the assembly
+    lays): the node's own place's from its after (`scene-record`), a shown place's read beside
+    (`scene-record@<place>`)."""
+    node = RECORD if place == place_of(inputs) else f"{RECORD}@{place}"
+    return json.loads((pathlib.Path(inputs[node]) / "record" / f"{place}.json").read_text())
 
 
 def source(place, inputs, folder):
@@ -98,25 +131,24 @@ def source(place, inputs, folder):
 
 
 def lit_tree(place, layer_folder, tree, inputs):
-    """The place's stage as the assembly lays it (source) with its light layer, and each place it shows (its seed)
-    with the light layer its own record gives it (written here, as its own light-layer row would), hard links to the
-    seeds but for what is written. Refused when the stage names a picture that is not there."""
+    """The place's stage as the assembly lays it (source) with its light layer, and each place it shows (its seed,
+    shown_in) with the light layer its own scene record gives it (written here, as its own light-layer row would),
+    hard links to the seeds but for what is written. Refused when the stage names a picture that is not there."""
     source(place, inputs, tree / place)
     root = take(layer_folder, tree / place, place)
-    for name in neighbours(place):
+    for name in shown_in(inputs):
         if (tree / name).exists():
             continue
         seed = pathlib.Path(inputs[f"neighbour {name}"])
         subprocess.run(["cp", "-al", str(seed), str(tree / name)], check=True)
-        if (REPO / f"data/scene/{name}.json").exists():  # the far city is a stage with no scene record: no lights
-            neighbour_layer(name, seed, tree)
+        neighbour_layer(name, record_of(name, inputs), seed, tree)
     missing = unresolved(root)
     if missing:  # a missing picture renders as magenta on a paid card: refused before anything is rented
         raise RuntimeError(f"{len(missing)} pictures the lit stage names are missing, first: {missing[:5]}")
     return root
 
 
-def neighbour_layer(name, seed, tree):
+def neighbour_layer(name, record, seed, tree):
     """A shown place's light layer written in a folder of its own beside the tree, then taken into tree/<name>.
     Written straight into tree/<name> (until 2026-10-18), the writer moved every picture of that folder's
     assets/textures, the neighbour's own seed pictures among them, into assets/light: its materials lost their
@@ -124,7 +156,7 @@ def neighbour_layer(name, seed, tree):
     written = tree.parent / f"light-of-{name}"
     shutil.rmtree(written, ignore_errors=True)
     try:
-        layer.write(name, scene_of(name), seed, written)
+        layer.write(name, record, seed, written)
         take(written, tree / name, name)
     finally:
         shutil.rmtree(written, ignore_errors=True)
@@ -186,7 +218,7 @@ def render(jobs, folder):
 
 def make_passes(inputs, out, seed, params):
     """Render the place with its light layer on its views, every lamp in its own light group."""
-    place = json.loads(pathlib.Path(inputs["scene"]).read_text())["place"]
+    place = place_of(inputs)
     layer_folder = pathlib.Path(inputs["light-layer"])
     lamps = [lamp["path"] for lamp in json.loads((layer_folder / "lamps.json").read_text())["lamps"]]
     tree = out / "stages"
@@ -257,8 +289,9 @@ PASSES = contracts.Contract("light-passes", 1, passes_faults, {"length": "metre"
 
 
 def place_files(name):
-    """The files a place's light layer is written from: its scene record, its kit, its light data when it has one."""
-    found = {f"scene {name}": f"{{data}}/scene/{name}.json", f"kit {name}": f"{{data}}/kit/{name}.json"}
+    """The files a place's light layer is written from besides its scene record (a stored output): its kit, its light
+    data when it has one."""
+    found = {f"kit {name}": f"{{data}}/kit/{name}.json"}
     if (REPO / f"data/light/{name}.json").exists():  # its kit moves read the site's numbers through the layout
         found[f"light data {name}"] = f"{{data}}/light/{name}.json"
         found["site numbers"] = "{data}/definitions/earth_site.json"
@@ -266,16 +299,14 @@ def place_files(name):
 
 
 def passes_files(place):
-    """What the render reads besides the layer (which holds its views): the seed, the places it shows with the files
-    their light layers are written from (theirs alone, never a whole folder: another place's record or kit edited
-    moves no render here), the planned grounds, the scripts."""
-    found = {"scene": "{data}/scene/{place}.json", "seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground",
-             "kit": "{data}/kit/{place}.json", "renderer": "{repo}/tools/blender/inside/usd_views.py",
-             "passes script": "{repo}/" + SCRIPT}
+    """What the render reads besides the layer (which holds its views) and the scene records: the seed, the places it
+    shows (neighbours) with the files their light layers are written from (theirs alone, never a whole folder:
+    another place's kit edited moves no render here), the planned grounds, the scripts."""
+    found = {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
+             "renderer": "{repo}/tools/blender/inside/usd_views.py", "passes script": "{repo}/" + SCRIPT}
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
-        if (REPO / f"data/scene/{name}.json").exists():
-            found.update(place_files(name))
+        found.update(place_files(name))
     return found
 
 

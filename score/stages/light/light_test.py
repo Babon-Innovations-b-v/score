@@ -192,12 +192,7 @@ def check_neighbour_keeps_its_pictures():
         base.Save()
         tree.mkdir()
         subprocess.run(["cp", "-al", str(seed), str(tree / "tiny")], check=True)
-        scene_of = passes.scene_of
-        passes.scene_of = lambda name: {"lights": []}
-        try:
-            passes.neighbour_layer("tiny", seed, tree)
-        finally:
-            passes.scene_of = scene_of
+        passes.neighbour_layer("tiny", {"lights": []}, seed, tree)
         assert (tree / "tiny/assets/textures/wall.png").exists() and (tree / "tiny" / layer.LAYER).exists()
         assert passes.unresolved(tree / "tiny/tiny.usda") == []
         assert not (tree.parent / "light-of-tiny").exists()
@@ -225,7 +220,7 @@ def check_magenta():
 
 def check_kit_lamps():
     """The launch's light data puts a lamp in front of each pad floodlight's lens, among its record's lights."""
-    record = json.loads((REPO / "data/scene/launch.json").read_text())
+    record = {"lights": [{"type": "point", "at": [0.0, 1.0, 0.0]}]}
     added = layer.kit_lamps("launch", layer.light_data("launch"))
     kit = json.loads((REPO / "data/kit/launch.json").read_text())
     lenses = [laid for laid in kit["pieces"]
@@ -237,8 +232,8 @@ def check_kit_lamps():
 
 def check_needs():
     """An outdoor place no ground seats lacks its seat and its sky; seated, it still lacks its sky until its kept sky
-    has a site and a scene time on the environment's physics; a record with no view lacks its views; a room under a
-    roof needs neither."""
+    has a site and a scene time on the environment's physics; a room under a roof needs neither, whatever an old
+    hand-kept record beside it says; a place with no plan adds nothing (its route's plan gap stands)."""
     import shutil
     import tempfile
     from score.stages.light import needs
@@ -250,7 +245,9 @@ def check_needs():
     skies = data / "skies"
     skies.mkdir()
     (data / "plans/yard.json").write_text(json.dumps({"shell": "outdoor"}))
-    (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": True}, "views": []}))
+    (data / "plans/room.json").write_text(json.dumps({"shell": "kit", "inside": True}))
+    (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
+    (data / "scene/oldonly.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
 
     def ids(place):
         return sorted(gap["id"] for gap in needs.gaps(place, data, skies) + ground_needs.gaps(place, data))
@@ -264,8 +261,8 @@ def check_needs():
                                                  "site": {"on": "rock", "x": 0, "y": 0, "height_m": 0},
                                                  "setting": setting.checked(house)}))
     assert ids("yard") == [], ids("yard")
-    assert ids("room") == ["light:views:room"], ids("room")
-    assert ids("nowhere") == []
+    assert sorted(gap["id"] for gap in needs.gaps("room", data, skies)) == []
+    assert needs.gaps("oldonly", data, skies) == [] and ids("nowhere") == []
     shutil.rmtree(data)
 
 
@@ -289,7 +286,41 @@ def check_exposure():
     shutil.rmtree(output)
 
 
+def check_design_rows():
+    """The rows read the design only: they apply to every place whose plan the scene-record row writes (and to no
+    place without a plan), light-haze where the kit lays a lamp with a shaft, the record is the scene-record output's
+    (a shown place's read beside), the floodlight heads are the shafted kinds' glow parts of the place and of the
+    places it shows, and no row declares a hand-kept record in data/scene."""
+    import tempfile
+    from score.stages import light, scene_record
+    from score.stages.light import haze, passes
+    plans = sorted(path.stem for path in (REPO / "data/plans").glob("*.json"))
+    assert plans and all(light.applies(place) == scene_record.written(place) for place in plans)
+    assert not light.applies("far_city") and not light.applies(None)
+    assert [place for place in plans if haze.applies(place)] == ["launch", "square"]
+    assert haze.shafted_kinds("square") == {"square_far_floodlight_tower"} and haze.shafted_kinds("flat") == set()
+    for place in plans:
+        for files in (light.layer_files, light.light_files, passes.passes_files):
+            assert not [path for path in files(place).values() if path.startswith("{data}/scene")], (place, files)
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = {}
+        for node, place in (("scene-record", "launch"), ("scene-record@square", "square")):
+            (pathlib.Path(folder) / node / "record").mkdir(parents=True)
+            (pathlib.Path(folder) / node / "record" / f"{place}.json").write_text(
+                json.dumps({"place": place, "lights": []}))
+            inputs[node] = str(pathlib.Path(folder) / node)
+        assert passes.place_of(inputs) == "launch" and passes.shown_in(inputs) == ["square"]
+        assert passes.record_of("square", inputs)["place"] == "square"
+        heads = len(light.lamp_heads("launch", inputs))
+        alone = len(light.lamp_heads("launch", {"scene-record": inputs["scene-record"]}))
+        glows = {place: sum(1 for laid in json.loads((REPO / f"data/kit/{place}.json").read_text())["pieces"]
+                            if laid["kind"] in haze.shafted_kinds(place) and laid.get("part") == "glow")
+                 for place in ("launch", "square")}
+        assert alone == glows["launch"] > 0 and heads == glows["launch"] + glows["square"], (alone, heads, glows)
+
+
 def main():
+    check_design_rows()
     check_needs()
     check_exposure()
     check_sweep()
