@@ -285,7 +285,7 @@ def camera(scene, view):
     data = bpy.data.cameras.new(view["name"])
     data.sensor_fit = "HORIZONTAL"
     data.angle = math.radians(view["fov"])
-    # Far enough for the far city's mountains (tools/usd/far_city_stage.py: up to about 5 km off).
+    # Far enough for scenery a few km off.
     data.clip_start, data.clip_end = 0.05, 8000.0
     item = bpy.data.objects.new(view["name"], data)
     scene.collection.objects.link(item)
