@@ -77,6 +77,9 @@ function segmentWords(segment) {
   if (segment.cut === "layer-focus") return `${where}: ${shows.layer || "a layer"}`;
   if (segment.cut === "isolate") return `${where}: ${(shows.part || "a part").split("/").pop()}`;
   if (segment.cut === "title" || segment.cut === "text") return segment.text || given.cuts[segment.cut].label;
+  if (segment.cut === "screen-take") return `${shows.page || "a page"}`;
+  if (segment.cut === "setting-animation") return "the setting";
+  if (segment.cut === "scale-zoom") return `down to ${media ? media.words : (given.shells || {})[shows.place] || shows.place || "a place"}`;
   return shows.film ? `${where}: ${shows.film}` : where;
 }
 
@@ -165,7 +168,8 @@ function textInput(value, onType, placeholder) {
 }
 
 function placeOptions() {
-  return Object.values(given.places).map((media) => [media.place, media.words + (media.web3d ? "" : " (no 3D copy)")]);
+  return [...Object.values(given.places).map((media) => [media.place, media.words + (media.web3d ? "" : " (no 3D copy)")]),
+          ...Object.entries(given.shells || {}).map(([shell, words]) => [shell, words])];
 }
 
 async function sidecarOf(place) {
@@ -279,6 +283,10 @@ async function drawInspector() {
   if (cut.needs.includes("part")) parts.push(await partField(segment));
   if (cut.needs.includes("step")) parts.push(await stepField(segment));
   if (segment.cut === "walk-through") { const extra = filmField(segment); if (extra) parts.push(extra); }
+  if (cut.needs.includes("page")) {
+    parts.push(field("Page", textInput(segment.shows.page, (value) => { setShows(segment, "page", value); })));
+  }
+  if (given.recorded.includes(segment.cut)) parts.push(element("p", "small soft", recordedWords(segment)));
   if (["walk-through", "orbit", "hero-still", "isolate"].includes(segment.cut)) parts.push(await cameraField(segment));
   parts.push(lengthField(segment),
              field("Transition in", choice(Object.entries(given.transitions), segment.transition || "cut",
@@ -291,6 +299,17 @@ async function drawInspector() {
   if (doc.segments[selected] === segment) box.replaceChildren(...parts);
 }
 
+// What a recorded segment holds besides its fields: its take's steps, its legs, its captions and its corner picture.
+function recordedWords(segment) {
+  const said = [];
+  if (segment.take) said.push(`${segment.take.length} take steps`);
+  if (segment.legs) said.push(segment.legs.map((leg) => `${leg.layer} ${leg.seconds} s`).join(", "));
+  if (segment.captions) said.push(`${segment.captions.length} captions`);
+  if (segment.pip) said.push(`${segment.pip.concept || "a picture"} in the ${segment.pip.corner || "top-right"} corner`);
+  if (segment.waiting) said.push(`waits on ${segment.waiting.split(" (")[0]}`);
+  return said.join(" · ") || "kept in the script's JSON";
+}
+
 function drawAdd() {
   $("add").replaceChildren(element("span", "eyebrow", "Add"), ...Object.entries(given.cuts).map(([key, entry]) => {
     const button = element("button", "film-add-cut", entry.label);
@@ -300,6 +319,8 @@ function drawAdd() {
       const near = doc.segments[selected] || {};
       const made = { cut: key, shows: entry.needs.includes("place") && placeOf(near) ? { place: placeOf(near) } : { world: doc.world },
                      transition: entry.transition, sound: entry.sound };
+      if (entry.needs.includes("page")) made.shows = { page: `/environments/${doc.world}/` };
+      if (key === "scale-zoom") made.legs = given.legs.map((layer) => ({ layer, seconds: entry.seconds / given.legs.length }));
       doc.segments.splice(selected + 1, 0, made);
       selected = Math.min(selected + 1, doc.segments.length - 1);
       changed();
@@ -728,6 +749,7 @@ function sourceOf(segment) {
   const media = mediaOf(placeOf(segment));
   const seconds = secondsOf(segment);
   if (segment.cut === "title" || segment.cut === "text") return { kind: "words" };
+  if (given.recorded.includes(segment.cut)) return renderedOf(segment);
   if (segment.cut === "step-card") return { kind: "card" };
   if (segment.cut === "before-after") return { kind: "before-after" };
   if (!media) return { kind: "words", note: "no place chosen" };
@@ -742,6 +764,20 @@ function sourceOf(segment) {
   if (media.web3d) return { kind: "three" };
   if (media.hero) return { kind: "picture", url: media.hero.url, note: "no 3D copy: its picture stands in" };
   return { kind: "words", note: "nothing to show yet" };
+}
+
+// A recorded segment plays from the rendered preview when the preview was made from this very segment.
+function renderedOf(segment) {
+  const preview = given.preview, index = doc.segments.indexOf(segment);
+  const then = preview && preview.script.segments[index];
+  if (then && stable(then) === stable(segment)) return { kind: "film", url: preview.url, from: preview.segments[index].start };
+  return { kind: "words", note: "not in the rendered preview yet" };
+}
+
+function stable(value) {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
 }
 
 function captionOf(segment) {
@@ -906,7 +942,7 @@ class Shot {
   }
 
   drawFilm(local, playing) {
-    const wanted = Math.min(given.film_shot_from + local, Math.max(0, (this.video.duration || 99) - 0.05));
+    const wanted = Math.min((this.source.from ?? given.film_shot_from) + local, Math.max(0, (this.video.duration || 99) - 0.05));
     this.video.muted = !($("sound").checked && this.segment.sound === "place");
     if (playing) {
       if (this.video.paused) this.video.play().catch(() => {});

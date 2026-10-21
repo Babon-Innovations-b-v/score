@@ -57,6 +57,11 @@ def parse(argv):
     words.add_argument("--picture", action="append", default=[], help="a picture it is made from (a plan, a drawing)")
     words.add_argument("--file", action="append", default=[], help="a short text it is made from (a brief)")
     commands.add_parser("basket-answers", help="the owner's answers to the basket's questions, as JSON")
+    preview = commands.add_parser("film-preview", help="a film script's free preview, end to end (films/preview)")
+    preview.add_argument("film")
+    preview.add_argument("--export", help="an existing state export to record from (default: build one now)")
+    preview.add_argument("--user", help="the owner's name the takes sign in as (default SCORE_OWNER)")
+    preview.add_argument("--keep", action="store_true", help="keep each segment's frames")
     words.add_argument("--says", help="one plain sentence: the fault in the place this fixes, as the owner sees it")
     words.add_argument("--ask", action="append", default=[], help="a decision only the owner can make (repeat)")
     words.add_argument("--recommend", action="append", default=[], help="the answer you recommend, one an --ask")
@@ -225,6 +230,15 @@ def basket_answers():
     print(json.dumps(records.answers(settings.SCORE_HOME / "proposals"), indent=1))
 
 
+def film_preview(options):
+    from score.dashboard.films.preview import make
+    try:
+        out, record = make.make(options.film, options.export, options.user, options.keep)
+    except make.Refused as refused:
+        raise SystemExit(f"film-preview {options.film}: refused: {refused}")
+    print(f"film-preview {options.film}: {out} ({record})")
+
+
 def main(argv=None):
     import django
     django.setup()
@@ -249,6 +263,8 @@ def main(argv=None):
         basket_answers()
     elif options.command == "release":
         release(options)
+    elif options.command == "film-preview":
+        film_preview(options)
     elif options.command == "install-sync":
         install_sync(options)
     else:

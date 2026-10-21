@@ -18,6 +18,11 @@
   {% if owner %}<button class="primary" id="save" type="button" disabled>Saved</button>{% endif %}
 </div>
 
+{% if preview %}<section class="film-rendered" aria-label="the rendered free preview">
+  <h2 class="eyebrow">Rendered preview</h2>
+  <video controls preload="metadata" src="{{ preview.url }}"></video>
+  <p class="small soft" title="screen takes of the cockpit, the setting animation and the scale zoom drawn in headless Chromium on the store's machine; nothing rented, no button that spends clicked">made <span data-v>{{ preview.made_at|slice:":16" }}</span>, <span data-v>{{ preview.seconds|floatformat:1 }} s</span>, free</p>
+</section>{% endif %}
 <section class="film-work">
   <div class="film-left">
     <div class="film-stage" id="stage" aria-label="the free preview">
