@@ -291,11 +291,11 @@ def test_draws_on_their_way_show_on_the_button_and_their_cards_until_they_land(w
 def test_a_picked_concepts_page_shows_its_scene_inventory_made_or_to_read(world):
     from score.dashboard.tests import fixture
     alpha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
-    assert "scene inventory" not in signed_in().get("/concept/alpha/").content.decode()  # not picked: none
+    assert "concept-inventory" not in signed_in().get("/concept/alpha/").content.decode()  # not picked: none
     fixture.an_inventory_read(world.store, world.data, "alpha", alpha)
     world.source.refresh()
     page = signed_in("joey2").get("/concept/alpha/").content.decode()
-    assert "scene inventory" in page and "data-v>lamp</span>" in page and "&times;2" in page
+    assert "concept-inventory" in page and "data-v>lamp</span>" in page and "&times;2" in page
     older = world.data / "inventory/alpha.json"
     older.write_text(older.read_text().replace(alpha, "o" * 64))  # read from an older concept: counts for nothing
     world.source.refresh()
@@ -322,7 +322,8 @@ def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_run
     drawn.recorded(store, "concepts/alpha/draws/2026-10-20T08-00-00.json", {
         "place": "alpha", "sha": alpha, "name": "alpha-concept.png", "at": "2026-10-20T08:00:00+00:00", "by": "joey"})
     drawn.pick(store, "alpha", alpha, "joey")
-    rows = [{"id": "drum", "name": "fuel drum", "noun": "drum", "kind": "generate", "count": 2, "size_words": "waist",
+    rows = [{"id": "drum", "name": "fuel drum", "noun": "drum", "kind": "generate", "terrain": False, "count": 2,
+             "size_words": "waist",
              "anchor": "ground", "where": "left", "boxes": [[0, 0, 48, 30]], "box": [0, 0, 48, 30]}]
     reading.kept(store, {"place": "alpha", "concept": alpha, "at": "2026-10-21T08:00:00+00:00", "by": "joey",
                          "method": reading.METHOD, "size": [96, 60], "inventory": {"rows": rows},
@@ -335,13 +336,14 @@ def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_run
     world.source.refresh()
     page = signed_in().get("/concept/alpha/").content.decode()
     assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 1 gaps, EUR 0.13, 10.0 min" in page
-    assert "1 rows, 1 gaps, 1 skipped" in page  # the inventory part's summary
     assert 'style="left:0.0%;top:0.0%;width:50.0%;height:50.0%"' in page
     assert ('data-v>1. fuel drum</span> <span class="soft" data-v>its size in metres not read; what it stands on not '
             'read</span>') in page  # one line a row, its gaps in plain words
     assert 'class="concept-box skipped"' in page and 'style="left:50.0%;top:50.0%' in page
     assert "crate: only the outline finder found it" in page and "blue drum: the same as fuel drum" in page
-    assert "skipped 1, merged 1</span>" in page and 'id="concept-skipped-shown"' in page
+    assert "skipped 1, merged 1</button>" in page and 'id="concept-skipped-shown"' in page
+    assert 'data-row="1" data-kind="objects"' in page and 'data-kind="terrain"' in page  # a row's kind, the filter
+    assert page.count("data-focus") == 3  # concept, inventory and plan each enlarge (no top-down drawing yet)
     assert 'id="concept-boxes-quiet"' in page  # concept.js wires it whenever the reading shows
     assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/places/").content.decode()
     assert "Inventory readings" in signed_in("joey3").get("/stats/").content.decode()

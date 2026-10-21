@@ -34,13 +34,14 @@ def planned(world, monkeypatch, tmp_path):
 def test_no_plan_page_numbers_before_the_inventory_counts(world, monkeypatch):
     monkeypatch.setattr(plans, "DATA", world.data)
     html = signed_in().get("/plan/alpha/", follow=True).content.decode()
-    assert "made once the inventory is read" in html and "plan-drawing" not in html
+    assert "after the inventory" in html and "plan-drawing" not in html
 
 
 def test_the_plan_page_shows_the_plan_made_from_the_pick_and_keeps_his_edit(planned):
     owner = signed_in()
     html = owner.get("/plan/alpha/", follow=True).content.decode()
-    assert 'id="plan-drawing"' in html and "R1 1" in html and "Approve" not in html and 'id="plan-keep"' in html
+    assert 'id="plan-drawing"' in html and "R1 1" in html and "Approve" not in html and 'id="plan-revise"' in html
+    assert 'id="plan-saved"' in html and 'id="plan-keep"' not in html  # every edit saves on its own
     assert "data-v>R1 1: no size</span>" in html  # its row gives no size: a gap shown, never hidden
     card = owner.get("/places/").content.decode()
     assert 'href="/concept/alpha/#plan-part"' in card  # its card's Plan button: the design page's plan part
@@ -55,12 +56,17 @@ def test_the_plan_page_shows_the_plan_made_from_the_pick_and_keeps_his_edit(plan
 
 
 def test_the_concept_page_names_inside_places_up_front(planned):
-    answer = signed_in().post("/plan/alpha/named/", json.dumps({"names": ["Back Room", "loft"]}),
-                              content_type="application/json")
+    owner = signed_in()
+    answer = owner.post("/plan/alpha/named/", json.dumps({"names": ["Back Room", "loft"]}),
+                        content_type="application/json")
     assert answer.status_code == 200, answer.content
     assert plans.named(planned.store, "alpha") == ["back_room", "loft"]
     holds = plans.current(planned.store, "alpha")["plan"]["holds"]
     assert [hold["place"] for hold in holds] == ["back_room", "loft"]
+    planned.source.refresh()
+    page = owner.get("/concept/alpha/").content.decode()
+    assert 'data-v>Rooms inside this scene</label>' in page  # each name a chip with its x, owner 2026-10-21
+    assert '<li data-name="back_room"><span data-v>back_room</span><button type="button" class="chip-drop"' in page
 
 
 def test_an_inside_place_his_kept_plan_adds_gets_a_card_and_a_concept_page(planned):

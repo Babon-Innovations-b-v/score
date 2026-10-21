@@ -315,6 +315,21 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   gets a design-only tile opening its concept page (`cockpit.designed`, `local.design_nodes`). The sync pass writes every place's plan
   where the plan stage reads it and makes the plan row again, detached, for those that changed (`client.plans_kept`,
   before prepare).
+- **The design page is a cockpit** (owner, 2026-10-21: "all open by default but the page designed a bit more as an
+  actual cockpit"; `concept.html`, `static/pages/design.js`): the concept review, the inventory and the plan review
+  are one page, `/concept/<place>/` (`/plan/<place>/` leads to `#plan-part`), all open: a grid of panels on the full
+  width (concept with its draws strip, inventory, the top-down drawing, plan with its section; a long plan takes the
+  whole width) beside one action rail (draw, pick or unlock, notes, inside places, the plan's places, gaps, notes and
+  Make plan, Keep, Correct, each with its price), stacking below 1100 px and to one column below 860 px. Every
+  panel's enlarge button fills the screen with it in place (marks, hover and drags the same), a history step of its
+  own (`#focus=<panel>`, pushed; back, Escape or the button shut it; a reload shows it). The plan and section are
+  zoom views: fitted at their aspect, the wheel zooms at the pointer (Ctrl+wheel outside an enlarged panel), Space+drag
+  or the middle button pans (a plain drag on the section), "fit" puts them back. Once picked, the plan's P marks are
+  drawn on the concept panel's picture. The inventory shows one row at a time: the row hovered in the list, else the
+  row held, else the smallest box under the pointer (they stack); a click holds it, clicking again at one spot steps
+  through the boxes stacked there; every other box dims ("one at a time" hides them), the kind buttons keep the
+  objects, structure (`local.inventory_readings` `structural`, `reading.structural`) or terrain rows, "skipped" draws
+  what the agreement left out; each row's number sits in a corner of its first box, moved where it would cover another.
 - **The environment's plan** (CONTEXT.md "environment plan", "blockout", owner 2026-10-21; `pages/environment_plan.py`,
   `environment_plan.html`, `static/pages/environment_plan.js`, the store side `score/review/environment_plan.py`):
   `/environments/<world>/plan/`, the Plan button beside Places on the environment concept page. A map a ground of

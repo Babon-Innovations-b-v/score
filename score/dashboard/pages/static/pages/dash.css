@@ -483,35 +483,27 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .ptile-box { position: relative; }
 .ptile-review { position: absolute; top: 8px; right: 8px; padding: 4px 12px; background: var(--bg); }
 .ptile-box:has(.ptile-review) .ptile-pic:has(.ptile-holds) .ptile-missing { top: 40px; }
-.concept-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
-@media (max-width: 860px) { .concept-layout { grid-template-columns: 1fr; } }
 .concept-stage { position: relative; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .concept-stage img { display: block; width: 100%; height: auto; user-select: none; }
 .concept-none { position: relative; aspect-ratio: 16 / 10; }
 .concept-marks { position: absolute; inset: 0; touch-action: none; }
-.concept-context { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 0; }
-.concept-context-stage { margin: 0; flex: 1 1 220px; max-width: 360px; }
 .concept-context-stage figcaption { position: absolute; bottom: 4px; left: 8px; pointer-events: none; }
 [data-marking] .concept-marks { cursor: crosshair; }
 .concept-mark { position: absolute; border: 3px solid var(--bad); border-radius: var(--radius-small); }
 .concept-mark::before { content: attr(data-n); position: absolute; top: 2px; left: 4px; padding: 0 6px; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); font-weight: 600; }
-.concept-side { display: flex; flex-direction: column; gap: 10px; }
 .concept-rows { margin: 4px 0 0; padding-left: 18px; max-height: 240px; overflow-y: auto; font-size: var(--fs-sm); }
 .concept-boxes { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
-.concept-box { position: absolute; border: 2px solid var(--accent); border-radius: 2px; pointer-events: auto; }
-.concept-box b { position: absolute; top: 0; left: 0; padding: 0 4px; font-size: var(--fs-xs); background: var(--accent); color: var(--accent-ink); }
+.concept-box { position: absolute; border: 2px solid var(--accent); border-radius: 2px; pointer-events: none; transition: opacity 0.12s; }
+.concept-box b { position: absolute; top: 0; left: 0; padding: 0 4px; font-size: var(--fs-xs); line-height: 1.4; background: var(--accent); color: var(--accent-ink); }
 .concept-box.skipped { display: none; border: 1px dashed var(--faint); opacity: 0.7; }
 .concept-boxes.skipped-shown .concept-box.skipped { display: block; }
-.concept-box.lit, .concept-box.held { border-width: 3px; border-color: var(--done); z-index: 1; }
+.concept-box.lit { border-width: 3px; border-color: var(--done); z-index: 2; } .concept-box.lit b { background: var(--done); z-index: 3; }
+.concept-boxes.focusing .concept-box:not(.lit) { opacity: 0.22; }
+.concept-boxes.quiet .concept-box:not(.lit), .concept-box.off, .concept-rows li.off { display: none; }
 .concept-box.skipped.lit { border-style: dashed; border-color: var(--review); opacity: 1; }
-.concept-reading .concept-rows { max-height: 320px; padding-left: 30px; }
 .draw-busy[hidden] { display: none; }
-.concept-boxes.quiet .concept-box:not(.lit):not(.held) { display: none; }
-#concept-boxes-quiet, #concept-skipped-shown { padding: 1px 8px; font-size: var(--fs-xs); }
-#concept-boxes-quiet[aria-pressed="true"], #concept-skipped-shown[aria-pressed="true"] { border-color: var(--done); }
 .concept-rows li.lit, .concept-gaps li.lit, .concept-rows li.held, .concept-gaps li.held { color: var(--done); }
 .concept-gaps li { cursor: pointer; }
-.concept-skipped-note { cursor: help; white-space: nowrap; }
 .concept-gaps { list-style: none; margin: 4px 0 0; padding: 0; max-height: 200px; overflow-y: auto; font-size: var(--fs-sm); }
 .concept-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .concept-notes li { display: flex; gap: 6px; align-items: center; }
@@ -519,18 +511,8 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .concept-notes input { flex: 1; min-width: 0; }
 .concept-drop { flex: none; padding: 2px 8px; }
 .concept-actions { display: flex; gap: 10px; align-items: center; }
-.concept-wording { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 0; }
-.concept-wording-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .concept-wording textarea { width: 100%; box-sizing: border-box; font: inherit; line-height: 1.45; }
-.concept-redraw p { margin: 6px 0 0; }
 .concept-pictures { margin: 0; padding-left: 20px; }
-.concept-history { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; }
-/* the design page's parts: concept, inventory, plan, each folding */
-.design-part { border-top: 1px solid var(--line); padding: 10px 0 14px; }
-.design-part > summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; padding: 4px 0 10px; }
-.design-part > summary .num-label { font-size: 1.05em; }
-.design-part:not([open]) > summary { padding-bottom: 0; }
-.concept-past { position: relative; display: block; width: 160px; border: 2px solid var(--line); border-radius: var(--radius-small); overflow: hidden; }
 .concept-past.shown { border-color: var(--accent); }
 .concept-past img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
 .concept-past .dot { position: absolute; top: 6px; right: 6px; }
@@ -663,10 +645,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .ec-rows td:has(.ec-wide) { width: 68%; }
 [data-concept] input:disabled { background: transparent; border-color: var(--line); color: var(--ink); cursor: default; }
 /* the plan review (pages/plans.py, plan.js): the plan top down beside the picked concept */
-.plan-pair { display: flex; gap: 12px; flex-wrap: wrap; align-items: start; }
-.plan-pair > .concept-stage { flex: 1 1 340px; min-width: 0; margin: 0; }
 .draw-busy[hidden] { display: none; }
-.plan-canvas { position: relative; margin: 0 auto; }
 .plan-stage svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; }
 .plan-marks { pointer-events: none; }
 [data-marking] .plan-stage svg { cursor: crosshair; }
@@ -716,7 +695,6 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .plan-label.cut { fill: var(--bad); font-weight: 600; }
 .plan-drag { cursor: grab; }
 /* the section A-A under it */
-.plan-section { display: block; width: 100%; height: auto; max-height: 34vh; margin: 8px auto 0; border-top: 1px solid var(--line); }
 .plan-section * { vector-effect: non-scaling-stroke; }
 .plan-earth { fill: url(#plan-hatch); stroke: var(--ink); stroke-width: 1.4; }
 .plan-slab { fill: var(--ink); }
@@ -732,3 +710,71 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .design-steps .pip { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line-strong); }
 .design-steps .pip.done { background: var(--done); border-color: var(--done); }
 .design-steps b { margin-left: 4px; font-weight: 600; }
+/* the design page (concept.html, design.js): a cockpit of panels, each enlarging to fill the screen, beside one
+   action rail; pictures and drawings fit their panel at their own aspect */
+main.wide { max-width: 2400px; }
+.design { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.design-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 16px; align-items: start; }
+.design-panels:not(:has(#drawing-part)) #concept-part, #inventory-part, #plan-part { grid-column: 1 / -1; }
+.dpanel { min-width: 0; padding: 10px 12px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.dpanel-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 0 0 8px; min-height: 30px; }
+.dpanel-head .num-label { font-size: 1.05em; }
+.dpanel-tools { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dpanel-focus { margin-left: auto; padding: 0 9px; font-size: 16px; line-height: 1.7; }
+.dpanel-focus[aria-pressed="true"] { border-color: var(--done); }
+.tool, .seg button { padding: 1px 8px; font-size: var(--fs-xs); }
+.seg { display: inline-flex; } .seg button { border-radius: 0; } .seg button + button { border-left: 0; }
+.seg button:first-child { border-radius: var(--radius-small) 0 0 var(--radius-small); } .seg button:last-child { border-radius: 0 var(--radius-small) var(--radius-small) 0; }
+.tool[aria-pressed="true"], .seg button[aria-pressed="true"] { border-color: var(--done); color: var(--done); }
+.concept-pics { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
+.concept-pics:has(.concept-context) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.concept-context { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.concept-context-stage { margin: 0; }
+.concept-context-stage figcaption { position: absolute; bottom: 4px; left: 8px; pointer-events: none; }
+.concept-history { display: flex; gap: 8px; overflow-x: auto; margin: 10px 0 0; padding-bottom: 4px; }
+.concept-past { position: relative; display: block; flex: none; width: 112px; border: 2px solid var(--line); border-radius: var(--radius-small); overflow: hidden; }
+.inventory-panel { display: grid; grid-template-columns: minmax(0, 5fr) minmax(220px, 2fr); gap: 12px; align-items: start; }
+#inventory-stage { cursor: pointer; }
+.inventory-list { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow-y: auto; }
+.inventory-list .concept-rows { max-height: none; padding-left: 30px; }
+.concept-rows li, .concept-gaps li { cursor: pointer; border-radius: var(--radius-small); }
+.plan-panel { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; align-items: center; }
+#plan-part.wide .plan-panel { grid-template-columns: minmax(0, 1fr); }  /* a long plan: its section under it, at its width */
+.zoom-view { position: relative; overflow: hidden; width: 100%; aspect-ratio: 16 / 10; touch-action: none; }
+.zoom-view.panning { cursor: grabbing; }
+.plan-stage.zoom-view { max-height: 72vh; }
+.section-stage.zoom-view { max-height: 30vh; }
+.zoom-content { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.plan-section { display: block; width: 100%; height: auto; }
+.plan-numbers { font-variant-numeric: tabular-nums; }
+.design-rail { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.rail-group { display: flex; flex-direction: column; gap: 8px; }
+.rail-group + .rail-group { border-top: 1px solid var(--line); padding-top: 12px; }
+.design-rail textarea, .design-rail input[type="text"] { width: 100%; box-sizing: border-box; font: inherit; }
+.design-rail .concept-actions { flex-wrap: wrap; gap: 8px; }
+.design-rail .concept-actions input { flex: 1; min-width: 0; }
+.concept-wording summary { cursor: pointer; } .concept-wording[open] { display: flex; flex-direction: column; gap: 8px; }
+.concept-wording textarea { line-height: 1.45; }
+/* an enlarged panel: the whole screen, its picture or drawing as large as fits */
+body.focusing { overflow: hidden; }
+.dpanel.focused { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; margin: 0; border: 0; border-radius: 0; padding: 10px 16px 14px; overflow: auto; }
+.dpanel.focused > .dpanel-body { flex: 1 1 auto; min-height: 0; }
+.dpanel.focused .concept-pics > .concept-stage, .dpanel.focused #inventory-stage, .dpanel.focused .plan-drawing { width: fit-content; max-width: 100%; margin: 0 auto; }
+.dpanel.focused .concept-pics > .concept-stage img { width: auto; max-width: 100%; max-height: calc(100vh - 150px); }
+.dpanel.focused .inventory-panel { grid-template-columns: minmax(0, 1fr) 300px; }
+.dpanel.focused #inventory-stage img { max-height: calc(100vh - 70px); }
+.dpanel.focused .inventory-list { max-height: calc(100vh - 70px); }
+.dpanel.focused .plan-drawing img { max-height: calc(100vh - 70px); }
+.dpanel.focused .plan-panel { height: 100%; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+.dpanel.focused#plan-part.wide .plan-panel { grid-template-rows: minmax(0, 1fr) 24vh; }
+.dpanel.focused .zoom-view { height: 100%; max-height: none; aspect-ratio: auto !important; }
+@media (max-width: 1100px) { .design { grid-template-columns: minmax(0, 1fr); } .design-rail { position: static; max-height: none; } }
+@media (max-width: 860px) { .design-panels, .inventory-panel, .plan-panel, .dpanel.focused .inventory-panel { grid-template-columns: minmax(0, 1fr); } .design-panels > .dpanel { grid-column: 1 / -1; } }
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chips li { display: inline-flex; align-items: center; gap: 4px; padding: 1px 2px 1px 10px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--raised); }
+.chip-drop { padding: 0 7px; border: 0; background: transparent; line-height: 1.5; }
+.plan-merged[hidden] { display: none; }
+.told { margin: 0; color: var(--bad); font-size: var(--fs-sm); } .told:empty { display: none; }
+.plan-saved { font-size: var(--fs-xs); color: var(--soft); } .plan-saved.tone-done { color: var(--done); } .plan-saved.tone-bad { color: var(--bad); }
+.plan-merged { margin: 0; display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); color: var(--review); }
+.plan-hold .plan-corner { opacity: 0.7; }

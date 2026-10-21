@@ -6,7 +6,9 @@
 // A-A (score/review/plan_writing.py's schema). Hover a thing for its details. Drag an item, a zone or an inside place
 // to move it (an inside place dropped on a building stands in it), its corner to resize it, a door along its wall, a
 // standing spot; drag on the floor or on the concept to mark an area, a note each. A gap's click lights it on the
-// plan. Keep posts the plan as he left it; Correct with notes and Make plan post at the price shown (his spend yes).
+// plan. Every edit saves on its own a moment later (his plan-edit request: the plan as he left it); removing an inside
+// place right after renaming another merges them, said with an undo. Correct with notes and Make plan post at the
+// price shown (his spend yes); Correct with no note typed sends his edits as the note. A refusal shows in red.
 (() => {
   const page = document.getElementById("plan");
   if (!page) return;
@@ -40,17 +42,9 @@
   const said_tall = Number((/walls?\D{0,12}?(\d+(?:\.\d+)?)\s*m\b/.exec(plan.height || "") || [])[1]) || 3;
   let lit = null;  // the gap shown: {names, at}
 
+  // fitted to its panel, zoomed and panned by design.js: the marks' layer is exactly the drawing's box
   svg.setAttribute("viewBox", `${-margin} ${-margin} ${wide + 2 * margin} ${deep + 2 * margin}`);
-  // the drawing as wide as its stage, no taller than most of the window: the marks' layer is exactly its box
-  const canvas = document.getElementById("plan-canvas");
-  const fitted = () => {
-    const ratio = (wide + 2 * margin) / (deep + 2 * margin);
-    canvas.style.width = `${Math.min(canvas.parentElement.clientWidth, window.innerHeight * 0.78 * ratio)}px`;
-    if (cut) cut.style.width = canvas.style.width;  // the section at the plan's scale, under it
-  };
-  fitted();
-  window.addEventListener("resize", fitted);
-  page.closest("details")?.addEventListener("toggle", fitted);  // drawn inside a part that opens later
+  page.closest(".dpanel").classList.toggle("wide", wide > 1.25 * deep);  // a long plan takes the cockpit's whole width
 
   // --- drawing helpers ----------------------------------------------------------------------------------------------
   const shape = (name, attributes, parent = svg) => {
@@ -104,13 +98,14 @@
   };
 
   // --- dragging: a move or a resize of one thing, the plan changed in place -------------------------------------
+  // `what` says the edit in words (its line in what Correct sends when no note is typed)
   let dragging = null;
-  const draggable = (element, start, move, done) => {
+  const draggable = (element, start, move, done, what) => {
     if (!editing) return;
     element.classList.add("plan-drag");
     element.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
-      dragging = { from: at(event), was: start(), move, done };
+      dragging = { from: at(event), was: start(), move, done, what, moved: false };
       svg.setPointerCapture(event.pointerId);
     });
   };
@@ -118,10 +113,12 @@
     if (!dragging) return;
     const point = at(event);
     dragging.move(dragging.was, round(point.x - dragging.from.x), round(point.y - dragging.from.y));
+    dragging.moved = true;
     draw();
   });
   svg.addEventListener("pointerup", () => {
     if (dragging && dragging.done) { dragging.done(); draw(); listed(); }
+    if (dragging && dragging.moved) changed(dragging.what());
     dragging = null;
   });
 
@@ -210,7 +207,7 @@
       const across_wall = door[0] === "N" || door[0] === "S";
       draggable(group, () => door.slice(), (was, dx, dy) => {
         door[1] = round(Math.min(across_wall ? wide : deep, Math.max(0, was[1] + (across_wall ? dx : dy))));
-      });
+      }, null, () => `moved the ${opening.kind}${opening.to ? ` to ${opening.to}` : ""} along its wall`);
     }
   };
   const draw_stair = (stair) => {
@@ -240,11 +237,12 @@
 
   // --- items, zones, inside places ----------------------------------------------------------------------------------
   const lit_names = () => (lit ? lit.names : []);
-  const corner = (rect, sized, group, size) => {
+  const corner = (rect, sized, group, size, name) => {
     const [x, y, w, h] = rect();
     const handle = shape("rect", { x: x + w - size * 0.6, y: y + h - size * 0.6, width: size * 0.6, height: size * 0.6,
                                    class: "plan-corner" }, group);
-    draggable(handle, rect, (was, dx, dy) => sized(Math.max(0.1, round(was[2] + dx)), Math.max(0.1, round(was[3] + dy))));
+    draggable(handle, rect, (was, dx, dy) => sized(Math.max(0.1, round(was[2] + dx)), Math.max(0.1, round(was[3] + dy))),
+              null, () => { const [, , cw, ch] = rect(); return `resized ${name()} to ${cw} x ${ch} m`; });
   };
   const rows_of = (name) => (plan.rows || {})[name] || [];
   const item_shape = (item) => {
@@ -270,8 +268,9 @@
         `${w} x ${d}${form.tall ? ` x ${form.tall}` : ""} m${form.base ? `, at ${level(form.base)}` : ""}` +
         `${facing ? `, facing ${facing}` : ""}${holding.length ? `; holds ${holding.join(", ")}` : ""}`);
     const rect = () => item.slice(1, 5);
-    draggable(group, rect, (was, dx, dy) => item.splice(1, 2, round(was[0] + dx), round(was[1] + dy)));
-    corner(rect, (cw, ch) => item.splice(3, 2, cw, ch), group, size);
+    draggable(group, rect, (was, dx, dy) => item.splice(1, 2, round(was[0] + dx), round(was[1] + dy)), null,
+              () => `moved ${short} to ${item[1]}, ${item[2]} m`);
+    corner(rect, (cw, ch) => item.splice(3, 2, cw, ch), group, size, () => short);
   };
   // an inside place dropped on a building stands in it: the item under its middle (its row), else this place's floor
   const holder_under = (hold) => {
@@ -290,13 +289,15 @@
         `${hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this place's own floor"}`);
     const rect = () => [hold.x, hold.y, hold.w, hold.d];
     draggable(group, rect, (was, dx, dy) => Object.assign(hold, { x: round(was[0] + dx), y: round(was[1] + dy) }),
-              () => { hold.row = holder_under(hold); });
-    corner(rect, (w, d) => Object.assign(hold, { w, d }), group, size);
+              () => { hold.row = holder_under(hold); },
+              () => `moved ${hold.place.replace(/_/g, " ")} to ${hold.x}, ${hold.y} m${hold.row ? `, inside the ${hold.row.replace(/_/g, " ")}` : ""}`);
+    corner(rect, (w, d) => Object.assign(hold, { w, d }), group, size, () => hold.place.replace(/_/g, " "));
   };
   const spot = (where) => {
     const dot = shape("circle", { cx: where[0], cy: where[1], r: longest / 110, class: "plan-spot" });
     tip(dot, "a standing spot");
-    draggable(dot, () => where.slice(), (was, dx, dy) => where.splice(0, 2, round(was[0] + dx), round(was[1] + dy)));
+    draggable(dot, () => where.slice(), (was, dx, dy) => where.splice(0, 2, round(was[0] + dx), round(was[1] + dy)), null,
+              () => "moved a standing spot");
   };
 
   // --- the sheet: dimensions, north, scale, the cut -----------------------------------------------------------------
@@ -549,11 +550,15 @@
       const input = row.querySelector("input");
       input.value = hold.place;
       input.addEventListener("change", () => {
+        const was = hold.place;
         hold.place = input.value.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || hold.place;
         input.value = hold.place;
         draw();
+        if (hold.place === was) return;
+        renamed = hold;
+        changed(`renamed ${was.replace(/_/g, " ")} to ${hold.place.replace(/_/g, " ")}`);
       });
-      row.querySelector("button").addEventListener("click", () => { plan.holds.splice(index, 1); listed(); draw(); });
+      row.querySelector("button").addEventListener("click", () => removed(index));
       places.append(row);
     });
   };
@@ -565,14 +570,15 @@
                         w: round(side), d: round(side) });
       listed();
       draw();
+      changed(`added ${plan.holds.at(-1).place.replace(/_/g, " ")}`);
     });
   }
 
   // --- the gaps: a click lights the thing on the plan ---------------------------------------------------------------
-  for (const gap of page.querySelectorAll("[data-gap]")) {
+  for (const gap of document.querySelectorAll("[data-gap]")) {
     gap.addEventListener("click", () => {
       const was = gap.classList.contains("lit");
-      for (const other of page.querySelectorAll("[data-gap]")) other.classList.remove("lit");
+      for (const other of document.querySelectorAll("[data-gap]")) other.classList.remove("lit");
       lit = was ? null : { names: [gap.dataset.item, gap.dataset.with].filter(Boolean), at: gap.dataset.at ? JSON.parse(gap.dataset.at) : null };
       if (!was) gap.classList.add("lit");
       draw();
@@ -638,12 +644,12 @@
   };
   if (editing) {
     marking(svg, document.getElementById("plan-marks"), null);
-    for (const layer of page.querySelectorAll(".plan-concept .concept-marks")) marking(layer, layer, layer.dataset.on);
+    for (const layer of document.querySelectorAll(".plan-concept .concept-marks")) marking(layer, layer, layer.dataset.on);
   }
   const sent = (mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h, note: mark.row.querySelector("input").value,
                             ...(mark.on ? { on: mark.on } : {}) });
 
-  // --- the clicks -------------------------------------------------------------------------------------------------
+  // --- requests ---------------------------------------------------------------------------------------------------
   const cookie = (name) => (document.cookie.split("; ").find((part) => part.startsWith(name + "=")) || "").split("=")[1];
   const post = async (path, body) => {
     const answer = await fetch(`/plan/${place}/${path}/`, {
@@ -655,13 +661,16 @@
     if (!answer.ok) throw new Error(String(found.detail || answer.status));
     return found;
   };
+  // a refusal says why on the page, in red (owner, 2026-10-21: a refused Correct showed nothing)
+  const told = document.getElementById("plan-told");
   const tell = (tone, words) => {
     said.className = `dot tone-${tone}`;
     said.title = words;
     said.hidden = false;
+    if (told) told.textContent = tone === "bad" ? words : "";
   };
   const busy = document.getElementById("plan-busy");
-  const buttons = [...page.querySelectorAll(".concept-side button")];
+  const buttons = [...document.querySelectorAll("#plan-rail button")];
   const waiting = () => {
     buttons.forEach((button) => { button.disabled = true; });
     busy.hidden = false;
@@ -673,13 +682,70 @@
     };
     setTimeout(ask, ASK_EVERY);
   };
+
+  // --- his edits save on their own: each one his plan-edit request, a moment after the last change ---------------
+  const SAVE_AFTER = 1200;  // ms
+  const saved = document.getElementById("plan-saved");
+  const edits = [];  // what he changed, in words: Correct sends them when no note is typed
+  let timer = null;
+  let saving = Promise.resolve();
+  const shown_state = (words, tone) => {
+    if (!saved) return;
+    saved.textContent = words;
+    saved.className = `plan-saved tone-${tone}`;
+  };
+  const save = () => {
+    clearTimeout(timer);
+    timer = null;
+    shown_state("saving", "idle");
+    saving = saving.then(() => post("keep", { plan })).then(() => shown_state("saved", "done"), (error) => {
+      shown_state("not saved", "bad");
+      tell("bad", error.message);
+      console.error("plan edit refused", error);
+    });
+    return saving;
+  };
+  const changed = (words) => {
+    if (!editing) return;
+    if (edits.at(-1) !== words) edits.push(words);
+    shown_state("unsaved", "idle");
+    clearTimeout(timer);
+    timer = setTimeout(save, SAVE_AFTER);
+  };
+  window.addEventListener("beforeunload", () => { if (timer) save(); });
+
+  // removing an inside place right after renaming another is a merge: the renamed one holds both (owner, 2026-10-21:
+  // "cockpit" renamed "cockpit and nav", then "navigation" removed); said, with an undo, never asked
+  let renamed = null;
+  const merged_note = document.getElementById("plan-merged");
+  const removed = (index) => {
+    const [gone] = plan.holds.splice(index, 1);
+    const into = renamed && plan.holds.includes(renamed) ? renamed : null;
+    const name = (hold) => hold.place.replace(/_/g, " ");
+    listed();
+    draw();
+    changed(into ? `merged ${name(gone)} into ${name(into)}` : `removed ${name(gone)}`);
+    if (!into || !merged_note) return;
+    merged_note.hidden = false;
+    merged_note.querySelector("[data-slot]").textContent = `merged ${name(gone)} into ${name(into)}`;
+    merged_note.querySelector("button").onclick = () => {
+      plan.holds.splice(index, 0, gone);
+      merged_note.hidden = true;
+      listed();
+      draw();
+      changed(`kept ${name(gone)} apart from ${name(into)}`);
+    };
+  };
+
+  // --- the clicks -------------------------------------------------------------------------------------------------
   const click = (id, path, body, slow) => {
     const button = document.getElementById(id);
     if (!button) return;
     button.addEventListener("click", async () => {
       button.disabled = true;
       try {
-        const found = await post(path, body());
+        const sent_body = await body();
+        const found = await post(path, sent_body);
         tell("done", found.said);
         if (slow) waiting(); else setTimeout(() => location.reload(), 600);
       } catch (error) {
@@ -689,10 +755,15 @@
       }
     });
   };
-  click("plan-keep", "keep", () => ({ plan }), false);
-  click("plan-revise", "revise", () => ({ marks: marks.filter((mark) => !mark.on).map(sent),
-                                          context_marks: marks.filter((mark) => mark.on).map(sent),
-                                          note: note.value, euros: Number(page.dataset.euros) }), true);
+  // Correct with notes: his marks and note; with no note typed, the edits he made (saved first) are the note
+  click("plan-revise", "revise", async () => {
+    if (timer) await save();
+    const own = marks.filter((mark) => !mark.on).map(sent);
+    const context = marks.filter((mark) => mark.on).map(sent);
+    const words = note.value.trim() || (edits.length ? `I changed the plan by hand: ${edits.join("; ")}. Keep these changes and fit the rest of the plan to them.` : "");
+    if (!words && !own.length && !context.length) throw new Error("no note to correct the plan by: type a note, mark an area or change the plan");
+    return { marks: own, context_marks: context, note: words, euros: Number(page.dataset.euros) };
+  }, true);
   click("plan-write", "write", () => ({ euros: Number(page.dataset.writeEuros) }), true);
   if (page.dataset.pending) waiting();
   listed();

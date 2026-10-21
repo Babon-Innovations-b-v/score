@@ -3,15 +3,8 @@
 // (a new first draw from the place's own wording: no base), else Redraw with notes (the marks, the note and the shown
 // draw as its base); then it asks the page's state until the draw is answered and shows it. A first draw sends the
 // wording box's text when he edited it (it becomes the place's own wording); "back to generated" drops it. Pick and
-// Unlock post the shown draw (or none). The design page's part the link names opens.
+// Unlock post the shown draw (or none). The inventory panel's boxes: the second part below.
 (() => {
-  // The design page's part a link names (#plan-part, as /plan/<place>/ leads here) opens.
-  const opened = () => {
-    const part = location.hash && document.getElementById(location.hash.slice(1));
-    if (part && part.tagName === "DETAILS") part.open = true;
-  };
-  opened();
-  window.addEventListener("hashchange", opened);
   const page = document.getElementById("concept");
   if (!page) return;
   const place = page.dataset.place;
@@ -200,28 +193,101 @@
       }
     });
   }
-  // A read row and its boxes light together on hover (the reading's rows beside the picture); a gap's click keeps
-  // its row lit until the next click; "show skipped" draws what the agreement left out, faint.
-  if (document.getElementById("concept-reading")) {
-    const boxes = document.querySelector(".concept-boxes");
-    const lit = (key, on, name = "lit") => document.querySelectorAll(`[${key}]`).forEach((element) => element.classList.toggle(name, on));
-    document.querySelectorAll(".concept-reading li, .concept-box").forEach((element) => {
-      const key = element.dataset.row ? `data-row="${element.dataset.row}"` : `data-skip="${element.dataset.skip}"`;
-      element.addEventListener("mouseenter", () => lit(key, true));
-      element.addEventListener("mouseleave", () => lit(key, false));
-    });
-    document.querySelectorAll(".concept-gaps li").forEach((element) => element.addEventListener("click", () => {
-      const key = `data-row="${element.dataset.row}"`;
-      const on = !element.classList.contains("held");
-      document.querySelectorAll(".held").forEach((other) => other.classList.remove("held"));
-      lit(key, on, "held");
-    }));
-    const toggle = (id, name) => {
-      const button = document.getElementById(id);
-      if (!button) return;
-      button.addEventListener("click", () => button.setAttribute("aria-pressed", String(boxes.classList.toggle(name))));
-    };
-    toggle("concept-boxes-quiet", "quiet");
-    toggle("concept-skipped-shown", "skipped-shown");
+})();
+
+// The inventory panel: the reading's boxes on the picked concept, its rows beside them. One row is shown at a time,
+// its boxes lit and every other dimmed: the row hovered in the list, else the row held, else the smallest box under
+// the pointer on the picture (boxes stack: the smallest is the one meant). A click on the picture holds that row;
+// clicking again at the same spot steps through every box stacked there, a bare spot lets go; a click on a row or a
+// gap holds it too. "one at a time" hides the others, the kind buttons keep one kind's rows, "skipped" draws what the
+// agreement left out, faint. Each row's number sits inside a corner of its first box, moved where it would cover
+// another.
+(() => {
+  const stage = document.getElementById("inventory-stage");
+  if (!stage) return;
+  const layer = stage.querySelector(".concept-boxes");
+  const boxes = [...layer.querySelectorAll(".concept-box")];
+  const rows = [...document.querySelectorAll("#concept-reading li[data-row]")];
+  const told = stage.title;
+  const state = { list: null, held: null, hover: null, kind: "", stack: null };
+  const key = (element) => (element.dataset.row ? `r${element.dataset.row}` : `s${element.dataset.skip}`);
+  const seen = (box) => !box.classList.contains("off") && (!box.classList.contains("skipped") || layer.classList.contains("skipped-shown"));
+
+  const shown = () => {
+    const wanted = state.list || state.held || state.hover;
+    layer.classList.toggle("focusing", Boolean(wanted));
+    for (const box of boxes) box.classList.toggle("lit", key(box) === wanted);
+    for (const row of rows) {
+      row.classList.toggle("lit", key(row) === wanted);
+      row.classList.toggle("held", key(row) === state.held);
+    }
+    const lit = boxes.find((box) => key(box) === wanted);
+    stage.title = lit ? lit.dataset.tip : told;
+  };
+  // every box seen under the pointer, smallest first
+  const under = (event) => boxes.filter(seen).map((box) => [box, box.getBoundingClientRect()])
+    .filter(([, rect]) => event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom)
+    .sort((one, other) => one[1].width * one[1].height - other[1].width * other[1].height).map(([box]) => box);
+  stage.addEventListener("pointermove", (event) => {
+    const [smallest] = under(event);
+    state.hover = smallest ? key(smallest) : null;
+    shown();
+  });
+  stage.addEventListener("pointerleave", () => { state.hover = null; shown(); });
+  stage.addEventListener("click", (event) => {
+    const found = under(event);
+    const again = state.stack && Math.hypot(event.clientX - state.stack.x, event.clientY - state.stack.y) < 6;
+    const index = again && found.length ? (state.stack.index + 1) % found.length : 0;
+    state.stack = found.length ? { x: event.clientX, y: event.clientY, index } : null;
+    state.held = found.length ? key(found[index]) : null;
+    shown();
+  });
+  for (const row of document.querySelectorAll("#concept-reading li[data-row]")) {
+    row.addEventListener("mouseenter", () => { state.list = key(row); shown(); });
+    row.addEventListener("mouseleave", () => { state.list = null; shown(); });
+    row.addEventListener("click", () => { state.held = state.held === key(row) ? null : key(row); state.stack = null; shown(); });
   }
+
+  // each row's number inside a corner of its first box: the first corner free of the numbers placed, else moved down
+  const numbers = () => {
+    const placed = [];
+    const labels = boxes.filter((box) => seen(box) && box.querySelector("b"))
+      .sort((one, other) => one.offsetWidth * one.offsetHeight - other.offsetWidth * other.offsetHeight);
+    for (const box of labels) {
+      const tag = box.querySelector("b");
+      const [wide, tall, bw, bh] = [tag.offsetWidth, tag.offsetHeight, box.offsetWidth, box.offsetHeight];
+      const corners = [[0, 0], [bw - wide, 0], [0, bh - tall], [bw - wide, bh - tall]];
+      for (let step = 1; step * tall < bh; step += 1) corners.push([0, step * tall]);
+      const free = ([x, y]) => !placed.some((other) => x + box.offsetLeft < other[0] + other[2] && other[0] < x + box.offsetLeft + wide &&
+                                                      y + box.offsetTop < other[1] + other[3] && other[1] < y + box.offsetTop + tall);
+      const [x, y] = corners.find(free) || [0, 0];
+      Object.assign(tag.style, { left: `${Math.max(0, x)}px`, top: `${Math.max(0, y)}px` });
+      placed.push([x + box.offsetLeft, y + box.offsetTop, wide, tall]);
+    }
+  };
+  new ResizeObserver(numbers).observe(stage);
+
+  // the kind buttons, one at a time, skipped
+  const kinds = [...document.querySelectorAll("#inventory-tools [data-kind]")];
+  for (const button of kinds) {
+    button.addEventListener("click", () => {
+      state.kind = button.dataset.kind;
+      for (const other of kinds) other.setAttribute("aria-pressed", String(other === button));
+      for (const element of [...boxes, ...rows]) {
+        element.classList.toggle("off", Boolean(state.kind) && element.dataset.kind !== undefined && element.dataset.kind !== state.kind);
+      }
+      numbers();
+      shown();
+    });
+  }
+  const toggle = (id, name) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+    button.addEventListener("click", () => {
+      button.setAttribute("aria-pressed", String(layer.classList.toggle(name)));
+      numbers();
+    });
+  };
+  toggle("concept-boxes-quiet", "quiet");
+  toggle("concept-skipped-shown", "skipped-shown");
 })();
