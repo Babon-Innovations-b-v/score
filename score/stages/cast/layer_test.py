@@ -74,11 +74,19 @@ def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_named(
 
 
 def test_a_place_reads_only_the_looks_its_design_names():
-    """#26: each cast place waits on its own looks' bodies, the looks its picked design names (data/people/rows.json):
-    the tube's player and the square's crowd far look; no old record, no lost concept picture."""
-    assert "player_wide-work" in layer.cast_looks("tube") and "player-work" not in layer.cast_looks("tube")
-    assert layer.cast_looks("square") == {"kit_m_avg-coat-grey"}
-    assert layer.cast_looks("nowhere") == set()
+    """#26: each cast place waits on its own looks' bodies, the looks its picked design names (data/people/rows.json)
+    in what each row wears: the tube's player in uniform (no fabric named: its own paint) and the square's crowd far
+    look; no old record, no lost concept picture, no hand-kept colours."""
+    tube = layer.dressed_looks("tube")
+    assert ("player_wide-work", None) in tube and not any(look == "player-work" for look, _ in tube)
+    assert layer.dressed_looks("square") == {("kit_m_avg-coat-grey", None)}
+    assert layer.dressed_looks("nowhere") == set()
+
+
+def test_a_person_wears_the_dress_row_of_its_rows_fabric():
+    assert layer.body_row("bram/work") == "people-dress-bram-work"
+    assert layer.body_row("bram/work", "jacket_blue") == "people-dress-bram-work-in-jacket_blue"
+    assert layer.body_row(None, "jacket_blue") is None
 
 
 if __name__ == "__main__":

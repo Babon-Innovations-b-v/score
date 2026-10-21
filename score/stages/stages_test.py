@@ -177,14 +177,16 @@ def test_the_completion_gate_s_code_moves_only_complete_and_settle():
     assert moved == {"complete", "settle"}, moved
 
 
-def test_a_coloured_place_reads_its_own_dress_rows():
-    """A place data/people/colours.json colours reads its looks' `-in-<place>` dress rows, every other place the
-    plain ones (captain, 2026-10-13: the concept decides the clothes)."""
+def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
+    """A dress row is read where a place's design dresses its look so: `-in-<surface>` where a person row's words
+    name a fabric near its torso (people_clothes.py), the plain row where the look wears its own paint; no
+    hand-kept list of coloured places (captain, 2026-10-13: the concept decides the clothes)."""
     table = {stage.name: stage for stage in stages.STAGES}
-    coloured, plain = table["people-dress-player_wide-work-in-tube"], table["people-dress-player_wide-work"]
-    assert coloured.applies("tube") and not coloured.applies("square") and coloured.params == {"surface": "suit_navy"}
-    assert not plain.applies("tube")  # the player is in no plain place's design (#26)
-    assert "people-dress-player_wide-work-in-tube" in table["characters-layer"].after
+    plain = table["people-dress-player_wide-work"]
+    assert plain.applies("tube") and not plain.applies("square")  # the tube's "person in uniform" names no fabric
+    worn =[stage for stage in stages.STAGES if stage.name.startswith("people-dress-") and "-in-" in stage.name]
+    for stage in worn:
+        assert stage.params == {"surface": stage.name.partition("-in-")[2]} and stage.name in table["cast"].after
 
 
 def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch():

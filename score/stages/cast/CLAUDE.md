@@ -29,7 +29,7 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   `cast` and `cast_check` inside the make and the gates, and the stage declares both files as inputs. Constants
   copied from them (body sizes) are checked in `cast_test.py`.
 - **`made` reads the SOMA-shell route's dress rows.** A look is made when its dress row (`people-dress-<look>`,
-  `-in-<place>` where data/people/colours.json colours the place) stands usable; the cast reads them as optional
+  `-in-<surface>` where the person's design row wears a fabric of its own: `../people_clothes.py`) stands usable; the cast reads them as optional
   inputs (`Stage.optional`), so a look with none stays not made, named: `made` passes with it as a finding (an accepted gap carried
   down, never a stop: the owner's rule, 2026-10-13), and complete's people check fails it by name.
   `drapes` is retired (2026-10-13): the SOMA-shell rig replaced the drapes route (owner, 2026-10-12 21:40), and the

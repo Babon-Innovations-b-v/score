@@ -5,8 +5,8 @@ shows, each placed in the place with a clip, and measured against the concept an
              inventory's people rows, each person a look of the shared people line, at the plan's people spots in
              turn and stood clear round them; a crowd one far look in its palettes, #26), never the old game records
              or the lost concept pictures, dealt by cast.py's own rules, each with its
-             spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<place>`
-             where the place is coloured) stands usable, read as an optional input; `cast.json`. Then every
+             spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<surface>`
+             where its design row wears a fabric of its own) stands usable, read as an optional input; `cast.json`. Then every
              spot measured on the seed's base layer (measure.py): what it stands on and what its body runs into;
              `measures.json`.
     gates    counted   the cast holds as many people as the design shows (its rows' counts), everyone fits on the
@@ -48,12 +48,12 @@ NAMED = 20
 
 
 def files(place):
-    """The place's people from its picked design (its entry of data/people/rows.json, #26), its seed stage, the
-    people's colours (which dress row a look is), the environment's eye height (its views') and cast.py's and
+    """The place's people from its picked design (its entry of data/people/rows.json, #26, what each row wears among
+    it: which dress row a look is), its seed stage, the environment's eye height (its views') and cast.py's and
     cast_check.py's code (imported only inside the make and the gates, so the code version does not follow them:
     measure.characters). Its views are its plan's (the plan row's output, an `after`: plan_views)."""
     return {"design": ("{data}/people/rows.json", people_rows.place_part(place)),
-            "seed": "{seeds}/usd-r3/{place}", "colours": "{data}/people/colours.json",
+            "seed": "{seeds}/usd-r3/{place}",
             "places": "{data}/definitions/place.json", "cast rules": "{repo}/tools/characters/cast.py",
             "cast check": "{repo}/tools/characters/cast_check.py"}
 
@@ -94,27 +94,29 @@ def look_of(character):
     return None
 
 
-def made_row(look, place, inputs):
-    """The dress row of a look (layer.body_row) when it stands usable for this node (an optional input the runner
-    gave it), else None: the look is not made."""
-    row = layer.body_row("/".join(look), place) if look else None
+def made_row(look, surface, inputs):
+    """The dress row of a look worn in its row's fabric (layer.body_row) when it stands usable for this node (an
+    optional input the runner gave it), else None: the look is not made."""
+    row = layer.body_row("/".join(look), surface) if look else None
     return row if row in inputs else None
 
 
-def dealt(record, place, inputs):
-    """Every single character of the cast (cast.py's people and groups' members) with its look and its made dress
-    row (None when not made)."""
+def dealt(record, inputs):
+    """Every single character of the cast (cast.py's people and groups' members) with its look, the fabric its design
+    row wears and its made dress row (None when not made)."""
     found = []
-    looks = {person["name"]: person.get("look") for person in record.get("people", [])}
+    people = {person["name"]: person for person in record.get("people", [])}
     cast_rules, _ = measure.characters()
     for single in cast_rules.characters_of(record):
-        single = dict(single, look=looks.get(single["name"]))
+        person = people.get(single["name"], {})
+        single = dict(single, look=person.get("look"), surface=person.get("surface"))
         look = look_of(single)
-        found.append({**single, "look": "/".join(look) if look else None, "made": made_row(look, place, inputs)})
+        found.append({**single, "look": "/".join(look) if look else None,
+                      "made": made_row(look, single["surface"], inputs)})
     return found
 
 
-def crowd_of(record, singles, place, inputs):
+def crowd_of(record, singles, inputs):
     """The crowd's far body's look and its candidate copies (spread.lattice, kept off each of the place's plan's views:
     spread.far_enough), or None for a cast with no crowd. The views are read only for a crowd with ground to stand
     on, so a place with none never reads them."""
@@ -127,7 +129,7 @@ def crowd_of(record, singles, place, inputs):
     candidates = (spread.far_enough(spread.lattice(crowd, keep_clear), plan_views(inputs))
                   if crowd.get("spread") else [])
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
-            "made": made_row(look, place, inputs), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
+            "made": made_row(look, None, inputs), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
 
 
 def members_of(record):
@@ -150,8 +152,8 @@ def make(inputs, out, seed, params):
     base = pathlib.Path(inputs["seed"]) / "layers/base.usda"
     design = read_json(inputs["design"])
     record = people_rows.cast_record(place, design)
-    singles = dealt(record, place, inputs)
-    crowd = crowd_of(record, singles, place, inputs)
+    singles = dealt(record, inputs)
+    crowd = crowd_of(record, singles, inputs)
     found = measure.solids(base, place) if singles or crowd else {}
     if found:
         members = members_of(record)

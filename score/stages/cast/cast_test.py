@@ -88,11 +88,13 @@ def test_a_designs_crowd_without_ground_is_named_short():
 def test_a_look_is_made_by_its_usable_dress_row():
     look = cast.look_of({"character": "bram", "look": "bram_work"})
     assert look == ("bram", "work")
-    assert cast.made_row(look, "hub", {"people-dress-bram-work": "accepted"}) == "people-dress-bram-work"
-    assert cast.made_row(look, "hub", {}) is None
-    assert cast.made_row(look, "camp", {"people-dress-bram-work": "accepted"}) is None  # the camp's is coloured
-    assert cast.made_row(look, "camp", {"people-dress-bram-work-in-camp": "a"}) == "people-dress-bram-work-in-camp"
-    assert cast.made_row(None, "hub", {}) is None
+    assert cast.made_row(look, None, {"people-dress-bram-work": "accepted"}) == "people-dress-bram-work"
+    assert cast.made_row(look, None, {}) is None
+    # a person whose design row wears a fabric of its own is made by that fabric's dress row only
+    assert cast.made_row(look, "jacket_blue", {"people-dress-bram-work": "accepted"}) is None
+    assert cast.made_row(look, "jacket_blue", {"people-dress-bram-work-in-jacket_blue": "a"}) == \
+        "people-dress-bram-work-in-jacket_blue"
+    assert cast.made_row(None, None, {}) is None
     assert cast.look_of({"character": "kit_m_avg", "worn": ["plain_coat_grey", "head_f1"]}) == ("kit_m_avg", "coat-grey")
 
 
@@ -153,8 +155,8 @@ def test_a_plan_spot_aimed_off_its_items_stops_only_a_crowd_with_ground():
     with tempfile.TemporaryDirectory() as folder:
         (pathlib.Path(folder) / "plan.json").write_text(json.dumps(plan))
         inputs = {"plan": folder, "places": REPO / "data/definitions/place.json"}
-        assert cast.crowd_of({"people": []}, [], "camp", inputs) is None
-        assert cast.crowd_of({"people": [], "crowd": crowd}, [], "camp", inputs)["copies"] == []
+        assert cast.crowd_of({"people": []}, [], inputs) is None
+        assert cast.crowd_of({"people": [], "crowd": crowd}, [], inputs)["copies"] == []
 
 
 def test_a_group_wears_only_its_kit():

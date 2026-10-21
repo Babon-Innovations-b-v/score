@@ -108,7 +108,6 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
     assert people_rows.refreshed_place("deck", redrawn, None, fresh)["rows"]["pilot"]["looks"][0] == "deck_pilot_1-new"
 
 
-
 def test_a_crowds_look_is_read_off_its_words():
     """No city square's coats on every crowd: the people line's look sharing the most of the row's words, a crowd
     word only between looks that share no other, a new look when none shares a word."""
@@ -124,6 +123,50 @@ def test_a_crowds_look_is_read_off_its_words():
     assert look("crowd of shoppers in grey coats", "crowd") == "kit_m_avg-coat-grey"
     assert people_rows.new_looks({"moon": {"rows": {"crowd": {"name": "flock of penguins", "crowd": "moon_crowd_1-new"}}}},
                                  set(line)) == {"moon_crowd_1-new": {"words": "flock of penguins", "from": "moon/crowd"}}
+
+
+def a_concept(fabric_lab_colour, box):
+    """A 100 x 100 concept, dark, the box's torso painted the given sRGB (0..255)."""
+    import numpy as np
+    picture = np.full((100, 100, 3), 20, dtype=np.uint8)
+    left, top, right, bottom = box
+    picture[top:bottom, left:right] = fabric_lab_colour
+    return picture
+
+
+def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
+    """The concept decides the clothes, per row: of the people fabrics its name names, the nearest its measured torso
+    within people_clothes.WITHIN; a row naming none, or one whose torso is far from every named fabric, wears its
+    look's own paint; and the cast and the dress rows follow the row (no hand-kept list of places)."""
+    import numpy as np
+    from score.stages import people_clothes
+    fabrics = people_clothes.fabrics()
+    labels = people_clothes.labels()
+    import library
+    blue = np.round(labels.srgb(np.array(library.resolved("people")["jacket_blue"]["colour"])) * 255).astype(np.uint8)
+    box = [20, 10, 60, 90]
+    inventory = {"concept_pick": {"sha256": "one"}, "rows": [
+        {"id": "worker", "name": "worker in blue jumpsuit", "where": "near the light", "noun": "worker", "count": 1,
+         "size": [0.5, 0.3, 1.8], "route": "people", "boxes": [box]},
+        {"id": "pilot", "name": "person", "where": "left", "noun": "person", "count": 1, "size": [0.5, 0.3, 1.8],
+         "route": "people", "box": box}]}
+    entry = people_rows.refreshed_place("deck", inventory, None, None, a_concept(blue, box), fabrics)
+    worker, pilot = entry["rows"]["worker"]["dress"], entry["rows"]["pilot"]["dress"]
+    assert worker["surface"] == "jacket_blue" and worker["de"] < 1 and worker["figures"] == 1, worker
+    assert "suit_light_blue" in worker["named"] and not any("light" in name and "blue" not in name
+                                                            for name in worker["named"]), worker
+    assert pilot["surface"] is None and pilot["named"] == [], pilot
+    orange = a_concept([230, 90, 20], box)
+    far = people_rows.refreshed_place("deck", inventory, None, None, orange, fabrics)["rows"]["worker"]["dress"]
+    assert far["surface"] is None and far["de"] > people_clothes.WITHIN, far
+    unseen = people_rows.refreshed_place("deck", inventory, None, None, None, fabrics)["rows"]["worker"]["dress"]
+    assert unseen["surface"] is None and unseen["torso_lab"] is None, unseen
+    found = {"places": {"deck": {**entry, "concept": "one"}}}
+    assert people_rows.dressed_looks("deck", found) == {("deck_worker_1-new", "jacket_blue"),
+                                                        ("deck_pilot_1-new", None)}
+    assert people_rows.every_dressed(found) == {("deck_worker_1-new", "jacket_blue")}
+    assert {person["name"]: person["surface"] for person in people_rows.cast_record("deck", found)["people"]} == {
+        "worker": "jacket_blue", "pilot": None}
 
 
 if __name__ == "__main__":

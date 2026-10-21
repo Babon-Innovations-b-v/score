@@ -7,10 +7,13 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
                                            "share" (its tallest box's share of the concept's frame height, or null),
                                            "looks": [<look>, ... one a person]  |  "crowd": <far look>,
                                            "palettes": [[skin, clothes, boots library surfaces], ...] | null,
-                                           "palettes_from": why they are null}}}},
+                                           "palettes_from": why they are null,
+                                           "dress": {"surface": <library fabric> | null, ...}}}}},
      "new": {<look>: {"words", "from"}}}
 
-One look a distinct person; a crowd one far look in a few colour palettes (CONTEXT.md "crowd"). A look is one of the
+A row's `dress` is what its people wear, read off the design (score/stages/people_clothes.py: of the people place's
+fabrics its words name, the nearest its measured torso), each person of a row with a surface dressed by
+`people-dress-<look>-in-<surface>`. One look a distinct person; a crowd one far look in a few colour palettes (CONTEXT.md "crowd"). A look is one of the
 people line's (data/surfaces/people.json) or a new one, named `<place>_<row>_<n>-new` and listed under `new` until it
 has a spec and a take of its own. A crowd's look is read off its row's words (`crowd_look`); its palettes are not
 decided by any rule here (`UNDECIDED_PALETTES`): null, with why, until one recorded model call per scene names them.
@@ -44,8 +47,8 @@ FUNCTION_WORDS = {"the", "and", "with", "his", "her", "their", "its", "from", "i
                   "who", "one", "two", "some", "many"}
 # Why a crowd's palettes stand undecided: measured on the locked concepts (2026-10-21) every crowd's SAM 3 box holds
 # its ground, flags and lanterns too, and a figure's torso reads the scene's light, not the cloth (the Moon wreck's
-# white-suited astronauts and the street's pedestrians alike nearest wool_charcoal; data/people/colours.json found
-# the same), so no pixel rule maps a crowd's colours to library surfaces.
+# white-suited astronauts and the street's pedestrians alike nearest wool_charcoal; the 2026-10-13 torso measures found
+# the same, which is why people_clothes.py lets only a fabric a row's words name be chosen), so no pixel rule maps a crowd's colours to library surfaces.
 UNDECIDED_PALETTES = ("not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands "
                       "round it, and a measured colour is the scene's light); one recorded model call per scene, in "
                       "the batch, names them")
@@ -76,11 +79,16 @@ def doing_of(row):
     return "walking" if "walking" in words else "standing"
 
 
+def surface_of(fields):
+    """The library fabric a row's people wear (its `dress`, people_clothes.py), or None: the look's own paint."""
+    return (fields.get("dress") or {}).get("surface")
+
+
 def persons(place, found=None):
-    """[{name, row, look, doing}] of every person the place's design shows (a crowd is not among them)."""
+    """[{name, row, look, doing, surface}] of every person the place's design shows (a crowd is not among them)."""
     entry = place_entry(place, found) or {"rows": {}}
     return [{"name": row if len(fields["looks"]) == 1 else f"{row}_{number}", "row": row, "look": look,
-             "doing": doing_of(fields)}
+             "doing": doing_of(fields), "surface": surface_of(fields)}
             for row, fields in sorted(entry["rows"].items()) if "looks" in fields
             for number, look in enumerate(fields["looks"], 1)]
 
@@ -95,6 +103,19 @@ def looks_of(place, found=None):
     """Every look the place's design names (its people's and its crowd's)."""
     crowd = crowd_row(place, found)
     return {person["look"] for person in persons(place, found)} | ({crowd[1]["crowd"]} if crowd else set())
+
+
+def dressed_looks(place, found=None):
+    """{(look, surface or None)} of every person and the crowd the place's design shows: the dress row each wears."""
+    crowd = crowd_row(place, found)
+    return {(person["look"], person["surface"]) for person in persons(place, found)} | (
+        {(crowd[1]["crowd"], None)} if crowd else set())
+
+
+def every_dressed(found=None):
+    """{(look, surface)} of every person a place's design dresses in a fabric of its own."""
+    found = found or read()
+    return {pair for place in found["places"] for pair in dressed_looks(place, found) if pair[1]}
 
 
 def every_look(found=None):
@@ -137,7 +158,7 @@ def cast_record(place, found=None):
     for number, person in enumerate(persons(place, found)):
         character, outfit = split_look(person["look"])
         people.append({"name": person["name"], "character": character, "look": f"{character}_{outfit}",
-                       "doing": person["doing"], "at": spots[number % len(spots)],
+                       "doing": person["doing"], "surface": person["surface"], "at": spots[number % len(spots)],
                        "facing_to": entry.get("middle", [0.0, 0.0, 1.0]),
                        "why": f"row {person['row']} of the picked design's scene inventory"})
     record = {"place": place, "from": f"the picked design (concept {entry['concept'][:8]}): data/people/rows.json",
@@ -229,9 +250,13 @@ def concept_share(row, picture):
     return round(max(box[3] - box[1] for box in boxes) / picture[1], 4)
 
 
-def refreshed_place(place, inventory, plan, old):
+def refreshed_place(place, inventory, plan, old, picture=None, fabrics=None):
     """One place's entry from its current reading (`inventory`, groups.current's) and plan, keeping `old`'s hand-made
-    choices (a row's recorded with its `why`) where it was read from the same concept."""
+    choices (a row's recorded with its `why`) where it was read from the same concept; each row's dress read off its
+    words and the concept (`picture` H x W x 3, 0..255, or None; `fabrics` {fabric: CIELAB}, people_clothes.fabrics()
+    by default)."""
+    from score.stages import people_clothes
+    fabrics = people_clothes.fabrics() if fabrics is None else fabrics
     concept = inventory["concept_pick"]["sha256"]
     kept = old["rows"] if old and old["concept"] == concept else {}
     rows = {}
@@ -242,7 +267,8 @@ def refreshed_place(place, inventory, plan, old):
                   "share": concept_share(row, inventory.get("picture") or inventory.get("size"))}
         held = kept.get(row["id"], {})
         chosen = {key: held[key] for key in CHOSEN if key in held} if "why" in held else {}
-        rows[row["id"]] = {**copied, **(chosen or default_choice(place, row))}
+        rows[row["id"]] = {**copied, **(chosen or default_choice(place, row)),
+                           "dress": people_clothes.worn(row, picture, fabrics)}
     spots, middle = placed_spots(plan) if plan else ([], [0.0, 0.0, 0.0])
     return {"concept": concept, "spots": spots, "middle": middle, "rows": rows}
 
@@ -261,6 +287,18 @@ def line_looks():
     return set(bodies.looks())
 
 
+def concept_picture(store, sha):
+    """The locked concept (the store's blob `sha`) as an H x W x 3 array, 0..255, or None when the store keeps none."""
+    import io
+
+    import numpy as np
+    from PIL import Image
+    key = f"blobs/{sha}"
+    if not store.objects.exists(key):
+        return None
+    return np.asarray(Image.open(io.BytesIO(store.objects.read_bytes(key))).convert("RGB"))
+
+
 def refresh(store):
     """rows.json from every place's current reading and plan (a place with none is left out); written."""
     from score.review import plans
@@ -269,7 +307,8 @@ def refresh(store):
     inventories, _ = groups.current(store, places)
     old = read() if ROWS.exists() else {"places": {}}
     found = {place: refreshed_place(place, inventory, (plans.current(store, place) or {}).get("plan"),
-                                    old["places"].get(place))
+                                    old["places"].get(place),
+                                    concept_picture(store, inventory["concept_pick"]["sha256"]))
              for place, inventory in sorted(inventories.items())}
     record = {"why": old.get("why", ""), "places": found, "new": new_looks(found, line_looks())}
     ROWS.write_text(json.dumps(record, indent=1) + "\n")

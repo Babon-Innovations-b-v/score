@@ -77,7 +77,7 @@ def painted_take(inputs, look):
 
 def make_dress(inputs, out, seed, params):
     """The dressed body.glb, its usd/ and dress.json (each surface's library surface and its median distance). With
-    `params["surface"]` (a coloured place's row, data/people/colours.json) every fabric surface of the outfit but a
+    `params["surface"]` (a worn row, `-in-<surface>`: score/stages/people_clothes.py) every fabric surface of the outfit but a
     print wears that library surface instead of the paint's."""
     name, body = next((name, pathlib.Path(path)) for name, path in inputs.items() if name.startswith("people-body-"))
     look = json.loads((body / "look.json").read_text())
