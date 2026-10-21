@@ -19,8 +19,7 @@ anew maps looks of its own, `<place>_<row>_<n>-drawn`; a crowd's look is the lin
 (`crowd_look`), else `<place>_<row>-drawn`. Each drawn look's maker spec (data/people/specs/<character>.json: who
 from the row's words, the build from the row's metres, face, hair and clothes as the locked concept draws them, which
 the close-up is drawn from: drawn_from) and its take on the people line are written on every refresh
-(`designed_specs`, `with_designed`); no hand-written character file stands before a design's person. A look the line
-holds from a spec of its own (the tube's player and the square's crowd, kept choices of their concepts) keeps it. A
+(`designed_specs`, `with_designed`); no hand-written character file stands before a design's person. A
 crowd's palettes are not decided by any rule here (`UNDECIDED_PALETTES`): null, with why, until one recorded model
 call per scene names them. Which looks get a full body and which a far one follows from each person row's `share`
 (score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast (score/stages/cast) and the
@@ -271,10 +270,14 @@ def crowd_look(place, row, line=None):
     """A crowd row's far look, from its words (its name and noun): the people line's look (`line`, {look: take entry},
     bodies.looks()) sharing the most of them, a crowd word (CROWD_WORDS) counting only between looks that share no
     other, a far-only look first on a tie; its own drawn look `<place>_<row>-drawn` when no look shares a word, or
-    when the row names who is in it (a word beyond the crowd words: aliens, colonists) and no look shares one of those."""
+    when the row names who is in it (a word beyond the crowd words: aliens, colonists) and no look shares one of those.
+    A look drawn from a row (`-drawn`) is that row's own and never another crowd's: its spec repeats its row's words, so
+    matching it would give every "crowd of people" the first such look of the last refresh, drawn from another scene's
+    concept, and a second refresh would not give the first one's answer."""
     if line is None:
         from score.stages.people_bodies import bodies
         line = bodies.looks()
+    line = {look: entry for look, entry in line.items() if not look.endswith(f"-{DRAWN}")}
     said = words_of(f"{row['name']} {row['noun']}")
 
     def score(look):
