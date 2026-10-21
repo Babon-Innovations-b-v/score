@@ -354,8 +354,59 @@ def check_design_rows():
         assert alone == glows["launch"] > 0 and heads == glows["launch"] + glows["square"], (alone, heads, glows)
 
 
+def check_haze_from_the_kit():
+    """light-haze applies at a place no list names whose kit lays a sky record's shafted lamp row, and at none whose
+    kit lays only unshafted kinds."""
+    import tempfile
+    from score.stages.light import haze, passes
+    sky = json.loads(haze.SKY.read_text())
+    row = next(row for body in sky.values() if isinstance(body, dict)
+               for row, lamp in (body.get("lamps") or {}).items() if lamp.get("shaft"))
+    repo = passes.REPO
+    with tempfile.TemporaryDirectory() as folder:
+        (pathlib.Path(folder) / "data/kit").mkdir(parents=True)
+        for place, kind in (("yard", f"yard_{row}"), ("hall", "hall_desk")):
+            (pathlib.Path(folder) / f"data/kit/{place}.json").write_text(json.dumps(
+                {"room": place, "pieces": [{"kind": kind, "part": "glow"}]}))
+        passes.REPO = pathlib.Path(folder)
+        try:
+            assert haze.shafted_kinds("yard") == {f"yard_{row}"} and haze.applies("yard")
+            assert not haze.applies("hall") and not haze.applies("nowhere")
+        finally:
+            passes.REPO = repo
+
+
+def check_neighbours_from_the_record():
+    """The places rendered with a place are its accepted scene record's `places` that the design has a plan with
+    leads for (never an old hand-kept record's): none before the record stands accepted, a planless one left out."""
+    from score.stages.light import passes
+    from score.store import Store
+    record = {"place": "flat", "places": [{"stage": "wreck"}, {"stage": "far_city"}, {"stage": "flat"}]}
+
+    class Accepted:
+        def __init__(self, held):
+            self.held = held
+
+        def accepted(self, node):
+            return "output" if node in self.held else None
+
+        def read_file(self, output, name):
+            return self.held["scene-record@flat"] if name == "record/flat.json" else None
+
+    default = Store.default
+    try:
+        Store.default = classmethod(lambda cls: Accepted({"scene-record@flat": record}))
+        assert passes.neighbours("flat") == ["wreck"], passes.neighbours("flat")
+        Store.default = classmethod(lambda cls: Accepted({}))
+        assert passes.neighbours("flat") == []
+    finally:
+        Store.default = default
+
+
 def main():
     check_design_rows()
+    check_haze_from_the_kit()
+    check_neighbours_from_the_record()
     check_needs()
     check_exposure()
     check_sweep()
