@@ -172,7 +172,7 @@ def test_a_room_changed_on_the_holders_plan_puts_draws_on_it_out_of_date_and_fla
     assert plans.moved_draws(store, "shed") == {PICK, "c" * 64, "d" * 64}  # the older one: a plan above made since
     assert plans.removed(store, plans.within_file()[0]) == []
     world = graph.Environment("world1", 3, {"data": str(data)})
-    assert stages.places(world, store) == ["shed", "yard"]
+    assert stages.places(world, store) == ["yard", "shed"]  # the scene tree's order: the parent scene first
     plans.edited(store, "yard", {**plan, "holds": []}, "joey")  # merged away
     assert plans.removed(store, plans.within_file()[0]) == ["shed"]
     assert stages.places(world, store) == ["yard"]  # the build follows him: no stage line for it
@@ -193,16 +193,37 @@ def test_a_scene_he_added_in_the_app_is_a_place_once_its_design_is_done(store, d
     plans.edited(store, "yard", {**plan, "holds": [*plan["holds"], {**plan["holds"][0], "place": "hut", "x": 0.0}]},
                  "joey")
     world = graph.Environment("world1", 3, {"data": str(data)})
-    assert stages.places(world, store) == ["shed", "yard"]  # in design: its concept not locked
+    assert stages.places(world, store) == ["yard", "shed"]  # in design: its concept not locked
     picked(store, "hut")
     read("hut")
     shown = plans.current(store, "hut")
-    assert shown["how"] == "derived" and stages.places(world, store) == ["shed", "yard"]  # its plan not written
+    assert shown["how"] == "derived" and stages.places(world, store) == ["yard", "shed"]  # its plan not written
     assert plans.keep(store, ["hut"]) == ([], []) and not stages.plan_written("hut")
     plans.edited(store, "hut", shown["plan"], "joey")
-    assert stages.places(world, store) == ["hut", "shed", "yard"]
+    assert stages.places(world, store) == ["yard", "hut", "shed"]
     assert plans.keep(store, ["hut"]) == (["hut"], ["hut"]) and (tmp_path / "kept/hut.json").is_file()
     assert stages.plan_written("hut") and stages.kept_plan_only(lambda place: 1 / 0)("hut") == {"plans": "{data}/plans"}
+
+
+def test_a_parent_scene_with_no_data_of_its_own_is_a_place_once_its_design_is_done(store, data, tmp_path):
+    """A parent scene holding others with no file of its own in the data (the Moon base, a shell) is a place of the
+    batch once its design is done, listed before the scenes it holds, and the sync keeps its plan where the plan stage
+    and the scene tree read it."""
+    from score.review import reading
+    (data / "places/within.json").write_text(json.dumps({"within": {"shed": {"within": "yard"},
+                                                                    "yard": {"within": "farm"}},
+                                                         "shells": {"farm": {"name": "Farm"}}}))
+    world = graph.Environment("world1", 3, {"data": str(data)})
+    assert stages.places(world, store) == ["yard", "shed"]  # the farm in design: no place yet
+    picked(store, "farm")
+    reading.kept(store, {"place": "farm", "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
+                         "size": [64, 40], "inventory": {"concept_pick": {"sha256": PICK}, "rows": []}})
+    shown = plans.current(store, "farm")
+    assert shown["how"] == "derived" and [hold["place"] for hold in shown["plan"]["holds"]] == ["yard"]
+    assert stages.places(world, store) == ["yard", "shed"]  # its plan not written
+    plans.edited(store, "farm", shown["plan"], "joey")
+    assert stages.places(world, store) == ["farm", "yard", "shed"]
+    assert plans.keep(store, ["farm"]) == (["farm"], ["farm"]) and (tmp_path / "kept/farm.json").is_file()
 
 
 def test_overlapped_rooms_are_one_shared_room_and_a_box_dropped_in_a_room_a_thing_in_it(store):

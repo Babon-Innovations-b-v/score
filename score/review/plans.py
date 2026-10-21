@@ -1054,7 +1054,10 @@ def main(argv):
     store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
     if argv == ["keep"]:
         from score.review import plan_writing
-        places = sorted({*(path.stem for path in (DATA / "plans").glob("*.json")), *tree(store)["within"]})
+        # every scene of the tree, a parent scene with no plan in the data among them (the Moon base): its kept plan
+        # lays out its child scenes for the scene tree (stages/assembly/scene_tree.py)
+        laid = tree(store)["within"]
+        places = sorted({*(path.stem for path in (DATA / "plans").glob("*.json")), *laid, *laid.values()})
         # a locked, read place with no plan written from its reading (a reading before today's METHOD, a run cut off)
         # gets it on its own under the standing allowance; kept on a later pass
         owed = plan_writing.owed(store, places) if plan_writing.AUTOMATIC else []

@@ -600,6 +600,42 @@ def test_an_inside_place_reads_its_shells_split_one_scale_down():
         raise AssertionError("a loop through a beside read that is not upward was declared")
 
 
+def make_tree(inputs, out, seed, params):
+    """Its own clean text, then each child scene's tree in brackets."""
+    held = [(inputs[name] / "tree.txt").read_text() for name in sorted(inputs) if name.startswith("tree@")]
+    (out / "tree.txt").write_text((inputs["clean"] / "clean.txt").read_text() + "".join(f"[{tree}]" for tree in held))
+
+
+HOLDS = {"base": ["hangar"], "hangar": ["station"]}
+TREE = graph.Stage("tree", "place", make_tree, TEXT, (checks.Check("counted", judge_count),),
+                   after={"clean": ("toy-text", 1)}, beside={"tree": ("toy-text", 1)}, downward=True,
+                   neighbours=lambda place: HOLDS.get(place, []))
+
+
+def test_a_parent_scene_reads_its_child_scenes_own_node_of_the_same_stage():
+    """A parent scene's tree reads each child scene's tree beside it, the same stage one scale down: a loop in the
+    table, none in the nodes, so a downward stage's beside reads are left out of the loop check, and the drive makes
+    the child's node before its parent's, the grandchild's before both. The same stage not downward is refused."""
+    world = a_world({"base": "a moon base", "hangar": "a ship in a hall", "station": "a hub"})
+    store, scenes = Store.in_folder(tempfile.mkdtemp()), ("base", "hangar", "station")
+    runner = a_runner(world, store)
+    runner.run(scenes)
+    for place in scenes:
+        give_evidence(store, runner, place, 10)
+    runner = a_runner(world, store, (CLEAN, COUNT, TREE))
+    found = runner.drive(["base"], say=lambda line: None, jobs=1, whole=False)
+    assert found["tree@base"] == "made: pass, accepted automatically", found
+    assert runner.key(TREE, "base")["beside"] == {"tree@hangar": store.accepted("tree@hangar")}
+    tree = store.checkout(store.accepted("tree@base"))
+    assert (tree / "tree.txt").read_text() == "A MOON BASE[A SHIP IN A HALL[A HUB]]"
+    try:
+        a_runner(world, store, (CLEAN, COUNT, dataclasses.replace(TREE, downward=False)))
+    except ValueError as refused:
+        assert "cycle" in str(refused)
+    else:
+        raise AssertionError("a stage reading itself beside, not downward, was declared")
+
+
 def judge_seen(output, inputs, evidence):
     return checks.Verdict("seen", checks.PASS, "it was made")
 

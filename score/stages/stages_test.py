@@ -185,6 +185,27 @@ def test_a_coloured_place_reads_its_own_dress_rows():
     assert "people-dress-player_wide-work-in-tube" in table["characters-layer"].after
 
 
+def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch():
+    """scene-tree@<scene> reads its own assembly and, beside, the tree of each child scene its plan lays out that is a
+    scene of the batch (one in design is none: the tree's gate names it); a place of every scene but a line no place
+    owns; the library reads it, so a scene is complete once its tree stands."""
+    table = {stage.name: stage for stage in stages.STAGES}
+    row = table["scene-tree"]
+    assert row.downward and row.after == {"assembly": ("openusd-stage", 1)}
+    assert row.beside == {"scene-tree": ("openusd-stage", 1)} and row.neighbours is stages.held_scenes
+    assert not row.applies("people") and row.applies("hangar") and "scene-tree" in table["library"].after
+    held, listed = stages.scene_tree.held, stages.places
+    try:
+        stages.scene_tree.held = lambda place: {"base": ["hangar", "lab", "dome"]}.get(place, [])
+        stages.places = lambda world, store=None: ["base", "hangar", "lab"]
+        assert stages.held_scenes("base") == ["hangar", "lab"] and stages.held_scenes("lab") == []
+    finally:
+        stages.scene_tree.held, stages.places = held, listed
+    assert stages.parent_first({"cockpit", "hangar", "base", "hub", "wreck", "camp"},
+                               {"cockpit": "hangar", "hangar": "base", "hub": "base", "camp": "campgrounds"}) == [
+        "base", "hangar", "cockpit", "hub", "camp", "wreck"]
+
+
 def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
     """A new place (the ship's bridge) has its plan before its kit is laid; the runner lists it with the laid ones."""
     (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
