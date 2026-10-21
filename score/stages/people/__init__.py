@@ -8,7 +8,7 @@ data/surfaces/people.json; after the loop:
     people-clips-made                the Kimodo clips and the rig every body plays (people_bodies/made_clips.py)
     people-body-<look>               a look's body: build, the people route and every body gate (people_bodies/bodies.py)
     people-dress-<look>              the loop's library surfaces laid on the body (dress.py)
-    people-dress-<look>-in-<place>   the same in a coloured place: its fabrics the concept's colour (colours.json)
+    people-dress-<look>-in-<surface> the same worn in a fabric a design's person row reads (people_clothes.py)
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
     people-look                      the review page of the LOOKED looks (look.py)
 
@@ -25,10 +25,10 @@ from score.stages.people_bodies.bodies import guarded
 LOOKED = ("player_wide-work", "kit_m_avg-coat-grey")
 
 
-def dress_row(name, place=None, surface=None):
-    """A look's dress row; in a coloured place (data/people/colours.json) `people-dress-<look>-in-<place>`, its
-    fabrics that place's surface."""
-    return graph.Stage(f"people-dress-{name}" + (f"-in-{place}" if place else ""), "world", dress.make_dress,
+def dress_row(name, surface=None):
+    """A look's dress row; worn in a fabric a design's person row reads (people_rows.every_dressed)
+    `people-dress-<look>-in-<surface>`, its fabrics that library surface."""
+    return graph.Stage(f"people-dress-{name}" + (f"-in-{surface}" if surface else ""), "world", dress.make_dress,
                        contracts.Contract("people-dress", 1, dress.dress_faults),
                        (guarded("dressed", dress.judge_dressed), guarded("aligned", dress.judge_aligned)),
                        files={"library": "{data}/library", "places": "{data}/definitions/place.json",
@@ -61,14 +61,11 @@ CLIPS = graph.Stage("people-clips", "world", clips.make_usable, contracts.Contra
                     after={f"{bodies.BODY}-{look}": (bodies.BODY, 1) for look in FULL})
 
 
-def coloured_rows():
-    """A dress row for each look a coloured place's design names."""
-    import json
-    import pathlib
-    data = pathlib.Path(__file__).resolve().parents[3] / "data"
-    places = json.loads((data / "people/colours.json").read_text())["places"]
-    return [dress_row(look, place, chosen["surface"]) for place, chosen in places.items()
-            for look in sorted(people_rows.looks_of(place) & set(bodies.looks()))]
+def worn_rows():
+    """A dress row for each line look a design's person row dresses in a fabric of its own (people_rows.every_dressed:
+    the row's words and its measured torso, score/stages/people_clothes.py)."""
+    return [dress_row(look, surface) for look, surface in sorted(people_rows.every_dressed())
+            if look in bodies.looks()]
 
 
-ROWS = (made_clips.ROW_STAGE, *bodies.rows(), *map(dress_row, bodies.looks()), *coloured_rows(), CLIPS, LOOK)
+ROWS = (made_clips.ROW_STAGE, *bodies.rows(), *map(dress_row, bodies.looks()), *worn_rows(), CLIPS, LOOK)

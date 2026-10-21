@@ -662,13 +662,14 @@ def layered(row, names):
 
 
 def worn(row):
-    """A look's dress row read by a place's characters layer only where that place's accepted cast names the look
-    (characters_layer.cast_looks), so a cast place waits on its own looks, not the slowest of all."""
+    """A look's dress row read by a place's characters layer only where that place's design dresses the look in it
+    (characters_layer.dressed_looks: the look, worn in a fabric of its row's or in its own paint), so a cast place
+    waits on its own looks, not the slowest of all."""
     if not row.name.startswith(f"{characters_layer.DRESS}-"):
         return row
-    look, _, coloured = row.name.removeprefix(f"{characters_layer.DRESS}-").partition("-in-")
-    return dataclasses.replace(row, applies=lambda place: look in characters_layer.cast_looks(place) and (
-        place == coloured if coloured else place not in characters_layer.coloured_places()))
+    look, _, surface = row.name.removeprefix(f"{characters_layer.DRESS}-").partition("-in-")
+    return dataclasses.replace(row, applies=lambda place: (look, surface or None)
+                               in characters_layer.dressed_looks(place))
 
 
 OLD_SEED = "usd-r3"
@@ -694,7 +695,7 @@ def ship_place(place):
 
 STAGES = tuple(grained(accepted_gaps(layered(worn(row), {stage.name for stage in STAGES}))) for row in STAGES)
 # A process's code versions read the import folders it holds at its first key (score/graph/_code.py search_folders).
-# `score run` and `score status` reach tools/characters/cast.py (a dress row's `applies`: cast_looks) before that, and
+# `score run` and `score status` reach tools/characters/cast.py (a dress row's `applies`: dressed_looks) before that, and
 # the file puts its folder on the path; a process that keys a node first did not, and read every node whose code
 # imports a tools/characters name as "code changed" (complete.py's stage requirement on the five prologue places:
 # cast@ blocked there and pass, accepted in status, 2026-10-15). Loaded with the table, so every process keys alike.
