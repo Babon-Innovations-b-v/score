@@ -166,3 +166,13 @@ def test_a_place_only_named_in_an_agents_prompt_was_not_worked_on(tmp_path, monk
     finally:
         kit.unlink()
     assert code == 0
+
+
+def test_something_else_done_that_names_the_place_passes(tmp_path, monkeypatch):
+    kit = _with_place(tmp_path, monkeypatch)
+    try:
+        path = _transcript(tmp_path, f"The whole film is done too: it ends at the {_PLACE}.")
+        code, _ = _run({"transcript_path": str(path)})
+    finally:
+        kit.unlink()
+    assert code == 0  # the film is done, not the place (owner, 2026-10-21)

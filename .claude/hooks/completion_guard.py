@@ -3,8 +3,8 @@
 
 Reads the Stop or SubagentStop payload on stdin and, from the session's (or sub-agent's) transcript, finds the places
 its tool calls worked on (a place's ``data/...`` file, its ``work/usd`` or ``work/review`` folder, or a stage tool run
-on it) and whether its last message claims one of them is done (a sentence naming the place, or "every/all places",
-with complete, done, finished or ready and no negation). For each claimed place it runs the completion gate
+on it) and whether its last message claims one of them is done (a sentence saying the place itself is complete, done, finished,
+ready or built, or "every/all places" are, with no negation). For each claimed place it runs the completion gate
 (tools/usd/complete.py) and blocks the stop when the gate does not pass, listing every requirement that failed or is
 unknown. A session that makes no such claim ends as usual: the guard refuses a false "done", it does not force every
 session to finish a place. (LEGO-Anything, arXiv 2609.36380, App. G.6: runtime hooks keep the agent from finishing
@@ -89,8 +89,18 @@ def claimed(text, candidates):
             continue
         if _EVERY.search(sentence):
             found |= set(candidates)
-        found |= {place for place in candidates if re.search(rf"\b{re.escape(place)}\b", sentence, re.IGNORECASE)}
+        found |= {place for place in candidates if _says_done(place, sentence)}
     return found
+
+
+def _says_done(place, sentence):
+    """Whether the sentence says this place itself is done ("the wreck is complete", "finished the wreck"), not a
+    claim about something else that names it ("the film is done: ... the Wreck ..."; owner 2026-10-21)."""
+    name = re.escape(place)
+    word = r"(?:complete|completed|done|finished|ready|built)"
+    return bool(re.search(rf"\b{name}(?:'s)?\s+(?:\w+\s+){{0,2}}?(?:is|are|now)\s+(?:\w+\s+){{0,2}}?{word}\b",
+                          sentence, re.IGNORECASE)
+                or re.search(rf"\b(?:completed|finished|built)\s+(?:the\s+)?{name}\b", sentence, re.IGNORECASE))
 
 
 def refusals(claims):
