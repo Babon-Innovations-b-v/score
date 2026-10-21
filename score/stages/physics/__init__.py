@@ -1,14 +1,18 @@
 """The physics stage (experimental, F11: the paper's "responsive"): a place's stage with its physics in OpenUSD's own
-schema, and a trial in a physics engine that shows its objects react. Only a place with a trial record
-(data/physics/<place>.json) has the rows; the habitat is the proof place.
+schema, and a trial in a physics engine that shows its objects react. The trial is made from the scene's design
+(design.py: its loose rows' laid objects dropped back onto where they stand, under the gravity of the body its site
+is on), never from a record written for the scene; only a scene whose inventory has a loose row has the rows.
 
-    physics-layer  (free) the assembly's stage copied, with tools/usd/physics.py's layers: every mesh colliding by its
+    physics-layer  (free) the assembly's stage copied, its trial record made from the design (record.json), with
+                   tools/usd/physics.py's layers: every mesh colliding by its
                    triangles, every object's mass (its surface's area, its material's sheet and density) and physics
                    material (friction, restitution), the scene's pull; and the trial: its bodies colliding by their
                    convex hulls, its drops lifted over their targets, its hinge (a RevoluteJoint with limits and a
                    motor), its pushes (kinematic hands). physics.json says what was written.
        gates       laid      the record's trial stands: every body draws a mesh and has a mass, nothing but its
                              target stands under a drop
+                   designed  every object the trial names is an object of a row of the scene's inventory, and it
+                             drops at least one
     physics-trial  (paid) the trial run on Blender's Bullet from the stage's UsdPhysics
                    (inside/physics_trial.py) on a rented machine; its motion written back as
                    layers/physics_motion.usda; the record's views rendered at its moments (usd_views.py on the same
@@ -33,10 +37,12 @@ from PIL import Image
 from score import checks, contracts
 from score.adapters import engines
 from score.stages.terrain import look as terrain_look
+from score.stages import row_kinds
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import physics  # noqa: E402
+from score.stages.physics import design  # noqa: E402
 
 TRIAL_SCRIPT = "score/stages/physics/inside/physics_trial.py"
 RENDER_SCRIPT = "tools/blender/inside/usd_views.py"
@@ -60,17 +66,19 @@ ENERGY_SLACK = (0.01, 1.0)
 
 
 def applies(place):
-    return (REPO / f"data/physics/{place}.json").exists()
+    """A scene whose kept inventory has a loose row (row_kinds)."""
+    return row_kinds.designed(place, "loose")
 
 
-LAYER_FILES = {"record": "{data}/physics/{place}.json", "materials": "{data}/physics/materials.json"}
+LAYER_FILES = {**row_kinds.DESIGNED, "materials": "{data}/physics/materials.json",
+               "physics": "{data}/physics/setting.json", "bodies": "{data}/physics/bodies.json",
+               "within": "{data}/places/within.json"}
 
 
 def trial_files(place):
-    """What the trial reads besides the layer's output: its record, the Blender scripts it runs, the neighbours'
-    seeds the stage references."""
-    found = {"record": "{data}/physics/{place}.json", "scene": "{data}/scene/{place}.json",
-             "renderer": "{data}/../tools/blender/inside", "trial script": "{repo}/" + TRIAL_SCRIPT}
+    """What the trial reads besides the layer's output (its record there): the Blender scripts it runs, the
+    neighbours' seeds the stage references."""
+    found = {"renderer": "{data}/../tools/blender/inside", "trial script": "{repo}/" + TRIAL_SCRIPT}
     found.update({f"neighbour {name}": f"{{seeds}}/usd-r3/{name}" for name in terrain_look.neighbours(place)})
     return found
 
@@ -92,8 +100,35 @@ def make_layer(inputs, out, seed, params):
             continue
         (shutil.copytree if child.is_dir() else shutil.copy2)(child, out / child.name)
     subprocess.run(["chmod", "-R", "u+w", str(out)], check=True)
-    written = physics.write(out, read_json(inputs["record"]), read_json(inputs["materials"]))
+    record = designed_trial(inputs, out)
+    (out / "record.json").write_text(json.dumps(record, indent=1))
+    written = physics.write(out, record, read_json(inputs["materials"]))
     (out / "physics.json").write_text(json.dumps(written, indent=1))
+
+
+def designed_trial(inputs, folder):
+    """The trial record made from the scene's design over the stage in `folder` (design.py)."""
+    stage, root = physics.opened(folder)
+    place = root.stem
+    within = {name: entry["within"] for name, entry in read_json(inputs["within"]).get("within", {}).items()}
+    under = design.ground(place, within, read_json(inputs["physics"]))
+    return design.trial(place, stage, read_json(inputs["design"]), row_kinds.table(inputs["row kinds"]), under)
+
+
+def judge_designed(output, inputs, evidence):
+    """Pass when every object the trial names is an object of a row of the scene's inventory and it drops one."""
+    record = read_json(pathlib.Path(output) / "record.json")
+    names = physics.bodies_of(record)
+    strangers = row_kinds.strangers(names, read_json(inputs["design"]))
+    faults = [f"{name} is no object of the scene's inventory" for name in strangers]
+    if not names:
+        faults.append("no loose object of the design stands clear to drop" +
+                      (f" ({'; '.join(record['left out'])})" if record.get("left out") else
+                       " (none of its loose rows is laid on the stage)"))
+    return checks.Verdict("designed", checks.FAIL if faults else checks.PASS,
+                          f"{len(faults)} faults" if faults else
+                          f"{len(names)} bodies, each an object of a loose row of the scene's inventory",
+                          {"bodies": len(names)}, {}, tuple(faults) or tuple(record.get("left out", [])))
 
 
 def judge_laid(output, inputs, evidence):
@@ -110,11 +145,11 @@ def judge_laid(output, inputs, evidence):
 def layer_faults(folder):
     folder = pathlib.Path(folder)
     found = contracts.openusd_stage_faults(folder)
-    return found + ([] if (folder / "physics.json").exists() else ["no physics.json"])
+    return found + [f"no {name}" for name in ("physics.json", "record.json") if not (folder / name).exists()]
 
 
 LAYER = contracts.Contract("physics-layer", 1, layer_faults, {"length": "metre", "up axis": "Y"})
-LAYER_CHECKS = (checks.Check("laid", judge_laid),)
+LAYER_CHECKS = (checks.Check("laid", judge_laid), checks.Check("designed", judge_designed))
 
 
 # --- physics-trial -----------------------------------------------------------------------------------------------
@@ -157,7 +192,7 @@ def make_trial(inputs, out, seed, params):
     """Run the trial on a rented machine, play its motion back in the stage, render its moments, measure it."""
     layer = pathlib.Path(inputs["physics-layer"])
     place = place_of(layer)
-    record = read_json(inputs["record"])
+    record = read_json(layer / "record.json")
     folder = terrain_look.tree(out, "trial", place, layer, inputs)
     (folder / place / "contract.json").unlink(missing_ok=True)
     root = folder / place / f"{place}.usda"
@@ -173,6 +208,7 @@ def make_trial(inputs, out, seed, params):
     (out / "measures.json").write_text(json.dumps(measured(trial, record, read_json(layer / "physics.json"), middles),
                                                   indent=1))
     shutil.copy2(folder / place / "layers/physics_motion.usda", out / "physics_motion.usda")
+    shutil.copy2(layer / "record.json", out / "record.json")
     shutil.rmtree(out / "stages")
 
 
@@ -206,7 +242,7 @@ def measured(trial, record, laid, middles):
         bodies[name] = {"mass": body["mass"], "end speed": body["speed"][-1], "lowest ever": min(body["lowest"]),
                         "lowest at end": body["lowest"][-1],
                         "moved": round(moved_by(body["motions"][-1], middles[name]), 4), "inside at end": inside}
-    drops = {drop["object"]: {"onto": drop["onto"], "top": laid["tops"][drop["object"]],
+    drops = {drop["object"]: {"onto": drop.get("onto", "where it stood"), "top": laid["tops"][drop["object"]],
                               "over top at end": round(bodies[drop["object"]]["lowest at end"]
                                                        - laid["tops"][drop["object"]], 4)}
              for drop in record["drops"]}
@@ -265,7 +301,10 @@ def judge_hinge(output, inputs, evidence):
               f"{hinge['upper']:.0f}" for leaf, hinge in found["hinges"].items()
               if hinge["least"] < hinge["lower"] - LIMIT_SLACK or hinge["most"] > hinge["upper"] + LIMIT_SLACK]
     if not found["hinges"]:
-        return checks.Verdict("hinge", checks.UNKNOWN, "the trial has no hinge")
+        said = read_json(pathlib.Path(output) / "record.json").get("no_hinges")
+        return checks.Verdict("hinge", checks.PASS if said else checks.UNKNOWN,
+                              f"the trial hangs no hinge: {said}" if said else
+                              "the trial has no hinge and its record does not say why (`no_hinges`)")
     return checks.Verdict("hinge", checks.FAIL if faults else checks.PASS,
                           f"{len(faults)} hinges left their limits" if faults else
                           "every hinge within its limits: " + ", ".join(
@@ -290,7 +329,8 @@ def judge_energy(output, inputs, evidence):
 def trial_faults(folder):
     """Every trial output: its run, its measures, a strip a view."""
     folder = pathlib.Path(folder)
-    missing = [name for name in ("trial.json", "measures.json", "physics_motion.usda") if not (folder / name).exists()]
+    missing = [name for name in ("trial.json", "measures.json", "physics_motion.usda", "record.json")
+               if not (folder / name).exists()]
     return [f"no {name}" for name in missing] + ([] if list(folder.glob("strip-*.png")) else ["no strip"])
 
 

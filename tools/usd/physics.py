@@ -23,8 +23,9 @@ writes, beside the place's other layers and held by its root just under the edit
 and, after the run, `write_motion` writes layers/physics_motion.usda: each body's transform at every frame of the run
 as time samples, strongest of the root's layers, so any USD reader plays the trial back.
 
-The trial record (data/physics/<place>.json) names the trial: `body`, `material`, `seconds`, `drops` ({object, onto
-(an object, or "floor": y = 0), at [x, z], over}), `hinges` ({leaf, frame, pins, carries, opens, clear, drive}),
+The trial record (score/stages/physics/design.py makes it from the scene's design) names the trial: `body`, `gravity`
+(m/s², the body's own; else orbits.PULL's), `material`, `seconds`, `drops` ({object, onto (an object, or "floor":
+y = 0; none: back onto where it stands), at [x, z] (none: its own spot), over}), `hinges` ({leaf, frame, pins, carries, opens, clear, drive}),
 `pushes` ({name, size, from, to, start, end}) and `moved` (objects only a push moves). Its free check, `faults`,
 refuses a trial whose bodies have no drawn mesh or whose drop falls onto anything but its target.
 """
@@ -136,7 +137,7 @@ def write_materials(stage, materials):
 def write_scene(stage, record):
     scene = UsdPhysics.Scene.Define(stage, place_path(stage).AppendPath("Physics/Scene"))
     scene.CreateGravityDirectionAttr(Gf.Vec3f(0.0, -1.0, 0.0))
-    scene.CreateGravityMagnitudeAttr(orbits.PULL[record["body"]])
+    scene.CreateGravityMagnitudeAttr(record["gravity"] if "gravity" in record else orbits.PULL[record["body"]])
     scene.GetPrim().CreateAttribute("score:physics:seconds", Sdf.ValueTypeNames.Double).Set(record["seconds"])
 
 
@@ -176,6 +177,19 @@ def top_of(stage, onto):
     return 0.0 if onto == "floor" else float(world_box(object_prim(stage, onto))[1][1])
 
 
+def landing(stage, drop):
+    """The height a drop lands on: its target's top, or with no target the height its own lowest point stands at."""
+    return top_of(stage, drop["onto"]) if "onto" in drop else float(world_box(object_prim(stage, drop["object"]))[0][1])
+
+
+def spot_of(stage, drop):
+    """[x, z] a drop falls at: its `at`, or its own middle where it stands."""
+    if "at" in drop:
+        return drop["at"]
+    low, high = world_box(object_prim(stage, drop["object"]))
+    return [float(low[0] + high[0]) / 2, float(low[2] + high[2]) / 2]
+
+
 def moved(prim, shift):
     """The object moved by `shift` (metres, the stage's frame) in its own transform."""
     placed = world(prim) * Gf.Matrix4d().SetTranslate(shift)
@@ -186,9 +200,8 @@ def lifted(stage, drop):
     """The drop's object moved so its lowest point stands `over` its target's top with its middle at `at`."""
     prim = object_prim(stage, drop["object"])
     low, high = world_box(prim)
-    middle = (low + high) / 2
-    moved(prim, Gf.Vec3d(drop["at"][0] - middle[0], top_of(stage, drop["onto"]) + drop["over"] - low[1],
-                         drop["at"][1] - middle[2]))
+    middle, at = (low + high) / 2, spot_of(stage, drop)
+    moved(prim, Gf.Vec3d(at[0] - middle[0], landing(stage, drop) + drop["over"] - low[1], at[1] - middle[2]))
 
 
 def make_body(prim):
@@ -268,12 +281,11 @@ def faults(stage, record):
     found = [f"{name} draws no mesh" for name in bodies_of(record) if not own_meshes(object_prim(stage, name))]
     for drop in record["drops"]:
         low, high = world_box(object_prim(stage, drop["object"]))
-        half = (high - low) / 2 - COLUMN_INSET
-        column_low = np.array([drop["at"][0] - half[0], top_of(stage, drop["onto"]) + 0.01, drop["at"][1] - half[2]])
-        column_high = np.array([drop["at"][0] + half[0], column_low[1] + drop["over"] + 2 * half[1],
-                                drop["at"][1] + half[2]])
+        half, at = (high - low) / 2 - COLUMN_INSET, spot_of(stage, drop)
+        column_low = np.array([at[0] - half[0], landing(stage, drop) + 0.01, at[1] - half[2]])
+        column_high = np.array([at[0] + half[0], column_low[1] + drop["over"] + 2 * half[1], at[1] + half[2]])
         for prim in laid_objects(stage):
-            if prim.GetName() in (drop["object"], drop["onto"]):
+            if prim.GetName() in (drop["object"], drop.get("onto")):
                 continue
             other_low, other_high = world_box(prim)
             if np.all(other_low < column_high) and np.all(other_high > column_low):
@@ -334,7 +346,7 @@ def write(folder, record, materials):
     layer.Save()
     trial = new_layer(folder, "trial.usda", "The place's physics trial (tools/usd/physics.py).")
     working = layer_stage(root_path, trial, [layer.identifier, *layer_ids(root_path, LAYERS)])
-    tops = {drop["object"]: top_of(working, drop["onto"]) for drop in record["drops"]}
+    tops = {drop["object"]: landing(working, drop) for drop in record["drops"]}
     for drop in record["drops"]:
         lifted(working, drop)
     for name in bodies_of(record):
