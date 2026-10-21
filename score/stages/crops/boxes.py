@@ -24,7 +24,7 @@ KEEP = 400
 
 
 def crop_rows(inputs):
-    return {entry["row"] for entry in json.loads(pathlib.Path(inputs["crops"]).read_text())["kinds"].values()}
+    return {entry["row"] for entry in crop_data.read(inputs)["kinds"].values()}
 
 
 def make_boxes(inputs, out, seed, params):

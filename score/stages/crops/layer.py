@@ -2,9 +2,9 @@
 
     make     each kind's baked model (the place's own surface line bakes it like any made model: surfaces-bake
              and its paint's labelled parts) written as an asset the exporter's way (tools/usd/export.write_asset)
-             under assets/; the beds (the scene record's boxes named with the crop data's `beds` prefix) shared out
-             among the kinds by their patches' shares of the concept's plot (crops-concept), whole beds each, in the
-             record's order; on each bed a kind's plants at the concept's spacing (in plant widths, times the made
+             under assets/; the beds (the plan items its bed rows make, crop_data.beds_in) shared out among the
+             kinds standing on each bed row by their patches' shares of the concept's plot (crops-concept), whole
+             beds each, in the plan's order; on each bed a kind's plants at the concept's spacing (in plant widths, times the made
              model's width: the concept draws its plants larger than the plan's metres hold them, so its look is
              kept, not a density in plants a square metre), on a grid of the bed's cells, each moved within its
              cell, turned and sized by the node's seed; layers/crops.usda holds /<place>/Crops/<kind>, a
@@ -16,8 +16,7 @@
                         bed carries plants
              spacing    each kind's spacing in plant widths as laid within LAID_WITHIN of the concept's
 
-Experimental (PRD #6): the crop state (the concept's mid-season beds, not the game's bare start) is the owner's
-open decision; the crop data says so.
+Experimental (PRD #6): the crops are laid as the locked concept grows them (its kinds' patches and spacing).
 """
 import json
 import math
@@ -38,12 +37,6 @@ LAID_WITHIN = 0.25
 KIND = "crop"
 
 
-def beds_of(scene, prefix):
-    """The scene record's beds: [{name, centre, size}], in the record's order."""
-    return [{"name": item["name"], "centre": item["centre"], "size": item["size"]}
-            for item in scene["structure"] if item["name"].startswith(prefix)]
-
-
 def shared_out(beds, shares):
     """{kind: [bed names]}: whole beds to each kind by its share (largest remainder, at least one each), in order."""
     total = sum(shares.values())
@@ -58,6 +51,15 @@ def shared_out(beds, shares):
     for kind in shares:
         found[kind] = [bed["name"] for bed in beds[start:start + counts[kind]]]
         start += counts[kind]
+    return found
+
+
+def shared_by_bed(record, beds, shares):
+    """{kind: [bed names]}: each bed row's beds shared out among the kinds standing on it (shared_out)."""
+    found = {}
+    for bed_row in record["beds"]:
+        own = {kind: shares[kind] for kind, entry in record["kinds"].items() if entry["bed"] == bed_row}
+        found.update(shared_out([bed for bed in beds if bed["row"] == bed_row], own))
     return found
 
 
@@ -160,14 +162,13 @@ def write_layer(place, record, assets, spots, path):
 def make_layer(inputs, out, seed, params):
     """The crops layer, its kinds' assets and spots.json (the beds each kind took, every plant, each kind's model
     width and spacing in metres)."""
-    record = json.loads(pathlib.Path(inputs["crops"]).read_text())
-    scene = json.loads(pathlib.Path(inputs["scene"]).read_text())
+    record = crop_data.read(inputs)
     measured = json.loads((pathlib.Path(inputs["crops-concept"]) / "concept.json").read_text())["kinds"]
     with crop_data.tools("usd"):
         assets = write_assets(record, pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]),
                               out)
-    beds = beds_of(scene, record["beds"])
-    shared = shared_out(beds, {kind: measured[kind]["share"] for kind in record["kinds"]})
+    beds = crop_data.beds_in(inputs, record)
+    shared = shared_by_bed(record, beds, {kind: measured[kind]["share"] for kind in record["kinds"]})
     spacings = {kind: measured[kind]["spacing"] * assets[kind]["width"] for kind in record["kinds"]}
     spots = laid_spots(beds, shared, spacings, seed)
     (out / "layers").mkdir(exist_ok=True)
@@ -184,15 +185,13 @@ def layer_faults(folder):
 
 def judge_on_beds(output, inputs, evidence):
     """Every plant stands on its bed, EDGE inside its edge, and every bed carries plants."""
-    record = json.loads(pathlib.Path(inputs["crops"]).read_text())
-    beds = {bed["name"]: bed for bed in beds_of(json.loads(pathlib.Path(inputs["scene"]).read_text()),
-                                                record["beds"])}
+    beds = {bed["name"]: bed for bed in crop_data.beds_in(inputs, crop_data.read(inputs))}
     spots = json.loads((output / "spots.json").read_text())["spots"]
     failing = []
     for number, spot in enumerate(spots):
         bed = beds.get(spot["bed"])
         if bed is None:
-            failing.append(f"plant {number} ({spot['kind']}): on {spot['bed']}, which is no bed of the scene")
+            failing.append(f"plant {number} ({spot['kind']}): on {spot['bed']}, which is no bed of the plan")
             continue
         off_x = abs(spot["at"][0] - bed["centre"][0]) - (bed["size"][0] / 2.0 - EDGE)
         off_z = abs(spot["at"][2] - bed["centre"][2]) - (bed["size"][2] / 2.0 - EDGE)
@@ -222,7 +221,7 @@ def laid_spacings(spots, widths):
 
 def judge_spacing(output, inputs, evidence):
     """Each kind's spacing in plant widths as laid within LAID_WITHIN of the concept's."""
-    record = json.loads(pathlib.Path(inputs["crops"]).read_text())
+    record = crop_data.read(inputs)
     measured = json.loads((pathlib.Path(inputs["crops-concept"]) / "concept.json").read_text())["kinds"]
     laid_record = json.loads((output / "spots.json").read_text())
     laid = laid_spacings(laid_record["spots"], laid_record["widths"])

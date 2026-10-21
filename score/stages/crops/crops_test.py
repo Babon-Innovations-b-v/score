@@ -1,5 +1,5 @@
-"""The crops stage's free parts on the greenhouse's own data: the concept's tiles and measures on a known grid of
-plants, and the measured gate breaking when a kind is missing.
+"""The crops stage's free parts on a design of its own: the crop kinds and beds read off a scene inventory and plan,
+the concept's tiles and measures on a known grid of plants, the gates, and the look's camera round trip.
 
     .venv/bin/python score/stages/crops/crops_test.py
 """
@@ -9,27 +9,78 @@ import pathlib
 import sys
 import tempfile
 
+import numpy as np
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 import score.stages.crops.concept as concept  # noqa: E402
 import score.stages.crops.crop_data as crop_data  # noqa: E402
 import score.stages.crops.layer as layer  # noqa: E402
 import score.stages.crops.look as look  # noqa: E402
+from score.stages import row_kinds  # noqa: E402
 
-# A crop data as the stage reads it, written here: the old greenhouse's kinds and beds (its file, written for the old
-# concept, was retired 2026-10-21), so the measures and gates are checked on known kinds.
-RECORD = {"place": "greenhouse", "concept": {"view": crop_data.DESIGN_VIEW, "plot": {
-    "nouns": ["raised garden bed", "vegetable garden bed"], "plan_item": "HOME PLOT 12 x 12 m (beds 0.6 m)"}},
-          "beds": "bed_",
-          "kinds": {"lettuce": {"row": "crop_lettuce", "nouns": ["lettuce"]},
-                    "potato": {"row": "crop_potato", "nouns": ["potato"]},
-                    "herb": {"row": "crop_herb", "nouns": ["rosemary", "small shrub"]},
-                    "greens": {"row": "crop_greens", "nouns": ["leafy bush"],
-                               "canopy": "bushes whose leaves meet: laid one bush width apart"}}}
-# A scene record's 25 start beds, 0.6 m squares in a 5 x 5 grid, as the greenhouse's were laid (its old record was
-# retired with the old concepts, 2026-10-21).
-SCENE = {"structure": [{"name": f"bed_{column}_{row}", "centre": [round(-5.7 + 0.6 * column, 3), 0.03,
-                                                                 round(4.7 - 0.6 * row, 3)], "size": [0.6, 0.06, 0.6]}
-                       for column in range(5) for row in range(5)]}
+KINDS = row_kinds.table()
+
+
+def crop_row(row_id, name, noun="crops"):
+    return {"id": row_id, "name": name, "noun": noun, "count": 5, "anchor": "on:planter_bed", "size": [0.5, 0.5, 0.3]}
+
+
+# A design as the reading keeps it: a planter bed row on the lower floor, four crop rows on it, a door and a lamp.
+INVENTORY = {"scene": "greenhouse", "place": "greenhouse", "rows": [
+    {"id": "planter_bed", "name": "raised planter bed", "noun": "planter", "count": 25, "anchor": "on:lower_floor",
+     "size": [0.6, 0.6, 0.06]},
+    crop_row("lettuce", "lettuce"), crop_row("potato", "potato"), crop_row("herb", "rosemary"),
+    crop_row("greens", "leafy bush", "plants"),
+    {"id": "door", "name": "sliding door", "noun": "door", "count": 1, "anchor": "wall", "size": [1.2, 0.1, 2.2]},
+    {"id": "wall_lamp", "name": "wall lamp", "noun": "lamp", "count": 2, "anchor": "wall", "size": [0.3, 0.3, 0.3]}]}
+# Its plan: 25 beds, 0.6 m squares in a 5 x 5 grid, on a 12 m room whose lower floor is 0.4 m up; a lamp item.
+PLAN = {"w": 12.0, "d": 12.0, "levels": [{"name": "lower floor", "height": 0.4, "points": []}],
+        "items": [[f"PLANTER BED {column}_{row}", 0.3 + 0.6 * column, 1.3 - 0.6 * row + 6.0, 0.6, 0.6, None, "item"]
+                  for column in range(5) for row in range(5)] + [["WALL LAMP 1", 0.0, 0.0, 0.3, 0.3, None, "item"]],
+        "rows": {**{f"PLANTER BED {column}_{row}": ["planter_bed"] for column in range(5) for row in range(5)},
+                 "WALL LAMP 1": ["wall_lamp"]}}
+RECORD = crop_data.record_of(INVENTORY, KINDS)
+BEDS = crop_data.beds_of(PLAN, INVENTORY, RECORD)
+
+
+def design_inputs(folder):
+    """The design's files as a crop row reads them: its inventory, plan and the row-kind rules."""
+    (folder / "inventory.json").write_text(json.dumps(INVENTORY))
+    (folder / "plan.json").write_text(json.dumps(PLAN))
+    return {"inventory": folder / "inventory.json", "plan": folder / "plan.json", "row kinds": row_kinds.TABLE}
+
+
+def projected(view, point, size):
+    """Where a point of the stage falls in a look camera's picture (x, y from the top left, pixels): usd_views.py's
+    camera, `fov` across the picture's width, the inverse of look.on_floor."""
+    eye, aim = np.asarray(view["eye"], dtype=float), np.asarray(view["aim"], dtype=float)
+    ahead = (aim - eye) / np.linalg.norm(aim - eye)
+    right = np.cross(ahead, [0.0, 1.0, 0.0])
+    right /= np.linalg.norm(right)
+    up = np.cross(right, ahead)
+    way = np.asarray(point, dtype=float) - eye
+    depth = float(way @ ahead)
+    half_wide = math.tan(math.radians(view["fov"]) / 2)
+    return size[0] / 2 * (1 + float(way @ right) / depth / half_wide), size[1] / 2 - float(way @ up) / depth / half_wide * size[0] / 2
+
+
+def test_crop_kinds_and_beds_come_from_the_design():
+    """The rows that grow on the planter are the kinds, each asked by its name (a noun two kinds share is left out),
+    the planter is the plot; the beds are the plan items the planter makes, in the place's frame on the lower floor;
+    a design with no row growing on a bed has no crops."""
+    assert list(RECORD["kinds"]) == ["lettuce", "potato", "herb", "greens"], RECORD["kinds"]
+    assert RECORD["kinds"]["lettuce"] == {"row": "lettuce", "nouns": ["lettuce"], "bed": "planter_bed"}
+    assert RECORD["kinds"]["greens"]["nouns"] == ["leafy bush", "plants"], RECORD["kinds"]["greens"]
+    assert RECORD["beds"] == ["planter_bed"] and RECORD["concept"]["plot"]["nouns"] == ["raised planter bed", "planter"]
+    assert RECORD["place"] == "greenhouse" and RECORD["concept"]["view"] == crop_data.DESIGN_VIEW
+    assert len(BEDS) == 25 and {bed["row"] for bed in BEDS} == {"planter_bed"}, BEDS
+    first = BEDS[0]
+    assert first["name"] == "PLANTER BED 0_0" and first["size"] == [0.6, 0.06, 0.6], first
+    assert first["centre"] == [-5.4, 0.43, 1.6], first
+    bare = dict(INVENTORY, rows=[row for row in INVENTORY["rows"] if row["id"] in ("planter_bed", "door")])
+    assert crop_data.record_of(bare, KINDS)["kinds"] == {}
+
+
 SQUARE_PLOT = {"plot:raised garden bed": [{"box": [0, 0, 2000, 2000], "score": 0.9, "inside": 1.0, "fills": 1.0}]}
 
 
@@ -75,35 +126,31 @@ def test_spacing_and_share_of_a_grid():
 
 
 def test_measured_gate():
+    """Every kind found in a patch passes; a kind found in none, or no plot, is unknown; a merged mass (a box over
+    MERGED widths) is left out of its kind."""
     instances = dict(SQUARE_PLOT)
     for number, kind in enumerate(RECORD["kinds"]):
         instances.update(grid(kind, RECORD["kinds"][kind]["nouns"][0], (100 + 350 * number, 100), 3, 30))
-        if RECORD["kinds"][kind].get("canopy"):  # a canopy is found as merged masses among the small boxes
-            instances[f"{kind}:{RECORD['kinds'][kind]['nouns'][0]}"].append(
-                {"box": [100 + 350 * number, 600, 400 + 350 * number, 800], "score": 0.9})
+    instances["greens:leafy bush"].append({"box": [1150, 600, 1450, 800], "score": 0.9})
     with tempfile.TemporaryDirectory() as folder:
         output = pathlib.Path(folder)
-        crops = output / "crops.json"
-        crops.write_text(json.dumps(RECORD))
+        inputs = design_inputs(output)
         found = concept.measures(RECORD, instances, [2000, 2000])
         (output / "concept.json").write_text(json.dumps(found))
-        assert concept.judge_measured(output, {"crops": crops}, None).answer == "pass"
-        assert found["kinds"]["greens"]["count"] == 1 and found["kinds"]["greens"]["spacing"] == concept.CANOPY_SPACING
-        assert abs(found["kinds"]["greens"]["share"] - 300 * 200 / 2000 ** 2) < 1e-3, found["kinds"]["greens"]
+        assert concept.judge_measured(output, inputs, None).answer == "pass"
+        assert found["kinds"]["greens"]["count"] == 9, found["kinds"]["greens"]
         missing = dict(found, kinds=dict(found["kinds"], potato=dict(found["kinds"]["potato"], count=0)))
         (output / "concept.json").write_text(json.dumps(missing))
-        assert concept.judge_measured(output, {"crops": crops}, None).answer == "unknown"
+        assert concept.judge_measured(output, inputs, None).answer == "unknown"
         (output / "concept.json").write_text(json.dumps(dict(found, plot=None)))
-        assert concept.judge_measured(output, {"crops": crops}, None).answer == "unknown"
+        assert concept.judge_measured(output, inputs, None).answer == "unknown"
 
 
 def laid_on_greenhouse(folder, spacing_widths):
-    """The greenhouse's beds shared and laid at `spacing_widths` plant widths for every kind, plants 0.2 m wide; the
+    """The design's beds shared and laid at `spacing_widths` plant widths for every kind, plants 0.2 m wide; the
     gates' inputs and output folder."""
-    scene = folder / "scene.json"
-    scene.write_text(json.dumps(SCENE))
-    beds = layer.beds_of(SCENE, RECORD["beds"])
-    shared = layer.shared_out(beds, {kind: 1.0 for kind in RECORD["kinds"]})
+    beds = crop_data.beds_in(design_inputs(folder), RECORD)
+    shared = layer.shared_by_bed(RECORD, beds, {kind: 1.0 for kind in RECORD["kinds"]})
     widths = {kind: 0.2 for kind in RECORD["kinds"]}
     spots = layer.laid_spots(beds, shared, {kind: spacing_widths * 0.2 for kind in RECORD["kinds"]}, 7)
     (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": spots, "widths": widths}))
@@ -111,9 +158,7 @@ def laid_on_greenhouse(folder, spacing_widths):
     concept_folder.mkdir(exist_ok=True)
     (concept_folder / "concept.json").write_text(json.dumps({"kinds": {kind: {"spacing": 1.5}
                                                                        for kind in RECORD["kinds"]}}))
-    crops = folder / "crops.json"
-    crops.write_text(json.dumps(RECORD))
-    return {"crops": crops, "scene": scene, "crops-concept": concept_folder}, beds, shared, spots
+    return {**design_inputs(folder), "crops-concept": concept_folder}, beds, shared, spots
 
 
 def test_layer_gates():
@@ -168,28 +213,25 @@ def test_layer_says_what_made_its_crops():
 
 
 def test_look_finds_the_floor_again():
-    """A point of the beds' top drawn by a look camera (the effects look's projection) is taken back onto it."""
-    import score.stages.effects.look as effects_look
-    beds = layer.beds_of(SCENE, RECORD["beds"])
-    for view in look.views_of(beds):
-        for point in ((-5.7, 0.06, 4.7), (-3.3, 0.06, 2.3), (-4.5, 0.06, 3.5)):
-            pixel = effects_look.projected(view, point, look.SIZE)
-            back = look.on_floor(view, pixel, look.SIZE, 0.06)
+    """A point of the beds' top drawn by a look camera is taken back onto it."""
+    for view in look.views_of(BEDS):
+        for point in ((-5.4, 0.46, 1.6), (-3.0, 0.46, -0.8), (-4.2, 0.46, 0.4)):
+            pixel = projected(view, point, look.SIZE)
+            back = look.on_floor(view, pixel, look.SIZE, 0.46)
             assert math.dist(back, (point[0], point[2])) < 1e-6, (view["name"], point, back)
             assert 0 <= pixel[0] < look.SIZE[0] and 0 <= pixel[1] < look.SIZE[1], (view["name"], point, pixel)
 
 
 def test_look_counts_a_plant_the_kind_of_its_bed():
     """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on."""
-    import score.stages.effects.look as effects_look
-    beds = {bed["name"]: bed for bed in layer.beds_of(SCENE, RECORD["beds"])}
-    view = look.views_of(list(beds.values()))[0]
-    foot_x, foot_y = effects_look.projected(view, (-5.7, 0.06, 4.7), look.SIZE)
+    beds = {bed["name"]: bed for bed in BEDS}
+    view = look.views_of(BEDS)[0]
+    foot_x, foot_y = projected(view, (-5.4, 0.46, 1.6), look.SIZE)
     box = [foot_x - 20, foot_y - 60, foot_x + 20, foot_y]
     instances = {f"{view['name']}/greens:leafy bush": [{"box": box, "score": 0.8}],
                  f"{view['name']}/herb:rosemary": [{"box": [value + 1 for value in box], "score": 0.7}]}
     shared = {kind: [] for kind in RECORD["kinds"]}
-    shared["herb"] = ["bed_0_0"]
+    shared["herb"] = ["PLANTER BED 0_0"]
     spots_record = {"spots": [], "widths": {kind: 0.2 for kind in RECORD["kinds"]}}
     seen = look.seen_on_beds(RECORD, view, instances, beds, shared, spots_record)
     assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen

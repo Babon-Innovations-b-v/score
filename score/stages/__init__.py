@@ -139,22 +139,6 @@ EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_l
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
                            euros=effects_look.EUROS,
                            applies=lambda place: place in effects_look.LOOKED and designed("effects")(place))
-def crops_waiting(files):
-    """A crops row's files: its own (crop_data) once the place's crop data is written from its locked design
-    (crop_data.applies); until then the crop data it waits on, so the row blocks by name."""
-    import score.stages.crops.crop_data as crop_data
-
-    @functools.wraps(files)
-    def declared(place):
-        return files(place) if crop_data.applies(place) else {"crops": crop_data.pattern(place)}
-    return declared
-
-
-def crops_designed(row):
-    """A crops row at each place whose design shows crops (designed), waiting on crop data written for it."""
-    return dataclasses.replace(row, applies=designed("crops"), files=crops_waiting(row.files))
-
-
 # Experimental (PRD #6) until the owner reviews it: the place's plan in the store, and its scene record written from
 # it (score/stages/scene_record), for the places whose plan says where each door leads. No assembly reads it yet.
 def creator_plan(files):
@@ -480,7 +464,7 @@ STAGES = (TERRAIN, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
               boxed_split, map(designed_rough, shapes_first.rows())))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
-          *light.ROWS, *map(crops_designed, crops.ROWS),
+          *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE)
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
@@ -814,9 +798,8 @@ STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) 
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).
 STAGES = (*STAGES, *library.rows(STAGES, REPO / "data"))
 # Each item a place's handover made new gets its preview clip (score/stages/library/clips, paid; owner, 2026-10-20),
-# rendered after the handover in the same batch; the one row that reads library@<place>, and nothing reads it. Its
-# benchmark, library-clips-sample, clips the few drafts data/definitions/clip_samples.json names.
-STAGES = (*STAGES, library_clips.STAGE, library_clips.SAMPLE_STAGE)
+# rendered after the handover in the same batch; the one row that reads library@<place>, and nothing reads it.
+STAGES = (*STAGES, library_clips.STAGE)
 # A place's own rows, which apply to every place, kept off a line of models no place owns (the people's, #41:
 # shapes_first.no_place): it has no stage to assemble, complete or hand over, only the shared loop's rows.
 PLACE_ONLY = ("assembly", "scene-tree", "complete", "library", "library-clips")
