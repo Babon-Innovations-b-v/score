@@ -111,7 +111,7 @@ def stood_people(plan, inventory, project):
             [round(item[1] + item[3] / 2, 3), round(item[2] + item[4] / 2, 3)] for item in laid]
         for item in laid:
             dropped_item(plan, item)
-        stood += [[*spot, None, row["id"]] for spot in spots]
+        stood += [[*spot, 0.0, row["id"]] for spot in spots]  # on the plan's own floor
         if spots:
             fixes.append(f"{plan_checks.said_name(row['id'])}: stood as {len(spots)} person spot"
                          f"{'s' if len(spots) > 1 else ''} where the concept shows them")
