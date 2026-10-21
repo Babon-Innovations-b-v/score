@@ -14,9 +14,13 @@ make, the output, the gate and the price; `sample.py` the sample shapes; `blende
   never lower them for the clips (quality is never a cost lever). The length (`framing.SECONDS`) is the films' shot.
 - **score never imports the library.** What a clip opens comes from the library's `clip-plan`, the clip goes in
   through its `clip-attach`; score reads only their JSON.
-- **The price is estimated until measured.** `per_item` is the films' measured seconds a frame at the L4's billed
-  price (`ESTIMATED_FROM`), said so wherever it shows (prepare's `estimated_from`); once library-clips has a measured
-  per unit in `data/costs/per-unit.json`, prepare uses that.
+- **The price is measured** (2026-10-21): library-clips-sample's 6 clips, EUR 0.96 on one L4 in 72 min (EUR 0.16
+  and about 12 min a clip, 7.3 s a frame), a `RECORDED` run in `tools/costs/per_unit.py`, so prepare prices the layer
+  from `data/costs/per-unit.json`. `per_item` (the films' seconds a frame, `ESTIMATED_FROM`) is now only the row's
+  clearance estimate. The clip gate's check runs before attach: one clip not whole and none goes into the library.
+- **Known gaps:** a sky's dome picture is not fetched by the library's `clip-plan` (role picture), so a sky renders
+  magenta; a long sparse effect (breath: 14400 time codes in 96 frames) can open on an empty first frame and fail
+  as blank.
 - **The benchmark is `library-clips-sample`** (one environment node, paid): the same make over the drafts
   `data/definitions/clip_samples.json` names (one a framing), clipped and put into their entries, so a clip's
   seconds and euros are measured. Only on the owner's yes: `SCORE_BENCHMARK_GRANT=<grant> python -m score run world1

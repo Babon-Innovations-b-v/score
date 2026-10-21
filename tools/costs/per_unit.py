@@ -125,6 +125,13 @@ RECORDED = {
                                                                 "kits baked by ship_kit@<place>, EUR 0.60"},
                           {"euros": 0.13, "units": 1, "source": "commit dc6851c4 (2026-10-15): ship_kit@engineroom, "
                                                                 "EUR 0.13"}]},
+    # A clip line names one Blender job of many items, not its clips: the clips come from the node's clips.json.
+    "library-clips": {"unit": "preview clip of a new item", "forecast": "models",
+                      "runs": [{"euros": 0.958125, "units": 6,
+                                "source": "ledger batch blender-20261021-005907-4020565 (library-clips-sample, "
+                                          "2026-10-21, benchmark grant 20261020T224639): 6 clips (4 models, a "
+                                          "surface, an effect) of 96 frames at 1280x720 on one L4, 72.2 min, its "
+                                          "output fdfb21959984's clips.json"}]},
     "concept_people": {"unit": "make of the environment's people concept", "forecast": "one",
                        "runs": [{"euros": 2.41, "units": 1,
                                  "source": f"{STAGE_EUROS_13} line 12 (world 1's ticketed run, 16 rows), its re-buy "
