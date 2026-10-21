@@ -31,6 +31,7 @@ import route_data  # noqa: E402
 import route_settings  # noqa: E402
 import route_split  # noqa: E402
 import surface_gates as gates  # noqa: E402
+import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 METHOD = "finish-route"
 
@@ -80,11 +81,12 @@ def make_parts(inputs, out, seed, params):
     place, takes = route_data.takes_written(out, inputs, params)
     kit = kit_surfaces.surfaces(place)
     split_takes = json.loads((split / "split.json").read_text())
+    named = {take: entry["name"] for entry in batch_gaps.of(inputs) for take in entry["objects"]}
     found, left = {}, {}
     for take in takes:
         record = split_takes.get(take)
         if record is None or record["fault"]:
-            left[take] = record["fault"] if record else "not split: no finish list"
+            left[take] = record["fault"] if record else named.get(take, "not split: no finish list")
             continue
         finishes = json.loads((listed / f"{take}.json").read_text())["finishes"]
         found[take] = parts_take({"views": views / take, "split": split / take, "out": out / take}, takes[take],

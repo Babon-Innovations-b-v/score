@@ -8,15 +8,20 @@ them (each finding starts "<object>: "), "contains": a phrase each of its findin
 gate's faults moves (optional), "unknown": a phrase the gate's unknown answer holds, when the gap is a check that
 cannot answer (no likeness output: it has no findings) (optional), "reason", "decided": who and when, "faults": the findings as measured when it
 was decided}]}. A place without a file has no gaps; the rows that read it declare it only where it exists.
+A batch gap (batch_gaps.py: a take a paid step of the batch failed, decided by the creator's yes to the batch) moves
+and is listed the same way, read from the outputs the gate's row reads, never from this file.
 """
 import json
 import pathlib
 
 from score import checks
+import score.stages.batch_gaps as batch_gaps
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 FOLDER = REPO / "data/checks/gaps"
 NAME = "gaps"
+# A row's own gaps in its output, in this module's entry form (score/stages/assembly/neighbours.py writes one).
+WRITTEN = "gaps.json"
 
 
 # The places whose gaps file every gap row has keyed since 2026-10-14, the accepted paint among them: they keep it, so
@@ -82,13 +87,26 @@ def moved(verdict, gaps):
                           {**verdict.measures, "moved": len(verdict.findings)}, verdict.better, verdict.findings)
 
 
+def written(inputs):
+    """The gaps a row read wrote in its own output (WRITTEN, this module's entry form: the neighbours' shown places
+    nothing can stand, their seed lost with the old disk)."""
+    found = []
+    for path in inputs.values():
+        path = pathlib.Path(path) / WRITTEN
+        if path.is_file():
+            found += json.loads(path.read_text())["gaps"]
+    return found
+
+
 def judge_accepted(output, inputs, evidence):
     """The completion gate fails every accepted gap of the place by name, with the faults as measured when it was
-    decided; passes when the place has none."""
-    gaps = entries(inputs)
+    decided: the owner's, and the batch gaps its inputs carry (batch_gaps.py, decided by his yes to the batch); passes
+    when the place has none."""
+    batch = batch_gaps.of(inputs)
+    gaps = entries(inputs) + written(inputs) + batch
     if not gaps:
         return checks.Verdict("accepted gaps", checks.PASS, "no accepted gap", {"gaps": 0}, {"gaps": "lower"})
     findings = tuple(f"{entry['name']}: {fault}" for entry in gaps for fault in entry["faults"])
     return checks.Verdict("accepted gaps", checks.FAIL, "; ".join(f"{entry['name']} ({entry['reason']}; "
                                                                f"{entry['decided']})" for entry in gaps),
-                          {"gaps": len(gaps)}, {"gaps": "lower"}, findings)
+                          {"gaps": len(gaps), "batch gaps": len(batch)}, {"gaps": "lower"}, findings)

@@ -33,6 +33,11 @@ gate passes it), else
   names (`accepted`); without it the `likeness` check answers unknown and blocks. A designed place's hand-in names
   none, so it has no calibration row: its DINOv2 scores are measured and shown, never judged (`measured_only`), and
   `outline` holds its likeness (#10). Change a threshold only by measuring the accepted set again.
+- **A take a paid step failed is a batch gap, never a stop** (`../batch_gaps.py`, score's overlay): `closeup` names
+  each object no Pro take passed, `pixal` each take its batch brought no model back for (carrying the close-up's), in
+  `batch-gaps.json`; their gates still fail them by name and the table moves those faults. `likeness` reads the rows
+  that write such gaps and carries them all to complete, each with its hand-in object and inventory rows; it declares
+  a take's Pixal3D input only where it is there. A batch whose command fails as a whole still stops `pixal`.
 - **The comparison** (`compare.py`) runs one place prop-first and code-first, each in its own data copy and store
   under `$PROPS_HOME/compare/<place>/`, and writes the table and review page there. Run it with `--detach`; it spends,
   every ledger line tagged `compare-<place>-<order>` (`ledger_tag/`).

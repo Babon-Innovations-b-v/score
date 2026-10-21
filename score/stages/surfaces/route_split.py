@@ -16,7 +16,9 @@ view (`colour_faults`). A region over VIEW_DELTA_E makes its take a gap, named, 
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
 area unassigned, disagreeing and unseen, its parts and each view's agreement with the vote.
-Gate "one finish a face": every listed take is split with no fault (the colour check's gaps included).
+Gate "one finish a face": every listed take is split with no fault (the colour check's gaps included). Each faulted
+take, and each the rows before named, is a batch gap (batch-gaps.json, score/stages/batch_gaps.py): left out here and
+after, its fault moved to complete by the table.
 """
 import json
 import pathlib
@@ -32,6 +34,7 @@ import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
 import route_cast as cast  # noqa: E402
 import surface_gates as gates  # noqa: E402
+import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 # A take whose disagreeing faces hold over this share of its area is a gap. UNMEASURED: picked (2026-10-20), not
 # measured; the one-shot benchmark that would measure it (under EUR 3) is on #18. Keep it until that runs.
@@ -185,11 +188,16 @@ def split_take(folders, listed, record):
 def make_split(inputs, out, seed, params):
     """Every listed take split by finish, or named a gap; split.json."""
     views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
+    carried = batch_gaps.of(inputs)
     found = {take: split_take({"views": views / take, "out": out / take},
                               json.loads((listed / f"{take}.json").read_text()), record)
              for take, record in json.loads((views / "views.json").read_text()).items()
-             if (listed / f"{take}.json").exists()}
+             if (listed / f"{take}.json").exists() and take not in batch_gaps.objects(carried)}
     (out / "split.json").write_text(json.dumps(found, indent=1))
+    batch_gaps.write(out, [*carried, *(batch_gaps.gap(f"{take}: not one finish a face", "finish-route-split",
+                                                      "one finish a face", (take,), [f"{take}: {record['fault']}"],
+                                                      "the one list answer did not give every face one finish")
+                                       for take, record in found.items() if record["fault"])])
 
 
 def split_faults(folder):

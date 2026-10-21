@@ -16,7 +16,7 @@ id names the lost thing itself, never the place reading it, so one input many pl
 import pathlib
 
 from score import stages
-from score.stages import concept_view
+from score.stages import concept_view, surfaces
 from score.stages.props import prop_data
 
 WORK_ROOTS = ("{seeds}/", "{home}/work/")
@@ -110,6 +110,21 @@ def declared_lost(runner, place):
     return found
 
 
+def takes_lost(runner, place):
+    """declared_lost's entries of the raw takes the place's surface data paints that are not there: the surface rows
+    declare only the take files that are (surface_data.take_files, so a take a batch gap left out stops no row), and
+    the views row reads every take."""
+    found = {}
+    for name, pattern in surfaces.data.take_patterns(place).items():
+        path = pathlib.Path(pattern.format(**runner.world.roots))
+        if not path.exists():
+            entry = found.setdefault(what(relative(pattern)), {"paths": set(), "nodes": set(), "names": set()})
+            entry["paths"].add(str(path))
+            entry["nodes"].add(f"finish-route-views@{place}")
+            entry["names"].add(name)
+    return found
+
+
 def lost_pictures(runner, place):
     """The owner's reference pictures a concept view of the place names that are not there: {path: [view ids]}."""
     found = {}
@@ -146,8 +161,8 @@ def lost(runner, place):
     """The lost inputs of the place's line (of the world's own nodes for None) as gaps (module docstring), declared
     ones first, then the owner's pictures."""
     makers = pixal_makers(place)
-    found = [declared_gap(kind, item, entry, place, makers)
-             for (kind, item), entry in sorted(declared_lost(runner, place).items())]
+    declared = {**(takes_lost(runner, place) if place else {}), **declared_lost(runner, place)}
+    found = [declared_gap(kind, item, entry, place, makers) for (kind, item), entry in sorted(declared.items())]
     for path, views in sorted((lost_pictures(runner, place) if place else {}).items()):
         name = pathlib.Path(path).name
         found.append({"id": lost_id(PICTURE, name),

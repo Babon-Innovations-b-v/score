@@ -21,6 +21,9 @@ The gates, each failing an object by name:
   as it exists: code builds are not held to it.
 Whether a model is closed is written as a measure only: 3 of the hub's 9 accepted generated models and 27 of its 83
 accepted code builds are not (2026-10-12), so no gate as it exists fails an open model.
+An object a batch gap names (score/stages/batch_gaps.py: a paid step of its take failed in the batch) still fails each
+gate by name; the table moves those faults to complete, which lists the gaps from this output's batch-gaps.json (the
+gaps of every row it read, each with its hand-in object and inventory rows).
 """
 import dataclasses
 import json
@@ -30,9 +33,11 @@ import numpy as np
 from PIL import Image
 
 from score import checks
+import score.stages.batch_gaps as batch_gaps
 import score.stages.props.calibration_row as calibration_row
 import score.stages.props.likeness as likeness
 import score.stages.props.prop_data as prop_data
+from score.stages.surfaces.prop_env import PROPS_HOME
 from score.stages.surfaces.surface_gates import guarded, unknown, verdict
 
 # DINOv2 on a processor machine for a few hundred pairs (similar.py), rounded up.
@@ -41,11 +46,13 @@ LIKENESS_EUROS = 1.0
 
 def files(place):
     """prop_data.likeness_files with each prop object's take's Pixal3D input (its close-up as Pixal3D cut it out,
-    object_record). Here, not in prop_data.py, whose edits move the paid prop rows' code versions."""
+    object_record) that is there: a take the batch made no model of has none, and its gate names the object (a batch
+    gap the table moves). Here, not in prop_data.py, whose edits move the paid prop rows' code versions."""
     record = prop_data.record_at(prop_data.path_of(place)) if prop_data.applies(place) else {"objects": {}}
     return {**prop_data.likeness_files(place),
             **{f"pixal input {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
-               for row, entry in record["objects"].items() if entry["route"] == "prop"}}
+               for row, entry in record["objects"].items() if entry["route"] == "prop"
+               and (PROPS_HOME / "work/pixal" / f"{entry['take']}.svviews/input.png").exists()}}
 
 
 def route_of(row, record):
@@ -182,6 +189,16 @@ def make_likeness(inputs, out, seed, params):
              for row, entry in found.items() if "way" in entry}
     (out / "likeness.json").write_text(json.dumps({"objects": found}, indent=1))
     (out / "pairs.json").write_text(json.dumps(pairs, indent=1))
+    batch_gaps.write(out, [with_rows(entry, record) for entry in batch_gaps.of(inputs)])
+
+
+def with_rows(entry, record):
+    """A batch gap carried on with every object of the hand-in record its takes or rows name, and the inventory rows
+    that object stands for, so the gates that name rows (this one's, complete's) find it."""
+    named = set(entry["objects"])
+    rows = [(row, *item.get("rows", ())) for row, item in record["objects"].items()
+            if row in named or item.get("take") in named]
+    return {**entry, "objects": sorted(named.union(*rows))}
 
 
 def likeness_faults(folder):

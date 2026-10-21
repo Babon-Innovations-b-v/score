@@ -97,7 +97,8 @@ def missing_gaps(stage, place, written, kit):
 
 def gate_gaps(stage, place, store, data, own, row_ids):
     """Each object a written fault names, marked on its prims, and its finding."""
-    found = marks.judged(store, place) + marks.checked(own, place, store) + marks.gapped(data, place)
+    found = (marks.judged(store, place) + marks.checked(own, place, store) + marks.gapped(data, place)
+             + marks.batched(store, place))
     gaps = []
     for gap in marks.gate_gaps(stage, place, found):
         for path in gap["prims"]:
