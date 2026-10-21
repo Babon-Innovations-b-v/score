@@ -11,7 +11,7 @@ writes, beside the place's other layers and held by its root just under the edit
                           guide is switched off for a static object); every object carries its mass (MassAPI: the
                           drawn surface's area times its material's sheet and density, props being hollow shells)
                           and its physics material (static and dynamic friction, restitution, density), bound for
-                          the physics purpose; the scene's pull is the record's body's (tools/usd/orbits.PULL)
+                          the physics purpose; the scene's pull is the record's `gravity`
     layers/trial.usda     the trial: its bodies (RigidBodyAPI; colliding by the export's convex hull, their
                           triangles off), each drop lifted `over` metres above its target at its spot, each hinge a
                           RevoluteJoint about the vertical through its pins' middle (limits `opens`, degrees; the pins
@@ -24,7 +24,7 @@ and, after the run, `write_motion` writes layers/physics_motion.usda: each body'
 as time samples, strongest of the root's layers, so any USD reader plays the trial back.
 
 The trial record (score/stages/physics/design.py makes it from the scene's design) names the trial: `body`, `gravity`
-(m/s², the body's own; else orbits.PULL's), `material`, `seconds`, `drops` ({object, onto (an object, or "floor":
+(m/s², its body's in the environment concept's physics; a record without it is refused), `material`, `seconds`, `drops` ({object, onto (an object, or "floor":
 y = 0; none: back onto where it stands), at [x, z] (none: its own spot), over}), `hinges` ({leaf, frame, pins, carries, opens, clear, drive}),
 `pushes` ({name, size, from, to, start, end}) and `moved` (objects only a push moves). Its free check, `faults`,
 refuses a trial whose bodies have no drawn mesh or whose drop falls onto anything but its target.
@@ -32,14 +32,10 @@ refuses a trial whose bodies have no drawn mesh or whose drop falls onto anythin
 import argparse
 import json
 import pathlib
-import sys
 
 import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
 
-HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-import orbits  # noqa: E402
 
 LAYERS = ("./layers/physics_motion.usda", "./layers/trial.usda", "./layers/physics.usda")
 EDIT = "./layers/edit.usda"
@@ -137,7 +133,9 @@ def write_materials(stage, materials):
 def write_scene(stage, record):
     scene = UsdPhysics.Scene.Define(stage, place_path(stage).AppendPath("Physics/Scene"))
     scene.CreateGravityDirectionAttr(Gf.Vec3f(0.0, -1.0, 0.0))
-    scene.CreateGravityMagnitudeAttr(record["gravity"] if "gravity" in record else orbits.PULL[record["body"]])
+    if "gravity" not in record:
+        raise SystemExit(f"physics: no physics for {record.get('body')}: the trial record names no gravity")
+    scene.CreateGravityMagnitudeAttr(record["gravity"])
     scene.GetPrim().CreateAttribute("score:physics:seconds", Sdf.ValueTypeNames.Double).Set(record["seconds"])
 
 

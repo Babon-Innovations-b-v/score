@@ -29,7 +29,7 @@ BOXES = {"floor_plate_1": [((-3, -0.04, -3), (3, 0, 3))], "table_1": [((-1.5, 0,
          "leaf_1": [((-1.12, 0, -2.56), (1.12, 2.66, -2.44))],
          "pin_1": [((1.13, 0.5, -2.44), (1.25, 0.9, -2.3))], "pin_2": [((1.13, 2.0, -2.44), (1.25, 2.4, -2.3))],
          "wheel_1": [((-0.2, 1.0, -2.44), (0.2, 1.4, -2.38))], "stool_1": [((1.5, 0.01, 0.8), (1.9, 0.48, 1.2))]}
-RECORD = {"place": PLACE, "body": "moon", "material": "steel", "seconds": 4.0,
+RECORD = {"place": PLACE, "body": "moon", "gravity": 1.62, "material": "steel", "seconds": 4.0,
           "drops": [{"object": "crate_1", "onto": "table_1", "at": [-1.0, 0.0], "over": 0.5},
                     {"object": "crate_2", "onto": "floor", "at": [2.2, 0.5], "over": 0.8}],
           "hinges": [{"leaf": "leaf_1", "frame": "frame_1", "pins": ["pin_1", "pin_2"], "carries": ["wheel_1"],

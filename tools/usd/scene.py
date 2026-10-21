@@ -67,7 +67,6 @@ import colliders
 import glb_asset
 import ground_detail
 import mars_sky
-import orbits
 import rocks
 import shaders
 
@@ -981,7 +980,10 @@ def turn_up_onto(way):
     axis = np.cross(up, way)
     if np.linalg.norm(axis) < 1e-9:
         return np.eye(3) if way[1] > 0 else np.diag([1.0, -1.0, -1.0])
-    return orbits.turn_about(axis, math.acos(float(np.clip(up @ way, -1.0, 1.0))))
+    axis = axis / np.linalg.norm(axis)
+    angle = math.acos(float(np.clip(up @ way, -1.0, 1.0)))
+    cross = np.array([[0.0, -axis[2], axis[1]], [axis[2], 0.0, -axis[0]], [-axis[1], axis[0], 0.0]])
+    return np.eye(3) * math.cos(angle) + math.sin(angle) * cross + (1.0 - math.cos(angle)) * np.outer(axis, axis)
 
 
 def write_sky(stage, place, environment, out, ground=None):

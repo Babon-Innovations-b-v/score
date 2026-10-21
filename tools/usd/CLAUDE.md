@@ -54,8 +54,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - **The sky is never a record's** (the owner, 2026-10-21: no fixed sky). The suns, the worlds overhead and the stars
   are the environment concept's physics, worked out at each scene's site at its scene time and written by the light
   layer (`score/stages/light/sky.py`); `scene.py` draws a record's air (haze, dust, beams, the day dome when the record
-  has its sun) and no sky. `orbits.py` keeps only 2099's Earth and Moon pair for the library's gravity demos and the
-  physics trial's pulls (`orbits_test.py`).
+  has its sun) and no sky. Every pull and orbit is the environment concept's physics too (the bodies table,
+  `score/review/setting.py`): the game's orbit constants are retired (2026-10-21), and a trial record names its gravity.
 - **The ground is the game's arithmetic, repeated.** `ground.py` stands each object as 2099's MadePlace does (a seat
   of its own under its spot on the 220 m ball, lifted by its `at` y off the planned ground there) and makes the
   `/<place>/Ground` mesh; the plan and each place's seat are `data/ground/<ground>.json` (the heights and skin copied

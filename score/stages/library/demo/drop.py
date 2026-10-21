@@ -1,10 +1,10 @@
 """A drop onto its target at work in the habitat: each case lifted over its target's top
 (`tools/usd/physics.lifted`, its fall checked clear by `faults`) and let fall; its lowest point's height frame by frame
 as the trial recorded it under the Moon's pull. The slider sets the same fall under another body's pull
-(`tools/usd/orbits.PULL`), worked out as a free fall from where it starts to where it rests (no bounce)."""
+(each body of the environment concept's physics, score/review/setting.py), worked out as a free fall from where it starts to where it rests (no bounce)."""
 import math
-import sys
 
+from score.review import setting as settings
 from score.stages.library.demo import _trial
 
 ALGORITHM = "drop"
@@ -22,8 +22,6 @@ def fall(name, start, rest, pull, tone):
 
 
 def made(inputs):
-    sys.path.insert(0, str(inputs.repo / "tools/usd"))
-    import orbits
     ran, the_record = _trial.trial(inputs), _trial.record(inputs)
     times = _trial.seconds(ran)
     drops = {drop["object"]: drop for drop in the_record["drops"]}
@@ -32,7 +30,7 @@ def made(inputs):
     settled = max(next(index for index, height in enumerate(heights) if abs(height - heights[-1]) < 0.002)
                   for heights in lowest.values())
     shown = times[min(len(times) - 1, settled + 12)]
-    pulls = sorted(orbits.PULL.items(), key=lambda item: item[1])
+    pulls = sorted(((body["body"], body["gravity"]) for body in settings.now()["bodies"]), key=lambda item: item[1])
     at = next(index for index, (body, _) in enumerate(pulls) if body == the_record["body"])
     top = max(heights[0] for heights in lowest.values())
     return {
