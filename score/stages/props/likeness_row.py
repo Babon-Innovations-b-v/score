@@ -38,7 +38,7 @@ LIKENESS_EUROS = 1.0
 def files(place):
     """prop_data.likeness_files with each prop object's take's Pixal3D input (its close-up as Pixal3D cut it out,
     object_record). Here, not in prop_data.py, whose edits move the paid prop rows' code versions."""
-    record = prop_data.record_at(prop_data.FOLDER / f"{place}.json") if prop_data.applies(place) else {"objects": {}}
+    record = prop_data.record_at(prop_data.path_of(place)) if prop_data.applies(place) else {"objects": {}}
     return {**prop_data.likeness_files(place),
             **{f"pixal input {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
                for row, entry in record["objects"].items() if entry["route"] == "prop"}}

@@ -90,8 +90,10 @@ SPECS = {
     "closeup": {"unit": "close-up picture (Nano Banana Pro)", "google": "pro",
                 "count": {"json_field": ["closeups.json", "pro_pictures"]}, "also": ["crops-closeup"],
                 "forecast": "prop_takes",
-                "per_model": {"units": 25, "models": 21, "from": f"{CLOSEUPS_15} line 37: the ship's close-ups, 25 "
-                                                                 "Pro pictures for 21 pieces (2026-10-14)"}},
+                "per_model": {"units": 1, "models": 1,
+                              "from": "tools/props/closeup/stage.py PRO_TAKES: one Pro picture a row, every job once "
+                                      f"(#21); the two-take chain the ship's close-ups measured ({CLOSEUPS_15} line "
+                                      "37: 25 for 21 pieces, 2026-10-14) is gone"}},
     "light-passes": {"unit": "render job of the light stage", "cloud": {"kind": "blender", "who": "score light stage"},
                      "per_line": "jobs", "count": {"files": "passes/*.views.json"}, "also": ["light-haze"],
                      "forecast": "light_jobs"},

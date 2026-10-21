@@ -225,11 +225,12 @@ def test_a_stage_measured_per_unit_is_priced_at_its_units_and_a_node_with_none_t
     try:
         BOOKS.entries = lambda: []
         price = compute.run_price("render@hangar", 9.0, outputs)
+        share = compute.BILL_SHARE  # a card stage's ledger euros on the provider's bill (no Google calls)
         assert (price["likely_euros"], price["high_euros"], price["units"], price["runs"], price["basis"]) == (
-            0.6, 1.5, 3, 40, "per unit × counted"), price
-        assert compute.run_forecast("render@hangar", 9.0, outputs) == {"euros": 1.5, "minutes": None,
+            round(0.6 * share, 4), round(1.5 * share, 4), 3, 40, "per unit × counted"), price
+        assert compute.run_forecast("render@hangar", 9.0, outputs) == {"euros": round(1.5 * share, 4), "minutes": None,
                                                                        "high_minutes": None, "measured": 40}
-        assert compute.run_price("crops-render@hangar", 2.0, outputs)["likely_euros"] == 0.2
+        assert compute.run_price("crops-render@hangar", 2.0, outputs)["likely_euros"] == round(0.2 * share, 4)
         unseen = compute.run_price("render@lab", 9.0, outputs)
         assert unseen["likely_euros"] is None and unseen["guess_euros"] == 9.0 and unseen["runs"] == 0
         assert compute.run_price("bake@hangar", 3.0, outputs)["basis"] == "not measured yet"
@@ -253,11 +254,13 @@ def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it
     outputs = Outputs({"render@hangar": {"takes.json": {"a": 1}}})
     try:
         BOOKS.entries = lambda: []
+        share = compute.BILL_SHARE  # a card stage's ledger euros on the provider's bill (no Google calls)
         price = compute.run_price("render@lab", 9.0, outputs, units=4, guess_from="score/stages/x.py:12")
         assert (price["likely_euros"], price["high_euros"], price["units"], price["basis"], price["unit_source"]) == (
-            0.8, 2.0, 4, "per unit × forecast", "the place's takes"), price
+            round(0.8 * share, 4), round(2.0 * share, 4), 4, "per unit × forecast", "the place's takes"), price
         again = compute.run_price("render@hangar", 9.0, outputs, units=4)  # an accept of 1 take, 4 forecast
-        assert (again["units"], again["basis"], again["likely_euros"]) == (4, "per unit × forecast", 0.8), again
+        assert (again["units"], again["basis"], again["likely_euros"]) == (
+            4, "per unit × forecast", round(0.8 * share, 4)), again
         assert compute.run_price("render@hangar", 9.0, outputs)["basis"] == "per unit × counted"  # no forecast given
         for node, units in (("bake@lab", 4), ("crops-render@lab", 4), ("render@lab", 0), ("render@lab", None)):
             found = compute.run_price(node, 3.0, outputs, units=units, guess_from="score/stages/x.py:12")
@@ -265,7 +268,7 @@ def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it
             assert found["guess_from"] == "score/stages/x.py:12" and found["basis"] == "not measured yet"
         assert "guess_from" not in compute.run_price("bake@lab", 3.0)
         # the clearance reserves what the plan priced: the forecast's high, never the guess, where it is measured
-        assert compute.run_forecast("render@lab", 9.0, outputs, units=4)["euros"] == price["high_euros"] == 2.0
+        assert compute.run_forecast("render@lab", 9.0, outputs, units=4)["euros"] == price["high_euros"]
         assert compute.run_forecast("render@lab", 9.0, outputs)["euros"] == 9.0  # nothing counted: the estimate
     finally:
         BOOKS.entries, compute.PER_UNIT = saved, kept
@@ -301,7 +304,7 @@ def test_a_per_unit_price_is_timed_on_its_stages_measured_time_by_the_runners_ca
         asked = compute.run_price("ask@lab", 9.0, units=8)
         assert (asked["cards"], asked["likely_minutes"], asked["high_minutes"]) == (None, 20.0, 40.0), asked
         unknown = compute.run_price("bake@lab", 9.0, units=4)
-        assert unknown["likely_euros"] == 0.8 and unknown["likely_minutes"] is None
+        assert unknown["likely_euros"] == round(0.8 * compute.BILL_SHARE, 4) and unknown["likely_minutes"] is None
         assert unknown["minutes_why"] == "no line timed it"
         untimed = compute.run_price("drop@lab", 9.0, units=4)
         assert untimed["likely_minutes"] is None and untimed["minutes_why"] == "no set-up timed", untimed

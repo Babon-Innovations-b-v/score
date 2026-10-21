@@ -61,6 +61,13 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   never judged. The pick is the approval (owner, 2026-10-21): its inventory and then its plan are made from it
   automatically (`score/review/plans.py`; the plan page is for inspecting and fixing, his edits redoing what follows). The cockpit's batch buys only approved places' steps. The old plans'
   `concept.pick` is a hint for drawing, not a constraint.
+- **The runner runs what the figure prices** (`handin.py`, #10): for each designed place (its plan kept where the plan
+  stage reads it, `score/review/plans.KEPT`) prepare writes its takes as the shared loop's hand-in
+  (`{home}/design/props/<place>.json`: objects, the sized rows, each take's `stages` by `estimate.take_stages`) and
+  its surface data (`{home}/design/surfaces/<place>.json`), each only when its bytes change; the stage table reads
+  them in place of `data/props` and `data/surfaces`, and the runner counts a designed node's units from its takes'
+  `stages` (`gaps/price.design_takes`), so `score plan` lists and prices the same takes at the same per unit and bill
+  share (`compute.bill_share`). `prepare_test.py` holds the two equal.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
   `WORK/checks/prepare/remake.json`. Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python
   score/stages/complete/prepare/prepare_test.py`.

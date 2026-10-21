@@ -19,7 +19,8 @@ import pathlib
 from score import graph, stages
 from score.stages.complete.gaps import price
 from score.stages.library import clips
-from score.stages.complete.prepare import benchmarks, contract, design, estimate, groups, library, machines, predict
+from score.stages.complete.prepare import (benchmarks, contract, design, estimate, groups, handin, library, machines,
+                                           predict)
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -178,6 +179,13 @@ def remake(runner, data, root, work, stock=None, moved=None):
     return {**record, "line": estimate.line(record)}
 
 
+def designed_places(record):
+    """The read places whose design is kept where the plan stage reads it (score/review/plans.KEPT: picked, read and
+    planned): the places the runner's loop runs from their design (handin.py)."""
+    from score.review import plans
+    return [place for place in record["inventory"]["read"] if (plans.KEPT / f"{place}.json").is_file()]
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--library")
@@ -190,6 +198,8 @@ def main(argv=None):
     stock = stock_read(price.route_stages(runner)) if options.stock else None
     record = remake(runner, options.data, library_root(options.library), WORK, stock,
                     moved_rows(runner) if options.moved else None)
+    kept, changed = handin.kept(runner.store, record, price.route_stages(runner), designed_places(record))
+    record["handin"] = {"kept": kept, "changed": changed}
     options.out.parent.mkdir(parents=True, exist_ok=True)
     options.out.write_text(json.dumps(record, indent=1, default=str))
     refusal = record["benchmarks"]["guard"]["refusal"]

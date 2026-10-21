@@ -160,6 +160,18 @@ def books_refusal():
     return books.books_refusal()
 
 
+# The provider's bill over the cloud ledger's sum for 2026-10 up to 2026-10-10 (EUR 627.74 against 547.31: disks,
+# addresses, storage and registry the ledger misses; paper/evidence/cloud/cost-tables-2026-10.txt): what a card or
+# processor stage's ledger euros come to on the bill. Applied here only (ADR-0006), to every per-unit price.
+BILL_SHARE = 627.74 / 547.31
+GOOGLE = "google calls"  # a per-unit entry's source of Google calls: billed as the ledger says, no bill share
+
+
+def bill_share(entry):
+    """The share a per-unit entry's ledger euros are billed at: 1 for Google calls, else BILL_SHARE."""
+    return 1.0 if GOOGLE in (entry.get("sources") or {}) else BILL_SHARE
+
+
 def per_unit(stage):
     """The measured per-unit numbers of `stage` (PER_UNIT, written by tools/costs/per_unit.py), or None."""
     for entry in json.loads(PER_UNIT.read_text())["stages"].values():
@@ -215,9 +227,11 @@ def unit_price(node, store):
     units = counted_units(store, output, entry["count"]) if output else None
     if units is None:
         return None
-    return {"likely_euros": round(entry["likely_euros"] * units, 4), "high_euros": round(entry["high_euros"] * units, 4),
-            "unit": entry["unit"], "units": units, "unit_likely_euros": entry["likely_euros"],
-            "unit_high_euros": entry["high_euros"], "runs": entry["runs"]}
+    share = bill_share(entry)
+    return {"likely_euros": round(entry["likely_euros"] * units * share, 4),
+            "high_euros": round(entry["high_euros"] * units * share, 4), "unit": entry["unit"], "units": units,
+            "unit_likely_euros": entry["likely_euros"], "unit_high_euros": entry["high_euros"], "runs": entry["runs"],
+            "bill_share": round(share, 4)}
 
 
 def run_forecast(node, euros, store=None, units=None):
@@ -256,9 +270,11 @@ def forecast_price(node, units):
     entry = per_unit(stage)
     if not units or entry is None or entry["stage"] != stage or not entry.get("forecast"):
         return None
-    return {"likely_euros": round(entry["likely_euros"] * units, 4), "high_euros": round(entry["high_euros"] * units, 4),
-            "unit": entry["unit"], "units": units, "unit_likely_euros": entry["likely_euros"],
-            "unit_high_euros": entry["high_euros"], "runs": entry["runs"], "unit_source": entry["forecast"]["source"]}
+    share = bill_share(entry)
+    return {"likely_euros": round(entry["likely_euros"] * units * share, 4),
+            "high_euros": round(entry["high_euros"] * units * share, 4), "unit": entry["unit"], "units": units,
+            "unit_likely_euros": entry["likely_euros"], "unit_high_euros": entry["high_euros"], "runs": entry["runs"],
+            "unit_source": entry["forecast"]["source"], "bill_share": round(share, 4)}
 
 
 def unit_minutes(stage, units):

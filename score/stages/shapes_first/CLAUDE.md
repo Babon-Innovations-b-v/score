@@ -10,7 +10,8 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
 ## The interface (for a layer adapter)
 
 - **Hand in rows.** A layer hands the loop its rows in the place's hand-in record, `data/props/<place>.json`
-  (`prop_data.py` has the form): one `objects` entry per inventory row, with `"layer": "<your layer>"` (no `layer`:
+  (`prop_data.py` has the form; a designed place's is its design's, `{home}/design/props/<place>.json`, which prepare
+  writes from the takes it priced, each row's layer by its route: `../complete/prepare/handin.py`): one `objects` entry per inventory row, with `"layer": "<your layer>"` (no `layer`:
   `objects`; read by `props/closeup_row.layer_of`, kept out of `prop_data.py`, which half the table's paid rows
   hash). The concept and the plan are the place's (the plan names its concept); the loop reads them itself. Nothing
   else makes a model: a row on the code route only with its pipeline failure named in its record.

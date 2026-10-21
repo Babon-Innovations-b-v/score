@@ -24,6 +24,14 @@ from score.stages.surfaces import route_settings  # noqa: E402
 from score.stages.terrain import areas, gates, join, needs, outside, sight  # noqa: E402
 import score.stages.shapes_first.align as align  # noqa: E402
 import export_test  # noqa: E402
+import score.stages.props.prop_data as prop_data  # noqa: E402
+import score.stages.surfaces  # noqa: E402
+from score.stages.surfaces import surface_data  # noqa: E402
+
+# These tests hold the data/props and data/surfaces places; a designed place's hand-in (the home's design/, which
+# the sandbox links) is prepare_test.py's, so none is read here.
+prop_data.DESIGN = surface_data.DESIGN = pathlib.Path(tempfile.mkdtemp()) / "no design"
+score.stages.surfaces.data.DESIGN = surface_data.DESIGN  # the table's own import of it (bare `surface_data`)
 
 
 def test_the_wreck_s_areas_are_its_plan_s_craters_in_its_patch():

@@ -78,7 +78,8 @@ def work_of(kind, place, nodes):
 def pixal_makers(place):
     """{take: place} of every take a place's pixal row makes (its prop objects' takes), the place's own first."""
     found = {}
-    others = sorted(path.stem for path in prop_data.FOLDER.glob("*.json") if path.stem != place)
+    others = sorted({path.stem for folder in (prop_data.DESIGN, prop_data.FOLDER) for path in folder.glob("*.json")}
+                    - {place})
     for maker in ([place] if place else []) + others:
         for entry in prop_data.prop_objects({"objects": prop_data.objects(maker)}).values():
             found.setdefault(entry["take"], maker)

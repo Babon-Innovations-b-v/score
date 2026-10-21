@@ -158,12 +158,28 @@ def read_list(path):
     return models
 
 
+# A designed place's hand-in says it is approved by this (score/stages/complete/prepare/handin.py APPROVED_BY).
+DESIGNED = "the creator's pick"
+
+
+def built_from(path):
+    """The inventory a batch builds from: a designed place's hand-in as it stands (approved by the creator's pick,
+    the owner 2026-10-21; its rows his picked concept's reading, checked by the reading and prepare, not page A's
+    shape), else a scene inventory approved on page A (inventory.approved_inventory, refused otherwise)."""
+    path = pathlib.Path(path)
+    found = json.loads(path.read_text()) if path.is_file() else {}
+    approved = found.get("approved")
+    if isinstance(approved, dict) and approved.get("by") == DESIGNED and found.get("scene") == path.stem:
+        return found
+    return inventories.approved_inventory(path)
+
+
 def from_the_inventory(models, paths):
-    """The approved inventories a batch builds from; refused without one, without a place's style
+    """The approved inventories a batch builds from (built_from); refused without one, without a place's style
     text, or with a model on none of their rows."""
     kinds = set()
     for path in paths:
-        approved = inventories.approved_inventory(path)
+        approved = built_from(path)
         place.style_text(approved["place"])
         kinds |= row_kinds(approved)
     strays = [options.name for options in models if not on_a_row(options.name, kinds)]

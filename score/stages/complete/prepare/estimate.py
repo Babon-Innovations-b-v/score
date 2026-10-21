@@ -5,14 +5,14 @@ Each take a group needs runs once through its route's layers (the prop route, pr
 the surface line, the bake); a shell piece takes its library surface with no maps, so only its close-up, model and
 bake (SHELL_ROUTE). A layer's units are its takes times its one-shot units a take (ONE_SHOT, else one), its euros
 those units at its stage's measured per unit (data/costs/per-unit.json), a card or processor layer's times the
-provider's bill over the ledger (price.BILL_SHARE: disks, addresses and storage the ledger misses). A layer with no
-measured per unit is unpriced and named, never guessed. Its minutes are compute.unit_minutes on its units (the
-runner's card rule, capped at the run's cap), or named as unmeasured; the ETA walks the layers in the route's order.
-"""
+provider's bill over the ledger (compute.bill_share, the runner's: disks, addresses and storage the ledger misses). A
+layer with no measured per unit is unpriced and named, never guessed. Its minutes are compute.unit_minutes on its
+units (the runner's card rule, capped at the run's cap), or named as unmeasured; the ETA walks the layers in the
+route's order."""
 import math
 
 from score.adapters import compute
-from score.stages.complete.gaps import price, schedule
+from score.stages.complete.gaps import schedule
 from score.stages.complete.prepare import groups
 
 SHELL_ROUTE = ("closeup", "pixal", "surfaces-bake")
@@ -20,7 +20,6 @@ SHELL_ROUTE = ("closeup", "pixal", "surfaces-bake")
 # model is the prop pipeline's, then the motion layer's steps (CONTEXT.md "motion"); the sky, the effects and the far
 # city are layers without models, each its own route (CONTEXT.md "layer adapter").
 OWN_ROUTES = {"people": "motion", "sky": "sky", "effects": "effects-look", "skyline": "skyline"}
-GOOGLE = "google calls"  # a per-unit entry's source of Google calls: the bill share does not apply
 DEADLINE_TIMES = 2  # a job's watchdog deadline: twice its measured high seconds (guard.py's runaway limit)
 
 
@@ -38,6 +37,16 @@ def takes_a_layer(route, groups_bought):
     return found
 
 
+def take_stages(route, take):
+    """The paid layers one bought take runs once each, as the figure counts them: its model's route layers (a shell
+    piece SHELL_ROUTE's only; none off the prop pipeline), its own route's past or in place of the model (OWN_ROUTES),
+    then its preview clip. The runner counts a designed place's units from these (prepare/handin.py)."""
+    from score.stages.library import clips
+    model = ([stage for stage in route if stage in SHELL_ROUTE or not take["shell"]]
+             if take["route"] in groups.MODEL_ROUTES else [])
+    return [*model, *([OWN_ROUTES[take["route"]]] if take["route"] in OWN_ROUTES else []), clips.ROW]
+
+
 def layer_units(stage, takes, rules):
     """The units a layer makes for `takes` takes by its one-shot rule (`rules`, one_shot())."""
     per_take = rules.get(stage, (1, None))[0]
@@ -48,7 +57,7 @@ def layer_price(stage, units):
     """{likely_euros, high_euros, unit, unit_likely_euros, bill_share} of a layer's units at its stage's measured
     per unit (layer_cost checks there is one)."""
     entry = compute.per_unit(stage)
-    share = 1.0 if GOOGLE in (entry.get("sources") or {}) else price.BILL_SHARE
+    share = compute.bill_share(entry)
     return {"likely_euros": round(entry["likely_euros"] * units * share, 2),
             "high_euros": round(entry["high_euros"] * units * share, 2), "unit": entry["unit"],
             "unit_likely_euros": entry["likely_euros"], "bill_share": round(share, 4)}

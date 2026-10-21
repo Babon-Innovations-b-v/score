@@ -112,7 +112,8 @@ def test_every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry():
     job, is baked there no more: its scene places the library's baked rocket, #10)."""
     for path in sorted(surface_data.FOLDER.glob("*.json")):
         declared = surface_data.bake_files(path.stem)
-        assert not any("{home}" in pattern or "{seeds}" in pattern for pattern in declared.values()), path.stem
+        # the work folder ({seeds}, {home}/work); a designed place's surface data, {home}/design, prepare writes again
+        assert not any("{home}/work" in pattern or "{seeds}" in pattern for pattern in declared.values()), path.stem
         assert "bake job" in declared or "details" in declared, path.stem
     missing = {name for name in table_files("launch") if name.startswith("bake entry")}
     assert missing == set(), missing

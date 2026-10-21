@@ -87,7 +87,7 @@ def test_the_file_holds_measured_stages_only_with_median_high_and_runs():
     assert 0.3 < found["pixal"]["high_euros"] <= 0.5 and found["pixal"]["count"] == {"json_keys": "takes.json"}
     assert found["closeup"]["runs"] == 2 and "surfaces-maps" not in found and "surfaces-bake" not in found
     assert found["pixal"]["forecast"]["rule"] == "prop_takes" and "per_model" not in found["pixal"]["forecast"]
-    assert found["closeup"]["forecast"]["per_model"] == round(25 / 21, 4)  # pictures a model, as recorded
+    assert found["closeup"]["forecast"]["per_model"] == 1.0  # one Pro picture a row (stage.PRO_TAKES, #21)
 
 
 def test_a_recorded_stage_is_priced_from_its_runs_with_their_sources_and_no_count_rule():
