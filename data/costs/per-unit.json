@@ -30,28 +30,6 @@
     "why": "priced from runs written down when they ran, euros and units but no time; their ledger lines went with the old disk (2026-10-19)"
    }
   },
-  "ship_kit": {
-   "stage": "ship_kit",
-   "unit": "ship kit of a place baked",
-   "count": null,
-   "also": [],
-   "likely_euros": 0.1025,
-   "high_euros": 0.1245,
-   "runs": 2,
-   "sources": {
-    "recorded runs": [
-     "commit 1198efc8 (2026-10-15): the ship's eight shell kits baked by ship_kit@<place>, EUR 0.60",
-     "commit dc6851c4 (2026-10-15): ship_kit@engineroom, EUR 0.13"
-    ]
-   },
-   "forecast": {
-    "rule": "one",
-    "source": "one a place (one for an environment node)"
-   },
-   "time": {
-    "why": "priced from runs written down when they ran, euros and units but no time; their ledger lines went with the old disk (2026-10-19)"
-   }
-  },
   "library-clips": {
    "stage": "library-clips",
    "unit": "preview clip of a new item",
@@ -547,43 +525,6 @@
    "forecast": {
     "rule": "models",
     "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
-   }
-  },
-  "earth-kit": {
-   "stage": "earth-kit",
-   "unit": "make_kit job of an earth place's code-built kit (library_bake.py, one picture set)",
-   "count": {
-    "files": "job-*.json"
-   },
-   "also": [],
-   "likely_euros": 0.01376,
-   "high_euros": 0.06002,
-   "runs": 15,
-   "sources": {
-    "warm work": "$PROPS/cloud/ledger.jsonl: 15 of its own jobs timed on 3 L4-1-24G machines (unit_seconds; capacity.py report's s/unit)",
-    "machine price": "paper/evidence/cloud/bill-2026-10-10T0136Z.json: L4-1-24G EUR 0.7875 an hour (costs.unit_prices, the lowest zone), by the minute",
-    "overhead": "10% for time outside jobs on warm parked cards, the owner's target (2026-10-20) until runs record it"
-   },
-   "basis": "warm work time",
-   "time": {
-    "unit_seconds": {
-     "likely": 57.2,
-     "high": 249.44
-    },
-    "slots": 1,
-    "slots_from": "capacity.runs_at_once(library, gpu-24gb)",
-    "setup_minutes": {
-     "why": "no line read here timed a machine's set-up"
-    },
-    "holds": "machines",
-    "lines": 3,
-    "from": [
-     "$PROPS/cloud/ledger.jsonl"
-    ]
-   },
-   "forecast": {
-    "rule": "kit_jobs",
-    "source": "score/stages/earth_seed kit_jobs: route.py late-plan's picture sets of the place's code-built kit pieces (data/kit/<place>.json), one make_kit job a set"
    }
   },
   "sound": {

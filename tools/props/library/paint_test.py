@@ -31,7 +31,6 @@ import part_judge  # noqa: E402
 import patchy  # noqa: E402
 import regions  # noqa: E402
 import surface_check  # noqa: E402
-import route  # noqa: E402
 
 
 def seat():
@@ -277,17 +276,6 @@ def test_the_surface_check_sees_gold_on_white_and_two_finishes_as_one():
     landed[:, 10:] = False
     unknown = surface_check.check(drawn, landed, regions_map, np.array([grey, grey]), surfaces, names)
     assert not unknown["pass"] and unknown["regions"][1]["verdict"] == "unknown", unknown
-
-
-def test_the_route_refuses_patchy_labels():
-    with tempfile.TemporaryDirectory() as folder:
-        clean, patchy_folder = pathlib.Path(folder) / "clean", pathlib.Path(folder) / "patchy"
-        for path, passed in ((clean, True), (patchy_folder, False)):
-            path.mkdir()
-            (path / "labels.json").write_text(json.dumps({"patchy": {"pass": passed, "faults": [] if passed else
-                                                                     ["stray 0.173 > 0.03"]}}))
-        found = route.painted_badly({"chair": patchy_folder, "desk": clean}, {"chair", "desk"})
-    assert found == {"chair": ["stray 0.173 > 0.03"]}
 
 
 def bake_smoothing():

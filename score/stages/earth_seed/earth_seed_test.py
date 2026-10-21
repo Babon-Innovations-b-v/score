@@ -1,8 +1,9 @@
-"""The earth seed rows' own checks, with no spend: the kit row plans only code-built pieces, every row that read a
-round-three seed reads earth-seed instead, a reader is handed its seeds under their
-old names, the export leaves out and names a piece no row made, and the gates fail by name; a kit is the base's only
-when laid for its locked plan's room, and a design base (no kit) stands its room shell round its plan and passes the
-seed gates and the placeholder gate.
+"""The earth seed row's own checks, with no spend: every row that read a round-three seed or an old kit reads
+earth-seed instead, a reader is handed its seeds and design kits under their old names, the export leaves out and
+names a piece no row made, and the gates fail by name; a shell stands round its locked plan (a room's deck, walls and
+roof, an open place's raised levels; every other shell and every stair the scene record's, each laid once), each part
+painted from the scene's own surface library or named missing, and a design base passes the seed gates, the
+placeholder gate and the collision gate.
 
 Run: .venv/bin/python score/stages/earth_seed/earth_seed_test.py
 """
@@ -19,32 +20,9 @@ sys.path.insert(0, str(REPO))
 
 from score import checks, stages  # noqa: E402
 from score.stages import earth_seed  # noqa: E402
+from score.stages.earth_seed import design_shell  # noqa: E402
 
 PLACES = ("hangar", "wreck", "street", "airlock", "launch", "camp")
-
-
-KIT = {"room": "x", "models": {"wall_1": {"route": "code"}, "lamp_1": {"route": "code"}, "crane_1": {"route": "model"}},
-       "pieces": [{"kind": "x_wall", "model": "wall_1", "at": [0, 0, 0], "y": [0.0, 0.0, 1.0]},
-                  {"kind": "x_lamp", "model": "lamp_1", "at": [0, 2, 0]},
-                  {"kind": "x_lamp", "model": "lamp_1_glow", "part": "glow", "at": [0, 2, 0]},
-                  {"kind": "x_crane", "model": "crane_1", "at": [3, 0, 0]}]}
-
-
-def test_the_kit_row_plans_its_named_code_fallbacks_only():
-    named = earth_seed.fallbacks(KIT, "x", set())  # nothing handed: every row is named, by its route
-    why = earth_seed.NOT_HANDED
-    assert named == {"crane": {"route": "stored take", "why": why}, "lamp": {"route": "code", "why": why},
-                     "wall": {"route": "code", "why": why}}, named
-    pieces = earth_seed.code_layout(KIT, "x", named)["pieces"]
-    assert [piece["model"] for piece in pieces] == ["wall_1", "lamp_1"], pieces
-    assert pieces[0]["y"] == [0.0, 0.0, 1.0] and pieces[1]["y"] == earth_seed.UPRIGHT, pieces
-    assert [piece["model"] for piece in earth_seed.code_layout(KIT, "x", {"lamp": "why"})["pieces"]] == ["lamp_1"]
-
-
-def test_a_row_handed_to_the_loop_leaves_the_kit_row():
-    assert set(earth_seed.fallbacks(KIT, "x", {"wall", "crane"})) == {"lamp"}  # the wall's and crane's are the loop's
-    handed = earth_seed.handed_in({"wall": {"route": "prop", "layer": "kit"}, "chair": {"route": "prop"}})
-    assert handed == {"wall"}, handed  # a row with no layer is the objects layer's (closeup_row.layer_of)
 
 
 def write(folder, name, record):
@@ -53,134 +31,53 @@ def write(folder, name, record):
     return folder / name
 
 
-def base_stage(seed, objects):
-    """An earth seed's output: place x's base stage with `objects` ({name: (row, spot)}) under /x/Objects."""
-    from pxr import Gf, Sdf, Usd, UsdGeom
-    (seed / "x/layers").mkdir(parents=True)
-    (seed / "x/x.usda").write_text("#usda 1.0\n")
-    stage = Usd.Stage.CreateNew(str(seed / "x/layers/base.usda"))
-    for name, (row, spot) in objects.items():
-        xform = UsdGeom.Xform.Define(stage, f"/x/Objects/{name}")
-        xform.AddTranslateOp().Set(Gf.Vec3d(*spot))
-        xform.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(row)
-    stage.GetRootLayer().Save()
-    return seed
-
-
-def section_inputs(root):
-    """Place x's base with two wall panels, a trim, a floor plate and a pipe, its plan's two sections, the loop's ends
-    (the wall made, take wall-k1, its parts two finishes; the trim made, take trim-k1, steel; the floor a gap) and
-    earth-kit's fallbacks (the pipe, code)."""
-    sections = [{"name": "bolted walls", "surface": "walls", "rows": ["wall", "trim"]},
-                {"name": "deck plates", "surface": "floor", "rows": ["floor", "pipe", "vent"]}]
-    rows = [{"id": "wall", "take": "wall-k1", "layer": "kit"}, {"id": "trim", "take": "trim-k1", "layer": "kit"},
-            {"id": "floor", "take": "floor-k1", "layer": "kit"}]
-    parts = {"takes": {"wall-k1": {"parts": [{"judge": "dark_panel", "share": 0.3}, {"judge": "painted_panel",
-                                                                                        "share": 0.7}]},
-                       "trim-k1": {"parts": [{"judge": "steel", "share": 1.0}]}}}
-    objects = {"wall_1": ("wall", (2.0, 0.0, 5.0)), "wall_2": ("wall", (3.2, 0.0, 5.0)),
-               "trim_1": ("trim", (2.6, 2.0, 5.0)), "floor_1": ("floor", (0.0, 0.0, 0.0)),
-               "pipe_1": ("pipe", (1.0, 0.0, 1.0))}
-    named = {"pipe": {"route": "code", "why": earth_seed.NOT_HANDED}}
-    return {"earth-seed": base_stage(root / "seed", objects),
-            "plan": write(root / "plan", "x.json", {"sections": sections}),
-            "places": write(root, "place.json", {"x_library": {"wear": {"level": "worked", "dirt": 0.4}}}),
-            "surfaces": write(root / "surfaces", "x.json", {"library": "x_library"}),
-            "props-inputs": write(root / "inputs", "rows.json", {"rows": rows}).parent,
-            "likeness": write(root / "likeness", "likeness.json", {"objects": {"wall": {"route": "prop"}, "trim": {
-                "route": "prop"}, "floor": {"missing": "no model"}}}).parent,
-            "surfaces-bake": write(root / "bake", "baked.json", {"wall_1": {"parts": "wall-k1"},
-                                                                 "trim_1": {"parts": "trim-k1"}}).parent,
-            "earth-kit": write(root / "kit", earth_seed.FALLBACKS, named).parent,
-            "surfaces-parts": write(root / "parts", "parts.json", parts).parent}
-
-
-def test_kit_sections_lay_one_style_one_finish_and_wear_across_the_seams():
-    from pxr import Gf, Usd
-    from score.stages.earth_seed import kit_sections
-    root = pathlib.Path(tempfile.mkdtemp())
-    try:
-        inputs, out = section_inputs(root), root / "out"
-        out.mkdir()
-        kit_sections.make(inputs, out, 0, {})
-        assert kit_sections.faults(out) == []
-        walls, deck = json.loads((out / kit_sections.OUTPUT).read_text())["sections"]
-        # two wall panels at 0.7 painted panel outweigh one trim at 1.0 steel: shares weighted by pieces laid
-        assert walls["finish"] == "painted_panel" and walls["made"] == {"wall": "wall-k1", "trim": "trim-k1"}, walls
-        assert walls["shares"] == {"dark_panel": 0.6, "painted_panel": 1.4, "steel": 1.0}, walls
-        assert walls["origin"] == [2.0, 0.0, 5.0] and walls["gaps"] == {} and walls["wear"]["level"] == "worked"
-        assert deck["finish"] is None and deck["made"]["floor"].startswith("gap: no model"), deck
-        assert deck["made"]["pipe"] == f"fallback: code: {earth_seed.NOT_HANDED}", deck  # named, not a gap
-        assert set(deck["gaps"]) == {"floor", "vent"}, deck  # vent: neither handed nor named
-        layer = Usd.Stage.Open(str(out / kit_sections.LAYER))
-        first, second = (layer.GetPrimAtPath(f"/x/Objects/wall_{number}") for number in (1, 2))
-        assert second.GetAttribute("score:section").Get() == "bolted walls"
-        assert second.GetAttribute("score:finish").Get() == "painted_panel"
-        assert second.GetAttribute("score:wear_seed").Get() == first.GetAttribute("score:wear_seed").Get()
-        assert second.GetAttribute("score:wear_at").Get() == Gf.Vec3f(1.2, 0.0, 0.0)  # wear runs on past the seam
-        verdict = kit_sections.judge_sections(out, inputs, {})
-        assert verdict.answer == checks.PASS and verdict.measures["gaps"] == 2, verdict
-        twice = [{"name": "a", "surface": "walls", "rows": ["wall"]}, {"name": "b", "surface": "walls",
-                                                                        "rows": ["wall", "door"]}]
-        write(root / "plan", "x.json", {"sections": twice})
-        again = root / "again"
-        again.mkdir()
-        kit_sections.make(inputs, again, 0, {})
-        failed = kit_sections.judge_sections(again, inputs, {})
-        assert failed.answer == checks.FAIL and any("in two sections" in line for line in failed.findings), failed
-    finally:
-        shutil.rmtree(root)
-
-
-def test_the_kit_adapter_is_on_the_loop_and_no_place_lays_a_kit():
-    """The kit adapter stays on the loop; no place lays a kit now (the old concepts' kits were retired, 2026-10-21),
-    so no place has kit sections and every base is its design's."""
+def test_the_kit_adapter_is_on_the_loop_with_nothing_after_it():
+    """The kit adapter stays on the loop with no after-step; the old kits' rows (earth-kit, kit-sections) and their
+    layer are gone (the old kits were retired, 2026-10-21)."""
     from score.stages import assembly, shapes_first
     assert shapes_first.KIT in shapes_first.ADAPTERS and shapes_first.KIT.layer == earth_seed.KIT_LAYER
-    step = next(row for row in shapes_first.rows() if row.name == "kit-sections")
-    assert not step.applies("hangar")  # no kit row handed to the loop yet (earth_seed.NOT_HANDED)
-    from score.stages.earth_seed import kit_sections
-    kept = earth_seed.DESIGN
-    root = with_designs({})
-    try:
-        assert not any(kit_sections.applies(place) or earth_seed.kit_is_base(place)
-                       for place in ("hangar", "wreck", "cockpit", "street"))
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
-        earth_seed.DESIGN = kept
-    assert "kit-sections" in assembly.LAYERS
+    assert shapes_first.KIT.after == ()
+    names = {row.name for row in stages.STAGES}
+    assert not names & {"earth-kit", "kit-sections"}, names & {"earth-kit", "kit-sections"}
+    assert "kit-sections" not in assembly.LAYERS
+    assert stages.EARTH_SEED.after == {"surface-library": ("surface-library", 1)}
 
 
-def test_no_row_reads_an_earth_place_s_round_three_seed():
+def test_no_row_reads_an_earth_place_s_round_three_seed_or_old_kit():
     readers = set()
     for row in stages.STAGES:
         for place in PLACES:
             if row.applies is not None and not row.applies(place):
                 continue
             found = row.files(place) if callable(row.files) else row.files
-            if any(stages.seed_named(path, place) for path in found.values()):
+            if any(stages.read_from_seed(path, place) for path in found.values()):
                 readers.add(row.name)
     assert not readers, readers  # terrain-look, the last, retired (#27)
-    # kit-sections reads its own place's earth seed (its base stage), never the round-three folder
-    reading = ({row.name for row in stages.STAGES if "earth-seed" in row.after}
-               - {stages.library.PLACE_ROW, "kit-sections"})
+    reading = {row.name for row in stages.STAGES if "earth-seed" in row.after} - {stages.library.PLACE_ROW}
     assert reading == set(stages.EARTH_SEEDED), reading ^ set(stages.EARTH_SEEDED)
 
 
-def test_a_reader_gets_its_seeds_under_their_old_names():
+def test_a_reader_gets_its_seeds_and_design_kits_under_their_old_names():
     root = pathlib.Path(tempfile.mkdtemp())
+    kept = earth_seed.DESIGN
+    with_designs({"airlock": {}, "hub": {}}, root / "design")
     try:
         for node, place in (("own", "airlock"), ("hub", "hub")):
             (root / node / place).mkdir(parents=True)
-        inputs = {"earth-seed": root / "own", "earth-seed@hub": root / "hub", "kit": "k"}
+        inputs = {"earth-seed": root / "own", "earth-seed@hub": root / "hub"}
         found = {"seed": "{seeds}/usd-r3/{place}", "neighbour hub": "{seeds}/usd-r3/hub",
-                 "neighbour far_city": "{seeds}/usd-r3/far_city", "kit": "{data}/kit/{place}.json"}
+                 "neighbour far_city": "{seeds}/usd-r3/far_city", "kit": "{data}/kit/{place}.json",
+                 "kit hub": "{data}/kit/hub.json", "kit far_city": "{data}/kit/far_city.json"}
         assert stages.seeded_place(inputs) == "airlock"
         taken = stages.seed_inputs(inputs, found, "airlock")
         assert taken["seed"] == root / "own/airlock" and taken["neighbour hub"] == root / "hub/hub", taken
-        assert "neighbour far_city" not in taken and taken["kit"] == "k", taken  # no kit: still a declared file
+        assert taken["kit"] == root / "own" / earth_seed.KIT_FILE, taken  # the design's kit, from its own seed
+        assert taken["kit hub"] == root / "hub" / earth_seed.KIT_FILE, taken  # a shown place's, read beside
+        # no earth-seed row (no design locked): still a declared file, named lost
+        assert "neighbour far_city" not in taken and "kit far_city" not in taken, taken
     finally:
         shutil.rmtree(root)
+        earth_seed.DESIGN = kept
 
 
 def test_a_piece_no_row_made_is_left_out_and_named():
@@ -204,6 +101,8 @@ def test_the_seed_gates_fail_by_name():
         (root / "wreck").mkdir()
         (root / "wreck/wreck.usda").write_text("#usda 1.0\n")
         (root / earth_seed.GAPS).write_text(json.dumps({"models": [], "picks": []}))
+        assert earth_seed.seed_faults(root) == [f"no {earth_seed.KIT_FILE}"]  # the design's kit, which readers read
+        (root / earth_seed.KIT_FILE).write_text(json.dumps({"room": "wreck", "pieces": []}))
         assert earth_seed.seed_faults(root) == []
         assert earth_seed.judge_laid(root, {}, {}).answer == checks.PASS
         (root / earth_seed.GAPS).write_text(json.dumps({"models": ["cable_run_1p4"], "picks": [
@@ -222,6 +121,18 @@ ROOM = {"title": "a test room", "shell": "kit", "inside": True, "w": 4.0, "d": 3
         "walls": [{"from": one, "to": two, "thick": 0.2, "tall": 2.5} for one, two in zip(BOX, BOX[1:] + BOX[:1])],
         "openings": [{"kind": "door", "at": [2.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.0, "to": "hangar"}],
         "roofs": [{"kind": "flat", "points": BOX, "eave": 2.5, "top": 2.5}], "levels": [], "doors": [], "items": []}
+# An open place 10 x 10 m: a stage deck 1 m high on a 2 x 2 m patch, a balcony 6 m up on another, a stair of 4 steps
+# from the plaza up to the deck on a 1 x 2 m footprint (its way up east, 0 degrees), and a ramp from 0 to 0.5 m over a
+# 2 x 1 m footprint (its way up south, 90 degrees).
+OPEN = {"title": "a test square", "shell": "kit", "inside": False, "w": 10.0, "d": 10.0,
+        "levels": [{"name": "plaza", "height": 0.0, "points": [[0, 0], [10, 0], [10, 10], [0, 10]]},
+                   {"name": "stage deck", "height": 1.0, "points": [[4, 4], [6, 4], [6, 6], [4, 6]]},
+                   {"name": "balcony", "height": 6.0, "points": [[0, 0], [2, 0], [2, 2], [0, 2]]}],
+        "stairs": [{"kind": "stair", "points": [[3, 4], [4, 4], [4, 6], [3, 6]], "from": 0.0, "to": 1.0, "angle": 0.0,
+                    "steps": 4},
+                   {"kind": "ramp", "points": [[7, 7], [9, 7], [9, 8], [7, 8]], "from": 0.0, "to": 0.5, "angle": 90.0,
+                    "steps": 1}],
+        "roofs": [], "openings": [], "doors": [], "items": []}
 
 
 def volume(triangles):
@@ -230,11 +141,10 @@ def volume(triangles):
     return float(numpy.einsum("ij,ij->i", corners[:, 0], numpy.cross(corners[:, 1], corners[:, 2])).sum() / 6)
 
 
-def test_a_design_shell_stands_round_its_plan():
+def test_a_room_shell_stands_round_its_plan():
     """Worked by hand: the deck and the roof each 4.3 x 3.3 x 0.2 m (the room grown 0.15 m to the walls' inside);
     the walls a ring 0.15 to 0.35 m out (4.7 x 3.7 less 4.3 x 3.3 = 3.2 m2) from the deck's foot (-0.242 m) to 2.5 m,
     less the door's hole of 1.0 x 0.2 x 2.0 m; the room's middle the place's origin."""
-    from score.stages.earth_seed import design_shell
     parts = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
     assert sorted(parts) == ["deck_1", "roof_1", "wall_1", "wall_2", "wall_3", "wall_4"], sorted(parts)
     assert abs(volume(parts["deck_1"]) - 4.3 * 3.3 * 0.2) < 1e-6, volume(parts["deck_1"])
@@ -249,14 +159,58 @@ def test_a_design_shell_stands_round_its_plan():
     assert numpy.allclose(points.min(axis=0), [-2.35, -0.242, -1.85]) and \
         numpy.allclose(points.max(axis=0), [2.35, 2.7, 1.85]), (points.min(axis=0), points.max(axis=0))
     from score.stages.scene_record import writer
-    assert (design_shell.SURFACE, design_shell.BACKING, design_shell.DECK_BELOW) == \
-        (writer.SHELL_SURFACE, writer.BACKING, writer.DECK_BELOW)  # the scene record's backing shell
+    assert (design_shell.BACKING, design_shell.DECK_BELOW) == (writer.BACKING, writer.DECK_BELOW)
+    assert design_shell.footprint(ROOM) == [[-2.0, -1.5], [2.0, 1.5]]
+    # a pitched roof rising 1 m: a closed gable over the 4.3 x 3.3 m grown box, half its box's volume
+    pitched = {name: triangles for name, triangles, _ in design_shell.shell(
+        dict(ROOM, roofs=[{"kind": "pitched", "points": BOX, "eave": 2.5, "top": 3.5}]))}
+    assert abs(volume(pitched["roof_1"]) - 4.3 * 3.3 * 1.0 / 2) < 1e-6, volume(pitched["roof_1"])
 
 
-def with_designs(plans):
+def test_a_room_is_a_kit_shell_inside_or_one_that_writes_walls():
+    """A scene added in the app says neither inside nor out: it is a room the earth seed lays when its plan writes walls
+    (the docking airlock), an open place when it writes none (the Moon base); a domed shell is the scene record's."""
+    unsaid = {key: value for key, value in ROOM.items() if key != "inside"}
+    assert design_shell.laid_for(ROOM) and design_shell.laid_for(unsaid)
+    assert not design_shell.laid_for(dict(unsaid, walls=[])) and not design_shell.laid_for(OPEN)
+    assert not design_shell.laid_for(dict(ROOM, shell="outdoor")) and not design_shell.laid_for(dict(ROOM, shell=None))
+
+
+def test_the_earth_seed_and_the_scene_record_lay_each_shell_once():
+    """The scene record encloses a place by the same rule (writer.inside is design_shell.encloses) and lays the shell of
+    every enclosed place the earth seed does not (laid_for), and every stair; the earth seed lays a room's shell and an
+    open place's raised levels, never a stair. Worked by hand on OPEN: the plaza (0 m) is the ground's, no part; the
+    stage deck stands solid from the ground (2 x 2 x 1 m), the balcony is a slab (2 x 2 x 0.2 m)."""
+    from score.stages.scene_record import writer
+    domed = dict(OPEN, shell=None, walls=ROOM["walls"])
+    for plan in (ROOM, OPEN, domed, dict(domed, terrain={"spots": [[1, 1, 0.5]]}), dict(OPEN, roofs=ROOM["roofs"])):
+        assert writer.inside(plan) == design_shell.encloses(plan), plan.get("title")
+    parts = {name: triangles for name, triangles, _ in design_shell.shell(OPEN)}
+    assert sorted(parts) == ["level_2", "level_3"], sorted(parts)  # its stairs are the scene record's
+    assert abs(volume(parts["level_2"]) - 4.0) < 1e-6 and abs(volume(parts["level_3"]) - 0.8) < 1e-6
+    assert design_shell.shell(domed) == []  # enclosed, no room of the earth seed's: the scene record's shell
+    room = {name for name, _, _ in design_shell.shell(dict(ROOM, stairs=OPEN["stairs"]))}
+    assert not any(name.startswith(("stair_", "level_")) for name in room), room  # a room's levels are its decks
+    recorded = writer.structure({}, dict(ROOM, stairs=OPEN["stairs"]))
+    assert [entry["builder"] for entry in recorded] == ["stairs", "stairs"]  # the room's shell is the earth seed's
+
+
+def test_each_part_takes_its_surface_from_the_scene_library():
+    """A part's surface is the first variant the scene library's `kinds` gives one of its kinds; none, and the part
+    names why."""
+    library = {"kinds": {"floor": ["deck_plate", "rubber_mat"], "ceiling": ["ceiling_panel"], "wall": []}}
+    assert design_shell.surface_for("deck", library) == "deck_plate"
+    assert design_shell.surface_for("stair", library) == "deck_plate"  # no stairs kind: the floor's
+    assert design_shell.surface_for("roof", library) == "ceiling_panel"
+    assert design_shell.surface_for("wall", library) is None and design_shell.surface_for("wall", None) is None
+    assert "names no surface" in design_shell.missing_why("x", "wall", library)
+    assert "not made" in design_shell.missing_why("x", "wall", None)
+
+
+def with_designs(plans, root=None):
     """earth_seed.DESIGN pointed at a folder holding `plans` ({scene: its locked plan}); the folder."""
-    root = pathlib.Path(tempfile.mkdtemp())
-    (root / "plans").mkdir()
+    root = pathlib.Path(root or tempfile.mkdtemp())
+    (root / "plans").mkdir(parents=True)
     for scene, plan in plans.items():
         (root / "plans" / f"{scene}.json").write_text(json.dumps(plan))
     earth_seed.DESIGN = root
@@ -276,11 +230,9 @@ def test_a_designed_base_takes_its_style_from_its_own_entry_else_the_scene_holdi
                          "ring_a": {"holds": [{"place": "ring_b", "row": "b"}]},
                          "ring_b": {"holds": [{"place": "ring_a", "row": "a"}]}})
     try:
-        assert not earth_seed.kit_is_base("cockpit")
         declared = earth_seed.seed_files("cockpit")
         assert "kit" not in declared and declared["design plan"] == "{home}/design/plans/cockpit.json", declared
         assert not any(name.startswith("holder ") for name in declared), declared  # place.json names the cockpit
-        assert not earth_seed.kit_is_base("docking_bay")
         declared = earth_seed.seed_files("docking_bay")
         assert declared["holder hangar"] == "{home}/design/plans/hangar.json", declared
         inputs = {"places": REPO / "data/definitions/place.json",
@@ -300,16 +252,14 @@ def test_a_designed_base_takes_its_style_from_its_own_entry_else_the_scene_holdi
         assert earth_seed.holders("ring_a") is None and not earth_seed.styled("ring_a")
         assert earth_seed.styled("docking_bay") and earth_seed.styled("cockpit") and earth_seed.styled("outpost")
     finally:
-        shutil.rmtree(earth_seed.DESIGN, ignore_errors=True)
         shutil.rmtree(root, ignore_errors=True)
         earth_seed.DESIGN = kept
 
 
-def test_the_seed_and_its_sections_read_the_design_s_surface_data():
-    """A place's earth seed and kit sections declare its design's surface data where it has one (surface_data.pattern,
-    the one its finish route paints), the places it claims models from are that data's `elsewhere`, through the
-    registered row too, and a design base declares no old scene record."""
-    from score.stages.earth_seed import kit_sections
+def test_the_seed_reads_the_design_s_surface_data():
+    """A place's earth seed declares its design's surface data where it has one (surface_data.pattern, the one its
+    finish route paints), the places it claims models from are that data's `elsewhere`, through the registered row
+    too, and it declares no old scene record or kit."""
     from score.stages.surfaces import surface_data
     kept_surfaces, kept = surface_data.DESIGN, earth_seed.DESIGN
     root = with_designs({"hub": {"w": 12.0, "d": 12.0}})
@@ -318,23 +268,37 @@ def test_the_seed_and_its_sections_read_the_design_s_surface_data():
     (surface_data.DESIGN / "hub.json").write_text(json.dumps(
         {"library": "hub", "takes": {}, "elsewhere": {"rack_1": {"take": "rack-x", "place": "lab"}}}))
     try:
-        assert not earth_seed.kit_is_base("hub")
         declared = earth_seed.seed_files("hub")
-        assert "scene" not in declared and declared["surfaces"] == "{home}/design/surfaces/hub.json", declared
+        assert not {"scene", "kit"} & set(declared) and declared["surfaces"] == "{home}/design/surfaces/hub.json"
         assert earth_seed.claiming_places("hub") == ["lab"]
-        assert stages.EARTH_SEED.neighbours("hub") == ["lab"]  # the registered row reads the design's claims
-        assert kit_sections.files("hub")["surfaces"] == "{home}/design/surfaces/hub.json"
     finally:
         surface_data.DESIGN, earth_seed.DESIGN = kept_surfaces, kept
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_a_design_base_passes_the_seed_gates_and_the_placeholder_gate():
-    """earth-seed's make for a scene added in the app (no kit), on ROOM: one stage under its name, no gap, its shell
-    under /<place>/Shell painted with the library's backing surface, nothing the placeholder gate fails, its style the
-    hangar's (the scene holding it). The same plan as an open place (not inside) gets no room shell."""
+def scene_library(folder):
+    """A surface-library output in `folder`: materials.json in the method's form with one scene's floor and wall
+    surfaces in its own palette tokens, and no roof or ceiling surface."""
+    method = json.loads((REPO / "data/library/materials.json").read_text())
+    write(folder, earth_seed.LIBRARY_FILE, dict(
+        method, tokens={"hull_grey": "#808890", "soot": "#202020"}, dirt="soot",
+        families={"steel": {"surface": "metal", "variants": {
+            "deck_steel": {"recipe": "chequer_plate", "token": "hull_grey", "roughness": 0.5, "metal": 0.6},
+            "wall_paint": {"recipe": "painted_metal", "token": "hull_grey", "roughness": 0.6, "metal": 0.0}}}},
+        kinds={"floor": ["deck_steel"], "wall": ["wall_paint"]}))
+    return folder
+
+
+def test_a_design_base_passes_the_seed_gates_the_placeholder_gate_and_collides():
+    """earth-seed's make for a scene added in the app (no kit), on ROOM with its scene library: one stage under its
+    name, no gap, its shell under /<place>/Shell, each part its library surface bound where the library gives its
+    kind one (the deck, the walls) and named missing where it gives none (the roof), every part a collider (the
+    collision gate holds the shell), the placeholder gate failing only the unpainted roof; its style the hangar's (the
+    scene holding it), its kit the design's (no piece, the plan's box). The same plan as an open place gets no room;
+    with no library every part is named missing."""
     from pxr import Usd, UsdShade
     sys.path.insert(0, str(REPO / "tools/usd"))
+    import colliders
     import placeholders
     root = pathlib.Path(tempfile.mkdtemp())
     try:
@@ -342,7 +306,8 @@ def test_a_design_base_passes_the_seed_gates_and_the_placeholder_gate():
         write(root, "inventory.json", {"rows": []})
         write(root, "hangar.json", {"holds": [{"place": "docking_bay", "row": "spaceship"}]})
         inputs = {"design plan": root / "docking_bay.json", "design inventory": root / "inventory.json",
-                  "places": REPO / "data/definitions/place.json", "holder hangar": root / "hangar.json"}
+                  "places": REPO / "data/definitions/place.json", "holder hangar": root / "hangar.json",
+                  earth_seed.LIBRARY_ROW: scene_library(root / "library")}
         out = root / "open"
         out.mkdir()
         earth_seed.make_seed(dict(inputs, **{"design plan": write(root / "open-plan", "docking_bay.json",
@@ -357,20 +322,29 @@ def test_a_design_base_passes_the_seed_gates_and_the_placeholder_gate():
         assert earth_seed.judge_picks(out, {}, {}).answer == checks.PASS
         kit = json.loads((out / earth_seed.KIT_FILE).read_text())
         assert kit["place"] == "hangar" and kit["pieces"] == [] and len(kit["shell"]) == 6, kit
+        assert kit["footprint"] == [[-2.0, -1.5], [2.0, 1.5]], kit
+        assert kit["room"] == "docking_bay"  # no made ground seats it: it stands in its own frame, as a room
         stage_path = earth_seed.place_in(out) / "docking_bay.usda"
         stage = Usd.Stage.Open(str(stage_path))
         shell = stage.GetPrimAtPath("/docking_bay/Shell").GetChildren()
         assert sorted(prim.GetName() for prim in shell) == sorted(kit["shell"])
-        for prim in shell:  # its backing surface named, and missing while the library holds none (2026-10-21)
-            assert prim.GetAttribute("score:surface").Get() == "roof_steel_paint"
+        painted = {"deck_1": "deck_steel", **{f"wall_{number}": "wall_paint" for number in range(1, 5)}}
+        for prim in shell:
             material = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
-            assert (str(material.GetPath()) == "/docking_bay/Library/roof_steel_paint" if material else
-                    "run surface-library first" in prim.GetAttribute("score:surface:missing").Get()), prim
-        # the placeholder gate names only the shell's unpainted faces, each one its missing surface names
-        unpainted = {f"/docking_bay/Shell/{prim.GetName()}" for prim in shell
-                     if prim.GetAttribute("score:surface:missing").Get()}
+            if prim.GetName() in painted:
+                assert str(material.GetPath()) == f"/docking_bay/Library/{painted[prim.GetName()]}", prim
+            else:
+                assert not material and "names no surface" in prim.GetAttribute("score:surface:missing").Get()
+        assert colliders.faults(stage) == [], colliders.faults(stage)
         assert sorted((fault["prim"], fault["rule"]) for fault in placeholders.check(stage_path)) == [
-            (prim, "material") for prim in sorted(unpainted)], placeholders.check(stage_path)
+            ("/docking_bay/Shell/roof_1", "material")], placeholders.check(stage_path)
+        bare = root / "bare"
+        bare.mkdir()
+        earth_seed.make_seed({key: value for key, value in inputs.items() if key != earth_seed.LIBRARY_ROW}, bare,
+                             0, {})
+        stage = Usd.Stage.Open(str(earth_seed.place_in(bare) / "docking_bay.usda"))
+        assert all("not made" in prim.GetAttribute("score:surface:missing").Get()
+                   for prim in stage.GetPrimAtPath("/docking_bay/Shell").GetChildren())
     finally:
         shutil.rmtree(root)
 

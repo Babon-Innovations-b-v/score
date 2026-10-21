@@ -78,15 +78,6 @@ def line_files(place):
     return {**shape_files(place), "library": "{data}/library"}
 
 
-def parts_files(place):
-    """The parts row's world files: line_files and the code its kit surfaces are read from (kit_surfaces.py and the
-    builders' modules), so a finish takes the room's own kit surface. The old kits (data/kit) were retired (owner,
-    2026-10-21): no kit is read."""
-    builders = {f"kit builders {name}": "{repo}/tools/props/library/inside/" + name
-                for name in ("pieces.py", "pieces_earth.py", "pieces_ship.py", "shapes.py")}
-    return {**line_files(place), **builders, "kit surfaces": "{repo}/tools/props/library/kit_surfaces.py"}
-
-
 # What bake_job.py writes a place's bake job from besides its own code (which the bake's code version hashes, the
 # routes' with it): the kinds' details and the composites' children. The table keys each on the entries the place's
 # models read (library_reads.narrowed), so one kind's edit re-keys only the bakes that read it. Both retired with the

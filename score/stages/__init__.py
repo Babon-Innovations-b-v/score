@@ -25,7 +25,7 @@ import pathlib
 from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (assembly, cast, complete, concept_people, crops, demo_film, demo_turntable,
-                          design_layers, earth_seed, effects, gaps, images, late_bake, library, light, motion, people,
+                          design_layers, earth_seed, effects, gaps, images, library, light, motion, people,
                           physics, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
@@ -621,26 +621,16 @@ def earth_place(place):
         earth_seed.styled(place) and place not in neighbours.parts()
 
 
-def kit_based(place):
-    """A place whose base lays its kit (earth_seed.kit_is_base: laid, and no design locked for it): the earth-kit row
-    bakes it; any other earth place's base is its design's alone."""
-    return earth_place(place) and earth_seed.kit_is_base(place)
-
-
-# earth-kit bakes the kit's named code fallbacks only, the rows not handed to the shared loop (#41;
-# earth_seed.fallbacks); the shell's sections are the kit adapter's (shapes_first.KIT), a layer the assembly takes.
-EARTH_KIT = graph.Stage("earth-kit", "place", earth_seed.make_kit, earth_seed.EARTH_KIT,
-                        (checks.Check("made", late_bake.judge_made),
-                         checks.Check("surfaces", late_bake.judge_surfaces)),
-                        files=earth_seed.kit_files, paid=True, euros=earth_seed.EUROS, applies=kit_based)
+# earth-seed reads the scene's surface library, its shell's surfaces (design_shell); a place with no surface line
+# reads without it (Runner.reads) and names its shell's surfaces missing.
 EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed.EARTH_SEED, earth_seed.SEED_CHECKS,
                          files=earth_seed.seed_files,
-                         after={"earth-kit": ("earth-kit", 2), "surfaces-bake": ("surfaces-bake", 1)},
-                         beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
-                         neighbours=earth_seed.claiming_places, applies=earth_place)
+                         after={earth_seed.LIBRARY_ROW: (earth_seed.LIBRARY_ROW, 1)}, applies=earth_place)
 SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}
-# Every row that read a place's round-three seed (`{seeds}/usd-r3/<place>`), each now reading earth-seed instead
-# (earth_seeded); stages_test.py holds the list to the declared files. terrain-look, the last reader, is retired (#27).
+# Every row that read a place's round-three seed (`{seeds}/usd-r3/<place>`) or its old kit (`{data}/kit/<place>.json`,
+# retired with the old concepts on 2026-10-21), each now reading earth-seed instead (earth_seeded: its stage folder
+# and its design's kit); stages_test.py holds the list to the declared files. terrain-look, the last reader of a seed
+# alone, is retired (#27).
 EARTH_SEEDED = ("assembly", "settle", "effects-layer", "physics-trial", "cast", "motion",
                 "light-layer", "light-passes", "light-haze", "light", "scene-record")
 
@@ -649,6 +639,7 @@ EARTH_SEEDED = ("assembly", "settle", "effects-layer", "physics-trial", "cast", 
 # rows that render or check a place with its neighbours (light.passes.neighbours), each shown place's earth seed
 # read beside too. Every other row reading beside reads no other place's seed.
 SHOWN_SEEDED = ("light-passes", "light-haze", "light")
+KITS = "{data}/kit/"  # the old kits' folder: a declared kit there is the earth place's design kit (earth_seed.kit_in)
 
 
 def seed_named(pattern, place):
@@ -660,15 +651,29 @@ def seed_named(pattern, place):
     return named if "/" not in named and earth_place(named) else None
 
 
+def kit_named(pattern, place):
+    """The earth place whose old kit a declared file pattern is (`{data}/kit/<place>.json`), else None."""
+    if not isinstance(pattern, str) or not pattern.startswith(KITS) or not pattern.endswith(".json"):
+        return None
+    named = pattern[len(KITS):-len(".json")].replace("{place}", str(place))
+    return named if "/" not in named and earth_place(named) else None
+
+
+def read_from_seed(pattern, place):
+    """The earth place a declared pattern is read from (its seed or its kit), else None."""
+    return seed_named(pattern, place) or kit_named(pattern, place)
+
+
 def seed_inputs(inputs, found, place):
-    """`inputs` with each declared seed (`found`, the row's own files) read from earth-seed: the place's own from its
-    after, another place's from beside (`earth-seed@<other>`), each its stage folder (earth_seed.place_in's form)."""
+    """`inputs` with each declared seed and kit (`found`, the row's own files) read from earth-seed: the place's own
+    from its after, another place's from beside (`earth-seed@<other>`); a seed its stage folder (earth_seed.place_in's
+    form), a kit its design's kit (earth_seed.kit_in)."""
     taken = dict(inputs)
     for name, pattern in found.items():
-        named = seed_named(pattern, place)
+        named = read_from_seed(pattern, place)
         if named is not None:
-            node = "earth-seed" if named == place else f"earth-seed@{named}"
-            taken[name] = pathlib.Path(inputs[node]) / named
+            output = pathlib.Path(inputs["earth-seed" if named == place else f"earth-seed@{named}"])
+            taken[name] = output / named if seed_named(pattern, place) else earth_seed.kit_in(output)
     return taken
 
 
@@ -678,18 +683,19 @@ def seeded_place(inputs):
 
 
 def earth_seeded(row):
-    """A row that read round-three seeds reading each from its earth-seed row (#27: the work folder's usd-r3 was lost
-    on 2026-10-19 and blocked every line behind it): the place's own as an `after`, another place's beside; its make,
-    judges and gatherers given the seed folders under their old names. A seed of a place with no earth-seed row (no kit
-    laid and no design locked: the far city) stays a declared file, so it is still named lost."""
+    """A row that read round-three seeds or old kits reading each from its earth-seed row (#27: the work folder's
+    usd-r3 was lost on 2026-10-19 and blocked every line behind it; the old kits were retired on 2026-10-21): the
+    place's own as an `after`, another place's beside; its make, judges and gatherers given the seed folders and the
+    design kits under their old names. A seed or kit of a place with no earth-seed row (no design locked: the far
+    city) stays a declared file, so it is still named lost."""
     files, place_files = row.files, row.files if callable(row.files) else (lambda place: row.files)
 
     def declared(place):
         found = place_files(place)
-        return {name: path for name, path in found.items() if seed_named(path, place) is None}
+        return {name: path for name, path in found.items() if read_from_seed(path, place) is None}
 
     def others(place):  # a row reading beside already (the assembly's claims) reads no other place's seed
-        return sorted({seed_named(path, place) for path in place_files(place).values()} - {None, place})
+        return sorted({read_from_seed(path, place) for path in place_files(place).values()} - {None, place})
 
     def with_seeds(function, position):
         @functools.wraps(function)
@@ -724,7 +730,7 @@ def joined_ground(row):
 
 
 STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) if row.name in EARTH_SEEDED else row
-            for row in STAGES), EARTH_KIT, EARTH_SEED)
+            for row in STAGES), EARTH_SEED)
 # The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).

@@ -315,33 +315,40 @@ def check_design_rows():
             (pathlib.Path(folder) / node / "record" / f"{place}.json").write_text(
                 json.dumps({"place": place, "lights": []}))
             inputs[node] = str(pathlib.Path(folder) / node)
+            kit = pathlib.Path(folder) / f"{place}-kit.json"  # the design's kit, as earth-seed writes it
+            kit.write_text(json.dumps({"room": place, "pieces": []}))
+            inputs["kit" if place == "launch" else f"kit {place}"] = str(kit)
         assert passes.place_of(inputs) == "launch" and passes.shown_in(inputs) == ["square"]
         assert passes.record_of("square", inputs)["place"] == "square"
         assert light.lamp_heads("launch", inputs) == []  # no kit lays a shafted lamp: no floodlight head
 
 
 def check_haze_from_the_kit():
-    """light-haze applies at a place no list names whose kit lays a glowing row (row kind) its kept plan aims, and at
-    none whose plan aims no glowing row: one that aims nothing, or aims a row that does not glow."""
+    """The shafted rows are a place's glowing rows (row kind) its kept plan aims, the floodlights the kit lays of them
+    (none for a plan that aims nothing, or aims a row that does not glow); light-haze applies nowhere while a design
+    lays no kit piece (haze.design_kit, earth_seed's kit.json)."""
     import tempfile
     from score.stages.light import haze, passes
     rows = [{"id": "mast_lamp", "name": "mast lamp"}, {"id": "desk", "name": "desk"}]
     aims = {"yard": {"mast_lamp": {"at": "pad"}}, "hall": {}, "shed": {"desk": {"at": "pad"}}}
-    repo, kept = passes.REPO, passes.KEPT
+    kept = passes.KEPT
     with tempfile.TemporaryDirectory() as folder:
-        for kind in ("data/kit", "design/plans", "design/inventory"):
+        for kind in ("design/plans", "design/inventory"):
             (pathlib.Path(folder) / kind).mkdir(parents=True)
         for place, aimed in aims.items():
-            (pathlib.Path(folder) / f"data/kit/{place}.json").write_text(json.dumps(
-                {"room": place, "pieces": [{"kind": f"{place}_{row['id']}", "part": "glow"} for row in rows]}))
             (pathlib.Path(folder) / f"design/plans/{place}.json").write_text(json.dumps({"aims": aimed}))
             (pathlib.Path(folder) / f"design/inventory/{place}.json").write_text(json.dumps({"rows": rows}))
-        passes.REPO, passes.KEPT = pathlib.Path(folder), pathlib.Path(folder) / "design"
+        passes.KEPT = pathlib.Path(folder) / "design"
         try:
-            assert haze.shafted_kinds("yard") == {"yard_mast_lamp"} and haze.applies("yard")
-            assert not haze.applies("hall") and not haze.applies("shed") and not haze.applies("nowhere")
+            laid = {place: {"room": place, "pieces": [{"kind": f"{place}_{row['id']}", "part": "glow"} for row in rows]}
+                    for place in aims}
+            assert haze.shafted_rows("yard") == {"mast_lamp"}
+            assert haze.shafted_kinds("yard", laid["yard"]) == {"yard_mast_lamp"}
+            assert not haze.shafted_kinds("hall", laid["hall"]) and not haze.shafted_kinds("shed", laid["shed"])
+            assert not haze.shafted_kinds("yard", haze.design_kit("yard"))
+            assert not any(haze.applies(place) for place in (*aims, "nowhere"))
         finally:
-            passes.REPO, passes.KEPT = repo, kept
+            passes.KEPT = kept
 
 
 def check_neighbours_from_the_record():

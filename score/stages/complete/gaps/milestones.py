@@ -70,8 +70,8 @@ def remake_nodes(record):
 
 
 def read_edges(runner, names):
-    """{node: [the nodes of `names` it reads]} (chain.reads: optional reads too); a node of a table of its own (the
-    ship kits') reads none of this table's."""
+    """{node: [the nodes of `names` it reads]} (chain.reads: optional reads too); a node of no table here reads none
+    of this table's."""
     return {name: [node_name(*before) for before in chain.reads(runner, *next(runner.nodes_named([name])))
                    if node_name(*before) in names] if stage_of(name) in runner.stages else [] for name in names}
 
@@ -111,8 +111,8 @@ def step_of(name, after_split, after_complete):
 
 
 def steps_of(edges, table):
-    """{node: its step} of every node of `edges`; `table` the stage table's stage names (a node of a table of its own,
-    the ship kits', reads none of them and none reads it, so it is never a line's end)."""
+    """{node: its step} of every node of `edges`; `table` the stage table's stage names (a node of no table here
+    reads none of them and none reads it, so it is never a line's end)."""
     after_split = reaching(edges, lambda name: stage_of(name) in SPLIT)
     after_complete = reaching(edges, lambda name: stage_of(name) == fill.COMPLETE)
     read = {before for reads in edges.values() for before in reads}

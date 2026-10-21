@@ -27,7 +27,7 @@ A whole run (no --place, the repository's data) also writes <out>/world/findings
 lost inputs, place "world", no outputs and no stage. A lost input's id names the thing, so the summary line and the
 cockpit's total count it once however many places read it (inputs.distinct).
 The default out is WORK/checks/gaps, where the cockpit reads it; the other checks' findings are read beside it.
-Reads the store, the scene inventories, kits, plans and accepted gaps, and the checks already written; judges nothing,
+Reads the store, the scene inventories, plans and accepted gaps, and the checks already written; judges nothing,
 writes nothing to the store. Free and local, seconds a place. Prints one line a place and one summary line, and
 fails loudly on a findings.json that breaks the contract above (gaps_faults) and on a box with no store.
 """
@@ -79,7 +79,7 @@ def missing_gaps(stage, place, written, kit):
     found = []
     for box in rows.boxes(stage, place, written, kit, rows.missing(stage, place, written)):
         row = box["row"]
-        node, work = fill.missing_row(row, place, bool(rows.kit_pieces(row, kit)))
+        node, work = fill.missing_row(row, place)
         values = {"score:gap": MISSING, "score:gap:row": row["id"], "score:gap:placed": box["placed"],
                   "score:kind": row.get("kind", ""), "score:anchor": str(row.get("anchor", "")),
                   **({"score:gap:node": node} if node else {"score:gap:work": work})}
@@ -193,7 +193,7 @@ def written_place(store, place, data, folder, runner=None):
     _, output = accepted_stage(store, place)
     stage = layer.opened(folder, place, laid(store, output, folder) if output else None)
     inventory = rows.inventory(data, place)
-    kit = read(data / "kit" / f"{place}.json") or {}
+    kit = {"room": place, "pieces": []}  # the design lays no kit piece (earth_seed's kit.json; data/kit retired)
     row_ids = {row["id"] for row in (inventory or {}).get("rows", [])}
     found = (missing_gaps(stage, place, inventory, kit)
              + gate_gaps(stage, place, store, data, folder.parent, row_ids)

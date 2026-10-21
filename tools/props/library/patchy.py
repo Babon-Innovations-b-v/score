@@ -9,7 +9,8 @@ A piece is painted per face with library materials; patchy paint is material tha
 Both ways measure the same thing on a mesh whose faces each name one material:
 
 - `labels`: the labelled full model labels.py wrote (one .ply per material), the faces the bake paints from. This is
-  the check before any bake: `route.py plan` refuses a generated kind whose labels fail it.
+  the check before any bake (`route.py plan` refused a generated kind whose labels failed it until the kit room run
+  went with the old kits, 2026-10-21).
 - `baked`: a baked game model, each face named by the material its baked colour lies nearest (every colour the
   material bakes to: its token, worn to bare metal and dirtied, as sweep.py's palette), sampled at four points a face.
   An island of faces the material round it explains (their colours within WORN_REACH of that material's colours,

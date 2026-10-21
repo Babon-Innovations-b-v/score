@@ -17,8 +17,13 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   `sorter.fittings` are empty, so every kind goes to the prop pipeline; `route.jobs` names a kind with no turn and
   stops; no take is stored. What a scene needs is its design's (`{home}/design/inventory/<scene>.json`, its hand-in
   `{home}/design/props/<scene>.json`); the remake batch makes each model and hands it to score_lib as a draft
-  (`library@<place>`). The bullets below that name those files describe the old route; its builders (`inside/pieces*.py`,
-  `earth_*.py`) still stand, routed to by nothing until a pipeline failure is recorded.
+  (`library@<place>`). The bullets below that name those files describe the old route. The old kits' route went with
+  the old kits on 2026-10-21 (the owner: "remove all old, all old stuff is retired"): route.py's kit room run (`plan`,
+  `layout`, `install`, `late-plan`, `late-lay`, `fittings`, `precheck`), the kit builders (`inside/pieces.py`'s
+  plates, trims and fittings, `pieces_earth.py`, `earth_flat.py`, `earth_stairwell.py`, `pieces_ship.py`,
+  `pieces_hull.py`, `ship_outline.py`), `kit_surfaces.py` and the kit gates; `inside/pieces.py` builds only the bodies
+  of big objects seen up close (`pieces_bodies.py`), route.py keeps only the sizes and densities the bake reads, and a
+  scene's shell is laid from its locked plan (`score/stages/earth_seed/design_shell.py`).
 - **Experimental until the surface stage proves it** (docs/bible.md, `architecture/experimental`): everything in the
   painting after round four (the two-way split fit, round five's 3D split, paint by the model's own parts with
   `--face-parts` and `finish_masks.py`, the patchy rule), the surface check's dark rule (5c66c2e: a region the
@@ -86,10 +91,6 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   parent kind's children (each its own kind: a tool, a radio, a monitor) and where each stands on the parent; the
   inventory has a row per child (`anchor: on:<parent>`). `route.py` plans each child like any kind and writes it
   into the parent's prop scene, their glowing parts under one `Glow` node.
-- **`route.py` runs the route for a whole room** (round three, 2026-10-06): `plan` (one model per kind and size, the
-  cloud jobs), `layout` (the game's layout over the made models, a failing generated model left out), `install`
-  (models, BC7 picture imports, kinds' scenes, data/kit). A piece's glowing parts (screen content, lamp lenses) are
-  split into a `part` piece of their own, so only they glow.
 - **Texture memory:** a job's pieces share one picture set (`inside/bake.py` `Atlas`), every face at one texel
   density except those the room never sees (backs against a wall or roof, a twentieth), colour and metal-roughness
   at half the normal map's side. Pieces export as .gltf beside the shared pictures.
@@ -104,27 +105,18 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   the failure, its evidence, its date) names it; every other kind, plain plates and fittings too, is the shared
   loop's (`score/stages/shapes_first`), and an inventory row is routed by `sorter.route`, never by its own `kind`
   (`code` or `generate`), so its close-up is taken and it is handed to the loop. A model-routed kind with no take yet
-  is a gap that `plan.json` lists (`gaps`), never a code build and never a stop. Not built yet: no shell-section
-  layer hands kit kinds to the loop, so `route.py plan` still makes a model-routed kit kind that has a labelled take
-  from it (labels.py, `inside/make_chunky.py`), the old prop route, and earth-seed bakes its named fallbacks
-  (`score/stages/earth_seed`'s overlay says why no kit row is handed to the loop yet). The record holds the failures
-  measured on their own object (the hub's thin pieces every Pro close-up failed, `paper/evidence/compare-hub`; the
-  cockpit's thrust indicator and the shiplock's outer hatch on likeness) and the owner's named exception: the hangar
-  ship's hull, engines and thrusters, built in code from his plan v7 (`inside/ship_outline.py` reads
-  `data/definitions/ship.json` for the kit layout and the builder alike; `inside/pieces_hull.py` builds them from the
-  numbers the layout hands in), never from a picture. A kind joins it only with a failure measured on its own object.
+  is a gap that `plan.json` lists (`gaps`), never a code build and never a stop. The record (retired with the old models) held the failures measured on their own object; a kind joins it only with
+  a failure measured on its own object.
   Big objects keep their code body (below). Purely code-built pieces look generated and copied shell pieces look like
   tiles; shell pieces come as a few pipeline-made variants per kit, laid by shell section (CONTEXT.md).
   `place_route.py plan` routes an outdoor place's rows the same way.
 - **Method B's parts check holds a code fallback, never routes one** (the owner's pick 2026-10-07, demoted by #19):
   `data/library/fittings.json` lists a fitting's close-up parts and how much of each its last code build shows
-  (`pieces.parts_seen`, each part seen at least 10% from in front, no print over a part); `route.py fittings <work>`
-  writes a build's result back, and `sorter.fallback_parts_missing` is the one check `route.py layout` and the
-  likeness row both hold a code fallback to (an unlisted fallback passes as plain). `PLAIN` stays a fact (no parts
+  (`pieces.parts_seen`, each part seen at least 10% from in front, no print over a part), and
+  `sorter.fallback_parts_missing` is the one check the likeness row holds a code fallback to (an unlisted fallback passes as plain). `PLAIN` stays a fact (no parts
   of its own to show). Builders, the sorter and `fittings.json` go per kind only after that kind's pipeline take
-  passed (#19's clean-up map). `library_test.py` fails on a builder that is neither plain, a listed fitting nor a
-  body; its check that every model a kit room lays was made on its kind's route is a strict xfail until every kit
-  installed before #19 is made again through the loop.
+  passed (#19's clean-up map). `library_test.py` fails on a code builder that is not a body `bodies.BODIES` names for
+  a take (the old kits' builders and their routes went with the old kits, 2026-10-21).
 - **Paint by parts.** `labels.py` paints a generated model by its parts (job paint, 2026-10-08, the owner: "shouldn't the painting be
   done by parts?"): PartCrafter's split (`../cloud/parts.py`) laid on the welded Pixal3D model, every face one part,
   every part ONE material from the kind's allowed list (`details.json` `materials`) by its lit colour; never per
@@ -159,21 +151,16 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   wear (`recipes.kick_mask`) within 32 cm over the floor a piece stands on (`foot`, route.py). A finish may carry its
   own wear level and seed (owner, 2026-10-20, #18): the finish route's list gives a level only with a cause the views
   show (walked paths, edges, round doors), and `recipes.arguments` takes a spec's own `wear` and `seed` over the
-  place's and the job's. `sweep.py` checks a
-  room's made models against its own library palette.
+  place's and the job's. `sweep.py` holds a room's palette (its sweep over a kit room's
+  installed models went with the old kits, 2026-10-21).
 - **Storage:** `stored.py` keeps a room's pictures as WebP and stops an install past the room budget (modules batch
   one).
 - **A piece of thin rails and open shelves may close thicker** (`details.json` `wall`, `make_chunky.solid_copy`): the
   solid step's 5 mm left berths, shelves and an alcove's rails under the model check's 3 mm (modules batch one).
-- **The model check before the bake** (`route.py precheck <work>`, modules round): every code model of a plan is built
-  here as geometry alone (`inside/build_only.py`, headless Blender, no bake, no render) and given the model check;
-  run it after `plan` and before any bake (five builds failed on 2 mm walls only after their bake: a band laid 2 mm
-  proud of what it wraps reads as a 2 mm wall, so a band, tape or stripe stands 4 mm proud or sits on its face).
-- **Pipe runs** (step 0 of the modules round, 2026-10-07): a wall pipe run's axis stands `pieces.PIPE_AXIS` (8 cm) off
-  the wall, its bracket and valve on the wall behind it; the layout cuts a straight pipe at every inline valve
-  (`hub_kit.split_at_fittings`), never through it.
-- **A shared picture set never silently loses density**: `bake.Atlas` stops past the 4096 side, and `route.py`
-  splits a set by its boxes' seen area before the bake.
+- **A body is built as geometry alone before its bake** (`inside/build_only.py`, headless Blender, no bake, no
+  render; `bodies_test.py`): a band laid 2 mm proud of what it wraps reads as a 2 mm wall, so a band, tape or stripe
+  stands 4 mm proud or sits on its face.
+- **A shared picture set never silently loses density**: `bake.Atlas` stops past the 4096 side.
 - `tune.py`: relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high); matched freely, it crinkles every
   paint into photo grain.
 - Checks: `library_test.py` (system python), `straight_test.py` and `paint_test.py` (hand themselves to the prop

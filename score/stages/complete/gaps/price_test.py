@@ -225,17 +225,6 @@ def test_a_place_never_checked_and_a_node_outside_every_table_are_named_not_drop
     assert set(found["nodes"]) == set(LINE_PAID) | {node.replace("hangar", "lab") for node in LINE_PAID}
 
 
-def test_a_ship_kit_is_priced_on_its_own_table():
-    """ship_kit@<place> is in no runner's table here but the ship kits' own: priced once on its row, however many
-    gaps name it; with no measured run it is unknown."""
-    found, _ = priced(findings=[gap(1, "ship_kit@hangar"), gap(2, "ship_kit@hangar")])
-    assert found["outside"] == [] and found["chains"]["hangar"]["ship_kit@hangar"] == ["ship_kit@hangar"]
-    kit = found["nodes"]["ship_kit@hangar"]
-    assert (kit["basis"], kit["likely_euros"]) == ("not measured yet", None) and not kit.get("guess_euros"), kit
-    assert "ship_kit@hangar" in found["totals"]["unpriced"] and found["gaps"]["hangar"] == {
-        "missing:crate_1": "ship_kit@hangar", "missing:crate_2": "ship_kit@hangar"}
-
-
 def test_rows_waiting_on_their_prop_data_get_the_prop_route_priced_after_that_work():
     """Three gaps of two rows at the square wait on its prop data: pixal and the bake per model (2), apart."""
     with per_unit():

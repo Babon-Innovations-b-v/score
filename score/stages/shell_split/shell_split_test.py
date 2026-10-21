@@ -248,10 +248,10 @@ DIFFERS = {
 }
 
 
-def ship_outline(floor, ship, ship_floor):
+def ship_outline(floor, ship_floor):
     """The hull's inside at the deck, every 0.1 m: the inner half width each side, the clear height to the hull's
     inner top, none where the keel rises into the floor's structure (ship_floor.py's own measures)."""
-    hull, deck = ship_floor.hull_plan(ship, floor), floor["deck"]
+    hull, deck = ship_floor.hull_of(floor), floor["deck"]
     stations = []
     for tenth in range(int(floor["length"] * 10) + 1):
         along = tenth / 10
@@ -268,19 +268,19 @@ def ship_split_plan():
     drawn (people keep their size) and most scaled with the hull (46 / 31 m); the airlock of v7 is the ship's lock."""
     sys.path.insert(0, str(REPO / "tools/props/scene"))
     import ship_floor
-    floor, ship = ship_floor.read_floor(), json.loads(ship_floor.SHIP.read_text())
-    drawn = {room["name"]: room["long"] for room in ship["rooms"]}
+    floor = ship_floor.read_floor()
+    drawn = dict(floor["hull"]["drawn"]["rooms"])  # plan v7's rooms as drawn, carried with its hull
     drawn["ship's lock"] = drawn["airlock"]
     # navigation merged into the cockpit, storage reaching forward over its old place (the owner, 2026-10-21)
     drawn["cockpit and nav"] = drawn["cockpit"] + drawn["navigation room"]
     drawn["storage"] = drawn["storage"] + drawn["navigation room"]
-    scale = ship["length"] / ship["drawn_length"]
+    scale = floor["length"] / floor["hull"]["drawn"]["length"]
     sides = {"whole": "whole", "port": "left", "starboard": "right"}
     rooms = [{"place": room["place"], "name": room["name"], "side": sides[room["side"]],
               "long": [drawn[room["name"]], round(drawn[room["name"]] * scale, 3)]}
              for room in sorted(floor["rooms"], key=lambda room: room["y"][0])]
     hall = floor["walkway"].get("hall", [0.0, 0.0])  # none since navigation merged into the cockpit
-    return floor, {"outline": ship_outline(floor, ship, ship_floor),
+    return floor, {"outline": ship_outline(floor, ship_floor),
                    "least": {"clear": floor["ceiling"], "wide": ship_floor.LEAST_DEEP},
                    "door": {"wide": floor["door"]["wide"], "tall": floor["door"]["tall"]},
                    "partition": floor["partition"],

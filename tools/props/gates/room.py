@@ -1,8 +1,7 @@
-"""A kit room as real meshes in the room's frame, for the gates: the shell's outer skin from the room's numbers and
-every laid piece's own model placed as the game places it (HubKit), never its box.
+"""A kit room as real meshes in the room's frame, for the gates: every laid piece's own model placed as the game
+places it (HubKit), never its box (the hub shell's outer skin went with the old kits, 2026-10-21).
 
     import room
-    skin = room.outer_skin()                                     # the hub shell's outer solid (convex)
     placed = room.placed(layout, room.models_in(folder))         # [(index, kind, mesh in the room's frame)]
 
 The placing is HubKit's (game/base/hub_kit/hub_kit.gd), in numpy: a piece's model (its own made model, `model`, or
@@ -10,38 +9,10 @@ its kind's) turned by its `base` if it has one, fitted per axis to the size the 
 foot's middle, then put at the piece's origin and axes. Models load without their pictures (`skip_materials`), so a
 room of them stays small in memory.
 """
-import math
 import pathlib
-import sys
 
 import numpy as np
 import trimesh
-
-HERE = pathlib.Path(__file__).resolve().parent
-REPO = HERE.parents[2]
-sys.path.insert(0, str(REPO / "tools/props/scene"))
-import hub_kit  # noqa: E402
-
-SHELL_WALL = 0.3  # ModuleShell.WALL
-ROOF_THICK = 0.25  # ModuleShell.ROOF_THICK
-FLOOR_UNDER = -1.2  # below the pit's floor
-
-
-def outer_skin():
-    """The hub shell's outer solid: the twelve walls' outside faces and the roof's top, closed under the pit."""
-    outer = hub_kit.APOTHEM + SHELL_WALL
-    slope = math.atan2(hub_kit.RISE, hub_kit.APOTHEM)
-    lift = ROOF_THICK / math.cos(slope)  # the roof's top plane, as high again over every point of its underside
-    eave = hub_kit.WALL_HIGH + lift - SHELL_WALL * math.tan(slope)
-    apex = hub_kit.WALL_HIGH + hub_kit.RISE + lift
-    corner = outer / math.cos(math.pi / hub_kit.FACETS)
-    points = []
-    for index in range(hub_kit.FACETS):
-        angle = math.radians(index * 30 + 15)
-        x, z = math.sin(angle) * corner, -math.cos(angle) * corner
-        points += [(x, FLOOR_UNDER, z), (x, eave, z)]
-    points.append((0.0, apex, 0.0))
-    return trimesh.convex.convex_hull(np.array(points))
 
 
 def basis(rows):

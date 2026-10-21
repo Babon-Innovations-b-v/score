@@ -163,11 +163,11 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
 
 
 def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():
-    """earth-seed and kit-sections read a place's surface data through surface_data.py alone: an edit to the surface
-    line's rows leaves their keys, an edit to the reader moves them (its package's __init__ pulled the whole line in,
+    """earth-seed reads a place's surface data through surface_data.py alone: an edit to the surface
+    line's rows leaves its key, an edit to the reader moves it (its package's __init__ pulled the whole line in,
     2026-10-21)."""
     table = {stage.name: stage for stage in stages.STAGES}
-    for name in ("earth-seed", "kit-sections"):
+    for name in ("earth-seed",):
         before = code_after_editing(table[name], "nothing")
         for unrelated in ("score/stages/surfaces/__init__.py", "score/stages/surfaces/place_line.py"):
             assert code_after_editing(table[name], unrelated) == before, (name, unrelated)

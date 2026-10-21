@@ -212,11 +212,13 @@ stage as each stage is built; nothing moves before.
   their schema version (ADR-0007, its overlay); nothing else in score parses them.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
-  `complete`. `earth-kit` (paid) and `earth-seed` (free, `stages/earth_seed`, its overlay) make every place's base
-  stage again from git, its design and the rows' outputs (a designed scene's room shell laid from its locked plan;
-  `kit_is_base` reads a kit laid in data/kit, none since the old kits were retired on 2026-10-21, so earth-kit has
-  no row), the ship's rooms and a scene added in the app too, and every row
-  that read the lost round-three or ship seed reads it (`stages.earth_seeded`). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
+  `complete`. `earth-seed` (free, `stages/earth_seed`, its overlay) makes every designed scene's base stage from its
+  design and the rows' outputs (`design_shell.py`: a room whose kit holds its walls gets its deck, walls and roof, an
+  open place its raised levels, each painted from the scene's surface library; every other shell and every stair is
+  the scene record's, from the same plan), the ship's rooms and a scene added in the app too; every row that read the
+  lost round-three or ship seed, or an old kit (data/kit, retired with the old concepts on 2026-10-21, and earth-kit,
+  kit-sections and the ship kits with it), reads it (`stages.earth_seeded`: the seed's stage folder, the design's kit
+  `kit.json`). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
   every ground from the design (a body or plot of the setting, each top scene at its site and what its plan holds,
   the plans' terrain spots), gated on spots and curve; `ground-fit@<place>` (free) judges each place standing on it:
   ground level under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of

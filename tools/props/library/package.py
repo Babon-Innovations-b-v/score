@@ -4,15 +4,12 @@ each copy of an object stands in the place's frame. No engine's format is in it:
 Godot adapter, Blender or a benchmark through theirs. OpenUSD as the canonical scene format is the next step.
 
     .venv/bin/python tools/props/library/package.py <place> <work> <out>        # write the package, then check it
-    .venv/bin/python tools/props/library/package.py <place> <work> <out> --kit  # a kit room's (route.py's run)
     .venv/bin/python tools/props/library/package.py --check <out>               # check a package that is there
 
 An outdoor place's run is place_route.py's (plan-route.json: each copy a spot, a facing, a tilt and an even scale). A
-kit room's is route.py's (`--kit`: plan.json, the game's layout.json over the made models, checks.json from the model
-gate): every piece of its layout is a copy, its model's box fitted to the piece's laid size on the middle of its foot in
-the piece's own frame (x, y, z), as the game's HubKit stands it, so its `matrix` is that frame scaled by `stretch`,
-the laid size over the model's own (1 where a model was made at its laid size). The room's screens and status lamps,
-which the route writes rather than bakes, are written into the package the route's way.
+kit room's package (route.py's run, `--kit`) went with the old kits on 2026-10-21; `kit_matrix` stands a kit piece's
+model as the game's HubKit stood it (its box fitted to the laid size on the middle of its foot, in the piece's own
+frame), which the export and the settle read.
 
 scene.json:
     format, version      "score.scene", 1
@@ -47,7 +44,6 @@ VERSION = 1
 # How far a kit room's copy may stretch its model on any side before the package is refused: a model is made at the
 # size it is laid at, so a stretch past this is a layout that no longer matches its bake.
 STRETCH_LIMIT = 0.05
-WRITTEN_CHECK = {"pass": True, "why": "written by the route (a screen's plate, a lamp's bead): not a made model"}
 GROUND = ("each copy's y is its lift off the ground under its own spot; on a flat place frame the ground is y = 0, "
           "an engine with terrain stands each copy on the ground there")
 
@@ -153,7 +149,7 @@ def write(place, work, out):
     return scene
 
 
-# --- a kit room (route.py's run) ---------------------------------------------------------------------------------
+# --- a kit piece's stand -----------------------------------------------------------------------------------------
 
 def model_box(gltf):
     """A made model's box in its own file (low, high corners), from its one primitive's position bounds."""
@@ -177,66 +173,6 @@ def kit_matrix(laid, low, high):
     matrix[:3, :3] = axes * stretch
     matrix[:3, 3] = np.asarray(laid["at"], dtype=np.float64) - matrix[:3, :3] @ foot
     return matrix, stretch
-
-
-def written_models(layout, objects):
-    """The models the route writes rather than bakes (a screen, a status lamp), written into <objects> its way."""
-    import route
-    for name, about in layout["models"].items():
-        if "picture" in about:
-            size = about.get("size") or next(laid for laid in layout["pieces"] if laid["model"] == name)["size"]
-            route.screen_model(name, about["picture"], objects, size, about.get("live", False))
-        elif "lamp" in about:
-            route.lamp_model(name, about["lamp"], objects)
-
-
-def kit_instance(laid, box, room):
-    """One kit piece as scene.json has it: its object, kind, own name (its row), frame and what it is to the game."""
-    matrix, stretch = kit_matrix(laid, *box)
-    found = {"object": laid["model"], "kind": laid["kind"], "row": laid.get("row", laid["kind"].removeprefix(f"{room}_")),
-             "at": [round(float(value), 4) for value in laid["at"]], "size": laid["size"],
-             "stretch": [round(float(value), 4) for value in stretch],
-             "matrix": [round(float(value), 6) + 0.0 for value in matrix.T.reshape(-1)]}
-    found.update({key: laid[key] for key in ("layer", "part", "door", "node") if key in laid})
-    return found
-
-
-def write_kit(place, work, out):
-    """The package of a finished kit room run (route.py) in <work>, into <out>; returns scene.json's content."""
-    layout = json.loads((work / "layout.json").read_text())
-    planned = json.loads((work / "plan.json").read_text())
-    checks = json.loads((work / "checks.json").read_text())
-    held = sorted(name for name in layout["models"] if checks.get(name, {}).get("pass") is False)
-    if held:
-        raise SystemExit(f"models that failed their check: {', '.join(held)}")
-    reports = made_reports(work)
-    if out.exists():
-        shutil.rmtree(out)
-    objects_folder = out / "objects"
-    objects_folder.mkdir(parents=True)
-    written_models(layout, objects_folder)
-    used = {laid["model"] for laid in layout["pieces"]}
-    objects, boxes = {}, {}
-    for name in sorted(used):
-        about = layout["models"].get(name, {})
-        if not (objects_folder / f"{name}.gltf").exists():
-            copy_object(work / "made", objects_folder, name)
-        boxes[name] = model_box(objects_folder / f"{name}.gltf")
-        route_of = ("written" if "picture" in about or "lamp" in about else
-                    about.get("route") or planned["models"].get(name, {}).get("route") or "part")
-        # A screen or a status lamp is a plate or a bead the route writes, not a made model: the model gate's walls
-        # do not apply (a screen's 12 mm plate reads as too thin), so it is recorded as written, never as failed.
-        check = WRITTEN_CHECK if route_of == "written" else checks.get(name, {"pass": False, "why": "not checked"})
-        objects[name] = {"file": f"objects/{name}.gltf", "route": route_of, "glows": bool(about.get("glows")),
-                         "triangles": reports.get(name, {}).get("triangles"), "check": check}
-    room = layout.get("room", place)
-    scene = {"format": FORMAT, "version": VERSION, "place": place, "room": room, "frame": layout.get("frame", ""),
-             "units": "metre", "up": "+y", "ground": "a kit room's own frame: y = 0 is its floor",
-             "on_seat": [0.0, 0.0], "objects": objects,
-             "instances": [kit_instance(laid, boxes[laid["model"]], room) for laid in layout["pieces"]],
-             "children": [], "lamps": layout.get("lamps", []), "counts": layout.get("counts", {})}
-    (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
-    return scene
 
 
 def object_problems(out, name, about):
@@ -327,13 +263,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("names", nargs="+", type=str, help="<place> <work> <out>, or with --check <out>")
     parser.add_argument("--check", action="store_true", help="only check the package at <out>")
-    parser.add_argument("--kit", action="store_true", help="the run is a kit room's (route.py), not an outdoor place's")
     options = parser.parse_args()
     if options.check:
         out = pathlib.Path(options.names[0])
     else:
         place, work, out = options.names[0], pathlib.Path(options.names[1]), pathlib.Path(options.names[2])
-        (write_kit if options.kit else write)(place, work, out)
+        write(place, work, out)
     found = problems(out)
     for line in found:
         print("PROBLEM", line)

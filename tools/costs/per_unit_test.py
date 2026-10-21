@@ -47,15 +47,18 @@ def test_a_batch_is_read_once_and_priced_over_the_units_it_finished():
 
 
 def test_a_ticketed_line_is_the_stage_its_ticket_names_and_a_warm_stage_is_priced_on_its_own_timed_jobs():
-    """A line whose ticket names earth-kit is no bake's, whatever its kind; sound's run is priced over the takes its
-    line names (one here), an older line's over its takes recorded in SOUND_TAKES, a line naming none counts none;
-    earth-kit's own jobs price it in place of every library job in the paper's copy, and the add mode keeps every
+    """A line whose ticket names another stage is no bake's, whatever its kind; sound's run is priced over the takes
+    its line names (one here), an older line's over its takes recorded in SOUND_TAKES, a line naming none counts none;
+    the bake's own jobs price it in place of every library job in the paper's copy, and the add mode keeps every
     other stage."""
-    kit = {"batch": "kit-1", "kind": "library", "ticket": "earth-kit@airlock abc", "jobs": ["a", "b"], "euros": 0.5,
+    tiles = {"batch": "tiles-1", "kind": "library", "ticket": "surface-tiles@airlock abc", "jobs": ["a"], "euros": 0.2,
+             "machines": []}
+    kit = {"batch": "bake-1", "kind": "library", "ticket": "surfaces-bake@airlock abc", "jobs": ["a", "b"],
+           "euros": 0.5,
            "machines": [{"type": "L4-1-24G", "started": True, "unit_seconds": [60.0, 120.0], "work_minutes": 4.0}]}
     take = {"batch": "prove-1", "kind": "prove", "who": "score runner, sound stage", "ticket": "sound@airlock abc",
             "euros": 0.23, "machines": [], "takes": 1}
-    lines = per_unit.ledger_lines([written([kit, take])])
+    lines = per_unit.ledger_lines([written([tiles, take])])
     assert per_unit.cloud_measures(lines, per_unit.SPECS["surfaces-bake"]) == ([], [])
     assert per_unit.cloud_measures(lines, per_unit.SPECS["sound"]) == ([0.23], ["prove-1"])
     square = {**take, "batch": "prove-20261021-005847-4017578", "euros": 0.0525}
@@ -70,8 +73,9 @@ def test_a_ticketed_line_is_the_stage_its_ticket_names_and_a_warm_stage_is_price
     found = json.loads(out.read_text())["stages"]
     assert found["settle"] == settle and found["sound"]["likely_euros"] == 0.23
     assert found["sound"]["forecast"]["rule"] == "sound_takes"
-    assert found["earth-kit"]["runs"] == 2 and found["earth-kit"]["time"]["unit_seconds"]["likely"] == 90.0
-    assert "of its own jobs" in found["earth-kit"]["sources"]["warm work"]
+    bake = found["surfaces-bake"]
+    assert bake["runs"] == 2 and bake["time"]["unit_seconds"]["likely"] == 90.0, bake
+    assert "of its own jobs" in bake["sources"]["warm work"]
 
 
 def test_google_units_are_finished_calls_of_the_stages_caller():

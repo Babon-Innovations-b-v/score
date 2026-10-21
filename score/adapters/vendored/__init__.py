@@ -33,14 +33,14 @@ TOOLS = {
         "use": WIRED, "image": None, "names": ("infinigen2",),
         "callers": ("tools/props/library/recipes.py", "tools/props/library/inside/runtime.py",
                     "tools/props/cloud/library_bake.py"),
-        "stages": ("surfaces", "late_bake", "ship_kits"),
+        "stages": ("surfaces",),
         "why": "its shader recipes (paint, brushed metal, rubber) under the ProcFunc library surfaces, baked in "
                "Blender on a rented card"},
     "procfunc": {
         "use": WIRED, "image": None, "names": ("procfunc", "ProcFunc"),
         "callers": ("tools/props/library/recipes.py", "tools/props/library/inside/runtime.py",
                     "tools/props/cloud/library_bake.py"),
-        "stages": ("surfaces", "late_bake", "ship_kits"),
+        "stages": ("surfaces",),
         "why": "the library surfaces' recipes, composable shader functions (owner, 2026-10-06)"},
     "kimodo": {
         "use": WIRED, "image": "characters-motion", "names": ("kimodo", "Kimodo"),

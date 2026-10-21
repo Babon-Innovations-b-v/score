@@ -42,10 +42,9 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
 - **Adapters in**: `OBJECTS` (nothing after the model) and `TERRAIN` (terrain/areas.py hands in the detail areas,
   split over the registered rough model; `ground-join` its one after-step; the plan's code ground the named
   fallback). A terrain row lies round the floor, not on it: `fits the plan` counts it (`align.ROUND`).
-- **The Earth kit** is the adapter `KIT` (layer `kit`, after-step `kit-sections`, `../earth_seed`'s overlay); its
-  `earth-kit` row bakes only the named code fallbacks, the rows not handed. No kit row is handed in yet: the loop
-  lacks a per-take turn into the kit frame for the bake, and a model-less row stops the line at `likeness` instead of
-  leaving a gap. Neither is the adapter's to close.
+- **The kit** is the adapter `KIT` (layer `kit`, nothing after the model, `../earth_seed`'s overlay): a scene's shell
+  pieces and fittings as rows. The old kits' rows (`earth-kit`, `kit-sections`) went with the old kits (2026-10-21);
+  a scene's own shell is its earth seed's, laid from its locked plan.
 - **A line no place owns** (`align.NO_PLACE`, the people's): a layer whose models are no place's runs the loop on a
   line of its own name, with its hand-in record, rows and surface data under that name (`data/props/people.json`,
   `data/inventory/people.json`, `data/surfaces/people.json`). It has no plan, so no rough model or registration, and
@@ -64,7 +63,7 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   the take rows were deleted 2026-10-21).
 - **No model around the loop** (`shapes_first_test.py`): a row of the table that reads a loop row and is no
   adapter's after-step reading `made.ENDS` fails, unless `READS_THE_LOOP` names it with why (the judges, the object
-  layer's assembly, the kit's fallback base, the motion rows not on an adapter yet); a paid row outside the loop says
+  layer's assembly, the scene's base painting its shell, the motion rows not on an adapter yet); a paid row outside the loop says
   what it makes (`MAKES_NO_MODEL`) or is a named exception (`MADE_OUTSIDE`) its own record names (`failures`). A row
   joins either list only with its reason; one that stops reading the loop leaves `READS_THE_LOOP`.
 - Test: `shapes_first_test.py` (`.venv/bin/python -m pytest score/stages/shapes_first`), no spend.

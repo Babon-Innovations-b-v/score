@@ -74,8 +74,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   code builder drew says which plain thing it is (`plain`: plate, pipe, trim, shell, ground, soil, water or sky; the
   ground's and water's groups by their kind) or fails, whatever the builder, a primitive or one that puts a thing
   together (the hangar's ship_hull, passed by default until 2026-10-11); only the shell builders (`SHELL_BUILDERS`)
-  pass without saying, and a new builder is judged until it is put on that list; a kit piece built in code must be
-  a kind the sorter sends to code; a mesh with no material or in the default grey, and a proxy, fail. Never mark a thing with detail plain to pass it: make it.
+  pass without saying, and a new builder is judged until it is put on that list (the sorter rule on kit pieces built
+  in code went with the old kits, 2026-10-21); a mesh with no material or in the default grey, and a proxy, fail. Never mark a thing with detail plain to pass it: make it.
 - `complete.py` is the completion gate: `check <place>` runs the checks and keeps each result beside the stage
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
   every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, picks, boxes,

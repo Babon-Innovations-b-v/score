@@ -322,7 +322,7 @@ def buy(items, choices, spend):
 
 # The Buy screen's layers, each the stage prefixes it gathers, in the order shown; any other stage is "other".
 LAYERS = (("models", ("rough-model", "rough-align", "props-inputs", "closeup", "pixal", "likeness",
-                      "motion-models-boxes", "ship_kit", "earth-kit")),
+                      "motion-models-boxes")),
           ("finishes", ("finish-route-", "surfaces-", "surface-tiles")),
           ("people", ("people-", "concept_people", "cast", "characters-")),
           ("motion", ("settle", "physics-", "motion")), ("crops", ("crops-",)), ("light", ("light",)),

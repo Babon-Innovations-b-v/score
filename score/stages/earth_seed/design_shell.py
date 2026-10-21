@@ -1,50 +1,69 @@
-"""A designed scene's room shell, laid in its base layer from the plan the creator locked (CONTEXT.md "design",
-"plan"; the owner, 2026-10-21: every designed scene's base from its own design, never from a lost seed). It is laid
-for an inside room whose plan's shell is `kit` (its walls and floors are its kit's; `laid_for`) in every designed
-scene, whose base never lays data/kit (earth_seed.kit_is_base: those kits were laid for the old concepts' rooms; a
-scene he added in the app has none). A domed or outdoor shell is the scene record's,
-which the assembly lays (scene_record.writer), and an open place (`inside` false: the street, the square) has no room
-to close, so nothing is laid here for either.
+"""A designed scene's shell, from the plan the creator locked (CONTEXT.md "design", "plan"; the owner, 2026-10-21: every
+scene builds from its design alone, every old kit retired). The room shell's pieces (`pieces`: each level's deck, the
+outline's walls with every opening cut, the roofs) are one answer for both who lay them: the earth seed lays a room
+whose kit holds its walls in its base (`laid_for`), the scene record every other enclosed place's
+(scene_record.writer, `inside`), and the scene record every stair and ramp; the earth seed lays an open place's
+raised levels (the street, the square, the base: a plan that encloses nothing), so nothing is drawn twice.
 
-    deck   each level of the plan (else its outline at the floor) a slab SLAB thick, its top DECK_BELOW under the
-           level, where the scene's floor pieces lie on it, out to the walls (BACKING past the plan's line)
-    walls  round the outline (the plan's `outline`, else its box w x d), each edge a slab of its written wall's
+    room   a plan whose shell is `kit` (its walls are the design's own: the Earth's rooms, the ship's) and that is
+           inside (`inside`; a plan that says neither is a room when it writes walls: a scene added in the app, the
+           docking airlock); an open place (`inside` false) has no room to close
+    deck   (a room) each level of the plan (else its outline at the floor) a slab SLAB thick, its top DECK_BELOW under
+           the level, out to the walls (BACKING past the plan's line)
+    wall   (a room) round the outline (the plan's `outline`, else its box w x d), each edge a slab of its written wall's
            thickness (else THICK) standing BACKING behind the plan's inside line, from the deck's foot to its written
            height (else the height words' ceiling, else STOREY), raised to a roof's eave over it; each opening on it
-           (a written plan's `openings`, else a data plan's `doors`) cut from its sill to its head
-    roof   each written roof over its points out to the walls: a flat one a slab on its eave; one rising (shed,
-           pitched, dome, vault) a gable along its box's longer side, as the blockout draws it
+           (a door, window, gate or opening: a written plan's `openings`, else a data plan's `doors`) cut from its
+           sill to its head
+    roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; one rising
+           (shed, pitched, dome, vault) a closed gable along its box's longer side, as the blockout draws it
            (score/review/blockout.py `pitched`: the structure picture the concept was drawn to); no written roof, a
            flat one on the walls' height
+    level  (an open place: no room, and a plan that encloses nothing, `encloses`) each level standing off the ground by
+           more than LEVEL_OFF: one up to STOREY high stands solid from the ground, as the blockout draws it (a raised
+           deck, a stage); a higher one a slab SLAB thick under its height (a balcony)
 
 Points are plan metres (x east, y south from the plan's north-west corner) stood in the plan's own frame
 (scene_record.plan.frame_of: its `frame` anchor, else the room's middle on its floor), as plan@<place> and the scene
-record stand it. Every face is painted with the scene record's backing surface (SURFACE, a library surface: the shell
-stands behind the scene's own shell pieces, which the prop pipeline makes) and marked score:plain `shell`, so the
-placeholder gate (tools/usd/placeholders.py) reads it as the room's own shell.
+record stand it. Each part the earth seed lays takes its surface from the scene's own surface library
+(surface-library@<scene>, its materials.json: the first variant its `kinds` gives the part's kind, PART_KINDS), laid
+under /<place>/Library and bound; a part whose kinds the library gives no variant, or a scene whose library is not
+made, is named missing on its mesh (score:surface:missing), never painted another way. Every part is a static collider
+(tools/usd/colliders.py) of kind structure, marked score:plain `shell`, so the collision gate holds it and the
+placeholder gate reads it as the scene's own shell.
 
-    entries = design_shell.shell(plan)          # [(name, triangles in plan metres, what it was made from)]
-    design_shell.lay(base_layer, place, plan, scene)   # the shell under /<place>/Shell (scene: tools/usd/scene.py)
+    entries = design_shell.pieces(plan)     # [(name, builders' pieces in plan metres, what it was made from)]
+    entries = design_shell.shell(plan)      # [(name, triangles in plan metres, from)]: what the earth seed lays
+    design_shell.lay(base_layer, place, plan, tools, library)   # under /<place>/Shell (tools: tools/usd's export
+                                                                # module; library: the materials.json or None)
 """
+import json
+import pathlib
 import re
 
 import numpy as np
 
 from score.stages.scene_record import plan as place_plan
+import score.stages.surfaces.palette_library as palette_library  # the module alone in the key, not the surface line
 
-# The scene record's backing shell (scene_record.writer SHELL_SURFACE, BACKING, DECK_BELOW; held equal by the test):
-# the shell stands this far behind the plan's inside line and the deck this far under the floor.
+# The scene record's backing shell (scene_record.writer BACKING, DECK_BELOW; held equal by the test): the shell stands
+# this far behind the plan's inside line and the deck this far under the floor. The scene record's shell entries name
+# SURFACE (scene_record.writer SHELL_SURFACE); the parts laid here take the scene library's (PART_KINDS).
 SURFACE = "roof_steel_paint"
 BACKING = 0.15
 DECK_BELOW = 0.042
-SLAB = 0.2  # metres of a deck or roof slab
+SLAB = 0.2  # metres of a deck, level or roof slab
 THICK = 0.3  # metres of a wall the plan gives no thickness (the blockout's)
 STOREY = 3.0  # metres of a wall neither the plan nor its words give a height (the blockout's)
 DOOR_HEAD = 2.1  # metres of a door's head the plan gives none (the blockout's)
 ON_WALL = 0.3  # metres an opening may stand off its wall's line past the wall's thickness and still be cut in it
+LEVEL_OFF = 0.05  # metres a level stands off the ground before it is drawn as a level of its own (the blockout's)
 CEILING = re.compile(r"\bceiling[^0-9;,]*?(\d+(?:\.\d+)?) ?m\b")
 DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a data door's words "(0.9 x 2.0 m)": its height
 ROOT = "Shell"
+# The scene library's kinds each part takes its surface from, the first it names a variant for: one answer with the
+# paint's (palette_library.SHELL_KINDS), so a prop's finish can take the shell's own surface.
+PART_KINDS = palette_library.SHELL_KINDS
 
 
 # --- outlines ----------------------------------------------------------------------------------------------------
@@ -123,21 +142,25 @@ def prism(points, low, high):
 
 
 def gable(points, eave, top):
-    """A gable roof over an outline's box, its ridge along the longer side (the blockout's `pitched`)."""
+    """A gable roof over an outline's box, its ridge along the longer side (the blockout's `pitched`): a closed solid,
+    its slopes, its gable ends and its underside on the eave, every face turned outward."""
     xs, ys = [point[0] for point in points], [point[1] for point in points]
     west, east, north, south = min(xs), max(xs), min(ys), max(ys)
     corners = [[west, eave, north], [east, eave, north], [east, eave, south], [west, eave, south]]
     if east - west >= south - north:
         middle = (north + south) / 2
         ridge = [[west, top, middle], [east, top, middle]]
-        slopes = [[corners[0], corners[1], ridge[1]], [corners[0], ridge[1], ridge[0]],
-                  [corners[2], corners[3], ridge[0]], [corners[2], ridge[0], ridge[1]]]
-        return slopes + [[corners[3], corners[0], ridge[0]], [corners[1], corners[2], ridge[1]]]
-    middle = (west + east) / 2
-    ridge = [[middle, top, north], [middle, top, south]]
-    slopes = [[corners[1], corners[2], ridge[1]], [corners[1], ridge[1], ridge[0]],
-              [corners[3], corners[0], ridge[0]], [corners[3], ridge[0], ridge[1]]]
-    return slopes + [[corners[0], corners[1], ridge[0]], [corners[2], corners[3], ridge[1]]]
+        inward = [[corners[0], corners[1], ridge[1]], [corners[0], ridge[1], ridge[0]],
+                  [corners[2], corners[3], ridge[0]], [corners[2], ridge[0], ridge[1]],
+                  [corners[3], corners[0], ridge[0]], [corners[1], corners[2], ridge[1]]]
+    else:
+        middle = (west + east) / 2
+        ridge = [[middle, top, north], [middle, top, south]]
+        inward = [[corners[1], corners[2], ridge[1]], [corners[1], ridge[1], ridge[0]],
+                  [corners[3], corners[0], ridge[0]], [corners[3], ridge[0], ridge[1]],
+                  [corners[0], corners[1], ridge[0]], [corners[2], corners[3], ridge[1]]]
+    box = [[west, north], [east, north], [east, south], [west, south]]
+    return [[one, three, two] for one, two, three in inward + cap(box, eave, True)]
 
 
 # --- walls -------------------------------------------------------------------------------------------------------
@@ -327,9 +350,16 @@ def lowest_eave(plan):
 
 
 def laid_for(plan):
-    """Whether the plan's room shell is laid here: an inside room (`inside`, read as plan@<place> reads a kit shell's)
-    whose kit holds its walls (shell `kit`)."""
-    return plan.get("shell") == "kit" and bool(plan.get("inside"))
+    """Whether the earth seed lays the plan's room shell (module docstring, `room`): a `kit` shell inside, or, its
+    inside not said, one that writes walls. The scene record lays every other enclosed place's (scene_record.writer)."""
+    inside = plan.get("inside")
+    return plan.get("shell") == "kit" and (bool(inside) if inside is not None else bool(plan.get("walls")))
+
+
+def encloses(plan):
+    """Whether the plan encloses its place: walls or roofs drawn, and no ground of its own (terrain spots), as the scene
+    record reads it (scene_record.writer `inside`, held equal by the test), which then lays its shell."""
+    return bool(plan.get("walls") or plan.get("roofs")) and not (plan.get("terrain") or {}).get("spots")
 
 
 def pieces(plan):
@@ -350,11 +380,64 @@ def solid(piece):
     return prism(piece["points"], piece["low"], piece["high"])
 
 
-def shell(plan):
-    """[(name, triangles [[[x, up, y] x 3]] in plan metres, what it was made from)] of the plan's room shell."""
+def room(plan):
+    """[(name, triangles, from)] of a room's deck, walls and roof, each its pieces' solids."""
     return [(name, [triangle for piece in parts for triangle in solid(piece)], said)
             for name, parts, said in pieces(plan)]
 
+
+def levels(plan):
+    """[(name, triangles, from)] of an open place's raised levels (module docstring, `level`)."""
+    found = []
+    for number, level in enumerate(plan.get("levels") or [], 1):
+        height = float(level.get("height") or 0.0)
+        if len(level.get("points") or []) < 3 or abs(height) <= LEVEL_OFF:
+            continue
+        points = outline_of({"outline": level["points"]})
+        standing = 0.0 < height <= STOREY
+        found.append((f"level_{number}", prism(points, 0.0 if standing else height - SLAB, height),
+                      f"the plan's level {level.get('name', number)!r} at {height:g} m: " +
+                      ("solid from the ground (a raised deck, the blockout's)" if standing else
+                       f"a slab {SLAB:g} m thick under it")))
+    return found
+
+
+def shell(plan):
+    """[(name, triangles [[[x, up, y] x 3]] in plan metres, what it was made from)] of what the earth seed lays (module
+    docstring): a room's deck, walls and roof, else an open place's raised levels; nothing for a place the scene
+    record encloses."""
+    if laid_for(plan):
+        return room(plan)
+    return [] if encloses(plan) else levels(plan)
+
+
+def part_kind(name):
+    """A part's kind from its name (`wall_3`: wall)."""
+    return name.rsplit("_", 1)[0]
+
+
+# --- the scene's surfaces -----------------------------------------------------------------------------------------
+
+def library_of(path):
+    """The scene's surface library (its materials.json at `path`), else None: not made yet."""
+    return json.loads(pathlib.Path(path).read_text()) if path is not None and pathlib.Path(path).is_file() else None
+
+
+def surface_for(kind, library):
+    """The variant the scene library gives a part of `kind` (the first of its PART_KINDS it names one for), else
+    None."""
+    return palette_library.shell_surface(kind, library)
+
+
+def missing_why(place, kind, library):
+    """Why a part of `kind` has no surface: the scene's library is not made, or names none of its kinds."""
+    if library is None:
+        return f"{place}: the scene's surface library is not made (run surface-library first): its {kind} has none"
+    return (f"{place}: the scene's surface library names no surface for the kinds a {kind} takes "
+            f"({', '.join(PART_KINDS[kind])})")
+
+
+# --- laying ---------------------------------------------------------------------------------------------------------
 
 def placed(triangles, plan):
     """Plan-metre triangles ([x, up, y]) as points in the place's frame (scene_record.plan.frame_of)."""
@@ -372,22 +455,45 @@ def built(triangles, plan):
     normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
     dropped = np.abs(normals).argmax(axis=1)
     uvs = np.array([np.delete(corner, axis) for face, axis in zip(corners, dropped) for corner in face])
-    return {"points": points, "triangles": np.arange(len(points)).reshape(-1, 3), "uvs": uvs, "surface": SURFACE}
+    return {"points": points, "triangles": np.arange(len(points)).reshape(-1, 3), "uvs": uvs}
 
 
-def lay(layer_path, place, plan, scene):
-    """The plan's room shell under /<place>/Shell in the base layer at `layer_path`, each part a mesh painted with
-    SURFACE from the place's library (scene: tools/usd/scene.py, its mesh_prim and bind_surface); the parts' names."""
+def footprint(plan):
+    """The plan's box in the place's frame: [[least x, least z], [most x, most z]] of its outline stood there."""
+    points = placed([up(outline_of(plan), 0.0)], plan)[:, [0, 2]]
+    return [np.round(points.min(axis=0), 4).tolist(), np.round(points.max(axis=0), 4).tolist()]
+
+
+def paint(stage, prim, place, kind, library, scene):
+    """A part bound to its scene library surface (laid under /<place>/Library), else named missing on it."""
+    from pxr import Sdf
+    surface = surface_for(kind, library)
+    if surface is None:
+        prim.GetPrim().CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
+            missing_why(place, kind, library))
+        return
+    scene.bind_surface(stage, prim, place, surface)
+
+
+def lay(layer_path, place, plan, tools, library_path=None):
+    """The plan's shell under /<place>/Shell in the base layer at `layer_path`, each part a static collider painted
+    with its scene library surface (tools: tools/usd/export.py's module, for its scene writer, library materials and
+    colliders; library_path: the scene's materials.json, else None); the parts' names."""
     from pxr import Sdf, Usd, UsdGeom
     stage = Usd.Stage.Open(Sdf.Layer.FindOrOpen(str(layer_path)))
-    UsdGeom.Scope.Define(stage, f"/{place}/{ROOT}")
-    names = []
+    library = library_of(library_path)
+    if library is not None:
+        tools.library_materials(stage, place, f"/{place}", specs=tools.library.library_specs(library_path))
+    scene, names = tools.scene_record, []
     for name, triangles, said in shell(plan):
         if not triangles:
             continue
-        prim = scene.mesh_prim(stage, f"/{place}/{ROOT}/{name}", built(triangles, plan))
-        scene.bind_surface(stage, prim, place, SURFACE)
-        for key, value in (("score:kind", "shell"), ("score:plain", "shell"), ("score:from", said)):
+        UsdGeom.Scope.Define(stage, f"/{place}/{ROOT}")
+        mesh = built(triangles, plan)
+        prim = scene.mesh_prim(stage, f"/{place}/{ROOT}/{name}", mesh)
+        paint(stage, prim, place, part_kind(name), library, scene)
+        tools.colliders.solid(prim.GetPrim(), mesh["points"], mesh["triangles"])
+        for key, value in (("score:kind", "structure"), ("score:plain", "shell"), ("score:from", said)):
             prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
         names.append(name)
     stage.GetRootLayer().Save()

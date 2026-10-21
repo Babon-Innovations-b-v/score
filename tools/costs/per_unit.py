@@ -74,8 +74,6 @@ FORECASTS = {
     "light_jobs": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record: its accepted "
                   "scene-record output's views, else those the scene-record row writes from its filed plan "
                   "(price.planned_views: a standing spot one, a door one but outdoors), VIEWS_A_JOB a job",
-    "kit_jobs": "score/stages/earth_seed kit_jobs: route.py late-plan's picture sets of the place's code-built kit "
-                "pieces (data/kit/<place>.json), one make_kit job a set",
     "one": "one a place (one for an environment node)",
     "sound_takes": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief "
                    "and seed, each counted once at the first scene with a sound row (needs.sounded) that plays it",
@@ -103,9 +101,6 @@ SPECS = {
     "surfaces-bake": {"unit": "bake job (library_bake.py, one a model)", "cloud": {"kind": "library"},
                       "per_line": "jobs", "count": {"files": "made/*.gltf"}, "also": ["crops-surfaces-bake"],
                       "forecast": "models"},
-    "earth-kit": {"unit": "make_kit job of an earth place's code-built kit (library_bake.py, one picture set)",
-                  "cloud": {"kind": "library", "who": "score earth_kit stage"}, "per_line": "jobs",
-                  "count": {"files": "job-*.json"}, "forecast": "kit_jobs"},
     # A sound line names its takes (score/stages/sound/takes.py plan_for); the lines written before it, SOUND_TAKES.
     "sound": {"unit": "MOSS take (one brief and seed, its card rented for it)",
               "cloud": {"kind": "prove", "who": "score runner, sound stage"}, "per_line": "takes",
@@ -122,11 +117,6 @@ RECORDED = {
                        "runs": [{"euros": 5.83, "units": 12, "source": "commit b11c282f (2026-10-12): the campgrounds' "
                                                                        "cloud paint, twelve takes, EUR 5.83"},
                                 {"euros": 0.6, "units": 12, "source": f"{SHIP_ROOMS}, paint EUR 0.6"}]},
-    "ship_kit": {"unit": "ship kit of a place baked", "forecast": "one",
-                 "runs": [{"euros": 0.60, "units": 8, "source": "commit 1198efc8 (2026-10-15): the ship's eight shell "
-                                                                "kits baked by ship_kit@<place>, EUR 0.60"},
-                          {"euros": 0.13, "units": 1, "source": "commit dc6851c4 (2026-10-15): ship_kit@engineroom, "
-                                                                "EUR 0.13"}]},
     # A clip line names one Blender job of many items, not its clips: the clips come from the node's clips.json.
     "library-clips": {"unit": "preview clip of a new item", "forecast": "models",
                       "runs": [{"euros": 0.958125, "units": 6,
@@ -203,10 +193,6 @@ OVERHEAD = 0.10  # the owner's target share (2026-10-20): replace it with the me
 WARM = {
     "pixal": {"kind": "pixal", "type": "L4-1-24G", "class": "gpu-24gb"},
     "surfaces-bake": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
-    # An earth-kit job is one make_kit picture set on the bake's card; priced at every timed library job on L4 (make_kit
-    # sets and one-model bakes alike: the ledger copy names no job's script), until a ledger read holds its own timed
-    # jobs (own_rows: earth-kit@airlock's 15, 2026-10-20).
-    "earth-kit": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
     # A light-passes (and light-haze) job is one Blender render job of up to VIEWS_A_JOB views on one L4
     # (passes.CARDS); priced at every timed Blender job on L4 (116 s median in the capacity report), not at light
     # jobs' own seconds: the ledger copy names no job's stage. Its own runs' timings replace it once recorded.

@@ -29,7 +29,6 @@ import score.stages.people.loop as people_loop
 import score.stages.props.closeup_row as closeup_row
 import score.stages.props.prop_data as prop_data
 import score.stages.earth_seed as earth_seed
-import score.stages.earth_seed.kit_sections as kit_sections
 import score.stages.shapes_first.align as align
 import score.stages.shapes_first.made as made
 from score.stages.surfaces.surface_gates import guarded
@@ -50,14 +49,10 @@ OBJECTS = Adapter("objects")
 # collision and library finishes after the model (terrain/join.py, #27); the design's code ground is the named fallback.
 TERRAIN = Adapter(ground_join.LAYER, after=(graph.Stage("ground-join", "place", ground_join.make, ground_join.CONTRACT,
                                                 ground_join.CHECKS, files=ground_join.files, after=ground_join.AFTER),))
-# The Earth kit's layer: its pieces, shell and fittings, as inventory rows; after the model, the shell laid by the
-# plan's sections, one style and one finish a section, its wear across the seams (earth_seed/kit_sections.py), a layer
-# the assembly takes. The kit's code builds are earth-kit's named fallbacks only, the rows not handed
-# (earth_seed.fallbacks).
-KIT = Adapter(earth_seed.KIT_LAYER,
-              after=(graph.Stage("kit-sections", "place", kit_sections.make, kit_sections.CONTRACT, kit_sections.CHECKS,
-                                 files=kit_sections.files, after=kit_sections.AFTER,
-                                 applies=kit_sections.applies),))
+# The kit's layer: a scene's shell pieces and fittings, as inventory rows; nothing after the model (the old kits'
+# sections, kit-sections, and code fallbacks, earth-kit, went with the old kits on 2026-10-21; a scene's own shell is
+# its earth seed's, laid from its locked plan, earth_seed/design_shell.py).
+KIT = Adapter(earth_seed.KIT_LAYER)
 # The people layer: every look a row, on the line `people`, which no place owns (align.NO_PLACE); after the model, the
 # looks handed on (score/stages/people/loop.py; each look's parts row, before its rig, and its dress row read it).
 PEOPLE = Adapter("people", after=(graph.Stage(people_loop.ROW, "place", people_loop.make, people_loop.CONTRACT,

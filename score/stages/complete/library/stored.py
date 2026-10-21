@@ -12,10 +12,9 @@ import pathlib
 from score.store import PROPS_HOME, Store, runtime_store
 
 ASSEMBLY = "assembly@{place}"
-# The bakes that paint every part of a model from the library surfaces: the surface stage's, the crops' and the ship
-# kits' (score/stages/ship_kits: every slot a library surface) and the late bake's; each lists its models as
-# made/<name>.gltf.
-BAKES = ("surfaces-bake", "ship_kit", "late_bake")
+# The bakes that paint every part of a model from the library surfaces: the surface stage's (the crops' too); each
+# lists its models as made/<name>.gltf. The old kits' bakes (ship_kit, late_bake) went with them, 2026-10-21.
+BAKES = ("surfaces-bake",)
 
 
 class NodeFolders(runtime_store.FolderStore):

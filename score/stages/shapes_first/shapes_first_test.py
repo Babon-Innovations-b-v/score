@@ -186,7 +186,7 @@ READS_THE_LOOP = {
     "complete": "the completion gate: judges likeness and surfaces-check, lays no model",
     "library": "the hand-over: every accepted output of the line to the creator's library, lays no model",
     "assembly": "the object layer laid (OBJECTS: nothing after the model), its baked models and their paint",
-    "earth-seed": "the Earth kit's base: earth-kit's named code fallbacks baked (earth_seed.fallbacks)",
+    "earth-seed": "the scene's base: its shell from its locked plan painted from its surface library, lays no model",
     "settle": "the motion layer's physics: not on an adapter yet (#41's motion track)",
     "crops-layer": "the motion layer's growth: not on an adapter yet (#41's motion track)",
 }
@@ -202,7 +202,6 @@ MAKES_NO_MODEL = {
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
 MADE_OUTSIDE = {
-    "earth-kit": "earth_seed.fallbacks: the Earth kit's code bodies the loop was not handed",
     "people-look-parts-*": "data/props/people.json `failures`: the garments' second split",
     "people-body-*": "data/props/people.json `failures`: the body built from the raw take",
 }
