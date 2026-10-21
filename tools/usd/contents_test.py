@@ -49,7 +49,6 @@ def world_data(folder, place=PLACE, people=NOBODY, design=(), scene=None):
     (folder / "design" / f"{place}.json").write_text(json.dumps({"place": place, "rows": list(design)}))
     contents.DESIGN = folder / "design"
     (data / "scene" / f"{place}.json").write_text(json.dumps(scene or {"place": place, "lights": [], "places": []}))
-    (data / "sound/places.json").write_text(json.dumps({"places": {}}))
     (folder / "bodies").mkdir(exist_ok=True)
     contents.DATA, contents.BODIES = data, folder / "bodies"
     return data

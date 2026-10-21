@@ -1,5 +1,5 @@
 {
-	"is": "nothing a scene plays is listed here any more: its bed is worked out from its design (score/stages/sound/beds.py), its objects' sounds from its scene inventory rows' kinds (data/checks/row-kinds.json `sound`) and its people's voice from data/sound/voices.json. Its place keys stay, empty, only while tools/usd/contents.py's sound check still reads them (no entry: unknown).",
+	"is": "nothing a scene plays is listed here any more: its bed is worked out from its design (score/stages/sound/beds.py), its objects' sounds from its scene inventory rows' kinds (data/checks/row-kinds.json `sound`) and its people's voice from data/sound/voices.json. The completion gate's sound check reads the bed from the design too (tools/usd/contents.py). The file stays, empty, only while tools/usd/sound.py's old command-line layer writer still opens it; it goes with that writer.",
 	"places": {
 		"habitat": {},
 		"greenhouse": {},
