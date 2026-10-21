@@ -71,11 +71,44 @@ def test_a_tile_with_no_masks_fails_by_name():
         shutil.rmtree(root)
 
 
+def designed_as(places):
+    """prop_data.designed answering for `places` alone (the machine's own designs left out); the one it replaced."""
+    import score.stages.props.prop_data as prop_data
+    kept = prop_data.designed
+    prop_data.designed = lambda place: place in places
+    return kept
+
+
 def test_the_row_declares_its_record_and_every_view():
-    found = proposals.files()
-    assert found["partitions"] == "{data}/definitions/partitions.json"
-    assert all(f"view {scene['scene']} {view['id']}" in found
-               for scene in proposals.record()["scenes"] for view in scene["views"])
+    import score.stages.props.prop_data as prop_data
+    kept = designed_as(set())
+    try:
+        found = proposals.files()
+        assert found["partitions"] == "{data}/definitions/partitions.json"
+        assert all(f"view {scene['scene']} {view['id']}" in found
+                   for scene in proposals.record()["scenes"] for view in scene["views"])
+    finally:
+        prop_data.designed = kept
+
+
+def test_a_designed_scene_is_asked_no_more_and_its_lost_views_are_read_by_nothing():
+    """Both ways: with the cockpit designed (its locked concept read into its hand-in) its six old views are no input
+    and the make leaves it out; the scenes not designed stay asked, priced a scene each."""
+    import score.stages.props.prop_data as prop_data
+    scenes = proposals.record()["scenes"]
+    kept = designed_as({"cockpit"})
+    try:
+        found = proposals.files()
+        assert not [name for name in found if name.startswith("view cockpit ")], found
+        assert [scene["scene"] for scene in proposals.asked()] == [scene["scene"] for scene in scenes
+                                                                   if scene["scene"] != "cockpit"]
+        assert proposals.euros() == round(proposals.EUROS_A_SCENE * (len(scenes) - 1), 2)
+        assert [scene["scene"] for scene in proposals.declared(scenes, found)] == [
+            scene["scene"] for scene in proposals.asked()]
+        prop_data.designed = lambda place: True
+        assert proposals.asked() == [] and proposals.euros() == 0 and set(proposals.files()) == {"partitions"}
+    finally:
+        prop_data.designed = kept
 
 
 if __name__ == "__main__":

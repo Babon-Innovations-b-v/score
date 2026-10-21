@@ -7,7 +7,8 @@ concept shows the row's thing, drawn round the partition's proposals, whether co
 Its verdicts live in WORK/partition/<scene>/boxes.json, and only three things write them: box_check.py --masks by
 hand (the old places' whole partitions), crops-boxes (crop rows) and motion-models-boxes (rows flagged
 `ground_box`, which the prop route draws). A ship place's code rows and the rows it takes from another place's take
-were never boxed by any of them, so complete could not tell.
+were never boxed by any of them, so complete could not tell. A designed place has none: its reading boxed every row on
+its locked concept.
 
     make   motion-models-boxes' own make (SAM 3 on one rented card, the judge where SAM 3 does not ground) on every other
            boxed row, recorded where the box gate reads it
@@ -35,14 +36,17 @@ def inventory_of(place):
 
 
 def has_rows(place):
-    """True for a place whose inventory has boxed rows no other box row measures."""
+    """True for a place whose old inventory has boxed rows no other box row measures; never a designed place, whose
+    every box is its reading's of its locked concept (SAM 3's, else Gemini's region, in its hand-in:
+    complete/prepare/handin.py), so its old inventory's views (lost pictures of an older concept) are read by nothing."""
+    import score.stages.props.prop_data as prop_data
     inventory = inventory_of(place)
-    return inventory is not None and bool(other_rows(inventory))
+    return not prop_data.designed(place) and inventory is not None and bool(other_rows(inventory))
 
 
 def files(place):
-    """The place's inventory, its views' pictures and the box tools."""
-    inventory = inventory_of(place) or {"plan": {"views": []}}
+    """The place's inventory, its views' pictures and the box tools (no views for a place it has no rows for)."""
+    inventory = (inventory_of(place) if has_rows(place) else None) or {"plan": {"views": []}}
     views = {f"view {view['id']}": view["picture"].replace("WORK/", "{seeds}/") for view in inventory["plan"]["views"]}
     return {"inventory": "{data}/inventory/" + f"{place}.json", **views, **model_boxes.BOX_TOOLS}
 
