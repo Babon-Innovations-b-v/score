@@ -1,0 +1,104 @@
+Environment 1's design records in the framework's store (world1), read 2026-10-21 about 11:30 UTC, after commit b205e997.
+Read only; nothing made. Areas: concepts/<place>/draws and picks, inventory-readings/<place>, plan-writings/<place>,
+environment-plans/world1, records/<node> (finish records since the old disk was lost on 2026-10-19).
+
+CONCEPT DRAWS: 95 draws at 28 places, EUR 14.28 together (Nano Banana Pro, one call a draw, each the owner's click)
+  first 2026-10-20T19:18:42.680941+00:00, last 2026-10-21T11:22:39.446673+00:00; by: {'joey': 95}
+  draws carrying a blockout (field 'blockout'): 8, one at each ship room (cockpit, engineroom, galley, navigation, quarters,
+  shiplock, storage, walkway), all on 2026-10-21; none of them picked
+  airlock: 8 draws, EUR 1.23
+  base: 2 draws, EUR 0.30
+  camp: 2 draws, EUR 0.30
+  campgrounds: 1 draws, EUR 0.15
+  cockpit: 5 draws, EUR 0.75
+  engineroom: 5 draws, EUR 0.75
+  flat: 3 draws, EUR 0.45
+  galley: 5 draws, EUR 0.75
+  garage: 2 draws, EUR 0.30
+  greenhouse: 3 draws, EUR 0.45
+  habitat: 4 draws, EUR 0.60
+  hangar: 4 draws, EUR 0.60
+  hub: 4 draws, EUR 0.60
+  lab: 2 draws, EUR 0.30
+  launch: 4 draws, EUR 0.60
+  navigation: 5 draws, EUR 0.75
+  old_station: 1 draws, EUR 0.15
+  quarters: 5 draws, EUR 0.75
+  ship: 1 draws, EUR 0.15
+  shiplock: 5 draws, EUR 0.75
+  square: 2 draws, EUR 0.30
+  stairwell: 3 draws, EUR 0.45
+  storage: 5 draws, EUR 0.75
+  street: 4 draws, EUR 0.60
+  tube: 2 draws, EUR 0.30
+  walkway: 5 draws, EUR 0.75
+  workshop: 2 draws, EUR 0.30
+  wreck: 1 draws, EUR 0.15
+PICKS standing: 18: airlock, base, camp, campgrounds, flat, garage, greenhouse, habitat, hangar, hub, lab, old_station, square, stairwell, street, tube, workshop, wreck; by: {'joey': 18}
+  places with draws and no pick: cockpit, engineroom, galley, launch, navigation, quarters, ship, shiplock, storage, walkway
+
+INVENTORY READINGS (Gemini 3.1 Pro rows with metres, SAM 3 boxes): 41 readings, 1 refused, EUR 2.56 together
+  airlock: 34 rows, 34 with metres, 56 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:18.368302+00:00
+  base: 23 rows, 19 with metres, 28 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:33:31.108516+00:00
+  camp: 78 rows, 77 with metres, 92 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:18.487970+00:00
+  campgrounds: 24 rows, 23 with metres, 30 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:33:31.292549+00:00
+  flat: 34 rows, 34 with metres, 53 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:18.606485+00:00
+  garage: 32 rows, 32 with metres, 57 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:18.724221+00:00
+  greenhouse: 33 rows, 33 with metres, 65 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:18.842469+00:00
+  habitat: 32 rows, 32 with metres, 67 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:18.959649+00:00
+  hangar: 35 rows, 32 with metres, 58 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:19.078049+00:00
+  hub: 16 rows, 15 with metres, 20 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:19.196259+00:00
+  lab: 19 rows, 19 with metres, 48 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:19.317602+00:00
+  old_station: 25 rows, 23 with metres, 22 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:33:31.382823+00:00
+  square: 24 rows, 22 with metres, 25 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:33:31.200184+00:00
+  stairwell: 37 rows, 36 with metres, 61 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:19.435505+00:00
+  street: 30 rows, 30 with metres, 86 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:19.553812+00:00
+  tube: 25 rows, 25 with metres, 32 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:19.670786+00:00
+  workshop: 32 rows, 30 with metres, 52 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:45:19.789198+00:00
+  wreck: 27 rows, 25 with metres, 41 gaps (reading against SAM 3 or no metres), at 2026-10-21T03:33:31.473100+00:00
+  latest reading per place: 18 places, 560 rows, 541 with metres on three sides, 893 gaps
+
+PLAN WRITINGS (one Gemini 3.1 Pro call a place): 18 at 18 places, 0 refused, EUR 5.09 together; by: {"the owner's standing allowance": 18}
+  airlock: EUR 0.298, 142.8 s
+  base: EUR 0.301, 146.6 s
+  camp: EUR 0.288, 129.0 s
+  campgrounds: EUR 0.217, 97.8 s
+  flat: EUR 0.226, 105.6 s
+  garage: EUR 0.203, 100.2 s
+  greenhouse: EUR 0.332, 161.6 s
+  habitat: EUR 0.373, 202.8 s
+  hangar: EUR 0.187, 88.3 s
+  hub: EUR 0.238, 113.7 s
+  lab: EUR 0.328, 174.2 s
+  old_station: EUR 0.160, 78.3 s
+  square: EUR 0.743, 325.2 s
+  stairwell: EUR 0.363, 200.8 s
+  street: EUR 0.304, 148.0 s
+  tube: EUR 0.134, 61.6 s
+  workshop: EUR 0.197, 90.7 s
+  wreck: EUR 0.200, 93.7 s
+
+ENVIRONMENT PLANS written: 2 (environment-plans/world1/writings, 07:02 and 11:01 UTC, EUR 0.199 and 0.194, by the owner's standing allowance)
+
+FINISH RECORDS since the loss: 23 nodes: finish-route-views@airlock, finish-route-views@garage, library-clips-sample, plan@airlock, plan@camp, plan@campgrounds, plan@flat, plan@garage, plan@greenhouse, plan@habitat, plan@hangar, plan@hub, plan@lab, plan@old_station, plan@square, plan@stairwell, plan@street, plan@tube, plan@workshop, plan@wreck, sound@airlock, sound@square, terrain
+  rough-model records: 0; shell-split records: 0; closeup or pixal records: 0
+
+PLAN ROW ACCEPTS (accepts/plan@<place>, the latest accept's time; each after its place's plan writing above):
+  plan@airlock: 3 accepts, latest 2026-10-21T07:14:04.443211+00:00
+  plan@camp: 4 accepts, latest 2026-10-21T07:08:21.325269+00:00
+  plan@campgrounds: 4 accepts, latest 2026-10-21T07:01:41.625250+00:00
+  plan@flat: 4 accepts, latest 2026-10-21T07:08:21.316637+00:00
+  plan@garage: 4 accepts, latest 2026-10-21T07:08:21.333873+00:00
+  plan@greenhouse: 4 accepts, latest 2026-10-21T07:14:04.449752+00:00
+  plan@habitat: 4 accepts, latest 2026-10-21T07:14:04.501370+00:00
+  plan@hangar: 4 accepts, latest 2026-10-21T07:08:21.295799+00:00
+  plan@hub: 4 accepts, latest 2026-10-21T07:14:04.483817+00:00
+  plan@lab: 4 accepts, latest 2026-10-21T07:14:04.466961+00:00
+  plan@old_station: 4 accepts, latest 2026-10-21T07:01:41.634194+00:00
+  plan@square: 4 accepts, latest 2026-10-21T07:08:21.362110+00:00
+  plan@stairwell: 4 accepts, latest 2026-10-21T07:14:04.475244+00:00
+  plan@street: 4 accepts, latest 2026-10-21T07:08:21.292710+00:00
+  plan@tube: 4 accepts, latest 2026-10-21T07:14:04.409179+00:00
+  plan@workshop: 5 accepts, latest 2026-10-21T07:08:21.374529+00:00
+  plan@wreck: 4 accepts, latest 2026-10-21T07:01:41.595985+00:00
+  no plan@base: the base has no data/plans record (issue #10 comment 2026-10-21T05:09:57Z)
