@@ -5,7 +5,9 @@ Reads the Claude Code PreToolUse payload on stdin and blocks creating a ``.md`` 
 the repo, by ``Write`` or by a Bash redirect, ``tee``, ``touch`` or ``cp``. Allowed: editing an existing ``.md``,
 anything outside the repo (``/tmp``, a job scratch dir: where generated pages belong), ``mv``/``git mv`` (a rename
 leaves the count unchanged; ``cp`` adds a file), and a per-directory ``CLAUDE.md`` overlay (the standing exception: it
-is the mechanism that loads a directory's rules, so a code directory without one is a gap, not a document).
+is the mechanism that loads a directory's rules, so a code directory without one is a gap, not a document), a file the
+owner said yes to in a session (listed in ``md_allowed.json`` beside this hook with his words and the time), and
+``.claude/memory/`` (git-ignored private notes, never published).
 
 Why: every markdown file here is living, read by someone and kept current. A summary file dropped at a session's end
 has nobody keeping it current and the next session reads it as truth, so each new file is the owner's decision.
@@ -21,6 +23,8 @@ import re
 import sys
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+_ALLOWED = pathlib.Path(__file__).resolve().parent / "md_allowed.json"
+_MEMORY = _REPO_ROOT / ".claude" / "memory"
 
 _SHELL_TARGETS = (
     re.compile(r">>?\s*(?P<path>[^\s|;&<>()]+\.md)\b", re.IGNORECASE),
@@ -40,8 +44,19 @@ _MESSAGE = (
     "comment on the issue it belongs to. ADRs are covered too: offer one in a line and\n"
     "write it after the yes. Generated pages render outside the repo (/tmp or the job\n"
     "scratch dir), which this guard allows.\n"
-    "If the file genuinely has to exist, ask the owner in this session first."
+    "If the file genuinely has to exist, ask the owner in this session; on his yes, add\n"
+    "{{\"path\": \"{path}\", \"words\": \"<his yes, quoted>\", \"at\": \"<UTC time>\"}}\n"
+    "to .claude/hooks/md_allowed.json and write the file."
 )
+
+
+def _approved() -> set[pathlib.Path]:
+    """The repo paths the owner said yes to, from md_allowed.json; none when it is missing or unreadable."""
+    try:
+        entries = json.loads(_ALLOWED.read_text())
+    except (OSError, ValueError):
+        return set()
+    return {(_REPO_ROOT / entry["path"]).resolve() for entry in entries if entry.get("words") and entry.get("path")}
 
 
 def _blocked(raw: str, base: pathlib.Path) -> pathlib.Path | None:
@@ -55,7 +70,9 @@ def _blocked(raw: str, base: pathlib.Path) -> pathlib.Path | None:
         resolved.relative_to(_REPO_ROOT)
     except (ValueError, OSError):
         return None  # outside the repo, or unresolvable: not ours to police
-    if resolved.exists() or resolved.name == "CLAUDE.md":
+    if resolved.exists() or resolved.name == "CLAUDE.md" or resolved.is_relative_to(_MEMORY):
+        return None
+    if resolved in _approved():
         return None
     return resolved
 

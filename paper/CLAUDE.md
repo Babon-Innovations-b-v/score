@@ -10,7 +10,7 @@ python3 build/build.py --check  # exit 1 when a committed output is stale (also 
 
 ## Layout
 
-- `source/`: `score.md` (front matter: title, author, date, abstract), `refs.bib`, `ieee.csl`, `markers.lua` (gap boxes and TODO marks).
+- `source/`: `score.md` (front matter: title, author, date, abstract), `notes.md` (background the paper does not print, the former appendix; the build skips it), `refs.bib`, `ieee.csl`, `markers.lua` (gap boxes and TODO marks).
 - `figures/`: the pictures the draft uses, JPEG, ours and safe to publish.
 - `evidence/`: copies of the run records that numbers are read from (cloud ledger, benchmark sessions, triage and resting summaries, logs), scrubbed of local paths and addresses.
 - `build/`: the build script and the check that the build is current.
