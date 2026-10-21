@@ -1,0 +1,17 @@
+{
+ "name": "old_station_astronaut_1_1",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the old_station concept (1003bf34): its scene inventory's people row astronaut_1 (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "astronaut standing of the old_station concept, near ladder",
+ "references": [],
+ "description": "astronaut standing, an average build, as drawn in the old_station concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the old_station concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the old_station concept",
+ "face": "the face as drawn in the old_station concept"
+}

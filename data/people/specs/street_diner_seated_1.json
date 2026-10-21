@@ -1,0 +1,17 @@
+{
+ "name": "street_diner_seated_1",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the street concept (474a6c69): its scene inventory's people row diner_seated (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "person sitting at a table of the street concept, inside the restaurant",
+ "references": [],
+ "description": "person sitting at a table, an average build, as drawn in the street concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the street concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the street concept",
+ "face": "the face as drawn in the street concept"
+}

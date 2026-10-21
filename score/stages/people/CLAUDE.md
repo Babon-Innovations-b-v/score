@@ -29,8 +29,10 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   pose; its gate is `check.person_faults` (framed, arms clear of the body: Pixal3D fused Nev's), not a box's
   proportions (the rig sizes the body). **The line holds the looks the locked designs map** (`data/people/rows.json`,
   `../people_rows.py`, #26): each look's size and bake entry the metres of the person row that maps it, written by
-  `python -m score.stages.people_rows`; a person no line look fits is a named new look there until it has a spec and
-  a take row. **Each line row is drawn from the person that maps it** (`people_rows.drawn_from`, #26): its view the
+  `python -m score.stages.people_rows`; a row read anew maps looks of its own (`<place>_<row>_<n>-drawn`, a crowd's
+  `<place>_<row>-drawn`), each with its maker spec written from that row (`data/people/specs/`, generated, never
+  edited by hand: who by its words, the build by its metres, face, hair and clothes as drawn in its concept) and its
+  take on the line, so every design's person can be made with no hand-written character file. **Each line row is drawn from the person that maps it** (`people_rows.drawn_from`, #26): its view the
   mapping place's kept concept, its box SAM 3's in that concept's reading (`grounded`), the line's inventory
   approved by those locks (recorded as "the creator's pick", which the Pixal3D batch takes), and no close-up named, so
   `closeup@people` draws it (Pro, `stage.PERSON`) and `pixal@people` makes its take (`<look>-s1`): the whole line,

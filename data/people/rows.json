@@ -1,5 +1,5 @@
 {
- "why": "The people of each place's picked design: every people row of its scene inventory mapped to a look on the shared people line (one look a person, a crowd one far look in palettes of library surfaces), its fields copied from the reading of the concept it names; written by python -m score.stages.people_rows, which keeps a row's looks, crowd and palettes recorded with its why while its concept stands, and reads a crowd's look off its words (#26). New looks are named, not made: each needs a spec and a take row before it joins the people line.",
+ "why": "The people of each place's picked design: every people row of its scene inventory mapped to a look on the shared people line (one look a person, a crowd one far look in palettes of library surfaces), its fields copied from the reading of the concept it names; written by python -m score.stages.people_rows, which keeps a row's looks, crowd and palettes recorded with its why while its concept stands, and reads a crowd's look off its words (#26). A look a row reads anew is drawn from it: its spec and its take on the people line are written from the row (people_rows.designed_specs).",
  "places": {
   "airlock": {
    "concept": "c84a4a2c64886109e207b6b7c93d6a31942e89f0cf8a9d6e4a4d960b3eaf58e0",
@@ -33,7 +33,7 @@
      "where": "sitting on bench",
      "share": 0.2038,
      "looks": [
-      "airlock_astronaut_1-new"
+      "airlock_astronaut_1-drawn"
      ],
      "dress": {
       "words": "seated astronaut",
@@ -83,7 +83,7 @@
      "where": "centre of left dome, walking",
      "share": 0.125,
      "looks": [
-      "camp_astronaut_1_1-new"
+      "camp_astronaut_1_1-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -111,8 +111,8 @@
      "where": "sitting at dining table",
      "share": 0.1348,
      "looks": [
-      "camp_astronaut_2_1-new",
-      "camp_astronaut_2_2-new"
+      "camp_astronaut_2_1-drawn",
+      "camp_astronaut_2_2-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -140,7 +140,7 @@
      "where": "sitting at computer desk",
      "share": 0.0905,
      "looks": [
-      "camp_astronaut_5_1-new"
+      "camp_astronaut_5_1-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -168,8 +168,8 @@
      "where": "right side of right dome, standing",
      "share": 0.11,
      "looks": [
-      "camp_astronaut_6_1-new",
-      "camp_astronaut_6_2-new"
+      "camp_astronaut_6_1-drawn",
+      "camp_astronaut_6_2-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -219,13 +219,13 @@
      "where": "scattered",
      "share": 0.0625,
      "looks": [
-      "campgrounds_astronaut_1-new",
-      "campgrounds_astronaut_2-new",
-      "campgrounds_astronaut_3-new",
-      "campgrounds_astronaut_4-new",
-      "campgrounds_astronaut_5-new",
-      "campgrounds_astronaut_6-new",
-      "campgrounds_astronaut_7-new"
+      "campgrounds_astronaut_1-drawn",
+      "campgrounds_astronaut_2-drawn",
+      "campgrounds_astronaut_3-drawn",
+      "campgrounds_astronaut_4-drawn",
+      "campgrounds_astronaut_5-drawn",
+      "campgrounds_astronaut_6-drawn",
+      "campgrounds_astronaut_7-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -280,11 +280,11 @@
      "where": "around the room",
      "share": 0.1432,
      "looks": [
-      "garage_astronaut_1-new",
-      "garage_astronaut_2-new",
-      "garage_astronaut_3-new",
-      "garage_astronaut_4-new",
-      "garage_astronaut_5-new"
+      "garage_astronaut_1-drawn",
+      "garage_astronaut_2-drawn",
+      "garage_astronaut_3-drawn",
+      "garage_astronaut_4-drawn",
+      "garage_astronaut_5-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -334,11 +334,11 @@
      "where": "scattered around both floors",
      "share": 0.1315,
      "looks": [
-      "greenhouse_astronaut_1-new",
-      "greenhouse_astronaut_2-new",
-      "greenhouse_astronaut_3-new",
-      "greenhouse_astronaut_4-new",
-      "greenhouse_astronaut_5-new"
+      "greenhouse_astronaut_1-drawn",
+      "greenhouse_astronaut_2-drawn",
+      "greenhouse_astronaut_3-drawn",
+      "greenhouse_astronaut_4-drawn",
+      "greenhouse_astronaut_5-drawn"
      ],
      "dress": {
       "words": "astronaut in spacesuit",
@@ -414,14 +414,14 @@
      "where": "scattered around the room",
      "share": 0.0898,
      "looks": [
-      "hangar_worker_blue_1-new",
-      "hangar_worker_blue_2-new",
-      "hangar_worker_blue_3-new",
-      "hangar_worker_blue_4-new",
-      "hangar_worker_blue_5-new",
-      "hangar_worker_blue_6-new",
-      "hangar_worker_blue_7-new",
-      "hangar_worker_blue_8-new"
+      "hangar_worker_blue_1-drawn",
+      "hangar_worker_blue_2-drawn",
+      "hangar_worker_blue_3-drawn",
+      "hangar_worker_blue_4-drawn",
+      "hangar_worker_blue_5-drawn",
+      "hangar_worker_blue_6-drawn",
+      "hangar_worker_blue_7-drawn",
+      "hangar_worker_blue_8-drawn"
      ],
      "dress": {
       "words": "worker in blue jumpsuit",
@@ -505,9 +505,9 @@
      "where": "at desks and bottom right",
      "share": 0.2155,
      "looks": [
-      "lab_person_1-new",
-      "lab_person_2-new",
-      "lab_person_3-new"
+      "lab_person_1-drawn",
+      "lab_person_2-drawn",
+      "lab_person_3-drawn"
      ],
      "dress": {
       "words": "person in spacesuit",
@@ -557,8 +557,8 @@
      "where": "near ladder",
      "share": 0.0859,
      "looks": [
-      "old_station_astronaut_1_1-new",
-      "old_station_astronaut_1_2-new"
+      "old_station_astronaut_1_1-drawn",
+      "old_station_astronaut_1_2-drawn"
      ],
      "dress": {
       "words": "astronaut standing",
@@ -668,13 +668,13 @@
      "where": "walking on both pavements",
      "share": 0.1576,
      "looks": [
-      "street_pedestrian_umbrella_1-new",
-      "street_pedestrian_umbrella_2-new",
-      "street_pedestrian_umbrella_3-new",
-      "street_pedestrian_umbrella_4-new",
-      "street_pedestrian_umbrella_5-new",
-      "street_pedestrian_umbrella_6-new",
-      "street_pedestrian_umbrella_7-new"
+      "street_pedestrian_umbrella_1-drawn",
+      "street_pedestrian_umbrella_2-drawn",
+      "street_pedestrian_umbrella_3-drawn",
+      "street_pedestrian_umbrella_4-drawn",
+      "street_pedestrian_umbrella_5-drawn",
+      "street_pedestrian_umbrella_6-drawn",
+      "street_pedestrian_umbrella_7-drawn"
      ],
      "dress": {
       "words": "person holding an umbrella",
@@ -702,7 +702,7 @@
      "where": "inside the restaurant",
      "share": 0.0345,
      "looks": [
-      "street_diner_seated_1-new"
+      "street_diner_seated_1-drawn"
      ],
      "dress": {
       "words": "person sitting at a table",
@@ -785,8 +785,8 @@
      "where": "left midground, at console",
      "share": 0.1667,
      "looks": [
-      "tube_person_mid_left_1-new",
-      "tube_person_mid_left_2-new"
+      "tube_person_mid_left_1-drawn",
+      "tube_person_mid_left_2-drawn"
      ],
      "dress": {
       "words": "person in uniform",
@@ -865,7 +865,7 @@
      "where": "centre",
      "share": 0.2012,
      "looks": [
-      "workshop_person_centre_1-new"
+      "workshop_person_centre_1-drawn"
      ],
      "dress": {
       "words": "person",
@@ -893,7 +893,7 @@
      "where": "right",
      "share": 0.1699,
      "looks": [
-      "workshop_person_right_1-new"
+      "workshop_person_right_1-drawn"
      ],
      "dress": {
       "words": "person",
@@ -943,7 +943,7 @@
      "where": "standing near centre light",
      "share": 0.0697,
      "looks": [
-      "wreck_astronaut_1_1-new"
+      "wreck_astronaut_1_1-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -971,7 +971,7 @@
      "where": "standing lower right of centre",
      "share": 0.0625,
      "looks": [
-      "wreck_astronaut_2_1-new"
+      "wreck_astronaut_2_1-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -999,7 +999,7 @@
      "where": "standing far left background",
      "share": 0.0521,
      "looks": [
-      "wreck_astronaut_3_1-new"
+      "wreck_astronaut_3_1-drawn"
      ],
      "dress": {
       "words": "astronaut",
@@ -1016,216 +1016,6 @@
      }
     }
    }
-  }
- },
- "new": {
-  "airlock_astronaut_1-new": {
-   "words": "seated astronaut",
-   "from": "airlock/astronaut"
-  },
-  "camp_astronaut_1_1-new": {
-   "words": "astronaut",
-   "from": "camp/astronaut_1"
-  },
-  "camp_astronaut_2_1-new": {
-   "words": "astronaut",
-   "from": "camp/astronaut_2"
-  },
-  "camp_astronaut_2_2-new": {
-   "words": "astronaut",
-   "from": "camp/astronaut_2"
-  },
-  "camp_astronaut_5_1-new": {
-   "words": "astronaut",
-   "from": "camp/astronaut_5"
-  },
-  "camp_astronaut_6_1-new": {
-   "words": "astronaut",
-   "from": "camp/astronaut_6"
-  },
-  "camp_astronaut_6_2-new": {
-   "words": "astronaut",
-   "from": "camp/astronaut_6"
-  },
-  "campgrounds_astronaut_1-new": {
-   "words": "astronaut",
-   "from": "campgrounds/astronaut"
-  },
-  "campgrounds_astronaut_2-new": {
-   "words": "astronaut",
-   "from": "campgrounds/astronaut"
-  },
-  "campgrounds_astronaut_3-new": {
-   "words": "astronaut",
-   "from": "campgrounds/astronaut"
-  },
-  "campgrounds_astronaut_4-new": {
-   "words": "astronaut",
-   "from": "campgrounds/astronaut"
-  },
-  "campgrounds_astronaut_5-new": {
-   "words": "astronaut",
-   "from": "campgrounds/astronaut"
-  },
-  "campgrounds_astronaut_6-new": {
-   "words": "astronaut",
-   "from": "campgrounds/astronaut"
-  },
-  "campgrounds_astronaut_7-new": {
-   "words": "astronaut",
-   "from": "campgrounds/astronaut"
-  },
-  "garage_astronaut_1-new": {
-   "words": "astronaut",
-   "from": "garage/astronaut"
-  },
-  "garage_astronaut_2-new": {
-   "words": "astronaut",
-   "from": "garage/astronaut"
-  },
-  "garage_astronaut_3-new": {
-   "words": "astronaut",
-   "from": "garage/astronaut"
-  },
-  "garage_astronaut_4-new": {
-   "words": "astronaut",
-   "from": "garage/astronaut"
-  },
-  "garage_astronaut_5-new": {
-   "words": "astronaut",
-   "from": "garage/astronaut"
-  },
-  "greenhouse_astronaut_1-new": {
-   "words": "astronaut in spacesuit",
-   "from": "greenhouse/astronaut"
-  },
-  "greenhouse_astronaut_2-new": {
-   "words": "astronaut in spacesuit",
-   "from": "greenhouse/astronaut"
-  },
-  "greenhouse_astronaut_3-new": {
-   "words": "astronaut in spacesuit",
-   "from": "greenhouse/astronaut"
-  },
-  "greenhouse_astronaut_4-new": {
-   "words": "astronaut in spacesuit",
-   "from": "greenhouse/astronaut"
-  },
-  "greenhouse_astronaut_5-new": {
-   "words": "astronaut in spacesuit",
-   "from": "greenhouse/astronaut"
-  },
-  "hangar_worker_blue_1-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "hangar_worker_blue_2-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "hangar_worker_blue_3-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "hangar_worker_blue_4-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "hangar_worker_blue_5-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "hangar_worker_blue_6-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "hangar_worker_blue_7-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "hangar_worker_blue_8-new": {
-   "words": "worker in blue jumpsuit",
-   "from": "hangar/worker_blue"
-  },
-  "lab_person_1-new": {
-   "words": "person in spacesuit",
-   "from": "lab/person"
-  },
-  "lab_person_2-new": {
-   "words": "person in spacesuit",
-   "from": "lab/person"
-  },
-  "lab_person_3-new": {
-   "words": "person in spacesuit",
-   "from": "lab/person"
-  },
-  "old_station_astronaut_1_1-new": {
-   "words": "astronaut standing",
-   "from": "old_station/astronaut_1"
-  },
-  "old_station_astronaut_1_2-new": {
-   "words": "astronaut standing",
-   "from": "old_station/astronaut_1"
-  },
-  "street_diner_seated_1-new": {
-   "words": "person sitting at a table",
-   "from": "street/diner_seated"
-  },
-  "street_pedestrian_umbrella_1-new": {
-   "words": "person holding an umbrella",
-   "from": "street/pedestrian_umbrella"
-  },
-  "street_pedestrian_umbrella_2-new": {
-   "words": "person holding an umbrella",
-   "from": "street/pedestrian_umbrella"
-  },
-  "street_pedestrian_umbrella_3-new": {
-   "words": "person holding an umbrella",
-   "from": "street/pedestrian_umbrella"
-  },
-  "street_pedestrian_umbrella_4-new": {
-   "words": "person holding an umbrella",
-   "from": "street/pedestrian_umbrella"
-  },
-  "street_pedestrian_umbrella_5-new": {
-   "words": "person holding an umbrella",
-   "from": "street/pedestrian_umbrella"
-  },
-  "street_pedestrian_umbrella_6-new": {
-   "words": "person holding an umbrella",
-   "from": "street/pedestrian_umbrella"
-  },
-  "street_pedestrian_umbrella_7-new": {
-   "words": "person holding an umbrella",
-   "from": "street/pedestrian_umbrella"
-  },
-  "tube_person_mid_left_1-new": {
-   "words": "person in uniform",
-   "from": "tube/person_mid_left"
-  },
-  "tube_person_mid_left_2-new": {
-   "words": "person in uniform",
-   "from": "tube/person_mid_left"
-  },
-  "workshop_person_centre_1-new": {
-   "words": "person",
-   "from": "workshop/person_centre"
-  },
-  "workshop_person_right_1-new": {
-   "words": "person",
-   "from": "workshop/person_right"
-  },
-  "wreck_astronaut_1_1-new": {
-   "words": "astronaut",
-   "from": "wreck/astronaut_1"
-  },
-  "wreck_astronaut_2_1-new": {
-   "words": "astronaut",
-   "from": "wreck/astronaut_2"
-  },
-  "wreck_astronaut_3_1-new": {
-   "words": "astronaut",
-   "from": "wreck/astronaut_3"
   }
  }
 }

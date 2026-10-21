@@ -1,0 +1,17 @@
+{
+ "name": "wreck_astronaut_1_1",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the wreck concept (c80eddad): its scene inventory's people row astronaut_1 (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "astronaut of the wreck concept, standing near centre light",
+ "references": [],
+ "description": "astronaut, an average build, as drawn in the wreck concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the wreck concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the wreck concept",
+ "face": "the face as drawn in the wreck concept"
+}

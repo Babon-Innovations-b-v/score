@@ -1,0 +1,17 @@
+{
+ "name": "street_pedestrian_umbrella_4",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the street concept (474a6c69): its scene inventory's people row pedestrian_umbrella (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "person holding an umbrella of the street concept, walking on both pavements",
+ "references": [],
+ "description": "person holding an umbrella, a broad build, as drawn in the street concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the street concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the street concept",
+ "face": "the face as drawn in the street concept"
+}

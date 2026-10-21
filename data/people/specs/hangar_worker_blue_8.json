@@ -1,0 +1,17 @@
+{
+ "name": "hangar_worker_blue_8",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the hangar concept (72d9da61): its scene inventory's people row worker_blue (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "worker in blue jumpsuit of the hangar concept, scattered around the room",
+ "references": [],
+ "description": "worker in blue jumpsuit, an average build, as drawn in the hangar concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the hangar concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the hangar concept",
+ "face": "the face as drawn in the hangar concept"
+}

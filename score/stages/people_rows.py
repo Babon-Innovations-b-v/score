@@ -6,27 +6,33 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
                           "rows": {<row>: {"name", "noun", "count", "size" [wide, deep, tall] metres, "where",
                                            "share" (its tallest box's share of the concept's frame height, or null),
                                            "looks": [<look>, ... one a person]  |  "crowd": <far look>,
+                                           "ground": [[left, near, wide, long], ...] (a crowd's: the plan items
+                                                     its row makes, in the place's frame),
                                            "palettes": [[skin, clothes, boots library surfaces], ...] | null,
                                            "palettes_from": why they are null,
-                                           "dress": {"surface": <library fabric> | null, ...}}}}},
-     "new": {<look>: {"words", "from"}}}
+                                           "dress": {"surface": <library fabric> | null, ...}}}}}}
 
 A row's `dress` is what its people wear, read off the design (score/stages/people_clothes.py: of the people place's
 fabrics its words name, the nearest its measured torso), each person of a row with a surface dressed by
-`people-dress-<look>-in-<surface>`. One look a distinct person; a crowd one far look in a few colour palettes (CONTEXT.md "crowd"). A look is one of the
-people line's (data/surfaces/people.json) or a new one, named `<place>_<row>_<n>-new` and listed under `new` until it
-has a spec and a take of its own. A crowd's look is read off its row's words (`crowd_look`); its palettes are not
-decided by any rule here (`UNDECIDED_PALETTES`): null, with why, until one recorded model call per scene names them.
-Which looks get a full body and which a far one follows from each person row's `share`
-(score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast (score/stages/cast) and the characters layer read who is in a place from
-here, never the old game records (data/characters) or the lost concept pictures; the people line's bake entries take
-each look's size from the person row that maps it (`size_of`).
+`people-dress-<look>-in-<surface>`. One look a distinct person; a crowd one far look in a few colour palettes (CONTEXT.md "crowd"). A person row read
+anew maps looks of its own, `<place>_<row>_<n>-drawn`; a crowd's look is the line's look its row's words match
+(`crowd_look`), else `<place>_<row>-drawn`. Each drawn look's maker spec (data/people/specs/<character>.json: who
+from the row's words, the build from the row's metres, face, hair and clothes as the locked concept draws them, which
+the close-up is drawn from: drawn_from) and its take on the people line are written on every refresh
+(`designed_specs`, `with_designed`); no hand-written character file stands before a design's person. A look the line
+holds from a spec of its own (the tube's player and the square's crowd, kept choices of their concepts) keeps it. A
+crowd's palettes are not decided by any rule here (`UNDECIDED_PALETTES`): null, with why, until one recorded model
+call per scene names them. Which looks get a full body and which a far one follows from each person row's `share`
+(score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast (score/stages/cast) and the
+characters layer read who is in a place from here, never the old game records (data/characters) or the lost concept
+pictures; the people line's bake entries take each look's size from the person row that maps it (`size_of`).
 
     .venv/bin/python -m score.stages.people_rows      # refresh from the store's current readings and plans
 
 A refresh copies each reading's rows again and keeps every hand-made choice (looks, crowd, palettes: a row's fields
-recorded with its `why`) of a row read from the same concept; any other row is read again from its design (new
-looks, the crowd's look by its words). Then it writes the people line's data for its mapped looks (`write_line`).
+recorded with its `why`) of a row read from the same concept; any other row is read again from its design (its drawn
+looks, the crowd's look by its words). A crowd's ground is taken from the plan again on every refresh. Then it
+writes the people line's data for its mapped looks (`write_line`).
 """
 import json
 import pathlib
@@ -37,7 +43,17 @@ ROWS = REPO / "data/people/rows.json"
 LINE = "people"
 LINE_FILES = {"props": REPO / "data/props/people.json", "inventory": REPO / "data/inventory/people.json",
               "surfaces": REPO / "data/surfaces/people.json"}
-MAKES = REPO / "data/characters/makes"
+SPECS = REPO / "data/people/specs"
+# A look written from its person row wears the clothes its concept draws it in.
+DRAWN = "drawn"
+TAKE = "{look}-s1"  # a look's take on the line, as pixal@people names it
+# A body's build by its row's shoulders (the wider side of a standing row's footprint, the narrower of a seated one's,
+# whose legs run forward), metres: under SLIM slim, over BROAD broad, else average. Bounds of a person's box as the
+# readings size them (0.3 to 0.8 m), not of the bare body: a suit or a coat is inside the box.
+SLIM, BROAD = 0.45, 0.65
+# A crowd's draws in cast.py (tools/characters/cast.py's crowd_copies): each copy turned up to TURN_JITTER radians off
+# facing the place's middle and HEIGHT_JITTER of its height taller or shorter (the square's first crowd's, 2026-10-12).
+TURN_JITTER, HEIGHT_JITTER = 0.35, 0.06
 PALETTE_PARTS = ["skin", "clothes", "boots"]
 # A row's hand-made fields, kept over a refresh of the same concept when recorded with their `why`.
 CHOSEN = ("looks", "crowd", "palettes", "palettes_from", "why")
@@ -64,7 +80,7 @@ def place_entry(place, found=None):
 
 
 def place_part(place):
-    """The part of rows.json a place's rows key on (Stage.files' (pattern, part)): its own entry and its new looks."""
+    """The part of rows.json a place's rows key on (Stage.files' (pattern, part)): its own entry."""
     def part(path):
         found = json.loads(pathlib.Path(path).read_text())
         return json.dumps(place_entry(place, found), sort_keys=True)
@@ -149,8 +165,7 @@ def palette_colours(palettes):
 def cast_record(place, found=None):
     """The place's cast record in tools/characters/cast.py's form, from its design: each person at the plan's people
     spots in turn (the cast stage stands them clear round it), facing the place's middle; the crowd its far look in
-    its palettes (none while undecided, `palettes_from` saying why), with no ground or count until the design gives
-    one."""
+    its palettes (none while undecided, `palettes_from` saying why) on its ground (crowd_record)."""
     found = found or read()
     entry = place_entry(place, found)
     spots = entry.get("spots") or [entry.get("middle", [0.0, 0.0, 0.0])]
@@ -165,16 +180,42 @@ def cast_record(place, found=None):
               "people": people}
     crowd = crowd_row(place, found)
     if crowd:
-        row, fields = crowd
-        character, outfit = split_look(fields["crowd"])
-        palettes = fields.get("palettes") or []
-        record["crowd"] = {"name": row, "character": character, "look": f"{character}_{outfit}", "body": "far",
-                           "count": None, "doing": [doing_of(fields)], "shares": [1.0], "phases": 1,
-                           "palettes": palette_colours(palettes), "palette_parts": PALETTE_PARTS,
-                           "palette_shares": [1.0 / len(palettes) for _ in palettes],
-                           **({} if palettes else {"palettes_from": fields.get("palettes_from")}),
-                           "why": f"row {row} of the picked design's scene inventory"}
+        record["crowd"] = crowd_record(*crowd, entry)
     return record
+
+
+def crowd_count(fields):
+    """How many the crowd row shows: SAM 3's instances when it told them apart, else None (one mass of bodies it
+    could not part: the cast stands as many as its ground holds packed)."""
+    count = fields.get("count")
+    return count if isinstance(count, int) and count > 1 else None
+
+
+def spread_of(grounds):
+    """The [left, near, wide, long] box round a crowd's grounds, or None when it has none."""
+    if not grounds:
+        return None
+    left, near = min(ground[0] for ground in grounds), min(ground[1] for ground in grounds)
+    return [left, near, max(ground[0] + ground[2] for ground in grounds) - left,
+            max(ground[1] + ground[3] for ground in grounds) - near]
+
+
+def crowd_record(row, fields, entry):
+    """A crowd row in cast.py's form: its far look in its palettes, facing the place's middle, on its ground (the
+    plan items its row makes; `spread` the box round them, `grounds` each), its count crowd_count's, seeded by its
+    concept."""
+    character, outfit = split_look(fields["crowd"])
+    grounds = fields.get("ground")  # None: not read from a plan yet (a row of before 2026-10-21's refresh)
+    palettes = fields.get("palettes") or []
+    return {"name": row, "character": character, "look": f"{character}_{outfit}", "body": "far",
+            "count": crowd_count(fields), "spread": spread_of(grounds), "grounds": grounds,
+            "seed": int(entry["concept"][:8], 16),
+            "facing_to": entry.get("middle", [0.0, 0.0, 0.0]), "turn_jitter": TURN_JITTER,
+            "height_jitter": HEIGHT_JITTER, "doing": [doing_of(fields)], "shares": [1.0], "phases": 1,
+            "palettes": palette_colours(palettes), "palette_parts": PALETTE_PARTS,
+            "palette_shares": [1.0 / len(palettes) for _ in palettes],
+            **({} if palettes else {"palettes_from": fields.get("palettes_from")}),
+            "why": f"row {row} of the picked design's scene inventory"}
 
 
 def person_sized(size):
@@ -189,6 +230,17 @@ def size_of(look, found=None):
         for row, fields in sorted(entry["rows"].items()):
             if look in fields.get("looks", []) + [fields.get("crowd")] and person_sized(fields.get("size")):
                 return fields["size"], f"{place}/{row}"
+    return member_size(look, found)
+
+
+def member_size(look, found):
+    """(size, "<place>/<row>") of one member of the first crowd row that maps the look when its size is the crowd's
+    extent: an average build's box (between SLIM and BROAD) as tall as the row; None with no such row."""
+    for place, entry in sorted(found["places"].items()):
+        for row, fields in sorted(entry["rows"].items()):
+            if fields.get("crowd") == look and isinstance(fields.get("size"), list) and len(fields["size"]) == 3:
+                side = round((SLIM + BROAD) / 2, 3)
+                return [side, side, fields["size"][2]], f"{place}/{row}"
     return None
 
 
@@ -202,15 +254,17 @@ def words_of(text):
 
 
 def look_words(look, entry):
-    """A line look's words: its spec's description and its take's clothes (`object`)."""
-    return words_of(f"{description_of(look)} {entry.get('object', '')}")
+    """A line look's words: its spec's description (the file its take entry names) and its take's clothes
+    (`object`)."""
+    description = json.loads((REPO / entry["spec"]).read_text())["description"]
+    return words_of(f"{description} {entry.get('object', '')}")
 
 
 def crowd_look(place, row, line=None):
     """A crowd row's far look, from its words (its name and noun): the people line's look (`line`, {look: take entry},
     bodies.looks()) sharing the most of them, a crowd word (CROWD_WORDS) counting only between looks that share no
-    other, a far-only look first on a tie; a new look `<place>_<row>_1-new` when no look shares a word, or when the
-    row names who is in it (a word beyond the crowd words: aliens, colonists) and no look shares one of those."""
+    other, a far-only look first on a tie; its own drawn look `<place>_<row>-drawn` when no look shares a word, or
+    when the row names who is in it (a word beyond the crowd words: aliens, colonists) and no look shares one of those."""
     if line is None:
         from score.stages.people_bodies import bodies
         line = bodies.looks()
@@ -221,15 +275,25 @@ def crowd_look(place, row, line=None):
         return len(shared - CROWD_WORDS), len(shared & CROWD_WORDS), bool(line[look].get("far_only"))
     best = max(sorted(line), key=score, default=None)
     needed = 1 if said - CROWD_WORDS else 0  # who the row names must be matched, not just that it is a crowd
-    return best if best and score(best)[0] >= needed and score(best)[:2] != (0, 0) else f"{place}_{row['id']}_1-new"
+    return best if best and score(best)[0] >= needed and score(best)[:2] != (0, 0) else f"{place}_{row['id']}-{DRAWN}"
 
 
 def default_choice(place, row):
     """A row's looks read from its design: a crowd's far look by its words, its palettes undecided (with why), else a
-    new look a person."""
+    look a person drawn from the row (designed_specs)."""
     if row["noun"] == "crowd" or "crowd" in row["name"]:
         return {"crowd": crowd_look(place, row), "palettes": None, "palettes_from": UNDECIDED_PALETTES}
-    return {"looks": [f"{place}_{row['id']}_{number}-new" for number in range(1, row.get("count", 1) + 1)]}
+    return {"looks": [f"{place}_{row['id']}_{number}-{DRAWN}" for number in range(1, row.get("count", 1) + 1)]}
+
+
+def crowd_ground(plan, row_id):
+    """[[left, near, wide, long], ...] in the place's frame of each plan item the row makes (the plan's `rows`)."""
+    from score.stages.scene_record.plan import items_of
+    if not plan or not plan.get("items"):
+        return []
+    return [[item["box"][0], item["box"][1], round(item["box"][2] - item["box"][0], 4),
+             round(item["box"][3] - item["box"][1], 4)]
+            for item in items_of(plan) if row_id in (item["rows"] or [])]
 
 
 def placed_spots(plan):
@@ -269,16 +333,10 @@ def refreshed_place(place, inventory, plan, old, picture=None, fabrics=None):
         chosen = {key: held[key] for key in CHOSEN if key in held} if "why" in held else {}
         rows[row["id"]] = {**copied, **(chosen or default_choice(place, row)),
                            "dress": people_clothes.worn(row, picture, fabrics)}
+        if "crowd" in rows[row["id"]]:
+            rows[row["id"]]["ground"] = crowd_ground(plan, row["id"])
     spots, middle = placed_spots(plan) if plan else ([], [0.0, 0.0, 0.0])
     return {"concept": concept, "spots": spots, "middle": middle, "rows": rows}
-
-
-def new_looks(places, line_looks):
-    """{look: {words, from}} of every look the places name (a person's or a crowd's) that is not on the people line."""
-    return {look: {"words": fields["name"], "from": f"{place}/{row}"}
-            for place, entry in sorted(places.items()) for row, fields in sorted(entry["rows"].items())
-            for look in fields.get("looks", []) + ([fields["crowd"]] if "crowd" in fields else [])
-            if look not in line_looks}
 
 
 def line_looks():
@@ -310,7 +368,7 @@ def refresh(store):
                                     old["places"].get(place),
                                     concept_picture(store, inventory["concept_pick"]["sha256"]))
              for place, inventory in sorted(inventories.items())}
-    record = {"why": old.get("why", ""), "places": found, "new": new_looks(found, line_looks())}
+    record = {"why": old.get("why", ""), "places": found}
     ROWS.write_text(json.dumps(record, indent=1) + "\n")
     return record
 
@@ -332,18 +390,97 @@ def drawn_from(origin, kept):
     return {"view": place, "box": read["box"], "grounded": handin.GROUNDED}
 
 
-def description_of(look):
-    """Who a look is, from its character's spec (data/characters/makes/<character>_prop.json, the prop route the
-    people are made by): "a Chinese man in his thirties, ...", which the reading's words, the clothes alone, lack."""
-    character, _ = split_look(look)
-    return json.loads((MAKES / f"{character}_prop.json").read_text())["description"]
+def build_of(fields):
+    """A person row's build from its metres: its shoulders (the wider side of its footprint, the narrower when it
+    sits) against SLIM and BROAD."""
+    wide, deep = fields["size"][:2]
+    shoulders = min(wide, deep) if doing_of(fields) == "sitting" else max(wide, deep)
+    return "slim" if shoulders < SLIM else "broad" if shoulders > BROAD else "average"
 
 
-def described(look, row):
+def mapping_rows(found):
+    """{look: (place, row, fields, concept)} of the first row (places and rows in order) that maps each look."""
+    mapped = {}
+    for place, entry in sorted(found["places"].items()):
+        for row, fields in sorted(entry["rows"].items()):
+            for look in fields.get("looks", []) + ([fields["crowd"]] if fields.get("crowd") else []):
+                mapped.setdefault(look, (place, row, fields, entry["concept"]))
+    return mapped
+
+
+def designed_spec(look, place, row, fields, concept):
+    """The maker's spec (tools/characters/maker/spec.py, the prop route) of a look written from the person row that
+    maps it: who by the row's words and where the concept draws it, the build by its metres (build_of), face, hair
+    and clothes as drawn in the locked concept, which the line's close-up is drawn from (drawn_from); asked for by
+    the creator's pick of that concept."""
+    character, outfit = split_look(look)
+    member = "one person of the " if "crowd" in fields else ""
+    build = build_of(fields) if person_sized(fields.get("size")) else "average"
+    drawn = f"as drawn in the {place} concept"
+    return {"name": character, "kind": "person", "route": "prop",
+            "approved": f"the creator's pick of the {place} concept ({concept[:8]}): its scene inventory's people row "
+                        f"{row} (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+            "why": f"{member}{fields['name']} of the {place} concept, {fields.get('where') or 'in the place'}",
+            "references": [], "description": f"{member}{fields['name']}, {'an' if build == 'average' else 'a'} "
+                                             f"{build} build, {drawn}",
+            "outfit_words": {outfit: f"the clothes {drawn}"}, "outfits": [outfit],
+            "hair": f"the hair {drawn}", "face": f"the face {drawn}"}
+
+
+def designed_specs(found, surfaces):
+    """{look: spec} of every look the designs map that no hand-written spec on the line makes (its take's `spec` out
+    of SPECS), each written from its row (designed_spec)."""
+    handmade = {look for look, take in surfaces["bake"]["models"].items()
+                if take in surfaces["takes"] and not (REPO / surfaces["takes"][take]["spec"]).is_relative_to(SPECS)}
+    return {look: designed_spec(look, *origin) for look, origin in sorted(mapping_rows(found).items())
+            if look not in handmade}
+
+
+def spec_path(spec):
+    return SPECS / f"{spec['name']}.json"
+
+
+def with_designed(specs, props, inventory, surfaces):
+    """The people line's three records with each designed look's object, row and take (its spec at spec_path), in
+    place of any it had: (props, inventory, surfaces)."""
+    takes = {look: TAKE.format(look=look) for look in specs}
+    objects = {look: {"route": "prop", "take": take, "layer": LINE, "failures": {
+        "parts": f"split a second time by people-look-parts-{look} (SAM 2.1, GeoSAM2, the judge's materials) for the "
+                 "garments the route binds by limb, beside the loop's finish-route split",
+        "body": f"people-body-{look} builds from the raw Pixal3D take, not the loop's baked model handed on in "
+                "made.json"}} for look, take in takes.items()}
+    rows = [{"id": look, "name": spec["outfit_words"][split_look(look)[1]], "prop": look}
+            for look, spec in specs.items()]
+    entries = {take: {"places": [LINE], "library_places": [LINE], "place": LINE, "kind": "person",
+                      "object": specs[look]["outfit_words"][split_look(look)[1]],
+                      "spec": str(spec_path(specs[look]).relative_to(REPO)), "outfit": split_look(look)[1]}
+               for look, take in takes.items()}
+    return ({**props, "objects": {**props["objects"], **objects}},
+            {**inventory, "rows": [row for row in inventory["rows"] if row["id"] not in specs] + rows},
+            {**surfaces, "takes": {**surfaces["takes"], **entries},
+             "bake": {**surfaces["bake"], "models": {**surfaces["bake"]["models"], **takes}}})
+
+
+def spec_of(look, surfaces):
+    """A look's spec as the line's take of it names it."""
+    return json.loads((REPO / surfaces["takes"][surfaces["bake"]["models"][look]]["spec"]).read_text())
+
+
+def description_of(look, specs=None, surfaces=None):
+    """Who a look is, from its spec (a designed one in `specs`, else the file its take names; the prop route the
+    people are made by): "a Chinese man in his thirties, ..." or "seated astronaut, an average build, as drawn in the
+    airlock concept", which the reading's words, the clothes alone, lack."""
+    if specs and look in specs:
+        return specs[look]["description"]
+    surfaces = surfaces or json.loads(LINE_FILES["surfaces"].read_text())
+    return spec_of(look, surfaces)["description"]
+
+
+def described(look, row, specs, surfaces):
     """A line row's words, the close-up's (score/stages/props/closeup_row.py reads `name`): its spec's description,
     then the clothes as read (`clothes`, kept on the row so a second write does not describe it twice)."""
     clothes = row.get("clothes", row["name"])
-    return {"name": f"{description_of(look)}; {clothes}", "clothes": clothes}
+    return {"name": f"{description_of(look, specs, surfaces)}; {clothes}", "clothes": clothes}
 
 
 def line_inventory(inventory, rows):
@@ -357,12 +494,15 @@ def line_inventory(inventory, rows):
 
 
 def line_rows(found, props, inventory, surfaces, kept=None):
-    """The people line's three records narrowed to the looks the designs map, each inventory row and bake entry with
-    the look's size (size_of), each row's words its spec's description and clothes (described) and each row drawn
-    from its mapping person's view and box (drawn_from): (props, inventory, surfaces)."""
+    """The people line's three records with every designed look (designed_specs, with_designed) narrowed to the
+    looks the designs map, each inventory row and bake entry with the look's size (size_of), each row's words its
+    spec's description and clothes (described) and each row drawn from its mapping person's view and box
+    (drawn_from): (props, inventory, surfaces)."""
     from score.review import plans
     from score.stages.props import compare
     kept = kept or plans.KEPT_INVENTORY
+    specs = designed_specs(found, surfaces)
+    props, inventory, surfaces = with_designed(specs, props, inventory, surfaces)
     wanted = every_look(found) & set(props["objects"])
     rows = []
     for row in inventory["rows"]:
@@ -370,7 +510,8 @@ def line_rows(found, props, inventory, surfaces, kept=None):
             size, origin = size_of(row["id"], found)
             rows.append({**{key: value for key, value in row.items() if key not in ("view", "box", "grounded")},
                          "prop": row["id"], "size": size, "size_from": f"{origin} of data/people/rows.json",
-                         "view": None, "box": None, **drawn_from(origin, kept), **described(row["id"], row)})
+                         "view": None, "box": None, **drawn_from(origin, kept),
+                         **described(row["id"], row, specs, surfaces)})
     takes = {props["objects"][look]["take"] for look in wanted}
     models = {look: take for look, take in surfaces["bake"]["models"].items() if look in wanted}
     entries = {look: compare.bake_entry({"id": look, "size": next(row["size"] for row in rows if row["id"] == look)})
@@ -384,20 +525,36 @@ def line_rows(found, props, inventory, surfaces, kept=None):
              "bake": {**surfaces["bake"], "models": models, "entries": entries}})
 
 
+def write_specs(specs):
+    """Each designed look's spec at its spec_path, and no other file left in SPECS (a look no design maps now)."""
+    SPECS.mkdir(parents=True, exist_ok=True)
+    written = {spec_path(spec) for spec in specs.values()}
+    for path in SPECS.glob("*.json"):
+        if path not in written:
+            path.unlink()
+    for spec in specs.values():
+        spec_path(spec).write_text(json.dumps(spec, indent=1) + "\n")
+
+
 def write_line():
-    """The people line's data (LINE_FILES) narrowed and sized for the mapped looks, written."""
+    """The people line's data (LINE_FILES) narrowed and sized for the mapped looks and each designed look's spec,
+    written; the designed looks' count."""
     records = {name: json.loads(path.read_text()) for name, path in LINE_FILES.items()}
-    for name, record in zip(LINE_FILES, line_rows(read(), records["props"], records["inventory"],
+    found = read()
+    specs = designed_specs(found, records["surfaces"])
+    write_specs(specs)
+    for name, record in zip(LINE_FILES, line_rows(found, records["props"], records["inventory"],
                                                   records["surfaces"])):
         LINE_FILES[name].write_text(json.dumps(record, indent=1) + "\n")
+    return len(specs)
 
 
 def main():
     from score.store import Store
     record = refresh(Store.default())
-    write_line()
+    designed = write_line()
     print(f"people rows: {len(record['places'])} places, {sum(map(len, (entry['rows'] for entry in record['places'].values())))} "
-          f"rows, {len(record['new'])} new looks; {ROWS}")
+          f"rows, {designed} looks written from their rows; {ROWS}")
 
 
 if __name__ == "__main__":

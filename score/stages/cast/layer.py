@@ -141,7 +141,7 @@ def make(inputs, out, seed, params):
                                                 else "the cast names no look")
             continue
         if single is cast.get("crowd") and not single["copies"]:
-            looks[single["name"]]["missing"] = "the crowd's ground and count are not in the design yet"
+            looks[single["name"]]["missing"] = "no copy of the crowd stood on its ground (the cast's counted gate: why)"
             continue
         if single is cast.get("crowd") and not record.get("crowd", {}).get("palettes"):
             looks[single["name"]]["missing"] = f"the crowd's colours: {record['crowd'].get('palettes_from')}"
