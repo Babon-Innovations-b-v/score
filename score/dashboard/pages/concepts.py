@@ -221,7 +221,7 @@ def concept_page(request, place):
     planned = plan_part(world, place)
     return render(request, "pages/concept.html", {
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
-        "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros, "redraw_euros": world.concept_redraw_euros,
+        "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "replan": place in world.plan_changed, "euros": world.concept_draw_euros, "redraw_euros": world.concept_redraw_euros,
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
         "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
@@ -330,10 +330,12 @@ def drawing():
 
 
 def card_state(world, node):
-    """{drawing, refused} of a card: drawing while a draw of its place or shell, or of a place within it, is on its
-    way; refused, why its own newest draw was refused (None when it was not)."""
+    """{drawing, refused, replan} of a card: drawing while a draw of its place or shell, or of a place within it, is on
+    its way; refused, why its own newest draw was refused (None when it was not); replan, its pick drawn on another
+    room than the layer above's plan gives it now."""
     on_way = {item.payload.get("place") for item in SyncRequest.objects.filter(kind=DRAW, state__in=OPEN)}
-    return {"drawing": node in on_way or bool(cockpit.inside_of(world, node, on_way)), "refused": refused_of(node)}
+    return {"drawing": node in on_way or bool(cockpit.inside_of(world, node, on_way)), "refused": refused_of(node),
+            "replan": node in world.plan_changed}
 
 
 def newest_pictures(world):

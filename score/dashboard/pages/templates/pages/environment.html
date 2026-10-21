@@ -32,6 +32,6 @@
   </div>
 </section>{% endif %}
 <section class="ptiles" aria-label="scenes">
-  {% for tile in tiles %}{% include "pages/c/tile.html" with href=tile.href picture=tile.picture name=tile.name made=tile.made needed=tile.needed made_tip=tile.made_tip gaps=tile.gaps tone=tile.tone tip=tile.about holds=tile.holds more=tile.more review=tile.review busy=tile.drawing refused=tile.refused design=tile.design design_tip=tile.design_tip steps=tile.steps steps_done=tile.steps_done steps_tip=tile.steps_tip plan=tile.plan %}{% empty %}<p class="soft" data-v>0</p>{% endfor %}
+  {% for tile in tiles %}{% include "pages/c/tile.html" with href=tile.href picture=tile.picture name=tile.name made=tile.made needed=tile.needed made_tip=tile.made_tip gaps=tile.gaps tone=tile.tone tip=tile.about holds=tile.holds more=tile.more review=tile.review busy=tile.drawing refused=tile.refused replan=tile.replan design=tile.design design_tip=tile.design_tip steps=tile.steps steps_done=tile.steps_done steps_tip=tile.steps_tip plan=tile.plan %}{% empty %}<p class="soft" data-v>0</p>{% endfor %}
 </section>
 </div>{% endblock %}

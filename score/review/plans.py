@@ -93,6 +93,13 @@ def tree(store):
     return once("tree", store, None, lambda: {"within": overlaid(store, within), "shells": shells})
 
 
+def removed(store, within):
+    """The places of `within` that no holder's newest edit lays out any more: the creator removed them (merged into
+    another, owner 2026-10-21), so they are no card at all, never an outside place."""
+    kept = overlaid(store, within)
+    return sorted(place for place in within if place not in kept)
+
+
 def overlaid(store, within):
     """{place: what holds it} with each holder's inside places replaced by the ones his newest edit of its plan lays
     out (CONTEXT.md "shell split", owner 2026-10-21)."""
@@ -197,15 +204,52 @@ def holder_of(store, place):
     not lay it out: the holder, its inventory row the place stands in (None: the holder's own walls), that row's box
     on the holder's picked concept and its view (the inventory's SAM box, None when it has none), and the place's
     outline in the holder's plan [x, y, w, d] in metres."""
-    holder = tree(store)["within"].get(place)
-    shown = current(store, holder) if holder else None
-    hold = next((hold for hold in (shown or {}).get("plan", {}).get("holds", []) if hold["place"] == place), None)
+    hold = room_of(store, place)
     if hold is None:
         return None
+    holder = tree(store)["within"][place]
     row = next((row for row in inventory_of(store, holder).get("rows", []) if row["id"] == hold.get("row")), {})
     box = (row.get("boxes") or [None])[0] if "boxes" in row else row.get("box")  # a reading's surest SAM box first
     return {"holder": holder, "row": hold.get("row"), "box": box, "view": row.get("view"),
             "outline": [hold["x"], hold["y"], hold["w"], hold["d"]]}
+
+
+def above_plan(store, place):
+    """(the plan shown of the layer above `place`, `place`'s hold on it: row, outline, shape); (None, None) while that
+    has no plan, a hold None while it does not lay `place` out."""
+    holder = tree(store)["within"].get(place)
+    shown = current(store, holder) if holder else None
+    return shown, next((hold for hold in (shown or {}).get("plan", {}).get("holds", []) if hold["place"] == place),
+                       None)
+
+
+def room_of(store, place):
+    """`place`'s room on the layer above's plan shown now (its hold there), None while it lays none out."""
+    return above_plan(store, place)[1]
+
+
+def moved_draws(store, place):
+    """The shas of `place`'s draws drawn on another room than the layer above's plan gives it now (moved, resized,
+    reshaped, merged: owner 2026-10-21, "all below would become need for redrawn"): each draw's recorded room against
+    today's, a Redraw with notes by its base's."""
+    draws = concepts.draws(store, place)
+    by_sha = {}
+    for draw in draws:  # the first draw of a sha: a redraw can come back as its base's picture
+        by_sha.setdefault(draw.get("sha"), draw)
+    shown, room = above_plan(store, place)
+    since = shown and shown["at"]
+
+    def moved(draw, seen=()):
+        if draw.get("base"):
+            base = by_sha.get(draw["base"])
+            return base is not None and base is not draw and draw["base"] not in seen and moved(
+                base, (*seen, draw["base"]))
+        if "room" in draw:
+            return draw["room"] != room
+        # shortcut: a draw from before rooms were recorded counts as moved by any plan of the layer above made after
+        # it, whether or not that plan moved this room; drop once no such draw is in use
+        return bool(since) and draw.get("at", "") < since
+    return {draw.get("sha") for draw in draws if moved(draw)}
 
 
 # --- the plan drawn from data --------------------------------------------------------------------------------

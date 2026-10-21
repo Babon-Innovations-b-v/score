@@ -105,7 +105,8 @@ def place_tiles(world, names, rows):
     by_place = {row["place"]: row for row in rows}
     found = {}
     for style, card in [(style, card) for engine in world.engines for style in engine.styles for card in style.places
-                        if card.place not in world.parts]:  # a part of another place's outside: no card of its own
+                        if card.place not in world.parts  # a part of another place's outside: no card of its own
+                        and card.place not in world.removed]:  # merged into another by his plan: no card at all
         row = by_place.get(card.place)
         design = screens.design_state(world, card.place)
         made, needed = made_of(card) if design is None else (None, None)

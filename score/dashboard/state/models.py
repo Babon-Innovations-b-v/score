@@ -196,6 +196,7 @@ class WorldState(BaseModel):
     remake: Remake | None = None
     within: dict[str, str] = {}  # {place or shell: the outside place or shell it sits within} (data/places/within.json)
     parts: list[str] = []  # places that are part of another's outside, no concept and no card of their own
+    removed: list[str] = []  # places his kept plans no longer lay out (merged into another): no card at all
     shells: dict[str, str] = {}  # {outside shell that is no place of its own: its short name}
     concepts: dict[str, FileRef] = {}  # {place or shell: its concept picture} (data/places/concepts.json); absent: lost
     # The concept review's (score/review/concepts.py): each place's draws oldest first, the draw picked (locked) for
@@ -204,6 +205,7 @@ class WorldState(BaseModel):
     concept_picked: dict[str, str] = {}
     concept_draw_euros: float | None = None
     concept_redraw_euros: float | None = None  # a Redraw with notes: its prompt correction and its draw
+    plan_changed: list[str] = []  # picked places drawn on another room than the layer above's plan gives them now
     concept_undrawn: list[str] = []  # the places and shells with no draw yet whose first draw can be made now
     concept_unready: dict[str, str] = {}  # {place or shell with no draw yet: why its first draw cannot be made now}
     concept_wordings: dict[str, "ConceptWording"] = {}  # {place or shell: what its draws send, word for word}

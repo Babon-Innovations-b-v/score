@@ -613,6 +613,7 @@ class LocalSource:
             return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
                     "concept_redraw_euros": concepts.redraw_euros(),
                     "concept_undrawn": ready, "concept_unready": waiting,
+                    "plan_changed": [node for node in picked if concepts.plan_changed(self.store, node)],
                     "concept_wordings": {node: self.concept_wording(node) for node in nodes},
                     "inventories": {place: read for place, read in reads.items() if read},
                     **self.inventory_readings(concepts.placed(self.store))}
@@ -677,19 +678,21 @@ class LocalSource:
         from score.review import environment_concept
         found = self.hierarchy()
         top = [entry["place"] for entry in environment_concept.places_in_force(self.store, self.places())]
-        return list(dict.fromkeys([*top, *found["shells"],
-                                   *[node for node in found["within"] if node not in found["parts"]]]))
+        return [node for node in dict.fromkeys([*top, *found["shells"],
+                                                *[node for node in found["within"] if node not in found["parts"]]])
+                if node not in found["removed"]]
 
     def hierarchy(self):
-        """{within, shells, parts} of data/places/within.json: what each place or shell sits within (a part of a place's
-        outside, `parts`, sits within that place and has no card), and the shells that are no place of their own with
+        """{within, removed, shells, parts} of data/places/within.json: what each place or shell sits within (a part of
+        a place's outside, `parts`, sits within that place and has no card; one his kept plans no longer lay out,
+        `removed`, has none either), and the shells that are no place of their own with
         their short names; empty while the file is not there."""
         path = self.data / "places" / "within.json"
         found = json.loads(path.read_text()) if path.is_file() else {}
         parts = {name: {"within": entry["of"]} for name, entry in found.get("parts", {}).items()}
         from score.review import plans
         within = {name: entry["within"] for name, entry in {**found.get("within", {}), **parts}.items()}
-        return {"within": plans.overlaid(self.store, within),
+        return {"within": plans.overlaid(self.store, within), "removed": plans.removed(self.store, within),
                 "shells": {name: entry["name"] for name, entry in found.get("shells", {}).items()},
                 "parts": sorted(parts)}
 

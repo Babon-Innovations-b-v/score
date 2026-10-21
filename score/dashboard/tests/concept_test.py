@@ -18,7 +18,7 @@ from score.dashboard.sync import listen
 from score.dashboard.tests.pages_test import signed_in
 from score.dashboard.tests.sync_test import TOKEN, hosted_client, remote_of
 from score.review import concepts as drawing
-from score.review import web
+from score.review import environment_concept, web
 from score.store import runtime_store
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -36,6 +36,9 @@ def a_png(colour):
 def stand_in(world, monkeypatch):
     """The draw's own process run in-process with a stand-in model; [what each draw was asked]."""
     asked = []
+    # the environment concept's places are the fixture's, not the repository's (whose shells, the base's, were drawn)
+    monkeypatch.setattr(environment_concept, "places_now",
+                        lambda places: [{"place": place, "name": place.capitalize(), "holds": []} for place in places])
     monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
     monkeypatch.setattr(drawing, "draw_euros", lambda *given: PRICE)
     monkeypatch.setattr(drawing, "redraw_euros", lambda *given: REDRAW_PRICE)
