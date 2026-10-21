@@ -138,11 +138,10 @@ def agreement(mesh, face_label, per_map):
     return found
 
 
-def surface_colours(entry, names):
-    """Each surface's library colour, sRGB 0-255."""
+def surface_colours(every, names):
+    """Each surface's library colour, sRGB 0-255 (`every`: the take's surfaces, palette_library.take_surfaces)."""
     import numpy as np
     import labels
-    every = take_surfaces(entry)
     return {name: np.clip(labels.srgb(np.array(every[name]["colour"], dtype=float)) * 255, 0, 255).astype(np.uint8)
             for name in names}
 
@@ -154,18 +153,6 @@ def library_lab(spec):
     import labels
     import numpy as np
     return labels.lab(labels.srgb(np.array(spec["colour"], dtype=float))[None])[0]
-
-
-def take_surfaces(entry):
-    """Every library surface a take may take: each of its library places' (no surface an object never is), its
-    kind's own list on top."""
-    import labels
-    every = {}
-    for place in entry["library_places"]:
-        every.update({name: spec for name, spec in labels.allowed_materials(place, None, []).items()
-                      if name not in every})
-    every.update(labels.allowed_materials(entry["library_places"][0], entry["kind"], []))
-    return every
 
 
 # Not paint (owner, #8, 2026-10-12): glass, screen glow, lamp light and print are judged by their own colour, so one
@@ -181,15 +168,14 @@ OWN_COLOUR = ("glass", "screen", "light", "print")
 ORDER_L, ORDER_LIBRARY, ORDER_KEPT = 10.0, 3.0, 0.0
 
 
-def checked_finishes(entry, finishes, measured, kit=()):
+def checked_finishes(entry, finishes, measured, every, kit=()):
     """Each finish with its surface checked against the close-up's colour: the listed surface when it lies within
-    COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) the take's
-    library places allow, when within it; else the listed one kept, a new surface tinted to the measured colour
-    proposed, and the finish marked off its colour (the paint's gate fails it). A see-through finish of a surface
-    that is not glass, glow or light keeps its surface (coloured_cover). A finish that fits takes the room's own kit
+    COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) of the
+    take's surfaces (`every`: palette_library.take_surfaces), when within it; else the listed one kept, a new surface
+    tinted to the measured colour proposed, and the finish marked off its colour (the paint's gate fails it). A
+    see-through finish of a surface that is not glass, glow or light keeps its surface (coloured_cover). A finish that fits takes the room's own kit
     surface where one of its family fits too (`kit`, kit_taken)."""
     import numpy as np
-    every = take_surfaces(entry)
     found = []
     for finish, colour in zip(finishes, measured):
         record = dict(finish, listed_surface=finish.get("listed_surface", finish["surface"]), measured_lab=None,

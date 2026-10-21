@@ -1,7 +1,7 @@
 """A place's bake job written from git, inside the bake's make: no job file to keep or to lose (2026-10-19: the 30 job
 files under the work folder went with the old disk, and every surface bake blocked on them).
 
-    job_head(library_name, outside)               the job's top-level fields: script, density, wear, dirt, seed,
+    job_head(wear_dirt, specs, outside)           the job's top-level fields: script, density, wear, dirt, seed,
                                                   faces, specs, as the place's route writes them
     entry_of(place, model, inline, kit, inventory, labelled)  one model's make_chunky entry
     measured_turn(labelled, size)                  a design entry's turn, measured over its labelled take
@@ -51,13 +51,13 @@ def specs_of(library_name):
     return dict(library.by_library(library_name), **library.resolved(library_name))
 
 
-def job_head(library_name, is_outside):
+def job_head(wear_dirt, specs, is_outside):
     """The job's top-level fields, as the place's route writes its make_chunky job (place_route.chunky_jobs or
-    route.jobs); its out and report are the bake's own."""
-    wear, dirt = library.wear_of(library_name)
+    route.jobs), at the scene's (wear, dirt) with its specs; its out and report are the bake's own."""
+    wear, dirt = wear_dirt
     density, faces = (place_route.DENSITY, 19000) if is_outside else (route.NEAR, route.CHUNKY_FACES)
     return {"script": "make_chunky.py", "density": density, "wear": wear, "dirt": dirt, "seed": 3, "faces": faces,
-            "specs": specs_of(library_name)}
+            "specs": specs}
 
 
 def details_of(kind, model):

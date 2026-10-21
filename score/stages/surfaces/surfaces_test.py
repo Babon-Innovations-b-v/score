@@ -87,11 +87,12 @@ def test_each_take_is_painted_by_one_place_and_every_claim_is_baked_by_its_place
 
 def test_every_place_s_surface_line_is_rows_of_world_one():
     names = [stage.name for stage in stages.STAGES]
-    assert {"finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts", "surfaces-paint",
-            "surfaces-bake", "finish-route-recheck", "surfaces-check"} <= set(names)
+    assert {"finish-route-palette", "finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts",
+            "surfaces-paint", "surfaces-bake", "finish-route-recheck", "surfaces-check"} <= set(names)
     rows = {stage.name: stage for stage in surfaces.ROWS}
     assert all(stage.grain == "place" for stage in surfaces.ROWS)
-    assert set(rows["surfaces-bake"].after) == {"surfaces-parts"}  # the method's interface, painted in the bake
+    # the method's interface, painted in the bake at the scene palette's wear and dirt (read from its design)
+    assert set(rows["surfaces-bake"].after) == {"finish-route-palette", "surfaces-parts"}
     assert set(rows["surfaces-paint"].after) == {"surfaces-bake"}  # the bake's painted takes, the paint's gates
     assert all(stage.euros for stage in surfaces.ROWS if stage.paid)
 
@@ -118,8 +119,13 @@ def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
     library["families"]["plastic"]["variants"]["test_surface"] = {"recipe": "rubber", "token": "danger"}
     (data / "library" / "materials.json").write_text(json.dumps(library))
     moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
+    # the palette row reads the library's tokens and wear levels only: a surface in a token it has asks no scene again
     assert moved == {"finish-route-list", "surfaces-parts", "surfaces-paint", "surfaces-bake", "finish-route-recheck",
                      "surfaces-check"}, moved
+    library["families"]["plastic"]["variants"]["test_surface_two"] = {"recipe": "rubber", "token": "no-such-token"}
+    (data / "library" / "materials.json").write_text(json.dumps(library))
+    palette = next(stage for stage in surfaces.ROWS if stage.name == "finish-route-palette")
+    assert runner.file_keys(palette, "greenhouse") != before["finish-route-palette"]
     shutil.rmtree(data)
     shutil.rmtree(home)
 

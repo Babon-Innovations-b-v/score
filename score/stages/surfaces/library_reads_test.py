@@ -1,6 +1,7 @@
-"""A paint or bake row's key moves with the library surfaces and place.json entries it reads, and with nothing else
-of them: a surface added for one place re-keys no other place's paint or bake (2026-10-13). On copies of the environment's
-library and place.json under $PROPS_HOME/work, removed at the end.
+"""A paint or bake row's key moves with the library it reads, and with nothing else of it: a surface added for one
+scene re-keys no paint, and nothing in data/definitions/place.json keys either (2026-10-21: a scene's palette and wear
+are its scene palette's, read from its design, an input of the bake). On a copy of the environment's library under
+$PROPS_HOME/work, removed at the end.
 
 Run: .venv/bin/python -m pytest score/stages/surfaces/library_reads_test.py
 """
@@ -22,19 +23,15 @@ ROWS = {row.name: row for row in stages.STAGES}
 
 
 def a_copy():
-    """data/library and data/definitions/place.json copied into a folder of their own: (data folder, its remover)."""
+    """data/library copied into a folder of its own: the data folder."""
     (PROPS_HOME / "work").mkdir(parents=True, exist_ok=True)
     data = pathlib.Path(tempfile.mkdtemp(prefix="library-reads-", dir=PROPS_HOME / "work"))
     shutil.copytree(REPO / "data/library", data / "library")
-    (data / "definitions").mkdir()
-    shutil.copy2(REPO / "data/definitions/place.json", data / "definitions/place.json")
     return data
 
 
 def keys(row, place, data):
-    files = ROWS[row].files(place)
-    return {name: text_hash(files[name][1](data / path)) for name, path in
-            (("library", "library"), ("places", "definitions/place.json"))}
+    return text_hash(ROWS[row].files(place)["library"][1](data / "library"))
 
 
 def edit(path, change):
@@ -43,45 +40,31 @@ def edit(path, change):
     path.write_text(json.dumps(found, indent=1))
 
 
-def test_a_surface_no_library_place_of_the_row_takes_moves_no_paint_key_and_every_bake_key():
-    """The paint reads only its places' surfaces; the bake's job, written from git (bake_job.py), carries every
-    variant of the library as its specs, as both routes write a job, so a variant added anywhere moves every bake."""
+def test_a_surface_added_anywhere_moves_no_paint_key_and_every_bake_key():
+    """The paint paints the surfaces its records name; the bake's job, written from git (bake_job.py), carries every
+    variant of the library as its specs, so a variant added anywhere moves every bake."""
     data = a_copy()
     try:
         before = {row: keys(row, "hub", data) for row in ("surfaces-paint", "surfaces-bake")}
         added = {"recipe": "painted_metal", "token": "hull-trim", "bare": "hull"}
         edit(data / "library/materials.json",
              lambda library: library["families"]["painted"]["variants"].update(brand_new_panel=added))
-        edit(data / "definitions/place.json",
-             lambda places: places["greenhouse"]["materials"].update(brand_new=dict(library="brand_new_panel",
-                                                                                   token="hull-trim")))
         assert keys("surfaces-paint", "hub", data) == before["surfaces-paint"]
-        after = keys("surfaces-bake", "hub", data)
-        assert after["library"] != before["surfaces-bake"]["library"]
-        assert after["places"] == before["surfaces-bake"]["places"]
+        assert keys("surfaces-bake", "hub", data) != before["surfaces-bake"]
     finally:
         shutil.rmtree(data)
 
 
-def test_a_surface_the_row_takes_or_its_own_materials_move_its_key():
+def test_a_kinds_details_move_the_paint_key_and_place_json_keys_neither():
     data = a_copy()
     try:
         record = stages.surfaces.data.record("hub")
-        taken = next(entry["library"] for entry in
-                     json.loads((data / "definitions/place.json").read_text())[record["library"]]["materials"].values()
-                     if "library" in entry)
+        kind = sorted({take["kind"] for take in record["takes"].values()})[0]
         before = keys("surfaces-paint", "hub", data)
-
-        def rougher(library):
-            for family in library["families"].values():
-                if taken in family["variants"]:
-                    family["variants"][taken]["roughness"] = 0.99
-        edit(data / "library/materials.json", rougher)
-        after_library = keys("surfaces-paint", "hub", data)
-        assert after_library["library"] != before["library"] and after_library["places"] == before["places"]
-        edit(data / "definitions/place.json",
-             lambda places: places[record["library"]]["wear"].update(dirt=0.123))
-        assert keys("surfaces-paint", "hub", data)["places"] != after_library["places"]
+        edit(data / "library/details.json", lambda details: details.setdefault(kind, {}).update(wall=0.123))
+        assert keys("surfaces-paint", "hub", data) != before
+        for row in ("surfaces-paint", "surfaces-bake"):
+            assert "places" not in ROWS[row].files("hub"), row
     finally:
         shutil.rmtree(data)
 
@@ -89,7 +72,7 @@ def test_a_surface_the_row_takes_or_its_own_materials_move_its_key():
 def test_the_paint_and_bake_rows_and_their_twins_key_the_library_by_part():
     for name, place in (("surfaces-paint", "hub"), ("surfaces-bake", "hub"), ("surfaces-paint", "people")):
         files = ROWS[name].files(place)
-        assert isinstance(files["library"], tuple) and isinstance(files["places"], tuple), name
+        assert isinstance(files["library"], tuple), name
         assert ROWS[name].files.wide(place) if callable(ROWS[name].files.wide) else ROWS[name].files.wide
     assert not isinstance(ROWS["surfaces-parts"].files("hub")["library"], tuple)  # surfaces-names left the line
 

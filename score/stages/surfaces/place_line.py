@@ -426,7 +426,8 @@ def resting_base(points, faces, band, tolerance, most):
 
 def paint_take(inputs, out, take, record, records):
     """One take painted from its part records (method_surfaces): each part's surface, the labelled folder and
-    faces.npz, its report."""
+    faces.npz, its report. The surfaces are the records' own (the scene palette offered them), named in the order the
+    parts first name them; a take no part of which names a surface stops here."""
     import numpy as np
     import labels
     import patchy
@@ -436,7 +437,9 @@ def paint_take(inputs, out, take, record, records):
     part_of = np.load(inputs["parts"] / take / "parts.npy").astype(int)
     colours = np.load(inputs["parts"] / take / "colours.npy")
     mesh = split_compare.raw_model(take)
-    names = list(labels.allowed_materials(entry["library_places"][0], entry["kind"], []))
+    if not any(record.get("surface") for record in records):
+        raise RuntimeError(f"{take}: no part names a surface")
+    names = []
     chosen = bordered(mesh, part_of, records, names)
     unnamed = [part for part in range(len(records)) if chosen[part] < 0]
     safe = np.where(chosen < 0, 0, chosen)
@@ -583,7 +586,9 @@ def bake_entries(inputs, labelled):
     import bake_job
     data = data_of(inputs)
     kit, inventory = read_or_none(inputs, "kit"), read_or_none(inputs, "inventory")
-    job = bake_job.job_head(data["library"], bake_job.outside(kit))
+    import library
+    job = bake_job.job_head(library.wear_of(data["library"]), bake_job.specs_of(data["library"]),
+                            bake_job.outside(kit))
     written = data["bake"].get("entries", {})
     # regions: an old job's boxes that forced a variant over the paint (the water tank's top as glass): the method paints
     chunky = [dict(bake_job.entry_of(data["place"], name, written.get(name), kit, inventory, labelled[take]),

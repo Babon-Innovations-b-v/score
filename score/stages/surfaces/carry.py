@@ -6,8 +6,8 @@ keys (library_reads.py, 2026-10-13), remaking nothing.
 The runner carries by itself too: before it makes one of these rows it asks `carried`, and `rebuy` counts a row that
 carries as no buy. An accepted output carries when its record was made from a committed tree, its code is the row's
 code under the wide key today, every other key part (contract, inputs, earlier outputs, parameters, seed, models,
-every other world file) is the new key's, and the library and place.json parts the row reads, worked out on those
-files as they were at the record's commit (rebuilt from git), are today's. A row whose own code changed since carries
+every other world file) is the new key's, and the library part the row reads, worked out on the library as it was
+at the record's commit (rebuilt from git), is today's. A row whose own code changed since carries
 only with a proof stored as evidence on the output that the change leaves its result as it is (`proof_fault`: every
 changed file named with why, the free rows before it made again to their accepted outputs); no proof, no carry. It is
 then stored once more under the new key: the same output, its record and judgements copied, the record saying "same
@@ -28,9 +28,9 @@ from score.graph import Blocked, _code
 from score.store import PROPS_HOME, file_hash, listing_hash, text_hash
 
 REASON ="same inputs, narrower key"
-NARROWED = ("library", "places")
+NARROWED = ("library",)
 SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
-TRACKED = {"library": "data/library", "places": "data/definitions/place.json"}
+TRACKED = {"library": "data/library"}
 COMMITS = PROPS_HOME / "work/carry-commits"  # the tracked files as each record's commit had them, written once
 WIDE_CODES = {}
 
@@ -62,9 +62,9 @@ def wide_code(row):
 
 
 def narrowed_then(row, place, record):
-    """{name: hash} of the row's library and place.json parts as the record's commit had those files."""
+    """{name: hash} of the row's library part as the record's commit had it."""
     files = row.files(place)
-    then = {name: at_commit(record["commit"], path) for name, path in TRACKED.items()}  # the library reads place.json
+    then = {name: at_commit(record["commit"], path) for name, path in TRACKED.items()}
     return {name: text_hash(files[name][1](then[name])) for name in NARROWED}
 
 

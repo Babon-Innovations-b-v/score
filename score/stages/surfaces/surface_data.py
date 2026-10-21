@@ -72,10 +72,10 @@ def shape_files(place):
 
 
 def line_files(place):
-    """The world files of a row that reads the library (lists, names, parts, paint, check): shape_files and the
-    library, the places' surfaces and the palette."""
-    return {**shape_files(place), "library": "{data}/library", "places": "{data}/definitions/place.json",
-            "tokens": "{repo}/design/tokens/tokens.json"}
+    """The world files of a row that reads the library (lists, names, parts, paint, check): shape_files, the library
+    and the palette tokens (a scene's palette tokens and wear are its scene palette's, an input,
+    never place.json)."""
+    return {**shape_files(place), "library": "{data}/library", "tokens": "{repo}/design/tokens/tokens.json"}
 
 
 def parts_files(place):
@@ -114,4 +114,4 @@ def bake_files(place):
                for claim in record(place).get("elsewhere", {}).values()}
     return {"surfaces": pattern(place), **jobs, **claimed, "library bake": "{repo}/tools/props/cloud/library_bake.py",
             "bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library",
-            "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}
+            "tokens": "{repo}/design/tokens/tokens.json"}
