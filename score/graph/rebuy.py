@@ -101,11 +101,31 @@ def to_make(runner, stage, place, pending, remade):
     return {**own, "after": record["after"], **({"beside": record["beside"]} if "beside" in record else {})}
 
 
+def read_first(runner, nodes):
+    """The nodes in table order, each moved after every node among them it reads, as the drive makes them (a row
+    the table lists before a row it reads, scene-record before plan, was judged before it and counted as not made)."""
+    named = {node_name(stage, place): (stage, place) for stage, place in nodes}
+    done, order = set(), []
+
+    def visit(name, seen):
+        if name in done or name in seen:
+            return
+        for before in runner.read_nodes(*named[name]):
+            if node_name(*before) in named:
+                visit(node_name(*before), seen | {name})
+        done.add(name)
+        order.append(named[name])
+    for stage, place in nodes:
+        visit(node_name(stage, place), frozenset())
+    return order
+
+
 def buys(runner, nodes):
     """[Buy] of every paid node among `nodes` (in table order) a drive would make, running nothing."""
     found, remade = [], {}  # remade: {node made first: True when its output may change}
+    rank = {node_name(stage, place): number for number, (stage, place) in enumerate(nodes)}
     with runner.still():
-        for stage, place in nodes:
+        for stage, place in read_first(runner, nodes):
             node = node_name(stage, place)
             pending = [name for name in (node_name(*before) for before in runner.read_nodes(stage, place))
                        if name in remade]
@@ -121,7 +141,7 @@ def buys(runner, nodes):
                 found.append(Buy(node, 0.0 if cached else float(stage.euros or 0),
                                  why + ("; the same Google requests: cached" if cached else ""),
                                  runner.store.accepted(node) is not None))
-    return found
+    return sorted(found, key=lambda buy: rank[buy.node])
 
 
 def listing(bought):
