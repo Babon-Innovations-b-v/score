@@ -41,7 +41,10 @@ def scene_of(place):
 # --- the render ---------------------------------------------------------------------------------------------------
 
 def neighbours(place):
-    return sorted({entry["stage"] for entry in scene_of(place).get("places", [])} - {place})
+    """The places the place's record shows, but one no stage makes (no kit) whose seed went with the old disk
+    (2026-10-19: the far city): it is lit and rendered without it, and the neighbours row names it a gap."""
+    return sorted(name for name in {entry["stage"] for entry in scene_of(place).get("places", [])} - {place}
+                  if (REPO / f"data/kit/{name}.json").exists() or (PROPS_HOME / "work/usd-r3" / name).exists())
 
 
 def take(layer_folder, folder, place):

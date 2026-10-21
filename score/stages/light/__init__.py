@@ -205,7 +205,17 @@ def view_passes(passes_folder, name):
     return found
 
 
+def designed(place):
+    """Whether the place has an approved design (its hand-in, prop_data.designed): its concept is its picked one."""
+    import score.stages.props.prop_data as prop_data
+    return prop_data.designed(place)
+
+
 def concept_pictures(place):
+    """The place's concept pictures: a designed place's picked concept (as rough-model reads it), else its
+    inventory's plan views."""
+    if designed(place):
+        return [PROPS_HOME / "design/concepts" / f"{place}.png"]
     inventory = json.loads(stage_inputs.inventory_path(place).read_text())
     return [pathlib.Path(view["picture"].replace("WORK", str(WORK))) for view in inventory["plan"]["views"]]
 
@@ -353,7 +363,8 @@ def make_light(inputs, out, seed, params):
                                                for group, scale in scales.items()})
     layer.lamps_file(found, out)
     measures = {"place": place, "brightness": swept, "sky_elements": sky_elements(place, out, record),
-                "concept": concept_measures(), "stage_checks": stage_checks(place, layer_folder, inputs, out)}
+                "concept": concept_measures() if "square concepts" in inputs else None,
+                "stage_checks": stage_checks(place, layer_folder, inputs, out)}
     measures.update(fault_measures(place, out, passes_folder, record))
     (out / "measures.json").write_text(json.dumps(measures, indent=1) + "\n")
 
@@ -706,9 +717,13 @@ def light_files(place):
     inventory = stage_inputs.inventory_path(place)
     found = {"scene": "{data}/scene/{place}.json", "seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground",
              "kit": "{data}/kit/{place}.json", **passes.place_files(place),
-             "inventory": "{data}/inventory/" + inventory.name,
-             "concepts": f"{{seeds}}/scene/{inventory.stem}/views", "square concepts": "{seeds}/scene/square/views",
-             "old station concepts": "{seeds}/scene/old_station/views"}
+             "inventory": "{data}/inventory/" + inventory.name}
+    if designed(place):  # its picked concept; the old K04 and C4 the reference measures read went with the old disk
+        found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
+    else:
+        found.update({"concepts": f"{{seeds}}/scene/{inventory.stem}/views",
+                      "square concepts": "{seeds}/scene/square/views",
+                      "old station concepts": "{seeds}/scene/old_station/views"})
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
         if (REPO / f"data/scene/{name}.json").exists():

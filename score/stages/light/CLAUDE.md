@@ -61,4 +61,8 @@ its own runner (`python -m score.stages.light run lightkit`).
   written into its seed copy (the writer moves assets/textures into assets/light, and ten places' neighbours drew
   magenta). The lit tree is refused when it names a missing picture, and the render rows gate on the looks'
   missing-texture magenta (`passes.judge_magenta`).
+- **A designed place is measured against its picked concept** (`{home}/design/concepts/<place>.png`, as
+  rough-model reads it; `concept_pictures`, `light_files`): its old views and the K04 and C4 the reference measures
+  read went with the old disk (2026-10-19), so `measures.json`'s `concept` is None there. A shown place no stage makes
+  whose seed is lost (the far city) is left out of the render (`passes.neighbours`); the neighbours row names it a gap.
 - `light_test.py` checks the measures, the sweep and the layer on pictures, passes and a stage made in the test.

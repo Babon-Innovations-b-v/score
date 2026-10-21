@@ -17,6 +17,8 @@ FOLDER = REPO / "data/crops"
 # The SAM 3 runner and the script it copies up: imported inside the rows (tools()), so declared as files instead.
 MASKS_TOOLS = {"masks": "{repo}/tools/props/scene/box_masks.py",
                "masks runner": "{repo}/tools/props/cloud/box_masks_cloud.py"}
+# The view a crop data names for its place's picked design concept ({home}/design/concepts/<place>.png).
+DESIGN_VIEW = "design"
 
 
 @contextlib.contextmanager
@@ -43,8 +45,18 @@ def boxes_files(place):
 
 
 def applies(place):
-    """Whether the place's concept shows crops (it has a file)."""
-    return (FOLDER / f"{place}.json").exists()
+    """Whether the place's concept shows crops (it has a file), and its file was written for that concept: a designed
+    place's (its approved design's picked concept) only when it names the `design` view; one written for an old
+    concept view is a gap of the motion layer's growth (motion/needs.py), not rows reading a lost picture."""
+    return (FOLDER / f"{place}.json").exists() and not old_concept(place)
+
+
+def old_concept(place):
+    """Whether the place is designed and its crop data names an old concept view (the greenhouse's K09, lost with the
+    old disk 2026-10-19; its kinds and rows are that picture's, not the design's)."""
+    import score.stages.props.prop_data as prop_data
+    return (prop_data.designed(place) and (FOLDER / f"{place}.json").exists()
+            and record(place)["concept"]["view"] != DESIGN_VIEW)
 
 
 def record(place):
@@ -52,7 +64,10 @@ def record(place):
 
 
 def concept_picture(place):
-    """The pattern of the place's concept view the crop data names (WORK/ is the seeds' work folder)."""
+    """The pattern of the place's concept view the crop data names (WORK/ is the seeds' work folder), its picked
+    design concept for the `design` view."""
+    if record(place)["concept"]["view"] == DESIGN_VIEW:
+        return "{home}/design/concepts/" + f"{place}.png"
     inventory = json.loads((REPO / "data/inventory" / f"{place}.json").read_text())
     wanted = record(place)["concept"]["view"]
     view = next(view for view in inventory["plan"]["views"] if view["id"] == wanted)

@@ -26,4 +26,7 @@ assembly takes (`assembly.take_layer`). `__init__.py`'s docstring has the make a
   box gate reads them; a box SAM 3 does not ground, and a row flagged `"ground_box": "judge"`, goes to the box judge
   on Gemini (cents an ask: two seeds, one round; a split is a gap, never a third ask). The workshop robot's eight part rows were dropped (captain, 2026-10-12): concept K10
   shows no robot, and the concept decides.
+- **A designed place's record names its design's takes.** One naming an old take (the garage's kit5-rover-3) has
+  no row and is a motion-layer gap (`old_takes`, `../needs.py`); `motion-models-boxes` never applies to a designed
+  place, whose boxes are its reading's.
 - `models_test.py` lays a stand-in rover on the garage's seed and breaks each gate once.

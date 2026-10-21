@@ -47,15 +47,31 @@ def needs(place, data):
     for word in read(data / "checks/contents.json").get("places", {}).get(place, {}).get("motion", []):
         if not any(word in name for name in motions):
             found.append({"kind": "need", "item": word, "about": "data/checks/contents.json"})
+    return found + old_records(place)
+
+
+def old_records(place):
+    """A designed place's motion records written for its old concept, whose rows therefore do not apply (the old
+    concept's pictures and takes went with the old disk, 2026-10-19): [{"kind": "record", "item", "about"}]."""
+    import score.stages.crops.crop_data as crop_data
+    import score.stages.motion.models as models
+    found = [{"kind": "record", "item": f"models:{take}", "about": f"data/motion/models/{place}.json names take {take}"}
+             for take in models.old_takes(place)]
+    if crop_data.old_concept(place):
+        view = crop_data.record(place)["concept"]["view"]
+        found.append({"kind": "record", "item": "crops", "about": f"data/crops/{place}.json reads concept view {view}"})
     return found
 
 
 SENTENCES = {"move": "{item} is a {about} that nothing moves and no reason keeps still",
-             "need": "the place must show {item} moving, and no motion of its records is {item}"}
+             "need": "the place must show {item} moving, and no motion of its records is {item}",
+             "record": "{about}, of the place's old concept, not its approved design: its rows do not run"}
 WORK = {"move": "a move for {item} in data/motion/rigid/{place}.json (a path, swing, spin or slide with its `from`), "
                 "or its `still` reason",
         "need": "a motion named for {item} in data/motion/rigid/{place}.json, or the need dropped in "
-                "data/checks/contents.json with the concept's reason"}
+                "data/checks/contents.json with the concept's reason",
+        "record": "the record written again from the picked design: its rows and takes the design's hand-in "
+                  "({{home}}/design/props/{place}.json), a crop data's view `design`"}
 
 
 def gaps(place, data):

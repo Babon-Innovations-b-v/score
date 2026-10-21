@@ -64,8 +64,12 @@ def judged(box_check, scene, inventory, rows, folder):
 
 
 def applies(place):
+    """A place whose old inventory flags boxes to ground; never a designed place, whose every box is its reading's
+    (SAM 3's, else Gemini's region, in its hand-in: complete/prepare/handin.py) and is never recorded where this row
+    writes (stages.box_checked)."""
+    import score.stages.props.prop_data as prop_data
     path = REPO / "data/inventory" / f"{place}.json"
-    return path.exists() and bool(boxed_rows(json.loads(path.read_text())))
+    return not prop_data.designed(place) and path.exists() and bool(boxed_rows(json.loads(path.read_text())))
 
 
 def files(place):
