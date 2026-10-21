@@ -172,7 +172,34 @@ def test_a_missing_input_stops_its_line_with_a_fault_report():
     found = runner.drive(PLACES, say=quiet)
     assert found["clean@hangar"].startswith("blocked: clean@hangar: its input brief is missing"), found
     assert "its input brief is missing" in report_of(runner, "clean@hangar").read_text()
+    assert found["count@hangar"] == "not run: its line stopped at clean@hangar", found
     assert found["count@station"] == "made: pass, accepted automatically", found
+
+
+def make_echo(inputs, out, seed, params):
+    (out / "echo.txt").write_text(inputs["brief"].read_text())
+
+
+def test_a_later_node_that_reads_nothing_of_a_stopped_one_still_runs():
+    """sound@square, 2026-10-20: one failed sound (table row 2, it reads nothing) stopped every later row of the
+    square's line, the rough model, close-up, Pixal3D, the finish route and the library, though none read it."""
+    data = pathlib.Path(tempfile.mkdtemp())
+    for place, brief in {"hangar": "a ship in a very long dark hall", "station": "a hub"}.items():
+        (data / place).mkdir()
+        (data / place / "brief.txt").write_text(brief)
+    clean = graph.Stage("clean", "place", make_clean, TEXT, (WORDS,), files={"brief": "{data}/{place}/brief.txt"},
+                        gatherers={"words": (gather_limit, None)})
+    echo = graph.Stage("echo", "place", make_echo, TEXT, (checks.Check("counted", judge_count),),
+                       files={"brief": "{data}/{place}/brief.txt"})
+    tally = graph.Stage("tally", "place", make_count, TEXT, (checks.Check("counted", judge_count),),
+                        after={"clean": ("toy-text", 1), "echo": ("toy-text", 1)})
+    runner = graph.Runner((clean, COUNT, echo, tally), graph.Environment("toy", 7, {"data": data}),
+                          Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    found = runner.drive(PLACES, say=quiet)
+    assert found["clean@hangar"].startswith("made: unknown; gathered words: judged again, output kept: fail"), found
+    assert found["echo@hangar"] == "made: pass, accepted automatically", found
+    assert found["count@hangar"] == found["tally@hangar"] == "not run: its line stopped at clean@hangar", found
+    assert found["tally@station"] == "made: pass, accepted automatically", found
 
 
 def test_a_paid_gather_runs_inside_the_runners_clearance():

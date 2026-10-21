@@ -41,7 +41,8 @@ stage as each stage is built; nothing moves before.
   that errors on a transient fault (HTTP 5xx, a timeout, a dropped connection: `graph.transient`) runs again up to
   `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line; a paid node never runs again
   inside the batch, its failure is a gap (ADR-0005). Once a node stops its line,
-  nothing later on that line starts (a node already running may finish). Runs side by side on one store (every
+  every node that reads it, directly or through another, is not run; a node on that line that reads nothing of it
+  still runs (a node already running may finish). Runs side by side on one store (every
   agent's `score run`) make a node's key one at a time: a file lock per node and key (`locks/` beside the store; a
   dead holder lets go at once) makes a second run wait and then reuse the first's record, so nothing is paid twice;
   held past `LOCK_WAIT` the waiter is blocked, never made again. A record or judgement another run stored first is
