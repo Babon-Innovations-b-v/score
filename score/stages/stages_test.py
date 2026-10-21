@@ -308,23 +308,22 @@ def test_the_check_reads_every_input_check_step_reads():
     assert read <= set(handed), read - set(handed)
 
 
-def test_a_ship_place_is_read_from_git_and_reads_its_own_scene_record():
-    """Both ways, on a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is
-    not; the cockpit's cast declares neither data/scene/cockpit.json nor a views file under work/, reads its own
-    scene-record output beside and crowds from the record in it; the hub's cast reads nothing beside."""
+def test_a_ship_place_is_read_from_git():
+    """On a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is not."""
     assert not (SEEDS / "usd-ship" / "cockpit").exists()
     assert stages.ship_place("cockpit") and not stages.ship_place("hub")
+
+
+def test_the_cast_crowds_from_its_plan_never_a_hand_written_record():
+    """Every place's cast, the ship's and the earth's alike, takes its views from its plan row (an `after`) and
+    declares no old scene record (data/scene/<place>.json, the game's shots), no kit and no views file under work/."""
     row = next(row for row in stages.STAGES if row.name == "cast")
-    declared = row.files("cockpit")
-    assert "scene" not in declared and not any("world1-r4" in path for path in declared.values()), declared
-    assert row.neighbours("cockpit") == ["cockpit"] and row.neighbours("hub") == []
-    assert stages.cast.files("hub")["scene"] == row.files("hub")["scene"]
-    seen = {}
-    wrapped = stages.ship_cast(dataclasses.replace(row, make=lambda inputs, *rest: seen.update(inputs)))
-    with tempfile.TemporaryDirectory() as temporary:
-        record = pathlib.Path(temporary)
-        wrapped.make({"record": "data/characters/cockpit.json", "scene-record@cockpit": record}, record, 0, {})
-        assert seen["scene"] == record / "record" / "cockpit.json", seen
+    assert row.after["plan"] == ("place-plan", 2)
+    for place in ("cockpit", "square", "hub"):
+        declared = row.files(place)
+        paths = [pattern[0] if isinstance(pattern, tuple) else pattern for pattern in declared.values()]
+        assert not any(path.startswith(("{data}/scene", "{data}/kit")) or "world1-r4" in path for path in paths), \
+            (place, declared)
 
 
 # The environment data's paths into the work folder still standing, per file, and why: the work folder is no store

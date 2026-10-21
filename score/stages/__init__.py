@@ -315,8 +315,8 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
 DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
-                   after={name: ("people-dress", 1) for name in DRESS_ROWS}, optional=DRESS_ROWS,
-                   applies=designed("people"))
+                   after={"plan": ("place-plan", 2), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
+                   optional=DRESS_ROWS, applies=designed("people"))
 # Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
 # dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look
 # whose body is not usable is left out by name (the overseer's 14:00 rule: assemble with what passed; complete fails
@@ -796,24 +796,6 @@ def reading_own_record(row):
     return dataclasses.replace(row, beside=beside, neighbours=own_record)
 
 
-def ship_cast(row):
-    """cast for a ship place: it has no old record (data/scene/<place>.json), so its `scene` (the views it crowds
-    from) is its own scene record, read beside (reading_own_record). Wrapped here, so no other place's key moves."""
-    files, make = row.files, row.make
-
-    def declared(place):
-        found = files(place)
-        return {name: path for name, path in found.items() if name != "scene"} if ship_place(place) else found
-
-    def made(inputs, out, seed, params):
-        place = pathlib.Path(inputs["record"]).stem
-        if not ship_place(place):
-            return make(inputs, out, seed, params)
-        return make(dict(inputs, scene=record_beside(inputs, place)), out, seed, params)
-    return reading_own_record(dataclasses.replace(row, files=functools.wraps(files)(declared),
-                                                  make=functools.wraps(make)(made)))
-
-
 def ship_seen(row):
     """surfaces-check with a view distance for a ship place's models (2026-10-15: every model's was none, so the
     cockpit's pedestal, side console and ceiling equipment and the engine room's fuel tank were unknown): its views
@@ -858,7 +840,7 @@ def ship_completed(row):
 
 
 STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row) if row.name == "surfaces-check"
-               else ship_completed(row) if row.name == "complete" else ship_cast(row) if row.name == "cast" else row
+               else ship_completed(row) if row.name == "complete" else row
                for row in STAGES)
 # The assembly reading the round-three seed itself, before earth_seeded below: the worked example's (stages_test.py).
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")

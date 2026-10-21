@@ -39,6 +39,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))  # already on it by the assembly's i
 
 from score.stages import people_rows  # noqa: E402
 from score.stages.cast import layer, measure, spread  # noqa: E402
+from score.stages.scene_record import writer  # noqa: E402
 
 # How far feet may stand off what is under them, metres: the floor's own unevenness, not a float or a sink.
 STAND_SLACK = 0.05
@@ -47,13 +48,27 @@ NAMED = 20
 
 
 def files(place):
-    """The place's people from its picked design (its entry of data/people/rows.json, #26), its kit, its seed stage,
-    the people's colours (which dress row a look is) and cast.py's and cast_check.py's code (imported only inside the
-    make and the gates, so the code version does not follow them: measure.characters)."""
-    return {"design": ("{data}/people/rows.json", people_rows.place_part(place)), "kit": "{data}/kit/{place}.json",
+    """The place's people from its picked design (its entry of data/people/rows.json, #26), its seed stage, the
+    people's colours (which dress row a look is), the environment's eye height (its views') and cast.py's and
+    cast_check.py's code (imported only inside the make and the gates, so the code version does not follow them:
+    measure.characters). Its views are its plan's (the plan row's output, an `after`: plan_views)."""
+    return {"design": ("{data}/people/rows.json", people_rows.place_part(place)),
             "seed": "{seeds}/usd-r3/{place}", "colours": "{data}/people/colours.json",
-            "cast rules": "{repo}/tools/characters/cast.py",
-            "cast check": "{repo}/tools/characters/cast_check.py", "scene": "{data}/scene/{place}.json"}
+            "places": "{data}/definitions/place.json", "cast rules": "{repo}/tools/characters/cast.py",
+            "cast check": "{repo}/tools/characters/cast_check.py"}
+
+
+def plan_views(inputs):
+    """The views of the place's plan (the plan row's plan.json, metres in the place's frame), as the scene record
+    writes them (scene_record.writer.views): one inside each door looking across and one from each of the plan's
+    standing spots, each eye at the environment's eye height over its level; an outdoor plan's from its standing spots
+    only, over the plan's own level (the made ground's rise under a spot is not the plan's). None for a place with no
+    plan row (Runner.reads leaves it out), so no copy is kept off a view."""
+    if "plan" not in inputs:
+        return []
+    plan = read_json(pathlib.Path(inputs["plan"]) / "plan.json")
+    eye = read_json(inputs["places"])["shared"]["scale"]["eye_height"]
+    return writer.views(plan if plan["inside"] else dict(plan, doors=[]), eye)
 
 
 def read_json(path):
@@ -95,7 +110,7 @@ def dealt(record, place, inputs):
 
 
 def crowd_of(record, singles, place, inputs, views):
-    """The crowd's far body's look and its candidate copies (spread.lattice, kept off each of the place's views:
+    """The crowd's far body's look and its candidate copies (spread.lattice, kept off each of the place's plan's views:
     spread.far_enough), or None for a cast with no crowd."""
     crowd = record.get("crowd")
     if not crowd:
@@ -129,7 +144,7 @@ def make(inputs, out, seed, params):
     design = read_json(inputs["design"])
     record = people_rows.cast_record(place, design)
     singles = dealt(record, place, inputs)
-    crowd = crowd_of(record, singles, place, inputs, read_json(inputs["scene"]).get("views", []))
+    crowd = crowd_of(record, singles, place, inputs, plan_views(inputs))
     found = measure.solids(base, place) if singles or crowd else {}
     if found:
         members = members_of(record)
