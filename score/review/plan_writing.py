@@ -383,13 +383,14 @@ def plan_from(answer, skeleton, inventory):
                        ("roofs", roof_of)):
         plan[key], off = listed(answer, key, check)
         dropped += [{"item": key, "why": f"{off} off the schema"}] if off else []
-    plan["dropped"] = dropped
+    # the skeleton's lamps, beams and leaves on rows this concept lacks are left out of it already: no gap of his
+    plan["dropped"] = dropped + [{"item": gap["item"], "why": gap["words"]} for gap in skeleton.get("gaps", [])
+                                 if gap["kind"] != "size"]
     plan["terrain"] = terrain_of(answer.get("terrain"))
     section = number((answer.get("section") or {}).get("y")) if isinstance(answer.get("section"), dict) else None
     plan["section"] = {"y": section if section is not None else round(skeleton["d"] / 2, 3)}
-    kept = [gap for gap in skeleton.get("gaps", []) if gap["kind"] != "size"]  # the writing sized every item
     plan["structure"] = structure_of(answer, inventory)
-    plan["gaps"] = kept + hold_gaps + plan_checks.checked(plan, inventory, plan["structure"])
+    plan["gaps"] = hold_gaps + plan_checks.checked(plan, inventory, plan["structure"])
     return plan
 
 
@@ -425,10 +426,10 @@ def spent(store, places):
     return round(sum(found["euros"] for place in places for found in writings(store, place)), 4)
 
 
-def price(store=None, places=()):
-    """The euros one writing is priced at: the dearest measured one of `places`, rounded up to the cent, else
+def price(store=None):
+    """The euros one writing is priced at: the dearest measured writing of any place, rounded up to the cent, else
     ESTIMATE."""
-    measured = [found["euros"] for place in places for found in writings(store, place)] if store else []
+    measured = [store.read(key)["euros"] for key in store.objects.keys(f"{AREA}/")] if store else []
     return math.ceil(max(measured) * 100) / 100 if measured else ESTIMATE
 
 
@@ -496,7 +497,7 @@ def write_now(store, places, by, clear=None, ask=None):
     folder = store.cache / AREA / stamp_key(concepts.now())
     folder.mkdir(parents=True, exist_ok=True)
     found = []
-    with cleared(store, places, round(price(store, places) * len(places), 4), clear):
+    with cleared(store, places, round(price(store) * len(places), 4), clear):
         compute.require_cleared("a plan writing", store)
         for layer in layered(store, places):
             with concurrent.futures.ThreadPoolExecutor(len(layer)) as pool:

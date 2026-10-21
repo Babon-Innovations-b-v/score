@@ -612,7 +612,7 @@ class LocalSource:
             found[node] = PlanReview(**shown)
         nodes = self.design_nodes()
         return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros(),
-                "plan_write_euros": plan_writing.price(self.store, nodes), "plan_automatic": plan_writing.AUTOMATIC,
+                "plan_write_euros": plan_writing.price(self.store), "plan_automatic": plan_writing.AUTOMATIC,
                 "plan_spend": plan_writing.spent(self.store, nodes)}
 
     def design_nodes(self):

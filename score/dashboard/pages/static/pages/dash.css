@@ -660,7 +660,8 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .plan-hold rect { fill: color-mix(in srgb, var(--review) 12%, transparent); stroke: var(--review); stroke-width: 2; }
 .plan-item.lit polygon, .plan-item.lit ellipse, .plan-zone.lit polygon, .plan-hold.lit rect { stroke: var(--bad); stroke-width: 3; fill: color-mix(in srgb, var(--bad) 22%, transparent); }
 .plan-ring { fill: none; stroke: var(--bad); stroke-width: 3; }
-.plan-corner { fill: var(--ink) !important; stroke: none !important; cursor: nwse-resize; }
+.plan-corner { fill: var(--ink) !important; stroke: none !important; cursor: nwse-resize; opacity: 0; }
+.plan-drag:hover > .plan-corner { opacity: 1; }
 .plan-spot { fill: var(--new); }
 .plan-dim-line, .plan-dim-ext, .plan-dim-tick { stroke: var(--soft); stroke-width: 1; }
 .plan-dim-tick { stroke-width: 1.6; }
