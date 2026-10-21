@@ -3,7 +3,8 @@ schema, and a trial in a physics engine that shows its objects react. The trial 
 (design.py: its loose rows' laid objects dropped back onto where they stand, under the gravity of the body its site
 is on), never from a record written for the scene; only a scene whose inventory has a loose row has the rows.
 
-    physics-layer  (free) the assembly's stage copied, its trial record made from the design (record.json), with
+    physics-layer  (free) the place's stage copied (its neighbours output where it shows other places, they standing
+                   in it under places/, else its assembly), its trial record made from the design (record.json), with
                    tools/usd/physics.py's layers: every mesh colliding by its
                    triangles, every object's mass (its surface's area, its material's sheet and density) and physics
                    material (friction, restitution), the scene's pull; and the trial: its bodies colliding by their
@@ -36,7 +37,6 @@ from PIL import Image
 
 from score import checks, contracts
 from score.adapters import engines
-from score.stages.terrain import look as terrain_look
 from score.stages import row_kinds
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -70,18 +70,9 @@ LAYER_FILES = {**row_kinds.DESIGNED, "materials": "{data}/physics/materials.json
                "within": "{data}/places/within.json"}
 
 
-def trial_files(place):
-    """What the trial reads besides the layer's output (its record there): the Blender scripts it runs, the
-    neighbours' seeds the stage references."""
-    found = {"renderer": "{data}/../tools/blender/inside", "trial script": "{repo}/" + TRIAL_SCRIPT}
-    found.update({f"neighbour {name}": f"{{seeds}}/usd-r3/{name}" for name in shown_places(place)})
-    return found
-
-
-def shown_places(place):
-    """The places the scene's stage references (its data/scene record's `places`); none for a scene with no record
-    there (a scene of the new designs: the engine room)."""
-    return terrain_look.neighbours(place) if (REPO / f"data/scene/{place}.json").is_file() else []
+# What the trial reads besides the layer's output (its record there, the places it shows under places/): the Blender
+# scripts it runs.
+TRIAL_FILES = {"renderer": "{data}/../tools/blender/inside", "trial script": "{repo}/" + TRIAL_SCRIPT}
 
 
 def read_json(path):
@@ -95,8 +86,9 @@ def place_of(folder):
 # --- physics-layer -----------------------------------------------------------------------------------------------
 
 def make_layer(inputs, out, seed, params):
-    """The assembly's stage with the physics and trial layers, and what was written."""
-    for child in pathlib.Path(inputs["assembly"]).iterdir():
+    """The place's stage (its neighbours output where it has one, else its assembly) with the physics and trial
+    layers, and what was written."""
+    for child in pathlib.Path(inputs.get("neighbours") or inputs["assembly"]).iterdir():
         if child.name == "contract.json":
             continue
         (shutil.copytree if child.is_dir() else shutil.copy2)(child, out / child.name)
@@ -189,13 +181,21 @@ def starts(folder, place, names):
     return {name: ((low + high) / 2).tolist() for name, (low, high) in boxes.items()}
 
 
+def trial_folder(out, place, layer):
+    """out/stages/trial holding a writable copy of the layer's stage (the places it shows under places/ with it) as
+    <place>/, less its contract."""
+    folder = out / "stages" / "trial"
+    shutil.copytree(layer, folder / place, ignore=shutil.ignore_patterns("contract.json"))
+    subprocess.run(["chmod", "-R", "u+w", str(folder / place)], check=True)
+    return folder
+
+
 def make_trial(inputs, out, seed, params):
     """Run the trial on a rented machine, play its motion back in the stage, render its moments, measure it."""
     layer = pathlib.Path(inputs["physics-layer"])
     place = place_of(layer)
     record = read_json(layer / "record.json")
-    folder = terrain_look.tree(out, "trial", place, layer, inputs)
-    (folder / place / "contract.json").unlink(missing_ok=True)
+    folder = trial_folder(out, place, layer)
     root = folder / place / f"{place}.usda"
     # One card held for both steps: one machine's start, not two.
     with engines.machine_runner().Machine(CARDS, WHO) as machine:

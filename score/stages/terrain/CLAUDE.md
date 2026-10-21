@@ -35,5 +35,4 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   pictures (`ground-fit`, free): `under` (the ground under every object standing on it level enough), `floating`,
   `continuous` (rays straight down round the place for holes) and `openings` (its scene record's doorways onto a
   floor, no view ray into nothing: `sight.py`, the body's horizon dipping with the viewer's height).
-- `look.py` holds only what `physics-trial` imports from it (`tree`, `render`, `rendered`, `neighbours`).
 - Test: `terrain_test.py` (a design of its own on the Moon: its ground, its gates both ways, the fit measures).
