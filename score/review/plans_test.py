@@ -178,6 +178,33 @@ def test_a_room_changed_on_the_holders_plan_puts_draws_on_it_out_of_date_and_fla
     assert stages.places(world, store) == ["yard"]  # the build follows him: no stage line for it
 
 
+def test_rewriting_a_parent_keeps_its_locked_childrens_rooms_and_only_his_edit_moves_them_or_hides(store, monkeypatch):
+    """Owner, 2026-10-21: "get my concepts back ... i had alr locked them": a plan written again (its inventory read
+    again) never moves a locked scene's room nor shows over his own edit; only his edit moves the room."""
+    from score.review import plan_writing
+    monkeypatch.setattr(concepts, "step_refusal", lambda store, place, step: None)
+    picked(store, "yard")
+    room = plans.room_of(store, "shed")
+    store.write_once("concepts/shed/draws/1.json", {"place": "shed", "sha": PICK, "at": concepts.now(), "room": room})
+    concepts.pick(store, "shed", PICK, "joey")
+    plan = plans.current(store, "yard")["plan"]
+    moved = {**plan, "holds": [{**room, "x": room["x"] + 3.0, "w": 9.0}]}
+    plan_writing.kept(store, {"place": "yard", "concept": PICK, "reading": plan_writing.reading_at(store, "yard"),
+                              "method": plan_writing.METHOD, "by": "test", "at": concepts.now(), "plan": moved})
+    assert plans.current(store, "yard")["how"] == "written" and plans.room_of(store, "shed") == room
+    assert not concepts.plan_changed(store, "shed")
+    store.write_once("concepts/shed/draws/0.json", {"place": "shed", "sha": "d" * 64, "at": "2026-10-01T00:00"})
+    concepts.pick(store, "shed", "d" * 64, "joey")  # locked on a draw from before rooms were recorded
+    assert not concepts.plan_changed(store, "shed")  # a writing since moves no locked room
+    plans.edited(store, "yard", {**plan, "holds": [{**room, "w": 6.0}]}, "joey")
+    assert concepts.plan_changed(store, "shed")  # his edit does
+    plan_writing.kept(store, {"place": "yard", "concept": PICK, "reading": plan_writing.reading_at(store, "yard"),
+                              "method": plan_writing.METHOD, "by": "test", "at": concepts.now(), "plan": moved})
+    shown = plans.current(store, "yard")
+    assert shown["how"] == "edited" and shown["plan"]["holds"][0]["w"] == 6.0  # his edit over a newer writing
+    assert shown["plan"]["gaps"][-1]["kind"] == "edited"
+
+
 def test_a_scene_he_added_in_the_app_is_a_place_once_its_design_is_done(store, data, tmp_path):
     """A child scene he added on a plan (no file of it in the data) is a scene in design, no place, until its concept
     is locked, its inventory read and its plan written or edited; then the build lists it and its plan row reads its

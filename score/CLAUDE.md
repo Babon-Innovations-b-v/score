@@ -124,8 +124,10 @@ stage as each stage is built; nothing moves before.
   direct Gemini call inside his click's yes (`web.plan_revise`), `made` and `holder_of` (the row and SAM box holding an
   inside place) for `concepts.step_refusal`, `shape_sent` an inside place's shape on it, `keep` the plans where the
   plan stage reads them (`stages.creator_plan`) and the plan row made again for those that changed; the plan shown is
-  the newer of his edit and the plan made without him (`made_plan`: written, else the rough one laid from the
-  inventory, its SAM boxes only ordering it). `plan_writing.py` writes a place's plan, measured off a drawing (owner, 2026-10-21):
+  his edit, always (a plan written after it is named as a gap, never shown over it), else the plan made without him
+  (`made_plan`: written, else the rough one laid from the inventory, its SAM boxes only ordering it), each locked
+  inside scene kept in the room its locked draw was drawn on (`locked_rooms_kept`): only his edit moves a locked
+  scene's room (owner, 2026-10-21). `plan_writing.py` writes a place's plan, measured off a drawing (owner, 2026-10-21):
   first `plan_drawing.py`'s top-down drawing (one Nano Banana Pro call redrawing the locked concept from directly above on its
   outline on the layer above's plan, kept under `plan-drawings/<place>/`, once per lock and outline), then one Gemini
   3.1 Pro call reading positions and footprints off it in its units, which part is which from the locked concept, the

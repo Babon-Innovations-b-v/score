@@ -70,7 +70,7 @@ def kept_record(store, place, kind, record):
     """Write one of his records once (the owner's process only, or an agent's carrying his words for a design edit he
     asked for in a session: `asked`, root CLAUDE.md, the owner 2026-10-21); the record."""
     key = f"{AREA}/{place}/{kind}/{stamp_key(record['at'])}.json"
-    if kind == "edits" and (record.get("asked") or {}).get("words") and (record["asked"]).get("at"):
+    if kind in ("edits", "named") and (record.get("asked") or {}).get("words") and (record["asked"]).get("at"):
         store.write_once(key, record)
     else:
         concepts.recorded(store, key, record)
@@ -238,18 +238,52 @@ def moved_draws(store, place):
         by_sha.setdefault(draw.get("sha"), draw)
     shown, room = above_plan(store, place)
     since = shown and shown["at"]
+    holder = tree(store)["within"].get(place)
+    edit = newest_edit(store, holder) if holder else None
+    locked = concepts.picked(store, place)
+    # his lock made on the plan above shown now: he locked it on that room, nothing has moved it since
+    locked_since = locked and since and concepts.records(store, place, "picks")[-1].get("at", "") >= since
 
-    def moved(draw, seen=()):
+    def moved(draw, seen=(), mine=False):
+        if mine and locked_since:
+            return False
         if draw.get("base"):
             base = by_sha.get(draw["base"])
             return base is not None and base is not draw and draw["base"] not in seen and moved(
-                base, (*seen, draw["base"]))
+                base, (*seen, draw["base"]), mine)
         if "room" in draw:
             return draw["room"] != room
         # shortcut: a draw from before rooms were recorded counts as moved by any plan of the layer above made after
-        # it, whether or not that plan moved this room; drop once no such draw is in use
-        return bool(since) and draw.get("at", "") < since
-    return {draw.get("sha") for draw in draws if moved(draw)}
+        # it, whether or not that plan moved this room, his locked one by his own edit only (a plan written again
+        # never moves a locked scene's room); drop once no such draw is in use
+        after = (edit or {}).get("at") if mine else since
+        return bool(after) and draw.get("at", "") < after
+    return {draw.get("sha") for draw in draws if moved(draw, mine=draw.get("sha") == locked)}
+
+
+def locked_room(store, place):
+    """The room on the layer above's plan `place`'s locked concept was drawn on (its draw's recorded room, through a
+    Redraw's base), None while none is locked or its draw recorded none."""
+    by_sha = {}
+    for draw in concepts.draws(store, place):
+        by_sha.setdefault(draw.get("sha"), draw)
+    draw, seen = by_sha.get(concepts.picked(store, place)), set()
+    while draw and draw.get("base") and draw["base"] not in seen and by_sha.get(draw["base"]) not in (None, draw):
+        seen.add(draw["base"])
+        draw = by_sha[draw["base"]]
+    return (draw or {}).get("room")
+
+
+def locked_rooms_kept(store, place, plan):
+    """`plan` (made without him) with each inside place whose concept is locked in the room it was locked on, laid
+    again where the plan dropped it: a plan written or laid again never moves a locked scene's room, only his edits
+    do (owner, 2026-10-21: "get my concepts back ... i had alr locked them")."""
+    rooms = {name: locked_room(store, name) for name, above in tree(store)["within"].items() if above == place}
+    rooms = {name: room for name, room in rooms.items() if room and room.get("place") == name}
+    if not rooms or plan is None:
+        return plan
+    holds = [rooms.pop(hold["place"], hold) for hold in plan.get("holds", [])]
+    return {**plan, "holds": holds + list(rooms.values())}
 
 
 # --- the plan drawn from data --------------------------------------------------------------------------------
@@ -623,8 +657,11 @@ def made_plan(store, place):
     found = written(store, place)
     if found:
         plan = {**found["plan"], "gaps": checked_again(found["plan"], inventory_of(store, place))}
-        return {"plan": plan, "how": "written", "at": found["at"], "by": found["by"]}
-    return {"plan": derived(store, place), "how": "derived", "at": None, "by": None}
+        if "holds" in plan:  # an inside place he took off since it was written is laid out no more
+            inside = set(proposed_inside(store, place))
+            plan["holds"] = [hold for hold in plan["holds"] if hold["place"] in inside]
+        return {"plan": locked_rooms_kept(store, place, plan), "how": "written", "at": found["at"], "by": found["by"]}
+    return {"plan": locked_rooms_kept(store, place, derived(store, place)), "how": "derived", "at": None, "by": None}
 
 
 CHECKED = {}  # {plan sha: its gaps}: a written plan checked once a process
@@ -670,9 +707,8 @@ def once(what, store, key, make, shared=False):
 
 
 def current(store, place):
-    """{plan, how, at, by} of the plan shown: the newer of his newest edit made on the current pick (how: edited or
-    revised) and the plan made without him (`made_plan`: written, else derived); None while its inventory does not
-    count."""
+    """{plan, how, at, by} of the plan shown: his newest edit made on the current pick (how: edited or revised), else
+    the plan made without him (`made_plan`: written, else derived); None while its inventory does not count."""
     return once("plan", store, place, lambda: shown_plan(store, place))
 
 
@@ -680,9 +716,15 @@ def shown_plan(store, place):
     """`current`'s answer, made now."""
     made_one = made_plan(store, place)
     edit = newest_edit(store, place) if made_one else None
-    if edit and (made_one["at"] is None or edit["at"] > made_one["at"]):
-        return {key: edit.get(key) for key in ("plan", "how", "at", "by")}
-    return made_one
+    if not edit:
+        return made_one
+    # his edit always wins (owner, 2026-10-21): a plan written after it (its inventory read again) is named, not shown
+    shown = {key: edit.get(key) for key in ("plan", "how", "at", "by")}
+    if made_one["at"] and made_one["at"] > edit["at"]:
+        shown["plan"] = {**shown["plan"], "gaps": [*shown["plan"].get("gaps", []), {
+            "kind": "edited", "words": "the plan was written again after your edit (its inventory read again): "
+                                       "your edit is kept, the new writing not shown"}]}
+    return shown
 
 
 # --- his edits --------------------------------------------------------------------------------------------------
@@ -803,10 +845,10 @@ def edited(store, place, plan, by, how="edited", calls=None, asked=None):
     return record
 
 
-def name_inside(store, place, names, by):
-    """Keep the inside places he named on `place`'s concept page; the record."""
+def name_inside(store, place, names, by, asked=None):
+    """Keep the inside places he named on `place`'s concept page (`asked` as `edited`'s); the record."""
     return kept_record(store, place, "named", {"place": place, "names": checked_names(names), "by": by,
-                                               "at": concepts.now()})
+                                               "at": concepts.now(), **({"asked": asked} if asked else {})})
 
 
 def has_row(place):
