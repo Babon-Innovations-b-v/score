@@ -18,22 +18,17 @@
   <div class="ec-fields" data-concept>
     <section class="card" aria-label="style"><h2 class="eyebrow" title="one short line every place's concept is drawn in">Style</h2>
       {% if editable %}<input type="text" class="ec-wide" data-f="style" value="{{ concept.style }}" maxlength="300">{% else %}<p class="ec-text" data-v>{{ concept.style }}</p>{% endif %}</section>
-    <section class="card" aria-label="setting"><h2 class="eyebrow" title="what everything stands on and in: a plot of ground, one world, or several bodies that move one another, and where each top place stands">Setting</h2>
-      {% if setting.bodies or editable %}<div class="ec-scroll"><table class="ec-rows">
-        <thead><tr>{% for field, heading, tip in setting.body_columns %}<th title="{{ tip }}">{{ heading }}</th>{% if field == "mass_kg" %}<th title="its pull at the surface, worked out from its mass and radius">Gravity</th>{% endif %}{% endfor %}</tr></thead>
-        <tbody>{% for row in setting.bodies %}<tr{% if editable %} data-row="bodies" data-keep="{{ row.keep }}"{% endif %}>{% for field, value in row.cells %}<td>{% if editable %}<input type="text" data-f="{{ field }}" value="{{ value }}">{% elif forloop.first %}<b data-v>{{ value }}</b>{% else %}<span data-v>{{ value }}</span>{% endif %}</td>{% if field == "mass_kg" %}<td data-v>{{ row.gravity|unlocalize }} m/s²</td>{% endif %}{% endfor %}</tr>{% endfor %}
-        {% if editable %}<tr data-row="bodies" data-keep="{}" class="ec-new">{% for field, heading, tip in setting.body_columns %}<td><input type="text" data-f="{{ field }}"{% if forloop.first %} placeholder="+" title="add a body"{% endif %}></td>{% if field == "mass_kg" %}<td></td>{% endif %}{% endfor %}</tr>{% endif %}</tbody>
-      </table></div>{% endif %}
-      {% if setting.plots or editable %}<div class="ec-scroll"><table class="ec-rows">
-        <thead><tr>{% for field, heading, tip in setting.plot_columns %}<th title="{{ tip }}">{{ heading }}</th>{% endfor %}</tr></thead>
-        <tbody>{% for row in setting.plots %}<tr{% if editable %} data-row="plots" data-keep="{{ row.keep }}"{% endif %}>{% for field, value in row.cells %}<td>{% if editable %}<input type="text" data-f="{{ field }}" value="{{ value }}">{% elif forloop.first %}<b data-v>{{ value }}</b>{% else %}<span data-v>{{ value }}</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}
-        {% if editable %}<tr data-row="plots" data-keep="{}" class="ec-new">{% for field, heading, tip in setting.plot_columns %}<td><input type="text" data-f="{{ field }}"{% if forloop.first %} placeholder="+" title="add a plot"{% endif %}></td>{% endfor %}</tr>{% endif %}</tbody>
-      </table></div>{% endif %}
-      <div class="ec-scroll"><table class="ec-rows">
-        <thead><tr><th title="the top place standing there">Site</th>{% for field, heading, tip in setting.site_columns %}<th title="{{ tip }}">{{ heading }}</th>{% endfor %}</tr></thead>
-        <tbody>{% for row in setting.sites %}<tr{% if editable %} data-row="sites" data-keep="{{ row.keep }}"{% endif %}><td>{% if editable %}<input type="text" data-f="place" value="{{ row.place }}" title="{{ row.name }}">{% else %}<b data-v>{{ row.name }}</b>{% endif %}</td>{% for field, value in row.cells %}<td>{% if editable %}<input type="text" data-f="{{ field }}" value="{{ value }}">{% else %}<span data-v>{{ value }}</span>{% endif %}</td>{% endfor %}</tr>{% empty %}{% if not editable %}<tr><td class="soft" data-v>none</td></tr>{% endif %}{% endfor %}
-        {% if editable %}<tr data-row="sites" data-keep="{}" class="ec-new"><td><input type="text" data-f="place" placeholder="+" title="add a site"></td>{% for field, heading, tip in setting.site_columns %}<td><input type="text" data-f="{{ field }}"></td>{% endfor %}</tr>{% endif %}</tbody>
-      </table></div></section>
+    <section class="card" aria-label="setting"><h2 class="eyebrow" title="what everything stands on and in, each thing in the form its scale calls for: a body moves under the physics, a light is a far source of light, a backdrop is too far to move; and where each top place stands">Setting</h2>
+      {% for found in setting.pictures %}<figure class="sp-figure">{{ found.svg }}<figcaption class="soft small" data-v>{{ found.note }}</figcaption></figure>{% endfor %}
+      <div class="sp-cards">{% for card in setting.cards %}<div class="sp-card" title="{{ card.tip }}">
+        <div><b data-v>{{ card.name }}</b> <span class="sp-kind {{ card.kind }}" data-v>{{ card.kind }}</span></div>
+        <p class="sp-line" data-v>{{ card.line }}</p>
+        {% if card.sites %}<p class="soft small" data-v>{{ card.sites|join:", " }}</p>{% endif %}
+      </div>{% empty %}<span class="soft" data-v>none</span>{% endfor %}</div>
+      {% if editable %}<details class="sp-form"><summary class="soft" title="every value, as the setting keeps it">Values</summary>
+        {% for group in setting_form %}<div class="sp-group">{% for row in group.rows %}<div class="sp-row" data-row="{{ group.kind }}" data-keep="{{ row.keep }}">{% for field, label, tip, value in row.fields %}<label title="{{ tip }}"><span>{{ label }}</span><input type="text" data-f="{{ field }}" value="{{ value }}"></label>{% endfor %}</div>{% endfor %}
+          <div class="sp-row ec-new" data-row="{{ group.kind }}" data-keep="{}" title="add {{ group.adds }}">{% for field, label, tip, value in group.new.fields %}<label title="{{ tip }}"><span>{{ label }}</span><input type="text" data-f="{{ field }}"{% if forloop.first %} placeholder="+"{% endif %}></label>{% endfor %}</div></div>{% endfor %}
+      </details>{% endif %}</section>
     <section class="card" aria-label="reference pictures"><h2 class="eyebrow" title="pictures that guide a place's look; each is sent only with its own place's draw">Reference pictures</h2>
       <div class="ec-refs">{% for ref in references %}<figure class="ec-ref" data-row="references" data-picture="{{ ref.picture }}">
         <div class="ec-ref-pic">{% if ref.file %}<a href="{{ ref.file.url }}" target="_blank" rel="noopener"><img src="{{ ref.file.thumb_url }}" alt="" loading="lazy"></a>{% else %}<span class="ptile-missing" title="not on the store's machine" data-v>not here</span>{% endif %}</div>

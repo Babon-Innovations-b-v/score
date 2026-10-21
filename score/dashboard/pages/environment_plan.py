@@ -74,7 +74,7 @@ def where_of(site):
 def sky_line(found):
     """[(name, words, tip)] of the worlds above a site's horizon at its scene time."""
     lines = []
-    for world in (found or {}).get("worlds", []):
+    for world in (found or {}).get("bodies", []):
         if world["altitude"] <= 0:
             continue
         where = f"{world['altitude']:.0f}° {COMPASS[round(world['azimuth'] / 45) % 8]}"
@@ -93,9 +93,10 @@ def plan_page(request, world):
     plan = shown.get("plan") or {"maps": [], "gaps": []}
     names = {**groups.short_names(world_state), **world_state.shells}
     maps = [{**found, "svg": map_svg(found, names), "rows": [{
-        **site, "title": names.get(site["place"], site["name"]), "sky_lines": sky_line(site.get("sky")),
+        **site, "title": names.get(site["place"], site["name"]), "sky_lines": sky_line(site.get("overhead")),
         "where": where_of(site),
-        "sun": (site.get("sky") or {}).get("sun"), "blockout": world_state.blockouts.get(site["place"])}
+        "sun": next(iter((site.get("overhead") or {}).get("lights", [])), None),
+        "blockout": world_state.blockouts.get(site["place"])}
         for site in found["sites"]]} for found in plan["maps"]]
     can = is_owner(request.user) and actions.decisions_on()
     return render(request, "pages/environment_plan.html", {

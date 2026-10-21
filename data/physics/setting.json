@@ -1,10 +1,14 @@
 {
- "about": "Environment 1's setting as its environment concept starts (score/review/setting.py, CONTEXT.md \"setting\"): its bodies, each a real one of the reference table (data/physics/bodies.json), so every value is that table's; no plot; and each top place's site, a position on the body it stands on. The sites are a proposal for the creator to place (the owner, 2026-10-21: \"as the creator places them\"): the Base at the direction the game 2099 seated it on its Moon frame (55 N, 0 E: longitude 0 toward Earth), the Old station and the Wreck at the bearing and metres the game laid them from the Base (114 degrees 62.5 m, 37 degrees 56.7 m), now on the real Moon; the Square on the Hong Kong shore (the plan writing of 2026-10-21); the Campgrounds where the game seated them on its Mars ball. Heights in metres over the body's mean radius.",
+ "about": "Environment 1's setting as its environment concept starts (score/review/setting.py, CONTEXT.md \"setting\"): its bodies, each a real one of the reference table (data/physics/bodies.json), so every value is that table's (the Sun's light too); the stars a backdrop, a dome round everything giving 0.0001 lux (Wikipedia, Lux, read 2026-10-21: its table's starlight row); no far light and no plot; and each top place's site, a position on the body it stands on. The sites are a proposal for the creator to place (the owner, 2026-10-21: \"as the creator places them\"): the Base at the direction the game 2099 seated it on its Moon frame (55 N, 0 E: longitude 0 toward Earth), the Old station and the Wreck at the bearing and metres the game laid them from the Base (114 degrees 62.5 m, 37 degrees 56.7 m), now on the real Moon; the Square on the Hong Kong shore (the plan writing of 2026-10-21); the Campgrounds where the game seated them on its Mars ball. Heights in metres over the body's mean radius.",
  "bodies": [
   {"body": "sun", "reference": "sun"},
   {"body": "earth", "reference": "earth"},
   {"body": "moon", "reference": "moon"},
   {"body": "mars", "reference": "mars"}
+ ],
+ "lights": [],
+ "backdrops": [
+  {"backdrop": "stars", "name": "Stars", "shape": "dome", "lux": 0.0001}
  ],
  "plots": [],
  "sites": [

@@ -1,16 +1,18 @@
-"""The sky over a site at one moment, run from the environment's setting (score/review/setting.py, decided in its
-environment concept: each body's true radius, its orbit round what it orbits and its spin; a plot's sun path; the
-owner, 2026-10-21: the worlds and the sun are moving objects driven by the environment's physics, never painted
-backdrops). A later sky layer runs the same setting live in the engine; the concept's draw and its blockout take one
-moment of it, the place's scene time.
+"""What is seen overhead at a site at one moment, worked out from the environment's setting (score/review/setting.py,
+decided in its environment concept; the owner, 2026-10-21: no fixed sky, each thing in the form its scale calls for):
+every other body where its orbit and the site's body's spin put it, every light (a shining body's, falling off with
+the square of its distance; a far light's from its path) and every backdrop. The engine runs the same setting live; the
+concept's draw and its blockout take one moment of it, the place's scene time.
 
-    site_sky(setting, site, when)
-        -> {sun: {azimuth, altitude}, worlds: [{world, name, azimuth, altitude, across, lit, lit_from}]}
+    seen(setting, site, when)
+        -> {lights: [{name, of, azimuth, altitude, kelvin, lux}],
+            bodies: [{body, name, azimuth, altitude, across, lit, lit_from}],
+            backdrops: [{name, shape, lux, kelvin?}]}
 
-Degrees throughout: azimuth from north towards east, altitude over the level horizon, `across` the body's true
-angular diameter, `lit` the share of its face the star lights as seen from here (0 new, 1 full), `lit_from` the way
-from the body to the star in the site's [east, north, up], so a drawing lights its phase from the right side. `sun`
-is the star: the one body that orbits nothing, or a plot's sun.
+Degrees throughout: azimuth from north towards east, altitude over the level horizon. A light's `of` is the body that
+gives it, None for a far light; the lights brightest first. A body's `across` is its true angular diameter, `lit` the
+share of its face the brightest shining body lights as seen from here (0 new, 1 full), `lit_from` the way from the body
+to that light in the site's [east, north, up], so a drawing lights its phase from the right side.
 """
 import datetime
 import math
@@ -136,49 +138,70 @@ def bearing(way, axes):
     return round(math.degrees(math.atan2(east, north)) % 360.0, 2), round(math.degrees(math.asin(up)), 2)
 
 
-def sky_at(bodies, on, latitude, longitude, when, height_m=0.0):
-    """The star and every other body as seen from a site on body `on` at `when` (module docstring)."""
+def shining(bodies):
+    """The bodies that give light."""
+    return [body for body in bodies if body.get("lux") is not None]
+
+
+def from_body(bodies, on, latitude, longitude, when, height_m=0.0):
+    """{lights, bodies} as seen from a site on body `on` at `when` (module docstring): each shining body's light at
+    this distance, every other body lit by the brightest of them from here (else by the root body)."""
     day = day_of(when)
     by_key = {body["body"]: body for body in bodies}
-    star = next(body["body"] for body in bodies if not body.get("around"))
     places = positions(bodies, day)
     axes = site_axes(body_frame(by_key, by_key[on], places, day), latitude, longitude)
     eye = places[on] + axes[2] * (by_key[on]["radius_km"] + height_m / 1000.0)
-    azimuth, altitude = bearing(unit(places[star] - eye), axes)
+    lights = []
+    for star in shining(bodies):
+        if star["body"] == on:
+            continue
+        azimuth, altitude = bearing(unit(places[star["body"]] - eye), axes)
+        lux = star["lux"] * (star["lux_at_km"] / float(np.linalg.norm(places[star["body"]] - eye))) ** 2
+        lights.append({"name": star["name"], "of": star["body"], "azimuth": azimuth, "altitude": altitude,
+                       "kelvin": star["kelvin"], "lux": float(f"{lux:.4g}")})
+    lights.sort(key=lambda light: -light["lux"])
+    lighter = lights[0]["of"] if lights else next(body["body"] for body in bodies if not body.get("around"))
     found = []
     for other in bodies:
-        if other["body"] in (on, star):
+        if other["body"] == on or other.get("lux") is not None:
             continue
-        toward, to_star = places[other["body"]] - eye, unit(places[star] - places[other["body"]])
-        lit = (1.0 + float(np.dot(to_star, unit(-toward)))) / 2.0
+        toward = places[other["body"]] - eye
+        to_light = unit(places[lighter] - places[other["body"]])
+        lit = (1.0 + float(np.dot(to_light, unit(-toward)))) / 2.0
         other_azimuth, other_altitude = bearing(unit(toward), axes)
-        found.append({"world": other["body"], "name": other["name"], "azimuth": other_azimuth,
+        found.append({"body": other["body"], "name": other["name"], "azimuth": other_azimuth,
                       "altitude": other_altitude,
                       "across": round(math.degrees(2.0 * math.asin(other["radius_km"] / np.linalg.norm(toward))), 5),
-                      "lit": round(lit, 3), "lit_from": [round(float(np.dot(to_star, axis)), 4) for axis in axes]})
-    return {"sun": {"azimuth": azimuth, "altitude": altitude}, "worlds": found}
+                      "lit": round(lit, 3), "lit_from": [round(float(np.dot(to_light, axis)), 4) for axis in axes]})
+    return {"lights": lights, "bodies": found}
 
 
-def plot_sky(plot, when):
-    """A plot's sun at `when` from its sun path: its height over the year swinging `tilt_deg` either side of the
-    equator from the spring equinox, its hour from local noon at that equinox moment."""
-    since = day_of(when) - day_of(plot["equinox"])
-    season = math.radians(plot["tilt_deg"]) * math.sin(2.0 * math.pi * since / plot["year_days"])
-    hour = 2.0 * math.pi * since / (plot["day_hours"] / 24.0)
-    lat = math.radians(plot["latitude"])
-    way = np.array([-math.cos(season) * math.sin(hour),  # east, north, up of the sun on the plot
+def far_light(light, when):
+    """A far light at `when` from its path: its height over the year swinging `tilt_deg` either side of the equator
+    from the spring equinox, its hour from local noon at that equinox moment."""
+    since = day_of(when) - day_of(light["equinox"])
+    season = math.radians(light["tilt_deg"]) * math.sin(2.0 * math.pi * since / light["year_days"])
+    hour = 2.0 * math.pi * since / (light["day_hours"] / 24.0)
+    lat = math.radians(light["latitude"])
+    way = np.array([-math.cos(season) * math.sin(hour),  # east, north, up of the light over its ground
                     math.cos(lat) * math.sin(season) - math.sin(lat) * math.cos(season) * math.cos(hour),
                     math.sin(lat) * math.sin(season) + math.cos(lat) * math.cos(season) * math.cos(hour)])
     azimuth, altitude = bearing(way, np.eye(3))
-    return {"sun": {"azimuth": azimuth, "altitude": altitude}, "worlds": []}
+    return {"name": light["name"], "of": None, "azimuth": azimuth, "altitude": altitude, "kelvin": light["kelvin"],
+            "lux": light["lux"]}
 
 
-def site_sky(setting, site, when):
-    """The sky over `site` at `when`: from the bodies when it stands on one, from its sun path on a plot; None while
-    its position is not known."""
-    ground, kind = settings.ground_of(setting, site["on"])
-    if kind == "plot":
-        return plot_sky(ground, when)
-    if kind is None or site.get("latitude") is None or site.get("longitude") is None:
+def seen(setting, site, when):
+    """What is seen overhead at `site` at `when` (module docstring); None while its position is not known."""
+    _, kind = settings.ground_of(setting, site["on"])
+    if kind is None or (kind == "body" and None in (site.get("latitude"), site.get("longitude"))):
         return None
-    return sky_at(setting["bodies"], site["on"], site["latitude"], site["longitude"], when, site.get("height_m") or 0.0)
+    found = (from_body(setting["bodies"], site["on"], site["latitude"], site["longitude"], when,
+                       site.get("height_m") or 0.0) if kind == "body" else {"lights": [], "bodies": []})
+    lights = sorted(found["lights"] + [far_light(light, when) for light in setting.get("lights", [])],
+                    key=lambda light: -light["lux"])
+    backdrops = [{field: backdrop[field] for field in ("name", "shape", "lux", "kelvin") if field in backdrop}
+                 for backdrop in setting.get("backdrops", [])]
+    return {"lights": lights, "bodies": found["bodies"], "backdrops": backdrops}
+
+

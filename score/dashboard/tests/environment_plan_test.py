@@ -26,7 +26,7 @@ def test_the_plan_page_shows_each_world_and_keeps_his_scene_times(world):
     shown = environment_plan.current(world.store, name)
     assert shown["how"] == "edited"
     base = environment_plan.site_of(world.store, "base", name)
-    assert base["time"] == "2099-06-01T12:00:00Z" and base["sky"]["worlds"]
+    assert base["time"] == "2099-06-01T12:00:00Z" and base["overhead"]["bodies"]
     world.source.refresh()
     assert "Earth</b>" in owner.get(f"/environments/{name}/plan/").content.decode()  # Earth in the base's sky
     refused = signed_in("joey2").post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),

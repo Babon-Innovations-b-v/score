@@ -1,21 +1,28 @@
 """An environment's setting (CONTEXT.md "setting"; the owner, 2026-10-21: "an environment is an environment: it can be a
 planet, a system of planets, or just a house on some terrain"): what everything in it stands on and in, at the scale
-the creator sets, decided in its environment concept (step one) and read from there by the environment's plan, its
-skies and its blockouts, never from older game data.
+the creator sets, decided in its environment concept (step one) and read from there by the environment's plan and its
+blockouts, never from older game data. Each thing in it is present in the form its scale calls for, never a fixed sky
+(the owner, 2026-10-21: "when the environment is just one house, the sun is just a big light"): a body moves under the
+physics, a light is a far source of light, a backdrop is too far to move. What is seen overhead at a site and a moment
+is worked out from these (score/review/overhead.py). No branch names a world.
 
-    {bodies: [body], plots: [plot], sites: [site]}
+    {bodies: [body], lights: [light], backdrops: [backdrop], plots: [plot], sites: [site]}
 
-- a **body** is a moving one (a star, a world, a moon), each optional: `body` its key, `name`, `reference` a key of
-  the reference table of real bodies (data/physics/bodies.json, every value cited) whose values it takes for any it
-  does not give, else every value given: radius_km, mass_kg (its `gravity` at the surface, m/s², worked out: G mass /
-  radius squared), its orbit round `around` (distance_km, period_days, eccentricity, inclination_deg; node_deg,
+- a **body** moves under the physics (a star, a world, a moon), each optional: `body` its key, `name`, `reference` a
+  key of the reference table of real bodies (data/physics/bodies.json, every value cited) whose values it takes for any
+  it does not give, else every value given: radius_km, mass_kg (its `gravity` at the surface, m/s², worked out: G mass
+  / radius squared), its orbit round `around` (distance_km, period_days, eccentricity, inclination_deg; node_deg,
   periapsis_deg, mean_anomaly_deg at day 0 and the node's and periapsis's drift a day, 0 when not given), its spin
   (day_hours and tilt_deg to its orbit, or `locked_to` the body it keeps facing; a real body's pole_ra_deg,
-  pole_dec_deg and meridian_deg, dropped once its day or tilt is set off the table's). The one body that orbits
-  nothing is the star that lights the rest.
-- a **plot** is a flat piece of ground with no body under it: `plot` its key, `name`, `gravity` in m/s², and its sun
-  path: `latitude`, `tilt_deg` (the sun's swing over the year), `day_hours`, `year_days` and `equinox`, a moment of a
-  spring equinox at local noon (ISO).
+  pole_dec_deg and meridian_deg, dropped once its day or tilt is set off the table's). A body that shines gives its
+  light: `kelvin` (its colour) and `lux` at `lux_at_km` from it, falling off with the square of the distance. The one
+  body that orbits nothing is the root the others move round.
+- a **light** is a far source of light with no body (a house's sun): `light` its key, `name`, `kelvin`, `lux` (on
+  ground facing it) and its path over the day and year: `latitude` of the ground it lights, `tilt_deg` (its swing over
+  the year), `day_hours`, `year_days` and `equinox`, a moment of a spring equinox at local noon (ISO).
+- a **backdrop** is too far to move (the stars, a distant skyline): `backdrop` its key, `name`, `shape` (`dome` round
+  everything, `skyline` round the horizon), the `lux` it gives and its `kelvin` when given.
+- a **plot** is a flat piece of ground with no body under it: `plot` its key, `name`, `gravity` in m/s².
 - a **site** is where a top place stands: `place`, `on` (a body's or a plot's key), on a body its `latitude`,
   `longitude` (degrees, east positive) and `height_m` over its mean radius, the ground round it curving with that
   radius; on a plot its `x` (east) and `y` (south) in metres and `height_m`.
@@ -38,11 +45,16 @@ RANGES = {  # a body's numbers and the range each may take
     "eccentricity": (0.0, 0.999), "inclination_deg": (-180.0, 180.0), "node_deg": (-360.0, 360.0),
     "node_drift_deg_day": (-10.0, 10.0), "periapsis_deg": (-360.0, 360.0), "periapsis_drift_deg_day": (-10.0, 10.0),
     "mean_anomaly_deg": (-360.0, 360.0), "day_hours": (1e-3, 1e8), "tilt_deg": (0.0, 180.0),
-    "pole_ra_deg": (-360.0, 360.0), "pole_dec_deg": (-90.0, 90.0), "meridian_deg": (-360.0, 360.0)}
+    "pole_ra_deg": (-360.0, 360.0), "pole_dec_deg": (-90.0, 90.0), "meridian_deg": (-360.0, 360.0),
+    "kelvin": (500.0, 1e5), "lux": (0.0, 1e12), "lux_at_km": (1e-6, 1e13)}
 ORBIT = ("distance_km", "period_days", "eccentricity", "inclination_deg")
 POLE = ("pole_ra_deg", "pole_dec_deg", "meridian_deg")
-PLOT_RANGES = {"gravity": (0.0, 1000.0), "latitude": (-90.0, 90.0), "tilt_deg": (0.0, 90.0),
-               "day_hours": (1e-3, 1e8), "year_days": (1e-3, 1e10)}
+SHINE = ("kelvin", "lux", "lux_at_km")  # a shining body's light: all three or none
+PLOT_RANGES = {"gravity": (0.0, 1000.0)}
+LIGHT_RANGES = {"kelvin": (500.0, 1e5), "lux": (0.0, 1e12), "latitude": (-90.0, 90.0), "tilt_deg": (0.0, 90.0),
+                "day_hours": (1e-3, 1e8), "year_days": (1e-3, 1e10)}
+BACKDROP_RANGES = {"lux": (0.0, 1e12), "kelvin": (500.0, 1e5)}
+SHAPES = ("dome", "skyline")
 
 
 class Refused(ValueError):
@@ -113,6 +125,8 @@ def body_filled(row, table):
     for field in ("radius_km", "mass_kg", *(ORBIT if found["around"] else ())):
         if found.get(field) is None:
             raise Refused(f"{found['name']} has no {field}")
+    if any(found.get(field) is not None for field in SHINE) and None in (found.get(field) for field in SHINE):
+        raise Refused(f"{found['name']} shines with a kelvin, a lux and the lux_at_km it is measured at, or not at all")
     found["gravity"] = gravity_of(found, table["gravity_constant"])
     return {field: value for field, value in found.items() if value is not None}
 
@@ -124,11 +138,36 @@ def plot_checked(row):
         found[field] = number(row.get(field), low, high, f"{name}'s {field}")
         if found[field] is None:
             raise Refused(f"the plot {name or '?'} has no {field}")
+    return found
+
+
+def light_checked(row):
+    """A far light with its colour, strength and path; Refused for one missing a value."""
+    name = text(row.get("name"), "a light's name")
+    found = {"light": key_of(row.get("light") or name), "name": name}
+    for field, (low, high) in LIGHT_RANGES.items():
+        found[field] = number(row.get(field), low, high, f"{name}'s {field}")
+        if found[field] is None:
+            raise Refused(f"the light {name or '?'} has no {field}")
     try:
         found["equinox"] = equinox_of(row.get("equinox"))
     except (TypeError, ValueError) as wrong:
-        raise Refused(f"the plot {name}'s equinox is no moment") from wrong
+        raise Refused(f"the light {name}'s equinox is no moment") from wrong
     return found
+
+
+def backdrop_checked(row):
+    """A backdrop with its shape and the light it gives, its colour when given."""
+    name = text(row.get("name"), "a backdrop's name")
+    shape = str(row.get("shape") or "dome")
+    if shape not in SHAPES:
+        raise Refused(f"the backdrop {name}'s shape is one of {', '.join(SHAPES)}, not {shape!r}")
+    found = {"backdrop": key_of(row.get("backdrop") or name), "name": name, "shape": shape}
+    for field, (low, high) in BACKDROP_RANGES.items():
+        found[field] = number(row.get(field), low, high, f"{name}'s {field}")
+    if found["lux"] is None:
+        raise Refused(f"the backdrop {name or '?'} has no lux")
+    return {field: value for field, value in found.items() if value is not None}
 
 
 def equinox_of(value):
@@ -160,22 +199,28 @@ def rows(value, what):
 
 def checked(setting, table=None):
     """The setting in its shape (module docstring), every referenced body filled from the table; Refused for one out
-    of shape, a body orbiting none of the others, two bodies orbiting nothing, or a body holding a site with no spin."""
+    of shape, a body orbiting none of the others, two bodies orbiting nothing, a body holding a site with no spin, or
+    two things sharing a key."""
     if not isinstance(setting, dict):
         raise Refused("a setting is an object")
     table = table or reference()
     bodies = [body_filled(row, table) for row in rows(setting.get("bodies") or [], "bodies")
               if row.get("name") or row.get("reference") or row.get("body")]
     plots = [plot_checked(row) for row in rows(setting.get("plots") or [], "plots") if row.get("name") or row.get("plot")]
+    lights = [light_checked(row) for row in rows(setting.get("lights") or [], "lights")
+              if row.get("name") or row.get("light")]
+    backdrops = [backdrop_checked(row) for row in rows(setting.get("backdrops") or [], "backdrops")
+                 if row.get("name") or row.get("backdrop")]
     keys = [body["body"] for body in bodies] + [plot["plot"] for plot in plots]
-    if len(set(keys)) != len(keys):
-        raise Refused("two bodies or plots share a key")
+    named = keys + [light["light"] for light in lights] + [backdrop["backdrop"] for backdrop in backdrops]
+    if len(set(named)) != len(named):
+        raise Refused("two things of the setting share a key")
     for body in bodies:
         for field in ("around", "locked_to"):
             if body.get(field) and body[field] not in keys:
                 raise Refused(f"{body['name']}'s {field} {body[field]} is no body of the setting")
     if bodies and sum(1 for body in bodies if not body.get("around")) != 1:
-        raise Refused("one body orbits nothing (the star that lights the rest)")
+        raise Refused("one body orbits nothing (the root the others move round)")
     by_key = {body["body"]: body for body in bodies}
     sites = [site_checked(row, by_key, {plot["plot"] for plot in plots})
              for row in rows(setting.get("sites") or [], "sites") if row.get("place")]
@@ -183,7 +228,7 @@ def checked(setting, table=None):
         body = by_key.get(site["on"])
         if body and body.get("around") and not (body.get("locked_to") or body.get("day_hours")):
             raise Refused(f"{body['name']} holds {site['place']} but turns neither by a day nor locked")
-    return {"bodies": bodies, "plots": plots, "sites": sites}
+    return {"bodies": bodies, "lights": lights, "backdrops": backdrops, "plots": plots, "sites": sites}
 
 
 def proposed(setting):

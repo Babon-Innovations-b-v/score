@@ -7,7 +7,7 @@ What it is built from, by the node drawn (`scene_of`):
 
 - a top place: its site on the environment's plan (score/review/environment_plan.py): its footprint and blocks at
   their heights and roofs, the ground round it at the plan's spot heights, and every other world in its sky at its
-  true direction, size and phase at the site's scene time (score/review/sky.py);
+  true direction, size and phase at the site's scene time (score/review/overhead.py);
 - a place within another (`inside_parts`; the owner, 2026-10-21: consistency between rooms comes from the
   blockouts alone): its own shell at full detail in its box on the holder's plan shown (`holds`), its own plan's
   walls, openings, levels, stairs and roofs (the written plan's schema, score/review/plan_writing.py), else its data
@@ -605,7 +605,7 @@ def scene_of(store, node):
     site = environment_plan.site_of(store, node)
     if site is None:
         raise Missing(f"the environment's plan has no site for {node} yet")
-    return site_parts(site), None, (site.get("sky") or {}).get("worlds", [])
+    return site_parts(site), None, (site.get("overhead") or {}).get("bodies", [])
 
 
 def own_plan(store, place):

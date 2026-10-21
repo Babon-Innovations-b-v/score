@@ -20,7 +20,8 @@ function concept() {
   return {
     style: value(root, "style"),
     setting: {
-      bodies: kept(root, "bodies"), plots: kept(root, "plots"), sites: kept(root, "sites"),
+      bodies: kept(root, "bodies"), lights: kept(root, "lights"), backdrops: kept(root, "backdrops"),
+      plots: kept(root, "plots"), sites: kept(root, "sites"),
     },
     references: rows(root, "references").filter((row) => !row.querySelector('[data-f="drop"]')?.checked)
       .map((row) => ({ picture: row.dataset.picture, shows: value(row, "shows"), place: value(row, "place") })),

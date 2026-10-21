@@ -206,10 +206,13 @@ setting puts it, written by the plan writer's call. The setting (CONTEXT.md "set
 the environment concept's, decided in step one at whatever scale the creator sets (owner 2026-10-21: "an environment
 can be a planet, a system of planets, or just a house on some terrain"; world sizes "decided in step one, not borrowed
 from old game data"): bodies (a real one's values from the cited reference table `data/physics/bodies.json`, an
-invented one's given: radius, mass and so gravity, orbit, spin), plots (flat ground with a gravity and a sun path)
-and sites (latitude, longitude and height on a body, the ground curving with its true radius; metres on a plot). Each
-site's sky at its scene time is worked out from it (`score/review/sky.py`), every other body at its true direction,
-size and phase, the data a later sky layer runs live. A plan made under another version of the environment concept
+invented one's given: radius, mass and so gravity, orbit, spin, and the light it gives when it shines), lights (a far
+source of light with no body, on its day path: one house's sun is just a big light), backdrops (too far to move: the
+stars, a light-giving dome round everything; a distant skyline), plots (flat ground with a gravity) and sites
+(latitude, longitude and height on a body, the ground curving with its true radius; metres on a plot). There is no
+fixed sky (owner 2026-10-21): what each site sees overhead at its scene time is worked out from these
+(`score/review/overhead.py`), every other body at its true direction, size and phase, every light and backdrop, the
+data the engine runs live. No branch names a world. A plan made under another version of the environment concept
 is out of date; the game 2099's ground plans are read only for the layout of a site's parts. An inside place's blockout is its own
 shell inside its holder's, its siblings' shells round it, so rooms fit together from the blockouts alone. A draw made
 without the blockout that can be built now is out of date; picked places keep their picks and are named.
