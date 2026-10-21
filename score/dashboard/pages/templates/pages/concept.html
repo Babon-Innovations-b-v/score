@@ -78,7 +78,7 @@
   {% if review %}<div class="rail-group" id="plan-rail" aria-label="the plan">
     <span class="num-label" title="the rooms as this plan lays them out, each drawn inside what holds it: rename or remove one here, drag it on the drawing to move it, its corner to resize it, onto a building to put it there" data-v>rooms on the plan</span>
     <ol class="plan-places" id="plan-places"></ol>
-    {% if can %}<button type="button" class="button" id="plan-add" title="drops a new child scene on the plan; drag it into place" data-v>add scene</button>{% endif %}
+    {% if can %}<button type="button" class="button" id="plan-add" title="drops a new box on the plan: dragged into open space it is a new scene, fully inside a room a thing in that room, over a room one shared room with it" data-v>add scene</button>{% endif %}
     {% if review.plan.gaps %}<div class="plan-gaps"><span class="num-label" title="what is wrong on this plan; click one to see it on the drawing" data-v>{{ review.plan.gaps|length }} to fix</span>
       <ul class="concept-gaps">{% for gap in review.plan.gaps %}<li data-gap data-item="{{ gap.item|default_if_none:'' }}" data-with="{{ gap.with|default_if_none:'' }}"{% if gap.at %} data-at="[{{ gap.at.0 }}, {{ gap.at.1 }}]"{% endif %} title="click to see it on the plan">{% include "pages/c/dot.html" with tone="gap-missing" tip=None %} <span data-v>{{ gap.words }}</span></li>{% endfor %}</ul></div>{% endif %}
     {% if can %}

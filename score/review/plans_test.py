@@ -158,6 +158,33 @@ def test_a_room_changed_on_the_holders_plan_puts_draws_on_it_out_of_date_and_fla
     assert plans.removed(store, plans.within_file()[0]) == ["shed"]
 
 
+def test_overlapped_rooms_are_one_shared_room_and_a_box_dropped_in_a_room_a_thing_in_it(store):
+    """Owner, 2026-10-21: two rooms overlapped on the plan above are one shared room named from both; the add-scene
+    box dropped inside a room is a thing kept with that room, no scene of its own, named with its spot in the room's
+    draw wording; either changes the room, so its draws are drawn again. A room he left alone stays as it was."""
+    plans.name_inside(store, "yard", ["tool hut"], "joey")
+    picked(store, "yard")
+    plan = plans.current(store, "yard")["plan"]
+    shed = plans.room_of(store, "shed")
+    plans.edited(store, "yard", plan, "joey")  # kept as laid: no key added to a room he did not touch
+    assert plans.room_of(store, "shed") == shed
+    store.write_once("concepts/shed/draws/1.json", {"place": "shed", "sha": PICK, "at": concepts.now(), "room": shed})
+    merged = {**shed, "w": 8.0, "name": "Shed and tool hut",
+              "things": [{"name": "workbench", "x": 3.0, "y": 1.0, "w": 2.0, "d": 1.0},
+                         {"name": "lathe", "x": 6.5, "y": 0.2, "w": 1.0, "d": 0.6}]}
+    plans.edited(store, "yard", {**plan, "holds": [merged]}, "joey")
+    assert plans.tree(store)["within"] == {"shed": "yard"}  # the tool hut is no scene any more
+    assert plans.room_of(store, "shed")["things"][0] == {"name": "workbench", "x": 3.0, "y": 1.0, "w": 2.0, "d": 1.0}
+    assert plans.moved_draws(store, "shed") == {PICK}
+    assert concepts.room_name(store, "shed") == "shed and tool hut"
+    assert concepts.thing_words(store, "shed") == ("Standing in it: workbench in the middle; lathe in the north-east "
+                                                   "corner.")
+    assert plans.room_edits(plan, plans.current(store, "yard")["plan"])[0] == \
+        "made the scene shed one shared room called Shed and tool hut"
+    with pytest.raises(plans.Refused, match="has no name"):
+        plans.edited(store, "yard", {**plan, "holds": [{**merged, "things": [{"x": 1, "y": 1, "w": 1, "d": 1}]}]}, "joey")
+
+
 def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_its_boxes_the_holders(store, data):
     from score.review import reading
     (data / "inventory/yard.json").unlink()  # no file: the reading in the store is the inventory

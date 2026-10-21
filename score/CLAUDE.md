@@ -137,7 +137,7 @@ stage as each stage is built; nothing moves before.
   place's site on the environment's plan (each part with a plan of its own, else its own plan, at full detail: walls
   with thickness and openings, domes, vaults, tubes, levels, stairs, items by shape; on ground at its body's true
   curve), else its own room shell alone at full detail in its box on the holder's plan shown (no hull, no rooms
-  beside it); rendered free (a numpy z-buffer at twice the size, a shadow map from the site's sun, no
+  beside it), each thing the holder's plan keeps in that room a labelled box at its spot and size (`thing_parts`); rendered free (a numpy z-buffer at twice the size, a shadow map from the site's sun, no
   card, no Blender) from the fixed concept view, framed so the place fills it, a person for scale, and, when a world
   in its sky falls outside that view, a overhead view from the site at eye height. `scene_key` keys each render by what
   it is built from and the module's code, so the cockpit never serves an older code's render.

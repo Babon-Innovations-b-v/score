@@ -27,6 +27,23 @@ def test_an_inside_places_blockout_is_its_own_room_alone():
         blockout.inside_parts("room_c", HOLDER, {}, blockout.corner_way())
 
 
+def test_a_thing_in_a_room_stands_in_its_blockout_as_a_labelled_box_at_its_spot_and_size():
+    """Owner, 2026-10-21: the add-scene box dropped inside a room is a thing of that room, in its grey blockout."""
+    room = {**HOLDER["holds"][0], "things": [{"name": "nav module", "x": 2.0, "y": 1.0, "w": 2.0, "d": 2.0}]}
+    holder = {**HOLDER, "holds": [room, HOLDER["holds"][1]]}
+    things, labels = blockout.thing_parts("room_a", holder)
+    points = blockout.points_of(things)
+    assert points.min(axis=0).tolist() == [4.0, 0.0, 3.0]  # the room's corner (2, 2) plus the thing's (2, 1)
+    assert points.max(axis=0).tolist() == [6.0, blockout.THING_TALL, 5.0]
+    assert labels == [("nav module", [5.0, blockout.THING_TALL, 4.0])]
+    assert blockout.thing_parts("room_b", holder) == ([], [])
+    shell, framed = blockout.inside_parts("room_a", holder, ROOM_A, blockout.corner_way())
+    camera = blockout.fixed_camera(shell + things, framed)
+    bare = np.asarray(blockout.render(shell + things, camera))
+    written = np.asarray(blockout.drawn((shell + things, framed, [], None, labels)))
+    assert (written != bare).any(axis=-1).sum() > 200  # its name written over it
+
+
 def test_a_door_is_a_hole_in_its_wall():
     whole = blockout.shell_parts({"w": 6.0, "d": 4.0, "height": "walls 3 m"})
     holed = blockout.shell_parts(ROOM_A)
@@ -150,7 +167,7 @@ def test_a_site_fills_the_frame_lit_by_its_sun_with_shadows():
 
 def test_a_render_is_keyed_by_what_it_is_built_from_and_the_code_that_draws_it(monkeypatch):
     parts, framed = blockout.inside_parts("room_a", HOLDER, ROOM_A, blockout.corner_way())
-    key = blockout.scene_key((parts, framed, [], None))
-    assert blockout.scene_key((parts, framed, [], (180.0, 40.0))) != key  # another sun
+    key = blockout.scene_key((parts, framed, [], None, []))
+    assert blockout.scene_key((parts, framed, [], (180.0, 40.0), [])) != key  # another sun
     monkeypatch.setattr(blockout, "VERSION", "older code")
-    assert blockout.scene_key((parts, framed, [], None)) != key  # another code: rendered again, never served stale
+    assert blockout.scene_key((parts, framed, [], None, [])) != key  # another code: rendered again, never served stale

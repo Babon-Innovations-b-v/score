@@ -706,6 +706,11 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .plan-places li { display: flex; gap: 2px; align-items: center; max-width: 100%; }
 .design-rail .plan-places input { width: auto; field-sizing: content; min-width: 6ch; max-width: 100%; padding: 2px 6px; }
 .plan-places input { flex: 1; min-width: 0; }
+/* a thing in a room (no scene of its own): dashed in its room on the drawing, under its room in the list */
+.plan-thing rect { fill: color-mix(in srgb, var(--review) 26%, transparent); stroke: var(--review); stroke-width: 1; stroke-dasharray: 3 2; }
+.plan-label.thing { fill: var(--ink); }
+.plan-places .plan-thing-row::before { content: "\2514"; color: var(--soft); padding-right: 2px; }
+.plan-places .plan-thing-row input, .plan-places .plan-thing-row span { font-style: italic; }
 /* a place's design steps (pages/c/steps.html): four pips, concept to approved */
 .design-steps { display: inline-flex; gap: 3px; align-items: center; font-size: var(--fs-sm); }
 .design-steps .pip { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line-strong); }
