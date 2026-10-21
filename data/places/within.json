@@ -14,7 +14,6 @@
   "lab": {"within": "base", "from": "data/definitions/base.json modules; data/plans/lab.json leads N to a tube"},
   "workshop": {"within": "base", "from": "data/definitions/base.json modules; data/plans/workshop.json leads W to a tube"},
   "cockpit": {"within": "hangar", "from": "data/definitions/ship_floor.json rooms: the inside of the hangar (the owner, 2026-10-20: the ship is no layer of its own)"},
-  "navigation": {"within": "hangar", "from": "data/definitions/ship_floor.json rooms: the inside of the hangar (the owner, 2026-10-20: the ship is no layer of its own)"},
   "quarters": {"within": "hangar", "from": "data/definitions/ship_floor.json rooms: the inside of the hangar (the owner, 2026-10-20: the ship is no layer of its own)"},
   "storage": {"within": "hangar", "from": "data/definitions/ship_floor.json rooms: the inside of the hangar (the owner, 2026-10-20: the ship is no layer of its own)"},
   "galley": {"within": "hangar", "from": "data/definitions/ship_floor.json rooms: the inside of the hangar (the owner, 2026-10-20: the ship is no layer of its own)"},

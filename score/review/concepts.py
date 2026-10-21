@@ -4,7 +4,8 @@ one direct Nano Banana Pro call that his click paid for, and his pick that locks
 The store keeps them; in the framework's store an agent's process cannot write them (`recorded`: the store's own
 barrier for its owner areas, applied here, so score/store, which most stages' keys read, stays as it is):
 
-    concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording, picks}
+    concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording, picks,
+                                         blockout, room (its hold on the layer above's plan)}
     concepts/<place>/picks/<time>.json   {place, sha (None: unlocked again), by, at}
     concepts/<place>/wordings/<time>.json {place, wording (None: back to the generated), by, at}
     blobs/<sha>                          the drawn picture (PNG)
@@ -180,7 +181,7 @@ def undrawn(store, nodes):
     a place within another waits for that one's pick, so it is drawn on it (CONTEXT.md "concept")."""
     ready, waiting = [], {}
     for node in nodes:
-        if picked(store, node) or node in tree()["parts"]:
+        if (picked(store, node) and not plan_changed(store, node)) or node in tree()["parts"]:
             continue
         if why := waits(store, node):
             waiting[node] = why
@@ -194,12 +195,23 @@ def current_draw(store, place, wording):
     a Redraw with notes' corrected prompt among them), on the picks it is sent now (the layer above's and its joined
     places'); a draw from an older wording or pick (its data, the draw rules, his wording or one of those picks
     changed since), or made without a blockout while one can be built now (the owner, 2026-10-21), does not count,
-    so Draw all draws it again."""
+    so Draw all draws it again; so does one drawn on another room than the layer above's plan gives it now
+    (plans.moved_draws)."""
+    from score.review import plans
     sent, version = sent_picks(store, place), environment().version(store)
     structured = bool(structure_pictures(store, place))
+    moved = plans.moved_draws(store, place)
     return any(str(draw.get("wording", "")).startswith(wording) and (draw.get("picks") or {}) == sent
                and draw.get("environment") == version and (draw.get("blockout") or not structured)
-               for draw in draws(store, place))
+               and draw.get("sha") not in moved for draw in draws(store, place))
+
+
+def plan_changed(store, place):
+    """Whether `place`'s picked concept was drawn on another room than the layer above's plan gives it now (owner,
+    2026-10-21): flagged "plan changed since you picked it" and offered by Draw all again."""
+    from score.review import plans
+    sha = picked(store, place)
+    return bool(sha) and sha in plans.moved_draws(store, place)
 
 
 def placed(store):
@@ -1086,7 +1098,9 @@ def draw(store, place, request, by, caller=call, offsite=None, reviser=revise):
     else:
         wording, pictures = first_parts(store, place, request)
         kept_as_own(store, place, request, by)  # before the call: a refused call still keeps his edit
-        fields = {"picks": sent_picks(store, place), "calls": [], "blockout": blockout_kept(store, place, pictures)}
+        from score.review import plans
+        fields = {"picks": sent_picks(store, place), "calls": [], "blockout": blockout_kept(store, place, pictures),
+                  "room": plans.room_of(store, place)}
     png = caller(wording, pictures)
     sha = kept(store, png)
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,

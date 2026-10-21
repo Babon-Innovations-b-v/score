@@ -72,11 +72,6 @@
    "sha256": null,
    "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
   },
-  "navigation": {
-   "picture": "{seeds}/scene/navigation/views/navigation.png",
-   "sha256": null,
-   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
-  },
   "old_station": {
    "picture": "{seeds}/scene/old_station/views/C4.png",
    "sha256": "c651a58d08ed54388367b13fdb06deca8bb3c832c51819f852a231e887290d74",

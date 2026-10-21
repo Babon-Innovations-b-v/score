@@ -135,6 +135,29 @@ def test_his_inside_places_and_rows_redo_what_follows(store, data):
         plans.edited(store, "yard", {**plan, "holds": [{**plan["holds"][0], "row": "silo"}]}, "joey")
 
 
+def test_a_room_changed_on_the_holders_plan_puts_draws_on_it_out_of_date_and_flags_its_pick(store, monkeypatch):
+    """Owner, 2026-10-21: a merge, move or resize of a room on the plan above means the room is drawn again; a place
+    the plan no longer lays out is removed, never an outside place."""
+    monkeypatch.setattr(concepts, "step_refusal", lambda store, place, step: None)
+    picked(store, "yard")
+    plan = plans.current(store, "yard")["plan"]
+    drawn = {"place": "shed", "sha": PICK, "at": concepts.now(), "room": plans.room_of(store, "shed")}
+    store.write_once("concepts/shed/draws/1.json", drawn)
+    concepts.pick(store, "shed", PICK, "joey")
+    store.write_once("concepts/shed/draws/2.json", {"place": "shed", "sha": "c" * 64, "base": PICK,
+                                                    "at": concepts.now()})  # a Redraw with notes on it
+    store.write_once("concepts/shed/draws/0.json", {"place": "shed", "sha": "d" * 64,
+                                                    "at": "2026-10-01T00:00"})  # from before rooms were recorded
+    assert drawn["room"]["w"] == 4.0 and not concepts.plan_changed(store, "shed")
+    assert plans.moved_draws(store, "shed") == set()
+    plans.edited(store, "yard", {**plan, "holds": [{**plan["holds"][0], "w": 6.0}]}, "joey")  # resized
+    assert concepts.plan_changed(store, "shed")
+    assert plans.moved_draws(store, "shed") == {PICK, "c" * 64, "d" * 64}  # the older one: a plan above made since
+    assert plans.removed(store, plans.within_file()[0]) == []
+    plans.edited(store, "yard", {**plan, "holds": []}, "joey")  # merged away
+    assert plans.removed(store, plans.within_file()[0]) == ["shed"]
+
+
 def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_its_boxes_the_holders(store, data):
     from score.review import reading
     (data / "inventory/yard.json").unlink()  # no file: the reading in the store is the inventory

@@ -446,7 +446,7 @@ def test_a_mark_on_the_picture_above_reaches_both_calls_with_that_picture_boxed(
                       caller=stand_in([]), reviser=prompt_stand_in([]))
 
 
-SHIP_ROOMS = ("cockpit", "navigation", "quarters", "storage", "galley", "shiplock", "engineroom", "walkway")
+SHIP_ROOMS = ("cockpit", "quarters", "storage", "galley", "shiplock", "engineroom", "walkway")
 
 
 def test_no_two_ship_rooms_get_the_same_wording_or_references(store):
@@ -514,8 +514,8 @@ def test_ship_rooms_share_one_compartment_block_and_are_sent_only_the_crop_of_th
     blocks = {room: concepts.generated(store, room).split(" This concept is number ")[0] for room in SHIP_ROOMS}
     assert len(set(blocks.values())) == 1  # every sibling the identical block
     assert blocks["cockpit"].startswith("The black angular spaceship (picture 1) is divided into these compartments: "
-                                        "1. cockpit (flying the ship), 2. ")
-    assert "8. walkway (the corridor joining every room" in blocks["cockpit"]
+                                        "1. cockpit and nav (flying the ship), 2. ")
+    assert "7. walkway (the corridor joining every room" in blocks["cockpit"]
     galley = concepts.generated(store, "galley")
-    assert "This concept is number 5: galley. " + concepts.INSIDE_ONLY in galley
+    assert "This concept is number 4: galley. " + concepts.INSIDE_ONLY in galley
     assert "window" not in galley.replace(concepts.INSIDE_ONLY, "")

@@ -14,8 +14,6 @@
   },
   {"scene": "quarters", "views": [{"id": "v1", "picture": "{seeds}/scene/quarters/views/quarters.png"}],
    "why": "the crew quarters (ship plan v7): his quarters reference is its concept (found artwork, kept private)"},
-  {"scene": "navigation", "views": [{"id": "v1", "picture": "{seeds}/scene/navigation/views/navigation.png"}],
-   "why": "the navigation room (ship plan v7): its concept drawn by concept-views from its plan"},
   {"scene": "galley", "views": [{"id": "v1", "picture": "{seeds}/scene/galley/views/galley.png"}],
    "why": "the galley (ship plan v7): its concept drawn by concept-views from its plan"},
   {"scene": "storage", "views": [{"id": "v1", "picture": "{seeds}/scene/storage/views/storage.png"}],

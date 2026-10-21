@@ -312,7 +312,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`plans.review_of`); the listener answers all four (`applying.PLAN_KINDS`). What sits inside what is within.json
   with each holder's inside places as his newest kept plan lays them out (`plans.overlaid`, the one rule: the
   hierarchy here and `concepts.tree(store)` on the store's side); an inside place only his plan names (no line yet)
-  gets a design-only tile opening its concept page (`cockpit.designed`, `local.design_nodes`). The sync pass writes every place's plan
+  gets a design-only tile opening its concept page (`cockpit.designed`, `local.design_nodes`). A place his kept plans no longer lay out (merged into another) is `removed` (`plans.removed`): no card anywhere, never an outside place. A draw made on another room than the plan above gives the place now (moved, resized, merged: `plans.moved_draws`, each first draw recording its `room`) is out of date, so Draw all offers it again; a picked one is flagged "plan changed" on its card and design page (`WorldState.plan_changed`, owner 2026-10-21). The sync pass writes every place's plan
   where the plan stage reads it and makes the plan row again, detached, for those that changed (`client.plans_kept`,
   before prepare).
 - **The design page is a cockpit** (owner, 2026-10-21: "all open by default but the page designed a bit more as an
