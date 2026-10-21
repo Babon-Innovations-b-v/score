@@ -37,6 +37,7 @@ import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
+from score import checks  # noqa: E402
 
 SEEN_LEAST = 0.5  # a take whose views together see under this share of its area fails: the cast missed the model
 MOST_VIEWS = 16  # the base views and the coverage check's extras together
@@ -192,11 +193,26 @@ def take_faults(take, record):
     return []
 
 
+def all_gapped(output):
+    """The names of the batch gaps this output carries when they leave out every take the row worked on (takes.json),
+    else []: a row with none of its takes to cast has nothing to fail, its gaps carried on."""
+    written = json.loads((output / "takes.json").read_text())["takes"]
+    carried = batch_gaps.read([output])
+    left_out = batch_gaps.objects(carried)
+    if not written or not all(take in left_out for take in written):
+        return []
+    return [entry["name"] for entry in carried if set(entry["objects"]) & set(written)]
+
+
 def judge_views(output, inputs, evidence):
     """Every take has its raw model with the paint's faces, every view sees it and the views together see SEEN_LEAST of
     its area; the views a take needed and its unseen faces as measures."""
     found = json.loads((output / "views.json").read_text())
     failing = [fault for take, record in found.items() for fault in take_faults(take, record)]
+    gapped = all_gapped(output)
+    if not found and gapped:
+        return checks.Verdict("views cast", checks.PASS, f"every take left out by its batch gap, carried on: "
+                              f"{'; '.join(gapped)}", {"failing": 0, "left_out": len(gapped)}, {"failing": "lower"})
     if not found:
         place = json.loads((output / "takes.json").read_text())["place"]
         failing.append(f"{place}: no take to work on (the object filter keeps none of its takes)")

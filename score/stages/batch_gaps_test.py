@@ -10,6 +10,7 @@ Run: make tests TESTS=score/stages/batch_gaps_test.py (a sandbox PROPS_HOME: the
 """
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -104,6 +105,28 @@ def test_the_views_leave_a_batch_gap_s_take_out_and_carry_its_gap():
     route_views.make_views({"surfaces": inputs["surfaces"], "pixal": out}, views, 0, {})
     assert list(json.loads((views / "views.json").read_text())) == ["crate-s1"]
     assert [entry["name"] for entry in batch_gaps.read([views])] == ["hatch: Pixal3D made no model"]
+
+
+def test_the_views_pass_with_their_gaps_carried_when_every_take_is_a_batch_gap():
+    """finish-route-views@people, 2026-10-21: every take was left out by carried batch gaps, and the views gate
+    failed it as "no take to work on", stopping the line the batch rule says runs on with its gaps."""
+    for path in [path for entry in OBJECTS.values() for path in pixal_row.take_files(entry["take"])]:
+        if path.is_dir():  # an earlier test's takes, under this sandbox's home
+            shutil.rmtree(path)
+        elif path.exists():
+            path.unlink()
+    out, inputs = pixal_made(set())
+    views = out.parent / "views"
+    views.mkdir()
+    route_views.make_views({"surfaces": inputs["surfaces"], "pixal": out}, views, 0, {})
+    assert json.loads((views / "views.json").read_text()) == {}
+    verdict = route_views.judge_views(views, {}, None)
+    assert verdict.answer == checks.PASS and verdict.measures["left_out"] == 2, verdict
+    assert "crate: Pixal3D made no model" in verdict.reason and "hatch: Pixal3D made no model" in verdict.reason
+    assert {entry["name"] for entry in batch_gaps.read([views])} == {"crate: Pixal3D made no model",
+                                                                     "hatch: Pixal3D made no model"}
+    (views / batch_gaps.FILE).write_text(json.dumps({"gaps": []}))  # the same empty views with no gap still fail
+    assert route_views.judge_views(views, {}, None).answer == checks.FAIL
 
 
 # The fixture batch: the prop route's rows by their table names, each a toy make, wrapped by the table's own gap
