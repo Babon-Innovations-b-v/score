@@ -138,6 +138,25 @@ def test_the_crowd_keeps_clear_of_its_plans_views():
     assert spread.far_enough([near, far], views[:1]) == [far]
 
 
+def test_a_plan_spot_aimed_off_its_items_stops_only_a_crowd_with_ground():
+    """The camp's accepted plan (2026-10-21) has standing spots looking at its kit's objects, which are no plan items:
+    its views are refused by name, never a bare StopIteration; a cast with no crowd, or a crowd the design gives no
+    ground (every design's today), never reads them, so its make goes on."""
+    plan = {"place": "camp", "inside": True, "floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
+            "doors": [], "standing": [{"at": [1.0, 4.0], "level": 0.0, "looks_at": "SEFA'S BUNK"}]}
+    try:
+        plan_views_of(plan)
+        raise AssertionError("a spot aimed at no plan item gave views")
+    except ValueError as refused:
+        assert "SEFA'S BUNK" in str(refused), refused
+    crowd = {"name": "crowd", "character": "kit_m_avg", "look": "kit_m_avg_far", "doing": ["idle"], "count": None}
+    with tempfile.TemporaryDirectory() as folder:
+        (pathlib.Path(folder) / "plan.json").write_text(json.dumps(plan))
+        inputs = {"plan": folder, "places": REPO / "data/definitions/place.json"}
+        assert cast.crowd_of({"people": []}, [], "camp", inputs) is None
+        assert cast.crowd_of({"people": [], "crowd": crowd}, [], "camp", inputs)["copies"] == []
+
+
 def test_a_group_wears_only_its_kit():
     cast_rules, _ = measure.characters()
     kit = {"builds": ["m_avg", "w_slim"], "plain": ["uniform_olive"]}
