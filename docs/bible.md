@@ -374,8 +374,8 @@ is meant to fix, where it is marked, and what proves it.
   written reason). Only places whose plan has `leads` have the rows; the assembly writes the accepted record over its
   seed's record prims (the final assembly, below). Two shell
   writers: domed rooms, and kit shells (`kit_shell.py`, 2026-10-12: the Earth's flat, stairwell, street, square and
-  launch view, whose kits hold their walls; the record adds the block round a room, the lamps of the sky record's
-  lamp rows where the kit lays them, the Earth's night air, glow and harbour, the plan's released models and the
+  launch view, whose kits hold their walls; the record adds the block round a room, the lamps of its glowing
+  rows (row kind) where the kit lays them, numbered by the library's lamp, the Earth's night air, glow and harbour, the plan's released models and the
   far city it shows; `plan-matched` holds the plan's doors to the kit's doorways), and outdoor places (`outdoor.py`,
   2026-10-12: the wreck, the old station, the camp grounds and the camp, whose kit holds its domes and whose
   furniture is the released camp models as plan objects; no walls of the record's; the body's outdoor air in `sky.json` with

@@ -17,8 +17,9 @@ gates.
   game-transcribed records, which only scene-record's `seed-matched` reads); the places rendered with it are the ones
   its accepted record shows (`passes.neighbours`: its doors' places and what its views see over the made ground),
   each lit by its own record read beside (`scene-record@<name>`) on its earth seed (`stages.SHOWN_SEEDED`);
-  light-haze applies where the kit lays a lamp with a shaft (`haze.shafted_kinds`: the sky record's shafted lamp
-  rows; a floodlight's shaft is its row's, never a hand-kept lamp of one place), and the floodlight heads are those
+  light-haze applies where the kit lays a lamp with a shaft (`haze.shafted_kinds`: the glowing rows, by row kind,
+  its plan aims, the library's aimed lamp with its shaft; a floodlight's shaft is its row's, never a hand-kept lamp of
+  one place), and the floodlight heads are those
   kinds' glow parts, the place's and its shown places'. Never add a place name, a kind name or a picture's pixels to decide what a row does.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
@@ -62,10 +63,11 @@ gates.
   are.
 - **Strengths are measured on the round-three seeds' layouts** (2026-10-12, tonight's cut): the passes render the
   seed with the layer, not the final assembly; once the assembly takes the layer the measurement moves onto it.
-- **No per-place light file** (2026-10-21: `data/light/` is gone). A lamp is its inventory row's (the sky record's
-  lamp rows, on its kit glow part, aimed at the plan's `aims`), the pad floodlights' shaft too; the camera's glow is
-  the body's night air's (`data/definitions/sky.json` `<body>.night.glow`), in the record's environment, which the
-  layer writes; the kit pieces stand where the earth seed lays them from the design, never re-laid here.
+- **No per-place light file** (2026-10-21: `data/light/` is gone). A lamp is its glowing inventory row's (row kind,
+  on its kit glow part; its numbers the library's lamp, a row the plan `aims` its aimed spot), the pad floodlights'
+  shaft too; the camera's glow is the body's night air's (`data/definitions/sky.json` `<body>.night.glow`), in the
+  record's environment, which the layer writes; the kit pieces stand where the earth seed lays them from the design,
+  never re-laid here.
 - **Never edit what a running light node reads** (its layer code, the place's and its neighbours' records, kits and
   light data): the runner stores nothing for a node whose input changed while it ran (2026-10-12: six renders lost).
   The rows declare each place's own files, never a whole data folder.

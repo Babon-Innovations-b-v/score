@@ -4,6 +4,8 @@ from how high its laid pieces hang. No per-scene number decides it; the light sw
 
     light_of(row, laid, rows)   the light a row's kind gives ({strength, reach, high, shadows}), or None
     mount_of(row, rows)         how a row is mounted: ceiling, wall or stands
+    light_at(row, high, rows)   the light of a glowing row's lamp hanging `high` metres over the floor
+    aimed()                     the library's lamp for a row its plan aims (a spot with its angle, reach and shaft)
 """
 import json
 import pathlib
@@ -18,6 +20,10 @@ import row_kinds  # noqa: E402
 
 def mounts(path=LIBRARY):
     return json.loads(pathlib.Path(path).read_text())["mounts"]
+
+
+def aimed(path=LIBRARY):
+    return json.loads(pathlib.Path(path).read_text())["aimed"]
 
 
 def mount_words(path=LIBRARY):
@@ -65,7 +71,13 @@ def light_of(row, laid, rows=(), kinds=None, library=None, words=None):
     inventory's `rows`; None when the row's kind does not glow."""
     if not glows(row, kinds):
         return None
+    return light_at(row, height(laid), rows, library, words)
+
+
+def light_at(row, high, rows=(), library=None, words=None):
+    """The light of the library's lamp for a row's mount among its inventory's `rows`, hanging `high` metres over the
+    floor (its kind glowing)."""
     lamp = (library if library is not None else mounts())[mount_of(row, rows, words)]
-    reach = max(float(lamp["least_reach"]), float(lamp["reach_per_height"]) * height(laid))
+    reach = max(float(lamp["least_reach"]), float(lamp["reach_per_height"]) * high)
     return {"strength": round(float(lamp["strength_per_reach"]) * reach, 3), "reach": round(reach, 2),
             "high": float(lamp["high"]), "shadows": bool(lamp["shadows"])}

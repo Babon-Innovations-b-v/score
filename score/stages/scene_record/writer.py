@@ -36,6 +36,7 @@ from typing import NamedTuple
 import numpy as np
 
 from score import contracts
+from score.stages import row_kinds
 from score.stages.scene_record import kit_shell, plan as place_plan
 from score.stages.terrain import outside, record as ground_records
 
@@ -73,12 +74,13 @@ LEAF_YAW = {"north": 0.0, "south": 0.0, "east": 90.0, "west": 90.0}
 def files(place):
     """The world files the writer reads: the place's inventory and kit, every plan and kit (joined and seated places),
     the sky record, the place definitions (the eye's height), the tube's record (only its length: the stage a tube
-    shows); and for the gates the old record (the seed) and the old stages of the place and of each place a door leads
+    shows), the row-kind rules and the library's lamp (a kit shell's lamps); and for the gates the old record (the seed) and the old stages of the place and of each place a door leads
     to (`seed <stage>`, seed_stages: what the views are cut by and the openings compose; the table reads each from its
     earth-seed row)."""
     return {"inventory": f"{{data}}/inventory/{place_plan.inventory_name(place)}.json", "kits": "{data}/kit",
             "plans": "{data}/plans",
             "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
+            "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
             "places": "{data}/definitions/place.json",
             "seed record": "{data}/scene/{place}.json",
             **{f"seed {stage}": f"{{seeds}}/usd-r3/{stage}" for stage in seed_stages(place)},
@@ -572,6 +574,11 @@ def ground_free_record(place, plan, inputs, grounds):
             "places": []}
 
 
+def glowing_rows(inputs):
+    """The scene's inventory rows whose row kind glows (score/stages/row_kinds.py): its lamps."""
+    return row_kinds.rows_that(read(inputs["inventory"]), "glows", row_kinds.table(inputs["row kinds"]))
+
+
 def kit_record(place, plan, inputs, grounds):
     """The scene record of a place whose kit holds its walls and floors (kit_shell.py's docstring)."""
     seated = grounds[place]
@@ -586,7 +593,9 @@ def kit_record(place, plan, inputs, grounds):
                        f"{sky['frame_of']}'s frame moved to its seat.",
               "floor": plan["floor"], "inside": plan["inside"], "structure": kit_shell.block(plan),
               "objects": kit_shell.objects(plan, kit),
-              "lights": kit_shell.lamps(plan, kit, sky), "kit_glow": kit_shell.kit_glow(sky),
+              "lights": kit_shell.lamps(plan, kit, glowing_rows(inputs), inputs["lamp library"],
+                                        read(inputs["inventory"])["rows"]),
+              "kit_glow": kit_shell.kit_glow(sky),
               "environment": kit_shell.environment(plan, sky, pose), "views": views(plan, eye),
               "places": places_of(place, plan, inputs, grounds)}
     if seated.made.get("water"):

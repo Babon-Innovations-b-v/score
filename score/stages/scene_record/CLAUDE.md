@@ -25,8 +25,9 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   place of each stage a doorway opens onto; of the base the old station's views see only the hangar (2026-10-13).
 - **Shell writers**, by the plan's `shell`: `domed` (walls with a dome: room_walls, room_deck, dome_roof,
   doors in each wall's middle) and `kit` (`kit_shell.py`: the Earth's rooms and open places, whose kit holds their
-  walls and floors; the record adds the block round a room, a light at each lamp of the sky record's lamp rows the kit
-  lays, the body's night air, glow and harbour, the plan's `objects` and `shows`). A kit shell's plan stands in the
+  walls and floors; the record adds the block round a room, a light at each lamp of its glowing rows (row kind) the kit
+  lays, numbered by the library's lamp (`data/library/lamps.json`; a row the plan aims its aimed spot with a
+  shaft), the body's night air, glow and harbour, the plan's `objects` and `shows`). A kit shell's plan stands in the
   kit's frame by its `frame` (an anchor, and a `toward` for a plan drawn down a view); its doors are the kit's
   doorways (`plan-matched` holds each to the plan within 0.05 m along its wall), a door's fifth number its sill's
   level, its lead `<side>@<level>` where a wall has doors at several levels. `outdoor` (`outdoor.py`: the wreck, the
