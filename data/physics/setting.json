@@ -1,0 +1,17 @@
+{
+ "about": "Environment 1's setting as its environment concept starts (score/review/setting.py, CONTEXT.md \"setting\"): its bodies, each a real one of the reference table (data/physics/bodies.json), so every value is that table's; no plot; and each top place's site, a position on the body it stands on. The sites are a proposal for the creator to place (the owner, 2026-10-21: \"as the creator places them\"): the Base at the direction the game 2099 seated it on its Moon frame (55 N, 0 E: longitude 0 toward Earth), the Old station and the Wreck at the bearing and metres the game laid them from the Base (114 degrees 62.5 m, 37 degrees 56.7 m), now on the real Moon; the Square on the Hong Kong shore (the plan writing of 2026-10-21); the Campgrounds where the game seated them on its Mars ball. Heights in metres over the body's mean radius.",
+ "bodies": [
+  {"body": "sun", "reference": "sun"},
+  {"body": "earth", "reference": "earth"},
+  {"body": "moon", "reference": "moon"},
+  {"body": "mars", "reference": "mars"}
+ ],
+ "plots": [],
+ "sites": [
+  {"place": "square", "on": "earth", "latitude": 22.28, "longitude": 114.16, "height_m": 0.0},
+  {"place": "wreck", "on": "moon", "latitude": 55.001491, "longitude": 0.001967, "height_m": 0.0},
+  {"place": "old_station", "on": "moon", "latitude": 54.999165, "longitude": 0.003285, "height_m": 0.0},
+  {"place": "base", "on": "moon", "latitude": 55.0, "longitude": 0.0, "height_m": 0.0},
+  {"place": "campgrounds", "on": "mars", "latitude": 30.013, "longitude": 130.314, "height_m": 0.0}
+ ]
+}

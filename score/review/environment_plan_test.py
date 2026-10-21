@@ -1,11 +1,17 @@
-"""The environment's plan (score/review/environment_plan.py): its worlds and sites from data, the written answer kept
-under the fixed facts, each site's sky worked out from the physics, his edit kept."""
+"""The environment's plan (score/review/environment_plan.py): its grounds and sites from the environment concept's
+setting at true sizes, the written answer kept under the fixed facts, each site's sky worked out from the setting, his
+edit kept, and a plan made under another version of the concept out of date. Two settings: environment 1's (the Sun,
+Earth, the Moon and Mars) and a single house on a flat plot."""
 import json
 
 import pytest
 
-from score.review import environment_plan
+from score.review import environment_concept, environment_plan
 from score.store import Store
+
+HOUSE = {"bodies": [], "plots": [{"name": "Meadow", "gravity": 9.81, "latitude": 52.0, "tilt_deg": 23.44,
+                                  "day_hours": 24, "year_days": 365.2422, "equinox": "2024-03-20T12:00:00Z"}],
+         "sites": [{"place": "house", "on": "meadow", "x": 0, "y": 0, "height_m": 0}]}
 
 
 @pytest.fixture()
@@ -14,60 +20,101 @@ def store(tmp_path):
 
 
 def sites_of(plan):
-    return {world["world"]: [site["place"] for site in world["sites"]] for world in plan["maps"]}
+    return {world["on"]: [site["place"] for site in world["sites"]] for world in plan["maps"]}
 
 
-def test_each_top_place_stands_on_the_world_its_ground_plan_seats_it_on(store):
+def kept_setting(store, setting, locked=True):
+    concept = environment_concept.prefilled([])
+    return environment_concept.saved(store, environment_plan.world_name(), {**concept, "setting": setting}, locked,
+                                     "joey")
+
+
+def test_each_top_place_stands_where_the_setting_puts_it_at_true_size(store):
     plan = environment_plan.derived(store)
     assert sites_of(plan) == {"earth": ["square"], "moon": ["wreck", "old_station", "base"], "mars": ["campgrounds"]}
-    moon = next(world for world in plan["maps"] if world["world"] == "moon")
+    moon = next(world for world in plan["maps"] if world["on"] == "moon")
+    assert moon["radius_m"] == 1737400.0  # the Moon's true radius, never the game's 220 m ball
     apart = {(found["from"], found["to"]): found["metres"] for found in moon["distances"]}
-    assert 40 < apart[("old_station", "base")] < 90 and len(apart) == 3
+    assert apart[("old_station", "base")] == pytest.approx(62.5, abs=0.5) and len(apart) == 3
     base = next(site for site in moon["sites"] if site["place"] == "base")
     assert len(base["blocks"]) == 12 and base["size"][2] == pytest.approx(15.0)  # its modules; the hangar's walls
-    assert base["latitude"] is not None and base["sky"] is None  # no scene time yet: a gap
-    assert "Base: no scene time" in plan["gaps"] and "Square: no latitude and longitude" in plan["gaps"]
-    assert set(plan["bodies"]["worlds"]) == {"earth", "moon", "mars"}  # the physics state rides with it
+    assert (base["latitude"], base["longitude"]) == (55.0, 0.0) and base["sky"] is None  # no scene time yet: a gap
+    assert min(spot[2] for spot in base["terrain"]["spots"]) > -0.02  # 100 m on the Moon: all but flat
+    assert "Base: no scene time" in plan["gaps"] and not any("place on its ground" in gap for gap in plan["gaps"])
+    assert {body["body"] for body in plan["setting"]["bodies"]} == {"sun", "earth", "moon", "mars"}
+
+
+def test_sites_kilometres_apart_on_the_moon_are_that_far_on_its_map(store):
+    setting = environment_concept.setting_of(store)
+    moved = [{**site, "latitude": 55.0, "longitude": 0.1} if site["place"] == "old_station" else site
+             for site in setting["sites"]]
+    kept_setting(store, {**setting, "sites": moved})
+    moon = next(world for world in environment_plan.derived(store)["maps"] if world["on"] == "moon")
+    apart = {(found["from"], found["to"]): found["metres"] for found in moon["distances"]}
+    assert apart[("old_station", "base")] == pytest.approx(1737400 * 0.1 * 0.01745329 * 0.573576, rel=1e-3)  # ~1.7 km
+    old = next(site for site in moon["sites"] if site["place"] == "old_station")
+    base = next(site for site in moon["sites"] if site["place"] == "base")
+    assert old["at"][0] - base["at"][0] == pytest.approx(apart[("old_station", "base")], rel=1e-3)  # due east
 
 
 def answer_of(plan):
-    """A written answer: a time for every site, the Square's real place, a block the base must not take."""
+    """A written answer: a time for every site, a latitude it may not take, a block the base must not take."""
     return {"time": "2099-06-01T12:00:00Z", "maps": [
-        {"world": world["world"], "ground": "grey dust", "sites": [
-            {"place": site["place"], "time": "2099-06-01T13:00:00Z", "latitude": 22.29, "longitude": 114.17,
+        {"on": world["on"], "ground": "grey dust", "sites": [
+            {"place": site["place"], "time": "2099-06-01T13:00:00Z", "latitude": 10.0, "longitude": 10.0,
              "blocks": [{"name": "a tower", "points": [[0, 0], [5, 0], [5, 5]], "tall": 30}],
              "terrain": {"spots": [[50, 0, -3.5]]}} for site in world["sites"]]} for world in plan["maps"]]}
 
 
 def test_a_written_plan_keeps_the_fixed_facts_and_works_out_each_sky(store):
     free = environment_plan.derived(store)
-    facts = environment_plan.facts_of(store)
-    plan = environment_plan.plan_from(answer_of(free), free, facts)
+    plan = environment_plan.plan_from(answer_of(free), free, store)
     assert plan["gaps"] == [] and plan["time"] == "2099-06-01T12:00:00Z"
     sites = {site["place"]: site for world in plan["maps"] for site in world["sites"]}
     base, square, wreck = sites["base"], sites["square"], sites["wreck"]
-    assert len(base["blocks"]) == 12 and base["latitude"] != 22.29  # its parts and the game's Moon frame stand
-    assert square["latitude"] == 22.29 and square["blocks"][0]["name"] == "a tower"  # written where data says nothing
+    assert len(base["blocks"]) == 12 and base["latitude"] == 55.0  # its parts and the setting's place stand
+    assert square["latitude"] == 22.28 and square["blocks"][0]["name"] == "a tower"  # written where data says nothing
     earth = next(world for world in base["sky"]["worlds"] if world["world"] == "earth")
-    assert 1.75 < earth["across"] < 2.05 and earth["altitude"] > 0  # seen from the Moon's near side
+    assert 1.75 < earth["across"] < 2.05 and earth["altitude"] > 0  # seen from the Moon's near side: about 1.9 degrees
     assert [50.0, 0.0, -3.5] in wreck["terrain"]["spots"]
-    assert environment_plan.distances([{"place": "a", "at": [0, 0]}, {"place": "b", "at": [3, 4]}]) == [
-        {"from": "a", "to": "b", "metres": 5.0}]
 
 
 def test_his_edit_is_kept_and_settled_again(store):
     plan = environment_plan.current(store)["plan"]
     for world in plan["maps"]:
         for site in world["sites"]:
-            site.update({"time": "2099-06-01T20:00:00Z", "latitude": site["latitude"] or 22.29,
-                         "longitude": site["longitude"] or 114.17})
+            site.update({"time": "2099-06-01T20:00:00Z", "latitude": 1.0})
     record = environment_plan.edited(store, plan, "joey")
     shown = environment_plan.current(store)
     assert shown["how"] == "edited" and shown["plan"] == record["plan"] and shown["plan"]["gaps"] == []
     square = environment_plan.site_of(store, "square")
-    assert square["world"] == "earth" and square["sky"]["sun"]["altitude"] < 0  # 4 in the morning in Hong Kong
+    assert square["on"] == "earth" and square["latitude"] == 22.28  # where it stands is the setting's
+    assert square["sky"]["sun"]["altitude"] < 0  # 4 in the morning in Hong Kong
     with pytest.raises(environment_plan.Refused):
         environment_plan.edited(store, {"maps": "none"}, "joey")
+
+
+def test_a_plan_made_under_another_concept_is_out_of_date(store):
+    plan = environment_plan.current(store)["plan"]
+    for world in plan["maps"]:
+        for site in world["sites"]:
+            site["time"] = "2099-06-01T20:00:00Z"
+    environment_plan.edited(store, plan, "joey")
+    assert environment_plan.current(store)["how"] == "edited"
+    kept_setting(store, environment_concept.setting_of(store), locked=False)  # unlocked: a new version
+    assert environment_plan.current(store)["how"] == "derived"
+
+
+def test_a_house_on_a_plot_stands_on_flat_ground_under_its_sun_path(store):
+    kept_setting(store, HOUSE)
+    plan = environment_plan.derived(store)
+    assert sites_of(plan) == {"meadow": ["house"]} and plan["maps"][0]["radius_m"] is None
+    house = plan["maps"][0]["sites"][0]
+    assert house["at"] == [0.0, 0.0] and {spot[2] for spot in house["terrain"]["spots"]} == {0.0}
+    house["time"] = "2024-03-20T12:00:00Z"
+    edited = environment_plan.edited(store, plan, "joey")["plan"]
+    sky = edited["maps"][0]["sites"][0]["sky"]
+    assert sky["worlds"] == [] and sky["sun"]["altitude"] == pytest.approx(38.0, abs=0.01)
 
 
 def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_no_plan(store, monkeypatch):
@@ -87,7 +134,8 @@ def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_n
         return compute.reading_clearance(store, places, euros, node=node)
     record = environment_plan.write(store, "the allowance", ask=ask, clear=clear)
     assert clears == [(compute.PLAN_WRITING, [f"environment-{environment_plan.world_name()}"])]
-    assert record["euros"] == 0.07 and '"ball fall spots"' in asked[0]["contents"][0]["parts"][0]["text"]
+    told = asked[0]["contents"][0]["parts"][0]["text"]
+    assert record["euros"] == 0.07 and '"ball fall spots"' in told and '"radius m": 1737400.0' in told
     assert environment_plan.current(store)["how"] == "written" and record["plan"]["gaps"] == []
     bad = environment_plan.write(store, "the allowance", ask=lambda body: ({"candidates": []}, 1.0), clear=clear)
     assert bad["refused"] and environment_plan.current(store)["how"] == "written"

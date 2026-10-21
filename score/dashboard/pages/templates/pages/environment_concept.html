@@ -7,7 +7,7 @@
   <span class="ec-state" title="{% if shown.locked %}every place's concept is drawn from this; unlock to change it{% else %}being changed: no place is drawn until it is locked again{% endif %}{% if not shown.prefilled %} (version {{ shown.versions }}, {{ shown.by }}, {{ shown.at|slice:':16' }}){% endif %}">{% include "pages/c/dot.html" with tone=shown.locked|yesno:"done,review" tip=None %} <b data-v>{{ shown.locked|yesno:"locked,unlocked" }}</b></span>
   <div class="phead-actions">
     <a class="button primary big" href="/places/" title="its places, each drawn from this concept" data-v>Places</a>
-    <a class="button big" href="/environments/{{ world }}/plan/" title="its plan: a map a world, each top place's site and sky" data-v>Plan</a>
+    <a class="button big" href="/environments/{{ world }}/plan/" title="its plan: a map a ground of its setting, each top place's site and sky" data-v>Plan</a>
     {% if can %}{% if shown.locked %}<details class="ec-unlock"><summary class="button" title="change it">Unlock</summary>
       <div class="ec-confirm"><p data-v>Every place's concept goes out of date and is drawn again.</p>
         <form data-yes data-reload data-url="/environments/{{ world }}/save/" data-body='{{ unlock_body }}'><button type="submit" class="button bad" data-slot="post-label" data-v>Unlock</button><i class="dot" data-slot="said" hidden></i></form></div>
@@ -18,12 +18,21 @@
   <div class="ec-fields" data-concept>
     <section class="card" aria-label="style"><h2 class="eyebrow" title="one short line every place's concept is drawn in">Style</h2>
       {% if editable %}<input type="text" class="ec-wide" data-f="style" value="{{ concept.style }}" maxlength="300">{% else %}<p class="ec-text" data-v>{{ concept.style }}</p>{% endif %}</section>
-    <section class="card" aria-label="worlds"><h2 class="eyebrow" title="each world's gravity, what it orbits and the places standing on it">Worlds</h2>
+    <section class="card" aria-label="setting"><h2 class="eyebrow" title="what everything stands on and in: a plot of ground, one world, or several bodies that move one another, and where each top place stands">Setting</h2>
+      {% if setting.bodies or editable %}<div class="ec-scroll"><table class="ec-rows">
+        <thead><tr>{% for field, heading, tip in setting.body_columns %}<th title="{{ tip }}">{{ heading }}</th>{% if field == "mass_kg" %}<th title="its pull at the surface, worked out from its mass and radius">Gravity</th>{% endif %}{% endfor %}</tr></thead>
+        <tbody>{% for row in setting.bodies %}<tr{% if editable %} data-row="bodies" data-keep="{{ row.keep }}"{% endif %}>{% for field, value in row.cells %}<td>{% if editable %}<input type="text" data-f="{{ field }}" value="{{ value }}">{% elif forloop.first %}<b data-v>{{ value }}</b>{% else %}<span data-v>{{ value }}</span>{% endif %}</td>{% if field == "mass_kg" %}<td data-v>{{ row.gravity|unlocalize }} m/s²</td>{% endif %}{% endfor %}</tr>{% endfor %}
+        {% if editable %}<tr data-row="bodies" data-keep="{}" class="ec-new">{% for field, heading, tip in setting.body_columns %}<td><input type="text" data-f="{{ field }}"{% if forloop.first %} placeholder="+" title="add a body"{% endif %}></td>{% if field == "mass_kg" %}<td></td>{% endif %}{% endfor %}</tr>{% endif %}</tbody>
+      </table></div>{% endif %}
+      {% if setting.plots or editable %}<div class="ec-scroll"><table class="ec-rows">
+        <thead><tr>{% for field, heading, tip in setting.plot_columns %}<th title="{{ tip }}">{{ heading }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in setting.plots %}<tr{% if editable %} data-row="plots" data-keep="{{ row.keep }}"{% endif %}>{% for field, value in row.cells %}<td>{% if editable %}<input type="text" data-f="{{ field }}" value="{{ value }}">{% elif forloop.first %}<b data-v>{{ value }}</b>{% else %}<span data-v>{{ value }}</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}
+        {% if editable %}<tr data-row="plots" data-keep="{}" class="ec-new">{% for field, heading, tip in setting.plot_columns %}<td><input type="text" data-f="{{ field }}"{% if forloop.first %} placeholder="+" title="add a plot"{% endif %}></td>{% endfor %}</tr>{% endif %}</tbody>
+      </table></div>{% endif %}
       <div class="ec-scroll"><table class="ec-rows">
-        <thead><tr><th>World</th><th title="its pull at the surface, in metres a second squared">Gravity</th><th>Orbits</th><th title="the places standing on it, each with the places inside it">Places</th></tr></thead>
-        <tbody>{% for row in concept.physics %}{% if editable %}<tr data-row="physics"><td><input type="text" data-f="world" value="{{ row.world }}"></td><td><input type="text" inputmode="decimal" data-f="gravity" value="{{ row.gravity|default_if_none:''|unlocalize }}"></td><td><input type="text" data-f="orbits" value="{{ row.orbits|default:'' }}"></td><td><input type="text" data-f="places" value="{{ row.places|join:', ' }}"></td></tr>
-        {% else %}<tr><td><b data-v>{{ row.world }}</b></td><td data-v>{% if row.gravity is None %}?{% else %}{{ row.gravity|unlocalize }} m/s²{% endif %}</td><td data-v>{{ row.orbits|default:'' }}</td><td data-v>{{ row.places|join:', ' }}</td></tr>{% endif %}{% endfor %}
-        {% if editable %}<tr data-row="physics" class="ec-new"><td><input type="text" data-f="world" placeholder="+" title="add a world"></td><td><input type="text" inputmode="decimal" data-f="gravity"></td><td><input type="text" data-f="orbits"></td><td><input type="text" data-f="places"></td></tr>{% endif %}</tbody>
+        <thead><tr><th title="the top place standing there">Site</th>{% for field, heading, tip in setting.site_columns %}<th title="{{ tip }}">{{ heading }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in setting.sites %}<tr{% if editable %} data-row="sites" data-keep="{{ row.keep }}"{% endif %}><td>{% if editable %}<input type="text" data-f="place" value="{{ row.place }}" title="{{ row.name }}">{% else %}<b data-v>{{ row.name }}</b>{% endif %}</td>{% for field, value in row.cells %}<td>{% if editable %}<input type="text" data-f="{{ field }}" value="{{ value }}">{% else %}<span data-v>{{ value }}</span>{% endif %}</td>{% endfor %}</tr>{% empty %}{% if not editable %}<tr><td class="soft" data-v>none</td></tr>{% endif %}{% endfor %}
+        {% if editable %}<tr data-row="sites" data-keep="{}" class="ec-new"><td><input type="text" data-f="place" placeholder="+" title="add a site"></td>{% for field, heading, tip in setting.site_columns %}<td><input type="text" data-f="{{ field }}"></td>{% endfor %}</tr>{% endif %}</tbody>
       </table></div></section>
     <section class="card" aria-label="reference pictures"><h2 class="eyebrow" title="pictures that guide a place's look; each is sent only with its own place's draw">Reference pictures</h2>
       <div class="ec-refs">{% for ref in references %}<figure class="ec-ref" data-row="references" data-picture="{{ ref.picture }}">

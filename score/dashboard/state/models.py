@@ -214,7 +214,7 @@ class WorldState(BaseModel):
     # gaps, euros, seconds) and what every reading cost in sum (None: not read).
     inventory_readings: dict[str, dict] = {}
     inventory_spend: float | None = None
-    # The environment concept (score/review/environment_concept.py): {concept {style, physics, references, places},
+    # The environment concept (score/review/environment_concept.py): {concept {style, setting, references, places},
     # locked, by, at, versions, prefilled} as its page shows it (today's data, locked, while no version is kept), the
     # euros of one interview answer (None: not measured) and {reference's picture path: FileRef} of those here.
     environment_concept: dict | None = None
@@ -230,8 +230,8 @@ class WorldState(BaseModel):
     plan_write_euros: float | None = None
     plan_automatic: bool = False
     plan_spend: float | None = None
-    # The environment's plan (score/review/environment_plan.py): {plan {environment, time, bodies, maps [{world, name,
-    # ground, sites, distances}], gaps}, how (derived, written, edited), at, by, without_blockout [place]}, and
+    # The environment's plan (score/review/environment_plan.py): {plan {environment, time, setting, maps [{on, name,
+    # ground, radius_m, sites, distances}], gaps}, how (derived, written, edited), at, by, without_blockout [place]}, and
     # {place or shell: FileRef} of each blockout picture (score/review/blockout.py) the store's machine rendered.
     environment_plan: dict | None = None
     blockouts: dict[str, FileRef] = {}

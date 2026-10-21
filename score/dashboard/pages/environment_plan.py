@@ -1,9 +1,10 @@
 """The environment's plan page (CONTEXT.md "environment plan", owner 2026-10-21; score/review/environment_plan.py):
-`/environments/<world>/plan/`, the plan page pattern for the environment, the first parent. One map a world, drawn
-top down (each top place's site with its blocks, the distances between sites), and a row a site: its size, its scene
-time, latitude and longitude (fields for the owner), the Sun's height and every other world in its sky at that moment
-(worked out from the environment's physics, never typed), and its blockout, the structure picture its next draw is
-drawn on. Keep (SyncRequest `env-plan-edit`) keeps his times, places and sizes as his own; Write (`env-plan-write`)
+`/environments/<world>/plan/`, the plan page pattern for the environment, the first parent. One map a ground of its
+setting (a body or a plot), drawn top down (each top place's site with its blocks, the true distances between sites),
+and a row a site: its size and scene time (fields for the owner), where it stands (the environment concept's setting,
+shown here, set there), the Sun's height and every other body in its sky at that moment (worked out from the setting,
+never typed), and its blockout, the structure picture its next draw is drawn on. Keep (SyncRequest `env-plan-edit`)
+keeps his times and sizes as his own; Write (`env-plan-write`)
 has the plan writer write it again under the owner's standing allowance for plan writing. The places picked before
 blockouts existed are named (`without_blockout`)."""
 import html
@@ -60,6 +61,16 @@ def map_svg(world, names):
                      f'aria-label="{html.escape(world["name"])} map">{"".join(shapes)}</svg>')
 
 
+def where_of(site):
+    """Where a site stands in a few words: its latitude and longitude on a body, its metres on a plot."""
+    if "x" in site:
+        return f"{site['x']:.0f} m E, {site['y']:.0f} m S"
+    if site.get("latitude") is None:
+        return "?"
+    return (f"{abs(site['latitude']):.4f}° {'N' if site['latitude'] >= 0 else 'S'}, "
+            f"{abs(site['longitude']):.4f}° {'E' if site['longitude'] >= 0 else 'W'}")
+
+
 def sky_line(found):
     """[(name, words, tip)] of the worlds above a site's horizon at its scene time."""
     lines = []
@@ -83,6 +94,7 @@ def plan_page(request, world):
     names = {**groups.short_names(world_state), **world_state.shells}
     maps = [{**found, "svg": map_svg(found, names), "rows": [{
         **site, "title": names.get(site["place"], site["name"]), "sky_lines": sky_line(site.get("sky")),
+        "where": where_of(site),
         "sun": (site.get("sky") or {}).get("sun"), "blockout": world_state.blockouts.get(site["place"])}
         for site in found["sites"]]} for found in plan["maps"]]
     can = is_owner(request.user) and actions.decisions_on()
@@ -113,7 +125,7 @@ def asked(request, world, kind, payload):
 
 @require_POST
 def plan_edit(request, world):
-    """POST {plan}: his times, places and sizes, kept as his own."""
+    """POST {plan}: his times and sizes, kept as his own."""
     body = concepts.body_of(request)
     if body is None or not isinstance(body.get("plan"), dict):
         return JsonResponse({"detail": "refused: not a plan"}, status=422)
