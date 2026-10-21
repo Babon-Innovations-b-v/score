@@ -3,58 +3,6 @@
  "library": "people",
  "why": "The people line's surface data (score/stages/people, #5; on the shared loop since 2026-10-20, #41): each look's Pixal3D take, painted and baked by the loop's finish route as a place's takes are, on the line `people`, which no place owns; its body rows read `spec` and `outfit` beside each take. Only the looks the final casts name are kept (captain, 2026-10-13).",
  "takes": {
-  "pp-player-work-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
-   "spec": "data/characters/makes/player_prop.json",
-   "outfit": "work"
-  },
-  "pp-bram-work-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a light blue one-piece indoor suit",
-   "spec": "data/characters/makes/bram_prop.json",
-   "outfit": "work"
-  },
-  "pp-driver-driver-suit-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a charcoal grey suit jacket over a white shirt and a dark tie, matching charcoal trousers, white gloves, a charcoal peaked cap with a black peak, bl",
-   "spec": "data/characters/makes/driver_prop.json",
-   "outfit": "driver-suit"
-  },
-  "pp-guard-guard-uniform-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in an olive drab military uniform",
-   "spec": "data/characters/makes/guard_prop.json",
-   "outfit": "guard-uniform"
-  },
   "pp-kit_m_avg-coat-grey-s3": {
    "places": [
     "people"
@@ -69,97 +17,6 @@
    "outfit": "coat-grey",
    "far_only": true
   },
-  "pp-kit_m_avg-uniform-olive-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_m_avg_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-kit_m_broad-uniform-olive-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_m_broad_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-kit_w_broad-uniform-olive-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_w_broad_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-kit_w_slim-uniform-olive-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_w_slim_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-leader-state-suit-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a mid grey state suit",
-   "spec": "data/characters/makes/leader_prop.json",
-   "outfit": "state-suit"
-  },
-  "pp-nev-work-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a dark navy one-piece work suit with light grey shoulder panels and a small printed flag patch",
-   "spec": "data/characters/makes/nev_prop.json",
-   "outfit": "work"
-  },
-  "pp-sefa-work-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a light blue one-piece indoor suit",
-   "spec": "data/characters/makes/sefa_prop.json",
-   "outfit": "work"
-  },
   "pp-player_wide-work-s1": {
    "places": [
     "people"
@@ -172,164 +29,63 @@
    "object": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
    "spec": "data/characters/makes/player_wide_prop.json",
    "outfit": "work"
-  },
-  "pp-kit_m_avg_wide-uniform-olive-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_m_avg_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-kit_m_broad_wide-uniform-olive-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_m_broad_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-kit_w_broad_wide-uniform-olive-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_w_broad_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-kit_w_slim_wide-uniform-olive-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "spec": "data/characters/makes/kit_w_slim_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "pp-driver_wide-driver-suit-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a charcoal grey suit jacket over a white shirt and a dark tie, matching charcoal trousers, white gloves, a charcoal peaked cap with a black peak, bl",
-   "spec": "data/characters/makes/driver_wide_prop.json",
-   "outfit": "driver-suit"
-  },
-  "pp-guard_wide-guard-uniform-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in an olive drab military uniform",
-   "spec": "data/characters/makes/guard_wide_prop.json",
-   "outfit": "guard-uniform"
-  },
-  "pp-leader_wide-state-suit-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a mid grey state suit",
-   "spec": "data/characters/makes/leader_wide_prop.json",
-   "outfit": "state-suit"
-  },
-  "pp-bram_wide-work-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a light blue one-piece indoor suit",
-   "spec": "data/characters/makes/bram_wide_prop.json",
-   "outfit": "work"
-  },
-  "pp-sefa_wide-work-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a light blue one-piece indoor suit",
-   "spec": "data/characters/makes/sefa_wide_prop.json",
-   "outfit": "work"
-  },
-  "pp-nev_wide-work-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a dark navy one-piece work suit with light grey shoulder panels and a small printed flag patch",
-   "spec": "data/characters/makes/nev_wide_prop.json",
-   "outfit": "work"
   }
  },
  "bake": {
-  "why": "Each look's model, baked from its take by the loop's bake. No entry is written yet: a person's make_chunky entry needs the look's measured size, so the run refuses the bake by name (`bake entry <look>`) before anything is cleared, until one is measured (#41).",
+  "why": "Each look's model, baked from its take by the loop's bake, its entry at the size of the person row that maps it (data/people/rows.json, score/stages/people_rows.size_of: the picked design's metres, #26). Only the looks a design maps are on the line; the rest left it with the old library models (2026-10-21).",
   "models": {
-   "bram-work": "pp-bram-work-s3",
-   "bram_wide-work": "pp-bram_wide-work-s1",
-   "driver-driver-suit": "pp-driver-driver-suit-s3",
-   "driver_wide-driver-suit": "pp-driver_wide-driver-suit-s1",
-   "guard-guard-uniform": "pp-guard-guard-uniform-s3",
-   "guard_wide-guard-uniform": "pp-guard_wide-guard-uniform-s1",
    "kit_m_avg-coat-grey": "pp-kit_m_avg-coat-grey-s3",
-   "kit_m_avg-uniform-olive": "pp-kit_m_avg-uniform-olive-s3",
-   "kit_m_avg_wide-uniform-olive": "pp-kit_m_avg_wide-uniform-olive-s1",
-   "kit_m_broad-uniform-olive": "pp-kit_m_broad-uniform-olive-s3",
-   "kit_m_broad_wide-uniform-olive": "pp-kit_m_broad_wide-uniform-olive-s1",
-   "kit_w_broad-uniform-olive": "pp-kit_w_broad-uniform-olive-s3",
-   "kit_w_broad_wide-uniform-olive": "pp-kit_w_broad_wide-uniform-olive-s1",
-   "kit_w_slim-uniform-olive": "pp-kit_w_slim-uniform-olive-s3",
-   "kit_w_slim_wide-uniform-olive": "pp-kit_w_slim_wide-uniform-olive-s1",
-   "leader-state-suit": "pp-leader-state-suit-s3",
-   "leader_wide-state-suit": "pp-leader_wide-state-suit-s1",
-   "nev-work": "pp-nev-work-s3",
-   "nev_wide-work": "pp-nev_wide-work-s3",
-   "player-work": "pp-player-work-s1",
-   "player_wide-work": "pp-player_wide-work-s1",
-   "sefa-work": "pp-sefa-work-s3",
-   "sefa_wide-work": "pp-sefa_wide-work-s1"
+   "player_wide-work": "pp-player_wide-work-s1"
+  },
+  "entries": {
+   "kit_m_avg-coat-grey": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.5,
+     1.8,
+     0.3
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "player_wide-work": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.3,
+     1.8,
+     0.5
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   }
   }
  }
 }

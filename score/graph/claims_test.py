@@ -69,14 +69,14 @@ def test_a_reused_pid_is_not_the_run_that_registered(folder, other):
 
 
 def test_two_places_of_world1_at_one_commit_both_run_once_the_world_nodes_stand(folder, other):
-    """Fault (review of C10): every place reads world nodes (terrain, concept_people), so comparing every planned
+    """Fault (review of C10): every place reads world nodes (terrain), so comparing every planned
     node refused the second `score run world1 --place <place>` always. Only nodes a run would make count."""
     from score import graph, stages
     from score.store import Store
     runner = stages.runner(store=Store.in_folder(tempfile.mkdtemp()), world=stages.WORLDS["world1"]())
     airlock, camp = (runner.line_nodes([place], False) for place in ("airlock", "camp"))
     shared = {graph.node_name(*node) for node in airlock} & {graph.node_name(*node) for node in camp}
-    assert {"terrain", "concept_people"} <= shared, shared
+    assert "terrain" in shared, shared
     runner.standing = lambda stage, place, gapped=False: None if stage.grain == "world" else "never ran"
     assert runs.claim("aaa111", runs.would_make(runner, airlock), other.pid, worktree="/work/one",
                          folder=folder) is None

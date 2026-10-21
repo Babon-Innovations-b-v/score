@@ -14,12 +14,13 @@ data/surfaces/people.json; after the loop:
     .venv/bin/python -m score run world1 --stage people-look --detach
 """
 from score import contracts, graph
+from score.stages import people_rows
 from score.stages.people import dress, look
 from score.stages.people_bodies import bodies, clips
 from score.stages.people_bodies.bodies import guarded
 
-# The looks the review page shows: the player and Nev first (#5), the casts' looks once they pass.
-LOOKED = ("player-work", "nev-space")
+# The looks the review page shows: the people benchmark's two (#26), the player in the tube and the crowd's far look.
+LOOKED = ("player_wide-work", people_rows.CROWD_LOOK)
 
 
 def dress_row(name, place=None, surface=None):
@@ -44,41 +45,28 @@ LOOK = graph.Stage("people-look", "world", look.make_look, contracts.Contract("p
                           **{f"{bodies.BODY}-{name}": (bodies.BODY, 1) for name in LOOKED}},
                    paid=True, euros=look.EUROS * len(LOOKED))
 def cast_looks():
-    """The full looks a world 1 cast names (<name>_<outfit>, or another name bodies.json gives the look)."""
-    import json
-    import pathlib
-    data = pathlib.Path(__file__).resolve().parents[3] / "data"
-    named = {entry.get("look") or f"{entry.get('character')}_{entry.get('outfit')}"
-             for path in (data / "characters").glob("*.json")
-             for entry in [*json.loads(path.read_text()).get("people", []),
-                           *json.loads(path.read_text()).get("groups", [])]}
-    extra = json.loads((data / "people/bodies.json").read_text()).get("cast_names", {})
-    return [look for look, entry in bodies.looks().items() if not entry.get("far_only")
-            and (look.replace("-", "_", 1) in named or set(extra.get(look, [])) & named)]
+    """The full looks the places' designs name (data/people/rows.json, #26)."""
+    named = people_rows.every_look()
+    return [look for look, entry in bodies.looks().items() if not entry.get("far_only") and look in named]
 
 
 FULL = cast_looks()
-# Free: each full body's passing clips, and every world 1 cast held to them (people_bodies/clips.py).
+# Free: each full body's passing clips, and every place's people held to them (people_bodies/clips.py).
 CLIPS = graph.Stage("people-clips", "world", clips.make_usable, contracts.Contract("people-clips", 1,
                                                                                  clips.usable_faults),
                     (guarded("casts use passing clips", clips.judge_casts),),
-                    files={"casts": "{data}/characters", "cut": "{data}/people/bodies.json"},
+                    files={"casts": "{data}/people/rows.json"},
                     after={f"{bodies.BODY}-{look}": (bodies.BODY, 1) for look in FULL})
+
+
 def coloured_rows():
-    """A dress row for each look a coloured place's cast names (its <name>_<outfit>, or a name bodies.json gives)."""
+    """A dress row for each look a coloured place's design names."""
     import json
     import pathlib
     data = pathlib.Path(__file__).resolve().parents[3] / "data"
     places = json.loads((data / "people/colours.json").read_text())["places"]
-    extra = json.loads((data / "people/bodies.json").read_text()).get("cast_names", {})
-    rows = []
-    for place, chosen in places.items():
-        cast = json.loads((data / "characters" / f"{place}.json").read_text())
-        named = {entry.get("look") or f"{entry.get('character')}_{entry.get('outfit')}"
-                 for entry in [*cast.get("people", []), *cast.get("groups", [])]}
-        rows += [dress_row(look, place, chosen["surface"]) for look in bodies.looks()
-                 if look.replace("-", "_", 1) in named or set(extra.get(look, [])) & named]
-    return rows
+    return [dress_row(look, place, chosen["surface"]) for place, chosen in places.items()
+            for look in sorted(people_rows.looks_of(place) & set(bodies.looks()))]
 
 
 ROWS = (*bodies.rows(), *map(dress_row, bodies.looks()), *coloured_rows(), CLIPS, LOOK)

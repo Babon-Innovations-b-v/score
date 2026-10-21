@@ -69,42 +69,26 @@ def usable_faults(folder):
     return [] if (folder / "usable.json").exists() else ["no usable.json"]
 
 
-def cast_uses(casts_folder):
-    """[(place, entry name, cast look name, clip)] of every person and group the casts place doing a clip."""
-    found = []
-    for path in sorted(pathlib.Path(casts_folder).glob("*.json")):
-        cast = json.loads(path.read_text())
-        for entry in cast.get("people", []) + cast.get("groups", []):
-            who = entry.get("look") or entry.get("character", "")
-            name = who if entry.get("look") or not entry.get("outfit") else f"{who}_{entry['outfit']}"
-            doing = entry.get("doing")
-            for clip in doing if isinstance(doing, list) else [doing]:
-                if clip:
-                    found.append((cast.get("place", path.stem), entry.get("name", who), name, clip))
-    return found
+def cast_uses(rows_path):
+    """[(place, person, look, clip)] of every person the places' designs show doing a clip (data/people/rows.json;
+    a crowd's clips are its far body's, not judged here)."""
+    from score.stages import people_rows
+    found = json.loads(pathlib.Path(rows_path).read_text())
+    return [(place, person["name"], person["look"], person["doing"]) for place in sorted(found["places"])
+            for person in people_rows.persons(place, found)]
 
 
 def judge_casts(output, inputs, evidence):
-    """Every cast entry wearing a full body does only clips that body passes (a far crowd's clips are its far
-    body's, not judged here); the cast names each look answers to are data/people/bodies.json's `cast_names`."""
+    """Every person the designs show wearing a full body does only clips that body passes."""
     from score.checks import FAIL, PASS, Verdict
     usable_clips = json.loads((output / "usable.json").read_text())
-    names = json.loads(pathlib.Path(inputs["cut"]).read_text()).get("cast_names", {})
-    looks_of = {}
-    for look in usable_clips:
-        looks_of.setdefault(look.replace("-", "_", 1), []).append(look)  # a cast names <name>_<outfit>
-    for look, cast_names in names.items():
-        for cast_name in cast_names:
-            looks_of.setdefault(cast_name, []).append(look)  # a kit group wears every kit look
     failing, judged = [], 0
-    for place, entry, name, clip in cast_uses(inputs["casts"]):
-        for look in looks_of.get(name, []):
-            if look not in usable_clips:
-                continue
+    for place, person, look, clip in cast_uses(inputs["casts"]):
+        if look in usable_clips:
             judged += 1
             if clip not in usable_clips[look]["usable"]:
                 faults = usable_clips[look]["failing"].get(clip, ["the body has no such clip"])
-                failing.append(f"{place} {entry} ({look}) does {clip}: {'; '.join(faults)}")
+                failing.append(f"{place} {person} ({look}) does {clip}: {'; '.join(faults)}")
     return Verdict("casts use passing clips", FAIL if failing else PASS,
                    "; ".join(failing[:4]) or f"all {judged} cast clips pass",
                    {"failing": len(failing), "judged": judged}, {"failing": "lower"}, tuple(failing))

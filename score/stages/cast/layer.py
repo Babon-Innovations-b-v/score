@@ -18,7 +18,6 @@ accepted cast, each in its own look's accepted body, for the assembly to take in
 tools/characters is loaded by its file path inside the make, never put on the import path (the cast stage's overlay:
 on the path it would join other stages' code versions); its two files are declared inputs instead.
 """
-import functools
 import importlib.util
 import json
 import os
@@ -38,9 +37,10 @@ SCRATCH = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm
 
 
 def files(place):
-    """The cast record (the crowd's phases and palettes), the people's colours and the two tools/characters files the
-    make loads."""
-    return {"cast record": "{data}/characters/{place}.json", "colours": "{data}/people/colours.json",
+    """The place's design (its people and crowd, its palettes: data/people/rows.json, #26), the people's colours and
+    the two tools/characters files the make loads."""
+    from score.stages import people_rows
+    return {"design": ("{data}/people/rows.json", people_rows.place_part(place)), "colours": "{data}/people/colours.json",
             "cast writer": "{repo}/tools/characters/cast.py", "skeleton writer": "{repo}/tools/characters/skel_usd.py"}
 
 
@@ -125,8 +125,9 @@ def make(inputs, out, seed, params):
     from pxr import Sdf, Usd, UsdGeom
     SCRATCH.mkdir(parents=True, exist_ok=True)
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
-    record = json.loads(pathlib.Path(inputs["cast record"]).read_text())
+    from score.stages import people_rows
     place = cast["place"]
+    record = people_rows.cast_record(place, json.loads(pathlib.Path(inputs["design"]).read_text()))
     path = out / LAYER
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(path))
@@ -143,6 +144,9 @@ def make(inputs, out, seed, params):
         if row is None or row not in inputs:
             looks[single["name"]]["missing"] = (f"no accepted body of its look ({row})" if row
                                                 else "the cast names no look")
+            continue
+        if single is cast.get("crowd") and not single["copies"]:
+            looks[single["name"]]["missing"] = "the crowd's ground and count are not in the design yet"
             continue
         if single["look"] not in assets:
             assets[single["look"]] = asset_for(single["look"], inputs[row], out)
@@ -175,24 +179,7 @@ CONTRACT = contracts.Contract("characters-layer", 1, layer_faults, {"length": "m
 CHECKS = (checks.Check("laid", judge_laid),)
 
 
-
 def cast_looks(place):
-    """The looks the place's cast names (`person-outfit`, as the dress rows are named), dealt from its record
-    (data/characters/<place>.json) by the cast stage's own rules, as its cast.json names them: each person's look,
-    a group member's by the outfit it wears, the crowd's far body. None for a place with no record."""
-    path = REPO / "data/characters" / f"{place}.json"
-    return dealt_looks(path.read_text()) if path.exists() else frozenset()
-
-
-@functools.lru_cache(maxsize=64)
-def dealt_looks(text):
-    """cast_looks of one record's text (cached: the runner asks once per dress row)."""
-    from score.stages.cast import look_of
-    record = json.loads(text)
-    named = {person["name"]: person.get("look") for person in record.get("people", [])}
-    singles = [dict(single, look=named.get(single["name"])) for single in loaded("cast").characters_of(record)]
-    looks = {look_of(single) for single in singles}
-    if record.get("crowd"):  # its named look, else the record's far body, as the cast stage deals it (crowd_of)
-        crowd = record["crowd"]
-        looks.add(look_of(crowd) or (crowd["character"], crowd.get("body", "far")))
-    return frozenset("-".join(look) for look in looks if look)
+    """The looks the place's picked design names (`person-outfit`, as the dress rows are named; data/people/rows.json)."""
+    from score.stages import people_rows
+    return people_rows.looks_of(place)

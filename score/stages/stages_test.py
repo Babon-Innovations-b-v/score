@@ -179,10 +179,10 @@ def test_a_coloured_place_reads_its_own_dress_rows():
     """A place data/people/colours.json colours reads its looks' `-in-<place>` dress rows, every other place the
     plain ones (captain, 2026-10-13: the concept decides the clothes)."""
     table = {stage.name: stage for stage in stages.STAGES}
-    coloured, plain = table["people-dress-bram-work-in-camp"], table["people-dress-bram-work"]
-    assert coloured.applies("camp") and not coloured.applies("greenhouse") and coloured.params == {"surface": "olive_drab"}
-    assert plain.applies("greenhouse") and not plain.applies("camp")
-    assert "people-dress-bram-work-in-camp" in table["characters-layer"].after
+    coloured, plain = table["people-dress-player_wide-work-in-tube"], table["people-dress-player_wide-work"]
+    assert coloured.applies("tube") and not coloured.applies("square") and coloured.params == {"surface": "suit_navy"}
+    assert not plain.applies("tube")  # the player is in no plain place's design (#26)
+    assert "people-dress-player_wide-work-in-tube" in table["characters-layer"].after
 
 
 def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():

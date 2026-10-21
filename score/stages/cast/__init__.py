@@ -1,15 +1,16 @@
 """The cast stage (experimental, design 5 of 2026-10-12, until the owner reviews it): the people a place's concept
 shows, each placed in the place with a clip, and measured against the concept and the place's geometry.
 
-    make     the place's cast (`data/characters/<place>.json`, the record tools/characters/cast.py reads) dealt into
-             its characters by cast.py's own rules (people, a group's members, a crowd's copies), each with its
+    make     the place's cast from its picked design (data/people/rows.json, score/stages/people_rows.py: its scene
+             inventory's people rows, each person a look of the shared people line, at the plan's people spots in
+             turn and stood clear round them; a crowd one far look in its palettes, #26), never the old game records
+             or the lost concept pictures, dealt by cast.py's own rules, each with its
              spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<place>`
              where the place is coloured) stands usable, read as an optional input; `cast.json`. Then every
              spot measured on the seed's base layer (measure.py): what it stands on and what its body runs into;
              `measures.json`.
-    gates    counted   the cast holds as many people as the concept shows (concept_people's count, the most any one
-                       view shows); a view with KEEP figures is capped, so there the cast holds at least
-                       that many; a different count passes only with the record's written `count_reason`
+    gates    counted   the cast holds as many people as the design shows (its rows' counts), everyone fits on the
+                       place, and a crowd has its ground and count (not in a design yet: named)
              standing  everyone stands on something solid: the first solid under their knee within STAND_SLACK of
                        their feet, not in water (a seated person sits on a seat the same way: no clip sits on a chair
                        yet, so seated crew stand at their desks)
@@ -22,8 +23,7 @@ shows, each placed in the place with a clip, and measured against the concept an
 `drapes` (no body in the rejected Newton drapes) is retired, 2026-10-13: the SOMA-shell rig (the owner, 2026-10-12
 21:40) replaced the drapes route, and the people rows' per-clip, shell and outline gates judge the cloth now.
 
-Only places whose concept shows people (PLACES), or whose record names people for its count_reason, have the row. The
-characters layer (layer.py) reads its output and lays each person whose look's dressed body stands usable.
+Only places whose picked design shows people (people_rows.has_people) have the row. The characters layer (layer.py) reads its output and lays each person whose look's dressed body stands usable.
 """
 import json
 import pathlib
@@ -36,17 +36,10 @@ from score import checks, contracts
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))  # already on it by the assembly's import
-import stage_inputs  # noqa: E402
 
+from score.stages import people_rows  # noqa: E402
 from score.stages.cast import layer, measure, spread  # noqa: E402
 
-# Places whose concept shows people (concept_people's accepted count, 2026-10-13; the greenhouse joined that day,
-# the captain's call).
-PLACES = ("airlock", "camp", "flat", "garage", "greenhouse", "habitat", "hangar", "hub", "lab", "square", "stairwell",
-          "street", "tube", "workshop")
-# The most figures concept_people keeps a picture (tools/props/scene/box_masks.py KEEP, which imports torch, so
-# not imported here; cast_test.py checks the two agree): a view with this many is capped.
-KEEP = 5
 # How far feet may stand off what is under them, metres: the floor's own unevenness, not a float or a sink.
 STAND_SLACK = 0.05
 # Faults named on the review page, at most this many a gate (a crowd's thousands are counted, not listed).
@@ -54,10 +47,10 @@ NAMED = 20
 
 
 def files(place):
-    """The place's cast record, its kit (which inventory's concept it is), its seed stage, the people's colours (which
-    dress row a look is) and cast.py's and cast_check.py's code (imported only inside the make and the gates, so the
-    code version does not follow them: measure.characters)."""
-    return {"record": "{data}/characters/{place}.json", "kit": "{data}/kit/{place}.json",
+    """The place's people from its picked design (its entry of data/people/rows.json, #26), its kit, its seed stage,
+    the people's colours (which dress row a look is) and cast.py's and cast_check.py's code (imported only inside the
+    make and the gates, so the code version does not follow them: measure.characters)."""
+    return {"design": ("{data}/people/rows.json", people_rows.place_part(place)), "kit": "{data}/kit/{place}.json",
             "seed": "{seeds}/usd-r3/{place}", "colours": "{data}/people/colours.json",
             "cast rules": "{repo}/tools/characters/cast.py",
             "cast check": "{repo}/tools/characters/cast_check.py", "scene": "{data}/scene/{place}.json"}
@@ -109,46 +102,43 @@ def crowd_of(record, singles, place, inputs, views):
         return None
     keep_clear = [single["at"] for single in singles if single["name"].startswith(crowd.get("keep_clear_of", "\0"))]
     look = look_of(crowd) or (crowd["character"], crowd.get("body", "far"))  # the record's far-only look
-    candidates = spread.far_enough(spread.lattice(crowd, keep_clear), views)
+    # a design's crowd has no ground or count yet (people_rows.cast_record): none stood, short_of names it
+    candidates = spread.far_enough(spread.lattice(crowd, keep_clear), views) if crowd.get("spread") else []
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
             "made": made_row(look, place, inputs), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
 
 
 def members_of(record):
-    """The names cast.py gives its groups' members."""
-    return {f"{group['name']}_{number}" for group in record.get("groups", []) for number in range(group["count"])}
+    """The names of the people stood round a spot: a design's every person (each dealt to a plan people spot in
+    turn), and cast.py's groups' members."""
+    return ({person["name"] for person in record.get("people", [])}
+            | {f"{group['name']}_{number}" for group in record.get("groups", []) for number in range(group["count"])})
 
 
-def concept_count(counts, inventory):
-    """The concept's people for one inventory: the most any one view shows, whether a view is capped at KEEP
-    figures, and each view's count; None when concept_people measured none of its views."""
-    views = counts.get(inventory)
-    if not views:
-        return None
-    return {"people": max(view["people"] for view in views.values()),
-            "capped": any(len(view["instances"]) >= KEEP for view in views.values()),
-            "views": {name: view["people"] for name, view in views.items()}}
+def design_count(place, found):
+    """The people the picked design shows (its scene inventory's people rows' counts; a crowd row is its crowd)."""
+    shown = len(people_rows.persons(place, found))
+    return {"people": shown, "capped": False, "views": {"design": shown}}
 
 
 def make(inputs, out, seed, params):
-    """The place's cast dealt into its characters, its groups and crowd stood on the place (spread.py; `cast.json`),
+    """The place's cast dealt into its characters, its people and crowd stood on the place (spread.py; `cast.json`),
     and every body measured on its seed's base layer (`measures.json`)."""
     place = pathlib.Path(inputs["seed"]).name
     base = pathlib.Path(inputs["seed"]) / "layers/base.usda"
-    record = read_json(inputs["record"])
+    design = read_json(inputs["design"])
+    record = people_rows.cast_record(place, design)
     singles = dealt(record, place, inputs)
     crowd = crowd_of(record, singles, place, inputs, read_json(inputs["scene"]).get("views", []))
     found = measure.solids(base, place) if singles or crowd else {}
     if found:
         members = members_of(record)
         singles, copies = spread.stand_every(singles, members, crowd["copies"] if crowd else [],
-                                             crowd["asked"] if crowd else 0, found)
+                                             crowd["asked"] or 0 if crowd else 0, found)
         left_out = sorted(members - {single["name"] for single in singles})
         crowd = dict(crowd, copies=copies) if crowd else None
-    inventory = stage_inputs.inventory_path(place).stem
-    concept = concept_count(read_json(pathlib.Path(inputs["concept_people"]) / "people.json"), inventory)
-    cast = {"place": place, "inventory": inventory, "from": record.get("from"), "note": record.get("note"),
-            "count_reason": record.get("count_reason"), "concept": concept, "characters": singles,
+    cast = {"place": place, "inventory": place, "from": record.get("from"), "note": record.get("note"),
+            "count_reason": record.get("count_reason"), "concept": design_count(place, design), "characters": singles,
             "left_out": left_out if found else [], "crowd": crowd}
     (out / "cast.json").write_text(json.dumps(cast, indent=1))
     (out / "measures.json").write_text(json.dumps(measured(record, singles, crowd, found, base, place), indent=1))
@@ -218,7 +208,9 @@ def short_of(cast):
     short = [f"{len(cast['left_out'])} group members left out ({', '.join(cast['left_out'][:NAMED])})"
              ] if cast["left_out"] else []
     crowd = cast["crowd"]
-    if crowd and len(crowd["copies"]) < crowd["asked"]:
+    if crowd and crowd["asked"] is None:
+        short.append(f"the crowd's ground and count are not in the design yet ({crowd['look']})")
+    elif crowd and len(crowd["copies"]) < crowd["asked"]:
         short.append(f"{len(crowd['copies'])} of the crowd's {crowd['asked']} fit")
     return short
 
@@ -227,8 +219,6 @@ def judge_counted(output, inputs, evidence):
     """The cast holds the people the concept shows, and everyone its record asks for fits on the place."""
     cast = read_json(output / "cast.json")
     concept, held = cast["concept"], head_count(cast)
-    if concept is None:
-        return checks.Verdict("counted", checks.UNKNOWN, f"concept_people measured no view of {cast['inventory']}")
     shown, short = concept["people"], short_of(cast)
     fits = held == shown or (concept["capped"] and held >= shown)
     measures = {"cast": held, "concept": shown, "capped": int(concept["capped"])}

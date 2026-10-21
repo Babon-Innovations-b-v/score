@@ -158,14 +158,12 @@ def test_a_far_only_look_is_judged_on_its_far_body():
 def test_a_cast_doing_a_failing_clip_fails():
     with tempfile.TemporaryDirectory() as held:
         folder = pathlib.Path(held)
-        (folder / "casts").mkdir()
-        (folder / "casts" / "lab.json").write_text(json.dumps({"place": "lab", "people": [
-            {"name": "a", "look": "bram_work", "doing": "walking"}, {"name": "b", "look": "bram_work",
-                                                                      "doing": "standing"}]}))
-        (folder / "cut.json").write_text(json.dumps({"cast_names": {}}))
+        (folder / "rows.json").write_text(json.dumps({"places": {"lab": {"concept": "a test", "rows": {
+            "a": {"name": "person walking", "count": 1, "looks": ["bram-work"]},
+            "b": {"name": "person", "where": "at a desk", "count": 1, "looks": ["bram-work"]}}}}, "new": {}}))
         (folder / "usable.json").write_text(json.dumps({"bram-work": {"usable": ["standing"],
                                                                      "failing": {"walking": ["tucks: 5.1 mm"]}}}))
-        verdict = clips.judge_casts(folder, {"casts": folder / "casts", "cut": folder / "cut.json"}, {})
+        verdict = clips.judge_casts(folder, {"casts": folder / "rows.json"}, {})
         assert verdict.answer == "fail" and verdict.measures == {"failing": 1, "judged": 2}, verdict
 
 

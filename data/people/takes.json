@@ -1,54 +1,9 @@
 {
- "why": "Looks whose close-ups and Pixal3D take are made by the runner (score/stages/people_takes): the player's home clothes in the flat, which the flat's concept (K06) shows him in (owner via the captain, 2026-10-13, #5).",
+ "why": "Looks whose close-ups and Pixal3D take are made by the runner (score/stages/people_takes): the looks the picked designs map onto the people line (data/people/rows.json, #26), the player in the tube and the crowd far look; the old looks left with the withdrawn library models (2026-10-21).",
  "looks": {
-  "player-home": {
-   "spec": "data/characters/makes/player_prop.json",
-   "outfit": "home",
-   "failures": {"take": "made before the loop by people-take-player-home (its close-ups and Pixal3D take): the Pixal3D batch refuses a no_place inventory (tools/props/cloud/batch.py); the look joins data/props/people.json only once this row is accepted"}
-  },
   "player_wide-work": {
    "spec": "data/characters/makes/player_wide_prop.json",
    "outfit": "work"
-  },
-  "bram_wide-work": {
-   "spec": "data/characters/makes/bram_wide_prop.json",
-   "outfit": "work"
-  },
-  "sefa_wide-work": {
-   "spec": "data/characters/makes/sefa_wide_prop.json",
-   "outfit": "work"
-  },
-  "nev_wide-work": {
-   "spec": "data/characters/makes/nev_wide_prop.json",
-   "outfit": "work"
-  },
-  "kit_m_avg_wide-uniform-olive": {
-   "spec": "data/characters/makes/kit_m_avg_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "kit_m_broad_wide-uniform-olive": {
-   "spec": "data/characters/makes/kit_m_broad_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "kit_w_broad_wide-uniform-olive": {
-   "spec": "data/characters/makes/kit_w_broad_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "kit_w_slim_wide-uniform-olive": {
-   "spec": "data/characters/makes/kit_w_slim_wide_prop.json",
-   "outfit": "uniform-olive"
-  },
-  "driver_wide-driver-suit": {
-   "spec": "data/characters/makes/driver_wide_prop.json",
-   "outfit": "driver-suit"
-  },
-  "guard_wide-guard-uniform": {
-   "spec": "data/characters/makes/guard_wide_prop.json",
-   "outfit": "guard-uniform"
-  },
-  "leader_wide-state-suit": {
-   "spec": "data/characters/makes/leader_wide_prop.json",
-   "outfit": "state-suit"
   },
   "kit_m_avg-coat-grey": {
    "spec": "data/characters/makes/kit_m_avg_prop.json",
