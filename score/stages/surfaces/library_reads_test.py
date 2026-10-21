@@ -101,6 +101,24 @@ def a_record(**changes):
             "files": {}, **changes}
 
 
+def test_a_declared_record_is_read_from_the_design_in_the_store_or_the_data():
+    """A bake's scene inventory is its design's ({home}/design/inventory, kept in the store); a {data} record is read
+    from the repository's data; any other pattern, or one not there, reads as none."""
+    from score.stages.surfaces import library_reads
+    (PROPS_HOME / "work").mkdir(parents=True, exist_ok=True)
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="library-reads-", dir=PROPS_HOME / "work"))
+    try:
+        (folder / "inventory.json").write_text(json.dumps({"rows": [{"id": "crate"}]}))
+        kept = "{home}/" + folder.relative_to(PROPS_HOME).as_posix() + "/inventory.json"
+        assert library_reads.declared_record({"inventory": kept}, "inventory") == {"rows": [{"id": "crate"}]}
+        assert library_reads.declared_record({"row kinds": "{data}/checks/row-kinds.json"}, "row kinds") == \
+            json.loads((REPO / "data/checks/row-kinds.json").read_text())
+        assert library_reads.declared_record({"inventory": "{home}/nowhere.json"}, "inventory") == {}
+        assert library_reads.declared_record({"inventory": "{seeds}/x.json"}, "inventory") == {}
+    finally:
+        shutil.rmtree(folder)
+
+
 def test_a_record_from_an_uncommitted_tree_or_a_changed_code_without_proof_never_carries():
     row = ROWS["surfaces-paint"]
     assert carry.why_not(StubRunner(), row, "hub", a_record(uncommitted=True), {}) == \

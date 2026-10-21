@@ -239,7 +239,7 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
         plan = sound.environment_takes(data, sound.moss_weights())
         shared = [places for job, places in plan.values() if job["sound"] == "crew_talk"]
         assert len(shared) == 1 and len(shared[0]) > 1, shared
-        places = beds.places(data)
+        places = beds.places()
         assert sum(price.rule_units("sound_takes", [], data, place) for place in places) == len(plan)
         brief = sound.brief_of("crew_talk", {"sounds": REPO / "data/sound/sounds.json"})
         lines = [threading.Thread(target=takes.made, args=(takes.jobs_for("crew_talk", brief, "rev"),

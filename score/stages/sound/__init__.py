@@ -26,8 +26,8 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
              voices    a place whose design stands people plays a voice on one of them (#29: voices where people are)
 
 Every designed scene has the row (score/stages/design_layers.py, the stage table's and the assembly's one answer);
-its plan and scene inventory are the design's (beds.files: under {home}/design, where the creator's are kept), else
-data/'s.
+its plan and scene inventory are the design's (beds.files: under {home}/design, where the creator's are kept); the
+old data/plans and data/inventory records were retired (owner, 2026-10-21).
 """
 import json
 import pathlib
@@ -324,7 +324,7 @@ def environment_takes(data, weights):
     lines to reach it makes it in its batch (takes.made locks it), the others wait and read it, so it is made and
     counted once."""
     found = {}
-    for place in filter(needs.sounded, beds.places(data)):
+    for place in filter(needs.sounded, beds.places()):
         inputs = {name: pathlib.Path(pattern_of(pattern).format(place=place, data=str(data),
                                                                 home=str(beds.DESIGN.parent)))
                   for name, pattern in files(place).items()}

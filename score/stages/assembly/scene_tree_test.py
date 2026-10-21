@@ -166,22 +166,24 @@ def test_a_scene_with_no_plan_read_is_unknown_not_passed():
 
 
 def test_the_plans_read_and_a_scene_holding_itself_refused():
-    """The plan read is the kept one where there is one, else the data's; each child's plan is declared; a plan laying
-    out a scene above it is refused."""
+    """The plan read is the creator's kept one, none without it (data/plans was retired); each child's plan is
+    declared; a plan laying out a scene above it is refused."""
     root = pathlib.Path(tempfile.mkdtemp())
-    kept, repo = scene_tree.KEPT, scene_tree.REPO
+    kept = scene_tree.KEPT
     try:
-        scene_tree.KEPT, scene_tree.REPO = root / "kept", root / "repo"
-        for folder, scene, plan in (("kept", "yard", YARD), ("repo/data/plans", "shed", SHED),
-                                    ("kept", "hut", HUT), ("repo/data/plans", "nook", NOOK)):
+        scene_tree.KEPT = root / "kept"
+        for folder, scene, plan in (("kept", "yard", YARD), ("kept", "shed", SHED), ("kept", "hut", HUT),
+                                    ("kept", "nook", NOOK)):
             (root / folder).mkdir(parents=True, exist_ok=True)
             (root / folder / f"{scene}.json").write_text(json.dumps(plan))
         assert scene_tree.files("yard") == {"plan": "{home}/design/plans/yard.json",
                                             "plan hut": "{home}/design/plans/hut.json",
-                                            "plan shed": "{data}/plans/shed.json"}
-        assert scene_tree.files("nook") == {"plan": "{data}/plans/nook.json"}
+                                            "plan shed": "{home}/design/plans/shed.json"}
+        assert scene_tree.files("nook") == {"plan": "{home}/design/plans/nook.json"}
         assert scene_tree.held("shed") == ["nook"]
-        (root / "repo/data/plans/nook.json").write_text(json.dumps({**NOOK, "holds": [{"place": "yard"}]}))
+        (root / "kept/nook.json").unlink()
+        assert scene_tree.plan_path("nook") is None and scene_tree.held("shed") == ["nook"]
+        (root / "kept/nook.json").write_text(json.dumps({**NOOK, "holds": [{"place": "yard"}]}))
         try:
             scene_tree.held("yard")
         except ValueError as refused:
@@ -189,7 +191,7 @@ def test_the_plans_read_and_a_scene_holding_itself_refused():
         else:
             raise AssertionError("a plan laying out a scene above it was read")
     finally:
-        scene_tree.KEPT, scene_tree.REPO = kept, repo
+        scene_tree.KEPT = kept
         shutil.rmtree(root)
 
 

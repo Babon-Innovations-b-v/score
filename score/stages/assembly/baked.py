@@ -13,14 +13,19 @@ import sys
 
 from score.stages.assembly import made_waiting
 from score.stages.assembly.record import BASE_LAYER
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))  # export, library and stage_inputs, read inside the functions
+# A scene's surface data is its design's (surfaces/surface_data.DESIGN, named here so the surface package stays out
+# of this code version); the old data/surfaces/<place>.json records were retired (owner, 2026-10-21).
+DESIGN_SURFACES = PROPS_HOME / "design" / "surfaces"
 
 
 def claiming_places(place):
-    """The places whose surface line paints models this place lays (its surface data's `elsewhere`), read beside."""
-    path = REPO / "data/surfaces" / f"{place}.json"
+    """The places whose surface line paints models this place lays (its design's surface data's `elsewhere`), read
+    beside."""
+    path = DESIGN_SURFACES / f"{place}.json"
     elsewhere = json.loads(path.read_text()).get("elsewhere", {}) if path.exists() else {}
     return sorted({claim["place"] for claim in elsewhere.values()})
 
