@@ -22,8 +22,9 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                       seed's
              origin.json says the seed it came from, the record, every layer output taken and any sound placed
              nowhere.
-    gates    layers        unknown while a layer the place needs (data/checks/contents.json's needs, sound and light
-                           for every place it lists) has no accepted output taken: never the seed's in its place;
+    gates    layers        unknown while a layer the place's design shows (needed_layers: its locked concept's
+                           scene inventory, the `design` file, by design_layers, the stage table's own answer) has no
+                           accepted output taken, never the seed's in its place, and for a place with no design;
                            fail on a sound placed nowhere
              placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
                            code-built ship fails, 12 meshes)
@@ -45,6 +46,7 @@ import shutil
 import sys
 
 from score import checks
+from score.stages import design_layers
 from score.stages.assembly import made_waiting, sounds
 from score.stages.assembly.baked import (  # noqa: F401  (the table and the tests read them here)
     BOX_TOLERANCE, claimed_bakes, claiming_places, lay_fixtures_baked, renamed_model, stamp_baked_hash, take_bake)
@@ -62,15 +64,17 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "fittings": "{data}/library/fittings.json", "resting rules": "{data}/checks/resting.json",
          "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
          "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
-         "surfaces": "{data}/surfaces/{place}.json", "expected contents": "{data}/checks/contents.json",
-         "casts": "{data}/characters",
+         "surfaces": "{data}/surfaces/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
          "motions": "{data}/motion", "grounds": "{data}/ground"}
 
 
 def files(place):
-    """FILES, and the place's seed scene record where it has one (the door leaves' kits have none)."""
+    """FILES, the place's seed scene record where it has one (the door leaves' kits have none), and its design (its
+    locked concept's scene inventory, design_layers.PATTERN) where it has one: the layers gate reads which layers it
+    needs from it."""
     seed_record = {"scene": "{data}/scene/{place}.json"} if (REPO / f"data/scene/{place}.json").exists() else {}
-    return {**FILES, **seed_record}
+    design = {"design": design_layers.PATTERN} if (design_layers.KEPT / f"{place}.json").is_file() else {}
+    return {**FILES, **seed_record, **design}
 
 
 SEED_PARTS = ("layers", "assets", "inputs.json")
@@ -88,10 +92,9 @@ LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
 READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surface-tiles": ("surface-tiles", 1),
          **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
-# What each need of data/checks/contents.json asks of the place's layers, and the layers every place it lists (not a
-# part of another) needs whatever its needs: contents.py's light and sound checks judge every such place.
-NEEDS = {"effects": "effects-layer", "motion": "motion", "crops": "crops-layer"}
-EVERY_PLACE = ("sound", "light")
+# The layer stage the assembly takes for each layer kind a design shows (design_layers; the physics' settle layer).
+NEEDS = {"people": "characters-layer", "crops": "crops-layer", "effects": "effects-layer", "motion": "motion",
+         "physics": "settle", "light": "light", "sound": "sound"}
 INVENTORY_PREFIX = "data/inventory/"
 # One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
 # runs of 2026-10-10 cost EUR 0 to 0.85).
@@ -266,36 +269,29 @@ def gather_drop_run(output, inputs, folder):
     return folder / "settled.json"
 
 
-def needed_layers(place, expected, cast=None):
-    """The layer stages a place needs (data/checks/contents.json's needs, and EVERY_PLACE; the characters layer where
-    its cast holds anybody): none for a part of another place (judged on its host), None for a place it does not
-    list."""
-    needs = expected["places"].get(place)
-    if needs is None:
-        return None
-    if "part_of" in needs:
-        return []
-    people = any((cast or {}).get(part) for part in ("people", "groups", "crowd"))
-    return [*EVERY_PLACE, *(stage for need, stage in NEEDS.items() if needs.get(need)),
-            *(["characters-layer"] if people else [])]
+def needed_layers(inventory, kinds):
+    """The layer stages a place's design needs (NEEDS of design_layers.kinds_of its scene inventory, by the row-kind
+    rules `kinds`), in NEEDS' order."""
+    shown = design_layers.kinds_of(inventory, kinds)
+    return [stage for kind, stage in NEEDS.items() if kind in shown]
 
 
 def judge_layers(output, inputs, evidence):
-    """Unknown while a layer the place needs has no accepted output the assembly took (never a seed's in its place);
-    fail on a sound of the sound layer that plays at nothing on the stage."""
+    """Unknown while a layer the place's design needs has no accepted output the assembly took (never a seed's in
+    its place), and for a place with no design; fail on a sound of the sound layer that plays at nothing on the
+    stage."""
     origin = json.loads((output / "origin.json").read_text())
     place = stage_file(output).stem
-    cast = pathlib.Path(inputs["casts"]) / f"{place}.json" if "casts" in inputs else None
-    needed = needed_layers(place, json.loads(pathlib.Path(inputs["expected contents"]).read_text()),
-                           json.loads(cast.read_text()) if cast and cast.exists() else None)
     taken = sorted(origin["layers"])
     measures = {"taken": len(taken), "unplaced sounds": len(origin["unplaced sounds"])}
     if origin["unplaced sounds"]:
         return checks.Verdict("layers", checks.FAIL, f"{len(origin['unplaced sounds'])} sounds play at nothing on "
                               "the stage", measures, {"unplaced sounds": "lower"}, tuple(origin["unplaced sounds"]))
-    if needed is None:
-        return checks.Verdict("layers", checks.UNKNOWN, f"{place} is not listed in data/checks/contents.json, so "
-                              "the layers it needs are not known", measures)
+    if "design" not in inputs:
+        return checks.Verdict("layers", checks.UNKNOWN, f"{place} has no design (no scene inventory read from a "
+                              "locked concept), so the layers it needs are not known", measures)
+    needed = needed_layers(json.loads(pathlib.Path(inputs["design"]).read_text()),
+                           json.loads(pathlib.Path(inputs["row kinds"]).read_text())["kinds"])
     waiting = [f"{name}@{place}" for name in needed if name not in origin["layers"]]
     if waiting:
         return checks.Verdict("layers", checks.UNKNOWN, f"waits on {', '.join(waiting)} (no accepted output taken); "

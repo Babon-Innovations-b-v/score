@@ -59,12 +59,6 @@ def place_part(place):
     return part
 
 
-def has_people(place):
-    """Whether the place's picked design shows anybody."""
-    entry = place_entry(place)
-    return bool(entry and entry["rows"])
-
-
 def doing_of(row):
     """A person's clip by the row's words: sitting, walking, else standing."""
     words = f"{row.get('name', '')} {row.get('where', '')}".lower()

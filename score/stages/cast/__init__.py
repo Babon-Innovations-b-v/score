@@ -23,7 +23,7 @@ shows, each placed in the place with a clip, and measured against the concept an
 `drapes` (no body in the rejected Newton drapes) is retired, 2026-10-13: the SOMA-shell rig (the owner, 2026-10-12
 21:40) replaced the drapes route, and the people rows' per-clip, shell and outline gates judge the cloth now.
 
-Only places whose picked design shows people (people_rows.has_people) have the row. The characters layer (layer.py) reads its output and lays each person whose look's dressed body stands usable.
+Only places whose design shows people (a row that acts: score/stages/design_layers.py) have the row. The characters layer (layer.py) reads its output and lays each person whose look's dressed body stands usable.
 """
 import json
 import pathlib

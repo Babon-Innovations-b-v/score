@@ -1,5 +1,6 @@
 """The motion layer's gaps (needs.py) on data made here: a row of a moving kind with nothing moving it is a gap until
-a move or a still reason is written, and a place's motion need is a gap until a motion is named for it.
+a move or a still reason is written, and a row of the place's design that moves is a gap until a motion is named for
+it or it is written down as still.
 
 Run: .venv/bin/python score/stages/motion/needs_test.py
 """
@@ -22,18 +23,20 @@ def write(data, name, record):
 
 
 def test_a_moving_row_and_a_need_are_gaps_until_a_record_answers_them():
-    with tempfile.TemporaryDirectory() as data:
+    with tempfile.TemporaryDirectory() as data, tempfile.TemporaryDirectory() as kept:
         write(data, "checks/motion.json", {"kinds": {"hatch": {"prims": ["hatch_door"]}}})
         write(data, f"inventory/{PLACE}.json", {"rows": [{"id": "hatch_door"}, {"id": "crate"}]})
-        write(data, "checks/contents.json", {"places": {PLACE: {"motion": ["fan"]}}})
-        found = {gap["id"] for gap in needs.gaps(PLACE, data)}
+        # the design shows a fan (a kind that moves) and a crate (none)
+        write(data, "checks/row-kinds.json", {"kinds": {"fan": {"nouns": ["fan"], "does": ["moves"]}}})
+        write(kept, f"{PLACE}.json", {"rows": [{"id": "fan", "noun": "fan"}, {"id": "crate", "noun": "crate"}]})
+        found = {gap["id"] for gap in needs.gaps(PLACE, data, kept)}
         assert found == {"motion:move:hatch_door", "motion:need:fan"}, found
         write(data, f"motion/rigid/{PLACE}.json", {"moves": [
             {"name": "fan_spin", "prim": f"/{PLACE}/Fixtures/fan_1", "spin": {"speed": 90}}],
             "still": {f"/{PLACE}/Objects/hatch_door_1": "shut while nobody passes"}})
-        assert needs.gaps(PLACE, data) == [], needs.gaps(PLACE, data)
+        assert needs.gaps(PLACE, data, kept) == [], needs.gaps(PLACE, data, kept)
         write(data, f"motion/rigid/{PLACE}.json", {"moves": [], "still": {"hatch_door_1": " "}})
-        found = {gap["id"]: gap for gap in needs.gaps(PLACE, data)}
+        found = {gap["id"]: gap for gap in needs.gaps(PLACE, data, kept)}
         assert set(found) == {"motion:move:hatch_door", "motion:need:fan"}, "a still with no reason answers nothing"
         assert found["motion:move:hatch_door"]["node"] is None and "data/motion/rigid/toy.json" in \
             found["motion:move:hatch_door"]["work"]

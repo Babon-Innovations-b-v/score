@@ -87,11 +87,13 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   and SubagentStop hooks (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
   worked on unless the gate passes.
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
-- `contents.py` is the gate's contents checks (its docstring has each): people against the cast (every look a made
-  model of the people prop route, never SOMA's mesh in drapes), effects and motions against the needs in
-  `data/checks/contents.json` (from the world 1 checklist), crop density where crops apply, every generated row held
-  to its close-up (likeness@<place>) and repainted (surfaces-check@<place>), the light and sound layers, the shown
-  places, and no record citing the game. A place `contents.json` does not list is unknown. `contents_test.py` checks each both ways.
+- `contents.py` is the gate's contents checks (its docstring has each): people against the cast its design gives
+  (`data/people/rows.json`; every look a made model of the people prop route, never SOMA's mesh in drapes), effects
+  and motions against the rows of its design that emit and move (its locked concept's scene inventory, each row's
+  row kind: `score/stages/row_kinds.py`), crop density where its design shows crops (`score/stages/design_layers.py`),
+  every generated row held to its close-up (likeness@<place>) and repainted (surfaces-check@<place>), the light and
+  sound layers, the shown places, and no record citing the game. Never a list written per place: a place with no
+  design is unknown. `contents_test.py` checks each both ways.
 - `triage.py` is the resting triage over `resting.py`: each object judged by its support from data (row `support`,
   `fixed`, kit shell groups and kit kinds `hangs`/`floors`, `on:` held, hanging words, wall, ceiling, floor;
   `data/checks/resting.json`), SceneEval's guards (4 contacts and the weight inside them; one contact for wall, ceiling

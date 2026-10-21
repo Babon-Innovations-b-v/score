@@ -27,7 +27,7 @@ import pathlib
 from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
-                          earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_rows,
+                          design_layers, earth_seed, effects, gaps, images, late_bake, library, light, motion, people,
                           physics, proposals, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
@@ -50,6 +50,17 @@ from score.review import plans
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+
+
+def designed(kind):
+    """A layer row's `applies`: the place's own design shows a layer of `kind` (design_layers.has_layer), the one
+    answer the assembly's layers gate waits on too (assembly.needed_layers), so the table and the gate never disagree
+    and no row's places are a hand-written list (the owner, 2026-10-21)."""
+    def applies(place):
+        return design_layers.has_layer(place, kind)
+    applies.__name__ = f"designed_{kind.replace(' ', '_')}"
+    return applies
+
 WORLD1 = REPO / "data/definitions/world.json"
 
 TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain_inputs.FILES)
@@ -59,27 +70,25 @@ GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT,
                          files=ground_fit.files, after={"assembly": ("openusd-stage", 1),
                                                         "neighbours": ("openusd-stage", 1), "terrain": ("grounds", 1)},
                          applies=ground_fit.applies)
-# Experimental (PRD #6) until the owner reviews it: each staged place's effects layer (effects.STAGED), which its
-# assembly takes.
+# Experimental (PRD #6) until the owner reviews it: the effects layer of each place whose design shows an effect,
+# which its assembly takes.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
-                      after={"scene-record": ("scene-record", 1)}, applies=lambda place: place in effects.STAGED)
+                      after={"scene-record": ("scene-record", 1)}, applies=designed("effects"))
 # Experimental (PRD #6) until the owner reviews it: each place's motion layer, the game's timed motions and the rigid
 # moves SCORE gives the things that move there (data/motion/rigid), over its seed with its accepted scene record written in (the
 # seed alone where the place has no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
                      after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
                             "motion-models": ("motion-models", 1)},
-                     applies=motion.applies)
+                     applies=designed("motion"))
 # Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
-# which its assembly takes (assembly.LAYERS). A place joins SETTLED once its settle row has passed (resting track).
-SETTLED = ("airlock", "campgrounds", "garage", "greenhouse", "habitat", "hangar", "lab", "square", "workshop",
-           "wreck")
+# which its assembly takes (assembly.LAYERS): a place whose design shows a loose object (physics).
 SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, settling.CHECKS, files=settling.files,
                      after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
                             "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                      beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                      neighbours=assembly.claiming_places, paid=True, euros=settling.EUROS,
-                     applies=lambda place: place in SETTLED)
+                     applies=designed("physics"))
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
@@ -138,6 +147,28 @@ COMPLETE_BOXES = graph.Stage("complete-boxes", "place", complete_boxes.make_boxe
 EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
                            euros=effects_look.EUROS, applies=lambda place: place in effects_look.LOOKED)
+def crops_waiting(files):
+    """A crops row's files: its own (crop_data) once the place's crop data is written for its locked concept
+    (crop_data.applies); until then the data it waits on, so the row blocks by name and never reads another picture:
+    the crop data where it is written while there is none, and for one written for an old concept view, that view's
+    picture, which went with the old disk (crop_data.concept_picture)."""
+    import score.stages.crops.crop_data as crop_data
+
+    @functools.wraps(files)
+    def declared(place):
+        if crop_data.applies(place):
+            return files(place)
+        if not (crop_data.FOLDER / f"{place}.json").exists():
+            return {"crops": crop_data.pattern(place)}
+        return {"crops": crop_data.pattern(place), "concept": crop_data.concept_picture(place)}
+    return declared
+
+
+def crops_designed(row):
+    """A crops row at each place whose design shows crops (designed), waiting on crop data written for it."""
+    return dataclasses.replace(row, applies=designed("crops"), files=crops_waiting(row.files))
+
+
 # Experimental (PRD #6) until the owner reviews it: the place's plan in the store, and its scene record written from
 # it (score/stages/scene_record), for the places whose plan says where each door leads. No assembly reads it yet.
 def kit_laid(place):
@@ -279,18 +310,13 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
                            files=seed_if_any(scene_record.writer.files),
                            after={"plan": ("place-plan", 2), "terrain": ("grounds", 1)},
                            applies=scene_record.written)
-# Experimental (design 5, 2026-10-12) until the owner reviews it: each place's cast placed and measured against its
-# picked design's people (data/people/rows.json, #26; concept_people's lost pictures no longer read) and its seed's
-# geometry.
+# Experimental (design 5, 2026-10-12) until the owner reviews it: the cast of each place whose design shows people,
+# placed and measured against its locked design's people (data/people/rows.json, #26) and its seed's geometry.
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
 DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
-def cast_place(place):
-    """A place with a cast row: its picked design shows people (data/people/rows.json, #26)."""
-    return people_rows.has_people(place)
-
-
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
-                   after={name: ("people-dress", 1) for name in DRESS_ROWS}, optional=DRESS_ROWS, applies=cast_place)
+                   after={name: ("people-dress", 1) for name in DRESS_ROWS}, optional=DRESS_ROWS,
+                   applies=designed("people"))
 # Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
 # dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look
 # whose body is not usable is left out by name (the overseer's 14:00 rule: assemble with what passed; complete fails
@@ -298,20 +324,20 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
 CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, characters_layer.CONTRACT,
                          characters_layer.CHECKS, files=characters_layer.files,
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
-                         optional=DRESS_ROWS, applies=cast_place)
+                         optional=DRESS_ROWS, applies=designed("people"))
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
-                    euros=sound.EUROS, models=(sound.moss_takes.KIND,), applies=sound.applies)
+                    euros=sound.EUROS, models=(sound.moss_takes.KIND,), applies=designed("sound"))
 
 # Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its
-# objects react (the places with a trial record, physics.applies).
+# objects react (a place whose design shows a loose object).
 PHYSICS_LAYER = graph.Stage("physics-layer", "place", physics.make_layer, physics.LAYER, physics.LAYER_CHECKS,
                             files=physics.LAYER_FILES, after={"assembly": ("openusd-stage", 1)},
-                            applies=physics.applies)
+                            applies=designed("physics"))
 PHYSICS_TRIAL = graph.Stage("physics-trial", "place", physics.make_trial, physics.TRIAL, physics.TRIAL_CHECKS,
                             files=physics.trial_files, after={"physics-layer": ("physics-layer", 1)}, paid=True,
-                            euros=physics.EUROS, applies=physics.applies)
+                            euros=physics.EUROS, applies=designed("physics"))
 
 
 def bake_checked(row):
@@ -512,7 +538,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
               boxed_split, map(designed_rough, shapes_first.rows())))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
-          *light.ROWS, *crops.ROWS, COMPLETE_BOXES,
+          *light.ROWS, *map(crops_designed, crops.ROWS), COMPLETE_BOXES,
           surface_tiles.STAGE)
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
@@ -682,16 +708,6 @@ characters_layer.loaded("cast")
 STAGES = tuple(dataclasses.replace(row, files=ship_seeded(row.files)) if row.files else row for row in STAGES)
 
 
-def ship_lit(applies):
-    """The light rows for a ship place too: it has no old scene record, so light.applies (data/scene/<place>.json)
-    leaves it out; its base stage is usd-ship/<place> (ship_seeded reads it as the seed) and its views are its own
-    scene-record output's, which its light layer writes into views.json. Wrapped here, in the table, so no place with
-    an old record moves."""
-    def lit(place):
-        return applies(place) or ship_place(place)
-    return functools.wraps(applies)(lit)
-
-
 def has_old_record(place):
     return place is not None and (REPO / "data" / "scene" / f"{place}.json").exists()
 
@@ -753,9 +769,12 @@ def sounded_from_plan(files):
 
 STAGES = tuple(dataclasses.replace(row, files=sounded_from_plan(row.files)) if row.name == "sound" else row
                for row in STAGES)
-STAGES = tuple(dataclasses.replace(row, applies=ship_lit(row.applies), files=no_old_record(row.files),
+# The light rows of every designed place (designed("light")), a ship place's too: its base stage is usd-ship/<place>
+# (ship_seeded reads it as the seed) and its views are its own scene-record output's, which its light layer writes
+# into views.json.
+STAGES = tuple(dataclasses.replace(row, applies=designed("light"), files=no_old_record(row.files),
                                    make=made_without_old_record(row.make))
-               if row.name in ("light-layer", "light-passes", "light") and row.applies else row for row in STAGES)
+               if row.name in ("light-layer", "light-passes", "light") else row for row in STAGES)
 
 
 def ship_assembled(row):

@@ -2,10 +2,12 @@
 worked out free from the reading's own words by the rules of data/checks/row-kinds.json (a kind whose nouns hold the
 row's reading noun; its name's last word only for a row read with no noun), never from a model call or a record
 written per scene. The effects, motion and physics stages read their work from it, and the layers a scene needs follow
-from it: a scene needs effects when a row emits, motion when a row moves, crops when a row grows.
+from it (design_layers.py, the stage table's and the assembly's one answer): a scene needs effects when a row emits,
+motion when a row moves, physics when a row is loose, crops when a row grows on a bed, people when a row acts.
 
     kind_of(row, table)          the row's kind, or None
-    does(kind, table)            what a kind's objects do: {"emits", "moves", "loose", "glows", "shows", "grows"}
+    does(kind, table)            what a kind's objects do: {"emits", "moves", "loose", "glows", "shows", "grows",
+                                 "acts"}
     rows_that(inventory, what, table)   the inventory's rows whose kind does `what`
     objects_of(stage, place, row)       the prims of a row's objects on a composed stage (`<row>` or `<row>_<n>`)
 """

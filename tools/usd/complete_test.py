@@ -143,13 +143,11 @@ def a_check_that_cannot_run_is_unknown():
 
 def a_place_without_its_cast_fails_on_its_contents():
     """Fault (world 1 checklist, 2026-10-12): the gate passed places whose people, effects and motion it never looked
-    at; a cast person not on the stage now fails the place."""
+    at; a person the design shows not on the stage now fails the place."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         stage = laid(folder)
-        cast = {"place": resting_test.PLACE, "people": [{"name": "bram", "character": "bram", "doing": "idle",
-                                                         "at": [0, 0, 0], "facing_to": [0, 0, 1], "why": "a test"}]}
-        (contents.DATA / "characters" / f"{resting_test.PLACE}.json").write_text(json.dumps(cast))
+        contents_test.people_mapped(contents_test.BRAM, resting_test.PLACE)
         checked_and_reviewed(stage, folder / "review")
         found, verdict = verdicts(stage, folder / "review")
         return [] if found["people"] == complete.FAIL and verdict == complete.FAIL else \

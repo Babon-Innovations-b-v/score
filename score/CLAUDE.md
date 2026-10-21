@@ -209,7 +209,11 @@ stage as each stage is built; nothing moves before.
   every ground from its plan in `data/ground/plan/`, gated on scale and slope; `ground-fit@<place>` (free) judges each
   seated place's stage on it: ground under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish route to checked bake (its overlay; per-place data in
-  `data/surfaces/`). `effects-layer` (experimental: the launch, airlock, garage, hangar, greenhouse, habitat, flat, camp and campgrounds) makes a place's effects layer from its record in
+  `data/surfaces/`). Which layer rows a place has (people, crops, effects, motion, physics, light, sound) is read off its design alone, `stages/design_layers.py` (its locked concept's scene inventory, each row's
+  row kind): the table's `designed(kind)` and the assembly's layers gate (`assembly.needed_layers`, reading the same
+  kept inventory as its `design` input) give one answer, so the gate never waits on a layer the table has no row for
+  and no row's places are a hand-written list. `effects-layer` (experimental: a place whose design shows a row that
+  emits) makes a place's effects layer from its record in
   `data/effects/`, gated on attached, footage, light and outside, and the assembly takes it; `effects-look` (paid) renders it
   before and after (its overlay). `neighbours` (experimental, `stages/assembly/neighbours.py`) stands each place's
   neighbours (its scene record's `places`) in its assembly, each read beside (`Stage.beside`, `Stage.neighbours`:
@@ -231,7 +235,7 @@ stage as each stage is built; nothing moves before.
   near cameras, finish-border raggedness, kit bakes older than their bake code) are not gates either: standalone and
   free, their findings reach the cockpit as problems with their pictures. `surface-tiles` (paid, its overlay) bakes
   each library surface a place's room shell names as a repeating tile, and the assembly draws the shell with them.
-  `settle` (experimental, paid, its overlay; only the places in `stages.SETTLED`) drops a place's loose objects
+  `settle` (experimental, paid, its overlay; a place whose design shows a loose row) drops a place's loose objects
   on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly
   takes, gated on `rested` and `resting`. `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
@@ -243,15 +247,15 @@ stage as each stage is built; nothing moves before.
   after its plan: one Pixal3D model, its rough model, never shipped. The shared loop (`stages/shapes_first`, its
   overlay, #41) is every model layer's one way to a model: rough model, `rough-align` (its registration to the plan,
   free), the parts split, close-up, Pixal3D, the finish route, likeness, then each layer adapter's after-steps. `cast`
-  (experimental, its overlay) places each place's people from its locked design (`data/people/rows.json`,
+  (experimental, its overlay; a place whose design shows a row that acts) places each place's people from its locked design (`data/people/rows.json`,
   `stages/people_rows.py`, #26: each inventory people row a look of the shared people line, a crowd one far look)
   and measures them on the seed's geometry (counted, standing, clear, made);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
   body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `motion-models` (experimental, `stages/motion/models`, its overlay) lays each place's
   rigid moving models (`data/motion/models/<place>.json`: the garage's rover) on what holds them up, gated on outline,
   parts present and resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
-  overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place with `data/physics/<place>.json`
-  (the habitat). `motion` (experimental, places with a rigid record) writes a place's motion layer from its game
+  overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place whose
+  design shows a loose row. `motion` (experimental, a place whose design shows a row that moves) writes a place's motion layer from its game
   motions and its rigid moves in `data/motion/rigid/`, gated on clear, speeds, loops, grounded, covered and the motion
   check (its overlay). These rows, settle, physics, the cast and people rows and the crops rows are the one motion
   layer (CONTEXT.md "motion"; `stages.MOTION_LAYER` names them by module).

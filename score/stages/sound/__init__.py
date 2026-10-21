@@ -23,7 +23,7 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
              events    every thing that moves in the place (needs.events: its motion and moving things records) plays a sound
              voices    a place whose cast stands people plays a voice on one of them (#29: voices where people are)
 
-Every scene with a plan (beds.places: his kept plan, else data/plans') has the row.
+Every designed scene has the row (score/stages/design_layers.py, the stage table's and the assembly's one answer).
 """
 import json
 import pathlib
@@ -57,10 +57,6 @@ MADE_BY_MOSS = "MOSS"
 # One rented L4 for a place's new briefs (8 takes a brief, about 30 s each): about EUR 0.2 measured on the image's
 # proof; the estimate leaves room for a slow card and a second claim.
 EUROS = 1.0
-
-
-def applies(place):
-    return place in beds.places()
 
 
 def files(place):

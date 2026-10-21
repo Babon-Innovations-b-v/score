@@ -1,10 +1,10 @@
 """What the motion layer needs at a place, worked out free from its records (CONTEXT.md "gap"; the gaps check's layer
 source, score/stages/complete/gaps/layers.py): every scene inventory row of a moving kind (data/checks/motion.json:
 a row named for a kind's prims) that no game motion or rigid move moves and no `still` reason keeps standing, and
-every motion need of the place (data/checks/contents.json `motion`: a word some motion's name must hold) that no record
-names. Each is code work in words (a move or a reason written in the place's rigid record), never a guessed node:
-nothing is made until the record says how the thing moves. Generic for any environment: kinds, rows and needs are
-all environment data."""
+every row of the place's design that moves (its locked concept's scene inventory, kept where the plan stage reads it;
+its row kind, score/stages/row_kinds.py) that no record names, moves or keeps still. Each is code work in words (a
+move or a reason written in the place's rigid record), never a guessed node: nothing is made until the record says
+how the thing moves. Generic for any environment: kinds, rows and the design are all environment data."""
 import json
 import pathlib
 import re
@@ -34,8 +34,19 @@ def moved_names(place, data):
             [entry.get("name", "") for entry in entries] + still)
 
 
-def needs(place, data):
-    """The place's motion needs no record answers: [{"kind": "move" | "need", "item", "about"}]."""
+def design_moving(place, data, kept):
+    """The ids of the rows of the place's design (its scene inventory under `kept`) whose kind moves (the row-kind
+    rules of `data`); none for a place with no design."""
+    from score.stages import row_kinds
+    design = read(pathlib.Path(kept) / f"{place}.json")
+    rules = read(pathlib.Path(data) / "checks/row-kinds.json").get("kinds", {})
+    return [row["id"] for row in row_kinds.rows_that(design, "moves", rules)] if design else []
+
+
+def needs(place, data, kept=None):
+    """The place's motion needs no record answers: [{"kind": "move" | "need", "item", "about"}]; its design read
+    under `kept` (design_layers.KEPT by default)."""
+    from score.stages import design_layers
     data = pathlib.Path(data)
     kinds = read(data / "checks/motion.json").get("kinds", {})
     names, motions = moved_names(place, data)
@@ -44,9 +55,9 @@ def needs(place, data):
         kind = next((kind for kind, rule in kinds.items() if row["id"] in rule.get("prims", [])), None)
         if kind and not any(of_kind(name, row["id"]) or name == row["id"] for name in names):
             found.append({"kind": "move", "item": row["id"], "about": kind})
-    for word in read(data / "checks/contents.json").get("places", {}).get(place, {}).get("motion", []):
-        if not any(word in name for name in motions):
-            found.append({"kind": "need", "item": word, "about": "data/checks/contents.json"})
+    for item in design_moving(place, data, kept or design_layers.KEPT):
+        if not any(item in name for name in [*motions, *names]):
+            found.append({"kind": "need", "item": item, "about": "its design"})
     return found + old_records(place)
 
 
@@ -64,18 +75,19 @@ def old_records(place):
 
 
 SENTENCES = {"move": "{item} is a {about} that nothing moves and no reason keeps still",
-             "need": "the place must show {item} moving, and no motion of its records is {item}",
+             "need": "{about} shows {item}, a thing that moves, and no motion of its records moves it or keeps "
+                     "it still",
              "record": "{about}, of the place's old concept, not its approved design: its rows do not run"}
 WORK = {"move": "a move for {item} in data/motion/rigid/{place}.json (a path, swing, spin or slide with its `from`), "
                 "or its `still` reason",
-        "need": "a motion named for {item} in data/motion/rigid/{place}.json, or the need dropped in "
-                "data/checks/contents.json with the concept's reason",
+        "need": "a motion named for {item} in data/motion/rigid/{place}.json, or its `still` reason",
         "record": "the record written again from the picked design: its rows and takes the design's hand-in "
                   "({{home}}/design/props/{place}.json), a crop data's view `design`"}
 
 
-def gaps(place, data):
-    """The place's motion gaps: [{"id", "prim", "sentence", "node", "work"}], each code work in words."""
+def gaps(place, data, kept=None):
+    """The place's motion gaps: [{"id", "prim", "sentence", "node", "work"}], each code work in words; its design read
+    under `kept` (design_layers.KEPT by default)."""
     return [{"id": f"motion:{need['kind']}:{need['item']}", "prim": f"/{place}",
              "sentence": SENTENCES[need["kind"]].format(**need), "node": None,
-             "work": WORK[need["kind"]].format(place=place, **need)} for need in needs(place, data)]
+             "work": WORK[need["kind"]].format(place=place, **need)} for need in needs(place, data, kept)]

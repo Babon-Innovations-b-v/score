@@ -21,23 +21,27 @@ import contents  # noqa: E402
 
 PLACE = "testplace"
 NONE = {name: None for name in contents.OUTPUTS}
+# Row-kind rules written here (data/checks/row-kinds.json's shape), so the checks do not follow the house's table.
+RULES = {"kettle": {"nouns": ["kettle"], "does": ["emits"]}, "door": {"nouns": ["door"], "does": ["moves"]},
+         "plant": {"nouns": ["plants", "planter"], "does": ["grows"]}}
+NOBODY = {"concept": "c0ffee00", "spots": [], "middle": [0.0, 0.0, 0.0], "rows": {}}
 
 
-def world_data(folder, place=PLACE, cast=None, needs=None, scene=None, sound=None):
-    """A world's data folder holding only what the contents checks read of the place, and the bodies folder; both
-    made the module's (contents.DATA, contents.BODIES)."""
+def world_data(folder, place=PLACE, people=NOBODY, design=(), scene=None, sound=None):
+    """A world's data folder holding only what the contents checks read of the place (its people's mapping, `people`,
+    None for none), the place's design (its scene inventory's rows, `design`) and the bodies folder; all made the
+    module's (contents.DATA, contents.DESIGN, contents.BODIES)."""
     data = folder / "data"
-    for kind in ("characters", "scene", "sound", "checks", "effects", "motion"):
+    for kind in ("people", "scene", "sound", "checks", "effects", "motion"):
         (data / kind).mkdir(parents=True, exist_ok=True)
-    (data / "characters" / f"{place}.json").write_text(json.dumps(cast or {"place": place, "people": [],
-                                                                             "note": "nobody works here"}))
-    (data / "checks/contents.json").write_text(json.dumps({"places": {place: needs or {"effects": [], "motion": []}}}))
+    (data / "people/rows.json").write_text(json.dumps({"places": {place: people} if people else {}, "new": {}}))
+    (data / "checks/row-kinds.json").write_text(json.dumps({"kinds": RULES}))
+    (folder / "design").mkdir(exist_ok=True)
+    (folder / "design" / f"{place}.json").write_text(json.dumps({"place": place, "rows": list(design)}))
+    contents.DESIGN = folder / "design"
     (data / "scene" / f"{place}.json").write_text(json.dumps(scene or {"place": place, "lights": [], "places": []}))
     (data / "sound/places.json").write_text(json.dumps({"places": {place: sound or {"loops": ["hum"],
                                                                                      "from": "the creator's brief"}}}))
-    (data / "people").mkdir(exist_ok=True)
-    (data / "people/rows.json").write_text(json.dumps({"places": {place: {"rows": {
-        "crew": {"looks": ["bram-work"], "share": 0.3}, "guard": {"looks": ["guard-guard"], "share": 0.05}}}}}))
     (folder / "bodies").mkdir(exist_ok=True)
     contents.DATA, contents.BODIES = data, folder / "bodies"
     return data
@@ -76,12 +80,26 @@ def problems_of(cases):
     return [f"{what}: {got}, not {wanted}" for what, got, wanted in cases if got != wanted]
 
 
+def people_mapped(rows, place=PLACE):
+    """The place's design's people rows (`rows`, each mapped to its looks) written where the people check reads them
+    (contents.DATA's people/rows.json)."""
+    entry = {**NOBODY, "spots": [[0.0, 0.0, 0.0]], "rows": rows}
+    (contents.DATA / "people/rows.json").write_text(json.dumps({"places": {place: entry}, "new": {}}))
+
+
+BRAM = {"bram": {"name": "bram", "noun": "person", "count": 1, "where": "by the door", "looks": ["bram-work"]}}
+
+
+def row(row_id, noun, anchor="floor"):
+    return {"id": row_id, "name": noun, "noun": noun, "kind": "generate", "count": 1, "anchor": anchor}
+
+
 def people_both_ways():
+    """The cast is the design's people row mapped to its look (data/people/rows.json): bram must stand there."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        cast = {"place": PLACE, "people": [{"name": "bram", "character": "bram", "doing": "idle", "at": [0, 0, 0],
-                                            "facing_to": [0, 0, 1], "why": "a test"}]}
-        world_data(folder, cast=cast)
+        world_data(folder)
+        people_mapped(BRAM)
         path = bare_stage(folder)
         missing = judged("people", path)
         stage = Usd.Stage.Open(str(path))
@@ -97,18 +115,23 @@ def people_both_ways():
                                                                               "missing": "no built model"}},
                                                            "licence": []}))
         unmade = judged("people", path, outputs={**NONE, "characters-layer": layer})
-        (folder / "data/characters" / f"{PLACE}.json").unlink()
+        stage.RemovePrim(f"/{PLACE}/Characters/bram")
+        stage.GetRootLayer().Save()
+        world_data(folder)
+        nobody = judged("people", path)
+        world_data(folder, people=None)
         return problems_of([("a cast person not on the stage", missing, contents.FAIL),
                             ("a body of SOMA's mesh in drapes", draped, contents.FAIL),
                             ("a made body", made, contents.PASS),
                             ("a characters layer with a look not made", unmade, contents.FAIL),
-                            ("no cast", judged("people", path), contents.UNKNOWN)])
+                            ("a design with nobody, nobody on the stage", nobody, contents.PASS),
+                            ("no people mapped for the design", judged("people", path), contents.UNKNOWN)])
 
 
 def effects_and_motion_both_ways():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        data = world_data(folder, needs={"effects": ["steam"], "motion": ["door"]})
+        data = world_data(folder, design=[row("kettle", "kettle"), row("door", "door")])
         path = bare_stage(folder)
         cases = [("an effect needed with no record", judged("effects", path), contents.FAIL),
                  ("a motion needed with no record", judged("motion", path), contents.FAIL)]
@@ -148,8 +171,8 @@ def effects_and_motion_both_ways():
         stage.GetRootLayer().Save()
         cases += [("the effect standing", judged("effects", path), contents.PASS),
                   ("the motion moving", judged("motion", path), contents.PASS),
-                  ("a place the expectations do not list", judged("effects", path, place="elsewhere"),
-                   contents.UNKNOWN)]
+                  ("a place with no design", judged("effects", path, place="elsewhere"), contents.UNKNOWN),
+                  ("a place with no design", judged("motion", path, place="elsewhere"), contents.UNKNOWN)]
         stage.RemovePrim(f"/{PLACE}/Effects/kettle_steam")
         UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam_0_1")
         stage.GetRootLayer().Save()
@@ -158,13 +181,18 @@ def effects_and_motion_both_ways():
         UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam_big")
         stage.GetRootLayer().Save()
         cases.append(("only another entry's name beginning with it", judged("effects", path), contents.FAIL))
+        stage.RemovePrim(f"/{PLACE}/Effects/kettle_steam_big")
+        steam = stage.DefinePrim(f"/{PLACE}/Objects/kettle_1/jet")
+        steam.CreateAttribute(contents.EFFECT_KIND, Sdf.ValueTypeNames.String).Set("steam_jet")
+        stage.GetRootLayer().Save()
+        cases.append(("an emitter laid on the row's object", judged("effects", path), contents.PASS))
         return problems_of(cases)
 
 
 def crops_both_ways():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        world_data(folder, needs={"crops": {"planted_share": 1.0}})
+        world_data(folder, design=[row("planter", "planter"), row("greens", "plants", anchor="on:planter")])
         path = bare_stage(folder)
         stage = Usd.Stage.Open(str(path))
         for number, x in enumerate((0.0, 3.0)):
@@ -179,8 +207,14 @@ def crops_both_ways():
         half = judged("crops", path)
         plants.CreatePositionsAttr([(0.1, 0, 0.1), (2.9, 0, -0.2)])
         stage.GetRootLayer().Save()
+        both = judged("crops", path)
+        plants.CreatePositionsAttr([])
+        stage.GetRootLayer().Save()
+        world_data(folder, design=[row("fern", "plants")])  # a plant on the floor, no bed: no crops here
         return problems_of([("one of two beds planted", half, contents.FAIL),
-                            ("both beds planted", judged("crops", path), contents.PASS)])
+                            ("both beds planted", both, contents.PASS),
+                            ("a design with no crops", judged("crops", path), contents.PASS),
+                            ("a place with no design", judged("crops", path, place="elsewhere"), contents.UNKNOWN)])
 
 
 def likeness_and_paint_both_ways():
@@ -336,11 +370,13 @@ def a_far_look_near_a_view_both_ways():
     from pxr import Vt
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        cast = {"place": PLACE, "people": [{"name": "guard", "character": "guard"}, {"name": "bram", "character": "bram",
-                                                                                   "look": "bram_work"}],
-                "crowd": {"name": "crowd", "character": "kit_m_avg", "count": 2}}
+        palette = [["skin_light", "wool_grey", "leather_black"]]  # surfaces of the people line's library
+        people = {**NOBODY, "spots": [[0.0, 0.0, 0.0]], "rows": {
+            "guard": {"name": "guard", "looks": ["guard-uniform"], "share": 0.05},
+            "bram": {"name": "bram", "looks": ["bram-work"], "share": 0.3},
+            "crowd": {"name": "crowd", "noun": "crowd", "crowd": "kit_m_avg-coat-grey", "palettes": palette}}}
         view = {"name": "gate", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, 10.0], "fov": 60}
-        world_data(folder, cast=cast, scene={"place": PLACE, "lights": [], "places": [], "views": [view]})
+        world_data(folder, people=people, scene={"place": PLACE, "lights": [], "places": [], "views": [view]})
         path = bare_stage(folder)
         stage = Usd.Stage.Open(str(path))
         for name, depth in (("guard", 3.0), ("bram", 3.0)):
@@ -373,11 +409,11 @@ if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    data, bodies = contents.DATA, contents.BODIES
+    data, design, bodies = contents.DATA, contents.DESIGN, contents.BODIES
     failed = []
     for test in TESTS:
         found = test()
-        contents.DATA, contents.BODIES = data, bodies
+        contents.DATA, contents.DESIGN, contents.BODIES = data, design, bodies
         print(("FAIL " if found else "ok   ") + test.__name__ + "".join(f"\n  {problem}" for problem in found))
         failed += found
     sys.exit(1 if failed else 0)
