@@ -161,12 +161,13 @@ def mesh_prim(stage, path, built):
     return prim
 
 
-def bind_surface(stage, prim, place, surface, out=None):
+def bind_surface(stage, prim, place, surface, out=None, tiles=None):
     """Paint a built mesh with a library surface of the place (/<place>/Library/<surface>), or with its framework
-    shader when it has one and the stage's folder is given (shaders.py), and say which; a surface the library does not hold (every old one retired, 2026-10-21,
+    shader when it has one and the stage's folder is given (shaders.py: its own, or its library tile from `tiles`, a
+    surface-tiles output), and say which; a surface the library does not hold (every old one retired, 2026-10-21,
     until the scene's surface-library row makes it) is named as missing on the mesh (`score:surface:missing`, as
     the sky's ball says it, score/stages/light/sky.py) and left unbound, never painted another way."""
-    material = shaders.look(stage, place, surface, out) or \
+    material = shaders.look(stage, place, surface, out, tiles) or \
         UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Library/{surface}"))
     prim.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(surface)
     if not material:
@@ -202,8 +203,9 @@ def placed(built, entry):
     return dict(built, points=built["points"] @ turn.T + np.asarray(entry.get("placed_at", (0.0, 0.0, 0.0)), dtype=float))
 
 
-def write_structure(stage, place, entries, root="Structure", kind="structure", out=None):
-    """Every structure entry as one mesh (several when its builder gives several) painted with its surface; a solid one (structure, ground: not water) a static
+def write_structure(stage, place, entries, root="Structure", kind="structure", out=None, tiles=None):
+    """Every structure entry as one mesh (several when its builder gives several) painted with its surface (its
+    library tile where `tiles` holds one, shaders.tile_look); a solid one (structure, ground: not water) a static
     collider (colliders.solid)."""
     if not entries:
         return
@@ -216,7 +218,7 @@ def write_structure(stage, place, entries, root="Structure", kind="structure", o
                 prim.GetPrim().CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
                     entry.get("surface_missing") or f"{place}: {entry['name']} names no surface")
             else:
-                bind_surface(stage, prim, place, built["surface"], out)
+                bind_surface(stage, prim, place, built["surface"], out, tiles)
             if colliders.is_solid(kind, entry.get("plain")):
                 colliders.solid(prim.GetPrim(), built["points"], built["triangles"])
             for key, value in (("score:kind", kind), ("score:builder", entry["builder"]),
@@ -993,10 +995,11 @@ def write_sky(stage, place, environment, out, ground=None):
         write_haze_volume(stage, place, haze, ground)
 
 
-def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None, near=None):
+def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None, near=None, tiles=None):
     """Everything the place's scene record holds, into the base layer being written; a kit room's lamps' lights too
-    (kit_lights), and with the place's planned ground the ground past its near patch (far_ground)."""
-    write_structure(stage, place, scene.get("structure", []), out=out)
+    (kit_lights), and with the place's planned ground the ground past its near patch (far_ground); the room shell
+    drawn with its surfaces' library tiles where `tiles` (a surface-tiles output) holds them."""
+    write_structure(stage, place, scene.get("structure", []), out=out, tiles=tiles)
     write_structure(stage, place, scene.get("ground", []), root="Terrain", kind="ground", out=out)
     if ground is not None and scene.get("planned_ground"):
         UsdGeom.Scope.Define(stage, f"/{place}/Terrain")

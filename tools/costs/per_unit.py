@@ -152,6 +152,16 @@ RECORDED = {
                                "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
                                "slots_from": "its 16 calls one after another", "holds": "calls", "lines": 16,
                                "from": ["google ledger, caller pro, 20:33:25 to 20:39:33 +02:00 on 2026-10-21"]}},
+    "surface-tiles": {"unit": "tile job of a place's shell surfaces (library_bake.py, one card)", "forecast": "one",
+                      "runs": [{"euros": 0.07875, "units": 1,
+                                "source": "ledger batch library-20261021-203323-3894491 (surface-tiles@greenhouse, "
+                                          "2026-10-21, benchmark grant 20261021T182203): one L4, 5.1 machine "
+                                          "minutes, its card parked after"}],
+                      "time": {"unit_seconds": {"likely": 187.8, "high": 187.8},
+                               "setup_minutes": {"likely": 1.9, "high": 1.9}, "slots": 1,
+                               "slots_from": "one job on its one card", "holds": "machines", "lines": 1,
+                               "from": ["ledger batch library-20261021-203323-3894491 (its machine's unit_seconds; "
+                                        "start wait 0.37 and set-up 1.53 min)"]}},
     "people-clips-made": {"unit": "make of the people's Kimodo clips and mean rig (one characters machine)",
                           "forecast": "one",
                           "runs": [{"euros": 0.249375, "units": 1,
