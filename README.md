@@ -91,7 +91,7 @@ thousands of one cheap body. `tools/characters/cast.py` writes them into the sta
 playing its clip from its own start, in a layer of their own (`layers/characters.usda`, between the creator's edit
 layer and the framework's base); the crowd is one PointInstancer with a prototype per clip, phase and palette. The
 bodies are the files `tools/characters/people/run.sh` builds (SOMA-X bodies shaped by SAM 3D Body, Kimodo clips from
-sentences, GarmentCode clothes; `tools/characters/skel_usd.py` converts each).
+sentences, clothes made with the body by the prop route; `tools/characters/skel_usd.py` converts each).
 
 ```bash
 $py tools/characters/cast.py square --stage ~/.farm-factory-props/work/usd/square   # after tools/usd/export.py
