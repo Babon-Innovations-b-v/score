@@ -206,8 +206,8 @@ stage as each stage is built; nothing moves before.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `earth-kit` (paid) and `earth-seed` (free, `stages/earth_seed`, its overlay) make every place's base
-  stage again from git, its design and the rows' outputs (a kit laid for another room than the locked plan's left
-  out, the room's shell then laid from the plan), the ship's rooms and a scene added in the app too, and every row
+  stage again from git, its design and the rows' outputs (data/kit only where no design is locked, `kit_is_base`;
+  a designed scene's room shell laid from its locked plan), the ship's rooms and a scene added in the app too, and every row
   that read the lost round-three or ship seed reads it (`stages.earth_seeded`). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
   every ground from its plan in `data/ground/plan/`, gated on scale and slope; `ground-fit@<place>` (free) judges each
   seated place's stage on it: ground under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
