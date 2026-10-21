@@ -7,19 +7,19 @@
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
     "paper/source/refs.bib": "f55427b11d8e8771d8c0f14a5111ae47308fc19feab436e9e4f31623ce93037d",
-    "paper/source/score.md": "848fa32a10cd4d69e5f3c8745bee0e650cffa6657eee7ced104b4b1ac1dfe7b6"
+    "paper/source/score.md": "897636c8413a7a5930a3c70e9bf46f3fd0af9fb2d4d33cd69583a60e8e0e301c"
   },
   "outputs": {
-    "paper/arxiv/content/abstract.tex": "f2335e4bcdd40d0cb5b51bbc4d29a3fd3a642ced355d9efb5e7d19e8c00e10a1",
+    "paper/arxiv/content/abstract.tex": "780151d8906ef2c1b6abf7570d6e236b76ab39f83e11987a06b3fa1bce597608",
     "paper/arxiv/content/appendix.tex": "eb1dd500c9ffbc3a8fd205a9cfe49b07479506a8870ce4355153f26790afba0b",
     "paper/arxiv/content/check_details.tex": "29fc4642e32c1fba34bc08c8c804466b2897203f5f72a1a75efd363bc623aba3",
-    "paper/arxiv/content/evidence.tex": "eeb7a56a03846529651ecbfa950386e606997c2c95fa2eea3636522691e6f4c2",
+    "paper/arxiv/content/evidence.tex": "e151f1f66ba91a9ba62b23ec52e096aa45a8310d57d7ea47d379a8c247cc9f01",
     "paper/arxiv/content/introduction.tex": "c186d8d7c893c3433b0216c6dc56f562b3ef77ec3e9c12f00caf9d8a1b24b5d5",
     "paper/arxiv/content/limitations_future_work_and_conclusion.tex": "efbdb97e0b5d3afc6ec1117fc4c73facb079a00c2adacdb4dda687f405f2c0b6",
     "paper/arxiv/content/models_and_licences.tex": "7205300f9d7130b218b2707e52ab44a7dbf58754e1b7871a25aa12b4405bc447",
-    "paper/arxiv/content/stages_and_their_gates.tex": "e12b5f072ff52ca028e1b33fd97248d489bcd8c4ba93a4cdb660687b8edbfba6",
+    "paper/arxiv/content/stages_and_their_gates.tex": "be89b5b9ec62a009a7e259818170c09538bdfca16398486089aa171eb892e7fc",
     "paper/arxiv/content/teaser.tex": "3f0ae46f8d4cafe4e98fe42e7e78d5b8c5fe10eaced90ad4cecfb05687b9798e",
-    "paper/arxiv/content/the_framework.tex": "348690e9931dc2b3de44d44904c219a5c98cb0539759435d6687ea1153f3d6b1",
+    "paper/arxiv/content/the_framework.tex": "90dc49e9f7f1dc2634e0306bc730d26463162ef9b7758970763757a7ca9e0455",
     "paper/arxiv/content/the_hub_in_six_rounds.tex": "3c3fd82578daf4f2ee359c21c07cbea925ca31c69682bc108a085261b15730a0",
     "paper/arxiv/content/the_surface_library.tex": "3168621eec16b118711f5cac42c4a33a8e1f3c0d614df2734389a8ea29c572c3",
     "paper/arxiv/content/with_and_without_the_agent_tools.tex": "66862c9eb92379c441522b08037a91547079d3747c5387a40ff8d531e63d71ba",
@@ -27,10 +27,10 @@
     "paper/arxiv/figures/fig-k7.jpg": "8ab1866f68dec59d3d7e7643b33e1e54c186b1fa789caf8219daf84f9fe7c33c",
     "paper/arxiv/figures/fig-k9.jpg": "efa128a1c9e7519b5a56989bd69894c5505659788df5e4cf2862b56a3edb7599",
     "paper/arxiv/main.bbl": "51999479c1a6698dc14f2e0feb724da3ecc8809ced9a98d60a3bafa6587387a1",
-    "paper/arxiv/main.pdf": "4cccd06c16785a8cf45cd5e6245d4ddc157ce89a6088a99c012002463dbfeaff",
+    "paper/arxiv/main.pdf": "d9639679f96fab593d6d814b9404fb05dbb29582673177ca4cb2060e5a4dc1c5",
     "paper/arxiv/main.tex": "39fa7ed9f0ec1ee3ef88bd78666b089cb900248c2dfa4d5f93ffb8cd105c1b5e",
     "paper/arxiv/refs.bib": "f55427b11d8e8771d8c0f14a5111ae47308fc19feab436e9e4f31623ce93037d",
-    "paper/out/score.pdf": "b34484340ce6d1b3aaee46d1998c1f2aa227aa0acae6b8843eb2089ea3d60b55",
-    "paper/out/score.tex": "ec507bf56a7e1165eb804f9a6c92e8af6cd650b963e5c15f29c910f2998a6fde"
+    "paper/out/score.pdf": "ee854e0e7722ab92ae95272622c93f45c999d205ab5d6d806d8ad3d40760b4c6",
+    "paper/out/score.tex": "59c64bfaa9963afbf7c16072fa934988b7798fc27e893b0b9eea580587d22f8f"
   }
 }

@@ -111,22 +111,22 @@ Environments}
 \maketitle
 \begin{abstract}
 Games, films and robot training need 3D environments that are complete,
-editable and owned by their makers; world models and one-shot generators
-give frames no engine opens, or one fused scene without separate objects
-or clear rights. Studios already build such environments by a standard:
-scenes layered in OpenUSD, each scene sitting within its parent scene
-and each department's work on it a layer of its own that can be checked
-and changed apart from the rest. SCORE builds environments by this
-convention. The creator decides from the top down: he locks an
-environment concept (EC), its style and its physics, which holds the
-scenes and their layering, and then a concept for each scene, in order
-of parent scene and child scene. The framework makes every layer below
-with open vision foundation models, procedural tools and coding agents,
-each layer checked before the next is made. Every model allows
-commercial use of its output, so the creator stays the author. We
-describe the framework with its first environment, derived from the game
-2099, as the worked example; its results are marked gaps until its
-remake has run. Code and paper are available at
+editable and owned by their creators; world models and one-shot
+generators give frames no engine opens, or one fused scene without
+separate objects or clear rights. Studios already build such
+environments by a standard: scenes layered in OpenUSD, each scene
+sitting within its parent scene and each department's work on it a layer
+of its own that can be checked and changed apart from the rest. SCORE
+builds environments by this convention. The creator decides from the top
+down: he locks an environment concept (EC), its style and its physics,
+which holds the scenes and their layering, and then a concept for each
+scene, in order of parent scene and child scene. The framework makes
+every layer below with open vision foundation models, procedural tools
+and coding agents, each layer checked before the next is made. Every
+model allows commercial use of its output, so the creator stays the
+author. We describe the framework with its first environment as the
+worked example; its results are marked gaps until its remake has run.
+Code and paper are available at
 https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}
 
@@ -301,11 +301,10 @@ have not run.
 \textbf{The scene record.} The scene record holds what no made piece
 covers (shells, stairs, ground and water, backdrop, lights, sky, the
 neighbours a scene shows), written from the plan, inventory, made ground
-and sky, and gated on \texttt{game-free} (the record cites nothing from
-the game the environment came from), \texttt{plan-matched} (the shell
-within 5 cm of the plan), \texttt{openings} (every doorway onto a floor,
-no view into nothing) and \texttt{seed-matched} (every old entry matched
-or dropped with a reason).
+and sky, and gated on \texttt{plan-matched} (the shell within 5 cm of
+the plan), \texttt{openings} (every doorway onto a floor, no view into
+nothing) and \texttt{seed-matched} (every old entry matched or dropped
+with a reason).
 
 \textbf{The canonical scene.} Every scene is one OpenUSD stage {[}3{]};
 each object, one per real-world object, carries its kind, transform,
@@ -379,13 +378,13 @@ fault that appears with the layer and not without it).
 
 \subsection{Light}\label{light}
 
-Lamp strengths are measured, never copied from the source game. The
-light layer places live lamps from the scene record, with the sky and
-its bodies. One paid render per scene gives every lamp its own Cycles
-light group on the scene's views; because light adds up, the look at any
-strengths is mixed from these passes without rendering again, and a free
-sweep chooses the scale that brings the scene's brightness within 1.5
-times its concept's, halving any lamp that turns what it lights white.
+Lamp strengths are measured. The light layer places live lamps from the
+scene record, with the sky and its bodies. One paid render per scene
+gives every lamp its own Cycles light group on the scene's views;
+because light adds up, the look at any strengths is mixed from these
+passes without rendering again, and a free sweep chooses the scale that
+brings the scene's brightness within 1.5 times its concept's, halving
+any lamp that turns what it lights white.
 
 \subsection{Motion, effects and sound}\label{motion-effects-and-sound}
 
@@ -420,15 +419,14 @@ concept's figures, and casts are gated on \texttt{counted},
 
 A scene is complete when its gate passes on its final assembly: every
 row made or dropped with a reason, nothing unmade, no placeholder or
-resting fault, the creator's picks shown, every layer and shown scene
-present, nothing cited from the source game. A fault the creator decides
-to ship with is an accepted gap, written with who decided, when, why and
-its measured faults; the completion gate lists every gap by name and is
-never loosened, and a scene whose accepted gaps are its only fail is
-complete apart from accepted gaps. A hook stops an agent claiming a
-scene is done while its gate fails: agents judging their own scenes
-agree with a measured geometry score only 45.8 percent of the time
-{[}19{]}.
+resting fault, the creator's picks shown and every layer and shown scene
+present. A fault the creator decides to ship with is an accepted gap,
+written with who decided, when, why and its measured faults; the
+completion gate lists every gap by name and is never loosened, and a
+scene whose accepted gaps are its only fail is complete apart from
+accepted gaps. A hook stops an agent claiming a scene is done while its
+gate fails: agents judging their own scenes agree with a measured
+geometry score only 45.8 percent of the time {[}19{]}.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
@@ -454,10 +452,9 @@ its batch's stop has room for its forecast.
 
 \section{Evidence}\label{evidence}
 
-Environment 1, derived from the game 2099, is the worked example. Its
-first run was not accepted by the creator and its store was lost on 19
-October 2026, so this draft shows none of its outputs; its remake from
-new designs has not run.
+Environment 1 is the worked example. Its first run was not accepted by
+the creator and its store was lost on 19 October 2026, so this draft
+shows none of its outputs; its remake from new designs has not run.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
