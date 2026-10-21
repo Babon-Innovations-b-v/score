@@ -267,16 +267,28 @@ parent it stands in.
 \textbf{Inventory and plan.} The creator's lock is the approval. Gemini
 3.1 Pro lists every object of the locked concept as a row of the scene
 inventory, with its kind, count, anchor and size in metres, and SAM 3
-{[}23{]} boxes each row on the concept; a row without metres, or a
-disagreement between the two, is a gap. Nothing is made or placed that
-is not a row. One more Gemini 3.1 Pro call writes the plan in metres,
-element by element: outline, walls, openings, levels, stairs, roofs,
-terrain heights and each item. Free checks follow: every row placed as
-often as it counts, inside the outline, no two floor items in each
-other, every door and standing spot reached on foot, and the child
-scenes tiling their parent. On the plan review page the creator corrects
-the plan, and his edits redo what follows. Only a scene with a design
-gets the rows of a batch.
+{[}23{]} boxes each row on the concept. A row counts when both find it,
+or when Gemini names one large object (at least 2 percent of the
+picture) that SAM 3 misses, boxed by Gemini's region; a row without
+metres is a gap. Nothing is made or placed that is not a row. The plan
+is made in two calls. Nano Banana Pro first draws the scene from
+straight above, from the locked concept, in the frame of the scene's own
+proportions; Gemini 3.1 Pro then writes the plan in metres from that
+drawing, the concept and the inventory, element by element: outline,
+walls, openings, levels, stairs, roofs, terrain heights, each item with
+its facing, people as the spots they stand on, and the child scenes'
+rooms. Free checks follow: every row placed as often as it counts,
+inside the outline, no two floor items in each other, each item on the
+same side and facing the same way as in the concept, no box round things
+drawn apart, every door and standing spot reached on foot, and the child
+scenes tiling their parent. What a check can settle is fixed in code
+before the plan is shown (items moved apart, turned, added at their
+place in the concept, split); what remains goes back to Gemini 3.1 Pro
+as notes at most twice; only what is left is shown as a gap. A plan the
+creator drew himself wins over a written one, his edits on the plan
+review page always win and redo what follows, and a child scene he has
+locked keeps its room when its parent's plan is written again. Only a
+scene with a design gets the rows of a batch.
 
 \textbf{Shapes first.} The route is one loop, the same at every scale. A
 parent scene gets its concept, its plan and a rough model, its concept
