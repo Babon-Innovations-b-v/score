@@ -3,7 +3,8 @@ already plays:
 
 1. **Surfaces** (data/sound/surfaces.json): every surface's footstep, impact and scrape.
 2. **Rooms**: a room's tone (its place's ambience); its echo is worked out from its surfaces, not picked.
-3. **Things** (data/inventory/<room>.json): every row's `sound`, the hum, buzz or whir its things make.
+3. **Things** (data/checks/row-kinds.json): every sound a row kind plays, the hum, buzz or whir a design's things
+   make (the old per-room inventories and their rows' `sound` were retired, 2026-10-21).
 
 A sound's brief is its `pick` in data/sound/sounds.json: the page it is on (`game`: every sound the game needs), its
 category (which sets the loudness its takes are brought to), where it plays, the prompts MOSS is given (the first
@@ -17,7 +18,7 @@ import pathlib
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SOUNDS = REPO / "data" / "sound" / "sounds.json"
 SURFACES = REPO / "data" / "sound" / "surfaces.json"
-INVENTORIES = REPO / "data" / "inventory"
+ROW_KINDS = REPO / "data" / "checks" / "row-kinds.json"
 CATALOGUE = REPO / "data" / "sound" / "catalogue.json"
 LICENCES = REPO / "data" / "sound" / "licences.json"
 
@@ -40,10 +41,11 @@ def layer_names():
         for happening in ("footstep", "impact", "scrape"):
             if sounds.get(happening) and sounds[happening] not in named["surface"]:
                 named["surface"].append(sounds[happening])
-    for path in sorted(INVENTORIES.glob("*.json")):
-        for row in read_json(path).get("rows", []):
-            if row.get("sound") and row["sound"] not in named["thing"]:
-                named["thing"].append(row["sound"])
+    for kind in read_json(ROW_KINDS)["kinds"].values():
+        sound = kind.get("sound")
+        for name in (sound.values() if isinstance(sound, dict) else [sound] if sound else []):
+            if name not in named["thing"]:
+                named["thing"].append(name)
     return named
 
 

@@ -146,8 +146,8 @@ def test_a_gaps_check_run_again_shows_at_once_not_after_the_index(cockpit):
 def test_keys_outside_the_index_walk_only_their_folder_and_match_the_whole_walk(tmp_path):
     """A prefix outside the index's areas walks only the folder it names, with the store's own answer."""
     from score.dashboard.state.index import scoped
-    from tools.cloud.runtime.store import FolderStore
-    store = FolderStore(tmp_path)
+    from score.store import runtime_store
+    store = runtime_store.FolderStore(tmp_path)
     for key in ("concepts/cockpit/draws/1.json", "concepts/cockpit2/draws/2.json", "concepts/cock.json",
                 "plans/cockpit/a.json", "concepts/cockpit/draws/3.json.partial"):
         (tmp_path / key).parent.mkdir(parents=True, exist_ok=True)

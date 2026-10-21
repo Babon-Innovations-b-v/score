@@ -249,35 +249,30 @@ def test_every_filler_is_a_stage_of_the_table():
     assert named <= names, named - names
 
 
-def test_lost_inputs_are_place_gaps_with_their_code_work():
-    """On a home whose work folder is gone: the cockpit's owner's pictures, and the launch's far rocket whose bake entry
-    went with its old job, each a place gap with its code work and no node; the cockpit's cast no longer asks for a
-    scene record it never had. A kit-laid or designed place's seed is no lost input, the ship's rooms' too: its readers
-    wait on earth-seed@<place> (#27; the owner, 2026-10-21); only a place with neither (the far city) is still lost."""
+def test_lost_inputs_are_place_gaps_and_a_designed_seed_is_none():
+    """On a home whose work folder is gone: a designed place's seed is no lost input, the ship's rooms' too: its
+    readers wait on earth-seed@<place> (#27; the owner, 2026-10-21); the cockpit's light reads its views from its own
+    scene record and nothing asks for the retired data/scene record; what is lost is a place gap with no faults."""
     from score.stages.complete.gaps import inputs
     from score.stages.complete.gaps.__main__ import lost_gaps
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
     cockpit = {gap["id"]: gap for gap in inputs.lost(runner, "cockpit")}
-    assert {"lost:reference:cockpit.png", "lost:reference:reference-shuttle.png"} <= set(cockpit), sorted(cockpit)
     assert not any(gap.startswith(("lost:earth-seed", "lost:ship-seed")) for gap in cockpit), sorted(cockpit)
     assert "lost:views:cockpit.json" not in cockpit  # its light reads its views from its own scene record (#27)
     assert not any("data/scene/cockpit.json" in gap["sentence"] for gap in cockpit.values())
-    launch = {gap["id"]: gap for gap in inputs.lost(runner, "launch")}
-    assert not any("bake entry" in gap for gap in launch), sorted(launch)  # its rocket is the library's (#10)
-    # no row reads the launch's own round-three seed since terrain-look was retired (#27)
-    assert "lost:earth-seed:launch" not in launch and "lost:earth-seed:far_city" in launch, sorted(launch)
-    found = [dict(gap, low=None, high=None) for gap in lost_gaps(runner, "launch")]
-    assert gaps_faults({"findings": found}) == [] and all(gap["rule"] == "place" for gap in found)
+    found = [dict(gap, low=None, high=None) for gap in lost_gaps(runner, "cockpit")]
+    assert found and gaps_faults({"findings": found}) == [] and all(gap["rule"] == "place" for gap in found)
 
 
 def test_a_take_a_pixal_row_makes_is_that_row_s_gap_and_one_none_makes_has_its_work():
-    """The cockpit's pilot seat take is made by pixal@cockpit, so its gap is that node's, priced through it, never
-    code work; a world row's lost take no pixal row makes (demo-turntables' pliers) is a gap of the world."""
+    """The cockpit's pilot seat take (its design row's, named by its locked concept) is made by pixal@cockpit, so its
+    gap is that node's, priced through it, never code work; a world row's lost take no pixal row makes
+    (demo-turntables' pliers) is a gap of the world."""
     from score.stages.complete.gaps import inputs
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
-    cockpit = {gap["id"]: gap for gap in inputs.lost(runner, "cockpit")}
-    seat = cockpit["lost:pixal:pilot_seat-s1"]
-    assert seat["node"] == "pixal@cockpit" and seat["work"] is None, seat
+    seats = [gap for gap in inputs.lost(runner, "cockpit") if gap["id"].startswith("lost:pixal:cockpit_pilot_seat_")]
+    assert len(seats) == 1, seats
+    assert seats[0]["node"] == "pixal@cockpit" and seats[0]["work"] is None, seats[0]
     world = {gap["id"]: gap for gap in inputs.lost(runner, None)}
     pliers = world["lost:pixal:pliers-pf"]
     assert pliers["node"] is None and pliers["work"] and "demo-turntables" in pliers["sentence"], pliers

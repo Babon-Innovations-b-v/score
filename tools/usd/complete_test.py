@@ -27,7 +27,8 @@ import page  # noqa: E402
 import resting_test  # noqa: E402
 import triage_test  # noqa: E402
 
-# The test's places have no stage outputs in the framework's store: the contents checks read none.
+# The test's places have no stage outputs in the framework's store: the contents checks read none until a test lays a
+# place (`laid` gives its finished outputs).
 complete.stored_outputs = lambda place: dict(contents_test.NONE)
 # Nor the world's accepted gaps (the test's place is named wreck, which has some): a test writes its own.
 sys.path.insert(0, str(HERE.parents[1]))
@@ -37,14 +38,40 @@ gaps.FOLDER = HERE / "no gaps folder"
 
 def laid(folder, rows=(("crate", "floor"), ("lamp", "floor"))):
     """A place of two boxes, one a row, exported; its stage. The test's rows are drawn from no concept, so each says
-    so (`unseen`), as the box gate asks of a row with no box."""
+    so (`unseen`), as the box gate asks of a row with no box. Every row's model is the shared loop's (sorter.row_route
+    `model`, #41), so the place is finished only as the line leaves it: each model repainted by the surface line's
+    bake, stamped as the assembly stamps it, and the place's likeness and surfaces-check outputs read
+    (`finished_outputs`)."""
     resting_test.made_models(folder)
     stage = triage_test.place_of(folder, [("crate", "box", (0, 0, 0)), ("lamp", "box", (3, 0, 0))],
                                  [triage_test.row(name, anchor, box=None, unseen="a test row, drawn from no concept")
                                   for name, anchor in rows])
     contents_test.world_data(folder, resting_test.PLACE)
     contents_test.held_layers(stage, resting_test.PLACE)
+    repainted_by_the_bake(stage, folder / "models")
+    complete.stored_outputs = lambda place: finished_outputs(folder, [name for name, _ in rows])
     return stage
+
+
+def repainted_by_the_bake(stage, models):
+    """Each model the stage lays stamped as the assembly stamps a baked one (score/stages/assembly/baked.py), its bake
+    the model's own file: a repaint over the seed's paint, which the painted check asks of a generated row."""
+    from score.stages.assembly import baked
+    opened = Usd.Stage.Open(str(stage))
+    laid_models = {prim.GetAttribute("score:model").Get() for prim in opened.Traverse()
+                   if prim.HasAttribute("score:model")}
+    for model in sorted(laid_models):
+        baked.stamp_baked_hash(stage.parent / "layers/base.usda", model, models / f"{model}.gltf")
+
+
+def finished_outputs(folder, held):
+    """{stage: output folder} the contents checks read for a finished place: its accepted likeness holding these rows
+    to their close-ups and its accepted surfaces-check; the others none."""
+    likeness = folder / "outputs/likeness"
+    likeness.mkdir(parents=True, exist_ok=True)
+    (likeness / "likeness.json").write_text(json.dumps({"objects": sorted(held)}))
+    (folder / "outputs/surfaces-check").mkdir(exist_ok=True)
+    return {**contents_test.NONE, "likeness": likeness, "surfaces-check": folder / "outputs/surfaces-check"}
 
 
 def verdicts(stage, review):
