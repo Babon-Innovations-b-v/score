@@ -104,18 +104,19 @@ def bake_reads(place, record, wide):
             kinds_read, props_read = bake_job.reads(place, model, kit)
             details.update(kinds_read)
             composites.update(props_read)
-    return {"details": (wide["details"], entries_part(sorted(details))),
-            "composites": (wide["composites"], entries_part(sorted(composites))), **refused}
+    read = {"details": details, "composites": composites}
+    return {**{name: (wide[name], entries_part(sorted(names))) for name, names in read.items() if name in wide},
+            **refused}
 
 
 def narrowed(files, record_of):
     """A row's world files (`files`: a function of the place, or a dict) with its library keyed on what it reads
     (`record_of(place)`: the surface data the row paints from), and a bake row's details and composites (it declares
-    `details`) on what its job reads (bake_reads). The wide map stays on it as `wide`."""
+    `library bake`) on what its job reads (bake_reads). The wide map stays on it as `wide`."""
     def found(place):
         wide = files(place) if callable(files) else dict(files)
         record = record_of(place)
-        bakes = "details" in wide
+        bakes = "library bake" in wide
         return {**wide, "library": (wide["library"], library_part(kinds(record), bakes)),
                 **(bake_reads(place, record, wide) if bakes else {})}
     found.wide = files

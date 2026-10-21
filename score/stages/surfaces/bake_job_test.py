@@ -147,7 +147,9 @@ def test_every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry():
         declared = surface_data.bake_files(path.stem)
         # the work folder ({seeds}, {home}/work); a designed place's surface data, {home}/design, prepare writes again
         assert not any("{home}/work" in pattern or "{seeds}" in pattern for pattern in declared.values()), path.stem
-        assert "bake job" in declared or "details" in declared, path.stem
+        assert "library bake" in declared, path.stem
+        # the old kinds' details and composites retired (2026-10-21): no bake waits on them by name
+        assert not {"details", "composites"} & set(declared), path.stem
 
 
 if __name__ == "__main__":
