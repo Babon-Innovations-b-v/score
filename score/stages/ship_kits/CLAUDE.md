@@ -19,4 +19,4 @@ one paid node `ship_kit@<place>` of its own runner (`python -m score.stages.ship
 - **Gates are the late-bake stage's**: every planned model made, every slot a library surface.
 - **After it passes**, route.py `layout` and `install` put each kit in place (data/kit/<place>.json), all ship places in
   one push: an installed kit re-keys every place's free scene-record.
-- Its own table, like the late-bake stage: a kit is not a place's stage.
+- Its own table: a kit is not a place's stage.

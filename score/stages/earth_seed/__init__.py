@@ -23,7 +23,7 @@ of the scene holding it (style_of); nothing here bakes or lays a kit laid for an
                                why (NOT_HANDED); a handed row is the loop's alone, and a model it makes none of is a
                                gap, not a code bake (the batch rule). Planned by route.py's
                                late-plan into make_kit jobs and baked once with the material library on rented cards
-                               (tools/props/cloud/library_bake.py), as the ship-kit and late-bake stages do; gates
+                               (tools/props/cloud/library_bake.py), as the ship-kit stage does; gates
                                `made` and `surfaces` are theirs
     earth-seed@<place>  free   tools/usd/export.py on the place's kit, inventory, stored labelled takes, ground record
                                and old scene record, each model read from the earth-kit's made folder, the place's
