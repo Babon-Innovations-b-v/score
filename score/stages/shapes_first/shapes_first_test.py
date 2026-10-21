@@ -187,6 +187,7 @@ READS_THE_LOOP = {
     "library": "the hand-over: every accepted output of the line to the creator's library, lays no model",
     "assembly": "the object layer laid (OBJECTS: nothing after the model), its baked models and their paint",
     "earth-seed": "the scene's base: its shell from its locked plan painted from its surface library, lays no model",
+    "scene-record": "the scene's record: its shell and stairs named with surfaces from its surface library, lays no model",
     "settle": "the motion layer's physics: not on an adapter yet (#41's motion track)",
     "crops-layer": "the motion layer's growth: not on an adapter yet (#41's motion track)",
 }

@@ -8,6 +8,10 @@ import pathlib
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+# Run as a script, this folder is sys.path[0], and its `library` package would shadow tools/props/library's
+# `library` that palette_library imports bare (it appends that folder, so this one would win).
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != HERE]
 sys.path.insert(0, str(REPO))
 
 from score.stages import people_rows  # noqa: E402
