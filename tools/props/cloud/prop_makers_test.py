@@ -135,9 +135,9 @@ def test_a_bodied_prop_s_parts_are_written_before_its_bake_and_a_refusal_stops_i
         assert prop_makers.check_parts(bodied) == (False, "lies 0.3 off") and written == [bodied["name"]]
 
 
-def test_a_bodied_prop_at_an_outside_place_is_sized_over_its_accepted_labelled_take():
-    """Its re-made take's parts are written at this entry's size, so the entry is sized over the accepted labelled take
-    (a toy box), never the parts folder still to be written; the entry's parts are that folder."""
+def test_a_bodied_prop_s_bake_entry_is_refused_by_name_while_the_repo_library_is_retired():
+    """The old route's bake entry reads the repo library's per-place wear and kind details, both retired with every old
+    material and model (2026-10-21): it is refused by name before anything is rented, never sized on old data."""
     import trimesh
     with tempfile.TemporaryDirectory() as temp:
         folder = pathlib.Path(temp)
@@ -156,9 +156,13 @@ def test_a_bodied_prop_at_an_outside_place_is_sized_over_its_accepted_labelled_t
             prop_makers.bake_inputs = lambda place: {name: folder / f"{name}.json" for name in records}
             prop_makers.accepted_labelled = lambda prop: labelled
             bodied = {"name": "aft_section-t1", "place": "wreck", "take": "aft_section-b2", "body": "aft_section-t1"}
-            _, entry = BAKE_ENTRY(bodied)
-            assert max(entry["size"]) == 10.3, entry
-            assert entry["parts"] == str(folder / "work/body-parts/aft_section-b2"), entry
+            import library
+            try:
+                BAKE_ENTRY(bodied)
+            except library.LibraryEmpty as refused:
+                assert "wreck: no wear" in str(refused), refused
+            else:
+                raise AssertionError("a bake entry was written from the retired library")
         finally:
             prop_makers.WORK, prop_makers.bake_inputs, prop_makers.accepted_labelled = kept
 

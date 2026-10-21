@@ -145,16 +145,16 @@ def test_a_scene_with_no_locked_concept_or_an_empty_look_is_refused():
 
 
 def test_every_place_keeps_the_design_system_shape():
-    """Every place keeps the design system's fields, each material naming a token."""
+    """Every place keeps its name, short name and style (its palette, materials, wear, light, pictures and plan were
+    the old concepts' and were retired, 2026-10-21: a scene's are its design's)."""
     for name, entry in place.places().items():
         if name == place.SHARED:
             assert entry["scale"]["eye_height"] == 1.6
             continue
-        for field in ("style", "plan", "palette", "materials", "light", "pictures"):
+        for field in ("name", "style"):
             assert field in entry, f"{name} has no {field}"
-        # a place's materials named the retired library's variants in their tokens (2026-10-21: every old
-        # material retired); each scene's surfaces are its surface-library row's, so only their shape is held here
-        assert all("token" in material for material in entry["materials"].values()), name
+        retired = {"plan", "palette", "materials", "wear", "light", "pictures"} & set(entry)
+        assert not retired, f"{name} keeps retired fields {sorted(retired)}"
 
 
 def main():

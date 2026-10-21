@@ -160,12 +160,20 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
                 assert wanted is None, f"accepted without {wanted}"
         path.write_text(json.dumps(dict(inventory, approved="2026-10-05")))
         listing.write_text(f"keyboard {picture}\n")
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "library"))
+        import sorter  # the old failure record is retired (2026-10-21): this test names its own
+        record = pathlib.Path(folder) / "pipeline_failures.json"
+        record.write_text(json.dumps({"kinds": {"hub_keyboard": {"failure": "a test's", "evidence": "", "on": ""}}}))
+        own = sorter.failures.__defaults__
+        sorter.failures.__defaults__ = (record,)
         try:
             batch.from_the_inventory(batch.read_list(listing), [path])
         except SystemExit as refused:
             assert "on no row" in str(refused)
         else:
             raise AssertionError("a named pipeline failure's row was sent to be generated")
+        finally:
+            sorter.failures.__defaults__ = own
         # a designed place's hand-in is approved by the creator's pick, its reading's rows taken as they stand
         designed = {**inventory, "approved": {"by": batch.DESIGNED, "concept": "c" * 64}, "room": {},
                     "rows": [{**rows[0], "anchor": "ground", "box": None}]}

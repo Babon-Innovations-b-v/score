@@ -84,13 +84,34 @@ def painted(stage, path, material):
     return mesh
 
 
+def library_surface(stage, path):
+    """A library surface as export.library_materials writes one (a coloured UsdPreviewSurface), stood in at `path`:
+    the old library's surfaces are retired (2026-10-21) and the remake makes each scene's fresh."""
+    material = surface(stage, path, diffuseColor=(Sdf.ValueTypeNames.Color3f, Gf.Vec3f(0.8, 0.8, 0.78)),
+                       roughness=(Sdf.ValueTypeNames.Float, 0.5))
+    for key, value in (("recipe", "painted_metal"), ("token", "test_white"), ("family", "painted")):
+        material.GetPrim().CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(value)
+    return material
+
+
+def library_surfaces(stage, place, record):
+    """The library surfaces a scene record names (every `...surface` value), stood in under /<place>/Library."""
+    def named(value, key=""):
+        if isinstance(value, dict):
+            return {name for inner, item in value.items() for name in named(item, inner)}
+        if isinstance(value, list):
+            return {name for item in value for name in named(item, key)}
+        return {value} if key.endswith("surface") and isinstance(value, str) else set()
+    for name in named(record):
+        library_surface(stage, f"/{place}/Library/{name}")
+
+
 def kit_piece(stage, model, kind):
     """A kit piece: its xform with its model and kind, and its drawn mesh in a library colour."""
     piece = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/{model}")
     piece.GetPrim().CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set(model)
     piece.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)
-    library = UsdShade.Material(stage.GetPrimAtPath(f"/{PLACE}/Library/painted_panel"))
-    painted(stage, f"/{PLACE}/Objects/{model}/geo", library)
+    painted(stage, f"/{PLACE}/Objects/{model}/geo", library_surface(stage, f"/{PLACE}/Library/painted_panel"))
 
 
 def test_stage(folder):
@@ -99,6 +120,7 @@ def test_stage(folder):
     stage = Usd.Stage.CreateNew(str(path))
     stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{PLACE}").GetPrim())
     export.library_materials(stage, PLACE, f"/{PLACE}")
+    library_surfaces(stage, PLACE, RECORD)
     scene.write(stage, PLACE, RECORD, folder)
     for model, kind in (("wall_lower_plain_1", "hub_wall_lower_plain"), ("pipe_straight_1", "hub_pipe_straight"),
                         ("rover_1", "hub_rover"), ("locker_1", "hub_locker")):
@@ -119,6 +141,9 @@ def test_stage(folder):
 def every_rule_catches_its_case():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
+        record = folder / "pipeline_failures.json"  # the old record is retired (2026-10-21): this test names its own
+        record.write_text(json.dumps({"kinds": {"hub_pipe_straight": {"failure": "a test's", "evidence": "", "on": ""}}}))
+        placeholders.sorter.failures.__defaults__ = (record,)
         (folder / "kits").mkdir()
         (folder / "kits" / f"{PLACE}.json").write_text(json.dumps(KIT))
         found = {(fault["prim"].rsplit("/", 1)[-1], fault["rule"])
@@ -140,13 +165,13 @@ def hangar_stage(folder, ship_made):
     stage = Usd.Stage.CreateNew(str(path))
     stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/hangar").GetPrim())
     export.library_materials(stage, "hangar", "/hangar")
+    library_surfaces(stage, "hangar", entries)
     scene.write(stage, "hangar", {"structure": [] if ship_made else entries}, folder)
     if ship_made:
         piece = UsdGeom.Xform.Define(stage, "/hangar/Objects/ship_1")
         piece.GetPrim().CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set("ship_1")
         piece.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("hangar_ship")
-        library = UsdShade.Material(stage.GetPrimAtPath("/hangar/Library/hull_white_gloss"))
-        painted(stage, "/hangar/Objects/ship_1/geo", library)
+        painted(stage, "/hangar/Objects/ship_1/geo", library_surface(stage, "/hangar/Library/hull_white_gloss"))
     stage.GetRootLayer().Save()
     return path
 

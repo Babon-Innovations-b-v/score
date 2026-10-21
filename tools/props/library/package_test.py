@@ -193,8 +193,8 @@ def test_a_report_no_current_job_names_is_not_read():
         assert set(package.made_reports(work)) == {"ring_3"}, "with no jobs, every report is read"
 
 
-def test_the_camp_grounds_are_painted_as_the_camp_and_their_cables_are_code_lengths():
-    assert place_route.styled_as("campgrounds") == "expedition_camp"
+def test_a_place_with_no_filed_inventory_is_styled_as_itself_and_its_cables_are_code_lengths():
+    assert place_route.styled_as("campgrounds") == "campgrounds"  # the old inventories are retired (2026-10-21)
     assert place_route.styled_as("wreck") == "wreck"
     row = {"id": "ground_cable", "size": [2.0, 0.05, 0.05], "at": [{"x": 0.0, "z": 0.0, "facing": 30.0}] * 3}
     models, pieces = place_route.code_models(row, "campgrounds")

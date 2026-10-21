@@ -33,6 +33,21 @@ import shell  # noqa: E402
 import surface  # noqa: E402
 from room import hub_kit  # noqa: E402
 import room_kit  # noqa: E402
+import tempfile  # noqa: E402
+
+# Two rounded rooms' numbers for the checks below, stood in for the old inventories' `room.layout` (the old
+# inventories were retired, 2026-10-21): a 14 by 12 m bay with a big door, and a 32 by 64 m hall with a flat roof.
+ROOMS = {"garage": {"inside": [14.0, 12.0], "corner": 3.0, "wall": 4.6, "rise": 1.3, "run": 1.8,
+                    "bands": [1.1, 2.9, 4.6], "doors": {"north": "hatch", "east": "hatch", "west": "hatch"},
+                    "open": ["north"], "features": {}, "big_door": {"wall": "south", "wide": 5.0, "high": 4.0}},
+         "hangar": {"inside": [32.0, 64.0], "corner": 4.0, "wall": 15.0, "rise": 0.0, "run": 0.0, "roof": "flat",
+                    "opening": [27.0, 55.0], "bands": [1.1, 4.0, 7.0, 10.0, 13.0, 15.0], "posts": 6.0,
+                    "rails": {"high": 12.0, "parked": -26.0, "gauge": 1.2},
+                    "doors": {"south": "hatch", "east": "hatch", "west": "hatch"}, "open": ["south"], "features": {},
+                    "ship": {"x": 0.0, "z": 0.0, "facing": 180}}}
+shell.INVENTORIES = pathlib.Path(tempfile.mkdtemp())
+for name, numbers in ROOMS.items():
+    (shell.INVENTORIES / f"{name}.json").write_text(json.dumps({"room": {"layout": numbers}}))
 
 
 def on_wall(bearing, across, bottom, size, kind="hub_conduit_box"):
@@ -187,12 +202,6 @@ def test_a_door_whose_sides_both_stand_in_walls_is_unknown_and_fails():
              "z": [0.0, 0.0, 1.0], "size": [4.0, 2.6, 6.0]}
     found = doors.check({"pieces": [door, block]})
     assert len(found) == 1 and found[0][2].startswith("unknown")
-
-
-def test_every_kit_layout_s_doors_part_their_two_sides():
-    """The gate runs the door check on every installed kit layout (data/kit), not only by hand."""
-    for path in sorted((HERE.parents[2] / "data/kit").glob("*.json")):
-        assert doors.check(json.loads(path.read_text())) == [], path.name
 
 
 def test_a_model_under_another_kind_s_name_and_a_name_on_two_routes_fail_before_install():

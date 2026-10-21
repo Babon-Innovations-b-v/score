@@ -201,8 +201,10 @@ def chunky_jobs(planned, made, work, wear, dirt, specs):
 
 def styled_as(place):
     """The place whose style, wear and library surfaces a place's pieces take: its inventory's `place` (the camp
-    grounds are painted as the expedition camp), else its own name."""
-    return json.loads((INVENTORIES / f"{place}.json").read_text()).get("place") or place
+    grounds were painted as the expedition camp), else its own name; its own name too when no inventory is filed (the
+    old filed inventories were retired, 2026-10-21)."""
+    path = INVENTORIES / f"{place}.json"
+    return (json.loads(path.read_text()).get("place") if path.exists() else None) or place
 
 
 def jobs(planned, work, place):

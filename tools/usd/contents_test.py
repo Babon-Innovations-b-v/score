@@ -35,19 +35,21 @@ def world_data(folder, place=PLACE, people=NOBODY, design=(), scene=None):
     module's (contents.DATA, contents.DESIGN, contents.BODIES). Its plan and setting give the place a room's bed in a
     base on the Moon (score/stages/sound/beds.py over the environment's library briefs and reference bodies)."""
     data = folder / "data"
-    for kind in ("people", "scene", "sound", "checks", "plans", "physics", "places"):
+    for kind in ("people", "scene", "sound", "checks", "physics", "places"):
         (data / kind).mkdir(parents=True, exist_ok=True)
     for name in ("sound/sounds.json", "physics/bodies.json"):
         (data / name).write_text((REPO / "data" / name).read_text())
-    (data / "plans" / f"{place}.json").write_text(json.dumps({"inside": True}))
+    plans = folder / "design" / "plans"  # the design's kept plan (the old data/plans were retired, 2026-10-21)
+    plans.mkdir(parents=True, exist_ok=True)
+    (plans / f"{place}.json").write_text(json.dumps({"inside": True}))
     (data / "physics/setting.json").write_text(json.dumps({"bodies": [{"body": "moon", "reference": "moon"}],
                                                             "plots": [], "sites": [{"place": place, "on": "moon"}]}))
     (data / "places/within.json").write_text(json.dumps({}))
     (data / "people/rows.json").write_text(json.dumps({"places": {place: people} if people else {}, "new": {}}))
     (data / "checks/row-kinds.json").write_text(json.dumps({"kinds": RULES}))
-    (folder / "design").mkdir(exist_ok=True)
-    (folder / "design" / f"{place}.json").write_text(json.dumps({"place": place, "rows": list(design)}))
-    contents.DESIGN = folder / "design"
+    (folder / "design" / "inventory").mkdir(parents=True, exist_ok=True)
+    (folder / "design" / "inventory" / f"{place}.json").write_text(json.dumps({"place": place, "rows": list(design)}))
+    contents.DESIGN = folder / "design" / "inventory"  # as the module's: <home>/design/inventory
     (data / "scene" / f"{place}.json").write_text(json.dumps(scene or {"place": place, "lights": [], "places": []}))
     (folder / "bodies").mkdir(exist_ok=True)
     contents.DATA, contents.BODIES = data, folder / "bodies"
@@ -378,6 +380,10 @@ def a_far_look_near_a_view_both_ways():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         palette = [["skin_light", "wool_grey", "leather_black"]]  # surfaces of the people line's library
+        # the old library's surfaces are retired (2026-10-21) and the people line's are not made yet: the crowd's
+        # colours are stood in, as this check judges where people stand, not what they wear
+        rows_module = contents.stages_module("people_rows")
+        rows_module.palette_colours = lambda palettes: [[(0.5, 0.5, 0.5)] * len(one) for one in palettes]
         people = {**NOBODY, "spots": [[0.0, 0.0, 0.0]], "rows": {
             "guard": {"name": "guard", "looks": ["guard-uniform"], "share": 0.05},
             "bram": {"name": "bram", "looks": ["bram-work"], "share": 0.3},

@@ -391,7 +391,11 @@ def row_verdict(row, size, proposals, recorded):
 
 def gate(scene, found=None):
     """The box gate for one scene: {"result", "rows": {row: {"result", "why"}}, "views": [problems]}. A view whose
-    boxes crowd one corner fails the scene; any failing row fails it; any unknown row makes it unknown."""
+    boxes crowd one corner fails the scene; any failing row fails it; any unknown row makes it unknown. A scene with
+    no inventory given and none filed (the old filed inventories were retired, 2026-10-21) is unknown, named."""
+    if found is None and not inventory.path_of(scene).exists():
+        return {"result": UNKNOWN, "rows": {}, "views": [f"no scene inventory for {scene}: "
+                                                         f"{inventory.path_of(scene)} is not there"]}
     found = found if found is not None else json.loads(inventory.path_of(scene).read_text())
     sizes = view_sizes(found)
     proposals_file = PARTITION / scene / "proposals.json"

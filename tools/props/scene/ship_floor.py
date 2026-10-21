@@ -23,7 +23,7 @@ import ship_outline  # noqa: E402
 
 SHIP = REPO / "data/definitions/ship.json"
 FLOOR = REPO / "data/definitions/ship_floor.json"
-PLANS = REPO / "data/plans"
+PLACES = REPO / "data/definitions/place.json"
 # How far apart the hull is read along a room (metres).
 STEP = 0.1
 # The least clear height a person walks under, and the least depth a side room may have.
@@ -176,10 +176,12 @@ def ring_y(ship, floor):
     return round(side_ring(ship)["y"] * floor["length"] / ship.get("drawn_length", ship["length"]), 2)
 
 
-def place_faults(floor):
-    """Spaces whose place has no plan in data/plans."""
-    return [f"{space['name']}: no data/plans/{space['place']}.json" for space in spaces(floor)
-            if not (PLANS / f"{space['place']}.json").exists()]
+def place_faults(floor, path=PLACES):
+    """Spaces whose place is no place of the environment (data/definitions/place.json); a place's plan is its
+    design's (the old filed plans in data/plans were retired, 2026-10-21)."""
+    places = json.loads(pathlib.Path(path).read_text())
+    return [f"{space['name']}: {space['place']} is no place in data/definitions/place.json" for space in spaces(floor)
+            if space["place"] not in places]
 
 
 def faults(ship, floor):

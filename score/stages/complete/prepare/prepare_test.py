@@ -372,7 +372,9 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
         assert sorted(surface_data.takes("wreck")) == models  # a shell piece's too: the bake bakes what is listed
         for stage in estimate.SCENE_ROWS:  # once a scene, priced from the measured Gemini answer until measured
             assert record["layers"][stage]["units"] == 1, record["layers"][stage]
-            assert record["layers"][stage]["price"]["estimated_from"] == estimate.ASK_PRICED_AS
+            own = compute.per_unit(stage)
+            measured = own is not None and own["stage"] == stage
+            assert record["layers"][stage]["price"].get("estimated_from") == (None if measured else estimate.ASK_PRICED_AS)
         for stage, layer in record["layers"].items():  # every layer prepare priced, the runner's node priced the same
             if stage in estimate.SCENE_ROWS:
                 continue
