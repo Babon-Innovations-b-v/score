@@ -1,18 +1,17 @@
 """The motion stage (experimental, PRD #6, until the owner reviews it): the rigid module of the motion layer
-(CONTEXT.md "motion"; the overlay has the layer's modules), everything rigid that moves in a place, moving in its
-OpenUSD motion layer. The game's own timed motions (`data/motion/<place>.json`: doors, lights, the launch's climb, the
-turntable) and the rigid moves SCORE gives the things the game left standing (`data/motion/rigid/<place>.json`: a
-ferry's round of the harbour, a boom's travel on its rail, a hatch swung open on its hinge, each with its kind and the
-source of its numbers) are written into one layer over the place's stage: its seed with its accepted scene record
-written over the seed's record prims, as the assembly writes it (assembly.take_record), or the seed alone for a place
-with no scene-record row. A game motion's prim the new record names otherwise is the rigid record's `renamed`
-({old prim: new prim}); a game motion whose prim the place no longer has is not written, and `covered` fails on it
-unless the rigid record's `removed` ({motion: why}) says the concept took it out.
+(CONTEXT.md "motion"; the overlay has the layer's modules), everything rigid that moves in a scene, moving in its
+OpenUSD motion layer, made from the scene's design (the owner, 2026-10-21: "the modules are not agnostic"), never from
+a record written for it: every object of a scene inventory row whose kind moves (score/stages/row_kinds.py) swings,
+spins or stands as its kind's rule says (from_design.py, data/checks/row-kinds.json), at the speeds its motion kind
+cites (data/checks/motion.json). The moves are written into one layer over the scene's stage: its seed with its accepted
+scene record written over the seed's record prims, as the assembly writes it (score/stages/layer_base.py), or the
+seed alone for a place with no scene-record row.
 The stage is the place itself (motion_layer.place_only): the places it shows are left out, all but their prims that
 move, so two places that show each other never load each other round.
 
-    make     tools/usd/motion_layer.py's write_layer: layers/motion.usda (taking the place of the seed's) and moved.json
-             (what it moved, the game motions whose prim is gone, and the layer's seconds)
+    make     the rigid record made from the design over the scene's stage (from_design.py: moves.json), then
+             tools/usd/motion_layer.py's write_layer: layers/motion.usda (taking the place of the seed's) and
+             moved.json (what it moved and the layer's seconds)
     gates    clear     no moving thing reaches into a still thing or another moving thing over its whole motion: sampled every
                        STEP seconds over the layer's seconds, the points over each still surface near its sweep and
                        over every other moving thing's surface lie no deeper than REACH_MOST in its hull. A thing it already
@@ -28,31 +27,30 @@ move, so two places that show each other never load each other round.
              grounded  each moving thing stays on what it moves on: on water or ground every corner of its footprint has
                        that surface under it and it keeps its rest height over it (within HEIGHT_MOST); on a rail it
                        keeps touching what it is mounted on (within TOUCH); in the air it stays AIR_LEAST over all
-             covered   every prim of a moving kind in the place (its objects, fixtures and structure) moves in the
-                       layer, or the rigid record says why it stands still (`still`); and every game motion's prim is
-                       in the place
+             covered   every prim of a moving kind in the place (its objects, fixtures and structure) and every
+                       object of an inventory row whose kind moves moves in the layer, or the record says why it
+                       stands still (`still`)
+             designed  every move and every still thing is an object of a row of the scene's inventory, and every
+                       row whose kind moves has an object on the stage
              follows, steps, moving area
                        the motion check (check.py, #23): each move keeps to its record's intended motion at any speed,
                        never jumps from one frame to the next, and what moves is exactly what the records move
 
-Only places with a rigid record have the row. The assembly does not take the layer yet: the final assembly of each
-place picks it up in place of the seed's motion layer.
+Only scenes whose design has a row that moves have the row (applies); the assembly takes the accepted layer in place of
+the seed's motion layer.
 """
-import contextlib
 import fnmatch
 import functools
 import json
 import pathlib
 import re
-import shutil
 import sys
-import tempfile
 
 import numpy as np
 
 from score import checks, contracts
-from score.stages.motion import space
-from score.store import PROPS_HOME
+from score.stages import layer_base, row_kinds
+from score.stages.motion import from_design, space
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
@@ -81,18 +79,14 @@ ON = ("water", "ground", "rail", "air")
 MOVING_SCOPES = ("Objects", "Fixtures", "Structure")
 
 
+RECORD = "moves.json"
+
+
 def files(place):
-    """What the stage reads: the place's rigid record, the moving kinds and their speeds, its seed stage, and its
-    game motion record where it has one."""
-    found = {"moves": "{data}/motion/rigid/{place}.json", "kinds": "{data}/checks/motion.json",
-             "seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json"}
-    if (REPO / f"data/motion/{place}.json").exists():
-        found["motion"] = "{data}/motion/{place}.json"
-    return found
-
-
-def applies(place):
-    return (REPO / f"data/motion/rigid/{place}.json").exists()
+    """What the stage reads: the scene's design inventory, the row-kind rules, the moving kinds and their speeds, and
+    its seed stage with its kit."""
+    return {**row_kinds.DESIGNED, "kinds": "{data}/checks/motion.json", "seed": "{seeds}/usd-r3/{place}",
+            **layer_base.files(place)}
 
 
 def read_json(path):
@@ -107,53 +101,31 @@ def game_record(inputs):
     return read_json(inputs["motion"]) if "motion" in inputs else None
 
 
-# Where a place's stage is built for the make and each gate: on disk beside the work folder's stages (/tmp on this
-# machine is a tmpfs in memory, filled to its 22 GB by leftover builds on 2026-10-12), removed when the call ends.
-SCRATCH = PROPS_HOME / "work/motion-scratch"
+def models_step(inputs):
+    """The step that takes the place's accepted motion models layer into the built stage as the assembly takes it
+    (the models the moves drive), or None for a place without one."""
+    if "motion-models" not in inputs:
+        return None
+
+    def take(folder):
+        from score.stages import assembly
+        layer, assets = assembly.LAYERS["motion-models"][1:]
+        assembly.take_layer(pathlib.Path(inputs["motion-models"]), folder / f"{folder.name}.usda", layer, assets)
+    return take
 
 
-@contextlib.contextmanager
 def built(inputs):
-    """The stage folder the layer is written over, for the length of a `with`: the seed, or for a place with an
-    accepted scene record a copy of the seed with that record written over its record prims as the assembly writes it
-    (beside links to the seed's sibling places it references) and, when the rigid record asks (`ground`: a moving thing
-    drives out onto the yard), the made ground sublayered as the assembly sublayers it (assembly.take_ground). The
-    copy is removed when the `with` ends, failed or not."""
-    if "scene-record" not in inputs and "motion-models" not in inputs:
-        yield pathlib.Path(inputs["seed"])
-        return
-    from score.stages import assembly
-    seed = pathlib.Path(inputs["seed"])
-    SCRATCH.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=f"motion-{seed.name}-", dir=SCRATCH) as holder:
-        holder = pathlib.Path(holder)
-        for other in seed.parent.iterdir():  # the places it shows, referenced as its seed's siblings
-            if other.is_dir() and other.name != seed.name:
-                (holder / other.name).symlink_to(other)
-        folder = holder / seed.name
-        folder.mkdir()
-        shutil.copy2(seed / f"{seed.name}.usda", folder / f"{seed.name}.usda")
-        for part in assembly.SEED_PARTS:
-            if (seed / part).is_dir():
-                shutil.copytree(seed / part, folder / part)
-            elif (seed / part).exists():
-                shutil.copy2(seed / part, folder / part)
-        if "scene-record" in inputs:
-            assembly.take_record(inputs, folder, seed.name)
-        if "motion-models" in inputs:  # the models the moves drive (the garage's rover), as the assembly takes them
-            layer, assets = assembly.LAYERS["motion-models"][1:]
-            assembly.take_layer(pathlib.Path(inputs["motion-models"]), folder / f"{seed.name}.usda", layer, assets)
-        if read_json(inputs["moves"]).get("ground") and "terrain" in inputs:
-            assembly.take_ground(inputs["terrain"], seed.name, folder / f"{seed.name}.usda")
-        yield folder
+    """The scene's stage built for the make and each gate (layer_base.built), with its motion models."""
+    return layer_base.built(inputs, models_step(inputs))
 
 
 def on_built(judge):
-    """A gate judged over the place's stage built for it (`built`), the build removed when it is judged."""
+    """A gate judged on the record made from the design (the output's moves.json) over the scene's stage built for it
+    (built), the build removed when it is judged."""
     @functools.wraps(judge)
     def judged(output, inputs, evidence):
         with built(inputs) as source:
-            return judge(output, dict(inputs, built=source), evidence)
+            return judge(output, dict(inputs, built=source, moves=pathlib.Path(output) / RECORD), evidence)
     return judged
 
 
@@ -189,9 +161,13 @@ def stands(stage, entry):
 
 
 def make(inputs, out, seed, params):
-    """The place's motion layer from its game motions and its moving things, over its stage."""
+    """The scene's rigid record made from its design over its stage, and its motion layer from it."""
     with built(inputs) as source:
-        write_motion(inputs, out, source)
+        record = from_design.record(place_of(inputs), read_json(inputs["design"]),
+                                    row_kinds.table(inputs["row kinds"]), kinds_of(inputs),
+                                    layer_base.opened(source))
+        (out / RECORD).write_text(json.dumps(record, indent=1))
+        write_motion(dict(inputs, moves=out / RECORD), out, source)
 
 
 def write_motion(inputs, out, source):
@@ -611,13 +587,20 @@ def moving_kind_prims(stage, place, kinds):
     return found
 
 
+def moving_row_prims(stage, place, inputs):
+    """{path: row kind} of every object on the stage of an inventory row whose kind moves."""
+    kinds = row_kinds.table(inputs["row kinds"])
+    return {path: row["row_kind"] for row in row_kinds.rows_that(read_json(inputs["design"]), "moves", kinds)
+            for path in row_kinds.objects_of(stage, place, row["id"])}
+
+
 def judge_covered(output, inputs, evidence):
     """Pass when every prim of a moving kind moves in the layer or its standing still is written down."""
     stage, place = composed(output, inputs), place_of(inputs)
     moved = {entry["prim"] for entry in bodies(inputs, output)}
     record = read_json(inputs["moves"])
     still, removed = record.get("still", {}), record.get("removed", {})
-    wanted = moving_kind_prims(stage, place, kinds_of(inputs))
+    wanted = {**moving_kind_prims(stage, place, kinds_of(inputs)), **moving_row_prims(stage, place, inputs)}
     unmoved = [f"{path} ({kind})" for path, kind in sorted(wanted.items())
                if path not in moved and path not in still and path.rsplit("/", 1)[-1] not in still]
     gone = [line.split(":", 1)[0] for line in gone_of(output)]
@@ -662,8 +645,23 @@ def layer_faults(folder):
     return [f"no {name}" for name in (game_motion.LAYER, "moved.json") if not (folder / name).exists()]
 
 
+def judge_designed(output, inputs, evidence):
+    """Pass when every move and every still thing of the record is an object of a row of the scene's inventory, and
+    every row whose kind moves has an object on the stage (the record's `missing`)."""
+    record = read_json(inputs["moves"])
+    named = [entry["prim"] for entry in record.get("moves", [])] + list(record.get("still", {}))
+    faults = [f"{path}: no object of a row of the scene's inventory"
+              for path in row_kinds.strangers(named, read_json(inputs["design"]))]
+    faults += list(record.get("missing", []))
+    reason = (f"{len(faults)} moving things stand on nothing of the inventory" if faults else
+              f"{len(named)} moving and standing things are each an object of an inventory row")
+    return checks.Verdict("designed", checks.FAIL if faults else checks.PASS, reason,
+                          {"named": len(named), "missing": len(faults)}, {"missing": "lower"}, tuple(faults))
+
+
 LAYER = contracts.Contract("motion-layer", 2, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
 CHECKS = (checks.Check("clear", on_built(judge_clear)), checks.Check("speeds", on_built(judge_speeds)),
           checks.Check("loops", on_built(judge_loops)), checks.Check("grounded", on_built(judge_grounded)),
           checks.Check("covered", on_built(judge_covered)), checks.Check("follows", on_built(judge_follows)),
-          checks.Check("steps", on_built(judge_steps)), checks.Check("moving area", on_built(judge_moving_area)))
+          checks.Check("steps", on_built(judge_steps)), checks.Check("moving area", on_built(judge_moving_area)),
+          checks.Check("designed", on_built(judge_designed)))

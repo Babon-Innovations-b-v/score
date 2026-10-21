@@ -65,11 +65,6 @@ LANDED = (-0.01, 0.03)
 ENERGY_SLACK = (0.01, 1.0)
 
 
-def applies(place):
-    """A scene whose kept inventory has a loose row (row_kinds)."""
-    return row_kinds.designed(place, "loose")
-
-
 LAYER_FILES = {**row_kinds.DESIGNED, "materials": "{data}/physics/materials.json",
                "physics": "{data}/physics/setting.json", "bodies": "{data}/physics/bodies.json",
                "within": "{data}/places/within.json"}

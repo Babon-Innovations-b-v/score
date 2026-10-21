@@ -1,0 +1,442 @@
+{
+ "about": "The effects a row kind emits (data/checks/row-kinds.json `effects`), each measured on real footage (the owner's rule: real footage first): its emitter as tools/usd/effects.py bakes it, where on its object's own box it stands (`at`: from the box's middle, each axis a share of its half size, y up, z the object's front), why it gives no light (`no_light`), and its footage sources and checks (each measured on the emitter itself at its `at` second). General for any scene: the effects stage lays one on every object of every row whose kind emits it (score/stages/effects/from_design.py).",
+ "how": "Measured on each photograph's pixels against a thing of known size in it (named with each source; a typical size where the maker's own was not looked up, so to roughly a third), or read off a report's text. A plume running off the frame bounds a measure on one side only (null).",
+ "licence": "NASA photographs and reports are not copyrighted in the United States; the others under the licence each source names. Every source is used here only as measurements, never shown.",
+ "kinds": {
+  "steam_jet": {
+   "at": [
+    0.0,
+    0.6,
+    1.0
+   ],
+   "where": "the spout at the front of the kettle's box, six tenths of the way from its middle to its top",
+   "no_light": "fog, ice and steam give off no light of their own; the place's lamps light them",
+   "emitter": {
+    "kind": "steam_jet",
+    "look": "puff",
+    "emitter": {
+     "shape": "sphere",
+     "radius": 0.006
+    },
+    "count": 5000,
+    "lifetime": 1.3,
+    "lives": 2,
+    "direction": [
+     0.0,
+     0.45,
+     1.0
+    ],
+    "spread": 10.0,
+    "speed": [
+     1.0,
+     1.6
+    ],
+    "damping": [
+     1.5,
+     2.5
+    ],
+    "gravity": [
+     0.0,
+     0.3,
+     0.0
+    ],
+    "size": 0.025,
+    "scale": [
+     0.7,
+     1.4
+    ],
+    "size_over_life": [
+     [
+      0.0,
+      0.4
+     ],
+     [
+      0.3,
+      1.3
+     ],
+     [
+      1.0,
+      3.5
+     ]
+    ],
+    "colour": "#f4f4f2",
+    "opacity": 0.16,
+    "opacity_over_life": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.006,
+      0.0
+     ],
+     [
+      0.03,
+      1.0
+     ],
+     [
+      0.5,
+      0.45
+     ],
+     [
+      1.0,
+      0.0
+     ]
+    ],
+    "turbulence": {
+     "strength": 1.0,
+     "scale": 6.0,
+     "influence": [
+      0.04,
+      0.12
+     ]
+    },
+    "space": "world",
+    "seed": 541,
+    "from": "footage: flickr-5587696584, commons-boilingkettle, arxiv-2201.12128 (a boiling kettle's turbulent jet out of its spout (the mesh's farthest point from its middle above half its height, toward +z), clear for its first 1.5 to 4.5 cm where the steam is still too hot to condense, then white as it mixes with the room's air, rising and widening, drying away within half a metre)",
+    "card": "plain"
+   },
+   "sources": {
+    "arxiv-2201.12128": {
+     "what": "a review of whistling kettles, its figure 25a a schlieren picture of a kettle's jet by Settles (arXiv 2201.12128)",
+     "url": "https://arxiv.org/pdf/2201.12128",
+     "measured": "looked at on the photograph and measured on its pixels, against the kettle's width: the hot jet about 7 degrees either side over at least 1.7 kettle widths (the gas, not the steam one sees); no length, gap or speed in the text"
+    },
+    "commons-boilingkettle": {
+     "what": "a glass electric kettle boiling (Wikimedia Commons Boilingkettle.jpg, CC BY-SA 4.0)",
+     "url": "https://commons.wikimedia.org/wiki/File:Boilingkettle.jpg",
+     "measured": "looked at on the photograph and measured on its pixels, against the kettle's height (about 0.25 m, 1505 px): clear for about 4.5 cm, at least 9 cm of plume before the frame's edge, about 20 degrees either side"
+    },
+    "flickr-5587696584": {
+     "what": "a whistling kettle boiling on a stove (Flickr 5587696584, CC BY 2.0)",
+     "url": "https://live.staticflickr.com/5104/5587696584_3a66cf6514_b.jpg",
+     "measured": "looked at on the photograph and measured on its pixels, against the lid's knob (about 3.5 cm, 75 px): clear for about 1.5 cm at the spout, the jet at least 0.20 to 0.27 m, running off the frame, about 10 degrees either side, leaning about 37 degrees off upright"
+    }
+   },
+   "checks": [
+    {
+     "name": "kettle's jet length",
+     "measure": "length",
+     "at": 5.0,
+     "range": [
+      0.2,
+      null
+     ],
+     "from": [
+      "flickr-5587696584"
+     ]
+    },
+    {
+     "name": "kettle's clear gap at the spout",
+     "measure": "gap",
+     "at": 5.0,
+     "range": [
+      0.015,
+      0.045
+     ],
+     "from": [
+      "flickr-5587696584",
+      "commons-boilingkettle"
+     ]
+    },
+    {
+     "name": "kettle's jet half angle in its first 0.2 m",
+     "measure": "spread",
+     "at": 5.0,
+     "range": [
+      7.0,
+      20.0
+     ],
+     "from": [
+      "flickr-5587696584",
+      "commons-boilingkettle",
+      "arxiv-2201.12128"
+     ],
+     "within": 0.2
+    },
+    {
+     "name": "kettle's jet one plume, no loose blobs",
+     "measure": "loose",
+     "at": 5.0,
+     "range": [
+      0.0,
+      0.01
+     ],
+     "from": [
+      "flickr-5587696584"
+     ]
+    }
+   ],
+   "measured_for": "data/effects/habitat.json's kettle_steam, copied whole (2026-10-21)"
+  },
+  "steam_rise": {
+   "at": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "where": "the middle of the top of the box: a pot on the hob",
+   "no_light": "fog, ice and steam give off no light of their own; the place's lamps light them",
+   "emitter": {
+    "kind": "steam_rise",
+    "look": "puff",
+    "emitter": {
+     "shape": "ring",
+     "radius": 0.11,
+     "inner": 0.0,
+     "height": 0.01
+    },
+    "count": 3000,
+    "lifetime": 0.6,
+    "lives": 2,
+    "direction": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "spread": 15.0,
+    "speed": [
+     0.04,
+     0.1
+    ],
+    "gravity": [
+     0.0,
+     0.12,
+     0.0
+    ],
+    "size": 0.04,
+    "scale": [
+     0.7,
+     1.4
+    ],
+    "size_over_life": [
+     [
+      0.0,
+      0.6
+     ],
+     [
+      1.0,
+      1.6
+     ]
+    ],
+    "colour": "#f4f4f2",
+    "opacity": 0.1,
+    "opacity_over_life": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.15,
+      1.0
+     ],
+     [
+      0.5,
+      0.5
+     ],
+     [
+      1.0,
+      0.0
+     ]
+    ],
+    "turbulence": {
+     "strength": 1.0,
+     "scale": 6.0,
+     "influence": [
+      0.05,
+      0.15
+     ]
+    },
+    "space": "world",
+    "seed": 542,
+    "from": "footage: flickr-4276025236, commons-steam-asparagus (a simmering pot's steam rising slowly off its whole top (its rim 3.5 cm under the box's top, at the lid's handle) and curling as it cools, gone about 0.05 to 0.12 m over the rim at a simmer)",
+    "card": "plain"
+   },
+   "sources": {
+    "commons-steam-asparagus": {
+     "what": "a pot of asparagus steaming (Wikimedia Commons Steam-boiling_green_asparagus.jpg, CC0)",
+     "url": "https://commons.wikimedia.org/wiki/File:Steam-boiling_green_asparagus.jpg",
+     "measured": "looked at on the photograph and measured on its pixels, against the rim (about 0.18 m): faint wisps up to about half the rim's width over it, about 0.1 m"
+    },
+    "flickr-4276025236": {
+     "what": "an open pot steaming on a hob (Flickr 4276025236, CC BY 2.0)",
+     "url": "https://live.staticflickr.com/4010/4276025236_fff5abba4b_b.jpg",
+     "measured": "looked at on the photograph and measured on its pixels, against the rim (about 0.20 m, 407 px): faint wisps about 6 cm over the rim, about 0.11 m wide"
+    }
+   },
+   "checks": [
+    {
+     "name": "pot's steam height at a simmer",
+     "measure": "height",
+     "at": 5.0,
+     "range": [
+      0.05,
+      0.12
+     ],
+     "from": [
+      "flickr-4276025236",
+      "commons-steam-asparagus"
+     ]
+    },
+    {
+     "name": "pot's steam one veil, no loose blobs",
+     "measure": "loose",
+     "at": 5.0,
+     "range": [
+      0.0,
+      0.01
+     ],
+     "from": [
+      "flickr-4276025236",
+      "commons-steam-asparagus"
+     ]
+    }
+   ],
+   "measured_for": "data/effects/habitat.json's pot_steam, copied whole (2026-10-21)"
+  },
+  "humidifier_mist": {
+   "at": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "where": "the middle of the top of the box: its outlet",
+   "no_light": "fog, ice and steam give off no light of their own; the place's lamps light them",
+   "emitter": {
+    "kind": "humidifier_mist",
+    "look": "puff",
+    "emitter": {
+     "shape": "sphere",
+     "radius": 0.005
+    },
+    "count": 6000,
+    "lifetime": 3.0,
+    "lives": 2,
+    "direction": [
+     -0.0105,
+     0.9999,
+     0.0
+    ],
+    "spread": 6.0,
+    "speed": [
+     0.35,
+     0.6
+    ],
+    "gravity": [
+     0.0026,
+     -0.25,
+     -0.0
+    ],
+    "damping": [
+     0.25,
+     0.45
+    ],
+    "size": 0.06,
+    "scale": [
+     0.7,
+     1.4
+    ],
+    "size_over_life": [
+     [
+      0.0,
+      0.5
+     ],
+     [
+      0.5,
+      1.6
+     ],
+     [
+      1.0,
+      2.6
+     ]
+    ],
+    "colour": "#f2f4f5",
+    "opacity": 0.22,
+    "opacity_over_life": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.08,
+      1.0
+     ],
+     [
+      0.5,
+      0.5
+     ],
+     [
+      1.0,
+      0.0
+     ]
+    ],
+    "turbulence": {
+     "strength": 1.0,
+     "scale": 4.0,
+     "influence": [
+      0.04,
+      0.12
+     ]
+    },
+    "space": "world",
+    "seed": 531,
+    "from": "footage: commons-ultrasonic-humidifier, flickr-3929581537 (an ultrasonic humidifier's mist (droplets of 1 to 5 micrometres) blown out of its top in one column about 11 degrees either side and showing at least 0.16 m up (its exit speed and droplet size were not found in footage; the 0.35 to 0.6 m/s is this record's), too fine to fall, slowing, sinking a little as the cool wet plume is heavier than the room's air, and drying away within a metre)",
+    "card": "plain"
+   },
+   "sources": {
+    "commons-ultrasonic-humidifier": {
+     "what": "an ultrasonic humidifier at work (Vitek), public domain",
+     "url": "https://commons.wikimedia.org/wiki/File:Ultrasonic_humidifier.jpg",
+     "measured": "looked at on the photograph and measured on its pixels, against the humidifier's height (about 0.33 m, its maker's listing for the current model): the plume shows at least 0.16 m, running off the top; 9 mm wide at the nozzle and 57 mm 0.15 m up, about 11 degrees either side; one continuous column"
+    },
+    "flickr-3929581537": {
+     "what": "an ultrasonic humidifier shown in a shop (Flickr 3929581537, CC BY 2.0; measured only)",
+     "url": "https://live.staticflickr.com/2665/3929581537_59576eaa6e_b.jpg",
+     "measured": "looked at on the photograph and measured on its pixels, against a bottle cap (about 3 cm, at another depth, rough): a dense column at least 0.23 m high and 0.11 m wide, its haze spreading through the shop"
+    }
+   },
+   "checks": [
+    {
+     "name": "mist plume's height",
+     "measure": "height",
+     "at": 5.0,
+     "range": [
+      0.16,
+      null
+     ],
+     "from": [
+      "commons-ultrasonic-humidifier",
+      "flickr-3929581537"
+     ]
+    },
+    {
+     "name": "mist plume's half angle in its first 0.15 m",
+     "measure": "spread",
+     "at": 5.0,
+     "range": [
+      8.0,
+      15.0
+     ],
+     "from": [
+      "commons-ultrasonic-humidifier"
+     ],
+     "within": 0.15
+    },
+    {
+     "name": "mist one column, no loose blobs",
+     "measure": "loose",
+     "at": 5.0,
+     "range": [
+      0.0,
+      0.01
+     ],
+     "from": [
+      "commons-ultrasonic-humidifier",
+      "flickr-3929581537"
+     ]
+    }
+   ],
+   "measured_for": "data/effects/greenhouse.json's humidifier_mist, copied whole (2026-10-21)"
+  }
+ }
+}

@@ -146,14 +146,16 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
 def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
     """Editing the surface line's paint, bake and check code (place_line.py, bake_check.py, feet.py), the resting
     triage, the settle, the pick check or the completion gate leaves the paid rows that do not run them alone: the
-    finish route's views, list, split and recheck, terrain and the effects rows (each re-bought on the water tank's
-    fix, 2026-10-12, through the surfaces __init__ and complete.py); the paint, bake and check rows move."""
+    finish route's views, list, split and recheck, terrain and the paid effects look (each re-bought on the water
+    tank's fix, 2026-10-12, through the surfaces __init__ and complete.py); the paint, bake and check rows move. The
+    free effects layer is made over the scene record as the assembly writes it (layer_base.py, 2026-10-21: its
+    effects ride the design's objects), so like the motion and light rows it reads the exporter's code."""
     table = {stage.name: stage for stage in stages.STAGES}
     edited = ("score/stages/surfaces/place_line.py", "score/stages/surfaces/bake_check.py",
               "tools/props/library/feet.py", "tools/usd/triage.py", "tools/usd/settle.py", "tools/usd/picks.py",
               "tools/usd/complete.py")
     for name in ("finish-route-views", "finish-route-list", "finish-route-split", "finish-route-recheck",
-                 "terrain", "effects-layer", "effects-look"):
+                 "terrain", "effects-look"):
         before = code_after_editing(table[name], "nothing")
         for path in edited:
             assert code_after_editing(table[name], path) == before, (name, path)

@@ -30,7 +30,7 @@ EYE_HEIGHT = 1.6
 FOV = 75.0
 # The one material of data/physics/materials.json: the models carry no labelled parts yet, so each takes it.
 MATERIAL = "steel"
-NO_HINGES = ("the scene's doors move in its motion layer (score/stages/motion/design.py); the trial hangs none, "
+NO_HINGES = ("the scene's doors move in its motion layer (score/stages/motion/from_design.py); the trial hangs none, "
              "since no door of a design has its frame and pins as objects of their own")
 
 

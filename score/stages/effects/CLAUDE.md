@@ -1,8 +1,22 @@
 # score/stages/effects/
 
-The effects stage (the paper's Methods, "The canonical scene": effects; experimental, PRD #6): a place's effects record
-(`data/effects/<place>.json`) made into its OpenUSD effects layer by `tools/usd/effects.py`, which the assembly stage
-takes in place of the seed's. `__init__.py`'s docstring has the make and the gates; `look.py` the paid look.
+The effects stage (the paper's Methods, "The canonical scene": effects; experimental, PRD #6): a scene's effects made
+from its design and made into its OpenUSD effects layer by `tools/usd/effects.py`, which the assembly stage takes in
+place of the seed's. `__init__.py`'s docstring has the make and the gates; `from_design.py` the record made from the
+design; `look.py` the paid look.
+
+- **Made from the design, never a record written for a scene** (the owner, 2026-10-21: "the modules are not
+  agnostic"). Every object of a scene inventory row whose kind emits (CONTEXT.md "row kind", `../row_kinds.py`,
+  `data/checks/row-kinds.json`) carries each effect its kind emits from the library of measured effects
+  (`data/checks/effects.json`: the emitter, where it stands on its object's own box, why it gives no light, its footage
+  sources and checks), found on the stage by its name (`<row>_<n>`) over the seed with the accepted scene record
+  (`../layer_base.py`). The record is written into the output (`record.json`) and the gates read it there; `designed`
+  fails an emitter on no inventory row's object and a row that emits with no object on the stage. A new effect is a
+  new kind in `data/checks/effects.json` measured on footage and named by a row kind, never an entry for one scene. A
+  per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never typed by hand.
+- **The old records** (`data/effects/<place>.json`, written for the old concepts) are no input of this stage; the
+  completion gate's contents check, the review's renders and the launch's look still read them until their own
+  owners move.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
@@ -23,11 +37,11 @@ takes in place of the seed's. `__init__.py`'s docstring has the make and the gat
 - **The light is part of the effect.** A record's `lights` ride their prim like an emitter; `light` measures what the
   flame gives the pad against the place's own lamps, and the look's `lit` measures it in the pictures. A record whose
   effects light nothing (steam, fog, ice) says so in `no_light`, or `light` is unknown.
-- **Only `STAGED` places have the row** (the launch, its accepted smoke without venting, the owner's call of 2026-10-14; the pump-downs, mist and
-  steam of the airlock, garage, hangar, greenhouse and habitat; the flat's cigarette smoke;
-  the camp's and its grounds' Mars drift and dust devils), and `look.LOOKED` the paid look (the launch only) until the
-  owner has seen the launch's stills. Other places keep their seed's effects layer; a place gets the row only when
-  its record passes every gate, so a record waiting on a moving thing (wheel dust, a ship's exhaust) is not staged.
+- **Only scenes whose design shows a row that emits have the row** (the table's `designed("effects")`), and `look.LOOKED` the paid
+  look (the launch only, and only while its effects row applies) until the owner has seen the launch's stills.
+  Today's measured kinds are steam off a kettle and a hob and a humidifier's mist; the old records' pump-down fog,
+  vacuum vents, Mars drift, dust devils, cigarette smoke and the launch's flame were tied to the game's cycles and
+  places and wait to become kinds of their own.
 - **Indoors stays indoors.** A record lists its `interiors` (upright cylinders, `[]` for none) whenever an emitter
   stands under the open sky; the bake lets no particle of such an emitter be inside one, and `outside` measures it
   off the composed stage for a minute (a devil wanders). A record where nothing rides or follows a prim says why
@@ -40,4 +54,6 @@ takes in place of the seed's. `__init__.py`'s docstring has the make and the gat
   `effects` branch's stage (be73bb0: other checks, `timed` and `seen`), which a new output cannot be compared with. Its
   records for the airlock, garage, hangar, greenhouse and habitat are ported into this schema (2026-10-12) and the
   branch is gone.
-- `effects_test.py` runs the make and the gates on the launch's own record and seed, and breaks each gate once.
+- `effects_test.py` makes a small kitchen stage itself, makes its effects from its design (the stove's and the
+  kettle's steam at their measured spots), passes every gate, fails `designed` on a row with no object and leaves a
+  scene with nothing that emits out.

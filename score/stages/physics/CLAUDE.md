@@ -25,7 +25,7 @@ rented machine.
   written into the output (`record.json`) and the trial reads it there; the gate `designed` fails a body that is no
   object of an inventory row. Doors move in the motion layer, so the trial hangs no hinge and says why (`no_hinges`).
   A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never typed by hand.
-- Only scenes whose kept inventory has a loose row have the rows (`row_kinds.designed`). The rows read the place's
+- Only scenes whose design shows a loose row have the rows (the table's `designed("physics")`, `../design_layers.py`). The rows read the place's
   accepted assembly on its current key: they wait until the place's line has landed it. Run with
   `python -m score run world1 --place habitat --stage physics-trial --detach`, only when `python -m score.stages status
   habitat` shows `assembly@habitat` accepted (else `--stage` drives the place's surface line).
