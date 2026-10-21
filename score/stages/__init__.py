@@ -38,6 +38,7 @@ import score.stages.demo_film.stills as demo_stills
 import score.stages.demo_film.final as demo_film_final
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
+from score.stages.assembly import scene_tree
 import score.stages.motion.models as motion_models
 import score.stages.motion.models.boxes as model_boxes
 import score.stages.props.prop_data as prop_data
@@ -103,6 +104,24 @@ NEIGHBOURS = graph.Stage("neighbours", "place", neighbours.make, contracts.OPENU
                          files=neighbours.files, after={"assembly": ("openusd-stage", 1)},
                          beside={"assembly": ("openusd-stage", 1)}, neighbours=neighbours.neighbours,
                          applies=neighbours.applies)
+
+
+def held_scenes(place):
+    """The child scenes the place's plan lays out that are scenes of the batch (`places`), each read beside as its own
+    tree; one in design is no scene of the batch, and the tree's gate names it. Here in the table, as it lists the
+    environment's places."""
+    children = scene_tree.held(place)
+    batch = set(places(world1())) if children else set()
+    return [child for child in children if child in batch]
+
+
+# A parent scene holds its child scenes (CONTEXT.md "parent scene"; the paper's promise: each scene within its parent
+# scene, each its own layer stack): each scene's accepted assembly with every child scene its plan lays out referenced
+# at its hold, each child read beside as its own tree (downward: a child's tree before its parent's), so opening a
+# top scene opens the whole tree. Free, local; the library row reads it, so a scene is complete once its tree stands.
+SCENE_TREE = graph.Stage("scene-tree", "place", scene_tree.make, contracts.OPENUSD_STAGE, scene_tree.CHECKS,
+                         files=scene_tree.files, after={"assembly": ("openusd-stage", 1)},
+                         beside={"scene-tree": ("openusd-stage", 1)}, downward=True, neighbours=held_scenes)
 # The completion gate on what the place holds (tools/usd/complete.py's checks, contents.py's among them), on its
 # neighbours output where it shows other places, with its paint's check and its models' likeness to their close-ups.
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
@@ -484,6 +503,7 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
 
 
 STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
+          SCENE_TREE,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS, ENVIRONMENT_FILM,
           GROUND_FIT, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
@@ -966,7 +986,7 @@ STAGES = (*STAGES, *library.rows(STAGES, REPO / "data"))
 STAGES = (*STAGES, library_clips.STAGE, library_clips.SAMPLE_STAGE)
 # A place's own rows, which apply to every place, kept off a line of models no place owns (the people's, #41:
 # shapes_first.no_place): it has no stage to assemble, complete or hand over, only the shared loop's rows.
-PLACE_ONLY = ("assembly", "complete", "library", "library-clips")
+PLACE_ONLY = ("assembly", "scene-tree", "complete", "library", "library-clips")
 
 
 def placed(applies):
@@ -989,11 +1009,12 @@ def world1():
 
 def places(world, store=None):
     """An environment's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
-    none for an environment without data, the images environment) and each scene the creator added in the app whose
-    design is done (added_by_him), less every scene he took out: those places/within.json names `merged` into another
-    (navigation into the cockpit, the owner 2026-10-21), and those his kept plans in `store` (the framework's by
-    default) no longer lay out, removed or merged into a shared room on the plan above (plans.removed, the cockpit's
-    own reading), so the build follows the app without a hand edit."""
+    none for an environment without data, the images environment) and each scene the creator added in the app or that
+    holds others (a parent scene with no data of its own, the Moon base) whose design is done (added_by_him), less every
+    scene he took out: those places/within.json names `merged` into another (navigation into the cockpit, the owner
+    2026-10-21), and those his kept plans in `store` (the framework's by default) no longer lay out, removed or merged
+    into a shared room on the plan above (plans.removed, the cockpit's own reading), so the build follows the app
+    without a hand edit. In the scene tree's order (parent_first): each parent scene before its child scenes."""
     if "data" not in world.roots:
         return []
     data = pathlib.Path(world.roots["data"])
@@ -1003,7 +1024,22 @@ def places(world, store=None):
     filed = {path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")}
     store = (store or Store.default()) if within else None
     gone = {*found.get("merged", {}), *(removed_by_him(store, within) if within else ())}
-    return sorted((filed | set(added_by_him(store, within, filed) if within else ())) - gone)
+    kept = (filed | set(added_by_him(store, within, filed) if within else ())) - gone
+    return parent_first(kept, laid_out(store, within) if within else {})
+
+
+def parent_first(found, within):
+    """The places of `found` in the scene tree's order (`within`: {scene: the scene holding it}): each parent scene
+    before the scenes it holds, depth first, siblings and top scenes by name."""
+    def path(place, seen=()):
+        above = within.get(place)
+        return (place,) if above is None or above in seen else (*path(above, (*seen, place)), place)
+    return sorted(found, key=path)
+
+
+def laid_out(store, within):
+    """{scene: the scene holding it} as his kept plans lay them out now (plans.overlaid), asked once a moment."""
+    return plans.once("laid out", store, tuple(sorted(within.items())), lambda: plans.overlaid(store, within))
 
 
 def removed_by_him(store, within):
@@ -1013,11 +1049,14 @@ def removed_by_him(store, within):
 
 
 def added_by_him(store, within, filed):
-    """The scenes his kept plans lay out with nothing of theirs `filed` in the data (a child scene he added on a plan in
-    the app) whose design is done (plans.design_done); one still in design is no place yet: the cockpit shows it as a
-    scene in design and no row of the batch reads it."""
-    return plans.once("added", store, (tuple(sorted(within.items())), tuple(sorted(filed))), lambda: sorted(
-        place for place in plans.overlaid(store, within) if place not in filed and plans.design_done(store, place)))
+    """The scenes of the tree his kept plans lay out with nothing of theirs `filed` in the data (a child scene he added
+    on a plan in the app, or a parent scene holding others, the Moon base) whose design is done (plans.design_done);
+    one still in design is no place yet: the cockpit shows it as a scene in design and no row of the batch reads it."""
+    def found():
+        tree = laid_out(store, within)
+        return sorted(place for place in {*tree, *tree.values()}
+                      if place not in filed and plans.design_done(store, place))
+    return plans.once("added", store, (tuple(sorted(within.items())), tuple(sorted(filed))), found)
 
 
 WORLDS = {"world1": world1, "images": images.image_world}

@@ -486,6 +486,18 @@ is meant to fix, where it is marked, and what proves it.
   do not stand is not complete, so the hub's failing assembly stops every place that shows the hub). Proven when the
   square's and the
   flat's views show the launch with its effects.
+- **The scene tree** (`score/stages/assembly/scene_tree.py`, 2026-10-21). The paper promises each scene within its
+  parent scene, yet nothing built a parent scene holding its children: only neighbours and plans. `scene-tree@<scene>`
+  (free, local) copies the scene's accepted assembly and each child scene's own tree (read beside, the stage itself one
+  scale down: `Stage.downward`, so the drive makes a child's tree before its parent's), and writes one layer of its
+  own, `layers/scenes.usda`: `/<scene>/Scenes/<child>` referencing the child's root at the transform that lays the
+  child's plan outline on its hold of the scene's plan (the plan the plan stage reads: the kept one, else the data's;
+  middle on middle, floor on floor, each plan's frame in its own scene). Opening a top scene opens the whole tree, each
+  child its own layer stack. Gated on `child scenes` (every child the plan lays out, and every child read, stands at its
+  hold, resolves, has children and is its hold's size). A parent scene with no data of its own (the Moon base) is a
+  place of the batch once its design is done, and the batch lists each parent scene before its children
+  (`stages.places`). The library row reads it, so a scene is complete only once its tree stands. Proven when the
+  Moon base's tree opens with every module and the ship's rooms at their spots.
 - **The physics stage** (F11, the paper's "responsive"; `score/stages/physics`, `tools/usd/physics.py`). The stage
   carried a convex hull per object and no mass or material, so nothing in it could react. `physics-layer@<place>`
   (free) writes the place's physics in OpenUSD's own schema (UsdPhysics: collision by each mesh's triangles, mass from

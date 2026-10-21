@@ -190,6 +190,10 @@ class Stage:
     upward: its `beside` reads go up to the outside shells that hold this place (an inside place reads its outside shell's
     split, CONTEXT.md "shapes first"), never back down, so a loop through them in the table is the same route one scale
     down: the table's loop check leaves those reads out, and `neighbours` must refuse a place that holds itself.
+    downward: its `beside` reads go down to the child scenes this place holds (a parent scene's tree reads each child
+    scene's own tree, CONTEXT.md "parent scene"), never back up, so its beside reads may name the stage itself: the
+    table's loop check leaves them out as it does an upward stage's, and `neighbours` must refuse a place that holds
+    itself or a scene above it, the drive making each child's node before its parent's.
     selects: its make takes the runner's object filter (`score run --object`, Runner.objects): the node's params
     gain `objects`, the sorted names it keeps, so a filtered output has a key of its own and its make handles only
     those objects of its place; while its files function runs, `selected()` gives those names, so another object's
@@ -217,6 +221,7 @@ class Stage:
     optional: tuple = ()
     gapped: tuple = ()
     upward: bool = False
+    downward: bool = False
     selects: bool = False
     euros_from: str = field(default=None, init=False, compare=False)
 
@@ -504,7 +509,8 @@ class Runner:
         loop has no node cycle: after is in one place, and a beside read is another place's node of a stage that
         never reads back to this one (the assembly reads the claiming place's bake beside it; neighbours reads the
         assembly beside it). An upward stage's beside reads are left out: they go up to the place holding this one,
-        so its loop is the route one scale down, never a node cycle (`Stage.upward`)."""
+        so its loop is the route one scale down, never a node cycle (`Stage.upward`); a downward stage's too: they go
+        down to the scenes this one holds (`Stage.downward`)."""
         found, todo = set(), list(self.read_stages(self.stages[name]))
         while todo:
             before = todo.pop()
@@ -515,8 +521,9 @@ class Runner:
 
     @staticmethod
     def read_stages(stage):
-        """The stages one stage reads that can close a loop: its after, and its beside unless it is upward."""
-        return [*stage.after, *(() if stage.upward else stage.beside)]
+        """The stages one stage reads that can close a loop: its after, and its beside unless it is upward or
+        downward."""
+        return [*stage.after, *(() if stage.upward or stage.downward else stage.beside)]
 
     @contextlib.contextmanager
     def still(self):
