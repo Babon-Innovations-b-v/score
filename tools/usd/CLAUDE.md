@@ -112,7 +112,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   slope touched along its downhill edge and tipped by 0.8 m, 2026-10-15); level ground and decks read as before.
 - `colliders.py` is what the stage collides with (UsdPhysics, static only; mass is the physics stage's): the scene
   record's structure and ground (`solid`: an exact box, `boundingCube`, for a mesh that is one closed box square to
-  its frame, else `meshSimplification`; water never), a made model's convex hull guide (`hull`), a world model file's
+  its frame, else `meshSimplification`; water never, nor a structure entry of `plain` sky: the Earth over the Moon), a made model's convex hull guide (`hull`), a world model file's
   drawn meshes each by a hull round itself (`hull_of`: no extra prim, so the readers of Fixtures' meshes are
   unchanged). `faults` is the assembly's free `collision` gate. `colliders_test.py` checks it.
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,

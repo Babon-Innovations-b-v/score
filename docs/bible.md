@@ -393,7 +393,7 @@ is meant to fix, where it is marked, and what proves it.
   letting the seed's stand in. The neighbours stage reads the record the assembly built from (`scene.json` beside the
   stage). Its free `collision` gate (`tools/usd/colliders.py`, 2026-10-21) fails every wall, floor, stair or ground
   without UsdPhysics collision and every model without a collider of its own: the scene record's structure and ground
-  collide (an exact box for a box square to the place, else its triangles simplified), a made model by its convex
+  collide (an exact box for a box square to the place, else its triangles simplified; a body in the sky, `plain` sky, never), a made model by its convex
   hull guide, a world model file's fixture by a hull round each mesh; all static, mass and interaction being the
   physics stage's (the paper's named gap). Proven when every place's assembly passes `layers` and complete passes on
   it.

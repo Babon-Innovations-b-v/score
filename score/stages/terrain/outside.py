@@ -142,7 +142,7 @@ def write_mesh(stage, path, points, triangles, kind):
     used = points[np.unique(triangles)] if len(triangles) else points[:1]
     mesh.CreateExtentAttr([Gf.Vec3f(*used.min(axis=0).tolist()), Gf.Vec3f(*used.max(axis=0).tolist())])
     mesh.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)
-    if kind in colliders.SOLID_KINDS:
+    if colliders.is_solid(kind):
         colliders.solid(mesh.GetPrim(), points, triangles)
     return mesh
 
