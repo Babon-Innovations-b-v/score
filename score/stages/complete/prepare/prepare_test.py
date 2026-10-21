@@ -350,6 +350,8 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
         bought = [take for take in record["takes"] if take["status"] == "bought"]
         assert all(sha[:8] in take["take"] for take in bought)  # a re-pick names new takes: their keys move
         models = sorted(take["take"] for take in bought if take["route"] in groups.MODEL_ROUTES)
+        person = estimate.take_stages(route, next(take for take in bought if take["route"] == "people"))
+        assert "people-body" in person and "motion" not in person, person  # its body after the model, not rigid motion
         assert price.design_takes("pixal@wreck") == models and price.design_takes("sound@wreck") is None
         assert sorted(surface_data.takes("wreck")) == models  # a shell piece's too: the bake bakes what is listed
         for stage, layer in record["layers"].items():  # every layer prepare priced, the runner's node priced the same
