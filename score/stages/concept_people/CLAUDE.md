@@ -12,7 +12,7 @@ own runner (`python -m score.stages.concept_people run`), cleared by the runner 
 - **Its own table, and environment 1's.** It reads the concepts, not a place's stage; it is also an environment node of
   `score.stages.STAGES` (2026-10-12) so the cast stage reads its accepted count like any earlier node. Its key reads
   only the inventories' plan views (`views_text`), not their rows.
-- **A designed place's view is its picked concept** (`designed_views`, keyed by the inventory its cast reads). A
+- **A designed place's view is its locked concept** (`designed_views`, keyed by the inventory its cast reads). A
   view picture not there (the old disk's, of a place with no design) is not read (`LOST`): that place's cast answers
   unknown, and every other place is measured.
 - **What reads it.** A place whose concept shows people needs a cast (data/characters/<place>.json); the count and

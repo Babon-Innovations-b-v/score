@@ -88,12 +88,12 @@ def tone_of(row):
 
 # What a place shows while its scene inventory does not count (screens.design_state), and its hover text.
 DESIGN_WORDS = {"draw": ("to draw", "no concept yet: draw it"),
-                "review": ("in review", "its concept is not picked: no scene inventory before it is"),
-                "read": ("inventory to read", "picked; its scene inventory is not read from this concept yet"),
-                "plan": ("plan to make", "its scene inventory is read from its picked concept (its concept page); "
+                "review": ("in review", "its concept is not locked: no scene inventory before it is"),
+                "read": ("inventory to read", "locked; its scene inventory is not read from this concept yet"),
+                "plan": ("plan to make", "its scene inventory is read from its locked concept (its concept page); "
                                          "its plan is not made from it yet"),
                 "check": ("gaps to check", "its scene inventory is read; its gaps are not checked from it yet"),
-                "design": ("in design", "no scene in it has a scene inventory read from its picked concept yet")}
+                "design": ("in design", "no scene in it has a scene inventory read from its locked concept yet")}
 
 
 def place_tiles(world, names, rows):

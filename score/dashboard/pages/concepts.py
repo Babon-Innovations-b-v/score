@@ -405,9 +405,9 @@ def concept_pick(request, place):
     checked_node(world, source, place)
     body = body_of(request)
     if not is_owner(request.user):
-        return JsonResponse({"detail": "only the owner picks"}, status=403)
+        return JsonResponse({"detail": "only the owner locks"}, status=403)
     if body is None:
-        return JsonResponse({"detail": "refused: not a pick"}, status=422)
+        return JsonResponse({"detail": "refused: not a lock"}, status=422)
     sha = body.get("sha") or None
     if sha and sha not in {draw.picture.sha for draw in draws_of(world, place)}:
         return JsonResponse({"detail": "refused: that is no draw of this scene"}, status=422)

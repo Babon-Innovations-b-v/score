@@ -5,7 +5,7 @@
   <div class="topbar-num" title="spent this month: {{ money.cloud_label }}{% if money.cloud is not None %} EUR {{ money.cloud|floatformat:2 }}{% endif %}, {{ money.models_label }}{% if money.models is not None %} EUR {{ money.models|floatformat:2 }}{% endif %}{% if money.missing %}; not read: {{ money.missing }}{% endif %}">
     <div class="num-label">spent</div>
     <div class="num-value" data-v>{% if money.spent is None %}<span class="unknown" title="{{ money.missing }}">unknown</span>{% else %}{% if not money.whole %}<small>&ge;</small> {% endif %}<small>EUR</small> {{ money.spent|floatformat:2 }}{% endif %}</div>
-    {% if readings is not None %}<div class="num-sub" title="every scene inventory reading so far: read on its own after a pick" data-v><small>inventories EUR</small> {{ readings|floatformat:2 }}</div>{% endif %}
+    {% if readings is not None %}<div class="num-sub" title="every scene inventory reading so far: read on its own after a lock" data-v><small>inventories EUR</small> {{ readings|floatformat:2 }}</div>{% endif %}
     {% if plan_spend is not None %}<div class="num-sub" title="every plan written so far: written on its own after a reading" data-v><small>plans EUR</small> {{ plan_spend|floatformat:2 }}</div>{% endif %}
   </div>
   {% if not remake.approved and remake.estimate %}<div class="topbar-num" title="estimate from the scene inventories of {{ remake.estimate.places }} scenes: every model once through the prop route, measured likely to high; the scenes' own steps not in it">
@@ -28,7 +28,7 @@
     <h1 class="phead-name" data-v>{{ head.name }}</h1>
     <div class="ptile-foot">{% if head.design %}{% include "pages/c/steps.html" with steps=head.steps done=head.steps_done tip=head.steps_tip|add:": "|add:head.design_tip %}{% else %}{% include "pages/c/ring.html" with done=head.made total=head.needed tip=head.made_tip %}
       <span class="ptile-gaps" title="{% if head.gaps is None %}gaps not checked{% else %}{{ head.gaps }} gap{{ head.gaps|pluralize }}{% endif %}"><svg class="gap-icon tone-{{ head.tone|default:'idle' }}" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 15 14.5H1z"/><path class="gap-mark" d="M8 6v4.2M8 11.8v.4"/></svg><b data-v>{% if head.gaps is None %}?{% else %}{{ head.gaps }}{% endif %}</b></span>{% endif %}</div>
-    <div class="phead-actions">{% if head.review %}<a class="button primary" href="{{ head.review }}" title="mark what to change and draw it again; pick it to lock it" data-v>{% if head.picture %}Review{% else %}Draw{% endif %}</a>{% endif %}{% if head.plan %}<a class="button{% if not head.review %} primary{% endif %}" href="{{ head.plan }}" title="its plan: move, resize, note" data-v>Plan</a>{% endif %}{% if head.href %}<a class="button" href="{{ head.href }}" data-v>Open</a>{% endif %}</div>
+    <div class="phead-actions">{% if head.review %}<a class="button primary" href="{{ head.review }}" title="mark what to change and draw it again; lock it when it is right" data-v>{% if head.picture %}Review{% else %}Draw{% endif %}</a>{% endif %}{% if head.plan %}<a class="button{% if not head.review %} primary{% endif %}" href="{{ head.plan }}" title="its plan: move, resize, note" data-v>Plan</a>{% endif %}{% if head.href %}<a class="button" href="{{ head.href }}" data-v>Open</a>{% endif %}</div>
   </div>
 </section>{% endif %}
 <section class="ptiles" aria-label="scenes">

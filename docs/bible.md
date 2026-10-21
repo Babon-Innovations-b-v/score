@@ -75,7 +75,7 @@ the current backend). No model runs on the coordinating machine.
   `tools/cloud/runtime/store.py`, a folder at `$PROPS_HOME/store`) keeping outputs by content hash, never
   overwritten; gates (`score/checks`) that answer pass, fail or unknown, unknown on missing evidence, and block on
   both; a review page per output (`score/review`). The framework decides, not a typed yes (the owner's answers of
-  2026-10-11: his picks are made, from concept and style on everything runs automatically, no spend limit, spend
+  2026-10-11: his locks are made, from concept and style on everything runs automatically, no spend limit, spend
   logically). The runner accepts an output by itself when every gate passed and no score got worse than the accepted
   one, its accept marked as the runner's; it clears a paid run when every gate on its inputs passed (unknown blocks)
   the month's books are known and its batch's stop (the stop line, or a benchmark grant) has room for its forecast,
@@ -173,13 +173,13 @@ the place's own: rows made only there stay missing (the completion gate's rows c
 sync pass writes them after the library sweep. The boxes stay out of the accepted assembly: putting them inside would
 move assembly's, complete's and every later paid row's key.
 
-**The design** (CONTEXT.md "design", "plan review"; owner, 2026-10-21): per layer, concept, pick, scene inventory,
-plan. The pick is the approval; the inventory and then the plan are made from it with no further yes. The plan
+**The design** (CONTEXT.md "design", "plan review"; owner, 2026-10-21): per layer, concept, lock, scene inventory,
+plan. The lock is the approval; the inventory and then the plan are made from it with no further yes. The plan
 (`score/review/plans.py`) starts from data: the place's `data/plans` record (shell, frame, doors, leads), its
 outline from the layer above's plan, its inventory rows, keep-clear zones before its doors, and for a place holding
 others the inside places it lays out (`holds`: name, the holder's row it stands in, box). Then it is written
 (`score/review/plan_writing.py`, owner 2026-10-21: "how we did that before was way better and reliable"): one Gemini
-3.1 Pro call writes it in metres element by element, as the hand plans of environment 1 were, from the picked concept,
+3.1 Pro call writes it in metres element by element, as the hand plans of environment 1 were, from the locked concept,
 the inventory's rows and metres (their SAM 3 boxes only an order hint, never projected: a perspective painting's boxes
 laid top down put the street in a thin bar), the layer above's plan and its inside places, in the stage table's
 schema plus its architecture (outline, walls with thickness, openings with swing, levels, stairs, roofs, terrain spot
@@ -215,7 +215,7 @@ fixed sky (owner 2026-10-21): what each site sees overhead at its scene time is 
 data the engine runs live. No branch names a world. A plan made under another version of the environment concept
 is out of date; the game 2099's ground plans are read only for the layout of a site's parts. An inside place's blockout is its own
 shell inside its holder's, its siblings' shells round it, so rooms fit together from the blockouts alone. A draw made
-without the blockout that can be built now is out of date; picked places keep their picks and are named.
+without the blockout that can be built now is out of date; locked places stay locked and are named.
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
@@ -247,7 +247,7 @@ from the hull's plan is the loop's first run.
 
 **One outdoor place, end to end** (the wreck is the worked example; commands in the README):
 
-1. The place's record: its picked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
+1. The place's record: its locked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
    with its size and spots), each kind's turn and allowed materials in `data/library/details.json`, and one close-up
    per generated row. Recorded inputs live in the work folder (`PROPS_WORK`), not in git (the pictures are large).
    The close-ups come from the close-up stage (`tools/props/closeup/stage.py`): Qwen-Image-Edit-2511 draws every

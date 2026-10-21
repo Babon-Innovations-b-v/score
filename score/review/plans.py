@@ -763,7 +763,7 @@ def edited(store, place, plan, by, how="edited", calls=None, asked=None):
     the record. `asked`: {words, at} of his request when an agent makes the edit he asked for in a session."""
     base = (made_plan(store, place) or {}).get("plan")
     if base is None:
-        raise Refused(f"{place}'s scene inventory is not read from its picked concept: no plan yet")
+        raise Refused(f"{place}'s scene inventory is not read from its locked concept: no plan yet")
     plan = checked_plan(plan, base)
     if "shapes" in base:  # a written plan: its free checks run again on his edit
         from score.review import plan_checks

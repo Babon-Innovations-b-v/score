@@ -8,7 +8,7 @@ its refusal (CONTEXT.md "screen take"). `preview/` (store's machine only, never 
 free preview end to end (`python -m score.dashboard film-preview <film> [--export DIR]`, `make.py`'s docstring): the
 takes recorded in headless Chromium on a hosted-mode cockpit of its own over a state export, signed in as the owner by
 the proxy header (`recorder.mjs`), the setting animation and scale zoom drawn by `scene.js` from `scenes.py` (the
-setting's physics through `score/review/overhead.py`, the environment plan's sites and blocks, the picked concepts,
+setting's physics through `score/review/overhead.py`, the environment plan's sites and blocks, the locked concepts,
 colours from library surfaces), the other cuts through the FILM page's own player, joined by ffmpeg on the script's
 clock with its library sound bed; out to `$SCORE_DASHBOARD_HOME/films/previews/<film>.mp4|.json`, which the FILM page
 plays (`/film-preview/<film>.mp4`, api/routes.py, with ranges) and the export carries (`films/`).

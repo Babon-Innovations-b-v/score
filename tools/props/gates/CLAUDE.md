@@ -29,7 +29,7 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   it on every installed kit layout (`data/kit/*.json`), so a layout restored from an older round must carry its
   `doorways` (the hub's: `hub_kit.joined_doorways()`, the joined airlock's wall at 330 degrees).
 - `density.py` (the owner, 2026-10-08, on the lab: "lost a massive amount of detail"): the inventory's
-  `concept_elements` list every element the picked concept shows, crop by crop, each a row (or a part of one) or
+  `concept_elements` list every element the locked concept shows, crop by crop, each a row (or a part of one) or
   dropped with a reason; the kit layout must lay each row as often as the concept shows it. Run before any spend; the
   built room is then drawn from the concept's own camera beside the concept on the place's page.
 - `names.py` (the coordinator, 2026-10-08: the camp's rod lamp baked as `pendant_lamp` overwrote the workshop's

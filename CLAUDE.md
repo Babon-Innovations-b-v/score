@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-SCORE: an environment synthesis framework that turns a creator's picks into a complete, owned, editable environment (coding agents and open models in cloud batches, checks before every paid step), and its paper. Public repository, MIT. Owner: `@JoeyKardolus`.
+SCORE: an environment synthesis framework that turns what a creator locks into a complete, owned, editable environment (coding agents and open models in cloud batches, checks before every paid step), and its paper. Public repository, MIT. Owner: `@JoeyKardolus`.
 
 ## Persona
 
@@ -99,8 +99,8 @@ Nothing is deployed. A push to `main` publishes the source, the paper's PDF and 
 - Never ship unverified claims (measured numbers, benchmark figures, compatibility assertions).
 - Costs of a few cents (a bucket download, a small read) need no approval; say them in the report after (owner, 2026-10-19). Paid runs, machines, model calls and basket checkouts still wait for his yes.
 - **Benchmarks up to €20 a batch may be approved in a Claude Code session** (owner, 2026-10-20, answered to the session's question "Confirm this standing rule: in a Claude Code session, I may ask you to approve a benchmark batch of at most €20 ... It covers benchmarks only; anything else and anything over €20 still needs your cockpit click" with "Yes, set this rule"). The session asks him with its question tool; his yes is recorded (his answer, time, amount, purpose) as the grant for that one benchmark batch, which the money guards accept for that batch only. Everything else, and anything over €20, still needs his click in the creator cockpit.
-- **Design edits the owner asks for in a session may be made by the agent** (owner, 2026-10-21): renaming, merging, adding or removing child scenes, moving and resizing things on a plan, editing an inventory row, when he asks for it in chat; each is recorded as his edit with his words quoted and the time, like a benchmark grant. Picks, accepts, rejects, waivers and spend stay his own clicks.
-- **Scene inventory readings and plan writing are allowed without asking** (owner, 2026-10-21): reading a picked concept into its scene inventory (the Gemini rows and the SAM 3 boxes) and writing its plan (one Gemini call) run on their own after a pick, with no separate yes; every call's cost is recorded and the running total stays visible in the creator cockpit.
+- **Design edits the owner asks for in a session may be made by the agent** (owner, 2026-10-21): renaming, merging, adding or removing child scenes, moving and resizing things on a plan, editing an inventory row, when he asks for it in chat; each is recorded as his edit with his words quoted and the time, like a benchmark grant. Concept locks, accepts, rejects, waivers and spend stay his own clicks.
+- **Scene inventory readings and plan writing are allowed without asking** (owner, 2026-10-21): reading a locked concept into its scene inventory (the Gemini rows and the SAM 3 boxes) and writing its plan (one Gemini call) run on their own after a lock, with no separate yes; every call's cost is recorded and the running total stays visible in the creator cockpit.
 - **Quality is never a cost lever** (owner, 2026-10-20): no lower model settings, resolutions, samples or cheaper models for anything that ships. Savings come only from waste (idle machines, set-up, retries, repeated calls, remaking what the library holds, wrong card classes, unbatched calls); cheaper settings only for checks and previews that never ship and do not change what the check decides.
 
 ## Verification

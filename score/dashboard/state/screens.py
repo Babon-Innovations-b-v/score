@@ -76,7 +76,7 @@ def design_state(world, place):
     return "review" if world.concepts.get(place) else "draw"  # a concept shown: none while lost or out of date
 
 
-DESIGN_STEPS = ("concept picked", "inventory read", "plan made")
+DESIGN_STEPS = ("concept locked", "inventory read", "plan made")
 
 
 def design_steps(world, node):

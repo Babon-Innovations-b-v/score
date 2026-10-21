@@ -270,7 +270,7 @@ def handed_over(store, place, run=subprocess.run):
 def recorded(store, key, record):
     """Write a draw's or a pick's record once; PermissionError in an agent's process on the framework's store."""
     if store.is_framework_store() and running_under_agent():
-        raise PermissionError(f"{key}: only the owner draws or picks a concept, from his own cockpit; an agent's "
+        raise PermissionError(f"{key}: only the owner draws or locks a concept, from his own cockpit; an agent's "
                               "process cannot write it")
     store.write_once(key, record)
 
@@ -599,13 +599,13 @@ def step_refusal(store, place, step):
     if place in tree()["parts"]:
         return f"is part of the {tree()['parts'][place][0]}'s concept, with none of its own"
     if step == "read":
-        return None if picked(store, place) else "its concept is not picked"
+        return None if picked(store, place) else "its concept is not locked"
     if step == "plan":
         return None if reading.reading_of(store, place) else "its scene inventory is not read"
     if environment().unlocked(store):
         return "waits for the environment concept to be locked"
     if holder and not picked(store, holder):
-        return f"waits for {holder}'s concept to be picked"
+        return f"waits for {holder}'s concept to be locked"
     if holder and not reading.reading_of(store, holder):
         return f"waits for {holder}'s scene inventory to be read"
     if holder and not plan_made(store, holder):
@@ -945,7 +945,7 @@ def checked_marks(marks, on=None):
         checked = {"x": box[0], "y": box[1], "w": box[2], "h": box[3], "note": str(mark.get("note", ""))[:500]}
         if on is not None:
             if mark.get("on") not in on:
-                raise Refused(f"{mark.get('on')!r} is no picked concept this place was drawn on")
+                raise Refused(f"{mark.get('on')!r} is no locked concept this place was drawn on")
             checked["on"] = mark["on"]
         found.append(checked)
     return found
