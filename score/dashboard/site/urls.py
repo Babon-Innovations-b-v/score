@@ -30,6 +30,7 @@ urlpatterns = [
     path("concepts/draw-all/", concepts.concept_draw_all),
     path("concept/<slug:place>/", concepts.concept_page),
     path("concept/<slug:place>/draw/", concepts.concept_draw),
+    path("concept/<slug:place>/discuss/", concepts.concept_discuss),
     path("concept/<slug:place>/pick/", concepts.concept_pick),
     path("concept/<slug:place>/generated/", concepts.concept_generated),
     path("concept/<slug:place>/state/", concepts.concept_state),

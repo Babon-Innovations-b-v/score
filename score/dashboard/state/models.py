@@ -205,6 +205,11 @@ class WorldState(BaseModel):
     concept_picked: dict[str, str] = {}
     concept_draw_euros: float | None = None
     concept_redraw_euros: float | None = None  # a Redraw with notes: its prompt correction and its draw
+    # Discuss's (score/review/discuss.py): {place: its discussion entries oldest first, each {base, question, answer,
+    # at, by, euros}}, the euros of one Discuss (None: not measured) and what every one cost, measured, in sum.
+    concept_discussions: dict[str, list[dict]] = {}
+    concept_discuss_euros: float | None = None
+    discuss_spend: float | None = None
     plan_changed: list[str] = []  # places whose pick, else every draw, is on another room than the plan above gives now
     concept_undrawn: list[str] = []  # the places and shells with no draw yet whose first draw can be made now
     concept_unready: dict[str, str] = {}  # {place or shell with no draw yet: why its first draw cannot be made now}

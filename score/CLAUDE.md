@@ -98,6 +98,9 @@ stage as each stage is built; nothing moves before.
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock. `concepts.py` is the concept
   review's (CONTEXT.md): a place's concept draws, each one direct Nano Banana Pro call inside the owner's yes his cockpit
   click wrote (`web.concept_draw`), and his locks, kept in the store under `concepts/` (written only in the owner's process);
+  `discuss.py` his Discuss of a shown draw (CONTEXT.md "discussion"): one Gemini 3.1 Pro call inside his click's yes
+  (`web.concept_discuss`) sent what a redraw would with the discussion so far, its measured cost kept with the answer
+  under `concepts/<place>/discussions/`; `concepts.redrawn` sends the open discussion to the prompt rewrite;
   `environment_concept.py` is the environment concept's (CONTEXT.md): its versions (style line, physics, references,
   places with what each may hold) and the set interview's asks, written only in the owner's process; environment 1's
   is today's data until he keeps one; the locked one is what every draw reads, and a draw or lock made under another

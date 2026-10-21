@@ -95,7 +95,7 @@ def environment(request):
         "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
         "kind": kind and {"kind": kind, "label": cockpit.KIND_WORDS[kind][0], "tone": cockpit.KIND_TONES[kind]},
         "head": head, "tiles": tiles, "draw_all": concepts.draw_all(world), "drawing": concepts.drawing(), "readings": world.inventory_spend,
-        "plan_spend": world.plan_spend,
+        "plan_spend": world.plan_spend, "discuss_spend": world.discuss_spend,
         "up": {"href": f"/environments/{world.world}/", "title": title_of(world.world)},
         "owner": is_owner(request.user) and actions.decisions_on()})
 
@@ -118,7 +118,8 @@ def stats(request):
         "measured": cockpit.measured_prices(world.gaps_price), "share": cockpit.measured_share(
             screens.batch(world, records.items(basket_items.basket_root()))),
         "kinds": cockpit.gaps_by_kind(world.gaps_total if found["rows"] else None), "complete": complete, "of": of,
-        "readings": world.inventory_spend, "plan_spend": world.plan_spend})
+        "readings": world.inventory_spend, "plan_spend": world.plan_spend,
+        "discuss_spend": world.discuss_spend})
 
 
 def buy(request):

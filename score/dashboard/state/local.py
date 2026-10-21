@@ -38,6 +38,7 @@ GAPS_PRICE = "gaps-price"  # every gap's chain priced: checks/gaps-price/<world>
 PER_UNIT = "data/costs/per-unit.json"  # the measured per-unit prices a gaps price record is made on
 TIMED = ("accepts/", "rejects/")  # store areas whose keys carry their time: an accept or reject moves what stands
 REMAKE = "prepare/remake.json"  # prepare's one-shot figure of the remake (score/stages/complete/prepare)
+DISCUSSED = ("base", "question", "answer", "at", "by", "euros")  # a discussion entry's fields the pages show
 GAPS_WORLD = "world"  # the gaps check's pseudo-place of the environment's own nodes' lost inputs (gaps/__main__)
 
 
@@ -593,8 +594,9 @@ class LocalSource:
         """{concept_draws, concept_picked, concept_draw_euros, concept_undrawn, concept_unready, concept_wordings,
         inventories} of the concept review (score/review/concepts.py): each place's draws whose bytes stand in the
         store's blobs, oldest first, its picked draw's sha, the places and shells with no draw yet that Draw all draws
-        now, why the others wait, and each place's scene inventory with the concept it was read from."""
-        from score.review import concepts, plans
+        now, why the others wait, and each place's scene inventory with the concept it was read from; each place's
+        Discuss entries, a Discuss's price and what every one cost."""
+        from score.review import concepts, discuss, plans
         with plans.one_moment():  # each plan made once (the Draw all page asks it alone)
             draws, picked = {}, {}
             for node in concepts.placed(self.store):
@@ -615,12 +617,21 @@ class LocalSource:
             ready, waiting = concepts.undrawn(self.store, nodes)
             return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
                     "concept_redraw_euros": concepts.redraw_euros(),
+                    "concept_discussions": self.discussions(), "concept_discuss_euros": discuss.price(),
+                    "discuss_spend": discuss.spent(self.store, concepts.placed(self.store)),
                     "concept_undrawn": ready, "concept_unready": waiting,
                     "plan_changed": [node for node in nodes if node in draws
                                      and concepts.plan_changed(self.store, node)],
                     "concept_wordings": {node: self.concept_wording(node) for node in nodes},
                     "inventories": {place: read for place, read in reads.items() if read},
                     **self.inventory_readings(concepts.placed(self.store))}
+
+    def discussions(self):
+        """{place: [{base, question, answer, at, by, euros}]} of every Discuss kept (score/review/discuss.py)."""
+        from score.review import concepts, discuss
+        found = {node: discuss.discussions(self.store, node) for node in concepts.placed(self.store)}
+        return {node: [{name: entry[name] for name in DISCUSSED} for entry in entries]
+                for node, entries in found.items() if entries}
 
     def inventory_readings(self, places):
         """{inventory_readings, inventory_spend} (score/review/reading.py): each place's reading of its picked draw

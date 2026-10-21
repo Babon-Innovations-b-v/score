@@ -509,6 +509,11 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .concept-notes li { display: flex; gap: 6px; align-items: center; }
 .concept-notes b { flex: none; min-width: 24px; text-align: center; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); }
 .concept-notes input { flex: 1; min-width: 0; }
+.concept-thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; }
+.concept-thread li { border-left: 2px solid var(--line); padding-left: 8px; font-size: var(--fs-sm); }
+.concept-thread b { display: block; font-weight: 600; }
+.concept-thread p { margin: 2px 0 0; color: var(--soft); white-space: pre-wrap; }
+.concept-thread li.closed { opacity: 0.5; }
 .concept-drop { flex: none; padding: 2px 8px; }
 .concept-actions { display: flex; gap: 10px; align-items: center; }
 .concept-wording textarea { width: 100%; box-sizing: border-box; font: inherit; line-height: 1.45; }
