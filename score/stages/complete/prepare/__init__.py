@@ -34,6 +34,6 @@ The record (`WORK/checks/prepare/remake.json` by default):
      "predicted_gaps_if_bought": {likely_euros, high_euros}, "input_gaps_if_bought": {likely_euros, high_euros},
      "moved": {"rows": [{node, euros, why, again}]} or {"not_run": why},
      "benchmarks": {"listed": [...], "guard": {total_euros, high_euros, cap_euros, refusal}},
-     "design": {"places": {place: {concept, plan, output, hint}}, "approved": [place]},   (design.py)
+     "design": {"places": {place: {concept, inventory, plan, output, waits, hint}}, "approved": [place]},   (design.py)
      "not_in_figure": [what the figure leaves out], "line"}
 """

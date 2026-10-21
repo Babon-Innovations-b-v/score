@@ -62,8 +62,12 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   gap. Never start the batch from an agent.
 - **Design before the batch** (owner, 2026-10-20, CONTEXT.md "design"; `design.py`): each place's concept
   (missing, drawn, picked: the stored state of a lock), inventory (None before the lock, made when `data/inventory/<place>.json` was read from the
-  locked draw, else to read; CONTEXT.md "scene inventory") and plan (remake while the inventory is not made, else
-  approved), read from the store (the concept review's draws and locks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
+  locked draw, else to read; CONTEXT.md "scene inventory") and plan (approved only once the design stands whole on
+  its lock, `design.waits`: its draw not on a room the plan above has since moved, `concepts.plan_changed`; its
+  reading current, `reading.reading_of`; its plan written by today's method or edited after that reading,
+  `plans.design_done`; a plan row's plan@<place> accepted after the lock, `plans.made`; else remake with `waits`
+  saying why, so the Buy lists it as waiting; a `parts` place of within.json on its pick and inventory alone until
+  the owner decides), read from the store (the concept review's draws and locks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
   never judged. The lock is the approval (owner, 2026-10-21): its inventory and then its plan are made from it
   automatically (`score/review/plans.py`; the plan page is for inspecting and fixing, his edits redoing what follows). The cockpit's batch buys only approved places' steps. The old plans'
   `concept.pick` is a hint for drawing, not a constraint.

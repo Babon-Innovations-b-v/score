@@ -8,9 +8,13 @@ nothing here draws, makes or accepts.
               standing, its time the `picked` date, else that entry's `picked` date)
     inventory None while the concept is not picked, `made` (its data/inventory/<place>.json read from the picked draw:
               its `concept_pick.sha256`) or `to read` (none, or one from an older concept, which counts for nothing)
-    plan      `remake` (while the inventory is not made) or `approved` (the owner, 2026-10-21: picking the concept is
-              the approval; its inventory and then its plan are made from the pick automatically, the plan page,
-              score/review/plans.py, for inspecting and fixing it); `output` the plan row's accepted output, else None
+    plan      `approved` once the design stands whole on its lock (`waits`), else `remake` (the owner, 2026-10-21:
+              picking the concept is the approval; its inventory and then its plan are made from the pick
+              automatically, the plan page, score/review/plans.py, for inspecting and fixing it); `output` the plan
+              row's accepted output, else None
+    waits     None once approved, else why the place is still in design, so the Buy lists it as waiting; a part of
+              another place (data/places/within.json `parts`, the owner's decision pending) is approved on its pick
+              and inventory alone, as before
     hint      the old plan's recorded pick (data/plans/<place>.json `concept.pick`): a hint for drawing, not a constraint
 """
 import json
@@ -23,14 +27,42 @@ def concept_state(entry):
     return "picked" if entry.get("picked") else "drawn"
 
 
-def plan_state(store, place, picked):
-    """{plan, output} of the place's plan: remake or approved (module docstring), and the plan row's accepted output
-    (None while it has none); `picked` the date the creator picked its concept, or None while its inventory is not
-    read from the pick."""
+def waits(store, place):
+    """Why a place whose concept is locked and inventory made is still in design, None once its design stands whole:
+    its picked draw drawn on the room the plan above gives it now (concepts.plan_changed), its scene inventory read
+    from the lock by today's method (reading.reading_of), its plan written by today's method or edited by him
+    (plans.design_done) after that reading, and, for a place with a plan row, plan@<place> accepted after the lock
+    (plans.made)."""
+    from score.review import concepts, plan_writing, plans, reading
+    if concepts.plan_changed(store, place):
+        return "room moved since its draw"
+    if not reading.reading_of(store, place):
+        return "inventory not read from its lock by today's method"
+    if not plans.design_done(store, place):
+        return "plan not written by today's method"
+    if plans.current(store, place)["at"] < plan_writing.reading_at(store, place):
+        return "plan made before its inventory was read again"
+    if plans.has_row(place) and not plans.made(store, place):
+        return "plan row not accepted"
+    return None
+
+
+def plan_state(store, place, picked, part=False):
+    """{plan, output, waits} of the place's plan (module docstring): approved or remake, the plan row's accepted
+    output (None while it has none) and why it is still in design (None once approved); `picked` the date the
+    creator picked its concept, or None while its inventory is not read from the pick; `part` a part of another
+    place, approved on its pick and inventory alone."""
     if not picked:
-        return {"plan": "remake", "output": None}
+        return {"plan": "remake", "output": None, "waits": "concept not locked, or its inventory not read from it"}
+    why = None if part else waits(store, place)
     accept = store.current_accept(f"plan@{place}")
-    return {"plan": "approved", "output": accept["output"] if accept else None}
+    return {"plan": "remake" if why else "approved", "output": accept["output"] if accept else None, "waits": why}
+
+
+def parts(data):
+    """The places that are parts of another place's outside (data/places/within.json `parts`)."""
+    path = data / "places" / "within.json"
+    return set(json.loads(path.read_text()).get("parts", {})) if path.is_file() else set()
 
 
 def hint(data, place):
@@ -65,15 +97,18 @@ def inventory_state(store, data, place, entry):
 
 
 def designs(store, data, places):
-    """{places: {place: {concept, inventory, plan, output, hint}}, approved} of every place (module docstring)."""
+    """{places: {place: {concept, inventory, plan, output, waits, hint}}, approved} of every place (module
+    docstring)."""
     path = data / "places" / "concepts.json"
     concepts = json.loads(path.read_text()).get("concepts", {}) if path.is_file() else {}
+    within_parts = parts(data)
     entries = {place: registered(store, concepts, place) for place in places}
     inventories = {place: inventory_state(store, data, place, entries[place]) for place in places}
     # A plan read from an inventory that does not count is no plan of this design: it is made again.
     found = {place: {"concept": concept_state(entries[place]), "inventory": inventories[place],
                      **plan_state(store, place, (entries[place] or {}).get("picked")
-                                  if inventories[place] == "made" else None), "hint": hint(data, place)}
+                                  if inventories[place] == "made" else None, place in within_parts),
+                     "hint": hint(data, place)}
              for place in places}
     return {"places": found,
             "approved": sorted(place for place, design in found.items() if design["plan"] == "approved")}

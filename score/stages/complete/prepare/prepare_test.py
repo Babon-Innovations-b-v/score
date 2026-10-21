@@ -402,7 +402,95 @@ def test_a_concept_review_draw_is_drawn_and_its_pick_picked_until_unlocked():
     assert design.designs(store, data, ["a"])["places"]["a"]["inventory"] is None
 
 
-def test_a_design_is_approved_once_its_pick_has_its_inventory_and_so_its_plan():
+class Locked:
+    """A test store of one locked place per name, with the accepts of the plan rows given ({node: accept}): the
+    store's own records, its accepts handed in so the test writes no owner record."""
+    SHA = "f" * 64
+
+    def __init__(self, accepts=None):
+        from score.store import Store
+        self.store = Store.in_folder(tempfile.mkdtemp())
+        self.accepts = accepts or {}
+        self.store.current_accept = self.accepts.get
+
+    def locked(self, place, room=None):
+        """`place` drawn (on `room` of the plan above when given) and locked on that draw."""
+        from score.review import concepts
+        self.store.write_once(f"concepts/{place}/draws/1.json", {"place": place, "sha": self.SHA, "at": "2026-10-21T09:00",
+                                                                 **({"room": room} if room else {})})
+        concepts.pick(self.store, place, self.SHA, "joey")
+        return concepts.records(self.store, place, "picks")[-1]["at"]
+
+    def read(self, place, at, method=None):
+        """A reading of `place`'s lock made at `at` (by today's reading METHOD unless `method`)."""
+        from score.review import reading
+        self.store.write_once(f"inventory-readings/{place}/{at}.json", {
+            "place": place, "concept": self.SHA, "at": at, "by": "runner", "method": method or reading.METHOD,
+            "inventory": {"rows": []}})
+
+    def written(self, place, at, reading_at, method=None):
+        """A plan of `place` written at `at` from its reading made at `reading_at` (today's METHOD unless `method`)."""
+        from score.review import plan_writing
+        self.store.write_once(f"plan-writings/{place}/{at}.json", {
+            "place": place, "concept": self.SHA, "reading": reading_at, "at": at, "by": "runner",
+            "method": method or plan_writing.METHOD, "plan": {"w": 4, "d": 3, "items": []}})
+
+    def edited(self, place, at):
+        """His edit of `place`'s plan made at `at` on its lock."""
+        self.store.write_once(f"plans/{place}/edits/{at}.json", {
+            "place": place, "plan": {"w": 4, "d": 3, "items": []}, "concept": self.SHA, "by": "joey", "at": at, "how": "edited"})
+
+
+def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_waits_with_why():
+    from score.review import plans
+    data = pathlib.Path(tempfile.mkdtemp())
+    for folder in ("places", "plans", "inventory"):
+        (data / folder).mkdir()
+    (data / "places" / "within.json").write_text(json.dumps({
+        "within": {}, "shells": {}, "parts": {"part": {"of": "whole", "as": "in the distance"}}}))
+    for place in ("rowed", "rowed_old"):  # places with a plan row: their plan says where their doors lead
+        (data / "plans" / f"{place}.json").write_text(json.dumps({"leads": {}}))
+    was = plans.DATA  # where plan rows, within.json and inventory files are read
+    plans.DATA = data
+    try:
+        made = Locked()
+        for place in ("done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again",
+                      "rowed", "rowed_old", "part"):
+            made.locked(place, room="the room it had" if place == "moved" else None)
+            if place != "unread":
+                made.read(place, "2026-10-21T10:00", method=-1 if place == "old_reading" else None)
+        # read by an older method only: its data/inventory file, read from the lock, still makes its inventory
+        (data / "inventory" / "old_reading.json").write_text(json.dumps({"concept_pick": {"sha256": Locked.SHA},
+                                                                        "rows": []}))
+        for place in ("done", "moved", "rowed", "rowed_old"):
+            made.written(place, "2026-10-21T11:00", "2026-10-21T10:00")
+        made.written("old_method", "2026-10-21T11:00", "2026-10-21T10:00", method=-1)
+        made.edited("edited", "2026-10-21T11:00")
+        made.edited("read_again", "2026-10-21T09:30")  # his edit on the lock, made before the reading in force
+        made.accepts.update({"plan@rowed": {"output": "p" * 64, "at": "2099-01-01T00:00"},  # after the lock
+                             "plan@rowed_old": {"output": "p" * 64, "at": "2026-10-20T10:00"}})  # before it
+        places = sorted(["done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again",
+                         "rowed", "rowed_old", "part", "never"])
+        found = design.designs(made.store, data, places)
+    finally:
+        plans.DATA = was
+    why = {place: row["waits"] for place, row in found["places"].items()}
+    assert why == {
+        "done": None, "edited": None, "rowed": None,
+        "moved": "room moved since its draw",
+        "unread": "concept not locked, or its inventory not read from it",
+        "old_reading": "inventory not read from its lock by today's method",
+        "derived": "plan not written by today's method", "old_method": "plan not written by today's method",
+        "read_again": "plan made before its inventory was read again",
+        "rowed_old": "plan row not accepted",
+        "part": None,  # a part of another place: approved on its pick and inventory alone (the owner's call pending)
+        "never": "concept not locked, or its inventory not read from it"}, why
+    assert found["approved"] == ["done", "edited", "part", "rowed"], found["approved"]
+    assert {place for place, row in found["places"].items() if row["plan"] == "approved"} == set(found["approved"])
+    assert found["places"]["rowed"]["output"] == "p" * 64
+
+
+def test_a_registered_pick_with_its_inventory_file_is_made_but_waits_on_its_reading_and_plan():
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "places").mkdir()
     (data / "places" / "concepts.json").write_text(json.dumps({"concepts": {
@@ -420,11 +508,12 @@ def test_a_design_is_approved_once_its_pick_has_its_inventory_and_so_its_plan():
                      "plan@f": {**plan, "by": "joey", "at": "2026-10-21T10:00"}})  # read from an older inventory
     found = design.designs(store, data, ["a", "b", "c", "d", "e", "f"])
     states = {place: (row["concept"], row["inventory"], row["plan"]) for place, row in found["places"].items()}
-    # the pick is the approval (owner, 2026-10-21): its inventory and plan made from it, the design stands approved
-    assert states == {"a": ("picked", "made", "approved"), "b": ("picked", "made", "approved"),
-                      "c": ("picked", "made", "approved"), "d": ("drawn", None, "remake"),
+    # its inventory file read from the pick makes its inventory, yet no reading of the lock: still in design
+    assert states == {"a": ("picked", "made", "remake"), "b": ("picked", "made", "remake"),
+                      "c": ("picked", "made", "remake"), "d": ("drawn", None, "remake"),
                       "e": ("missing", None, "remake"), "f": ("picked", "to read", "remake")}, states
-    assert found["approved"] == ["a", "b", "c"] and found["places"]["b"]["output"] == "p" * 64
+    assert found["places"]["a"]["waits"] == "inventory not read from its lock by today's method"
+    assert found["approved"] == [] and found["places"]["b"]["output"] == "p" * 64
     assert found["places"]["d"]["output"] is None and found["places"]["e"]["hint"] is None
 
 
