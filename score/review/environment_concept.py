@@ -324,12 +324,15 @@ def interview_question(topic, answer, concept):
             f"far, as JSON:\n{json.dumps(concept, indent=1)}\n\nQuestion: {question_of(topic)}\nHis answer: {answer}\n\n"
             f"Answer with JSON only, no other words: {{\"{field}\": {shape}}}, the whole updated {field} with his "
             f"answer worked in, keeping what he did not change. Short plain words."
+            + (" Keep every site's latitude and longitude to the digit as given unless he moves it; never put two "
+               "sites on one spot." if field == "setting" else "")
             + (f" The real bodies: {', '.join(sorted(settings.reference()['bodies']))}." if field == "setting"
                else ""))
 
 
-def proposed_from(text, topic):
-    """{field: value} the model answered for the topic, checked; Refused when it is no such JSON."""
+def proposed_from(text, topic, concept=None):
+    """{field: value} the model answered for the topic, checked (a setting's sites it put on one spot that `concept`'s
+    had apart kept where they were: setting.kept_apart); Refused when it is no such JSON."""
     field = FIELDS[topic]
     body = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     try:
@@ -339,6 +342,8 @@ def proposed_from(text, topic):
     if not isinstance(found, dict) or field not in found:
         raise Refused(f"the model answered no {field}")
     value = settings.proposed(found[field]) if field == "setting" and isinstance(found[field], dict) else found[field]
+    if field == "setting" and isinstance(value, dict):
+        value = settings.kept_apart(value, (concept or {}).get("setting"))
     return {field: checked({field: value})[field]}
 
 
@@ -361,7 +366,7 @@ def ask(store, world, request, by, reviser=None):
     question = interview_question(topic, answer, concept)
     text = (reviser or concepts.revise)(question, reference_paths(concept))
     record = {"world": world, "topic": topic, "question": question_of(topic), "answer": answer,
-              "proposed": proposed_from(text, topic), "euros": yes["euros"], "yes": yes["key"], "by": by,
+              "proposed": proposed_from(text, topic, concept), "euros": yes["euros"], "yes": yes["key"], "by": by,
               "at": concepts.now()}
     concepts.recorded(store, f"{AREA}/{world}/asks/{stamp_key(record['at'])}.json", record)
     return record

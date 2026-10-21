@@ -136,3 +136,15 @@ def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_n
     assert environment_plan.current(store)["how"] == "written" and record["plan"]["gaps"] == []
     bad = environment_plan.write(store, "the allowance", ask=lambda body: ({"candidates": []}, 1.0), clear=clear)
     assert bad["refused"] and environment_plan.current(store)["how"] == "written"
+
+
+def test_no_two_sites_on_one_body_share_a_spot_unless_the_setting_puts_them_there(store):
+    plan = environment_plan.derived(store)
+    for world in plan["maps"]:
+        assert all(found["metres"] >= environment_plan.SAME_SPOT for found in world["distances"]), world["on"]
+    assert not any("one spot" in gap for gap in plan["gaps"])
+    setting = environment_concept.setting_of(store)
+    stacked = [{**site, "latitude": 55.0, "longitude": 0.0} if site["place"] == "old_station" else site
+               for site in setting["sites"]]
+    kept_setting(store, {**setting, "sites": stacked})  # the creator's own setting: kept, and named as a gap
+    assert "Old station and Base stand on one spot of Moon" in environment_plan.derived(store)["gaps"]
