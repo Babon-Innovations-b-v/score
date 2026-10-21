@@ -4,8 +4,8 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
 
     make     every source the place names (data/sound/places.json: its room tones, what the suit lets through, its
              `objects` and its `voices`, each on a person of its cast; its inventory rows' `sound`; its motions'
-             `sounds`; the sounds data/sound/moving.json gives its moving things and its silent motions, timed off their
-             moves (moving.py); every surface's footstep, impact and scrape in data/sound/surfaces.json) answered by
+             `sounds`; the sounds data/sound/moving.json gives its moving things and its silent motions by each one's
+             row kind and move, timed off their moves (moving.py); every surface's footstep, impact and scrape in data/sound/surfaces.json) answered by
              one sound: the world's file of a sound already picked (a MOSS take, a file tools/sound/made.py makes, or
              a recording the owner chose over the takes), else one MOSS take of its brief (its first prompt, seed 1)
              made in the moss image on a rented card (PAID, takes.py), brought to its category's loudness and judged
@@ -31,7 +31,9 @@ import sys
 from score import checks, contracts
 from score.stages import batch_gaps
 from score.stages.sound import gates
+from score.stages import row_kinds
 from score.stages.sound import moving
+from score.stages.sound import needs
 from score.stages.sound import takes as moss_takes
 from score.stages.sound.gates import FREESOUND, RECORD, read_json
 
@@ -74,6 +76,7 @@ def files(place):
     if (REPO / f"data/motion/rigid/{place}.json").exists():
         found["moves"] = "{data}/motion/rigid/{place}.json"
     found["moving sounds"] = "{data}/sound/moving.json"
+    found["row kinds"] = "{data}/checks/row-kinds.json"
     if (REPO / f"data/characters/{place}.json").exists():
         found["cast"] = "{data}/characters/{place}.json"
     return found
@@ -106,15 +109,17 @@ def uses_of(place, inputs):
 
 
 def moving_uses(inputs):
-    """The sounds of the place's moving things that play none of their own (data/sound/moving.json): its silent game
-    motions' and its moving things'."""
+    """The sounds of the place's moving things that play none of their own (data/sound/moving.json, by each one's row
+    kind and move): one set for each event of its silent game motions and its moving things (needs.events)."""
     if "moving sounds" not in inputs:
         return []
-    table = read_json(inputs["moving sounds"])
+    table, kinds = read_json(inputs["moving sounds"]), row_kinds.table(inputs["row kinds"])
+    rows = read_json(inputs["inventory"]).get("rows", []) if "inventory" in inputs else []
     moves = read_json(inputs["moves"]) if "moves" in inputs else {}
-    uses = moving.motion_uses(read_json(inputs["motion"]).get("motions", []), table, moves.get("renamed", {})) \
-        if "motion" in inputs else []
-    return uses + moving.move_uses(moves.get("moves", []), table)
+    motions = read_json(inputs["motion"]).get("motions", []) if "motion" in inputs else []
+    renamed = moves.get("renamed", {})
+    return [found for event in needs.events(motions, moves.get("moves", []), renamed)
+            for found in moving.event_uses(event, rows, kinds, table, renamed)]
 
 
 def bank_uses(surfaces):

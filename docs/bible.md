@@ -500,8 +500,8 @@ is meant to fix, where it is marked, and what proves it.
 - **The sound stage** (`score/stages/sound`, its overlay). For a sound layer no one had reviewed, carried from the
   game's table, with the camp silent, the launch with no loop, the square with no PA or speech, and no car, rover or
   ship heard. `sound@<place>` answers every source the place names (room tones, the suit, objects, inventory rows,
-  motions, the surface bank, and the sounds `data/sound/moving.json` gives moving things and silent motions, timed off
-  their moves) with a sound: the environment's picked file, or MOSS takes of its brief made in the moss image on
+  motions, the surface bank, and the sounds `data/sound/moving.json` gives moving things and silent motions by
+  their row kind and move, never a name, timed off their moves) with a sound: the environment's picked file, or MOSS takes of its brief made in the moss image on
   one rented card (paid), chosen by the picker's rule; gated on `sources`, `level` (loudness and length, measured),
   `likeness` (CLAP to its prompt at least 0.30, the tenth percentile of the environment's MOSS picks) and `no freesound`
   (the owner's 2026-10-06 recordings excepted, and, by his decision of 2026-10-20, a CC0 recording with its row in

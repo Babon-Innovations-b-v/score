@@ -234,17 +234,15 @@ def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again(
 
 def test_moving_things_sound_off_their_own_moves():
     """A hatch's latch plays as it starts to open (the lab's; the hub's stand shut, so make no sound) and its bolts as it is shut tight (its swing's angle over its speed
-    later), in the stage's seconds; the garage's big doors, silent in the game's record, start and stop in their own
-    round, at each leaf's own object, in its round's seconds; the rover's drive loops over its drive; the ship
-    rooms hear their own machines; and moving.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
+    later), in the stage's seconds, once for the leaf, wheel and window moving as one; the rover's drive loops over its
+    drive; the ship rooms hear their own machines; and moving.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
     lab = sound.uses_of("lab", inputs_for("lab", None))
     hatch = [(use["sound"], use["at"]) for use in lab if use["on"] == "/lab/Objects/hatch_leaf_1"]
     assert hatch == [("hatch_open", 4.0), ("airlock_hatch_seal_clunk", 18.0)], hatch
+    assert not [use for use in lab if "wheel" in str(use["on"]) or "window" in str(use["on"])], "the wheel and window ride the leaf"
     hub = sound.uses_of("hub", inputs_for("hub", None))
     assert not [use for use in hub if "hatch" in str(use.get("on"))], "the hub's hatches stand shut, so stay silent"
     garage = sound.uses_of("garage", inputs_for("garage", None))
-    door = sorted((use["sound"], use["at"]) for use in garage if use["on"] == "/garage/Objects/big_door_leaf_1")
-    assert door == [("lift_start", 1.0), ("lift_start", 5.0), ("lift_stop", 2.04), ("lift_stop", 6.04)], door
     drive = [(use["at"], use["loops_until"]) for use in garage if use["sound"] == "rover_motor"]
     assert drive == [(1.0, 7.5)], drive
     sys.path.insert(0, str(REPO / "tools/usd"))
@@ -258,6 +256,37 @@ def test_moving_things_sound_off_their_own_moves():
                            if use["role"] in ("room", "object"))
              for place in ("cockpit", "galley", "engineroom", "quarters")}
     assert len({tuple(found) for found in rooms.values()}) == len(rooms), rooms
+
+
+def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():
+    """A place written here, its names unlike any place's: a gate row (a door) sliding in a game motion plays the
+    library's door slide in its round's seconds; a cart row (a vehicle) on a path plays its drive; a thing whose record
+    names only its motion kind (a hatch) swings as a door; a boom row, no kind, plays nothing and is a gap with its
+    work. The same table answers any place."""
+    from score.stages import row_kinds
+    from score.stages.sound import moving, needs
+    kinds, table = row_kinds.table(REPO / "data/checks/row-kinds.json"), read("moving")
+    rows = [{"id": "yard_gate", "noun": "gate"}, {"id": "cart", "noun": "cart"}, {"id": "boom", "noun": "boom"}]
+    motions = [{"name": "west_entry", "prim": "/toy/Objects/yard_gate_1", "start": 0.0, "length": 10.0, "loop": True,
+                "slide": {"by": [2.0, 0.0, 0.0], "speed": 1.0, "moves": [[1.0, "open"], [5.0, "shut"]]}, "sounds": []}]
+    moves = [{"name": "loop_a", "prim": "/toy/Objects/cart_1", "start": 2.0, "length": 8.0, "loop": False,
+              "path": {"points": [[0, 0, 0], [5, 0, 0]]}},
+             {"name": "porthole", "prim": "/toy/Objects/porthole_1", "kind": "hatch", "start": 0.0, "length": 20.0,
+              "loop": False, "swing": {"angle": 90.0, "speed": 30.0, "moves": [[4.0, "open"], [12.0, "shut"]]}},
+             {"name": "spray_run", "prim": "/toy/Objects/boom_1", "start": 0.0, "length": 8.0, "loop": False,
+              "slide": {"by": [0.0, 0.0, 4.0], "speed": 0.5, "moves": [[0.0, "open"]]}}]
+    found = {event["name"]: [(use["sound"], use["on"], use["at"], use["loops_until"])
+                             for use in moving.event_uses(event, rows, kinds, table, {})]
+             for event in needs.events(motions, moves, {})}
+    assert found["west_entry"] == [("door_slide_open", "/toy/Objects/yard_gate_1", 1.0, None),
+                                   ("door_slide_close", "/toy/Objects/yard_gate_1", 5.0, None)], found
+    assert found["loop_a"] == [("rover_motor", "/toy/Objects/cart_1", 2.0, 10.0),
+                               ("rover_wheels_gravel", "/toy/Objects/cart_1", 2.0, 10.0)], found
+    assert found["porthole"] == [("hatch_open", "/toy/Objects/porthole_1", 4.0, None),
+                                 ("airlock_hatch_seal_clunk", "/toy/Objects/porthole_1", 15.0, None)], found
+    assert found["spray_run"] == [], found
+    assert needs.event_sounds(needs.events([], moves[2:], {})[0], rows, kinds, table) == []
+    assert "data/checks/row-kinds.json" in needs.WORK["event"], needs.WORK
 
 
 def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
