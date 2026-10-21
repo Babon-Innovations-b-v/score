@@ -13,9 +13,7 @@ anything is rented. Paths are absolute or start from ~ (the creator's own pictur
      "look": {...},                             tools/characters/people/person.py's settings (scale, colours, ...)
      "route": "prop"}                           the prop route (prop_person.py), every person's since the shipped
                                                 chain was retired (2026-10-21); it also takes "outfit_words"
-                                                ({outfit: the outfit by its parts, in words}),
-                                                "pose_picture" (someone standing in the bind pose, a last reference
-                                                the close-up takes the pose from) and "closeup_seeds"
+                                                ({outfit: the outfit by its parts, in words})
 
 An animal's spec is the animal route's (tools/characters/animals/): "kind": "animal" and its "body". Every make must
 say who asked for it in "approved": the maker makes only characters somebody asked for.
@@ -68,9 +66,3 @@ def person_problems(spec):
                  if outfit not in spec.get("outfit_words", {})]
     return problems
 
-
-def inputs_of(spec):
-    """Every file of this machine the spec names, by the name it carries up there."""
-    named = {"picture": spec.get("picture"), "head": spec.get("head")}
-    named.update({f"reference_{number}": path for number, path in enumerate(spec.get("references", []))})
-    return {name: pathlib.Path(path).expanduser() for name, path in named.items() if path}

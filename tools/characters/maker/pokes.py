@@ -11,7 +11,7 @@ read from the built glTF as the engine skins it (people/joins.py's reader). Meas
   bent wrist read out where the nearest face was the hand's own; by the nearest garment point's averaged normal, a
   collar's rim read a tuck under it as 2 cm out. Per clip the worst frame and how many frames have a point over POKE_MM.
 - cloth_crossings: how many garment edges pass through a garment triangle they share no corner with
-  (drape_measure.self_crossings, the garment parts welded where their borders meet), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
+  (self_crossings, the garment parts welded where their borders meet), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
   default): cloth gone through cloth. A Pixal3D surface may cross itself at rest; a frame is counted as poking where
   it crosses more than the rest does.
 - rigid_stretch: each hard part's own edges (boots, belt, buckle, helmet, pack: role "hard", its tuck left out) at
@@ -33,12 +33,12 @@ import sys
 
 import numpy as np
 import trimesh
+from scipy.spatial import cKDTree
 
 MAKER = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(MAKER))
 sys.path.insert(0, str(MAKER.parent / "people"))
 
-import drape_measure  # noqa: E402
 import joins  # noqa: E402
 
 POKE_MM = 5.0
@@ -97,11 +97,67 @@ def weld_map(points):
 
 
 def crossings(points, faces, welded):
-    """drape_measure.self_crossings on the garment welded by `welded` (weld_map of its rest points)."""
+    """self_crossings on the garment welded by `welded` (weld_map of its rest points)."""
     count = int(welded.max()) + 1
     places = np.zeros((count, 3))
     places[welded] = points
-    return drape_measure.self_crossings(places, welded[faces])
+    return self_crossings(places, welded[faces])
+
+
+def crossing_pairs(points, faces, edges, edge_index, face_index):
+    """Of candidate (edge, triangle) pairs sharing no corner, the edges that pass through their triangle
+    (Moller-Trumbore with the segment's own length)."""
+    apart = ~(faces[face_index] == edges[edge_index, :1]).any(axis=1) & \
+        ~(faces[face_index] == edges[edge_index, 1:]).any(axis=1)
+    edge_index, face_index = edge_index[apart], face_index[apart]
+    start, direction = points[edges[edge_index, 0]], points[edges[edge_index, 1]] - points[edges[edge_index, 0]]
+    first, second, third = (points[faces[face_index, corner]] for corner in range(3))
+    side_one, side_two = second - first, third - first
+    across = np.cross(direction, side_two)
+    determinant = np.einsum("ij,ij->i", side_one, across)
+    usable = np.abs(determinant) > 1e-12
+    inverse = np.where(usable, 1.0 / np.where(usable, determinant, 1.0), 0.0)
+    offset = start - first
+    along_one = np.einsum("ij,ij->i", offset, across) * inverse
+    turned = np.cross(offset, side_one)
+    along_two = np.einsum("ij,ij->i", direction, turned) * inverse
+    along_edge = np.einsum("ij,ij->i", side_two, turned) * inverse
+    hit = usable & (along_one >= 0) & (along_two >= 0) & (along_one + along_two <= 1) & (along_edge >= 0) & \
+        (along_edge <= 1)
+    return edge_index[hit]
+
+
+def self_crossings(points, faces, chunk=4096):
+    """How many cloth edges pass through a cloth triangle they share no corner with: cloth gone through cloth, which
+    GarmentCode's Warp drapes keep at 0. A triangle can only be crossed by an edge whose middle lies within the
+    triangle's radius plus half the edge's length of its centre; candidates are found that way, a chunk of edges at a
+    time."""
+    edges = np.unique(np.sort(faces[:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2), axis=1), axis=0)
+    return edge_crossings(points, faces, edges, chunk)
+
+
+def edge_crossings(points, faces, edges, chunk=4096):
+    """How many of `edges` pass through a triangle of `faces` they share no corner with (self_crossings' search, for
+    any edges)."""
+    corners = points[faces]
+    centres = corners.mean(axis=1)
+    radii = np.linalg.norm(corners - centres[:, None], axis=2).max(axis=1)
+    middles = 0.5 * (points[edges[:, 0]] + points[edges[:, 1]])
+    halves = 0.5 * np.linalg.norm(points[edges[:, 0]] - points[edges[:, 1]], axis=1)
+    crossed = []
+    for size in np.unique(np.ceil(np.log2(np.maximum(radii, 1e-9)))):
+        group = np.flatnonzero(np.ceil(np.log2(np.maximum(radii, 1e-9))) == size)
+        group_tree = cKDTree(centres[group])
+        for begin in range(0, len(edges), chunk):
+            rows = np.arange(begin, min(begin + chunk, len(edges)))
+            near = group_tree.query_ball_point(middles[rows], halves[rows] + 2.0 ** size)
+            counts = [len(found) for found in near]
+            if not sum(counts):
+                continue
+            edge_index = np.repeat(rows, counts)
+            face_index = group[np.concatenate([np.asarray(found, dtype=np.int64) for found in near])]
+            crossed.append(crossing_pairs(points, faces, edges, edge_index, face_index))
+    return int(len(np.unique(np.concatenate(crossed)))) if crossed else 0
 
 
 def outer_welding(found):

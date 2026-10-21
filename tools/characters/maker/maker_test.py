@@ -37,7 +37,6 @@ def test_a_spec_needs_a_picture_or_words():
 def test_a_relative_picture_is_refused_and_one_from_home_is_kept():
     assert any("not an absolute path" in problem for problem in spec.problems_of(dict(PERSON, picture="a.png")))
     assert not spec.problems_of(dict(PERSON, picture="~/a.png"))
-    assert spec.inputs_of(dict(PERSON, picture="~/a.png"))["picture"].is_absolute()
 
 
 def test_an_outfit_without_words_is_refused():
@@ -83,25 +82,6 @@ def test_the_experimental_routes_refuse_when_started_round_make(tmp_path):
         route.make({"name": "fish_tang"}, tmp_path, "a check", dry_run=True)
     assert not (tmp_path / "work").exists()
 
-def test_a_spec_bind_pose_is_written_over_the_measured_pose(tmp_path):
-    """A wider A-pose (2026-10-13): the spec's numbers replace the measured ones, the rest stay; an unknown number is
-    refused."""
-    import prop_chain
-    pose = tmp_path / "pose.json"
-    pose.write_text(json.dumps({"arm_degrees": 67.3, "hands_forward_m": 0.04, "ankles_m": 0.21}))
-    prop_chain.widened(pose, {"arm_degrees": 45, "ankles_m": 0.35})
-    assert json.loads(pose.read_text()) == {"arm_degrees": 45, "hands_forward_m": 0.04, "ankles_m": 0.35}
-    with pytest.raises(SystemExit):
-        prop_chain.widened(pose, {"elbow_degrees": 10})
-
-
-def test_the_pose_picture_words_name_no_one_by_pronoun():
-    """The pose picture's words said "her own face" for every look, the player's too (read from the file: its module
-    needs the picture environment)."""
-    words = (pathlib.Path(__file__).resolve().parent / "prop_closeup.py").read_text()
-    words = words[words.index("POSE_PICTURE = ("):words.index("def wording")]
-    assert " her " not in words and " his " not in words
-
 
 def test_an_outfit_without_a_palette_can_name_shoes_as_boots():
     """2026-10-13: with no shoe to choose, the judge gave kit_m_broad's shoes the belt's material."""
@@ -138,27 +118,6 @@ def test_any_outfit_with_words_can_be_split_and_one_without_is_refused_on_the_pc
     assert subprocess.run(ask + ["uniform-olive"], capture_output=True).returncode == 0
     refused = subprocess.run(ask + ["driver-suit"], capture_output=True, text=True)
     assert refused.returncode != 0 and "no outfit_words" in refused.stderr
-
-
-def test_pixal3d_is_bought_for_the_one_passing_close_up_with_its_arms_furthest_apart(tmp_path, monkeypatch):
-    """#21: two close-up seeds by default, each drawn once, and Pixal3D on one take a look: of the passing close-ups, the one whose arms
-    stand furthest apart; none passing, none bought."""
-    import prop_person
-    monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path)
-    folder = prop_person.folder_of(PERSON, "work") / "closeup"
-    folder.mkdir(parents=True)
-    checked = {"pp-a_s1": {"arm_rows_apart": 0.31, "pass": True}, "pp-a_s2": {"arm_rows_apart": 0.52, "pass": True},
-               "pp-a_s3": {"arm_rows_apart": 0.9, "pass": False}}
-    for take in checked:
-        (folder / f"{take}.png").write_bytes(b"")
-    (folder / "checks.json").write_text(json.dumps(checked))
-    assert prop_person.closeups(PERSON, "work") == ["pp-a_s2"]
-    for entry in checked.values():
-        entry["pass"] = False
-    (folder / "checks.json").write_text(json.dumps(checked))
-    assert prop_person.closeups(PERSON, "work") == []
-    words = (pathlib.Path(__file__).resolve().parent / "prop_person.py").read_text()
-    assert 'spec.get("closeup_seeds", [1, 2])' in words
 
 
 def test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs(tmp_path, monkeypatch):
@@ -226,7 +185,7 @@ def test_a_kimodo_clip_is_made_with_the_fixed_seed_and_records_it(tmp_path):
     ask = ("import json, sys; import clips; arguments = clips.kimodo_arguments('walking', sys.argv[1]); "
            "clips.write_record('walking', sys.argv[1]); "
            "print(json.dumps([arguments, clips.CLIP_SEED, clips.SENTENCES['walking'][0], clips.MODEL]))")
-    # its own process: clips.py imports the people tools' paths.py by name, which another test's import shadows
+    # its own process, in the people tools' folder: clips.py is found there by name
     done = subprocess.run([sys.executable, "-c", ask, str(tmp_path / "walking")], capture_output=True, text=True,
                           cwd=REPO / "tools/characters/people", check=True)
     arguments, seed, sentence, model = json.loads(done.stdout.splitlines()[-1])
@@ -301,7 +260,6 @@ def test_the_clips_and_the_rig_are_one_make_that_takes_no_clip_from_here(tmp_pat
     clips are never copied up."""
     import prop_person
     monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path / "candidates")
-    monkeypatch.setattr(prop_person, "MOTIONS", tmp_path / "lost")
     asked = []
     monkeypatch.setattr(prop_person, "on_characters", lambda place, who, held, dry_run: asked.append((place, held)))
     assert prop_person.clips_rig(("standing", "bench"), tmp_path / "out", "a test", True) is None

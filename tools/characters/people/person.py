@@ -21,10 +21,9 @@ the next. A setting a file leaves out is take C's.
   take C's measure.
 - `painted_mouth`: the mouth is one painted line rather than the drawing's (a beard hides the
   drawing's; Nev's drawn one read grim).
-- `kit`: this look is a crew kit build (`kit.py`): the `faces`, `hair` styles, `schemes` and
-  `plain` outfits its file holds.
-- `prologue`, `face`, `hair_style`: this look is one of the prologue's people (`prologue.py`:
-  guard, driver, tech_man or tech_woman) on a kit build, with a kit face and hairstyle.
+
+The body model reads `scale` and `average_body` (body.py); the rest were the retired crew builder's and are kept as
+the looks' own records.
 """
 import json
 

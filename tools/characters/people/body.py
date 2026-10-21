@@ -1,15 +1,13 @@
-"""Build a person: the SOMA body mesh, its skeleton, and the Kimodo clips that move it.
+"""The SOMA body model, its skeleton, and the Kimodo clips that move it: the people route's pieces
+(../maker/prop_skeleton.py, prop_shell.py, prop_build.py, prop_far.py and route_base.py read them; nothing is
+built here).
 
-    bash tools/characters/people/run.sh
+The body and the skeleton come from `nvidia/soma-x` (Apache 2.0), shaped through Meta's MHR body (Apache 2.0)
+where SAM 3D Body read a person's build, and the movement from Kimodo clips. Both are written onto the same skeleton
+by the same vendor, so there is no retargeting step anywhere in here.
 
-Everything this needs was installed for #36 and #100 and is clear for a game that may one day be
-sold: the body and the skeleton come from `nvidia/soma-x` (Apache 2.0) shaped to the crew's build
-through Meta's MHR body (Apache 2.0), and the movement from Kimodo clips generated on this box.
-Both are written onto the same skeleton by the same vendor, so there is no retargeting step
-anywhere in here. The outfits are `dress.py`'s; the licences of what they are made from are in
-this folder's `CLAUDE.md`.
-
-Five things this does that are easy to leave out and expensive to leave out:
+Three things a clip gets here that are easy to leave out and expensive to leave out (its feet are brought in first by
+`stance.py`, owner 2026-10-09: "why do they stand so wide"):
 
 **It takes the travel off.** The generated walk carries six metres of real travel inside it. Left
 in, somebody working at a bench walks through a wall in five seconds. The body walks on the spot
@@ -22,37 +20,17 @@ that match each other best and the small remaining drift is taken out along the 
 **It drops the fingers.** Fifty of the body's seventy-eight joints are hands. Nothing in this game
 is ever close enough to see a knuckle, and a crowd of people each carrying fifty finger joints is
 paid for every frame. Their weight is merged into the wrist, so the hand is still a hand.
-
-**It brings the feet in.** Kimodo stands people with their feet twice as far apart as their hips;
-`stance.py` turns each leg at the hip and knee so a clip's feet stand no wider than the hips, the
-same move all through the clip so a planted foot stays planted (owner, 2026-10-09: "why do they
-stand so wide"). Lying and sitting are left as they are.
-
-**The outfits carry pictures, the distant body flat colours.** Each part of an outfit brings its
-painted picture, which the game draws with the crew's own light. The bare distant body names its
-three surfaces and gives each this person's flat colour (skin, suit, boots), which the game draws
-a crew member far off in (#112); every other shade puts a shared material on them.
 """
-import argparse
 import functools
-import json
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-import dress  # noqa: E402
 import glb  # noqa: E402
 import numpy as np  # noqa: E402
-import paint  # noqa: E402
-import regions  # noqa: E402
-import skin  # noqa: E402
-import stance  # noqa: E402
-import texels  # noqa: E402
 import torch  # noqa: E402
-import cloth_licence  # noqa: E402
-import paths  # noqa: E402
-from paths import BODIES, IDENTITY, MOTIONS, PERSON  # noqa: E402
+from paths import MOTIONS  # noqa: E402
 from person import WHO  # noqa: E402
 from scipy.spatial.transform import Rotation  # noqa: E402
 
@@ -63,14 +41,8 @@ from soma.body import SOMALayer  # noqa: E402
 NATIVE_TO_METRES = 0.01
 # What the motion model wrote, at the rate it wrote it.
 FRAMES_A_SECOND = 30.0
-# How many joints one vertex may hang from. glTF holds four in a set and Godot blends four
-# without a second set; the run prints how much weight that throws away.
-JOINTS_A_VERTEX = 4
 # The joint the body model hangs the body's travel on. Joint 0 is a Root that never moves.
 TRAVELLING_JOINT = 1
-# The two levels of detail that ship: one for somebody in the room, one for somebody across the
-# base or in a crowd.
-LEVELS = {"near": "low", "far": "xlo"}
 # Joints nothing in this game can see, whose weight is merged into whatever is left above them.
 # There are no faces, so the jaw and the eyes go with the fingers.
 UNSEEN = ("Thumb", "Index", "Middle", "Ring", "Pinky", "Jaw", "Eye")
@@ -227,14 +199,6 @@ def strongest_joints(weights, how_many):
     return order, kept, float(lost.max())
 
 
-def as_the_engine_sees_them(weights):
-    """The weights Godot actually gets: the four strongest a vertex, shared out again."""
-    order, kept, _ = strongest_joints(weights, JOINTS_A_VERTEX)
-    thinned = np.zeros_like(weights)
-    np.put_along_axis(thinned, order, kept, axis=1)
-    return thinned
-
-
 def smooth_normals(vertices, faces):
     """One normal a vertex, from the triangles around it, weighted by how big each one is."""
     corners = vertices[faces]
@@ -244,47 +208,6 @@ def smooth_normals(vertices, faces):
         np.add.at(normals, faces[:, corner], crossed)
     lengths = np.linalg.norm(normals, axis=1, keepdims=True)
     return normals / np.where(lengths > 0, lengths, 1.0)
-
-
-def region_pull(weights, joint_names, surface_names):
-    """How strongly each vertex belongs to each surface, from the joints holding it."""
-    per_joint = regions.regions_of(joint_names)
-    pull = np.zeros((weights.shape[0], len(surface_names)))
-    for joint, region in enumerate(per_joint):
-        pull[:, surface_names.index(region)] += weights[:, joint]
-    return pull
-
-
-def surface_of_each_triangle(faces, weights, joint_names, surface_names):
-    """Which surface every triangle belongs to, from the joints its vertices hang from.
-
-    A triangle whose three corners disagree three ways is settled by which surface pulls hardest
-    across all three, not by whichever answer came out of a set first: python does not promise
-    the same order for the same strings between runs, so the old way could put a triangle in one
-    surface today and another tomorrow from the same inputs.
-
-    Blurring the pull between neighbours was tried here, to straighten what looked like a ruff of
-    spikes round the neck in a screenshot. It made the seam measurably worse (138 edges crossing
-    it against 134), and the ruff turned out to be shading in the collar's crease, aliased by the
-    software renderer this box draws with. Measure the seam before reaching for it again.
-    """
-    pull = region_pull(weights, joint_names, surface_names)
-    per_vertex = pull.argmax(axis=1)
-    picked = pull[faces].sum(axis=1).argmax(axis=1)
-    chosen = []
-    for triangle, fallback in zip(faces, picked):
-        here = [per_vertex[corner] for corner in triangle]
-        most = max(set(here), key=here.count)
-        chosen.append(surface_names[most if here.count(most) > 1 else fallback])
-    return chosen
-
-
-def engine_skinning(bind_vertices, weights, world, inverse_bind):
-    """Move the mesh the way Godot will: one matrix a joint, blended per vertex, nothing else."""
-    bone = world @ inverse_bind
-    padded = np.concatenate([bind_vertices, np.ones((len(bind_vertices), 1))], axis=1)
-    moved = np.einsum("jab,vb->jva", bone, padded)[:, :, :3]
-    return np.einsum("vj,jva->va", weights, moved)
 
 
 @functools.cache
@@ -406,93 +329,11 @@ def prepare_clip(world, parents, least_frames, once=False):
                    "loopGapWhole": round(before, 4), "loopGapCut": round(loop_gap(local), 4)}
 
 
-def add_mesh(contents, document, bind_vertices, faces, weights, joint_names, surface_names):
-    """Put one level of detail in the file, its triangles split between the surfaces.
-
-    Each surface carries only the vertices its own triangles use. Sharing one vertex list between
-    all three is legal and was what this did first, and it makes the engine load every vertex
-    three times: Godot spent five minutes on the file and produced three surfaces of 4,505
-    vertices each where 4,800 between them was the truth.
-    """
-    order, kept, lost = strongest_joints(weights, JOINTS_A_VERTEX)
-    normals = smooth_normals(bind_vertices, faces)
-    belongs_to = surface_of_each_triangle(faces, weights, joint_names, surface_names)
-
-    primitives, counts = [], {}
-    for surface in surface_names:
-        mine = faces[[surface == where for where in belongs_to]]
-        counts[surface] = len(mine)
-        if not len(mine):
-            continue
-        used, rebuilt = np.unique(mine, return_inverse=True)
-        primitives.append({
-            "attributes": {
-                "POSITION": contents.reading(
-                    bind_vertices[used].astype(np.float32).ravel().tolist(),
-                    "VEC3", glb.FLOAT, glb.ARRAY_BUFFER, with_bounds=True),
-                "NORMAL": contents.reading(normals[used].astype(np.float32).ravel().tolist(),
-                                           "VEC3", glb.FLOAT, glb.ARRAY_BUFFER),
-                "JOINTS_0": contents.reading(order[used].astype(np.uint16).ravel().tolist(),
-                                             "VEC4", glb.UNSIGNED_SHORT, glb.ARRAY_BUFFER),
-                "WEIGHTS_0": contents.reading(kept[used].astype(np.float32).ravel().tolist(),
-                                              "VEC4", glb.FLOAT, glb.ARRAY_BUFFER),
-            },
-            "indices": contents.reading(
-                rebuilt.reshape(-1).astype(np.uint16).tolist(), "SCALAR",
-                glb.UNSIGNED_SHORT, glb.ELEMENT_ARRAY_BUFFER),
-            "material": surface_names.index(surface),
-        })
-    document["meshes"].append({"primitives": primitives})
-    return len(document["meshes"]) - 1, counts, lost
-
-
 def the_body_at(layer, carries, kept_count):
     """The body at its bind pose: vertices in metres, triangles, and weights on the kept joints."""
     _, vertices = bind_pose(layer)
     faces = layer.faces.detach().numpy().astype(np.uint32)
     return vertices, faces, kept_weights(layer, carries, kept_count)
-
-
-def add_outfit(contents, document, parts):
-    """Put an outfit in the file: one surface for each part, each with a material of its own that
-    carries the part's picture."""
-    primitives, counts = [], {}
-    for part in parts:
-        primitives.append(outfit_surface(contents, document, part))
-        counts[part.surface] = len(part.faces)
-    document["meshes"].append({"primitives": primitives})
-    return len(document["meshes"]) - 1, counts
-
-
-def outfit_surface(contents, document, part):
-    """One part of an outfit as a surface, and its material holding its picture."""
-    order, kept, _ = strongest_joints(part.weights, JOINTS_A_VERTEX)
-    image = contents.picture(texels.png_bytes(part.picture))
-    document.setdefault("samplers", [{"magFilter": 9729, "minFilter": 9987,
-                                      "wrapS": 33071, "wrapT": 33071}])
-    document.setdefault("textures", []).append({"source": image, "sampler": 0})
-    document["materials"].append({"name": part.surface, "pbrMetallicRoughness": {
-        "baseColorTexture": {"index": len(document["textures"]) - 1},
-        "metallicFactor": 0.0, "roughnessFactor": 1.0}})
-    # The file's texture coordinates run down the picture; the part's run up it.
-    flipped = part.uv * [1.0, -1.0] + [0.0, 1.0]
-    return {
-        "attributes": {
-            "POSITION": contents.reading(part.points.astype(np.float32).ravel().tolist(),
-                                         "VEC3", glb.FLOAT, glb.ARRAY_BUFFER, with_bounds=True),
-            "NORMAL": contents.reading(part.normals.astype(np.float32).ravel().tolist(), "VEC3",
-                                       glb.FLOAT, glb.ARRAY_BUFFER),
-            "TEXCOORD_0": contents.reading(flipped.astype(np.float32).ravel().tolist(), "VEC2",
-                                           glb.FLOAT, glb.ARRAY_BUFFER),
-            "JOINTS_0": contents.reading(order.astype(np.uint16).ravel().tolist(), "VEC4",
-                                         glb.UNSIGNED_SHORT, glb.ARRAY_BUFFER),
-            "WEIGHTS_0": contents.reading(kept.astype(np.float32).ravel().tolist(), "VEC4",
-                                          glb.FLOAT, glb.ARRAY_BUFFER),
-        },
-        "indices": contents.reading(part.faces.reshape(-1).astype(np.uint32).tolist(),
-                                    "SCALAR", glb.UNSIGNED_INT, glb.ELEMENT_ARRAY_BUFFER),
-        "material": len(document["materials"]) - 1,
-    }
 
 
 def add_clip(contents, document, name, local, joint_node):
@@ -514,170 +355,3 @@ def add_clip(contents, document, name, local, joint_node):
                      "target": {"node": joint_node[TRAVELLING_JOINT], "path": "translation"}})
     document["animations"].append({"name": name, "samplers": samplers, "channels": channels})
     return frames / FRAMES_A_SECOND
-
-
-def which_way_is_forward(world):
-    """Which way the body walks, so the file can be turned to face the way the game does."""
-    travelled = world[-1, TRAVELLING_JOINT, :3, 3] - world[0, TRAVELLING_JOINT, :3, 3]
-    axis = int(np.argmax(np.abs(travelled)))
-    return "xyz"[axis], float(travelled[axis])
-
-
-def far_material(region):
-    """A surface of the bare distant body: its name, and this person's colour for it as glTF
-    writes a colour, in linear light."""
-    shares = [value / 255.0 for value in paint.far_colour(region)]
-    linear = [share / 12.92 if share <= 0.04045 else ((share + 0.055) / 1.055) ** 2.4
-              for share in shares]
-    return {"name": region, "pbrMetallicRoughness": {"baseColorFactor": linear + [1.0],
-                                                     "metallicFactor": 0.0, "roughnessFactor": 1.0}}
-
-
-def build(out_path, clip_names, identity):
-    """The file: the skeleton, the bare distant body, both outfits and the clips."""
-    layers = {level: build_layer(lod, identity) for level, lod in LEVELS.items()}
-    near = layers["near"]
-    all_names = list(near.public_joint_names)
-    all_parents = near.output_joint_parent_ids.detach().numpy().astype(int)
-    kept, parents, carries = joints_worth_keeping(all_names, all_parents)
-    joint_names = [all_names[old] for old in kept]
-    parents = np.array(parents)
-    print(f"skeleton: {len(joint_names)} joints kept of {len(all_names)}")
-
-    bind_world, _ = bind_pose(near)
-    bind_world = bind_world[kept]
-    inverse_bind = np.linalg.inv(bind_world)
-    surface_names = regions.surfaces(joint_names)
-
-    axis, distance = which_way_is_forward(posed_by_the_model(near, MOTIONS / "walking.npz")[0])
-    print(f"the walk travels {distance:+.2f} m along {axis}, so the file is turned to face -z")
-
-    document = {
-        "asset": {"version": "2.0", "generator": "farm-factory tools/crew"},
-        "scene": 0, "scenes": [{"nodes": [0]}],
-        "nodes": [], "meshes": [], "skins": [], "animations": [],
-        # The distant body's materials name each surface for Godot and carry this person's
-        # colour for it, which the game draws a crew member far off in (#112).
-        "materials": [far_material(name) for name in surface_names],
-    }
-    near_vertices, near_faces, near_weights = the_body_at(near, carries, len(joint_names))
-    outfits = dress.outfits(skin.Body(near_vertices, near_faces, near_weights, joint_names,
-                                      bind_world[:, :3, 3]))
-    contents = glb.Contents()
-
-    # Node 0 is the whole person, turned half a circle: the body model builds people facing +z
-    # and everything in this game faces -z.
-    document["nodes"].append({"name": "Person", "rotation": [0.0, 1.0, 0.0, 0.0], "children": []})
-    standing, _ = posed_by_the_model(near, MOTIONS / "standing.npz")
-    resting = against_parent(stance.narrowed(standing[:, kept], joint_names, parents)[0], parents)
-    joint_node = {}
-    for joint, name in enumerate(joint_names):
-        turn = Rotation.from_matrix(resting[joint, :3, :3]).as_quat()
-        document["nodes"].append({"name": name,
-                                  "translation": resting[joint, :3, 3].tolist(),
-                                  "rotation": [float(value) for value in turn],
-                                  "children": []})
-        joint_node[joint] = len(document["nodes"]) - 1
-    for joint in range(len(joint_names)):
-        holder = (document["nodes"][0] if is_the_root(joint, parents)
-                  else document["nodes"][joint_node[parents[joint]]])
-        holder["children"].append(joint_node[joint])
-
-    document["skins"].append({
-        "inverseBindMatrices": contents.reading(
-            inverse_bind.transpose(0, 2, 1).astype(np.float32).ravel().tolist(), "MAT4", glb.FLOAT),
-        "joints": [joint_node[joint] for joint in range(len(joint_names))],
-        "skeleton": joint_node[0],
-    })
-
-    report = {"joints": len(joint_names), "surfaces": {}, "levels": {}, "clips": {},
-              "drapes": cloth_licence.drapes_of(paths.LOOK)}
-    # The distant body stays bare, in its three colour zones: nobody reads a belt at twelve metres.
-    far = layers["far"]
-    _, vertices = bind_pose(far, None if WHO["average_body"] else floor_lift(near))
-    faces = far.faces.detach().numpy().astype(np.uint32)
-    mesh, counts, lost = add_mesh(contents, document, vertices, faces, kept_weights(far, carries, len(joint_names)),
-                                  joint_names, surface_names)
-    document["nodes"].append({"name": "far", "mesh": mesh, "skin": 0})
-    document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
-    report["levels"]["far"] = {"vertices": len(vertices), "triangles": len(faces), "weightLost": round(lost, 5)}
-    report["surfaces"]["far"] = counts
-    print(f"far  : {len(vertices):5d} vertices, {len(faces):5d} triangles, {counts}, "
-          f"worst vertex loses {lost*100:.2f}% of its weight")
-
-    for outfit, parts in outfits.items():
-        mesh, counts = add_outfit(contents, document, parts)
-        document["nodes"].append({"name": outfit, "mesh": mesh, "skin": 0})
-        document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
-        report["levels"][outfit] = {"triangles": sum(counts.values())}
-        report["surfaces"][outfit] = counts
-        print(f"{outfit:5s}: {sum(counts.values()):5d} triangles over {len(counts)} surfaces")
-
-    import clips
-    for name in clip_names:
-        world, _ = posed_by_the_model(near, MOTIONS / f"{name}.npz")
-        world = world[:, kept]
-        if name not in clips.OFF_THEIR_FEET:
-            world = stance.narrowed(world, joint_names, parents)
-        local, notes = prepare_clip(world, parents, LEAST_FRAMES, name in clips.ONCE)
-        notes["seconds"] = round(
-            add_clip(contents, document, clips.in_game(name), local, joint_node), 2)
-        notes["frames"] = int(local.shape[0])
-        report["clips"][name] = notes
-        print(f"{name:9s}: {notes['frames']:3d} frames of {world.shape[0]}, {notes['seconds']}s, "
-              f"took off {notes['travelledMetres']} m of travel, "
-              f"moved back {notes['movedBackMetres']} m over the node, "
-              f"loop gap {notes['loopGapWhole']} -> {notes['loopGapCut']}")
-
-    world, theirs = posed_by_the_model(near, MOTIONS / "walking.npz")
-    thinned = as_the_engine_sees_them(near_weights)
-    step = max(1, world.shape[0] // 12)
-    gaps = np.concatenate([
-        np.linalg.norm(
-            engine_skinning(near_vertices, thinned, world[frame][kept], inverse_bind)
-            - theirs[frame], axis=-1)
-        for frame in range(0, world.shape[0], step)])
-    hands = np.array([regions.region_of(joint_names[joint]) == regions.SKIN
-                      and "Hand" in joint_names[joint]
-                      for joint in thinned.argmax(axis=1)])
-    everywhere = np.tile(~hands, gaps.shape[0] // len(hands))
-    body_only = gaps[everywhere]
-    report["skinningGapMillimetres"] = {
-        "mean": round(float(gaps.mean()) * 1000, 2), "worst": round(float(gaps.max()) * 1000, 2),
-        "meanOffTheHands": round(float(body_only.mean()) * 1000, 2),
-        "worstOffTheHands": round(float(body_only.max()) * 1000, 2)}
-    print(f"godot's skinning lands {gaps.mean()*1000:.1f} mm from the body model's on average "
-          f"({gaps.max()*1000:.1f} mm worst); off the hands, whose fingers were dropped on "
-          f"purpose, {body_only.mean()*1000:.1f} mm and {body_only.max()*1000:.1f} mm")
-
-    glb.write(out_path, document, contents)
-    report["bytes"] = pathlib.Path(out_path).stat().st_size
-    report["height"] = round(float(near_vertices[:, 1].max() - near_vertices[:, 1].min()), 3)
-    print(f"\nwrote {out_path}, {report['bytes']/1024:.0f} KB, person {report['height']} m tall")
-    return report
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", default=str(BODIES / f"{PERSON}.glb"))
-    parser.add_argument("--report", help="where to write the run's numbers as JSON")
-    parser.add_argument("--clips", nargs="*", help="which clips go in; the whole set by default")
-    parser.add_argument("--identity", default=str(IDENTITY),
-                        help="SAM 3D Body's answer for a picture, as .npz: the body is built to "
-                        "that person's build; the crew's own by default")
-    arguments = parser.parse_args()
-    missing = paths.ready()
-    if missing:
-        raise SystemExit("missing, see workflow/bootstrap in docs/bible.md:\n  " + "\n  ".join(missing))
-    pathlib.Path(arguments.out).parent.mkdir(parents=True, exist_ok=True)
-    import clips as clip_names
-    wanted = arguments.clips or [name for name in clip_names.SENTENCES
-                                 if (MOTIONS / f"{name}.npz").exists()]
-    report = build(arguments.out, wanted, arguments.identity)
-    if arguments.report:
-        pathlib.Path(arguments.report).write_text(json.dumps(report, indent=2))
-
-
-if __name__ == "__main__":
-    main()

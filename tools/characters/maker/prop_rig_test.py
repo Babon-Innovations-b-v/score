@@ -6,9 +6,8 @@ a blend of both; a tuck runs a part's open border on along its bone, drawn in un
 none; the poke check reads a tuck under its cloth as
 hidden and one over it as showing; a body leaning sideways is stood level; thinning part by part keeps the parts
 shut along their borders; a hard part rides one joint and the cloth next to it eases onto that joint; the poke check
-reads a hard part's stretch; the settle's offsets go into the bind pose and back out of the bake's shapes, as few as
-miss them by MISS_MOST, a frame whose shapes put the cloth through the body keeps the unsettled cloth, a sparse morph
-target reads back, and piping is cut as a thin strip down the outside of a limb.
+reads a hard part's stretch; piping is cut as a thin strip down the outside of a limb; and cloth through cloth is
+counted.
 
 Run: .venv/bin/python tools/characters/maker/prop_rig_test.py   (make tests runs it with the framework's environment)
 """
@@ -251,6 +250,17 @@ def test_piping_is_cut_down_the_outside_of_a_limb():
                           axis=1).sum() / 2
     assert abs(area - width * (0.6 - piping.LEG_RUN[0])) < 0.15 * width * 0.6, area
 
+
+def test_a_flat_sheet_crosses_nothing():
+    points = np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    assert pokes.self_crossings(points, np.array([[0, 2, 1], [0, 1, 3]])) == 0
+
+
+def test_a_sheet_through_another_is_counted():
+    lying = np.array([[-1.0, 0.0, -1.0], [1.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
+    standing = np.array([[0.0, -1.0, 0.0], [0.0, 1.0, 0.2], [0.0, 1.0, -0.2]])
+    points = np.concatenate([lying, standing])
+    assert pokes.self_crossings(points, np.array([[0, 1, 2], [3, 4, 5]])) == 2
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 """Check the characters stage on a character made here: a two-joint body with a distant and a dressed mesh, a clip that
 runs round and one that plays once. The UsdSkel asset skins its points where the glTF file's own skinning puts them,
 keeps its joints parents first, repeats a running clip and holds a played-once one; the cast's spots, turns, kit mixes
-and crowd are the cast's rules, repeated the same from the same seeds; the characters layer sits between the edit
-layer and the base, every character plays its clip from its start and wears only its parts.
+and crowd are the cast's rules, repeated the same from the same seeds; laid with the cast's prims, every character
+stands or walks where the cast puts it, plays its clip from its start and wears only its parts.
 
 Run: .venv/bin/python tools/characters/characters_test.py   (make tests runs it with the framework's environment)
 """
@@ -219,15 +219,37 @@ def test_cast_rules():
     assert 0.6 < sum(copy["clip"] == 0 for copy in copies) / 400 < 0.8, "clips dealt by their shares"
 
 
-def test_layer(folder):
-    stage_folder = folder / "stage"
-    (stage_folder / "layers").mkdir(parents=True)
-    root = Sdf.Layer.CreateNew(str(stage_folder / "yard.usda"))
-    root.subLayerPaths.append("./layers/edit.usda")
-    root.subLayerPaths.append("./layers/base.usda")
+def laid(folder, found):
+    """The cast's characters laid with cast.py's prims as the characters layer lays them (score/stages/cast/layer.py),
+    each in its body's asset, the kit members wearing their own parts, under the place's root: the stage of the
+    layer."""
+    (folder / "stage/layers").mkdir(parents=True)
+    root = Sdf.Layer.CreateNew(str(folder / "stage/yard.usda"))
+    root.subLayerPaths.append("./layers/characters.usda")
     root.Save()
-    for name in ("edit", "base"):
-        Sdf.Layer.CreateNew(str(stage_folder / f"layers/{name}.usda")).Save()
+    layer = Sdf.Layer.CreateNew(str(folder / "stage/layers/characters.usda"))
+    layer.timeCodesPerSecond = layer.framesPerSecond = skel_usd.RATE
+    stage = Usd.Stage.Open(layer)
+    for single in cast.characters_of(found):
+        asset = skel_usd.convert(folder / f"bodies/{single['character']}.glb", folder / "stage/assets/characters")
+        parts, clips = cast.asset_facts(asset)
+        path = f"/yard/Characters/{single['name']}"
+        start = single["start"] * clips.get(single["doing"], 0.0)
+        prim = cast.referenced(stage, path, asset, start)
+        if single["path"]:
+            cast.walked(prim, single["path"], single["pace"])
+        else:
+            cast.placed(prim, single["at"], single["turn"])
+        if single["worn"]:
+            cast.dressed(stage, path, parts, single["worn"])
+        cast.playing(stage, path, single["doing"], clips)
+        if single["held"]:
+            cast.held_still(stage, path, asset, single["doing"], start)
+    layer.Save()
+    return stage
+
+
+def test_layer(folder):
     for build in {cast.kit_mix(40 + number)["character"] for number in range(3)}:
         body_glb(folder / f"bodies/{build}.glb")
     found = {"people": [{"name": "keeper", "character": "tester", "doing": "door", "at": [1.0, 0.0, 2.0],
@@ -240,11 +262,7 @@ def test_layer(folder):
              "groups": [{"name": "row", "character": "kit", "outfit": "plain", "count": 3, "seed": 40,
                          "band": [0.0, 0.0, 2.0, 6.0], "doing": ["walking"], "phase_step": 0.5,
                          "facing_to": [0, 0, -9], "why": "a row"}]}
-    placed = cast.write_layer("yard", found, stage_folder, folder / "bodies")
-    assert placed == {"characters": 6, "crowd": 0, "layer": str(stage_folder / cast.LAYER)}
-    assert list(Sdf.Layer.FindOrOpen(str(stage_folder / "yard.usda")).subLayerPaths) == [
-        "./layers/edit.usda", "./layers/characters.usda", "./layers/base.usda"]
-    stage = Usd.Stage.Open(str(stage_folder / "yard.usda"))
+    stage = laid(folder, found)
     keeper = stage.GetPrimAtPath("/yard/Characters/keeper")
     assert keeper.IsA(UsdSkel.Root)
     source = stage.GetPrimAtPath("/yard/Characters/keeper/Turned/Skeleton").GetRelationship("skel:animationSource")
@@ -269,10 +287,6 @@ def test_layer(folder):
     shown = [child.GetName() for child in stage.GetPrimAtPath("/yard/Characters/row_0/Turned/Body").GetChildren()
              if UsdGeom.Imageable(child).ComputeVisibility() != UsdGeom.Tokens.invisible]
     assert shown == [], "a kit member wears only the kit's parts, which this test body has none of"
-    # Run again: the layer is rewritten whole and the root keeps one copy of it.
-    cast.write_layer("yard", found, stage_folder, folder / "bodies")
-    assert list(Sdf.Layer.FindOrOpen(str(stage_folder / "yard.usda")).subLayerPaths).count(
-        "./layers/characters.usda") == 1
 
 
 def test_review_plan(folder):

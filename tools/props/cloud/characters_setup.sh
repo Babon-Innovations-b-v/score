@@ -7,10 +7,9 @@
 #                        License) with SOMA-X (Apache-2.0): the clips, the body model, the body build and the usd step.
 #   /root/sam3dbody-cpp  SAM3DBody-cpp (vendor/sam3dbody-cpp, MIT code; its ONNX/GGUF weights are SAM 3D Body's,
 #                        under Meta's SAM License): the body read off one picture.
-#   /root/envs/picture   FLUX.2 klein 4B (Apache-2.0) with diffusers: the close-up drawings (drawings.py).
 # The retired shipped person chain's GarmentCode, Newton and Hi3DGen environments and klein base 4B with its depth
-# LoRA went with it (owner, 2026-10-21: all old stuff is retired).
-#   /root/blender        Blender 4.2 LTS, the version the people tools thin, unwrap and render with.
+# LoRA went with it (owner, 2026-10-21: all old stuff is retired), and the prop route's own close-up drawing (klein 4B)
+# and Blender with the close-ups the people line now draws.
 #
 # Secrets come by name: the HuggingFace read token (`hf-read-token`, for Meta-Llama-3-8B-Instruct, the gated base of
 # Kimodo's text encoder) arrives in /root/hf-token, written by characters.py, never in the repo.
@@ -20,8 +19,6 @@ LOGS=/root/setup-logs
 mkdir -p "$LOGS" /root/envs
 nvidia-smi --query-gpu=name,driver_version,memory.total,compute_cap --format=csv,noheader
 ARCH="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1 | tr -d '.')"
-
-BLENDER_VERSION=4.2.23
 
 apt-get update -qq
 apt-get install -y -qq build-essential cmake git wget unzip xz-utils libjpeg-dev libpng-dev libzstd-dev liblz4-dev \
@@ -65,33 +62,12 @@ sam3dbody() {
   ls -la build/libfast_sam_3dbody.so onnx/
 }
 
-picture() {
-  $UV venv --quiet --python 3.12 /root/envs/picture
-  $UV pip install --quiet --python /root/envs/picture/bin/python torch torchvision diffusers transformers accelerate \
-    peft pillow numpy huggingface_hub hf_xet
-  /root/envs/picture/bin/python -c "from huggingface_hub import snapshot_download as get; \
-get('black-forest-labs/FLUX.2-klein-4B', local_dir='/root/models/klein-4b')"
-}
-
-blender() {
-  local tarball="blender-$BLENDER_VERSION-linux-x64.tar.xz"
-  cd /root
-  curl -fsSL -o "$tarball" "https://download.blender.org/release/Blender${BLENDER_VERSION%.*}/$tarball"
-  curl -fsSL "https://download.blender.org/release/Blender${BLENDER_VERSION%.*}/blender-$BLENDER_VERSION.sha256" \
-    | grep " $tarball\$" > "$tarball.sha256"
-  sha256sum -c "$tarball.sha256"
-  tar xJf "$tarball"
-  mv "blender-$BLENDER_VERSION-linux-x64" /root/blender
-  rm "$tarball" "$tarball.sha256"
-  /root/blender/blender -b -setaudio None --python-expr "import bpy; print('blender ok', bpy.app.version_string)"
-}
-
 cuda_toolkit
 
 # Side by side, each into its own log; the step that fails names its log. Steps named on the command line run alone
 # (mending one on a held machine).
 pids=()
-for step in ${*:-motion sam3dbody picture blender}; do
+for step in ${*:-motion sam3dbody}; do
   ( set -euo pipefail; "$step" ) > "$LOGS/$step.log" 2>&1 &
   pids+=("$!:$step")
 done
