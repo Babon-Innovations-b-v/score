@@ -148,6 +148,9 @@ def make(inputs, out, seed, params):
         if single is cast.get("crowd") and not single["copies"]:
             looks[single["name"]]["missing"] = "the crowd's ground and count are not in the design yet"
             continue
+        if single is cast.get("crowd") and not record.get("crowd", {}).get("palettes"):
+            looks[single["name"]]["missing"] = f"the crowd's colours: {record['crowd'].get('palettes_from')}"
+            continue
         if single["look"] not in assets:
             assets[single["look"]] = asset_for(single["look"], inputs[row], out)
         if single is cast.get("crowd"):

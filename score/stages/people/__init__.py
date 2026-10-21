@@ -20,8 +20,9 @@ from score.stages.people import dress, look
 from score.stages.people_bodies import bodies, clips, made_clips
 from score.stages.people_bodies.bodies import guarded
 
-# The looks the review page shows: the people benchmark's two (#26), the player in the tube and the crowd's far look.
-LOOKED = ("player_wide-work", people_rows.CROWD_LOOK)
+# The looks the review page shows: the people benchmark's two (#26), the player in the tube and the far look the
+# square's crowd maps to by its words (people_rows.crowd_look). A benchmark's pick: it decides no scene's people.
+LOOKED = ("player_wide-work", "kit_m_avg-coat-grey")
 
 
 def dress_row(name, place=None, surface=None):

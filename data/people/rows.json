@@ -1,5 +1,5 @@
 {
- "why": "The people of each place's picked design: every people row of its scene inventory mapped to a look on the shared people line (one look a person, a crowd one far look in palettes of library surfaces), its fields copied from the reading of the concept it names; written by python -m score.stages.people_rows, which keeps each row's looks, crowd, palettes and why while its concept stands (#26). New looks are named, not made: each needs a spec and a take row before it joins the people line.",
+ "why": "The people of each place's picked design: every people row of its scene inventory mapped to a look on the shared people line (one look a person, a crowd one far look in palettes of library surfaces), its fields copied from the reading of the concept it names; written by python -m score.stages.people_rows, which keeps a row's looks, crowd and palettes recorded with its why while its concept stands, and reads a crowd's look off its words (#26). New looks are named, not made: each needs a spec and a take row before it joins the people line.",
  "places": {
   "airlock": {
    "concept": "c84a4a2c64886109e207b6b7c93d6a31942e89f0cf8a9d6e4a4d960b3eaf58e0",
@@ -467,33 +467,8 @@
      "where": "everywhere",
      "share": 0.1836,
      "crowd": "kit_m_avg-coat-grey",
-     "palettes": [
-      [
-       "skin_light",
-       "wool_grey",
-       "leather_black"
-      ],
-      [
-       "skin_medium",
-       "suit_navy",
-       "leather_black"
-      ],
-      [
-       "skin_dark",
-       "wool_charcoal",
-       "leather_black"
-      ],
-      [
-       "skin_light",
-       "jacket_blue",
-       "rubber"
-      ],
-      [
-       "skin_medium",
-       "olive_drab",
-       "leather_black"
-      ]
-     ]
+     "palettes": null,
+     "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them"
     }
    }
   },
@@ -570,33 +545,8 @@
      "where": "in the background square",
      "share": 0.0475,
      "crowd": "kit_m_avg-coat-grey",
-     "palettes": [
-      [
-       "skin_light",
-       "wool_grey",
-       "leather_black"
-      ],
-      [
-       "skin_medium",
-       "suit_navy",
-       "leather_black"
-      ],
-      [
-       "skin_dark",
-       "wool_charcoal",
-       "leather_black"
-      ],
-      [
-       "skin_light",
-       "jacket_blue",
-       "rubber"
-      ],
-      [
-       "skin_medium",
-       "olive_drab",
-       "leather_black"
-      ]
-     ]
+     "palettes": null,
+     "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them"
     }
    }
   },

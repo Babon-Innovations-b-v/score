@@ -6,24 +6,28 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
                           "rows": {<row>: {"name", "noun", "count", "size" [wide, deep, tall] metres, "where",
                                            "share" (its tallest box's share of the concept's frame height, or null),
                                            "looks": [<look>, ... one a person]  |  "crowd": <far look>,
-                                           "palettes": [[skin, clothes, boots library surfaces], ...]}}}},
+                                           "palettes": [[skin, clothes, boots library surfaces], ...] | null,
+                                           "palettes_from": why they are null}}}},
      "new": {<look>: {"words", "from"}}}
 
 One look a distinct person; a crowd one far look in a few colour palettes (CONTEXT.md "crowd"). A look is one of the
 people line's (data/surfaces/people.json) or a new one, named `<place>_<row>_<n>-new` and listed under `new` until it
-has a spec and a take of its own. Which looks get a full body and which a far one follows from each person row's
-`share` (score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast (score/stages/cast) and the characters layer read who is in a place from
+has a spec and a take of its own. A crowd's look is read off its row's words (`crowd_look`); its palettes are not
+decided by any rule here (`UNDECIDED_PALETTES`): null, with why, until one recorded model call per scene names them.
+Which looks get a full body and which a far one follows from each person row's `share`
+(score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast (score/stages/cast) and the characters layer read who is in a place from
 here, never the old game records (data/characters) or the lost concept pictures; the people line's bake entries take
 each look's size from the person row that maps it (`size_of`).
 
     .venv/bin/python -m score.stages.people_rows      # refresh from the store's current readings and plans
 
-A refresh copies each reading's rows again and keeps every hand-made choice (looks, crowd, palettes) of a row read
-from the same concept; a row of a newer concept starts from the defaults (new looks, the crowd's far look). Then it
-writes the people line's data for its mapped looks (`write_line`).
+A refresh copies each reading's rows again and keeps every hand-made choice (looks, crowd, palettes: a row's fields
+recorded with its `why`) of a row read from the same concept; any other row is read again from its design (new
+looks, the crowd's look by its words). Then it writes the people line's data for its mapped looks (`write_line`).
 """
 import json
 import pathlib
+import re
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 ROWS = REPO / "data/people/rows.json"
@@ -31,15 +35,20 @@ LINE = "people"
 LINE_FILES = {"props": REPO / "data/props/people.json", "inventory": REPO / "data/inventory/people.json",
               "surfaces": REPO / "data/surfaces/people.json"}
 MAKES = REPO / "data/characters/makes"
-# The people line's one far look (kit_m_avg in the grey coat, the crowd's body since 2026-10-13).
-CROWD_LOOK = "kit_m_avg-coat-grey"
-# A crowd's colour palettes, library surfaces of the people place (skin, clothes, boots): the grey, navy, charcoal,
-# blue and olive coats of the square's first crowd, until the owner picks others.
-PALETTES = [["skin_light", "wool_grey", "leather_black"], ["skin_medium", "suit_navy", "leather_black"],
-            ["skin_dark", "wool_charcoal", "leather_black"], ["skin_light", "jacket_blue", "rubber"],
-            ["skin_medium", "olive_drab", "leather_black"]]
 PALETTE_PARTS = ["skin", "clothes", "boots"]
-CHOSEN = ("looks", "crowd", "palettes", "why")  # a row's hand-made fields, kept over a refresh of the same concept
+# A row's hand-made fields, kept over a refresh of the same concept when recorded with their `why`.
+CHOSEN = ("looks", "crowd", "palettes", "palettes_from", "why")
+# The words that say a row is a crowd, not who is in it: they count only between looks that share no other word.
+CROWD_WORDS = {"crowd", "people", "person", "group"}
+FUNCTION_WORDS = {"the", "and", "with", "his", "her", "their", "its", "from", "into", "onto", "over", "down", "for",
+                  "who", "one", "two", "some", "many"}
+# Why a crowd's palettes stand undecided: measured on the locked concepts (2026-10-21) every crowd's SAM 3 box holds
+# its ground, flags and lanterns too, and a figure's torso reads the scene's light, not the cloth (the Moon wreck's
+# white-suited astronauts and the street's pedestrians alike nearest wool_charcoal; data/people/colours.json found
+# the same), so no pixel rule maps a crowd's colours to library surfaces.
+UNDECIDED_PALETTES = ("not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands "
+                      "round it, and a measured colour is the scene's light); one recorded model call per scene, in "
+                      "the batch, names them")
 
 
 def read():
@@ -119,7 +128,8 @@ def palette_colours(palettes):
 def cast_record(place, found=None):
     """The place's cast record in tools/characters/cast.py's form, from its design: each person at the plan's people
     spots in turn (the cast stage stands them clear round it), facing the place's middle; the crowd its far look in
-    its palettes, with no ground or count until the design gives one."""
+    its palettes (none while undecided, `palettes_from` saying why), with no ground or count until the design gives
+    one."""
     found = found or read()
     entry = place_entry(place, found)
     spots = entry.get("spots") or [entry.get("middle", [0.0, 0.0, 0.0])]
@@ -136,10 +146,12 @@ def cast_record(place, found=None):
     if crowd:
         row, fields = crowd
         character, outfit = split_look(fields["crowd"])
+        palettes = fields.get("palettes") or []
         record["crowd"] = {"name": row, "character": character, "look": f"{character}_{outfit}", "body": "far",
                            "count": None, "doing": [doing_of(fields)], "shares": [1.0], "phases": 1,
-                           "palettes": palette_colours(fields["palettes"]), "palette_parts": PALETTE_PARTS,
-                           "palette_shares": [1.0 / len(fields["palettes"])] * len(fields["palettes"]),
+                           "palettes": palette_colours(palettes), "palette_parts": PALETTE_PARTS,
+                           "palette_shares": [1.0 / len(palettes) for _ in palettes],
+                           **({} if palettes else {"palettes_from": fields.get("palettes_from")}),
                            "why": f"row {row} of the picked design's scene inventory"}
     return record
 
@@ -161,10 +173,39 @@ def size_of(look, found=None):
 
 # --- the refresh from the store (free) ----------------------------------------------------------------------------
 
+def words_of(text):
+    """A text's content words, lower case, a plural's s dropped (astronauts, astronaut)."""
+    words = {word for word in re.findall(r"[a-z]+", text.lower()) if len(word) > 2 and word not in FUNCTION_WORDS}
+    return {word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
+            for word in words}
+
+
+def look_words(look, entry):
+    """A line look's words: its spec's description and its take's clothes (`object`)."""
+    return words_of(f"{description_of(look)} {entry.get('object', '')}")
+
+
+def crowd_look(place, row, line=None):
+    """A crowd row's far look, from its words (its name and noun): the people line's look (`line`, {look: take entry},
+    bodies.looks()) sharing the most of them, a crowd word (CROWD_WORDS) counting only between looks that share no
+    other, a far-only look first on a tie; a new look `<place>_<row>_1-new` when no look shares a word."""
+    if line is None:
+        from score.stages.people_bodies import bodies
+        line = bodies.looks()
+    said = words_of(f"{row['name']} {row['noun']}")
+
+    def score(look):
+        shared = said & look_words(look, line[look])
+        return len(shared - CROWD_WORDS), len(shared & CROWD_WORDS), bool(line[look].get("far_only"))
+    best = max(sorted(line), key=score, default=None)
+    return best if best and score(best)[:2] != (0, 0) else f"{place}_{row['id']}_1-new"
+
+
 def default_choice(place, row):
-    """A new row's looks: a crowd's far look in the palettes, else a new look a person."""
+    """A row's looks read from its design: a crowd's far look by its words, its palettes undecided (with why), else a
+    new look a person."""
     if row["noun"] == "crowd" or "crowd" in row["name"]:
-        return {"crowd": CROWD_LOOK, "palettes": PALETTES}
+        return {"crowd": crowd_look(place, row), "palettes": None, "palettes_from": UNDECIDED_PALETTES}
     return {"looks": [f"{place}_{row['id']}_{number}-new" for number in range(1, row.get("count", 1) + 1)]}
 
 
@@ -187,8 +228,8 @@ def concept_share(row, picture):
 
 
 def refreshed_place(place, inventory, plan, old):
-    """One place's entry from its current reading (`inventory`, groups.current's) and plan, keeping `old`'s choices
-    where it was read from the same concept."""
+    """One place's entry from its current reading (`inventory`, groups.current's) and plan, keeping `old`'s hand-made
+    choices (a row's recorded with its `why`) where it was read from the same concept."""
     concept = inventory["concept_pick"]["sha256"]
     kept = old["rows"] if old and old["concept"] == concept else {}
     rows = {}
@@ -197,17 +238,19 @@ def refreshed_place(place, inventory, plan, old):
             continue
         copied = {**{key: row.get(key) for key in ("name", "noun", "count", "size", "where")},
                   "share": concept_share(row, inventory.get("picture") or inventory.get("size"))}
-        chosen = {key: kept[row["id"]][key] for key in CHOSEN if key in kept.get(row["id"], {})}
+        held = kept.get(row["id"], {})
+        chosen = {key: held[key] for key in CHOSEN if key in held} if "why" in held else {}
         rows[row["id"]] = {**copied, **(chosen or default_choice(place, row))}
     spots, middle = placed_spots(plan) if plan else ([], [0.0, 0.0, 0.0])
     return {"concept": concept, "spots": spots, "middle": middle, "rows": rows}
 
 
 def new_looks(places, line_looks):
-    """{look: {words, from}} of every look the places name that is not on the people line."""
+    """{look: {words, from}} of every look the places name (a person's or a crowd's) that is not on the people line."""
     return {look: {"words": fields["name"], "from": f"{place}/{row}"}
             for place, entry in sorted(places.items()) for row, fields in sorted(entry["rows"].items())
-            for look in fields.get("looks", []) if look not in line_looks}
+            for look in fields.get("looks", []) + ([fields["crowd"]] if "crowd" in fields else [])
+            if look not in line_looks}
 
 
 def line_looks():
