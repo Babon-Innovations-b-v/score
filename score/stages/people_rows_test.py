@@ -1,6 +1,6 @@
 """The picked designs' people (data/people/rows.json, #26): every people row maps to a look of the shared line or a
-named new one, the crowd to one far look in palettes of library surfaces; the tube's cast names the player and the
-square's the crowd look; the line's data holds exactly the mapped looks, each baked at its person row's size; a
+named new one, the crowd to one far look read off its words, its palettes library surfaces or undecided with why;
+the tube's cast names the player and the square's the crowd look; the line's data holds exactly the mapped looks, each baked at its person row's size; a
 refresh keeps the hand-made choices of a row read from the same concept."""
 import json
 import pathlib
@@ -21,15 +21,18 @@ def test_every_people_row_maps_to_a_look():
     for place, entry in found["places"].items():
         for row, fields in entry["rows"].items():
             if "crowd" in fields:
-                assert fields["crowd"] in line, (place, row)
-                assert all(len(palette) == 3 and set(palette) <= set(surfaces) for palette in fields["palettes"])
+                assert fields["crowd"] in line or fields["crowd"] in found["new"], (place, row)
+                assert fields["palettes"] is not None or fields["palettes_from"].startswith("not decided"), (place, row)
+                assert all(len(palette) == 3 and set(palette) <= set(surfaces) for palette in fields["palettes"] or [])
             else:
                 assert len(fields["looks"]) == fields["count"], (place, row)  # one look a person
                 assert all(look in line or look in found["new"] for look in fields["looks"]), (place, row)
     every = [look for entry in found["places"].values() for fields in entry["rows"].values()
              for look in fields.get("looks", [])]
     assert len(every) == len(set(every)), "a look worn by two people"
-    assert sorted(set(every) - line) == sorted(found["new"]), "a new look not listed, or a listed one unused"
+    crowds = {fields["crowd"] for entry in found["places"].values() for fields in entry["rows"].values()
+              if "crowd" in fields}
+    assert sorted((set(every) | crowds) - line) == sorted(found["new"]), "a new look not listed, or a listed one unused"
 
 
 def test_the_tube_casts_the_player_and_the_square_its_crowd():
@@ -40,8 +43,7 @@ def test_the_tube_casts_the_player_and_the_square_its_crowd():
     assert "concept 3059819b" in tube["from"] and "crowd" not in tube
     square = people_rows.cast_record("square")
     assert square["crowd"]["look"] == "kit_m_avg_coat-grey" and square["crowd"]["count"] is None
-    assert all(len(colour) == 3 and all(0 <= value <= 255 for value in colour)
-               for palette in square["crowd"]["palettes"] for colour in palette)
+    assert square["crowd"]["palettes"] == [] and square["crowd"]["palettes_from"] == people_rows.UNDECIDED_PALETTES
 
 
 def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
@@ -50,10 +52,10 @@ def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
                                                        records["surfaces"])
     assert (props, inventory, surfaces) == (records["props"], records["inventory"], records["surfaces"]), \
         "the line's data is not written from rows.json: run python -m score.stages.people_rows"
-    assert set(props["objects"]) == {"player_wide-work", people_rows.CROWD_LOOK}
+    assert set(props["objects"]) == {"player_wide-work", "kit_m_avg-coat-grey"}
     assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"]) == set(props["objects"])
     assert people_rows.size_of("player_wide-work")[1] == "tube/person_right"
-    size, origin = people_rows.size_of(people_rows.CROWD_LOOK)
+    size, origin = people_rows.size_of("kit_m_avg-coat-grey")
     assert people_rows.person_sized(size) and origin == "square/crowd"  # never the street crowd's 8 x 10 m extent
 
 
@@ -71,7 +73,7 @@ def test_each_line_row_is_drawn_from_the_person_that_maps_it():
     rows = {row["id"]: row for row in inventory["rows"]}
     assert rows["player_wide-work"]["view"] == "tube" and rows["player_wide-work"]["box"] == [1, 2, 3, 4]
     assert rows["player_wide-work"]["grounded"] and rows["player_wide-work"]["prop"] == "player_wide-work"
-    assert rows[people_rows.CROWD_LOOK]["view"] is None, "the square keeps no inventory here"
+    assert rows["kit_m_avg-coat-grey"]["view"] is None, "the square keeps no inventory here"
     assert inventory["plan"]["views"] == [{"id": "tube", "picture": "{home}/design/concepts/tube.png"}]
     assert inventory["approved"]["by"] == "the creator's pick" and inventory["approved"]["places"] == ["tube"]
     assert "closeup" not in props["objects"]["player_wide-work"]
@@ -96,11 +98,29 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
         {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop"}]}
     fresh = people_rows.refreshed_place("deck", inventory, None, None)
     assert fresh["rows"]["pilot"]["looks"] == ["deck_pilot_1-new", "deck_pilot_2-new"] and "chair" not in fresh["rows"]
-    assert fresh["rows"]["crowd"]["crowd"] == people_rows.CROWD_LOOK
+    assert fresh["rows"]["crowd"]["crowd"] == "kit_m_avg-coat-grey" and fresh["rows"]["crowd"]["palettes"] is None
     fresh["rows"]["pilot"]["looks"] = ["player_wide-work", "deck_pilot_2-new"]
+    assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
+        "deck_pilot_1-new", "a pick with no why is no hand-made choice: read again from the design"
+    fresh["rows"]["pilot"]["why"] = "the owner's pick"
     assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == "player_wide-work"
     redrawn = {**inventory, "concept_pick": {"sha256": "two"}}
     assert people_rows.refreshed_place("deck", redrawn, None, fresh)["rows"]["pilot"]["looks"][0] == "deck_pilot_1-new"
+
+
+
+def test_a_crowds_look_is_read_off_its_words():
+    """No city square's coats on every crowd: the people line's look sharing the most of the row's words, a crowd
+    word only between looks that share no other, a new look when none shares a word."""
+    line = {"kit_m_avg-coat-grey": {"object": "a person in a plain mid grey coat", "far_only": True},
+            "player_wide-work": {"object": "a person in a dark navy one-piece work suit"}}
+    def look(name, noun):
+        return people_rows.crowd_look("moon", {"id": "crowd", "name": name, "noun": noun}, line)
+    assert look("crowd of people", "people") == "kit_m_avg-coat-grey"  # "an ordinary citizen in the crowd"
+    assert look("crowd of astronauts", "crowd") == "player_wide-work"  # "an astronaut of a Moon base"
+    assert look("flock of penguins", "penguin") == "moon_crowd_1-new"
+    assert people_rows.new_looks({"moon": {"rows": {"crowd": {"name": "flock of penguins", "crowd": "moon_crowd_1-new"}}}},
+                                 set(line)) == {"moon_crowd_1-new": {"words": "flock of penguins", "from": "moon/crowd"}}
 
 
 if __name__ == "__main__":

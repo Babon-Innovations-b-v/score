@@ -332,7 +332,7 @@ def test_todays_design_makes_the_tube_player_full_and_the_crowd_far():
     from score.stages.cast import spread
     from score.stages.people_bodies import full
     looks = bodies.looks()
-    assert not looks["player_wide-work"].get("far_only") and looks[people_rows.CROWD_LOOK]["far_only"], looks
+    assert not looks["player_wide-work"].get("far_only") and looks["kit_m_avg-coat-grey"]["far_only"], looks
     assert full.FAR_SHARE == spread.FAR_SHARE == contents.FAR_SHARE
 
 
@@ -350,9 +350,9 @@ def test_the_body_rows_follow_the_design_s_share():
                 **design["places"]["tube"], "rows": {"person_right": {**tube, "share": 0.05}}}}}))
             assert bodies.looks()["player_wide-work"].get("far_only"), "a far person kept a full body"
             bodies.DESIGN.write_text(json.dumps({"places": {"p": {"rows": {
-                "near": {"looks": [people_rows.CROWD_LOOK], "share": 0.3}}}}}))
+                "near": {"looks": ["kit_m_avg-coat-grey"], "share": 0.3}}}}}))
             made = bodies.looks()
-            assert not made[people_rows.CROWD_LOOK].get("far_only") and made["player_wide-work"].get("far_only"), made
+            assert not made["kit_m_avg-coat-grey"].get("far_only") and made["player_wide-work"].get("far_only"), made
         finally:
             bodies.DESIGN = held
 
