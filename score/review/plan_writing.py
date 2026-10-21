@@ -55,10 +55,12 @@ AREA = "plan-writings"
 MODEL = concepts.PROMPT_MODEL
 CALLER = "plan-writing"
 TIMEOUT = 600
-# 6: measured off a top-down drawing in a square frame (owner, 2026-10-21), footprints as box_2d read on a grid, each
-# inside place on the part its name fits; 5 to 2 trials of 2026-10-21 (2 and 3 drew in the painting's perspective);
-# 1 packed from words. Only today's is shown.
-METHOD = 6
+# 7: as 6, an item counting several of its row only for things drawn touching in one run (6 boxed a row's things
+# drawn apart as one box round them all: palm trees round the square, owner 2026-10-21 "something has just broken the
+# plans"); 6: measured off a top-down drawing in a square frame (owner, 2026-10-21), footprints as box_2d read on a
+# grid, each inside place on the part its name fits; 5 to 2 trials of 2026-10-21 (2 and 3 drew in the painting's
+# perspective); 1 packed from words. Only today's is shown.
+METHOD = 7
 # The owner's standing allowance (2026-10-21): a plan is written on its own once its inventory is read. False: only on
 # his Make plan click, his spend yes for that one call.
 AUTOMATIC = True
@@ -105,8 +107,11 @@ Write the plan as one JSON object with these keys:
   ...]}}]}}: spot heights where the ground rises or falls and contour lines at an even step; {{}} for a place indoors.
 - "items": every row of the facts' rows that stands on the floor or the ground (its items' counts adding up to the
   row's count), and the things on walls, ceilings or other rows worth placing, each where the drawing shows it,
-  {{"row": the row's id, "count": how many of its row the item is (1 for one thing; a run of shelving, a row or stack
-  of crates, a line of drums or cylinders standing together is ONE item counting them all, its box round the run),
+  {{"row": the row's id, "count": how many of its row the item is (1 for one thing standing apart; only things of one
+  row drawn touching each other in one tight run, a run of shelving, a row or stack of crates, a line of drums or
+  cylinders standing together, are ONE item counting them all, its box round that run alone; things of a row drawn
+  apart from each other, trees or lamps round a plaza, flags, chairs, scattered parts, are each an item of their own
+  where each is drawn, never one box round them all),
   "box_2d": [ymin, xmin, ymax, xmax] of its footprint as drawn (in the drawing's units, never the row's metres),
   "shape": "rect"|"circle"|"polygon", "points": [[x, y], ...] (a polygon's corners, for a thing turned off the grid, a
   tube running at a slant, or of its own outline), "facing": "N"|"E"|"S"|"W"|null (the way its front or nose points

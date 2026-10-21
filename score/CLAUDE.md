@@ -136,7 +136,8 @@ stage as each stage is built; nothing moves before.
   size, its middle where drawn and its nose the way drawn, and the drawing is asked for it at that size in its box's
   frame; then `plan_checks.py`'s free checks (the arrangement against the
   concept's SAM boxes, left of, behind, place across the view, the way a thing faces, what a tube joins, among them; a
-  run of crates one item with its `count`), each failure a plain gap with where it is; run on its own after a reading
+  run of crates one item with its `count`, only things drawn touching: a counted box far larger than its things side
+  by side is a gap, `run_gaps`), each failure a plain gap with where it is; run on its own after a reading
   (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
   on his Make plan click as his spend yes (`web.plan_write`).
   `blockout.py` builds a place's blockout (CONTEXT.md "blockout", owner 2026-10-21) from its parent's plan: a top
