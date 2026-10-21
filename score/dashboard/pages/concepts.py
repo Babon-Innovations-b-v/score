@@ -1,6 +1,8 @@
-"""The concept review (CONTEXT.md "concept review", owner 2026-10-20): one place's concept page, opened from its card
-on the Environment screen while its concept is not locked. The picture shown, areas marked on it each with a note, a
-free note, Draw (or Redraw) priced per click, the place's draws, and Pick (lock it for the design) or Unlock.
+"""The concept review (CONTEXT.md "concept review", owner 2026-10-20): one place's design page, opened from its card
+on the Environment screen; three parts in order, each folding, the next step's open (the owner, 2026-10-21): the
+concept (the picture shown, areas marked on it each with a note, a free note, Draw (or Redraw) priced per click, the
+place's draws, and Pick (lock it for the design) or Unlock), the inventory (the reading's boxes on the picked concept,
+its rows and what it skipped) and the plan (pages/plans.py).
 
 Each click is the owner's request (a SyncRequest of kind concept-draw or concept-pick, sync/applying.py), applied by
 the store's machine: locally at once in a thread of this process, hosted by its listener (sync/listen.py) within a
@@ -187,8 +189,28 @@ def context_pictures(world, wording, names):
     return found
 
 
+def open_part(picked, read, review):
+    """The design page's part open by default: the next step's (concept until picked, inventory until read, then the
+    plan)."""
+    if not picked:
+        return "concept"
+    return "plan" if read and review else "inventory"
+
+
+def plan_part(world, place):
+    """The design page's plan part (pages/plans.py): the plan shown, its JSON, the picked concept, its prices and his
+    open or refused plan request."""
+    from score.dashboard.pages import plans
+    review = plans.review_of(world, place)
+    pending = plans.pending_of(place)
+    return {"review": review, "plan_json": json.dumps(review["plan"]).replace("</", "<\\/") if review else "null",
+            "plan_picture": plans.picture_of(world, place), "plan_euros": world.plan_revise_euros,
+            "write_euros": world.plan_write_euros, "automatic": world.plan_automatic,
+            "plan_pending": pending and pending.created.isoformat(), "plan_refused": plans.refused_of(place)}
+
+
 def concept_page(request, place):
-    """The concept review page of one place (module docstring)."""
+    """The design page of one place (module docstring): its concept, its inventory and its plan, each a part."""
     source = state.source()
     world = source.world_state()
     checked_node(world, source, place)
@@ -199,15 +221,18 @@ def concept_page(request, place):
     names = groups.short_names(world)
     pending = pending_of(place)
     wording = wording_of(world, place)
+    inventory = inventory_of(world, place, picked)
+    reading = picked and reading_view(world, place, picked)
+    planned = plan_part(world, place)
     return render(request, "pages/concept.html", {
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
         "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros, "redraw_euros": world.concept_redraw_euros,
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
         "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
-        "approved": place in screens.approved_places(world), "inventory": inventory_of(world, place, picked),
-        "reading": shown and shown.picture.sha == picked and reading_view(world, place, picked),
-        "plan": place in world.plan_reviews, "named": world.plan_named.get(place, [])})
+        "approved": place in screens.approved_places(world), "inventory": inventory, "reading": reading,
+        "named": world.plan_named.get(place, []), **planned,
+        "open": open_part(picked, reading or (inventory or {}).get("state") == "made", planned["review"])})
 
 
 def approved(source, place):

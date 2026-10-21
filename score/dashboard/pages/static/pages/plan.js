@@ -15,9 +15,9 @@
   const svg = document.getElementById("plan-drawing");
   const cut = document.getElementById("plan-section");
   const editing = "marking" in page.dataset;
-  const said = document.getElementById("concept-said");
-  const notes = document.getElementById("concept-notes");
-  const note = document.getElementById("concept-note");
+  const said = document.getElementById("plan-said");
+  const notes = document.getElementById("plan-notes");
+  const note = document.getElementById("plan-note");
   const SVG = "http://www.w3.org/2000/svg";
   const WALLS = "ON THE WALLS AND CEILING";
   const SIDES = ["N", "S", "E", "W"];
@@ -50,6 +50,7 @@
   };
   fitted();
   window.addEventListener("resize", fitted);
+  page.closest("details")?.addEventListener("toggle", fitted);  // drawn inside a part that opens later
 
   // --- drawing helpers ----------------------------------------------------------------------------------------------
   const shape = (name, attributes, parent = svg) => {
