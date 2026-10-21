@@ -28,6 +28,7 @@ SAME_DEPTH = 0.12
 CLEAR_SEEN = 0.06
 CLEAR_LAID = 0.08
 TURNS = 5  # degrees between the viewer's ways tried
+FRAME_APART = 0.25  # share of the view a row's place across it may differ by between the concept and the plan
 CONNECTORS = {"tube", "tubes", "tunnel", "corridor", "walkway", "bridge", "passage", "connector", "link"}
 JOIN_SEEN = 0.01  # share of the picture two boxes may stand apart and still meet in the concept
 JOIN_LAID = 1.0  # metres a connector may stand from a part and still meet it on the plan
@@ -178,8 +179,11 @@ def placed_items(plan):
 
 def count_gaps(plan, inventory, structure):
     """A gap for each row standing on the floor or the ground placed another number of times than it counts (none for
-    a row the writer saw beyond the place, through a window or past its edge: the plan's `beyond`)."""
-    placed = collections.Counter(row for _, row, _ in placed_items(plan))
+    a row the writer saw beyond the place, through a window or past its edge: the plan's `beyond`); an item of a run
+    (a row of shelving, a stack of crates) counts as many as its shape's `count`."""
+    placed = collections.Counter()
+    for _, row, shape in placed_items(plan):
+        placed[row] += int((shape or {}).get("count") or 1)
     gaps, beyond = [], set(plan.get("beyond", []))
     for row in inventory.get("rows", []):
         if row["id"] in structure | beyond or (row.get("anchor") or "floor") not in FLOOR_ANCHORS:
@@ -429,16 +433,84 @@ SAID = {("across", 1): "right of", ("across", -1): "left of", ("depth", 1): "in 
 def order_gaps(plan, inventory):
     """A gap for each two rows whose order on the plan is not the concept's (left of, right of, behind, in front of),
     the plan seen from the way that agrees with the concept most."""
-    seen = concept_spots(plan, inventory)
-    laid = plan_spots(plan, set(seen))
-    seen = {row: spot for row, spot in seen.items() if row in laid}
+    seen, laid, turn = viewed(plan, inventory)
     if len(seen) < 2:
         return []
     return [{"kind": "arrangement", "item": first, "row": first, "with": second, "at": [round(float(value), 2) for value
                                                                                       in laid[first]],
              "words": f"{said_name(first)} is {SAID[(axis, int(said))]} {said_name(second)} in the concept, "
                       f"{SAID[(axis, int(drawn))]} it on the plan"}
-            for first, second, axis, said, drawn in relations(seen, laid, best_turn(seen, laid)) if said != drawn]
+            for first, second, axis, said, drawn in relations(seen, laid, turn) if said != drawn]
+
+
+def viewed(plan, inventory):
+    """(seen, laid, turn): the rows boxed on the concept and laid on the plan (concept_spots, plan_spots) and the way
+    the viewer looks that agrees with the concept most (best_turn; north with fewer than two rows to order)."""
+    seen = concept_spots(plan, inventory)
+    laid = plan_spots(plan, set(seen))
+    seen = {row: spot for row, spot in seen.items() if row in laid}
+    return seen, laid, best_turn(seen, laid) if len(seen) >= 2 else 0
+
+
+def ways(turn):
+    """(right, toward) unit steps on the plan of the viewer looking `turn` degrees from north (y runs south)."""
+    right = numpy.array([math.cos(math.radians(turn)), math.sin(math.radians(turn))])
+    return right, numpy.array([-right[1], right[0]])
+
+
+def third(share):
+    """Where a share across the view stands, in words."""
+    return "on the left" if share < 1 / 3 else "on the right" if share > 2 / 3 else "in the middle"
+
+
+def shares(values):
+    """{key: its value's share of the way from the least of `values` to the most}."""
+    low, high = min(values.values()), max(values.values())
+    return {key: (value - low) / max(high - low, 1e-9) for key, value in values.items()}
+
+
+def frame_gaps(plan, inventory):
+    """A gap for each row standing elsewhere across the view on the plan than in the concept (the middle against a
+    side: a pad off to one side): its share of the way across from the leftmost of the rows boxed on both to the
+    rightmost, in the concept's picture and on the plan seen from the way that agrees with the concept most, more
+    than FRAME_APART apart (both from the same rows, so the painting's crop and perspective cancel out)."""
+    seen, laid, turn = viewed(plan, inventory)
+    if len(seen) < 3:
+        return []
+    right, _ = ways(turn)
+    concept = shares({row: spot[0] for row, spot in seen.items()})
+    drawn = shares({row: float(laid[row] @ right) for row in seen})
+    gaps = []
+    for row in sorted(seen):
+        across, share = concept[row], drawn[row]
+        if abs(share - across) > FRAME_APART:
+            gaps.append({"kind": "arrangement", "item": row, "row": row, "at": [round(float(value), 2)
+                                                                                for value in laid[row]],
+                         "words": f"{said_name(row)} stands {third(across)} of the concept ({across:.0%} across), "
+                                  f"{third(share)} of the plan ({share:.0%} across)"})
+    return gaps
+
+
+def facing_word(facing, turn):
+    """The way a plan facing (N, E, S, W) points as the concept's viewer sees it: toward, away, left or right."""
+    step = numpy.array({"N": (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}[facing], dtype=float)
+    right, toward = ways(turn)
+    along, near = float(step @ right), float(step @ toward)
+    return ("right" if along > 0 else "left") if abs(along) > abs(near) else ("toward" if near > 0 else "away")
+
+
+def facing_gaps(plan, inventory):
+    """A gap for each item whose facing on the plan is not the way the concept shows it facing (its shape's `seen`,
+    the writer's reading of the painting), the plan seen from the way that agrees with the concept most."""
+    _, _, turn = viewed(plan, inventory)
+    gaps = []
+    for item, row, shape in placed_items(plan):
+        seen = (shape or {}).get("seen")
+        if item[5] in ("N", "E", "S", "W") and seen and facing_word(item[5], turn) not in seen:
+            gaps.append({"kind": "arrangement", "item": item[0], "row": row, "at": middle_of(polygon_of(item, shape)),
+                         "words": f"{said_name(item[0])} faces {'-'.join(seen)} in the concept, "
+                                  f"{facing_word(item[5], turn)} on the plan"})
+    return gaps
 
 
 def connector(row):
@@ -485,4 +557,5 @@ def checked(plan, inventory, structure=()):
     outline = grid.covered(outline_of(plan))
     return (count_gaps(plan, inventory, set(structure)) + outside_gaps(plan, inventory, grid, outline)
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
-            + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + join_gaps(plan, inventory))
+            + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + frame_gaps(plan, inventory)
+            + facing_gaps(plan, inventory) + join_gaps(plan, inventory))

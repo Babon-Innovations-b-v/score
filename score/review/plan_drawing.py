@@ -11,10 +11,11 @@ under the same standing allowance and its spend block. Kept in the store, writte
 import base64
 import hashlib
 import io
+import math
 import time
 import urllib.error
 
-from score.review import concepts, plans
+from score.review import concepts, creator_plans, plans
 from score.store import stamp_key
 
 AREA = "plan-drawings"
@@ -23,8 +24,13 @@ NEAR_BOTTOM = "The painting's near side is at the bottom of your picture and its
 FROM_SOUTH_EAST = ("The painting is seen from the south-east, a little from above; draw the plan north up, so the "
                    "painting's viewer stands off your picture's bottom-right corner.")
 OUTLINE = (" The second picture is the plan of the place holding it, top down and north up, this place the yellow box: "
-           "draw this place filling exactly that box's shape and proportions, north up, its doors where the box's "
-           "doors are.")
+           "draw this place filling exactly that box's shape and proportions ({wide:g} m west to east, {deep:g} m "
+           "north to south: your picture is that shape), north up, its doors where the box's doors are, and every "
+           "part at its true size against it.")
+# a part the creator planned is drawn at the plan's own size (creator data wins; the owner, 2026-10-21)
+PLANNED_SIZE = " ({long:g} m long, {wide:.1f} m wide: draw it at exactly this size)"
+# the frames the drawing model draws in (Nano Banana Pro's aspect ratios), wide over deep
+FRAMES = ("1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9")
 OUTSIDE = ("From straight above every dome and round module is a flat circle, a box-shaped building the rectangle of "
            "its roof, a faceted hall its polygon, every tube or corridor a straight band of even width running between "
            "the two parts it joins.")
@@ -44,13 +50,15 @@ WORDING = ("Make a new picture: the plan of {name} in the attached painting, as 
 
 
 def parts_of(store, place):
-    """The place's parts as its scene inventory names them (a count before a row of more than one), the place itself
-    and its people left out."""
+    """The place's parts as its scene inventory names them (a count before a row of more than one), a part a creator
+    planned with its own metres (creator_plans), the place itself and its people left out."""
     from score.review import plan_checks
     inventory = plans.inventory_of(store, place) or {}
     left_out = plan_checks.people(inventory)
-    said = [f"{int(row.get('count', 1) or 1)} {row.get('name') or row['id']}" if int(row.get("count", 1) or 1) > 1
-            else str(row.get("name") or row["id"]) for row in inventory.get("rows", [])
+    planned = creator_plans.planned(plans.derived(store, place).get("holds", []))
+    sized = {planned[0]: PLANNED_SIZE.format(long=planned[1]["length"], wide=planned[1]["wide"])} if planned else {}
+    said = [(f"{int(row.get('count', 1) or 1)} {row.get('name') or row['id']}" if int(row.get("count", 1) or 1) > 1
+             else str(row.get("name") or row["id"])) + sized.get(row["id"], "") for row in inventory.get("rows", [])
             if row["id"] not in left_out and not plans.whole(row, inventory.get("picture"))]
     return ", ".join(said).replace("_", " ")
 
@@ -59,11 +67,22 @@ def wording_of(store, place):
     """What the drawing is asked with: the place's name and parts, how it is seen from above (indoors its floor plan,
     else its roofs), the way the plan is turned against the painting (north up from the south-east view a blockout
     fixed, else the painting's near side at the bottom) and its outline when sent."""
-    inside = concepts.indoors(store, place)
+    inside, held = concepts.indoors(store, place), plans.holder_of(store, place)
     return WORDING.format(name=concepts.name_of(place), kind="floor plan" if inside else "roof plan",
                           seen=INSIDE if inside else OUTSIDE, parts=parts_of(store, place),
                           orientation=NEAR_BOTTOM if concepts.without_blockout(store, [place]) else FROM_SOUTH_EAST,
-                          outline=OUTLINE if plans.holder_of(store, place) else "")
+                          outline=OUTLINE.format(wide=held["outline"][2], deep=held["outline"][3]) if held else "")
+
+
+def frame_of(store, place):
+    """The drawing's frame: the one of FRAMES nearest the place's box on the layer above's plan (the hangar's 32 x 64 m
+    a 9:16), so the drawing can keep its proportions; square when the layer above lays none (the painting's wide frame
+    is then not copied as it stands)."""
+    held = plans.holder_of(store, place)
+    if not held:
+        return "1:1"
+    wanted = math.log(held["outline"][2] / held["outline"][3])
+    return min(FRAMES, key=lambda frame: abs(math.log(int(frame.split(":")[0]) / int(frame.split(":")[1])) - wanted))
 
 
 def pictures_of(store, place):
@@ -92,15 +111,15 @@ def drawing_of(store, place, outline, wording):
                  and found.get("outline") == outline and found.get("wording") == wording), None)
 
 
-def called(wording, pictures):
-    """One Nano Banana Pro call (google_spend, on its ledger, never cached); (PNG bytes, euros, seconds)."""
+def called(wording, pictures, frame="1:1"):
+    """One Nano Banana Pro call in `frame` (frame_of; google_spend, on its ledger, never cached); (PNG bytes, euros,
+    seconds)."""
     from PIL import Image
     pro, google_spend, secret_store = concepts.tools()
     body = {"contents": [{"role": "user", "parts": [{"text": wording}]
                           + [pro.part(picture, concepts.LONGEST_SENT) for picture in pictures]}],
-            # square, so the painting's wide frame cannot be copied as it stands (and the units run alike both ways)
             "generationConfig": {"responseModalities": ["IMAGE"], "imageConfig": {"imageSize": "2K",
-                                                                                  "aspectRatio": "1:1"}}}
+                                                                                  "aspectRatio": frame}}}
     began = time.time()
     try:
         response = google_spend.generate(pro.MODEL, body, secret_store.secret(pro.KEY_SECRET), concepts.TIMEOUT,
@@ -126,7 +145,7 @@ def drawn(store, place):
     found = drawing_of(store, place, outline, wording)
     if found:
         return found
-    png, euros, seconds = called(wording, pictures)
+    png, euros, seconds = called(wording, pictures, frame_of(store, place))
     record = {"place": place, "concept": concepts.picked(store, place), "outline": outline,
               "sha": concepts.kept(store, png), "at": concepts.now(), "euros": euros, "seconds": seconds,
               "wording": wording}

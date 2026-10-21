@@ -92,7 +92,7 @@ def test_a_rough_plan_offers_make_plan_and_his_click_writes_it_with_its_gaps_to_
 
     monkeypatch.setattr(web, "plan_write", written)
     monkeypatch.setattr(plan_writing, "call_euros", lambda found: 0.04)
-    monkeypatch.setattr(plan_drawing, "called", lambda wording, pictures: (drawing_png(), 0.13, 1.0))
+    monkeypatch.setattr(plan_drawing, "called", lambda wording, pictures, frame: (drawing_png(), 0.13, 1.0))
     monkeypatch.setattr(plan_writing, "cleared", lambda *found, **named: contextlib.nullcontext())
     monkeypatch.setattr("score.adapters.compute.require_cleared", lambda what, store=None: None)
     owner = signed_in()
