@@ -578,9 +578,9 @@ def laid_out(inventory):
 FLOORS = {"ring_floor_plate", "ledge_cover", "dock_pad_one", "dock_pad_two", "dock_pad_three"}
 
 
-def kinds_table(inventory):
+def kinds_table(inventory, pieces):
     """room_kit's table, the ledge covers and the dock pads floors too."""
-    table = room_kit.kinds_table(ROOM, inventory)
+    table = room_kit.kinds_table(ROOM, inventory, pieces)
     for kind in FLOORS:
         if f"{ROOM}_{kind}" in table:
             table[f"{ROOM}_{kind}"]["group"] = "floors"
@@ -597,7 +597,7 @@ def main():
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     pathlib.Path(sys.argv[1]).write_text(json.dumps(
         {"room": ROOM, "frame": "the room's own: its middle on its floor, x east, z south, y up", "counts": counts,
-         "kinds": kinds_table(inventory), "pieces": pieces}, indent="\t") + "\n")
+         "kinds": kinds_table(inventory, pieces), "pieces": pieces}, indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")
 
 

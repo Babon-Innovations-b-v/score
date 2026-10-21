@@ -443,6 +443,7 @@
     51
    ],
    "name": "small square orange lamp in an upper front corner",
+   "noun": "lamp",
    "kind": "generate",
    "anchor": "wall",
    "size": [
@@ -469,11 +470,6 @@
     }
    ],
    "ground_box": true,
-   "light": {
-    "strength": 0.05,
-    "reach": 2.0,
-    "high": 0.06
-   },
    "box_from": [
     "v1.53"
    ]
@@ -596,6 +592,7 @@
     170
    ],
    "name": "cyan light bar along the top of the main console, under the windows",
+   "noun": "light",
    "kind": "code",
    "anchor": "on:main_console",
    "size": [
@@ -616,11 +613,6 @@
     }
    ],
    "parent": "main_console",
-   "light": {
-    "strength": 0.05,
-    "reach": 1.5,
-    "high": 0.02
-   },
    "box_from": [
     "v1.24"
    ]
@@ -635,6 +627,7 @@
     76
    ],
    "name": "warm amber light strip along the top of a side wall",
+   "noun": "light",
    "kind": "code",
    "anchor": "wall",
    "size": [
@@ -660,11 +653,6 @@
      "facing": 270
     }
    ],
-   "light": {
-    "strength": 0.1,
-    "reach": 3.0,
-    "high": 0.03
-   },
    "box_from": [
     "v1.32"
    ]
@@ -679,6 +667,7 @@
     105
    ],
    "name": "cyan-lit light panel set in the ceiling behind the windows",
+   "noun": "light",
    "kind": "code",
    "anchor": "ceiling",
    "size": [
@@ -704,11 +693,6 @@
      "facing": 0
     }
    ],
-   "light": {
-    "strength": 0.2,
-    "reach": 4.0,
-    "high": 0.05
-   },
    "box_from": [
     "v1.33",
     "v1.36"

@@ -17,20 +17,22 @@
 		},
 		"walkway_floor_grate": {},
 		"walkway_edge_light_strip": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.1,
-				"reach": 3.0,
-				"high": 0.03
-			},
-			"group": "hangs"
+				"strength": 0.142,
+				"reach": 3.82,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"walkway_ceiling_light_panel": {
+			"group": "hangs",
 			"light": {
 				"strength": 0.2,
 				"reach": 4.0,
-				"high": 0.05
-			},
-			"group": "hangs"
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"walkway_wall_lower_plain": {
 			"group": "hangs"

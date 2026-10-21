@@ -253,6 +253,8 @@ def check_kit_lamps():
     assert len(lights) == 1, lights
     assert np.allclose(lights[0]["at"], [1.0, 2.2, 3.0 - 0.1]), lights[0]["at"]
     assert math.isclose(lights[0]["energy"], 0.6) and lights[0]["range"] == 3.5 and not lights[0]["shadows"]
+    kit["kinds"]["hub_wall_cage_lamp"]["light"]["shadows"] = True  # the library's lamp says it casts them
+    assert scene.kit_lights(kit, [laid])[0]["shadows"]
 
 
 def check_tube():

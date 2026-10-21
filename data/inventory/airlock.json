@@ -645,6 +645,7 @@
 				353
 			],
 			"name": "strip light over a door",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [
@@ -682,11 +683,6 @@
 					"out": 0.1
 				}
 			],
-			"light": {
-				"strength": 0.15,
-				"reach": 4.0,
-				"high": 0.5
-			},
 			"box_from": [
 				"v1.w26"
 			]
@@ -822,6 +818,7 @@
 				158
 			],
 			"name": "the amber warning beacon on the airlock's roof: a bolted flange, a grey body and an amber dome",
+			"noun": "beacon",
 			"kind": "code",
 			"anchor": "roof",
 			"size": [
@@ -862,6 +859,7 @@
 				277
 			],
 			"name": "a caged industrial ceiling flood lamp fixture hung from the lattice",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "ceiling",
 			"size": [
@@ -874,11 +872,6 @@
 			"group": "kit: light",
 			"made": "kit piece",
 			"sound": "lamp_buzz",
-			"light": {
-				"strength": 0.55,
-				"reach": 5.0,
-				"high": 0.1
-			},
 			"at": [
 				{
 					"x": 0.5,

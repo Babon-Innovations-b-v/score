@@ -91,12 +91,13 @@
 			"group": "hangs"
 		},
 		"lab_door_strip_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.15,
-				"reach": 4.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.167,
+				"reach": 4.52,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"lab_door_control_box": {
 			"group": "hangs"
@@ -168,20 +169,22 @@
 			"group": "hangs"
 		},
 		"lab_task_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.12,
-				"reach": 3.0,
-				"high": 0.1
-			},
-			"group": "hangs"
+				"strength": 0.123,
+				"reach": 3.32,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"lab_ceiling_lamp": {
+			"group": "hangs",
 			"light": {
 				"strength": 0.3,
-				"reach": 7.0,
-				"high": 0.05
-			},
-			"group": "hangs"
+				"reach": 6.0,
+				"high": 0.05,
+				"shadows": true
+			}
 		}
 	},
 	"models": {

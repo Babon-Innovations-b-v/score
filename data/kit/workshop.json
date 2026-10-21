@@ -110,12 +110,13 @@
 			"group": "hangs"
 		},
 		"workshop_door_strip_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.2,
-				"reach": 5.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.169,
+				"reach": 4.56,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"workshop_door_control_box": {
 			"group": "hangs"
@@ -147,20 +148,22 @@
 		"workshop_floor_socket": {},
 		"workshop_bay_mark": {},
 		"workshop_pendant_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.55,
-				"reach": 7.0,
-				"high": 0.05
-			},
-			"group": "hangs"
+				"strength": 0.258,
+				"reach": 5.15,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"workshop_wall_cage_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.25,
-				"reach": 4.5,
-				"high": 0.1
-			},
-			"group": "hangs"
+				"strength": 0.137,
+				"reach": 3.7,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"workshop_arm_monitor": {},
 		"workshop_keyboard": {},

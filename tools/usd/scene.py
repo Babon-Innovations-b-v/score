@@ -88,12 +88,12 @@ LAMP_RADIUS = 0.05
 # A game spot light dims from its middle all the way out to its cone's edge (Godot's SpotLight3D, its angle
 # attenuation 1 by default: 1 - (1 - cos a) / (1 - cos cone)), so its cone is soft across the whole of it.
 SPOT_SOFTNESS = 1.0
-# The game's lamp (game/base/lamp/lamp.gd): energy LAMP_ENERGY times a lamp's strength, its colour and fall-off; only
-# the hub's roof fittings cast shadows (HubKit); a walkway tube lights every second bay (TubeKit.LIGHT_EVERY).
+# The game's lamp (game/base/lamp/lamp.gd): energy LAMP_ENERGY times a lamp's strength, its colour and fall-off; a lamp
+# casts shadows when its kind's light says so (the library's lamp for its mount, tools/props/scene/lamps.py); a walkway
+# tube lights every second bay (TubeKit.LIGHT_EVERY).
 LAMP_ENERGY = 12.0
 LAMP_COLOUR = "#ffd29a"
 LAMP_ATTENUATION = 2.2
-SHADOW_KINDS = ("hub_roof_light_fixture",)
 TUBE_LIGHT_EVERY = 2
 # The day sky's ball (write_sky_dome): behind the sun's disc (shaders.SUN_DISC_DISTANCE, 1880 m), in front of the
 # stars (1900 m), which the day sky hides.
@@ -703,7 +703,7 @@ def write_light(stage, path, entry):
 
 def kit_lights(kit, pieces):
     """The lights a kit room's lamps give, where the game's HubKit hangs them: a lamp kind's `light` (strength, reach,
-    high) on every piece of it that is not its lens, a little in front of the piece at `high` of its height, an omni
+    high, shadows) on every piece of it that is not its lens, a little in front of the piece at `high` of its height, an omni
     light of the game's lamp (energy LAMP_ENERGY times strength, the lamp colour, reach its range); a walkway tube's on
     every TUBE_LIGHT_EVERY-th bay, under the lens (TubeKit._lamp). `pieces` are the laid pieces, a tube's with the
     `spot` of its bay (export.py)."""
@@ -728,7 +728,7 @@ def kit_lights(kit, pieces):
             at = np.asarray(laid["spot"], dtype=np.float64) @ at
         found.append({"type": "omni", "at": [round(float(value), 4) for value in at[:3]], "colour": LAMP_COLOUR,
                       "energy": LAMP_ENERGY * float(light.get("strength", 0.1)), "range": float(light.get("reach", 4.0)),
-                      "attenuation": LAMP_ATTENUATION, "shadows": laid["kind"] in SHADOW_KINDS,
+                      "attenuation": LAMP_ATTENUATION, "shadows": bool(light.get("shadows", False)),
                       "from": f"HubKit lamp ({laid['kind']}), game/base/lamp/lamp.gd"})
     return found
 

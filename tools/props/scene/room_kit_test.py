@@ -121,7 +121,7 @@ def test_every_roof_row_meets_the_roof_plate_it_hangs_from():
     sys.path.insert(0, str(HERE.parent / "gates"))
     import surface
     for room in ROOMS:
-        layout = {"room": room, "kinds": room_kit.kinds_table(room, INVENTORIES[room]), "pieces": LAID[room]}
+        layout = {"room": room, "kinds": room_kit.kinds_table(room, INVENTORIES[room], LAID[room]), "pieces": LAID[room]}
         hung = [(index, laid["kind"], problems) for index, laid, problems in
                 ((index, laid, surface.plate_faults(laid, surface.shell.roof_plates(layout)))
                  for index, laid in enumerate(LAID[room]) if "ceiling_" in laid["kind"]) if problems]

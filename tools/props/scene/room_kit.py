@@ -39,6 +39,7 @@ import numpy as np
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import hub_kit  # noqa: E402
+import lamps  # noqa: E402
 
 COMPOSITES = REPO / "data/library/composites.json"
 # A pipe run's brackets: the end ones this far in from its ends, the rest at most BRACKET_EVERY apart.
@@ -534,20 +535,22 @@ def laid_out(room, inventory):
 
 # What each piece is to the scene check (resting.gd) and to the game: the floors other things rest on, what hangs
 # from a wall or the roof, what is solid (furniture the player walks round: RoomKit gives it a box that collides),
-# and what lights (a real lamp each).
+# and what lights (a real lamp each: a row whose row kind glows, its light the library's lamp, lamps.py).
 FLOORS = {"ring_floor_plate", "roof_face_panel"}
 HANGING_GROUPS = {"wall", "ceiling", "door", "pipe", "sign", "screen", "light", "vent"}
 
 
-def kinds_table(room, inventory):
-    """Every kind's light, group and solidity, for RoomKit and the scene check."""
+def kinds_table(room, inventory, pieces):
+    """Every kind's light (from its laid `pieces`), group and solidity, for RoomKit and the scene check."""
     table = {}
     for row in inventory["rows"]:
         if row.get("made") != "kit piece":
             continue
         about = {}
-        if "light" in row:
-            about["light"] = row["light"]
+        kind = f"{room}_{row['id']}"
+        light = lamps.light_of(row, [laid for laid in pieces if laid["kind"] == kind])
+        if light:
+            about["light"] = light
         if row["id"] in FLOORS:
             about["group"] = "floors"
         elif row.get("group", "").removeprefix("kit: ") in HANGING_GROUPS:
@@ -556,7 +559,7 @@ def kinds_table(room, inventory):
             about["solid"] = True
         if row.get("anchor") == "roof":  # stands on the roof, outside the shell (the airlock's beacon)
             about["outside"] = True
-        table[f"{room}_{row['id']}"] = about
+        table[kind] = about
     return table
 
 
@@ -571,7 +574,7 @@ def main():
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     pathlib.Path(sys.argv[2]).write_text(json.dumps(
         {"room": room, "frame": "the room's own: its middle on its floor, x east, z south, y up", "counts": counts,
-         "kinds": kinds_table(room, inventory), "pieces": pieces}, indent="\t") + "\n")
+         "kinds": kinds_table(room, inventory, pieces), "pieces": pieces}, indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")
 
 

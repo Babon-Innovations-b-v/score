@@ -1136,6 +1136,7 @@
 				229
 			],
 			"name": "round ceiling light ring: a steel ring with twelve round lamps, hung on rods from the dome",
+			"noun": "light",
 			"kind": "generate",
 			"anchor": "ceiling",
 			"size": [
@@ -1156,11 +1157,6 @@
 					"layer": 1
 				}
 			],
-			"light": {
-				"strength": 1.0,
-				"reach": 11.0,
-				"high": 0.08
-			},
 			"box_from": [
 				"v1.w41"
 			]
@@ -1175,6 +1171,7 @@
 				379
 			],
 			"name": "strip light over a door",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [
@@ -1212,11 +1209,6 @@
 					"out": 0.1
 				}
 			],
-			"light": {
-				"strength": 0.2,
-				"reach": 5.0,
-				"high": 0.5
-			},
 			"box_from": [
 				"v1.w46"
 			]
@@ -1937,6 +1929,7 @@
 				704
 			],
 			"name": "the wall lamp over the exam couch",
+			"noun": "lamp",
 			"kind": "code",
 			"anchor": "wall",
 			"size": [
@@ -1956,11 +1949,6 @@
 					"bottom": 1.45
 				}
 			],
-			"light": {
-				"strength": 0.08,
-				"reach": 3.0,
-				"high": 0.5
-			},
 			"box_from": [
 				"v1.569"
 			]

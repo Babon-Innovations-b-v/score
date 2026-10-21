@@ -27,9 +27,10 @@
 		"tube_crown_strip_lamp": {
 			"group": "hangs",
 			"light": {
-				"strength": 0.15,
-				"reach": 3.5,
-				"high": 0.5
+				"strength": 0.22,
+				"reach": 4.4,
+				"high": 0.05,
+				"shadows": true
 			}
 		},
 		"tube_hull_plate": {},

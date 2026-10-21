@@ -523,6 +523,7 @@
 		{
 			"id": "wall_cage_lamp",
 			"name": "a caged bulkhead lamp on the wall (the hub's)",
+			"noun": "lamp",
 			"kind": "code",
 			"anchor": "wall",
 			"size": [
@@ -605,10 +606,6 @@
 					"bottom": 4.2
 				}
 			],
-			"light": {
-				"strength": 0.5,
-				"reach": 6.0
-			},
 			"view": "v1",
 			"box": null,
 			"thing": "prop:hangar_wall_cage_lamp",
@@ -1454,6 +1451,7 @@
 		{
 			"id": "bracket_beacon",
 			"name": "a rotating amber warning beacon on a wall bracket",
+			"noun": "beacon",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [
@@ -1527,6 +1525,7 @@
 		{
 			"id": "floodlight",
 			"name": "a big rectangular floodlight on a wall bracket, tilted down",
+			"noun": "floodlight",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [
@@ -1588,10 +1587,6 @@
 				}
 			],
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/floodlight.png",
-			"light": {
-				"strength": 2.5,
-				"reach": 26.0
-			},
 			"view": "v1",
 			"box": [
 				908,

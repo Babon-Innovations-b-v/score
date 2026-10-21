@@ -30,6 +30,8 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "library"))
 import sorter  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import lamps  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 GAME_LAYOUT = REPO / "data/kit/hub.json"
@@ -934,12 +936,6 @@ LAYERED = {f"hub_{kind}" for kind in (
     "airlock_wheel", "airlock_hinge", "wall_skirting", "wall_cornice", "wall_corner_post", "waste_bin")}
 
 
-# The lamps the kit carries (a real light each, tuned in the engine under the game's lighting setup): kind -> its
-# light's strength (Lamp's share of LAMP_ENERGY), reach in metres and how high up the piece it sits as a share of its
-# height. What glows is the made model's (tools/props/library/route.py: a screen's content, a lamp's lens).
-LIGHTS = {"roof_light_fixture": {"strength": 0.16, "reach": 6.0, "high": 0.1},
-          "door_strip_lamp": {"strength": 0.05, "reach": 3.0, "high": 0.5},
-          "wall_cage_lamp": {"strength": 0.05, "reach": 3.5, "high": 0.5}}
 # What each piece is to the scene check (resting.gd): the room's floors other things rest on, and what hangs from the
 # wall, the roof or a door it touches rather than standing.
 FLOORS = {"ring_floor_plate", "floor_grating", "floor_access_hatch", "tread_mat", "pit_floor_plate",
@@ -949,13 +945,15 @@ HANGING_GROUPS = {"wall", "ceiling", "door", "pipe", "sign", "screen", "light", 
                   "under floor"}  # a duct or trough hung under a floor plate's opening
 
 
-def kinds_table(inventory):
-    """Every kit kind's light and group, for HubKit and the scene check."""
+def kinds_table(inventory, pieces):
+    """Every kit kind's light (a glowing row's, the library's lamp from its laid `pieces`, lamps.py) and group, for
+    HubKit and the scene check. What glows is the made model's (tools/props/library/route.py: a lamp's lens)."""
     table = {}
     for ident, row in kit_kinds(inventory).items():
         about = {}
-        if ident in LIGHTS:
-            about["light"] = LIGHTS[ident]
+        light = lamps.light_of(row, [laid for laid in pieces if laid["kind"] == f"hub_{ident}"])
+        if light:
+            about["light"] = light
         if ident in FLOORS:
             about["group"] = "floors"
         elif row["group"].removeprefix("kit: ") in HANGING_GROUPS:
@@ -974,7 +972,7 @@ def main():
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     score = partition_score(pieces)
     pathlib.Path(sys.argv[1]).write_text(json.dumps({"room": "hub", "frame": "the Habitat node's own: x east, z south, y up from the ring floor",
-                               "counts": counts, "partition": score, "kinds": kinds_table(inventory),
+                               "counts": counts, "partition": score, "kinds": kinds_table(inventory, pieces),
                                "doorways": joined_doorways(), "pieces": pieces},
                               indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")

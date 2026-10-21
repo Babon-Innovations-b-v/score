@@ -78,12 +78,13 @@
 			"group": "hangs"
 		},
 		"airlock_door_strip_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.15,
-				"reach": 4.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.16,
+				"reach": 4.33,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"airlock_floor_grating": {},
 		"airlock_pipe_bracket": {
@@ -93,15 +94,22 @@
 		"airlock_hose_reel": {},
 		"airlock_beacon": {
 			"group": "hangs",
-			"outside": true
+			"outside": true,
+			"light": {
+				"strength": 0.168,
+				"reach": 5.1,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"airlock_roof_light_fixture": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.55,
-				"reach": 5.0,
-				"high": 0.1
-			},
-			"group": "hangs"
+				"strength": 0.253,
+				"reach": 5.07,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"airlock_lock_console": {
 			"group": "hangs"
