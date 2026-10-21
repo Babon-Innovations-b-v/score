@@ -48,6 +48,7 @@ def store(tmp_path, monkeypatch, data):
     monkeypatch.setattr(plans, "DATA", data)
     monkeypatch.setattr(plans, "KEPT", tmp_path / "kept")
     monkeypatch.setattr(plans, "KEPT_INVENTORY", tmp_path / "kept-inventory")
+    monkeypatch.setattr(plans, "KEPT_CONCEPT", tmp_path / "kept-concepts")
     found = Store.in_folder(tmp_path / "store")
     picture = tmp_path / "pick.png"
     Image.new("RGB", (64, 40), (40, 90, 160)).save(picture)
@@ -170,7 +171,10 @@ def test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes(store, tm
     picked(store, "shed")
     assert plans.keep(store, ["shed", "yard"]) == (["shed"], ["shed"])  # the yard has no plan row: none kept
     kept = tmp_path / "kept/shed.json"
-    assert json.loads(kept.read_text()) == plans.current(store, "shed")["plan"]
+    written = json.loads(kept.read_text())
+    assert written == {**plans.current(store, "shed")["plan"], "concept": {**written["concept"], "pick": PICK}}
+    assert written["concept"]["picture"] == "{home}/design/concepts/shed.png"  # the picked concept, its input
+    assert (tmp_path / "kept-concepts/shed.png").read_bytes() == store.objects.read_bytes(f"blobs/{PICK}")
     assert json.loads((tmp_path / "kept-inventory/shed.json").read_text())["rows"][0]["id"] == "bench"
     plan = plans.current(store, "shed")["plan"]
     plan["people"] = [[3.0, 2.0]]
@@ -179,6 +183,7 @@ def test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes(store, tm
     concepts.pick(store, "shed", None, "joey")
     assert plans.keep(store, ["shed"]) == ([], ["shed"]) and not kept.exists()
     assert not (tmp_path / "kept-inventory/shed.json").exists()
+    assert not (tmp_path / "kept-concepts/shed.png").exists()
 
 
 def test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit(store, monkeypatch):

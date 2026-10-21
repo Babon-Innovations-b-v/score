@@ -19,6 +19,7 @@ def planned(world, monkeypatch, tmp_path):
     monkeypatch.setattr(plans, "DATA", world.data)
     monkeypatch.setattr(plans, "KEPT", tmp_path / "kept")
     monkeypatch.setattr(plans, "KEPT_INVENTORY", tmp_path / "kept-inventory")
+    monkeypatch.setattr(plans, "KEPT_CONCEPT", tmp_path / "kept-concepts")
     (world.data / "plans").mkdir(exist_ok=True)
     (world.data / "plans/alpha.json").write_text(json.dumps({
         "title": "ALPHA", "shell": "kit", "w": 6.0, "d": 4.0, "height": "ceiling 3 m",
