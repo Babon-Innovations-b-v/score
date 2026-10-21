@@ -84,7 +84,7 @@ def layout(ground):
 
 
 def seat_frame(out):
-    """(across, out, along) of a seat at `out` on its ball, as the game builds it (tools/usd/orbits.seat_frame)."""
+    """(across, out, along) of a seat at `out` on its ball, as the game built it."""
     out = np.asarray(out, float) / np.linalg.norm(out)
     reference = np.array([0.0, 0.0, 1.0]) if abs(out[2]) <= 0.9 else np.array([1.0, 0.0, 0.0])
     along = reference - out * reference.dot(out)
