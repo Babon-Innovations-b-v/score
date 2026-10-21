@@ -42,7 +42,7 @@ blocks like fail.
     neighbours  every place the scene record shows stands under /<place>/Places, its references resolve to files,
                 and it has children
     game        no record the place is made from (its scene records: the one beside the stage, data/scene's and the
-                accepted scene-record output's; its cast, effects, motions, moving things, room tones) cites the game 2099
+                accepted scene-record output's; its cast, effects, motions, moving things) cites the game 2099
                 as where its numbers come from (a `from` or `source`: the game, 2099, a .gd or .tscn file); each
                 fault counts the citing fields and the positions (at, centre, position, placed_at) so taken
     waiting     no entry of the scene record waits on its model (the assembly lays nothing for one and names it on
@@ -641,7 +641,6 @@ def game_records(stage, place, outputs):
                f"scene-record output {made}": json.loads(made.read_text()) if made and made.exists() else None}
     records.update({f"data/{kind}/{place}.json": record(kind, place) for kind in ("effects", "motion", "moves")})
     records[f"its cast ({DESIGNED_PEOPLE})"] = cast_of(place)
-    records["data/sound/places.json"] = json.loads((DATA / "sound/places.json").read_text())["places"].get(place)
     return records
 
 

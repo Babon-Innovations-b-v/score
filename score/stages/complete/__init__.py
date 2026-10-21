@@ -32,7 +32,7 @@ GATE = tuple(check for check in complete.CHECKS if check != "resting")
 # folders for world 1), declared so a change to any reruns the gate.
 FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit",
          "effects": "{data}/effects", "motions": "{data}/motion", "scenes": "{data}/scene",
-         "sound table": "{data}/sound/places.json", "row kinds": "{data}/checks/row-kinds.json",
+         "row kinds": "{data}/checks/row-kinds.json",
          "designed people": "{data}/people/rows.json"}
 
 
