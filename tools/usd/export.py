@@ -803,8 +803,8 @@ def refuse_broken(place, broken):
 
 def record_inputs(place, out, kit_path, inventory_path, models, hashes):
     """What the stage was made from, written beside it for the completion gate (tools/usd/complete.py): the inventory,
-    the kit, the scene record and the cast, and every made model by its hash."""
-    inputs = [kit_path, scene_record.SCENES / f"{place}.json", REPO / "data/characters" / f"{place}.json"]
+    the kit, the scene record, and every made model by its hash."""
+    inputs = [kit_path, scene_record.SCENES / f"{place}.json"]
     stage_inputs.record_inputs(out, inventory_path, inputs,
                            {model: model_file(models, model) for model in hashes}, hashes)
 

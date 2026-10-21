@@ -1,4 +1,4 @@
-"""A character maker spec: what one make is asked for, read from data/characters/makes/<name>.json and checked before
+"""A character maker spec: what one make is asked for, read from data/people/specs/<name>.json and checked before
 anything is rented. Paths are absolute or start from ~ (the creator's own pictures stay outside the repo).
 
     {"name": "nev_rebuild", "kind": "person",

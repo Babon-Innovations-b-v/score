@@ -440,9 +440,8 @@ def complete_line(place, scene, judged, passed):
         carried.append("the game's sky, ambient light and exposure")
     if record.get("kit_lights", True):
         carried.append("the kit's lamps as lights")
-    cast = HERE.parents[1] / "data/characters" / f"{place}.json"
-    if cast.exists():
-        people = json.loads(cast.read_text())
+    people = characters.cast_of(place)
+    if people:
         count = len(people.get("people", [])) + sum(int(group.get("count", 0)) for group in people.get("groups", []))
         crowd = int(people.get("crowd", {}).get("count", 0)) if people.get("crowd") else 0
         if count or crowd:
@@ -516,7 +515,7 @@ def characters_section(cast):
     """The place's characters: why each entry of its cast is there, each one close, each group and the crowd wide, and
     a moving shot of each named person, group and crowd view."""
     if cast is None:
-        return section("characters", "Characters", missing("no cast in data/characters, or no stage to draw it in"))
+        return section("characters", "Characters", missing("no picked design read into a cast, or no stage to draw it in"))
     if not cast["who"] and not cast["crowd"]:
         return section("characters", "Characters", f"<p>Nobody. {escaped(cast['note'])}</p>")
     rows = "".join(f"<tr><td>{escaped(entry['name'])}</td><td>{escaped(entry['why'])}</td></tr>" for entry in cast["why"])
@@ -527,7 +526,7 @@ def characters_section(cast):
     wides = "".join(figure(f"characters/wide/{view}-look.png", escaped(view)) for view in cast["wides"])
     moves = "".join(f'<figure><video src="characters/{escaped(view)}.mp4" controls loop muted playsinline></video>'
                     f"<figcaption>{escaped(view)}</figcaption></figure>" for view in cast["moves"])
-    body = (f"<p>Skinned characters from the place's cast (data/characters), each playing its clip in the OpenUSD "
+    body = (f"<p>Skinned characters from the place's cast (written from its design), each playing its clip in the OpenUSD "
             f"stage's characters layer; {len(cast['who'])} placed one by one and {cast['crowd']:,} in the crowd.</p>"
             f"<table><tr><th>who</th><th>why they are there</th></tr>{rows}</table>"
             f'<h3>Moving</h3><div class="grid">{moves}</div>'

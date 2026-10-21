@@ -354,7 +354,7 @@ def main():
     parser.add_argument("what", choices=("check", "questions", "regions", "parts"))
     parser.add_argument("run", type=pathlib.Path)
     parser.add_argument("take")
-    parser.add_argument("more", help="the prop route spec (data/characters/makes/<name>.json)")
+    parser.add_argument("more", help="the prop route spec (data/people/specs/<name>.json)")
     parser.add_argument("--outfit", default="work")
     options = parser.parse_args()
     spec = json.loads(pathlib.Path(options.more).read_text())

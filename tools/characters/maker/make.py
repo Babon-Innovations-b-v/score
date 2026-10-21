@@ -1,7 +1,7 @@
 """The character maker: one entry point for a person or an animal, from a picture or a short description to a rigged,
 clothed, textured, animated character (glTF and UsdSkel) with its crowd levels and its clips, made in the cloud.
 
-    .venv/bin/python tools/characters/maker/make.py data/characters/makes/<name>.json [...] --who "<session>"
+    .venv/bin/python tools/characters/maker/make.py data/people/specs/<name>.json [...] --who "<session>"
         [--classes gpu-24gb,gpu-80gb] [--dry-run] [--experimental]
 
 Each spec (spec.py says what it holds) gets a make folder, ~/.farm-factory-motion/made/<name>/: `in/` is written here
@@ -123,7 +123,7 @@ def make_animals(found, who, dry_run):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("specs", nargs="+", type=pathlib.Path, help="data/characters/makes/<name>.json")
+    parser.add_argument("specs", nargs="+", type=pathlib.Path, help="data/people/specs/<name>.json")
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--classes", help="capability classes for the people's cards, comma separated")
     parser.add_argument("--dry-run", action="store_true", help="check, bundle and price, rent nothing")

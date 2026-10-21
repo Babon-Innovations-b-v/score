@@ -15,6 +15,6 @@ own runner (`python -m score.stages.concept_people run`), cleared by the runner 
 - **A designed place's view is its locked concept** (`designed_views`, keyed by the inventory its cast reads). A
   view picture not there (the old disk's, of a place with no design) is not read (`LOST`): that place's cast answers
   unknown, and every other place is measured.
-- **What reads it.** A place whose concept shows people needs a cast (data/characters/<place>.json); the count and
+- **What reads it.** A place whose concept shows people needs a cast (written from its design: `score/stages/people_rows.py`); the count and
   each figure's box and doing are the cast's evidence. Never edit a count by hand: change the question or the seeds
   and run the stage again.

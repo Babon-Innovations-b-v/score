@@ -85,7 +85,7 @@ every copy where the game 2099's own layout puts it. EUR 2.48 in all, about two 
 
 ### A place's characters
 
-A place's people are part of its stage. Its cast (`data/characters/<place>.json`) says who is there, how many, where,
+A place's people are part of its stage. Its cast, written from its picked design (`data/people/rows.json`, `score/stages/people_rows.py`), says who is there, how many, where,
 doing what and why: named people at a spot, groups mixed from the character kit by seed along a band, and a crowd of
 thousands of one cheap body. `tools/characters/cast.py` writes them into the stage as skinned UsdSkel characters, each
 playing its clip from its own start, in a layer of their own (`layers/characters.usda`, between the creator's edit

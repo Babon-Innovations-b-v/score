@@ -14,7 +14,7 @@ name is one of their `generate` or `mechanic` rows, by the row's id or its prop 
 a prefix (`habitat-locker`) or before a take (`locker-b`).
 
 A character the owner asked for is the one other thing a batch builds: `batch.py --characters
-data/characters/makes/<name>.json [...] --who "<session>"` takes no list; each spec must carry
+data/people/specs/<name>.json [...] --who "<session>"` takes no list; each spec must carry
 "approved" (who asked, and when) and its "picture", and its model is named after the spec's "name"
 (the character maker's animal route, job characters-full, 2026-10-09).
 
@@ -187,7 +187,7 @@ def from_the_inventory(models, paths):
 
 
 def from_the_characters(paths):
-    """The models of character specs (data/characters/makes/<name>.json), one each, named after the spec; refused
+    """The models of character specs (data/people/specs/<name>.json), one each, named after the spec; refused
     for a spec the owner did not approve or whose picture is missing."""
     parser = pixal.options_parser()
     models = []
@@ -1184,7 +1184,7 @@ def main():
     source.add_argument("--inventory", type=pathlib.Path, nargs="+",
                         help="the scenes' approved inventories, data/inventory/<scene>.json")
     source.add_argument("--characters", type=pathlib.Path, nargs="+",
-                        help="approved character specs, data/characters/makes/<name>.json, in place of a list")
+                        help="approved character specs, data/people/specs/<name>.json, in place of a list")
     parser.add_argument("--minutes", type=float, default=TARGET_MINUTES, help="aim to finish in this long")
     parser.add_argument("--per-card", type=int, help="runs at once on a card (default: as many as its memory "
                         "holds, capacity.runs_at_once)")

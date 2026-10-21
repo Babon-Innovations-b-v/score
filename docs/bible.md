@@ -39,7 +39,7 @@ the current backend). No model runs on the coordinating machine.
   shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by the cloth solver the
   spec names, the drapes being experimental;
   moved from 2099's `tools/crew` with its history). `maker/` is the character maker, one entry (`make.py`) for a
-  person or an animal from a picture or a few words (`data/characters/makes/<name>.json`): a person's whole chain
+  person or an animal from a picture or a few words (`data/people/specs/<name>.json`): a person's whole chain
   (picture, body by SAM3DBody-cpp, clips by Kimodo, drapes, head, hair by Hi3DGen, face by klein with a depth LoRA,
   build, UsdSkel, review renders) runs on one rented card (`tools/props/cloud/characters.py`), an animal's through
   `animals/` (experimental). A person spec with `"route": "prop"` takes the prop route instead
@@ -48,7 +48,7 @@ the current backend). No model runs on the coordinating machine.
   and its weights moved on by Robust Skin Weights Transfer (MIT reference code, ported without libigl, whose
   bindings carry GPL-3.0). `skel_usd.py` turns a body into a UsdSkel asset;
   `cast.py` writes a place's characters layer (`<stage>/layers/characters.usda`, between the edit layer and the
-  base) from its cast in `data/characters/<place>.json`: named people, kit groups mixed by seed, and a crowd as one
+  base) from its cast record, written from its picked design (`score/stages/people_rows.py` `cast_record`): named people, kit groups mixed by seed, and a crowd as one
   PointInstancer. The review page draws them (`tools/review/characters.py`).
 - `tools/blender/`: the headless Blender launcher (never a window on the owner's screen).
 - `tools/sound/`: the sound picker and the loudness rule; MOSS takes are made in the cloud.
@@ -290,7 +290,7 @@ a flag or a spec asks for it. Nothing here is a result; the paper's gaps name th
 is meant to fix, where it is marked, and what proves it.
 
 - **The people stage** (#5; `score/stages/people`, its overlay; `tools/characters/maker/prop_person.py`'s steps,
-  specs `data/characters/makes/<name>_prop.json`, takes in `data/surfaces/people.json`). For bloated clothes on
+  specs `data/people/specs/<name>.json` written from each design's rows, takes in `data/surfaces/people.json`). For bloated clothes on
   SOMA-made people: people made like every model (owner, 2026-10-11 and 2026-10-20), each look a row of the shared
   loop (#41) on the line `people`, which no place owns, finished by its finish route; SOMA-X only for the rig,
   Kimodo's clips swung clear of the body's own bulk (`clearance.py`).

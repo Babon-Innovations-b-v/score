@@ -9,7 +9,7 @@ OpenUSD stage as skinned characters (UsdSkel) playing their clips. Bible chapter
   Body, GarmentCode) ran on the owner's PC before 2026-10-03 and have no cloud runner yet: the built bodies in
   `~/.farm-factory-motion/work/bodies` are what the stage reads.
 - `skel_usd.py` turns a built body into a UsdSkel asset; `cast.py` writes a place's characters layer from its cast
-  (`data/characters/<place>.json`). Their docstrings have the layout of each.
+  record (written from its design by `score/stages/people_rows.py`). Their docstrings have the layout of each.
 - **The cast is the record.** Nobody is placed who is not an entry of the place's cast, and every entry says `why`
   it is there (2099's rule, its ADR-0007: a body needs a reason to be in a place). A place where nobody is has a cast
   with no entries and a `note` saying so, so its review page says "nobody" rather than "not recorded".

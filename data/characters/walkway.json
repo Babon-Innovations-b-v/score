@@ -1,6 +1,0 @@
-{
- "place": "walkway",
- "from": "the place's concept, measured by score.stages.concept_people (accepted output 5129707084ce): SAM 3 asked for a person on walkway.png (v1) found no figure at all; the place's plan (data/plans/walkway.json) places nobody either",
- "note": "Nobody is here: the concept (walkway.png (v1)) shows no person, and the place's plan stands nobody (its `people` empty).",
- "people": []
-}
