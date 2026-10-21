@@ -186,13 +186,13 @@ Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
   {3D} asset generation.
 \newblock \emph{arXiv preprint arXiv:2604.23629}, 2026.
 
-\bibitem[Yang et~al.(2026)Yang, Zhai, Lu, Yin, Zhang, Xiao, Long, and
-  Navab]{yang2026flowscene}
+\bibitem[Yang et~al.(2026{\natexlab{a}})Yang, Zhai, Lu, Yin, Zhang, Xiao, Long,
+  and Navab]{yang2026flowscene}
 Zhifei Yang, Guangyao Zhai, Keyang Lu, YuYang Yin, Chao Zhang, Zhen Xiao, Jieyi
   Long, and Nassir Navab.
 \newblock {FlowScene}: Style-consistent indoor scene generation with multimodal
   graph rectified flow.
-\newblock \emph{arXiv preprint arXiv:2603.19598}, 2026.
+\newblock \emph{arXiv preprint arXiv:2603.19598}, 2026{\natexlab{a}}.
 
 \bibitem[{Google}(2026{\natexlab{a}})]{gemini31pro}
 {Google}.
@@ -229,12 +229,11 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
   fusion and keyword-to-caption augmentation.
 \newblock \emph{arXiv preprint arXiv:2211.06687}, 2022.
 
-\bibitem[{Black Forest Labs}(2026)]{flux2klein}
-{Black Forest Labs}.
-\newblock {FLUX.2 [klein] 4B} model card.
-\newblock Hugging Face, 2026.
-\newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
-\newblock Apache-2.0. Vendor material.
+\bibitem[Yang et~al.(2026{\natexlab{b}})Yang, Kukreja, Pinkus, others, and
+  Kitani]{yang2026sam3dbody}
+Xitong Yang, Devansh Kukreja, Don Pinkus, others, and Kris Kitani.
+\newblock {SAM 3D Body}: Robust full-body human mesh recovery.
+\newblock \emph{arXiv preprint arXiv:2602.15989}, 2026{\natexlab{b}}.
 
 \bibitem[Rempe et~al.(2026)Rempe, Petrovich, Yuan, Zhang, Peng,
   et~al.]{rempe2026kimodo}
