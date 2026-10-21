@@ -320,6 +320,54 @@ def test_no_card_in_stock_is_a_gap_asked_once():
     assert len(attempts) == 1, attempts
 
 
+def test_a_take_the_batch_brought_under_the_floor_or_not_at_all_is_a_gap_and_likeness_moves_it():
+    """sound@square, 2026-10-20: two MOSS takes of the batch came back under the CLAP floor (square_pa 0.12,
+    leader_speech 0.26) and failed `likeness`, stopping the line though the batch rule makes each a gap. Each take made
+    here under the floor, or not back, is a named batch gap; the table's likeness moves the first; a picked sound under
+    the floor is no take of this batch and still fails."""
+    from score import stages
+    from score.stages import batch_gaps
+    likeness = next(check for row in stages.STAGES if row.name == "sound" for check in row.checks
+                    if check.name == "likeness")
+    uses = [{"sound": "square_pa", "role": "object", "on": "pa", "from": "places.json objects"},
+            {"sound": "lost_take", "role": "room", "on": None, "from": "places.json"}]
+    sounds = {"square_pa": {"made_by": "moss", "clap": 0.1248, "files": []},
+              "base_hum": {"made_by": "moss", "clap": 0.45, "files": []}}
+    with tempfile.TemporaryDirectory() as folder:
+        out = pathlib.Path(folder)
+        (out / gates.RECORD).write_text(json.dumps({"place": "toy", "sounds": sounds, "uses": uses[:1]}))
+        batch_gaps.write(out, sound.take_gaps(["square_pa", "lost_take"], sounds, uses))
+        found = {entry["name"]: entry for entry in batch_gaps.read([out])}
+        assert set(found) == {"square_pa: MOSS take under the CLAP floor", "lost_take: no MOSS take came back"}, found
+        assert found["lost_take: no MOSS take came back"]["faults"] == ["lost_take: no sound (room, places.json)"]
+        assert gates.judge_likeness(out, {}, None).answer == checks.FAIL  # the gate's own answer stands
+        moved = likeness.judge(out, {}, None)
+        assert moved.answer == checks.PASS and "moved to complete as accepted gaps: square_pa" in moved.reason, moved
+        sounds["base_hum"]["clap"] = 0.2
+        (out / gates.RECORD).write_text(json.dumps({"place": "toy", "sounds": sounds, "uses": uses[:1]}))
+        assert likeness.judge(out, {}, None).answer == checks.FAIL
+
+
+def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap_and_sources_passes():
+    """The garage's rover_idle is made here; its batch brings nothing back: the record leaves its use out, names it a
+    gap, and `sources` passes on what the place plays (nothing rented: the take step answers nothing)."""
+    from score.stages import batch_gaps
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = inputs_for("garage", folder)
+        made_here = sound.to_make(list(dict.fromkeys(use["sound"] for use in sound.uses_of("garage", inputs))), inputs)
+        assert "rover_idle" in made_here, made_here
+        nothing_back, sound.moss_takes.made = sound.moss_takes.made, lambda jobs, work: {}
+        try:
+            inputs, out = made("garage", folder)
+        finally:
+            sound.moss_takes.made = nothing_back
+        record = gates.record_of(out)
+        names = {entry["name"] for entry in batch_gaps.read([out])}
+        assert "rover_idle: no MOSS take came back" in names, names
+        assert not any(use["sound"] in made_here for use in record["uses"]), record["uses"]
+        assert gates.judge_sources(out, inputs, None).answer == checks.PASS
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

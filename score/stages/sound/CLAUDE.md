@@ -28,9 +28,12 @@ gates; `takes.py` the paid part.
   weights, and seed, with their CLAP scores: the same brief is never paid for twice. Change a prompt to get new takes.
 - **One batch, one take a sound** (#21, #29): the library match and the loudness are decided free before it (a
   sound with a library file is taken, levelled here); each sound still to make is one job, its brief's first prompt
-  at seed 1 (`takes.SEED`), made once, the card's deadline its takes' minutes. The gates sort: a take under
-  `CLAP_FLOOR` fails `likeness`, a take that did not come back leaves its sound without one and fails `sources`;
-  either is a gap, and a new take (another seed, the brief's next prompt) is a new batch, never inside this one.
+  at seed 1 (`takes.SEED`), made once, the card's deadline its takes' minutes. Each failure is a batch gap
+  (`take_gaps`, `batch-gaps.json`, `score/stages/batch_gaps.py`) and the row passes: a take of this batch under
+  `CLAP_FLOOR` plays and fails `likeness`, its fault moved to the gap (`stages.BATCH_GATES`); a take that did not
+  come back usable has no sound, its uses left out of the record (so the assembly plays nothing there) and named in
+  its gap. A picked sound under the floor is no take of the batch and still fails. A new take (another seed, the
+  brief's next prompt) is a new batch, never inside this one.
 - **One take across places** (#29): a brief several places play (crew_talk, in eight) is one take. Each take is
   locked while its batch runs (`takes.held`), so the first line to reach it makes it on its card and the others wait
   and read it; a take its batch asked for and did not get (lost, failed, no card) is a named failure and a gap on
