@@ -336,6 +336,27 @@ def test_todays_design_makes_the_tube_player_full_and_the_crowd_far():
     assert full.FAR_SHARE == spread.FAR_SHARE == contents.FAR_SHARE
 
 
+def test_the_body_rows_follow_the_design_s_share():
+    """The body rows read the design, nothing else: today's rows.json with the tube's person shrunk under FAR_SHARE
+    makes player_wide-work far, and the same rows with the crowd's look given to a near person make it full."""
+    design = json.loads(bodies.DESIGN.read_text())
+    tube = design["places"]["tube"]["rows"]["person_right"]
+    assert tube["looks"] == ["player_wide-work"], tube
+    held = bodies.DESIGN
+    with tempfile.TemporaryDirectory() as folder:
+        bodies.DESIGN = pathlib.Path(folder) / "rows.json"
+        try:
+            bodies.DESIGN.write_text(json.dumps({**design, "places": {**design["places"], "tube": {
+                **design["places"]["tube"], "rows": {"person_right": {**tube, "share": 0.05}}}}}))
+            assert bodies.looks()["player_wide-work"].get("far_only"), "a far person kept a full body"
+            bodies.DESIGN.write_text(json.dumps({"places": {"p": {"rows": {
+                "near": {"looks": [people_rows.CROWD_LOOK], "share": 0.3}}}}}))
+            made = bodies.looks()
+            assert not made[people_rows.CROWD_LOOK].get("far_only") and made["player_wide-work"].get("far_only"), made
+        finally:
+            bodies.DESIGN = held
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
