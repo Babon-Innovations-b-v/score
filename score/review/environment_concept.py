@@ -103,7 +103,8 @@ def places_now(places):
     every place that holds others, outside ones first, by within.json."""
     tree = concepts.tree()
     nodes = [*tree["shells"], *[place for place in places if place not in tree["shells"]]]
-    outside = [node for node in nodes if node not in tree["within"] and node not in tree["parts"]]  # a part: no place
+    outside = [node for node in nodes if node not in tree["within"] and node not in tree["parts"]  # a part: no place
+               and node not in tree["merged"]]  # merged into another: none either
     holders = [node for node in tree["within"] if concepts.inside_of(node)]
     return [{"place": node, "name": name_in(node, tree), "holds": [name_in(child, tree)
                                                                    for child in concepts.inside_of(node)]}

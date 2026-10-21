@@ -122,3 +122,52 @@ def drawing_png():
     buffer = io.BytesIO()
     Image.new("RGB", (600, 600), (255, 255, 255)).save(buffer, "PNG")
     return buffer.getvalue()
+
+
+def a_draw(world, place, room):
+    """A first draw of `place` in the store, its blob there, drawn on `room` (its hold on the plan above then)."""
+    from score.review import concepts
+    path = world.root / f"{place}-draw.png"
+    path.write_bytes(fixture.picture((7, 200, 9)))
+    sha = fixture.file_hash(path)
+    world.store.put_blob(path, sha)
+    concepts.recorded(world.store, f"concepts/{place}/draws/2026-10-21T09-00-00.json",
+                      {"place": place, "sha": sha, "name": f"{place}-concept.png", "by": "joey",
+                       "at": "2026-10-21T09:00:00+00:00", "room": room})
+    return sha
+
+
+def hosted_page(world, tmp_path, monkeypatch, settings, page):
+    """(`page` as the hosted cockpit serves it from an export of the fixture's store, the export's WorldState)."""
+    from score.dashboard import state
+    from score.dashboard.state.exported import ExportedSource
+    from score.dashboard.tests.sync_test import exported
+    world.source.refresh()
+    exported(world, tmp_path / "export")
+    source = ExportedSource(tmp_path / "export")
+    monkeypatch.setattr(state, "source", lambda: source)
+    settings.SCORE_MODE = "hosted"
+    return signed_in("joey2").get(page).content.decode(), source.world_state()
+
+
+def test_a_scene_merged_into_another_has_no_card_even_with_draws(planned, tmp_path, monkeypatch, settings):
+    """Owner, 2026-10-21 ("nav again showed up here"): a scene he merged into another is no card anywhere, hosted too,
+    whatever draws of it the store holds."""
+    (planned.data / "places/within.json").write_text(json.dumps({
+        "shells": {}, "within": {}, "merged": {"beta": {"into": "alpha"}}}))
+    a_draw(planned, "beta", None)
+    html, shown = hosted_page(planned, tmp_path, monkeypatch, settings, "/places/")
+    assert shown.removed == ["beta"]
+    assert 'href="/concept/beta/"' not in html and 'href="/place/beta/"' not in html
+
+
+def test_a_draw_on_a_room_the_plan_above_changed_is_no_concept_on_its_card(planned, tmp_path, monkeypatch, settings):
+    """Owner, 2026-10-21 ("all below would become need for redrawn"): a scene drawn on a room the plan above has
+    since moved shows no picture as current and no Review; its card says the plan changed and offers the redraw."""
+    (planned.data / "places/within.json").write_text(json.dumps({"shells": {}, "within": {"beta": {"within": "alpha"}}}))
+    a_draw(planned, "beta", {"place": "beta", "x": 90.0, "y": 90.0, "w": 1.0, "d": 1.0})
+    assert plans.room_of(planned.store, "beta") is not None  # alpha's plan lays it out, elsewhere
+    html, shown = hosted_page(planned, tmp_path, monkeypatch, settings, "/places/?in=alpha")
+    assert shown.plan_changed == ["beta"] and "beta" not in shown.concepts
+    tile = html[html.index('href="/concept/beta/"'):].split('<div class="ptile-box">')[0]
+    assert "plan changed" in tile and ">Redraw</a>" in tile and "<img" not in tile and "Review" not in tile
