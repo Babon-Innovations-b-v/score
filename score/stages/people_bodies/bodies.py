@@ -2,8 +2,10 @@
 `people-look-parts-<look>` and `people-body-<look>`, paid, each a node of its own so the looks run side by side. A
 look is a take of data/surfaces/people.json with its `spec` and `outfit`: the shared loop's model of it (#41: its
 parts row waits on the loop's hand-on, people-made@people, and refuses a look the loop made none for), SOMA-X's
-body fitted under it as its moving base (only the rig, so Kimodo's clips play), its parts, its garments settled
-through every clip, and its checks (tools/characters/maker/prop_person.py's stages build, settle and checks-cloud,
+body fitted under it as its moving base (only the rig, so the clips of people-clips-made play), its parts, the
+people route on the built body (owner, 2026-10-18, #26: SOMA-X's base under the look from SAM 3D Body's read of the
+close-up, the garments bound by limb, the face by route_head.FACE, the pose correctives as morph targets; it replaced
+the garment settle), and its checks (tools/characters/maker/prop_person.py's stages build, route and checks-cloud,
 the checks side by side on a rented processor machine), on the parts its own priced row made,
 `people-look-parts-<look>` (PARTS, #21: never a purchase hidden inside the body row; gated on `parts`, every part
 named with a role and a material). When the paid checks find a tuck over the gate in every clip (pokes.json), the
@@ -31,6 +33,7 @@ import numpy as np
 
 from score import contracts, graph
 from score.checks import FAIL, PASS, Check, Verdict
+from score.stages.people_bodies import made_clips
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MAKER = REPO / "tools/characters/maker"
@@ -39,9 +42,9 @@ DATA = REPO / "data/surfaces/people.json"
 # the people package goes into a body row's code version (the overlay).
 MADE, LINE = "people-made", "people"
 CUT = REPO / "data/people/bodies.json"
-MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
 # A look's estimate: the build and the settle each on an L4 for about an hour with its setup (EUR 0.79 an hour),
-# measured on the player 2026-10-10; its parts are their own priced row (PARTS, #21), never bought inside it.
+# measured on the player 2026-10-10; the route (identity and CPU work on the same held machine) has no measure yet
+# and is held inside it; its parts are their own priced row (PARTS, #21), never bought inside it.
 EUROS = 2.0
 # A look's parts (prop_person.parts: SAM 2.1's regions, GeoSAM2, the judge's materials), about EUR 1 (the player,
 # 2026-10-10): free where its candidate folder already holds them.
@@ -80,19 +83,17 @@ def looks():
 
 
 def files(look, entry):
-    """The world files a look's body reads: its spec, the maker's and people tools' code (run by path, so not in the
-    code version otherwise) and the clips. Its take's model and close-up are no file of the work folder: they come
-    from the store, as people-made@people handed them on (`laid_take`, #26). Its entry in the people's data is its
-    row's parameters, so another look's edit there leaves its key alone."""
+    """The world files a look's body reads: its spec and the maker's and people tools' code (run by path, so not in
+    the code version otherwise). Its take's model and close-up are no file of the work folder: they come from the
+    store, as people-made@people handed them on (`laid_take`, #26); its clips and rig from people-clips-made's output.
+    Its entry in the people's data is its row's parameters, so another look's edit there leaves its key alone."""
     return {"spec": "{repo}/" + entry["spec"],
-            "maker": "{repo}/tools/characters/maker", "people tools": "{repo}/tools/characters/people",
-            "clips": str(MOTION_HOME / "work/motions")}
+            "maker": "{repo}/tools/characters/maker", "people tools": "{repo}/tools/characters/people"}
 
 
 def parts_files(entry):
-    """The world files a look's parts read: its spec and the maker's code (not the clips: a new clip never buys the
-    parts again)."""
-    return {name: path for name, path in files(None, entry).items() if name not in ("people tools", "clips")}
+    """The world files a look's parts read: its spec and the maker's code."""
+    return {name: path for name, path in files(None, entry).items() if name != "people tools"}
 
 
 def made(look, entry):
@@ -110,10 +111,11 @@ def made(look, entry):
         laid_take(handed, look, prop_person.PIXAL)
         (folder / "take.txt").write_text(entry["take"])
         laid_parts(pathlib.Path(inputs[f"{PARTS}-{look}"]), folder / "parts" / entry["take"])
+        shutil.copyfile(pathlib.Path(inputs[made_clips.ROW]) / "rig.npz", folder.parent / "rig.npz")
         if not entry.get("far_only"):
             refused_on_record(prop_person.predicted_tucks(spec, outfit), who)
-        stages = ("build",) if entry.get("far_only") else ("build", "settle")
-        with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once: shell, build, settle
+        stages = ("build",) if entry.get("far_only") else ("build", "route")
+        with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once: shell, build, route
             for stage in stages:
                 prop_person.record_stage(folder, stage, *timed(prop_person.STAGE_WORK[stage], spec, outfit, who,
                                                                held))
@@ -214,9 +216,9 @@ def timed(stage, spec, outfit, who, held):
 
 
 def kept(folder, name, entry, out, takes):
-    """The made body, its UsdSkel asset and every record the gates read, copied out of the candidate folder."""
-    shutil.copy2(folder / "settle" / f"{name}.glb", out / "body.glb")
-    shutil.copytree(folder / "settle" / "usd", out / "usd")
+    """The route's body, its UsdSkel asset and every record the gates read, copied out of the candidate folder."""
+    shutil.copy2(folder / "route" / f"{name}.glb", out / "body.glb")
+    shutil.copytree(folder / "route" / "usd", out / "usd")
     checks = out / "checks"
     checks.mkdir()
     for record in ("pokes.json", "outline.json", "bodycloth.json", "bodycloth_plain.json", "checks.txt",
@@ -224,9 +226,9 @@ def kept(folder, name, entry, out, takes):
         shutil.copy2(folder / "checks" / record, checks / record)
     if (folder / "checks" / "pokes_shipped.json").exists():  # none where no shipped body wears the outfit
         shutil.copy2(folder / "checks" / "pokes_shipped.json", checks / "pokes_shipped.json")
-    shutil.copy2(folder / "out" / "checks" / f"{name}.json", checks / "joins.json")
+    shutil.copy2(folder / "route" / "checks" / f"{name}.json", checks / "joins.json")
     shutil.copy2(folder / "out" / f"{name}.json", checks / "build.json")
-    shutil.copy2(folder / "settle" / f"{name}.bake.json", checks / "bake.json")
+    shutil.copy2(folder / "route" / f"{name}.json", checks / "route.json")
     shutil.copy2(folder / "fit" / "rig.json", checks / "rig.json")
     shutil.copy2(folder / "fit" / "shell.json", checks / "shell.json")
     shutil.copy2(folder / "parts" / entry["take"] / "parts.json", checks / "parts.json")
@@ -302,9 +304,26 @@ def judge_likeness(output, inputs, evidence):
     return verdict("likeness", failing, f"best outline {found['outline']}", {"outline": found["outline"]})
 
 
+def near_triangles(path):
+    """The triangles of every drawn node of a body glTF but its far body (the route's under layer and closings in)."""
+    import struct
+    with open(path, "rb") as body:
+        body.seek(12)
+        length, _ = struct.unpack("<II", body.read(8))
+        document = json.loads(body.read(length))
+    return sum(document["accessors"][primitive["indices"]]["count"] // 3 for node in document["nodes"]
+               if "mesh" in node and node.get("name") != "far"
+               for primitive in document["meshes"][node["mesh"]]["primitives"])
+
+
 def judge_triangles(output, inputs, evidence):
-    found = record(output, "build.json")
-    triangles = sum(level["triangles"] for name, level in found["levels"].items() if name != "far")
+    """The near outfit's triangles as drawn: the route's body where it was made (checks/route.json), else the build's
+    record."""
+    if (output / "checks" / "route.json").exists():
+        triangles = near_triangles(output / "body.glb")
+    else:
+        triangles = sum(level["triangles"] for name, level in record(output, "build.json")["levels"].items()
+                        if name != "far")
     failing = [] if triangles <= SHIPPED_TRIANGLES else [f"{triangles} triangles over {SHIPPED_TRIANGLES}"]
     return verdict("triangles", failing, f"{triangles} triangles", {"triangles": triangles})
 
@@ -392,6 +411,7 @@ def rows():
                     params={"take": entry["take"], "outfit": entry["outfit"]}, paid=True, euros=PARTS_EUROS),
         graph.Stage(f"{BODY}-{look}", "world", made(look, entry), contracts.Contract(BODY, 1, body_faults),
                     far_checks() if entry.get("far_only") else checks(), files=files(look, entry),
-                    after={f"{PARTS}-{look}": (PARTS, 1)}, beside={MADE: (MADE, 1)}, neighbours=the_line,
+                    after={f"{PARTS}-{look}": (PARTS, 1), made_clips.ROW: (made_clips.ROW, 1)},
+                    beside={MADE: (MADE, 1)}, neighbours=the_line,
                     params={key: value for key, value in entry.items() if key != "object"}, paid=True,
                     euros=FAR_EUROS if entry.get("far_only") else EUROS)))

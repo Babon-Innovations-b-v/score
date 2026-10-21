@@ -11,6 +11,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/characters/maker"))
 
+from score.stages import people_rows  # noqa: E402
 from score.stages.people import dress, loop  # noqa: E402
 from score.stages.people_bodies import bodies, clips, far  # noqa: E402
 import clearance  # noqa: E402
@@ -233,6 +234,56 @@ def test_a_looks_parts_are_their_own_priced_row_the_body_reads():
         parts, body = built[f"{bodies.PARTS}-{look}"], built[f"{bodies.BODY}-{look}"]
         assert parts.paid and parts.euros == bodies.PARTS_EUROS and "clips" not in parts.files, parts
         assert body.after[parts.name] == (bodies.PARTS, 1) and body.euros < 3.0, body
+
+
+def test_every_body_plays_the_clips_its_own_row_made_with_the_route():
+    """#26: the clips and the rig are made inside the batch by people-clips-made (fixed seed), never read from the lost
+    work folder; every body row reads them, and a full body is built and then put through the people route, no
+    settle."""
+    from score.stages.people_bodies import made_clips
+    built = {row.name: row for row in bodies.rows()}
+    assert made_clips.ROW_STAGE.paid and set(made_clips.CLIPS) >= {"standing", "walking", "bench"}
+    assert {person["doing"] for place in json.loads((REPO / "data/people/rows.json").read_text())["places"]
+            for person in people_rows.persons(place)} <= \
+        set(made_clips.CLIPS), "a cast does a clip no body has"
+    for look in bodies.looks():
+        body = built[f"{bodies.BODY}-{look}"]
+        assert body.after[made_clips.ROW] == (made_clips.ROW, 1) and "clips" not in body.files, body
+    source = (REPO / "score/stages/people_bodies/bodies.py").read_text()
+    assert '("build", "route")' in source and "settle\")" not in source
+
+
+def test_the_clips_row_passes_only_with_every_clip_in_the_rig_and_its_seed():
+    from score.stages.people_bodies import made_clips
+    with tempfile.TemporaryDirectory() as held:
+        folder = pathlib.Path(held)
+        (folder / "motions").mkdir()
+        np.savez(folder / "rig.npz", **{f"clip_{clip}": np.zeros(1) for clip in made_clips.CLIPS})
+        for clip in made_clips.CLIPS:
+            (folder / "motions" / f"{clip}.record.json").write_text(json.dumps({"clip": clip, "seed": 1}))
+        assert made_clips.judged(folder, {}, {}).answer == "pass"
+        (folder / "motions" / "bench.record.json").write_text(json.dumps({"clip": "bench"}))
+        assert made_clips.judged(folder, {}, {}).answer == "fail"
+        (folder / "rig.npz").unlink()
+        assert made_clips.judged(folder, {}, {}).answer == "unknown"
+
+
+def test_the_triangles_are_counted_on_the_route_body_as_drawn():
+    """The route adds the under layer and the closings: the gate counts the body glTF's near nodes, never the far."""
+    import struct
+    document = {"accessors": [{"count": 30}, {"count": 12}, {"count": 3000}],
+                "meshes": [{"primitives": [{"indices": 0}, {"indices": 1}]}, {"primitives": [{"indices": 2}]}],
+                "nodes": [{"name": "work", "mesh": 0}, {"name": "far", "mesh": 1}, {"name": "Hips"}]}
+    text = json.dumps(document).encode()
+    text += b" " * (-len(text) % 4)
+    with tempfile.TemporaryDirectory() as held:
+        folder = pathlib.Path(held)
+        (folder / "checks").mkdir()
+        (folder / "body.glb").write_bytes(struct.pack("<III", 0x46546C67, 2, 20 + len(text))
+                                          + struct.pack("<II", len(text), 0x4E4F534A) + text)
+        (folder / "checks" / "route.json").write_text("{}")
+        found = bodies.judge_triangles(folder, {}, {})
+        assert found.answer == "pass" and found.measures["triangles"] == 14, found
 
 
 def test_parts_pass_only_when_every_part_is_named():

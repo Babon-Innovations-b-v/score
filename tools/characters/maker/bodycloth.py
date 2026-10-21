@@ -26,7 +26,7 @@ SHIPPED_CLOTH = ("work_cloth", "work_collar", "work_placket", "work_pocket", "wo
                  "belt", "strap_l", "strap_r", "flag")
 SHIPPED_CLOTH_START = ("band_",)
 WELD = 1e-5
-# The settle's cloth is 3 mm thick (garment_settle.SETTINGS: radius 1.5 mm a point, each side of the surface), so a
+# The settle's cloth is 3 mm thick (the deleted garment settle's radius: 1.5 mm a point, each side of the surface), so a
 # body edge within 3 mm of the cloth's middle surface lies inside the cloth the settle models: contact, not poking.
 MARGIN_MM = 3.0
 

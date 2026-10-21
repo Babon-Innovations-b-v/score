@@ -5,7 +5,8 @@ the hair as the mesh carries it, SOMA-X only for the skeleton so Kimodo's clips 
 data/surfaces/people.json; after the loop:
 
     people-made@people               the looks the loop made, handed on (loop.py, the people layer's after-step)
-    people-body-<look>               a look's body: rig, build, settle and every body gate (people_bodies/bodies.py)
+    people-clips-made                the Kimodo clips and the rig every body plays (people_bodies/made_clips.py)
+    people-body-<look>               a look's body: build, the people route and every body gate (people_bodies/bodies.py)
     people-dress-<look>              the loop's library surfaces laid on the body (dress.py)
     people-dress-<look>-in-<place>   the same in a coloured place: its fabrics the concept's colour (colours.json)
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
@@ -16,7 +17,7 @@ data/surfaces/people.json; after the loop:
 from score import contracts, graph
 from score.stages import people_rows
 from score.stages.people import dress, look
-from score.stages.people_bodies import bodies, clips
+from score.stages.people_bodies import bodies, clips, made_clips
 from score.stages.people_bodies.bodies import guarded
 
 # The looks the review page shows: the people benchmark's two (#26), the player in the tube and the crowd's far look.
@@ -69,4 +70,4 @@ def coloured_rows():
             for look in sorted(people_rows.looks_of(place) & set(bodies.looks()))]
 
 
-ROWS = (*bodies.rows(), *map(dress_row, bodies.looks()), *coloured_rows(), CLIPS, LOOK)
+ROWS = (made_clips.ROW_STAGE, *bodies.rows(), *map(dress_row, bodies.looks()), *coloured_rows(), CLIPS, LOOK)

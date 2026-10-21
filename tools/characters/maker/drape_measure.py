@@ -648,7 +648,7 @@ def self_crossings(points, faces, chunk=4096):
 
 def edge_crossings(points, faces, edges, chunk=4096):
     """How many of `edges` pass through a triangle of `faces` they share no corner with (self_crossings' search, for
-    any edges: garment_bake.py counts the body's edges through the cloth)."""
+    any edges: bodycloth.py counts the body's edges through the cloth)."""
     corners = points[faces]
     centres = corners.mean(axis=1)
     radii = np.linalg.norm(corners - centres[:, None], axis=2).max(axis=1)

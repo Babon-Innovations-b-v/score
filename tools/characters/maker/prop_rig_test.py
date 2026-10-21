@@ -19,7 +19,6 @@ import numpy as np
 import trimesh
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import garment_bake  # noqa: E402
 import piping  # noqa: E402
 import pokes  # noqa: E402
 import prop_build  # noqa: E402
@@ -235,50 +234,6 @@ def test_pokes_read_a_hard_parts_stretch():
     assert abs(pokes.stretch({id(part): part.points * 1.5}, edges) - 1.5) < 1e-9
 
 
-def test_the_bake_carries_offsets_into_the_bind_pose_and_keeps_them():
-    turn = np.eye(4)
-    turn[:3, :3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
-    frames = np.linspace(0, 1, 6)
-    wanted = np.stack([np.outer(np.ones(5), [0.01 * share, 0.002 * share ** 2, 0.0]) for share in frames])
-    data = {"moves_walking": np.tile(turn, (6, 5, 1, 1)), "lead_in": 0, "cloth_joints": np.zeros((5, 4), int),
-            "cloth_weights": np.tile([1.0, 0, 0, 0], (5, 1))}
-    offsets = np.einsum("ab,fpb->fpa", turn[:3, :3], wanted)
-    blended = garment_bake.blended_turns(data, "walking")
-    assert np.allclose(garment_bake.bind_offsets(blended, offsets), wanted, atol=1e-6)
-    shapes, weights, owner, missed = garment_bake.clip_shapes(blended, offsets, np.ones((5, 1)))
-    assert missed <= garment_bake.MISS_MOST and len(shapes) == 1 and list(owner) == [0], "one shape is near enough"
-    assert np.abs(np.einsum("fs,spa->fpa", weights, shapes) - wanted).max() <= garment_bake.MISS_MOST
-
-
-def test_a_frame_whose_shape_crosses_the_body_keeps_the_unsettled_cloth():
-    cloth = np.array([[-1.0, 0.0, -1.0], [1.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
-    body = np.array([[0.0, 0.1, 0.0], [0.0, 0.3, 0.0], [0.2, 0.3, 0.0]])
-    data = {"moves_walking": np.tile(np.eye(4), (2, 1, 1, 1)), "lead_in": 0, "cloth_points": cloth,
-            "cloth_faces": np.array([[0, 1, 2]]), "cloth_joints": np.zeros((3, 4), int),
-            "cloth_weights": np.tile([1.0, 0, 0, 0], (3, 1)), "held": np.zeros(3, bool),
-            "held_collider": np.full(3, -1), "collider_points": body, "collider_faces": np.array([[0, 1, 2]]),
-            "collider_joints": np.zeros((3, 4), int), "collider_weights": np.tile([1.0, 0, 0, 0], (3, 1))}
-    blended = garment_bake.blended_turns(data, "walking")
-    up = np.tile([0.0, 0.2, 0.0], (1, 3, 1))
-    shares, plain, kept = garment_bake.frame_shares(data, "walking", blended, up, np.array([[0.0], [1.0]]),
-                                                    np.zeros(1, int), np.ones((3, 1)))
-    assert list(shares[:, 0]) == [1.0, 0.0] and plain == [0, 0] and kept == [0, 0], (shares, plain, kept)
-
-
-def test_regions_follow_the_limbs_and_share_their_borders():
-    cloth = trimesh.creation.box(extents=[0.4, 0.1, 0.1]).subdivide_to_size(0.01)
-    left = cloth.vertices[:, 0] > 0
-    data = {"cloth_points": cloth.vertices, "cloth_faces": cloth.faces,
-            "cloth_joints": np.where(left, 1, 0)[:, None].repeat(4, 1), "cloth_weights": np.tile([1.0, 0, 0, 0],
-                                                                                                (len(left), 1)),
-            "joint_names": np.array(["Chest", "LeftArm"])}
-    shares = garment_bake.regions(data)
-    assert shares.shape == (len(left), 2) and np.allclose(shares.sum(1), 1)
-    far = np.abs(cloth.vertices[:, 0]) > 0.15
-    assert (shares[far & left, 0] > 0.99).all() and (shares[far & ~left, 1] > 0.99).all(), "LeftArm sorts first"
-    assert ((shares > 0.05) & (shares < 0.95)).any(1).sum() > 0, "the border is softened"
-
-
 def test_piping_is_cut_down_the_outside_of_a_limb():
     tube = trimesh.creation.cylinder(radius=0.05, height=0.6, sections=24)
     tube.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0]))
@@ -296,14 +251,6 @@ def test_piping_is_cut_down_the_outside_of_a_limb():
                           axis=1).sum() / 2
     assert abs(area - width * (0.6 - piping.LEG_RUN[0])) < 0.15 * width * 0.6, area
 
-
-def test_a_sparse_morph_target_reads_back():
-    contents = garment_bake.glb.Contents()
-    values = np.zeros((6, 3))
-    values[[1, 4]] = [[0.01, 0.0, 0.0], [0.0, -0.02, 0.0]]
-    index = garment_bake.sparse_target(contents, values)
-    document = {"accessors": contents.accessors, "bufferViews": contents.views}
-    assert np.allclose(garment_bake.joins.target_values(document, contents.blob(), index, 6), values, atol=1e-7)
 
 
 if __name__ == "__main__":

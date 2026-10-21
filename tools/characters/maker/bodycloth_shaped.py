@@ -1,5 +1,5 @@
 """The reviewer's skin-and-hard-through-cloth count (issue #5's check/bodycloth.py, kept outside the repo and left as it
-is) run on a body whose garments carry corrective shapes each clip keys (garment_bake.py): its reader takes the
+is) run on a body whose garments carry corrective shapes each clip keys (the people route's correctives, route_build.py): its reader takes the
 surfaces' points only, so here every frame's points get their morph targets at the frame's weights first, as the
 engine draws them. Its own command line, its own record.
 

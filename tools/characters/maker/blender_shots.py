@@ -5,7 +5,9 @@ bodies were), on a rented card, never on the owner's PC.
     blender -b -P blender_shots.py -- <body.glb> <out folder> --outfit work [--size 768]
 
 Writes <out>/apose_front.png, apose_side.png and apose_back.png (the bind pose, no clip) and, from 35 degrees, each
-SHOTS clip at its share of its length (walk_a and walk_b, sit, wait, point, reach, clap, door). A settled body's garments carry corrective shapes each clip keys (garment_bake.py): the importer puts them in
+SHOTS clip at its share of its length (walk_a and walk_b, sit, wait, point, reach, clap, door, work), each skipped where
+the body lacks its clip. A body whose garments carry corrective shapes each clip keys (the people route, route_build.py)
+has them in
 the clip's action under a slot of their own, which is given to the outfit's shape keys with the armature's.
 """
 import argparse
@@ -21,7 +23,8 @@ HEIGHT = 1.8
 SAMPLES = 64
 # The review page's clip strip (#5): walking, sitting and the clips whose hands came near the body.
 SHOTS = (("walk_a", "walking", 0.25), ("walk_b", "walking", 0.75), ("sit", "sitting", 0.67), ("wait", "waiting", 0.5),
-         ("point", "pointing", 0.5), ("reach", "reaching", 0.5), ("clap", "clapping", 0.5), ("door", "door", 0.5))
+         ("point", "pointing", 0.5), ("reach", "reaching", 0.5), ("clap", "clapping", 0.5), ("door", "door", 0.5),
+         ("work", "bench", 0.5))
 
 
 def arguments():

@@ -272,3 +272,77 @@ def test_a_kimodo_clip_is_made_with_the_fixed_seed_and_records_it(tmp_path):
     assert record == {"clip": "walking", "sentence": sentence, "seconds": 5.0, "model": model, "seed": seed}, record
     chain_words = (pathlib.Path(__file__).resolve().parent / "chain.py").read_text()
     assert "sentences.kimodo_arguments(name" in chain_words and "sentences.write_record(name" in chain_words
+
+
+def test_the_route_is_the_bodys_binding_after_the_build(tmp_path, monkeypatch):
+    """#26: a full body is put through the people route on the same held machine as its build: one make reading the
+    close-up (SAM 3D Body's identity), the fitted rig, the shell's fit and the built body; the garment settle is gone."""
+    import prop_chain
+    import prop_person
+    monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path / "candidates")
+    monkeypatch.setattr(prop_person, "PIXAL", tmp_path / "pixal")
+    asked = []
+    monkeypatch.setattr(prop_person, "on_characters", lambda place, who, held, dry_run: asked.append((place, held)))
+    folder = prop_person.folder_of(PERSON, "work")
+    for name, words in (("take.txt", "pp-a_s1"), ("fit/rig.npz", "rig"), ("fit/shell.json", "{}"),
+                        (f"out/{PERSON['name']}.glb", "built")):
+        (folder / name).parent.mkdir(parents=True, exist_ok=True)
+        (folder / name).write_text(words)
+    closeup = tmp_path / "pixal" / "pp-a_s1.svviews" / "input.png"
+    closeup.parent.mkdir(parents=True)
+    closeup.write_bytes(b"the close-up")
+    assert prop_person.route(PERSON, "work", "a test", "held", True) is None
+    place, held = asked[0]
+    machine = json.loads((place / "in" / "spec.json").read_text())
+    assert machine["steps"] == ["identity", "route"] and held == "held", machine
+    assert {name: (place / path).read_bytes() for name, path in machine["files"].items()} == {
+        "closeup": b"the close-up", "fit": b"rig", "shell": b"{}", "body": b"built"}
+    assert "settle" not in prop_chain.STEPS and "settle" not in prop_person.STAGE_WORK
+    assert {"clips", "rig", "route", "identity"} <= set(prop_chain.STEPS)
+
+
+def test_the_route_step_rebuilds_the_built_body_on_the_base_under_it(tmp_path):
+    """prop_chain's route step: the base from the fitted rig, the shell's fit and the identity, the correctives of
+    every clip of the built body, the route's build with them, its UsdSkel asset and its joins record, in that order,
+    all on this make's own built body."""
+    import prop_chain
+
+    class Chain:
+        out, spec, ran = tmp_path / "out", {"person": "a", "files": {"fit": "in/files/fit.npz",
+                                                                      "shell": "in/files/shell.json"}}, []
+
+        def file(self, relative):
+            return tmp_path / relative
+
+        def run(self, command):
+            self.ran.append([str(part) for part in command])
+            if pathlib.Path(command[1]).name == "route_build.py":
+                pathlib.Path(command[5]).with_suffix(".json").write_text(json.dumps({"head": {"face": "made"}}))
+
+    chain = Chain()
+    chain.out.mkdir()
+    (chain.out / "a.glb").write_text("built")
+    assert prop_chain.route(chain) == "made"
+    scripts = [pathlib.Path(command[1]).name + (f" {command[2]}" if command[1].endswith("route_base.py") else "")
+               for command in chain.ran]
+    assert scripts == ["route_base.py base", "route_base.py correctives", "route_build.py", "skel_usd.py", "joins.py"]
+    base, build = chain.ran[0], chain.ran[2]
+    assert base[3:6] == [str(tmp_path / "in/files/fit.npz"), str(tmp_path / "in/files/shell.json"),
+                         str(chain.out / "identity.npz")]
+    assert build[2] == str(chain.out / "a.glb") and build[5] == str(chain.out / "route" / "a.glb")
+    assert "--correctives" in build and "--face" not in build, "the face is route_head.FACE, route_build's default"
+
+
+def test_the_clips_and_the_rig_are_one_make_that_takes_no_clip_from_here(tmp_path, monkeypatch):
+    """#26: people-clips-made's make: Kimodo's clips then the rig, on a rented machine; the lost work folder's
+    clips are never copied up."""
+    import prop_person
+    monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path / "candidates")
+    monkeypatch.setattr(prop_person, "MOTIONS", tmp_path / "lost")
+    asked = []
+    monkeypatch.setattr(prop_person, "on_characters", lambda place, who, held, dry_run: asked.append((place, held)))
+    assert prop_person.clips_rig(("standing", "bench"), tmp_path / "out", "a test", True) is None
+    place, held = asked[0]
+    machine = json.loads((place / "in" / "spec.json").read_text())
+    assert machine["steps"] == ["clips", "rig"] and machine["clips"] == ["standing", "bench"] and held is None
+    assert machine["approved"] and not (place / "in" / "motions").exists()
