@@ -1,10 +1,9 @@
 """The robust route for an outdoor place (job place, 2026-10-07: the old station and the wreck in the game 2099; moved
 here as a tool, JoeyKardolus/2099#129): an outdoor place has no kit layout, so every piece is a row of the place's
 inventory (data/inventory/<place>.json) with its spots on the place's seat. The pieces are the route's own:
-make_chunky for generated pieces (library surfaces only) and make_kit for a row the sorter sends to code (only on a
-named pipeline failure, #19; its builders: pipe_straight for walkway tubes, cable_bundle for cables, pit_floor_plate
-for a dust apron), its gates (gates/model.py, straight.py)
-and its scene package (package.py) as the output any engine loads.
+make_chunky for generated pieces (library surfaces only; no row is built in code since the code fallback was removed,
+2026-10-22), its gates (gates/model.py, straight.py) and its scene package (package.py) as the output any engine
+loads.
 
     python=.venv/bin/python
     $python tools/props/library/place_route.py split <labelled> <out a> <out b>    # a take too long for one piece
@@ -30,13 +29,12 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 import library  # noqa: E402
-import sorter  # noqa: E402
 
 DETAILS = REPO / "data/library/details.json"
 INVENTORIES = REPO / "data/inventory"
 # Texels a metre a generated piece is baked at (the normal map's): near the walker's hands, held to one LARGEST
-# picture a piece down to KIT_DENSITY, the density the place's code-built kit is baked at (code_jobs); a piece too
-# big for one picture there is split into several maps by the bake (inside/bake.py SPLIT_DENSITY), not held lower.
+# picture a piece down to KIT_DENSITY, a far piece's density; a piece too big for one picture there is split into
+# several maps by the bake (inside/bake.py SPLIT_DENSITY), not held lower.
 DENSITY = 1024
 LARGEST = 4096
 KIT_DENSITY = 512
@@ -52,12 +50,10 @@ SMALLEST_FACES = 5000
 WALL_SHARE = 150
 # Pieces that passed at make_chunky's own 5 mm and whose sheets would read as slabs thicker (a solar blanket on a mast).
 THIN_WALLED = ("solar_mast", "solar_mast_dead", "comms_mast")
-# The builders the code rows are built as, and how each lies: tilt 90 lays a piece's front up (a cable or a plate
-# on the ground). The camp grounds' mast and cable lengths are their own code builders, standing as built.
-CODE_KINDS = {"walkway_tube": ("pipe_straight", 0.0), "cable_run": ("cable_bundle", 90.0),
-              "apron": ("pit_floor_plate", 90.0), "mast": ("mast", 0.0), "ground_cable": ("ground_cable", 0.0)}
 # Generated pieces are baked over this many machines' jobs, largest first, round robin.
 CHUNKY_SETS = 2
+# Why a row with no take is left out of a plan: a gap the plan names, never a code build (#41).
+GAP = "no take yet: the shared loop has not made this model (#41)"
 MEMORY_CAP = ["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=16G"]
 
 
@@ -108,39 +104,18 @@ def refuse_patchy(labelled):
         raise SystemExit(f"{labelled.name}: its paint is patchy ({', '.join(score.get('faults', []))}); label it again")
 
 
-def code_models(row, place):
-    """A code row's models (one per length) and its pieces."""
-    builder, tilt = CODE_KINDS[row["id"]]
-    models, pieces = {}, []
-    for spot in row["at"]:
-        # A piece laid front up (tilt) shows its tall side along the ground and its depth as its height.
-        size = [float(side) for side in row["size"]] if tilt else kit_size(row["size"])
-        size[0] = round(spot.get("length", size[0]), 2)
-        name = f"{row['id']}_{size[0]:g}".replace(".", "p")
-        models.setdefault(name, {"kind": f"{place}_{row['id']}", "route": "code", "builder": builder, "size": size,
-                                 "budget": "furniture", "tilt": tilt})
-        pieces.append({"model": name, "spot": spot, "row": row["id"]})
-    return models, pieces
-
-
 def plan(place, work, take):
-    """Every model the place needs: {name: {kind, route, size (kit), ...}}, and every piece: a model at a spot. A row
-    the sorter sends to code (a named pipeline failure) makes one model per length; every other row one model from its
-    labelled take (its pieces are scaled copies); a row with no labelled take or no details entry is a gap the plan
-    names (`gaps`, sorter.GAP), never a code build and never a stop."""
+    """Every model the place needs: {name: {kind, route, size (kit), ...}}, and every piece: a model at a spot. Each
+    row makes one model from its labelled take (its pieces are scaled copies); a row with no labelled take or no
+    details entry is a gap the plan names (`gaps`, GAP), never a code build and never a stop."""
     inventory = json.loads((INVENTORIES / f"{place}.json").read_text())
     details = (json.loads(DETAILS.read_text()) if DETAILS.exists() else {})
     models, pieces, children, gaps = {}, [], [], {}
     for row in inventory["rows"]:
         kind = f"{place}_{row['id']}"
-        if sorter.route(kind) == "code":
-            found, laid = code_models(row, place)
-            models.update(found)
-            pieces += laid
-            continue
         labelled = work / "parts" / f"{row['id']}-{take}"
         if not (labelled / "labels.json").exists() or kind not in details:
-            gaps[row["id"]] = sorter.GAP
+            gaps[row["id"]] = GAP
             continue
         refuse_patchy(labelled)
         yaw = yaw_of(details[kind]["turn"])
@@ -156,21 +131,6 @@ def plan(place, work, take):
              "on_seat": inventory["room"]["layout"].get("on_seat") or [0.0, 0.0]}
     (work / "plan-route.json").write_text(json.dumps(found, indent=1))
     return found
-
-
-def code_jobs(planned, made, place, wear, dirt, specs):
-    """make_kit jobs: a walkway tube's seen area (about 21 m2) takes a 4096 picture set of its own at 512 texels a
-    metre; the cables and the apron share one (one shared set of 75.8 m2 was past the cap)."""
-    sets = {}
-    for name, entry in planned["models"].items():
-        if entry["route"] != "code":
-            continue
-        piece = {"name": name, "kind": entry["builder"], "size": entry["size"], "laid": {}, "foot": 0.0}
-        sets.setdefault(name if entry["builder"] == "pipe_straight" else "code", []).append(piece)
-    return {f"kit-{name}": {"script": "make_kit.py", "out": str(made), "report": f"report-kit-{name}.json",
-                            "atlas": f"{place}_{name}", "density": KIT_DENSITY, "wear": wear, "dirt": dirt, "seed": 3,
-                            "specs": specs, "pieces": pieces}
-            for name, pieces in sets.items()}
 
 
 def chunky_entry(name, entry, own, work, take):
@@ -210,12 +170,10 @@ def styled_as(place):
 def jobs(planned, work, place):
     """The cloud bake jobs, each written to <work>/job-<name>.json."""
     wear, dirt = library.wear_of(styled_as(place))
-    # A code-built part names a library variant; a generated piece's labelled parts are the place's own materials
-    # (labels.py), which in the camp are not named as their variants (stainless is stainless_lander): both, as route.py.
+    # A generated piece's labelled parts are the place's own materials (labels.py), which in the camp are not named as
+    # their variants (stainless is stainless_lander): both.
     specs = dict(library.by_library(styled_as(place)), **library.resolved(styled_as(place)))
-    made = work / "made"
-    found = code_jobs(planned, made, place, wear, dirt, specs)
-    found.update(chunky_jobs(planned, made, work, wear, dirt, specs))
+    found = chunky_jobs(planned, work / "made", work, wear, dirt, specs)
     for name, job in found.items():
         (work / f"job-{name}.json").write_text(json.dumps(job, indent=1))
     return found
@@ -288,7 +246,7 @@ def main():
     if options.step == "plan":
         planned = plan(place, work, options.take)
         for name, job in jobs(planned, work, place).items():
-            print(name, len(job.get("pieces", job.get("chunky", []))))
+            print(name, len(job["chunky"]))
         routes = [entry["route"] for entry in planned["models"].values()]
         print(len(planned["models"]), "models:", {route: routes.count(route) for route in sorted(set(routes))},
               len(planned["pieces"]), "pieces;", len(planned["gaps"]), "gaps")

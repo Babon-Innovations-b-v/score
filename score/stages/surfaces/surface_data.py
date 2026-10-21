@@ -2,8 +2,8 @@
 
 data/surfaces/<place>.json: the models a place's line paints, each under its raw take (`takes`: its place, kind,
 object words and the places whose library it may take surfaces from, as the library names them), the name the
-library knows the place by (`library`), its bake (`bake`: the model each take is baked as, and the make_chunky entries
-written out where the route's own would not do; the job is written in the bake from git, bake_job.py), and the models
+library knows the place by (`library`), its bake (`bake`: the model each take is baked as, and each model's
+make_chunky entry written out; the job is written in the bake, bake_job.py), and the models
 it lays that another place claims (`elsewhere`: {model: {take, place}}, read from that place's bake); a place with nothing to paint lists
 no takes and says why (`nothing`). Every model is painted, the owner's picks included (a pick chooses the model,
 never its old paint: owner, 2026-10-12), and each take by one place only: a model is painted once world-wide. A
@@ -78,28 +78,13 @@ def line_files(place):
     return {**shape_files(place), "library": "{data}/library"}
 
 
-# What bake_job.py writes a place's bake job from besides its own code (which the bake's code version hashes, the
-# routes' with it): the kinds' details and the composites' children. The table keys each on the entries the place's
-# models read (library_reads.narrowed), so one kind's edit re-keys only the bakes that read it. Both retired with the
-# old models (owner, 2026-10-21): declared only while there, so no bake waits on a retired file by name.
-BAKE_JOB_FILES = {"details": "{data}/library/details.json", "composites": "{data}/library/composites.json"}
-
-
 def job_files(place, bake):
-    """The world files a place's bake job is written from (BAKE_JOB_FILES and the place's scene inventory where it
-    has one: its design's, else data/inventory's, the people line's; the old kits and per-place inventories were
-    retired, owner, 2026-10-21); a place whose data has no bake blocks here, before anything is cleared: a path that
-    is never there, naming it. A model no entry can be written for blocks the same way, declared in the table
+    """A place whose data has no bake blocks here, before anything is cleared: a path that is never there, naming
+    it. Its bake job is written from its data's entries alone (bake_job.py: a design's hand-in writes one for every
+    model; the kit rooms' and outside places' entries, read from the old kits, inventories, kinds' details and
+    composites, went with them, owner, 2026-10-21); a model with none blocks the same way, declared in the table
     (library_reads.narrowed)."""
-    if not bake:
-        return {"bake job": pattern(place) + " names no bake"}
-    found = {name: path for name, path in BAKE_JOB_FILES.items()
-             if (REPO / "data" / path[len("{data}/"):]).is_file()}
-    if (DESIGN.parent / "inventory" / f"{place}.json").exists():
-        found["inventory"] = "{home}/design/inventory/" + f"{place}.json"
-    elif (REPO / "data/inventory" / f"{place}.json").exists():
-        found["inventory"] = "{data}/inventory/" + f"{place}.json"
-    return found
+    return {} if bake else {"bake job": pattern(place) + " names no bake"}
 
 
 def bake_files(place):

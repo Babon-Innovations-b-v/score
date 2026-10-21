@@ -73,7 +73,7 @@ def bake_entry(prop):
 
 
 def sizing_folder(prop):
-    """The labelled folder an outside place's entry is sized over (place_route.made_size): the prop's own `parts`,
+    """The labelled folder a prop's entry is turned over (bake_job.measured_turn): the prop's own `parts`,
     else a bodied prop's accepted labelled take (its re-made take's parts are written at this entry's size, so they
     are not there yet), else None (a prop with neither stops at its first free check)."""
     if prop.get("parts"):

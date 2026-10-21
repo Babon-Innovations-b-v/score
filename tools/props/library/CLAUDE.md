@@ -13,9 +13,9 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **The old models' records are retired** (owner, 2026-10-21: every old model, kit, effect, sound, layer and place
   withdrawn from score_lib, all remade fresh). `data/library/details.json`, `composites.json`, `fittings.json`,
-  `pipeline_failures.json` and `data/parts` are gone and their readers answer none: `sorter.failures` and
-  `sorter.fittings` are empty, so every kind goes to the prop pipeline; `route.jobs` names a kind with no turn and
-  stops; no take is stored. What a scene needs is its design's (`{home}/design/inventory/<scene>.json`, its hand-in
+  `pipeline_failures.json` and `data/parts` are gone, and with them the code fallback (2026-10-22: `sorter.py`,
+  `inside/make_kit.py`, `place_route.py`'s code jobs, the surface bake's kit-room entries): every kind goes to the
+  prop pipeline; no take is stored. What a scene needs is its design's (`{home}/design/inventory/<scene>.json`, its hand-in
   `{home}/design/props/<scene>.json`); the remake batch makes each model and hands it to score_lib as a draft
   (`library@<place>`). The bullets below that name those files describe the old route. The old kits' route went with
   the old kits on 2026-10-21 (the owner: "remove all old, all old stuff is retired"): route.py's kit room run (`plan`,
@@ -63,7 +63,7 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   in. Scenery seen only from afar takes a `far_` own name and `route.DISTANT` texels a metre.
 - **Screens and lamp lenses glow as plates of their own** (`data/library/details.json` `screens`; their printed
   pictures in `data/library/pictures` were retired, 2026-10-21, and a scene library gives none yet), laid by
-  `route.py` on a generated piece's front, or a code-built piece's own glass (make_kit splits glowing slots off).
+  `route.py` on a generated piece's front.
 - **The game's shared paints are retired** (`data/library/shared_paint.json`, 2026-10-21): a scene record's
   `shared_paint` object has each named surface marked `score:surface:missing` (`tools/usd/scene.py`), never drawn in
   the game's colours.
@@ -100,23 +100,15 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **Never split a raw Pixal3D model into per-piece objects.** trimesh's `split` on a 950k-face raw model took
   43.5 GB and took WSL down (2026-10-06). Sample points (`register.py`). Every local Python step runs under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
-- **The prop pipeline first for every kind (the owner, 2026-10-20, #19, #41); code only on a named failure.**
-  `sorter.route` sends a kind to code only when the pipeline-failure record (`data/library/pipeline_failures.json`:
-  the failure, its evidence, its date) names it; every other kind, plain plates and fittings too, is the shared
-  loop's (`score/stages/shapes_first`), and an inventory row is routed by `sorter.route`, never by its own `kind`
-  (`code` or `generate`), so its close-up is taken and it is handed to the loop. A model-routed kind with no take yet
-  is a gap that `plan.json` lists (`gaps`), never a code build and never a stop. The record (retired with the old models) held the failures measured on their own object; a kind joins it only with
-  a failure measured on its own object.
-  Big objects keep their code body (below). Purely code-built pieces look generated and copied shell pieces look like
-  tiles; shell pieces come as a few pipeline-made variants per kit.
-  `place_route.py plan` routes an outdoor place's rows the same way.
-- **Method B's parts check holds a code fallback, never routes one** (the owner's pick 2026-10-07, demoted by #19):
-  `data/library/fittings.json` lists a fitting's close-up parts and how much of each its last code build shows
-  (`pieces.parts_seen`, each part seen at least 10% from in front, no print over a part), and
-  `sorter.fallback_parts_missing` is the one check the likeness row holds a code fallback to (an unlisted fallback passes as plain). `PLAIN` stays a fact (no parts
-  of its own to show). Builders, the sorter and `fittings.json` go per kind only after that kind's pipeline take
-  passed (#19's clean-up map). `library_test.py` fails on a code builder that is not a body `bodies.BODIES` names for
-  a take (the old kits' builders and their routes went with the old kits, 2026-10-21).
+- **The prop pipeline for every kind (the owner, 2026-10-20, #19, #41); no code fallback** (removed 2026-10-22,
+  with the sorter, its pipeline-failure record, method B's fittings check and `make_kit.py`). Every inventory row but
+  a mechanic's (made on its own line), plain plates and fittings too, is the shared loop's
+  (`score/stages/shapes_first`), whatever its own `kind` (`code` or `generate`) says, so its close-up is taken and it
+  is handed to the loop. A row with no take yet is a gap that `plan.json` lists (`gaps`), never a code build and never
+  a stop (`place_route.py plan`). A kind's shape class (`tools/props/gates/model.py` `shape_class`) says how its model
+  is judged, never whether it is made. Big objects keep their code body (below). `library_test.py` fails on a code
+  builder that is not a body `bodies.BODIES` names for a take (the old kits' builders and their routes went with the
+  old kits, 2026-10-21).
 - **Paint by parts.** `labels.py` paints a generated model by its parts (job paint, 2026-10-08, the owner: "shouldn't the painting be
   done by parts?"): PartCrafter's split (`../cloud/parts.py`) laid on the welded Pixal3D model, every face one part,
   every part ONE material from the kind's allowed list (`details.json` `materials`) by its lit colour; never per

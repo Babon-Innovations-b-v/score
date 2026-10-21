@@ -4,7 +4,6 @@
                    a block: the coarser the texture, the bigger its blocks
     ragged border  the model drawn flat-shaded along the view that faces its worst border, each finish its own colour
                    and its ragged borders in red: whole, and close round the worst run
-    kit age        a patch of each stale kit piece's texture, with when it was baked and the bake code's commits since
 """
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -241,21 +240,3 @@ def ragged_border(finding, drawn):
     return side_by_side([captioned(keyed(whole, names), [finding["model"]]),
                          captioned(close, [f"worst border {ratio:.2f} (clean 1.00)",
                                            f"window {2 * close_half:.2f} m across"])])
-
-
-# --- kit age ------------------------------------------------------------------------------------------------------
-
-def kit_age(finding, drawn_of, density_of, commits):
-    """A patch of up to four stale pieces with their bake time, and the bake code's commits since."""
-    panels = [captioned(patch(drawn_of[model], density_of.get(model)).resize((SIDE // 2, SIDE // 2)),
-                        [model[:26]]) for model in finding["models"][:4]]
-    row = side_by_side(panels)
-    listed = [f"{commit['at'][:10]} {commit['commit']} {commit['subject'][:80]}" for commit in commits[:8]]
-    text = Image.new("RGB", (max(row.width, 760), 30 + 20 * (len(listed) + 1)), PAPER)
-    ImageDraw.Draw(text).multiline_text(
-        (8, 8), "\n".join([f"{len(finding['models'])} kit pieces baked before these bake code commits:"] + listed),
-        fill=INK, font=font(15))
-    out = Image.new("RGB", (max(row.width, text.width), row.height + text.height), PAPER)
-    out.paste(row, (0, 0))
-    out.paste(text, (0, row.height))
-    return out

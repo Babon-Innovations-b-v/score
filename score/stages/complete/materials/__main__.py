@@ -16,7 +16,7 @@ import pathlib
 
 from PIL import Image, ImageDraw
 
-from score.stages.complete.materials import assets, borders, judge, measure, meshes, pictures, texel
+from score.stages.complete.materials import assets, judge, measure, meshes, pictures, texel
 from score.store import PROPS_HOME, Store
 
 OUT = PROPS_HOME / "work/checks/materials"
@@ -44,21 +44,11 @@ def soft_picture(item, evidence, sample):
                                  drawn_model(linked, kit_model), kit_density)
 
 
-def kit_picture(item, evidence):
-    """A kit-age finding's picture."""
-    density = {entry["model"]: entry["px_per_m"] for entry in evidence["objects"]}
-    drawn = {model: drawn_model(evidence["linked"], model) for model in item["models"][:4]}
-    commits = [commit for commit in evidence["bake_code"][item["route"]] if commit["commit"] in item["commits"]]
-    return pictures.kit_age(item, drawn, density, commits)
-
-
 def picture_of(item, evidence, sample):
     """The picture of one finding, or None when it cannot be drawn."""
     if item["rule"] == texel.RULE:
         return soft_picture(item, evidence, sample) if sample else None
-    if item["rule"] == borders.RULE:
-        return pictures.ragged_border(item, drawn_model(evidence["linked"], item["model"]))
-    return kit_picture(item, evidence)
+    return pictures.ragged_border(item, drawn_model(evidence["linked"], item["model"]))
 
 
 def marked(place, found, evidence, folder, samples):
@@ -78,7 +68,7 @@ def judged(place, folder, world, samples):
     """Judge a place's evidence folder and write its findings.json; the findings as written."""
     evidence = judge.read(folder)
     found = judge.findings(evidence, world)
-    written = {"place": place, "answer": judge.verdict(found), "reason": judge.reason(evidence, found),
+    written = {"place": place, "answer": judge.verdict(found), "reason": judge.reason(found),
                "outputs": evidence["outputs"], "findings": marked(place, found, evidence, folder, samples)}
     (folder / FINDINGS).write_text(json.dumps(written, indent=1))
     return written

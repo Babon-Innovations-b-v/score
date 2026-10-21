@@ -657,8 +657,8 @@ def placeholder_block(stages):
             for label, faults in stages.items() for fault in faults]
     return (f"<p>Everything visible on the stage is a made piece, the game's own model placed or a plain plate, pipe "
             f"or trim (tools/usd/placeholders.py): a mesh the scene record's code drew, other than the place's own "
-            f"shell, that does not say which plain thing it is, a kit piece built in code that the sorter sends to the prop "
-            f"pipeline, a mesh with no material or in the default grey, and a proxy each fail. {'; '.join(counts)}."
+            f"shell, that does not say which plain thing it is, a mesh with no material or in the default grey, and a "
+            f"proxy each fail. {'; '.join(counts)}."
             f"</p>" + table(["stage", "prim", "rule", "result", "caught"], rows, "Nothing stands in for a made piece."))
 
 

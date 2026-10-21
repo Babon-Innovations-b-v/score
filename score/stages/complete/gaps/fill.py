@@ -11,13 +11,11 @@ Exactly one of node and work is set.
 from score import stages
 
 # A missing row's maker by how the inventory says it is made: (the stage, the work when it does not run here).
-ROUTE, CROP, CODE = "route", "crop", "code"
+ROUTE, CROP = "route", "crop"
 CONCEPT, PLAN, ROUGH_MODEL, SHELL_SPLIT = "concept", "plan", "rough-model", "shell-split"
 FILLERS = {
     ROUTE: ("pixal", "prop data for {place}: its design hand-in (prepare)"),
     CROP: ("crops-layer", None),
-    CODE: (None, "a code build of the row its pipeline failure names (data/library/pipeline_failures.json, #19): no "
-                 "row of the table builds one since the old kits were retired (2026-10-21)"),
     CONCEPT: (None, "the creator's concept for {place}, drawn and locked on its concept page"),
     PLAN: ("plan", "a kept plan of {place} with its leads (the plan review)"),
     ROUGH_MODEL: (ROUGH_MODEL, None),
@@ -56,16 +54,9 @@ def filled(stage, work, place):
 
 def made_by(row, place):
     """How a scene inventory row is made, as FILLERS names it: a crop (a row of a crop kind of the place's design,
-    crop_data), a code build only when its kind is a named pipeline failure (sorter.route, whatever the row's own kind
-    says, #19), else the shared loop (a moving machine's model too: the motion layer moves the loop's models)."""
-    import score.stages.props.prop_data as prop_data
-    with prop_data.tools("props/library"):
-        import sorter
-    if row["id"] in crop_rows(place):
-        return CROP
-    if sorter.route(f"{place}_{row['id']}") == "code":
-        return CODE
-    return ROUTE
+    crop_data), else the shared loop, whatever the row's own kind says (a moving machine's model too: the motion layer
+    moves the loop's models; no row is built in code since the code fallback was removed, 2026-10-22)."""
+    return CROP if row["id"] in crop_rows(place) else ROUTE
 
 
 def crop_rows(place):

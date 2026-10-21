@@ -1,7 +1,6 @@
 """The straightness check (hub round six, 2026-10-07): a generated piece that should be square or straight (a
 manufactured box, panel or frame: details.json `square`) fails when its sides come out tilted or warped, as round
-four's tall locker did ("cleaner but still seems crooked", the owner). Such a kind goes to code when its code build
-shows every part its close-up has (sorter.py), else it is generated again.
+four's tall locker did ("cleaner but still seems crooked", the owner). Such a kind is generated again.
 
     ~/.farm-factory-props/env/bin/python tools/props/library/straight.py <model.gltf|.glb> [...]
 

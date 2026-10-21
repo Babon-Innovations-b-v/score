@@ -136,12 +136,9 @@ def root_layers(stage):
 
 
 def generated_rows(inventory, place):
-    """The rows whose model the shared loop makes (sorter.row_route `model`, whatever the row's own kind), the ones the
-    surface line paints and the likeness gate holds to their close-ups; a named pipeline failure's code build is built
-    and painted by its builder."""
-    sys.path.insert(0, str(REPO / "tools/props/library"))
-    import sorter
-    return {row["id"] for row in inventory["rows"] if sorter.row_route(place, row) == "model"}
+    """The rows whose model the shared loop makes (every row but a mechanic's, made on its own line, whatever the
+    row's own kind), the ones the surface line paints and the likeness gate holds to their close-ups."""
+    return {row["id"] for row in inventory["rows"] if row.get("kind") != "mechanic"}
 
 
 def model_prims(stage, place, rows):

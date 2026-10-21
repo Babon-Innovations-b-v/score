@@ -127,15 +127,13 @@ def with_pro_wordings(rows):
 
 
 def rows_from_inventory(inventory):
-    """The stage's rows from a scene inventory: every row the sorter sends to the shared loop (sorter.row_route
-    `model`, whatever the row's own kind), with its name, size, view picture and box. A row with no box (a shell piece
-    the concept does not frame) gets none: no step takes its close-up yet, a gap until one does."""
-    sys.path.insert(0, str(HERE.parent / "library"))
-    import sorter
+    """The stage's rows from a scene inventory: every row the shared loop makes (all but a mechanic's, whatever the
+    row's own kind), with its name, size, view picture and box. A row with no box (a shell piece the concept does not
+    frame) gets none: no step takes its close-up yet, a gap until one does."""
     views = {view["id"]: view["picture"] for view in inventory["plan"]["views"]}
     return [{"id": row["id"], "scene": inventory["scene"], "words": row["name"], "size": row["size"],
              "concept": views[row["view"]], "box": row["box"]}
-            for row in inventory["rows"] if sorter.row_route(inventory["scene"], row) == "model" and row.get("box")]
+            for row in inventory["rows"] if row.get("kind") != "mechanic" and row.get("box")]
 
 
 def gate_problems(rows, found=None):

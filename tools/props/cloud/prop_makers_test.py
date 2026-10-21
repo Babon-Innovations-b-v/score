@@ -148,9 +148,7 @@ def test_a_bodied_prop_s_bake_entry_is_refused_by_name_while_the_repo_library_is
             labelled.mkdir(parents=True)
             trimesh.creation.box(extents=(2.0, 1.0, 1.0)).export(labelled / "hull_white.ply")
             records = {"surfaces": {"place": "wreck", "library": "wreck",
-                                    "bake": {"models": {"aft_section": "aft_section-t1"}}},
-                       "kit": {"place": "wreck", "on_seat": [0.0, 0.0], "pieces": []},
-                       "inventory": {"rows": [{"id": "aft_section", "size": [10.3, 6.7, 6.3]}]}}
+                                    "bake": {"models": {"aft_section": "aft_section-t1"}}}}
             for name, record in records.items():
                 (folder / f"{name}.json").write_text(json.dumps(record))
             prop_makers.bake_inputs = lambda place: {name: folder / f"{name}.json" for name in records}
