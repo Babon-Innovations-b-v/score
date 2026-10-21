@@ -62,7 +62,7 @@ RECORDED = ("screen-take", "setting-animation", "scale-zoom")
 MADE = (*WORDS, WALK, STILL, *RECORDED)
 PREVIEWS = "films/previews"
 # The free preview's grade (score/dashboard/films/preview/make.py GRADE), so the final looks as the preview did.
-GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1',vignette=angle=PI/7"
+GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1'"  # no vignette (owner 2026-10-21)
 # A walk-through's or still's film is brought towards the films' middle brightness (mean luma over the part shown)
 # by one gain, never past these, so a cut between two places does not jump in exposure.
 GAIN_RANGE = (0.8, 1.25)

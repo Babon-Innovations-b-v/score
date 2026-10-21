@@ -26,7 +26,7 @@
              padding: 3px 10px; border-radius: 999px; max-width: 60%; }
 .film-note.live { top: 40px; }
 .film-words { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center;
-              text-align: center; padding: 6%; background: radial-gradient(circle at 50% 40%, var(--film-title-from), var(--film-title-to) 70%); color: var(--ink); }
+              text-align: center; padding: 6%; background: var(--film-title-to); color: var(--ink); }
 .film-words h3 { font-size: clamp(22px, 5cqw, 60px); font-weight: 600; margin: 0; letter-spacing: -.01em; }
 .film-words .rule { display: block; width: clamp(36px, 6cqw, 84px); height: 2px; margin: clamp(8px, 1.4cqw, 18px) 0; background: var(--accent); transform-origin: 50% 50%; }
 .film-words.text h3 { font-size: clamp(18px, 3.4cqw, 40px); font-weight: 550; }
