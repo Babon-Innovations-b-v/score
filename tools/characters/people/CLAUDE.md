@@ -27,7 +27,9 @@ opening the game and looking at somebody.
 changes the walk, so a clip nobody can remake is a clip nobody can change. Keep the sentences
 here, keep the generated files outside the repo, and keep the set small: this is the movement a
 moon base needs, not a library. The suit walk is the sixth take, and the five before it are kept
-on the box as the record of what "too wide" looked like.
+on the box as the record of what "too wide" looked like. Every clip is made with one fixed seed
+(`clips.CLIP_SEED`, owner 2026-10-21, #26) and its record (`<clip>.record.json`: sentence, seconds,
+model, seed) is written beside it, so a lost clip is made again the same.
 
 ## What comes out, and what deliberately does not
 

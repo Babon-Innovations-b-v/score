@@ -14,6 +14,7 @@ fixed it was dropping "arms held away from the body" from the sentence.
 """
 import argparse
 import importlib.util
+import json
 import os
 import pathlib
 import subprocess
@@ -64,6 +65,9 @@ MODEL = "Kimodo-SOMA-RP-v1.1"
 # Kimodo wants about 17 GB to run wholly on the card and this one holds 16, so the sentence
 # reading moves to the processor. Without this the run dies out of memory.
 ON_THE_PROCESSOR = {"TEXT_ENCODER_DEVICE": "cpu"}
+# Every clip is made with this one seed (owner, 2026-10-21, #26): made with none, each make was a new take, and the
+# 19 clips lost on 2026-10-19 could not be made again. The seed goes into each clip's record (`record_of`).
+CLIP_SEED = 1
 
 # What the crew do in the base, and what the leader does on his podium in the prologue. Every clip earns its
 # place: this is a set, not a library.
@@ -138,22 +142,35 @@ def missing():
     return [name for name in SENTENCES if not (MOTIONS / f"{name}.npz").exists()]
 
 
-def generate(name):
-    """Ask the model for one clip, and leave it beside the others."""
+def kimodo_arguments(name, output):
+    """kimodo_gen's arguments for one clip into `output` (its stem): the sentence, its seconds, the model and the
+    fixed seed, so the same clip is made again."""
     sentence, seconds = SENTENCES[name]
+    return [sentence, "--model", MODEL, "--duration", str(seconds), "--seed", str(CLIP_SEED),
+            "--output", str(output), "--bvh", "--bvh_standard_tpose"]
+
+
+def record_of(name):
+    """What a clip was made from: its sentence, seconds, model and seed (written beside it as <name>.record.json)."""
+    sentence, seconds = SENTENCES[name]
+    return {"clip": name, "sentence": sentence, "seconds": seconds, "model": MODEL, "seed": CLIP_SEED}
+
+
+def write_record(name, output):
+    """The clip's record beside its file (`output` its stem)."""
+    pathlib.Path(f"{output}.record.json").write_text(json.dumps(record_of(name), indent=1))
+
+
+def generate(name):
+    """Ask the model for one clip, and leave it beside the others with its record."""
     MOTIONS.mkdir(parents=True, exist_ok=True)
-    print(f"\n== {name}: \"{sentence}\"")
-    command = [
-        str(VENV_PYTHON.parent / "kimodo_gen"), sentence,
-        "--model", MODEL,
-        "--duration", str(seconds),
-        "--output", str(MOTIONS / name),
-        "--bvh", "--bvh_standard_tpose",
-    ]
+    print(f"\n== {name}: \"{SENTENCES[name][0]}\"")
+    command = [str(VENV_PYTHON.parent / "kimodo_gen"), *kimodo_arguments(name, MOTIONS / name)]
     environment = dict(os.environ, PATH=f"{VENV_PYTHON.parent}:{os.environ.get('PATH', '')}", **ON_THE_PROCESSOR)
     finished = subprocess.run(command, env=environment, check=False)
     if finished.returncode:
         raise SystemExit(f"generating {name} failed with {finished.returncode}")
+    write_record(name, MOTIONS / name)
     return MOTIONS / f"{name}.npz"
 
 

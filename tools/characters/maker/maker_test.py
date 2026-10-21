@@ -233,3 +233,18 @@ def test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs(tmp_path, 
     assert prop_person.predicted_tucks(PERSON, "work") is not None, "a test edit moved the hash"
     (people / "joins.py").write_text("# joins, fixed")
     assert prop_person.predicted_tucks(PERSON, "work") is None, "a people tools fix left the old prediction"
+
+
+def test_a_kimodo_clip_is_made_with_the_fixed_seed_and_records_it(tmp_path):
+    """#26: every clip is asked for with the one fixed seed, and its record beside it names the seed, so a lost clip
+    is made again the same."""
+    sys.path.insert(0, str(REPO / "tools/characters/people"))
+    import clips
+    arguments = clips.kimodo_arguments("walking", tmp_path / "walking")
+    assert arguments[arguments.index("--seed") + 1] == str(clips.CLIP_SEED), arguments
+    clips.write_record("walking", tmp_path / "walking")
+    record = json.loads((tmp_path / "walking.record.json").read_text())
+    assert record == {"clip": "walking", "sentence": clips.SENTENCES["walking"][0], "seconds": 5.0,
+                      "model": clips.MODEL, "seed": clips.CLIP_SEED}, record
+    chain_words = (pathlib.Path(__file__).resolve().parent / "chain.py").read_text()
+    assert "sentences.kimodo_arguments(name" in chain_words and "sentences.write_record(name" in chain_words
