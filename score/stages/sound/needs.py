@@ -18,6 +18,7 @@ import json
 import pathlib
 import sys
 
+from score.stages import design_layers
 from score.stages.sound import beds
 from score.stages.sound import moving
 
@@ -132,7 +133,7 @@ def gaps(place, data, design=beds.DESIGN):
     sound row makes naming its node (`sound@<place>`), one with nothing to make naming its work (a bed its design does
     not decide names what the design lacks)."""
     found = []
-    makes = place in beds.places(data, design)
+    makes = sounded(place, design)
     for need in needs(place, data, design):
         if need["state"] == LIBRARY:
             continue
@@ -144,6 +145,13 @@ def gaps(place, data, design=beds.DESIGN):
                       "node": f"sound@{place}" if made_here else None,
                       "work": None if made_here else work_of(need)})
     return found
+
+
+def sounded(place, design=beds.DESIGN):
+    """Whether the place has a sound row: its kept scene inventory shows a sound layer (design_layers, the stage
+    table's one answer); a scene with an old plan and no design of its own has none."""
+    kept = design / "inventory" / f"{place}.json"
+    return kept.is_file() and "sound" in design_layers.kinds_of(read(kept))
 
 
 def work_of(need):

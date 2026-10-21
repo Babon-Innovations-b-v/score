@@ -97,13 +97,25 @@ def test_what_the_design_lacks_is_named_never_guessed(toy):
         gap["id"] for gap in needs.gaps("room", data, design)}
 
 
-
 def test_the_bed_gate_fails_a_scene_whose_design_leaves_its_bed_undecided(toy):
     data, design = toy
     judged = {place: gates.judge_bed(None, beds.paths(place, data, design), None) for place in ("farm", "cave", "lost")}
     assert judged["farm"].answer == checks.PASS, judged["farm"]
     assert judged["cave"].answer == checks.FAIL and judged["cave"].findings == ("rock has no surface pressure",)
     assert judged["lost"].answer == checks.FAIL and judged["lost"].findings == ("no site in the setting holds it",)
+
+
+def test_a_bed_still_to_make_is_the_sound_row_s_only_where_the_design_has_one(toy):
+    """The plaza (a kept design) and the hut (a plan alone) both hear a bed still to make: the plaza's gap is its sound
+    row's to make, the hut has no sound row, so its gap names the work, never a node the table lacks."""
+    data, design = toy
+    plaza, hut = (next(gap for gap in needs.gaps(place, data, design) if gap["id"] == "sound:bed:room")
+                  for place in ("plaza", "hut"))
+    assert "still to make" in plaza["sentence"] and "still to make" in hut["sentence"], (plaza, hut)
+    assert plaza["node"] == "sound@plaza" and plaza["work"] is None, plaza
+    assert hut["node"] is None and hut["work"], hut
+    assert needs.sounded("plaza", design) and not needs.sounded("hut", design)
+
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

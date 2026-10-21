@@ -323,10 +323,12 @@ def jobs_of(names, inputs, weights):
 
 def environment_takes(data, weights):
     """The environment's takes still to make, each once (#29): {take file: (job, [the places that play it])}, in
-    beds.places' order. A brief several places play is one take: the first of their lines to reach it
-    makes it in its batch (takes.made locks it), the others wait and read it, so it is made and counted once."""
+    beds.places' order, over the places with a sound row (needs.sounded: a scene with an old plan and no design of
+    its own buys nothing, so no take is counted at it). A brief several places play is one take: the first of their
+    lines to reach it makes it in its batch (takes.made locks it), the others wait and read it, so it is made and
+    counted once."""
     found = {}
-    for place in beds.places(data):
+    for place in filter(needs.sounded, beds.places(data)):
         inputs = {name: pathlib.Path(pattern.format(place=place, data=str(data), home=str(beds.DESIGN.parent)))
                   for name, pattern in files(place).items()}
         names = list(dict.fromkeys(use["sound"] for use in uses_of(place, inputs)))
