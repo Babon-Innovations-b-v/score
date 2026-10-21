@@ -36,7 +36,8 @@ def world_data(folder, place=PLACE, cast=None, needs=None, scene=None, sound=Non
     (data / "sound/places.json").write_text(json.dumps({"places": {place: sound or {"loops": ["hum"],
                                                                                      "from": "the creator's brief"}}}))
     (data / "people").mkdir(exist_ok=True)
-    (data / "people/bodies.json").write_text(json.dumps({"full": ["bram-work"]}))
+    (data / "people/rows.json").write_text(json.dumps({"places": {place: {"rows": {
+        "crew": {"looks": ["bram-work"], "share": 0.3}, "guard": {"looks": ["guard-guard"], "share": 0.05}}}}}))
     (folder / "bodies").mkdir(exist_ok=True)
     contents.DATA, contents.BODIES = data, folder / "bodies"
     return data

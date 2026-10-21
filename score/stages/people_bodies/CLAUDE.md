@@ -4,7 +4,10 @@ The people's body rows (#5, experimental): `made_clips.py` (`people-clips-made`,
 fixed seed and the mean rig every body plays, made inside the batch, #26), `bodies.py` (`people-look-parts-<look>`,
 paid: the look's parts, its own priced row, never bought inside the body; `people-body-<look>`, paid: the maker's
 build, the people route and checks, and every body gate), `clips.py` (the body judged clip by clip;
-`people-clips`' make) and `far.py` (a far-only look's gates). The people package (`../people/`) builds the table's rows from them; its overlay holds the gates'
+`people-clips`' make), `far.py` (a far-only look's gates) and `full.py` (which looks get a full body: from the
+design alone, a person row of `data/people/rows.json` filling at least FAR_SHARE of its locked concept's frame height,
+its `share`; a crowd far always; no hand-written list of looks decides it, the completion gate's far check reads the
+same rule). The people package (`../people/`) builds the table's rows from them; its overlay holds the gates'
 rules.
 
 - **Keep this package's `__init__.py` empty of imports.** A body row's code version takes in its package's
