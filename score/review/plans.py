@@ -834,6 +834,13 @@ def kept_for_stage(store, place, plan):
             path.write_bytes(found)
 
 
+def design_done(store, place):
+    """Whether the place's design is done in the app: its concept locked, its scene inventory read from it and its
+    plan written (or edited by him), not only derived from that inventory (`current`: None before the reading)."""
+    shown = current(store, place)
+    return shown is not None and shown["how"] != "derived"
+
+
 def keep(store, places):
     """Every place's plan shown where the plan stage reads it, a place with none (its pick unlocked, its inventory
     not read from it) taken out there, so the stage reads data/plans again; ([kept], [changed]): the places whose
@@ -842,7 +849,10 @@ def keep(store, places):
     for place in places:
         path = KEPT / f"{place}.json"
         before = path.read_text() if path.is_file() else None
-        shown = current(store, place) if has_row(place) else None
+        # a scene he added in the app has no plan in data/plans: once its design is done, its kept plan is its plan
+        # row's (stages.plan_written)
+        filed = (DATA / "plans" / f"{place}.json").is_file()
+        shown = current(store, place) if has_row(place) or (not filed and design_done(store, place)) else None
         if shown is not None:
             kept_for_stage(store, place, shown["plan"])
             kept.append(place)
@@ -1043,7 +1053,8 @@ def main(argv):
     from score.store import Store
     store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
     if argv == ["keep"]:
-        kept, changed = keep(store, sorted(path.stem for path in (DATA / "plans").glob("*.json")))
+        kept, changed = keep(store, sorted({*(path.stem for path in (DATA / "plans").glob("*.json")),
+                                            *tree(store)["within"]}))
         # changed, or not made yet (a run refused while another held the store is asked again next pass)
         again = [place for place in sorted({*changed, *kept}) if place in changed or not made(store, place)]
         print(f"plans for the plan stage: {len(kept)} kept, {len(changed)} changed"
