@@ -201,10 +201,16 @@ holder's own walls; `concepts.step_refusal`).
 3D, then generate"): every new concept draw is drawn on a rough grey model built in code from its parent's plan, at
 real sizes, rendered free from the fixed concept view (`score/review/blockout.py`, a numpy z-buffer: no card, no
 Blender) and sent first as its structure picture. The environment is the first parent: its own plan
-(`score/review/environment_plan.py`) holds a map a world with each top place's site (from the ground plans' seats),
-written by the plan writer's call, and the environment's physics state (`data/physics/worlds.json`: true radii, Kepler
-elements, spins; `score/review/sky.py`), from which each site's sky at its scene time is worked out, every other world
-at its true direction, size and phase, the data a later sky layer runs live. An inside place's blockout is its own
+(`score/review/environment_plan.py`) holds a map a ground of its setting with each top place's site where the
+setting puts it, written by the plan writer's call. The setting (CONTEXT.md "setting", `score/review/setting.py`) is
+the environment concept's, decided in step one at whatever scale the creator sets (owner 2026-10-21: "an environment
+can be a planet, a system of planets, or just a house on some terrain"; world sizes "decided in step one, not borrowed
+from old game data"): bodies (a real one's values from the cited reference table `data/physics/bodies.json`, an
+invented one's given: radius, mass and so gravity, orbit, spin), plots (flat ground with a gravity and a sun path)
+and sites (latitude, longitude and height on a body, the ground curving with its true radius; metres on a plot). Each
+site's sky at its scene time is worked out from it (`score/review/sky.py`), every other body at its true direction,
+size and phase, the data a later sky layer runs live. A plan made under another version of the environment concept
+is out of date; the game 2099's ground plans are read only for the layout of a site's parts. An inside place's blockout is its own
 shell inside its holder's, its siblings' shells round it, so rooms fit together from the blockouts alone. A draw made
 without the blockout that can be built now is out of date; picked places keep their picks and are named.
 

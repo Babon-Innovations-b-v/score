@@ -3,14 +3,25 @@
 // picture chosen with what it is for (form[data-upload]: Add, its bytes read as it is chosen).
 const value = (root, name) => root.querySelector(`[data-f="${name}"]`)?.value ?? "";
 const rows = (root, kind) => [...root.querySelectorAll(`[data-row="${kind}"]`)];
+// a setting row: its whole row as kept (data-keep: the values it shows none of) with its fields as the page holds them;
+// a field left empty clears that value, so a real body takes the reference table's again
+const kept = (root, kind) => rows(root, kind).map((row) => {
+  const found = JSON.parse(row.dataset.keep || "{}");
+  for (const input of row.querySelectorAll("[data-f]")) {
+    if (input.value.trim() === "") delete found[input.dataset.f];
+    else found[input.dataset.f] = input.value.trim();
+  }
+  delete found.gravity;  // worked out again from its mass and radius
+  return found;
+}).filter((row) => Object.keys(row).length);
 
 function concept() {
   const root = document.querySelector("[data-concept]");
   return {
     style: value(root, "style"),
-    physics: rows(root, "physics").map((row) => ({
-      world: value(row, "world"), gravity: value(row, "gravity").replace(",", "."), orbits: value(row, "orbits"), places: value(row, "places"),
-    })),
+    setting: {
+      bodies: kept(root, "bodies"), plots: kept(root, "plots"), sites: kept(root, "sites"),
+    },
     references: rows(root, "references").filter((row) => !row.querySelector('[data-f="drop"]')?.checked)
       .map((row) => ({ picture: row.dataset.picture, shows: value(row, "shows"), place: value(row, "place") })),
     places: rows(root, "places").map((row) => ({

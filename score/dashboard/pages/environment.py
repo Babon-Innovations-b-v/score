@@ -2,7 +2,8 @@
 
 `/` is the home: the environments (environment 1 only today), each opening its concept page, and the hub of what
 spans them (the month's spend, Stats, Library, Buy). `/environments/<world>/` is the environment concept: its style
-line, physics, reference pictures and places with what each may hold, and the set interview (environment_concept.
+line, setting (what everything stands on and in: its bodies, plots and each top place's site), reference pictures
+and places with what each may hold, and the set interview (environment_concept.
 QUESTIONS, one at a time, `?q=<topic>`), each Send one priced model call his click says yes to; its Places button opens
 the places (the Places screen, `/places/`). Locked it is for looking at; Unlock asks a second time in the page, since
 it puts every place's concept made from it out of date.
@@ -25,15 +26,60 @@ from score.dashboard.state.files import file_ref
 ASK, SAVE, REFERENCE = "environment-ask", "environment-save", "environment-reference"
 QUESTIONS = (  # score/review/environment_concept.QUESTIONS (environment_test holds them equal): hosted imports none
     ("style", "Style", "What style holds the whole environment, in one short line?"),
-    ("physics", "Worlds", "Which worlds are there, what is each one's gravity, and what does it orbit?"),
+    ("setting", "Setting", "What does everything stand on: a plot of ground, a world, or several bodies that move one "
+                           "another? Name real bodies or give an invented one's values, and say where each first "
+                           "place stands."),
     ("references", "Reference pictures", "Which pictures guide the look, and what is each one for?"),
     ("places", "Places", "Which places come first?"),
     ("insides", "Insides", "What places may each of them hold inside?"),
 )
 LONGEST_PICTURE_TEXT = 17 * 1024 * 1024  # base64 of environment_concept.LARGEST_PICTURE
 # an export made before the environment concept was read into it: nothing to show, nothing to edit, until the next
-NOT_READ = {"concept": {"style": "", "physics": [], "references": [], "places": []}, "locked": True, "prefilled": True,
-            "versions": 0}
+EMPTY_SETTING = {"bodies": [], "plots": [], "sites": []}
+NOT_READ = {"concept": {"style": "", "setting": EMPTY_SETTING, "references": [], "places": []}, "locked": True,
+            "prefilled": True, "versions": 0}
+# The setting's columns a row shows, each (field, heading, tip); score/review/setting.py is their rule. A body's other
+# values (its node, periapsis and pole) ride along unseen in its row's data-keep.
+BODY_COLUMNS = (
+    ("name", "Body", "a star, world or moon"),
+    ("reference", "Real", "a real body of the reference table (data/physics/bodies.json): its values are the table's, "
+                          "each cited; empty for an invented one"),
+    ("radius_km", "Radius", "its mean radius, km"), ("mass_kg", "Mass", "its mass in kg: its gravity follows"),
+    ("around", "Orbits", "the body it orbits; empty for the star"),
+    ("distance_km", "Distance", "its orbit's semi-major axis, km"), ("period_days", "Period", "one orbit, days"),
+    ("eccentricity", "Ecc", "its orbit's eccentricity"), ("inclination_deg", "Incl", "its orbit's tilt to the ecliptic, degrees"),
+    ("day_hours", "Day", "one turn, hours"), ("tilt_deg", "Tilt", "its axis' tilt to its orbit, degrees"),
+    ("locked_to", "Faces", "the body it keeps one side to (no day of its own)"))
+PLOT_COLUMNS = (
+    ("name", "Plot", "flat ground with no body under it"), ("gravity", "Gravity", "m/s²"),
+    ("latitude", "Latitude", "its sun path's latitude"), ("tilt_deg", "Tilt", "how far the sun swings over a year, degrees"),
+    ("day_hours", "Day", "one day, hours"), ("year_days", "Year", "one year, days"),
+    ("equinox", "Equinox", "a spring equinox at local noon (UTC)"))
+SITE_COLUMNS = (
+    ("on", "On", "the body or plot it stands on"), ("latitude", "Lat", "on a body: degrees north"),
+    ("longitude", "Lon", "on a body: degrees east"), ("x", "x", "on a plot: metres east"),
+    ("y", "y", "on a plot: metres south"), ("height_m", "Height", "metres over the ground's mean level"))
+
+
+def cell(value):
+    """A value as a field shows it: a number in full (no rounding, so an unchanged Save keeps it), else its text."""
+    if value is None:
+        return ""
+    return repr(float(value)) if isinstance(value, (int, float)) and not isinstance(value, bool) else str(value)
+
+
+def setting_rows(setting, names):
+    """{bodies, plots, sites, body_columns, plot_columns, site_columns} of a setting as its tables show it: each row
+    its cells in column order and its whole row as JSON (data-keep); a body with its gravity, a site its place's
+    name."""
+    def shaped(rows, columns, **extra):
+        return [{"cells": [(field, cell(row.get(field))) for field, _, _ in columns], "keep": json.dumps(row),
+                 **{name: make(row) for name, make in extra.items()}} for row in rows]
+    return {"bodies": shaped(setting.get("bodies", []), BODY_COLUMNS, gravity=lambda row: row.get("gravity")),
+            "plots": shaped(setting.get("plots", []), PLOT_COLUMNS),
+            "sites": shaped(setting.get("sites", []), SITE_COLUMNS, place=lambda row: row["place"],
+                            name=lambda row: names.get(row["place"], row["place"])),
+            "body_columns": BODY_COLUMNS, "plot_columns": PLOT_COLUMNS, "site_columns": SITE_COLUMNS}
 
 
 def title_of(world):
@@ -107,15 +153,22 @@ def proposal_lines(proposed):
     for field, value in proposed.items():
         if field == "style":
             lines.append(value)
+        if field == "setting":
+            lines += setting_lines(value)
         for row in value if isinstance(value, list) else []:
-            if field == "physics":
-                orbits = f" · orbits {row['orbits']}" if row.get("orbits") else ""
-                lines.append(f"{row['world']} {row['gravity'] if row.get('gravity') is not None else '?'} m/s²{orbits}")
-            elif field == "references":
+            if field == "references":
                 lines.append(f"{row['shows']}" + (f" · {row['place']}" if row.get("place") else ""))
             elif field == "places":
                 lines.append(row["name"] + (f": {', '.join(row['holds'])}" if row.get("holds") else ""))
     return lines
+
+
+def setting_lines(setting):
+    """[line] of a proposed setting: a body or plot a line with its gravity and what it orbits, a site a line."""
+    return ([f"{row['name']} {row['gravity']} m/s²" + (f" · orbits {row['around']}" if row.get("around") else "")
+             + (" · real" if row.get("reference") else "") for row in setting.get("bodies", [])]
+            + [f"{row['name']} {row['gravity']} m/s² · a plot" for row in setting.get("plots", [])]
+            + [f"{row['place']} on {row['on']}" for row in setting.get("sites", [])])
 
 
 def asks(world):
@@ -173,8 +226,10 @@ def concept_page(request, world):
     topic = topic_now(asked, request.GET.get("q"))
     can = is_owner(request.user) and actions.decisions_on() and concept is not NOT_READ
     waiting = pending(world)
+    names = {row["place"]: row["name"] for row in concept["concept"].get("places", []) if row.get("place")}
     return render(request, "pages/environment_concept.html", {
         "world": world, "title": title_of(world), "shown": concept, "concept": concept["concept"],
+        "setting": setting_rows(concept["concept"].get("setting") or EMPTY_SETTING, names),
         "references": [{**ref, "file": found.get(ref["picture"])} for found in [pictures(world_state)]
                        for ref in concept["concept"]["references"]],
         "asks": [item for item in asked if item["topic"] == topic],

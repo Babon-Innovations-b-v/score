@@ -511,9 +511,8 @@ def render(parts, camera, worlds=()):
 
 
 def sky_camera(parts, world):
-    """(eye, forward, up, field) behind the place from `world` and above it (on a 220 m ball the ground hides a place
-    from a few tens of metres off at eye height), looking out over it at `world`: the place low in the frame, the
-    world high, both in when it stands under about 45 degrees."""
+    """(eye, forward, up, field) behind the place from `world` and above it, looking out over it at `world`: the place
+    low in the frame, the world high, both in when it stands under about 45 degrees."""
     low, high = bounds(parts)
     middle = (low + high) / 2
     way = sky_way(world["azimuth"], world["altitude"])

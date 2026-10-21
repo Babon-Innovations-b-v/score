@@ -12,7 +12,7 @@ from PIL import Image
 
 from score import review
 from score.adapters import compute
-from score.review import concepts, environment_concept as ec, web
+from score.review import concepts, environment_concept as ec, setting, web
 from score.store import Store, runtime_store
 
 WORLD = "world1"
@@ -50,10 +50,9 @@ def test_environment_1s_concept_is_todays_data_shown_locked(store):
     assert concept["style"] == ec.style_now() and concept["style"].startswith("2099 space base")
     assert {(ref["place"], ref["picture"].rsplit("/", 1)[-1]) for ref in concept["references"]} == {
         ("hangar", "shuttle-screenshot.png")}  # the owner, 2026-10-21: the cockpit's and quarters' pictures removed
-    assert concept["physics"] == [
-        {"world": "Earth", "gravity": 9.81, "orbits": "the Sun", "places": ["Square"]},
-        {"world": "Moon", "gravity": 1.62, "orbits": "Earth", "places": ["Wreck", "Old station", "Base"]},
-        {"world": "Mars", "gravity": 3.71, "orbits": "the Sun", "places": ["Campgrounds"]}]
+    assert concept["setting"] == setting.now()  # the reference table's bodies, its sites on them
+    assert {body["name"]: body["gravity"] for body in concept["setting"]["bodies"] if body.get("around")} == {
+        "Earth": 9.82, "Moon": 1.624, "Mars": 3.728}  # from their mass and radius, never the game's
     places = {row["name"]: row for row in concept["places"]}
     assert places["Base"]["place"] == "base" and "Hangar" in places["Base"]["holds"]
     assert "launch" not in [row.get("place") for row in concept["places"]]  # a part of the square: no place
@@ -69,11 +68,12 @@ def test_with_no_version_kept_the_draws_read_todays_data_word_for_word(store):
     assert concepts.references_of(store, "cockpit") == concepts.references_of(store, "quarters") == []
 
 
-def test_the_worlds_gravity_is_the_games_where_the_game_has_one(monkeypatch):
-    monkeypatch.syspath_prepend(str(concepts.REPO / "tools/usd"))
-    import orbits
-    worlds = json.loads((concepts.DATA / "physics/worlds.json").read_text())["worlds"]
-    assert {world: worlds[world]["gravity"] for world in orbits.PULL} == orbits.PULL
+def test_a_version_kept_before_settings_reads_todays_setting(store):
+    concepts.recorded(store, f"{ec.AREA}/{WORLD}/versions/20261021T000000.000000+0000.json", {
+        "world": WORLD, "concept": {"style": "x", "physics": [{"world": "Moon"}], "references": [], "places": []},
+        "locked": True, "by": "joey", "at": "2026-10-21T00:00:00+00:00"})
+    found = ec.newest(store, WORLD)["concept"]
+    assert "physics" not in found and found["setting"] == setting.now() == ec.setting_of(store, WORLD)
 
 
 def test_a_locked_version_is_what_every_draw_reads(store):
@@ -117,27 +117,30 @@ def test_a_concept_out_of_shape_is_refused(store):
     with pytest.raises(ec.Refused):
         ec.saved(store, WORLD, {"style": "x" * (ec.LONGEST_LINE + 1)}, True, "joey")
     with pytest.raises(ec.Refused):
-        ec.saved(store, WORLD, {"physics": [{"world": "moon", "gravity": "heavy"}]}, True, "joey")
+        ec.saved(store, WORLD, {"setting": {"bodies": [{"name": "Moon", "radius_km": "heavy"}]}}, True, "joey")
     kept = ec.saved(store, WORLD, {"places": [{"name": " Dock ", "holds": "Bay, Office ,"}]}, False, "joey")
     assert kept["concept"]["places"] == [{"name": "Dock", "holds": ["Bay", "Office"]}]
 
 
 def test_an_ask_runs_only_inside_the_owners_yes_and_proposes_checked_fields(store, monkeypatch):
     concept = ec.prefilled(["campgrounds"])
-    request = {"topic": "physics", "answer": "Mars too, 3.71, moved by nothing", "concept": concept}
+    request = {"topic": "setting", "answer": "Only the Sun and Mars, the camp on Mars", "concept": concept}
     asked = []
 
     def model(question, pictures):
         asked.append((question, pictures))
-        return '```json\n{"physics": [{"world": "mars", "gravity": 3.71, "orbits": "the Sun", "places": []}]}\n```'
+        return ('```json\n{"setting": {"bodies": [{"body": "sun", "name": "Sun", "reference": "sun"}, {"body": '
+                '"mars", "name": "Mars", "reference": "mars", "radius_km": 220}], "sites": [{"place": "campgrounds", '
+                '"on": "mars", "latitude": 30, "longitude": 130}]}}\n```')
 
     with pytest.raises(compute.Refused):
         ec.ask(store, WORLD, request, "joey", reviser=model)
     key = said_yes(store, monkeypatch)
     record = ec.ask(store, WORLD, request, "joey", reviser=model)
-    assert record["yes"] == key and record["proposed"] == {
-        "physics": [{"world": "mars", "gravity": 3.71, "orbits": "the Sun", "places": []}]}
-    assert "Mars too" in asked[0][0] and ec.question_of("physics") in asked[0][0]
+    mars = record["proposed"]["setting"]["bodies"][1]
+    assert record["yes"] == key and mars["radius_km"] == 3389.5 and mars["gravity"] == 3.728  # the table's, not 220
+    assert record["proposed"]["setting"]["sites"][0]["on"] == "mars"
+    assert "the camp on Mars" in asked[0][0] and ec.question_of("setting") in asked[0][0]
     assert ec.asks(store, WORLD) == [record]
     with pytest.raises(ec.Refused, match="no JSON"):
         ec.ask(store, WORLD, request, "joey", reviser=lambda question, pictures: "I think Mars.")

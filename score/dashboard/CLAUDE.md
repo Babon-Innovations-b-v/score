@@ -220,8 +220,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   reads the readings (its `estimate`); the gaps check and the plan still read `data/inventory/`.
 - **The environment concept** (CONTEXT.md "environment concept", owner 2026-10-21; `pages/environment.py`,
   `environment_concept.html`, `static/pages/environment.js`): `/environments/<world>/` shows four cards (owner
-  2026-10-21: "this page is confusing"): Style (its line), Worlds (each world's gravity, what it orbits and the outside
-  places standing on it, `data/physics/worlds.json` and the ground plans' seats), Reference pictures (each with its
+  2026-10-21: "this page is confusing"): Style (its line), Setting (CONTEXT.md "setting": its bodies, each with its
+  gravity worked out and a real one's values from the reference table, its plots, and each top place's site; a row's
+  values it shows no column for ride in its `data-keep`, and a field left empty takes the table's again), Reference
+  pictures (each with its
   place and what it is for) and Places (what each may hold inside); plain text while locked, fields only while
   unlocked, explanations as hover text. The set interview shows only while unlocked, beside them: the fixed questions
   (`QUESTIONS`, the same as `score/review/environment_concept.QUESTIONS`) one at a time, "Question N of 5" with the
@@ -309,12 +311,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   before prepare).
 - **The environment's plan** (CONTEXT.md "environment plan", "blockout", owner 2026-10-21; `pages/environment_plan.py`,
   `environment_plan.html`, `static/pages/environment_plan.js`, the store side `score/review/environment_plan.py`):
-  `/environments/<world>/plan/`, the Plan button beside Places on the environment concept page. A map a world (an SVG:
-  each top place's site with its blocks, the metres between sites) and a row a site: its size, scene time, latitude
-  and longitude (fields for the owner), the Sun's height and every other world above its horizon (where, its true
-  size, how much lit, worked out from the environment's physics, never typed) and its blockout, the structure picture
-  its next draw is drawn on; the places picked before blockouts are named. Keep (SyncRequest `env-plan-edit`) keeps
-  his times, places and sizes as his own; Write (`env-plan-write`) has the plan writer write it again under the
+  `/environments/<world>/plan/`, the Plan button beside Places on the environment concept page. A map a ground of
+  the setting (an SVG: each top place's site with its blocks, the true metres between sites) and a row a site: its
+  size and scene time (fields for the owner), where it stands (the setting's, set on the concept page), the Sun's
+  height and every other body above its horizon (where, its true size, how much lit, worked out from the setting,
+  never typed) and its blockout, the structure picture its next draw is drawn on; the places picked before blockouts
+  are named. Keep (SyncRequest `env-plan-edit`) keeps his times and sizes as his own; Write (`env-plan-write`) has the plan writer write it again under the
   owner's standing allowance; both `applying.PLAN_KINDS`, so the listener answers them hosted. The store's machine
   renders every blockout once into this home's `blockouts/` by the hash of what it is built from
   (`local.blockout_ref`, `WorldState.blockouts`), and the export carries them beside the concepts.
