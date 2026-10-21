@@ -8,7 +8,10 @@ takes the prop route's models from here, and its first row waits on this one. A 
 (the batch refuses to overwrite one).
 
 The gate `takes`: every prop object's three files are there and listed in takes.json with their hashes, and every take
-is one of the place's surface data's takes, or the surface line would never paint it.
+is one of the place's surface data's takes, or the surface line would never paint it. A take the batch ran once and got
+no model back for, and an object whose close-up failed, is a batch gap (batch-gaps.json, score/stages/batch_gaps.py):
+the gate still fails it by name, the table moves those faults to complete, and the finish route leaves the take out.
+A batch that fails as a whole (its command exits other than 0: a set-up fault) still stops the row.
 """
 import hashlib
 import json
@@ -16,6 +19,7 @@ import pathlib
 import re
 import subprocess
 
+import score.stages.batch_gaps as batch_gaps
 import score.stages.props.prop_data as prop_data
 from score.stages.surfaces.prop_env import PROPS_PYTHON
 from score.stages.surfaces.surface_gates import verdict
@@ -119,6 +123,17 @@ def make_pixal(inputs, out, seed, params):
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in objects.items()}
     (out / "takes.json").write_text(json.dumps(takes, indent=1))
+    batch_gaps.write(out, [*batch_gaps.of(inputs), *unmade_gaps(objects)])
+
+
+def unmade_gaps(objects):
+    """The batch gap of each take the batch brought no raw model back for: it ran once, never again inside the
+    batch."""
+    return [batch_gaps.gap(f"{row}: Pixal3D made no model", "pixal", "takes",
+                           (row, entry["take"], *entry.get("rows", ())),
+                           [f"{row}: no {path.name}" for path in take_files(entry["take"]) if not path.exists()],
+                           "the Pixal3D job ran once in the batch and brought no model back (batch.log)")
+            for row, entry in sorted(objects.items()) if not raw_made(entry["take"])]
 
 
 def pixal_faults(folder):
@@ -133,7 +148,7 @@ def judge_takes(output, inputs, evidence):
     listed = json.loads(inputs["surfaces"].read_text()).get("takes", {})
     made_takes = {entry["take"] for entry in takes.values()}
     prop_takes = {entry["take"] for entry in prop_data.prop_objects(prop_data.record_at(inputs["props"])).values()}
-    failing = [f"take {take} is in the place's surface data but was not made (its object has no close-up)"
+    failing = [f"{take}: in the place's surface data but not made (its object has no close-up)"
                for take in sorted(listed) if take in prop_takes and take not in made_takes]
     for row, entry in sorted(takes.items()):
         for path in take_files(entry["take"]):

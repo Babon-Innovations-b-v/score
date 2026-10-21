@@ -18,6 +18,10 @@ findings.json's contract. Bible: `architecture/components`.
   its parent's top; anything else is unplaced (no transform, no low and high). `rows.py`'s docstring has the rules.
 - **Nothing found is dropped.** A fault whose object is on no prim keeps its gap with no prim. An accepted gap is a
   decided fault: its reason is the work, never a node to buy.
+- **A batch gap is its step's node's** (`marks.batched`): each gap a paid step sorted out inside the batch
+  (`score/stages/batch_gaps.py`), read from the place's accepted likeness output, which carries them all, is filled
+  by that step's node (`fill.gate`), a new batch, priced through it. A take the surface data paints whose raw files
+  are not there is a lost Pixal3D take (`inputs.takes_lost`): the surface rows declare only the files that are.
 - **What fills a gap is one table** (`fill.py`): a stage of the table that runs for the place (its node), else the
   code work in words, with no price. `gaps_test.py` keeps every stage it names in the table (or the ship kits' own).
 - **A lost input is a place gap with its code work** (`inputs.py`, 2026-10-19: the old disk's work folder went with

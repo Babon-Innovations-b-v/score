@@ -50,15 +50,19 @@ def paints(place):
     return not path(place).exists() or bool(takes(place))
 
 
-def take_files(place):
+def take_patterns(place):
     """{name: pattern} of every raw-model file the method reads per take: the model, its close-up's folder and the
     finished model the paint lays it on."""
-    found = {}
-    for take in takes(place):
-        found[f"model {take}"] = f"{PIXAL}/{take}.glb"
-        found[f"close-up {take}"] = f"{PIXAL}/{take}.svviews"
-        found[f"finished {take}"] = f"{PIXAL}/{take}-final.glb"
-    return found
+    return {f"{name} {take}": f"{PIXAL}/{take}{suffix}" for take in takes(place)
+            for name, suffix in (("model", ".glb"), ("close-up", ".svviews"), ("finished", "-final.glb"))}
+
+
+def take_files(place):
+    """take_patterns' files that are there. A take with none is no stop here: the views row names it, or leaves it
+    out as a batch gap (score/stages/batch_gaps.py), and the rows after it work on the takes it cast."""
+    home = DESIGN.parents[1]
+    return {name: pattern for name, pattern in take_patterns(place).items()
+            if (home / pattern.replace("{home}/", "")).exists()}
 
 
 def shape_files(place):

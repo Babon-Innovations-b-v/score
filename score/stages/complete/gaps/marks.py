@@ -4,6 +4,7 @@ place's stage. Nothing is judged here; nothing found is dropped.
     found = marks.judged(store, place)            # the FAIL verdicts' findings of each node's newest judgement
     found += marks.checked(own, place, store)     # every other standalone check's findings.json, while current
     found += marks.gapped(data, place)            # the place's accepted gaps: decided faults, their reason the work
+    found += marks.batched(store, place)          # its batch gaps: paid steps failed in the batch, their nodes the fix
     gaps = marks.gate_gaps(stage, place, found)      # one gap an object and filler, with the prims it is on
 
 A finding names its object as gaps.object_of reads it (before its first ": ", or a JSON finding's `row`); a check's
@@ -21,6 +22,7 @@ from pxr import Sdf
 from score import checks, review, stages
 from score.review import GAPPED
 from score.stages import gaps
+import score.stages.batch_gaps as batch_gaps
 from score.stages.complete.gaps import fill, rows
 
 FINDINGS = "findings.json"
@@ -92,6 +94,19 @@ def gapped(data, place):
              "source": f"gap:{entry['name']}", "work": entry["reason"]}
             for entry in gaps.entries({gaps.NAME: str(path)}) if (entry["row"], entry["check"]) != MISSING_ROWS
             for item in entry.get("objects") or [place]]
+
+
+def batched(store, place):
+    """[{stage, gate, object, sentence, source}] of each batch gap of the place (batch_gaps.py, carried to its
+    accepted likeness output): a paid step that failed inside the batch, filled by that step's node in a new batch.
+    Its object is the one its name starts with (the row, else the take)."""
+    output = store.accepted(f"likeness@{place}")
+    if output is None:
+        return []
+    return [{"stage": entry["row"], "gate": entry["check"], "object": entry["name"].split(": ", 1)[0], "kind": None,
+             "sentence": f"{entry['name']} (batch gap, {entry['decided']})"[:SENTENCE],
+             "source": f"batch:{entry['name']}"}
+            for entry in batch_gaps.read([store.checkout(output)])]
 
 
 def object_name(name, place):

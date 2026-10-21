@@ -11,8 +11,8 @@ prices each call): first from the crop alone, then, for what still fails, with t
 PRO_TAKES). A drawn close-up is taken as it is, set on the stage's grey. Its gate, `close-up`, is the shape check's
 measured half (check.measured_faults: plain border, one object filling the frame, the row's proportions), free and
 re-measured on the stored pictures, so Pixal3D is never paid for a close-up that fails it. An object every Pro take
-failed keeps none: its prop route failed there, and it goes to code. The judge's half (a model on rented cards) is
-not run here.
+failed keeps none: its prop route failed there, a batch gap (batch-gaps.json, score/stages/batch_gaps.py) the rows
+after it leave out. The judge's half (a model on rented cards) is not run here.
 """
 import dataclasses
 import json
@@ -20,6 +20,7 @@ import shutil
 
 from PIL import Image
 
+import score.stages.batch_gaps as batch_gaps
 import score.stages.props.prop_data as prop_data  # the module, not the package: the table stays out of the code
 from score.stages.surfaces.surface_gates import verdict
 
@@ -147,6 +148,12 @@ def make_closeups(inputs, out, seed, params):
         record[row["id"]] = {"size": row["size"], "drawn_by": "given" if row["drawn"] else passed,
                              "takes": tried, "pro_pictures": sum((out / take / f"{row['id']}.png").exists()
                                                                  for take in tried)}
+    batch_gaps.write(out, [batch_gaps.gap(f"{row['id']}: no close-up passed", "closeup", "close-up",
+                                          (row["id"], row.get("take")),
+                                          [f"{take}: {', '.join(faults)}"
+                                           for take, faults in record[row["id"]]["takes"].items()],
+                                          "every Pro take failed the shape check's measured half")
+                           for row in rows if not row["drawn"] and not record[row["id"]]["drawn_by"]])
     pictures = sum(entry["pro_pictures"] for entry in record.values())
     (out / "closeups.json").write_text(json.dumps({"objects": record, "pro_pictures": pictures,
                                                    "pro_dollars": round(pictures * DOLLARS_A_PICTURE, 3)},

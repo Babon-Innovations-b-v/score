@@ -32,6 +32,7 @@ from score.stages import (assembly, cast, complete, concept_people, concept_view
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
 from score.stages.library import clips as library_clips
+import score.stages.batch_gaps as batch_gaps
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
 import score.stages.demo_film.final as demo_film_final
@@ -501,6 +502,14 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
              # (the camp's canister and sample props, overseer 2026-10-16), an effect no record holds yet (the Moon
              # places' dust, wheel dust, spray and ship exhaust on the effects follow-up list, overseer 2026-10-16)
              "complete": ("people", "likeness", "motion", "rows", "game", "boxes", "painted", "effects", "picks", "reach")}
+# The gates a batch gap moves a fault from (score/stages/batch_gaps.py: a take a paid step failed inside the batch, a gap
+# by the owner's yes to the batch, the batch rule of 2026-10-20): each paid step's own sorting gate, and the readers
+# down the line that would fail the take it left out (the likeness, complete: every gate, ALL). Only the faults of the
+# objects a batch gap names move; any other fault still stops the line.
+ALL = None
+BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
+               "finish-route-split": ("one finish a face",), "surfaces-bake": ("baked",),
+               "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL}
 
 
 def with_gap_files(files, row=None):
@@ -510,28 +519,39 @@ def with_gap_files(files, row=None):
     def found(place):
         return {**(files(place) if callable(files) else files), **gaps.files(place, row)}
     found.__dict__.update(getattr(files, "__dict__", {}))
-    found.__wrapped__ = files
+    if callable(files):  # a plain map has no code to hash
+        found.__wrapped__ = files
     return found
 
 
 def gap_moved(row, check):
-    """A gate of `row` with its place's accepted gaps moved (gaps.moved). Defined here, in the table, and unwrapping to
-    the gate's own judge, so no row's code version takes in gaps.py: moving a verdict changes no output, and a paid
-    row (the paint) is never bought again for it."""
+    """A gate of `row` with its place's accepted gaps moved (gaps.moved): the owner's that name the gate, and the batch
+    gaps its output and inputs carry where BATCH_GATES names it. Defined here, in the table, and unwrapping to the
+    gate's own judge, so no row's code version takes in gaps.py: moving a verdict changes no output, and a paid row
+    (the paint) is never bought again for it."""
+    batch = batch_moves(row, check.name)
+
     def judged(output, inputs, evidence):
-        return gaps.moved(check.judge(output, inputs, evidence), gaps.entries(inputs, row, check.name))
+        carried = batch_gaps.of(inputs, output) if batch else []
+        return gaps.moved(check.judge(output, inputs, evidence), gaps.entries(inputs, row, check.name) + carried)
     judged.__wrapped__ = check.judge
     return checks.Check(check.name, judged, check.evidence)
 
 
+def batch_moves(row, check):
+    """Whether a batch gap may move a fault from this gate of `row` (BATCH_GATES)."""
+    gates = BATCH_GATES.get(row, ())
+    return gates is ALL or check in gates
+
+
 def accepted_gaps(row):
     """The rows the owner's accepted gaps reach (2026-10-14: the hangar's ship, the wreck's three pieces, the camp grounds'
-    crane ship today as named fails): a moving gate's faults on the named objects go down the line, and complete fails
-    each gap by name with its numbers. Set here, in the table."""
-    if row.name not in GAP_GATES and row.name != "complete":
+    crane ship today as named fails), and the batch gaps (BATCH_GATES): a moving gate's faults on the named objects go
+    down the line, and complete fails each gap by name with its numbers. Set here, in the table."""
+    if row.name not in GAP_GATES and row.name not in BATCH_GATES:
         return row
-    moving = GAP_GATES.get(row.name, ())
-    kept = tuple(gap_moved(row.name, check) if check.name in moving else check for check in row.checks)
+    kept = tuple(gap_moved(row.name, check) if check.name in GAP_GATES.get(row.name, ()) or
+                 batch_moves(row.name, check.name) else check for check in row.checks)
     named = (checks.Check(graph.GAPPED, gaps.judge_accepted),) if row.name == "complete" else ()
     reads = None if row.name == "complete" else row.name
     return dataclasses.replace(row, files=with_gap_files(row.files, reads), checks=(*kept, *named))

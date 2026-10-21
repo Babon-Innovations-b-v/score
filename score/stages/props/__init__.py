@@ -49,7 +49,10 @@ LIKENESS = graph.Stage("likeness", "place", likeness_row.make_likeness,
                        files=likeness_row.files, gatherers=likeness_row.GATHERERS,
                        after={"likeness-calibration": ("likeness-calibration", 1),
                               "closeup": ("props-closeups", 1), "surfaces-bake": ("surfaces-bake", 1),
-                              "surfaces-parts": ("surfaces-parts", 1), "surfaces-check": ("surfaces-check", 1)},
+                              "surfaces-parts": ("surfaces-parts", 1), "surfaces-check": ("surfaces-check", 1),
+                              # the rows whose batch gaps it carries to complete (score/stages/batch_gaps.py)
+                              "pixal": ("props-pixal", 1), "finish-route-split": ("finish-route-split", 1),
+                              "finish-route-recheck": ("finish-route-recheck", 1)},
                        applies=prop_data.applies)
 # What the surface line's first row reads of the prop route (score/stages/__init__.py adds it to its `after`).
 FEEDS = {"pixal": ("props-pixal", 1)}

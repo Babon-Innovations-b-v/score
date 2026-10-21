@@ -94,6 +94,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`finish_ask.finish_list`) takes the close-up's measured colours (`finish_ask.REGIONS`), with thinking held low and
   on the flex tier (`LIST_TIER`, half price, a 900 s timeout: the request's own `serviceTier`, never set in
   `google_spend`). 
+- **Each such gap is a batch gap carried down the line** (`../batch_gaps.py`, score's overlay): the list (no usable
+  answer, or a list off the library), the split (any fault), the bake (a take's job that brought nothing back) and
+  the recheck name theirs in `batch-gaps.json`, each with those of the rows they read; the views leave out a take the
+  prop route's gaps name, the split leaves out the list's, the parts list them as left out, and the table moves only
+  those takes' faults from each row's gate (`stages.BATCH_GATES`). The rows after the views declare a take's raw
+  files only where they are there (`surface_data.take_files`), so a gap's missing take stops none of them; the
+  cockpit still finds a lost take through `take_patterns`.
 - **A library change re-keys only the rows that read the library** (the route's list, parts, paint, bake, recheck and
   check: `route_data.library_files`, `surface_data.line_files`); its views and split declare none
   (`route_data.shape_files`), so a new surface re-asks the list and leaves the renders where they stood. On 2026-10-12 the making folder in `job.json` and card renders that differed run to run made one library change

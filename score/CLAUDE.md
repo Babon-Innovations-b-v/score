@@ -235,6 +235,14 @@ Rules:
   line, and complete's `accepted gaps` fails each
   by name with its measured faults; any other fault still stops the line. The wrappers live in the table and unwrap
   to each gate's own judge, so moving a verdict re-keys no paid row. Write one only on the owner's decision.
+  A **batch gap** (`stages/batch_gaps.py`, CONTEXT.md "gap") moves the same way without a written decision: the
+  owner's yes to the batch decided it. A paid step that sorts a take into a named failure (no close-up passed,
+  Pixal3D brought no model back, no usable list or one off the library, a split fault, a bake job that failed, a
+  recheck that did not pass) writes it into its output's `batch-gaps.json` with its check and faults; the finish
+  route leaves the take out and carries the gap on, the likeness carries every gap of the line (with its hand-in rows)
+  to complete, and the table moves only those objects' faults (`stages.BATCH_GATES`); complete's `accepted gaps` lists
+  each with the batch run and output that decided it, and the cockpit shows it as a gap its step's node fixes
+  (`complete/gaps/marks.batched`). A step that brings nothing back at all (a set-up fault) still stops its row.
 - **A gate never passes on missing evidence.** A check that needs evidence names it (`Check.evidence`); a judge that
   cannot tell answers unknown. Unknown blocks like fail.
 - **Method choices live in the stage's code or in accepted environment data**; a stage's parameters are its true inputs.

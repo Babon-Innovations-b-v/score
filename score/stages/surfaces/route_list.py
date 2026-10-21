@@ -16,7 +16,9 @@ Output: <take>.json per take (its finishes, each with surface, settings, fits, n
 colour, family; its labels, {view: {region: finish}}, 0-based), questions.json (the finishes with their own wear and
 why, the takes with no usable answer).
 Gate "library first": every cast take is listed, every finish names a library surface with settings inside the
-library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a gap, named.
+library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a gap, named. Each
+such take is a batch gap (batch-gaps.json, score/stages/batch_gaps.py, with the ones carried from the views): the gate
+still fails it, the table moves the fault to complete, and the split leaves the take out.
 """
 import json
 import pathlib
@@ -34,6 +36,7 @@ import finish_parts  # noqa: E402
 import route_ask  # noqa: E402
 import route_data  # noqa: E402
 import surface_gates as gates  # noqa: E402
+import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 LIST_EUROS = 0.5  # a guess for the row's run (a place's takes at half of google_spend.ESTIMATES); never a price
 CALLER = "finish-route-list"
@@ -243,6 +246,23 @@ def make_list(inputs, out, seed, params):
         own += [f"{take}: {entry['finish']}: {entry['wear_level']} ({entry['wear_cause']}; the place's wear is {wear})"
                 for entry in finishes if entry["wear_level"]]
     (out / "questions.json").write_text(json.dumps({"own_wear": own, "unanswered": unanswered}, indent=1))
+    batch_gaps.write(out, [*batch_gaps.of(inputs), *list_gaps(out, cast_takes, unanswered, tokens)])
+
+
+def list_gaps(out, cast_takes, unanswered, tokens):
+    """The batch gap of each take the one list ask failed: no usable answer, or a list off the library (take_faults,
+    the gate's own sorting); the split leaves it out."""
+    found = []
+    for take in cast_takes:
+        if take in unanswered:
+            found.append(batch_gaps.gap(f"{take}: no finish list", "finish-route-list", "library first", (take,),
+                                        [f"{take}: {unanswered[take]}"], "the one list ask gave no usable answer"))
+            continue
+        faults = take_faults(take, json.loads((out / f"{take}.json").read_text())["finishes"], tokens)
+        if faults:
+            found.append(batch_gaps.gap(f"{take}: finish list off the library", "finish-route-list", "library first",
+                                        (take,), faults, "the one list answer named finishes off the library"))
+    return found
 
 
 def list_faults(folder):

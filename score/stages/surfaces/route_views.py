@@ -18,7 +18,8 @@ own close-up, else the stand-in: the front view unshaded, route_data.STAND_IN). 
 views' angles, its faces and how many the paint's loading finds, the share of its area seen, its regions (CIELAB,
 sRGB, share of the seen pixels) and its close-up's source.
 Gate "views cast": every take has its raw model, loaded with the faces the paint loads, every view sees it and the
-views together see SEEN_LEAST of its area.
+views together see SEEN_LEAST of its area. A take a batch gap names (score/stages/batch_gaps.py: its close-up or its
+Pixal3D job failed in the batch) is left out, and its gap carried on in this output's batch-gaps.json.
 """
 import json
 import pathlib
@@ -35,6 +36,7 @@ import finish_ask  # noqa: E402
 import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
 import surface_gates as gates  # noqa: E402
+import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 SEEN_LEAST = 0.5  # a take whose views together see under this share of its area fails: the cast missed the model
 MOST_VIEWS = 16  # the base views and the coverage check's extras together
@@ -155,10 +157,13 @@ def view_take(model_file, close_up, folder, seed):
 
 
 def make_views(inputs, out, seed, params):
-    """Every take's views; views.json records each, or that it has no raw model."""
+    """Every take's views; views.json records each, or that it has no raw model. A take a batch gap of the prop route
+    names (its close-up or its Pixal3D job failed) is left out, its gap carried on in batch-gaps.json."""
     _, takes = route_data.takes_written(out, inputs, params)
+    carried = batch_gaps.of(inputs)
+    batch_gaps.write(out, carried)
     found = {}
-    for take in takes:
+    for take in [take for take in takes if take not in batch_gaps.objects(carried)]:
         model_file = inputs.get(f"model {take}")
         if model_file is None:
             found[take] = {"model": None}

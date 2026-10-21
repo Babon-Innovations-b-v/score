@@ -10,7 +10,8 @@ the drawings, says per finish whether its library surface matches what the close
 match: passed. Else the take fails the gate "library surface fits" by name, "no library surface fits", a gap of its
 object (gate:finish-route-recheck/library surface fits:<take>); Gemini's token, roughness and metal for a failing
 finish are kept as the gap's `suggested` and never applied: trying them is a new batch. A take the batch gives no
-usable answer is a gap the same way.
+usable answer is a gap the same way. Each is a batch gap (batch-gaps.json, score/stages/batch_gaps.py, with the ones the
+views carry): the gate still fails it, the table moves the fault to complete, and the take stays in the place, baked.
 
 Output per take: <take>/checked-<view>.png; recheck.json per take: the colour faults, `asked`, Gemini's answers,
 `passed`, `fault`, `suggested`.
@@ -33,6 +34,7 @@ import route_data  # noqa: E402
 import route_list  # noqa: E402
 import route_split  # noqa: E402
 import surface_gates as gates  # noqa: E402
+import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 RECHECK_EUROS = 1.0  # a guess for the row's run (a place's takes at half of google_spend.ESTIMATES); never a price
 CALLER = "finish-route-recheck"
@@ -178,6 +180,10 @@ def make_recheck(inputs, out, seed, params):
                         sorted_answer(records[take]["finishes"], answer))
         found[take] = {"colour_faults": [], "asked": True, **sorted_found}
     (out / "recheck.json").write_text(json.dumps(found, indent=1))
+    batch_gaps.write(out, [*batch_gaps.of(inputs), *(batch_gaps.gap(
+        f"{take}: no library surface fits", "finish-route-recheck", "library surface fits", (take,),
+        [f"{take}: {record['fault']}"], "the one recheck did not pass its library surfaces")
+        for take, record in found.items() if not record["passed"])])
 
 
 def recheck_faults(folder):

@@ -124,6 +124,16 @@ def test_complete_fails_each_accepted_gap_by_name_with_its_numbers():
     assert gaps.judge_accepted(None, {}, None).answer == checks.PASS
 
 
+def test_complete_lists_a_gap_a_row_it_reads_wrote_in_its_output(tmp_path):
+    """The neighbours' far city (lost with the old disk, #10): its own gaps.json, listed by complete by name."""
+    lost = {"name": "far_city: shown by the plan, not stood", "row": "neighbours", "check": "neighbours",
+            "objects": ["/flat/Places/far_city"], "reason": "its seed went with the old disk",
+            "decided": "lost input, 2026-10-19 (the old disk)", "faults": []}
+    (tmp_path / gaps.WRITTEN).write_text(json.dumps({"gaps": [lost]}))
+    found = gaps.judge_accepted(None, {"neighbours": tmp_path}, None)
+    assert found.answer == checks.FAIL and "far_city: shown by the plan, not stood" in found.reason, found
+
+
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
     assert places == ["airlock", "camp", "campgrounds", "cockpit", "engineroom", "flat", "galley", "garage", "greenhouse",
