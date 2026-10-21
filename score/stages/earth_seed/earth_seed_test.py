@@ -312,6 +312,11 @@ def test_a_kit_is_the_base_s_only_when_laid_for_its_design_s_room():
         inputs = {"places": REPO / "data/definitions/place.json",
                   "holder hangar": earth_seed.DESIGN / "plans/hangar.json"}
         assert earth_seed.style_of("docking_bay", inputs) == "hangar"
+        try:  # no declared holder reaches place.json: refused by name, never a loop with no end
+            earth_seed.style_of("nowhere_held", inputs)
+            raise AssertionError("a scene with no style was given one")
+        except ValueError as error:
+            assert "nowhere_held" in str(error), error
         assert earth_seed.holders("nowhere_held") is None and not earth_seed.styled("nowhere_held")
         assert earth_seed.styled("docking_bay") and earth_seed.styled("cockpit")
     finally:
