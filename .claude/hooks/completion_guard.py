@@ -34,8 +34,13 @@ _PAGE = re.compile(r"\bcreator cockpit\b", re.IGNORECASE)
 
 
 def places():
-    """Every place the framework knows: one with a kit or a scene record."""
-    return sorted({path.stem for folder in ("data/kit", "data/scene") for path in (_REPO_ROOT / folder).glob("*.json")})
+    """Every scene the framework knows: data/places/within.json's (the kits and old scene records are retired)."""
+    path = _REPO_ROOT / "data/places/within.json"
+    found = json.loads(path.read_text()) if path.is_file() else {}
+    names = {*found.get("within", {}), *found.get("shells", {}),
+             *(entry["within"] for entry in found.get("within", {}).values())}
+    names |= {path.stem for path in (_REPO_ROOT / "data/kit").glob("*.json")}  # a scene known by a kit file (tests)
+    return sorted(name for name in names if name)
 
 
 def transcript_entries(path):
@@ -63,6 +68,8 @@ def touched(entries, known):
     calls = " ".join(json.dumps(block.get("input", {})) for entry in entries if entry.get("type") == "assistant"
                      for block in contents(entry)
                      if block.get("type") == "tool_use" and block.get("name") not in _DELEGATING)
+    if not known:
+        return set()  # no scene known: nothing to match (an empty pattern matched every sentence)
     names = "|".join(re.escape(place) for place in known)
     patterns = (rf"data/(?:inventory|kit|scene|characters)/({names})\.json", rf"work/(?:usd|review)/({names})\b",
                 rf"{_TOOL_RUNS}({names})\b")

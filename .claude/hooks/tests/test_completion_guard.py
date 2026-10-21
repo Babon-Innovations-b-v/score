@@ -39,6 +39,7 @@ def _run(payload, env=None):
 def _with_place(tmp_path, monkeypatch):
     """Make the test place known to the guard (a kit file of its name) and its stage folder empty."""
     kit = pathlib.Path(__file__).resolve().parents[3] / "data/kit" / f"{_PLACE}.json"
+    kit.parent.mkdir(exist_ok=True)
     kit.write_text("{}")
     monkeypatch.setenv("PROPS_WORK", str(tmp_path / "work"))
     return kit
@@ -176,3 +177,12 @@ def test_something_else_done_that_names_the_place_passes(tmp_path, monkeypatch):
     finally:
         kit.unlink()
     assert code == 0  # the film is done, not the place (owner, 2026-10-21)
+
+
+def test_no_scene_known_is_no_claim(tmp_path, monkeypatch):
+    monkeypatch.setenv("PROPS_WORK", str(tmp_path / "work"))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("guard", _GUARD)
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    assert guard.touched([], []) == set()  # an empty scene list matched every sentence before (owner, 2026-10-21)
