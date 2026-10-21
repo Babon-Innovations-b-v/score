@@ -2,7 +2,7 @@
 {% block title %}{{ name }}: design{% endblock %}
 {% block main %} class="wide"{% endblock %}
 {% block content %}
-<nav class="trail" aria-label="where"><a href="/places/" data-v>Environment</a> <span class="sep">&rsaquo;</span> {% for parent in parents %}<a href="/concept/{{ parent.place }}/" data-v>{{ parent.name }}</a> <span class="sep">&rsaquo;</span> {% endfor %}<b data-v>{{ name }}</b> <span class="sep">&rsaquo;</span> <span data-v>design</span>{% if picked %} {% include "pages/c/dot.html" with tone="done" tip="locked for the design" %}{% endif %}</nav>
+<nav class="trail" aria-label="where"><a href="/places/" data-v>Environment</a> <span class="sep">&rsaquo;</span> {% for parent in parents %}<a href="/concept/{{ parent.place }}/" data-v>{{ parent.name }}</a> <span class="sep">&rsaquo;</span> {% endfor %}<b data-v>{{ name }}</b> <span class="sep">&rsaquo;</span> <span data-v>design</span> <a class="button quiet small" href="/places/{% if parents %}{% with up=parents|last %}?in={{ up.place }}{% endwith %}{% endif %}" title="the scenes of this layer" data-v>scenes</a>{% if picked %} {% include "pages/c/dot.html" with tone="done" tip="locked for the design" %}{% endif %}</nav>
 <div class="design">
 <div class="design-panels">
 <section class="dpanel" id="concept-part" aria-label="concept">
