@@ -248,6 +248,21 @@ def test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit(
         web.plan_revise(store, "shed", request, 0.04, "joey", run=run)
 
 
+def test_a_correction_with_no_note_sends_his_kept_edits_and_with_none_is_refused_before_any_spend(store, monkeypatch):
+    picked(store, "shed")
+    monkeypatch.setattr(plans, "revise_euros", lambda: 0.05)
+    bare = {"marks": [], "context_marks": [], "note": ""}
+    with pytest.raises(plans.Refused, match="no note to correct the plan by"):
+        web.plan_revise(store, "shed", bare, 0.05, "joey", run=None)  # nothing changed: no yes written
+    assert not list((store.cache / plans.AREA / "asked").glob("*.json"))
+    plan = plans.current(store, "shed")["plan"]
+    plan["items"] = [[item[0], item[1] + 1.0, *item[2:]] for item in plan["items"][:1]] + plan["items"][1:]
+    plans.edited(store, "shed", plan, "joey")
+    note = plans.note_of(store, "shed", bare)
+    assert note.startswith("I changed the plan by hand: item ") and plan["items"][0][0] in note
+    assert plans.note_of(store, "shed", {**bare, "note": "wider door"}) == "wider door"
+
+
 def test_a_holder_with_no_outline_of_its_own_gets_one_round_its_inside_places_before_its_items(store, data):
     from score.review import reading
     (data / "plans/yard.json").unlink()  # a shell with no plan (the base): the shed, 4 x 3 m, is inside it

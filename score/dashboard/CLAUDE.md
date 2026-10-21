@@ -320,7 +320,15 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   are one page, `/concept/<place>/` (`/plan/<place>/` leads to `#plan-part`), all open: a grid of panels on the full
   width (concept with its draws strip, inventory, the top-down drawing, plan with its section; a long plan takes the
   whole width) beside one action rail (draw, pick or unlock, notes, inside places, the plan's places, gaps, notes and
-  Make plan, Keep, Correct, each with its price), stacking below 1100 px and to one column below 860 px. Every
+  Make plan, Keep, Correct, each with its price). On a screen at least 1100 x 600 px it is one screen, an instrument
+  panel with no page scroll (owner, 2026-10-21: "doesnt function as a dashboard/cockpit yet"): concept and top-down
+  drawing over the inventory, the plan a column as wide as its drawing at the height it gets (`--plan-aspect`, a long
+  plan a row across the bottom) with its section under it at a small height, the rail full height with the gaps list
+  taking what is left; narrower or lower the panels flow down the page, one column below 860 px. Inside places show by
+  their names (place.json `short`, `plan_names`), their ids only in the plan and the words Correct sends; Correct with
+  no note and no mark sends his edits (this visit's, else his kept edit against the plan made without him,
+  `score/review/plans.note_of`, refused before any spend when there are none); a refusal older than the plan shown is
+  not shown. Every
   panel's enlarge button fills the screen with it in place (marks, hover and drags the same), a history step of its
   own (`#focus=<panel>`, pushed; back, Escape or the button shut it; a reload shows it). The plan and section are
   zoom views: fitted at their aspect, the wheel zooms at the pointer (Ctrl+wheel outside an enlarged panel), Space+drag

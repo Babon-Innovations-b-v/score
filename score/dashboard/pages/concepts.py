@@ -195,15 +195,19 @@ def context_pictures(world, wording, names):
 
 
 def plan_part(world, place):
-    """The design page's plan part (pages/plans.py): the plan shown, its JSON, the picked concept, its prices and his
-    open or refused plan request."""
+    """The design page's plan part (pages/plans.py): the plan shown, its JSON, its inside places' names by id, the
+    picked concept, its prices and his open or refused plan request."""
     from score.dashboard.pages import plans
     review = plans.review_of(world, place)
     pending = plans.pending_of(place)
+    names = groups.short_names(world)
+    held = {hold["place"]: world.shells.get(hold["place"]) or names.get(hold["place"], present.place_title(hold["place"]))
+            for hold in (review["plan"].get("holds") or [] if review else [])}
     return {"review": review, "plan_json": json.dumps(review["plan"]).replace("</", "<\\/") if review else "null",
+            "plan_names": json.dumps(held).replace("</", "<\\/"),
             "plan_picture": plans.picture_of(world, place), "plan_euros": world.plan_revise_euros,
             "write_euros": world.plan_write_euros, "automatic": world.plan_automatic,
-            "plan_pending": pending and pending.created.isoformat(), "plan_refused": plans.refused_of(place)}
+            "plan_pending": pending and pending.created.isoformat(), "plan_refused": plans.refused_of(place, review and review["at"])}
 
 
 def concept_page(request, place):
