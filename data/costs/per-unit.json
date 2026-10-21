@@ -434,8 +434,8 @@
    "unit": "MOSS take (one brief and seed, its card rented for it)",
    "count": null,
    "also": [],
-   "likely_euros": 0.14149,
-   "high_euros": 0.21268,
+   "likely_euros": 0.11762,
+   "high_euros": 0.2079,
    "runs": 2,
    "sources": {
     "cloud batches": [
@@ -449,8 +449,8 @@
    },
    "time": {
     "unit_seconds": {
-     "likely": 187.166,
-     "high": 207.556
+     "likely": 19.332,
+     "high": 19.332
     },
     "setup_minutes": {
      "likely": 0.68,

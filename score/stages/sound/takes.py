@@ -67,11 +67,13 @@ def missing(jobs):
     return [job for job in jobs if not (TAKES / job["file"]).exists() or job["file"] not in known]
 
 
-def plan_for(jobs_file, out, minutes):
-    """prove.py's plan: the jobs on one card of the moss-sound classes, the takes back into `out`."""
+def plan_for(jobs_file, out, minutes, takes):
+    """prove.py's plan: the jobs on one card of the moss-sound classes, the takes back into `out`; the ledger line
+    names its `takes` (tools/costs/per_unit.py prices a take by them)."""
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import capacity
     return {"classes": list(capacity.classes_for("moss-sound")), "minutes": minutes, "disk_gb": 200,
+            "ledger": {"takes": takes},
             "runs": [{"kind": KIND, "code": ["tools/props/cloud/moss_generate.py"],
                       "inputs": [{"from": str(jobs_file), "path": f"{REMOTE}/jobs-0.json"}],
                       "jobs": [{"name": "takes", "cache": "a", "models": MODELS, "minutes": minutes,
@@ -164,7 +166,8 @@ def bought(wanted, work):
         back = work / "back"
         back.mkdir(parents=True)
         (work / "jobs.json").write_text(json.dumps(wanted, indent=1))
-        on_card(plan_for(work / "jobs.json", back, round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted))))
+        on_card(plan_for(work / "jobs.json", back, round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted)),
+                         len(wanted)))
         for job in wanted:
             if (back / job["file"]).exists():
                 shutil.copy2(back / job["file"], TAKES / job["file"])

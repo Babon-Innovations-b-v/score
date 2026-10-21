@@ -129,7 +129,7 @@ def one_attempt(plan, account, registry, store_spec, who, results):
         account, found, KIND, "prove-%Y%m%d-%H%M%S", min(minutes, ledger.minutes_allowed(dearest)),
         plan, lambda machine: set_up(machine, registry, store_spec),
         lambda machine, _share, _card: prove_on(machine, plan, store_spec, results), plan.get("disk_gb", 300),
-        {"who": who, "runs": [kind_run["kind"] for kind_run in plan["runs"]]})
+        {"who": who, "runs": [kind_run["kind"] for kind_run in plan["runs"]], **plan.get("ledger", {})})
     return bool(run.machines)
 
 

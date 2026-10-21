@@ -46,7 +46,9 @@ gates; `takes.py` the paid part.
   Each need is answered from the library, by a brief this row makes, or not at all; the gaps check shows the last
   two (`score/stages/complete/gaps/layers.py`), and the `events` and `voices` gates fail a place's output that
   leaves one silent. Keep needs generic: read them off the records, never a list of places.
-- **Unit cost: unknown** in `data/costs/per-unit.json`: no take's work seconds are on a ledger in git (the 2026-10-06
+- **Unit cost: measured** in `data/costs/per-unit.json` over the takes each batch's ledger line names (`takes.plan_for`
+  writes them; tools/costs/per_unit.py `SOUND_TAKES` holds the airlock's and the square's, written before): two runs
+  so far, the airlock's one take EUR 0.23 and the square's 11 for EUR 0.05. Before them (the 2026-10-06
   game batch, 244 takes on one L4 in 122.9 card minutes with set-up, timed none; environment 1's run of 2026-10-12,
   about 4 min to the first take and about 28 s a take of 10 to 15 s, EUR 0.72 for 56 takes, was written here, its
   ledger lost with the old disk). The benchmark that settles it is on #29.
