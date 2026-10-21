@@ -13,6 +13,7 @@ owner's books figure, else None); the stop is the one the last batch's yes wrote
 remake is prepare's one-shot figure of the prop route (every take, those waiting on lost inputs counted) plus the
 gaps price of every other paid step (ROUTE leaves out the prop route's steps, which prepare prices per take).
 """
+import datetime
 from collections import Counter
 
 from score.dashboard.checkout import WORLD, pricing
@@ -495,13 +496,14 @@ def summed(rows, key, field):
     return round(sum(row[key][field] for row in rows), 2)
 
 
-def batch(world, items):
+def batch(world, items, made_at=None):
     """The Buy screen's one batch (CONTEXT.md "batch"): what its Buy buys now (the basket items of `now_items`, priced
     as the runner planned them, the guesses it reserves in the high) and what waits, by why (prepare's prop route,
     take by take, and every other paid step of the gaps price), by layer. Each layer {layer, make, library, waiting,
     why, models, steps, now, later, guessed, guesses, no_price, measured, estimated, likely, high}; `total` its sum,
-    `now` {likely, high, guessed, guesses, stop, places, eta} the Buy's line, `waiting` {likely, high, why}; `gets`
-    the places it reaches. Nothing priced here (ADR-0006)."""
+    `now` (`now_of`) the Buy's line, `waiting` {likely, high, why}; `gets` the places it reaches; `in_design` how
+    many places are still in design; `made_at` the basket's (its index's, `made_at`) and `refused` [why] the Buy may
+    not be pressed now (`buy_refusals`). Nothing priced here (ADR-0006)."""
     whole = remake_money(world)
     remake, price = approved_parts(world)
     price = None if price is None or price.stale else price
@@ -518,9 +520,10 @@ def batch(world, items):
     shown = [rounded(rows[name]) for name in ORDER if name in rows]
     for row in shown:
         row["places"] = sorted(row["places"])
-    return {"total": total_of_rows(shown), "now": now_of(shown, now, buying), "waiting": waiting_of(shown),
+    return {"total": total_of_rows(shown), "now": now_of(now, buying), "waiting": waiting_of(shown),
             "gets": gets(world, now), "eta": whole["eta"], "stale": whole["stale"], "layers": shown,
-            "estimate": whole["estimate"]}
+            "estimate": whole["estimate"], "in_design": whole["in_design"], "made_at": made_at,
+            "refused": buy_refusals(world, whole["stale"], made_at)}
 
 
 def total_of_rows(rows):
@@ -535,15 +538,42 @@ def total_of_rows(rows):
             "no_price": sorted({name for row in rows for name in row["no_price"]})}
 
 
-def now_of(rows, now, buying):
-    """{likely, high, guessed, guesses, stop, steps, places, eta} of what the Buy buys: its high holds the guesses the
-    runner reserves, its stop that high plus 10%."""
-    guessed = round(sum(row["guessed"] for row in rows), 2)
-    high = round(summed(rows, "now", "high") + guessed, 2)
-    return {"likely": summed(rows, "now", "likely"), "high": high, "guessed": guessed,
-            "guesses": sum(row["guesses"] for row in rows), "stop": round(high * BUFFER, 2) if now else None,
-            "steps": len(now), "places": sorted({place for item in buying for place in item.get("places", [])}),
-            "eta": now_eta(now)}
+def now_of(now, buying):
+    """{likely, high, guessed, guesses, no_price, stop, steps, places, eta} of what the Buy buys, priced as its
+    checkout records it (pricing.totals of the same nodes): its high the cleared high (the guesses the runner
+    reserves in it), `guessed` and `guesses` that guessed share in euros and steps, `no_price` the kinds of step with
+    neither a price nor a guess by layer {layer: steps} (outside the figure), its stop that high plus 10%
+    (checkout/flow.write_line)."""
+    totals = pricing.totals(now)
+    high = pricing.cleared_high(totals)
+    unpriced = {node for node, found in now.items() if "error" in found or found.get("likely_euros") is None}
+    guessed = {node for node in unpriced if "error" not in now[node] and now[node].get("guess_euros")}
+    return {"likely": totals["likely_euros"], "high": high, "guessed": totals["guessed_euros"],
+            "guesses": len(guessed), "no_price": in_layers(unpriced - guessed),
+            "stop": round(high * BUFFER, 2) if now else None, "steps": len(now),
+            "places": sorted({place for item in buying for place in item.get("places", [])}), "eta": now_eta(now)}
+
+
+def moment(text):
+    """A record's made_at as an aware datetime (a trailing Z read as UTC), None when it has none."""
+    if not text:
+        return None
+    found = datetime.datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    return found if found.tzinfo else found.replace(tzinfo=datetime.timezone.utc)
+
+
+def buy_refusals(world, stale, made_at):
+    """[why] the Buy may not be pressed now: its prices are stale, or the basket (what Buy buys, made at `made_at`) is
+    of unknown age or older than prepare's record or the gaps price, so what it buys was planned before what is
+    shown beside it; [] when it may."""
+    made = moment(made_at)
+    if made is None:
+        return [*stale, "the basket's time is not known"]
+    priced = [moment(record.made_at) for record in (world.remake, world.gaps_price) if record is not None]
+    newest = max((when for when in priced if when is not None), default=None)
+    older = [f"the basket ({made:%Y-%m-%d %H:%M}) is older than the price ({newest:%Y-%m-%d %H:%M} UTC)"] \
+        if newest is not None and made < newest else []
+    return [*stale, *older]
 
 
 def waiting_of(rows):
@@ -558,10 +588,16 @@ def waiting_of(rows):
 
 def now_eta(nodes):
     """basket_eta of the nodes bought now and, while a node is not timed, `at_least_minutes`: the timed ones'
-    span (pricing.span), a floor."""
+    span (pricing.span), a floor, and `untimed_layers` {layer: its steps with no minutes}, in the layers' order."""
     timed = {node: found for node, found in nodes.items() if found.get("likely_minutes") is not None}
     return {**basket_eta(nodes), "at_least_minutes": pricing.span(timed, "likely_minutes", pricing.DEFAULT_JOBS)
-            if timed else None}
+            if timed else None, "untimed_layers": in_layers(set(nodes) - set(timed))}
+
+
+def in_layers(nodes):
+    """{layer: how many of `nodes`} in the layers' order (`LAYERS`), the empty ones left out."""
+    found = Counter(layer_of(node.partition("@")[0]) for node in nodes)
+    return {name: found[name] for name in ORDER if found[name]}
 
 
 def gets(world, now):

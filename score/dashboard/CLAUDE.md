@@ -76,10 +76,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     (`screens.design`, CONTEXT.md "design", prepare's `design.py` record carried in the Remake) {places [{place,
     design {concept (missing, drawn, picked: a lock), plan (remake, made, approved), output, hint} (None: prepare names it
     not), game (its gaps' `complete/game` gate: its layout still from the source game)}], approved}; `batch`
-    (`screens.batch(world, items)`, the Buy screen's one batch, owner 2026-10-20: "what Buy buys must be exactly the
-    total shown") {now {likely, high (the guesses the runner reserves in it), guessed, guesses, stop (high plus 10%),
-    steps, places, eta} (the basket items `screens.now_items` gives: not the Benchmarks, none waiting on a missing
-    input, only at places whose design is approved, none before one is; exactly what the Buy yes buys), waiting {likely, high, why [reason]} (prepare's prop route take by take,
+    (`screens.batch(world, items, made_at)`, the Buy screen's one batch, owner 2026-10-20: "what Buy buys must be exactly the
+    total shown") {now {likely, high, guessed, guesses, no_price {layer: steps}, stop, steps, places, eta {likely_minutes,
+    high_minutes, untimed, at_least_minutes, untimed_layers {layer: steps}}} (the basket items `screens.now_items` gives: not the Benchmarks, none waiting on a missing
+    input, only at places whose design is approved, none before one is; exactly what the Buy yes buys, priced as its
+    checkout records it: `pricing.totals` of those nodes, high the cleared high with the guesses, stop that plus 10%,
+    flow.write_line's; `no_price` the bought steps with neither price nor guess, outside the figure), `made_at` the
+    basket's, `refused` [why] (`screens.buy_refusals`: the prices stale, or the basket older than prepare's record or the
+    gaps price, or of unknown age; the Buy shows disabled with the first why), `in_design`, waiting {likely, high, why [reason]} (prepare's prop route take by take,
     a take's stage at a place the Buy buys counted there, the rest with its share of the stage's price; every other
     paid step of the gaps price), total (now plus waiting, the sum of the lines: measured, estimated and guessed
     parts of its high, `no_price` the kinds of step with none), gets [{place, made, after, needed, complete,
@@ -117,8 +121,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   where its layout still takes the source game's numbers, its old lock as hover text, linking to the place, where
   the design is made (its concept review, outside any batch: no concept is bought here), and a Plan link to its plan
   review once its design is approved (the lock is the approval, owner 2026-10-21: no Approve); then After design: how many places await design while none is
-  approved (no euros, no layers), else the approved places' figure and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
-  once a design is approved, buying only those places; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
+  approved (no euros, no layers), else Buy now: what Buy buys (`batch.now`: EUR likely to high, the guessed euros and
+  steps, the stop, the ETA or "no ETA" with its untimed layers, its unpriced layers outside the figure, the basket's
+  made_at), Waits beside it (what waits, its euros and why, the places still in design), and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
+  once a design is approved, buying only those places, disabled with why while `batch.refused` holds any; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
   month figure while it is not read, its button named by their cost line's label; no Basket link, no stop control:
   the Buy yes sets the batch's stop), **Stats** `/stats/`
   (`stats.html`: numbers only, no controls, three groups: money this month (cloud, AI calls, total, no stop; the
