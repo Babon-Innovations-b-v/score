@@ -325,6 +325,17 @@ def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():
     assert found["spray_run"] == [], found
     assert needs.event_sounds(needs.events([], moves[2:], {})[0], rows, kinds, table) == []
     assert "data/checks/row-kinds.json" in needs.WORK["event"], needs.WORK
+    # Two gates of one row, swung alike each about its own side (as the motion stage writes a row's objects), are two
+    # events, each sounding at its own prim; a gate's bar turning about that gate's named hinge rides it, one event.
+    swing = {"about": {"side": [-1.0, 0.0, 0.0]}, "angle": 90.0, "speed": 30.0, "moves": [[4.0, "open"], [12.0, "shut"]]}
+    alike = [{"name": f"yard_gate_{number}", "prim": f"/toy/Objects/yard_gate_{number}", "row": "yard_gate",
+              "start": 0.0, "length": 20.0, "loop": False, "swing": swing} for number in (1, 2)]
+    hinged = dict(swing, about="Objects/gate_hinge_1")
+    riding = [{"name": name, "prim": f"/toy/Objects/{name}", "row": "yard_gate", "start": 0.0, "length": 20.0,
+               "loop": False, "swing": hinged} for name in ("yard_gate_3", "yard_gate_3_bar")]
+    sounded = [sorted({use["on"] for use in moving.event_uses(event, rows, kinds, table, {})})
+               for event in needs.events([], alike + riding, {})]
+    assert sounded == [["/toy/Objects/yard_gate_1"], ["/toy/Objects/yard_gate_2"], ["/toy/Objects/yard_gate_3"]], sounded
 
 
 def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():

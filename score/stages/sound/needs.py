@@ -32,16 +32,25 @@ def read(path):
     return json.loads(path.read_text()) if path.exists() else {}
 
 
+def held_by(entry, moves):
+    """What a moving thing moves on: the prim its moves turn about when they name one (a hatch's hinge, which its
+    wheel and window turn about too), else the thing itself."""
+    pivots = [move["about"] for move in moves.values() if isinstance(move, dict) and isinstance(move.get("about"), str)]
+    return pivots[0] if pivots else entry["prim"]
+
+
 def events(motions, rigid, renamed):
-    """Each thing that moves, as one event: [{"name", "prims", "entries"}], a thing moving exactly as one before it
-    joining that one's event; its prims are its record's and the one the place renamed it to."""
+    """Each thing that moves, as one event: [{"name", "prims", "entries"}], a thing moving exactly as one with one
+    before it, about the same named pivot (held_by), joining that one's event; things that only move alike (two doors
+    of one row, each swung about its own side) are each their own; its prims are its record's and the one the place
+    renamed it to."""
     found, by_move = [], {}
     for entry in [*(dict(motion, table="motions") for motion in motions),
                   *(dict(move, table="moves") for move in rigid)]:
         moves = {key: entry[key] for key in moving.MOVES if key in entry}
         if not moves:
             continue
-        key = json.dumps([moves, entry.get("start"), entry.get("length")], sort_keys=True)
+        key = json.dumps([moves, entry.get("start"), entry.get("length"), held_by(entry, moves)], sort_keys=True)
         prims = [entry["prim"]] + ([renamed[entry["prim"]]] if entry["prim"] in renamed else [])
         if key not in by_move:
             by_move[key] = {"name": entry["name"], "prims": [], "entries": []}
