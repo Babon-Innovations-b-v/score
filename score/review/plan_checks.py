@@ -19,6 +19,8 @@ LOW = 0.5  # metres: an item standing higher than this (its base) does not block
 FLAT = 0.15  # metres: an item no taller than this lies flat on the floor, under the rest
 ROUND = 24  # sides of a circle's polygon
 FLOOR_ANCHORS = ("floor", "ground")
+PEOPLE = {"person", "people", "crowd", "man", "woman", "child", "figure", "pedestrian", "astronaut", "worker"}
+AFAR = {"distant", "far", "background", "faraway"}
 KINDS = ("placed", "outside", "overlap", "reach", "tiling")  # the gaps' kinds these checks write
 
 
@@ -143,6 +145,21 @@ def anchors(inventory):
     return {row["id"]: row.get("anchor") or "floor" for row in inventory.get("rows", [])}
 
 
+def last_words(row):
+    """The last word of a row's id and of its noun: what it is ("diner_seated" by its noun "person")."""
+    return {str(said).replace("_", " ").strip().lower().split(" ")[-1] for said in (row["id"], row.get("noun") or "")}
+
+
+def people(inventory):
+    """The ids of the rows that are people (PEOPLE): they sit and stand on things and move, so they block nothing."""
+    return {row["id"] for row in inventory.get("rows", []) if last_words(row) & PEOPLE}
+
+
+def afar(inventory):
+    """The ids of the rows seen far off (AFAR in their id: a distant crowd): outside the place on purpose."""
+    return {row["id"] for row in inventory.get("rows", []) if set(row["id"].split("_")) & AFAR}
+
+
 def placed_items(plan):
     """[(item, its row id or None, its shape)] of the plan's items that are things (no zone, no walls item)."""
     from score.review.plans import WALLS_ITEM
@@ -151,11 +168,12 @@ def placed_items(plan):
 
 
 def count_gaps(plan, inventory, structure):
-    """A gap for each row standing on the floor or the ground placed another number of times than it counts."""
+    """A gap for each row standing on the floor or the ground placed another number of times than it counts (none for
+    a row the writer saw beyond the place, through a window or past its edge: the plan's `beyond`)."""
     placed = collections.Counter(row for _, row, _ in placed_items(plan))
-    gaps = []
+    gaps, beyond = [], set(plan.get("beyond", []))
     for row in inventory.get("rows", []):
-        if row["id"] in structure or (row.get("anchor") or "floor") not in FLOOR_ANCHORS:
+        if row["id"] in structure | beyond or (row.get("anchor") or "floor") not in FLOOR_ANCHORS:
             continue
         count = int(row.get("count", 1) or 1)
         if placed[row["id"]] != count:
@@ -170,10 +188,13 @@ def outside(polygon, grid, outline):
     return (covered & ~outline).sum() > OUTSIDE * covered.sum()
 
 
-def outside_gaps(plan, grid, outline):
-    """A gap for each item more than OUTSIDE of whose footprint lies outside the outline."""
-    gaps = []
+def outside_gaps(plan, inventory, grid, outline):
+    """A gap for each item standing on the floor or the ground more than OUTSIDE of whose footprint lies outside the
+    outline (a thing on a wall stands on its line; one seen far off stands out there on purpose)."""
+    anchored, far, gaps = anchors(inventory), afar(inventory), []
     for item, row, shape in placed_items(plan):
+        if anchored.get(row, "floor") not in FLOOR_ANCHORS or row in far:
+            continue
         polygon = polygon_of(item, shape)
         if outside(polygon, grid, outline):
             gaps.append({"kind": "outside", "item": item[0], "row": row, "at": middle_of(polygon),
@@ -183,10 +204,12 @@ def outside_gaps(plan, grid, outline):
 
 def blocking(plan, inventory):
     """[(item, row, shape)] of the items that stand on the floor: anchored on the floor or the ground, base below
-    LOW, and taller than FLAT (a cable, a mat or a track lies under what stands on it and is walked over)."""
-    anchored = anchors(inventory)
+    LOW, taller than FLAT (a cable, a mat or a track lies under what stands on it and is walked over), no person and
+    nothing seen far off."""
+    anchored, left_out = anchors(inventory), people(inventory) | afar(inventory)
     return [(item, row, shape) for item, row, shape in placed_items(plan)
-            if anchored.get(row, "floor") in FLOOR_ANCHORS and float((shape or {}).get("base") or 0.0) < LOW
+            if anchored.get(row, "floor") in FLOOR_ANCHORS and row not in left_out
+            and float((shape or {}).get("base") or 0.0) < LOW
             and float((shape or {}).get("tall") or 1.0) > FLAT]
 
 
@@ -330,6 +353,6 @@ def checked(plan, inventory, structure=()):
                               if not set(plan.get("rows", {}).get(item[0]) or []) & structure]}
     grid = Grid(plan)
     outline = grid.covered(outline_of(plan))
-    return (count_gaps(plan, inventory, set(structure)) + outside_gaps(plan, grid, outline)
+    return (count_gaps(plan, inventory, set(structure)) + outside_gaps(plan, inventory, grid, outline)
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
             + hold_gaps(plan, grid, outline))
