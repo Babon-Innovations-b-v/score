@@ -97,6 +97,26 @@ def test_the_garage_plan_maps_and_faults_fail():
             assert found.answer == checks.FAIL and said in " ".join(found.findings), (said, found.findings)
 
 
+def test_a_written_plan_with_no_corner_takes_its_outline():
+    """A written plan (plan_writing's: an outline, no corner; a scene added in the app, docking_airlock's) makes its
+    plan with square corners, its outline drawing every corner; a plan with neither is refused by name."""
+    def written_plan(record):
+        record.pop("corner")
+        record["outline"] = [[0.0, 0.0], [record["w"], 0.0], [record["w"], record["d"]], [0.0, record["d"]]]
+    with tempfile.TemporaryDirectory() as folder:
+        out, _ = made_plan(folder, written_plan, "storage")
+        walls = json.loads((out / "plan.json").read_text())["walls"]
+        filed = json.loads((REPO / "data/plans/storage.json").read_text())
+        assert walls["corner"] == 0.0 and (walls["wide"], walls["deep"]) == (filed["w"], filed["d"]), walls
+    with tempfile.TemporaryDirectory() as folder:
+        try:
+            made_plan(folder, lambda record: record.pop("corner"), "storage")
+        except ValueError as refused:
+            assert "no corner and no outline" in str(refused), refused
+        else:
+            raise AssertionError("a plan with no corner and no outline was made")
+
+
 def test_the_garage_record_passes_and_each_fault_fails():
     ground = terrain()
     if not (SEEDS / "usd-r3" / PLACE).exists() or ground is None:
@@ -246,6 +266,7 @@ if __name__ == "__main__":
     test_a_moved_leaf_runs_clear_only_its_open_way()
     test_every_shell_kind_matches_its_plan_and_a_moved_number_fails()
     test_the_garage_plan_maps_and_faults_fail()
+    test_a_written_plan_with_no_corner_takes_its_outline()
     test_the_garage_record_passes_and_each_fault_fails()
     test_a_kit_shell_record_passes_and_each_fault_fails()
     test_an_outdoor_record_passes_and_each_fault_fails()

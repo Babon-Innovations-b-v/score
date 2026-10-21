@@ -264,3 +264,22 @@ def test_a_read_place_with_no_plan_is_owed_unless_refused_and_an_older_methods_c
     started = []
     assert plan_writing.started(store, ["shed"], start=lambda argv, **named: started.append(argv)).endswith(".log")
     assert started[0][-2:] == ["score.review.plan_writing", "shed"]
+
+
+def test_a_scene_added_in_the_app_takes_its_doors_from_its_holders_openings_into_it():
+    """A place with no doors of its own (plans.base_plan's bare plan) standing in a holder's box gets a door for each
+    holder opening in its walls: one into it leads back to the holder, one in a shared outer wall where that opening
+    leads; the plan stage reads the door's height off its words. A place with doors of its own keeps them."""
+    from score.stages.scene_record.plan import doors_of
+    skeleton = {**plans.base_plan("no_such_place"), "w": 3.0, "d": 2.0}
+    openings = [{"kind": "door", "at": [11.5, 7.0], "wide": 0.9, "sill": 0.0, "head": 2.1, "to": "airlock"},
+                {"kind": "gate", "at": [13.05, 5.6], "wide": 1.2, "sill": 0.0, "head": 2.4, "to": "outside"},
+                {"kind": "door", "at": [0.0, 1.0], "wide": 0.9, "sill": 0.0, "head": 2.1, "to": "sealed"}]
+    found = plan_writing.held_doors(skeleton, "airlock", "hangar", [10.0, 5.0, 3.0, 2.0], openings)
+    assert found["doors"] == [["S", 1.5, 0.9, "door 0.9 x 2.1 m"], ["E", 0.6, 1.2, "gate 1.2 x 2.4 m"]], found
+    assert {key: lead["to"] for key, lead in found["leads"].items()} == {"S": "hangar", "E": "outside"}
+    made = doors_of(found, {"rows": []})
+    assert [(door["side"], door["leads"], door["tall"], door["cut"]) for door in made] == [
+        ("south", "hangar", 2.1, True), ("east", "outside", 2.4, True)], made
+    own = {**skeleton, "doors": [["N", 1.0, 0.9, "DOOR"]], "leads": {"N": {"to": "sealed", "why": "filed"}}}
+    assert plan_writing.held_doors(own, "airlock", "hangar", [10.0, 5.0, 3.0, 2.0], openings) is own
