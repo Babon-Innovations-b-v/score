@@ -60,7 +60,7 @@ Fresh box: `bash .claude/scripts/bootstrap.sh` runs `.claude/scripts/install-age
 - For multi-step plans, give the headline and ask before expanding each step.
 - Skip preamble. State results and decisions directly. End-of-turn summary is one or two sentences.
 - Technical plans and reports are working material for agents: keep them on the issue or in a scratch file, never a designed page for the owner. Give him only the decisions he must make, in a few plain lines (owner, 2026-10-20).
-- The outcome of a one-time run (a benchmark's or a test's results, with its pictures, numbers and what passed or failed) goes on a short artifact page for the owner once it exists, not long terminal text (owner, 2026-10-21); plans and explanations stay a few plain lines here. The terminal reply then gives the link and the decisions in a few lines.
+- The outcome of a one-time run (a benchmark's or a test's results, with its pictures, numbers and what passed or failed) goes on a short artifact page for the owner once it exists, not long terminal text (owner, 2026-10-21); it exists only when the run made the thing it was for (for the people test, animated people he can watch): a run that stopped early is not an outcome, so it gets a few chat lines, its fix and the next price, and no page (owner, 2026-10-21: "this was still not a result for me, only when u have actual animated player models"); plans and explanations stay a few plain lines here. The terminal reply then gives the link and the decisions in a few lines.
 
 ## Rules
 
