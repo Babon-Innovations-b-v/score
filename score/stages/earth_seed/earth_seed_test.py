@@ -157,9 +157,18 @@ def test_the_kit_adapter_is_on_the_loop_and_every_plan_section_is_laid():
     step = next(row for row in shapes_first.rows() if row.name == "kit-sections")
     assert not step.applies("hangar")  # no kit row handed to the loop yet (earth_seed.NOT_HANDED)
     from score.stages.earth_seed import kit_sections
-    assert kit_sections.applies("hangar") and not kit_sections.applies("wreck")  # wreck's plan marks no sections
-    ships = [place for place in ("shiplock", "cockpit", "engineroom") if stages.ship_place(place)]
-    assert ships and not any(kit_sections.applies(place) for place in ships), ships  # their plans mark no sections
+    kept = earth_seed.DESIGN
+    root = with_designs({})  # no locked plan: each kit is its base's, so only the filed plans' sections decide
+    try:
+        assert kit_sections.applies("hangar") and not kit_sections.applies("wreck")  # wreck's plan marks no sections
+        ships = [place for place in ("shiplock", "cockpit", "engineroom") if stages.ship_place(place)]
+        assert ships and not any(kit_sections.applies(place) for place in ships), ships  # their plans mark no sections
+        with_designs({"hangar": {"w": 55.666, "d": 58.613}})  # a locked room the hangar's kit was not laid for
+        assert not kit_sections.applies("hangar")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+        shutil.rmtree(earth_seed.DESIGN, ignore_errors=True)
+        earth_seed.DESIGN = kept
     assert "kit-sections" in assembly.LAYERS
     for path in sorted((REPO / "data/plans").glob("*.json")):
         sections = json.loads(path.read_text()).get("sections", [])
