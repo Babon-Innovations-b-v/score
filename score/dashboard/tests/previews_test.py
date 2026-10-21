@@ -114,22 +114,33 @@ def test_each_kind_draws_a_real_picture(tmp_path):
         assert drawn.width > 100 and colours and len(colours) > 2, kind
 
 
-def test_the_drawer_follows_the_files_not_the_stage(tmp_path, monkeypatch):
-    chosen = []
-    for module, function in ((previews.maps, "plan_picture"), (previews.maps, "settle_picture"),
-                             (previews.swatches, "picture"), (previews.paint, "picture"),
-                             (previews.sheets, "waveforms"), (previews.maps, "positions_picture"),
-                             (previews.maps, "drawn_route"), (previews.checks, "picture"),
-                             (previews.meshes, "picture"), (previews.crops, "picture"), (previews.sheets, "tiles")):
-        real = getattr(module, function)
-        monkeypatch.setattr(module, function, lambda *args, real=real, name=function, **kwargs: (
-            chosen.append(name), real(*args, **kwargs))[1])
+DRAWERS = {"plan": ("maps", "plan_picture"), "settle": ("maps", "settle_picture"),
+           "swatches": ("swatches", "picture"), "paint": ("paint", "picture"), "sound": ("sheets", "waveforms"),
+           "layer": ("maps", "positions_picture"), "positions": ("maps", "positions_picture"),
+           "motion": ("maps", "drawn_route"), "checks": ("checks", "picture"), "meshes": ("meshes", "picture"),
+           "crops": ("crops", "picture"), "tiles": ("sheets", "tiles")}
+
+
+def test_each_kind_reaches_its_own_drawer_by_its_files_not_its_stage(tmp_path, monkeypatch):
+    """The same words for every output: its files alone pick the drawer that draws it (the routes of what a layer
+    moves, a surface check's colour pairs, the models named by hash, the pictures records point at; a tile sheet
+    last)."""
+    drew = []
+
+    def spied(real, drawer):
+        def drawing(*args, **kwargs):
+            answer = real(*args, **kwargs)
+            if answer is not None or drawer[1] == "drawn_route":  # a route is drawn onto axes and returns nothing
+                drew.append(drawer)
+            return answer
+        return drawing
+    for drawer in set(DRAWERS.values()):
+        module = getattr(previews, drawer[0])
+        monkeypatch.setattr(module, drawer[1], spied(getattr(module, drawer[1]), drawer))
     for kind, files in kinds(tmp_path).items():
-        chosen.clear()
+        drew.clear()
         previews.draw(files, PLAN, KNOWN, tmp_path / f"{kind}.png", "same words", (tmp_path / "work",))
-        made = [name for name in chosen if name not in ("picture", "waveforms") or chosen[-1] == name]
-        assert made, kind
-    assert chosen[-1] == "tiles"
+        assert DRAWERS[kind] in drew, (kind, drew)
 
 
 def test_a_picture_is_made_once_and_kept(tmp_path, monkeypatch):
@@ -152,24 +163,6 @@ def test_a_step_with_no_picture_of_its_own_gets_its_preview(world):
     closeup = world.source.step_detail("alpha", "closeup")
     assert previews.PREVIEW_NAME not in [ref.name for ref in closeup.files]
     assert pathlib.Path(world.source.home / "previews").is_dir()
-
-
-def test_each_kind_gets_its_own_drawer(tmp_path):
-    """The routes of what a layer moves, a surface check's colour pairs, the models named by hash, the pictures
-    records point at: each output reaches its own drawer, not a tile sheet."""
-    expected = {"motion": "drawn_route", "checks": "checks", "meshes": "meshes", "crops": "crops"}
-    found = kinds(tmp_path)
-    for kind, drawer in expected.items():
-        chosen = []
-        module = previews.maps if drawer == "drawn_route" else getattr(previews, drawer)
-        function = "drawn_route" if drawer == "drawn_route" else "picture"
-        real = getattr(module, function)
-        setattr(module, function, lambda *args, real=real: (chosen.append(kind), real(*args))[1])
-        try:
-            previews.draw(found[kind], PLAN, KNOWN, tmp_path / f"own-{kind}.png", kind, (tmp_path / "work",))
-        finally:
-            setattr(module, function, real)
-        assert chosen, kind
 
 
 def test_a_model_is_drawn_only_when_its_hash_matches(tmp_path):

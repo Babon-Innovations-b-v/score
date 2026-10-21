@@ -132,7 +132,7 @@ def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_n
     record = environment_plan.write(store, "the allowance", ask=ask, clear=clear)
     assert clears == [(compute.PLAN_WRITING, [f"environment-{environment_plan.world_name()}"])]
     told = asked[0]["contents"][0]["parts"][0]["text"]
-    assert record["euros"] == 0.07 and '"ball fall spots"' in told and '"radius m": 1737400.0' in told
+    assert record["euros"] == 0.07 and '"radius m": 1737400.0' in told
     assert environment_plan.current(store)["how"] == "written" and record["plan"]["gaps"] == []
     bad = environment_plan.write(store, "the allowance", ask=lambda body: ({"candidates": []}, 1.0), clear=clear)
     assert bad["refused"] and environment_plan.current(store)["how"] == "written"

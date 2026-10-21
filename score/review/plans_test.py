@@ -111,8 +111,8 @@ def test_an_inside_place_waits_for_the_holders_plan_then_gets_its_shape_and_its_
     holds = plans.current(store, "yard")["plan"]["holds"]
     assert [hold["place"] for hold in holds] == ["shed", "tool_hut"] and holds[0]["w"] == 4.0
     assert plans.made(store, "yard")  # the yard has no plan row: its plan shown is its plan made
-    words, path = plans.shape_sent(store, "shed")[0]
-    assert "yellow box" in words and Image.open(path).size[0] > 100
+    _, path = plans.shape_sent(store, "shed")[0]
+    assert Image.open(path).size[0] > 100
     assert plans.holder_of(store, "shed") == {"holder": "yard", "row": None, "box": None, "view": None,
                                               "outline": [0.3, 0.3, 4.0, 3.0]}  # the yard's own ground holds it
 

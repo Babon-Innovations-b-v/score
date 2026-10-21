@@ -60,13 +60,6 @@ def stand_in(world, monkeypatch):
     return asked
 
 
-def test_each_card_not_locked_opens_its_concept_review(world, stand_in):
-    html = signed_in().get("/places/").content.decode()
-    assert 'href="/concept/alpha/"' in html
-    page = signed_in("joey2").get("/concept/alpha/")
-    assert page.status_code == 200 and signed_in("joey3").get("/concept/nowhere/").status_code == 404
-
-
 def test_a_places_page_names_the_places_listed_inside_it_that_its_draw_holds(world, stand_in):
     (world.data / "places").mkdir(exist_ok=True)
     (world.data / "places/within.json").write_text(json.dumps({
@@ -102,6 +95,7 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
                       content_type="application/json").status_code == 409
     owner.post("/concept/beta/pick/", json.dumps({"sha": None}), content_type="application/json")
     assert 'href="/concept/beta/"' in owner.get("/places/").content.decode()
+    assert owner.get("/concept/nowhere/").status_code == 404
 
 
 def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wording(world, stand_in):

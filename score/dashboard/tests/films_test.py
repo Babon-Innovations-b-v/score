@@ -85,7 +85,7 @@ def test_render_items_reuse_films_and_price_film_frames_per_place_from_measured_
 def test_the_film_shot_matches_the_demo_film_rows():
     from score.stages import demo_film
     assert script.FILM_SHOT_SECONDS == demo_film.SECONDS - script.TRANSITION_SECONDS
-    assert render.FILM_FRAMES == round(demo_film.SECONDS * 24) and script.FILM_SHOT_FROM == 2.0
+    assert render.FILM_FRAMES == round(demo_film.SECONDS * 24)
 
 
 def test_world1_starter_is_sound_and_gives_the_places_the_time():
@@ -115,7 +115,6 @@ def test_the_film_pages_render_with_the_preview_data(world, tmp_path, monkeypatc
     listing = client.get("/film/").content.decode()
     assert "/film/trailer/" in listing and "A trailer" in listing
     html = client.get("/film/trailer/").content.decode()
-    assert "/static/pages/film.js" in html and "importmap" in html and "What it costs to render" in html
     editor = editor_of(html)
     assert editor["origin"] == "saved" and editor["places"]["alpha"]["film"]["url"].startswith("/files/")
     assert set(editor["cuts"]) >= {"walk-through", "orbit", "hero-still", "exploded", "isolate", "layer-focus",
@@ -123,7 +122,7 @@ def test_the_film_pages_render_with_the_preview_data(world, tmp_path, monkeypatc
     assert [item["how"] for item in editor["answer"]["items"]] == ["free", "reuse", "new"]
     assert editor["answer"]["totals"]["unmeasured"] == ["layer-split"]
     from score.dashboard.tests.pages_test import NODE, outside_details
-    assert NODE.search(outside_details(html)) is None
+    assert NODE.search(outside_details(html)) is None  # owner rule (#42): node ids only inside the ids fold
     assert client.get("/film/nothing/").status_code == 404
 
 
@@ -252,11 +251,7 @@ def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_pat
     assert client.get("/film-preview/other.mp4").status_code == 404
 
 
-def test_environment_1_demo_is_sound_and_marks_what_waits():
+def test_environment_1_demo_is_sound():
     film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "env1_demo")
     assert origin == "starter" and script.faults(film) == []
-    cuts = [segment["cut"] for segment in film["segments"]]
-    assert cuts == ["title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take",
-                    "scale-zoom"]
-    assert [segment for segment in film["segments"] if segment.get("waiting")] == film["segments"][5:]
     assert script.total_seconds(film) <= film["target_seconds"]

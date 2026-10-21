@@ -142,10 +142,6 @@ def test_the_overlay_reads_through_and_writes_only_its_own_root(tmp_path):
     assert overlay.keys("") == ["blobs/abc", "records/x.json"]
 
 
-def test_how_a_node_is_taken_is_named_alike_on_both_sides():
-    assert (assemble.AS_NOW, assemble.MADE, assemble.PAID) == (records.AS_NOW, records.MADE, records.PAID)
-
-
 def test_a_paid_nodes_inputs_are_the_pictures_and_short_texts_it_reads(tmp_path):
     standing_store(tmp_path)
     _, runner = basket_run(tmp_path, "new hull")

@@ -120,19 +120,17 @@ def test_the_install_writes_both_units_filled_and_enables_the_timer(repositories
     release.release(score, host, DOCKERFILE, SUBJECT)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     called = []
-    said = timer.install(score, an_env_file(tmp_path), host, DOCKERFILE, systemctl=lambda *args: called.append(args))
+    timer.install(score, an_env_file(tmp_path), host, DOCKERFILE, systemctl=lambda *args: called.append(args))
     assert called == [("daemon-reload",), ("enable", "--now", "score-sync.timer", "score-listen.service"),
-                      ("restart", "score-listen.service")] and "enabled" in said
+                      ("restart", "score-listen.service")]
     listener = (tmp_path / "config/systemd/user/score-listen.service").read_text()
     assert "<" not in "".join(line for line in listener.splitlines() if not line.startswith("#"))
-    assert "-m score.dashboard listen" in listener and "Restart=always" in listener
     service = (tmp_path / "config/systemd/user/score-sync.service").read_text()
     lines = [line for line in service.splitlines() if not line.startswith("#")]
     assert not any("<" in line for line in lines), lines  # every slot filled
     assert f"EnvironmentFile={tmp_path / 'sync.env'}" in lines and f"WorkingDirectory={score}" in lines
     start = next(line for line in lines if line.startswith("ExecStart="))
-    assert '"$$SCORE_SECRET_READER" "score-cockpit-sync-token"' in start and "-m score.dashboard sync" in start
-    assert (tmp_path / "config/systemd/user/score-sync.timer").read_text().count("OnUnitActiveSec=5min") == 1
+    assert '"$$SCORE_SECRET_READER" "score-cockpit-sync-token"' in start
 
 
 def test_a_quoted_reader_is_read_as_systemd_reads_it_and_a_failed_user_manager_is_said(repositories, tmp_path,

@@ -40,6 +40,7 @@ def imported(path):
             yield node.module
 
 
+# owner rule: nothing in this package imports tools.* or score.adapters (dashboard overlay, "No provider here")
 def test_no_module_imports_tools_the_adapters_or_a_cloud_module():
     cloud = cloud_modules()
     for path in PACKAGE.rglob("*.py"):
@@ -48,6 +49,7 @@ def test_no_module_imports_tools_the_adapters_or_a_cloud_module():
             assert name.split(".")[0] not in cloud, (path, name)
 
 
+# owner rule: no provider named; one is named only by its cost line's label (dashboard overlay, "Numbers, not prose")
 def test_no_file_names_a_provider():
     words = provider_words()
     assert words, "the provider list came out empty: the test would prove nothing"
@@ -57,6 +59,7 @@ def test_no_file_names_a_provider():
             assert not re.search(rf"\b{re.escape(word)}\b", text), (path, word)
 
 
+# owner rule: deploy/ holds templates only, every host and name a <placeholder> (dashboard overlay, public repo)
 def test_deploy_templates_hold_only_placeholders():
     for path in (PACKAGE / "deploy").iterdir():
         text = path.read_text()

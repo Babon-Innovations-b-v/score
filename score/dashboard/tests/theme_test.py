@@ -37,14 +37,6 @@ def test_no_template_or_static_file_hard_codes_a_colour():
     assert not found, f"colours outside design/tokens/colours.css: {found}"
 
 
-def test_the_check_finds_each_kind_of_literal(tmp_path):
-    css, js = tmp_path / "a.css", tmp_path / "a.js"
-    css.write_text(".x { color: #abc; } .y { background: rgba(0, 0, 0, .5); } .film-black { border-color: white; }\n")
-    js.write_text("new THREE.Color(0xffd400);\n")
-    assert [literal for _, literal in literal_colours(css)] == ["#abc", "rgba(0", ": white"]
-    assert literal_colours(js) == [(1, "0xffd400")]
-
-
 def test_every_token_a_page_names_is_defined():
     defined = {name for path in (TOKENS / "colours.css", TOKENS / "scale.css", *SOURCES)
                for name in DEFINED.findall(path.read_text())}

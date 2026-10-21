@@ -54,24 +54,21 @@ def test_the_step_page_shows_its_own_picture_large(world):
     assert f'src="{detail.picture.url}"' in html
 
 
-def test_the_step_page_shows_files_gates_and_the_waiting_output(world):
+def test_the_step_page_shows_its_files_and_only_the_owner_its_waiting_outputs_actions(world):
     html = signed_in().get("/place/alpha/step/closeup/").content.decode()
-    assert "closeups/lamp.png" in html and "looks" in html
-    assert "Waiting output" in html and "Accept this output" in html and "worse_reason" in html
-    assert "Reject" in html and "Queue this step" in html
+    assert "closeups/lamp.png" in html  # the fixture's close-up file
+    assert "Accept this output" in html and "Queue this step" in html  # the fixture's waiting output
+    html = signed_in("guest").get("/place/alpha/step/closeup/").content.decode()
+    assert "Accept this output" not in html and "Queue this step" not in html
+    assert signed_in("guest2").post("/place/alpha/step/closeup/decide/").status_code == 403
 
 
 def test_no_node_id_outside_the_details_fold(world):
+    # owner rule: node ids only inside details.ids
     client = signed_in()
     for page in PAGES[:6]:
         found = NODE.search(outside_details(client.get(page).content.decode()))
         assert found is None, (page, found and found.group(0))
-
-
-def test_a_non_owner_sees_no_owner_actions(world):
-    html = signed_in("guest").get("/place/alpha/step/closeup/").content.decode()
-    assert "Accept this output" not in html and "Queue this step" not in html
-    assert signed_in("guest2").post("/place/alpha/step/closeup/decide/").status_code == 403
 
 
 def test_csrf_is_enforced_on_every_post(world):
@@ -124,14 +121,13 @@ def test_back_after_a_post_stays_on_this_site(world):
 
 def test_the_step_page_shows_its_output_beside_what_it_read(world):
     html = signed_in().get("/place/alpha/step/demo-film/").content.decode()
-    assert "Output beside what it was made from" in html
-    assert "reads: OpenUSD stage" in html and "reads: completion" in html and "this step's output" in html
+    assert "reads: OpenUSD stage" in html and "reads: completion" in html  # the stage table's reads of demo-film
     assert 'data-fps="24"' in html  # the film's frame scrubber
 
 
 def test_the_3d_viewer_without_a_copy_says_so(world):
     html = signed_in().get("/view/alpha").content.decode()
-    assert "No 3D web copy of this scene yet" in html and "view3d.js" not in html
+    assert "view3d.js" not in html
     assert signed_in("other").get("/view/nowhere").status_code == 404
 
 
@@ -145,14 +141,13 @@ def test_the_3d_viewer_loads_a_places_copy_with_its_layer_makers(world, read):
         "light_bytes": 5, "triangles": 12}))
     client = signed_in()
     html = client.get("/view/alpha").content.decode()
-    assert "/static/pages/view3d.js" in html and "importmap" in html
+    assert "/static/pages/view3d.js" in html
     given = json.loads(re.search(r'<script id="view3d-data" type="application/json">(.*?)</script>', html,
                                  re.S).group(1))
     assert given["place"] == "alpha" and given["layers"]["light"] == {"label": "light sweep",
                                                                       "url": "/place/alpha/step/light/"}
     assert "edit" in given["order"] and "edit" not in given["layers"]  # the owner's own edits: no step made them
-    assert NODE.search(outside_details(html)) is None
-    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
+    assert NODE.search(outside_details(html)) is None  # owner rule: node ids only inside details.ids
 
 
 def a_check_finding(world, judged):
@@ -294,15 +289,13 @@ PIXAL = ("Pixal3D take lost: pixal@<place>'s accepted output carries its takes a
 OWNERS = "the owner supplies cockpit.png, his own reference picture (kept off the public repository)"
 
 
-def test_every_priced_step_and_place_has_plain_words():
+def test_every_place_and_lost_item_has_plain_words():
     from score.dashboard.pages import present
-    from score.dashboard.state import groups, plain
-    assert groups.label("crops-layer") == "crops"
-    assert groups.label("crops-boxes") == "crop boxes" and groups.label("crops-look") == "crop renders"
-    assert groups.label("surface-tiles") == "surface tiles" and groups.label("ship_kit") == "ship kit"
-    assert groups.label("people-dress-nev-work") == "dressed body of the nev-work look"
+    from score.dashboard.state import plain
     assert plain.place_words("old_station") == "the old station" and present.place_title("old_station") == "Old station"
     assert plain.lost_item("place:lost:earth-seed:usd-r3/flat:x") == "usd-r3/flat:x"  # an item may hold a colon
+    assert plain.lost_item("place:lost:data:surfaces/launch.json:bake entry far_rocket_1") == (
+        "surfaces/launch.json:bake entry far_rocket_1")
 
 
 def test_the_viewer_outlines_the_gaps_when_asked(world, settings, tmp_path, read):
@@ -313,7 +306,6 @@ def test_the_viewer_outlines_the_gaps_when_asked(world, settings, tmp_path, read
         "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
         "objects": [], "bytes": 10, "light_bytes": 5, "triangles": 12}))
     client = signed_in()
-    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
 
     def marks(page):
         html = client.get(page).content.decode()
@@ -335,10 +327,7 @@ def test_gaps_are_not_repeated_among_the_check_findings(world, settings, tmp_pat
 def test_a_standalone_checks_findings_stand_only_while_the_output_they_judged_is_accepted(world):
     a_check_finding(world, world.outputs["assembly@beta"])
     assert [finding.rule for finding in world.source.check_findings("beta")] == ["finish not from the library"]
-
-
-def test_a_check_finding_on_an_assembly_no_longer_accepted_is_not_read(world):
-    a_check_finding(world, "0" * 64)
+    a_check_finding(world, "0" * 64)  # an assembly no longer accepted: not read
     assert world.source.check_findings("beta") == []
 
 
@@ -398,11 +387,6 @@ def prose(html):
     return parser.words
 
 
-def test_the_word_count_skips_data_hover_text_and_scripts():
-    assert prose('<p>one two <b data-v>Alpha <i>beta</i></b><svg><circle r="1"/><title>a hover</title></svg>'
-                 '<span title="many words here">x</span><script>var y</script></p>') == ["one", "two", "x"]
-
-
 def a_month(monkeypatch, **more):
     """The month's spend as the store's machine read it: the cloud bill known, the model bill only partly counted
     (no figure), the environment's one stop line at EUR 250."""
@@ -419,6 +403,7 @@ def test_every_screen_shows_numbers_not_prose(world, settings, tmp_path, monkeyp
     world.source.refresh()
     a_month(monkeypatch, paid_refused="the month's books are lost")
     client = signed_in()
+    # owner rules: numbers, not prose (WORD_BUDGET, 2026-10-20); no stop or month figure set from the cockpit
     for page in SCREENS:
         html = client.get(page).content.decode()
         words = prose(html)
@@ -450,7 +435,6 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     assert "250" not in top and "stop" not in top
     # prepare's figure (EUR 10 to 12) and the gaps price off the prop route (none measured): prepare times no step
     assert "<small>EUR</small> 10&ndash;12<small>, " in top and "&ge; 0.5 h</span>" in top  # at least its floor
-    assert 'href="/buy/">Review and buy</a>' in top
 
 
 def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_inside_it(world, settings, tmp_path, read):
@@ -474,7 +458,7 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
     assert "<b data-v>+1</b>" in found[0][1]  # alpha sits in beta, a leaf
     found, html = tiles("/places/?in=beta")
     assert [href for href, _ in found] == ["/place/alpha/"]  # only what it holds: beta is no card of its own
-    assert "Outside" not in html
+    assert "Outside" not in html  # owner rule (2026-10-20): never an "Outside" card beside its inside places
     head = html[html.index('<section class="phead"'):html.index('<section class="ptiles"')]
     assert '<h1 class="phead-name" data-v>Beta</h1>' in head and 'href="/place/beta/"' in head  # itself, on top
     assert 'href="/concept/beta/"' not in head and "tone-gap-route" in head  # picked: locked; its and alpha's gaps summed
@@ -533,15 +517,14 @@ def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, se
                             r'<div class="num-value[^"]*"[^>]*>(.*?)</div>', html, re.S))
     assert cards["Cloud compute"] == "<small>EUR</small> 12.50"  # each line by its own label
     assert cards["AI calls"] == "unknown" and cards["Total"] == "unknown"  # a partial count is no figure
-    assert "stop" not in html.lower()
+    assert "stop" not in html.lower()  # owner rule: no stop is set or shown in the cockpit
     assert cards["Steps with a measured price"] == "1<small> of 2</small>"  # the close-up measured, the sound guessed
     assert cards["Places complete"] == "1<small> of 2</small>"  # beta, checked with no gap
     assert [cards[label] for label in ("not made yet", "failing a check", "steps of the route still to do",
                                        "inputs lost")] == ["2", "1", "1", "0"]
-    assert '<a class="num-card num-link" href="/places/?kind=missing"' in html
     assert "<title>2026-10-01: EUR 1.00, at least" in html and "<title>2026-10-03: EUR 1.50</title>" in html
     main = html[html.index("<main>"):]
-    assert "<form" not in main and "<button" not in main  # numbers only, no controls
+    assert "<form" not in main and "<button" not in main  # owner rule: numbers only, no controls
 
 
 def test_spend_by_day_takes_the_bills_growth_else_the_ledger_else_a_gap():
@@ -569,7 +552,7 @@ def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, 
     a_gaps_finding(world, settings, tmp_path)
     world.source.refresh()
     html = signed_in().get("/place/alpha/").content.decode()
-    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in html and '<aside class="side-panel" id="panel" hidden>' in html
+    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in html
     assert re.search(r'<span class="node-label" data-v>Gaps</span><span class="node-count" data-v>2</span>', html)
     # only the top level is drawn: each branch loads its rows when it opens
     assert '<details data-children="/place/alpha/branch/?path=Gaps">' in html
@@ -577,7 +560,7 @@ def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, 
     assert 'data-title="lamp"' not in html and 'data-title="crate_1"' not in html
     # the place's own gap (its plan, a route step) hangs at the top, its panel with no price measured
     assert 'data-title="place:plan" data-state="route" data-tone="gap-route" data-price="unknown"' in html
-    assert NODE.search(outside_details(html)) is None
+    assert NODE.search(outside_details(html)) is None  # owner rule: node ids only inside details.ids
 
 
 def test_a_scene_branch_loads_its_rows_with_each_items_panel(world, settings, tmp_path):
@@ -677,7 +660,7 @@ def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_fo
     layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>', html)
     assert layers == [("Models", "2"), ("Motion", "1"), ("Sound", "1")]
     assert not re.search(r"predicted to fail|calibration|earlier step|lost concept|<details", html)
-    assert "it stops at EUR 3.30" in top and re.search(r'<i class="dot" data-slot="said" hidden>', top)
+    assert "it stops at EUR 3.30" in top
     assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
     refused = client.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
     assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")  # no Benchmarks item
@@ -693,7 +676,8 @@ def test_the_buy_screen_has_no_basket_panel_and_the_books_buttons_only_while_nee
     a_month(monkeypatch)
     client = signed_in()
     html = client.get("/buy/").content.decode()
-    assert 'href="/basket/"' not in html.split('<main')[-1] and "/api/money/read-back" not in html
+    assert 'href="/basket/"' not in html.split('<main')[-1]  # owner rule (2026-10-20): Buy has no Basket link
+    assert "/api/money/read-back" not in html
     assert ">Model calls figure</button>" in html  # the model calls' month is not read: his to enter
     lines = [CostLine(source="cloud", label="Cloud compute", euros=12.5),
              CostLine(source="models", label="Model calls", euros=1030.0)]

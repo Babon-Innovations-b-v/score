@@ -1,6 +1,6 @@
 """The money data: the month's cost one line per source as the runner read it, a total that says it is not whole while
-a line is partial or missing, the environment against the stop the last batch's yes wrote (no stop is set from the
-cockpit), and a hosted page never getting a broken picture."""
+a line is partial or missing, each read keeping its day, the environment against the stop the last batch's yes wrote
+(no stop is set from the cockpit), and a hosted page never getting a broken picture."""
 import pytest
 from django.test import override_settings
 
@@ -46,7 +46,20 @@ def test_the_runners_whole_lines_make_the_month_whole_against_the_last_batchs_st
     assert (shown.stop, shown.world_spent, shown.in_flight) == (900.0, 120.0, 30.0)
 
 
+def test_each_read_of_the_month_keeps_its_day_so_the_stats_show_how_the_month_grew(tmp_path):
+    import datetime
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    read = Spend(month=today[:7], lines=[
+        CostLine(source="cloud", label="Cloud compute", euros=2118.87, origin="the cloud bill"),
+        CostLine(source="models", label="Model calls", euros=None, partial=True, origin="no rows yet")])
+    first = money.with_bill_days(read, tmp_path)
+    assert first.bill_days == [{"day": today, "cloud": 2118.87, "models": None}]
+    unread = read.model_copy(update={"lines": []})
+    assert money.with_bill_days(unread, tmp_path).bill_days == first.bill_days  # a line not read keeps the day's
+
+
 def test_anyone_signed_in_reads_the_money_and_no_stop_or_cost_is_set_from_the_cockpit(world):
+    # owner rule: no stop or cost is set from the cockpit
     owner = api("joey")
     MoneyView.model_validate(owner.get("/api/money").json())
     for route in ("/api/money/owner-costs", "/api/money/stop", "/api/money/month"):

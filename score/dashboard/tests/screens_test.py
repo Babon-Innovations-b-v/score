@@ -257,17 +257,6 @@ def test_a_library_with_no_blob_folder_reads_its_pictures_from_the_store_sides_c
     assert bare.blob(alpha.picture) == kept and bare.picture_path(alpha.picture, 64).is_file()
 
 
-def test_each_read_of_the_month_keeps_its_day_so_the_stats_show_how_the_month_grew(tmp_path):
-    import datetime
-
-    from score.dashboard.state import money
-    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-    first = money.with_bill_days(MONTH.model_copy(update={"month": today[:7]}), tmp_path)
-    assert first.bill_days == [{"day": today, "cloud": 2118.87, "models": None}]
-    unread = MONTH.model_copy(update={"month": today[:7], "lines": []})
-    assert money.with_bill_days(unread, tmp_path).bill_days == first.bill_days  # a line not read keeps the day's
-
-
 def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_read_from_its_picked_concept(world):
     from score.dashboard.tests import fixture
     from score.dashboard.tests.pages_test import signed_in

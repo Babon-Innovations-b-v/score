@@ -135,26 +135,19 @@ def test_an_owners_reject_moves_the_accepted_output_back_and_the_runner_never_ta
     assert store.accepted("tally@hangar") == second
 
 
-def test_the_reject_command_refuses_without_the_owners_terminal():
+def test_the_owners_commands_refuse_without_his_terminal():
     store, _, output = made(1)
-    found = subprocess.run([sys.executable, "-m", "score.review", "reject", "tally@hangar", output, "--reason", "x"],
-                           cwd=REPO, capture_output=True, text=True, stdin=subprocess.DEVNULL,
-                           env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
-    assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
+    for words in (["reject", "tally@hangar", output, "--reason", "x"], ["accept", "tally@hangar", output],
+                  ["waive", "tally@hangar", "k", "faults", "--reason", "x"]):
+        found = subprocess.run([sys.executable, "-m", "score.review", *words], cwd=REPO, capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL, env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
+        assert found.returncode != 0 and "only the owner" in found.stderr, (words, found.stderr)
 
 
 def test_a_failed_output_page_offers_no_accept():
     store, _, _ = made(9)
     text = review.page(store, "tally@hangar").read_text()
     assert "It cannot be accepted" in text and "Accept button" not in text
-
-
-def test_the_accept_command_refuses_without_the_owners_terminal():
-    store, _, output = made(1)
-    found = subprocess.run([sys.executable, "-m", "score.review", "accept", "tally@hangar", output], cwd=REPO,
-                           capture_output=True, text=True, stdin=subprocess.DEVNULL,
-                           env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
-    assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
 
 
 def test_a_waived_gate_lets_its_output_be_accepted_for_that_key_only():
@@ -173,12 +166,6 @@ def test_a_waived_gate_lets_its_output_be_accepted_for_that_key_only():
     assert "answered fail" in refusal(lambda: review.accept(store, "tally@hangar", later, "owner"))
 
 
-def test_the_waive_command_refuses_without_the_owners_terminal():
-    store, _, output = made(5)
-    found = subprocess.run([sys.executable, "-m", "score.review", "waive", "tally@hangar", "k", "faults",
-                            "--reason", "x"], cwd=REPO, capture_output=True, text=True, stdin=subprocess.DEVNULL,
-                           env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
-    assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
 
 def test_an_accepted_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks():
     """The got-worse comparison is a gate an accepted gap moves its objects' faults from (overseer 2026-10-16;
