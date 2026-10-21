@@ -393,14 +393,23 @@ def feet_checked(row):
 def paint_files(place):
     """The paint's environment files: the line's, and the inventory of each place a take is made for with the resting rules,
     which it reads to tell a take laid loose on the floor or held, whose feet it levels (place_line.stands_on_feet)."""
-    import stage_inputs  # tools/usd, on the path by the assembly stage's import: a place's inventory, or its kit's
-    inventories = {f"inventory {entry['place']}": "{data}/inventory/" + stage_inputs.inventory_path(entry["place"]).name
+    inventories = {f"inventory {entry['place']}": paint_inventory(entry["place"])
                    for entry in surfaces.data.takes(place).values()}
     claiming = {other for found in surfaces.place_line.claimants(place).values() for other, _ in found}
-    inventories.update({f"inventory {other}": "{data}/inventory/" + stage_inputs.inventory_path(other).name
+    inventories.update({f"inventory {other}": paint_inventory(other)
                         for other in claiming})  # a claimant's rows stand the take too (place_line.claimed_rows)
     inventories.update({f"claimant {other}": surfaces.data.pattern(other) for other in claiming})
     return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json"}
+
+
+def paint_inventory(place):
+    """The scene inventory the paint reads a place's rows from: a designed place's hand-in (prop_data.designed, its
+    rows read from its locked concept, as scene_inventory_read gives props-inputs), else its old inventory, or that
+    of the place its kit belongs to (tools/usd/stage_inputs.inventory_path)."""
+    if prop_data.designed(place):
+        return prop_data.pattern(place)
+    import stage_inputs  # tools/usd, on the path by the assembly stage's import
+    return "{data}/inventory/" + stage_inputs.inventory_path(place).name
 
 
 
