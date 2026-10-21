@@ -184,7 +184,8 @@ def preview_of(film):
 
 def editor_data(request, film_script, origin, source, known):
     """What the editor's script reads (json_script): the script, the words and defaults, every place (`known`)."""
-    return {"script": film_script, "origin": origin, "cuts": script.CUTS, "transitions": script.TRANSITIONS,
+    return {"script": film_script, "origin": origin, "cuts": script.CUTS, "groups": script.GROUPS,
+            "measured": compiler.MEASURED, "transitions": script.TRANSITIONS,
             "sounds": script.SOUNDS, "steps": script.STEPS, "stack": STACK_ORDER,
             "transition_seconds": script.TRANSITION_SECONDS, "film_shot_from": script.FILM_SHOT_FROM,
             "film_shot_seconds": script.FILM_SHOT_SECONDS, "places": known,
@@ -202,7 +203,7 @@ def film_page(request, film):
     source = state.source()
     known = media_of(source, source.places())
     return render(request, "pages/film.html", {
-        "film": film_script, "origin": origin, "measured": compiler.MEASURED, "preview": preview_of(film),
+        "film": film_script, "origin": origin, "preview": preview_of(film),
         "locked": script.locked(settings.SCORE_HOME, film) is not None,
         "default": film == script.default_name(settings.SCORE_REPO, settings.SCORE_HOME, WORLD),
         "editor": {**editor_data(request, film_script, origin, source, known),

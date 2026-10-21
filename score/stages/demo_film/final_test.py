@@ -77,7 +77,7 @@ def test_world1s_script_is_paced_and_names_the_cuts_no_row_makes_yet():
     kept = final.DASHBOARD
     locked_in(pathlib.Path(tempfile.mkdtemp()), ("k9", k9))
     try:
-        assert len(final.shown_places()) == 25 and final.film_node(
+        assert len(final.shown_places()) == 24 and final.film_node(
             {"shows": {"place": "hangar", "film": "hull"}}) == ("demo-film-extra@hangar", "hull")
     finally:
         final.DASHBOARD = kept

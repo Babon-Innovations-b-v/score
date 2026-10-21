@@ -5,11 +5,11 @@
  "title": "SCORE: Environment 1",
  "world": "world1",
  "default": true,
- "target_seconds": 70,
+ "target_seconds": 95,
  "size": [1280, 720],
  "rate": 24,
  "bed": "sound/base_hum",
- "why": "Environment 1's demo film (the owner's script of 2026-10-21): the app's own steps in its own windows, then one unbroken shot from the Solar System down into the Base's rooms. Segments 5 and 6 wait on what is not made yet (see each one's `waiting`): the preview shows what exists in their place.",
+ "why": "Environment 1's demo film (the owner's script of 2026-10-21): the app's own steps in its own windows, then one unbroken shot from the Solar System down into the Base's rooms and a walk through each of them (the default film, completed 2026-10-21: every segment names its scene, the physics animation 12 s so Earth goes nearly once round the Sun). Segments 5 and 6 wait on what is not made yet (see each one's `waiting`): the preview shows what exists in their place.",
  "defaults": {},
  "segments": [
   {
@@ -40,11 +40,11 @@
    "shows": {"world": "world1"},
    "transition": "cross-fade",
    "sound": "bed",
-   "seconds": 4.5,
+   "seconds": 12.0,
    "days_per_second": 30,
    "surfaces": {"earth": "earth_face", "moon": "moon_regolith", "mars": "mars_regolith"},
    "note": "sizes and the Moon's orbit enlarged to read",
-   "captions": [{"from": 0.5, "to": 4.3, "line": "Physics animation", "text": "Their real orbits, 30 days a second"}]
+   "captions": [{"from": 0.5, "to": 11.7, "line": "Physics animation", "text": "Their real orbits: 360 days in 12 s"}]
   },
   {
    "cut": "screen-take",
@@ -131,6 +131,9 @@
     {"from": 11.7, "to": 16.2, "line": "Place", "text": "The Base from outside, its concept beside it"},
     {"from": 16.6, "to": 21.8, "line": "Rooms", "text": "Inside: the hub, the greenhouse, the lab"}
    ]
-  }
+  },
+  {"cut": "walk-through", "shows": {"place": "hub"}, "transition": "cross-fade", "sound": "place", "seconds": 7.0, "line": "Inside", "text": "The hub", "waiting": "the finished room and its film (the batch): until then the preview shows its name"},
+  {"cut": "walk-through", "shows": {"place": "greenhouse"}, "transition": "cross-fade", "sound": "place", "seconds": 7.0, "line": "Inside", "text": "The greenhouse", "waiting": "the finished room and its film (the batch): until then the preview shows its name"},
+  {"cut": "walk-through", "shows": {"place": "lab"}, "transition": "cross-fade", "sound": "place", "seconds": 7.0, "line": "Inside", "text": "The lab", "waiting": "the finished room and its film (the batch): until then the preview shows its name"}
  ]
 }

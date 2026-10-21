@@ -194,17 +194,6 @@
   {
    "cut": "walk-through",
    "shows": {
-    "place": "launch"
-   },
-   "transition": "cross-fade",
-   "sound": "place",
-   "text": "The launch view",
-   "line": "Prologue",
-   "seconds": 7.0
-  },
-  {
-   "cut": "walk-through",
-   "shows": {
     "place": "hub"
    },
    "transition": "cross-fade",

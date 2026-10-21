@@ -1,7 +1,9 @@
-// The FILM page (score/dashboard/films): the film script's editor and its free preview. The editor keeps the script
-// as the JSON it is saved as; the preview plays it on the places' 3D web copies (/web/<place>/), their accepted films
-// and the pictures their steps made, with three.js for the walk-throughs, orbits, exploded views, isolates, layer
-// focus and layer splits. Nothing here is rendered on a paid machine.
+// The FILM page (score/dashboard/films): the film script's editor and its free preview, a cockpit like the design
+// page (one screen: the player and the storyboard as panels, the chosen segment's editor, the cost and the lock in
+// the rail). The editor keeps the script as the JSON it is saved as, saved on its own after every change; the preview
+// plays it on the places' 3D web copies (/web/<place>/), their accepted films, the pictures their steps made and the
+// rendered free preview's takes, with three.js for the walk-throughs, orbits, exploded views, isolates, layer focus
+// and layer splits. Nothing here is rendered on a paid machine.
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
@@ -11,7 +13,7 @@ const given = JSON.parse(document.getElementById("film-data").textContent);
 const doc = given.script;
 const $ = (id) => document.getElementById(id);
 const WIDTH = 960, HEIGHT = 540;
-const GHOST = 0.1, WALK_SPEED = 0.6, CAPTION_IN = 0.4;
+const GHOST = 0.1, WALK_SPEED = 0.6, CAPTION_IN = 0.4, SAVE_AFTER = 700;
 const STEP_ORDER = [...Object.keys(given.steps), "place"];
 let selected = 0, dirty = false, answer = given.answer;
 
@@ -59,76 +61,126 @@ function timeline() {
 
 const totalSeconds = () => timeline().reduce((most, slot) => Math.max(most, slot.end), 0);
 
-// --- the editor -------------------------------------------------------------------------------------------------
+// --- the storyboard ---------------------------------------------------------------------------------------------
 
 function placeOf(segment) { return (segment.shows || {}).place; }
 function mediaOf(place) { return given.places[place] || null; }
+const placeName = (place) => (mediaOf(place) ? mediaOf(place).words : (given.shells || {})[place] || place);
 
-function segmentPicture(segment) {
-  const media = mediaOf(placeOf(segment));
-  return media && media.hero ? media.hero.thumb : null;
-}
-
+// What a segment shows, in a few words: its scene, its page's section, its card's words.
 function segmentWords(segment) {
   const shows = segment.shows || {};
-  const media = mediaOf(shows.place);
-  const where = media ? media.words : "the whole environment";
-  if (segment.cut === "step-card") return `${given.steps[shows.step] || "a step"}: ${where}`;
+  const where = shows.place ? placeName(shows.place) : null;
+  if (segment.cut === "title" || segment.cut === "text") return segment.text || given.cuts[segment.cut].label;
+  if (segment.cut === "screen-take") {
+    const first = (segment.captions || [])[0];
+    return first ? first.line.replace(/^\d+\s*·\s*/, "") : shows.page || "a page";
+  }
+  if (segment.cut === "setting-animation") return "the physics";
+  if (segment.cut === "scale-zoom") return `down to ${where || "a scene"}`;
+  if (!where) return "choose a scene";
+  if (segment.cut === "step-card") return `${where}: ${given.steps[shows.step] || "a step"}`;
   if (segment.cut === "layer-focus") return `${where}: ${shows.layer || "a layer"}`;
   if (segment.cut === "isolate") return `${where}: ${(shows.part || "a part").split("/").pop()}`;
-  if (segment.cut === "title" || segment.cut === "text") return segment.text || given.cuts[segment.cut].label;
-  if (segment.cut === "screen-take") return `${shows.page || "a page"}`;
-  if (segment.cut === "setting-animation") return "the physics";
-  if (segment.cut === "scale-zoom") return `down to ${media ? media.words : (given.shells || {})[shows.place] || shows.place || "a scene"}`;
-  return shows.film ? `${where}: ${shows.film}` : where;
+  return where;
+}
+
+// The rendered free preview's take of a segment: the preview's segment that is this very one (any place in it).
+function previewIndex(segment) {
+  const preview = given.preview;
+  if (!preview) return -1;
+  const wanted = stable(segment);
+  return preview.script.segments.findIndex((then) => stable(then) === wanted);
+}
+
+// Thumbnails: a frame from the middle of each segment's take in the rendered preview, else the scene's hero picture.
+const thumbs = new Map();
+let thumbVideo = null, thumbQueue = Promise.resolve();
+function thumbOf(segment) {
+  const index = previewIndex(segment);
+  if (index < 0) { const media = mediaOf(placeOf(segment)); return Promise.resolve(media && media.hero ? media.hero.thumb : null); }
+  if (!thumbs.has(index)) {
+    thumbs.set(index, thumbQueue = thumbQueue.then(() => new Promise((resolve) => {
+      thumbVideo = thumbVideo || Object.assign(element("video"), { muted: true, preload: "metadata", src: given.preview.url });
+      const slot = given.preview.segments[index];
+      const grab = () => {
+        const canvas = element("canvas");
+        canvas.width = 320;
+        canvas.height = 180;
+        canvas.getContext("2d").drawImage(thumbVideo, 0, 0, 320, 180);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      thumbVideo.addEventListener("seeked", grab, { once: true });
+      thumbVideo.addEventListener("error", () => resolve(null), { once: true });
+      thumbVideo.currentTime = slot.start + Math.min(slot.seconds * 0.5, 3);
+    })));
+  }
+  return thumbs.get(index);
+}
+
+// A segment's faults the page can tell at once (the server's check says the rest when it saves).
+function wants(segment) {
+  const cut = given.cuts[segment.cut], shows = segment.shows || {};
+  return cut.needs.filter((need) => need !== "world" && !shows[need]).map((need) => `choose its ${need === "place" ? "scene" : need}`);
+}
+
+function drawTimeline() {
+  const holder = $("timeline");
+  const slots = timeline(), editable = given.can_save && !given.locked;
+  $("board-count").textContent = `${doc.segments.length} segments`;
+  holder.replaceChildren(...doc.segments.map((segment, index) => {
+    const card = element("button", "film-card" + (index === selected ? " on" : "") + (index === player.highlighted ? " playing" : ""));
+    card.type = "button";
+    card.dataset.cut = segment.cut;
+    card.draggable = editable;
+    const frame = element("span", "film-card-pic");
+    frame.append(element("span", "film-card-num", String(index + 1)), element("span", "film-card-len", `${slots[index].length.toFixed(1).replace(/\.0$/, "")} s`));
+    thumbOf(segment).then((url) => { if (url) frame.style.backgroundImage = `url("${url}")`; });
+    const missing = wants(segment);
+    if (missing.length) { card.classList.add("wants"); card.title = missing.join(", "); }
+    else if (segment.waiting) card.title = `stands in until made: ${segment.waiting}`;
+    card.append(frame, element("b", "film-card-cut", given.cuts[segment.cut].label), element("span", "film-card-scene", segmentWords(segment)));
+    card.onclick = () => choose(index);
+    if (editable) {
+      card.ondragstart = (event) => { event.dataTransfer.setData("text/plain", String(index)); card.classList.add("dragged"); };
+      card.ondragend = () => card.classList.remove("dragged");
+      card.ondragover = (event) => { event.preventDefault(); card.classList.add("over"); };
+      card.ondragleave = () => card.classList.remove("over");
+      card.ondrop = (event) => { event.preventDefault(); moveSegment(Number(event.dataTransfer.getData("text/plain")), index); };
+    }
+    return card;
+  }));
+  holder.querySelector(".film-card.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+function choose(index) {
+  selected = index;
+  drawTimeline();
+  drawInspector();
+  player.seek(timeline()[index].start + given.transition_seconds);
 }
 
 function changed() {
   dirty = true;
-  const save = $("save");
-  if (save && !given.locked) { save.disabled = false; save.textContent = "Save"; }
   drawTimeline();
   drawLength();
   player.reset();
-  compileSoon();
+  if (given.can_save && !given.locked) saveSoon(); else compileSoon();
 }
 
 function drawLength() {
   const total = totalSeconds(), target = Number(doc.target_seconds || 0);
   const box = $("length");
-  box.replaceChildren();
-  box.append(element("b", "", clockWords(total)), target ? ` of ${clockWords(target)}` : "");
-  if (target) {
-    const meter = element("span", "film-meter" + (total > target ? " over" : ""));
-    const fill = element("i");
-    fill.style.width = `${Math.min(100, 100 * total / target)}%`;
-    meter.append(fill);
-    box.append(meter, element("span", "small soft", total > target ? `${(total - target).toFixed(1)} s over` : `${(target - total).toFixed(1)} s left`));
-  }
-}
-
-function drawTimeline() {
-  const holder = $("timeline");
-  const slots = timeline(), total = Math.max(totalSeconds(), 1);
-  holder.replaceChildren(...doc.segments.map((segment, index) => {
-    const block = element("button", "film-block" + (index === selected ? " on" : ""));
-    block.type = "button";
-    block.style.flexGrow = String(slots[index].length);
-    block.style.minWidth = `${Math.max(56, 900 * slots[index].length / total)}px`;
-    block.draggable = true;
-    block.dataset.cut = segment.cut;
-    const picture = segmentPicture(segment);
-    const frame = element("span", "film-block-pic");
-    if (picture) frame.style.backgroundImage = `url("${picture}")`;
-    frame.append(element("span", "film-block-cut", given.cuts[segment.cut].label));
-    block.append(frame, element("span", "film-block-words", segmentWords(segment)),
-                 element("span", "film-block-seconds", `${slots[index].length.toFixed(1)} s`));
-    block.onclick = () => { selected = index; drawTimeline(); drawInspector(); player.seek(slots[index].start + given.transition_seconds); };
-    block.ondragstart = (event) => { event.dataTransfer.setData("text/plain", String(index)); };
-    block.ondragover = (event) => event.preventDefault();
-    block.ondrop = (event) => { event.preventDefault(); moveSegment(Number(event.dataTransfer.getData("text/plain")), index); };
-    return block;
-  }));
+  box.replaceChildren(element("b", "", clockWords(total)));
+  box.title = target ? `the film's length against its target of ${clockWords(target)}` : "the film's length";
+  if (!target) return;
+  box.append(element("span", "soft", ` of ${clockWords(target)}`));
+  const meter = element("span", "film-meter" + (total > target + 1e-6 ? " over" : ""));
+  const fill = element("i");
+  fill.style.width = `${Math.min(100, 100 * total / target)}%`;
+  meter.append(fill);
+  box.append(meter);
+  if (total > target + 1e-6) box.append(element("span", "small bad", `${(total - target).toFixed(1)} s over`));
 }
 
 function moveSegment(from, to) {
@@ -139,6 +191,8 @@ function moveSegment(from, to) {
   changed();
   drawInspector();
 }
+
+// --- the segment editor (the rail) ------------------------------------------------------------------------------
 
 function field(label, control) {
   const row = element("label", "film-field");
@@ -167,9 +221,10 @@ function textInput(value, onType, placeholder) {
   return input;
 }
 
-function placeOptions() {
-  return [...Object.values(given.places).map((media) => [media.place, media.words + (media.web3d ? "" : " (no 3D copy)")]),
-          ...Object.entries(given.shells || {}).map(([shell, words]) => [shell, words])];
+function placeOptions(cut) {
+  const scenes = Object.values(given.places).map((media) => [media.place, media.words + (media.web3d || cut !== "walk-through" ? "" : " (no 3D copy)")]);
+  const shells = cut === "scale-zoom" ? Object.entries(given.shells || {}) : [];
+  return [...shells, ...scenes].sort((one, other) => one[1].localeCompare(other[1]));
 }
 
 async function sidecarOf(place) {
@@ -190,8 +245,9 @@ function setShows(segment, key, value) {
 
 async function cameraField(segment) {
   const sidecar = await sidecarOf(placeOf(segment));
-  const options = [["", "the film's own start"], ...((sidecar && sidecar.cameras) || []).map((view) => [view.name, view.name])];
-  return field("Camera", choice(options, segment.camera || "", (value) => {
+  const views = (sidecar && sidecar.cameras) || [];
+  if (!views.length) return null;
+  return field("Camera", choice([["", "the film's own start"], ...views.map((view) => [view.name, view.name])], segment.camera || "", (value) => {
     if (value) segment.camera = value; else delete segment.camera;
     changed();
   }));
@@ -205,7 +261,7 @@ async function partField(segment) {
   list.append(...names.map((name) => { const option = element("option"); option.value = name; return option; }));
   const input = textInput(segment.shows.part, (value) => setShows(segment, "part", value), "Objects/...");
   input.setAttribute("list", "film-parts");
-  const row = field(`Part (${names.length} in the copy)`, input);
+  const row = field("Part", input);
   row.append(list);
   return row;
 }
@@ -217,9 +273,9 @@ function layerField(segment) {
                                (value) => setShows(segment, "layer", value)));
 }
 
-async function stepField(segment) {
-  return field("Framework step", choice(Object.entries(given.steps), segment.shows.step || "",
-                                        (value) => { setShows(segment, "step", value); loadPictures(placeOf(segment)); }));
+function stepField(segment) {
+  return field("Step", choice([["", "choose a step"], ...Object.entries(given.steps)], segment.shows.step || "",
+                              (value) => { setShows(segment, "step", value); loadPictures(placeOf(segment)); }));
 }
 
 function filmField(segment) {
@@ -230,6 +286,17 @@ function filmField(segment) {
                               (value) => setShows(segment, "film", value)));
 }
 
+// A scale zoom's legs keep their shares of its length (the script check holds them equal to it).
+function setLength(segment, value) {
+  if (segment.legs && segment.legs.length) {
+    const was = segment.legs.reduce((sum, leg) => sum + leg.seconds, 0) || value;
+    segment.legs.forEach((leg) => { leg.seconds = Math.round(leg.seconds * value / was * 100) / 100; });
+    const drift = value - segment.legs.reduce((sum, leg) => sum + leg.seconds, 0);
+    segment.legs[segment.legs.length - 1].seconds = Math.round((segment.legs[segment.legs.length - 1].seconds + drift) * 100) / 100;
+  }
+  segment.seconds = value;
+}
+
 function lengthField(segment) {
   const input = element("input");
   input.type = "number";
@@ -237,28 +304,42 @@ function lengthField(segment) {
   input.max = "60";
   input.step = "0.5";
   input.value = String(secondsOf(segment));
-  const reset = element("button", "quiet", segment.seconds === undefined ? "default" : "use the default");
-  reset.type = "button";
-  reset.disabled = segment.seconds === undefined;
-  reset.onclick = () => { delete segment.seconds; changed(); drawInspector(); };
   input.onchange = () => {
     const value = Number(input.value);
-    if (value >= 0.5 && value <= 60) { segment.seconds = value; changed(); drawInspector(); }
+    if (value >= 0.5 && value <= 60) { setLength(segment, value); changed(); }
   };
-  const row = field("Length, seconds", input);
-  row.append(reset);
-  return row;
+  return field("Length, seconds", input);
+}
+
+// The words on screen: a card's title and line; a recorded cut's timed captions; any other cut's caption.
+function wordFields(segment) {
+  if (segment.captions && segment.captions.length) {
+    const box = element("div", "film-captions");
+    box.append(element("span", "film-field-label", "Words on screen"));
+    segment.captions.forEach((caption) => {
+      const pair = element("div", "film-caption-pair");
+      pair.title = `on screen from ${caption.from} s to ${caption.to} s`;
+      pair.append(textInput(caption.line, (value) => { caption.line = value; changed(); }, "small line"),
+                  textInput(caption.text, (value) => { caption.text = value; changed(); }, "words"));
+      box.append(pair);
+    });
+    return [box];
+  }
+  const card = segment.cut === "title" || segment.cut === "text";
+  return [field(card ? "Words" : "Words on screen", textInput(segment.text, (value) => { segment.text = value || undefined; changed(); })),
+          field(card ? "Second line" : "Small line above", textInput(segment.line, (value) => { segment.line = value || undefined; changed(); }))];
 }
 
 function segmentButtons(segment) {
-  const row = element("div", "row");
-  const actions = [["Earlier", () => moveSegment(selected, Math.max(0, selected - 1))],
-                   ["Later", () => moveSegment(selected, Math.min(doc.segments.length - 1, selected + 1))],
-                   ["Copy", () => { doc.segments.splice(selected + 1, 0, JSON.parse(JSON.stringify(segment))); selected += 1; changed(); drawInspector(); }],
-                   ["Remove", () => { doc.segments.splice(selected, 1); selected = Math.max(0, selected - 1); changed(); drawInspector(); }]];
-  for (const [words, act] of actions) {
-    const button = element("button", words === "Remove" ? "danger" : "", words);
+  const row = element("div", "film-buttons");
+  const actions = [["Earlier", "move it one earlier", () => moveSegment(selected, Math.max(0, selected - 1))],
+                   ["Later", "move it one later", () => moveSegment(selected, Math.min(doc.segments.length - 1, selected + 1))],
+                   ["Copy", "a copy after it", () => { doc.segments.splice(selected + 1, 0, JSON.parse(JSON.stringify(segment))); selected += 1; changed(); drawInspector(); }],
+                   ["Remove", "take it out of the film", () => { doc.segments.splice(selected, 1); selected = Math.max(0, Math.min(selected, doc.segments.length - 1)); changed(); drawInspector(); }]];
+  for (const [words, tip, act] of actions) {
+    const button = element("button", words === "Remove" ? "tool danger" : "tool", words);
     button.type = "button";
+    button.title = tip;
     button.onclick = act;
     row.append(button);
   }
@@ -268,99 +349,106 @@ function segmentButtons(segment) {
 async function drawInspector() {
   const box = $("inspector");
   const segment = doc.segments[selected];
-  if (!segment) { box.replaceChildren(element("p", "soft", "Add a segment below.")); return; }
+  if (!segment) { box.replaceChildren(element("p", "soft small", "No segment yet: add one from the storyboard.")); return; }
   segment.shows = segment.shows || {};
   const cut = given.cuts[segment.cut];
-  const parts = [element("h2", "eyebrow", `Segment ${selected + 1} of ${doc.segments.length}`),
-                 field("Cut", choice(Object.entries(given.cuts).map(([key, entry]) => [key, entry.label]), segment.cut,
-                                     (value) => { segment.cut = value; changed(); drawInspector(); })),
-                 element("p", "small soft", cut.words)];
-  if (cut.needs.includes("place")) {
-    parts.push(field("Scene", choice([["", "choose a scene"], ...placeOptions()], placeOf(segment) || "",
+  const head = element("div", "film-inspector-head");
+  head.append(element("span", "num-label", `segment ${selected + 1} of ${doc.segments.length}`));
+  const name = element("h2", "film-cut-name", cut.label);
+  name.title = cut.words;
+  const parts = [head, name];
+  if (segment.cut === "setting-animation" || segment.cut === "title" || segment.cut === "text") { /* no scene */ }
+  else if (cut.needs.includes("place")) {
+    const options = placeOptions(segment.cut);
+    parts.push(field("Scene", choice(placeOf(segment) ? options : [["", "choose a scene"], ...options], placeOf(segment) || "",
                                      (value) => { setShows(segment, "place", value); loadPictures(value); drawInspector(); })));
   }
   if (cut.needs.includes("layer")) parts.push(layerField(segment));
   if (cut.needs.includes("part")) parts.push(await partField(segment));
-  if (cut.needs.includes("step")) parts.push(await stepField(segment));
+  if (cut.needs.includes("step")) parts.push(stepField(segment));
   if (segment.cut === "walk-through") { const extra = filmField(segment); if (extra) parts.push(extra); }
   if (cut.needs.includes("page")) {
-    parts.push(field("Page", textInput(segment.shows.page, (value) => { setShows(segment, "page", value); })));
+    const page = field("Page", textInput(segment.shows.page, (value) => { setShows(segment, "page", value); }));
+    page.title = `${(segment.take || []).length} recorded steps on this page: the cursor, its clicks and highlights`;
+    parts.push(page);
   }
-  if (given.recorded.includes(segment.cut)) parts.push(element("p", "small soft", recordedWords(segment)));
-  if (["walk-through", "orbit", "hero-still", "isolate"].includes(segment.cut)) parts.push(await cameraField(segment));
-  parts.push(lengthField(segment),
-             field("Transition in", choice(Object.entries(given.transitions), segment.transition || "cut",
-                                           (value) => { segment.transition = value; changed(); })),
-             field("Sound", choice(Object.entries(given.sounds), segment.sound || "bed",
-                                   (value) => { segment.sound = value; changed(); })),
-             field("Words", textInput(segment.text, (value) => { segment.text = value || undefined; changed(); })),
-             field("Second line", textInput(segment.line, (value) => { segment.line = value || undefined; changed(); })),
-             segmentButtons(segment));
-  if (doc.segments[selected] === segment) box.replaceChildren(...parts);
+  if (["walk-through", "orbit", "hero-still", "isolate"].includes(segment.cut)) { const camera = await cameraField(segment); if (camera) parts.push(camera); }
+  const timing = element("div", "film-field-row");
+  timing.append(lengthField(segment),
+                field("Transition", choice(Object.entries(given.transitions), segment.transition || "cut",
+                                           (value) => { segment.transition = value; changed(); })));
+  parts.push(timing, ...wordFields(segment),
+             field("Sound", choice(Object.entries(given.sounds), segment.sound || "bed", (value) => { segment.sound = value; changed(); })));
+  if (segment.waiting) {
+    const note = element("p", "small review", "stands in until made");
+    note.title = segment.waiting;
+    parts.push(note);
+  }
+  const fields = element("fieldset", "film-fields");
+  fields.disabled = !given.can_save || given.locked;
+  fields.append(...parts.slice(2));
+  if (!fields.disabled) fields.append(segmentButtons(segment));
+  if (doc.segments[selected] === segment) box.replaceChildren(head, name, fields);
 }
 
-// What a recorded segment holds besides its fields: its take's steps, its legs, its captions and its corner picture.
-function recordedWords(segment) {
-  const said = [];
-  if (segment.take) said.push(`${segment.take.length} take steps`);
-  if (segment.legs) said.push(segment.legs.map((leg) => `${leg.layer} ${leg.seconds} s`).join(", "));
-  if (segment.captions) said.push(`${segment.captions.length} captions`);
-  if (segment.pip) said.push(`${segment.pip.concept || "a picture"} in the ${segment.pip.corner || "top-right"} corner`);
-  if (segment.waiting) said.push(`waits on ${segment.waiting.split(" (")[0]}`);
-  return said.join(" · ") || "kept in the script's JSON";
+// --- Add segment: the cut types in plain words, grouped --------------------------------------------------------------
+
+// The scene a new segment shows: the chosen segment's, else the first the film shows, else the first there is.
+function nearPlace(cut) {
+  if (cut === "scale-zoom") {
+    const zoom = doc.segments.find((segment) => segment.cut === "scale-zoom");
+    return (zoom && placeOf(zoom)) || Object.keys(given.shells || {})[0] || Object.keys(given.places)[0];
+  }
+  const shown = [doc.segments[selected], ...doc.segments].map((segment) => segment && placeOf(segment))
+    .find((place) => place && mediaOf(place));
+  return shown || Object.keys(given.places)[0];
+}
+
+function added(key) {
+  const entry = given.cuts[key];
+  const made = { cut: key, shows: { world: doc.world }, transition: entry.transition, sound: entry.sound, seconds: entry.seconds };
+  if (entry.needs.includes("place")) made.shows = { place: nearPlace(key) };
+  if (entry.needs.includes("page")) made.shows = { page: `/environments/${doc.world}/` };
+  if (key === "scale-zoom") made.legs = given.legs.map((layer) => ({ layer, seconds: entry.seconds / given.legs.length }));
+  if (key === "title") made.text = doc.title;
+  return made;
 }
 
 function drawAdd() {
-  $("add").replaceChildren(element("span", "eyebrow", "Add"), ...Object.entries(given.cuts).map(([key, entry]) => {
-    const button = element("button", "film-add-cut", entry.label);
-    button.type = "button";
-    button.title = entry.words;
-    button.onclick = () => {
-      const near = doc.segments[selected] || {};
-      const made = { cut: key, shows: entry.needs.includes("place") && placeOf(near) ? { place: placeOf(near) } : { world: doc.world },
-                     transition: entry.transition, sound: entry.sound };
-      if (entry.needs.includes("page")) made.shows = { page: `/environments/${doc.world}/` };
-      if (key === "scale-zoom") made.legs = given.legs.map((layer) => ({ layer, seconds: entry.seconds / given.legs.length }));
-      doc.segments.splice(selected + 1, 0, made);
-      selected = Math.min(selected + 1, doc.segments.length - 1);
-      changed();
-      drawInspector();
-    };
-    return button;
+  const menu = $("add");
+  if (!menu) return;
+  menu.replaceChildren(...given.groups.map((group) => {
+    const box = element("div", "film-add-group");
+    box.append(element("span", "num-label", group));
+    for (const [key, entry] of Object.entries(given.cuts).filter(([, entry]) => entry.group === group)) {
+      const button = element("button", "film-add-cut");
+      button.type = "button";
+      button.append(element("b", "", entry.label), element("span", "soft small", entry.words));
+      button.onclick = () => {
+        doc.segments.splice(selected + 1, 0, added(key));
+        selected = Math.min(selected + 1, doc.segments.length - 1);
+        $("add-menu").open = false;
+        changed();
+        drawInspector();
+      };
+      box.append(button);
+    }
+    return box;
   }));
+  $("add-menu").hidden = given.locked;
 }
 
-function drawDefaults() {
-  $("defaults").replaceChildren(...Object.entries(given.cuts).map(([key, entry]) => {
-    const input = element("input");
-    input.type = "number";
-    input.min = "0.5";
-    input.max = "60";
-    input.step = "0.5";
-    input.value = String(defaultSeconds(key));
-    input.onchange = () => {
-      const value = Number(input.value);
-      if (!(value >= 0.5 && value <= 60)) return;
-      doc.defaults = doc.defaults || {};
-      if (value === Number(entry.seconds)) delete doc.defaults[key]; else doc.defaults[key] = value;
-      changed();
-    };
-    return field(entry.label, input);
-  }));
-}
+// --- the cost: one line, its detail folded ------------------------------------------------------------------------
 
-// --- render items and money ---------------------------------------------------------------------------------------
-
-const HOW_WORDS = { free: "Free: made from words or pictures that exist", reuse: "Free: reuses what exists",
-                    basket: "A row the basket can buy", new: "New frames to render" };
+const HOW_WORDS = { free: "free", reuse: "free, reuses what exists", basket: "a scene film the basket can buy", new: "to render" };
 
 function euros(value) { return value === null || value === undefined ? "not measured yet" : `EUR ${value.toFixed(2)}`; }
 
 function moneyBar() {
   const box = element("div", "money");
-  if (!answer.bar) { box.append(element("div", "soft small", `Money: ${answer.note || "no reading of this month's spend"}`)); return box; }
+  if (!answer.bar) { box.append(element("div", "soft small", "no reading of this month's spend")); return box; }
   const bar = element("div", "bar");
-  const names = { spent: "spent", reserved: "in flight", likely: "this film's frames", high: "" };
+  const names = { spent: "spent this month", reserved: "in flight", likely: "this film's frames" };
   for (const part of answer.bar) {
     if (part.name === "high") continue;
     const piece = element("span", part.name);
@@ -368,57 +456,42 @@ function moneyBar() {
     piece.title = `${names[part.name]}: EUR ${part.euros}`;
     bar.append(piece);
   }
-  const legend = element("div", "legend small");
-  for (const part of answer.bar) {
-    if (part.name === "high") continue;
-    const entry = element("span");
-    const swatch = element("i");
-    swatch.style.background = `var(--${part.name})`;
-    entry.append(swatch, ` ${names[part.name]} EUR ${part.euros.toFixed(2)}`);
-    legend.append(entry);
-  }
-  legend.append(element("span", "", `stop EUR ${Number(answer.ceiling).toFixed(0)}`));
-  box.append(bar, legend);
+  bar.title = `against the stop, EUR ${Number(answer.ceiling).toFixed(0)}`;
+  box.append(bar);
   return box;
 }
 
 function drawRender() {
-  const totals = answer.totals;
-  const head = element("div", "film-total");
-  const amount = element("div", "money-total");
-  amount.append(totals.unmeasured.length ? element("span", "atleast", "at least") : "", ` EUR ${totals.euros.toFixed(2)}`);
-  head.append(amount, element("p", "small soft",
-    `${totals.frames.toLocaleString()} new frames; ${totals.reused} segments reuse what exists, ${totals.free} are made free.` +
-    (totals.unmeasured.length ? ` ${totals.unmeasured_frames.toLocaleString()} frames are of kinds not measured yet (${totals.unmeasured.join(", ")}), so the total is a floor.` : "")));
-  const groups = element("div", "film-items");
-  for (const how of ["new", "basket", "reuse", "free"]) {
-    const chosen = answer.items.filter((entry) => entry.how === how);
-    if (!chosen.length) continue;
-    const group = element("div", `film-item-group ${how}`);
-    group.append(element("h3", "", `${HOW_WORDS[how]} (${chosen.length})`));
-    const tiles = element("div", "film-item-tiles");
-    for (const entry of chosen) {
-      const tile = element("button", "film-item");
-      tile.type = "button";
-      const picture = entry.place && mediaOf(entry.place) && mediaOf(entry.place).hero;
-      const frame = element("span", "film-item-pic");
-      if (picture) frame.style.backgroundImage = `url("${picture.thumb}")`;
-      tile.append(frame, element("b", "", `${entry.segment}. ${given.cuts[entry.cut].label}`),
-                  element("span", "small soft", entry.place ? mediaOf(entry.place).words : "the whole environment"),
-                  element("span", "small", entry.frames ? `${entry.frames} frames, ${euros(entry.euros)}` : entry.words));
-      tile.title = entry.words;
-      tile.onclick = () => { selected = entry.segment - 1; drawTimeline(); drawInspector(); player.seek(timeline()[selected].start + given.transition_seconds); };
-      tiles.append(tile);
-    }
-    group.append(tiles);
-    groups.append(group);
+  const totals = answer.totals, items = answer.items;
+  const paid = items.filter((entry) => entry.how === "new" || entry.how === "basket").length;
+  const free = items.length - paid;
+  const line = element("div", "film-cost-line");
+  line.append(element("span", "num-label", "render"),
+              element("b", "", `${totals.unmeasured.length ? "at least " : ""}EUR ${totals.euros.toFixed(2)}`),
+              element("span", "soft small", `${paid} to render, ${free} free`));
+  line.title = "the preview is free; rendering is paid and goes through Buy";
+  const more = element("details", "film-cost-more");
+  more.append(element("summary", "small soft", "detail"));
+  const list = element("ul", "film-cost-items");
+  for (const entry of items) {
+    const row = element("li", entry.how === "new" || entry.how === "basket" ? "film-paid" : "");
+    row.append(element("span", "", `${entry.segment}. ${given.cuts[entry.cut].label}`),
+               element("span", "soft", entry.frames ? euros(entry.euros) : HOW_WORDS[entry.how]));
+    row.title = entry.words + (entry.frames ? `, ${entry.frames} frames` : "");
+    row.onclick = () => choose(entry.segment - 1);
+    list.append(row);
   }
-  const ids = element("details", "ids");
-  ids.append(element("summary", "", "Rows it would queue"),
-             element("p", "small", totals.basket.length ? totals.basket.join(", ") : "none: every scene it shows has its film"));
-  $("render").replaceChildren(head, moneyBar(), groups, ids);
-  const form = $("basket-form");
-  if (form) form.hidden = !totals.basket.length;
+  const basis = element("p", "small faint", totals.unmeasured.length ? `not measured yet: ${totals.unmeasured.join(", ")}` : "priced from measured frames");
+  basis.title = Object.entries(given.measured).map(([kind, found]) => `a ${kind} frame: ${found.from}`).join("\n");
+  more.append(list, basis, moneyBar());
+  if (totals.basket.length) {
+    const ids = element("details", "ids");
+    ids.append(element("summary", "", "rows"), element("p", "small", totals.basket.join(", ")));
+    more.append(ids);
+    const form = $("basket-form");
+    if (form) { form.hidden = false; more.append(form); }
+  }
+  $("render").replaceChildren(line, more);
 }
 
 function token() {
@@ -443,20 +516,31 @@ function compileSoon() {
   }, 400);
 }
 
+// Autosave, as the plan saves: a moment after the last change, the script as the editor shows it.
+let saveTimer = null;
+function saveSoon() {
+  clearTimeout(saveTimer);
+  $("saved").textContent = "saving";
+  saveTimer = setTimeout(save, SAVE_AFTER);
+}
+
 async function save() {
   const reply = await post(given.urls.save);
-  if (!reply.ok) { $("said").textContent = (reply.body.faults || ["not saved"]).join("; "); return; }
+  if (!reply.ok) {
+    $("saved").textContent = "not saved";
+    $("said").textContent = (reply.body.faults || ["not saved"]).join("; ");
+    return;
+  }
   dirty = false;
   answer = reply.body;
-  $("save").disabled = true;
-  $("save").textContent = "Saved";
-  $("origin").textContent = "saved in the cockpit";
+  $("saved").textContent = "saved";
   $("said").textContent = "";
   drawRender();
 }
 
 // His Lock posts the script as the editor shows it (also saved as his); Unlock posts nothing. Locked, nothing saves.
 async function lockOrUnlock() {
+  clearTimeout(saveTimer);
   const reply = await fetch(given.urls.lock, { method: "POST", credentials: "same-origin",
                                                body: JSON.stringify(given.locked ? {} : doc),
                                                headers: { "Content-Type": "application/json", "X-CSRFToken": token() } });
@@ -468,11 +552,11 @@ async function lockOrUnlock() {
   $("lock").className = given.locked ? "button" : "primary";
   $("lock-state").textContent = given.locked ? "locked" : "not locked";
   $("lock-state").className = `status ${given.locked ? "done" : "review"}`;
-  $("save").style.display = given.locked ? "none" : "";
-  $("save").disabled = true;
-  $("save").textContent = "Saved";
-  if (given.locked) $("origin").textContent = "saved in the cockpit";
+  $("saved").textContent = given.locked ? "" : "saved";
   $("said").textContent = "";
+  drawTimeline();
+  drawInspector();
+  drawAdd();
 }
 
 async function loadPictures(place) {
@@ -481,7 +565,7 @@ async function loadPictures(place) {
   if (reply.ok) given.pictures[place] = await reply.json();
 }
 
-window.addEventListener("beforeunload", (event) => { if (dirty && given.can_save) event.preventDefault(); });
+window.addEventListener("beforeunload", (event) => { if (dirty && given.can_save && !given.locked) event.preventDefault(); });
 
 // --- the preview: places in 3D ------------------------------------------------------------------------------------
 
@@ -786,11 +870,10 @@ function sourceOf(segment) {
   return { kind: "words", note: "nothing to show yet" };
 }
 
-// A recorded segment plays from the rendered preview when the preview was made from this very segment.
+// A recorded segment plays from the rendered preview when the preview holds this very segment (wherever it stood).
 function renderedOf(segment) {
-  const preview = given.preview, index = doc.segments.indexOf(segment);
-  const then = preview && preview.script.segments[index];
-  if (then && stable(then) === stable(segment)) return { kind: "film", url: preview.url, from: preview.segments[index].start };
+  const index = previewIndex(segment);
+  if (index >= 0) return { kind: "film", url: given.preview.url, from: given.preview.segments[index].start };
   return { kind: "words", note: "not in the rendered preview yet" };
 }
 
@@ -919,10 +1002,13 @@ class Shot {
     this.box.append(this.bar, words, board);
   }
 
+  // A card's words; any other cut standing in as words (not made yet) says what it is and what it shows.
   prepareWords() {
+    const card = ["title", "text"].includes(this.segment.cut);
     const words = element("div", `film-words ${this.segment.cut}`);
-    words.append(element("h3", "", this.segment.text || doc.title || ""), element("i", "rule"));
-    if (this.segment.line) words.append(element("p", "", this.segment.line));
+    words.append(element("h3", "", this.segment.text || (card ? doc.title || "" : given.cuts[this.segment.cut].label)), element("i", "rule"));
+    const line = this.segment.line || (card ? "" : segmentWords(this.segment));
+    if (line) words.append(element("p", "", line));
     this.box.append(words);
     this.words = words;
   }
@@ -1082,7 +1168,7 @@ const player = {
     const shown = active[active.length - 1];
     if (shown !== undefined && shown !== this.highlighted) {
       this.highlighted = shown;
-      document.querySelectorAll(".film-block").forEach((block, index) => block.classList.toggle("playing", index === shown));
+      document.querySelectorAll(".film-card").forEach((card, index) => card.classList.toggle("playing", index === shown));
     }
   },
 };
@@ -1090,15 +1176,27 @@ const player = {
 $("play").onclick = () => player.toggle();
 $("scrub").oninput = () => player.seek(Number($("scrub").value));
 $("whole").onchange = () => { places.clear(); player.reset(); };
-if ($("save")) $("save").onclick = save;
 if ($("lock")) $("lock").onclick = lockOrUnlock;
-if ($("save") && given.locked) $("save").style.display = "none";
 window.filmPlayer = player;  // the page's own handle, for a headless look at a given moment
+
+// The rendered free preview in place of the live player, with its own controls and sound.
+function showRendered(on) {
+  if (on && player.playing) player.toggle();
+  $("rendered").hidden = !on;
+  if (!on) $("rendered").pause();
+  $("show-live").setAttribute("aria-pressed", String(!on));
+  $("show-rendered").setAttribute("aria-pressed", String(on));
+  document.querySelector(".film-transport").classList.toggle("off", on);
+}
+if ($("rendered")) {
+  $("show-live").onclick = () => showRendered(false);
+  $("show-rendered").onclick = () => showRendered(true);
+}
 
 drawLength();
 drawTimeline();
 drawInspector();
 drawAdd();
-drawDefaults();
 drawRender();
+if (given.can_save) $("saved").textContent = given.locked ? "" : given.origin === "saved" ? "saved" : "saves as you change it";
 player.seek(given.transition_seconds);  // past a first fade through black, so the first frame shows

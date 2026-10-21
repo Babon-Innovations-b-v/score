@@ -23,40 +23,46 @@ MOST_SEGMENTS = 200
 TARGET_SECONDS = 240
 WALK_SECONDS = 7.0
 
-# Each cut type: its words, its default length, what it must name besides what it shows, and its usual transition
-# and sound. A walk-through is WALK_SECONDS: 3.5 s a place read far too fast (the owner, 2026-10-18), so a place gets
-# 7 s of its finished state, rendered again where its accepted 4 s film is too short.
+# Each cut type: its words, its default length, what it must name besides what it shows, its usual transition and
+# sound, and its group in the Add segment menu. A walk-through is WALK_SECONDS: 3.5 s a place read far too fast (the
+# owner, 2026-10-18), so a place gets 7 s of its finished state, rendered again where its accepted 4 s film is too
+# short. Every default is long enough to read what the cut shows (owner, 2026-10-21: "this gonna be to short"): a
+# physics animation 12 s, so a body goes a clear way round its orbit.
+SCENE, INSIDE, APP, PHYSICS, WORDS = "A scene", "Inside a scene", "The app", "The physics", "Words"
+GROUPS = (APP, PHYSICS, SCENE, INSIDE, WORDS)
 CUTS = {
     "walk-through": {"label": "Walk-through", "seconds": WALK_SECONDS, "needs": ("place",),
-                     "transition": "cross-fade", "sound": "place",
+                     "transition": "cross-fade", "sound": "place", "group": SCENE,
                      "words": "the camera's path through the scene"},
     "orbit": {"label": "Orbit", "seconds": 6.0, "needs": ("place",), "transition": "cross-fade", "sound": "bed",
-              "words": "a slow circle round the whole scene"},
-    "hero-still": {"label": "Hero still", "seconds": 3.0, "needs": ("place",), "transition": "cross-fade",
-                   "sound": "bed", "words": "one picture held, slowly closing in"},
+              "group": SCENE, "words": "a slow circle round the whole scene"},
+    "hero-still": {"label": "Still picture", "seconds": 4.0, "needs": ("place",), "transition": "cross-fade",
+                   "sound": "bed", "group": SCENE, "words": "one picture held, slowly closing in"},
     "exploded": {"label": "Exploded view", "seconds": 6.0, "needs": ("place",), "transition": "cross-fade",
-                 "sound": "bed", "words": "the room split apart into its parts"},
-    "isolate": {"label": "Isolate a part", "seconds": 4.0, "needs": ("place", "part"), "transition": "cross-fade",
-                "sound": "bed", "words": "zoom in on one part, the rest falls away"},
-    "layer-focus": {"label": "Layer focus", "seconds": 4.0, "needs": ("place", "layer"), "transition": "cross-fade",
-                    "sound": "bed", "words": "one OpenUSD layer lit, the others ghosted"},
+                 "sound": "bed", "group": INSIDE, "words": "the room split apart into its parts"},
+    "isolate": {"label": "Isolate a part", "seconds": 5.0, "needs": ("place", "part"), "transition": "cross-fade",
+                "sound": "bed", "group": INSIDE, "words": "zoom in on one part, the rest falls away"},
+    "layer-focus": {"label": "Layer focus", "seconds": 5.0, "needs": ("place", "layer"), "transition": "cross-fade",
+                    "sound": "bed", "group": INSIDE, "words": "one OpenUSD layer lit, the others ghosted"},
     "layer-split": {"label": "Layer split", "seconds": 6.0, "needs": ("place",), "transition": "cross-fade",
-                    "sound": "bed", "words": "the layer stack lifted apart"},
-    "step-card": {"label": "Step card", "seconds": 3.0, "needs": ("place", "step"), "transition": "push",
-                  "sound": "bed", "words": "a framework step's own pictures"},
-    "before-after": {"label": "Before and after", "seconds": 4.0, "needs": ("place",), "transition": "cross-fade",
-                     "sound": "bed", "words": "the concept wiped into the result"},
+                    "sound": "bed", "group": INSIDE, "words": "the layer stack lifted apart"},
+    "step-card": {"label": "Step card", "seconds": 5.0, "needs": ("place", "step"), "transition": "push",
+                  "sound": "bed", "group": SCENE, "words": "a framework step's own pictures"},
+    "before-after": {"label": "Before and after", "seconds": 5.0, "needs": ("place",), "transition": "cross-fade",
+                     "sound": "bed", "group": SCENE, "words": "the concept wiped into the result"},
     "title": {"label": "Title card", "seconds": 4.0, "needs": (), "transition": "fade-through-black",
-              "sound": "bed", "words": "the film's title"},
-    "text": {"label": "Text card", "seconds": 3.0, "needs": (), "transition": "cross-fade", "sound": "bed",
-             "words": "a line of words"},
+              "sound": "bed", "group": WORDS, "words": "the film's title"},
+    "text": {"label": "Text card", "seconds": 4.0, "needs": (), "transition": "cross-fade", "sound": "bed",
+             "group": WORDS, "words": "a line of words"},
     "screen-take": {"label": "Screen take", "seconds": 8.0, "needs": ("page",), "transition": "cross-fade",
-                    "sound": "bed", "words": "a real cockpit page, its cursor, clicks and highlights scripted"},
-    "setting-animation": {"label": "Physics animation", "seconds": 4.0, "needs": ("world",),
-                          "transition": "cross-fade", "sound": "bed",
+                    "sound": "bed", "group": APP,
+                    "words": "a real cockpit page, its cursor, clicks and highlights scripted"},
+    "setting-animation": {"label": "Physics animation", "seconds": 12.0, "needs": ("world",),
+                          "transition": "cross-fade", "sound": "bed", "group": PHYSICS,
                           "words": "the physics' bodies on their orbits, time sped up"},
-    "scale-zoom": {"label": "Scale zoom", "seconds": 20.0, "needs": ("place",), "transition": "cross-fade",
-                   "sound": "bed", "words": "one camera path from the physics down to the scene's rooms"},
+    "scale-zoom": {"label": "Scale zoom", "seconds": 22.0, "needs": ("place",), "transition": "cross-fade",
+                   "sound": "bed", "group": PHYSICS,
+                   "words": "one camera path from the physics down to the scene's rooms"},
 }
 # The cuts the free preview renders itself in headless Chromium (films/preview), not the editor's live player.
 RECORDED = ("screen-take", "setting-animation", "scale-zoom")

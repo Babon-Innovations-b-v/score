@@ -36,10 +36,10 @@ def test_the_clock_overlaps_cross_fades_and_pushes_only():
                      {"cut": "step-card", "shows": {"place": "alpha", "step": "plan"}, "transition": "push",
                       "seconds": 2},
                      {"cut": "text", "transition": "cut"}])
-    assert script.timeline(film) == [(0.0, 4.0), (3.5, 7.0), (10.0, 2.0), (12.0, 3.0)]
-    assert script.total_seconds(film) == 15.0
+    assert script.timeline(film) == [(0.0, 4.0), (3.5, 7.0), (10.0, 2.0), (12.0, 4.0)]
+    assert script.total_seconds(film) == 16.0
     film["defaults"] = {"walk-through": 5.0}
-    assert script.total_seconds(film) == 13.0
+    assert script.total_seconds(film) == 14.0
 
 
 def test_a_script_says_what_is_wrong_in_words():
@@ -251,10 +251,18 @@ def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_pat
     assert client.get("/film-preview/other.mp4").status_code == 404
 
 
-def test_environment_1_demo_is_sound():
+def test_environment_1_demo_is_its_complete_default():
+    """env1_demo is environment 1's default film, complete (owner, 2026-10-21): every segment names a real scene, the
+    physics animation long enough to see an orbit, the walk-throughs the Base's rooms, inside its target."""
+    from score import stages
     film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "env1_demo")
-    assert origin == "starter" and script.faults(film) == []
+    assert origin == "starter" and film["default"] is True
+    assert script.faults(film, set(stages.places(stages.world1())) | {"base"}) == []
     assert script.total_seconds(film) <= film["target_seconds"]
+    animation = next(segment for segment in film["segments"] if segment["cut"] == "setting-animation")
+    assert animation["seconds"] * animation["days_per_second"] >= 300  # Earth goes most of the way round the Sun
+    walks = [segment["shows"]["place"] for segment in film["segments"] if segment["cut"] == "walk-through"]
+    assert walks == next(segment for segment in film["segments"] if segment["cut"] == "scale-zoom")["legs"][-1]["rooms"]
 
 
 def locking(client, film, body):
@@ -325,10 +333,14 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     film = default.built("world7-film", facts)
     assert script.faults(film, {"port", "camp", "dock", "bar", "hold", "deck", "tent"}) == []
     assert [segment["cut"] for segment in film["segments"]] == [
-        "title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take", "scale-zoom"]
+        "title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take", "scale-zoom",
+        "walk-through", "walk-through", "walk-through"]
+    assert [segment["shows"]["place"] for segment in film["segments"][-3:]] == ["dock", "bar", "hold"]
+    assert script.total_seconds(film) <= film["target_seconds"] < script.total_seconds(film) + 5
+    assert film["segments"][2]["seconds"] == 12.0
     pages = [segment["shows"].get("page") for segment in film["segments"] if segment["cut"] == "screen-take"]
     assert pages == ["/environments/world7/", "/environments/world7/", "/concept/dock/", "/concept/port/"]
-    zoom = film["segments"][-1]
+    zoom = film["segments"][6]
     assert zoom["legs"][-1]["rooms"] == ["dock", "bar", "hold"] and zoom["legs"][3]["into"] == "dock"
     assert zoom["surfaces"] == {"tess": "tess_dust", "ground": "tess_dust"} and "kepler" in zoom["waiting"]
     assert ".sp-card:nth-child(3)" in json.dumps(film["segments"][1]) and "world1" not in json.dumps(film)

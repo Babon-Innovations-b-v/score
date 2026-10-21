@@ -32,8 +32,17 @@ Rules:
   then change"): `/film/` goes to the environment's film (`script.default_name`: its script marked `"default": true`,
   environment 1's `env1_demo` starter, else `<world>-film`), built until he saves it by `default.py` from his script's
   structure filled in from the environment's own setting and scenes (the site holding the most scenes, its first
-  three rooms, each body's library surface as earlier scripts drew it); never tied to one environment by name. The
-  list of every film is `/film/all/`.
+  three rooms, each body's library surface as earlier scripts drew it); never tied to one environment by name. A
+  default is complete: every segment names a real scene (the zoom's rooms walked through after it), each long enough
+  to read (the physics animation 12 s, `script.CUTS` defaults the same), its target its own length. The list of every
+  film is `/film/all/`.
+- **The page is a cockpit** (owner, 2026-10-21: "this is not at all easy to use"; the design page's panels, enlarge
+  buttons and rail, `design.js`): the player (live, or the rendered free preview), under it the storyboard (a card a
+  segment, its thumbnail a frame of its take in the rendered preview, else its scene's hero; drag to reorder, click to
+  edit, Add segment's cut types in plain words grouped by `script.GROUPS`), the rail the lock, one cost line ("render
+  EUR x, n to render, m free", its items, prices' basis and basket rows folded) and the chosen segment's fields, only
+  those its cut needs. Every change saves itself (autosave, owner only, not while locked); no defaults table, no
+  ledger ids or frame maths on the page.
 - **Free preview, priced renders.** The preview uses only what exists (the web copies, accepted films, step
   pictures). A render item is priced only from measured runs (`render.MEASURED`, film frames per place in
   `render.FILM_FRAME_EUROS`, read from the cloud ledgers; stills as look frames); a kind never rendered on a card reads "not measured

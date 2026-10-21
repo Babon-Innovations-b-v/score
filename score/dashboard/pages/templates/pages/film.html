@@ -1,5 +1,6 @@
 {% extends "pages/base.html" %}
 {% block title %}{{ film.title }}: film{% endblock %}
+{% block main %} class="wide"{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="/static/pages/film.css">
 <script type="importmap">
@@ -8,58 +9,53 @@
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
 } }
 </script>
-<p class="crumbs"><a href="/film/all/">Films</a><span>/</span><span>{{ film.film }}</span></p>
-<div class="page-head film-head">
-  <h1>{{ film.title }}</h1>
-  <div class="film-length-readout" id="length" aria-live="polite"></div>
-  <span class="status quiet" id="origin"{% if default %} title="the environment's own film"{% endif %}>{% if origin == "saved" %}saved in the cockpit{% elif origin == "default" %}the default film{% else %}the starter script{% endif %}</span>
-  <span class="status {% if locked %}done{% else %}review{% endif %}" id="lock-state" data-v title="the lock is your approval: the batch films this script and Buy waits for it; unlock to change it until a batch is bought">{% if locked %}locked{% else %}not locked{% endif %}</span>
-  <span class="grow"></span>
-  <output class="small soft" id="said"></output>
-  {% if owner %}<button class="primary" id="save" type="button" disabled>Saved</button>
-  <button class="{% if locked %}button{% else %}primary{% endif %}" id="lock" type="button">{% if locked %}Unlock{% else %}Lock{% endif %}</button>{% endif %}
-</div>
-
-{% if preview %}<section class="film-rendered" aria-label="the rendered free preview">
-  <h2 class="eyebrow">Rendered preview</h2>
-  <video controls preload="metadata" src="{{ preview.url }}"></video>
-  <p class="small soft" title="screen takes of the cockpit, the physics animation and the scale zoom drawn in headless Chromium on the store's machine; nothing rented, no button that spends clicked">made <span data-v>{{ preview.made_at|slice:":16" }}</span>, <span data-v>{{ preview.seconds|floatformat:1 }} s</span>, free</p>
-</section>{% endif %}
-<section class="film-work">
-  <div class="film-left">
-    <div class="film-stage" id="stage" aria-label="the free preview">
-      <div class="film-shots" id="shots"></div>
-      <div class="film-black" id="black"></div>
-      <div class="film-wait" id="wait" hidden></div>
+<nav class="trail" aria-label="where"><a href="/film/all/" data-v>Films</a> <span class="sep">&rsaquo;</span> <b data-v>{{ film.title }}</b>
+  <span class="status quiet" id="origin" title="{% if default %}the environment's own film; {% endif %}{% if origin == 'saved' %}your copy, saved in the cockpit{% elif origin == 'default' %}made from the environment's scenes until you change it{% else %}the starter script, until you change it{% endif %}" data-v>{% if default %}default{% else %}film{% endif %}</span></nav>
+<div class="design film-cockpit">
+<div class="film-panels">
+<section class="dpanel" id="player-part" aria-label="preview">
+  <header class="dpanel-head"><span class="num-label" data-v>preview</span> <span class="film-length-readout" id="length" aria-live="polite"></span>
+    <span class="dpanel-tools">{% if preview %}<span class="seg" title="live: played here from the scenes, follows every change; rendered: the free preview made on the store's machine, {{ preview.made_at|slice:':16' }}"><button type="button" id="show-live" aria-pressed="true" data-v>live</button><button type="button" id="show-rendered" aria-pressed="false" data-v>rendered</button></span>{% endif %}
+    <label class="film-toggle" title="the whole 3D copies: slower to load, every triangle"><input type="checkbox" id="whole"> <span data-v>whole copies</span></label></span>
+    <button type="button" class="dpanel-focus" data-focus title="enlarge: fill the screen (Escape closes)" aria-label="enlarge the preview">&#x2922;</button></header>
+  <div class="dpanel-body film-player">
+    <div class="film-screen">
+      <div class="film-stage" id="stage" aria-label="the free preview">
+        <div class="film-shots" id="shots"></div>
+        <div class="film-black" id="black"></div>
+        <div class="film-wait" id="wait" hidden></div>
+        {% if preview %}<video class="film-rendered" id="rendered" controls preload="metadata" src="{{ preview.url }}" hidden></video>{% endif %}
+      </div>
     </div>
     <div class="film-transport">
-      <button type="button" id="play" class="primary">Play</button>
+      <button type="button" id="play" class="primary" data-v>Play</button>
       <output id="clock" class="film-clock">0:00.0</output>
       <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="the film's clock">
-      <label class="film-toggle"><input type="checkbox" id="sound"> Sound</label>
-      <label class="film-toggle" title="the whole 3D copies: slower to load, every triangle"><input type="checkbox" id="whole"> Whole copies</label>
+      <label class="film-toggle"><input type="checkbox" id="sound"> <span data-v>sound</span></label>
     </div>
-    <div class="film-timeline" id="timeline" aria-label="the film's segments in order"></div>
-    <div class="film-add" id="add" aria-label="add a segment"></div>
   </div>
-  <aside class="film-inspector card" id="inspector" aria-label="the chosen segment"></aside>
 </section>
-
-<section class="film-costs">
-  <h2>What it costs to render</h2>
-  <div id="render"></div>
-  <p class="small faint">The preview above is free. Rendering is paid and goes through the basket: only rows that exist can be queued, and
-    nothing starts from this page. Prices come only from measured frames: {% for kind, found in measured.items %}a {{ kind }} frame is EUR {{ found.euros|floatformat:4 }}, from {{ found.from }}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>
-  {% if owner %}<form method="post" action="/film/{{ film.film }}/basket/" id="basket-form" hidden>{% csrf_token %}
-    <button class="button">Queue the scene films it needs into the basket</button></form>{% endif %}
+<section class="dpanel" id="board-part" aria-label="storyboard">
+  <header class="dpanel-head"><span class="num-label" data-v>storyboard</span> <span class="soft small" id="board-count" title="drag a card to move it, click it to edit it" data-v></span>
+    {% if owner %}<details class="film-add" id="add-menu"><summary class="button" data-v>Add segment</summary><div class="film-add-menu" id="add"></div></details>{% endif %}
+    <button type="button" class="dpanel-focus" data-focus title="enlarge: fill the screen (Escape closes)" aria-label="enlarge the storyboard">&#x2922;</button></header>
+  <div class="dpanel-body"><div class="film-timeline" id="timeline" aria-label="the film's segments in order"></div></div>
 </section>
-
-<section>
-  <h2>Default lengths</h2>
-  <p class="small soft">A segment without its own length takes its cut's default.</p>
-  <div class="film-defaults" id="defaults"></div>
-</section>
+</div>
+<aside class="design-rail" aria-label="actions">
+  <div class="rail-group film-lock-group">
+    <div class="film-lock-row"><span class="status {% if locked %}done{% else %}review{% endif %}" id="lock-state" title="the lock is your approval: the batch films this script and Buy waits for it; unlock to change it until a batch is bought" data-v>{% if locked %}locked{% else %}not locked{% endif %}</span>
+      <span class="soft small" id="saved" title="every change is saved as you make it" data-v></span>
+      {% if owner %}<button class="{% if locked %}button{% else %}primary{% endif %}" id="lock" type="button" data-v>{% if locked %}Unlock{% else %}Lock{% endif %}</button>{% endif %}</div>
+    <output class="small bad" id="said"></output>
+  </div>
+  <div class="rail-group film-cost" id="render"></div>
+  <div class="rail-group film-inspector" id="inspector" aria-label="the chosen segment"></div>
+  {% if owner %}<form method="post" action="/film/{{ film.film }}/basket/" id="basket-form" hidden>{% csrf_token %}<button class="button" title="only rows that exist; nothing starts from here" data-v>Queue the scene films into the basket</button></form>{% endif %}
+</aside>
+</div>
 <form id="token" hidden>{% csrf_token %}</form>
 {{ editor|json_script:"film-data" }}
+<script src="/static/pages/design.js"></script>
 <script type="module" src="/static/pages/film.js"></script>
 {% endblock %}
