@@ -248,7 +248,8 @@ def face(chain):
 
 
 def clips(chain):
-    """Every clip the spec names whose sentence has no clip yet, made by Kimodo up here."""
+    """Every clip the spec names whose sentence has no clip yet, made by Kimodo up here with the fixed seed, its record
+    (sentence, model, seed) beside it."""
     sys.path.insert(0, str(PEOPLE))
     import clips as sentences
     wanted = chain.spec.get("clips") or list(sentences.SENTENCES)
@@ -257,9 +258,8 @@ def clips(chain):
     made = []
     for name in missing:
         began = time.time()
-        sentence, seconds = sentences.SENTENCES[name]
-        chain.run([MOTION_HOME / "env/bin/kimodo_gen", sentence, "--model", sentences.MODEL, "--duration",
-                   str(seconds), "--output", motions / name, "--bvh", "--bvh_standard_tpose"])
+        chain.run([MOTION_HOME / "env/bin/kimodo_gen", *sentences.kimodo_arguments(name, motions / name)])
+        sentences.write_record(name, motions / name)
         made.append(f"{name} {time.time() - began:.0f}s")
     return f"made {len(made)}: " + ", ".join(made) if made else "every clip was made already"
 
