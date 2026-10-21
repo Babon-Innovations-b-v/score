@@ -221,6 +221,29 @@ def test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled():
     shutil.rmtree(folder)
 
 
+def test_a_persons_close_up_is_held_to_its_arms_apart_not_a_box():
+    """A row the people layer handed (a crowd, no size): its close-up is judged by its framing and arms clear of the
+    body (the close-up check's person_faults), never 'no measured size'; an object row with no size still is named."""
+    from PIL import Image, ImageDraw
+    import score.stages.props.closeup_row as closeup_row
+    folder = pathlib.Path(tempfile.mkdtemp())
+    for name, arms_out in (("apart", 70), ("fused", 0)):
+        picture = Image.new("RGB", (512, 512), closeup_row.GREY)
+        draw = ImageDraw.Draw(picture)
+        draw.ellipse((236, 60, 276, 100), fill=(60, 70, 80))
+        draw.rectangle((226, 100, 286, 260), fill=(60, 70, 80))
+        draw.polygon([(226, 260), (256, 260), (236, 450), (206, 450)], fill=(60, 70, 80))
+        draw.polygon([(256, 260), (286, 260), (306, 450), (276, 450)], fill=(60, 70, 80))
+        for sign, shoulder in ((-1, 226), (1, 286)):
+            draw.line([(shoulder, 108), (shoulder + sign * arms_out, 240)], fill=(60, 70, 80), width=14)
+        picture.save(folder / f"{name}.png")
+    crowd = {"size": None, "layer": "people"}
+    assert closeup_row.measured(folder / "apart.png", crowd) == []
+    assert closeup_row.measured(folder / "fused.png", crowd)[0].startswith("arms not clear of the body")
+    assert closeup_row.measured(folder / "apart.png", {"size": None}) == ["no measured size: its proportions held to none"]
+    shutil.rmtree(folder)
+
+
 def likeness_output(folder, objects):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "likeness.json").write_text(json.dumps({"objects": objects}))

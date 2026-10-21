@@ -15,5 +15,9 @@ for the creator.
   or to the judge's question is measured on those again before it lands.
 - **Pro's quota is shared** (250 a day): only `stage.py` calls `pro.py`, and only for rows the check failed.
   `pro.draw` refuses outside a cleared run (`score.adapters.compute.require_cleared`), as every paid call does.
+- **A person is the one exception to the three-quarter view** (the people layer's own close-up, CONTEXT.md "layer
+  adapter"): a row whose `layer` is `people` is drawn with `stage.PERSON` (one person, front on, in the rig's A-pose,
+  arms and legs clear) and measured by `check.person_faults` (framed, arms apart: `arm_gap_share`, which the maker's
+  `prop_person.py` reads from here), never by a box's proportions.
 - **Print does not matter** on a close-up: labels and print go on the model as decals later.
 - Checks are plain scripts (`*_test.py`) run by `make tests`.

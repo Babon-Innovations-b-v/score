@@ -63,9 +63,23 @@ CROP_ONLY = ("Make one clean product picture of a single object for a 3D model m
              "fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m deep and {tall:.2f} m tall; keep "
              "those proportions exactly. Image 1 shows this object among other things: take its shape, parts, materials, "
              "paint, wear and colours from it and ignore everything around it.")
+# A person's close-up (a row the people layer handed the shared loop, CONTEXT.md "layer adapter": its own close-up
+# wording): one person, front on, in the rig's A-pose with the arms and legs clear (the maker's prop_closeup.py pose,
+# the wider bind of 2026-10-13: arms 45 degrees below level, feet 35 cm apart), so Pixal3D builds the arms and legs
+# apart and SOMA-X's skeleton fits inside (#5); a group's or a crowd's row draws one member. The pose, never the
+# concept's, which may walk, sit or stand in a crowd; check.person_faults measures the arms apart.
+PERSON = ("Make one clean full-body picture of a single person for a 3D character maker. ONLY this one person, alone, "
+          "on a plain, even, light grey studio background that fills the whole frame: no room, no floor line, no "
+          "other people, no objects, no captions. Seen straight from the front by a level telephoto camera at chest "
+          "height, standing still and symmetrical in an A-pose: both arms straight and angled down at 45 degrees below "
+          "level from the shoulders, hands open, a clear gap between each arm and the body from the armpit down, the "
+          "feet 35 cm apart with a clear gap between the legs from the crotch down, looking straight ahead, the whole "
+          "figure in the picture with a wide margin round it, soft even studio light, sharp fine detail. The person: "
+          "{words}. Image 1 shows this person, or one of this group, among other things: take their build, clothes, "
+          "hair, colours and wear from it, never their pose, and ignore everything around them.")
 # Pro's wordings, one chosen a row before anything is drawn (pro_wording): the crop alone, or with the room as a
-# second reference for an object whose crop is too small to make it clear.
-PRO_WORDINGS = {"crop": CROP_ONLY, "room": WORDING}
+# second reference for an object whose crop is too small to make it clear; a person's own.
+PRO_WORDINGS = {"crop": CROP_ONLY, "room": WORDING, "person": PERSON}
 # Pro's one take a row (a batch draws each once), by its folder under the out folder.
 PRO_TAKES = ("pro",)
 MARGIN = 0.2
@@ -73,8 +87,8 @@ SHORTEST_CROP = 512
 
 
 def wording(row, text=WORDING):
-    """The words a row's close-up is drawn with."""
-    wide, deep, tall = row["size"]
+    """The words a row's close-up is drawn with (a person's need no size: the rig sizes the body)."""
+    wide, deep, tall = row["size"] or (0.0, 0.0, 0.0)
     return text.format(words=row["words"], wide=wide, deep=deep, tall=tall)
 
 
@@ -95,9 +109,11 @@ def crop(concept, box):
 
 
 def pro_wording(row):
-    """The row's Pro wording, chosen free before anything is drawn: "room" when its crop is under SHORTEST_CROP on its
-    long side before it is scaled up (too small to make the object clear alone), else "crop". Reads only the
-    concept's size."""
+    """The row's Pro wording, chosen free before anything is drawn: "person" for a row the people layer handed, else
+    "room" when its crop is under SHORTEST_CROP on its long side before it is scaled up (too small to make the object
+    clear alone), else "crop". Reads only the concept's size."""
+    if row.get("layer") == "people":
+        return "person"
     with Image.open(row["concept"]) as concept:
         left, top, right, bottom = crop_bounds(concept.size, row["box"])
     return "room" if max(right - left, bottom - top) < SHORTEST_CROP else "crop"

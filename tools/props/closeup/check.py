@@ -133,11 +133,12 @@ def measure(path, size):
     return {"border_clean": border_clean,
             "fill": float(max(height / distance.shape[0], width / distance.shape[1])),
             "one_piece": float(max(sizes) / sum(sizes[index - 1] for index in kept)),
-            "proportion_error": abs(math.log(seen / expected_proportion(size)))}
+            "proportion_error": abs(math.log(seen / expected_proportion(size))) if size else None}
 
 
-def measured_faults(measures):
-    """What the measurements fault in a close-up, as short words; none when it passes them."""
+def frame_faults(measures):
+    """What the measurements fault in how a close-up is framed: a plain border, the object filling the frame, in one
+    piece; none when it passes them."""
     faults = []
     if measures["border_clean"] < BORDER_CLEAN:
         faults.append("background not plain to the edge")
@@ -145,8 +146,61 @@ def measured_faults(measures):
         faults.append("object small in the frame")
     if measures["one_piece"] < ONE_PIECE:
         faults.append("more than one object")
+    return faults
+
+
+def measured_faults(measures):
+    """What the measurements fault in a close-up, as short words; none when it passes them."""
+    faults = frame_faults(measures)
     if measures["proportion_error"] is None or measures["proportion_error"] > PROPORTION_LIMIT:
         faults.append("proportions off the row's box")
+    return faults
+
+
+# A person's close-up (the people layer's own, CONTEXT.md "layer adapter"; stage.PERSON) is drawn front on in the
+# rig's A-pose, so its outline is no box's: its proportions are not held to the row's box. Its arms must stand clear of
+# the body instead, or Pixal3D fuses them to the torso (Nev, 2026-10-10). Between the armpits and the wrists (ARM_ROWS
+# of the figure's height from its top), a row counts where open background at least ARM_GAP of the figure's height
+# wide lies between each arm and the body; at least ARMS_APART of the rows must. The figure is every pixel off its
+# row's background (the median of the row's two edges, as the backdrop shades from top to floor) by BACKGROUND_STEP,
+# closed, its largest piece with its holes filled (a white suit on a light grey backdrop reads as holes). The player's
+# close-ups had 0.67 of their rows so; Nev's two fused takes none, her four drawn after the pose picture 0.35 to 0.51
+# (2026-10-11; the maker's klein close-ups, tools/characters/maker/prop_person.py, which reads it from here).
+ARM_ROWS = (0.25, 0.47)
+ARM_GAP = 0.01
+ARMS_APART = 0.3
+BACKGROUND_STEP = 18
+
+
+def figure_of(path):
+    """A close-up's figure as a mask (the rules above)."""
+    colours = np.asarray(Image.open(path).convert("RGB")).astype(float)
+    backdrop = np.median(np.concatenate([colours[:, :8], colours[:, -8:]], 1), 1)
+    figure = ndimage.binary_closing(np.linalg.norm(colours - backdrop[:, None], axis=2) > BACKGROUND_STEP,
+                                    np.ones((3, 3)))
+    label, _ = ndimage.label(figure)
+    return ndimage.binary_fill_holes(label == np.bincount(label.ravel())[1:].argmax() + 1)
+
+
+def arm_gap_share(path):
+    """The share of the arm rows (ARM_ROWS) of a close-up with an ARM_GAP gap between each arm and the body."""
+    figure = figure_of(path)
+    rows = np.flatnonzero(figure.any(1))
+    top, height = rows[0], rows[-1] - rows[0]
+    apart = []
+    for row in range(int(top + ARM_ROWS[0] * height), int(top + ARM_ROWS[1] * height)):
+        edges = np.flatnonzero(np.diff(np.concatenate([[0], figure[row].astype(int), [0]])))
+        runs = [(start, end) for start, end in zip(edges[::2], edges[1::2]) if end - start >= 3]
+        apart.append(len(runs) >= 3 and min(runs[1][0] - runs[0][1], runs[-1][0] - runs[-2][1]) >= ARM_GAP * height)
+    return float(np.mean(apart))
+
+
+def person_faults(path):
+    """What the measurements fault in a person's close-up: its framing, and arms not clear of the body."""
+    faults = frame_faults(measure(path, None))
+    share = arm_gap_share(path)
+    if share < ARMS_APART:
+        faults.append(f"arms not clear of the body ({share:.2f} of the arm rows apart, under {ARMS_APART})")
     return faults
 
 
