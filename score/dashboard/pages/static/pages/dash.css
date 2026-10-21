@@ -631,20 +631,59 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .plan-stage svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; }
 .plan-marks { pointer-events: none; }
 [data-marking] .plan-stage svg { cursor: crosshair; }
-.plan-floor { fill: var(--surface); stroke: var(--ink); stroke-width: 0.08; vector-effect: non-scaling-stroke; }
-.plan-item rect, .plan-zone rect, .plan-hold rect { vector-effect: non-scaling-stroke; stroke-width: 1.5; }
-.plan-item rect { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: var(--accent); }
-.plan-zone rect { fill: color-mix(in srgb, var(--bad) 8%, transparent); stroke: var(--bad); stroke-dasharray: 4 3; }
-.plan-hold rect { fill: color-mix(in srgb, var(--review) 16%, transparent); stroke: var(--review); stroke-width: 2; }
-.plan-hold > .plan-label { font-weight: 600; }
+/* the drawing as an architect's plan: every stroke a hairline at any zoom, every colour a token */
+.plan-stage svg * { vector-effect: non-scaling-stroke; }
+.plan-floor { fill: var(--surface); stroke: none; }
+.plan-site { fill: var(--surface); stroke: var(--soft); stroke-width: 1; stroke-dasharray: 8 4 2 4; }
+.plan-level polygon { fill: color-mix(in srgb, var(--new) 7%, transparent); stroke: var(--line-strong); stroke-width: 1; }
+.plan-contour polyline { fill: none; stroke: var(--faint); stroke-width: 1; stroke-dasharray: 3 3; }
+.plan-spot-height line { stroke: var(--soft); stroke-width: 1; }
+.plan-wall { fill: url(#plan-hatch); stroke: var(--ink); stroke-width: 1.4; }
+.plan-hatch-ground { fill: var(--raised); }
+.plan-hatch-line { stroke: var(--ink); stroke-width: 0.8; }
+.plan-gap { fill: var(--surface); stroke: none; }
+.plan-jamb { stroke: var(--ink); stroke-width: 1.4; }
+.plan-leaf { stroke: var(--done); stroke-width: 2; }
+.plan-swing { fill: none; stroke: var(--done); stroke-width: 1; stroke-dasharray: 4 3; }
+.plan-slide { stroke: var(--done); stroke-width: 1; }
+.plan-glass { stroke: var(--new); stroke-width: 1; }
+.plan-arrow-head { fill: var(--soft); }
+.plan-stair-edge { fill: color-mix(in srgb, var(--surface) 70%, var(--raised)); stroke: var(--ink); stroke-width: 1; }
+.plan-tread { stroke: var(--ink); stroke-width: 0.8; }
+.plan-up { stroke: var(--soft); stroke-width: 1.2; }
+.plan-roof polygon { fill: none; stroke: var(--soft); stroke-width: 1; stroke-dasharray: 10 5; }
+.plan-mark { fill: var(--ink); }
+.plan-item polygon, .plan-item ellipse { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: var(--accent); stroke-width: 1.4; }
+.plan-item.over polygon, .plan-item.over ellipse { fill: none; stroke-dasharray: 5 3; }
+.plan-front { stroke: var(--accent); stroke-width: 3; }
+.plan-zone polygon { fill: color-mix(in srgb, var(--bad) 6%, transparent); stroke: var(--bad); stroke-width: 1; stroke-dasharray: 4 3; }
+.plan-hold rect { fill: color-mix(in srgb, var(--review) 12%, transparent); stroke: var(--review); stroke-width: 2; }
+.plan-item.lit polygon, .plan-item.lit ellipse, .plan-zone.lit polygon, .plan-hold.lit rect { stroke: var(--bad); stroke-width: 3; fill: color-mix(in srgb, var(--bad) 22%, transparent); }
+.plan-ring { fill: none; stroke: var(--bad); stroke-width: 3; }
 .plan-corner { fill: var(--ink) !important; stroke: none !important; cursor: nwse-resize; }
-.plan-door line { stroke: var(--done); stroke-width: 6; vector-effect: non-scaling-stroke; stroke-linecap: round; }
 .plan-spot { fill: var(--new); }
+.plan-dim-line, .plan-dim-ext, .plan-dim-tick { stroke: var(--soft); stroke-width: 1; }
+.plan-dim-tick { stroke-width: 1.6; }
+.plan-north polygon { fill: none; stroke: var(--soft); stroke-width: 1; } .plan-north polygon.fill { fill: var(--soft); }
+.plan-scale rect { fill: none; stroke: var(--soft); stroke-width: 1; } .plan-scale rect.fill { fill: var(--soft); }
+.plan-cut-line { stroke: var(--bad); stroke-width: 1.2; stroke-dasharray: 14 4 3 4; }
 .plan-label { fill: var(--ink); pointer-events: none; font-family: inherit; }
+.plan-label.item { fill: var(--accent); }
 .plan-label.zone { fill: var(--bad); }
-.plan-label.door { fill: var(--done); }
-.plan-label.north { fill: var(--soft); font-weight: 600; }
+.plan-label.hold { fill: var(--review); font-weight: 600; }
+.plan-label.door, .plan-label.stair { fill: var(--done); }
+.plan-label.north, .plan-label.dim, .plan-label.contour { fill: var(--soft); }
+.plan-label.cut { fill: var(--bad); font-weight: 600; }
 .plan-drag { cursor: grab; }
+/* the section A-A under it */
+.plan-section { display: block; width: 100%; height: auto; max-height: 34vh; margin: 8px auto 0; border-top: 1px solid var(--line); }
+.plan-section * { vector-effect: non-scaling-stroke; }
+.plan-earth { fill: url(#plan-hatch); stroke: var(--ink); stroke-width: 1.4; }
+.plan-slab { fill: var(--ink); }
+.plan-roof-cut { fill: none; stroke: var(--ink); stroke-width: 2.4; }
+.plan-stair-cut { stroke: var(--ink); stroke-width: 2; }
+.plan-item-cut rect { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: var(--accent); stroke-width: 1.2; }
+.plan-gaps li { cursor: pointer; }
 .plan-places { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .plan-places li { display: flex; gap: 6px; align-items: center; }
 .plan-places input { flex: 1; min-width: 0; }
@@ -653,4 +692,3 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .design-steps .pip { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line-strong); }
 .design-steps .pip.done { background: var(--done); border-color: var(--done); }
 .design-steps b { margin-left: 4px; font-weight: 600; }
-.plan-places select { flex: 0 1 120px; min-width: 0; }

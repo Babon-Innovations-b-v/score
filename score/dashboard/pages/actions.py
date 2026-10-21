@@ -509,6 +509,15 @@ def plan_named(user, payload):
                      lambda record: f"{len(record['names'])} inside places named")
 
 
+def plan_write(user, payload):
+    """His Make plan: the place's plan written by the prompt model (score.review.web.plan_write; his click its spend
+    yes unless the standing allowance covers it); in words."""
+    from score.review import web
+    return plan_said(user, lambda store, by: web.plan_write(store, str(payload["place"]), float(payload["euros"]), by),
+                     lambda record: f"written: {record.get('items', 0)} items, {record.get('gaps', 0)} gaps"
+                     if "refused" not in record else f"refused: {record['refused']}")
+
+
 def plan_revise(user, payload):
     """His Correct with notes, his click its spend yes (score.review.web.plan_revise); in words."""
     from score.review import web

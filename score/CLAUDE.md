@@ -114,7 +114,14 @@ stage as each stage is built; nothing moves before.
   above's plan, his edits and named inside places kept under `plans/` (his process only), a Correct with notes one
   direct Gemini call inside his click's yes (`web.plan_revise`), `made` and `holder_of` (the row and SAM box holding an
   inside place) for `concepts.step_refusal`, `shape_sent` an inside place's shape on it, `keep` the plans where the
-  plan stage reads them (`stages.creator_plan`) and the plan row made again for those that changed.
+  plan stage reads them (`stages.creator_plan`) and the plan row made again for those that changed; the plan shown is
+  the newer of his edit and the plan made without him (`made_plan`: written, else the rough one laid from the
+  inventory, its SAM boxes only ordering it). `plan_writing.py` writes a place's plan: one Gemini 3.1 Pro call in metres
+  from the pick, the inventory's metres, the layer above's plan and its inside places (the stage table's schema plus
+  outline, walls, openings, levels, stairs, roofs, terrain, shapes, section), kept under `plan-writings/<place>/`, then
+  `plan_checks.py`'s free checks, each failure a plain gap with where it is; run on its own after a reading
+  (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
+  on his Make plan click as his spend yes (`web.plan_write`).
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),

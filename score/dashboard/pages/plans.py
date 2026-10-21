@@ -3,7 +3,7 @@ and its concept page once its scene inventory counts. The plan is made automatic
 2026-10-21: the pick is the approval); the page is for inspecting and fixing it. The plan drawn top down beside the
 picked concept: its outline, doors and where each leads, items as labelled boxes tied to their inventory rows,
 keep-clear zones, standing spots, and for a place holding others the inside places it lays out (a list beside it:
-rename, remove, add, the row each stands in). He drags and resizes items and inside places, moves doors along their
+rename, remove, add; dropped on a building it stands in it). He drags and resizes items and inside places, moves doors along their
 walls, marks areas on the plan or the concept with a note each; Keep keeps his plan as his own (what follows is made
 from it), Correct with notes sends the marks and notes to the prompt model (priced, his click the spend yes).
 
@@ -21,8 +21,8 @@ from score.dashboard.pages import actions, concepts, present
 from score.dashboard.pages.models import SyncRequest, is_owner
 from score.dashboard.state import groups
 
-EDIT, NAMED, REVISE = "plan-edit", "plan-named", "plan-revise"
-SLOW = (REVISE,)  # applied in a thread locally: a model call
+EDIT, NAMED, REVISE, WRITE = "plan-edit", "plan-named", "plan-revise", "plan-write"
+SLOW = (REVISE, WRITE)  # applied in a thread locally: a model call
 
 
 def review_of(world, place):
@@ -46,7 +46,7 @@ def pending_of(place):
 
 def refused_of(place):
     """Why his newest plan request of the place was refused, or None."""
-    found = sorted([item for kind in (EDIT, REVISE) for item in concepts.asked(place, kind)],
+    found = sorted([item for kind in (EDIT, REVISE, WRITE) for item in concepts.asked(place, kind)],
                    key=lambda item: item.created)
     return found[-1].detail if found and found[-1].state == "refused" else None
 
@@ -68,7 +68,8 @@ def plan_page(request, place):
     return render(request, "pages/plan.html", {
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
         "review": review, "plan_json": json.dumps(review["plan"]).replace("</", "<\\/") if review else "null",
-        "picture": picture_of(world, place), "euros": world.plan_revise_euros,
+        "picture": picture_of(world, place), "euros": world.plan_revise_euros, "write_euros": world.plan_write_euros,
+        "automatic": world.plan_automatic,
         "inventory": world.inventories.get(place), "pending": pending and pending.created.isoformat(),
         "refused": refused_of(place), "can": is_owner(request.user) and actions.decisions_on()})
 
@@ -114,6 +115,14 @@ def plan_revise(request, place):
     return refusal or queued(request, place, REVISE, {
         "marks": body.get("marks") or [], "context_marks": body.get("context_marks") or [],
         "note": str(body.get("note") or "")[:2000], "euros": body.get("euros")})
+
+
+@require_POST
+def plan_write(request, place):
+    """POST {euros}: his Make plan, the prompt model writing the place's plan (his spend yes at `euros` unless the
+    standing allowance covers it)."""
+    refusal, body = asked_of(request, place, WRITE)
+    return refusal or queued(request, place, WRITE, {"euros": body.get("euros")})
 
 
 @require_POST

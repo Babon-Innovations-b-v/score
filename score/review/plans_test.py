@@ -153,7 +153,7 @@ def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_it
     assert plans.made(store, "yard") and concepts.holding_row(store, "shed") == "barn"  # the concept review's
 
 
-def test_items_are_sized_by_their_reading_and_placed_by_their_boxes_and_what_has_no_size_or_row_is_a_gap(store, data):
+def test_items_are_sized_by_their_reading_and_ordered_by_their_boxes_and_what_has_no_size_or_row_is_a_gap(store, data):
     from score.review import reading
     yard = json.loads((data / "plans/yard.json").read_text())
     (data / "plans/yard.json").write_text(json.dumps({**yard, "lamps": [{"name": "post", "row": "lamp_post"}],
@@ -170,7 +170,8 @@ def test_items_are_sized_by_their_reading_and_placed_by_their_boxes_and_what_has
                          "size": [100, 50], "inventory": {"concept_pick": {"sha256": PICK}, "rows": rows}})
     plan = plans.current(store, "yard")["plan"]
     items = {item[0]: item for item in plan["items"]}
-    assert items["BARN 1"][1:5] == [3.0, 2.4, 8.0, 6.0]  # its metres, its foot where its box's is on a 20 x 12 m yard
+    assert items["ROCK 1"][1:3] == [0.3, 0.3] and items["BARN 1"][1:5] == [1.6, 0.3, 8.0, 6.0]  # its metres, laid
+    # along the walls after the rock, whose box stands left of its: a box orders, it is never projected (owner, 2026-10-21)
     assert items["CART 1"][3:5] == [1.5, 1.0]  # its metres, laid along the walls: no box
     assert items["ROCK 1"][3:5] == [1.0, 1.0]  # a box but no metres: SAM 3 gives where, never size
     assert [gap["words"] for gap in plan["gaps"]] == ["lamp post: no lamp post in this concept", "Rock 1: no size"]

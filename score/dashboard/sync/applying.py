@@ -21,7 +21,8 @@ CONCEPT_KINDS = ("concept-draw", "concept-pick", "concept-wording")
 # the environment concept's (CONTEXT.md "environment concept"): an interview answer, a new version, a reference picture
 ENVIRONMENT_KINDS = ("environment-ask", "environment-save", "environment-reference")
 # The plan review's (score/review/plans.py): his plan kept, inside places named, a Correct with notes.
-PLAN_KINDS = {"plan-edit": actions.plan_edit, "plan-named": actions.plan_named, "plan-revise": actions.plan_revise}
+PLAN_KINDS = {"plan-edit": actions.plan_edit, "plan-named": actions.plan_named, "plan-revise": actions.plan_revise,
+              "plan-write": actions.plan_write}
 DRAWN = ("sha", "name", "at", "by", "euros", "base", "marks", "note")  # a draw's fields its answer carries
 
 

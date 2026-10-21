@@ -93,6 +93,10 @@ READING_RULE = "scene inventory readings run without asking (owner, 2026-10-21, 
 READING_GEMINI_EUROS = 0.05  # google_spend's estimate of one Gemini 3.1 Pro ask, until a reading is measured
 READING_EUROS = 1.0  # the most one place's reading is cleared at under the allowance; more is no reading
 READING_MINUTES = 30.0  # its high minutes (a cold SAM 3 card's set-up and the asks), the runaway watch's base
+# A plan writing (score/review/plan_writing.py) is cleared the same way, under the same allowance and limit a place.
+PLAN_WRITING = "plan-write"
+PLAN_RULE = "plan writing runs without asking (owner, 2026-10-21, root CLAUDE.md)"
+ALLOWANCES = {READING: READING_RULE, PLAN_WRITING: PLAN_RULE}
 
 
 def judge_timeout():
@@ -613,13 +617,16 @@ def clearance(runner, node, euros):
             "store": str(runner.store.cache.parent)}
 
 
-def reading_clearance(store, places, euros):
-    """Clear one scene inventory reading run of `places` (score/review/reading.py) at its forecast `euros`, under the
-    owner's standing allowance (READING_RULE: readings run with no separate yes) or, when GRANT names one, against
-    that benchmark grant; the ticket ({node, key, clearance, reservations, store}), kept and reserved like the
-    runner's, so require_cleared passes inside its `spending` block and the run counts in flight. The month's books
-    are asked as ever. Refused for any node but READING's, above READING_EUROS a place, or what the grant refuses."""
-    node, grant_id = READING, os.environ.get(GRANT)
+def reading_clearance(store, places, euros, node=READING):
+    """Clear one scene inventory reading run of `places` (score/review/reading.py), or with `node` PLAN_WRITING one
+    plan writing run (score/review/plan_writing.py), at its forecast `euros`, under the owner's standing allowance
+    (ALLOWANCES: they run with no separate yes) or, when GRANT names one, against that benchmark grant; the ticket
+    ({node, key, clearance, reservations, store}), kept and reserved like the runner's, so require_cleared passes
+    inside its `spending` block and the run counts in flight. The month's books are asked as ever. Refused for any
+    node but those, above READING_EUROS a place, or what the grant refuses."""
+    grant_id = os.environ.get(GRANT)
+    if node not in ALLOWANCES:
+        raise Refused(f"{node}: no standing allowance covers it")
     if not places or euros > READING_EUROS * len(places):
         raise Refused(f"{node}: a reading of {len(places)} places at EUR {euros:.2f} is outside the allowance of "
                       f"EUR {READING_EUROS:.2f} a place")
@@ -633,7 +640,7 @@ def reading_clearance(store, places, euros):
         at = graph.now()
         cleared = {"node": node, "key": stamp_key(at), "euros": euros, "minutes": READING_MINUTES,
                    "high_minutes": READING_MINUTES, "measured": False, "estimate": euros, "places": list(places),
-                   "by": f"allowance: {READING_RULE}", "at": at, **({"grant": grant_id} if grant_id else {})}
+                   "by": f"allowance: {ALLOWANCES[node]}", "at": at, **({"grant": grant_id} if grant_id else {})}
         if grant_id:
             spend_grant(covering, grant_id, cleared)
         store.write_clearance(node, cleared["key"], cleared)

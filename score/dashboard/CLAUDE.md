@@ -286,14 +286,22 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **The plan review** (CONTEXT.md "plan review", owner 2026-10-21; `pages/plans.py`, `plan.html`,
   `static/pages/plan.js`, the store side `score/review/plans.py`): `/plan/<place>/`, reached from its card's and
   head's Plan button and its concept page once its scene inventory counts. The plan, made from the pick with no
-  Approve (the pick is the approval), drawn top down as an SVG laid out like the picture the prompt model is sent,
-  beside the picked concept: he drags and resizes items, zones and inside places, moves doors along their walls and
-  standing spots; a list of inside places (rename, remove, add place, the row each stands in); marks on the plan or
-  the concept with a note each. Keep (SyncRequest `plan-edit`) keeps his plan as his own and where the plan stage
+  Approve (the pick is the approval), drawn as an architect's plan in an SVG laid out like the picture the prompt
+  model is sent (`static/pages/plan.js`: hatched walls with their thickness, doors with their swing, windows, stairs
+  with the way up, level marks, terrain contours and spot heights, roofs dashed overhead, each item in its own shape,
+  dimension lines, north arrow, scale bar, and a section A-A under it at the same scale; every colour a token in
+  `dash.css`), beside the picked concept: hover a thing for its details; he drags and resizes items, zones and inside
+  places (one dropped on a building stands in it: no row dropdown, owner 2026-10-21), moves doors along their walls and
+  standing spots; the inside places by name only (rename, remove, add place); its gaps said plainly where they are,
+  a click lighting each on the drawing (no counts line, owner 2026-10-21); marks on the plan or
+  the concept with a note each. While its plan is the rough one (`how` derived) Make plan (`plan-write`,
+  `WorldState.plan_write_euros`) writes it (score/review/plan_writing.py: on its own after a reading under the
+  standing allowance, `plan_automatic`; with that off his click is the spend yes); every writing's euros sum on the
+  Environment's top bar and Stats beside the readings' (`plan_spend`). Keep (SyncRequest `plan-edit`) keeps his plan as his own and where the plan stage
   reads it; Correct with notes (`plan-revise`) is one prompt-model call at `WorldState.plan_revise_euros` (the measured
   answer), his click its spend yes (`web.plan_revise`, an override yes like a concept draw). The concept page names
   inside places up front (`plan-named`, `static/pages/inside.js`). Hosted, a plan kept since the export shows at once
-  (`plans.review_of`); the listener answers all three (`applying.PLAN_KINDS`). What sits inside what is within.json
+  (`plans.review_of`); the listener answers all four (`applying.PLAN_KINDS`). What sits inside what is within.json
   with each holder's inside places as his newest kept plan lays them out (`plans.overlaid`, the one rule: the
   hierarchy here and `concepts.tree(store)` on the store's side); an inside place only his plan names (no line yet)
   gets a design-only tile opening its concept page (`cockpit.designed`, `local.design_nodes`). The sync pass writes every place's plan
