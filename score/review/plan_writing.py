@@ -1,9 +1,13 @@
-"""Plan writing (CONTEXT.md "plan"; the owner, 2026-10-21): Gemini 3.1 Pro writes a place's dimensioned plan in
-metres, element by element, the way the hand-written plans of data/plans were made, from its picked concept, its
-scene inventory (rows with metres; their SAM 3 boxes only as a hint of order, left to right and far to near, never
-projected), the layer above's plan (its outline, where this place sits there, its doors and neighbours) and its inside
-places. One direct call a place; then the free checks (score/review/plan_checks.py), each failure a named gap of the
-plan, never guessed past.
+"""Plan writing (CONTEXT.md "plan"; the owner, 2026-10-21): a place's dimensioned plan measured off a drawing, element
+by element. First its top-down drawing (score/review/plan_drawing.py: Nano Banana Pro redraws the picked concept as an
+orthographic plan from above, on its outline on the layer above's plan); then Gemini 3.1 Pro reads every position and
+footprint off that drawing, in its units (0..1000 of the squared drawing), and which part is which and the heights
+from the concept, its scene inventory (rows with metres), the layer above's plan (where this place sits there, its
+doors and neighbours) and its inside places; it never packs. The units are turned into metres here (`measured`): a
+place the layer above lays out fills its box there, any other is scaled by its rows' metres (the median of each drawn
+item's footprint against its row's), its outline box the drawn outline. Then the free checks
+(score/review/plan_checks.py, the arrangement against the concept's boxes among them), each failure a named gap of
+the plan, never guessed past. A writing that wrote no plan from words alone (METHOD 1) is never shown again.
 
 The plan keeps the stage table's schema (data/plans: w, d, doors, leads, items [name, x, y, wide, deep, facing, kind],
 rows, people, holds) and adds, in plan metres (x east, y south from the outline's north-west corner, heights above
@@ -23,7 +27,8 @@ Runs on its own after a place's scene inventory is read (AUTOMATIC: the owner's 
 CLAUDE.md, compute.reading_clearance's PLAN_WRITING node), else on his Make plan click, his spend yes for that one
 call (web.plan_write). Each writing kept in the store, written once:
 
-    plan-writings/<place>/<time>.json  {place, concept, reading, at, by, method, plan, euros, seconds, clearance}
+    plan-writings/<place>/<time>.json  {place, concept, reading, at, by, method, drawing (its sha), drawing_euros (0
+                                       when an earlier writing paid it), measured, plan, euros, seconds}
                                        (or `refused`: why, with its call's euros)
 
     python -m score.review.plan_writing <place> [<place> ...] [--by <name>]
@@ -39,70 +44,82 @@ import sys
 import time
 import urllib.error
 
-from score.review import concepts, plan_checks, plans, reading
+from score.review import concepts, plan_checks, plan_drawing, plans, reading
 from score.store import Store, locked, stamp_key
 
 AREA = "plan-writings"
 MODEL = concepts.PROMPT_MODEL
 CALLER = "plan-writing"
 TIMEOUT = 600
-METHOD = 1
+# 6: measured off a top-down drawing in a square frame (owner, 2026-10-21), footprints as box_2d read on a grid, each
+# inside place on the part its name fits; 5 to 2 trials of 2026-10-21 (2 and 3 drew in the painting's perspective);
+# 1 packed from words. Only today's is shown.
+METHOD = 6
 # The owner's standing allowance (2026-10-21): a plan is written on its own once its inventory is read. False: only on
 # his Make plan click, his spend yes for that one call.
 AUTOMATIC = True
 ESTIMATE = 0.05  # euros of one writing until one is measured (google_spend's Gemini 3.1 Pro estimate)
+DRAWING_ESTIMATE = 0.15  # euros of one top-down drawing while no draw is measured (google_spend's Nano Banana Pro)
 SWINGS = ("left", "right", "double", "slide", "none")
 OPENINGS = ("door", "window", "opening", "gate")
 ROOFS = ("flat", "dome", "pitched", "vault", "shed")
 SHAPES = ("rect", "circle", "polygon")
 FACINGS = ("N", "E", "S", "W")
-ASKED = """You are an architect drawing the dimensioned floor plan of one place of a game environment, in metres,
-element by element, from its concept painting (the picture) and the facts below. The picture is a three-quarter
-view: read from it what stands where and how big, never copy its perspective. Plan metres: x east, y south, from the
-north-west corner of the place's outline box ({wide:g} m wide, {deep:g} m deep); heights in metres above the place's
-own floor or ground level +0.00.
+ASKED = """You are an architect drawing the dimensioned floor plan of one place of a game environment, element by
+element. The first picture is the place's plan drawn from directly above (orthographic, north up, to scale): read every
+position and shape off it, where it is drawn, and never move, pack or tidy anything. The second picture is the place's
+concept painting (a three-quarter view): read from it which drawn part is which, and the heights. Every horizontal
+position and length (x, y, wide, deep, points, from, to, centre, radius, thick, at, w, d, section) is in units of the
+first picture: x from 0 at its left edge to 1000 at its right edge, y from 0 at its top edge to 1000 at its bottom edge
+(the picture is square; its red grid lines, numbered at the edges, stand every 100 units: read each edge against
+them). Every height (tall, base, sill, head, eave, top, a level's height, a stair's from and to, a
+spot height) is in metres above the place's own floor or ground level +0.00. Angles in degrees from east (the
+picture's right), clockwise, as y runs down.
 
-The facts (JSON):
+The facts (JSON; the rows' metres name the rows and give their heights, the drawing gives their places and footprints):
 {facts}
 
 Write the plan as one JSON object with these keys:
-- "outline": the place's footprint, [[x, y], ...] clockwise, inside the outline box (a rectangle is its 4 corners; a
-  round or curved place its curve in enough points).
-- "walls": every wall, straight {{"from": [x, y], "to": [x, y], "thick": m, "tall": m}} or curved {{"arc":
-  {{"centre": [x, y], "radius": m, "start": degrees, "end": degrees}}, "thick": m, "tall": m}} (degrees from east,
-  clockwise, as y runs south); outer walls on the outline, inner walls where the picture shows them. An outdoor place
-  has none unless the picture shows them.
+- "outline": the place's footprint as drawn, [[x, y], ...] clockwise (a rectangle its 4 corners; a round or curved
+  place its curve in enough points), round every part of the place.
+- "walls": every wall, straight {{"from": [x, y], "to": [x, y], "thick": units, "tall": m}} or curved {{"arc":
+  {{"centre": [x, y], "radius": units, "start": degrees, "end": degrees}}, "thick": units, "tall": m}}: the outer walls
+  of every building, module, dome and tube as drawn, inner walls where drawn. An open ground has none of its own.
 - "openings": every door, window, gate or open doorway, {{"kind": "door"|"window"|"gate"|"opening", "at": [x, y] (its
-  middle, on its wall), "wide": m, "angle": the wall's direction in degrees, "swing": "left"|"right"|"double"|"slide"|
-  "none", "sill": m, "head": m, "to": the place it leads to or null}}; the doors listed in the facts are fixed: list
-  each at its place with its swing.
+  middle, on its wall), "wide": units, "angle": the wall's direction in degrees, "swing": "left"|"right"|"double"|
+  "slide"|"none", "sill": m, "head": m, "to": the place it leads to or null}}; the doors listed in the facts are fixed:
+  list each at its place with its swing.
 - "levels": every floor or ground area at its own height, {{"name": words, "height": m, "points": [[x, y], ...]}}
   (the main floor +0.00; a raised deck, a sunken pit, a platform, a balcony; outside, the ground's own areas: a
   plaza, a road, a quay, the sea or a pool at its water line, sand, grass).
-- "stairs": every stair or ramp, {{"kind": "stair"|"ramp", "points": its footprint, "from": m, "to": m, "angle": the
-  direction one walks up in degrees, "steps": a count}}.
-- "roofs": every roof, {{"kind": "flat"|"dome"|"pitched"|"vault"|"shed", "points": its footprint, "eave": m, "top": m}}.
-- "terrain": for ground outside, {{"spots": [[x, y, height], ...], "contours": [{{"height": m, "points": [[x, y],
+- "stairs": every stair or ramp as drawn, {{"kind": "stair"|"ramp", "points": its footprint, "from": m, "to": m,
+  "angle": the direction one walks up in degrees, "steps": a count}}.
+- "roofs": every roof as drawn, {{"kind": "flat"|"dome"|"pitched"|"vault"|"shed", "points": its footprint, "eave": m,
+  "top": m}}.
+- "terrain": for ground outside, {{"spots": [[x, y, height m], ...], "contours": [{{"height": m, "points": [[x, y],
   ...]}}]}}: spot heights where the ground rises or falls and contour lines at an even step; {{}} for a place indoors.
 - "items": every instance of every row of the facts' rows that stands on the floor or the ground (as many as the row
-  counts), and the things on walls, ceilings or other rows worth placing, each {{"row": the row's id, "x": m, "y": m
-  (its middle), "wide": m (along x), "deep": m (along y), "shape": "rect"|"circle"|"polygon", "points": [[x, y], ...]
-  (a polygon's corners in plan metres, for a thing turned off the grid or of its own outline), "facing": "N"|"E"|"S"|
-  "W"|null (the way its front faces), "tall": m, "base": m (the height it stands at: 0 on the floor, its parent's top
-  on another row)}}. Size each by the row's metres, turned as it stands. Never two things on the same floor area
-  unless one stands on the other; keep a way on foot from every door to every other and to the standing spots.
+  counts), and the things on walls, ceilings or other rows worth placing, each where the drawing shows it, {{"row": the
+  row's id, "box_2d": [ymin, xmin, ymax, xmax] of its footprint as drawn (in the drawing's units, never the row's
+  metres), "shape": "rect"|"circle"|"polygon", "points": [[x, y], ...] (a polygon's corners, for a thing turned off
+  the grid, a tube running at a slant, or of its own outline), "facing": "N"|"E"|"S"|"W"|null (the way its front
+  faces), "tall": m, "base": m (the height it stands at: 0 on the floor, its parent's top on another row)}}. Every
+  building, module, dome, hall and tube of the rows is an item of its row, also when it holds an inside place. A tube
+  or corridor is one item from the part it leaves to the part it reaches, as long as drawn.
 - "structure": the ids of the rows that are the place's own shell, walls, floors, roof, ground, terrain areas, water,
-  sea, plaza or sky (drawn as walls, levels, roofs and terrain above, never as items).
-- "beyond": the ids of the rows the picture shows beyond this place (through a window or a door, past its edge, far
+  sea, plaza or sky (drawn as walls, levels, roofs and terrain above, never as items); never a building, module or
+  tube standing on this place's ground.
+- "beyond": the ids of the rows the painting shows beyond this place (through a window or a door, past its edge, far
   off): never placed here, they belong to the place they stand in.
-- "zones": areas to keep clear beyond the doors' (a vehicle's keep-out, a landing pad), {{"name": words, "x": m, "y":
-  m, "wide": m, "deep": m}} (x, y their north-west corner).
-- "places": each inside place of the facts, laid out so they tile without overlap inside the outline, each inside
-  the building or part of this place that holds it, {{"place": its name, "in": the id of the row holding it (a
-  building, a ship, a hall) or null for this place's own floor, "x": m, "y": m, "w": m, "d": m}} (x, y its north-west
-  corner).
+- "zones": areas to keep clear beyond the doors' (a vehicle's keep-out, a landing pad), {{"name": words, "box_2d":
+  [ymin, xmin, ymax, xmax]}}.
+- "places": each inside place of the facts, on the part of the drawing that holds it, the part its name and use fit (an
+  airlock where the way out is, by its ramp or outer door; a garage by its vehicle door; a greenhouse in the glass
+  dome; a tube in a tube; a hangar in the hangar), {{"place": its name, "in": the id
+  of the row holding it (a building, a module, a ship, a hall) or null for this place's own floor, "box_2d": [ymin,
+  xmin, ymax, xmax] as drawn}}.
 - "people": two to four standing spots [[x, y], ...] on free floor where a person would stand to look round.
-- "section": {{"y": m}}, where a west-to-east cut through the place shows the most of its heights.
+- "section": {{"y": units}}, where a west-to-east cut through the place shows the most of its heights.
 No text besides the JSON."""
 
 
@@ -161,21 +178,47 @@ def facts_of(store, place, skeleton, inventory):
     leads = skeleton.get("leads", {})
     return {"place": place, "name": concepts.name_of(place), "title": skeleton.get("title"),
             "shell": skeleton.get("shell"), "heights in words": skeleton.get("height") or None,
-            "outline box [wide, deep]": [skeleton["w"], skeleton["d"]], "within": within_told(store, place),
+            "within": within_told(store, place),
             "fixed doors": [door_told(door, leads) for door in skeleton.get("doors", [])],
             "inside places": [{"place": hold["place"], "about [wide, deep]": [hold["w"], hold["d"]]}
                               for hold in skeleton.get("holds", [])],
             "rows": rows_told(inventory)}
 
 
-def asked_body(concept, skeleton, facts):
-    """The Gemini request: ASKED with the facts, and the picked concept."""
+def squared(picture):
+    """The drawing padded white to a square (its top-left kept), so the answer's 0..1000 units run alike both ways."""
+    from PIL import Image
+    side = max(picture.size)
+    found = Image.new("RGB", (side, side), (255, 255, 255))
+    found.paste(picture.convert("RGB"), (0, 0))
+    return gridded(found)
+
+
+GRID = 100  # drawing units between the lines of the grid the writer reads positions against
+
+
+def gridded(picture):
+    """The square drawing with a faint grid every GRID units, each line numbered at the edges (0..1000)."""
+    from PIL import ImageDraw
+    side = picture.size[0]
+    pen = ImageDraw.Draw(picture)
+    for unit in range(0, 1001, GRID):
+        at = min(round(unit * side / 1000), side - 1)
+        pen.line([(at, 0), (at, side)], fill=(255, 120, 120), width=1)
+        pen.line([(0, at), (side, at)], fill=(255, 120, 120), width=1)
+        pen.text((at + 3, 3), str(unit), fill=(200, 0, 0), font_size=max(12, side // 70))
+        pen.text((3, at + 3), str(unit), fill=(200, 0, 0), font_size=max(12, side // 70))
+    return picture
+
+
+def asked_body(drawing, concept, facts):
+    """The Gemini request: ASKED with the facts, the top-down drawing (squared) and the picked concept."""
     from PIL import Image
     pro, _, _ = concepts.tools()
-    picture = Image.open(concept)
+    drawn, picture = squared(Image.open(drawing)), Image.open(concept)
     return {"contents": [{"role": "user", "parts": [
-        {"text": ASKED.format(wide=skeleton["w"], deep=skeleton["d"], facts=json.dumps(facts, indent=1))},
-        pro.part(picture, max(picture.size))]}],
+        {"text": ASKED.format(facts=json.dumps(facts, indent=1))},
+        pro.part(drawn, max(drawn.size)), pro.part(picture, max(picture.size))]}],
         "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
 
 
@@ -372,6 +415,151 @@ def holds_of(answer, skeleton, ids):
     return holds, gaps
 
 
+# --- the answer measured: drawing units to metres ----------------------------------------------------------------
+
+def drawn_extent(answer):
+    """(low x, low y, high x, high y) in drawing units of the answer's outline, else of its items; None with neither."""
+    items = answer.get("items") if isinstance(answer.get("items"), list) else []
+    corners = points(answer.get("outline")) or [corner for corner in (
+        point([item.get("x"), item.get("y")]) for item in items if isinstance(item, dict)) if corner]
+    if not corners:
+        return None
+    xs, ys = [corner[0] for corner in corners], [corner[1] for corner in corners]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def rows_scale(answer, inventory):
+    """Metres a drawing unit by the rows' metres: the median over the answered items of a row with a size of the
+    root of its metres' footprint over its drawn footprint; None when no item can tell. A tube or a thing drawn as a
+    polygon (turned off the grid: its box is not its footprint) tells nothing."""
+    sizes = {row["id"]: row["size"] for row in inventory.get("rows", []) if isinstance(row.get("size"), list)
+             and len(row["size"]) >= 2 and all(number(part) for part in row["size"][:2])
+             and not plans.whole(row, inventory.get("picture")) and not plan_checks.connector(row)}
+    found = []
+    for item in answer.get("items") or []:
+        box = footprint_of(item) if isinstance(item, dict) and item.get("row") in sizes \
+            and item.get("shape") != "polygon" else None
+        if box:
+            wide, deep = sizes[item["row"]][:2]
+            found.append(math.sqrt(wide * deep / (box[2] * box[3])))
+    return sorted(found)[len(found) // 2] if found else None
+
+
+def scale_of(answer, skeleton, inventory, held):
+    """((metres a unit along x, along y), (origin x, origin y) in units, how): a place the layer above lays out
+    (`held`) fills its box there, each way; any other is measured by its rows' metres, else fills its own plan's box;
+    its origin its drawn outline's north-west corner. Refused when none tells."""
+    extent = drawn_extent(answer)
+    if extent is None or extent[2] <= extent[0] or extent[3] <= extent[1]:
+        raise Refused("the answer draws no outline to measure")
+    if held:
+        return ((skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1])), extent[:2],
+                "its box on the layer above's plan")
+    found = rows_scale(answer, inventory)
+    if found is not None:
+        return (found, found), extent[:2], "its rows' metres"
+    if skeleton.get("w") and skeleton.get("d"):
+        return ((skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1])), extent[:2],
+                "its own plan's box (no row with metres drawn)")
+    raise Refused("no drawn item of a row with metres to measure the drawing by")
+
+
+def unboxed(entry, keys, middle):
+    """An answered entry's `box_2d` [ymin, xmin, ymax, xmax] as its `keys` (x, y, wide, deep): x, y its middle when
+    `middle`, else its top-left corner; the entry as it is without one."""
+    box = entry.get("box_2d") if isinstance(entry, dict) else None
+    if not (isinstance(box, list) and len(box) == 4 and all(number(part) is not None for part in box)):
+        return entry
+    top, left, bottom, right = (number(part) for part in box)
+    wide, deep = right - left, bottom - top
+    return {**entry, keys[0]: left + wide / 2 if middle else left, keys[1]: top + deep / 2 if middle else top,
+            keys[2]: wide, keys[3]: deep}
+
+
+def unboxed_all(answer):
+    """The answer with every item's, zone's and inside place's `box_2d` turned into its spans (`unboxed`)."""
+    spans = {"items": (("x", "y", "wide", "deep"), True), "zones": (("x", "y", "wide", "deep"), False),
+             "places": (("x", "y", "w", "d"), False)}
+    return {**answer, **{key: [unboxed(entry, keys, middle) for entry in answer[key]]
+                         for key, (keys, middle) in spans.items() if isinstance(answer.get(key), list)}}
+
+
+def metred(answer, scale, origin):
+    """The answer with every horizontal position and length in plan metres (`scale` metres a unit along x and y,
+    `origin` the unit point at plan 0, 0); heights, angles and shapes as answered. A value off the schema is left as
+    it is, for the checks of plan_from to drop."""
+    (along_x, along_y), (left, top) = scale, origin
+    mean = (along_x + along_y) / 2
+
+    def at(value):
+        found = point(value)
+        return [round((found[0] - left) * along_x, 3), round((found[1] - top) * along_y, 3)] if found else value
+
+    def run(value, along):
+        found = number(value)
+        return round(found * along, 3) if found is not None else value
+
+    def each(value):
+        return [at(part) for part in value] if isinstance(value, list) else value
+
+    def walled(wall):
+        if not isinstance(wall, dict):
+            return wall
+        found = {**wall, "from": at(wall.get("from")), "to": at(wall.get("to")), "thick": run(wall.get("thick"), mean)}
+        if isinstance(wall.get("arc"), dict):
+            found["arc"] = {**wall["arc"], "centre": at(wall["arc"].get("centre")),
+                            "radius": run(wall["arc"].get("radius"), mean)}
+        return found
+
+    def boxed(entry, keys):
+        if not isinstance(entry, dict):
+            return entry
+        x, y = at([entry.get(keys[0]), entry.get(keys[1])]) if point([entry.get(keys[0]), entry.get(keys[1])]) \
+            else (entry.get(keys[0]), entry.get(keys[1]))
+        return {**entry, keys[0]: x, keys[1]: y, keys[2]: run(entry.get(keys[2]), along_x),
+                keys[3]: run(entry.get(keys[3]), along_y), **({"points": each(entry["points"])} if "points" in entry
+                                                              else {})}
+
+    def shaped(entry, key="points"):
+        return {**entry, key: each(entry.get(key))} if isinstance(entry, dict) else entry
+
+    def listed_as(key, change):
+        return [change(entry) for entry in answer[key]] if isinstance(answer.get(key), list) else answer.get(key)
+
+    terrain = answer.get("terrain") if isinstance(answer.get("terrain"), dict) else {}
+    spots = [[*at(spot[:2]), spot[2]] if isinstance(spot, list) and len(spot) == 3 and point(spot[:2]) else spot
+             for spot in terrain.get("spots") or []] if isinstance(terrain.get("spots"), list) else []
+    section = answer.get("section") if isinstance(answer.get("section"), dict) else {}
+    section_y = number(section.get("y"))
+    return {**answer, "outline": each(answer.get("outline")), "walls": listed_as("walls", walled),
+            "openings": listed_as("openings", lambda entry: {**entry, "at": at(entry.get("at")),
+                                                             "wide": run(entry.get("wide"), mean)}
+                                  if isinstance(entry, dict) else entry),
+            "levels": listed_as("levels", shaped), "stairs": listed_as("stairs", shaped),
+            "roofs": listed_as("roofs", shaped),
+            "terrain": {**terrain, "spots": spots, "contours": [shaped(line) for line in terrain.get("contours") or []]
+                        if isinstance(terrain.get("contours"), list) else []},
+            "items": listed_as("items", lambda entry: boxed(entry, ("x", "y", "wide", "deep"))),
+            "zones": listed_as("zones", lambda entry: boxed(entry, ("x", "y", "wide", "deep"))),
+            "places": listed_as("places", lambda entry: boxed(entry, ("x", "y", "w", "d"))),
+            "people": each(answer.get("people")),
+            "section": {"y": round((section_y - top) * along_y, 3)} if section_y is not None else section}
+
+
+def measured(answer, skeleton, inventory, held):
+    """(the answer in plan metres, the skeleton with its outline box measured, how it was measured): the drawing's
+    units turned into metres (`scale_of`); a place not laid out above takes its outline box from the drawing."""
+    if not isinstance(answer, dict):
+        raise Refused("the answer is no JSON object")
+    answer = unboxed_all(answer)
+    scale, origin, how = scale_of(answer, skeleton, inventory, held)
+    found = metred(answer, scale, origin)
+    if not held:
+        low_x, low_y, high_x, high_y = drawn_extent(answer)
+        skeleton = {**skeleton, "w": round((high_x - low_x) * scale[0], 3), "d": round((high_y - low_y) * scale[1], 3)}
+    return found, skeleton, {"metres a unit": [round(scale[0], 5), round(scale[1], 5)], "by": how}
+
+
 def plan_from(answer, skeleton, inventory):
     """The written plan: the skeleton (its outline box, doors, leads, lamps, elements, the stage table's keys) with the
     answer's items, zones, inside places, standing spots and architecture, and every gap: the skeleton's that still
@@ -436,15 +624,25 @@ def to_write(store, places):
 
 
 def spent(store, places):
-    """The euros every writing of `places` cost, in sum (the cockpit's running total beside the readings')."""
-    return round(sum(found["euros"] for place in places for found in writings(store, place)), 4)
+    """The euros every writing of `places` and every top-down drawing it was measured from cost, in sum (the cockpit's
+    running total beside the readings')."""
+    return round(sum(found["euros"] for place in places for found in writings(store, place))
+                 + plan_drawing.spent(store, places), 4)
+
+
+def dearest(store, area):
+    """The dearest measured call kept under `area`, None with none."""
+    found = [store.read(key)["euros"] for key in store.objects.keys(f"{area}/")] if store else []
+    return max(found) if found else None
 
 
 def price(store=None):
-    """The euros one writing is priced at: the dearest measured writing of any place, rounded up to the cent, else
-    ESTIMATE."""
-    measured = [store.read(key)["euros"] for key in store.objects.keys(f"{AREA}/")] if store else []
-    return math.ceil(max(measured) * 100) / 100 if measured else ESTIMATE
+    """The euros one writing is priced at: its call (the dearest measured writing of any place, else ESTIMATE) and its
+    top-down drawing (the dearest measured drawing, else a concept draw's price), rounded up to the cent."""
+    call = dearest(store, AREA) if dearest(store, AREA) is not None else ESTIMATE
+    drawing = dearest(store, plan_drawing.AREA)
+    drawing = drawing if drawing is not None else (concepts.draw_euros() or DRAWING_ESTIMATE)
+    return math.ceil(round((call + drawing) * 100, 6)) / 100
 
 
 def call_euros(response):
@@ -464,19 +662,27 @@ def layered(store, places):
 
 
 def written_one(store, place, by, folder, ask):
-    """Write one place's plan (`ask(body)` the call); its record, kept."""
+    """Write one place's plan: its top-down drawing first (plan_drawing.drawn), then `ask(body)` reading it; its
+    record, kept (refused, with why, when the drawing is)."""
     skeleton = plans.derived(store, place)
     inventory = plans.inventory_of(store, place)
     sha = concepts.picked(store, place)
-    concept = reading.picture_path(store, sha, folder)
-    body = asked_body(concept, skeleton, facts_of(store, place, skeleton, inventory))
+    record = {"place": place, "concept": sha, "reading": reading_at(store, place), "by": by, "method": METHOD}
+    try:
+        drawing = plan_drawing.drawn(store, place)
+    except concepts.Refused as refused:
+        return kept(store, {**record, "at": concepts.now(), "euros": 0.0, "refused": f"no top-down drawing: {refused}"})
+    record.update({"drawing": drawing["sha"], "drawing_euros": drawing["euros"] if drawing.get("fresh") else 0.0})
+    body = asked_body(reading.picture_path(store, drawing["sha"], folder), reading.picture_path(store, sha, folder),
+                      facts_of(store, place, skeleton, inventory))
     (folder / f"{place}-asked.json").write_text(json.dumps(body["contents"][0]["parts"][0], indent=1))
     response, seconds = ask(body)
     (folder / f"{place}-answer.json").write_text(json.dumps(response, indent=1))
-    record = {"place": place, "concept": sha, "reading": reading_at(store, place), "at": concepts.now(), "by": by,
-              "method": METHOD, "euros": call_euros(response), "seconds": seconds}
+    record.update({"at": concepts.now(), "euros": call_euros(response), "seconds": seconds})
     try:
-        record["plan"] = plan_from(json.loads(reading.answer_text(response)), skeleton, inventory)
+        answer, skeleton, record["measured"] = measured(json.loads(reading.answer_text(response)), skeleton,
+                                                         inventory, plans.holder_of(store, place) is not None)
+        record["plan"] = plan_from(answer, skeleton, inventory)
     except (ValueError, Refused) as refused:
         record["refused"] = f"the plan answer is no plan: {str(refused)[:200]}"
     return kept(store, record)
@@ -527,9 +733,11 @@ def kept(store, record):
 def said(record):
     """One line of a writing: its place, items, gaps, euros and seconds, or why it was refused."""
     if record.get("refused"):
-        return json.dumps({"place": record["place"], "refused": record["refused"], "euros": record["euros"]})
+        return json.dumps({"place": record["place"], "refused": record["refused"], "euros": record["euros"],
+                           "drawing euros": record.get("drawing_euros", 0.0)})
     return json.dumps({"place": record["place"], "items": len(record["plan"]["items"]),
-                       "gaps": len(record["plan"]["gaps"]), "euros": record["euros"], "seconds": record["seconds"]})
+                       "gaps": len(record["plan"]["gaps"]), "euros": record["euros"],
+                       "drawing euros": record.get("drawing_euros", 0.0), "seconds": record["seconds"]})
 
 
 def main(argv):

@@ -119,10 +119,14 @@ stage as each stage is built; nothing moves before.
   inside place) for `concepts.step_refusal`, `shape_sent` an inside place's shape on it, `keep` the plans where the
   plan stage reads them (`stages.creator_plan`) and the plan row made again for those that changed; the plan shown is
   the newer of his edit and the plan made without him (`made_plan`: written, else the rough one laid from the
-  inventory, its SAM boxes only ordering it). `plan_writing.py` writes a place's plan: one Gemini 3.1 Pro call in metres
-  from the pick, the inventory's metres, the layer above's plan and its inside places (the stage table's schema plus
-  outline, walls, openings, levels, stairs, roofs, terrain, shapes, section), kept under `plan-writings/<place>/`, then
-  `plan_checks.py`'s free checks, each failure a plain gap with where it is; run on its own after a reading
+  inventory, its SAM boxes only ordering it). `plan_writing.py` writes a place's plan, measured off a drawing (owner, 2026-10-21):
+  first `plan_drawing.py`'s top-down drawing (one Nano Banana Pro call redrawing the pick from directly above on its
+  outline on the layer above's plan, kept under `plan-drawings/<place>/`, once per pick and outline), then one Gemini
+  3.1 Pro call reading positions and footprints off it in its units, which part is which from the pick, the
+  inventory's metres, the layer above's plan and its inside places (the stage table's schema plus outline, walls,
+  openings, levels, stairs, roofs, terrain, shapes, section), turned into metres by the holder's box or the rows'
+  metres, kept under `plan-writings/<place>/`, then `plan_checks.py`'s free checks (the arrangement against the
+  concept's SAM boxes, left of, behind, what a tube joins, among them), each failure a plain gap with where it is; run on its own after a reading
   (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
   on his Make plan click as his spend yes (`web.plan_write`).
   `blockout.py` builds a place's blockout (CONTEXT.md "blockout", owner 2026-10-21) from its parent's plan: a top

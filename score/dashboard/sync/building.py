@@ -223,6 +223,10 @@ def build(source, out, made_at, cap_mb, spend, repo):
             filler.picture(source.file(picture.sha)[1], picture.sha, side, f"reference {picture.name}")
     for picture in world.blockouts.values():  # the blockouts every new draw is drawn on (score/review/blockout.py)
         filler.picture(source.file(picture.sha)[1], picture.sha, HERO_SIDE, f"blockout {picture.name}")
+    for review in world.plan_reviews.values():  # the top-down drawings written plans were measured from
+        if review.drawing:
+            filler.picture(source.file(review.drawing.sha)[1], review.drawing.sha, HERO_SIDE,
+                           f"plan drawing {review.drawing.name}")
     drawn = [draw.picture for draws in world.concept_draws.values() for draw in reversed(draws)]
     for side in (THUMB_SIDE, HERO_SIDE):  # the concept review's draws, newest first, its history then its page
         for picture in drawn:
