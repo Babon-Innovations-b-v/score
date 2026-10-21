@@ -4,20 +4,16 @@
     /root/envs/motion/bin/python prop_chain.py /root/make/<name>
 
 The spec (in/spec.json, written by prop_person.py) names its `steps`, in order, out of STEPS:
-  pose      SOMA-X's bind pose measured on the mean skeleton (prop_read.py)
-  closeup   the front close-up in that pose, two klein seeds (prop_closeup.py)
   clips     the spec's clips made by Kimodo with the fixed seed (people/clips.py, chain.py's clips step), each with its
             record, copied into out/motions/ so the store keeps them
   rig       SOMA-X's mean skeleton, its surface's weights and the spec's clips exported (prop_skeleton.py)
+  shell     SOMA-X's body fitted to the outside of the look (prop_shell.py fit): out/shell.npz
   build     the glTF from the fitted rig, the mean rig's clips and the parts (prop_build.py), its UsdSkel asset
             (skel_usd.py) and joins.py's record into out/checks/
   route     the people route (owner, 2026-10-18) on the built body: SOMA-X's base under the look from the identity
             (route_base.py base), its pose correctives for every clip (route_base.py correctives), the garments bound
             by limb, the webs cut, the face by route_head.FACE and the correctives as shared morph targets
             (route_build.py), its UsdSkel asset and joins.py's record: out/route/
-  shots     the comparison pictures of the spec's body (blender_shots.py: A-pose front and side, walking at 1/4 and
-            3/4, sitting) into out/shots/
-  review    turntables and clip frames rendered by Cycles (blender_review.py), as the shipped route's review
   identity  the body under the clothes read off the person's close-up by SAM 3D Body (body_picture.py) into
             out/identity.npz: the people route's base (route_base.py) reads it; the A-pose picture it was read from
             before is lost (2026-10-19), and the close-up is the same person front on in the rig's A-pose
@@ -34,40 +30,7 @@ MAKER = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(MAKER))
 
 import chain as person_chain  # noqa: E402
-from chain import MOTION, PICTURE  # noqa: E402
-
-SEEDS = (1, 2)
-
-
-def pose(chain):
-    """The bind pose the close-up is drawn in: SOMA-X's measured one, with the spec's `bind_pose` numbers over it (a
-    wider A-pose, 2026-10-13: arms further out and feet further apart leave open space at the armpits and the groin,
-    which Pixal3D otherwise builds as one surface with the body)."""
-    chain.run([MOTION, MAKER / "prop_read.py", chain.out / "pose.json"])
-    widened(chain.out / "pose.json", chain.spec.get("bind_pose", {}))
-
-
-def widened(path, numbers):
-    """The pose file with `numbers` (arm_degrees, hands_forward_m, ankles_m) written over the measured ones."""
-    unknown = set(numbers) - {"arm_degrees", "hands_forward_m", "ankles_m"}
-    if unknown:
-        raise SystemExit(f"bind_pose: unknown numbers {sorted(unknown)}")
-    if numbers:
-        path.write_text(json.dumps({**json.loads(path.read_text()), **numbers}, indent=1))
-
-
-def closeup(chain):
-    """The close-up, one picture a seed, into out/closeup/."""
-    spec = chain.spec
-    target = chain.out / "closeup" / f"{spec['name']}.png"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    references = [chain.file(path) for path in spec.get("references", [])]
-    seeds = spec.get("seeds", SEEDS)
-    posing = ["--pose-picture", chain.file(spec["files"]["pose_picture"])] if "pose_picture" in spec.get("files", {}) \
-        else []
-    chain.run([PICTURE, MAKER / "prop_closeup.py", target, chain.out / "pose.json", spec["who"],
-               spec["outfit_words"], *references, "--seeds", *map(str, seeds), *posing])
-    return f"{len(seeds)} seeds, {len(references)} references{', a pose picture' if posing else ''}"
+from chain import MOTION  # noqa: E402
 
 
 def motion_home():
@@ -142,21 +105,6 @@ def route(chain):
     return json.loads(routed.with_suffix(".json").read_text())["head"]["face"]
 
 
-def shots(chain):
-    """The comparison pictures (blender_shots.py) of the spec's body file, into out/shots/."""
-    chain.run([person_chain.BLENDER, "-b", "-P", MAKER / "blender_shots.py", "--",
-               chain.file(chain.spec["files"]["body"]), chain.out / "shots", "--outfit", chain.spec["outfit"]])
-
-
-def review(chain):
-    """The review pictures of the built person (blender_review.py, the shipped route's cameras)."""
-    shown = [name for name in person_chain.REVIEW_CLIPS if name in chain.spec.get("review_clips", [])]
-    chain.run([person_chain.BLENDER, "-b", "-P", MAKER / "blender_review.py", "--",
-               chain.out / f"{chain.spec['person']}.glb", chain.out / "review", "--clips", *shown, "--angles", "8",
-               "--frames", "4", "--size", "448"])
-    return f"turntables and {len(shown)} clips"
-
-
 def identity(chain):
     """The body under the clothes read off the close-up (body_picture.py, SAM 3D Body): out/identity.npz."""
     chain.run([MOTION, MAKER / "body_picture.py", chain.file(chain.spec["files"]["closeup"]),
@@ -164,8 +112,7 @@ def identity(chain):
     return "read off the close-up"
 
 
-STEPS = {"pose": pose, "closeup": closeup, "clips": clips, "rig": rig, "shell": shell, "build": build, "route": route,
-         "shots": shots, "review": review, "identity": identity}
+STEPS = {"clips": clips, "rig": rig, "shell": shell, "build": build, "route": route, "identity": identity}
 
 
 def main():

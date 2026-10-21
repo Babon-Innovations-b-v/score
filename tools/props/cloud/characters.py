@@ -51,7 +51,7 @@ SHIPPED = ("tools", "vendor/kimodo", "vendor/sam3dbody-cpp", "data/characters")
 # still ends inside it.
 SETUP_MINUTES = 14
 PERSON_MINUTES = 43
-# Room for the environments, CUDA, the Llama 3 encoder and the picture model (sized when it held six and Hi3DGen).
+# Room for the environments, CUDA and the Llama 3 encoder (sized when it held six, Hi3DGen's and klein's among them).
 DISK_GB = 200
 POLL_SECONDS = 30
 # The programs of tools/characters/maker a make folder may run, by the name its spec gives.

@@ -1,15 +1,16 @@
-"""What every characters machine's chain shares (prop_chain.py runs on it): one make's folders, spec and timed record
-(`Chain`), the environments' paths up there, and the clips step (Kimodo, `clips`). Runs on the machine
-tools/props/cloud/characters.py set up (characters_setup.sh), never on the owner's PC.
+"""The maker's step runner on a rented card (tools/props/cloud/characters.py sets the machine up with
+characters_setup.sh; never on the owner's PC): a make folder's spec, its folders, every program a step runs and the
+record of each step. prop_chain.py's steps run through it; its own step is the clips.
 
-The shipped person chain that ran here (the A-pose picture, the body at rest, the GarmentCode drapes, the head, the
-hair, the face, the build and its review) was retired with the garment designs it dressed people in (owner,
-2026-10-21: all old stuff is retired); a person is made on the prop route (prop_person.py, prop_chain.py).
+The make folder holds `in/` (prop_person.py wrote it). The chain works in `work/` and writes `out/`, with
+`out/make.json`: each step's minutes, the card it ran on, and what failed.
+
+  clips     every clip the spec names that is not made yet, from its sentence (Kimodo with the fixed seed,
+            people/clips.py)
 """
 import json
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
 import time
@@ -18,8 +19,6 @@ MAKER = pathlib.Path(__file__).resolve().parent
 PEOPLE = MAKER.parent / "people"
 ENVS = pathlib.Path("/root/envs")
 MOTION = ENVS / "motion/bin/python"
-PICTURE = ENVS / "picture/bin/python"
-BLENDER = pathlib.Path("/root/blender/blender")
 # The people tools find their chain through MOTION_HOME (people/paths.py); up here it is a folder whose `env` is the
 # motion environment.
 MOTION_HOME = pathlib.Path("/root/motion-home")
@@ -35,7 +34,7 @@ class Chain:
         self.work = folder / "work"
         self.out = folder / "out"
         self.look = self.work / "look"
-        for place in (self.work, self.out / "steps", self.look, self.work / "pics", self.work / "motionwork"):
+        for place in (self.work, self.out, self.look, self.work / "motionwork"):
             place.mkdir(parents=True, exist_ok=True)
         self.record = {"name": self.spec["name"], "card": card_name(), "steps": []}
         # A chain run again for some steps (mending one on a held machine) keeps the steps run before.
@@ -50,7 +49,7 @@ class Chain:
         """What every step's program runs with: the people tools pointed at this make's look and work."""
         return dict(os.environ, MOTION_HOME=str(MOTION_HOME), MOTION_LOOK=str(self.look),
                     MOTION_WORK=str(self.work / "motionwork"), MOTION_PERSON=self.spec["name"],
-                    PROPS_BLENDER=str(BLENDER), FARM_LOCAL_MODELS="1",
+                    FARM_LOCAL_MODELS="1",
                     LD_LIBRARY_PATH=":".join(filter(None, [CUDA_LIBRARIES, os.environ.get("LD_LIBRARY_PATH")])))
 
     def run(self, command, **extra):
@@ -82,10 +81,6 @@ class Chain:
         self.record["minutes"] = round(sum(latest.values()), 2)
         (self.out / "make.json").write_text(json.dumps(self.record, indent=1))
 
-    def keep(self, path, name=None):
-        """Copy a step's picture or mesh into out/steps for the review page."""
-        shutil.copy2(path, self.out / "steps" / (name or path.name))
-
 
 def card_name():
     """The card this chain runs on, as the driver names it."""
@@ -109,7 +104,3 @@ def clips(chain):
         sentences.write_record(name, motions / name)
         made.append(f"{name} {time.time() - began:.0f}s")
     return f"made {len(made)}: " + ", ".join(made) if made else "every clip was made already"
-
-
-# The clips the review page shows moving, where the make has them.
-REVIEW_CLIPS = ("standing", "walking", "bench", "waiting", "suit")
