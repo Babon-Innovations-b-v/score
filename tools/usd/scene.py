@@ -8,7 +8,9 @@ as numbers copied from the game (each entry names the game file it came from), a
 
     structure   code builders (tools/usd/builders.py) by name with their numbers, each painted with a library surface,
                 built in the place's frame or in its own and placed (`placed_at`, `placed_turn`):
-                /<place>/Structure/<name>; one that is an inventory row's code-built piece names it (`row`)
+                /<place>/Structure/<name>, a static collider (tools/usd/colliders.py: an exact box for a box square to
+                the place, else its triangles simplified); one that is an inventory row's code-built piece names it
+                (`row`)
     objects     a world model file (a gameplay object; tools/usd/glb_asset.py) where the game stands it, turned about up
                 (`yaw`, as the game turns it) or by a whole `rotation` (one on a seat of its own, tipped with the
                 ball's curve), scaled to the height the game gives it, with what stands on it: /<place>/Fixtures/<name>;
@@ -20,7 +22,8 @@ as numbers copied from the game (each entry names the game file it came from), a
                 (tools/usd/ground_detail.py, when the place's ground record carries the ground shader's detail)
     water       a flat surface of the library's water: /<place>/Water/<name>, with how much it mirrors (`mirror`) and
                 the lit things over it it gives back as streaks (`mirror` `lit`, the harbour's lit columns)
-    ground      a ground the game makes in code (a far disc, Mars's plain): structure entries with the ground's surface
+    ground      a ground the game makes in code (a far disc, Mars's plain): structure entries with the ground's surface,
+                static colliders as the structure
     lights      the game's lights, UsdLux (/<place>/Lights): an omni a sphere light, a spot one shaped to its cone, the
                 sun or moon a distant light; the game's own numbers ride on each as `score:game:*`
     environment the sky the camera sees and the ambient light (a dome light, `/<place>/Environment`), the exposure;
@@ -63,6 +66,7 @@ import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
 
 import builders
+import colliders
 import glb_asset
 import ground_detail
 import mars_sky
@@ -210,7 +214,8 @@ def sun_ball(stage, place, path, centre, radius):
 
 def write_structure(stage, place, entries, root="Structure", kind="structure", out=None, tiles=None):
     """Every structure entry as one mesh (several when its builder gives several) painted with its surface (its
-    library tile where `tiles` holds one, shaders.tile_look)."""
+    library tile where `tiles` holds one, shaders.tile_look); a solid one (structure, ground: not water) a static
+    collider (colliders.solid)."""
     if not entries:
         return
     UsdGeom.Scope.Define(stage, f"/{place}/{root}")
@@ -219,6 +224,8 @@ def write_structure(stage, place, entries, root="Structure", kind="structure", o
             name = entry["name"] if number == 0 else f"{entry['name']}_{number + 1}"
             prim = mesh_prim(stage, f"/{place}/{root}/{name}", built)
             bind_surface(stage, prim, place, built["surface"], out, tiles)
+            if kind in colliders.SOLID_KINDS:
+                colliders.solid(prim.GetPrim(), built["points"], built["triangles"])
             for key, value in (("score:kind", kind), ("score:builder", entry["builder"]),
                                ("score:from", entry.get("from", ""))):
                 prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
@@ -797,7 +804,7 @@ def far_ground(stage, place, ground, entry, out, near):
     """The planned ground past the near patch (the export's /<place>/Ground, `near` its box across and along): the
     plan's square out to `reach` metres round the place, `step` metres apart, in the plan's skin (shaded as the
     ground shader shades it, ground_detail.far_colour, when the ground carries its detail); and, under it, the
-    ball itself (`ball`), so the horizon is round as the game's. Both in the place's frame."""
+    ball itself (`ball`), so the horizon is round as the game's. Both in the place's frame, both static colliders."""
     reach, step = float(entry.get("reach", 130.0)), float(entry.get("step", 2.0))
     points, triangles, skin_at = ground.mesh(np.array([-reach, -reach]), np.array([reach, reach]), 0.0, step)
     flat = points[:, [0, 2]]
@@ -832,6 +839,7 @@ def far_ground(stage, place, ground, entry, out, near):
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
     prim.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
+    colliders.solid(prim.GetPrim(), built["points"], built["triangles"])
     if entry.get("ball"):
         middle = ground.in_place_frame(np.zeros(3))[0]
         sphere = UsdGeom.Sphere.Define(stage, f"/{place}/Terrain/ball")
@@ -839,6 +847,7 @@ def far_ground(stage, place, ground, entry, out, near):
         sphere.AddTranslateOp().Set(Gf.Vec3d(*map(float, middle)))
         bind_surface(stage, sphere, place, entry["ball"])
         sphere.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
+        colliders.solid(sphere.GetPrim())
 
 
 def unlit_material(stage, path, value):

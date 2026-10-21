@@ -68,6 +68,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 sys.path.insert(0, str(REPO / "tools/props/library"))
 import stage_inputs  # noqa: E402
 import baked_gltf  # noqa: E402
+import colliders  # noqa: E402
 import ground as grounds  # noqa: E402
 import ground_detail  # noqa: E402
 import library  # noqa: E402
@@ -272,21 +273,6 @@ def render_mesh(stage, path, geometry):
     return mesh
 
 
-def collision_mesh(stage, path, geometry):
-    """The model's collision: a convex hull round it, as the game's prop scene has, a guide mesh (never drawn)
-    with UsdPhysics' collision API and a convex hull approximation."""
-    hull = trimesh.Trimesh(geometry["positions"], geometry["triangles"], process=False).convex_hull
-    mesh = UsdGeom.Mesh.Define(stage, path)
-    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(hull.vertices, dtype=np.float32)))
-    mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(hull.faces), 3, dtype=np.int32)))
-    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(hull.faces, dtype=np.int32).reshape(-1)))
-    mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
-    mesh.CreatePurposeAttr(UsdGeom.Tokens.guide)
-    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
-    UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim()).CreateApproximationAttr(UsdPhysics.Tokens.convexHull)
-    return mesh
-
-
 def part_subsets(stage, mesh, surfaces, maps, variants, sounds, on_map):
     """One GeomSubset per library surface over the faces painted with it, each bound to its own baked material (a
     model split into several maps: one per surface and map, `<surface>_map<n>`, each drawn with its map's pictures;
@@ -364,7 +350,7 @@ def write_asset(model, models, parts, take, turn, size, out, variants, sounds, g
     Usd.ModelAPI(root).SetKind(Kind.Tokens.component)
     UsdGeom.Scope.Define(stage, f"/{model}/Looks")
     mesh = render_mesh(stage, f"/{model}/geo", geometry)
-    collision_mesh(stage, f"/{model}/collision", geometry)
+    colliders.hull(stage, f"/{model}/collision", geometry["positions"])
     labelled = labelled_take(parts, model, take)
     largest = None
     if labelled is None and len(maps) == 1:

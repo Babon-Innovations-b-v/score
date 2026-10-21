@@ -391,7 +391,12 @@ is meant to fix, where it is marked, and what proves it.
   joining the assembly's reads the day its row joins the table (`stages.layered`), and the `layers` gate answers
   unknown while a layer the place needs (`data/checks/contents.json`; sound and light everywhere) has none, never
   letting the seed's stand in. The neighbours stage reads the record the assembly built from (`scene.json` beside the
-  stage). Proven when every place's assembly passes `layers` and complete passes on it.
+  stage). Its free `collision` gate (`tools/usd/colliders.py`, 2026-10-21) fails every wall, floor, stair or ground
+  without UsdPhysics collision and every model without a collider of its own: the scene record's structure and ground
+  collide (an exact box for a box square to the place, else its triangles simplified), a made model by its convex
+  hull guide, a world model file's fixture by a hull round each mesh; all static, mass and interaction being the
+  physics stage's (the paper's named gap). Proven when every place's assembly passes `layers` and complete passes on
+  it.
 - **The made ground in each place's stage** (`score/stages/assembly` `take_ground`, `score/stages/terrain`, its
   overlay). For Earth's flat 320 m disc and the grounds the game laid: the terrain stage makes every ground from its
   plan; the assembly stage now sublayers the place's made ground over its seed, and `ground-fit`'s free `openings`
