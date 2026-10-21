@@ -56,18 +56,27 @@ def current(store, places):
 
 
 def sized_rows(store, place, record):
-    """A reading's rows as read_row gives them, each with its size from the place's current plan (plan_sizes), None
-    where the plan gives none."""
+    """A reading's rows as read_row gives them, each with its size: its item's on the place's current plan
+    (plan_sizes: his edits count), else its reading's metres (a row on a wall, the ceiling or another row has no item
+    of its own, and keeps its own size), None where neither gives one (a gap: its take waits on "no size")."""
     sizes = plan_sizes(store, place, record["inventory"]["rows"])
-    return [{**read_row(record, row), "size": sizes.get(row["id"])} for row in record["inventory"]["rows"]]
+    return [{**read_row(record, row), "size": sizes.get(row["id"]) or reading_size(row)}
+            for row in record["inventory"]["rows"]]
+
+
+def reading_size(row):
+    """A reading row's [wide, deep, tall] metres (score/review/reading.py METHOD 4), None when it gave none."""
+    size = row.get("size")
+    return list(size) if sides(size) else None
 
 
 def plan_sizes(store, place, rows):
     """{row id: [wide, deep, tall] metres} of the reading's `rows` the place's current plan sizes
-    (score/review/plans.current: his newest edit on the pick, else the derived plan), each from the first item tied
-    to it: its wide and deep as laid (turned back for one facing east or west), its tall off its surest SAM box at the
-    scale its wide gives the box (the same first guess the plan's footprint is). A row whose item is a size gap on
-    its plan, with no box, or with no item of its own (on a wall, in the sky, riding on another row) has none."""
+    (score/review/plans.current: his newest edit on the pick, else the derived plan, whose items are sized by the
+    reading's metres), each from the first item tied to it: its wide and deep as laid (turned back for one facing
+    east or west), its tall the reading's, else off its surest SAM box at the scale its wide gives the box (an item
+    he sized whose row the reading gave no size). A row whose item is a size gap on its plan, or with no item of its
+    own (on a wall, in the sky, riding on another row: `sized_rows` gives it its reading's), has none here."""
     from score.review import plans
     shown = plans.current(store, place)
     if shown is None:
@@ -81,7 +90,8 @@ def plan_sizes(store, place, rows):
             continue
         if facing in ("E", "W"):
             wide, deep = deep, wide
-        tall = tall_of(by_id.get(tied[0]) or {}, wide)
+        row = by_id.get(tied[0]) or {}
+        tall = (reading_size(row) or [None] * 3)[2] or tall_of(row, wide)
         if tall:
             found[tied[0]] = [round(wide, 3), round(deep, 3), tall]
     return found
@@ -104,7 +114,7 @@ def read_row(record, row):
     """A reading's row as a take's: its take named by its place, row and concept (a take made from another concept
     never counts as made), its route by its noun (route_of), and a code row whose noun is a shell word (SHELL_NOUNS)
     that shell piece's kit; every other row, a terrain feature's too, a model through the prop pipeline. A reading
-    measures no size: its plan gives it (sized_rows)."""
+    sizes in metres; its plan's item, his edits counted, gives it first (sized_rows)."""
     noun = SHELL_NOUNS.get(row["noun"].removesuffix(" panel").removesuffix(" plate")) if row["kind"] == "code" else None
     return {**row, "thing": f"prop:{record['place']}_{row['id']}_{record['concept'][:8]}",
             "route": "shell" if noun else route_of(row["noun"]), **({"group": noun} if noun else {})}

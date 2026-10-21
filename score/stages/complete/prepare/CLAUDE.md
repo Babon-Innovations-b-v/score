@@ -11,10 +11,11 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 - **The rows are the scene inventory readings** (owner, 2026-10-21; `groups.current`): each place's and outside
   shell's current reading (`score/review/reading.reading_of`: read from its picked draw by today's method), never
   `data/inventory/` (still read for the library models' sizes and the hub's measured rates only). A place with none
-  waits on inventory, no euros (`inventory.waiting`). A reading measures no size: each row's size is its place's
-  current plan's (`groups.plan_sizes`, `score/review/plans.current`: the first item tied to the row, its wide and
-  deep as laid, its tall off its SAM box at that wide's scale); a row the plan does not size (a size gap on the
-  plan, on a wall or in the sky, riding on another row, no box) has none and its take waits on "no size". Rows of
+  waits on inventory, no euros (`inventory.waiting`). A reading gives each row its size in metres (Gemini, from
+  what it is and the picture, against the place's outline; SAM 3 gives only where, #10): a row's size is its place's
+  current plan's item (`groups.plan_sizes`, `score/review/plans.current`, laid at the reading's metres, his edits
+  counted: wide and deep as laid, tall the reading's), else its reading's own metres (on a wall, the ceiling or
+  another row); a row the reading gave none has none and its take waits on "no size". Rows of
   one model (kind, size ratio, kit) share a take. Each row's route is its noun's (`groups.ROUTES`, owner's rules,
   CONTEXT.md "layer adapter", "motion"): a code row of a shell noun (`groups.SHELL_NOUNS`), a window, stairs or
   building shell is a shell piece (`estimate.SHELL_ROUTE`); people are models of the prop pipeline with the motion

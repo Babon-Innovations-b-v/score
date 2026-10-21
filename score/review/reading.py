@@ -3,8 +3,11 @@ in two steps, no agent in the loop, run on its own after his pick (root CLAUDE.m
 reading's cost is recorded and its running total shown in the cockpit).
 
 1. Gemini 3.1 Pro gets the picked concept and the picked concept of the place it sits within and answers its rows
-   (ASKED: kind, name, the noun SAM 3 finds it by, count, rough size in words, where it stands, children on their
-   parent) in the inventory's row schema (tools/props/scene/inventory.py), one direct call on the Google ledger.
+   (ASKED: kind, name, the noun SAM 3 finds it by, count, its size in metres judged from what it is and the picture,
+   wide, deep and tall, against the place's own outline from the layer above's plan when it has one (OUTLINE), and
+   in words, where it stands, children on their parent) in the inventory's row schema
+   (tools/props/scene/inventory.py: `size` the metres, `size_words` the words), one direct call on the Google ledger.
+   A row whose metres are not three lengths has no size, a gap of its place (`gaps`); SAM 3 gives where, never size.
 2. SAM 3 finds each row's noun in the concept (tools/props/scene/box_masks.py on one rented card through
    tools/props/cloud/box_masks_cloud.py, every place of one reading run on the same card), each instance's pixel box
    kept on its row, and asks PROBES, generic words, for what no row names. Where the two disagree it is a gap on the
@@ -58,8 +61,9 @@ KEEP_MOST = 120
 MARGIN = 0.05
 # The reading's method: a reading made by another counts for nothing and is read again (2: rows with regions, SAM 3
 # asked once a noun and its instances given to the row whose region holds them; 3: terrain features are rows, tagged
-# `terrain`, and letters drawn onto the picture are none: owner, 2026-10-21).
-METHOD = 3
+# `terrain`, and letters drawn onto the picture are none: owner, 2026-10-21; 4: each row's size in metres, against
+# the place's outline: #10, 2026-10-21).
+METHOD = 4
 ASKED = """You are reading a concept painting of one place of a game environment into its scene inventory: the hard
 list of exactly what the picture shows, every object one row. {within}
 
@@ -78,11 +82,17 @@ are no rows: skip them. Each row with:
 - "count": how many of it the picture shows, counted, not guessed (a repeated panel counted as it shows);
 - "size": its rough size in words, against a person (1.8 m) or the thing it stands on ("waist high, two strides
   long", "as tall as the hall");
+- "metres": its size in metres, [wide, deep, tall], of one of it, judged from what it is and how big it shows
+  against the people and things around it (a car about [4.8, 1.9, 1.5], a person [0.5, 0.3, 1.8], a door
+  [1.0, 0.1, 2.1]); wide across its front, deep front to back, tall upright; a thing on a wall or a ceiling too,
+  and a thing standing on another row its own size, not its parent's;{outline}
 - "anchor": "floor", "wall", "ceiling", "roof", "ground", "sky" (a planet, a moon, a backdrop), or "on:<id>" for a
   thing standing on, hung on or fixed to another row (a radio on a desk, a lamp on a mast);
 - "where": where in the picture it stands, in a few words ("left wall, by the door", "centre, under the crane");
 - "region": the box round every one of it in the first picture, [ymin, xmin, ymax, xmax] on a 0 to 1000 scale.
 Only what this picture shows; nothing hidden, nothing added for the game. No text besides the JSON."""
+OUTLINE = (" the whole place is about {wide:g} m wide and {deep:g} m deep (its outline in its plan), so no row is "
+           "bigger than it and every row's metres fit it")
 WITHIN = ("The second picture is the picked concept of {holder}, the place this one sits within: it shows where this "
           "place stands; read only the first picture's place.")
 
@@ -129,13 +139,16 @@ def spent(store, places):
     return round(sum(found["euros"]["total"] for place in places for found in readings(store, place)), 4)
 
 
-def asked_body(place, concept, holder_picture, holder=None):
-    """The Gemini request: the wording, the concept and, for a place within another, that one's picked concept."""
+def asked_body(place, concept, holder_picture, holder=None, outline=None):
+    """The Gemini request: the wording (with the place's outline (wide, deep) in metres when it has one), the concept
+    and, for a place within another, that one's picked concept."""
     from PIL import Image
     pro, _, _ = concepts.tools()
     holder = holder or concepts.above(place)
     within = WITHIN.format(holder=concepts.name_of(holder)) if holder_picture else ""
-    parts = [{"text": ASKED.format(within=within)}, pro.part(Image.open(concept), max(Image.open(concept).size))]
+    told = OUTLINE.format(wide=outline[0], deep=outline[1]) if outline and all(outline) else ""
+    parts = [{"text": ASKED.format(within=within, outline=told)},
+             pro.part(Image.open(concept), max(Image.open(concept).size))]
     if holder_picture:
         parts.append(pro.part(Image.open(holder_picture), max(Image.open(holder_picture).size)))
     return {"contents": [{"role": "user", "parts": parts}],
@@ -194,6 +207,22 @@ def anchor_of(anchor, ids):
     if anchor in ANCHORS or anchor.startswith("on:") and anchor[3:] in ids:
         return anchor
     return f"on:{anchor}" if anchor in ids else None
+
+
+def metres_of(metres):
+    """[wide, deep, tall] metres, three positive numbers, or None."""
+    if (isinstance(metres, list) and len(metres) == 3
+            and all(isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0 for value in metres)):
+        return [float(value) for value in metres]
+    return None
+
+
+def outline_of(store, place):
+    """(wide, deep) metres of the place's outline: its box in the layer above's plan, else its own data/plans plan;
+    None when neither gives one."""
+    from score.review import plans
+    found = plans.outline_from_holder(store, place, plans.base_plan(place))
+    return found if all(found) else None
 
 
 def region_of(region):
@@ -266,7 +295,8 @@ def boxed_rows(place, rows, measured, size):
         for box in distinct([item["box"] for item in measured.get(f"{place}.={noun}", [])]):
             holder = holder_of(box, naming, size)
             (given[holder["id"]] if holder else loose).append(box if holder else {"noun": noun, "box": box})
-    return [{**row, "view": "v1", "box": (given[row["id"]] or [None])[0], "boxes": given[row["id"]], "size": None,
+    return [{**{key: value for key, value in row.items() if key != "metres"}, "view": "v1",
+             "box": (given[row["id"]] or [None])[0], "boxes": given[row["id"]], "size": metres_of(row.get("metres")),
              "size_words": row["size"], "thing": ""} for row in rows], loose
 
 
@@ -283,10 +313,10 @@ def unnamed(place, rows, measured, size):
 
 def gaps(rows, things, loose=()):
     """Where Gemini's rows and SAM 3's instances disagree, a gap each (CONTEXT.md "gap"), never guessed past: an
-    anchor or region not read, a row none of whose noun is found in its region, a count found otherwise, an
+    anchor, region or size not read, a row none of whose noun is found in its region, a count found otherwise, an
     instance of a row's noun where no row of it stands, a thing found that no row names."""
     found = [{"kind": name, "row": row["id"], "words": f"its {name} not read"}
-             for row in rows for name in ("anchor", "region") if not row[name]]
+             for row in rows for name in ("anchor", "region", "size") if not row[name]]
     for row in rows:
         seen, keep = len(row["boxes"]), keep_of(rows, row["noun"])
         if not seen:
@@ -339,7 +369,7 @@ def asked_rows(store, place, folder):
     holder = concepts.above(place, store)
     holder_sha = holder and concepts.picked(store, holder)
     holder_picture = holder_sha and picture_path(store, holder_sha, folder)
-    response, seconds = asked(asked_body(place, concept, holder_picture, holder))
+    response, seconds = asked(asked_body(place, concept, holder_picture, holder, outline_of(store, place)))
     (folder / f"{place}-answer.json").write_text(json.dumps(response, indent=1))
     try:
         rows = rows_of(answer_text(response))

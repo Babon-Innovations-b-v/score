@@ -5,9 +5,9 @@ concept is the approval; the plan page is for inspecting and fixing it, his edit
 A plan is drawn free from data already there (`derived`): the place's plan in data/plans (its shell, frame, walls,
 doors and where each leads, the neighbours' joined doors in its leads), its outline from the layer above's plan (its
 box in that plan's `holds`), and its items from its scene inventory, each item tied to its inventory row (a row laid
-at a spot stands there; one with none is laid along the walls for him to drag; each sized off its SAM box against
-the outline, else its reading's size words; what nothing sizes, and a lamp or beam on a row this concept's inventory
-lacks, is named in the plan's `gaps`, shown on his page), a keep-clear zone in front of every
+at a spot stands there, one with none where its SAM box stands on the picture, else along the walls for him to drag;
+each sized by its reading's metres; a row the reading gives no size, and a lamp or beam on a row this concept's
+inventory lacks, is named in the plan's `gaps`, shown on his page), a keep-clear zone in front of every
 door, its standing spots. A place holding others (a shell, the Square, the Hangar, the Campgrounds) lays out its
 inside places in it (`holds`: each a box with its name and the holder's inventory row it stands in, None for the
 holder's own walls: the shell split): those listed now (within.json, then his edits), plus those he named on its
@@ -219,45 +219,23 @@ def to_plan(plan, spot):
     return (round(sum(a * b for a, b in zip(offset, east)), 3), round(sum(a * b for a, b in zip(offset, south)), 3))
 
 
-SMALLEST = 0.3  # metres: no item measured off its box is narrower or shallower
 UNSIZED = (1.0, 1.0)  # an item nothing gives a size: laid 1 x 1 m, and named a gap
-STRIDE = 0.75  # metres of a stride or pace in a reading's size words
-WORD_NUMBERS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
-                "eight": 8, "nine": 9, "ten": 10}
-METRES = re.compile(r"(\d+(?:\.\d+)?)(?:\s*(?:x|by)\s*(\d+(?:\.\d+)?))?\s*m(?:etres?)?\b(?!\s*(?:tall|high))")
-STRIDES = re.compile(r"\b(\d+(?:\.\d+)?|" + "|".join(WORD_NUMBERS) + r")\s+(?:strides?|paces?)\b")
 
 
-def from_words(words):
-    """(wide, deep) metres a reading's size words give the floor ("2 x 3 m", "1.5 m across", "two strides long"),
-    None when they give no length on the floor (a height alone, "waist high", or none)."""
-    words = str(words or "").lower()
-    if found := METRES.search(words):
-        wide = float(found.group(1))
-        return wide, float(found.group(2) or wide)
-    if found := STRIDES.search(words):
-        long = float(WORD_NUMBERS.get(found.group(1), found.group(1))) * STRIDE
-        return long, long
-    return None
-
-
-def measured(row, box=None, picture=None, plan=None):
-    """(wide, deep) of a row's floor footprint in metres, None when nothing gives it: its inventory size in metres,
-    else its SAM box on the picked concept against the place's outline (the picture spans the outline, as
-    `from_picture` reads it: a first guess he drags), else its reading's size words (`from_words`)."""
+def measured(row):
+    """(wide, deep) of a row's floor footprint in metres: its scene inventory size (a reading's metres, judged by
+    Gemini from what it is and the picture, or a data/inventory file's), None when it has none (a gap: SAM 3's box
+    gives where a row stands, never its size)."""
     if isinstance(row.get("size"), list):
         size = list(row["size"]) + [1.0, 1.0]
         return abs(float(size[0])) or 0.5, abs(float(size[1])) or 0.5
-    if box and picture and plan and plan.get("w") and plan.get("d"):
-        return (max(SMALLEST, (box[2] - box[0]) / picture[0] * plan["w"]),
-                max(SMALLEST, (box[3] - box[1]) / picture[1] * plan["d"]))
-    return from_words(row.get("size_words") or row.get("size"))
+    return None
 
 
-def footprint(row, facing, box=None, picture=None, plan=None):
+def footprint(row, facing):
     """(wide, deep) of a row on the floor (`measured`, else UNSIZED), turned with its facing (a row facing east or
     west lies across)."""
-    wide, deep = measured(row, box, picture, plan) or UNSIZED
+    wide, deep = measured(row) or UNSIZED
     return (deep, wide) if facing in ("E", "W") else (wide, deep)
 
 
@@ -333,9 +311,9 @@ def laid_along(boxes, wide):
 
 def items_from(plan, inventory):
     """(items, rows, unsized) of the plan from its scene inventory: each floor instance a box at its laid spot, else
-    where its box on the picked concept stands (`from_picture`), else laid along the walls, sized by `measured`, tied
-    to its row and the rows riding on it; one walls-and-ceiling item over the whole floor, the rows that are the place
-    itself (`whole`) on it; `unsized` [(item, row id)] the items nothing gives a size."""
+    where its box on the picked concept stands (`from_picture`), else laid along the walls, sized by `measured` (its
+    reading's metres), tied to its row and the rows riding on it; one walls-and-ceiling item over the whole floor, the
+    rows that are the place itself (`whole`) on it; `unsized` [(item, row id)] the items nothing gives a size."""
     picture = inventory.get("picture")
     rows = [row for row in inventory.get("rows", []) if not whole(row, picture)]
     riders = children(rows)
@@ -347,9 +325,8 @@ def items_from(plan, inventory):
     items, tied, unsized = [], {}, []
     for name, row_id, spot, box in instances:
         facing = facing_of(spot) if spot else None
-        sized_by = box or (by_id[row_id].get("boxes") or [None])[0]  # an instance SAM missed: its row's surest box
-        wide, deep = footprint(by_id[row_id], facing, sized_by, picture, plan)
-        if measured(by_id[row_id], sized_by, picture, plan) is None:
+        wide, deep = footprint(by_id[row_id], facing)
+        if measured(by_id[row_id]) is None:
             unsized.append((name, row_id))
         if spot:
             middle_x, middle_y = to_plan(plan, spot)
@@ -482,9 +459,24 @@ def square(sizes):
 
 
 def outline_from_holder(store, place, plan):
-    """The plan's w and d as the layer above's plan lays the place out (its box there), else its own."""
+    """The plan's w and d as the layer above's plan lays the place out (its box there), else its own, else round its
+    inside places (`outline_from_inside`: a shell with no plan of its own, the base), so its items are placed on an
+    outline before they are laid; (0, 0) with none of these."""
     held = holder_of(store, place)
-    return tuple(held["outline"][2:]) if held else (plan["w"], plan["d"])
+    if held:
+        return tuple(held["outline"][2:])
+    return (plan["w"], plan["d"]) if plan["w"] and plan["d"] else outline_from_inside(store, place)
+
+
+def outline_from_inside(store, place):
+    """(wide, deep) of an outline round the place's inside places laid about square (`square`, `laid_along`), each
+    its own plan's size (`held_size`); (0, 0) for a place holding none."""
+    sizes = [held_size(name) for name in proposed_inside(store, place)]
+    if not sizes:
+        return 0.0, 0.0
+    spots = laid_along(sizes, square(sizes))
+    return (round(max(x + size[0] for (x, _), size in zip(spots, sizes)) + GAP, 3),
+            round(max(y + size[1] for (_, y), size in zip(spots, sizes)) + GAP, 3))
 
 
 def derived(store, place):
