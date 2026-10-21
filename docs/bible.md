@@ -35,16 +35,15 @@ the current backend). No model runs on the coordinating machine.
   the scene tools (`scene/`: concepts, the walkable reference, close-ups, inventories, layouts), the surface library and its
   piece making (`library/`: recipes, labels by parts, `make_chunky`/`make_kit` baked in the cloud, `route.py` for kit
   rooms, `place_route.py` for outdoor places, `package.py` for the scene package) and the gates (`gates/`). Each directory's rules are in its overlay.
-- `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body
-  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by the cloth solver the
-  spec names, the drapes being experimental;
-  moved from 2099's `tools/crew` with its history). `maker/` is the character maker, one entry (`make.py`) for a
-  person or an animal from a picture or a few words (`data/people/specs/<name>.json`): a person's whole chain
-  (picture, body by SAM3DBody-cpp, clips by Kimodo, drapes, head, hair by Hi3DGen, face by klein with a depth LoRA,
-  build, UsdSkel, review renders) runs on one rented card (`tools/props/cloud/characters.py`), an animal's through
-  `animals/` (experimental). A person spec with `"route": "prop"` takes the prop route instead
-  (`maker/prop_person.py`, experimental, a trial whose takes stay in
-  `~/.farm-factory-motion/candidates/prop-people/`): Pixal3D's mesh, SOMA-X's skeleton placed inside it
+- `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body,
+  clips written by Kimodo from sentences; moved from 2099's `tools/crew` with its history). `maker/` is the character
+  maker, one entry (`make.py`) for a person or an animal from a picture or a few words
+  (`data/people/specs/<name>.json`, each written from a design's person row): a person takes the prop route
+  (`maker/prop_person.py`, experimental, on one rented card through `tools/props/cloud/characters.py`), an animal
+  the animal route (`animals/`, experimental). The shipped person chain (an A-pose picture, GarmentCode's drapes, a
+  Hi3DGen hair, a depth-LoRA face), its garment designs (`data/characters/garments`) and the two hand-written makes
+  (`data/characters/makes`) were retired on 2026-10-21 (owner: all old stuff is retired). The prop route: Pixal3D's
+  mesh, SOMA-X's skeleton placed inside it
   and its weights moved on by Robust Skin Weights Transfer (MIT reference code, ported without libigl, whose
   bindings carry GPL-3.0). `skel_usd.py` turns a body into a UsdSkel asset;
   `cast.py` writes a place's characters layer (`<stage>/layers/characters.usda`, between the edit layer and the
@@ -305,13 +304,8 @@ is meant to fix, where it is marked, and what proves it.
 - **The cast stage** (`score/stages/cast`, row `cast@<place>`, design 5 of 2026-10-12; its overlay). For places whose
   concept shows people but whose cast is unmeasured: each cast record dealt into its people, its groups and crowd
   stood on the seed's geometry, gated on `counted` (against `concept_people`, now in environment 1's table), `standing`,
-  `clear`, `made` and `drapes`. Nothing reads it yet. Proven when a place's cast passes all five with the people
+  `clear` and `made`. Nothing reads it yet. Proven when a place's cast passes all five with the people
   route's made looks and the owner has seen the characters layer written from it.
-- **The drapes** (`drape_garment.py`, `newton_drape.py`, `cloth_drape.py`, `rebuild.py`; the drapes-fix,
-  drapes-perlook and drapes-uipc branches stay off main). For the non-commercial Warp fork and drapes that slid or
-  left arms bare. No default simulator: a person is made only when its spec names `drape_simulator`. The shipped
-  Newton drapes are rejected by the owner (2026-10-10) and fail `drape_measure` (2 to 6 of 10 cuts; dense cuts 34 to
-  50 of 64 to 69). Proven when a route passes drape_measure's dense check on all four looks, then the owner's eye.
 - **The joins and stance checks** for people (hands under cuffs, boots in trousers). Numbers only so far. Proven by
   one before and after render pair per joint fault on the player and Nev, owner-checked.
 - **The animal route** (`tools/characters/animals/`). For places with no animals. Runs only with `make.py
@@ -441,11 +435,10 @@ is meant to fix, where it is marked, and what proves it.
   in metres at the place's own seconds), `light` (the flame lights the pad at least twice the place's lamps; a
   record that lights nothing says why, `no_light`) and `outside` (no open-sky particle inside the record's `interiors`);
   the assembly takes the layer in place of the seed's.
-  `effects-look@launch` (paid) renders the review cameras before and after at four moments round lift-off, gated on
-  `shown` and `lit`. A place has `effects-layer` where its design shows a row that emits
-  (`score/stages/design_layers.py`); `look.LOOKED` the launch only. Run
-  with `python -m score run world1 --place launch --stage effects-look`. Proven when the owner has seen the launch's
-  stills; then each place's record (pump-downs, steam, dust) from footage, and films on his go. 2026-10-12: all five
+  A place has `effects-layer` where its design shows a row that emits (`score/stages/design_layers.py`). The paid
+  `effects-look` (the launch's review cameras before and after at four moments round lift-off, gated on `shown` and
+  `lit`) was retired on 2026-10-21 with the launch's records: the layer's own `footage` and `light` gates measure each
+  emitter the design shows, and the films' visual check sees them. 2026-10-12: all five
   gates pass on the launch (the `loose` footage check added after the first stills showed lone flakes: 10 % of the
   cloud's particles then, 0.2 % now). The same day the old local `effects` branch's records came over (pump-down
   fog and the door's vented ice and veil in the airlock, garage and hangar; the greenhouse's humidifier mist; the
@@ -477,10 +470,10 @@ is meant to fix, where it is marked, and what proves it.
   flame were tied to the game's cycles and places and wait to become kinds of their own.
 - **The motion layer** (CONTEXT.md "motion", the owner 2026-10-20, #26; `score/stages/motion`, its overlay). One
   layer for everything in a place that moves, as connected modules; every model still comes from the prop pipeline and
-  each module is a layer adapter around it. Its rows in the stage table: `motion-models` and `motion-models-boxes`
-  (the models of rigid moving things laid on what holds them up), `motion` (rigid moves: joints and paths), `settle`,
+  each module is a layer adapter around it. Its rows in the stage table: `motion` (rigid moves: joints and paths, of
+  the moving rows' own objects, which the prop pipeline makes and the assembly lays like any other), `settle`,
   `physics-layer` and `physics-trial` (physics simulation), `cast`, `characters-layer` and the `people-*` rows
-  (bodies: rigging, body reading, generated body motion, drapes) and the crops rows (growth); `stages.MOTION_LAYER`
+  (bodies: rigging, body reading, generated body motion) and the crops rows (growth); `stages.MOTION_LAYER`
   names them by module. Motion sources: formula-driven paths for prescribed moves, generated motion for bodies,
   simulation for physics; every job one shot in a batch.
 - **The motion stage** (the layer's rigid module; `tools/usd/motion_layer.py`; `data/checks/row-kinds.json`,
@@ -600,31 +593,17 @@ is meant to fix, where it is marked, and what proves it.
   his yes or no on the removals.
 - **The motion, sound and effects layers.** Built, not reviewed: nobody has heard the sound. Proven by the owner's
   review of one place per layer, render and audio.
-- **The motion layer's models step** (`score/stages/motion/models`, its overlay; `data/motion/models/<place>.json`,
-  none since the garage's, the old concept's, was retired on 2026-10-21: no place has the row until a record is
-  written from a design).
-  For the moving things that were absent or stood in: no rover in the garage, a code cylinder for the hangar's ship,
-  primitive shapes for the workshop's robot. `motion-models@<place>` (free) lays each made model (the prop route's
-  take, painted and baked by the place's surface line) on what holds it up, as a layer the assembly takes, gated on
-  `outline` (the likeness gate's free half against its close-up), `parts present` (its close-up's finishes in its
-  split) and `resting` (resting.py on the composed stage). Its motion is the motion stage's, its effects the effects
-  stage's. Only the garage's rover has a record. Proven when the garage's rover ends accepted and the owner sees it;
-  the ship is the hangar's `ship` inventory row, grounded by `motion-models-boxes@hangar` (paid, SAM 3) and made by
-  the prop route on the hangar's own surface line (its take `ship-s1` in `data/surfaces/hangar.json`); the workshop
-  has no robot row: its concept K10 shows none, and the concept decides (captain, 2026-10-12).
-- **The crops stage** (the motion layer's growth module; `score/stages/crops`, its overlay; `data/crops/<place>.json`,
-  written from the place's design: the greenhouse's, the old concept's, was retired on 2026-10-21, so a design that
-  shows crops waits on its crop data by name). For the greenhouse's bare
-  beds under a concept of planted ones. `crops-concept@greenhouse` (paid) measures each kind on the concept with SAM 3
-  on 2x tiles: its patches' share of the plot and its spacing in plant widths (2026-10-12: lettuce 49 plants 1.06
-  widths apart, potato 65 at 1.57, herb 28 at 1.27, the parsley and kale one canopy, `greens`; seedlings dropped with
-  the reason in the data). The crop kinds are inventory rows made like any model (the owner, 2026-10-20, #26): the
-  greenhouse's own prop route (`data/props/greenhouse.json`) and its own surface line on the finish route
-  (`data/surfaces/greenhouse.json`), their boxes grounded by `crops-boxes` (paid, SAM 3); until then they had a line
-  of their own on the finish-map method; `crops-layer` (free) lays each baked kind on its beds at the measured spacing,
+- **The crops stage** (the motion layer's growth module; `score/stages/crops`, its overlay). Read off the design
+  alone (2026-10-21: the old per-place crop data was retired): every inventory row whose kind grows standing on a bed
+  is a kind, its beds the plan items its bed row makes (`crop_data.py`); today the greenhouse's `plants` on its
+  eleven `planter_bed` items. `crops-concept@<place>` (paid) measures each kind on the locked concept with SAM 3 on 2x
+  tiles: its patches' share of the plot and its spacing in plant widths (2026-10-12, on the old concept: lettuce 49
+  plants 1.06 widths apart, potato 65 at 1.57, herb 28 at 1.27). The crop kinds are inventory rows made like any model
+  (the owner, 2026-10-20, #26): the place's own hand-in and surface line on the finish route, their boxes grounded by
+  `crops-boxes` (paid, SAM 3); until then they had a line of their own on the finish-map method; `crops-layer` (free) lays each baked kind on its beds at the measured spacing,
   one point instancer a kind, gated on `on beds` and `spacing`, and the assembly takes it; `crops-look` (paid) renders
   the beds at the concept's slant and counts them with SAM 3 again (`seen`, `density`). Proven when the look's gates
-  pass and the owner has seen it; the crop state (mid-season beds, not the game's bare start) is his open decision.
+  pass and the owner has seen it.
 
 ## architecture/trust-boundaries
 
