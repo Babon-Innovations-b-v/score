@@ -229,14 +229,18 @@ def floors_under(meshes, feet):
     return [(prim, triangle) for _, prim, triangle in sorted(hits, key=lambda hit: -hit[0])]
 
 
+def part_of(prim, triangle):
+    """The part (GeomSubset) of a mesh holding the triangle, else the mesh itself."""
+    return next((child for child in prim.GetChildren() if child.IsA(UsdGeom.Subset)
+                 and triangle in set(UsdGeom.Subset(child).GetIndicesAttr().Get() or [])), prim)
+
+
 def finish_of(prim, triangle):
     """The library surface a mesh is finished with where the walker stands: on the part (GeomSubset) holding the
     triangle, else on the mesh, the bound material of the place's Library by its name, else the `score:surface` the
     material or the part names (a library tile, a labelled part); None for a baked look that names none."""
     from pxr import UsdShade
-    part = next((child for child in prim.GetChildren() if child.IsA(UsdGeom.Subset)
-                 and triangle in set(UsdGeom.Subset(child).GetIndicesAttr().Get() or [])), prim)
-    for holder in dict.fromkeys((part, prim)):
+    for holder in dict.fromkeys((part_of(prim, triangle), prim)):
         material = UsdShade.MaterialBindingAPI(holder).GetDirectBinding().GetMaterial()
         if material and material.GetPrim().GetParent().GetName() == "Library":
             return material.GetPrim().GetName()
@@ -248,17 +252,22 @@ def finish_of(prim, triangle):
 
 
 def footstep_of(stage, place, floors):
-    """The bank's footstep for where the walker stands: its library surface's (score:sound:footstep on the place's
-    /Library/<surface>, as the assembly banks it), from the highest floor under the feet that has a library finish,
-    so a baked piece that names none sounds as the finished floor it lies on; None when no floor under it has one or
-    the bank has no such footstep."""
+    """The bank's footstep for where the walker stands, from the highest floor under the feet that has a library
+    finish, so a baked piece that names none sounds as the finished floor it lies on: its surface's (score:sound:
+    footstep on the place's /Library/<surface>, as the assembly banks it), else the footstep the part itself names
+    (a labelled part of a surface the place's Library does not hold, export.surface_attributes) where the bank has
+    it; None when no floor under it has a finish or the bank has no footstep for the one it has. A finished floor
+    whose footstep is not banked is silent, never heard as the floor under it."""
     for prim, triangle in floors:
         surface = finish_of(prim, triangle)
-        material = stage.GetPrimAtPath(f"/{place}/Library/{surface}") if surface else None
-        if not material:
+        if not surface:
             continue
-        footstep = material.GetRelationship("score:sound:footstep")
+        material = stage.GetPrimAtPath(f"/{place}/Library/{surface}")
+        footstep = material.GetRelationship("score:sound:footstep") if material else None
         targets = footstep.GetTargets() if footstep else []
+        if not targets:
+            named = part_of(prim, triangle).GetAttribute("score:sound:footstep")
+            targets = [f"/{place}/Sound/Bank/{named.Get()}"] if named and named.Get() else []
         found = stage.GetPrimAtPath(targets[0]) if targets else None
         return found if found and found.IsA(UsdMedia.SpatialAudio) else None
     return None
