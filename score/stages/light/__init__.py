@@ -756,7 +756,9 @@ def light_files(place):
     inventory = stage_inputs.inventory_path(place)
     found = {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
              **passes.place_files(place), "inventory": "{data}/inventory/" + inventory.name,
-             "sky": "{data}/definitions/sky.json"}  # which lamp rows light a shaft (haze.shafted_kinds)
+             # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
+             "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
+             **aimed_files(place)}
     if designed(place):  # its picked concept
         found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
     else:
@@ -764,6 +766,20 @@ def light_files(place):
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
         found.update(passes.place_files(name))
+        found.update(aimed_files(name))
+    return found
+
+
+def aimed_files(name):
+    """A place's plan and inventory, which say which of its lamps are aimed and light a shaft (haze.shafted_kinds);
+    none for a place with no filed plan (it aims nothing)."""
+    path = REPO / f"data/plans/{name}.json"
+    if not path.exists():
+        return {}
+    inventory = json.loads(path.read_text()).get("inventory", name)  # scene_record/plan.inventory_name
+    found = {f"plan {name}": f"{{data}}/plans/{name}.json"}
+    if (REPO / f"data/inventory/{inventory}.json").exists():
+        found[f"inventory {name}"] = f"{{data}}/inventory/{inventory}.json"
     return found
 
 

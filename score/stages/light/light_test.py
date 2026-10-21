@@ -247,18 +247,26 @@ def check_magenta():
 
 
 def check_shafts_from_rows():
-    """A floodlight's shaft is its inventory row's lamp's (the sky record's lamp row), never a hand-kept lamp of one
-    place: the launch's pad floodlights get theirs in the record the scene-record row writes from its plan and kit,
-    and no hand-kept light file adds lamps."""
+    """A floodlight's shaft is its glowing inventory row's, the plan aiming it (the library's aimed lamp), never a
+    hand-kept lamp of one place: the launch's pad floodlights get theirs in the record the scene-record row writes
+    from its plan, inventory and kit; a glowing row the plan does not aim lights no shaft; the sky record holds no
+    lamps."""
+    from score.stages import row_kinds
     from score.stages.light import haze
     from score.stages.scene_record import kit_shell
-    sky = json.loads((REPO / "data/definitions/sky.json").read_text())["earth"]
     aims = json.loads((REPO / "data/plans/launch.json").read_text())["aims"]
     plan = {"aims": aims, "floor_height": 0.0,
             "items": [{"name": aim["at"], "box": [0, 0, 1, 1]} for aim in aims.values()]}
     kit = json.loads((REPO / "data/kit/launch.json").read_text())
-    pads = [light for light in kit_shell.lamps(plan, kit, dict(sky, body="earth"))
-            if "far_pad_floodlight" in light["from"]]
+    glowing = row_kinds.rows_that(json.loads((REPO / "data/inventory/launch.json").read_text()), "glows",
+                                  row_kinds.table())
+    lights = kit_shell.lamps(plan, kit, glowing, REPO / "data/library/lamps.json")
+    pads = [light for light in lights if "far_pad_floodlight" in light["from"]]
+    assert all(light["type"] == "spot" and light["range"] > 2 * 30.0 for light in pads), pads
+    unaimed = kit_shell.lamps({**plan, "aims": {}}, kit, glowing, REPO / "data/library/lamps.json")
+    assert len(unaimed) == len(lights) and not [light for light in unaimed if light.get("shaft")], unaimed
+    assert not any("lamps" in body for body in json.loads((REPO / "data/definitions/sky.json").read_text()).values()
+                   if isinstance(body, dict))
     lenses = [laid for laid in kit["pieces"]
               if laid["kind"] == "launch_far_pad_floodlight" and laid.get("part") == "glow"]
     assert len(pads) == len(lenses) > 0 and all(light.get("shaft") for light in pads), pads
@@ -332,8 +340,11 @@ def check_design_rows():
     plans = sorted(path.stem for path in (REPO / "data/plans").glob("*.json"))
     assert plans and all(light.applies(place) == scene_record.written(place) for place in plans)
     assert not light.applies("far_city") and not light.applies(None)
-    assert [place for place in plans if haze.applies(place)] == ["launch", "square"]
-    assert haze.shafted_kinds("square") == {"square_far_floodlight_tower"} and haze.shafted_kinds("flat") == set()
+    # The square aims its floodlight towers, but their row ("floodlight tower", read with no noun) is no lamp by its
+    # row kind, so they light no shaft until its inventory is read with nouns.
+    assert [place for place in plans if haze.applies(place)] == ["launch"]
+    assert haze.shafted_kinds("launch") == {"launch_far_pad_floodlight"} and haze.shafted_kinds("square") == set()
+    assert haze.shafted_kinds("flat") == set()
     for place in plans:
         for files in (light.layer_files, light.light_files, passes.passes_files):
             assert not [path for path in files(place).values() if path.startswith("{data}/scene")], (place, files)

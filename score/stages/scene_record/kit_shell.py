@@ -5,8 +5,11 @@ the stairwell) and its open places (the street, the square, the launch view). Th
                  room's ceiling to the block's roof over the block's whole footprint, and its mass under the room, from
                  the street to just under the room's floor over the room's floor grown by the block's walls; none for
                  an open place
-    lights       one at each lamp the kit lays of the world body's lamp rows (the sky record's `lamps`): on its glow
-                 part's middle, else just in front of the piece; a spot aimed where the plan's `aims` says
+    lights       one at each lamp the kit lays of the scene's glowing rows (each inventory row whose row kind glows,
+                 score/stages/row_kinds.py): on its glow part's middle, else just in front of the piece; its numbers
+                 the library's lamp (data/library/lamps.json) for the row's mount, its reach from how high the row's
+                 lamps hang over the plan's floor; a row the plan aims (`aims`) the library's aimed lamp, a spot
+                 aimed where the plan says, reaching past what it aims at, with its shaft
     environment  the body's night air (the sky record), its haze ring standing on the body's shared ground
     kit_glow, water   the body's (the sky record), in the place's frame; the water at the made ground's level
     objects      each plan item a released world model makes (the plan's `objects`), on its item's middle
@@ -22,6 +25,7 @@ import pathlib
 
 import numpy as np
 
+REPO = pathlib.Path(__file__).resolve().parents[3]
 # A kit floor piece is what a plan object stands on when its top lies this near the plan's level (metres).
 SUPPORT_REACH = 0.5
 
@@ -115,19 +119,60 @@ def aim_of(plan, aim):
             round((low_z + high_z) / 2, 4)]
 
 
-def lamps(plan, kit, sky):
-    """A light at each lamp of the body's lamp rows the kit lays here (module docstring)."""
+def game_lamp():
+    """The game lamp the library's strengths are shares of (tools/usd/scene.py): (energy, colour, attenuation)."""
+    import sys
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene
+    return scene.LAMP_ENERGY, scene.LAMP_COLOUR, scene.LAMP_ATTENUATION
+
+
+def library_lamps():
+    """The library's lamp code (tools/props/scene/lamps.py: its mounts, its aimed lamp)."""
+    import sys
+    sys.path.insert(0, str(REPO / "tools/props/scene"))
+    import lamps as library
+    return library
+
+
+def hung_light(row, spots, floor, library, path, rows):
+    """A glowing row's light at the library's lamp for its mount (among its inventory's `rows`): its reach from how
+    high its lamps hang over the floor (their middle), in the game lamp's numbers."""
+    energy, colour, attenuation = game_lamp()
+    high = float(np.median([spot[1] for spot in spots])) - floor
+    light = library.light_at(row, high, rows, library.mounts(path), library.mount_words(path))
+    return {"type": "omni", "colour": colour, "energy": round(energy * light["strength"], 4), "range": light["reach"],
+            "attenuation": attenuation, "shadows": light["shadows"],
+            "from": f"library lamp (data/library/lamps.json) for its mount, {high:.2f} m over the floor"}
+
+
+def aimed_light(plan, row, spot, library, path):
+    """A glowing row the plan aims: the library's aimed lamp, a spot at what the plan says, reaching past it."""
+    energy = game_lamp()[0]
+    lamp, aim = library.aimed(path), plan["aims"][row["id"]]
+    target = aim_of(plan, aim)
+    reach = round(float(lamp["reach_per_aim"]) * float(np.linalg.norm(np.asarray(target) - spot)), 2)
+    strength = float(lamp["strength_per_reach"]) * reach
+    return {"type": "spot", "colour": lamp["colour"], "energy": round(energy * strength, 4), "range": reach, "angle": lamp["angle"], "attenuation": lamp["attenuation"], "shadows": lamp["shadows"],
+            "shaft": lamp["shaft"], "aim": target,
+            "from": f"library aimed lamp (data/library/lamps.json), aimed at plan item {aim['at']!r}"}
+
+
+def lamps(plan, kit, glowing, path, rows=()):
+    """A light at each lamp the kit lays of the scene's glowing rows (`glowing`: its inventory rows whose row kind
+    glows, row_kinds.rows_that; `rows` all of them, what a row is mounted on), numbers from the library's lamp
+    (`path`: data/library/lamps.json; module docstring)."""
+    library = library_lamps()
     found = []
-    for row, lamp in sky["lamps"].items():
-        numbers = {key: value for key, value in lamp.items() if key not in ("from", "out", "rise")}
-        for number, spot in enumerate(lamp_spots(kit, row, lamp), 1):
-            light = {**numbers, "at": np.round(spot, 4).tolist(),
-                     "from": f"inventory row {row}, its lamp {number} as the kit lays it; numbers from the sky record "
-                             f"(data/definitions/sky.json) {sky['body']} lamps ({lamp['from']})"}
-            if lamp["type"] == "spot":
-                aim = plan["aims"][row]
-                light["aim"] = aim_of(plan, aim)
-                light["from"] += f"; aimed at plan item {aim['at']!r}"
+    for row in glowing:
+        spots = lamp_spots(kit, row["id"], {})
+        aimed = row["id"] in plan.get("aims", {})
+        hung = None if aimed or not spots else hung_light(row, spots, plan["floor_height"], library, path, rows)
+        for number, spot in enumerate(spots, 1):
+            light = aimed_light(plan, row, spot, library, path) if aimed else dict(hung)
+            light.update(at=np.round(spot, 4).tolist(),
+                         **{"from": f"inventory row {row['id']} (row kind {row['row_kind']}, it glows), its lamp "
+                                    f"{number} as the kit lays it; {light['from']}"})
             found.append(light)
     return found
 

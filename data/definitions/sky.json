@@ -1,5 +1,5 @@
 {
- "about": "Each world body's air and indoor air, as the scene-record stage writes them into a place's record (score/stages/scene_record): what a room's air holds, how the camera is exposed, the haze, dust and day dome of a body's air, its lamp rows, harbour and kit glow. Its sky is not here: the suns, the worlds overhead and the stars are the environment concept's physics, worked out at each scene's site at its scene time and written by the light layer (score/stages/light/sky.py; the owner, 2026-10-21: no fixed sky). Unverified seed numbers: these are the values every Moon room's old record held, kept here once instead of in each record until the light stage's sweep against each place's concept sets them.",
+ "about": "Each world body's air and indoor air, as the scene-record stage writes them into a place's record (score/stages/scene_record): what a room's air holds, how the camera is exposed, the haze, dust and day dome of a body's air, its harbour and kit glow (its lamps are the scene inventory's glowing rows, numbered by the library's lamp, data/library/lamps.json). Its sky is not here: the suns, the worlds overhead and the stars are the environment concept's physics, worked out at each scene's site at its scene time and written by the light layer (score/stages/light/sky.py; the owner, 2026-10-21: no fixed sky). Unverified seed numbers: these are the values every Moon room's old record held, kept here once instead of in each record until the light stage's sweep against each place's concept sets them.",
  "moon": {
   "indoor": {
    "background": "#030409",
@@ -89,18 +89,6 @@
    "from": "seed: the night sky, ambient, exposure and haze ring the street's and the flat's old records held"
   },
   "kit_glow": {"strength": 0.9, "ramp": 0.15, "from": "seed: how the night lights a kit's glowing kinds, as the outdoor places' old records held it"},
-  "harbour": {"low": [-320.0, -320.0], "high": [-110.0, 320.0], "step": 10.0, "mirror": {"along": 0.65, "down": 0.2, "ripple_tip": 0.03, "ripple_size": 0.2, "lit": [{"name": "rocket", "at": [-270.0, -60.0], "low": 0.0, "high": 60.0, "half_width": 9.48, "colour": "#f3f1ea", "strength": 1.6}], "column_smear": 0.35, "column_soft": 0.6}, "from": "seed: the harbour's reach from the quay (x -110) out to the old far disc's 320 m, and how its water mirrors the lit rocket, as the old records held it"},
-  "lamps": {
-   "cage_bulkhead": {"type": "omni", "colour": "#ffd29a", "energy": 1.92, "range": 6.0, "attenuation": 2.2, "shadows": true, "from": "seed: the stairwell's landing lights"},
-   "tube_light": {"type": "omni", "colour": "#ffd29a", "energy": 0.96, "range": 7.0, "attenuation": 2.2, "shadows": true, "from": "seed: the flat's room lamp, dim (the concept draws the tube off: the light stage's sweep decides)"},
-   "bedside_lamp": {"type": "omni", "colour": "#ffd29a", "energy": 1.44, "range": 4.5, "attenuation": 2.2, "shadows": false, "from": "seed: the flat's bedside lamp"},
-   "street_lamp": {"type": "omni", "colour": "#ffd29a", "energy": 12.0, "range": 12.0, "attenuation": 2.2, "shadows": true, "from": "seed: the street's lamps"},
-   "door_canopy": {"type": "omni", "colour": "#ffd29a", "energy": 3.6, "range": 6.0, "attenuation": 2.2, "shadows": true, "from": "seed: the lamp under the street door's canopy"},
-   "shop_open": {"type": "omni", "colour": "#ffc47e", "energy": 0.8, "range": 5.0, "attenuation": 1.0, "shadows": false, "from": "seed: the barber's open shop's glow"},
-   "far_square_lamp": {"type": "omni", "colour": "#ffd29a", "energy": 4.0, "range": 18.0, "attenuation": 1.0, "shadows": false, "from": "seed: the square's lamps"},
-   "far_floodlight_tower": {"type": "spot", "colour": "#f3f1ea", "energy": 3.0, "range": 90.0, "angle": 42.0, "attenuation": 0.5, "shadows": false, "shaft": {"near": 0.6, "length": 12.0, "colour": "#ffffff", "density": 0.005, "forward": 0.6}, "from": "seed: the square's tower floodlights"},
-   "far_lectern": {"type": "omni", "colour": "#ffd29a", "energy": 18.0, "range": 12.0, "attenuation": 2.2, "shadows": true, "out": 2.4, "rise": 1.08, "from": "seed: the stage lamp on the speaker, 2.4 m in front of the lectern and 1.08 m over its middle"},
-   "far_pad_floodlight": {"type": "spot", "colour": "#f3f1ea", "energy": 14.0, "range": 100.0, "angle": 50.0, "attenuation": 0.5, "shadows": false, "shaft": {"near": 0.6, "length": 12.0, "colour": "#ffffff", "density": 0.005, "forward": 0.6}, "from": "seed: the rocket's floodlight, on each of the pad's floodlights; its shaft the tower floodlights' (the row's own since 2026-10-21, once a hand-kept data/light/launch.json lamp)"}
-  }
+  "harbour": {"low": [-320.0, -320.0], "high": [-110.0, 320.0], "step": 10.0, "mirror": {"along": 0.65, "down": 0.2, "ripple_tip": 0.03, "ripple_size": 0.2, "lit": [{"name": "rocket", "at": [-270.0, -60.0], "low": 0.0, "high": 60.0, "half_width": 9.48, "colour": "#f3f1ea", "strength": 1.6}], "column_smear": 0.35, "column_soft": 0.6}, "from": "seed: the harbour's reach from the quay (x -110) out to the old far disc's 320 m, and how its water mirrors the lit rocket, as the old records held it"}
  }
 }

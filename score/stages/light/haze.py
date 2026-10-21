@@ -1,5 +1,5 @@
-"""The light stage's second paid row, light-haze (a place whose kit lays a lamp with a shaft, `shafted_kinds`: today
-the square's floodlight towers and the launch's pad floodlights): the same render as light-passes with the shafts' haze left out, so the light row can tell what the haze lays
+"""The light stage's second paid row, light-haze (a place whose kit lays a lamp with a shaft, `shafted_kinds`: a
+glowing row its plan aims, the library's aimed lamp): the same render as light-passes with the shafts' haze left out, so the light row can tell what the haze lays
 over the place (the veil) from what the floodlights light on its floor, which one render cannot (the captain,
 2026-10-12, after the square's veil read 0.097 with its floodlights' floor light in it). Its own module, so
 light-passes keeps its key.
@@ -12,21 +12,34 @@ import score.stages.light.passes as passes  # this form: the code version then l
 
 # Four to eight views on one rented card, as light-passes.
 EUROS = 2.0
-SKY = passes.REPO / "data/definitions/sky.json"
+LAMPS = passes.REPO / "data/library/lamps.json"
+
+
+def read(path):
+    return json.loads(pathlib.Path(path).read_text())
+
+
+def glowing(inventory_path):
+    """The ids of an inventory's rows whose row kind glows (score/stages/row_kinds.py): its lamps."""
+    import sys
+    sys.path.insert(0, str(passes.REPO / "score/stages"))
+    import row_kinds
+    return {row["id"] for row in row_kinds.rows_that(read(inventory_path), "glows", row_kinds.table())}
 
 
 def shafted_kinds(place):
-    """The kit kinds the place lays whose lamps light a shaft of haze (its floodlights): each lamp row the sky record
-    gives a shaft (data/definitions/sky.json `lamps`, laid as `<room>_<row>`, as the scene-record row lights them:
-    scene_record/kit_shell.lamp_spots)."""
-    path = passes.REPO / f"data/kit/{place}.json"
-    if not path.is_file():
+    """The kit kinds the place lays whose lamps light a shaft of haze (its floodlights): each inventory row whose row
+    kind glows that the place's plan aims (`aims`), the library's aimed lamp, when that lamp has a shaft
+    (data/library/lamps.json), laid as `<room>_<row>`, as the scene-record row lights them (scene_record/kit_shell)."""
+    kit_path, plan_path = passes.REPO / f"data/kit/{place}.json", passes.REPO / f"data/plans/{place}.json"
+    if not kit_path.is_file() or not plan_path.is_file() or not read(LAMPS)["aimed"].get("shaft"):
         return set()
-    kit = json.loads(path.read_text())
-    sky = json.loads(SKY.read_text())
-    rows = {row for body in sky.values() if isinstance(body, dict)
-            for row, lamp in (body.get("lamps") or {}).items() if lamp.get("shaft")}
-    kinds = {f"{kit.get('room', place)}_{row}" for row in rows}
+    plan = read(plan_path)
+    inventory = passes.REPO / f"data/inventory/{plan.get('inventory', place)}.json"  # scene_record/plan.inventory_name
+    if not plan.get("aims") or not inventory.is_file():
+        return set()
+    kit = read(kit_path)
+    kinds = {f"{kit.get('room', place)}_{row}" for row in glowing(inventory) & set(plan["aims"])}
     return kinds & {laid["kind"] for laid in kit["pieces"]}
 
 
