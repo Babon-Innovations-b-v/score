@@ -18,13 +18,16 @@ MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 # The files run side by side, at most JOBS at once (JOBS=1: one after another), each its own sandbox and memory cap;
 # a file's line prints as it ends, a failure's tail with it in one write.
 JOBS ?= 6
+# One test file's time budget (owner, 2026-10-21: a slow test file is a failure, docs/bible.md workflow/module-standard).
+TEST_SECONDS ?= 120
 
 # One file (its path the first argument), in the shell xargs starts: its line, and its path added to $$FAILED.
 define ONE_TEST
 test=$$1; log=$$(mktemp); runner="$(PYTHON)";
 if grep -q '^def test_' $$test && ! grep -q '^if __name__' $$test; then runner="$(PYTHON) -m pytest -q -p no:cacheprovider"; fi;
-if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) $$runner $$test > $$log 2>&1; then echo "ok    $$test";
-else { echo "FAIL  $$test"; tail -n 15 $$log; } > $$log.fail; cat $$log.fail; rm -f $$log.fail; echo $$test >> $$FAILED; fi;
+start=$$(date +%s);
+if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) timeout $(TEST_SECONDS) $$runner $$test > $$log 2>&1; then echo "ok    $$test ($$(( $$(date +%s) - start )) s)";
+else { echo "FAIL  $$test ($$(( $$(date +%s) - start )) s; over $(TEST_SECONDS) s is a failure: the module standard's time budget)"; tail -n 15 $$log; } > $$log.fail; cat $$log.fail; rm -f $$log.fail; echo $$test >> $$FAILED; fi;
 rm -f $$log
 endef
 export ONE_TEST

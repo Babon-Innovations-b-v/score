@@ -862,6 +862,7 @@ code they have not seen yet.
 - **Tests sit with the module** they test, named for the invariant rather than the function
   (`test_<invariant>`), and drive the module through its public interface. A test that reaches into
   the implementation freezes the implementation.
+- **A test file runs in under 2 minutes (hard rule, owner 2026-10-21: "why do we keep getting these new slow test files ... make that a hard rule").** It follows this standard: a small fixture world built once per file, never the real store or home, no machine, no network, no whole-store walk. `make tests` stops a file at `TEST_SECONDS` (120) and counts it as failed, so a slow file cannot land.
 - **Tests (owner, 2026-10-21).** A test earns its place by catching a wrong answer:
   - One test file a module; tests that cover the same ground are merged into it.
   - A test gives the module an input whose answer is known and checks the answer, worked out
