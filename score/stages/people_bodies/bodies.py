@@ -33,7 +33,7 @@ import numpy as np
 
 from score import contracts, graph
 from score.checks import FAIL, PASS, Check, Verdict
-from score.stages.people_bodies import made_clips
+from score.stages.people_bodies import full, made_clips
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MAKER = REPO / "tools/characters/maker"
@@ -41,7 +41,7 @@ DATA = REPO / "data/surfaces/people.json"
 # The people's after-step on the shared loop and its line (score/stages/people/loop.py), named, not imported: nothing of
 # the people package goes into a body row's code version (the overlay).
 MADE, LINE = "people-made", "people"
-CUT = REPO / "data/people/bodies.json"
+DESIGN = REPO / "data/people/rows.json"
 # A look's estimate: the build and the settle each on an L4 for about an hour with its setup (EUR 0.79 an hour),
 # measured on the player 2026-10-10; the route (identity and CPU work on the same held machine) has no measure yet
 # and is held inside it; its parts are their own priced row (PARTS, #21), never bought inside it.
@@ -69,16 +69,17 @@ CLOTH_WORDS = ("belt", "buckle")
 
 def looks():
     """{look: take entry} of every take in the people's data with a spec: the look is <name>-<outfit>; `far_only`
-    unless data/people/bodies.json makes it in full (the take's own flag is not read: the people's data is the
-    surface line's input, so a cut there would paint every look again)."""
+    unless the design makes it in full (full.full_looks of data/people/rows.json: a person row near enough the
+    concept's view; the take's own flag is not read: the people's data is the surface line's input, so a cut there
+    would paint every look again)."""
     takes = json.loads(DATA.read_text())["takes"]
-    full = set(json.loads(CUT.read_text())["full"])
+    made_full = full.full_looks(json.loads(DESIGN.read_text()))
     found = {}
     for take, entry in takes.items():
         if entry.get("spec"):
             look = f"{json.loads((REPO / entry['spec']).read_text())['name']}-{entry['outfit']}"
             found[look] = {**{key: value for key, value in entry.items() if key != "far_only"}, "take": take,
-                           **({} if look in full else {"far_only": True})}
+                           **({} if look in made_full else {"far_only": True})}
     return found
 
 

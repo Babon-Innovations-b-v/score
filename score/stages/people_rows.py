@@ -4,13 +4,15 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
     {"places": {<place>: {"concept": <the picked draw's sha256 the reading was read from>,
                           "spots": [[x, y, z], ...] (the plan's people spots in the place's frame), "middle": [x, y, z],
                           "rows": {<row>: {"name", "noun", "count", "size" [wide, deep, tall] metres, "where",
+                                           "share" (its tallest box's share of the concept's frame height, or null),
                                            "looks": [<look>, ... one a person]  |  "crowd": <far look>,
                                            "palettes": [[skin, clothes, boots library surfaces], ...]}}}},
      "new": {<look>: {"words", "from"}}}
 
 One look a distinct person; a crowd one far look in a few colour palettes (CONTEXT.md "crowd"). A look is one of the
 people line's (data/surfaces/people.json) or a new one, named `<place>_<row>_<n>-new` and listed under `new` until it
-has a spec and a take of its own. The cast (score/stages/cast) and the characters layer read who is in a place from
+has a spec and a take of its own. Which looks get a full body and which a far one follows from each person row's
+`share` (score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast (score/stages/cast) and the characters layer read who is in a place from
 here, never the old game records (data/characters) or the lost concept pictures; the people line's bake entries take
 each look's size from the person row that maps it (`size_of`).
 
@@ -180,6 +182,16 @@ def placed_spots(plan):
     return spots, placed(plan, plan.get("w", 0.0) / 2, plan.get("d", 0.0) / 2).tolist()
 
 
+def concept_share(row, picture):
+    """The share of the concept's frame height the row's tallest box fills (its SAM 3 instance boxes, [x0, y0, x1, y1]
+    pixels, else its one box; `picture` the concept's [wide, high] pixels: a kept inventory's `picture`, a current
+    reading's `size`), or None with no box or picture size."""
+    boxes = row.get("boxes") or ([row["box"]] if row.get("box") else [])
+    if not boxes or not (isinstance(picture, list) and len(picture) == 2 and picture[1]):
+        return None
+    return round(max(box[3] - box[1] for box in boxes) / picture[1], 4)
+
+
 def refreshed_place(place, inventory, plan, old):
     """One place's entry from its current reading (`inventory`, groups.current's) and plan, keeping `old`'s choices
     where it was read from the same concept."""
@@ -189,7 +201,8 @@ def refreshed_place(place, inventory, plan, old):
     for row in inventory["rows"]:
         if row["route"] != "people":
             continue
-        copied = {key: row.get(key) for key in ("name", "noun", "count", "size", "where")}
+        copied = {**{key: row.get(key) for key in ("name", "noun", "count", "size", "where")},
+                  "share": concept_share(row, inventory.get("picture") or inventory.get("size"))}
         chosen = {key: kept[row["id"]][key] for key in CHOSEN if key in kept.get(row["id"], {})}
         rows[row["id"]] = {**copied, **(chosen or default_choice(place, row))}
     spots, middle = placed_spots(plan) if plan else ([], [0.0, 0.0, 0.0])

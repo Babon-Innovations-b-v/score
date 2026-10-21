@@ -308,6 +308,34 @@ def test_a_failed_tucks_record_refuses_the_body_before_any_machine():
         assert "predicted gap" in str(blocked) and "9.32" in str(blocked)
 
 
+def test_full_or_far_follows_the_design():
+    """Which looks get a full body is the design's (full.py): a person filling a quarter of its concept's frame height
+    is full, one filling a twentieth is far, one with no share measured is full, and a crowd's look is far; the share
+    is the tallest of the row's boxes over the picture's height."""
+    from score.stages.people_bodies import full
+    design = {"places": {"a": {"rows": {"near": {"looks": ["near-work"], "share": 0.25},
+                                        "far": {"looks": ["far-work"], "share": 0.05},
+                                        "unmeasured": {"looks": ["plain-work"], "share": None},
+                                        "crowd": {"crowd": "crowd-coat", "share": 0.4}}}}}
+    assert full.full_looks(design) == {"near-work", "plain-work"}, full.full_looks(design)
+    row = {"boxes": [[0, 100, 50, 484], [0, 0, 10, 100]], "box": [0, 0, 10, 100]}
+    assert people_rows.concept_share(row, [2752, 1536]) == 0.25
+    assert people_rows.concept_share({"box": [0, 0, 10, 153.6]}, [2752, 1536]) == 0.1
+    assert people_rows.concept_share({}, [2752, 1536]) is None and people_rows.concept_share(row, None) is None
+
+
+def test_todays_design_makes_the_tube_player_full_and_the_crowd_far():
+    """On today's data/people/rows.json: the tube's person on the right (a quarter of the concept's height, the
+    player) gets a full body; the square's crowd look stays far; every rule shares one FAR_SHARE."""
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import contents
+    from score.stages.cast import spread
+    from score.stages.people_bodies import full
+    looks = bodies.looks()
+    assert not looks["player_wide-work"].get("far_only") and looks[people_rows.CROWD_LOOK]["far_only"], looks
+    assert full.FAR_SHARE == spread.FAR_SHARE == contents.FAR_SHARE
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

@@ -33,7 +33,7 @@ GATE = tuple(check for check in complete.CHECKS if check != "resting")
 FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit", "casts": "{data}/characters",
          "effects": "{data}/effects", "motions": "{data}/motion", "scenes": "{data}/scene",
          "sound table": "{data}/sound/places.json", "expected contents": "{data}/checks/contents.json",
-         "full looks": "{data}/people/bodies.json"}
+         "designed people": "{data}/people/rows.json"}
 
 
 def files(place):

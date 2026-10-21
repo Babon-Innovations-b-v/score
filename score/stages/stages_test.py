@@ -28,7 +28,7 @@ SEEDS = PROPS_HOME / "work"
 PLACES = ("hangar",)
 DATA = ("kit", "inventory", "library", "checks", "effects", "scene", "motion", "ground",
         "sound/surfaces.json", "sound/places.json", "characters", "surfaces", "definitions/place.json",
-        "people/bodies.json")
+        "people/rows.json")
 
 
 def world_data_copy(root):

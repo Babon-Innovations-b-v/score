@@ -9,8 +9,8 @@ blocks like fail.
                 (characters-layer@<place>, the cast stage) wrote every person of it with no look missing and none
                 the licence rule refused; without one, the stage's bodies are the seed's, each judged by its built
                 body's report, and a body of SOMA's mesh in drapes is no made model (the owner, #5, 2026-10-10:
-                "soma is for the rig, not the mesh"); and no far-only look (one data/people/bodies.json does not
-                make in full, the crowd's far body always) stands near enough to fill over FAR_SHARE of the frame
+                "soma is for the rig, not the mesh"); and no far-only look (one the design does not make in
+                full: score/stages/people_bodies/full.py on data/people/rows.json; the crowd's far body always) stands near enough to fill over FAR_SHARE of the frame
                 height in any of the record's views, as the cast stage measures it (score/stages/cast/spread.py).
                 No cast: unknown
     effects     every need the place has (data/checks/contents.json) is an entry of its effects record that stands
@@ -71,7 +71,7 @@ GAME = re.compile(r"\b2099\b|\bthe game\b|\.gd\b|\.tscn\b", re.IGNORECASE)
 FAR_SHARE = 0.10
 HEIGHT = 1.7
 ASPECT = 16 / 9
-FULL_LOOKS = "people/bodies.json"
+DESIGNED_PEOPLE = "people/rows.json"
 # The stage outputs a check reads: {name: the accepted output's folder, or None when there is none}.
 OUTPUTS = ("likeness", "surfaces-check", "characters-layer", "scene-record")
 
@@ -230,9 +230,17 @@ def far_spots(stage, standing, cast, full):
     return found
 
 
+def full_looks():
+    """The looks made in full, by the design's rule (score/stages/people_bodies/full.py) on its people rows."""
+    if str(REPO) not in sys.path:
+        sys.path.append(str(REPO))
+    from score.stages.people_bodies import full
+    return full.full_looks(json.loads((DATA / DESIGNED_PEOPLE).read_text()))
+
+
 def far_faults(stage, place, cast, standing):
     """Each far-only character filling over FAR_SHARE of a view's frame height: who, the view and the share."""
-    full = set(json.loads((DATA / FULL_LOOKS).read_text())["full"])
+    full = full_looks()
     views = (assembled_scene(stage, place) or {}).get("views", [])
     faults = []
     for name, spots in far_spots(stage, standing, cast, full).items():
