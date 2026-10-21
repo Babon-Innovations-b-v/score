@@ -871,7 +871,6 @@
 			"thing": "prop:airlock_roof_light_fixture",
 			"group": "kit: light",
 			"made": "kit piece",
-			"sound": "lamp_buzz",
 			"at": [
 				{
 					"x": 0.5,

@@ -99,7 +99,6 @@
 					"fit": "chord of the pit on M3's bearing"
 				}
 			],
-			"sound": "console_hum",
 			"prop": "hub_console",
 			"box_from": [
 				"v4.13",
@@ -171,7 +170,6 @@
 					"fit": "painted"
 				}
 			],
-			"sound": "glovebox_hum",
 			"made": "made by the route",
 			"why_code": "2026-10-06, after the owner's in-game test: the old labbench (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
 			"box_from": [
@@ -557,7 +555,6 @@
 			"thing": "prop:hub_wall_lower_vent",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"sound": "vent_air",
 			"repeats": "across the room",
 			"unseen": "no vented lower panel can be told apart in the Marble views",
 			"pick": {
@@ -1126,7 +1123,6 @@
 			"thing": "prop:hub_ceiling_duct",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"sound": "vent_air",
 			"repeats": "across the room",
 			"unseen": "no rectangular duct shows under the roof in the Marble views; the runs there are round pipes",
 			"pick": {
@@ -1152,7 +1148,6 @@
 			"thing": "prop:hub_roof_light_fixture",
 			"group": "kit: light",
 			"made": "kit piece",
-			"sound": "lamp_buzz",
 			"unseen": "no caged flood lamp can be made out on the roof lattice in the Marble views; the lights are strip lamps on the walls",
 			"pick": {
 				"model": "roof_light_fixture_1",
@@ -1436,7 +1431,6 @@
 			"thing": "prop:hub_pit_junction_box",
 			"group": "kit: pit",
 			"made": "kit piece",
-			"sound": "junction_hum",
 			"unseen": "no junction box can be made out on the pit's wall in the Marble views",
 			"pick": {
 				"model": "pit_junction_box_1",
@@ -1718,7 +1712,6 @@
 					"across": 0.0
 				}
 			],
-			"sound": "lamp_buzz",
 			"box_from": [
 				"v6.115"
 			],
@@ -2162,7 +2155,6 @@
 			"thing": "prop:hub_wall_cage_lamp",
 			"group": "kit: light",
 			"made": "kit piece",
-			"sound": "lamp_buzz",
 			"box_from": [
 				"v1.132"
 			],
