@@ -71,8 +71,8 @@ def review_take(facts):
     return segment("screen-take", {"page": f"/concept/{room}/"}, 14.0, [
         caption(0.4, 4.4, "3 · Concept review", f"{name}, inside {facts['top_name']}: its first draw"),
         caption(4.8, 9.0, "Redraw with notes", "The creator's notes, drawn again"),
-        caption(9.4, 13.8, "Made possible by the Google API",
-                "Every draw is one call to Google's Gemini image model, locked by the creator")], view=1800, take=[
+        caption(9.4, 13.8, "One image model call a draw",  # its provider named only by its cost line (overlay)
+                "Every draw is one call to the image model, locked by the creator")], view=1800, take=[
         {"at": 1.4, "do": "move", "on": history.format(3), "over": 0.8},
         {"at": 2.4, "do": "click", "on": history.format(3)},
         {"at": 3.2, "do": "move", "on": history.format(2), "over": 0.8},

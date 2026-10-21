@@ -9,7 +9,7 @@ environment data from the real home (seeds, kits, stages under work/), so where 
 the real home's folders and the command runs with the real home mounted read-only: a read works, a write through a
 link fails loudly instead of landing. work/ and work/carry-commits are real folders in the sandbox with their entries
 linked, so a test may add a folder of its own there. The real home's state (STATE: the cloud ledger and bills, the store and its
-locks and logs) is never linked, so a test that writes those gets its own empty ones. Without bubblewrap nothing is
+locks and logs, the run registry and frozen copies) is never linked, so a test that writes those gets its own empty ones. Without bubblewrap nothing is
 linked, and a test that needs environment data fails rather than reach the real home. The exit status is the command's.
 """
 import os
@@ -21,7 +21,9 @@ import sys
 import tempfile
 
 REAL_HOME = pathlib.Path(os.environ.get("SCORE_REAL_HOME", pathlib.Path.home() / ".farm-factory-props"))
-STATE = ("cloud", "store", "store-tests", "locks", "logs", "tmp", "replays")
+# A run's registry (runs/: score run writes its entry and active.json, score/graph/runs.py) and its frozen code copies
+# (frozen/, score/graph/frozen.py) are state too: linked, a run driven by a test wrote into the read-only real home.
+STATE = ("cloud", "store", "store-tests", "locks", "logs", "tmp", "replays", "runs", "frozen")
 # Environment data folders made real folders in the sandbox, each entry in them linked, so a test can add an entry of its own
 # beside the real ones (a work folder, a commit's files under work/carry-commits) while the real ones stay read-only.
 MIRRORED = ("work", "work/carry-commits")

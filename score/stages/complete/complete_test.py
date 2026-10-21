@@ -20,14 +20,15 @@ from score import checks  # noqa: E402
 from score.stages import complete as stage  # noqa: E402
 import complete  # noqa: E402
 import complete_test  # noqa: E402
-import contents  # noqa: E402
 import contents_test  # noqa: E402
 import resting_test  # noqa: E402
 
 
 def answers(folder):
-    """{gate: (the stage's answer, complete.py's)} on the assembled stage in folder/stage."""
-    inputs = {"assembly": folder / "stage"}
+    """{gate: (the stage's answer, complete.py's)} on the assembled stage in folder/stage, each reading the finished
+    place's likeness and surfaces-check outputs."""
+    outputs = complete_test.finished_outputs(folder, ["crate", "lamp"])
+    inputs = {"assembly": folder / "stage", **{node: path for node, path in outputs.items() if path is not None}}
     out = folder / "out"
     out.mkdir(exist_ok=True)
     stage.make_manifest(inputs, out, 0, {})
@@ -38,7 +39,7 @@ def answers(folder):
         if check.name == "manifest":
             found[check.name] = (verdict.answer, checks.PASS)
             continue
-        alone = complete.run_check(check.name, resting_test.PLACE, usd, dict.fromkeys(contents.OUTPUTS))
+        alone = complete.run_check(check.name, resting_test.PLACE, usd, outputs)
         mine = complete.recorded(alone["result"], "")[0] if check.name in complete.EXPERIMENTAL else alone["result"]
         found[check.name] = (verdict.answer, mine)
     return found
