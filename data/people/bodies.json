@@ -20,20 +20,5 @@
   "driver_wide-driver-suit",
   "guard_wide-guard-uniform",
   "leader_wide-state-suit"
- ],
- "cast_names_are": "A cast names a look <name>_<outfit> (data/characters/<place>.json, `look`); these are the other names a look answers to: the square's front row, character kit in its plain outfit, wears every olive kit look. people-clips holds those casts to the look's passing clips.",
- "cast_names": {
-  "kit_m_avg-uniform-olive": [
-   "kit_plain"
-  ],
-  "kit_m_broad-uniform-olive": [
-   "kit_plain"
-  ],
-  "kit_w_broad-uniform-olive": [
-   "kit_plain"
-  ],
-  "kit_w_slim-uniform-olive": [
-   "kit_plain"
-  ]
- }
+ ]
 }

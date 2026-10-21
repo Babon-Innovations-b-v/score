@@ -2,171 +2,34 @@
  "scene": "people",
  "place": "people",
  "no_place": true,
- "why": "The people line's rows (#41), no scene's inventory: a line no place owns (no_place), so no owner's approval and no scene schema; the Pixal3D batch refuses it, so each look's take is made by its own take row (people-take-<look>). Each look one row, its words its take's. No concept view and no box: each look's close-up is drawn by its take row in SOMA-X's bind pose. No size yet: none is measured, so the close-up gate names each row's proportions unmeasured.",
+ "why": "The people line's rows (#41), no scene's inventory: a line no place owns (no_place), so no owner's approval and no scene schema; the Pixal3D batch refuses it, so each look's take is made by its own take row (people-take-<look>). Each look one row, its words its take's. No concept view and no box: each look's close-up is drawn by its take row in SOMA-X's bind pose. Each row's size is the person row's metres that maps it in a picked design (`size_from`, score/stages/people_rows.py, #26).",
  "plan": {
   "views": []
  },
  "rows": [
   {
-   "id": "bram-work",
-   "name": "a person in a light blue one-piece indoor suit",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "bram_wide-work",
-   "name": "a person in a light blue one-piece indoor suit",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "driver-driver-suit",
-   "name": "a person in a charcoal grey suit jacket over a white shirt and a dark tie, matching charcoal trousers, white gloves, a charcoal peaked cap with a black peak, bl",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "driver_wide-driver-suit",
-   "name": "a person in a charcoal grey suit jacket over a white shirt and a dark tie, matching charcoal trousers, white gloves, a charcoal peaked cap with a black peak, bl",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "guard-guard-uniform",
-   "name": "a person in an olive drab military uniform",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "guard_wide-guard-uniform",
-   "name": "a person in an olive drab military uniform",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
    "id": "kit_m_avg-coat-grey",
    "name": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "size": null,
+   "size": [
+    0.5,
+    0.3,
+    1.8
+   ],
    "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_m_avg-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_m_avg_wide-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_m_broad-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_m_broad_wide-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_w_broad-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_w_broad_wide-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_w_slim-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "kit_w_slim_wide-uniform-olive",
-   "name": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "leader-state-suit",
-   "name": "a person in a mid grey state suit",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "leader_wide-state-suit",
-   "name": "a person in a mid grey state suit",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "nev-work",
-   "name": "a person in a dark navy one-piece work suit with light grey shoulder panels and a small printed flag patch",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "nev_wide-work",
-   "name": "a person in a dark navy one-piece work suit with light grey shoulder panels and a small printed flag patch",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "player-work",
-   "name": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
-   "size": null,
-   "view": null,
-   "box": null
+   "box": null,
+   "size_from": "square/crowd of data/people/rows.json"
   },
   {
    "id": "player_wide-work",
    "name": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
-   "size": null,
+   "size": [
+    0.3,
+    0.5,
+    1.8
+   ],
    "view": null,
-   "box": null
-  },
-  {
-   "id": "sefa-work",
-   "name": "a person in a light blue one-piece indoor suit",
-   "size": null,
-   "view": null,
-   "box": null
-  },
-  {
-   "id": "sefa_wide-work",
-   "name": "a person in a light blue one-piece indoor suit",
-   "size": null,
-   "view": null,
-   "box": null
+   "box": null,
+   "size_from": "tube/person_right of data/people/rows.json"
   }
  ]
 }

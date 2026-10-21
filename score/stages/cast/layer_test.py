@@ -28,8 +28,8 @@ def a_cast(folder, people):
     """The cast stage's output for the hub: these people, no crowd."""
     (folder / "cast").mkdir(parents=True)
     (folder / "cast/cast.json").write_text(json.dumps({"place": "hub", "characters": people, "crowd": None}))
-    (folder / "record.json").write_text(json.dumps({"place": "hub", "people": []}))
-    return {"cast": folder / "cast", "cast record": folder / "record.json"}
+    (folder / "rows.json").write_text(json.dumps({"places": {"hub": {"concept": "a test", "rows": {}}}, "new": {}}))
+    return {"cast": folder / "cast", "design": folder / "rows.json"}
 
 
 def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_named():
@@ -73,18 +73,12 @@ def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_named(
         assert layer.judge_laid(out_all, inputs, None).answer == checks.PASS
 
 
-def test_a_place_reads_only_the_looks_its_cast_names():
-    """Each cast place waits on its own looks' bodies, not the slowest look of all: the looks are dealt from its
-    record as the cast stage deals them (a named look, the crowd's far body)."""
-    record = {"people": [{"name": "bram", "character": "bram", "look": "bram_work", "at": [0, 0, 0],
-                          "facing_to": [0, 0, 1], "doing": "standing"}],
-              "crowd": {"name": "crowd", "character": "kit_m_avg", "body": "far"}}
-    assert layer.dealt_looks(json.dumps(record)) == {"bram-work", "kit_m_avg-far"}
-    assert layer.dealt_looks(json.dumps({"people": []})) == frozenset()
-    named = {**record, "crowd": {**record["crowd"], "look": "kit_m_avg_coat-grey"}}  # the square's crowd names its look
-    assert layer.dealt_looks(json.dumps(named)) == {"bram-work", "kit_m_avg-coat-grey"}
-    square = json.loads((REPO / "data/characters/square.json").read_text())
-    assert "kit_m_avg-coat-grey" in layer.dealt_looks(json.dumps(square))
+def test_a_place_reads_only_the_looks_its_design_names():
+    """#26: each cast place waits on its own looks' bodies, the looks its picked design names (data/people/rows.json):
+    the tube's player and the square's crowd far look; no old record, no lost concept picture."""
+    assert "player_wide-work" in layer.cast_looks("tube") and "player-work" not in layer.cast_looks("tube")
+    assert layer.cast_looks("square") == {"kit_m_avg-coat-grey"}
+    assert layer.cast_looks("nowhere") == set()
 
 
 if __name__ == "__main__":

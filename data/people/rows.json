@@ -1,0 +1,970 @@
+{
+ "why": "The people of each place's picked design: every people row of its scene inventory mapped to a look on the shared people line (one look a person, a crowd one far look in palettes of library surfaces), its fields copied from the reading of the concept it names; written by python -m score.stages.people_rows, which keeps each row's looks, crowd, palettes and why while its concept stands (#26). New looks are named, not made: each needs a spec and a take row before it joins the people line.",
+ "places": {
+  "airlock": {
+   "concept": "c84a4a2c64886109e207b6b7c93d6a31942e89f0cf8a9d6e4a4d960b3eaf58e0",
+   "spots": [
+    [
+     0.0,
+     0.0,
+     -1.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "astronaut": {
+     "name": "seated astronaut",
+     "noun": "astronaut",
+     "count": 1,
+     "size": [
+      0.6,
+      0.6,
+      1.4
+     ],
+     "where": "sitting on bench",
+     "looks": [
+      "airlock_astronaut_1-new"
+     ]
+    }
+   }
+  },
+  "camp": {
+   "concept": "5393e7f9f2a2cf323b56d2ca574b840a9266f97f58b7af27e509c3584f937422",
+   "spots": [
+    [
+     3.0,
+     0.0,
+     0.0
+    ],
+    [
+     10.0,
+     0.0,
+     -10.0
+    ]
+   ],
+   "middle": [
+    5.0,
+    0.0,
+    -5.0
+   ],
+   "rows": {
+    "astronaut_1": {
+     "name": "astronaut",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "centre of left dome, walking",
+     "looks": [
+      "camp_astronaut_1_1-new"
+     ]
+    },
+    "astronaut_2": {
+     "name": "astronaut",
+     "noun": "person",
+     "count": 2,
+     "size": [
+      0.4,
+      0.6,
+      1.8
+     ],
+     "where": "sitting at dining table",
+     "looks": [
+      "camp_astronaut_2_1-new",
+      "camp_astronaut_2_2-new"
+     ]
+    },
+    "astronaut_5": {
+     "name": "astronaut",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "sitting at computer desk",
+     "looks": [
+      "camp_astronaut_5_1-new"
+     ]
+    },
+    "astronaut_6": {
+     "name": "astronaut",
+     "noun": "person",
+     "count": 2,
+     "size": [
+      0.4,
+      0.6,
+      1.8
+     ],
+     "where": "right side of right dome, standing",
+     "looks": [
+      "camp_astronaut_6_1-new",
+      "camp_astronaut_6_2-new"
+     ]
+    }
+   }
+  },
+  "campgrounds": {
+   "concept": "b5bbdad53339f4d380fb111ee143edffff48ca108fa99a3df3a5df4e68a1ba80",
+   "spots": [
+    [
+     -3.0,
+     0.0,
+     4.0
+    ],
+    [
+     -14.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "middle": [
+    -2.5,
+    0.0,
+    -3.5
+   ],
+   "rows": {
+    "astronaut": {
+     "name": "astronaut",
+     "noun": "person",
+     "count": 7,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "scattered",
+     "looks": [
+      "campgrounds_astronaut_1-new",
+      "campgrounds_astronaut_2-new",
+      "campgrounds_astronaut_3-new",
+      "campgrounds_astronaut_4-new",
+      "campgrounds_astronaut_5-new",
+      "campgrounds_astronaut_6-new",
+      "campgrounds_astronaut_7-new"
+     ]
+    }
+   }
+  },
+  "garage": {
+   "concept": "b26f85f9990257187890acbdee56397452f61fa9334a978661c998b694fbed2f",
+   "spots": [
+    [
+     -3.0,
+     0.0,
+     -2.0
+    ],
+    [
+     3.0,
+     0.0,
+     -2.0
+    ],
+    [
+     0.0,
+     0.0,
+     3.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "astronaut": {
+     "name": "astronaut",
+     "noun": "astronaut",
+     "count": 5,
+     "size": [
+      0.4,
+      0.6,
+      1.8
+     ],
+     "where": "around the room",
+     "looks": [
+      "garage_astronaut_1-new",
+      "garage_astronaut_2-new",
+      "garage_astronaut_3-new",
+      "garage_astronaut_4-new",
+      "garage_astronaut_5-new"
+     ]
+    }
+   }
+  },
+  "greenhouse": {
+   "concept": "a9585cc6d0b0ea09289f03dfa3b4ace1dd287ce182671cf42d546f560bbcb757",
+   "spots": [
+    [
+     0.0,
+     0.0,
+     6.0
+    ],
+    [
+     0.0,
+     0.0,
+     2.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "astronaut": {
+     "name": "astronaut in spacesuit",
+     "noun": "astronaut",
+     "count": 5,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "scattered around both floors",
+     "looks": [
+      "greenhouse_astronaut_1-new",
+      "greenhouse_astronaut_2-new",
+      "greenhouse_astronaut_3-new",
+      "greenhouse_astronaut_4-new",
+      "greenhouse_astronaut_5-new"
+     ]
+    }
+   }
+  },
+  "habitat": {
+   "concept": "55ed3cdb76818f88d88e2cc4f38836198adcf7790b1a65038f81ecb081224a8a",
+   "spots": [
+    [
+     0.0,
+     0.0,
+     -1.0
+    ],
+    [
+     0.0,
+     0.0,
+     3.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {}
+  },
+  "hangar": {
+   "concept": "72d9da61096110f6ee794e39b20fc73bcca7cb8cb7ccba7d8510ad860c5c79f9",
+   "spots": [
+    [
+     -8.0,
+     0.0,
+     0.0
+    ],
+    [
+     8.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     18.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "worker_blue": {
+     "name": "worker in blue jumpsuit",
+     "noun": "worker",
+     "count": 8,
+     "size": [
+      0.3,
+      0.5,
+      1.8
+     ],
+     "where": "scattered around the room",
+     "looks": [
+      "hangar_worker_blue_1-new",
+      "hangar_worker_blue_2-new",
+      "hangar_worker_blue_3-new",
+      "hangar_worker_blue_4-new",
+      "hangar_worker_blue_5-new",
+      "hangar_worker_blue_6-new",
+      "hangar_worker_blue_7-new",
+      "hangar_worker_blue_8-new"
+     ]
+    }
+   }
+  },
+  "hub": {
+   "concept": "de318a5e7621134c9d07737d4ee4e7cf5dc04aa984a28c35b386b62818b66044",
+   "spots": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     -1.5
+    ],
+    [
+     -1.5,
+     0.0,
+     0.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {}
+  },
+  "lab": {
+   "concept": "71416d39169f17e23fe287d6b00d0c0430b18c51e6add38f4c904f100e79b6be",
+   "spots": [
+    [
+     -1.0,
+     0.0,
+     1.0
+    ],
+    [
+     1.0,
+     0.0,
+     1.0
+    ],
+    [
+     0.0,
+     0.0,
+     -1.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "person": {
+     "name": "person in spacesuit",
+     "noun": "person",
+     "count": 3,
+     "size": [
+      0.72,
+      0.72,
+      1.8
+     ],
+     "where": "at desks and bottom right",
+     "looks": [
+      "lab_person_1-new",
+      "lab_person_2-new",
+      "lab_person_3-new"
+     ]
+    }
+   }
+  },
+  "old_station": {
+   "concept": "1003bf34858d5a995323ab433bcecbaa35ef7ee9ce45dff91e8fe7f7f4077ef2",
+   "spots": [
+    [
+     2.5,
+     0.0,
+     4.5
+    ],
+    [
+     1.5,
+     0.0,
+     3.5
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "astronaut_1": {
+     "name": "astronaut standing",
+     "noun": "astronaut",
+     "count": 2,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "near ladder",
+     "looks": [
+      "old_station_astronaut_1_1-new",
+      "old_station_astronaut_1_2-new"
+     ]
+    }
+   }
+  },
+  "square": {
+   "concept": "0303c9f4bb5d7377c51f6e925c6390f190401a401d25133cfc50df5457dd8ef7",
+   "spots": [
+    [
+     -51.2779,
+     0.0,
+     -4.9395
+    ],
+    [
+     -71.2686,
+     0.0,
+     -5.5521
+    ],
+    [
+     -60.6607,
+     0.0,
+     -25.2364
+    ]
+   ],
+   "middle": [
+    -56.2756,
+    0.0,
+    -5.0927
+   ],
+   "rows": {
+    "crowd": {
+     "name": "crowd of people",
+     "noun": "people",
+     "count": 1,
+     "size": [
+      0.5,
+      0.3,
+      1.8
+     ],
+     "where": "everywhere",
+     "crowd": "kit_m_avg-coat-grey",
+     "palettes": [
+      [
+       "skin_light",
+       "wool_grey",
+       "leather_black"
+      ],
+      [
+       "skin_medium",
+       "suit_navy",
+       "leather_black"
+      ],
+      [
+       "skin_dark",
+       "wool_charcoal",
+       "leather_black"
+      ],
+      [
+       "skin_light",
+       "jacket_blue",
+       "rubber"
+      ],
+      [
+       "skin_medium",
+       "olive_drab",
+       "leather_black"
+      ]
+     ]
+    }
+   }
+  },
+  "street": {
+   "concept": "474a6c69493d0b519dd1997fbb30c28028a6988667f49abdae4c66e7d1cdc44c",
+   "spots": [
+    [
+     10.2,
+     0.0,
+     14.0
+    ],
+    [
+     8.2,
+     0.0,
+     -1.0
+    ],
+    [
+     12.2,
+     0.0,
+     9.0
+    ]
+   ],
+   "middle": [
+    10.2,
+    0.0,
+    2.0
+   ],
+   "rows": {
+    "pedestrian_umbrella": {
+     "name": "person holding an umbrella",
+     "noun": "person",
+     "count": 7,
+     "size": [
+      0.8,
+      0.8,
+      1.8
+     ],
+     "where": "walking on both pavements",
+     "looks": [
+      "street_pedestrian_umbrella_1-new",
+      "street_pedestrian_umbrella_2-new",
+      "street_pedestrian_umbrella_3-new",
+      "street_pedestrian_umbrella_4-new",
+      "street_pedestrian_umbrella_5-new",
+      "street_pedestrian_umbrella_6-new",
+      "street_pedestrian_umbrella_7-new"
+     ]
+    },
+    "diner_seated": {
+     "name": "person sitting at a table",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.5,
+      0.5,
+      1.3
+     ],
+     "where": "inside the restaurant",
+     "looks": [
+      "street_diner_seated_1-new"
+     ]
+    },
+    "distant_crowd": {
+     "name": "crowd of people",
+     "noun": "crowd",
+     "count": 1,
+     "size": [
+      8.0,
+      10.0,
+      1.8
+     ],
+     "where": "in the background square",
+     "crowd": "kit_m_avg-coat-grey",
+     "palettes": [
+      [
+       "skin_light",
+       "wool_grey",
+       "leather_black"
+      ],
+      [
+       "skin_medium",
+       "suit_navy",
+       "leather_black"
+      ],
+      [
+       "skin_dark",
+       "wool_charcoal",
+       "leather_black"
+      ],
+      [
+       "skin_light",
+       "jacket_blue",
+       "rubber"
+      ],
+      [
+       "skin_medium",
+       "olive_drab",
+       "leather_black"
+      ]
+     ]
+    }
+   }
+  },
+  "tube": {
+   "concept": "3059819b2ca6abdc4b9d75b8455794bdde9b74f2acf726bc0f86f4706c1013d5",
+   "spots": [
+    [
+     0.0,
+     0.0,
+     1.0
+    ],
+    [
+     0.0,
+     0.0,
+     2.175
+    ],
+    [
+     0.0,
+     0.0,
+     3.5
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    2.175
+   ],
+   "rows": {
+    "person_mid_left": {
+     "name": "person in uniform",
+     "noun": "person",
+     "count": 2,
+     "size": [
+      0.3,
+      0.5,
+      1.8
+     ],
+     "where": "left midground, at console",
+     "looks": [
+      "tube_person_mid_left_1-new",
+      "tube_person_mid_left_2-new"
+     ]
+    },
+    "person_right": {
+     "name": "person in uniform",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.3,
+      0.5,
+      1.8
+     ],
+     "where": "right midground, at console",
+     "looks": [
+      "player_wide-work"
+     ],
+     "why": "the nearest of the three, in the navy work suit at the right-hand console: the player (#26, the people benchmark)"
+    }
+   }
+  },
+  "workshop": {
+   "concept": "4a65322da8a3d94e6eeb88c9c1923d6a47532185468fc5fa29812c24b2ebca7e",
+   "spots": [
+    [
+     -1.0,
+     0.0,
+     0.5
+    ],
+    [
+     5.5,
+     0.0,
+     0.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "person_centre": {
+     "name": "person",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.4,
+      0.6,
+      1.8
+     ],
+     "where": "centre",
+     "looks": [
+      "workshop_person_centre_1-new"
+     ]
+    },
+    "person_right": {
+     "name": "person",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.4,
+      0.6,
+      1.8
+     ],
+     "where": "right",
+     "looks": [
+      "workshop_person_right_1-new"
+     ]
+    }
+   }
+  },
+  "wreck": {
+   "concept": "c80eddadd5232413772cc6a1cf1cdc985c1ee9c40ec32725d3aa4ae8e3b80302",
+   "spots": [
+    [
+     2.0,
+     0.0,
+     3.0
+    ],
+    [
+     6.0,
+     0.0,
+     4.0
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    -1.5
+   ],
+   "rows": {
+    "astronaut_1": {
+     "name": "astronaut",
+     "noun": "astronaut",
+     "count": 1,
+     "size": [
+      0.4,
+      0.6,
+      1.8
+     ],
+     "where": "standing near centre light",
+     "looks": [
+      "wreck_astronaut_1_1-new"
+     ]
+    },
+    "astronaut_2": {
+     "name": "astronaut",
+     "noun": "astronaut",
+     "count": 1,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "standing lower right of centre",
+     "looks": [
+      "wreck_astronaut_2_1-new"
+     ]
+    },
+    "astronaut_3": {
+     "name": "astronaut",
+     "noun": "astronaut",
+     "count": 1,
+     "size": [
+      0.4,
+      0.6,
+      1.8
+     ],
+     "where": "standing far left background",
+     "looks": [
+      "wreck_astronaut_3_1-new"
+     ]
+    }
+   }
+  }
+ },
+ "new": {
+  "airlock_astronaut_1-new": {
+   "words": "seated astronaut",
+   "from": "airlock/astronaut"
+  },
+  "camp_astronaut_1_1-new": {
+   "words": "astronaut",
+   "from": "camp/astronaut_1"
+  },
+  "camp_astronaut_2_1-new": {
+   "words": "astronaut",
+   "from": "camp/astronaut_2"
+  },
+  "camp_astronaut_2_2-new": {
+   "words": "astronaut",
+   "from": "camp/astronaut_2"
+  },
+  "camp_astronaut_5_1-new": {
+   "words": "astronaut",
+   "from": "camp/astronaut_5"
+  },
+  "camp_astronaut_6_1-new": {
+   "words": "astronaut",
+   "from": "camp/astronaut_6"
+  },
+  "camp_astronaut_6_2-new": {
+   "words": "astronaut",
+   "from": "camp/astronaut_6"
+  },
+  "campgrounds_astronaut_1-new": {
+   "words": "astronaut",
+   "from": "campgrounds/astronaut"
+  },
+  "campgrounds_astronaut_2-new": {
+   "words": "astronaut",
+   "from": "campgrounds/astronaut"
+  },
+  "campgrounds_astronaut_3-new": {
+   "words": "astronaut",
+   "from": "campgrounds/astronaut"
+  },
+  "campgrounds_astronaut_4-new": {
+   "words": "astronaut",
+   "from": "campgrounds/astronaut"
+  },
+  "campgrounds_astronaut_5-new": {
+   "words": "astronaut",
+   "from": "campgrounds/astronaut"
+  },
+  "campgrounds_astronaut_6-new": {
+   "words": "astronaut",
+   "from": "campgrounds/astronaut"
+  },
+  "campgrounds_astronaut_7-new": {
+   "words": "astronaut",
+   "from": "campgrounds/astronaut"
+  },
+  "garage_astronaut_1-new": {
+   "words": "astronaut",
+   "from": "garage/astronaut"
+  },
+  "garage_astronaut_2-new": {
+   "words": "astronaut",
+   "from": "garage/astronaut"
+  },
+  "garage_astronaut_3-new": {
+   "words": "astronaut",
+   "from": "garage/astronaut"
+  },
+  "garage_astronaut_4-new": {
+   "words": "astronaut",
+   "from": "garage/astronaut"
+  },
+  "garage_astronaut_5-new": {
+   "words": "astronaut",
+   "from": "garage/astronaut"
+  },
+  "greenhouse_astronaut_1-new": {
+   "words": "astronaut in spacesuit",
+   "from": "greenhouse/astronaut"
+  },
+  "greenhouse_astronaut_2-new": {
+   "words": "astronaut in spacesuit",
+   "from": "greenhouse/astronaut"
+  },
+  "greenhouse_astronaut_3-new": {
+   "words": "astronaut in spacesuit",
+   "from": "greenhouse/astronaut"
+  },
+  "greenhouse_astronaut_4-new": {
+   "words": "astronaut in spacesuit",
+   "from": "greenhouse/astronaut"
+  },
+  "greenhouse_astronaut_5-new": {
+   "words": "astronaut in spacesuit",
+   "from": "greenhouse/astronaut"
+  },
+  "hangar_worker_blue_1-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "hangar_worker_blue_2-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "hangar_worker_blue_3-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "hangar_worker_blue_4-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "hangar_worker_blue_5-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "hangar_worker_blue_6-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "hangar_worker_blue_7-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "hangar_worker_blue_8-new": {
+   "words": "worker in blue jumpsuit",
+   "from": "hangar/worker_blue"
+  },
+  "lab_person_1-new": {
+   "words": "person in spacesuit",
+   "from": "lab/person"
+  },
+  "lab_person_2-new": {
+   "words": "person in spacesuit",
+   "from": "lab/person"
+  },
+  "lab_person_3-new": {
+   "words": "person in spacesuit",
+   "from": "lab/person"
+  },
+  "old_station_astronaut_1_1-new": {
+   "words": "astronaut standing",
+   "from": "old_station/astronaut_1"
+  },
+  "old_station_astronaut_1_2-new": {
+   "words": "astronaut standing",
+   "from": "old_station/astronaut_1"
+  },
+  "street_diner_seated_1-new": {
+   "words": "person sitting at a table",
+   "from": "street/diner_seated"
+  },
+  "street_pedestrian_umbrella_1-new": {
+   "words": "person holding an umbrella",
+   "from": "street/pedestrian_umbrella"
+  },
+  "street_pedestrian_umbrella_2-new": {
+   "words": "person holding an umbrella",
+   "from": "street/pedestrian_umbrella"
+  },
+  "street_pedestrian_umbrella_3-new": {
+   "words": "person holding an umbrella",
+   "from": "street/pedestrian_umbrella"
+  },
+  "street_pedestrian_umbrella_4-new": {
+   "words": "person holding an umbrella",
+   "from": "street/pedestrian_umbrella"
+  },
+  "street_pedestrian_umbrella_5-new": {
+   "words": "person holding an umbrella",
+   "from": "street/pedestrian_umbrella"
+  },
+  "street_pedestrian_umbrella_6-new": {
+   "words": "person holding an umbrella",
+   "from": "street/pedestrian_umbrella"
+  },
+  "street_pedestrian_umbrella_7-new": {
+   "words": "person holding an umbrella",
+   "from": "street/pedestrian_umbrella"
+  },
+  "tube_person_mid_left_1-new": {
+   "words": "person in uniform",
+   "from": "tube/person_mid_left"
+  },
+  "tube_person_mid_left_2-new": {
+   "words": "person in uniform",
+   "from": "tube/person_mid_left"
+  },
+  "workshop_person_centre_1-new": {
+   "words": "person",
+   "from": "workshop/person_centre"
+  },
+  "workshop_person_right_1-new": {
+   "words": "person",
+   "from": "workshop/person_right"
+  },
+  "wreck_astronaut_1_1-new": {
+   "words": "astronaut",
+   "from": "wreck/astronaut_1"
+  },
+  "wreck_astronaut_2_1-new": {
+   "words": "astronaut",
+   "from": "wreck/astronaut_2"
+  },
+  "wreck_astronaut_3_1-new": {
+   "words": "astronaut",
+   "from": "wreck/astronaut_3"
+  }
+ }
+}

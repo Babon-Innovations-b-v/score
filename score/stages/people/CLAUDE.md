@@ -27,9 +27,10 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   (`tools/props/closeup/stage.PERSON`, chosen for every row whose `layer` is `people`, on this line and in a designed
   place's hand-in alike): one person, or one member of a crowd row, front on in the rig's A-pose, never the concept's
   pose; its gate is `check.person_faults` (framed, arms clear of the body: Pixal3D fused Nev's), not a box's
-  proportions (the rig sizes the body). **Accepted gaps today:** no look's size is measured (the inventory's `size` is
-  null; the rig's bone lengths times the look's scale size it) and no bake entry is written (a
-  run on the line refuses `bake entry <look>` before anything is cleared); a hair finish fails the paint's colour
+  proportions (the rig sizes the body). **The line holds the looks the picked designs map** (`data/people/rows.json`,
+  `../people_rows.py`, #26): each look's size and bake entry the metres of the person row that maps it, written by
+  `python -m score.stages.people_rows`; a person no line look fits is a named new look there until it has a spec and
+  a take row. **Accepted gaps today:** a hair finish fails the paint's colour
   gate by name (the old people-paint left hair out, `hair.py`, deleted with it); `people-take-<look>` still makes
   each look's close-up and its Pixal3D take before the loop (its pose and limbs-apart retries).
 - **A body is the maker's** (`tools/characters/maker/prop_person.py` build, settle, checks; its parts its own priced

@@ -1,8 +1,10 @@
 # score/stages/cast/
 
-The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for the places whose concept shows people
-(`PLACES`), reading `concept_people`'s accepted count. `__init__.py`'s docstring has the make and the five gates;
-`measure.py` the geometry, `spread.py` how a group and a crowd are stood on the place.
+The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for the places whose picked design shows
+people, read from `data/people/rows.json` (`score/stages/people_rows.py`, #26: its scene inventory's people rows,
+each person a look of the shared people line, a crowd one far look in palettes), never the old game records
+(`data/characters/`) or `concept_people`'s lost concept pictures. `__init__.py`'s docstring has the make and
+the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are stood on the place.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
@@ -11,17 +13,17 @@ The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for th
   palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
-- **The record says who, the stage says where they fit.** Named people stand where their record
-  (`data/characters/<place>.json`) puts them and the gates judge that; a group's members and a crowd's copies are
-  stood on the seed's measured ground, clear of every solid and of each other. Never move a named person by hand to
-  pass a gate: put the record right, from the concept (the 10-11 records' tool, `cast_place.py`, is still outside
-  the repo).
+- **The design says who, the stage says where they fit.** Each person is dealt to the plan's people spots in turn and
+  stood on the seed's measured ground round it, clear of every solid and of each other, or left out and named; a
+  design's crowd has no ground or count yet, so `counted` names it short. Never hand-place a person to pass a gate:
+  put the design right (`python -m score.stages.people_rows` refreshes rows.json from the store and keeps each row's
+  looks while its concept stands).
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of
   the seed's base layer (FCL); a point instancer's prototypes are left out (they stand only where it copies them).
 - **Do not import tools/characters at load.** Its `cast_check` on the path or in `sys.modules` joins the assembly's
   code version through `tools/usd/reach.py` and moves every place's assembly key: `measure.characters()` imports
   `cast` and `cast_check` inside the make and the gates, and the stage declares both files as inputs. Constants
-  copied from them (`KEEP`, body sizes) are checked in `cast_test.py`.
+  copied from them (body sizes) are checked in `cast_test.py`.
 - **`made` reads the SOMA-shell route's dress rows.** A look is made when its dress row (`people-dress-<look>`,
   `-in-<place>` where data/people/colours.json colours the place) stands usable; the cast reads them as optional
   inputs (`Stage.optional`), so a look with none stays not made, named: `made` passes with it as a finding (an accepted gap carried
@@ -33,4 +35,4 @@ The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for th
   no usable body (its dress rows are optional reads, `Stage.optional`), is left out, named in `characters.json`,
   and the row passes with the gaps as findings, so the place assembles and complete's people check fails each gap
   by name (overseer, 2026-10-13). Never lay a stand-in body. `layer_test.py` holds it.
-- `cast_test.py` runs the make and gates on the hub's record and seed and breaks `standing`, `clear` and `counted`.
+- `cast_test.py` runs the make and gates on a one-person design on the hub's seed (skipped without it).

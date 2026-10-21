@@ -27,7 +27,7 @@ import pathlib
 from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
-                          earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_takes,
+                          earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_rows, people_takes,
                           physics, proposals, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
@@ -240,20 +240,17 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
                            after={"plan": ("place-plan", 2), "terrain": ("grounds", 1)},
                            applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: each place's cast placed and measured against its
-# concept's people (concept_people, in this table so the cast reads its accepted count) and its seed's geometry.
+# picked design's people (data/people/rows.json, #26; concept_people's lost pictures no longer read) and its seed's
+# geometry.
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
 DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
 def cast_place(place):
-    """A place with a cast row: its concept shows people (cast.PLACES), or its cast record names people its concept
-    does not show, for the record's count_reason (the cockpit's two pilots of the owner's brief, overseer
-    2026-10-15). In the table, so no other place's row moves."""
-    path = REPO / "data/characters" / f"{place}.json"
-    return place in cast.PLACES or (path.exists() and bool(json.loads(path.read_text()).get("people")))
+    """A place with a cast row: its picked design shows people (data/people/rows.json, #26)."""
+    return people_rows.has_people(place)
 
 
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
-                   after={"concept_people": ("concept-people", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
-                   optional=DRESS_ROWS, applies=cast_place)
+                   after={name: ("people-dress", 1) for name in DRESS_ROWS}, optional=DRESS_ROWS, applies=cast_place)
 # Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
 # dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look
 # whose body is not usable is left out by name (the overseer's 14:00 rule: assemble with what passed; complete fails

@@ -1,13 +1,13 @@
-"""The cast stage's make and gates on a one-person cast on the hub's seed: the person stands and keeps clear; the record
-holds 1 where a concept showing 3 fails `counted` and one showing 1 passes; a person lifted off the floor fails
-`standing`, one stood in a thing fails `clear`; a look with no usable dress row is not made (an accepted gap, the gate passing), one whose dress row
-the runner gave is; a crowd's lattice keeps two body widths apart; KEEP is box_masks.py's.
+"""The cast stage's make and gates on a one-person design on the hub's seed (#26: the cast reads the picked design,
+data/people/rows.json): the person stands and keeps clear and the cast holds what the design shows; one dealt into a
+thing is stood clear round it or left out and named; a look with no usable dress row is not made (an accepted gap,
+the gate passing), one whose dress row the runner gave is; a design's crowd with no ground is named short; a crowd's
+lattice keeps two body widths apart.
 
 Run: .venv/bin/python score/stages/cast/cast_test.py   (the two tests on the hub's round-three seed skip, saying so, without it)
 """
 import json
 import pathlib
-import re
 import sys
 import tempfile
 
@@ -20,25 +20,20 @@ from score.stages.cast import measure, spread  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
 
-def hub_inputs(folder, record, concept_people):
-    """The hub's inputs with its record and concept count swapped for the given ones, written into `folder`."""
+def hub_inputs(folder, design):
+    """The hub's inputs with its design swapped for the given one, written into `folder`."""
     inputs = {name: pathlib.Path((pattern[0] if isinstance(pattern, tuple) else pattern).format(
         place="hub", data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"), repo=str(REPO)))
         for name, pattern in cast.files("hub").items()}
-    inputs["record"] = folder / "record.json"
-    inputs["record"].write_text(json.dumps(record))
-    inputs["concept_people"] = folder / "concept"
-    inputs["concept_people"].mkdir(exist_ok=True)
-    instances = [{"judged": "person"}] * concept_people
-    (inputs["concept_people"] / "people.json").write_text(json.dumps(
-        {"hub": {"v1": {"people": concept_people, "instances": instances}}}))
+    inputs["design"] = folder / "rows.json"
+    inputs["design"].write_text(json.dumps({"places": {"hub": design}, "new": {}}))
     return inputs
 
 
-def answers(record, concept_people):
+def answers(design):
     with tempfile.TemporaryDirectory() as folder:
         folder = pathlib.Path(folder)
-        inputs = hub_inputs(folder, record, concept_people)
+        inputs = hub_inputs(folder, design)
         out = folder / "out"
         out.mkdir()
         cast.make(inputs, out, 0, {})
@@ -46,11 +41,11 @@ def answers(record, concept_people):
         return {check.name: check.judge(out, inputs, None) for check in cast.CHECKS}
 
 
-def hub_record():
-    """A one-person cast on the hub's seed (the hub's own cast holds nobody: its concept's figure is a chair)."""
-    return {"place": "hub", "people": [{"name": "bram", "character": "bram", "look": "bram_work", "doing": "bench",
-                                        "at": [-0.535, -0.407, 0.9], "facing_to": [-0.606, -0.407, 1.517],
-                                        "why": "at the operations console in the pit"}]}
+def hub_design(at=(-0.535, -0.407, 0.9)):
+    """A one-person design on the hub's seed (the hub's own design shows nobody)."""
+    return {"concept": "a test", "spots": [list(at)], "middle": [-0.606, -0.407, 1.517],
+            "rows": {"bram": {"name": "person at the console", "count": 1, "size": [0.5, 0.3, 1.8],
+                              "where": "at the operations console", "looks": ["bram-work"]}}}
 
 
 SEED = PROPS_HOME / "work/usd-r3/hub/layers/base.usda"
@@ -67,28 +62,27 @@ def without_the_seed():
 def test_the_hub():
     if without_the_seed():
         return
-    found = answers(hub_record(), 3)
+    found = answers(hub_design())
     assert found["standing"].answer == checks.PASS, found["standing"].reason
     assert found["clear"].answer == checks.PASS, found["clear"].reason
-    assert found["counted"].answer == checks.FAIL and found["counted"].measures["cast"] == 1
+    assert found["counted"].answer == checks.PASS and found["counted"].measures["cast"] == 1
     # a look with no dressed body is an accepted gap carried down, never a stop (complete's people check fails it)
     assert found["made"].answer == checks.PASS and found["made"].measures["missing"] >= 1
     assert all("no accepted dressed body" in finding for finding in found["made"].findings)
-    assert "drapes" not in found
-    assert answers(hub_record(), 1)["counted"].answer == checks.PASS
 
 
-def test_a_person_off_the_floor_or_in_a_thing():
+def test_a_person_dealt_into_a_thing_is_stood_clear_or_named():
     if without_the_seed():
         return
-    lifted = hub_record()
-    lifted["people"][0]["at"][1] += 0.3
-    assert answers(lifted, 1)["standing"].answer == checks.FAIL
-    inside = hub_record()
-    nev = inside["people"][0]
-    nev["at"] = list(nev["facing_to"])  # where he faces: the console
-    found = answers(inside, 1)["clear"]
-    assert found.answer == checks.FAIL and "runs into" in found.reason, found.reason
+    found = answers(hub_design(at=(-0.606, -0.407, 1.517)))  # the console itself
+    assert found["clear"].answer == checks.PASS, found["clear"].reason
+    assert found["counted"].answer == checks.PASS or "left out" in found["counted"].reason, found["counted"]
+
+
+def test_a_designs_crowd_without_ground_is_named_short():
+    crowd = {"look": "kit_m_avg/coat-grey", "asked": None, "copies": []}
+    assert cast.short_of({"left_out": [], "crowd": crowd}) == [
+        "the crowd's ground and count are not in the design yet (kit_m_avg/coat-grey)"]
 
 
 def test_a_look_is_made_by_its_usable_dress_row():
@@ -131,11 +125,6 @@ def test_copied_constants_agree():
     cast_rules, cast_check = measure.characters()
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,
                                                                  cast_check.HEAD)
-
-
-def test_keep_is_box_masks():
-    text = (REPO / "tools/props/scene/box_masks.py").read_text()
-    assert int(re.search(r"^KEEP = (\d+)", text, re.M).group(1)) == cast.KEEP
 
 
 if __name__ == "__main__":
