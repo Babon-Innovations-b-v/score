@@ -1,18 +1,18 @@
-\begin{thebibliography}{58}
+\begin{thebibliography}{34}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
-\bibitem[Yang et~al.(2024{\natexlab{a}})Yang, Sun, Weihs, VanderBilt, Herrasti,
-  Han, Wu, Haber, et~al.]{yang2024holodeck}
+\bibitem[Yang et~al.(2024)Yang, Sun, Weihs, VanderBilt, Herrasti, Han, Wu,
+  Haber, et~al.]{yang2024holodeck}
 Yue Yang, Fan-Yun Sun, Luca Weihs, Eli VanderBilt, Alvaro Herrasti, Winson Han,
   Jiajun Wu, Nick Haber, et~al.
 \newblock Holodeck: Language guided generation of {3D} embodied {AI}
   environments.
 \newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
-  and Pattern Recognition (CVPR)}, 2024{\natexlab{a}}.
+  and Pattern Recognition (CVPR)}, 2024.
 \newblock arXiv:2312.09067.
 
 \bibitem[Arg{\"u}ello(2026)]{gdc2026survey}
@@ -186,13 +186,13 @@ Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
   {3D} asset generation.
 \newblock \emph{arXiv preprint arXiv:2604.23629}, 2026.
 
-\bibitem[Yang et~al.(2026{\natexlab{a}})Yang, Zhai, Lu, Yin, Zhang, Xiao, Long,
-  and Navab]{yang2026flowscene}
+\bibitem[Yang et~al.(2026)Yang, Zhai, Lu, Yin, Zhang, Xiao, Long, and
+  Navab]{yang2026flowscene}
 Zhifei Yang, Guangyao Zhai, Keyang Lu, YuYang Yin, Chao Zhang, Zhen Xiao, Jieyi
   Long, and Nassir Navab.
 \newblock {FlowScene}: Style-consistent indoor scene generation with multimodal
   graph rectified flow.
-\newblock \emph{arXiv preprint arXiv:2603.19598}, 2026{\natexlab{a}}.
+\newblock \emph{arXiv preprint arXiv:2603.19598}, 2026.
 
 \bibitem[{Google}(2026{\natexlab{a}})]{gemini31pro}
 {Google}.
@@ -229,10 +229,10 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
   fusion and keyword-to-caption augmentation.
 \newblock \emph{arXiv preprint arXiv:2211.06687}, 2022.
 
-\bibitem[{Black Forest Labs}(2026{\natexlab{a}})]{flux2klein}
+\bibitem[{Black Forest Labs}(2026)]{flux2klein}
 {Black Forest Labs}.
 \newblock {FLUX.2 [klein] 4B} model card.
-\newblock Hugging Face, 2026{\natexlab{a}}.
+\newblock Hugging Face, 2026.
 \newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
 \newblock Apache-2.0. Vendor material.
 
@@ -241,171 +241,5 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
 Davis Rempe, Mathis Petrovich, Ye~Yuan, Haotian Zhang, Xue~Bin Peng, et~al.
 \newblock {Kimodo}: Scaling controllable human motion generation.
 \newblock \emph{arXiv preprint arXiv:2603.15546}, 2026.
-
-\bibitem[Stone et~al.(2014)Stone, Szafir, and Setlur]{stone2014size}
-Maureen Stone, Danielle~Albers Szafir, and Vidya Setlur.
-\newblock {An Engineering Model for Color Difference as a Function of Size}.
-\newblock In \emph{Color and Imaging Conference (CIC 22)}. Society for Imaging
-  Science and Technology, 2014.
-\newblock URL
-  \url{https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/22/1/art00045}.
-
-\bibitem[{Blender Foundation}(2026)]{blender}
-{Blender Foundation}.
-\newblock {Blender}, 2026.
-\newblock URL \url{https://www.blender.org/}.
-\newblock Version 5.0.1 used here. GPL.
-
-\bibitem[{Qwen Team}(2025)]{qwenimageedit}
-{Qwen Team}.
-\newblock {Qwen-Image-Edit-2511} model card.
-\newblock Hugging Face, 2025.
-\newblock URL \url{https://huggingface.co/Qwen/Qwen-Image-Edit-2511}.
-\newblock Apache-2.0. Vendor material.
-
-\bibitem[{Qwen Team}(2026)]{qwen38}
-{Qwen Team}.
-\newblock {Qwen3.8-27B} model card.
-\newblock Hugging Face, 2026.
-\newblock URL \url{https://huggingface.co/Qwen/Qwen3.8-27B}.
-\newblock Apache-2.0. Vendor material.
-
-\bibitem[Sim{\'e}oni et~al.(2025)Sim{\'e}oni, Vo, Seitzer,
-  et~al.]{simeoni2025dinov3}
-Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
-\newblock {DINOv3}.
-\newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
-
-\bibitem[Li et~al.(2026{\natexlab{d}})Li, Feng, Huang, Chen, Nie, Hou, Fan, Hu,
-  Wang, Li, and Sheng]{li2026segvigen}
-Lin Li, Haoran Feng, Zehuan Huang, Haohua Chen, Wenbo Nie, Shaohua Hou, Keqing
-  Fan, Pan Hu, Sheng Wang, Buyu Li, and Lu~Sheng.
-\newblock {SegviGen}: Repurposing {3D} generative model for part segmentation.
-\newblock \emph{arXiv preprint arXiv:2603.16869}, 2026{\natexlab{d}}.
-
-\bibitem[Deng et~al.(2025)Deng, Yang, Sun, Liu, Liu, Liang, and
-  Cao]{deng2025geosam2}
-Ken Deng, Yunhan Yang, Jingxiang Sun, Xihui Liu, Yebin Liu, Ding Liang, and
-  Yan-Pei Cao.
-\newblock {GeoSAM2}: Unleashing the power of {SAM2} for {3D} part segmentation.
-\newblock \emph{arXiv preprint arXiv:2508.14036}, 2025.
-
-\bibitem[Yang et~al.(2024{\natexlab{b}})Yang, Kang, Huang,
-  et~al.]{yang2024dav2}
-Lihe Yang, Bingyi Kang, Zilong Huang, et~al.
-\newblock {Depth Anything V2}.
-\newblock \emph{arXiv preprint arXiv:2406.09414}, 2024{\natexlab{b}}.
-
-\bibitem[{World Labs}(2026)]{marble_terms}
-{World Labs}.
-\newblock {Terms of Service}, 2026.
-\newblock URL \url{https://docs.worldlabs.ai/terms-of-service}.
-\newblock Last updated 21 January 2026; accessed 2026-10-08. Vendor material.
-
-\bibitem[BehnamGhader et~al.(2024)BehnamGhader, Adlakha, Mosbach, Bahdanau,
-  Chapados, and Reddy]{behnamghader2024llm2vec}
-Parishad BehnamGhader, Vaibhav Adlakha, Marius Mosbach, Dzmitry Bahdanau,
-  Nicolas Chapados, and Siva Reddy.
-\newblock {LLM2Vec}: Large language models are secretly powerful text encoders.
-\newblock In \emph{Conference on Language Modeling (COLM)}, 2024.
-\newblock arXiv:2404.05961.
-
-\bibitem[Grattafiori et~al.(2024)Grattafiori, Dubey, Jauhri,
-  et~al.]{grattafiori2024llama3}
-Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, et~al.
-\newblock The {Llama 3} herd of models.
-\newblock \emph{arXiv preprint arXiv:2407.21783}, 2024.
-
-\bibitem[Yang et~al.(2026{\natexlab{b}})Yang, Kukreja, Pinkus, others, and
-  Kitani]{yang2026sam3dbody}
-Xitong Yang, Devansh Kukreja, Don Pinkus, others, and Kris Kitani.
-\newblock {SAM 3D Body}: Robust full-body human mesh recovery.
-\newblock \emph{arXiv preprint arXiv:2602.15989}, 2026{\natexlab{b}}.
-
-\bibitem[Qammaz(2026)]{sam3dbodycpp}
-Ammar Qammaz.
-\newblock {SAM3DBody-cpp}: a standalone {C++} inference engine for {SAM 3D
-  Body}.
-\newblock GitHub, 2026.
-\newblock URL \url{https://github.com/AmmarkoV/SAM3DBody-cpp}.
-\newblock MIT code; its converted weights are under the SAM Licence.
-
-\bibitem[Korosteleva and Sorkine-Hornung(2023)]{korosteleva2023garmentcode}
-Maria Korosteleva and Olga Sorkine-Hornung.
-\newblock {GarmentCode}: Programming parametric sewing patterns.
-\newblock \emph{ACM Transactions on Graphics}, 42\penalty0 (6):\penalty0 197,
-  2023.
-\newblock arXiv:2306.03642.
-
-\bibitem[{The Newton Developers}(2026)]{newton}
-{The Newton Developers}.
-\newblock {Newton}: a {GPU}-accelerated physics simulation engine, 2026.
-\newblock URL \url{https://github.com/newton-physics/newton}.
-\newblock Version 1.6.1 used here (SolverVBD). Apache-2.0.
-
-\bibitem[Macklin(2022)]{warp}
-Miles Macklin.
-\newblock {Warp}: A high-performance {Python} framework for {GPU} simulation
-  and graphics, 2022.
-\newblock URL \url{https://github.com/NVIDIA/warp}.
-\newblock Version 1.18.0 used here. Apache-2.0 since 1.6.2.
-
-\bibitem[Ye et~al.(2025)Ye, Wu, Lu, Chang, Guo, Zhou, Zhao, and
-  Han]{ye2025hi3dgen}
-Chongjie Ye, Yushuang Wu, Ziteng Lu, Jiahao Chang, Xiaoyang Guo, Jiaqing Zhou,
-  Hao Zhao, and Xiaoguang Han.
-\newblock {Hi3DGen}: High-fidelity {3D} geometry generation from images via
-  normal bridging.
-\newblock In \emph{Proceedings of the IEEE/CVF International Conference on
-  Computer Vision (ICCV)}, 2025.
-\newblock arXiv:2503.22236.
-
-\bibitem[{Black Forest Labs}(2026{\natexlab{b}})]{flux2kleinbase}
-{Black Forest Labs}.
-\newblock {FLUX.2 [klein] Base 4B} model card.
-\newblock Hugging Face, 2026{\natexlab{b}}.
-\newblock URL
-  \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B}.
-\newblock Apache-2.0. Vendor material.
-
-\bibitem[{thedeoxen}(2026)]{refcontrol}
-{thedeoxen}.
-\newblock {refcontrol}: reference-depth {LoRA} for {FLUX.2 [klein] 4B}.
-\newblock Hugging Face, 2026.
-\newblock URL
-  \url{https://huggingface.co/thedeoxen/refcontrol-FLUX.2-klein-4B-reference-depth-lora}.
-\newblock Apache-2.0; training data not disclosed.
-
-\bibitem[Zhang et~al.(2025)Zhang, Pu, Guo, Cao, and Hu]{zhang2025unirig}
-Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, and Shi-Min Hu.
-\newblock One model to rig them all: Diverse skeleton rigging with {UniRig}.
-\newblock \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.
-\newblock arXiv:2504.12451.
-
-\bibitem[Abdrashitov et~al.(2023)Abdrashitov, Raichstat, Monsen, and
-  Hill]{abdrashitov2023rswt}
-Rinat Abdrashitov, Kim Raichstat, Jared Monsen, and David Hill.
-\newblock Robust skin weights transfer via weight inpainting.
-\newblock In \emph{SIGGRAPH Asia 2023 Technical Communications}, 2023.
-
-\bibitem[{Anthropic}(2026)]{claudecode}
-{Anthropic}.
-\newblock {Claude Code}, 2026.
-\newblock URL \url{https://www.anthropic.com/claude-code}.
-\newblock Paid subscription. Vendor material.
-
-\bibitem[Tam et~al.(2025)Tam, Pun, Wang, Chang, and Savva]{tam2025sceneeval}
-Hou In~Ivan Tam, Hou In~Derek Pun, Austin~T. Wang, Angel~X. Chang, and Manolis
-  Savva.
-\newblock {SceneEval}: Evaluating semantic coherence in text-conditioned {3D}
-  indoor scene synthesis.
-\newblock \emph{arXiv preprint arXiv:2503.14756}, 2025.
-
-\bibitem[Xia et~al.(2026)Xia, Li, Li, Ma, Xu, Liu, Cui, Lin, Ma, Wang, Song,
-  and Wei]{xia2026sage}
-Hongchi Xia, Xuan Li, Zhaoshuo Li, Qianli Ma, Jiashu Xu, Ming-Yu Liu, Yin Cui,
-  Tsung-Yi Lin, Wei-Chiu Ma, Shenlong Wang, Shuran Song, and Fangyin Wei.
-\newblock {SAGE}: Scalable agentic {3D} scene generation for embodied {AI}.
-\newblock \emph{arXiv preprint arXiv:2602.10116}, 2026.
 
 \end{thebibliography}
