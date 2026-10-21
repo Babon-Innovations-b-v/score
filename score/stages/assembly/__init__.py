@@ -61,7 +61,7 @@ import placeholders  # noqa: E402
 import triage  # noqa: E402
 
 FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
-         "fittings": "{data}/library/fittings.json", "resting rules": "{data}/checks/resting.json",
+         "resting rules": "{data}/checks/resting.json",
          "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
          "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
          "surfaces": "{data}/surfaces/{place}.json", "row kinds": "{data}/checks/row-kinds.json",

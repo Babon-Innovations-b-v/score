@@ -118,7 +118,7 @@ def problems(inventories, models):
 def load():
     """The repository's inventories by scene, and its made models' takes."""
     inventories = {path.stem: json.loads(path.read_text()) for path in sorted(INVENTORIES.glob("*.json"))}
-    return inventories, json.loads(MODELS.read_text())
+    return inventories, json.loads(MODELS.read_text()) if MODELS.exists() else {}
 
 
 def main():

@@ -89,7 +89,7 @@ def check(kind, mesh, laid):
 
 def leaves(kind):
     """Whether a kind is leaves (details.json `leaves`), held to its spread alone."""
-    return bool(json.loads(DETAILS.read_text()).get(kind, {}).get("leaves", False))
+    return bool((json.loads(DETAILS.read_text()) if DETAILS.exists() else {}).get(kind, {}).get("leaves", False))
 
 
 def main():

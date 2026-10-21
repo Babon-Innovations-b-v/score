@@ -14,11 +14,13 @@ The gates, each failing an object by name:
   applies to it: its scores are measured and shown, never judged, and `outline` holds its likeness (#10; the accepted
   set the least was first set on went with the old disk, so a calibration for it is the owner's to name).
 - `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names; a code
-  build's fitting shows every part its close-up has (sorter.missing_parts, fittings.json); a plain kind (sorter.PLAIN)
+  build's fitting shows every part its close-up has (sorter.missing_parts, fittings.json: none recorded since the
+  old models retired); a plain kind (sorter.PLAIN)
   has no parts to show; any other code build is unknown (nothing measured its parts).
 - `thin and in proportion`: tools/props/gates/model.py's check (thinnest wall, spread against the row's size).
-- `lean`: tools/props/library/straight.py on a generated model of a kind that stands square (details.json `square`),
-  as it exists: code builds are not held to it.
+- `lean`: tools/props/library/straight.py on a generated model of a kind that stands square, as it exists: code
+  builds are not held to it. No rule names such a kind since the old kinds' details (data/library/details.json)
+  retired with the old models (owner, 2026-10-21), so no model is held to it until one does.
 Whether a model is closed is written as a measure only: 3 of the hub's 9 accepted generated models and 27 of its 83
 accepted code builds are not (2026-10-12), so no gate as it exists fails an open model.
 An object a batch gap names (score/stages/batch_gaps.py: a paid step of its take failed in the batch) still fails each
@@ -178,8 +180,7 @@ def make_likeness(inputs, out, seed, params):
     """likeness.json (every object's record) and pairs.json (each best way's silhouette pair, for DINOv2)."""
     record = prop_data.record_at(inputs["props"])
     sizes = {row["id"]: row["size"] for row in json.loads(inputs["inventory"].read_text())["rows"]}
-    details = json.loads(inputs["details"].read_text())
-    square = {kind for kind, entry in details.items() if isinstance(entry, dict) and entry.get("square")}
+    square = set()  # no rule names a kind that stands square since the old kinds' details retired (2026-10-21)
     prop = "surfaces-bake" in inputs
     baked = baked_models(inputs["surfaces-bake"]) if prop else {}
     parts = json.loads((inputs["surfaces-parts"] / "parts.json").read_text()) if prop else {"takes": {}}

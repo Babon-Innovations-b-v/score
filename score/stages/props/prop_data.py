@@ -42,11 +42,10 @@ DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-
 INPUTS_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "box check": "{repo}/tools/props/scene/box_check.py"}
 CLOSEUP_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "google spend": "{repo}/tools/props/cloud/google_spend.py"}
 PIXAL_TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
-               "sorter": "{repo}/tools/props/library/sorter.py",
-               "pipeline failures": "{repo}/data/library/pipeline_failures.json"}
+               "sorter": "{repo}/tools/props/library/sorter.py"}
 LIKENESS_TOOLS = {"compare": "{repo}/tools/usd/compare.py", "glb file": "{repo}/tools/props/glb_file.py",
                   "model gate": "{repo}/tools/props/gates/model.py", "sorter": "{repo}/tools/props/library/sorter.py",
-                  "straight": "{repo}/tools/props/library/straight.py", "fittings": "{data}/library/fittings.json",
+                  "straight": "{repo}/tools/props/library/straight.py",
                   "similar": "{repo}/tools/props/cloud/similar.py"}
 
 
@@ -154,12 +153,11 @@ def calibration_files(place):
 
 
 def likeness_files(place):
-    """The likeness row's: the place's whole file, its inventory, every code build it names, the kinds' details
-    (which kinds must stand square) and its tools."""
+    """The likeness row's: the place's whole file, its inventory, every code build it names and its tools."""
     record = record_at(path_of(place)) if applies(place) else {"objects": {}, "fallback": {}}
     builds = {row: entry["code_model"] for row, entry in record["objects"].items() if entry["route"] == "code"}
     builds.update({row: model for row, model in record.get("fallback", {}).items() if model})
     return {"props": pattern(place), "inventory": inventory_pattern(place),
-            "details": "{data}/library/details.json", **LIKENESS_TOOLS,
+            **LIKENESS_TOOLS,
             **{f"code build {row}": model for row, model in builds.items()},
             **{f"code build {row} buffer": model.removesuffix(".gltf") + ".bin" for row, model in builds.items()}}

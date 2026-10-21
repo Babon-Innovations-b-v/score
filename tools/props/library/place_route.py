@@ -129,7 +129,7 @@ def plan(place, work, take):
     labelled take (its pieces are scaled copies); a row with no labelled take or no details entry is a gap the plan
     names (`gaps`, sorter.GAP), never a code build and never a stop."""
     inventory = json.loads((INVENTORIES / f"{place}.json").read_text())
-    details = json.loads(DETAILS.read_text())
+    details = (json.loads(DETAILS.read_text()) if DETAILS.exists() else {})
     models, pieces, children, gaps = {}, [], [], {}
     for row in inventory["rows"]:
         kind = f"{place}_{row['id']}"
@@ -184,7 +184,7 @@ def chunky_entry(name, entry, own, work, take):
 
 def chunky_jobs(planned, made, work, wear, dirt, specs):
     """make_chunky jobs: the generated pieces over CHUNKY_SETS machines, largest first, round robin."""
-    details = json.loads(DETAILS.read_text())
+    details = (json.loads(DETAILS.read_text()) if DETAILS.exists() else {})
     chunky = [chunky_entry(name, entry, details[entry["kind"]], work, planned["take"])
               for name, entry in planned["models"].items() if entry["route"] == "model"]
     chunky.sort(key=lambda entry: -entry["faces"] * max(entry["size"]))
@@ -228,7 +228,7 @@ def check_layout(planned):
 
 def square_models(planned):
     """The generated models whose kind should come out square (details.json `square`)."""
-    details = json.loads(DETAILS.read_text())
+    details = (json.loads(DETAILS.read_text()) if DETAILS.exists() else {})
     return [name for name, entry in planned["models"].items()
             if entry["route"] == "model" and details.get(entry["kind"], {}).get("square")]
 

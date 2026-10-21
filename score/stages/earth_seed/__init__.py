@@ -73,7 +73,6 @@ UPRIGHT = [0.0, 1.0, 0.0]  # a piece laid without axes (an open place's: `at` an
 # the clearance's estimate only, never shown as a price (data/costs/per-unit.json has none measured).
 EUROS = 1.0
 KIT_TOOLS = {"route": "{repo}/tools/props/library/route.py", "sorter": "{repo}/tools/props/library/sorter.py",
-             "pipeline failures": "{repo}/data/library/pipeline_failures.json",
              "make_kit": "{repo}/tools/props/library/inside/make_kit.py",
              "pieces": "{repo}/tools/props/library/inside/pieces.py",
              "library bake": "{repo}/tools/props/cloud/library_bake.py",
@@ -271,10 +270,11 @@ def style_of(place, inputs):
 
 def seed_files(place):
     """What the export reads: the kit (where it is not the base's, the design's files instead: design_files), the
-    inventories, the stored takes, the grounds, the library and sounds, the place definitions and composites, the
-    place's surface data (surface_data.pattern: its design's where designed, which its finish route paints) and, for a
-    base that lays its kit, the old scene record where it has one (a design base's room shell is its locked plan's)."""
-    found = {"kit": "{data}/kit/" + f"{place}.json", "inventories": "{data}/inventory", "parts": "{data}/parts",
+    inventories, the grounds (no stored take: data/parts retired with the old takes, 2026-10-21), the library and
+    sounds, the place definitions and composites, the place's surface data (surface_data.pattern: its design's where
+    designed, which its finish route paints) and, for a base that lays its kit, the old scene record where it has one
+    (a design base's room shell is its locked plan's)."""
+    found = {"kit": "{data}/kit/" + f"{place}.json", "inventories": "{data}/inventory",
              "grounds": "{data}/ground", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
              "places": "{data}/definitions/place.json", "export": "{repo}/tools/usd/export.py"}
     if not kit_is_base(place):

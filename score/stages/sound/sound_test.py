@@ -1,9 +1,9 @@
-"""The sound stage's make and gates on places whose sounds are all picked already (no take is made, nothing rented):
-the hub and the airlock pass every gate; a new scene's objects and people sound from its design alone (its inventory
-rows' kinds, the people its design stands); a silent moving thing fails `events` and people with no voice
-fail `voices`; a sound with no file fails `sources`, as does an object sound at a row
-the place does not hold; a file made too loud fails `level`; a MOSS sound under the CLAP floor fails `likeness`; a
-Freesound recording the owner did not choose fails `no freesound`.
+"""The sound stage's make and gates, nothing rented: a new scene's objects and people sound from its design alone (its
+inventory rows' kinds, the people its design stands); a silent moving thing fails `events` and people with no voice
+fail `voices`; a sound with no file fails `sources`, as does an object sound at a row the place does not hold; a file
+made too loud fails `level`; a MOSS sound under the CLAP floor fails `likeness`; a Freesound recording the owner did
+not choose fails `no freesound`. Every old pick retired with the old library sounds (owner, 2026-10-21), so the gates
+run on toy records and every sound a place plays is a brief the row makes.
 
 Run: .venv/bin/python -m pytest score/stages/sound/sound_test.py   (reads the sounds' bytes from the library; a
 test that plays them is skipped where no library is configured: SCORE_LIB_*, or no score_lib checkout beside score)
@@ -46,25 +46,6 @@ def made(place, folder, changes=None):
     sound.make(inputs, out, 0, {})
     assert sound.layer_faults(out) == [], sound.layer_faults(out)
     return inputs, out
-
-
-def verdicts(out, inputs):
-    return {check.name: check.judge(out, inputs, None) for check in sound.CHECKS}
-
-
-def read(name):
-    return json.loads((REPO / f"data/sound/{name}.json").read_text())
-
-
-def test_picked_places_pass():
-    """The hub passes every gate; so does the airlock, its people left out so their voice (none named while the old
-    sound shelf is withdrawn) is not, and nothing is rented."""
-    for place, changes, failing in (("hub", None, set()), ("airlock", {"people": {"places": {}}}, set())):
-        with tempfile.TemporaryDirectory() as folder:
-            inputs, out = made(place, folder, changes)
-            found = verdicts(out, inputs)
-        assert {name for name, verdict in found.items() if verdict.answer != checks.PASS} == failing, {
-            name: (verdict.reason, verdict.findings[:5]) for name, verdict in found.items()}
 
 
 DOOR = {"about": {"side": [-1.0, 0.0, 0.0]}, "angle": 90.0, "speed": 30.0, "starts": "shut",
@@ -152,50 +133,57 @@ def test_needs_name_what_the_library_does_not_answer():
 
 def test_a_missing_sound_and_a_lost_row_fail_sources():
     with tempfile.TemporaryDirectory() as folder:
-        inputs, out = made("hub", folder)
+        inputs, out = toy_recorded(folder)
         record = gates.record_of(out)
-        record["uses"] += [{"sound": "no_such_sound", "role": "object", "on": read_json_rows("hub")[0]["id"],
-                            "from": "the test"},
-                           {"sound": "base_hum", "role": "object", "on": "no_such_row", "from": "the test"}]
+        played = record["uses"][0]["sound"]
+        record["uses"] += [{"sound": "no_such_sound", "role": "object", "on": "hatch", "from": "the test"},
+                           {"sound": played, "role": "object", "on": "no_such_row", "from": "the test"}]
         (out / gates.RECORD).write_text(json.dumps(record))
         verdict = gates.judge_sources(out, inputs, None)
     assert verdict.answer == checks.FAIL and len(verdict.findings) == 2, verdict
 
 
-def read_json_rows(place):
-    return json.loads(sound.stage_inputs.inventory_path(place).read_text())["rows"]
+def toy_record(folder, sounds):
+    """A sound record of `sounds` ({name: fields}) in `folder`, its output."""
+    out = pathlib.Path(folder) / "out"
+    out.mkdir(exist_ok=True)
+    (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": [], "sounds": sounds}))
+    return out
 
 
 def test_a_loud_file_fails_level():
+    """A room tone made 18 dB too loud (a full-scale sine of its brief's length) is off its category's target."""
     with tempfile.TemporaryDirectory() as folder:
-        inputs, out = made("hub", folder)
-        record = gates.record_of(out)
-        path = out / record["sounds"]["habitat"]["files"][0]
-        louder = path.with_name("louder.wav")
-        subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-af", "volume=18dB", str(louder)], check=True)
-        shutil.move(louder, path)
-        verdict = gates.judge_level(out, inputs, None)
-    assert verdict.answer == checks.FAIL and any("habitat" in line for line in verdict.findings), verdict
+        files = pathlib.Path(folder) / "out/files"
+        files.mkdir(parents=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=5",
+                        "-af", "volume=18dB", str(files / "tone.wav")], check=True)
+        out = toy_record(folder, {"tone": {"files": ["files/tone.wav"], "category": "room", "brief_seconds": 5,
+                                           "made_by": "moss", "credits": []}})
+        verdict = gates.judge_level(out, {}, None)
+    assert verdict.answer == checks.FAIL and any("tone" in line for line in verdict.findings), verdict
+
+
+FETCHED = {"file": "sound/roar@1/roar.ogg", "source": "https://freesound.org/people/someone/sounds/1/",
+           "author": "someone", "licence": "CC0 1.0"}
 
 
 def test_a_low_match_fails_likeness_and_a_fetched_pick_fails_no_freesound():
     with tempfile.TemporaryDirectory() as folder:
-        inputs, out = made("hub", folder)
-        record = gates.record_of(out)
-        record["sounds"]["habitat"]["clap"] = gates.CLAP_FLOOR - 0.01
-        stepped = next(name for name, entry in record["sounds"].items() if entry["chosen_by"] == "owner")
-        record["sounds"][stepped]["chosen_by"] = "scoring"
-        (out / gates.RECORD).write_text(json.dumps(record))
-        inputs = dict(inputs, licences=pathlib.Path(folder) / "licences.json")  # its CC0 row gone
-        inputs["licences"].write_text("[]")
-        assert gates.judge_likeness(out, inputs, None).answer == checks.FAIL
-        assert gates.judge_no_freesound(out, inputs, None).answer == checks.FAIL
+        out = toy_record(folder, {"hum": {"files": [], "made_by": "moss", "clap": gates.CLAP_FLOOR - 0.01,
+                                          "credits": [], "chosen_by": "scoring"},
+                                  "roar": {"files": [], "made_by": "recording", "credits": [FETCHED],
+                                           "chosen_by": "scoring"}})
+        licences = pathlib.Path(folder) / "licences.json"
+        licences.write_text("[]")
+        assert gates.judge_likeness(out, {}, None).answer == checks.FAIL
+        assert gates.judge_no_freesound(out, {"licences": licences}, None).answer == checks.FAIL
 
 
 def test_a_cc0_freesound_file_passes_with_its_licence_row_and_fails_without_or_under_another_licence():
     """The owner's exception (2026-10-20, #29): a Freesound recording under CC0 with its row in
     data/sound/licences.json passes `no freesound`; with no row, or a row of another licence, it fails."""
-    row = next(row for row in read("licences") if gates.FREESOUND in row["source"])
+    row = FETCHED
     record = {"place": "toy", "uses": [], "sounds": {"roar": {"credits": [row], "chosen_by": "scoring"}}}
     with tempfile.TemporaryDirectory() as folder:
         folder = pathlib.Path(folder)
@@ -490,9 +478,10 @@ def test_a_take_the_batch_brought_under_the_floor_or_not_at_all_is_a_gap_and_lik
         assert likeness.judge(out, {}, None).answer == checks.FAIL
 
 
-def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap_and_sources_passes():
-    """The garage's rover_idle is made here; its batch brings nothing back: the record leaves its use out, names it a
-    gap, and `sources` passes on what the place plays (nothing rented: the take step answers nothing)."""
+def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap():
+    """Every sound the garage plays is made here (no old pick is left, 2026-10-21); its batch brings nothing back: the
+    record leaves every use out, names each a gap, and `sources` has nothing to judge (nothing rented: the take step
+    answers nothing)."""
     from score.stages import batch_gaps
     with tempfile.TemporaryDirectory() as folder:
         inputs = inputs_for("garage", folder)
@@ -506,8 +495,8 @@ def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap_and_sour
         record = gates.record_of(out)
         names = {entry["name"] for entry in batch_gaps.read([out])}
         assert "rover_idle: no MOSS take came back" in names, names
-        assert not any(use["sound"] in made_here for use in record["uses"]), record["uses"]
-        assert gates.judge_sources(out, inputs, None).answer == checks.PASS
+        assert not record["uses"], record["uses"]
+        assert gates.judge_sources(out, inputs, None).answer == checks.UNKNOWN
 
 
 if __name__ == "__main__":

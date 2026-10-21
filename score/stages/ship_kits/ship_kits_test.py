@@ -11,11 +11,21 @@ import score.stages.props.prop_data as prop_data  # noqa: E402
 
 
 def test_the_kit_keeps_only_the_named_pipeline_failures():
-    # #19: the inventory's own kind routes nothing; only the cockpit's thrust indicator names a pipeline failure.
+    # #19: the inventory's own kind routes nothing; only a kind the pipeline-failure record names is kept (a toy
+    # record naming the thrust indicator; with none on file, the old one retired on 2026-10-21, the kit keeps none).
     kinds = ["cockpit_wall_lower_plain", "cockpit_thrust_indicator", "cockpit_door_leaf"]
     layout = {"room": "cockpit", "pieces": [{"kind": kind} for kind in kinds],
               "kinds": {kind: {} for kind in kinds}, "counts": {kind: 1 for kind in kinds}}
-    kept = ship_kits.code_only(layout)
+    with prop_data.tools("props/library"):
+        import sorter
+    on_file = sorter.failures
+    sorter.failures = lambda: {}
+    try:
+        assert not ship_kits.code_only(layout)["pieces"]
+        sorter.failures = lambda: {"cockpit_thrust_indicator": {"failure": "every take failed"}}
+        kept = ship_kits.code_only(layout)
+    finally:
+        sorter.failures = on_file
     assert [piece["kind"] for piece in kept["pieces"]] == ["cockpit_thrust_indicator"]
     assert set(kept["kinds"]) == set(kept["counts"]) == {"cockpit_thrust_indicator"}
 

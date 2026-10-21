@@ -378,7 +378,6 @@ WORK_PATHS_LEFT = {
     **{f"data/props/{room}.json": 24 for room in ("campgrounds", "engineroom", "galley", "hangar",
                                                    "quarters", "storage")},
     "data/props/cockpit.json": 25, "data/props/shiplock.json": 25,  # Pixal3D takes and hub-round6 models
-    "data/props/batches/trial.json": 8,  # the trial's close-ups, Pixal3D takes
     "data/inventory/garage.json": 1,  # a citation of the coordinator's audit file in a `needed` note, no path read
 }
 

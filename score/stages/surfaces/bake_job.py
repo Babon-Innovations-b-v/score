@@ -61,7 +61,8 @@ def job_head(wear_dirt, specs, is_outside):
 
 
 def details_of(kind, model):
-    found = json.loads(place_route.DETAILS.read_text()).get(kind)
+    details = place_route.DETAILS
+    found = (json.loads(details.read_text()) if details.exists() else {}).get(kind)
     if not found or "turn" not in found:
         raise NoEntry(f"no entry for {model}: kind {kind} has no details (data/library/details.json turn)")
     return found

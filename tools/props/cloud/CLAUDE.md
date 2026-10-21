@@ -83,7 +83,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   it, a free check before each, kept steps and unchanged props never paid again; `price` reads the ledgers (the repo's
   evidence copy with the live one, since the live ledger was reset on 2026-10-17) and says an unmeasured step rather
   than guess. It is imported by no stage, so it re-keys nothing. `prop_batch.py run <props.json> --yes` (the
-  props environment's python; the trial's props are `data/props/batches/trial.json`) prints the price, then makes
+  props environment's python; the trial's props file, `data/props/batches/trial.json`, retired with the old takes on
+  2026-10-21) prints the price, then makes
   the batch through `prop_makers.py`'s real runners (Pro close-ups and the finish list through google_spend from the
   PC, `batch.py` for Pixal3D, `library_bake.py` make_chunky jobs for the bake), refused without `--yes` and outside
   a cleared run or the owner's override; one warm batch per step, not one machine per prop (the steps' images
