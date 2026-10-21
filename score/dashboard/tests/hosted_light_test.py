@@ -40,6 +40,7 @@ print(json.dumps({"codes": codes, "heavy": heavy, "rss_mb": rss}))
 """
 
 
+# owner rule: hosted mode never imports score.stages, score.store, numpy or usd-core (dashboard overlay)
 def test_hosted_renders_every_page_light(world, tmp_path):
     home = tmp_path / "hosted"
     building.build(world.source, home / "export" / "one", "2026-10-18T12:00:00+00:00", 50,

@@ -1,8 +1,7 @@
-"""The cockpit's home and the environment concept page (pages/environment.py): the home lists environment 1 and the
-hub; its concept page shows today's data locked; Unlock asks to be sure and puts the draws out of date; the owner's
-Save, Send (his spend yes for one model call at the price shown), Take and Add each reach the store's machine, here at
-once in local mode and through the listener when hosted; anyone but the owner is refused. The model and the bucket
-are stand-ins: no call is made, nothing is spent."""
+"""The environment concept page (pages/environment.py): environment 1's shows today's data locked; Unlock asks to be
+sure and puts the draws out of date; the owner's Save, Send (his spend yes for one model call at the price shown), Take
+and Add each reach the store's machine, here at once in local mode and through the listener when hosted; anyone but
+the owner is refused. The model and the bucket are stand-ins: no call is made, nothing is spent."""
 import base64
 import io
 import json
@@ -60,25 +59,17 @@ def stand_in(world, monkeypatch):
     return asked
 
 
-def test_the_home_lists_environment_1_and_the_hub(world):
-    html = signed_in().get("/").content.decode()
-    assert 'href="/environments/world1/"' in html and "Environment 1" in html
-    assert all(f'href="{path}"' in html for path in ("/stats/", "/library/", "/buy/"))
-    assert signed_in("ann").get("/environments/world9/").status_code == 404
-
-
-def test_environment_1s_concept_is_todays_data_shown_locked_and_opens_its_places(world):
+def test_environment_1s_concept_is_todays_data_shown_locked(world):
     html = signed_in().get(PAGE).content.decode()
-    assert ">locked</b>" in html and 'href="/places/"' in html and "2099 space base" in html
-    assert ">Physics</h2>" in html and "Unlock" in html and 'class="sp-picture"' in html
+    assert ">locked</b>" in html and "2099 space base" in html and "Unlock" in html
     assert "orbits Earth every 27 days, one face to Earth; gravity 1.6 m/s²" in html  # a plain line a thing
     assert "orbits Sun every 687 days, a day of 25 h; gravity 3.7 m/s²" in html and ">backdrop<" in html
     assert "radius_km 1737.4" in html and "gravity 1.624" in html  # the raw numbers as hover text only
     assert "Moon&#x27;s orbit ×" in html and "sizes enlarged to read" in html  # what is drawn bigger, said
-    assert "Question 1 of" not in html and "data-f=" not in html  # locked: no interview, no fields
-    assert 'href="/environments/world1/"' in signed_in("ann").get("/places/").content.decode()  # one click up
+    assert "Question 1 of" not in html and "data-f=" not in html  # owner 2026-10-21: fields only while unlocked
     assert [(name, question) for name, _, question in environment.QUESTIONS] == list(environment_concept.QUESTIONS)
     assert [environment.steps_around(name)["number"] for name, _, _ in environment.QUESTIONS] == [1, 2, 3, 4, 5]
+    assert signed_in("ann").get("/environments/world9/").status_code == 404
 
 
 def test_a_house_setting_is_its_plot_from_above_with_its_suns_path_and_no_bodies():

@@ -23,6 +23,13 @@ def test_the_style_rule():
     assert sorted(place for places in found.values() for place in places) == ["alpha", "beta", "delta", "gamma"]
 
 
+def test_every_priced_step_and_kit_has_plain_words():
+    assert groups.label("crops-layer") == "crops"
+    assert groups.label("crops-boxes") == "crop boxes" and groups.label("crops-look") == "crop renders"
+    assert groups.label("surface-tiles") == "surface tiles" and groups.label("ship_kit") == "ship kit"
+    assert groups.label("people-dress-nev-work") == "dressed body of the nev-work look"
+
+
 def row(name, after=(), grain="place"):
     return types.SimpleNamespace(name=name, grain=grain, after={read: None for read in after}, beside={})
 

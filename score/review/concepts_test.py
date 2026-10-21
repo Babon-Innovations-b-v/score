@@ -83,7 +83,6 @@ def test_a_first_draw_is_worded_from_the_places_data_and_kept(store, monkeypatch
     wording, sizes = asked[0]
     assert "campgrounds" in wording and "The creator's note: more dust" in wording
     assert sizes == [(1280, 720)]  # an outside place with no reference: its site's blockout only
-    assert "1. the structure: a rough grey model of it at real sizes from the environment's plan" in wording
     assert record["blockout"] and store.objects.exists(f"blobs/{record['blockout']}")
 
 
@@ -182,11 +181,14 @@ def test_a_pick_is_handed_to_the_library_by_its_own_concept_command(store, monke
     assert concepts.handed_over(store, "campgrounds", run=run).startswith("not in the library: no library")
 
 
-def test_the_price_is_the_measured_unit_at_the_standard_tier(tmp_path):
+def test_the_draw_and_redraw_prices_are_the_measured_calls_at_the_standard_tier(tmp_path):
     per_unit = tmp_path / "per-unit.json"
     measured = {"high_euros": 0.07048, "basis": "batch price of measured calls"}
     per_unit.write_text(json.dumps({"stages": {"closeup": measured}}))
     assert concepts.draw_euros(per_unit) == 0.15  # 0.07048 / 0.5 = 0.14096, up to the cent
+    per_unit.write_text(json.dumps({"stages": {
+        "closeup": measured, "finish-route-list": {"high_euros": 0.01665, "basis": "batch price of measured calls"}}}))
+    assert concepts.redraw_euros(per_unit) == 0.18  # (0.07048 + 0.01665) / 0.5 = 0.17426, up to the cent
     per_unit.write_text(json.dumps({"stages": {}}))
     assert concepts.draw_euros(per_unit) is None
 
@@ -212,15 +214,7 @@ def test_the_click_writes_its_yes_at_the_price_shown_then_draws_inside_it(store,
         web.concept_draw(store, "campgrounds", redraw, 0.15, "joey", run=run)  # a redraw is two calls: its own price
 
 
-def test_the_redraw_price_is_the_measured_prompt_call_and_draw_at_the_standard_tier(tmp_path):
-    per_unit = tmp_path / "per-unit.json"
-    per_unit.write_text(json.dumps({"stages": {
-        "closeup": {"high_euros": 0.07048, "basis": "batch price of measured calls"},
-        "finish-route-list": {"high_euros": 0.01665, "basis": "batch price of measured calls"}}}))
-    assert concepts.redraw_euros(per_unit) == 0.18  # (0.07048 + 0.01665) / 0.5 = 0.17426, up to the cent
-
-
-def test_an_agents_process_cannot_draw_or_pick_in_the_framework_store(store, monkeypatch):
+def test_an_agents_process_cannot_pick_or_keep_a_wording_in_the_framework_store(store, monkeypatch):
     said_yes(store, monkeypatch)
     drawn = concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in([]))
     monkeypatch.setattr(store, "is_framework_store", lambda: True)
@@ -228,8 +222,9 @@ def test_an_agents_process_cannot_draw_or_pick_in_the_framework_store(store, mon
     with pytest.raises(PermissionError):
         concepts.pick(store, "campgrounds", drawn["sha"], "joey")
     assert concepts.picked(store, "campgrounds") is None
-
-
+    with pytest.raises(PermissionError):
+        concepts.worded(store, "campgrounds", "my words", "joey")
+    assert concepts.own_wording(store, "campgrounds") is None
 
 
 def picked_draw(store, monkeypatch, place, colour):
@@ -256,16 +251,6 @@ def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording
     assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     assert concepts.undrawn(store, ["base", "lab"])[0] == ["lab"]
     assert "In the ship; for flying the ship: two pilot seats" in concepts.generated(store, "cockpit")
-
-
-def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
-    ready, waiting = concepts.undrawn(store, ["base", "hub", "street"])
-    assert ready == ["base"]
-    assert waiting == {"hub": "waits for base's concept to be picked", "street": "waits for square's concept to be picked"}
-    said_yes(store, monkeypatch, "hub")
-    with pytest.raises(concepts.Refused, match="hub waits for base's concept to be picked"):
-        concepts.draw(store, "hub", {}, "joey", caller=stand_in([]))
-    assert concepts.draws(store, "hub") == []
 
 
 def test_a_reference_comes_from_the_places_data_and_waits_while_it_is_not_here(store, tmp_path, monkeypatch):
@@ -297,6 +282,7 @@ def test_the_ships_length_and_reference_come_from_the_hangars_data_and_reach_its
 
 
 def test_no_measure_is_generated_but_the_creators_own_says(store):
+    # owner's rule (2026-10-20): a generated wording sizes in relative words; only the creator's own says carry metres
     found = concepts.tree()
     for place in [*found["within"], *found["shells"], "square", "campgrounds"]:
         wording = concepts.generated(store, place)
@@ -333,6 +319,10 @@ def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monk
     assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]  # drawn without its blockout: out of date
     older.append({"base": None, "wording": concepts.generated(store, "old_station"), "blockout": "b"})
     assert concepts.undrawn(store, ["old_station"])[0] == []
+    concepts.worded(store, "old_station", "One concept painting of the old station at night.", "joey")
+    assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]  # its draw is from the generated wording
+    concepts.worded(store, "old_station", None, "joey")
+    assert concepts.undrawn(store, ["old_station"])[0] == []
 
 
 def test_an_edited_wording_is_sent_word_for_word_and_stays_the_places_own_until_back_to_generated(store, monkeypatch):
@@ -361,25 +351,6 @@ def test_an_edited_wording_is_sent_word_for_word_and_stays_the_places_own_until_
     assert concepts.wording_now(store, "campgrounds") == generated
     with pytest.raises(concepts.Refused, match="at most"):
         concepts.draw(store, "campgrounds", {"wording": "x" * 9000}, "joey", caller=stand_in(asked))
-
-
-def test_an_edited_wording_makes_the_draw_from_the_generated_one_out_of_date(tmp_path, monkeypatch):
-    store = Store.in_folder(tmp_path)
-    drawn = [{"base": None, "wording": concepts.generated(store, "old_station"), "blockout": "b"}]
-    monkeypatch.setattr(concepts, "draws", lambda _store, _place: drawn)
-    assert concepts.undrawn(store, ["old_station"])[0] == []
-    concepts.worded(store, "old_station", "One concept painting of the old station at night.", "joey")
-    assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]  # its draw is from the older wording
-    concepts.worded(store, "old_station", None, "joey")
-    assert concepts.undrawn(store, ["old_station"])[0] == []
-
-
-def test_an_agents_process_cannot_keep_a_wording_in_the_framework_store(store, monkeypatch):
-    monkeypatch.setattr(store, "is_framework_store", lambda: True)
-    monkeypatch.setattr(concepts, "running_under_agent", lambda: True)
-    with pytest.raises(PermissionError):
-        concepts.worded(store, "campgrounds", "my words", "joey")
-    assert concepts.own_wording(store, "campgrounds") is None
 
 
 def test_a_places_wording_names_its_own_doors_and_openings_and_no_others(store):
@@ -420,6 +391,7 @@ def test_a_place_is_sized_against_the_places_beside_it_in_words_only(store):
 
 
 def test_every_generated_wording_is_short(store):
+    # owner's word budget: a generated wording stays under LONGEST_GENERATED characters
     found = concepts.tree()
     for place in [*found["within"], *found["shells"], "square", "campgrounds", "old_station", "wreck"]:
         assert len(concepts.generated(store, place)) <= concepts.LONGEST_GENERATED, place
@@ -462,7 +434,13 @@ def test_no_two_ship_rooms_get_the_same_wording_or_references(store):
 
 def test_a_place_is_drawn_only_once_the_layer_above_is_picked_read_and_planned_and_holds_it(store, monkeypatch):
     from score.review import reading
-    assert concepts.waits(store, "hub") == "waits for base's concept to be picked"
+    ready, waiting = concepts.undrawn(store, ["base", "hub", "street"])
+    assert ready == ["base"]
+    assert waiting == {"hub": "waits for base's concept to be picked", "street": "waits for square's concept to be picked"}
+    said_yes(store, monkeypatch, "hub")
+    with pytest.raises(concepts.Refused, match="hub waits for base's concept to be picked"):
+        concepts.draw(store, "hub", {}, "joey", caller=stand_in([]))
+    assert concepts.draws(store, "hub") == []
     picked_draw(store, monkeypatch, "base", (200, 10, 10))
     assert concepts.waits(store, "hub") == "waits for base's scene inventory to be read"
     monkeypatch.setattr(reading, "reading_of", lambda store, place: {"stand-in": place})

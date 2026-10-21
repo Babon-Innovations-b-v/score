@@ -79,10 +79,10 @@ def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a
     assert clears == [(compute.PLAN_WRITING, ["shed"], price)] and record["euros"] == 0.04
     assert record["drawing_euros"] == 0.12 and record["measured"] == {"metres a unit": [0.01, 0.01],
                                                                       "by": "its rows' metres"}
-    assert "must NOT copy its viewpoint" in ask.drawn[0] and "a bench, 2 a crate" in ask.drawn[0] and len(asked[0]["contents"][0]["parts"]) == 3
+    assert "a bench, 2 a crate" in ask.drawn[0] and len(asked[0]["contents"][0]["parts"]) == 3
     assert plan_writing.spent(store, ["shed"]) == 0.16 and plan_writing.price(store) == 0.16
     told = asked[0]["contents"][0]["parts"][0]["text"]
-    assert '"fixed doors"' in told and '"leads to": "yard"' in told and '"metres [wide, deep, tall]"' in told
+    assert '"leads to": "yard"' in told
     plan = plans.current(store, "shed")["plan"]
     assert plans.current(store, "shed")["how"] == "written"
     items = {item[0]: item for item in plan["items"]}

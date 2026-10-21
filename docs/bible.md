@@ -796,6 +796,22 @@ code they have not seen yet.
 - **Tests sit with the module** they test, named for the invariant rather than the function
   (`test_<invariant>`), and drive the module through its public interface. A test that reaches into
   the implementation freezes the implementation.
+- **Tests (owner, 2026-10-21).** A test earns its place by catching a wrong answer:
+  - One test file a module; tests that cover the same ground are merged into it.
+  - A test gives the module an input whose answer is known and checks the answer, worked out
+    apart from the code (by hand, from the data, from a rule the owner set). Where no exact
+    answer exists, it checks a property that has to hold (nothing lost, totals add up, a write
+    refused, a page that answers 200).
+  - No shape tests: a test that reads a file or a page as text and checks that some words are
+    there tells a correct change from an unchanged file, not right from wrong. A wording check on a
+    template stays only where it guards a rule the owner set (no provider named, numbers not
+    prose, node ids folded away), and says which.
+  - No echo tests: a test that computes its expectation with the code under test, or asserts
+    what it just set up, cannot fail.
+  - Every test can fail: for each one there is a break in the code that turns it red. When none
+    can be named, it goes.
+  - Fast: state built once and shared, no real store walked, no sleeps; `make tests` runs the
+    files side by side.
 - **Failures propagate.** A write that can fail raises; it does not log and continue. The two tiers
   are: a failure the caller can do something about (raise a typed error) and a failure nothing can
   be done about (crash loudly). Swallowing is neither.

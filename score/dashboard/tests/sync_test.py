@@ -71,13 +71,16 @@ def test_the_export_holds_each_gaps_picture_and_each_steps_own_picture(world, tm
     assert (tmp_path / f"one/files/{gap}-1280.jpg").is_file() and (tmp_path / f"one/files/{step}-360.jpg").is_file()
 
 
-def test_the_export_holds_each_steps_own_picture_large_before_the_whole_3d_copies(world, tmp_path):
+def test_the_export_writes_state_then_thumbnails_then_films_then_each_steps_large_picture(world, tmp_path):
     written = exported(world, tmp_path / "one")["written"]
     bundle = json.loads((tmp_path / "one/places/alpha.json").read_text())
     step = bundle["steps"]["closeup"]["picture"]["sha"]
     assert f"files/{step}-1280.jpg" in written
+    thumbs = [index for index, path in enumerate(written) if path.endswith("-360.jpg")]
     films = [index for index, path in enumerate(written) if path.endswith(".mp4")]
+    assert thumbs and films and max(thumbs) < min(films)
     assert written.index(f"files/{step}-1280.jpg") > max(films)
+    assert written[0] == "state.json"
 
 
 def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
@@ -269,14 +272,6 @@ def test_an_export_of_a_format_the_hosted_side_cannot_read_is_refused_in_the_syn
     said = client.sync_pass(remote_of(hosted_client()), world.source, FakeBackend())
     assert said.startswith("REFUSED") and "export format 1 cannot be read here" in said, said
     assert not (settings.SCORE_HOME / "export/current").exists()
-
-
-def test_the_step_cards_thumbnails_are_written_before_any_film(world, tmp_path):
-    written = exported(world, tmp_path / "one")["written"]
-    thumbs = [index for index, path in enumerate(written) if path.endswith("-360.jpg")]
-    films = [index for index, path in enumerate(written) if path.endswith(".mp4")]
-    assert thumbs and films and max(thumbs) < min(films)
-    assert written[0] == "state.json"
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
@@ -501,8 +496,5 @@ def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, sett
     for page in ("/", "/places/", "/environments/world1/", "/place/alpha/", "/place/alpha/step/closeup/", "/world/step/terrain/", "/requests/"):
         html = pages.get(page).content.decode()
         assert "state from 2026-10-18 12:00" in html, page
-    html = pages.get("/place/alpha/").content.decode()
-    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in html
-    assert "No 3D web copy" in pages.get("/view/alpha").content.decode()
     pages.post("/place/alpha/step/closeup/decide/", {"decision": "reject", "output": "x", "reason": "no"})
     assert SyncRequest.objects.filter(kind="decision").exists()

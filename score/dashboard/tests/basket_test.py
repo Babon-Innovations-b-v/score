@@ -82,7 +82,7 @@ def test_the_basket_lists_every_item_by_place_with_what_changes_and_its_price(ho
     assert "People body" in page and "not measured yet" in page and "guess EUR 2.70" in page
     assert "Ship room concepts" in page and "1 question" in page
     assert page.index("Ship room concepts") < page.index("Alpha") < page.index("The environment")
-    assert "/basket/item/alpha-pieces/" in page and "Changes to buy" not in page and "proposal" not in page.lower()
+    assert "/basket/item/alpha-pieces/" in page
 
 
 def test_an_item_opens_to_its_3d_what_changes_what_it_is_made_from_and_its_price(home):

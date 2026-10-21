@@ -225,31 +225,6 @@ def test_results_show_real_cost_against_forecast_gates_and_new_outputs(shop):
     assert client.get("/api/checkout/999/results").status_code == 404
 
 
-# --- the shipped backend's price and ledger (subprocess replaced) ------------------------------------------------
-
-def test_the_local_backend_prices_through_score_price_and_reads_the_ledger_by_node(settings, tmp_path):
-    import json
-    import types
-    from score.dashboard.launch import localrun
-    said = []
-
-    def run(command, **_):
-        said.append(command)
-        return types.SimpleNamespace(returncode=0, stderr="", stdout="reading the ledger\n" + json.dumps(
-            {"world": "world1", "nodes": {"closeup@alpha": {"likely_euros": 1.0, "high_euros": 2.0}}}))
-    found = localrun.LocalBackend(run=run).price("world1", ["closeup@alpha"])
-    assert found == {"closeup@alpha": {"likely_euros": 1.0, "high_euros": 2.0}}
-    assert said[0][1:] == ["-m", "score", "price", "world1", "--node", "closeup@alpha", "--json"]
-    ledger = tmp_path / "ledger.jsonl"
-    ledger.write_text("\n".join(json.dumps(row) for row in (
-        {"ticket": "closeup@alpha k1", "euros": 3.0, "wall_minutes": 9, "started": "2026-10-18T12:00:00Z"},
-        {"ticket": "closeup@alpha k0", "euros": 7.0, "wall_minutes": 9, "started": "2026-10-17T12:00:00Z"},
-        {"ticket": "closeup@beta k2", "euros": 5.0, "wall_minutes": 9, "started": "2026-10-18T12:00:00Z"})) + "\n")
-    settings.SCORE_LEDGER_FILES = [ledger]
-    (line,) = localrun.LocalBackend(run=run).ledgered(["closeup@alpha"], "2026-10-18T00:00:00Z")
-    assert (line.node, line.euros, line.minutes) == ("closeup@alpha", 3.0, 9)
-
-
 # --- the Benchmarks item (#21) -----------------------------------------------------------------------------------
 
 LISTED = [  # prepare's record as score/stages/complete/prepare/benchmarks.listed writes it

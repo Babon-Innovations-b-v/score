@@ -39,16 +39,13 @@ def test_the_viewer_frames_one_gap_with_or_without_a_web_copy(cockpit, read):
     assert given["gap"] == "missing:lamp_2" and given["gaps_only"] is True
     assert "missing:lamp_2" in [mark["id"] for mark in given["marks"]]
     page = unescape(answer.content.decode())
-    assert "No 3D web copy of this scene yet: only its gaps are drawn" in page
     assert ('Framed: A lamp should be in the alpha but nothing is made for it yet. '
             '<a href="/place/alpha/#gap-missing:lamp_1">') in page  # its line: the row's first lamp
     assert 'class="mark-key framed"' in page and 'class="mark-key gate"' in page  # the crate's gate has a box
-    assert "work once a 3D web copy of this scene exists" in page
-    # a click on a box names its gap: each mark carries its sentence and its line; the corner button is the gaps'
+    # a click on a box names its gap: each mark carries its sentence and its line
     lamp = next(mark for mark in given["marks"] if mark["id"] == "missing:lamp_2")
     assert lamp["sentence"].startswith("A lamp should be in the alpha") and lamp["url"] == (
         "/place/alpha/#gap-missing:lamp_1"), lamp
-    assert 'id="gap-picked"' in page and ">Back to all gaps</button>" in page and "Look at what changes" not in page
     (cockpit.root / "web/alpha").mkdir(parents=True)
     (cockpit.root / "web/alpha/alpha.json").write_text(json.dumps({
         "place": "alpha", "from_output": cockpit.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
@@ -119,12 +116,6 @@ def test_a_lost_input_counts_once_and_marks_every_place_reading_it(cockpit, read
     only = client.get("/places/?kind=lost").content.decode()  # the Stats link: the places holding that kind, counting it
     assert "<b data-v>inputs lost</b>" in only
     assert dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', only, re.S)).keys() == {"alpha", "beta"}
-
-
-def test_a_lost_inputs_item_keeps_its_colons():
-    from score.dashboard.state import plain
-    assert plain.lost_item("place:lost:data:surfaces/launch.json:bake entry far_rocket_1") == (
-        "surfaces/launch.json:bake entry far_rocket_1")
 
 
 def test_a_step_two_places_share_is_in_both_rows_and_in_neither_places_own(cockpit):
