@@ -86,8 +86,8 @@ def test_a_new_take_s_bake_entry_stands_its_foot_at_its_lowest_laid_spot():
     up bare. The foot is the lowest spot the row lays it at; a row laid nowhere stands on its floor."""
     lamp = {"id": "corner_lamp", "size": [0.15, 0.08, 0.12],
             "at": [{"x": -2.45, "y": 1.55, "z": 1.25}, {"x": 2.45, "y": 1.8, "z": 1.25}]}
-    assert compare.bake_entry("cockpit", lamp, {})["foot"] == 1.55
-    assert compare.bake_entry("cockpit", {**lamp, "at": []}, {})["foot"] == 0.0
+    assert compare.bake_entry(lamp)["foot"] == 1.55
+    assert compare.bake_entry({**lamp, "at": []})["foot"] == 0.0
 
 
 def test_a_retake_asks_pixal3d_for_its_own_seed():

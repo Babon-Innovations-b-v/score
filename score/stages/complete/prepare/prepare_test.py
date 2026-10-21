@@ -368,6 +368,21 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
         prop_data.DESIGN = surface_data.DESIGN = stages.surfaces.data.DESIGN = home / "none"
 
 
+def test_a_design_row_s_bake_entry_and_kind_come_from_its_row_never_an_old_concept_s_details():
+    """The hub's new console row shares its id with the old concept's console (details.json `hub_console`: turned a
+    quarter round, two hand-set labels). Its take is the design's: its kind its noun, so its materials are the place's
+    palette; its entry no turn (the bake measures it over the take), no screens, cuts or decals."""
+    old = json.loads((REPO / "data/library/details.json").read_text())["hub_console"]
+    assert old["decals"] and old["turn"][0] == 0.0  # what the old lookup handed the new row
+    row = {"id": "console", "name": "control console", "noun": "control console", "size": [1.6, 0.8, 1.1]}
+    record = {"place": "hub", "rows": [row], "objects": {"console": {"route": "prop", "take": "console_ab12cd34"}}}
+    found = handin.surface_record("hub", record)
+    assert found["takes"]["console_ab12cd34"]["kind"] == "control_console"
+    entry = found["bake"]["entries"]["console_1"]
+    assert "base" not in entry and entry["screens"] == entry["cuts"] == entry["decals"] == [], entry
+    assert entry["size"] == [1.6, 1.1, 0.8]  # x wide, y tall, z deep
+
+
 class NoKeys:
     def keys(self, prefix):
         return []

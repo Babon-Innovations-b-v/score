@@ -106,6 +106,24 @@ def test_an_entry_the_data_writes_out_is_taken_as_written_and_a_model_with_none_
         shutil.rmtree(folder)
 
 
+def test_a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_footprint():
+    """A design's take has no hand-set turn: of 0 and 90 degrees, the one whose labelled model's footprint fits its
+    row's wide and deep. A take built long along z for a row wide along x is turned a quarter round; one already wide
+    along x is not; with no take yet the bake is not refused (it measures once the take is there)."""
+    folder = a_folder()
+    try:
+        labelled = a_box_take(folder, "bench-t1", (0.5, 0.9, 2.0))
+        design = {"size": [2.0, 0.9, 0.5], "faces": 19000, "foot": 0.0}
+        surfaces = written(folder, "surfaces", {"place": "hub", "library": "hub", "bake": {
+            "models": {"bench_1": "bench-t1"}, "entries": {"bench_1": design}}})
+        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"bench-t1": labelled})
+        assert entry["base"] == bake_job.TURNS[90] and place_route.yaw_of(entry["base"]) == 90.0, entry
+        assert bake_job.measured_turn(labelled, [0.5, 0.9, 2.0]) == bake_job.TURNS[0]
+        assert bake_job.refusal("hub", "bench_1", design, {}, {}) is None
+    finally:
+        shutil.rmtree(folder)
+
+
 def test_every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry():
     """Every place's bake declares no file under the work folder; a model no entry can be written for is declared
     as a file that is never there, naming it; none does today (the launch's far rocket, its entry lost with its old

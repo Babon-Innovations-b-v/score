@@ -4,10 +4,12 @@ files under the work folder went with the old disk, and every surface bake block
     job_head(library_name, outside)               the job's top-level fields: script, density, wear, dirt, seed,
                                                   faces, specs, as the place's route writes them
     entry_of(place, model, inline, kit, inventory, labelled)  one model's make_chunky entry
+    measured_turn(labelled, size)                  a design entry's turn, measured over its labelled take
     refusal(place, model, inline, kit, inventory)  why entry_of stops on it whatever its labelled take, or None
     reads(place, model, kit)                       (details kinds, composite props) its route's entry reads
 
-A model's entry is the one its surface data writes out, else the route's own entry for it, written by the route's own
+A model's entry is the one its surface data writes out (a design's written without a turn: measured_turn over its
+labelled take), else the route's own entry for it, written by the route's own
 code over the place's data: an outside place's (tools/props/library/place_route.py `chunky_entry`, its kit record has
 an `on_seat`: package.py's) sized by `place_route.made_size` over its labelled take and its inventory row, a kit
 room's (tools/props/library/route.py `jobs`) at its laid size in data/kit/<place>.json. A model with neither fails the
@@ -19,10 +21,15 @@ library_reads.narrowed). Kept small and apart from place_line.py on
 purpose: the paid bake row's code version hashes it.
 """
 import json
+import math
 
 import library
 import place_route
 import route
+
+
+# A design's take turned about up into the kit frame (measured_turn): 0 or 90 degrees, x toward -z.
+TURNS = {0: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], 90: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0]}
 
 
 class NoEntry(RuntimeError):
@@ -58,6 +65,17 @@ def details_of(kind, model):
     if not found or "turn" not in found:
         raise NoEntry(f"no entry for {model}: kind {kind} has no details (data/library/details.json turn)")
     return found
+
+
+def measured_turn(labelled, size):
+    """The turn (rows of the rotation, glTF frame to the kit's) of a take whose entry its design writes without one:
+    of 0 and 90 degrees about up, the one whose labelled model's footprint fits `size`'s (x wide, z deep) proportions
+    best, |log(wide ratio) - log(deep ratio)| (shapes_first/align.py's rule); 0 on a tie. A box alone cannot tell 180
+    from 0: the take is made from its front close-up, so 0 keeps the front the close-up drew."""
+    def misfit(yaw):
+        wide, _, deep = place_route.made_size(labelled, size, yaw)
+        return abs(math.log(size[0] / wide) - math.log(size[2] / deep))
+    return TURNS[min(TURNS, key=misfit)]
 
 
 def outside_row(model, inventory):
@@ -142,6 +160,10 @@ def entry_of(place, model, inline, kit, inventory, labelled):
     docstring). `kit`, `inventory`: the place's records ({} when it has none); `labelled`: its labelled take."""
     if isinstance(inline, str):
         raise NoEntry(f"no entry for {model}: the data names a job file ({inline}); write its entry out or drop it")
+    if inline is not None and "base" not in inline:
+        if labelled is None:
+            raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
+        return dict(inline, name=model, base=measured_turn(labelled, inline["size"]))
     if inline is not None:
         return dict(inline, name=model)
     if not kit:

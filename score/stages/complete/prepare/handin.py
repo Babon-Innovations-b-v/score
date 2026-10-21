@@ -22,8 +22,10 @@ owner 2026-10-21, which tools/props/cloud/batch.py built_from takes as it stands
 counts a node's units from them (gaps/price.design_units), so its plan lists and prices the same takes. The surface
 data (`{home}/design/surfaces/<place>.json`, surface_data's form) lists the takes the finish route paints (every
 model take, a shell piece's too: CONTEXT.md "prop pipeline") and bakes each model take (compare.bake_entry: its entry
-and faces, which Pixal3D's finish reads). A file is written only when its bytes change, so a key moves only with what the design says; a place no
-longer designed has its files taken out.
+from its row alone, its turn measured in the bake, bake_job.measured_turn; its kind the row's noun, so its materials
+are its place's palette, never details written for an old concept's object of the same id). A file is written only
+when its bytes change, so a key moves only with what the design says; a place no longer designed has its files taken
+out.
 """
 import json
 import pathlib
@@ -77,19 +79,19 @@ def take_row(rows, row_id):
     return next(row for row in rows if row["id"] == row_id)
 
 
-def surface_record(place, record, details):
+def surface_record(place, record):
     """The place's surface data (surface_data's form) of its hand-in: every model take painted by the finish route (a
     shell piece's too, so the bake that bakes the listed takes bakes it) and baked as <row>_1 with its entry where its
-    row has a size."""
+    row has a size; each take's kind its row's noun (compare.kind_of), its materials the place's palette."""
     from score.stages.props import compare
     by_id = {row["id"]: row for row in record["rows"]}
     sized = {row: entry for row, entry in record["objects"].items() if groups.sides(by_id[row].get("size"))}
     return {"place": place, "library": record["place"],
             "takes": {entry["take"]: {"places": [place], "library_places": [record["place"]], "place": place,
-                                      "kind": f"{place}_{row}", "object": by_id[row]["name"]}
+                                      "kind": compare.kind_of(by_id[row]), "object": by_id[row]["name"]}
                       for row, entry in record["objects"].items()},
             "bake": {"models": {f"{row}_1": entry["take"] for row, entry in sized.items()},
-                     "entries": {f"{row}_1": compare.bake_entry(place, by_id[row], details) for row in sized}},
+                     "entries": {f"{row}_1": compare.bake_entry(by_id[row]) for row in sized}},
             "elsewhere": {}}
 
 
@@ -110,13 +112,12 @@ def kept(store, record, route, designed):
     from score.stages.props import prop_data
     from score.stages.surfaces import surface_data
     inventories, _ = groups.current(store, designed)
-    details = json.loads((ROOT / "data/library/details.json").read_text())
     changed = []
     for place in sorted(inventories):
         inventory = {"room": plans.filed_inventory(place).get("room", {}), **inventories[place]}
         record_in = hand_in(place, inventory, [take for take in record["takes"] if take["place"] == place], route)
         moved = written(prop_data.DESIGN / f"{place}.json", record_in)
-        moved |= written(surface_data.DESIGN / f"{place}.json", surface_record(place, record_in, details))
+        moved |= written(surface_data.DESIGN / f"{place}.json", surface_record(place, record_in))
         if moved:
             changed.append(place)
     for folder in (prop_data.DESIGN, surface_data.DESIGN):
