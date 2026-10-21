@@ -30,7 +30,7 @@ gates; `takes.py` the paid part.
   `data/sound/moving.json` gives its moving things and silent motions by their row kind
   (`score/stages/row_kinds.py`: the inventory row's, else the kind whose motion the record's `kind` is) and move, never by
   a place's or a prim's name (`moving.py`: a door's latch as it swings open, a vehicle's drive over its path, timed off
-  the record's own moves, so a moving thing that stops moving stops sounding; things moving as one sound once) and the whole
+  the record's own moves, so a moving thing that stops moving stops sounding; things moving as one, about one named pivot, sound once; things only moving alike, two doors of a row, each sound) and the whole
   surface bank (`data/sound/surfaces.json`). That table names only picked sounds; one still to make is in its
   `wanted` until its brief is written and made. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
