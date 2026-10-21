@@ -190,7 +190,7 @@ def main(argv=None):
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     runner = free_runner(options, FOLDER / stamp)
     from score import stages
-    places, whole = options.place or stages.places(runner.world), not options.place
+    places, whole = options.place or stages.places(runner.world, runner.store), not options.place
     claim_store(runner, places, whole)
     line, status = restore(runner, places, whole, options.jobs, FOLDER / f"{stamp}.json",
                            say=lambda text: print(text, flush=True))

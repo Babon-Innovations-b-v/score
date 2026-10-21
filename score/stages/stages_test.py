@@ -308,7 +308,7 @@ def test_a_ship_place_is_read_from_git_and_reads_its_own_scene_record():
 # (it went with the old disk on 2026-10-19). Shrinks to empty as the Pixal3D takes move into their row's output
 # (the inputs track's item 6); a new one fails below.
 WORK_PATHS_LEFT = {
-    **{f"data/props/{room}.json": 24 for room in ("campgrounds", "engineroom", "galley", "hangar", "navigation",
+    **{f"data/props/{room}.json": 24 for room in ("campgrounds", "engineroom", "galley", "hangar",
                                                    "quarters", "storage")},
     "data/props/cockpit.json": 25, "data/props/shiplock.json": 25,  # Pixal3D takes and hub-round6 models
     "data/props/batches/trial.json": 8,  # the trial's close-ups, Pixal3D takes

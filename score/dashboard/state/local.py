@@ -245,7 +245,7 @@ class LocalSource:
     # --- places and nodes --------------------------------------------------------------------------------------
 
     def places(self):
-        return stages.places(self.world)
+        return stages.places(self.world, self.store)
 
     def looks(self):
         path = self.data / "definitions/place.json"

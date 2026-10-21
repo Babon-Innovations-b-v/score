@@ -669,7 +669,7 @@ def gaps_record(world):
     from score.stages.complete.gaps import OUT, price
     from score.store import Store
     runner = stages.runner(world=stages.WORLDS[world]())
-    return price.gaps_price(runner, world, OUT, stages.places(runner.world), counting_store(Store.default()))
+    return price.gaps_price(runner, world, OUT, stages.places(runner.world, runner.store), counting_store(Store.default()))
 
 
 def gaps_price(world):
@@ -706,7 +706,7 @@ def every_world_moved():
     found = {}
     for name, make in sorted(stages.WORLDS.items()):
         runner = stages.runner(world=make())
-        found[name] = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world), True))
+        found[name] = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world, runner.store), True))
     return found
 
 
@@ -909,7 +909,7 @@ def main(argv=None):
         atexit.register(frozen.remove_owned)  # a run refused or raising before its drive ends here
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
-    places, whole = options.place or stages.places(runner.world), not options.place
+    places, whole = options.place or stages.places(runner.world, runner.store), not options.place
     if options.command == "plan":
         print(json.dumps(plan_json(runner, places, whole, options)))
         return

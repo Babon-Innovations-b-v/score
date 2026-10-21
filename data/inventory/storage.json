@@ -235,8 +235,8 @@
      "facing": 270
     }
    ],
-   "thing": "prop:navigation_hatch_door_frame",
-   "reuse": "navigation:hatch_door_frame",
+   "thing": "prop:cockpit_hatch_door_frame",
+   "reuse": "cockpit:hatch_door_frame",
    "parts": [
     "hatch_door_frame",
     "door_leaf"

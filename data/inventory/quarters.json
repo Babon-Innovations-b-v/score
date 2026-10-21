@@ -201,8 +201,8 @@
      "facing": 0
     }
    ],
-   "thing": "prop:navigation_wall_screen",
-   "reuse": "navigation:wall_screen",
+   "thing": "prop:cockpit_wall_screen",
+   "reuse": "cockpit:wall_screen",
    "count": 2,
    "view": "v1",
    "box": [
@@ -275,8 +275,8 @@
      "facing": 270
     }
    ],
-   "thing": "prop:navigation_hatch_door_frame",
-   "reuse": "navigation:hatch_door_frame",
+   "thing": "prop:cockpit_hatch_door_frame",
+   "reuse": "cockpit:hatch_door_frame",
    "parts": [
     "hatch_door_frame",
     "door_leaf"
