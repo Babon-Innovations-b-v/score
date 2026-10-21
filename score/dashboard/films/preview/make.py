@@ -230,7 +230,8 @@ def bed_sound(film_script):
     folder = scenes.library_folder("sound", entry) if entry else None
     found = sorted(folder.glob("audio/**/*.wav"), key=lambda path: "made" not in path.parts) if folder else []
     if not found:
-        raise Refused(f"no sound bed: the script's bed {film_script.get('bed')!r} is no sound in the score_lib cache")
+        raise Refused(f"no sound bed: the script's bed {film_script.get('bed')!r} is no sound in the score_lib cache, or "
+                      "withdrawn from the library")
     return found[0]
 
 

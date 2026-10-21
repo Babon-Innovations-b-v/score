@@ -262,11 +262,13 @@ def chain_price(price, place, node):
 
 
 def web3d_link(source, place, library):
-    """(link, where from) of the place's 3D: its fresh web copy, else the library place entry's web GLB."""
+    """(link, where from) of the place's 3D: its fresh web copy, else the library place entry's web GLB, never a
+    withdrawn one (owner, 2026-10-21: every old place withdrawn from the library)."""
     if source.web3d(place):
         return f"/web/{place}/{place}.glb", "store"
     entry = next((entry for entry in (library.entries() if library else [])
-                  if entry.kind == "place" and entry.entry_id == place and entry.web3d), None)
+                  if entry.kind == "place" and entry.entry_id == place and entry.web3d
+                  and entry.state != "withdrawn"), None)
     return (f"/library-files/files/{entry.web3d.sha}", "library") if entry else (None, None)
 
 

@@ -215,6 +215,26 @@ def test_the_preview_joins_on_the_scripts_own_clock():
     assert "concat=n=2" in joined and "fade=t=out:st=3.750" in joined
 
 
+def test_a_withdrawn_library_sound_is_no_bed_though_its_bytes_stay_cached(tmp_path, monkeypatch):
+    """The owner, 2026-10-21: every old library sound withdrawn; the preview never plays one from the cache."""
+    from score.dashboard.films.preview import make, scenes
+    cached = tmp_path / "props/cache/library/score_lib/sound/base_hum/1/audio/made"
+    cached.mkdir(parents=True)
+    (cached / "take.wav").write_bytes(b"RIFF")
+    (tmp_path / "lib/index").mkdir(parents=True)
+    index = {"schema": "score-lib-index/1", "kind": "sound",
+             "entries": [{"address": "sound/base_hum@1", "state": "withdrawn"}]}
+    (tmp_path / "lib/index/sound.json").write_text(json.dumps(index))
+    monkeypatch.setattr(settings, "PROPS_HOME", tmp_path / "props")
+    monkeypatch.setattr(settings, "SCORE_LIB_ROOT", str(tmp_path / "lib"))
+    with pytest.raises(make.Refused, match="withdrawn"):
+        make.bed_sound({"bed": "sound/base_hum"})
+    index["entries"][0]["state"] = "draft"
+    (tmp_path / "lib/index/sound.json").write_text(json.dumps(index))
+    assert make.bed_sound({"bed": "sound/base_hum"}) == cached / "take.wav"
+    assert scenes.library_folder("sound", "base_hum") == cached.parents[1]
+
+
 def test_the_setting_is_drawn_from_its_own_physics_to_the_pictures_scale():
     from score.dashboard.films.preview import scenes
     from score.review import setting
