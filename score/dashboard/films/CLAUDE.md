@@ -32,7 +32,12 @@ Rules:
   then change"): `/film/` goes to the environment's film (`script.default_name`: its script marked `"default": true`,
   environment 1's `env1_demo` starter, else `<world>-film`), built until he saves it by `default.py` from his script's
   structure filled in from the environment's own setting and scenes (the site holding the most scenes, its first
-  three rooms, each body's library surface as earlier scripts drew it); never tied to one environment by name. A
+  three rooms, each body's library surface as earlier scripts drew it), then the whole environment (owner,
+  2026-10-21: "its needs to show all of env 1"): every other top scene, the rest of its body's first, then body by
+  body in the environment plan's order, one scale zoom each going on from where the last ended (over the ground from
+  the site before, `from_place`; else out from its world, across the setting, `from_body`, the one leg that may go
+  back up, and down again), the plan's metres and the true distance its sky gives in the captions, the concept in the
+  corner, round it from outside and into its first three rooms; never tied to one environment by name. A
   default is complete: every segment names a real scene (the zoom's rooms walked through after it), each long enough
   to read (the physics animation 12 s, `script.CUTS` defaults the same), its target its own length. The list of every
   film is `/film/all/`.

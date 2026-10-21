@@ -2,14 +2,19 @@
 the structure of his script for environment 1 (data/films/env1_demo.json), filled in from the environment's own
 setting and scenes. The app's own steps in its own windows (the setting, its animation, the environment concept, a
 room's concept review, the top scene's inventory and plan), then one unbroken shot from the setting down into the top
-scene's rooms, then a walk through each of those rooms. The top scene is the site holding the most scenes; its rooms
-the first three it holds. Every segment long enough to read what it shows (owner, 2026-10-21: the physics animation
+scene's rooms, then a walk through each of those rooms, then on through the whole environment (owner, 2026-10-21: "its
+needs to show all of env 1"): every other top scene, the rest of its body's first, then body by body, each reached
+from the one before over the ground or out to orbit and in again (the environment plan's sites, metres and the true
+distances its skies give), its concept in the corner, round it from outside and into its first rooms. The top scene
+is the site holding the most scenes; its rooms, like every scene's, the first three it holds. Every segment long enough to read what it shows (owner, 2026-10-21: the physics animation
 long enough for a body to go a clear way round its orbit), the target the film's own length. The FILM page opens on
 it until he saves his own; plain Python, the hosted process reads it too.
 
     facts  {"world", "title" (the environment's name), "bodies" [body] (the setting's, in its order), "shining"
             [body] (those that shine: drawn by their light, no surface),
             "body" (the top scene's site's body), "top", "top_name", "rooms" [[place, name]],
+            "stops" [{place, name, body, rooms, metres (from the site before on its body), km (from the site
+            before, on another body)}] (every top scene in the journey's order, the top scene first),
             "surfaces" {body: library surface} (each body's, as earlier scripts drew it; a body with none waits)}
 """
 import math
@@ -19,6 +24,7 @@ from score.dashboard.films import script
 # The physics animation: 12 s at 30 days a second, so a year-long orbit (Earth round the Sun) goes nearly once round.
 DAYS_PER_SECOND = 30
 ANIMATION_SECONDS = 12.0
+SITE_SECONDS = 2.5  # a journey's site leg, where the next scene's concept comes into the corner
 
 
 def titled(word):
@@ -121,10 +127,67 @@ def zoom(facts):
             {"layer": "room", "seconds": 5.5, "rooms": [room for room, _ in rooms],
              "tag": "Concepts · the finished rooms wait on the batch"}],
         pip={"concept": facts["top"], "corner": "top-left", "label": "Concept", "from": 11.8, "to": 16.4},
-        waiting=f"the finished {top} and its rooms (the batch): until then the site and place legs show the "
-                "environment plan's blockout and the room leg the rooms' locked concepts"
-                + (f"; no library surface drawn for {', '.join(bare)} yet" if bare else ""))
+        waiting=waiting_words(top, bare))
     return found
+
+
+def waiting_words(name, bare, rooms=True):
+    return (f"the finished {name}{' and its rooms' if rooms else ''} (the batch): until then the site and place legs "
+            "show the environment plan's blockout" + (" and the room leg the rooms' locked concepts" if rooms else "")
+            + (f"; no library surface drawn for {', '.join(bare)} yet" if bare else ""))
+
+
+def distance_words(km):
+    """A distance between bodies to three figures: "401,000 km", "63.7 million km"."""
+    return f"{round(km, -3):,.0f} km" if km < 1e6 else f"{km / 1e6:.3g} million km"
+
+
+def legs_captioned(legs, words):
+    """Each leg's caption ([line, text], None for none) on the segment's clock."""
+    found, start = [], 0.0
+    for leg, said in zip(legs, words):
+        if said:
+            found.append(caption(round(start + 0.2, 2), round(start + leg["seconds"] - 0.2, 2), *said))
+        start += leg["seconds"]
+    return found
+
+
+def stop_zoom(facts, before, stop):
+    """One leg of the journey after the top scene: from the site before, over the ground to the next site on the same
+    body, else out to orbit, through the setting to the next body and down to its site; then round the scene from
+    outside, its concept in the corner, and into a few of its rooms."""
+    name, rooms = stop["name"], stop["rooms"]
+    surfaces, bare = surfaces_of({**facts, "body": stop["body"]})
+    waits = "Blockout · the finished scene waits on the batch"
+    if stop["body"] == before["body"]:
+        apart = f", {stop['metres']:g} m from {before['name']}" if stop.get("metres") else ""
+        legs = [{"layer": "site", "seconds": SITE_SECONDS, "from_place": before["place"], "tag": waits}]
+        words = [["Site", f"{name}{apart}"]]
+    else:
+        body, away = titled(stop["body"]), stop.get("km")
+        legs = [{"layer": "world", "place": before["place"], "seconds": 2.0, "from": 1.05, "to": 4.2},
+                {"layer": "setting", "seconds": 4.0, "from_body": before["body"], "days_per_second": 1.0},
+                {"layer": "world", "seconds": 3.0}, {"layer": "site", "seconds": SITE_SECONDS, "tag": waits}]
+        words = [["Leaving", titled(before["body"])],
+                 ["Across the physics", body + (f", {distance_words(away)} away" if away else "")],
+                 ["World", body], ["Site", f"Where {name} stands, from the environment plan"]]
+    reached = sum(leg["seconds"] for leg in legs)
+    legs.append({"layer": "place", "seconds": 3.0, "tag": waits, **({"into": rooms[0][0]} if rooms else {})})
+    words.append(["Place", f"{name} from outside, its concept beside it"])
+    if rooms:
+        legs.append({"layer": "room", "seconds": max(2.5, 1.8 * len(rooms)), "rooms": [room for room, _ in rooms],
+                     "tag": "Concepts · the finished rooms wait on the batch"})
+        words.append(["Rooms", "Inside: " + ", ".join(room_name for _, room_name in rooms)])
+    return segment("scale-zoom", {"place": stop["place"]}, round(sum(leg["seconds"] for leg in legs), 2),
+                   legs_captioned(legs, words), surfaces=surfaces, legs=legs, waiting=waiting_words(name, bare, bool(rooms)),
+                   pip={"concept": stop["place"], "corner": "top-left", "label": "Concept",
+                        "from": round(reached - SITE_SECONDS, 2), "to": round(reached + 3.0, 2)})
+
+
+def journey(facts):
+    """The rest of the environment after the top scene's rooms: every other top scene, body by body (see facts)."""
+    stops = facts["stops"]
+    return [stop_zoom(facts, before, stop) for before, stop in zip(stops, stops[1:])]
 
 
 def walk(room, name):
@@ -150,11 +213,47 @@ def built(film, facts):
             "world": facts["world"], "default": True, "size": [1280, 720], "rate": 24,
             "bed": "sound/base_hum", "defaults": {},
             "why": "The default film: the app's own steps in its own windows, then one unbroken shot from the "
-                   "setting down into the top scene's rooms and a walk through each (the owner's script for "
-                   "environment 1, filled in from this environment's scenes)",
+                   "setting down into the top scene's rooms and a walk through each, then on to every other top "
+                   "scene, body by body (the owner's script for environment 1, filled in from this environment's "
+                   "scenes)",
             "segments": [title, setting_take(facts), animation, concept_take(facts), review_take(facts),
-                         plan_take(facts), zoom(facts), *(walk(room, name) for room, name in facts["rooms"])]}
+                         plan_take(facts), zoom(facts), *(walk(room, name) for room, name in facts["rooms"]),
+                         *journey(facts)]}
     return {**made, "target_seconds": 5 * math.ceil(script.total_seconds(made) / 5)}
+
+
+def named(place, names):
+    return names.get(place) or titled(place.replace("_", " "))
+
+
+def body_km(sky, body, radius_km):
+    """How far `body` is from a site, from its true size in the site's sky (the environment plan's); None unknown."""
+    seen = next((world for world in sky.get("worlds", []) if world["world"] == body), None)
+    return radius_km / math.tan(math.radians(seen["across"]) / 2) if seen and radius_km and seen["across"] else None
+
+
+def stops_of(plan, within, names, radii, top):
+    """Every top scene in the journey's order: the top scene, the other sites on its body, then each other body's
+    sites, all in the environment plan's order; each with its rooms (the first three it holds), the metres from the
+    site before on the same body and the km from the site before to a new body."""
+    maps = plan["maps"]
+    first = next(found for found in maps if any(site["place"] == top for site in found["sites"]))
+    ordered = [(first, next(site for site in first["sites"] if site["place"] == top))]
+    ordered += [(first, site) for site in first["sites"] if site["place"] != top]
+    ordered += [(found, site) for found in maps if found is not first for site in found["sites"]]
+    stops = []
+    for found, site in ordered:
+        stop = {"place": site["place"], "name": named(site["place"], {site["place"]: site["name"], **names}),
+                "body": found["on"], "sky": site.get("sky") or {},
+                "rooms": [[room, named(room, names)] for room, holder in within.items() if holder == site["place"]][:3]}
+        before = stops[-1] if stops else None
+        if before and before["body"] == stop["body"]:
+            stop["metres"] = next((entry["metres"] for entry in found.get("distances", [])
+                                   if {entry["from"], entry["to"]} == {before["place"], stop["place"]}), None)
+        elif before:
+            stop["km"] = body_km(before["sky"], stop["body"], radii.get(stop["body"]))
+        stops.append(stop)
+    return [{key: value for key, value in stop.items() if key != "sky"} for stop in stops]
 
 
 def top_scene(sites, within):
@@ -164,21 +263,23 @@ def top_scene(sites, within):
     return top, held[top]
 
 
-def facts_of(world, title, setting, within, names, surfaces):
-    """The facts `built` fills in, from the environment's setting ({bodies, sites}), what each scene sits within,
-    {place or shell: its short name} and the library surfaces earlier scripts drew each body with; None when the
-    setting places no scene or its top scene holds none."""
-    sites = {site["place"]: site["on"] for site in setting.get("sites", [])}
+def facts_of(world, title, setting, plan, within, names, surfaces):
+    """The facts `built` fills in, from the environment's setting ({bodies}), its plan ({maps [{on, sites, distances}]}),
+    what each scene sits within (no part of a scene's outside, nothing removed), {place or shell: its short name} and
+    the library surfaces earlier scripts drew each body with; None when the plan places no scene or its top scene
+    holds none."""
+    sites = {site["place"]: found["on"] for found in (plan or {}).get("maps", []) for site in found["sites"]}
     if not sites:
         return None
     top, rooms = top_scene(list(sites), within)
     if not rooms:
         return None
     bodies = setting.get("bodies", [])
+    stops = stops_of(plan, within, names, {body["body"]: body.get("radius_km") for body in bodies}, top)
     return {"world": world, "title": title, "bodies": [body["body"] for body in bodies],
             "shining": [body["body"] for body in bodies if body.get("kelvin")],
-            "body": sites[top], "top": top, "top_name": names.get(top, titled(top)),
-            "rooms": [[room, names.get(room, titled(room))] for room in rooms[:3]], "surfaces": surfaces}
+            "body": sites[top], "top": top, "top_name": stops[0]["name"], "rooms": stops[0]["rooms"],
+            "stops": stops, "surfaces": surfaces}
 
 
 def drawn_surfaces(scripts):

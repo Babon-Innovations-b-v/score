@@ -142,6 +142,7 @@ function settingView(data) {
     draw(local, leg, opacity) {
       at(local);
       const view = leg.camera, share = local / leg.seconds;
+      if (view.from) return this.across(share, view, opacity);
       let turn = THREE.MathUtils.degToRad(view.start_deg + view.turn_deg_per_s * local);
       if (view.focus) {  // close in from the focus's sunlit side, a little round from the Sun, so it shows lit
         const focus = bodies[view.focus].mesh.position;
@@ -164,6 +165,26 @@ function settingView(data) {
       const labelled = view.focus ? clamp01(1 - share * 1.7) : 1;
       for (const body of Object.values(bodies)) {
         placeLabel(body.label, body.mesh.position.clone().add(new THREE.Vector3(0, -body.size * 1.6, 0)), camera, opacity * labelled);
+      }
+      if (note) note.style.opacity = String(opacity);
+    },
+    // The journey: out from one body to where both show, across, and in to the next, each seen from its sunlit side.
+    across(share, view, opacity) {
+      const from = bodies[view.from].mesh.position, to = bodies[view.focus].mesh.position, moved = eased(share);
+      const sunward = (where) => Math.atan2(-where.z, -where.x) + THREE.MathUtils.degToRad(55);
+      let gap = sunward(to) - sunward(from);
+      gap = Math.atan2(Math.sin(gap), Math.cos(gap));
+      const turn = sunward(from) + gap * moved, rise = Math.sin(Math.PI * clamp01(share));
+      const tilt = THREE.MathUtils.degToRad(lerp(view.tilt_deg, view.end_tilt_deg, moved) + view.rise_tilt_deg * rise);
+      const ends = lerp(Math.log(view.start_distance), Math.log(view.end_distance), moved);
+      const distance = Math.exp(ends + (Math.log(view.distance) - ends) * rise);
+      const target = new THREE.Vector3().lerpVectors(from, to, moved);
+      camera.position.set(target.x + distance * Math.cos(tilt) * Math.cos(turn), target.y + distance * Math.sin(tilt),
+                          target.z + distance * Math.cos(tilt) * Math.sin(turn));
+      camera.lookAt(target);
+      paint.render(scene, camera);
+      for (const body of Object.values(bodies)) {
+        placeLabel(body.label, body.mesh.position.clone().add(new THREE.Vector3(0, -body.size * 1.6, 0)), camera, opacity * rise);
       }
       if (note) note.style.opacity = String(opacity);
     },
@@ -300,6 +321,7 @@ function groundView(data) {
     }
   }
   const centre = new THREE.Vector3(...data.centre);
+  const fromCentre = data.from_centre ? new THREE.Vector3(...data.from_centre) : null;  // the journey's site before
   const into = blocks.find((found) => found.name === data.into);
   return {
     element: paint.domElement, labels: [...blocks.map((found) => found.label), ...others.map((other) => other.label)],
@@ -308,13 +330,13 @@ function groundView(data) {
       const turn = THREE.MathUtils.degToRad(lerp(path.from_deg, path.to_deg, moved));
       const tilt = THREE.MathUtils.degToRad(lerp(path.from_tilt, path.to_tilt, Math.min(1.1, moved)));
       const distance = path.from_distance * Math.pow(path.to_distance / path.from_distance, moved);
-      let target = centre.clone();
+      let target = fromCentre ? fromCentre.clone().lerp(centre, Math.min(1, moved)) : centre.clone();
       if (leg.layer === "place" && into && share > 0.72) {  // the camera goes on into the room the rooms start with
         const closing = Math.min(1 / 0.85, travel((share - 0.72) / 0.28, [true, false]));
         target = centre.clone().lerp(into.middle, closing);
         camera.position.lerpVectors(this.orbit(turn, tilt, distance), into.middle.clone().add(new THREE.Vector3(0, 2, 6)), closing * 0.85);
       } else {
-        camera.position.copy(this.orbit(turn, tilt, distance));
+        camera.position.copy(this.orbit(turn, tilt, distance, target));
       }
       camera.lookAt(target);
       paint.render(scene, camera);
@@ -322,9 +344,9 @@ function groundView(data) {
       for (const found of blocks) placeLabel(found.label, found.middle.clone().add(new THREE.Vector3(0, 3, 0)), camera, opacity * labelled);
       for (const other of others) placeLabel(other.label, other.at, camera, opacity * (leg.layer === "site" ? labelled : 0));
     },
-    orbit(turn, tilt, distance) {
-      return new THREE.Vector3(centre.x + distance * Math.cos(tilt) * Math.sin(turn), centre.y + distance * Math.sin(tilt),
-                               centre.z + distance * Math.cos(tilt) * Math.cos(turn));
+    orbit(turn, tilt, distance, round = centre) {
+      return new THREE.Vector3(round.x + distance * Math.cos(tilt) * Math.sin(turn), round.y + distance * Math.sin(tilt),
+                               round.z + distance * Math.cos(tilt) * Math.cos(turn));
     },
   };
 }

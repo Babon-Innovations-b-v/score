@@ -145,14 +145,19 @@ def block_middle(site, name):
             (min(point[1] for point in points) + max(point[1] for point in points)) / 2]
 
 
+def site_centre(site):
+    """The middle of a site's blocks in the ground view's metres, two up."""
+    middle = block_middle(site, None)
+    return [site["at"][0] + middle[0], 2.0, site["at"][1] + middle[1]]
+
+
 def ground(state, place, surfaces, into, near_m=400.0):
     """The site and the place from outside: every site of its map within `near_m`, its sun and the worlds in its
     sky, the ground's colour, and the block the camera goes into at the end."""
     world, site = site_of(state, place)
     near = [other for other in world["sites"] if math.dist(other["at"], site["at"]) <= near_m]
-    middle = block_middle(site, None)
     return {"place": place, "into": into, "sun": sun_way(site["sky"]), "ground_color": surface_colour(surfaces["ground"]),
-            "centre": [site["at"][0] + middle[0], 2.0, site["at"][1] + middle[1]],
+            "centre": site_centre(site),
             "sky": [{**sky, "color": surface_colour(surfaces[sky["world"]])} for sky in site["sky"]["worlds"]
                     if sky["altitude"] > 0],
             "sites": [{"place": other["place"], "name": other["name"], "at": other["at"], "blocks": other["blocks"]}
@@ -176,25 +181,38 @@ def picked_url(state, place):
     return found["url"] if found else None
 
 
+def setting_camera(leg, drawn, on):
+    """The setting leg's camera: from the whole setting in to the body `on`, or, for a leg of the journey naming
+    `from_body`, out from that body to its distance apart and in to `on`, close in on each from its sunlit side."""
+    size = {body["key"]: body["size"] for body in drawn["bodies"]}
+    if not leg.get("from_body"):
+        return {"focus": on, "distance": 245.0, "end_distance": 3.4 * size[on], "start_deg": 200.0,
+                "turn_deg_per_s": 4.0, "tilt_deg": 38.0, "end_tilt_deg": 10.0}
+    away = math.dist(drawn["track"][0][leg["from_body"]], drawn["track"][0][on])
+    return {"from": leg["from_body"], "focus": on, "distance": max(1.8 * away, 12.0 * max(size.values())),
+            "start_distance": 3.4 * size[leg["from_body"]], "end_distance": 3.4 * size[on], "tilt_deg": 10.0,
+            "end_tilt_deg": 10.0, "rise_tilt_deg": 28.0}
+
+
 def zoom_legs(state, segment, setting, surfaces, end_day, rate):
-    """A scale zoom's legs as scene.js draws them, top down."""
+    """A scale zoom's legs as scene.js draws them, top down (a journey's out and across to the next body first)."""
     place = segment["shows"]["place"]
     made = []
     for leg in segment["legs"]:
         layer, seconds = leg["layer"], float(leg["seconds"])
         shown = {"layer": layer, "seconds": seconds, "tag": leg.get("tag")}
         if layer == "setting":
-            on = site_of(state, place)[0]["on"]
-            drawn = system(setting, surfaces, end_day + leg.get("days_per_second", 1.0) * seconds,
-                           leg.get("days_per_second", 1.0), seconds + 1.0, rate)
-            focus = next(body["size"] for body in drawn["bodies"] if body["key"] == on)
-            shown.update(drawn, camera={"focus": on, "distance": 245.0, "end_distance": 3.4 * focus, "start_deg": 200.0,
-                                        "turn_deg_per_s": 4.0, "tilt_deg": 38.0, "end_tilt_deg": 10.0})
+            days = leg.get("days_per_second", 1.0)
+            drawn = system(setting, surfaces, end_day + days * seconds, days, seconds + 1.0, rate)
+            shown.update(drawn, camera=setting_camera(leg, drawn, site_of(state, place)[0]["on"]))
         elif layer == "world":
-            shown.update(globe(state, place, surfaces), from_height=leg.get("from", 4.2), to_height=leg.get("to", 1.05))
+            shown.update(globe(state, leg.get("place", place), surfaces), from_height=leg.get("from", 4.2),
+                         to_height=leg.get("to", 1.05))
         elif layer in ("site", "place"):
             shown.update(ground(state, place, surfaces, leg.get("into")), view="ground",
                          camera=leg.get("camera") or GROUND_PATHS[layer])
+            if leg.get("from_place"):
+                shown["from_centre"] = site_centre(site_of(state, leg["from_place"])[1])
         else:
             rooms = leg.get("rooms", [])
             shown["pictures"] = [{"url": picked_url(state, room), "name": room.replace("_", " ").capitalize()}
