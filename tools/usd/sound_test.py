@@ -1,12 +1,12 @@
-"""Check the sound stage (tools/usd/sound.py) without Blender and without the world's release: on a small stage of the
-hub made here, with a world folder of short made sounds, the layer holds the hub's room tones as non-spatial loops,
-the console's hum as a spatial loop at the console, a library surface pointing at its footstep in the bank, every
-file copied into the stage and found from the layer; the layer sits between the edit layer and the base; and the
-soundtrack hears a spatial sound louder near it and on the side it stands.
+"""Check the sound stage's prim writer (tools/usd/sound.py's audio_prim) without Blender and without the world's
+release: on a small stage of the hub made here, with a world folder of short made sounds and the test's own sound
+entries (the library's sounds are withdrawn, 2026-10-21), a room tone is a non-spatial loop, the console's hum a
+spatial loop at the console at its level's gain, a library surface points at its footstep in the bank, every file is
+copied into the stage and found from the layer, and the base is untouched; and the soundtrack hears a spatial sound
+louder near it and on the side it stands.
 
 Run: .venv/bin/python tools/usd/sound_test.py   (make tests runs it with the framework's environment)
 """
-import json
 import os
 import pathlib
 import sys
@@ -33,14 +33,19 @@ def tone(path, seconds=1.0, hertz=220.0):
         stream.writeframes(samples.tobytes())
 
 
+# The test's own sounds (a made tone each), as the assembly's entries name them: what a place plays comes from its
+# design (score/stages/sound), never from a list here.
+ENTRIES = {"habitat": {"file": "test/habitat.wav", "bus": "ambience", "loops": True, "volume_db": -12.0},
+           "base_hum": {"file": "test/base_hum.wav", "bus": "ambience", "loops": True, "volume_db": -18.0},
+           "console_hum": {"file": "test/console_hum.wav", "bus": "effects", "loops": True, "volume_db": -9.0,
+                           "reach": 6.0},
+           "footsteps_deck": {"file": "test/footsteps_deck.wav", "bus": "effects", "volume_db": -6.0}}
+
+
 def world_folder(folder, sound):
-    """A world folder holding a short tone at every file the sounds this test reaches name."""
-    names = ["habitat", "base_hum", "console_hum"]
-    surfaces = json.loads(sound.SURFACES.read_text())["surfaces"]
-    names += [name for entry in surfaces.values() for name in (entry.get("footstep"), entry.get("impact"),
-                                                                 entry.get("scrape")) if name]
-    for name in names:
-        for file in sound.takes(sound.entry_of(name)):
+    """A world folder holding a short tone at every file the test's sounds name."""
+    for entry in ENTRIES.values():
+        for file in sound.takes(entry):
             tone(folder / file)
 
 
@@ -63,11 +68,32 @@ def small_stage(out):
     root.Save()
 
 
-def check_the_layer(sound, out):
-    found = sound.write_layer(PLACE, out)
-    assert found["room"] == 2 and found["object"] == 1 and found["bank"] >= 1, found
+def laid_sounds(sound, out):
+    """The test's sounds written into the stage's sound layer with sound.py's prim writer, as the assembly lays a
+    place's accepted sound output: the room tones, the console's hum and the deck's footstep in the bank."""
+    from pxr import UsdMedia
+    layer = Sdf.Layer.CreateNew(str(out / sound.LAYER))
     root = Sdf.Layer.FindOrOpen(str(out / f"{PLACE}.usda"))
-    assert list(root.subLayerPaths) == ["./layers/edit.usda", "./layers/sound.usda", "./layers/base.usda"]
+    root.subLayerPaths.insert(1, f"./{sound.LAYER}")
+    root.Save()
+    stage = Usd.Stage.Open(str(out / f"{PLACE}.usda"))
+    stage.SetEditTarget(Usd.EditTarget(layer))
+    written = [sound.audio_prim(stage, f"/{PLACE}/Sound/Room/{name}", name, ENTRIES[name], out,
+                                aural=UsdMedia.Tokens.nonSpatial, playback=UsdMedia.Tokens.loopFromStage)
+               for name in ("habitat", "base_hum")]
+    written.append(sound.audio_prim(stage, f"/{PLACE}/Objects/console_1/Sound", "console_hum", ENTRIES["console_hum"],
+                                    out, aural=UsdMedia.Tokens.spatial, playback=UsdMedia.Tokens.loopFromStage))
+    bank = f"/{PLACE}/Sound/Bank/footsteps_deck"
+    written.append(sound.audio_prim(stage, bank, "footsteps_deck", ENTRIES["footsteps_deck"], out,
+                                    playback=UsdMedia.Tokens.onceFromStart))
+    stage.GetPrimAtPath(f"/{PLACE}/Library/deck").CreateRelationship("score:sound:footstep").SetTargets(
+        [Sdf.Path(bank)])
+    layer.Save()
+    assert all(written), written
+
+
+def check_the_layer(sound, out):
+    laid_sounds(sound, out)
     stage = Usd.Stage.Open(str(out / f"{PLACE}.usda"))
     tone_prim = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{PLACE}/Sound/Room/habitat"))
     assert tone_prim.GetAuralModeAttr().Get() == UsdMedia.Tokens.nonSpatial
@@ -83,6 +109,9 @@ def check_the_layer(sound, out):
     # The base is untouched: the sounds are the sound layer's alone.
     base = Sdf.Layer.FindOrOpen(str(out / "layers/base.usda"))
     assert not base.GetPrimAtPath(f"/{PLACE}/Sound")
+    # A sound with no file picked (every withdrawn sound) is written nowhere: a gap, never a silent prim.
+    assert sound.audio_prim(stage, f"/{PLACE}/Sound/Room/lost", "lost", {"file": ""}, out) is None
+    assert not stage.GetPrimAtPath(f"/{PLACE}/Sound/Room/lost")
 
 
 def check_the_soundtrack(sound, out):

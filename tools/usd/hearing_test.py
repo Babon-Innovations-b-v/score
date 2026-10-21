@@ -1,5 +1,6 @@
 """Check what a camera hears (tools/usd/hearing.py) without Blender and without the world's release: on a small stage of
-the hub made here (sound.py's layer over it, with a world folder of short made sounds), a spatial sound is heard louder
+the hub made here (its sound layer written with sound.py's prim writer from the test's own sounds, with a
+world folder of short made tones), a spatial sound is heard louder
 near it and on the side it stands; a shown place's room tone is not heard, and outside (the place's own room on the
 suit's bus) only what the boots feel carries; a walk steps on the floor's footstep and a stand does not; a step sounds
 as the library finish under it (a library tile's by its `score:surface`), a baked piece naming none as the finished
@@ -9,7 +10,6 @@ standing before its first moment.
 
 Run: .venv/bin/python tools/usd/hearing_test.py   (make tests runs it with the framework's environment)
 """
-import json
 import os
 import pathlib
 import sys
@@ -36,14 +36,22 @@ def tone(path, seconds=1.0, hertz=220.0):
         stream.writeframes(samples.tobytes())
 
 
+# The test's own sounds (a made tone each), as the assembly's entries name them: the library's sounds are withdrawn
+# (2026-10-21), and what a place plays comes from its design (score/stages/sound), never from a list here.
+ENTRIES = {"habitat": {"file": "test/habitat.wav", "bus": "ambience", "loops": True, "volume_db": -12.0},
+           "base_hum": {"file": "test/base_hum.wav", "bus": "ambience", "loops": True, "volume_db": -18.0},
+           "console_hum": {"file": "test/console_hum.wav", "bus": "effects", "loops": True, "volume_db": -9.0,
+                           "reach": 6.0},
+           "footsteps_deck": {"file": "test/footsteps_deck.wav", "bus": "effects", "volume_db": -6.0},
+           "footsteps_rubber": {"file": "test/footsteps_rubber.wav", "bus": "effects", "volume_db": -6.0}}
+# Each library surface of the small stage and the footstep in the bank it points at.
+FOOTSTEPS = {"deck": "footsteps_deck", "rubber_floor_bumpy": "footsteps_rubber"}
+
+
 def world_folder(folder, sound):
-    """A world folder holding a short tone at every file the sounds this test reaches name."""
-    names = ["habitat", "base_hum", "console_hum"]
-    surfaces = json.loads(sound.SURFACES.read_text())["surfaces"]
-    names += [name for entry in surfaces.values() for name in (entry.get("footstep"), entry.get("impact"),
-                                                                 entry.get("scrape")) if name]
-    for name in names:
-        for file in sound.takes(sound.entry_of(name)):
+    """A world folder holding a short tone at every file the test's sounds name."""
+    for entry in ENTRIES.values():
+        for file in sound.takes(entry):
             tone(folder / file)
 
 
@@ -90,6 +98,29 @@ def small_stage(out):
     root.subLayerPaths.append("./layers/base.usda")
     root.defaultPrim = PLACE
     root.Save()
+
+
+def laid_sounds(sound, out):
+    """The test's sounds written into the stage's sound layer with sound.py's prim writer, as the assembly lays a
+    place's accepted sound output: the room tones, the console's hum, and each library surface's footstep banked."""
+    layer = Sdf.Layer.CreateNew(str(out / sound.LAYER))
+    root = Sdf.Layer.FindOrOpen(str(out / f"{PLACE}.usda"))
+    root.subLayerPaths.insert(1, f"./{sound.LAYER}")
+    root.Save()
+    stage = Usd.Stage.Open(str(out / f"{PLACE}.usda"))
+    stage.SetEditTarget(Usd.EditTarget(layer))
+    written = [sound.audio_prim(stage, f"/{PLACE}/Sound/Room/{name}", name, ENTRIES[name], out,
+                                aural=UsdMedia.Tokens.nonSpatial, playback=UsdMedia.Tokens.loopFromStage)
+               for name in ("habitat", "base_hum")]
+    written.append(sound.audio_prim(stage, f"/{PLACE}/Objects/console_1/Sound", "console_hum", ENTRIES["console_hum"],
+                                    out, aural=UsdMedia.Tokens.spatial, playback=UsdMedia.Tokens.loopFromStage))
+    for surface, name in FOOTSTEPS.items():
+        bank = f"/{PLACE}/Sound/Bank/{name}"
+        written.append(sound.audio_prim(stage, bank, name, ENTRIES[name], out, playback=UsdMedia.Tokens.onceFromStart))
+        stage.GetPrimAtPath(f"/{PLACE}/Library/{surface}").CreateRelationship("score:sound:footstep").SetTargets(
+            [Sdf.Path(bank)])
+    layer.Save()
+    assert all(written), written
 
 
 def check_the_soundtrack(sound, hearing, out):
@@ -182,7 +213,7 @@ def main():
         import hearing  # noqa: E402
         world_folder(folder / "world", sound)
         small_stage(folder / "stage")
-        sound.write_layer(PLACE, folder / "stage")
+        laid_sounds(sound, folder / "stage")
         check_the_finish_underfoot(sound, hearing, folder / "stage")
         check_the_soundtrack(sound, hearing, folder / "stage")
         check_what_is_heard(sound, hearing, folder / "stage")

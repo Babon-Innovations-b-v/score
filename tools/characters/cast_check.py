@@ -1,7 +1,7 @@
 """Check a place's cast before its characters go into the stage: every character is a distinct person, and every walk
 stays clear of the other people and of the place's objects.
 
-    .venv/bin/python tools/characters/cast_check.py <place> --stage <the place's stage .usda>
+    .venv/bin/python tools/characters/cast_check.py <place> --stage <the place's stage .usda> --cast <its cast record>
 
 Two rules, both the owner's (2026-10-09, after the hub showed two of the same crew member and one walked into the
 other):
@@ -172,8 +172,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("place")
     parser.add_argument("--stage", required=True, type=pathlib.Path)
+    parser.add_argument("--cast", required=True, type=pathlib.Path,
+                        help="the place's cast record (score/stages/people_rows.py writes it from the design)")
     arguments = parser.parse_args()
-    cast_record = json.loads((cast.CASTS / f"{arguments.place}.json").read_text())
+    cast_record = json.loads(arguments.cast.read_text())
     faults = check(cast_record, stage_things(arguments.stage, arguments.place))
     for fault in faults:
         print(fault)

@@ -1,19 +1,19 @@
-"""The sound stage: a place's sounds written into its OpenUSD stage, so an engine plays them from the stage alone.
+"""The sound stage's prim writer and its hearing helpers: what the assembly (score/stages/assembly/sounds.py) writes
+a place's accepted sound output with, into `<stage>/layers/sound.usda`, a layer of its own between the creator's edit
+layer and the base (export.STAGE_LAYERS), every file it names copied into `<stage>/assets/`. Every sound is a
+UsdMedia.SpatialAudio prim (`audio_prim`), its file (a library reference, tools/library/library_files.py), its gain
+(from its level in dB) and how it plays, with the framework's own facts beside it as `score:sound:*`, in this layout:
 
-    .venv/bin/python tools/usd/sound.py <place> --stage <the place's stage folder (export.py --out)>
-
-It writes `<stage>/layers/sound.usda`, a layer of its own between the creator's edit layer and the base
-(export.STAGE_LAYERS), and copies every file it names into `<stage>/assets/`. Every sound is a
-UsdMedia.SpatialAudio prim, its file (a library reference, tools/library/library_files.py), its gain (from the
-catalogue's level in dB) and how it plays, with the framework's own facts beside it as `score:sound:*`:
-
-    /<place>/Sound/Room/<name>        the place's room tones (data/sound/places.json): non-spatial, looping from the
-                                      stage's start; outside on the Moon, what is heard through the suit instead
-    <object>/Sound                    an object's own sound (its inventory row's `sound`: a hum, a buzz, a fan):
-                                      spatial, at the object, looping
+    /<place>/Sound/Room/<name>        the place's room tones: non-spatial, looping from the stage's start; outside
+                                      on the Moon, what is heard through the suit instead
+    <object>/Sound                    an object's own sound (a hum, a buzz, a fan): spatial, at the object, looping
     /<place>/Sound/Bank/<name>        every surface sound (footstep, impact, scrape) as a sound an engine plays on
                                       an event; each library surface (/<place>/Library/<surface>) points at its own
                                       through the relationships score:sound:footstep, :impact and :scrape
+
+The old command-line writer, which read each place's room tones from data/sound/places.json and its objects' sounds
+from the old inventories, is retired with them (owner, 2026-10-21: all old stuff is retired); what a scene plays is
+worked out from its design (score/stages/sound).
 
 A sound's fields are the catalogue's (data/sound/catalogue.json: defaults, then its entry) with data/sound/sounds.json
 laid over them, as the game read them. `score:sound:takes` lists every take of a sound with several (footsteps: one
@@ -26,7 +26,6 @@ demo's videos: the room tones as they are, each spatial sound at its gain over i
 distance from 1 m, silent past its reach) and panned by where it stands across the view, each motion's sound from its
 start; the mix brought to a level that is heard (a gain, the same over the whole track, its peak under -3 dBFS).
 """
-import argparse
 import json
 import math
 import pathlib
@@ -47,9 +46,6 @@ import library_files  # noqa: E402
 LAYER = "layers/sound.usda"
 CATALOGUE = REPO / "data/sound/catalogue.json"
 SOUNDS = REPO / "data/sound/sounds.json"
-SURFACES = REPO / "data/sound/surfaces.json"
-PLACES = REPO / "data/sound/places.json"
-INVENTORIES = REPO / "data/inventory"
 # Buses heard as they are, not from a spot in the room: a place's air, and the player's own suit.
 NON_SPATIAL_BUSES = ("ambience", "suit")
 HAPPENINGS = ("footstep", "impact", "scrape")
@@ -142,43 +138,6 @@ def audio_prim(stage, path, name, entry, out, aural=None, playback=None, start=N
     return audio
 
 
-def room_tones(stage, place, out, found):
-    """The place's room tones (and what the suit lets through outside), non-spatial loops from the stage's start."""
-    record = read(PLACES)["places"].get(place, {"loops": []})
-    names = list(record.get("loops", [])) + list(record.get("heard_through", []))
-    UsdGeom.Scope.Define(stage, f"/{place}/Sound/Room")
-    for name in names:
-        if audio_prim(stage, f"/{place}/Sound/Room/{name}", name, entry_of(name), out,
-                      aural=UsdMedia.Tokens.nonSpatial, playback=UsdMedia.Tokens.loopFromStage,
-                      source=record.get("from", "")):
-            found["room"] += 1
-
-
-def row_sounds(place):
-    """Each inventory row's own sound (a hum, a buzz), by its row id."""
-    path = INVENTORIES / f"{place}.json"
-    if not path.exists():
-        return {}
-    return {row["id"]: row["sound"] for row in read(path).get("rows", []) if row.get("sound")}
-
-
-def object_sounds(stage, place, out, found):
-    """Each object whose inventory row names a sound: a spatial loop at the object."""
-    sounds = row_sounds(place)
-    if not sounds:
-        return
-    for prim in Usd.PrimRange(stage.GetPrimAtPath(f"/{place}")):
-        row = prim.GetAttribute("score:row")
-        if not row or row.Get() not in sounds:
-            continue
-        name = sounds[row.Get()]
-        entry = dict(entry_of(name), loops=True)
-        if audio_prim(stage, prim.GetPath().AppendChild("Sound"), name, entry, out, aural=UsdMedia.Tokens.spatial,
-                      playback=UsdMedia.Tokens.loopFromStage,
-                      source=f"data/inventory/{place}.json row {row.Get()} (its `sound`)"):
-            found["object"] += 1
-
-
 def rounds_of(motion):
     """When each round of a motion starts, in the stage's seconds: once at its start, or for a looping motion every
     `length` seconds over SOUND_SPAN_SECONDS, so its sounds come back with it (a sound prim plays once)."""
@@ -187,58 +146,6 @@ def rounds_of(motion):
     if not motion.get("loop") or length <= 0.0:
         return [start]
     return [start + length * number for number in range(max(1, math.ceil(SOUND_SPAN_SECONDS / length)))]
-
-
-def surface_sounds(stage, place, out, found):
-    """Every library surface's footstep, impact and scrape as bank sounds, each surface pointing at its own."""
-    import export  # noqa: E402  (tools/usd; its import is heavy, so only here)
-    import library  # noqa: E402
-    sounds = read(SURFACES)
-    variants = library.variants(library.theme_library())
-    library_root = stage.GetPrimAtPath(f"/{place}/Library")
-    if not library_root:
-        return
-    UsdGeom.Scope.Define(stage, f"/{place}/Sound/Bank")
-    banked = set()
-    for material in library_root.GetChildren():
-        sound = export.sound_of(material.GetName(), variants, sounds)
-        if sound is None:
-            continue
-        for happening in HAPPENINGS:
-            name = sound.get(happening)
-            if not name:
-                continue
-            bank = f"/{place}/Sound/Bank/{name}"
-            if name not in banked:
-                entry = dict(entry_of(name), loops=False)
-                if not audio_prim(stage, bank, name, entry, out, playback=UsdMedia.Tokens.onceFromStart,
-                                  source=f"data/sound/surfaces.json, the surface {sound['surface']}"):
-                    continue
-                banked.add(name)
-                found["bank"] += 1
-            material.CreateRelationship(f"score:sound:{happening}").SetTargets([Sdf.Path(bank)])
-        material.CreateAttribute("score:sound:absorbs", Sdf.ValueTypeNames.Float).Set(float(sound.get("absorbs", 0.0)))
-
-
-def write_layer(place, out):
-    """The sound layer of the place's stage under `out`, rewritten whole; how many sounds of each kind it wrote."""
-    import export  # noqa: E402
-    out = pathlib.Path(out)
-    path = out / LAYER
-    path.parent.mkdir(parents=True, exist_ok=True)
-    layer = Sdf.Layer.FindOrOpen(str(path)) or Sdf.Layer.CreateNew(str(path))
-    layer.Clear()
-    layer.documentation = "The place's sounds (tools/usd/sound.py); rewritten whole on every run."
-    layer.Save()
-    export.held_by_root(place, out)
-    stage = Usd.Stage.Open(str(out / f"{place}.usda"))
-    stage.SetEditTarget(Usd.EditTarget(layer))
-    found = {"room": 0, "object": 0, "bank": 0}
-    room_tones(stage, place, out, found)
-    object_sounds(stage, place, out, found)
-    surface_sounds(stage, place, out, found)
-    layer.Save()
-    return found
 
 
 # --- what a camera hears ------------------------------------------------------------------------------------------
@@ -363,15 +270,3 @@ def with_sound(video, track, out):
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(video), "-i", str(track), "-map",
                     "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", str(out)],
                    check=True)
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("place")
-    parser.add_argument("--stage", required=True, type=pathlib.Path, help="the place's stage folder (export.py --out)")
-    arguments = parser.parse_args()
-    print(write_layer(arguments.place, arguments.stage))
-
-
-if __name__ == "__main__":
-    main()

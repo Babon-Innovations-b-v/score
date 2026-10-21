@@ -225,10 +225,11 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   record's `tube_length` as the game's TubeKit lays it. `scene_test.py` checks the builders, the lights' units and
   turns, the kit lamps, the tube's laying and every real record.
 
-- **The sound stage** (`sound.py`) writes `layers/sound.usda` only (UsdMedia.SpatialAudio: room tones from
-  `data/sound/places.json`, objects' own sounds from their inventory rows, and
-  a bank of surface sounds each library surface points at) and copies the files into `assets/sound/`. Levels come
-  from `data/sound/catalogue.json` with `sounds.json` over it. It never writes the base. `soundtrack` mixes what a
+- **The sound stage** (`sound.py`) is the prim writer (`audio_prim`) the assembly writes `layers/sound.usda` with
+  (`score/stages/assembly/sounds.py`, from the place's accepted sound output, which reads its design): room tones,
+  objects' own sounds, motions' sounds and a bank of surface sounds each library surface points at, the files copied
+  into `assets/`. Its old command-line writer, reading `data/sound/places.json` and the old inventories, is retired
+  with them (2026-10-21). It never writes the base. `soundtrack` mixes what a
   camera hears; nothing calls it since 2026-10-18 (`hearing.py` replaced it; it goes the next time sound.py changes
   for its own sake, since sound.py is in the assembly's, settle's and motion's code and an edit runs them again).
 - **What a camera hears** (`hearing.py`, the review's walk and the demo's films): **every track is mixed at one gain**
