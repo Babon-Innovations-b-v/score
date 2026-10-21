@@ -150,32 +150,38 @@ def code_build_objects(place, objects, code_builds, closeups):
     return found
 
 
-def bake_entry(place, row, details):
-    """A make_chunky entry for a new take, as route.py plans one: the kind's turn, its size in the kit frame (x wide, y
-    tall, z deep), its screens, cuts and decals, near density, its faces by size; its foot as high as its lowest laid
-    spot stands (route.foot_of), so the kick wear reaches only what stands low. Foot 0 for every model made the ship's
-    lamp, gauges and ceiling pieces, laid 0.75 to 2.15 m up, wear bare in boot scuffs (corner lamp dark_panel baked
-    L* 51.7 against 19.2, 2026-10-15)."""
+def kind_of(row):
+    """A take's kind: its row's noun (the reading's own word for what it is, snake-cased), else its id. Never prefixed
+    by its place: a place-prefixed kind looked up the details written for the old concept's object of that id."""
+    return "_".join((row.get("noun") or row["id"]).split()).lower()
+
+
+def bake_entry(row):
+    """A make_chunky entry for a new take, from its row alone: its size in the kit frame (x wide, y tall, z deep), near
+    density, its faces by size; its foot as high as its lowest laid spot stands (route.foot_of), so the kick wear
+    reaches only what stands low. No turn: the bake measures it over the labelled take against this size
+    (bake_job.measured_turn). No screens, cuts or decals: a hand-set list per kind was written for the old concept's
+    object; the finish route's list names the take's glow and print finishes on its own faces. Foot 0 for every model
+    made the ship's lamp, gauges and ceiling pieces, laid 0.75 to 2.15 m up, wear bare in boot scuffs (corner lamp
+    dark_panel baked L* 51.7 against 19.2, 2026-10-15)."""
     with prop_data.tools("props/library", "props/gates", "props"):
         import route
-    own = details.get(f"{place}_{row['id']}", {})
     size = [row["size"][0], row["size"][2], row["size"][1]]
     foot = min((route.foot_of(spot["y"]) for spot in row.get("at", [])), default=0.0)
-    return {"base": own.get("turn", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]), "size": size,
-            "screens": own.get("screens", []), "cuts": own.get("cuts", []), "density": route.NEAR,
-            "decals": own.get("decals", []), "foot": foot, "faces": route.faces_for(size)}
+    return {"size": size, "screens": [], "cuts": [], "density": route.NEAR, "decals": [], "foot": foot,
+            "faces": route.faces_for(size)}
 
 
-def surface_record(place, objects, rows, details):
+def surface_record(place, objects, rows):
     """The place's surface data for the order: its prop objects' takes, each baked as <row>_1 with its entry written
     out (the job is written in the bake, bake_job.py); no claims on other places."""
     record = json.loads((REPO / "data/surfaces" / f"{place}.json").read_text())
     by_id = {row["id"]: row for row in rows}
     prop = {row: entry for row, entry in objects.items() if entry["route"] == "prop"}
-    takes = {entry["take"]: {"places": [place], "library_places": [place], "place": place, "kind": f"{place}_{row}",
-                             "object": by_id[row]["name"]} for row, entry in prop.items()}
+    takes = {entry["take"]: {"places": [place], "library_places": [place], "place": place,
+                             "kind": kind_of(by_id[row]), "object": by_id[row]["name"]} for row, entry in prop.items()}
     bake = {"models": {f"{row}_1": entry["take"] for row, entry in prop.items()},
-            "entries": {f"{row}_1": bake_entry(place, by_id[row], details) for row in prop}}
+            "entries": {f"{row}_1": bake_entry(by_id[row]) for row in prop}}
     return {"place": place, "library": record["library"], "takes": takes, "bake": bake, "elsewhere": {}}
 
 
@@ -214,9 +220,8 @@ def prepare(place, order, code_builds, sample=None):
     (data / "props" / f"{place}.json").write_text(json.dumps(
         {"place": place, "order": order, "objects": objects, "fallback": {}, "left_out": left,
          "accepted": calibration_set(place, code_builds)}, indent=1) + "\n")
-    details = json.loads((data / "library/details.json").read_text())
     (data / "surfaces" / f"{place}.json").write_text(
-        json.dumps(surface_record(place, objects, inventory["rows"], details), indent=1) + "\n")
+        json.dumps(surface_record(place, objects, inventory["rows"]), indent=1) + "\n")
     print(f"{order}: {sum(entry['route'] == 'prop' for entry in objects.values())} prop, "
           f"{sum(entry['route'] == 'code' for entry in objects.values())} code, {len(left)} left out; {data}")
 

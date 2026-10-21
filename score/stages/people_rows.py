@@ -279,7 +279,6 @@ def line_rows(found, props, inventory, surfaces, kept=None):
     from score.review import plans
     from score.stages.props import compare
     kept = kept or plans.KEPT_INVENTORY
-    details = json.loads((REPO / "data/library/details.json").read_text())
     wanted = every_look(found) & set(props["objects"])
     rows = []
     for row in inventory["rows"]:
@@ -290,8 +289,7 @@ def line_rows(found, props, inventory, surfaces, kept=None):
                          "view": None, "box": None, **drawn_from(origin, kept), **described(row["id"], row)})
     takes = {props["objects"][look]["take"] for look in wanted}
     models = {look: take for look, take in surfaces["bake"]["models"].items() if look in wanted}
-    entries = {look: compare.bake_entry(LINE, {"id": look, "size": next(row["size"] for row in rows
-                                                                        if row["id"] == look)}, details)
+    entries = {look: compare.bake_entry({"id": look, "size": next(row["size"] for row in rows if row["id"] == look)})
                for look in models}
     drawn = {row["id"] for row in rows if row["view"]}  # the loop's close-up draws these: no close-up named
     return ({**props, "objects": {look: {key: value for key, value in entry.items()
