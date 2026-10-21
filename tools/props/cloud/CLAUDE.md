@@ -35,8 +35,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   data/inventory/<scene>.json` and `scene.py` (its plan's `inventory`) refuse without the owner's
   approval on page A and the place's style text in `place.json`, and every model is named for a
   row. A designed place's hand-in (`{home}/design/props/<place>.json`, `score/stages/complete/prepare/handin.py`) is
-  approved by the creator's pick (owner, 2026-10-21) and taken as it stands (`batch.built_from`): its rows are his
-  picked concept's reading, not page A's shape. No per-session job scripts: the wording comes from the repo's data. The one other thing a batch builds is a
+  approved by the creator's lock (owner, 2026-10-21) and taken as it stands (`batch.built_from`): its rows are his
+  locked concept's reading, not page A's shape. No per-session job scripts: the wording comes from the repo's data. The one other thing a batch builds is a
   character the owner asked for (`batch.py --characters data/characters/makes/<name>.json`, job characters-full,
   2026-10-09): refused without the spec's `approved`, its model named after the spec.
 - **Three Pixal3D runs for every 24 GB of card** (`capacity.RUNS_PER_24GB`). Measured on a 24 GB L4: six at

@@ -2,7 +2,7 @@
 
 The layered framework's core (PRD #6, the design of 2026-10-11): stages run by one runner, every output kept in one
 store by its content's hash, gates that block on unknown, a review page per output, and accepts and paid runs the
-runner gives by the gates' answers (the owner's answers of 2026-10-11: his picks are made, from concept and style on
+runner gives by the gates' answers (the owner's answers of 2026-10-11: his locks are made, from concept and style on
 everything runs automatically, no spend limit, spend logically). Today's tools in `tools/` move in here stage by
 stage as each stage is built; nothing moves before.
 
@@ -97,32 +97,32 @@ stage as each stage is built; nothing moves before.
   score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock. `concepts.py` is the concept
   review's (CONTEXT.md): a place's concept draws, each one direct Nano Banana Pro call inside the owner's yes his cockpit
-  click wrote (`web.concept_draw`), and his picks, kept in the store under `concepts/` (written only in the owner's process);
+  click wrote (`web.concept_draw`), and his locks, kept in the store under `concepts/` (written only in the owner's process);
   `environment_concept.py` is the environment concept's (CONTEXT.md): its versions (style line, physics, references,
   places with what each may hold) and the set interview's asks, written only in the owner's process; environment 1's
-  is today's data until he keeps one; the locked one is what every draw reads, and a draw or pick made under another
+  is today's data until he keeps one; the locked one is what every draw reads, and a draw or lock made under another
   version is out of date, and its places with what each may hold start within.json's proposal (`places_in_force`);
   each draw is copied to the private bucket as it is made (`concept-draws/<sha>.png` and `.json`; a failed copy is
-  named in its record), and each pick or unlock is handed to score_lib through its own `score-lib concept` command.
-  `reading.py` reads a picked concept into its scene inventory, started on its own by the pick (`web.reading_started`):
+  named in its record), and each lock or unlock is handed to score_lib through its own `score-lib concept` command.
+  `reading.py` reads a locked concept into its scene inventory, started on its own by the lock (`web.reading_started`):
   Gemini 3.1 Pro's rows, each with its size in metres judged against the place's outline (`plans.outline_from_holder`:
   the layer above's box, its own plan, else round its inside places), then SAM 3's boxes of each row on one rented
   card (where, never size; its own words first, then its noun); only what both agree on is a row, its count SAM 3's
   instances (owner, 2026-10-21), the structure, ground and rows holding an inside place or standing in one kept as read, duplicates
   merged, the rest kept apart as `skipped` (never a row or a gap); a kept row with no metres or anchor its gaps; a
   reading by an older method is read again from its own rows, SAM 3 only; each
-  reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no pick of its own.
-  `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the picked concept.
-  `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its pick, inventory and the layer
+  reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no lock of its own.
+  `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the locked concept.
+  `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its lock, inventory and the layer
   above's plan, his edits and named inside places kept under `plans/` (his process only), a Correct with notes one
   direct Gemini call inside his click's yes (`web.plan_revise`), `made` and `holder_of` (the row and SAM box holding an
   inside place) for `concepts.step_refusal`, `shape_sent` an inside place's shape on it, `keep` the plans where the
   plan stage reads them (`stages.creator_plan`) and the plan row made again for those that changed; the plan shown is
   the newer of his edit and the plan made without him (`made_plan`: written, else the rough one laid from the
   inventory, its SAM boxes only ordering it). `plan_writing.py` writes a place's plan, measured off a drawing (owner, 2026-10-21):
-  first `plan_drawing.py`'s top-down drawing (one Nano Banana Pro call redrawing the pick from directly above on its
-  outline on the layer above's plan, kept under `plan-drawings/<place>/`, once per pick and outline), then one Gemini
-  3.1 Pro call reading positions and footprints off it in its units, which part is which from the pick, the
+  first `plan_drawing.py`'s top-down drawing (one Nano Banana Pro call redrawing the locked concept from directly above on its
+  outline on the layer above's plan, kept under `plan-drawings/<place>/`, once per lock and outline), then one Gemini
+  3.1 Pro call reading positions and footprints off it in its units, which part is which from the locked concept, the
   inventory's metres, the layer above's plan and its inside places (the stage table's schema plus outline, walls,
   openings, levels, stairs, roofs, terrain, shapes, section), turned into metres by the holder's box or the rows'
   metres, kept under `plan-writings/<place>/`; a thing the creator already planned (`creator_plans.py`: the ship's
@@ -143,7 +143,7 @@ stage as each stage is built; nothing moves before.
   it is built from and the module's code, so the cockpit never serves an older code's render.
   `concepts.structure_pictures` sends both first with every first draw, the draw record keeps the blockout's
   sha (`blockout`), and a draw without one that can be built now is out of date (`current_draw`); `without_blockout`
-  names the picked places drawn before. `concepts.step_refusal` waits only for the place's outline on the layer
+  names the locked places drawn before. `concepts.step_refusal` waits only for the place's outline on the layer
   above's plan (`outlined`: held by a row or by the holder's own walls). `setting.py` is an environment's setting
   (CONTEXT.md "setting", owner 2026-10-21), part of its environment concept: its bodies (a real one takes the cited
   reference table's values, `data/physics/bodies.json`; an invented one is given by its own: radius, mass and so
@@ -224,13 +224,13 @@ stage as each stage is built; nothing moves before.
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
   apply only to a place with a hand-in: its approved design's (`{home}/design/props/<place>.json`, written by
   prepare from the takes it priced, `stages/complete/prepare/handin.py`; with it its surface data,
-  `{home}/design/surfaces/<place>.json`, and rough-model reads its picked concept), else `data/props/<place>.json`
+  `{home}/design/surfaces/<place>.json`, and rough-model reads its locked concept), else `data/props/<place>.json`
   (the ship rooms', the people's line). A place with neither has no rows: it waits on its design.
   `rough-model` (paid, `stages/rough_model`, its overlay) puts each place's concept through the prop pipeline whole,
   after its plan: one Pixal3D model, its rough model, never shipped. The shared loop (`stages/shapes_first`, its
   overlay, #41) is every model layer's one way to a model: rough model, `rough-align` (its registration to the plan,
   free), the parts split, close-up, Pixal3D, the finish route, likeness, then each layer adapter's after-steps. `cast`
-  (experimental, its overlay) places each place's people from its picked design (`data/people/rows.json`,
+  (experimental, its overlay) places each place's people from its locked design (`data/people/rows.json`,
   `stages/people_rows.py`, #26: each inventory people row a look of the shared people line, a crowd one far look)
   and measures them on the seed's geometry (counted, standing, clear, made);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed

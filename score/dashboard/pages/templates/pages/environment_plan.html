@@ -11,7 +11,7 @@
     <form class="inline" data-yes data-reload data-plan data-url="/environments/{{ world }}/plan/keep/" data-body='{{ edit_body }}'><button type="submit" class="button primary"{% if pending %} disabled{% endif %} data-slot="post-label" title="keep the times and sizes as your own; every sky is worked out again" data-v>Keep</button><i class="dot" data-slot="said" hidden></i></form>
   {% endif %}</div>
 </section>
-{% if without %}<p class="soft small" title="picked before blockouts: they keep their picks" data-v>Drawn without a blockout: {{ without|join:', ' }}</p>{% endif %}
+{% if without %}<p class="soft small" title="locked before blockouts: they stay locked" data-v>Drawn without a blockout: {{ without|join:', ' }}</p>{% endif %}
 <div class="ec-fields" data-plan-fields>
   {% for map in maps %}<section class="card" aria-label="{{ map.name }}" data-on="{{ map.on }}">
     <h2 class="eyebrow" title="{{ map.ground|default:'its sites on its ground' }}">{{ map.name }}</h2>

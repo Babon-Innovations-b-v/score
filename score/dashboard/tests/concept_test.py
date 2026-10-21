@@ -243,15 +243,15 @@ def test_the_page_lists_the_pictures_a_draw_sends_and_why_it_waits(world, stand_
     sent = ["the picked concept of the yard this place sits within", "a reference for its look only"]
     monkeypatch.setattr(drawing, "sent_pictures", lambda store, place: [(words, None) for words in sent]
                         if place == "beta" else [])
-    monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be picked")
+    monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be locked")
     page = signed_in().get("/concept/beta/").content.decode()
     assert all(f"<li data-v>{words}</li>" in page for words in sent)
-    assert "waits for yard&#x27;s concept to be picked" in page
+    assert "waits for yard&#x27;s concept to be locked" in page
 
 
 def test_draw_all_leaves_out_a_place_that_cannot_be_drawn_now_and_says_how_many(world, stand_in, monkeypatch):
     waits = drawing.waits
-    monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be picked"
+    monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be locked"
                         if place == "alpha" else waits(store, place))
     html = signed_in().get("/places/").content.decode()
     assert "Draw all 1, EUR 0.15" in html and "1 more with none cannot be drawn now" in html

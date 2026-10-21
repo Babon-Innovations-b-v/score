@@ -32,7 +32,7 @@ prop and grown on its beds as the concept grows them, as a layer of point instan
   (box_check.py --masks rents outside it and is refused); each crop row's box is its partition proposal's.
 - **What the owner decides.** The crop state (the concept's mid-season beds, not the game's bare start) is his open
   decision, said in the crop data's `state`. Crops grow on the scene's 25 start beds only; the tarped stages stay.
-- **Crop data is its concept's.** A designed place's crop data must name the view `design` (its picked concept);
+- **Crop data is its concept's.** A designed place's crop data must name the view `design` (its locked concept);
   one naming an old view (the greenhouse's K09, lost 2026-10-19) has no crop rows and is a motion-layer gap
   (`crop_data.old_concept`, `motion/needs.py`) until it is written again from the design.
 - Tests: `crops_test.py` (tiles, measures, the gates, the look's camera round trip), free.

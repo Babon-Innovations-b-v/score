@@ -67,7 +67,7 @@ def test_a_picked_place_is_read_once_with_its_boxes_and_gaps(store, tmp_path, mo
     def clear(store, places, euros):
         cleared.append((places, euros))
         return compute.reading_clearance(store, places, euros)
-    with pytest.raises(concepts.Refused, match="lab: no picked concept"):  # read only after its own pick
+    with pytest.raises(concepts.Refused, match="lab: no locked concept"):  # read only after its own pick
         reading.read(store, ["wreck", "lab"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes)
     assert cleared == []
     [record] = reading.read(store, ["wreck"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes)

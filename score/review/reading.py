@@ -560,8 +560,8 @@ def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of):
     from score.adapters import compute
     unpicked = [place for place in places if not concepts.picked(store, place)]
     if unpicked:
-        raise concepts.Refused(f"{', '.join(unpicked)}: no picked concept; a place's inventory is read only after its "
-                               "own pick")
+        raise concepts.Refused(f"{', '.join(unpicked)}: no locked concept; a place's inventory is read only after its "
+                               "own lock")
     places = to_read(store, places)
     if not places:
         return []

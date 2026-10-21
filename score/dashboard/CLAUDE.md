@@ -74,7 +74,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     each node once) and `basket` (every item) {likely, high, guessed, nodes, unmeasured}, `eta` {likely_minutes,
     high_minutes, untimed}, `stop` (what the yes would write: the high with the guesses, plus 10%), `money`; `design`
     (`screens.design`, CONTEXT.md "design", prepare's `design.py` record carried in the Remake) {places [{place,
-    design {concept (missing, drawn, picked), plan (remake, made, approved), output, hint} (None: prepare names it
+    design {concept (missing, drawn, picked: a lock), plan (remake, made, approved), output, hint} (None: prepare names it
     not), game (its gaps' `complete/game` gate: its layout still from the source game)}], approved}; `batch`
     (`screens.batch(world, items)`, the Buy screen's one batch, owner 2026-10-20: "what Buy buys must be exactly the
     total shown") {now {likely, high (the guesses the runner reserves in it), guessed, guesses, stop (high plus 10%),
@@ -114,9 +114,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   places, owner 2026-10-20) over its inside places' tiles only, with a trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
   the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`, owner 2026-10-20, CONTEXT.md "design":
   design first: how many places' designs are approved and a row a place, its concept and plan state, "game layout"
-  where its layout still takes the source game's numbers, its old pick as hover text, linking to the place, where
+  where its layout still takes the source game's numbers, its old lock as hover text, linking to the place, where
   the design is made (its concept review, outside any batch: no concept is bought here), and a Plan link to its plan
-  review once its design is approved (the pick is the approval, owner 2026-10-21: no Approve); then After design: how many places await design while none is
+  review once its design is approved (the lock is the approval, owner 2026-10-21: no Approve); then After design: how many places await design while none is
   approved (no euros, no layers), else the approved places' figure and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
   once a design is approved, buying only those places; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
   month figure while it is not read, its button named by their cost line's label; no Basket link, no stop control:
@@ -198,23 +198,23 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   Hover text is the native `title` attribute: every component takes `tip`; an explanation goes there, never on
   the page.
 - **No number from an inventory that does not count** (CONTEXT.md "scene inventory", owner 2026-10-20: "inventory
-  can't exist" before the pick): a place's scene inventory counts only while it was read from its picked draw
-  (`data/inventory/<place>.json` `concept_pick.sha256` equal to the pick's sha: `screens.inventory_current`, the
+  can't exist" before the lock): a place's scene inventory counts only while it was read from its locked draw
+  (`data/inventory/<place>.json` `concept_pick.sha256` equal to the lock's sha: `screens.inventory_current`, the
   store's `WorldState.inventories` read by `score/review/concepts.inventory_read`; prepare's `design.py` the same rule,
-  its `inventory` state), and its numbers only once its gaps findings are not older than the pick (`screens.counted`,
+  its `inventory` state), and its numbers only once its gaps findings are not older than the lock (`screens.counted`,
   `local.inventory_reads` `checked`: earlier ones were read from an older inventory). Until then its tile and head
-  show its design steps done as pips and a number (`pages/c/steps.html`, `screens.design_steps`: concept picked,
+  show its design steps done as pips and a number (`pages/c/steps.html`, `screens.design_steps`: concept locked,
   inventory read, plan made; owner 2026-10-21, numbers not prose), its design state in words (`cockpit.DESIGN_WORDS`:
   to draw, in review, inventory to read, plan to make, gaps to check, in design for a tile none of whose places count) as their
   hover text, in place of the ring and gaps, a Plan button once it has a plan, its tile opens its concept page and
   its head has no Open (owner, 2026-10-20), its Place screen shows only its concept, that state and a link to its
   concept page (no scene tree, no 3D, no gaps), and its gaps are in no total (`views.overview_of` rows,
   `local.gaps_total`: only `counted_places`). An unlock makes it out of date at once (no
-  write: the rule is read against the pick standing). The concept page shows a picked place's inventory file as made
-  (its rows) or to read (and whether the one there is older). A pick starts its scene inventory reading on its own
+  write: the rule is read against the lock standing). The concept page shows a locked place's inventory file as made
+  (its rows) or to read (and whether the one there is older). A lock starts its scene inventory reading on its own
   (`score/review/reading.py`, `web.reading_started`, no yes asked: owner, 2026-10-21), kept in the store
   (`inventory-readings/`, `WorldState.inventory_readings` and `inventory_spend`); the concept page shows the reading
-  of the picked draw beside its picture (`concepts.reading_view`: rows numbered, each instance found boxed on the
+  of the locked draw beside its picture (`concepts.reading_view`: rows numbered, each instance found boxed on the
   picture; the gaps one line a row, its name and what is unclear in plain words, a click lighting its boxes; a
   "skipped N, merged M" note listing what the readers' agreement left out as hover text, and "show skipped" drawing
   those faint and dashed, each saying why on hover; a row and its boxes light together on hover), and
@@ -239,7 +239,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   Add a reference picture into the private bucket's references/ and his local copy, never this repository
   (`web.environment_reference`). Locked it is for looking at; Unlock opens a second, in-page ask (no `confirm()`:
   the viewer has none) that every place's concept made from it goes out of date, and does exactly that (the store's
-  rule: every draw and pick records the version it was made under). Every click is a SyncRequest of
+  rule: every draw and lock records the version it was made under). Every click is a SyncRequest of
   `applying.ENVIRONMENT_KINDS`, applied here at once locally (an ask or a picture in a thread) and by the listener when
   hosted; hosted, his versions and pictures since the export show at once (`environment.shown`, `pictures`). Environment
   1's is today's data shown locked until he keeps a version (`WorldState.environment_concept`, read by
@@ -251,25 +251,25 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   no note, Draw fresh: a new first draw from the place's current first-draw wording, no base; with any, Redraw with
   notes: the prompt model corrects the shown draw's prompt by them, then one draw repaints it, two calls at
   `WorldState.concept_redraw_euros`, the corrected prompt then the place's own wording; the owner, 2026-10-20; the
-  picked concepts the draw is drawn on show beside it (`ConceptWording.context`), marked too, their boxes P1, P2, ...) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
-  picture at the standard tier, `score/review/concepts.draw_euros`), the place's draws, Pick (locks it: the card loses
+  locked concepts the draw is drawn on show beside it (`ConceptWording.context`), marked too, their boxes P1, P2, ...) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
+  picture at the standard tier, `score/review/concepts.draw_euros`), the place's draws, Lock (locks it: the card loses
   the button) and Unlock. A click is the owner's request (SyncRequest `concept-draw`, `concept-pick`), applied on the
   store's machine through `actions.concept_draw` / `concept_pick` and `score.review.web` (his yes for that one call
   at the price shown, refused when the price moved, then the call as its own process inside it; the store refuses
   both in an agent's process): local at once (a draw in a thread), hosted by the listener. The store keeps the draws
-  and picks (`score/review/concepts.py`), each draw copied to the private bucket as it is made
-  (`concept-draws/<sha>`), and a pick or unlock is handed to score_lib (`score-lib concept`: the picked draw locked as
+  and locks (`score/review/concepts.py`), each draw copied to the private bucket as it is made
+  (`concept-draws/<sha>`), and a lock or unlock is handed to score_lib (`score-lib concept`: the locked draw locked as
   `concept/<place>`, withdrawn on an unlock), whose entry the Library shows in its place's folder on the Places shelf
-  (`shelf_of`); the pick's answer says what the library did. A place's card shows its picked draw, else its newest unless every draw is from an older wording (then none: out of date), else
+  (`shelf_of`); the lock's answer says what the library did. A place's card shows its locked draw, else its newest unless every draw is from an older wording (then none: out of date), else
   `data/places/concepts.json`'s. The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
   answered draw (its record as the request's detail, its pictures in `SCORE_HOME/request-files`, served by
-  `ExportedSource` beside the export's) and a pick since the export show at once; the cards follow at the next export.
+  `ExportedSource` beside the export's) and a lock since the export show at once; the cards follow at the next export.
   A place's page names the places listed inside it that its draw is asked to hold (`asked_to_hold`). Under the
   picture the page shows, editable, word for word what Draw fresh or Draw concept sends (`WorldState.concept_wordings`,
   `ConceptWording`: the wording `score/review/concepts.py` `generated` makes by its one rule for every place, or the
-  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: its blockout and, for a top place with a world out of view, its overhead view first, then a crop of the picked concept of
-  the place it sits within to what holds it, then the picked concept of each place beside it that it opens into, then its references), why it waits
-  (`refused`: Draw disabled with it as hover text; `unpickable`: Pick the same; both refused on the store's machine
+  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: its blockout and, for a top place with a world out of view, its overhead view first, then a crop of the locked concept of
+  the place it sits within to what holds it, then the locked concept of each place beside it that it opens into, then its references), why it waits
+  (`refused`: Draw disabled with it as hover text; `unpickable`: Lock the same; both refused on the store's machine
   by `concepts.step_refusal`, the design steps' one rule), a part of another place's outside (within.json `parts`, the
   Launch of the Square) no card, no Draw and no Draw all entry, and, folded, what Redraw with notes sends (its notes as
   placeholders). A first draw sent with the box edited sends exactly that text (his note after it) and the store's
@@ -279,7 +279,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   wording since the export shows at once (`wording_of`). No batch: the batch rules start once the design is approved. The
   Environment's top bar carries **Draw all N, EUR X** for the owner (owner, 2026-10-20; `concepts.draw_all`, hidden
   at N 0): every place or shell with no draw from its current wording yet whose first draw can be made now (`WorldState.concept_undrawn`, read
-  on the store's machine by `score/review/concepts.undrawn`, layer by layer: one within a place not yet picked, or
+  on the store's machine by `score/review/concepts.undrawn`, layer by layer: one within a place not yet locked, or
   whose reference is not on the PC, waits, counted in the hover) and none on its way, X = N times the per-draw price. Its click (`/concepts/draw-all/`,
   refused when the list or the total moved) is his one spend yes for exactly those first draws: N `concept-draw`
   requests at the per-draw price, each with the Draw all's count and total (`all`), each written as its own override
@@ -293,12 +293,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`concepts.card_state`); the concept review shows the same spinner over its picture while its draw is on its way.
 - **The plan review** (CONTEXT.md "plan review", owner 2026-10-21; `pages/plans.py`, `plan.html`,
   `static/pages/plan.js`, the store side `score/review/plans.py`): `/plan/<place>/`, reached from its card's and
-  head's Plan button and its concept page once its scene inventory counts. The plan, made from the pick with no
-  Approve (the pick is the approval), drawn as an architect's plan in an SVG laid out like the picture the prompt
+  head's Plan button and its concept page once its scene inventory counts. The plan, made from the lock with no
+  Approve (the lock is the approval), drawn as an architect's plan in an SVG laid out like the picture the prompt
   model is sent (`static/pages/plan.js`: hatched walls with their thickness, doors with their swing, windows, stairs
   with the way up, level marks, terrain contours and spot heights, roofs dashed overhead, each item in its own shape,
   dimension lines, north arrow, scale bar, and a section A-A under it at the same scale; every colour a token in
-  `dash.css`), beside the picked concept: hover a thing for its details; he drags and resizes items, zones and inside
+  `dash.css`), beside the locked concept: hover a thing for its details; he drags and resizes items, zones and inside
   places (one dropped on a building stands in it: no row dropdown, owner 2026-10-21), moves doors along their walls and
   standing spots; the inside places by name only (rename, remove, add place); the drop rule (owner 2026-10-21,
   CONTEXT.md "shared room", "thing in a room"): a box dropped fully inside a room is a thing in it (`things` on its
@@ -315,14 +315,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`plans.review_of`); the listener answers all four (`applying.PLAN_KINDS`). What sits inside what is within.json
   with each holder's inside places as his newest kept plan lays them out (`plans.overlaid`, the one rule: the
   hierarchy here and `concepts.tree(store)` on the store's side); an inside place only his plan names (no line yet)
-  gets a design-only tile opening its concept page (`cockpit.designed`, `local.design_nodes`). A place his kept plans no longer lay out, or one within.json's `merged` names (merged into another), is `removed` (`plans.removed`): no card anywhere, never an outside place, hosted too. A draw made on another room than the plan above gives the place now (moved, resized, merged: `plans.moved_draws`, each first draw recording its `room`) is out of date, so Draw all offers it again; a place whose pick, else every draw, is one is in `WorldState.plan_changed` (owner 2026-10-21): its card shows no picture, "plan changed" and Redraw, its design state is `draw`, and its design page flags it. The sync pass writes every place's plan
+  gets a design-only tile opening its concept page (`cockpit.designed`, `local.design_nodes`). A place his kept plans no longer lay out, or one within.json's `merged` names (merged into another), is `removed` (`plans.removed`): no card anywhere, never an outside place, hosted too. A draw made on another room than the plan above gives the place now (moved, resized, merged: `plans.moved_draws`, each first draw recording its `room`) is out of date, so Draw all offers it again; a place whose lock, else every draw, is one is in `WorldState.plan_changed` (owner 2026-10-21): its card shows no picture, "plan changed" and Redraw, its design state is `draw`, and its design page flags it. The sync pass writes every place's plan
   where the plan stage reads it and makes the plan row again, detached, for those that changed (`client.plans_kept`,
   before prepare).
 - **The design page is a cockpit** (owner, 2026-10-21: "all open by default but the page designed a bit more as an
   actual cockpit"; `concept.html`, `static/pages/design.js`): the concept review, the inventory and the plan review
   are one page, `/concept/<place>/` (`/plan/<place>/` leads to `#plan-part`), all open: a grid of panels on the full
   width (concept with its draws strip, inventory, the top-down drawing, plan with its section; a long plan takes the
-  whole width) beside one action rail (draw, pick or unlock, notes, inside places, the plan's places, gaps, notes and
+  whole width) beside one action rail (draw, lock or unlock, notes, inside places, the plan's places, gaps, notes and
   Make plan, Keep, Correct, each with its price). On a screen at least 1100 x 600 px it is one screen, an instrument
   panel with no page scroll (owner, 2026-10-21: "doesnt function as a dashboard/cockpit yet"): concept and top-down
   drawing over the inventory, the plan a column as wide as its drawing at the height it gets (`--plan-aspect`, a long
@@ -335,7 +335,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   panel's enlarge button fills the screen with it in place (marks, hover and drags the same), a history step of its
   own (`#focus=<panel>`, pushed; back, Escape or the button shut it; a reload shows it). The plan and section are
   zoom views: fitted at their aspect, the wheel zooms at the pointer (Ctrl+wheel outside an enlarged panel), Space+drag
-  or the middle button pans (a plain drag on the section), "fit" puts them back. Once picked, the plan's P marks are
+  or the middle button pans (a plain drag on the section), "fit" puts them back. Once locked, the plan's P marks are
   drawn on the concept panel's picture. The inventory shows one row at a time: the row hovered in the list, else the
   row held, else the smallest box under the pointer (they stack); a click holds it, clicking again at one spot steps
   through the boxes stacked there; every other box dims ("one at a time" hides them), the kind buttons keep the
@@ -347,7 +347,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the setting (an SVG: each top place's site with its blocks, the true metres between sites) and a row a site: its
   size and scene time (fields for the owner), where it stands (the setting's, set on the concept page), the Sun's
   height and every other body above its horizon (where, its true size, how much lit, worked out from the setting,
-  never typed) and its blockout, the structure picture its next draw is drawn on; the places picked before blockouts
+  never typed) and its blockout, the structure picture its next draw is drawn on; the places locked before blockouts
   are named. Keep (SyncRequest `env-plan-edit`) keeps his times and sizes as his own; Write (`env-plan-write`) has the plan writer write it again under the
   owner's standing allowance; both `applying.PLAN_KINDS`, so the listener answers them hosted. The store's machine
   renders every blockout once into this home's `blockouts/` by the hash of what it is built from

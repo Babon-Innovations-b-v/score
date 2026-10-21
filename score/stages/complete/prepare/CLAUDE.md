@@ -9,7 +9,7 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   key moves. No Blender, no model, nothing judged or bought. `--stock` is the provider's free listing; `--moved` is
   `score moved`'s dry run (minutes).
 - **The rows are the scene inventory readings** (owner, 2026-10-21; `groups.current`): each place's and outside
-  shell's current reading (`score/review/reading.reading_of`: read from its picked draw by today's method), never
+  shell's current reading (`score/review/reading.reading_of`: read from its locked draw by today's method), never
   `data/inventory/` (still read for the library models' sizes and the hub's measured rates only). A place with none
   waits on inventory, no euros (`inventory.waiting`). A reading gives each row its size in metres (Gemini, from
   what it is and the picture, against the place's outline; SAM 3 gives only where, #10): a row's size is its place's
@@ -61,10 +61,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   never substituted; the rest each one `score run`, one after another. A benchmark with no paid path is listed as a
   gap. Never start the batch from an agent.
 - **Design before the batch** (owner, 2026-10-20, CONTEXT.md "design"; `design.py`): each place's concept
-  (missing, drawn, picked), inventory (None before the pick, made when `data/inventory/<place>.json` was read from the
-  picked draw, else to read; CONTEXT.md "scene inventory") and plan (remake while the inventory is not made, else
-  approved), read from the store (the concept review's draws and picks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
-  never judged. The pick is the approval (owner, 2026-10-21): its inventory and then its plan are made from it
+  (missing, drawn, picked: the stored state of a lock), inventory (None before the lock, made when `data/inventory/<place>.json` was read from the
+  locked draw, else to read; CONTEXT.md "scene inventory") and plan (remake while the inventory is not made, else
+  approved), read from the store (the concept review's draws and locks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
+  never judged. The lock is the approval (owner, 2026-10-21): its inventory and then its plan are made from it
   automatically (`score/review/plans.py`; the plan page is for inspecting and fixing, his edits redoing what follows). The cockpit's batch buys only approved places' steps. The old plans'
   `concept.pick` is a hint for drawing, not a constraint.
 - **The runner runs what the figure prices** (`handin.py`, #10): for each designed place (its plan kept where the plan

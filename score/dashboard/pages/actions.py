@@ -414,7 +414,7 @@ def concept_pick(user, payload):
     except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
         return f"refused: {refused}"
     source.refresh()
-    return (f"picked {record['sha'][:12]}" if record["sha"] else "unlocked") + f"; {record['library']}"
+    return (f"locked {record['sha'][:12]}" if record["sha"] else "unlocked") + f"; {record['library']}"
 
 
 # --- the environment concept (CONTEXT.md "environment concept"): the owner's interview, versions and references ----

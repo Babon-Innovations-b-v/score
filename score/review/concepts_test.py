@@ -413,7 +413,7 @@ def test_a_mark_on_the_picture_above_reaches_both_calls_with_that_picture_boxed(
     assert "image 3 is the picked concept of the base" in asked[0][0]
     assert record["context_marks"][0]["on"] == "base"
     said_yes(store, monkeypatch, "lab")
-    with pytest.raises(concepts.Refused, match="no picked concept"):
+    with pytest.raises(concepts.Refused, match="no locked concept"):
         concepts.draw(store, "lab", {"base": first["sha"], "context_marks": [{**above[0], "on": "square"}]}, "joey",
                       caller=stand_in([]), reviser=prompt_stand_in([]))
 
@@ -436,9 +436,9 @@ def test_a_place_is_drawn_only_once_the_layer_above_is_picked_read_and_planned_a
     from score.review import reading
     ready, waiting = concepts.undrawn(store, ["base", "hub", "street"])
     assert ready == ["base"]
-    assert waiting == {"hub": "waits for base's concept to be picked", "street": "waits for square's concept to be picked"}
+    assert waiting == {"hub": "waits for base's concept to be locked", "street": "waits for square's concept to be locked"}
     said_yes(store, monkeypatch, "hub")
-    with pytest.raises(concepts.Refused, match="hub waits for base's concept to be picked"):
+    with pytest.raises(concepts.Refused, match="hub waits for base's concept to be locked"):
         concepts.draw(store, "hub", {}, "joey", caller=stand_in([]))
     assert concepts.draws(store, "hub") == []
     picked_draw(store, monkeypatch, "base", (200, 10, 10))
@@ -458,7 +458,7 @@ def test_a_place_is_drawn_only_once_the_layer_above_is_picked_read_and_planned_a
     with pytest.raises(concepts.Refused, match="hub waits for base's plan to be made"):
         concepts.draw(store, "hub", {"base": drawn["sha"], "note": "x"}, "joey", caller=stand_in([]),
                       reviser=prompt_stand_in([]))
-    assert concepts.step_refusal(store, "hub", "read") == "its concept is not picked"
+    assert concepts.step_refusal(store, "hub", "read") == "its concept is not locked"
     assert concepts.step_refusal(store, "base", "read") is None
     monkeypatch.setattr(reading, "reading_of", lambda store, place: None)
     assert concepts.step_refusal(store, "base", "plan") == "its scene inventory is not read"
