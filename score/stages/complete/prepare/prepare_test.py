@@ -199,7 +199,7 @@ def test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_and_the_rest_run_once():
 
 
 def a_read_row(row_id, kind, noun, count=1, terrain=False):
-    """A scene inventory reading's row (score/review/reading.py's shape: no size, SAM 3's boxes)."""
+    """A scene inventory reading's row (score/review/reading.py's shape: no metres, SAM 3's boxes)."""
     boxes = [[10.0 * number, 0.0, 10.0 * number + 8, 8.0] for number in range(count)]
     return {"id": row_id, "name": row_id, "noun": noun, "kind": kind, "terrain": terrain, "count": count,
             "anchor": "floor", "where": "here", "region": [0, 0, 100, 100], "view": "v1", "box": boxes[0],
@@ -225,23 +225,25 @@ def a_read_store(place, sha, rows, concept=None, picture=None):
     return store
 
 
-def test_a_take_is_sized_by_its_plan_item_and_routed_by_its_noun():
-    rows = [a_read_row("fuel_drum", "generate", "drum", 2), a_read_row("astronaut", "generate", "astronaut"),
-            {**a_read_row("wall_lamp", "code", "wall lamp"), "anchor": "wall"},
+def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
+    rows = [{**a_read_row("fuel_drum", "generate", "drum", 2), "size": [0.6, 0.6, 0.9]},
+            a_read_row("astronaut", "generate", "astronaut"),
+            {**a_read_row("wall_lamp", "code", "wall lamp"), "anchor": "wall", "size": [0.3, 0.2, 0.4]},
             {**a_read_row("night_sky", "generate", "sky"), "anchor": "sky"}]
     store = a_read_store("wreck", "a" * 64, rows, picture=[100, 100])
     found, _ = groups.current(store, ["wreck"])
     by_id = {row["id"]: row for row in found["wreck"]["rows"]}
-    # the wreck's outline is 28 x 29 m: a box 8 px of 100 is 2.24 m across and 2.32 m deep, as tall as it is wide
-    assert by_id["fuel_drum"]["size"] == [2.24, 2.32, 2.24], by_id["fuel_drum"]
-    assert by_id["wall_lamp"]["size"] is None and by_id["night_sky"]["size"] is None  # no item of their own
+    assert by_id["fuel_drum"]["size"] == [0.6, 0.6, 0.9], by_id["fuel_drum"]  # its plan item, laid at its metres
+    assert by_id["wall_lamp"]["size"] == [0.3, 0.2, 0.4]  # no item of its own: its reading's metres
+    assert by_id["astronaut"]["size"] is None and by_id["night_sky"]["size"] is None  # none read: a gap
     assert [by_id[name]["route"] for name in ("fuel_drum", "astronaut", "wall_lamp", "night_sky")] == [
         "prop", "people", "prop", "sky"]
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
     takes = {take["rows"][0]: take for take in record["takes"]}
     assert "no size of three sides" not in takes["fuel_drum"]["inputs"] and takes["night_sky"]["inputs"] == []
-    assert "no size of three sides" in takes["wall_lamp"]["inputs"]  # the plan's gap stays the take's
+    assert "no size of three sides" not in takes["wall_lamp"]["inputs"]
+    assert "no size of three sides" in takes["astronaut"]["inputs"]  # the reading's gap stays the take's
     assert record["layers"]["motion"]["takes"] == 1 and record["layers"]["sky"]["takes"] == 1
     assert record["layers"]["pixal"]["takes"] == 3 and "sky" in record["totals"]["unpriced"]  # the sky: no prop route
 

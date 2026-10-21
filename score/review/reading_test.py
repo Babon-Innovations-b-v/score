@@ -13,11 +13,13 @@ from score.review import concepts, reading
 from score.store import Store
 
 ROWS = [{"id": "drum", "name": "rusted fuel drum", "noun": "drum", "kind": "generate", "count": 3,
-         "size": "waist high", "anchor": "ground", "where": "left", "region": [0, 0, 300, 350]},
+         "size": "waist high", "metres": [0.6, 0.6, 0.9], "anchor": "ground", "where": "left",
+         "region": [0, 0, 300, 350]},
         {"id": "drum_right", "name": "blue drum", "noun": "drum", "kind": "generate", "count": 1,
-         "size": "waist high", "anchor": "ground", "where": "right", "region": [0, 600, 500, 1000]},
+         "size": "waist high", "metres": [0.6, 0.6, 0.9], "anchor": "ground", "where": "right",
+         "region": [0, 600, 500, 1000]},
         {"id": "mast", "name": "radio mast", "noun": "mast", "kind": "code", "count": 1, "size": "ten people tall",
-         "anchor": "ground", "where": "centre", "region": [0, 400, 1000, 600]},
+         "metres": [0.4, 0.4, 18], "anchor": "ground", "where": "centre", "region": [0, 400, 1000, 600]},
         {"id": "lamp", "name": "lamp", "noun": "lamp", "kind": "code", "count": 1, "size": "a hand", "anchor": "on:mast",
          "where": "top of the mast", "region": [0, 450, 100, 550]}]
 
@@ -75,8 +77,10 @@ def test_a_picked_place_is_read_once_with_its_boxes_and_gaps(store, tmp_path, mo
     assert rows["drum"]["boxes"] == [[0, 0, 20, 20], [40, 0, 60, 20]] and rows["drum"]["box"] == [0, 0, 20, 20]
     assert rows["drum_right"]["boxes"] == [[150, 10, 170, 30]]  # one noun asked once, each instance to its region
     assert rows["lamp"]["anchor"] == "on:mast" and rows["lamp"]["size_words"] == "a hand"
+    assert rows["drum"]["size"] == [0.6, 0.6, 0.9] and rows["mast"]["size"] == [0.4, 0.4, 18.0]  # its metres
+    assert rows["lamp"]["size"] is None and "metres" not in rows["lamp"]  # none given: a size gap
     kinds = sorted((gap["kind"], gap["row"] or "") for gap in record["gaps"])
-    assert kinds == [("count", "drum"), ("not found", "lamp"), ("outside", ""), ("unnamed", "")]
+    assert kinds == [("count", "drum"), ("not found", "lamp"), ("outside", ""), ("size", "lamp"), ("unnamed", "")]
     assert [gap["box"] for gap in record["gaps"] if gap["kind"] == "outside"] == [[100, 60, 110, 70]]
     assert [gap["box"] for gap in record["gaps"] if gap["kind"] == "unnamed"] == [[150, 50, 180, 80]]
     assert record["euros"] == {"rows": 0.03, "boxes": 0.12, "total": 0.15}
@@ -108,7 +112,10 @@ def test_rows_off_the_schema_are_refused():
     assert reading.anchor_of("a", ["a", "b"]) == "on:a" and reading.region_of([10, 20, 5, 30]) is None
     assert reading.region_of([10, 20, 500, 300]) == [10, 20, 500, 300]
     assert [gap["kind"] for gap in reading.gaps([{"id": "a", "anchor": None, "region": None, "noun": "a", "count": 1,
-                                                  "boxes": [[0, 0, 1, 1]]}], [])] == ["anchor", "region"]
+                                                  "size": None, "boxes": [[0, 0, 1, 1]]}], [])] == [
+        "anchor", "region", "size"]
+    assert reading.metres_of([4.8, 1.9, 1.5]) == [4.8, 1.9, 1.5]
+    assert [reading.metres_of(wrong) for wrong in ([4.8, 1.9], [4.8, 0, 1.5], "4.8 m", [True, 1, 1])] == [None] * 4
     with pytest.raises(concepts.Refused, match="no JSON"):
         reading.rows_of("rows: none")
 

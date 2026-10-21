@@ -141,25 +141,26 @@ def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_it
     assert plans.made(store, "yard") and concepts.holding_row(store, "shed") == "barn"  # the concept review's
 
 
-def test_items_are_sized_off_their_boxes_or_words_and_what_has_no_size_or_row_is_a_gap(store, data):
+def test_items_are_sized_by_their_reading_and_placed_by_their_boxes_and_what_has_no_size_or_row_is_a_gap(store, data):
     from score.review import reading
     yard = json.loads((data / "plans/yard.json").read_text())
     (data / "plans/yard.json").write_text(json.dumps({**yard, "lamps": [{"name": "post", "row": "lamp_post"}],
                                                       "beams": [{"name": "far", "row": "mast", "place": "camp"}]}))
     (data / "inventory/yard.json").unlink()
     picked(store, "yard")
-    rows = [{"id": "barn", "name": "a barn", "anchor": "ground", "size": None, "size_words": "two storeys",
+    rows = [{"id": "barn", "name": "a barn", "anchor": "ground", "size": [8.0, 6.0, 5.0], "size_words": "two storeys",
              "count": 1, "boxes": [[10, 10, 60, 35]]},
-            {"id": "cart", "name": "a cart", "anchor": "ground", "size": None, "size_words": "two strides long",
-             "count": 1, "boxes": []},
+            {"id": "cart", "name": "a cart", "anchor": "ground", "size": [1.5, 1.0, 1.2],
+             "size_words": "two strides long", "count": 1, "boxes": []},
             {"id": "rock", "name": "a rock", "anchor": "ground", "size": None, "size_words": "waist high",
-             "count": 1, "boxes": []}]
+             "count": 1, "boxes": [[0, 40, 50, 50]]}]
     reading.kept(store, {"place": "yard", "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
                          "size": [100, 50], "inventory": {"concept_pick": {"sha256": PICK}, "rows": rows}})
     plan = plans.current(store, "yard")["plan"]
     items = {item[0]: item for item in plan["items"]}
-    assert items["BARN 1"][3:5] == [10.0, 6.0]  # its box, half the picture wide and deep, of a 20 x 12 m yard
-    assert items["CART 1"][3:5] == [1.5, 1.5] and items["ROCK 1"][3:5] == [1.0, 1.0]  # two strides; none: 1 m
+    assert items["BARN 1"][1:5] == [3.0, 2.4, 8.0, 6.0]  # its metres, its foot where its box's is on a 20 x 12 m yard
+    assert items["CART 1"][3:5] == [1.5, 1.0]  # its metres, laid along the walls: no box
+    assert items["ROCK 1"][3:5] == [1.0, 1.0]  # a box but no metres: SAM 3 gives where, never size
     assert [gap["words"] for gap in plan["gaps"]] == ["lamp post: no lamp post in this concept", "Rock 1: no size"]
     assert plan["lamps"] == [] and plan["beams"] == [{"name": "far", "row": "mast", "place": "camp"}]
     plan["items"] = [[*item[:3], 2.0, 2.0, *item[5:]] if item[0] == "ROCK 1" else item for item in plan["items"]]
@@ -209,3 +210,13 @@ def test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit(
     assert plans.current(store, "shed")["plan"]["people"] == [[1.0, 1.0]]
     with pytest.raises(review.Refused, match="not today's measured price"):
         web.plan_revise(store, "shed", request, 0.04, "joey", run=run)
+
+
+def test_a_holder_with_no_outline_of_its_own_gets_one_round_its_inside_places_before_its_items(store, data):
+    from score.review import reading
+    (data / "plans/yard.json").unlink()  # a shell with no plan (the base): the shed, 4 x 3 m, is inside it
+    assert plans.outline_from_inside(store, "yard") == (4.6, 3.6)
+    assert reading.outline_of(store, "yard") == (4.6, 3.6)  # the reading sizes its rows against it
+    assert reading.outline_of(store, "nowhere") is None
+    picked(store, "yard")
+    assert plans.current(store, "yard")["plan"]["w"] == 4.6
