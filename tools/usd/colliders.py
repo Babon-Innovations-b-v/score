@@ -13,13 +13,17 @@ are not interactive; the physics stage's trial layer is where a body moves).
     faults(stage)                    every solid prim (a gprim of kind structure or ground) with no collision, and
                                      every model (a prim naming its `score:model`) with no collider of its own
 
-A shown place (/<place>/Places) is judged on its own stage, so its prims are not judged here; water is not solid.
+A shown place (/<place>/Places) is judged on its own stage, so its prims are not judged here; water is not solid, nor
+is a structure entry that is a plain sky thing (a body in the sky over an outdoor place: `plain` sky).
 """
 import numpy as np
 import trimesh
 from pxr import Usd, UsdGeom, UsdPhysics, Vt
 
 SOLID_KINDS = ("structure", "ground")
+# A structure entry that is a plain sky or water thing (its `plain`: a body over an outdoor place, the Earth over the
+# Moon) is drawn as structure but is neither stood on nor bumped into.
+NOT_SOLID_PLAINS = ("sky", "water")
 NOT_JUDGED = ("Places",)
 # A box's corners and faces are matched this closely (metres, square metres per square metre).
 CORNER_TOLERANCE = 1e-5
@@ -89,9 +93,18 @@ def collides(prim):
     return UsdPhysics.CollisionAPI(prim).GetCollisionEnabledAttr().Get() is not False
 
 
-def kind(prim):
-    found = prim.GetAttribute("score:kind")
+def is_solid(kind, plain=None):
+    """True for a wall, floor, stair or ground: a structure or ground kind that is no plain sky or water thing."""
+    return kind in SOLID_KINDS and plain not in NOT_SOLID_PLAINS
+
+
+def text(prim, name):
+    found = prim.GetAttribute(name)
     return found.Get() if found and found.HasValue() else None
+
+
+def kind(prim):
+    return text(prim, "score:kind")
 
 
 def is_model(prim):
@@ -120,7 +133,7 @@ def faults(stage):
     for prim in walk:
         if prim.GetPath() in left_out:
             walk.PruneChildren()
-        elif prim.IsA(UsdGeom.Gprim) and kind(prim) in SOLID_KINDS and not collides(prim):
+        elif prim.IsA(UsdGeom.Gprim) and is_solid(kind(prim), text(prim, "score:plain")) and not collides(prim):
             found.append({"prim": str(prim.GetPath()), "what": kind(prim),
                           "why": "a wall, floor, stair or ground nothing can stand on or bump into: no collision"})
         elif is_model(prim) and not has_collider(prim):

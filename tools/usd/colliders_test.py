@@ -54,22 +54,25 @@ def a_stage():
 
 
 def the_record_s_structure_and_ground_collide_and_its_water_does_not():
-    """A wall (a box square to the place), a flight of stairs, a disc of ground and a pool, written from a record:
-    the wall an exact box, the stairs and ground their triangles simplified, the pool no collider."""
+    """A wall (a box square to the place), a flight of stairs, a disc of ground, a pool and the Earth hung in the sky
+    (a structure entry, plain sky, as the outdoor writer lays a body over the Moon), written from a record: the wall an
+    exact box, the stairs and ground their triangles simplified, the pool and the Earth no collider."""
     stage = a_stage()
     wall = {"name": "wall", "builder": "box", "centre": [0, 1.5, -4], "size": [8, 3, 0.2], "surface": SURFACE}
     flight = {"name": "steps", "builder": "stairs", "foot": [2, 0, 0], "top": [2, 1.2, -1.8], "wide": 1.0, "steps": 6,
               "surface": SURFACE}
+    earth = {"name": "earth", "builder": "sphere", "centre": [600.0, 300.0, 800.0], "radius": 220.0,
+             "surface": SURFACE, "plain": "sky"}
     disc = {"name": "plain", "builder": "disc", "radius": 20.0, "height": 0.0, "surface": SURFACE}
     pool = {"name": "pool", "builder": "disc", "radius": 2.0, "height": 0.1, "surface": SURFACE}
-    scene.write_structure(stage, PLACE, [wall, flight])
+    scene.write_structure(stage, PLACE, [wall, flight, earth])
     scene.write_structure(stage, PLACE, [disc], root="Terrain", kind="ground")
     scene.write_structure(stage, PLACE, [pool], root="Water", kind="water")
     found = {}
-    for path in ("Structure/wall", "Structure/steps", "Terrain/plain", "Water/pool"):
+    for path in ("Structure/wall", "Structure/steps", "Structure/earth", "Terrain/plain", "Water/pool"):
         prim = stage.GetPrimAtPath(f"/{PLACE}/{path}")
         found[path] = approximation(prim) if prim.HasAPI(UsdPhysics.CollisionAPI) else None
-    wanted = {"Structure/wall": "boundingCube", "Structure/steps": "meshSimplification",
+    wanted = {"Structure/wall": "boundingCube", "Structure/steps": "meshSimplification", "Structure/earth": None,
               "Terrain/plain": "meshSimplification", "Water/pool": None}
     problems = [] if found == wanted else [f"the record's colliders are {found}, not {wanted}"]
     left = colliders.faults(stage)
