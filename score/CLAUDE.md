@@ -213,8 +213,9 @@ stage as each stage is built; nothing moves before.
   row kind): the table's `designed(kind)` and the assembly's layers gate (`assembly.needed_layers`, reading the same
   kept inventory as its `design` input) give one answer, so the gate never waits on a layer the table has no row for
   and no row's places are a hand-written list. `effects-layer` (experimental: a place whose design shows a row that
-  emits) makes a place's effects layer from its record in
-  `data/effects/`, gated on attached, footage, light and outside, and the assembly takes it; `effects-look` (paid) renders it
+  emits) makes its effects layer from its design (`stages/effects/from_design.py`: each object of an emitting row
+  carries its kind's measured effects, `data/checks/effects.json`), gated on attached, footage, light, outside and
+  designed, and the assembly takes it; `effects-look` (paid) renders it
   before and after (its overlay). `neighbours` (experimental, `stages/assembly/neighbours.py`) stands each place's
   neighbours (its scene record's `places`) in its assembly, each read beside (`Stage.beside`, `Stage.neighbours`:
   another place's accepted output, versioned and waited on like `after`) as its own accepted assembly, gated on
@@ -256,9 +257,11 @@ stage as each stage is built; nothing moves before.
   parts present and resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
   overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place whose design shows a loose row,
   the trial made from its design (`stages/physics/design.py`: its loose objects dropped where they stand, its body's
-  gravity). `motion` (experimental, a place whose design shows a row that moves) writes a place's motion layer from its game
-  motions and its rigid moves in `data/motion/rigid/`, gated on clear, speeds, loops, grounded, covered and the motion
-  check (its overlay). These rows, settle, physics, the cast and people rows and the crops rows are the one motion
+  gravity). `motion` (experimental, a place whose design shows a row that moves) writes its motion layer
+  from its design (`stages/motion/from_design.py`: each object of a moving row swings, spins or stands by its kind's
+  rule), gated on clear, speeds, loops, grounded, covered, designed and the motion check (its overlay). The three
+  take their work from one row-kind classification (`stages/row_kinds.py`, `data/checks/row-kinds.json`, CONTEXT.md
+  "row kind"), never from a record written per scene. These rows, settle, physics, the cast and people rows and the crops rows are the one motion
   layer (CONTEXT.md "motion"; `stages.MOTION_LAYER` names them by module).
   `light-layer`, `light-passes` (paid) and `light` (experimental, `stages/light`, its overlay) make each place's
   light layer: today's lamps over the seed and its sky from the environment concept's physics overhead at its site

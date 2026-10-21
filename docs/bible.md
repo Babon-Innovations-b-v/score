@@ -455,6 +455,15 @@ is meant to fix, where it is marked, and what proves it.
   on regolith in any cast); none is staged until its motion exists, since a record that cannot pass would stop the
   place's assembly. The wreck's landing dust was measured on the Apollo landing papers and brought back, then taken
   out again: its concept shows no landing, and the concept decides (the captain, 2026-10-12; the veil is in e9e8cc8).
+  **2026-10-21: made from the design** (the owner: "the modules are not agnostic"). The per-place records above were
+  written for the old concepts and are no input of the row any more: `effects-layer@<scene>` applies where the scene's
+  kept inventory has a row whose kind emits (`score/stages/row_kinds.py`, `data/checks/row-kinds.json`), and every
+  object of such a row carries its kind's effects from the library of measured effects (`data/checks/effects.json`:
+  the kettle's jet, a hob's steam, a humidifier's mist, each with its footage checks, copied whole from the measured
+  records), at the spot its effect names on the object's own box, over the seed with the accepted scene record
+  (`score/stages/layer_base.py`). A fifth gate, `designed`, fails an emitter on no inventory row's object and a row
+  that emits with nothing on the stage to carry it. The pump-down fog, vents, drift, devils, smoke and the launch's
+  flame were tied to the game's cycles and places and wait to become kinds of their own.
 - **The motion layer** (CONTEXT.md "motion", the owner 2026-10-20, #26; `score/stages/motion`, its overlay). One
   layer for everything in a place that moves, as connected modules; every model still comes from the prop pipeline and
   each module is a layer adapter around it. Its rows in the stage table: `motion-models` and `motion-models-boxes`
@@ -473,6 +482,14 @@ is meant to fix, where it is marked, and what proves it.
   stage), `speeds`, `loops` (rounds join and fit the layer's seconds whole), `grounded` (on water or ground, on its
   rail, or in the air), `covered`, and the motion check (#23: `follows`, `steps`, `moving area`; free). The assembly
   takes the layer. Proven when the owner has seen the launch's ferries and the greenhouse's booms and hatches move.
+  **2026-10-21: made from the design** (the owner: "the modules are not agnostic"): the game's motions and the rigid
+  records are no input of the row any more. `motion@<scene>` applies where the scene's kept inventory has a row whose
+  kind moves, and each of its objects moves by its kind's rule in `data/checks/row-kinds.json`
+  (`score/stages/motion/from_design.py`): a door swings a right angle on its own left edge and shuts again, only where
+  the scene holds somebody to pass through it (else it stands shut, the film diagnosis of 2026-10-18), a crane slews
+  about its middle, a fan spins a whole number of turns a round, each at the middle of its kind's cited speeds; a
+  vehicle or a lift stands with its rule's reason. A gate `designed` fails a moving thing on no inventory row's object
+  and a moving row with nothing on the stage.
 - **The light stage** (`score/stages/light`, its overlay; 2026-10-12). For lamps at the game's numbers, the cartoon
   Earth, the flat Mars sky with no sun, the camp's night windows in the record's afternoon and the floodlight heads
   read as white grids (paper-vs-world-1 items 9 and 17). `light-layer@<place>` (free) writes `layers/light.usda` over

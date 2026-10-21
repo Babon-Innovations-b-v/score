@@ -24,8 +24,10 @@ A rigid record:
       | "swing": {"about", "angle", "speed", "starts", "moves"}
                                              a hinged leaf or a slewing crane: turning about the upright line through
                                              the middle of the prim `about` (a hinge; the prim itself for a slew),
-                                             `angle` degrees open (its sign the way round), at `speed` degrees a
-                                             second, toward each end at its moment as a slide moves
+                                             or a point on the leaf's own box (`about` {"side": [x, y, z]}: from
+                                             its middle, each axis a share of its half size), `angle` degrees
+                                             open (its sign the way round), at `speed` degrees a second, toward
+                                             each end at its moment as a slide moves
       | "spin": {"speed", "about"}         a fan: turning steadily about the upright line through the middle of
                                              `about` (the prim itself by default) at `speed` degrees a second
       | "slide" | "turn" | "climb" | "light" as a motion record's (tools/usd/motion.py)
@@ -223,7 +225,11 @@ def write_path(stage, move, rate, seconds, ground=None):
 
 
 def hinge_spot(stage, move, about):
-    """The middle of the `about` prim where the base stands it, in the moving thing's parent frame."""
+    """The middle of the `about` prim where the base stands it, or (`about` {"side": [x, y, z]}) the point on the
+    moving thing's own box that far from its middle, each axis a share of its half size, in the moving thing's
+    parent frame."""
+    if isinstance(about, dict):
+        return own_side(stage, move, about["side"])
     place = move["prim"].split("/")[1]
     found = stage.GetPrimAtPath(about if about.startswith("/") else f"/{place}/{about}")
     if not found:
@@ -231,6 +237,20 @@ def hinge_spot(stage, move, about):
     box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(found)
     middle = np.asarray(box.ComputeAlignedRange().GetMidpoint(), dtype=np.float64)
     return np.append(middle, 1.0) @ parent_inverse(stage, move["prim"])
+
+
+def own_side(stage, move, side):
+    """The point on the moving prim's own box `side` from its middle (each axis a share of its half size), where the
+    base stands it, in its parent frame."""
+    prim = stage.GetPrimAtPath(move["prim"])
+    if not prim:
+        raise ValueError(f"{move['name']}: the stage has no prim {move['prim']}")
+    box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeUntransformedBound(prim)
+    low, high = (np.asarray(corner, dtype=np.float64) for corner in (box.ComputeAlignedRange().GetMin(),
+                                                                     box.ComputeAlignedRange().GetMax()))
+    point = (low + high) / 2 + np.asarray(side, dtype=np.float64) * (high - low) / 2
+    own = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    return np.append(point, 1.0) @ own @ parent_inverse(stage, move["prim"])
 
 
 def write_swing(stage, move, rate, seconds):

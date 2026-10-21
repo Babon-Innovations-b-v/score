@@ -69,13 +69,13 @@ GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT,
                          files=ground_fit.files, after={"assembly": ("openusd-stage", 1),
                                                         "neighbours": ("openusd-stage", 1), "terrain": ("grounds", 1)},
                          applies=ground_fit.applies)
-# Experimental (PRD #6) until the owner reviews it: the effects layer of each place whose design shows an effect,
-# which its assembly takes.
+# Experimental (PRD #6) until the owner reviews it: each scene's effects layer made from its design (its design shows a
+# row whose kind emits, score/stages/row_kinds.py), which its assembly takes.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
                       after={"scene-record": ("scene-record", 1)}, applies=designed("effects"))
-# Experimental (PRD #6) until the owner reviews it: each place's motion layer, the game's timed motions and the rigid
-# moves SCORE gives the things that move there (data/motion/rigid), over its seed with its accepted scene record written in (the
-# seed alone where the place has no scene-record row); the final assembly takes it.
+# Experimental (PRD #6) until the owner reviews it: each scene's motion layer made from its design (its design shows a
+# row whose kind moves), over its seed with its accepted scene record written in (the seed alone where the place has
+# no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
                      after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
                             "motion-models": ("motion-models", 1)},
@@ -145,7 +145,8 @@ COMPLETE_BOXES = graph.Stage("complete-boxes", "place", complete_boxes.make_boxe
                              applies=lambda place: ship_place(place) and complete_boxes.has_rows(place))
 EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
-                           euros=effects_look.EUROS, applies=lambda place: place in effects_look.LOOKED)
+                           euros=effects_look.EUROS,
+                           applies=lambda place: place in effects_look.LOOKED and designed("effects")(place))
 def crops_waiting(files):
     """A crops row's files: its own (crop_data) once the place's crop data is written for its locked concept
     (crop_data.applies); until then the data it waits on, so the row blocks by name and never reads another picture:

@@ -1,36 +1,78 @@
-"""The motion stage's make and gates on the proof place's own records and seed (the launch: three ferries and the
-game's rocket): the records pass all five gates; a ferry's lane laid over the pad fails `clear`, a round driven too
-fast fails `speeds`, a round that no longer fits the layer's seconds fails `loops`, a lane run up onto the land fails
-`grounded`, and a ferry left out of the record fails `covered`. A hub hatch swings open on its hinge and back within
-its kind's speeds (the hub's own record keeps its hatches shut while nobody passes, so the swing is given here).
+"""The motion stage made from a scene's design on a small stage made here (no record written for the scene): its door
+swings a right angle on the hinge at its own left edge and shuts again, its fan turns a whole number of times a
+round, its rover stands parked with its rule's reason, and every gate passes; with nobody in the scene the door
+stands shut with its reason; a row that moves with no object on the stage fails `designed`.
 
-Run: .venv/bin/python score/stages/motion/motion_test.py   (needs the launch's and hub's round-three seeds in the work
-folder)
+Run: .venv/bin/python score/stages/motion/motion_test.py
 """
 import json
 import pathlib
 import sys
 import tempfile
 
-import numpy as np
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+
+import numpy as np  # noqa: E402
+from pxr import Gf, Sdf, Usd, UsdGeom  # noqa: E402
 
 from score import checks  # noqa: E402
 from score.stages import motion  # noqa: E402
-from score.store import PROPS_HOME  # noqa: E402
+from score.stages.motion import from_design  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+PLACE = "toy"
+ROWS = [{"id": "door", "name": "door", "noun": "door"}, {"id": "fan", "name": "ceiling fan", "noun": "fan"},
+        {"id": "rover", "name": "rover", "noun": "rover"},
+        {"id": "astronaut", "name": "astronaut", "noun": "astronaut"}, {"id": "wall", "name": "wall", "noun": "wall"}, {"id": "ceiling", "name": "ceiling", "noun": "ceiling"}]
 
 
-def place_inputs(place, folder, moves=None):
-    """The place's inputs, its rigid record swapped for a changed copy in `folder` when given."""
-    inputs = {name: pathlib.Path(pattern.format(place=place, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work")))
-              for name, pattern in motion.files(place).items()}
-    if moves is not None:
-        inputs["moves"] = pathlib.Path(folder) / "rigid.json"
-        inputs["moves"].write_text(json.dumps(moves))
-    return inputs
+def box(stage, path, low, high):
+    """A drawn box mesh of triangles from `low` to `high`."""
+    (x0, y0, z0), (x1, y1, z1) = low, high
+    points = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1),
+              (x0, y1, z1)]
+    quads = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (3, 7, 6, 2), (0, 4, 7, 3), (1, 2, 6, 5)]
+    mesh = UsdGeom.Mesh.Define(stage, path)
+    mesh.GetPointsAttr().Set([Gf.Vec3f(*point) for point in points])
+    mesh.GetFaceVertexCountsAttr().Set([3] * 12)
+    mesh.GetFaceVertexIndicesAttr().Set([index for a, b, c, d in quads for index in (a, b, c, a, c, d)])
+
+
+def thing(stage, name, at, low, high):
+    """An object Xform at `at` with a box mesh from `low` to `high` in its own frame."""
+    xform = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/{name}")
+    xform.AddTranslateOp().Set(Gf.Vec3d(*at))
+    box(stage, f"/{PLACE}/Objects/{name}/body", low, high)
+
+
+def toy_place(folder):
+    """The scene's stage folder: a floor, a wall the door's hinge edge stands in, a ceiling the fan hangs in, a door,
+    a fan, a rover and an astronaut."""
+    seed = pathlib.Path(folder) / "seeds" / PLACE
+    (seed / "layers").mkdir(parents=True)
+    stage = Usd.Stage.CreateNew(str(seed / "layers/base.usda"))
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{PLACE}").GetPrim())
+    box(stage, f"/{PLACE}/Structure/floor", (-6.0, -0.1, -6.0), (6.0, 0.0, 6.0))
+    thing(stage, "wall_1", (2.2, 0.0, 1.0), (-0.5, 0.0, -0.1), (0.5, 2.5, 0.1))
+    thing(stage, "ceiling_1", (-3.0, 2.8, -3.0), (-1.0, 0.0, -1.0), (1.0, 0.2, 1.0))
+    thing(stage, "door_1", (3.0, 0.0, 1.0), (-0.45, 0.0, -0.05), (0.45, 2.0, 0.05))
+    thing(stage, "fan_1", (-3.0, 2.6, -3.0), (-0.6, 0.0, -0.6), (0.6, 0.25, 0.6))
+    thing(stage, "rover_1", (-3.0, 0.0, 3.0), (-1.0, 0.0, -0.7), (1.0, 1.0, 0.7))
+    thing(stage, "astronaut_1", (0.0, 0.0, -4.0), (-0.25, 0.0, -0.15), (0.25, 1.8, 0.15))
+    stage.GetRootLayer().Save()
+    top = Sdf.Layer.CreateNew(str(seed / f"{PLACE}.usda"))
+    top.subLayerPaths.append("./layers/base.usda")
+    top.defaultPrim = PLACE
+    top.timeCodesPerSecond = 24.0
+    top.Save()
+    return seed
+
+
+def toy_inputs(folder, rows=ROWS):
+    folder = pathlib.Path(folder)
+    (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
+    return {"design": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
+            "kinds": REPO / "data/checks/motion.json", "seed": toy_place(folder)}
 
 
 def made(inputs, folder):
@@ -38,129 +80,64 @@ def made(inputs, folder):
     out.mkdir()
     motion.make(inputs, out, 0, {})
     assert motion.layer_faults(out) == []
-    return out
+    return out, json.loads((out / motion.RECORD).read_text())
 
 
-def answers(inputs, folder, only=None):
-    out = made(inputs, folder)
-    return {check.name: check.judge(out, inputs, None) for check in motion.CHECKS
-            if only is None or check.name in only}
+def middle_at(output, inputs, prim, seconds):
+    """The world middle of a prim's bounds at a second, with the motion layer over the scene's stage."""
+    root = Sdf.Layer.CreateAnonymous(".usda")
+    root.subLayerPaths = [str(pathlib.Path(output) / "layers/motion.usda"),
+                          str(pathlib.Path(inputs["seed"]) / f"{PLACE}.usda")]
+    stage = Usd.Stage.Open(root)
+    bound = UsdGeom.BBoxCache(seconds * 24.0, ["default"]).ComputeWorldBound(stage.GetPrimAtPath(prim))
+    return np.asarray(bound.ComputeAlignedRange().GetMidpoint())
 
 
-def launch_moves():
-    return json.loads((REPO / "data/motion/rigid/launch.json").read_text())
-
-
-def move(record, name):
-    return next(entry for entry in record["moves"] if entry["name"] == name)
-
-
-def test_the_launch_passes_its_gates():
+def test_the_door_swings_the_fan_turns_the_rover_stands_and_every_gate_passes():
     with tempfile.TemporaryDirectory() as folder:
-        found = answers(place_inputs("launch", folder), folder)
-    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
-    assert found["covered"].measures["moved"] == 4, found["covered"].measures
-
-
-def test_a_ferry_read_without_a_time_stands_at_its_rest():
-    from pxr import Sdf, Usd, UsdGeom
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = place_inputs("launch", folder)
-        out = made(inputs, folder)
-        stage = motion.composed(out, inputs)
-        still = motion.composed(out, inputs)
-        still.MuteLayer(Sdf.Layer.FindOrOpen(str(out / "layers/motion.usda")).identifier)
-        for entry in launch_moves()["moves"]:
-            unset, rest = (np.asarray(UsdGeom.Xformable(found.GetPrimAtPath(entry["prim"])).ComputeLocalToWorldTransform(
-                Usd.TimeCode.Default())) for found in (stage, still))
-            assert np.allclose(unset, rest, atol=1e-6), (entry["name"], unset[3], rest[3])
-
-
-def test_a_lane_over_the_pad_fails_clear():
-    record = launch_moves()
-    lane = move(record, "ferry_2")["path"]
-    lane["points"] = [[x, z + 60.0] for x, z in lane["points"]]  # north over the pad's apron
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(place_inputs("launch", folder, record), folder, ("clear",))
-    assert found["clear"].answer == checks.FAIL, found["clear"].reason
-    assert any("far_pad" in line for line in found["clear"].findings), found["clear"].findings
-
-
-def test_a_round_too_fast_fails_speeds():
-    record = launch_moves()
-    move(record, "ferry_1")["length"] = 60.0  # 941 m in 60 s: 15.7 m/s, past the Star Ferry's 5.8
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(place_inputs("launch", folder, record), folder, ("speeds",))
-    assert found["speeds"].answer == checks.FAIL, found["speeds"].reason
-    assert found["speeds"].measures["ferry_1 peak"] > 15.0, found["speeds"].measures
-
-
-def test_a_round_off_the_layer_s_seconds_fails_loops():
-    record = launch_moves()
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = place_inputs("launch", folder, record)
-        out = made(inputs, folder)
-        move(record, "ferry_2")["length"] = 100.0  # the record now says a round the layer does not hold
-        inputs["moves"].write_text(json.dumps(record))
-        verdict = dict((check.name, check) for check in motion.CHECKS)["loops"].judge(out, inputs, None)
-    assert verdict.answer == checks.FAIL, verdict.reason
-    assert any("ferry_2" in line for line in verdict.findings), verdict.findings
-
-
-def test_a_lane_up_on_the_land_fails_grounded():
-    record = launch_moves()
-    lane = move(record, "ferry_1")["path"]
-    lane["points"] = [[x + 40.0, z] for x, z in lane["points"]]  # past the harbour's edge at x -110
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(place_inputs("launch", folder, record), folder, ("grounded",))
-    assert found["grounded"].answer == checks.FAIL, found["grounded"].reason
-    assert any("ferry_1" in line and "off the water" in line for line in found["grounded"].findings)
-
-
-def test_a_ferry_left_standing_fails_covered():
-    record = launch_moves()
-    record["moves"] = [entry for entry in record["moves"] if entry["name"] != "ferry_3"]
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(place_inputs("launch", folder, record), folder, ("covered",))
-    assert found["covered"].answer == checks.FAIL, found["covered"].reason
-    assert found["covered"].findings == ("/launch/Objects/far_ferry_3 (ferry)",), found["covered"].findings
-
-
-def swinging_hatch():
-    """The hub's rigid record with its first hatch (leaf, wheel and window) swung 90 degrees into the room at 30
-    degrees a second, opening at 4 s and shutting at 15 s of a 60 s round, as the record held it until 2026-10-18."""
-    record = json.loads((REPO / "data/motion/rigid/hub.json").read_text())
-    swing = {"about": "Objects/hatch_hinge_1", "angle": -90.0, "speed": 30.0, "starts": "shut",
-             "moves": [[4.0, "open"], [15.0, "shut"]]}
-    parts = ("leaf", "wheel", "window")
-    record["moves"] = [{"name": f"hatch_door_{part}_1", "prim": f"/hub/Objects/hatch_{part}_1", "kind": "hatch",
-                         "on": "rail", "start": 0.0, "length": 60.0, "loop": True, "swing": swing,
-                         "from": "motion_test: a hatch opened by someone passing through"} for part in parts]
-    record["still"] = {name: why for name, why in record["still"].items()
-                       if name not in {f"hatch_{part}_1" for part in parts}}
-    return record
-
-
-def test_a_hub_hatch_swings_open_and_back():
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = place_inputs("hub", folder, swinging_hatch())
-        out = made(inputs, folder)
-        stage = motion.composed(out, inputs)
-        record = json.loads(inputs["moves"].read_text())
-        leaf = next(entry for entry in record["moves"] if entry["name"].startswith("hatch_door_leaf"))
-        swing, rate = leaf["swing"], motion.rate_of(stage)
-        shape = motion.shaped(stage, leaf["prim"])
-        opened = float(leaf["start"]) + float(swing["moves"][0][0]) + abs(float(swing["angle"])) / float(swing["speed"])
-        turned = motion.turn_between(shape.placed(float(leaf["start"]) * rate), shape.placed(opened * rate))
+        inputs = toy_inputs(folder)
+        out, record = made(inputs, folder)
         found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
-    assert np.isclose(turned, abs(float(swing["angle"])), atol=0.5), turned
+        door = f"/{PLACE}/Objects/door_1"
+        shut, opened = middle_at(out, inputs, door, 0.0), middle_at(out, inputs, door, 8.0)
     assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
+        name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
+    moves = {entry["name"]: entry for entry in record["moves"]}
+    assert sorted(moves) == ["door_1", "fan_1"] and list(record["still"]) == [f"/{PLACE}/Objects/rover_1"]
+    # the hatch kind's cited range is 15 to 53 degrees a second: its middle, 34
+    assert moves["door_1"]["swing"]["speed"] == 34.0 and moves["door_1"]["swing"]["angle"] == 90.0
+    # the ceiling fan's cited range is 400 to 1080: the middle 740 is 41.1 turns in 20 s, so 41 turns, 738 a second
+    assert moves["fan_1"]["spin"]["speed"] == 738.0
+    # shut, the leaf's middle stands at its own spot (3, 1, 1); its hinge is its left edge, (2.55, 1, 1); a quarter turn
+    # about the upright there (rotateY +90: x to -z) carries the middle 0.45 m from +x of the hinge to -z of it
+    assert np.allclose(shut, (3.0, 1.0, 1.0), atol=1e-6), shut
+    assert np.allclose(opened, (2.55, 1.0, 0.55), atol=1e-4), opened
+
+
+def test_with_nobody_in_the_scene_the_door_stands_shut():
+    rows = [row for row in ROWS if row["id"] != "astronaut"]
+    with tempfile.TemporaryDirectory() as folder:
+        _, record = made(toy_inputs(folder, rows), folder)
+    assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
+    assert record["still"][f"/{PLACE}/Objects/door_1"].startswith("nobody passes through it")
+
+
+def test_a_row_that_moves_with_no_object_fails_designed():
+    rows = ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}]
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = toy_inputs(folder, rows)
+        out, _ = made(inputs, folder)
+        verdict = next(check for check in motion.CHECKS if check.name == "designed").judge(out, inputs, None)
+    assert verdict.answer == checks.FAIL
+    assert verdict.findings == ("crane moves (swing), and no object of it stands on the stage",), verdict.findings
+
+
+def test_a_speed_is_the_middle_of_its_kind_s_cited_range():
+    assert from_design.middle_speed({"angular": [15.0, 53.0]}, "angular") == 34.0
+    assert from_design.middle_speed({"linear": [0.08, 0.4]}, "linear") == 0.24
 
 
 if __name__ == "__main__":
-    import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):

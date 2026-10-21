@@ -77,14 +77,24 @@ def toy_place(folder):
     return seed
 
 
-def inputs_for(folder, seed, record):
-    path = pathlib.Path(folder) / f"rigid-{len(list(pathlib.Path(folder).glob('rigid-*')))}.json"
-    path.write_text(json.dumps(record))
-    return {"moves": path, "kinds": REPO / "data/checks/motion.json", "seed": seed}
+def inputs_for(seed):
+    return {"kinds": REPO / "data/checks/motion.json", "seed": seed}
 
 
-def judged(output, inputs, names):
-    return {check.name: check.judge(output, inputs, None) for check in motion.CHECKS if check.name in names}
+def made(folder, seed, record):
+    """The layer written from a record given here (the stage makes its own from the design: from_design.py), the
+    record kept as the output's, as the stage keeps its own."""
+    out = pathlib.Path(folder) / "out"
+    out.mkdir()
+    (out / motion.RECORD).write_text(json.dumps(record))
+    motion.write_motion(dict(inputs_for(seed), moves=out / motion.RECORD), out, seed)
+    return out
+
+
+def judged(output, seed, record, names):
+    """The named gates judged against `record` as the output's record."""
+    (pathlib.Path(output) / motion.RECORD).write_text(json.dumps(record))
+    return {check.name: check.judge(output, inputs_for(seed), None) for check in motion.CHECKS if check.name in names}
 
 
 def layer_attribute(output, prim, name):
@@ -95,23 +105,20 @@ def layer_attribute(output, prim, name):
 def test_the_check_passes_a_true_motion_and_fails_each_known_fault():
     with tempfile.TemporaryDirectory() as folder:
         seed = toy_place(folder)
-        inputs = inputs_for(folder, seed, RECORD)
-        out = pathlib.Path(folder) / "out"
-        out.mkdir()
-        motion.make(inputs, out, 0, {})
-        found = judged(out, inputs, ("follows", "steps", "moving area", "clear"))
+        out = made(folder, seed, RECORD)
+        found = judged(out, seed, RECORD, ("follows", "steps", "moving area", "clear"))
         assert all(verdict.answer == checks.PASS for verdict in found.values()), {
             name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
 
         elsewhere = copy.deepcopy(RECORD)
         elsewhere["moves"][0]["path"]["points"][2] = [4.0, 4.0]
-        verdict = judged(out, inputs_for(folder, seed, elsewhere), ("follows",))["follows"]
+        verdict = judged(out, seed, elsewhere, ("follows",))["follows"]
         assert verdict.answer == checks.FAIL and any("off its path's curve" in line for line in verdict.findings), \
             verdict
 
         wider = copy.deepcopy(RECORD)
         wider["moves"][1]["swing"]["angle"] = 60.0
-        verdict = judged(out, inputs_for(folder, seed, wider), ("follows",))["follows"]
+        verdict = judged(out, seed, wider, ("follows",))["follows"]
         assert verdict.answer == checks.FAIL and any("swings 90.0 degrees, its record 60.0" in line
                                                      for line in verdict.findings), verdict
 
@@ -120,7 +127,7 @@ def test_the_check_passes_a_true_motion_and_fails_each_known_fault():
         spot = layer.QueryTimeSample(moved.path, code)
         layer.SetTimeSample(moved.path, code, Gf.Vec3d(spot[0] + 2.0, spot[1], spot[2]))
         layer.Save()
-        verdict = judged(out, inputs, ("steps",))["steps"]
+        verdict = judged(out, seed, RECORD, ("steps",))["steps"]
         assert verdict.answer == checks.FAIL and any(line.startswith("cart_round: jumps") for line in verdict.findings), \
             verdict
         layer.SetTimeSample(moved.path, code, spot)
@@ -134,7 +141,7 @@ def test_the_check_passes_a_true_motion_and_fails_each_known_fault():
         for sample in layer.ListTimeSamplesForPath(swung.path):
             layer.EraseTimeSample(swung.path, sample)
         layer.Save()
-        verdict = judged(out, inputs, ("moving area",))["moving area"]
+        verdict = judged(out, seed, RECORD, ("moving area",))["moving area"]
         assert verdict.answer == checks.FAIL and f"/{PLACE}/Objects/crate_1: moves, yet no record moves it" in \
             verdict.findings and f"/{PLACE}/Objects/door_1: its record moves it, yet it stands still in the stage" in \
             verdict.findings, verdict
@@ -143,11 +150,8 @@ def test_the_check_passes_a_true_motion_and_fails_each_known_fault():
         seed = toy_place(folder)
         through = copy.deepcopy(RECORD)
         through["moves"][0]["path"]["points"] = [[0, 0], [9, 0], [9, 3], [0, 3]]
-        inputs = inputs_for(folder, seed, through)
-        out = pathlib.Path(folder) / "out"
-        out.mkdir()
-        motion.make(inputs, out, 0, {})
-        verdict = judged(out, inputs, ("clear",))["clear"]
+        out = made(folder, seed, through)
+        verdict = judged(out, seed, through, ("clear",))["clear"]
         assert verdict.answer == checks.FAIL and any("Structure/wall" in line for line in verdict.findings), verdict
 
 

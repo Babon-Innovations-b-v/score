@@ -11,7 +11,6 @@ motion when a row moves, physics when a row is loose, crops when a row grows on 
     rows_that(inventory, what, table)   the inventory's rows whose kind does `what`
     objects_of(stage, place, row)       the prims of a row's objects on a composed stage (`<row>` or `<row>_<n>`)
     strangers(names, inventory)         the names no row's object has (the layers' `designed` gate)
-    designed(place, what)               whether the scene's kept inventory has a row that does `what` (`applies`)
 """
 import json
 import pathlib
@@ -66,12 +65,6 @@ def strangers(names, inventory):
     return [name for name in names if not any(of_row(name.rsplit("/", 1)[-1], row) for row in rows)]
 
 
-def designed(place, what, home=None):
-    """Whether the scene's kept inventory (DESIGNED under the props home) has a row whose kind does `what`: the rule
-    a layer stage applies by."""
-    from score.store import PROPS_HOME
-    path = pathlib.Path(home or PROPS_HOME) / "design/inventory" / f"{place}.json"
-    return path.is_file() and bool(rows_that(json.loads(path.read_text()), what, table()))
 
 
 def objects_of(stage, place, row):

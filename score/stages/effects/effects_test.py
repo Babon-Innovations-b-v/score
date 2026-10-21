@@ -1,10 +1,8 @@
-"""The effects stage's make and gates on the proof place's own record and seed (the launch), and the look's measures:
-the record passes all four gates; a flame light too weak fails `light`, a ground cloud too slow fails `footage`, and
-a trail baked off another climb than the rocket's fails `attached`; the airlock's pump-down passes, measured in
-metres, and fails `footage` when its fog lingers and `light` is unknown when it no longer says why it gives none; the
-camp's drift stays out of its domes and fails `outside` baked without them; a point ahead of a camera lands where the picture shows it; `shown` and `lit` read their measures.
+"""The effects stage made from a scene's design on a small stage made here (no record written for the scene): the stove
+and the kettle of its inventory carry the measured steam of their kinds, each at the spot its effect names on the
+object's own box, and every gate passes; a row that emits with no object on the stage fails `designed`; the look's projection lands a point where the picture shows it.
 
-Run: .venv/bin/python score/stages/effects/effects_test.py   (needs the launch's round-three seed in the work folder)
+Run: .venv/bin/python score/stages/effects/effects_test.py
 """
 import json
 import pathlib
@@ -16,21 +14,53 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 from score import checks  # noqa: E402
 from score.stages import effects  # noqa: E402
 from score.stages.effects import look  # noqa: E402
-from score.store import PROPS_HOME  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+PLACE = "toy"
+# The toy kitchen's objects: (name, low corner, high corner of the model's own box, where it stands).
+OBJECTS = (("stove_1", (-0.4, 0.0, -0.3), (0.4, 0.9, 0.3), (2.0, 0.0, 1.0)),
+           ("kettle_1", (-0.1, 0.0, -0.08), (0.1, 0.25, 0.08), (-1.0, 0.9, 0.0)),
+           ("chair_1", (-0.25, 0.0, -0.25), (0.25, 0.9, 0.25), (0.0, 0.0, 2.0)))
+INVENTORY = {"rows": [{"id": "stove", "name": "stove", "noun": "stove"},
+                      {"id": "kettle", "name": "kettle", "noun": "kettle"},
+                      {"id": "chair", "name": "chair", "noun": "chair"},
+                      {"id": "wall", "name": "back wall", "noun": "wall"}]}
 
 
-def launch_inputs(folder, record=None, motion=None, place="launch"):
-    """The launch's (or another place's) inputs, with the record or motion record swapped for a changed copy in
-    `folder` when given."""
-    inputs = {name: pathlib.Path(pattern.format(place=place, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work")))
-              for name, pattern in effects.files(place).items()}
-    for name, changed in (("record", record), ("motion", motion)):
-        if changed is not None:
-            inputs[name] = pathlib.Path(folder) / f"{name}.json"
-            inputs[name].write_text(json.dumps(changed))
-    return inputs
+def box_mesh(stage, path, low, high):
+    """A closed box mesh between two corners."""
+    from pxr import UsdGeom
+    corners = [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
+    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    mesh = UsdGeom.Mesh.Define(stage, path)
+    mesh.CreatePointsAttr(corners)
+    mesh.CreateFaceVertexCountsAttr([4] * len(faces))
+    mesh.CreateFaceVertexIndicesAttr([index for face in faces for index in face])
+
+
+def toy_seed(folder, objects=OBJECTS):
+    """A stage folder <folder>/toy/toy.usda: the place's objects, each a box under Objects."""
+    from pxr import Gf, Usd, UsdGeom
+    seed = pathlib.Path(folder) / PLACE
+    seed.mkdir(parents=True)
+    stage = Usd.Stage.CreateNew(str(seed / f"{PLACE}.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{PLACE}").GetPrim())
+    UsdGeom.Scope.Define(stage, f"/{PLACE}/Objects")
+    for name, low, high, at in objects:
+        holder = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/{name}")
+        holder.AddTranslateOp().Set(Gf.Vec3d(*at))
+        box_mesh(stage, f"/{PLACE}/Objects/{name}/body", low, high)
+    stage.GetRootLayer().Save()
+    return seed
+
+
+def toy_inputs(folder, inventory=INVENTORY, objects=OBJECTS):
+    folder = pathlib.Path(folder)
+    (folder / "inventory.json").write_text(json.dumps(inventory))
+    return {"design": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
+            "effect kinds": REPO / "data/checks/effects.json", "seed": toy_seed(folder / "seeds", objects)}
 
 
 def answers(inputs, folder):
@@ -38,76 +68,36 @@ def answers(inputs, folder):
     out.mkdir()
     effects.make(inputs, out, 0, {})
     assert effects.layer_faults(out) == []
-    return {check.name: check.judge(out, inputs, None) for check in effects.CHECKS}
+    return out, {check.name: check.judge(out, inputs, None) for check in effects.CHECKS}
 
 
-def launch_record():
-    return json.loads((REPO / "data/effects/launch.json").read_text())
-
-
-def emitter(record, name):
-    return next(entry for entry in record["effects"] if entry["name"] == name)
-
-
-def test_the_launch_passes_its_gates():
+def test_the_stove_and_the_kettle_carry_their_steam_and_pass():
     with tempfile.TemporaryDirectory() as folder:
-        found = answers(launch_inputs(folder), folder)
+        out, found = answers(toy_inputs(folder), folder)
+        record = json.loads((out / "record.json").read_text())
+        from pxr import Usd, UsdGeom
+        stage = Usd.Stage.Open(str(pathlib.Path(folder) / "seeds" / PLACE / f"{PLACE}.usda"))
+        stage.GetRootLayer().subLayerPaths.append(str(out / "layers/effects.usda"))
+        where = {name: UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Objects/{name.split('_')[0]}_1/{name}"))
+                 .ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
+                 for name in ("stove_1_steam_rise", "kettle_1_steam_jet")}
     assert all(verdict.answer == checks.PASS for verdict in found.values()), {
         name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
-    assert found["attached"].measures["carried"] > 1000, "the rocket never moved the flame"
+    assert {entry["name"]: entry["row"] for entry in record["effects"]} == {"stove_1_steam_rise": "stove",
+                                                                            "kettle_1_steam_jet": "kettle"}
+    # the stove's steam on the middle of its top: (2.0, 0.0 + 0.9, 1.0); the kettle's spout at the front of its box,
+    # six tenths of the way up from its middle: (-1.0, 0.9 + 0.125 + 0.6 * 0.125, 0.0 + 0.08)
+    assert max(abs(a - b) for a, b in zip(where["stove_1_steam_rise"], (2.0, 0.9, 1.0))) < 1e-6, where
+    assert max(abs(a - b) for a, b in zip(where["kettle_1_steam_jet"], (-1.0, 1.1, 0.08))) < 1e-6, where
+    assert len(record["footage"]["checks"]) == 6 and found["footage"].measures
 
 
-def test_a_weak_light_and_a_slow_cloud_fail():
-    record = launch_record()
-    record["lights"][0]["intensity"] = [[seconds, value / 10] for seconds, value in record["lights"][0]["intensity"]]
-    for name in ("ground_cloud", "cloud_billows"):
-        emitter(record, name)["speed"] = [value / 4 for value in emitter(record, name)["speed"]]
+def test_a_row_that_emits_with_no_object_fails_designed():
+    rows = INVENTORY["rows"] + [{"id": "humidifier", "name": "humidifier", "noun": "humidifier"}]
     with tempfile.TemporaryDirectory() as folder:
-        found = answers(launch_inputs(folder, record=record), folder)
-    assert found["light"].answer == checks.FAIL, found["light"].reason
-    assert found["footage"].answer == checks.FAIL, found["footage"].reason
-
-
-def test_the_airlock_passes_in_metres_and_a_lingering_fog_fails():
-    record = json.loads((REPO / "data/effects/airlock.json").read_text())
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(launch_inputs(folder, place="airlock"), folder)
-    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
-    emitter(record, "pump_fog")["lifetime"] = 8.0
-    del record["no_light"]
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(launch_inputs(folder, record=record, place="airlock"), folder)
-    assert found["footage"].answer == checks.FAIL and found["footage"].measures["fog gone 5 s into the pump-down"] > 0.05
-    assert found["light"].answer == checks.UNKNOWN, found["light"].reason
-
-
-def test_a_trail_baked_off_another_climb_fails():
-    motion = json.loads((REPO / "data/motion/launch.json").read_text())
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = launch_inputs(folder)
-        out = pathlib.Path(folder) / "out"
-        out.mkdir()
-        faster = json.loads(json.dumps(motion))
-        faster["motions"][0]["climb"]["push"] = 40.0
-        effects.make(dict(inputs, motion=launch_inputs(folder, motion=faster)["motion"]), out, 0, {})
-        verdict = effects.judge_attached(out, inputs, None)
-    assert verdict.answer == checks.FAIL and verdict.measures["miss"] > 10, verdict.reason
-
-
-def test_the_camp_drift_stays_out_of_its_domes_and_a_leak_fails():
-    record = json.loads((REPO / "data/effects/camp.json").read_text())
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = launch_inputs(folder, place="camp")
-        out = pathlib.Path(folder) / "out"
-        out.mkdir()
-        effects.make(inputs, out, 0, {})
-        assert effects.judge_outside(out, inputs, None).answer == checks.PASS
-        leaking = pathlib.Path(folder) / "leaking"
-        leaking.mkdir()
-        effects.make(launch_inputs(folder, record=dict(record, interiors=[]), place="camp"), leaking, 0, {})
-        verdict = effects.judge_outside(leaking, inputs, None)
-    assert verdict.answer == checks.FAIL and verdict.measures["most inside"] > 0, verdict.reason
+        _, found = answers(toy_inputs(folder, inventory={"rows": rows}), folder)
+    assert found["designed"].answer == checks.FAIL, found["designed"].reason
+    assert found["designed"].findings == ("humidifier emits humidifier_mist, and no object of it stands on the stage",)
 
 
 def test_a_point_ahead_lands_mid_picture_and_one_to_the_right_right_of_it():
@@ -119,85 +109,7 @@ def test_a_point_ahead_lands_mid_picture_and_one_to_the_right_right_of_it():
     assert look.projected(view, [50.0, 10.0, 0.0], size) is None
 
 
-def test_shown_and_lit_read_their_measures():
-    with tempfile.TemporaryDirectory() as folder:
-        out = pathlib.Path(folder)
-        inputs = launch_inputs(folder)
-        views = {"a-t003.0": {"seconds": 3.0, "changed": 0.05, "pad before": 0.02, "pad after": 0.2},
-                 "a-t016.0": {"seconds": 16.0, "changed": 0.001, "pad before": 0.02, "pad after": 0.02}}
-        (out / "measures.json").write_text(json.dumps({"lift": 4.0, "views": views}))
-        assert look.judge_shown(out, inputs, None).answer == checks.FAIL
-        assert look.judge_lit(out, inputs, None).answer == checks.PASS
-        views["a-t003.0"]["pad after"] = 0.025
-        (out / "measures.json").write_text(json.dumps({"lift": 4.0, "views": views}))
-        assert look.judge_lit(out, inputs, None).answer == checks.FAIL
-
-
-def test_the_launch_s_effect_times_follow_its_motion_record_s_lift_off():
-    """Fault (2026-10-15): the record's seconds were set for the game's lift-off at 4 s, so with the motion record's 6 s
-    the plume began 2 s early and the pad fire stopped at lift-off. Its seconds are now moments of the climb: moved
-    with the lift, a number stays as it is, and a moment with no climb to read it from is refused."""
-    record = json.loads((REPO / "data/effects/launch.json").read_text())
-    motions = json.loads((REPO / "data/motion/launch.json").read_text())
-    climb = motions["motions"][0]
-    lift_off = climb["start"] + climb["climb"]["lift"]
-    timed = {entry["name"]: entry for entry in effects.effect_layer.timed(record, motions)["effects"]}
-    assert timed["plume"]["once"][0] == lift_off and timed["pad_fire"]["once"][1] == lift_off + 3.4
-    assert timed["flame"]["starts"] == climb["start"]
-    later = json.loads(json.dumps(motions))
-    later["motions"][0]["climb"]["lift"] += 2.0
-    moved = {entry["name"]: entry for entry in effects.effect_layer.timed(record, later)["effects"]}
-    assert moved["plume"]["once"][0] == lift_off + 2.0 and moved["flame"]["starts"] == climb["start"]
-    plain = {"effects": [{"name": "fog", "once": [1.0, 5.0]}]}
-    assert effects.effect_layer.timed(plain, None)["effects"][0]["once"] == [1.0, 5.0]
-    try:
-        effects.effect_layer.timed(record, {"motions": []})
-    except ValueError as error:
-        assert "needs one climb" in str(error)
-    else:
-        raise AssertionError("a moment of a climb the motion record does not hold was read")
-
-
-def test_the_pad_effects_stand_under_the_rocket_where_the_scene_record_lays_it():
-    """Fault (2026-10-15): the pad effects stood at fixed numbers and the plume at data/scene's rocket, 3.4 m off the
-    rocket the assembly lays from the accepted scene record. Moved 25 m in a scene record, the rocket takes the pad
-    effects and the plume with it and the gates pass; a layer baked at the old spot fails `attached` against it."""
-    with tempfile.TemporaryDirectory() as folder:
-        scene = json.loads((REPO / "data/scene/launch.json").read_text())
-        rocket = next(item for item in scene["objects"] if item["name"] == "rocket")
-        rocket["at"] = [rocket["at"][0] + 20.0, rocket["at"][1], rocket["at"][2] + 15.0]
-        made = pathlib.Path(folder) / "scene-record"
-        (made / "record").mkdir(parents=True)
-        (made / "record/launch.json").write_text(json.dumps(scene))
-        inputs = {**launch_inputs(folder), "scene-record": made}
-        laid = effects.effect_layer.emitters_of(effects.record_of(inputs), None, effects.scene_of(inputs),
-                                                effects.motions_of(inputs))
-        pad = next(entry for entry in laid if entry["name"] == "pad_fire")
-        assert abs(pad["origin"][0] - rocket["at"][0]) < 1e-6 and abs(pad["origin"][2] - rocket["at"][2]) < 1e-6
-        found = answers(inputs, folder)
-        assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-            name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
-        old = pathlib.Path(folder) / "old"
-        old.mkdir()
-        effects.make(launch_inputs(folder), old, 0, {})
-        attached = next(check for check in effects.CHECKS if check.name == "attached").judge(old, inputs, None)
-        assert attached.answer == checks.FAIL and "plume" in " ".join(attached.findings), attached
-
-def test_a_place_without_a_rocket_builds_its_effects_over_its_scene_record_output():
-    """Fault (effects-layer@flat, 2026-10-15): with a scene-record output the flat's smoke, hung off data/scene's
-    balcony eye, found no such view in the output's record (StopIteration). Only object spots come from the output."""
-    with tempfile.TemporaryDirectory() as folder:
-        made = pathlib.Path(folder) / "scene-record"
-        (made / "record").mkdir(parents=True)
-        (made / "record/flat.json").write_text(json.dumps({"place": "flat", "views": [], "objects": []}))
-        inputs = {**launch_inputs(folder, place="flat"), "scene-record": made}
-        laid = effects.effect_layer.emitters_of(effects.record_of(inputs), None, effects.scene_of(inputs),
-                                                effects.motions_of(inputs))
-        assert {entry["name"] for entry in laid} >= {"wisp", "breath"}
-
-
 if __name__ == "__main__":
-    import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):

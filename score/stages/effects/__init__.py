@@ -1,9 +1,12 @@
-"""The effects stage (experimental, PRD #6, until the owner reviews it): a place's effects record
-(`data/effects/<place>.json`: what burns, vents and moves there, each entry with the game lines or the real footage it
-was measured on) made into the place's OpenUSD effects layer, which the assembly stage puts into the place's stage.
+"""The effects stage (experimental, PRD #6, until the owner reviews it): a scene's effects made from its design
+(the owner, 2026-10-21: "the modules are not agnostic"), never from a record written for it: every object of a scene
+inventory row whose kind emits (score/stages/row_kinds.py, data/checks/row-kinds.json) carries the measured effects
+its kind emits (data/checks/effects.json), made into the scene's OpenUSD effects layer, which the assembly stage puts
+into its stage.
 
-    make     tools/usd/effects.py's write_layer on the record with the place's scene and motion records:
-             layers/effects.usda and each emitter's baked particles under assets/effects/
+    make     the record made from the design over the scene's stage (from_design.py: record.json), then tools/usd/
+             effects.py's write_layer on it: layers/effects.usda and each emitter's baked particles under
+             assets/effects/
     gates    attached  every emitter and light on a prim of the base (`on`) is that prim's child and keeps its place on
                        it through the prim's motion, and every emitter that follows a motion lets each particle out
                        where the moving prim stands at its birth (read off the composed stage, the seed's own layers
@@ -21,13 +24,17 @@ was measured on) made into the place's OpenUSD effects layer, which the assembly
              outside   no particle of an emitter under the open sky shows inside the place's interiors (the record's
                        `interiors`, each centred on the prim it names: the camp's domes), and the record says which
                        interiors there are when anything stands outside
+             designed  every emitter rides an object of a row of the scene's inventory, and every row whose kind emits
+                       has an object on the stage to carry it
 
 A record where nothing rides or follows a moving prim passes `attached` only when it says why (`rides_nothing`).
+The stage is the place's seed with its accepted scene record (and motion models) taken as the assembly takes them
+(score/stages/layer_base.py): the design's objects stand there by their names.
 
-Only places in STAGED have the row; the other places keep the effects layer of their seed. A place's effects are
-modelled on real footage first (the owner's rule): many fine particles tied to the world, never thinned to draw
-cheaper.
+Only scenes whose design has a row that emits have the row (applies). A scene's effects are modelled on real footage
+first (the owner's rule): many fine particles tied to the world, never thinned to draw cheaper.
 """
+import functools
 import json
 import pathlib
 import sys
@@ -35,12 +42,13 @@ import sys
 import numpy as np
 
 from score import checks, contracts
+from score.stages import layer_base, row_kinds
+from score.stages.effects import from_design
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import effects as effect_layer  # noqa: E402
 
-STAGED = ("launch", "airlock", "garage", "hangar", "greenhouse", "habitat", "flat", "camp", "campgrounds")
 # How far an emitter on a moving prim may drift from its place on it, metres.
 DRIFT_MOST = 0.01
 # How often the composed stage is read along a motion and an event, seconds.
@@ -66,14 +74,14 @@ OUTSIDE_SPAN = 60.0
 OUTSIDE_EVERY = 2.0
 
 
+RECORD = "record.json"
+
+
 def files(place):
-    """What the stage reads: the place's effects, scene and motion records, its kit and the planned grounds
-    (tools/usd/effects.py's place_ground), and its seed stage (the gates compose the layer over it)."""
-    found = {"record": "{data}/effects/{place}.json", "scene": "{data}/scene/{place}.json",
-             "kit": "{data}/kit/{place}.json", "grounds": "{data}/ground", "seed": "{seeds}/usd-r3/{place}"}
-    if (REPO / f"data/motion/{place}.json").exists():
-        found["motion"] = "{data}/motion/{place}.json"
-    return found
+    """What the stage reads: the scene's design inventory, the row-kind rules and the library of measured effects,
+    and its seed stage with its kit (the record is made and the gates judge the layer over it)."""
+    return {**row_kinds.DESIGNED, "effect kinds": "{data}/checks/effects.json", "seed": "{seeds}/usd-r3/{place}",
+            **layer_base.files(place)}
 
 
 def read_json(path):
@@ -85,43 +93,47 @@ def motions_of(inputs):
 
 
 def scene_of(inputs):
-    """The place's scene record (data/scene: its views, structure and objects as the effects name them), each object
-    the accepted scene-record output also lays stood at that output's spot, as the assembly lays it (the launch's
-    rocket); data/scene alone where the place has no scene-record row. Only spots move: an effect hung off a view or
-    structure the new record names otherwise (the flat's balcony eye) keeps its own (effects-layer@flat, 2026-10-15)."""
-    scene = read_json(inputs["scene"])
-    if "scene-record" not in inputs:
-        return scene
-    laid = read_json(pathlib.Path(inputs["scene-record"]) / "record" / f"{place_of(inputs)}.json")
-    spots = {item["name"]: item["at"] for item in laid.get("objects", []) if "at" in item}
-    scene["objects"] = [dict(item, at=spots[item["name"]]) if item.get("name") in spots else item
-                        for item in scene.get("objects", [])]
-    return scene
+    """The place's scene record where the stage reads one (data/scene: its views, structure and objects as the effects
+    name them), else None: a record made from the design places every emitter on an object."""
+    return read_json(inputs["scene"]) if "scene" in inputs else None
 
 
 def record_of(inputs):
-    """The place's effects record, its seconds from the climb's moments as seconds of the stage (effects.timed)."""
+    """The scene's effects record, made from its design (record.json beside the layer), its seconds from the climb's
+    moments as seconds of the stage (effects.timed)."""
     return effect_layer.timed(read_json(inputs["record"]), motions_of(inputs))
 
 
 def make(inputs, out, seed, params):
-    """The place's effects layer and its baked particles, from its records."""
+    """The scene's effects record made from its design over its stage, its effects layer and baked particles."""
     place = pathlib.Path(inputs["seed"]).name
-    record = read_json(inputs["record"])  # write_layer times it
-    held = effect_layer.write_layer(place, record, out, effect_layer.place_ground(place), scene_of(inputs),
-                                    motions_of(inputs))
+    with layer_base.built(inputs) as source:
+        record = from_design.record(place, read_json(inputs["design"]), row_kinds.table(inputs["row kinds"]),
+                                 read_json(inputs["effect kinds"]), layer_base.opened(source))
+    (out / RECORD).write_text(json.dumps(record, indent=1))
+    held = effect_layer.write_layer(place, record, out)
     (out / "held.json").write_text(json.dumps({"place": place, "particles": held}, indent=1))
+
+
+def judged_on_design(judge):
+    """A gate judged on the record made from the design (the output's record.json) over the scene's stage built for
+    it (layer_base.built), the build removed when it is judged."""
+    @functools.wraps(judge)
+    def judged(output, inputs, evidence):
+        with layer_base.built(inputs) as source:
+            return judge(output, dict(inputs, built=source, record=pathlib.Path(output) / RECORD), evidence)
+    return judged
 
 
 # --- the composed stage -------------------------------------------------------------------------------------------
 
 def composed(output, inputs):
-    """The effects layer over the place's seed stage (its edit, stage layers and base), with the place's motion record
-    written between them, opened as one stage. The seed's own motion layer is round three's (the launch's rocket at
-    the game's 3 s and 24 m/s/s): the riders and followers are judged against the motion the record gives, as the
+    """The effects layer over the place's stage (the one built for the gate, else its seed: its edit, stage layers and
+    base), with the place's motion record, where it reads one, written between them, opened as one stage. The seed's
+    own motion layer is round three's (the launch's rocket at the game's 3 s and 24 m/s/s): the riders and followers are judged against the motion the record gives, as the
     assembly stacks it, not that one (effects-layer@launch, 2026-10-15: a plume 1735 m off a rocket the seed moved)."""
     from pxr import Sdf, Usd
-    seed = pathlib.Path(inputs["seed"])
+    seed = pathlib.Path(inputs.get("built", inputs["seed"]))
     moving = Sdf.Layer.CreateAnonymous(".usda")
     root = Sdf.Layer.CreateAnonymous(".usda")
     root.subLayerPaths = [str(pathlib.Path(output) / effect_layer.LAYER), moving.identifier,
@@ -638,6 +650,24 @@ def layer_faults(folder):
             if not (folder / effect_layer.ASSETS / f"{name}.usdc").exists()] or ([] if held else ["no emitter"])
 
 
+def judge_designed(output, inputs, evidence):
+    """Pass when every emitter rides an object of a row of the scene's inventory and every row whose kind emits has an
+    object on the stage to carry its effects (the record's `missing`)."""
+    record = record_of(inputs)
+    stage, place = composed(output, inputs), place_of(inputs)
+    faults = [f"{name}: no object of a row of the scene's inventory" for name in row_kinds.strangers(
+        [entry["placement"]["on"] for entry in record["effects"]], read_json(inputs["design"]))]
+    faults += [f"{entry['name']}: no object {entry['placement']['on']} on the stage" for entry in record["effects"]
+               if not stage.GetPrimAtPath(f"/{place}/{entry['placement']['on']}")]
+    faults += list(record.get("missing", []))
+    measures = {"emitters": len(record["effects"]), "missing": len(faults)}
+    reason = (f"{len(faults)} effects stand on nothing of the inventory" if faults else
+              f"{len(record['effects'])} emitters each ride an object of an inventory row")
+    return checks.Verdict("designed", checks.FAIL if faults else checks.PASS, reason, measures, {"missing": "lower"},
+                          tuple(faults))
+
+
 LAYER = contracts.Contract("effects-layer", 1, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
-CHECKS = (checks.Check("attached", judge_attached), checks.Check("footage", judge_footage),
-          checks.Check("light", judge_light), checks.Check("outside", judge_outside))
+CHECKS = tuple(checks.Check(name, judged_on_design(judge)) for name, judge in (
+    ("attached", judge_attached), ("footage", judge_footage), ("light", judge_light), ("outside", judge_outside),
+    ("designed", judge_designed)))
