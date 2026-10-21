@@ -90,6 +90,8 @@ Nothing is deployed. A push to `main` publishes the source, the paper's PDF and 
 
 **Claude's memory stays private.** `.claude/memory/` is git-ignored: this repository is public and memory is private working notes, so it is never committed or pushed. Anything a later session must know goes into the bible, `CONTEXT.md` or an issue.
 
+**Parallel agents (owner, 2026-10-21: agents were taking an hour each re-testing and waiting on each other).** One agent per area at a time (the concept code, the plan code, the cockpit pages, the reading each have one owner; new work on an owned area waits or goes to that agent). An agent runs only the tests of the modules it touched, pushes, and stops; it never re-runs whole suites after a rebase, never waits on the hosted rebuild or a sync, and never releases: the coordinating session releases once for a group of landed changes, then checks the live pages. A whole-suite run happens once on main after a group lands.
+
 ## Autonomy boundaries
 
 - Don't continue into adjacent work after the requested task is done. Stop and wait.
