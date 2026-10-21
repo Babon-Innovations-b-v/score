@@ -131,7 +131,7 @@ stage as each stage is built; nothing moves before.
   curve), else its own shell at full detail in its box on the holder's plan shown with its siblings' shells and the
   holder's shell round it; rendered free (a numpy z-buffer at twice the size, a shadow map from the site's sun, no
   card, no Blender) from the fixed concept view, framed so the place fills it, a person for scale, and, when a world
-  in its sky falls outside that view, a sky picture from the site at eye height. `scene_key` keys each render by what
+  in its sky falls outside that view, a overhead view from the site at eye height. `scene_key` keys each render by what
   it is built from and the module's code, so the cockpit never serves an older code's render.
   `concepts.structure_pictures` sends both first with every first draw, the draw record keeps the blockout's
   sha (`blockout`), and a draw without one that can be built now is out of date (`current_draw`); `without_blockout`

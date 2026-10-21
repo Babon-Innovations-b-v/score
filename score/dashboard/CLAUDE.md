@@ -267,7 +267,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   A place's page names the places listed inside it that its draw is asked to hold (`asked_to_hold`). Under the
   picture the page shows, editable, word for word what Draw fresh or Draw concept sends (`WorldState.concept_wordings`,
   `ConceptWording`: the wording `score/review/concepts.py` `generated` makes by its one rule for every place, or the
-  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: its blockout and, for a top place with a world out of view, its sky picture first, then a crop of the picked concept of
+  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: its blockout and, for a top place with a world out of view, its overhead view first, then a crop of the picked concept of
   the place it sits within to what holds it, then the picked concept of each place beside it that it opens into, then its references), why it waits
   (`refused`: Draw disabled with it as hover text; `unpickable`: Pick the same; both refused on the store's machine
   by `concepts.step_refusal`, the design steps' one rule), a part of another place's outside (within.json `parts`, the

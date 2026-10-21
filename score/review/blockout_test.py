@@ -55,11 +55,11 @@ def test_a_sites_world_is_drawn_at_its_true_size_where_it_stands():
              "lit_from": [1.0, 0.0, 0.0]}
     parts = blockout.site_parts(site)
     assert blockout.unseen(parts, [earth]) == [earth]  # 40 degrees down with a long lens: no sky in frame
-    picture = np.asarray(blockout.render(parts, blockout.sky_camera(parts, earth), [earth]))
+    picture = np.asarray(blockout.render(parts, blockout.overhead_camera(parts, earth), [earth]))
     lit = np.all(picture == blockout.LIT, axis=-1)
     dark = np.all(picture == blockout.UNLIT, axis=-1)
     across = np.ptp(np.nonzero(lit | dark)[1]) + 1
-    focal = blockout.TALL / 2 / np.tan(np.radians(blockout.SKY_LENS) / 2)
+    focal = blockout.TALL / 2 / np.tan(np.radians(blockout.OVERHEAD_LENS) / 2)
     assert across == pytest.approx(2 * focal * np.tan(np.radians(1.0)), abs=2)  # 2 degrees across, in pixels
     assert np.nonzero(lit)[1].mean() < np.nonzero(dark)[1].mean()  # half lit from the east: facing south, its left
 

@@ -603,13 +603,13 @@ def view_box(box, size):
 
 STRUCTURE = ("the structure: a rough grey model of it at real sizes from {parent}'s plan, seen from the fixed view{rest}; "
              "keep this layout, shapes and proportions exactly, add the look")
-SKY_PICTURE = "its sky over its site: keep each world's place, size and phase, add the look"
+OVERHEAD_VIEW = "what is seen overhead at its site: keep each body's place, size and phase, add the look"
 
 
 def structure_pictures(store, place):
     """[(what it is, its source)] of `place`'s blockout (score/review/blockout.py: ("blockout", place)) and, for a top
-    place whose sky holds a world the fixed view does not show, its sky picture (("sky", place)); [] while the plan
-    it is built from is not there."""
+    place where a body the fixed view does not show is overhead, its overhead view (("overhead", place)); [] while
+    the plan it is built from is not there."""
     from score.review import blockout, environment_plan, plans
     holder = above(place, store)
     if holder:  # its blockout stands once the holder's plan lays out its outline (blockout.scene_of)
@@ -622,11 +622,11 @@ def structure_pictures(store, place):
               ("blockout", place))]
     worlds = (site.get("overhead") or {}).get("bodies", [])
     parts = blockout.scene_of(store, place)[0]
-    return found + ([(SKY_PICTURE, ("sky", place))] if blockout.unseen(parts, worlds) else [])
+    return found + ([(OVERHEAD_VIEW, ("overhead", place))] if blockout.unseen(parts, worlds) else [])
 
 
 def sent_pictures(store, place):
-    """[(what it is, its source)] a first draw of `place` sends, in order: its blockout and sky picture
+    """[(what it is, its source)] a first draw of `place` sends, in order: its blockout and overhead view
     (`structure_pictures`), a crop of the layer above's picked concept
     showing only what holds it (source: ("crop", the place above, its box)), for a place that looks out (looks_out) the
     surroundings of that around it (("view", the place above, the same box)), each joined place's picked concept
@@ -870,9 +870,9 @@ def sent_picture(store, source):
     """The PIL picture of one of sent_pictures' sources: a crop of a place's picked concept to its box, a place's
     picked concept, or a file."""
     from PIL import Image
-    if isinstance(source, tuple) and source[0] in ("blockout", "sky"):
+    if isinstance(source, tuple) and source[0] in ("blockout", "overhead"):
         from score.review import blockout
-        return (blockout.picture if source[0] == "blockout" else blockout.sky_picture)(store, source[1])
+        return (blockout.picture if source[0] == "blockout" else blockout.overhead_view)(store, source[1])
     if isinstance(source, tuple):
         kind, holder, box = source
         picture = blob_picture(store, picked(store, holder))

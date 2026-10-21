@@ -31,10 +31,10 @@ a soft ambient and the sun's key light, shadowed through a shadow map from the s
 a little dark. Outside places are seen from the high three-quarter corner view, 40 degrees down, a long lens, framed
 so the place fills the frame; inside ones as a cutaway from the same view (roofs and the walls facing the camera left
 out). A world in the sky that the fixed view does not show gets a second picture from behind and above the site
-looking out over it at that world (`sky_picture`). `scene_key` keys a render by what it is built from and this
+looking out over it at that world (`overhead_view`). `scene_key` keys a render by what it is built from and this
 module's code, so no render made by older code is served again.
 
-    python -m score.review.blockout <node> [--out FILE] [--sky FILE]   one render, from the framework's store
+    python -m score.review.blockout <node> [--out FILE] [--overhead FILE]   one render, from the framework's store
 """
 import hashlib
 import json
@@ -50,16 +50,16 @@ SUPER = 2  # rendered at twice the size each way and halved: smooth edges
 DOWN = 40.0  # degrees the fixed view looks down (CONTEXT.md "concept": 35 to 45)
 LENS = 24.0  # the fixed view's vertical field in degrees: a long lens
 FILL = 0.86  # of the frame's half width and half height the place's outermost point reaches
-SKY_LENS = 70.0  # the sky picture's vertical field: wide, so the place shows under the world
-SKY_DOWN = 20.0  # degrees the sky picture's eye looks down on the place's middle, at least
-SKY_EDGE = 4.0  # degrees a world stays inside the sky picture's top edge
+OVERHEAD_LENS = 70.0  # the overhead view's vertical field: wide, so the place shows under the world
+OVERHEAD_DOWN = 20.0  # degrees the overhead view's eye looks down on the place's middle, at least
+OVERHEAD_EDGE = 4.0  # degrees a world stays inside the overhead view's top edge
 THICK = 0.3  # metres of a wall a plan gives no thickness
 DOOR_HEAD = 2.1  # metres: a door's head where the plan gives none
 STOREY = 3.0  # metres: a wall's height where neither the plan nor its words give one
 SLAB = 0.2  # metres of a floor slab or level
 CURVE = 32  # facets round a dome, a cylinder or a tube: fine enough that no crease shows between two
 ARC_STEP = 10.0  # degrees of an arc wall a straight piece spans, at most
-GROUND_REACH = 20.0  # of the site's span, the ground drawn round its middle each way: to the sky picture's horizon
+GROUND_REACH = 20.0  # of the site's span, the ground drawn round its middle each way: to the overhead view's horizon
 GROUND_STEPS = 96  # the ground's grid, each way, finest at its middle
 GROUND_BLUR = 31  # pixels (at twice the size) the ground's facet normals are averaged over
 BEYOND = 0.1  # of a plan's box: an item standing further out than this is beyond the place, not drawn
@@ -70,7 +70,7 @@ FLOOR_DROP = 0.03  # metres the holder's floor sits under its inside places' flo
 SIBLING_WALL = 1.2  # metres a sibling's walls stand in an inside place's blockout
 MARGIN = 0.35  # of an inside place's box, the frame round it each way, so its siblings frame it
 BACKGROUND = (92, 92, 92)
-SKY = (196, 200, 206)
+SKY_GREY = (196, 200, 206)
 CREASE = 0.62  # how dark a crease line is
 LIT, UNLIT = (246, 246, 240), (168, 172, 180)  # a world's sunlit face and its dark side against the sky
 NEAR = 0.1  # metres: the near plane
@@ -860,18 +860,18 @@ def render(parts, camera, worlds=(), light=None):
     facing = smoothed(normals, smooth)[hit]
     shade = albedo[hit] * (AMBIENT + SKY_FILL * (0.5 + 0.5 * facing[:, 1]) + KEY * np.clip(facing @ way, 0.0, 1.0) *
                            sunlit(shadow_map(parts, way), seen_points(depth, camera, size), facing))
-    grey = np.full(depth.shape, float(SKY[0] if worlds else BACKGROUND[0]))
+    grey = np.full(depth.shape, float(SKY_GREY[0] if worlds else BACKGROUND[0]))
     grey[hit] = np.clip(shade, 0.0, 1.0) * 255.0
     grey[creases(normals, depth, smooth) & hit] *= CREASE
     colour = np.repeat(halved(grey, (WIDE, TALL))[..., None], 3, axis=-1)
     if worlds:
-        colour[~halved(hit.astype(float), (WIDE, TALL)).astype(bool)] = SKY
+        colour[~halved(hit.astype(float), (WIDE, TALL)).astype(bool)] = SKY_GREY
     image = {"colour": colour, "depth": np.where(halved(hit.astype(float), (WIDE, TALL)) > 0, 1.0, np.inf)}
     worlds_drawn(image, worlds, camera)
     return Image.fromarray(np.clip(np.round(colour), 0, 255).astype(np.uint8))
 
 
-def sky_camera(parts, world):
+def overhead_camera(parts, world):
     """(eye, forward, up, field) behind the place from `world` and above it, looking out over it at `world`: the place
     low in the frame, the world high, both in when it stands under about 45 degrees."""
     low, high = bounds(parts)
@@ -880,12 +880,12 @@ def sky_camera(parts, world):
     level = np.array([way[0], 0.0, way[2]])
     level = level / (np.linalg.norm(level) or 1.0)
     back = float(np.linalg.norm((high - low)[[0, 2]])) * 0.75
-    eye = np.array([middle[0], high[1] + back * math.tan(math.radians(SKY_DOWN)), middle[2]]) - level * back
+    eye = np.array([middle[0], high[1] + back * math.tan(math.radians(OVERHEAD_DOWN)), middle[2]]) - level * back
     down = math.degrees(math.atan2(eye[1] - middle[1], back))
-    reach = SKY_LENS / 2 - SKY_EDGE
+    reach = OVERHEAD_LENS / 2 - OVERHEAD_EDGE
     pitch = math.radians(min(max((world["altitude"] - down) / 2, world["altitude"] - reach), 80.0))
     forward = level * math.cos(pitch) + np.array([0.0, math.sin(pitch), 0.0])
-    return eye, forward, np.array([0.0, 1.0, 0.0]), SKY_LENS
+    return eye, forward, np.array([0.0, 1.0, 0.0]), OVERHEAD_LENS
 
 
 # --- what a node's blockout is built from ------------------------------------------------------------------------
@@ -1076,7 +1076,7 @@ def unseen(parts, worlds):
     return found
 
 
-def sky_picture(store, node):
+def overhead_view(store, node):
     """The PIL picture from behind and above the site looking out at the largest world in its sky that the fixed view
     does not show, None when there is none (an inside place, or every world below the horizon or in frame)."""
     parts, _, worlds, light = scene_of(store, node)
@@ -1084,28 +1084,28 @@ def sky_picture(store, node):
     if not hidden:
         return None
     biggest = max(hidden, key=lambda world: world["across"])
-    return render(parts, sky_camera(parts, biggest), worlds, light)
+    return render(parts, overhead_camera(parts, biggest), worlds, light)
 
 
 def main(argv):
-    """`<node> [--out FILE] [--sky FILE]`: its blockout (and sky picture) from the framework's store."""
+    """`<node> [--out FILE] [--overhead FILE]`: its blockout (and overhead view) from the framework's store."""
     import argparse
     from score.store import Store
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("node")
     parser.add_argument("--out", default="blockout.png")
-    parser.add_argument("--sky")
+    parser.add_argument("--overhead")
     options = parser.parse_args(argv)
     store = Store.default()
     try:
         picture(store, options.node).save(options.out)
-        found = sky_picture(store, options.node) if options.sky else None
+        found = overhead_view(store, options.node) if options.overhead else None
     except Missing as missing:
         print(f"missing: {missing}", file=sys.stderr)
         return 1
     if found is not None:
-        found.save(options.sky)
-    print(f"{options.node}: {options.out}" + (f", sky {options.sky}" if found is not None else ""))
+        found.save(options.overhead)
+    print(f"{options.node}: {options.out}" + (f", overhead {options.overhead}" if found is not None else ""))
     return 0
 
 
