@@ -135,6 +135,41 @@
     ]
    }
   },
+  "surface-tiles": {
+   "stage": "surface-tiles",
+   "unit": "tile job of a place's shell surfaces (library_bake.py, one card)",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.07875,
+   "high_euros": 0.07875,
+   "runs": 1,
+   "sources": {
+    "recorded runs": [
+     "ledger batch library-20261021-203323-3894491 (surface-tiles@greenhouse, 2026-10-21, benchmark grant 20261021T182203): one L4, 5.1 machine minutes, its card parked after"
+    ]
+   },
+   "forecast": {
+    "rule": "one",
+    "source": "one a place (one for an environment node)"
+   },
+   "time": {
+    "unit_seconds": {
+     "likely": 187.8,
+     "high": 187.8
+    },
+    "setup_minutes": {
+     "likely": 1.9,
+     "high": 1.9
+    },
+    "slots": 1,
+    "slots_from": "one job on its one card",
+    "holds": "machines",
+    "lines": 1,
+    "from": [
+     "ledger batch library-20261021-203323-3894491 (its machine's unit_seconds; start wait 0.37 and set-up 1.53 min)"
+    ]
+   }
+  },
   "people-clips-made": {
    "stage": "people-clips-made",
    "unit": "make of the people's Kimodo clips and mean rig (one characters machine)",

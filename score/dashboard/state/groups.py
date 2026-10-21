@@ -27,6 +27,7 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "demo-film": "film", "demo-film-extra": "extra film",
           "terrain": "ground", "settle": "settle",
           "sound": "sound", "motion": "motion", "physics-layer": "physics", "physics-trial": "physics trial",
+          "surface-tiles": "surface tiles",
           "library": "library handover", "library-world": "library handover",
           "people-made": "people from the loop", "people-clips": "people clips"}
 # The crops' own rows: their models are the place's own prop and surface rows (2026-10-20, #26).

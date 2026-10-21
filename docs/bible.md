@@ -362,9 +362,10 @@ what proves it.
   `shell-split` applies only to a plan with a `split`, and today the plan's holds lay out the child scenes.
 
 **Rows left with no work** after the old records were retired were removed on 2026-10-22: `concept-people`
-(nothing read it), `demo-turntables` (its models were an old disk's takes), `demo-stills` (no definitions),
-`surface-tiles` (applied only with an old scene record) and `light-haze` (applied only where a kit lays a shafted lamp,
-which no design does), with their code; `earth-kit` and the ship kits went with the old kits on 2026-10-21. The
+(nothing read it), `demo-turntables` (its models were an old disk's takes), `demo-stills` (no definitions) and
+`light-haze` (applied only where a kit lays a shafted lamp, which no design does), with their code. `surface-tiles`
+went with them and came back the same day, read from the design (the locked plan's shell, `surface-library@<place>`,
+`finish-route-palette@<place>`), so a designed place's shell gets its tiles; `earth-kit` and the ship kits went with the old kits on 2026-10-21. The
 `tools/usd` writers (export, settle, snap, triage) and the review page's records read a kit only from the file given
 (the design's `kit.json`), never `data/kit`.
 
