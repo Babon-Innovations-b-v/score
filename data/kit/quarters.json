@@ -15,20 +15,22 @@
 			"group": "hangs"
 		},
 		"quarters_edge_light_strip": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.1,
-				"reach": 3.0,
-				"high": 0.03
-			},
-			"group": "hangs"
+				"strength": 0.153,
+				"reach": 4.13,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"quarters_ceiling_light_panel": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.2,
-				"reach": 4.0,
-				"high": 0.05
-			},
-			"group": "hangs"
+				"strength": 0.215,
+				"reach": 4.3,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"quarters_wall_lower_plain": {
 			"group": "hangs"

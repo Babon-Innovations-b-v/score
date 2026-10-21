@@ -998,6 +998,7 @@
 		{
 			"id": "task_lamp",
 			"name": "a wall-mounted gooseneck work lamp with a cone shade",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [
@@ -1017,10 +1018,6 @@
 				}
 			],
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/task_lamp.png",
-			"light": {
-				"strength": 0.5,
-				"reach": 4.0
-			},
 			"view": "v1",
 			"box": [
 				1194,
@@ -1484,6 +1481,7 @@
 		{
 			"id": "bracket_beacon",
 			"name": "a red warning lamp in a steel housing on a wall bracket, rotating",
+			"noun": "beacon",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [
@@ -1543,6 +1541,7 @@
 		{
 			"id": "ceiling_lamp",
 			"name": "an industrial high-bay lamp: a steel reflector hood with a caged lens",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "ceiling",
 			"size": [
@@ -1580,10 +1579,6 @@
 				}
 			],
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/ceiling_lamp.png",
-			"light": {
-				"strength": 1.2,
-				"reach": 9.0
-			},
 			"view": "v1",
 			"box": null,
 			"thing": "prop:garage_ceiling_lamp",

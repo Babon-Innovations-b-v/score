@@ -22,28 +22,31 @@
 			"group": "hangs"
 		},
 		"cockpit_dash_light_bar": {
+			"group": "hangs",
 			"light": {
 				"strength": 0.05,
-				"reach": 1.5,
-				"high": 0.02
-			},
-			"group": "hangs"
+				"reach": 1.53,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"cockpit_edge_light_strip": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.1,
-				"reach": 3.0,
-				"high": 0.03
-			},
-			"group": "hangs"
+				"strength": 0.11,
+				"reach": 2.98,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"cockpit_ceiling_light_panel": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.2,
-				"reach": 4.0,
-				"high": 0.05
-			},
-			"group": "hangs"
+				"strength": 0.198,
+				"reach": 3.96,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"cockpit_window_pane": {
 			"group": "hangs"

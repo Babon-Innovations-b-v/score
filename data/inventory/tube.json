@@ -318,6 +318,7 @@
 				379
 			],
 			"name": "long ceiling strip light along the crown",
+			"noun": "light",
 			"kind": "code",
 			"anchor": "ceiling",
 			"size": [
@@ -330,11 +331,6 @@
 			"made": "kit piece",
 			"group": "kit: light",
 			"at": [],
-			"light": {
-				"strength": 0.15,
-				"reach": 3.5,
-				"high": 0.5
-			},
 			"box_from": [
 				"v1.w8"
 			]

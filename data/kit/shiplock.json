@@ -24,12 +24,13 @@
 		},
 		"shiplock_floor_grate": {},
 		"shiplock_ceiling_light_panel": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.2,
-				"reach": 4.0,
-				"high": 0.05
-			},
-			"group": "hangs"
+				"strength": 0.176,
+				"reach": 3.52,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"shiplock_wall_lower_plain": {
 			"group": "hangs"

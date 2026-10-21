@@ -156,12 +156,13 @@
 			"group": "hangs"
 		},
 		"hub_roof_light_fixture": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.16,
-				"reach": 6.0,
-				"high": 0.1
-			},
-			"group": "hangs"
+				"strength": 0.272,
+				"reach": 5.44,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"hub_ring_floor_plate": {
 			"group": "floors"
@@ -209,12 +210,13 @@
 			"group": "hangs"
 		},
 		"hub_door_strip_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.05,
-				"reach": 3.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.185,
+				"reach": 5.0,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"hub_door_control_box": {
 			"group": "hangs"
@@ -247,12 +249,13 @@
 			"group": "hangs"
 		},
 		"hub_wall_cage_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.05,
-				"reach": 3.5,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.154,
+				"reach": 4.17,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"hub_status_display": {
 			"group": "hangs"

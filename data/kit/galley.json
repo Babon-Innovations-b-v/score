@@ -15,20 +15,22 @@
 			"group": "hangs"
 		},
 		"galley_edge_light_strip": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.1,
-				"reach": 3.0,
-				"high": 0.03
-			},
-			"group": "hangs"
+				"strength": 0.187,
+				"reach": 5.05,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"galley_ceiling_light_panel": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.2,
-				"reach": 4.0,
-				"high": 0.05
-			},
-			"group": "hangs"
+				"strength": 0.261,
+				"reach": 5.22,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"galley_wall_lower_plain": {
 			"group": "hangs"

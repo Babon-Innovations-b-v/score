@@ -132,11 +132,13 @@
 		"garage_bench_vise": {},
 		"garage_toolbox": {},
 		"garage_task_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.5,
-				"reach": 4.0
-			},
-			"group": "hangs"
+				"strength": 0.126,
+				"reach": 3.4,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"garage_tyre_shelving": {
 			"solid": true
@@ -172,14 +174,22 @@
 			"group": "hangs"
 		},
 		"garage_bracket_beacon": {
-			"group": "hangs"
+			"group": "hangs",
+			"light": {
+				"strength": 0.185,
+				"reach": 5.01,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"garage_ceiling_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 1.2,
-				"reach": 9.0
-			},
-			"group": "hangs"
+				"strength": 0.463,
+				"reach": 9.26,
+				"high": 0.05,
+				"shadows": true
+			}
 		}
 	},
 	"models": {

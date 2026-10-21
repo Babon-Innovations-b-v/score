@@ -113,12 +113,13 @@
 			"group": "hangs"
 		},
 		"greenhouse_door_strip_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.2,
-				"reach": 5.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.169,
+				"reach": 4.56,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"greenhouse_door_control_box": {
 			"group": "hangs"
@@ -127,12 +128,13 @@
 			"group": "hangs"
 		},
 		"greenhouse_wall_cage_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.35,
-				"reach": 6.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.142,
+				"reach": 3.82,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"greenhouse_pipe_straight": {
 			"group": "hangs"
@@ -157,7 +159,13 @@
 		},
 		"greenhouse_tread_mat": {},
 		"greenhouse_grow_light_bar": {
-			"group": "hangs"
+			"group": "hangs",
+			"light": {
+				"strength": 0.268,
+				"reach": 5.35,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"greenhouse_grow_light_glow": {
 			"group": "hangs"
@@ -227,7 +235,14 @@
 		"greenhouse_floor_grating": {},
 		"greenhouse_under_floor_box": {},
 		"greenhouse_keyboard": {},
-		"greenhouse_desklamp": {},
+		"greenhouse_desklamp": {
+			"light": {
+				"strength": 0.082,
+				"reach": 2.49,
+				"high": 0.5,
+				"shadows": false
+			}
+		},
 		"greenhouse_seed_tray": {},
 		"greenhouse_control_cabinet": {}
 	},

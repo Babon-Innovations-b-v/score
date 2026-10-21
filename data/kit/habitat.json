@@ -130,20 +130,22 @@
 			"group": "hangs"
 		},
 		"habitat_light_ring": {
+			"group": "hangs",
 			"light": {
-				"strength": 1.0,
-				"reach": 11.0,
-				"high": 0.08
-			},
-			"group": "hangs"
+				"strength": 0.299,
+				"reach": 5.99,
+				"high": 0.05,
+				"shadows": true
+			}
 		},
 		"habitat_door_strip_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.2,
-				"reach": 5.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.17,
+				"reach": 4.59,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"habitat_tread_mat": {},
 		"habitat_pipe_bracket": {
@@ -181,12 +183,13 @@
 			"group": "hangs"
 		},
 		"habitat_wall_cage_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.08,
-				"reach": 3.0,
-				"high": 0.5
-			},
-			"group": "hangs"
+				"strength": 0.091,
+				"reach": 2.46,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"habitat_waste_bin": {},
 		"habitat_wall_upper_cables": {

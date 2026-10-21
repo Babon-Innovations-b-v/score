@@ -289,6 +289,7 @@
   {
    "id": "edge_light_strip",
    "name": "warm amber light strip along the top of a side wall",
+   "noun": "light",
    "kind": "code",
    "anchor": "wall",
    "size": [
@@ -301,11 +302,6 @@
    "thing": "prop:storage_edge_light_strip",
    "count": 2,
    "laid": "by the ship kit along the two long walls under the ceiling",
-   "light": {
-    "strength": 0.1,
-    "reach": 3.0,
-    "high": 0.03
-   },
    "view": "v1",
    "box": [
     899,
@@ -321,6 +317,7 @@
   {
    "id": "ceiling_light_panel",
    "name": "white light strip set in the ceiling",
+   "noun": "light",
    "kind": "code",
    "anchor": "ceiling",
    "size": [
@@ -333,11 +330,6 @@
    "thing": "prop:storage_ceiling_light_panel",
    "count": 1,
    "laid": "by the ship kit down the ceiling's middle",
-   "light": {
-    "strength": 0.2,
-    "reach": 4.0,
-    "high": 0.05
-   },
    "view": "v1",
    "box": [
     444,

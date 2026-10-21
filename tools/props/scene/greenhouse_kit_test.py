@@ -123,7 +123,7 @@ def test_the_surface_and_opening_checks_pass_the_layout():
     sys.path.insert(0, str(HERE.parent / "gates"))
     import placement
     import surface
-    layout = {"room": kit.ROOM, "kinds": kit.kinds_table(INVENTORY), "pieces": PIECES}
+    layout = {"room": kit.ROOM, "kinds": kit.kinds_table(INVENTORY, PIECES), "pieces": PIECES}
     faces = [laid for laid in PIECES if "rise" in laid]
     assert faces and all(own(laid) == "wall_lower_plain" for laid in faces)
     assert {laid["rise"] for laid in faces} == {"dais", "dais_step", "ledge", "ledge_step", "door_step"}

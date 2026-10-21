@@ -85,11 +85,13 @@
 			"group": "hangs"
 		},
 		"hangar_wall_cage_lamp": {
+			"group": "hangs",
 			"light": {
-				"strength": 0.5,
-				"reach": 6.0
-			},
-			"group": "hangs"
+				"strength": 0.226,
+				"reach": 6.12,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"hangar_door_control_box": {
 			"group": "hangs"
@@ -141,14 +143,22 @@
 			"group": "hangs"
 		},
 		"hangar_bracket_beacon": {
-			"group": "hangs"
+			"group": "hangs",
+			"light": {
+				"strength": 0.773,
+				"reach": 20.9,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"hangar_floodlight": {
+			"group": "hangs",
 			"light": {
-				"strength": 2.5,
-				"reach": 26.0
-			},
-			"group": "hangs"
+				"strength": 0.566,
+				"reach": 15.29,
+				"high": 0.5,
+				"shadows": false
+			}
 		},
 		"hangar_crane_trolley": {
 			"group": "hangs"

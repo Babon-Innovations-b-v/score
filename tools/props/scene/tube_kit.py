@@ -26,6 +26,9 @@ import sys
 
 import numpy as np
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import lamps  # noqa: E402
+
 RADIUS = 1.6  # TubeWay.RADIUS
 AXIS_HIGH = 1.1  # TubeWay.AXIS_HEIGHT
 BAY = 1.3  # LinkTube.HOOP_EVERY
@@ -36,6 +39,7 @@ FOOT_END = math.degrees(math.acos(-AXIS_HIGH / RADIUS))  # where the arch meets 
 DECK_HALF = math.sqrt(RADIUS ** 2 - AXIS_HIGH ** 2)
 PATCH_EVERY = 3
 ROOM = "tube"
+INVENTORY = pathlib.Path(__file__).resolve().parents[3] / "data/inventory/tube.json"
 # The hull plates' inner face (HULL_IN less their depth), what a fitting on the hull stands on.
 HULL_FACE = HULL_IN - 0.04
 # A pipe run's axis off the hull (pieces.PIPE_AXIS): where its clamp brackets (pieces.pipe_bracket) hold it.
@@ -168,11 +172,22 @@ def end():
 
 
 KINDS = {"ring_floor_plate": {"group": "floors"}, "end_mat": {"group": "floors"},
-         "crown_strip_lamp": {"group": "hangs", "light": {"strength": 0.15, "reach": 3.5, "high": 0.5}},
+         "crown_strip_lamp": {"group": "hangs"},
          "hull_plate": {}, "hoop": {}, "pipe_straight": {"group": "hangs"},
          "cable_bundle": {"group": "hangs"}, "hull_patch": {"group": "hangs"}, "sign_plate": {"group": "hangs"},
          "pipe_bracket": {"group": "hangs"}, "rail_bracket": {"group": "hangs"}, "small_readout": {"group": "hangs"},
          "conduit_box": {"group": "hangs"}}
+
+
+def kinds_table(inventory, pieces):
+    """Every kind's group (KINDS) and, for a glowing row of the inventory, its light (the library's lamp, lamps.py)."""
+    table = {f"{ROOM}_{kind}": dict(about) for kind, about in KINDS.items()}
+    for row in inventory["rows"]:
+        kind = f"{ROOM}_{row['id']}"
+        light = lamps.light_of(row, [laid for laid in pieces if laid["kind"] == kind]) if kind in table else None
+        if light:
+            table[kind]["light"] = light
+    return table
 
 
 def main():
@@ -184,7 +199,7 @@ def main():
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     pathlib.Path(sys.argv[1]).write_text(json.dumps(
         {"room": ROOM, "frame": "a bay's or an end's: x across the tube to the right, y up from the deck, z along it",
-         "bay": BAY, "counts": counts, "kinds": {f"{ROOM}_{kind}": about for kind, about in KINDS.items()},
+         "bay": BAY, "counts": counts, "kinds": kinds_table(json.loads(INVENTORY.read_text()), pieces),
          "pieces": pieces}, indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")
 

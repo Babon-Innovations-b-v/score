@@ -410,6 +410,7 @@
    "view": "v1",
    "box": null,
    "name": "a strip lamp in a steel housing over a door (the hub's)",
+   "noun": "lamp",
    "kind": "code",
    "anchor": "wall",
    "size": [
@@ -435,11 +436,6 @@
      "out": 0.1
     }
    ],
-   "light": {
-    "strength": 0.15,
-    "reach": 4.0,
-    "high": 0.5
-   },
    "unseen": "no strip lamp shows over either hatch; the concept's roof and the hatch heads are cut away"
   },
   {
@@ -1914,6 +1910,7 @@
     288
    ],
    "name": "wall task lamp: a cone shade on a jointed arm",
+   "noun": "lamp",
    "kind": "generate",
    "anchor": "wall",
    "size": [
@@ -1942,11 +1939,6 @@
      "bottom": 2.0
     }
    ],
-   "light": {
-    "strength": 0.12,
-    "reach": 3.0,
-    "high": 0.1
-   },
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/task_lamp.png",
    "box_from": [
     "v1.370",
@@ -1958,6 +1950,7 @@
    "view": "v1",
    "box": null,
    "name": "ceiling flood lamp: steel housing, frosted lens behind a grille",
+   "noun": "lamp",
    "kind": "generate",
    "anchor": "ceiling",
    "size": [
@@ -1983,11 +1976,6 @@
      "facing": 270
     }
    ],
-   "light": {
-    "strength": 0.3,
-    "reach": 7.0,
-    "high": 0.05
-   },
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/ceiling_lamp.png",
    "unseen": "the room's light is not drawn in the cutaway (round two's reason)",
    "own_model": "a different object of the same name: the lab's long flood lamp with a frosted lens behind a grille, not the garage's high-bay reflector hood"

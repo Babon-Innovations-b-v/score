@@ -446,7 +446,7 @@ def layout(room, plan, inventory):
     for found in pieces:
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     return {"room": room, "frame": "the room's own: its middle on its floor, x east, z south, y up (the nose south)",
-            "counts": counts, "kinds": room_kit.kinds_table(room, inventory), "pieces": pieces}
+            "counts": counts, "kinds": room_kit.kinds_table(room, inventory, pieces), "pieces": pieces}
 
 
 def main():

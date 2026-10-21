@@ -347,7 +347,7 @@ def main():
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     pathlib.Path(sys.argv[2]).write_text(json.dumps(
         {"room": room, "frame": "the room's own: its middle on its floor, x east, z south, y up", "counts": counts,
-         "kinds": room_kit.kinds_table(room, inventory), "pieces": pieces,
+         "kinds": room_kit.kinds_table(room, inventory, pieces), "pieces": pieces,
          "doorways": big_doorways(inventory["room"]["layout"])}, indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")
 

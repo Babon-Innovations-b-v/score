@@ -1140,8 +1140,9 @@
 			"view": "v2",
 			"box": null,
 			"name": "a caged industrial ceiling flood lamp fixture hung from the lattice",
+			"noun": "lamp",
 			"kind": "generate",
-			"anchor": "wall",
+			"anchor": "ceiling",
 			"size": [
 				0.4,
 				0.4,
@@ -1658,6 +1659,7 @@
 				211
 			],
 			"name": "a strip lamp in a steel housing with a frosted lens, over a door",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [
@@ -2148,6 +2150,7 @@
 				329
 			],
 			"name": "a small caged bulkhead lamp on a wall",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "wall",
 			"size": [

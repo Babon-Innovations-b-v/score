@@ -505,6 +505,7 @@
 				229
 			],
 			"name": "strip light over a hatch",
+			"noun": "lamp",
 			"kind": "code",
 			"anchor": "wall",
 			"size": [
@@ -542,11 +543,6 @@
 					"out": 0.02
 				}
 			],
-			"light": {
-				"strength": 0.2,
-				"reach": 5.0,
-				"high": 0.5
-			},
 			"box_from": [
 				"v1.621",
 				"v1.w29",
@@ -651,6 +647,7 @@
 				629
 			],
 			"name": "work lamp in a wire cage on the wall",
+			"noun": "lamp",
 			"kind": "code",
 			"anchor": "wall",
 			"size": [
@@ -704,11 +701,6 @@
 					"bottom": 2.25
 				}
 			],
-			"light": {
-				"strength": 0.35,
-				"reach": 6.0,
-				"high": 0.5
-			},
 			"box_from": [
 				"v1.w37"
 			]
@@ -1104,6 +1096,7 @@
 				773
 			],
 			"name": "LED grow-light bar housing over the plot",
+			"noun": "light",
 			"kind": "code",
 			"anchor": "ceiling",
 			"size": [
@@ -1197,6 +1190,7 @@
 				197
 			],
 			"name": "the grow-light bar's lit LED lens (dimmed by the grow lights' timer)",
+			"noun": "lens",
 			"kind": "code",
 			"anchor": "ceiling",
 			"size": [
@@ -2370,6 +2364,7 @@
 				629
 			],
 			"name": "desk lamp",
+			"noun": "lamp",
 			"kind": "generate",
 			"anchor": "on:work_desk",
 			"size": [

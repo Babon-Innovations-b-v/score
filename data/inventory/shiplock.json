@@ -97,6 +97,7 @@
   {
    "id": "locker",
    "name": "tall locker (here the suit lockers): a dark grey panelled door, an orange handle strip and a small status light",
+   "noun": "locker",
    "kind": "generate",
    "anchor": "floor",
    "size": [
@@ -179,6 +180,7 @@
   {
    "id": "corner_lamp",
    "name": "small square orange lamp",
+   "noun": "lamp",
    "kind": "generate",
    "anchor": "wall",
    "size": [
@@ -203,11 +205,6 @@
    ],
    "thing": "prop:cockpit_corner_lamp",
    "reuse": "cockpit:corner_lamp",
-   "light": {
-    "strength": 0.05,
-    "reach": 2.0,
-    "high": 0.06
-   },
    "count": 2,
    "view": "v1",
    "box": [
@@ -419,6 +416,7 @@
   {
    "id": "ceiling_light_panel",
    "name": "white light strip set in the ceiling",
+   "noun": "light",
    "kind": "code",
    "anchor": "ceiling",
    "size": [
@@ -431,11 +429,6 @@
    "thing": "prop:shiplock_ceiling_light_panel",
    "count": 1,
    "laid": "by the ship kit down the ceiling's middle",
-   "light": {
-    "strength": 0.2,
-    "reach": 4.0,
-    "high": 0.05
-   },
    "view": "v1",
    "box": [
     233,
