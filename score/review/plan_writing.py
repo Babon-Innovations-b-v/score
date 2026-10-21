@@ -8,7 +8,9 @@ place the layer above lays out fills its box there, any other is scaled by its r
 item's footprint against its row's), its outline box the drawn outline. A thing the creator already planned
 (creator_plans: the ship's floor plan) is laid from his plan, never from the drawing's shapes (`creator_laid`). Then the free checks
 (score/review/plan_checks.py, the arrangement against the concept's boxes among them), each failure a named gap of
-the plan, never guessed past. A writing that wrote no plan from words alone (METHOD 1) is never shown again.
+the plan, never guessed past. A writing that wrote no plan from words alone (METHOD 1) is never shown again. A place
+with no doors of its own (a scene added in the app) is given a door and its lead for each of its holder plan's
+openings in its walls there (`held_doors`; one into the place leads back to the holder), told to the writing as fixed.
 
 The plan keeps the stage table's schema (data/plans: w, d, doors, leads, items [name, x, y, wide, deep, facing, kind],
 rows, people, holds) and adds, in plan metres (x east, y south from the outline's north-west corner, heights above
@@ -758,10 +760,65 @@ def layered(store, places):
     return layers
 
 
+ON_WALL = 0.3  # metres a holder's opening may lie off an inside place's box edge and still be in its wall
+
+
+def opening_side(opening, outline):
+    """(side, along) of a holder plan's opening on the edge of an inside place's box there ([x, y, w, d], metres):
+    the wall it is in and how far along that wall from the box's north-west corner; None when it is in none."""
+    x0, y0, wide, deep = outline
+    at_x, at_y = opening["at"]
+    across = x0 - ON_WALL <= at_x <= x0 + wide + ON_WALL
+    along = y0 - ON_WALL <= at_y <= y0 + deep + ON_WALL
+    for side, gap, inside, run in (("N", at_y - y0, across, at_x - x0), ("S", at_y - y0 - deep, across, at_x - x0),
+                                   ("W", at_x - x0, along, at_y - y0), ("E", at_x - x0 - wide, along, at_y - y0)):
+        if inside and abs(gap) <= ON_WALL:
+            return side, round(min(max(run, 0.0), wide if side in "NS" else deep), 3)
+    return None
+
+
+def held_door(opening, place, holder, outline):
+    """(door, lead key, lead) of a holder's opening in an inside place's wall: the door [side, along, wide, what(,
+    sill)], its lead the holder for an opening into the place, else where the opening leads (none said: no `to`, a
+    gap the plan gate names); None for an opening in none of its walls."""
+    found = opening_side(opening, outline)
+    if found is None:
+        return None
+    side, along = found
+    tall = opening["head"] - opening["sill"] if opening.get("head") else None
+    what = f"{opening['kind']} {opening['wide']:g} x {tall:g} m" if tall else opening["kind"]
+    door = [side, along, opening["wide"], what] + ([opening["sill"]] if opening.get("sill") else [])
+    key = f"{side}@{opening['sill']:g}" if opening.get("sill") else side
+    to = holder if opening.get("to") == place else opening.get("to")
+    lead = {"why": f"the {holder} plan's {opening['kind']} at {opening['at']} is in this place's {side} wall"}
+    return door, key, {"to": to, **lead} if to else lead
+
+
+def held_doors(skeleton, place, holder, outline, openings):
+    """The skeleton of a place with no doors of its own (a scene added in the app) with a door and lead for each of its
+    holder plan's openings in its walls (`outline`, its box there); any other skeleton as it is."""
+    if skeleton.get("doors") or not outline:
+        return skeleton
+    found = [door for door in (held_door(opening, place, holder, outline) for opening in openings or []) if door]
+    if not found:
+        return skeleton
+    return {**skeleton, "doors": [door for door, _, _ in found],
+            "leads": {**skeleton.get("leads", {}), **{key: lead for _, key, lead in found}}}
+
+
+def holder_doors(store, place, skeleton):
+    """`held_doors` from the place's holder plan shown now, the skeleton as it is for a place nothing holds."""
+    held = plans.holder_of(store, place)
+    if held is None:
+        return skeleton
+    above = plans.current(store, held["holder"])["plan"]
+    return held_doors(skeleton, place, held["holder"], held["outline"], above.get("openings"))
+
+
 def written_one(store, place, by, folder, ask):
     """Write one place's plan: its top-down drawing first (plan_drawing.drawn), then `ask(body)` reading it; its
     record, kept (refused, with why, when the drawing is)."""
-    skeleton = plans.derived(store, place)
+    skeleton = holder_doors(store, place, plans.derived(store, place))
     inventory = plans.inventory_of(store, place)
     sha = concepts.picked(store, place)
     record = {"place": place, "concept": sha, "reading": reading_at(store, place), "by": by, "method": METHOD}

@@ -196,6 +196,17 @@ def facet_doors_of(plan):
     return found
 
 
+def corner_of(plan):
+    """The radius of the room's corners: the plan's `corner`, else 0 for a written plan (score/review/plan_writing),
+    whose `outline` draws every corner and curve as its own points, so no corner is rounded past them. A plan with
+    neither says nothing of its corners, and is refused by name."""
+    if "corner" in plan:
+        return float(plan["corner"])
+    if plan.get("outline"):
+        return 0.0
+    raise ValueError(f"{plan['title']}: the plan gives no corner and no outline")
+
+
 def walls_of(plan, layout):
     """The room's walls: a capsule's inside wide and deep with its corners (a flat roof's: with its door opening),
     or a faceted room's facets, apothem, turn and sunken pit; with the walls' height, the roof's rise and run."""
@@ -204,7 +215,7 @@ def walls_of(plan, layout):
                 "turn": float(plan["turn"]), "pit_radius": float(plan["pit"]["radius"]),
                 "pit_floor": float(plan["pit"]["floor"]), "wide": 2 * float(plan["apothem"]),
                 "deep": 2 * float(plan["apothem"]), **heights(plan, layout)}
-    capsule = {"wide": float(plan["w"]), "deep": float(plan["d"]), "corner": float(plan["corner"]),
+    capsule = {"wide": float(plan["w"]), "deep": float(plan["d"]), "corner": corner_of(plan),
                **heights(plan, layout)}
     if plan.get("shape") == "flat":
         return {**capsule, "shape": "flat", "opening": [float(value) for value in layout["opening"]]}
