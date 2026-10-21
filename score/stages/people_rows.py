@@ -375,11 +375,12 @@ def refresh(store):
 
 # --- the people line's data for the mapped looks -------------------------------------------------------------------
 
-def drawn_from(origin, kept):
+def drawn_from(origin, kept, number=0):
     """A line row's concept view and box from the picked design's person row that maps it (`origin` "<place>/<row>"):
-    the view named by its place, its picture the kept concept, its box SAM 3's in the reading (handin.GROUNDED), so
-    the shared loop's close-up draws the look from the place's own person; {} where the design keeps no inventory
-    (`kept`: the kept inventories' folder)."""
+    the view named by its place, its picture the kept concept, its box SAM 3's in the reading (handin.GROUNDED): the
+    `number`th person's instance box (`boxes`) when SAM 3 told the row's people apart, else its one box, so the shared
+    loop's close-up draws each look from its own person in the place; {} where the design keeps no inventory (`kept`:
+    the kept inventories' folder)."""
     from score.stages.complete.prepare import handin
     place, row_id = origin.split("/", 1)
     path = kept / f"{place}.json"
@@ -387,7 +388,15 @@ def drawn_from(origin, kept):
         if path.is_file() else None
     if not read or not read.get("box"):
         return {}
-    return {"view": place, "box": read["box"], "grounded": handin.GROUNDED}
+    boxes = read.get("boxes") or []
+    return {"view": place, "box": boxes[number] if number < len(boxes) else read["box"], "grounded": handin.GROUNDED}
+
+
+def person_number(look, origin, found):
+    """Which person of its row (`origin` "<place>/<row>") a look is: its place in the row's `looks`, 0 for a crowd's."""
+    place, row_id = origin.split("/", 1)
+    looks = found["places"][place]["rows"][row_id].get("looks") or []
+    return looks.index(look) if look in looks else 0
 
 
 def build_of(fields):
@@ -510,7 +519,7 @@ def line_rows(found, props, inventory, surfaces, kept=None):
             size, origin = size_of(row["id"], found)
             rows.append({**{key: value for key, value in row.items() if key not in ("view", "box", "grounded")},
                          "prop": row["id"], "size": size, "size_from": f"{origin} of data/people/rows.json",
-                         "view": None, "box": None, **drawn_from(origin, kept),
+                         "view": None, "box": None, **drawn_from(origin, kept, person_number(row["id"], origin, found)),
                          **described(row["id"], row, specs, surfaces)})
     takes = {props["objects"][look]["take"] for look in wanted}
     models = {look: take for look, take in surfaces["bake"]["models"].items() if look in wanted}

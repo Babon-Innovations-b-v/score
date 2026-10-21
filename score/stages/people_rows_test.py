@@ -115,15 +115,22 @@ def test_each_line_row_is_drawn_from_the_person_that_maps_it():
     with tempfile.TemporaryDirectory() as held:
         kept = pathlib.Path(held)
         (kept / "tube.json").write_text(json.dumps({"rows": [{"id": "person_right", "box": [1, 2, 3, 4]}]}))
+        boxes = [[number, 0, number + 1, 2] for number in range(7)]
+        (kept / "campgrounds.json").write_text(json.dumps({"rows": [{"id": "astronaut", "box": boxes[0],
+                                                                      "boxes": boxes}]}))
         props, inventory, _ = people_rows.line_rows(people_rows.read(), records["props"], records["inventory"],
                                                     records["surfaces"], kept)
     rows = {row["id"]: row for row in inventory["rows"]}
     assert rows["player_wide-work"]["view"] == "tube" and rows["player_wide-work"]["box"] == [1, 2, 3, 4]
     assert rows["player_wide-work"]["grounded"] and rows["player_wide-work"]["prop"] == "player_wide-work"
     assert rows["kit_m_avg-coat-grey"]["view"] is None, "the square keeps no inventory here"
-    assert inventory["plan"]["views"] == [{"id": "tube", "picture": "{home}/design/concepts/tube.png"}]
-    assert inventory["approved"]["by"] == "the creator's pick" and inventory["approved"]["places"] == ["tube"]
+    assert inventory["plan"]["views"] == [{"id": place, "picture": f"{{home}}/design/concepts/{place}.png"}
+                                          for place in ("campgrounds", "tube")]
+    assert inventory["approved"]["by"] == "the creator's pick"
+    assert inventory["approved"]["places"] == ["campgrounds", "tube"]
     assert "closeup" not in props["objects"]["player_wide-work"]
+    # each of a row's people drawn from its own SAM 3 instance, never seven close-ups of the first one
+    assert [rows[f"campgrounds_astronaut_{number}-drawn"]["box"] for number in range(1, 8)] == boxes
 
 
 def test_each_line_rows_close_up_words_say_who_the_look_is():
