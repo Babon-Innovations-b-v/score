@@ -7,11 +7,25 @@ import * as THREE from "three";
 
 const SPACE = 0x05060a;
 const DISSOLVE = 0.9;
+const EASE = 0.3;  // the share of a leg a move takes to rise from rest or fall to rest
 let size = [1280, 720], views = [], legs = [], rate = 24;
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 const eased = (value) => { const share = clamp01(value); return share * share * (3 - 2 * share); };
 const lerp = (from, to, share) => from + (to - from) * share;
+
+// Progress along a leg, 0 at its start and 1 at its end, its speed a half sine wave rising from rest over EASE where
+// `rests[0]` and falling to rest where `rests[1]`; a leg that does not rest at an end is at speed there and carries
+// on past it, so the camera keeps moving through a dissolve instead of stopping and starting again.
+function travel(share, rests) {
+  const rise = rests[0] ? EASE : 0, fall = rests[1] ? EASE : 0, length = 1 - rise / 2 - fall / 2;
+  const ramp = (time, ease) => (ease ? time / 2 - ease / (2 * Math.PI) * Math.sin(Math.PI * time / ease) : time);
+  if (share <= 0) return rests[0] ? 0 : share / length;
+  if (share >= 1) return rests[1] ? 1 : 1 + (share - 1) / length;
+  if (share < rise) return ramp(share, rise) / length;
+  if (1 - share < fall) return (length - ramp(1 - share, fall)) / length;
+  return (share - rise / 2) / length;
+}
 const colour = (rgb) => new THREE.Color().setRGB(rgb[0], rgb[1], rgb[2], THREE.SRGBColorSpace);
 
 // A fixed sequence of numbers (the same stars and ground every time).
@@ -181,12 +195,12 @@ function worldView(data) {
   return {
     element: paint.domElement, labels: [tag, name],
     draw(local, leg, opacity) {
-      const share = local / leg.seconds;
-      const distance = 1 + (leg.from_height - 1) * Math.pow((leg.to_height - 1) / (leg.from_height - 1), Math.min(1.25, share) ** 1.3);
-      const lean = eased(share) * 0.35 * (distance - 1);
+      const share = local / leg.seconds, moved = travel(share, leg.rests);
+      const distance = 1 + (leg.from_height - 1) * Math.pow((leg.to_height - 1) / (leg.from_height - 1), Math.max(0, Math.min(1.25, moved)) ** 1.3);
+      const lean = moved * 0.35 * (distance - 1);
       camera.position.set(0, -lean, distance);
       camera.lookAt(0, 0, 1);
-      turned.rotation.y = THREE.MathUtils.degToRad(12 * (1 - eased(share)));
+      turned.rotation.y = THREE.MathUtils.degToRad(12 * (1 - moved));
       marker.material.opacity = clamp01(1.2 - share);
       paint.render(scene, camera);
       placeLabel(tag, new THREE.Vector3(0, 0.05, 1.0), camera, opacity * clamp01(1.3 - share * 1.2));
@@ -290,13 +304,13 @@ function groundView(data) {
   return {
     element: paint.domElement, labels: [...blocks.map((found) => found.label), ...others.map((other) => other.label)],
     draw(local, leg, opacity) {
-      const share = local / leg.seconds, path = leg.camera;
-      const turn = THREE.MathUtils.degToRad(lerp(path.from_deg, path.to_deg, eased(share)));
-      const tilt = THREE.MathUtils.degToRad(lerp(path.from_tilt, path.to_tilt, eased(share)));
-      const distance = path.from_distance * Math.pow(path.to_distance / path.from_distance, eased(share));
+      const share = local / leg.seconds, path = leg.camera, moved = travel(share, leg.rests);
+      const turn = THREE.MathUtils.degToRad(lerp(path.from_deg, path.to_deg, moved));
+      const tilt = THREE.MathUtils.degToRad(lerp(path.from_tilt, path.to_tilt, Math.min(1.1, moved)));
+      const distance = path.from_distance * Math.pow(path.to_distance / path.from_distance, moved);
       let target = centre.clone();
       if (leg.layer === "place" && into && share > 0.72) {  // the camera goes on into the room the rooms start with
-        const closing = eased((share - 0.72) / 0.28);
+        const closing = Math.min(1 / 0.85, travel((share - 0.72) / 0.28, [true, false]));
         target = centre.clone().lerp(into.middle, closing);
         camera.position.lerpVectors(this.orbit(turn, tilt, distance), into.middle.clone().add(new THREE.Vector3(0, 2, 6)), closing * 0.85);
       } else {
@@ -362,6 +376,7 @@ function setup(data) {
   legs = data.legs;
   views = [];
   let start = 0;
+  legs.forEach((leg, index) => { leg.rests = [false, index === legs.length - 1]; });  // one move, resting only at its end
   for (const leg of legs) {
     leg.start = start;
     start += leg.seconds;

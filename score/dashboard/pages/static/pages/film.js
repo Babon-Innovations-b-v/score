@@ -921,15 +921,33 @@ class Shot {
 
   prepareWords() {
     const words = element("div", `film-words ${this.segment.cut}`);
-    words.append(element("h3", "", this.segment.text || doc.title || ""));
+    words.append(element("h3", "", this.segment.text || doc.title || ""), element("i", "rule"));
     if (this.segment.line) words.append(element("p", "", this.segment.line));
     this.box.append(words);
+    this.words = words;
+  }
+
+  // A card's words come in on its clock: the title rises in as its letters close up, the rule draws out under it, the
+  // line follows; all of it closes in slowly and fades before the card ends.
+  drawWords(local, seconds) {
+    const [title, rule, line] = [this.words.querySelector("h3"), this.words.querySelector(".rule"), this.words.querySelector("p")];
+    const out = eased((seconds - local) / 0.6), rising = eased((local - 0.15) / 0.8);
+    Object.assign(title.style, { opacity: String(Math.min(rising, out)), transform: `translateY(${(1 - rising) * 14}px)`,
+      letterSpacing: `${0.09 - 0.1 * eased(local / 1.8)}em` });
+    rule.style.transform = `scaleX(${eased((local - 0.55) / 0.8)})`;
+    rule.style.opacity = String(out);
+    if (line) {
+      const shown = eased((local - 0.8) / 0.7);
+      Object.assign(line.style, { opacity: String(Math.min(shown, out)), transform: `translateY(${(1 - shown) * 10}px)` });
+    }
+    this.words.style.transform = `scale(${1 + 0.025 * local / seconds})`;
   }
 
   // Show the shot at `local` seconds into its segment.
   draw(local, playing) {
     const seconds = secondsOf(this.segment), share = clamp01(local / seconds);
     if (this.caption) this.caption.style.opacity = String(Math.min(clamp01((local - CAPTION_IN) / 0.5), clamp01((seconds - local) / 0.5)));
+    if (this.words) this.drawWords(local, seconds);
     if (this.loaded) this.drawThree(share, seconds);
     if (this.video) this.drawFilm(local, playing);
     if (this.picture) this.picture.style.transform = `scale(${1 + 0.06 * eased(share)})`;

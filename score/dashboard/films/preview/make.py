@@ -8,11 +8,15 @@ film-preview <film>`): nothing rented, nothing bought, no button that spends eve
 2. Every segment drawn frame by frame in headless Chromium (recorder.mjs): a screen take on its cockpit page, a setting
    animation or a scale zoom by scene.js (scenes.py works out what it shows), any other cut through the FILM page's
    own player at its moment; each segment's captions and picture-in-picture over it.
-3. Each segment's frames made a clip, the clips joined by the script's transitions on its clock (script.timeline),
-   the sound bed (a library sound, `bed`) under the whole film at one loudness, silence where a segment says so.
+3. Each segment's frames made a clip (kept in `<film>-takes/`, where the environment-film row cuts its recorded
+   segments from), the clips joined by the script's transitions on its clock (script.timeline) under one grade (GRADE:
+   a gentle contrast curve and a soft vignette, the same for every segment), the sound bed (a library sound, `bed`)
+   under the whole film at one loudness, started where its strongest onsets fall on the cuts (beat_offset), silence
+   where a segment says so.
 
 Out: `$SCORE_DASHBOARD_HOME/films/previews/<film>.mp4` and `<film>.json` (the script it was made from, made_at, each
-segment's start and seconds), which the FILM page plays and the export carries.
+segment's start, seconds and clip, where the bed starts), which the FILM page plays and the export carries (not the
+takes folder).
 """
 import datetime
 import json
@@ -36,6 +40,13 @@ FOLDER = "films/previews"
 SCALE = 2  # each frame drawn at twice its size and brought down to it, so the cockpit's text stays sharp
 TARGET_LUFS = -16.0  # demo_film/final.py's TARGET_LUFS: one loudness for the whole film
 BED_FADE = (1.0, 2.0)
+# The film's one grade, every segment alike: a gentle S curve (shadows down, highlights up a little) and a soft
+# vignette; nothing added to what is shown. demo_film/final.py grades the environment film the same way.
+GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1',vignette=angle=PI/7"
+# A bed's onsets are found on hops of a frame; a start is taken only when its onsets on the cuts stand this many
+# deviations over the average start's (a steady hum has none, and starts at 0).
+ONSET_RATE = 12000
+BEAT_STANDOUT = 3.0
 XFADES = {"cross-fade": "fade", "push": "slideleft"}
 BLACK_HALF = script.TRANSITION_SECONDS / 2
 THREE = "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js"  # the FILM page's own
@@ -71,6 +82,11 @@ def preview_paths(home, film):
     """(the film's preview, its record) in the cockpit home."""
     folder = pathlib.Path(home) / FOLDER
     return folder / f"{film}.mp4", folder / f"{film}.json"
+
+
+def takes_folder(home, film):
+    """The folder of the preview's segment clips: `<film>-takes/<NNN>.mp4`, segment numbers from 1."""
+    return pathlib.Path(home) / FOLDER / f"{film}-takes"
 
 
 def free_port():
@@ -191,7 +207,7 @@ def joined_filter(film_script, lengths):
             fades.append(f"fade=t=in:st=0:d={BLACK_HALF}")
         if index + 1 < len(lengths) and segments[index + 1].get("transition") == "fade-through-black":
             fades.append(f"fade=t=out:st={length - BLACK_HALF:.3f}:d={BLACK_HALF}")
-        parts.append(f"[{index}:v]fps={rate:g},settb=AVTB,setpts=PTS-STARTPTS"
+        parts.append(f"[{index}:v]fps={rate:g},settb=AVTB,setpts=PTS-STARTPTS,{GRADE}"
                      f"{''.join(',' + fade for fade in fades)}[c{index}]")
     made, clock = "c0", lengths[0]
     for index in range(1, len(lengths)):
@@ -218,6 +234,37 @@ def bed_sound(film_script):
     return found[0]
 
 
+def cut_moments(film_script):
+    """The film's seconds where one segment gives way to the next: a cross-fade's or push's middle, else the joint."""
+    return [start + script.overlap_of(index, segment) / 2
+            for index, ((start, _), segment) in enumerate(zip(script.timeline(film_script), film_script["segments"]))
+            if index]
+
+
+def onsets(bed, rate):
+    """How sharply the bed's sound rises at each hop of 1 / `rate` s (its log energy's rise, never below 0)."""
+    import numpy
+    pcm = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(bed), "-ac", "1", "-ar", str(ONSET_RATE), "-f",
+                          "f32le", "-"], capture_output=True, check=True).stdout
+    samples = numpy.frombuffer(pcm, dtype=numpy.float32)
+    hop = int(ONSET_RATE / rate)
+    hops = samples[:len(samples) // hop * hop].reshape(-1, hop)
+    energy = numpy.log((hops.astype(numpy.float64) ** 2).mean(axis=1) + 1e-9)
+    return numpy.maximum(numpy.diff(energy, prepend=energy[:1]), 0.0)
+
+
+def beat_offset(rises, cuts, rate):
+    """The bed's second to start the film at so its strongest onsets (`rises`, one a hop of 1 / `rate` s, the bed
+    looping) fall on the `cuts`; 0 where no start stands out by BEAT_STANDOUT deviations (a bed with no beat)."""
+    import numpy
+    if not len(rises) or not cuts:
+        return 0.0
+    at = numpy.round(numpy.asarray(cuts) * rate).astype(int)
+    scores = numpy.array([rises[(at + start) % len(rises)].sum() for start in range(len(rises))])
+    best = int(scores.argmax())
+    return round(best / rate, 3) if scores[best] > scores.mean() + BEAT_STANDOUT * scores.std() else 0.0
+
+
 def silences(film_script):
     """The ffmpeg volume filters that silence the bed under every segment whose sound is silence."""
     return [f"volume=enable='between(t,{start:.3f},{start + length:.3f})':volume=0"
@@ -225,27 +272,30 @@ def silences(film_script):
             if segment.get("sound") == "silence"]
 
 
-def joined(film_script, clips, out):
-    """The clips joined by the script's transitions with the sound bed under them, at one loudness; its length."""
+def joined(film_script, clips, out, bed, bed_from):
+    """The clips joined by the script's transitions with the sound bed under them from its `bed_from` second, at
+    one loudness; its length."""
     lengths = [script.seconds_of(film_script, segment) for segment in film_script["segments"]]
     video, made, total = joined_filter(film_script, lengths)
-    bed = bed_sound(film_script)
     sound = ",".join([f"atrim=0:{total:.3f}", "asetpts=PTS-STARTPTS", f"afade=t=in:st=0:d={BED_FADE[0]}",
                       f"afade=t=out:st={total - BED_FADE[1]:.3f}:d={BED_FADE[1]}", *silences(film_script),
                       f"loudnorm=I={TARGET_LUFS}:TP=-1.5:LRA=11", "aresample=48000"])
     inputs = [part for path in clips for part in ("-i", str(path))]
-    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", *inputs, "-stream_loop", "-1", "-i", str(bed),
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", *inputs, "-stream_loop", "-1", "-ss", f"{bed_from:.3f}",
+                    "-i", str(bed),
                     "-filter_complex", f"{video};[{len(clips)}:a]{sound}[bed]", "-map", f"[{made}]", "-map", "[bed]",
                     "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p", "-c:a", "aac",
                     "-b:a", "192k", "-movflags", "+faststart", "-t", f"{total:.3f}", str(out)], check=True)
     return total
 
 
-def record_of(film_script, total):
-    """What the preview was made from: the script, when, and each segment's place on its clock."""
+def record_of(film_script, total, bed_from):
+    """What the preview was made from: the script, when, each segment's place on its clock and its clip, and where
+    the bed starts."""
     return {"film": film_script["film"], "made_at": datetime.datetime.now(datetime.timezone.utc).isoformat(
-        timespec="seconds"), "seconds": round(total, 3), "script": film_script,
-        "segments": [{"index": index + 1, "cut": segment["cut"], "start": start, "seconds": length}
+        timespec="seconds"), "seconds": round(total, 3), "script": film_script, "bed_from": bed_from,
+        "segments": [{"index": index + 1, "cut": segment["cut"], "start": start, "seconds": length,
+                      "clip": f"{film_script['film']}-takes/{index + 1:03d}.mp4"}
                      for index, ((start, length), segment) in enumerate(zip(script.timeline(film_script),
                                                                              film_script["segments"]))]}
 
@@ -277,12 +327,16 @@ def make(film, export=None, user=None, keep=False):
     finally:
         server.terminate()
         server.wait(timeout=30)
-    clips = [clip(folders[index + 1], work / f"{index + 1:03d}.mp4", job["size"], job["rate"])
+    clips_folder = takes_folder(settings.SCORE_HOME, film)
+    clips_folder.mkdir(parents=True, exist_ok=True)
+    clips = [clip(folders[index + 1], clips_folder / f"{index + 1:03d}.mp4", job["size"], job["rate"])
              for index in range(len(film_script["segments"]))]
+    bed = bed_sound(film_script)
+    bed_from = beat_offset(onsets(bed, job["rate"]), cut_moments(film_script), job["rate"])
     partial = out.with_suffix(".partial.mp4")
-    total = joined(film_script, clips, partial)
+    total = joined(film_script, clips, partial, bed, bed_from)
     partial.replace(out)
-    record.write_text(json.dumps(record_of(film_script, total), indent=1) + "\n")
+    record.write_text(json.dumps(record_of(film_script, total, bed_from), indent=1) + "\n")
     if not keep:
         shutil.rmtree(work / "frames", ignore_errors=True)
     return out, record

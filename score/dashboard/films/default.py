@@ -32,10 +32,10 @@ def setting_take(facts):
     """1: the setting on the environment concept page, the top scene's body boxed."""
     body, card = titled(facts["body"]), f".sp-card:nth-child({facts['bodies'].index(facts['body']) + 1})"
     return segment("screen-take", {"page": f"/environments/{facts['world']}/"}, 6.0, [caption(
-        0.4, 5.8, "1 · Setting", "What everything stands on: " + ", ".join(map(titled, facts["bodies"])))],
+        0.4, 5.8, "1 · Physics", "What everything stands on: " + ", ".join(map(titled, facts["bodies"])))],
         transition="fade-through-black", take=[
-            {"at": 0.3, "do": "scroll", "on": "section[aria-label=setting]", "over": 1.1},
-            {"at": 1.6, "do": "box", "on": "section[aria-label=setting] svg", "for": 2.0, "words": "The setting"},
+            {"at": 0.3, "do": "scroll", "on": "section[aria-label=physics]", "over": 1.1},
+            {"at": 1.6, "do": "box", "on": "section[aria-label=physics] svg", "for": 2.0, "words": "The physics"},
             {"at": 2.0, "do": "move", "on": card, "over": 0.9},
             {"at": 3.5, "do": "box", "on": card, "for": 2.4, "words": f"{body}: where {facts['top_name']} stands"}])
 
@@ -79,8 +79,8 @@ def plan_take(facts):
     return segment("screen-take", {"page": f"/concept/{facts['top']}/"}, 10.0, [
         caption(0.4, 3.6, "4 · Inventory and plan", f"Read from the locked concept: what {top} holds"),
         caption(4.0, 9.8, "Environment plan", f"Every site on {body}, true metres apart, each with its blockout")],
-        take=[{"at": 0.6, "do": "move", "on": ".concept-inventory", "over": 0.9},
-              {"at": 0.8, "do": "box", "on": ".concept-inventory", "for": 2.4, "words": "Scene inventory"},
+        take=[{"at": 0.6, "do": "move", "on": "#inventory-part", "over": 0.9},
+              {"at": 0.8, "do": "box", "on": "#inventory-part", "for": 2.4, "words": "Scene inventory"},
               {"at": 3.4, "do": "goto", "page": f"/environments/{facts['world']}/plan/"},
               {"at": 3.6, "do": "scroll", "on": section, "over": 1.0},
               {"at": 4.8, "do": "box", "on": f"{section} svg", "for": 2.4, "words": f"{body}'s sites"},
@@ -104,7 +104,7 @@ def zoom(facts):
     surfaces, bare = surfaces_of(facts)
     waits = "Blockout · the finished scene waits on the batch"
     found = segment("scale-zoom", {"place": facts["top"]}, 22.0, [
-        caption(0.3, 3.3, "5 · One shot, every scale", "The setting"), caption(3.7, 7.3, "World", body),
+        caption(0.3, 3.3, "5 · One shot, every scale", "The physics"), caption(3.7, 7.3, "World", body),
         caption(7.7, 11.3, "Site", f"{top}'s site, from the environment plan"),
         caption(11.7, 16.2, "Place", f"{top} from outside, its concept beside it"),
         caption(16.6, 21.8, "Rooms", "Inside: " + ", ".join(name for _, name in rooms))],
@@ -125,7 +125,7 @@ def built(film, facts):
     """The environment's default script, named `film`."""
     surfaces, _ = surfaces_of(facts)
     animation = segment("setting-animation", {"world": facts["world"]}, 4.5, [caption(
-        0.5, 4.3, "Setting animation", f"Their real orbits, {DAYS_PER_SECOND} days a second")],
+        0.5, 4.3, "Physics animation", f"Their real orbits, {DAYS_PER_SECOND} days a second")],
         days_per_second=DAYS_PER_SECOND, surfaces={body: surface for body, surface in surfaces.items()
                                                     if body != "ground"},
         note="sizes and orbits enlarged to read")
