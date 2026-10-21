@@ -139,7 +139,14 @@ stage as each stage is built; nothing moves before.
   frame; then `plan_checks.py`'s free checks (the arrangement against the
   concept's SAM boxes, left of, behind, place across the view, the way a thing faces, what a tube joins, among them; a
   run of crates one item with its `count`, only things drawn touching: a counted box far larger than its things side
-  by side is a gap, `run_gaps`), each failure a plain gap with where it is; run on its own after a reading
+  by side is a gap, `run_gaps`; a people row is never a thing: it stands on person spots, `plan["people"]` entries
+  [x, y, facing, row], the cast's spots), each failure a plain gap with where it is, fixed before it is shown
+  (`plan_fixes.py`, owner 2026-10-21: "gaps should only show things that cant be fixed auto"): the free fixes (people
+  stood where their SAM boxes project, a box of things drawn apart split, the missing placed where their boxes
+  project, facings turned the concept's way, overlaps parted inside the walls), then at most two automatic Corrects
+  by the gaps left, each kept only when it leaves fewer, their cost kept with the writing; what is left says why; his
+  edits and the rooms are never touched; `python -m score.review.plan_fixes <place> ...` fixes plans written before;
+  run on its own after a reading
   (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
   on his Make plan click as his spend yes (`web.plan_write`).
   `blockout.py` builds a place's blockout (CONTEXT.md "blockout", owner 2026-10-21) from its parent's plan: a top

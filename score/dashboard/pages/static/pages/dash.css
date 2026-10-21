@@ -686,6 +686,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .plan-corner { fill: var(--ink) !important; stroke: none !important; cursor: nwse-resize; opacity: 0; }
 .plan-drag:hover > .plan-corner { opacity: 1; }
 .plan-spot { fill: var(--new); }
+.plan-spot.plan-person { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .plan-dim-line, .plan-dim-ext, .plan-dim-tick { stroke: var(--soft); stroke-width: 1; }
 .plan-dim-tick { stroke-width: 1.6; }
 .plan-north polygon { fill: none; stroke: var(--soft); stroke-width: 1; } .plan-north polygon.fill { fill: var(--soft); }

@@ -319,10 +319,14 @@
     corner(rect, (w, d) => Object.assign(thing, { w, d }), group, size, () => thing.name);
   };
   const spot = (where) => {
-    const dot = shape("circle", { cx: where[0], cy: where[1], r: longest / 110, class: "plan-spot" });
-    tip(dot, "a standing spot");
+    // a person spot ([x, y, facing, row]: a people row of the concept, where the cast stands) is a small person mark
+    const person = where.length >= 4 && where[3] ? String(where[3]).replace(/_/g, " ") : null;
+    const dot = shape("circle", { cx: where[0], cy: where[1], r: longest / (person ? 160 : 110),
+                                  class: person ? "plan-spot plan-person" : "plan-spot" });
+    const said = person ? `a person: ${person}` : "a standing spot";
+    tip(dot, said);
     draggable(dot, () => where.slice(), (was, dx, dy) => where.splice(0, 2, round(was[0] + dx), round(was[1] + dy)), null,
-              () => "moved a standing spot");
+              () => `moved ${said}`);
   };
 
   // --- the sheet: dimensions, north, scale, the cut -----------------------------------------------------------------

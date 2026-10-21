@@ -11,7 +11,7 @@ import pytest
 from PIL import Image
 
 from score.adapters import compute
-from score.review import plan_checks, plan_drawing, plan_writing, plans, web
+from score.review import plan_checks, plan_drawing, plan_fixes, plan_writing, plans, web
 from score.review.plans_test import data, picked, store  # noqa: F401 (the fixtures)
 
 ANSWER = {
@@ -94,7 +94,9 @@ def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a
     words = [gap["words"] for gap in plan["gaps"]]
     assert {"item": "ghost", "why": "no such row"} in plan["dropped"] and {"item": "walls", "why": "1 off the schema"} \
         in plan["dropped"]  # kept apart: no gap of his
-    assert words == ["crate: 2 in the concept, 1 on the plan", "bench 1 and crate 1 stand in each other (north)"]
+    # the overlap parted before it is shown; the second crate has no box to place it by, so it is left, saying why
+    assert words == [f"crate: 2 in the concept, 1 on the plan: {plan_fixes.WHY['placed']}"]
+    assert [fix for fix in plan["fixes"] if "moved" in fix and "out of" in fix]
     assert not [word for word in words if "reached" in word or "outside" in word]
     assert plan_writing.write(store, ["shed"], "the allowance", clear=cleared(clears), ask=ask) == []  # written once
     plan["items"] = [[*item[:2], 0.3, *item[3:]] if item[0] == "CRATE 1" else item for item in plan["items"]]
@@ -202,8 +204,8 @@ def test_a_thing_the_creator_planned_is_laid_from_his_plan_where_and_the_way_it_
     assert plan_writing.creator_laid(plan)[1][0]["words"] == "the way ship 1's nose points was not read: laid nose E"
 
 
-def test_people_things_seen_far_off_and_rows_beyond_the_place_are_no_gaps():
-    plan = {"w": 6.0, "d": 4.0, "doors": [], "people": [],
+def test_people_on_their_person_spots_things_seen_far_off_and_rows_beyond_the_place_are_no_gaps():
+    plan = {"w": 6.0, "d": 4.0, "doors": [], "people": [[4.0, 3.0, None, "diner"]],
             "items": [["CRATE 1", 1.0, 1.0, 1.0, 1.0, None, "item"], ["DINER 1", 1.2, 1.2, 0.5, 0.5, None, "item"],
                       ["DISTANT FLAG 1", 9.0, 1.0, 1.0, 1.0, None, "item"]],
             "rows": {"CRATE 1": ["crate"], "DINER 1": ["diner"], "DISTANT FLAG 1": ["distant_flag"]}}

@@ -309,7 +309,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   dimension lines, north arrow, scale bar, and a section A-A under it at the same scale; every colour a token in
   `dash.css`), beside the locked concept: hover a thing for its details; he drags and resizes items, zones and inside
   places (one dropped on a building stands in it: no row dropdown, owner 2026-10-21), moves doors along their walls and
-  standing spots; the inside places by name only (rename, remove, add place); the drop rule (owner 2026-10-21,
+  standing spots (a person spot, a people row's, drawn as a small person mark, never a box); the inside places by name only (rename, remove, add place); the drop rule (owner 2026-10-21,
   CONTEXT.md "shared room", "thing in a room"): a box dropped fully inside a room is a thing in it (`things` on its
   hold, listed under it), a room dropped on or resized over another is one shared room (`name` on the kept hold),
   anywhere else a box is a child scene, each with an undo; its gaps said plainly where they are,

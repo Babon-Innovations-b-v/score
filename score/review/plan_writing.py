@@ -48,7 +48,7 @@ import sys
 import time
 import urllib.error
 
-from score.review import concepts, creator_plans, plan_checks, plan_drawing, plans, reading
+from score.review import concepts, creator_plans, plan_checks, plan_drawing, plan_fixes, plans, reading
 from score.store import Store, locked, stamp_key
 
 AREA = "plan-writings"
@@ -844,6 +844,10 @@ def written_one(store, place, by, folder, ask):
         record["plan"] = plan_from(answer, skeleton, inventory)
     except (ValueError, Refused) as refused:
         record["refused"] = f"the plan answer is no plan: {str(refused)[:200]}"
+        return kept(store, record)
+    # fixed before it is shown: the free fixes, then what is left corrected by the prompt model (plan_fixes)
+    record["plan"], record["calls"] = plan_fixes.settled(store, place, record["plan"], inventory, ask)
+    record["euros"] = round(record["euros"] + sum(call.get("euros", 0.0) for call in record["calls"]), 6)
     return kept(store, record)
 
 

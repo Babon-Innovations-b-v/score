@@ -657,6 +657,9 @@ def made_plan(store, place):
     found = written(store, place)
     if found:
         plan = {**found["plan"], "gaps": checked_again(found["plan"], inventory_of(store, place))}
+        if "fixes" in plan:  # fixed after writing (plan_fixes): each gap left says why no fix took
+            from score.review import plan_fixes
+            plan["gaps"] = plan_fixes.why_left(plan["gaps"])
         if "holds" in plan:  # an inside place he took off since it was written is laid out no more
             inside = set(proposed_inside(store, place))
             plan["holds"] = [hold for hold in plan["holds"] if hold["place"] in inside]
