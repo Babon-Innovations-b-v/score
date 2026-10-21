@@ -6,6 +6,7 @@ Run: .venv/bin/python score/stages/physics/physics_test.py
 """
 import json
 import pathlib
+import shutil
 import sys
 import tempfile
 
@@ -74,6 +75,27 @@ def the_rises_are_per_undriven_stretch():
         {0: (0.5, 10.0), 3: (1.0, 20.0)}
 
 
+def the_trial_stands_the_shown_places_from_the_neighbours_output():
+    """The layer reads the place's neighbours output where it has one (no seed, no data/scene record), and the
+    trial's copy keeps the shown places under places/ beside the stage, less the contract."""
+    from score import stages
+    assert stages.PHYSICS_LAYER.after["neighbours"] == ("openusd-stage", 1)
+    assert stages.PHYSICS_TRIAL.files == physics.TRIAL_FILES
+    assert not any("seeds" in path or "data/scene" in path for path in physics.TRIAL_FILES.values())
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        layer = root / "layer"
+        (layer / "places/square").mkdir(parents=True)
+        (layer / "flat.usda").write_text("#usda 1.0\n")
+        (layer / "places/square/square.usda").write_text("#usda 1.0\n")
+        (layer / "contract.json").write_text("{}")
+        folder = physics.trial_folder(root / "out", "flat", layer)
+        assert (folder / "flat/places/square/square.usda").is_file()
+        assert not (folder / "flat/contract.json").exists()
+    finally:
+        shutil.rmtree(root)
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
@@ -81,4 +103,5 @@ if __name__ == "__main__":
     a_good_run_passes()
     each_gate_breaks()
     the_rises_are_per_undriven_stretch()
+    the_trial_stands_the_shown_places_from_the_neighbours_output()
     print("physics_test: ok")

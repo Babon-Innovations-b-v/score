@@ -202,10 +202,11 @@ SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, fil
 # Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its
 # objects react (a place whose design shows a loose object).
 PHYSICS_LAYER = graph.Stage("physics-layer", "place", physics.make_layer, physics.LAYER, physics.LAYER_CHECKS,
-                            files=physics.LAYER_FILES, after={"assembly": ("openusd-stage", 1)},
+                            files=physics.LAYER_FILES,
+                            after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1)},
                             applies=designed("physics"))
 PHYSICS_TRIAL = graph.Stage("physics-trial", "place", physics.make_trial, physics.TRIAL, physics.TRIAL_CHECKS,
-                            files=physics.trial_files, after={"physics-layer": ("physics-layer", 1)}, paid=True,
+                            files=physics.TRIAL_FILES, after={"physics-layer": ("physics-layer", 1)}, paid=True,
                             euros=physics.EUROS, applies=designed("physics"))
 
 
@@ -632,7 +633,7 @@ SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.
 # retired with the old concepts on 2026-10-21), each now reading earth-seed instead (earth_seeded: its stage folder
 # and its design's kit); stages_test.py holds the list to the declared files. terrain-look, the last reader of a seed
 # alone, is retired (#27).
-EARTH_SEEDED = ("assembly", "settle", "effects-layer", "physics-trial", "cast", "motion",
+EARTH_SEEDED = ("assembly", "settle", "effects-layer", "cast", "motion",
                 "light-layer", "light-passes", "light-haze", "light", "scene-record")
 
 

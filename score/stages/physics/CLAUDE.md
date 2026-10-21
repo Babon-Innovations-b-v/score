@@ -26,7 +26,9 @@ rented machine.
   object of an inventory row. Doors move in the motion layer, so the trial hangs no hinge and says why (`no_hinges`).
   A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never typed by hand.
 - Only scenes whose design shows a loose row have the rows (the table's `designed("physics")`, `../design_layers.py`). The rows read the place's
-  accepted assembly on its current key: they wait until the place's line has landed it. Run with
+  accepted assembly on its current key (its neighbours output where it shows other places: the places its plan's
+  leads open onto stand in it under places/, so the trial renders them; never a seed or a retired data/scene
+  record): they wait until the place's line has landed it. Run with
   `python -m score run world1 --place habitat --stage physics-trial --detach`, only when `python -m score.stages status
   habitat` shows `assembly@habitat` accepted (else `--stage` drives the place's surface line).
 - Tests: `physics_test.py` here (measures and gates on a written run), `tools/usd/physics_test.py` (the layers on a toy
