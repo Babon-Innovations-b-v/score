@@ -62,23 +62,18 @@ def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
         if not scene_record.written(place):
             assert neighbours.record_of(place) == json.loads((REPO / f"data/scene/{place}.json").read_text())
     assert "far_city" in neighbours.shown("launch") and "far_city" not in neighbours.neighbours("launch")
-    seed = neighbours.PROPS_HOME / "work/usd-r3/far_city"
-    seed.mkdir(parents=True, exist_ok=True)
-    try:
-        assert "seen far_city" in neighbours.files("launch")
-    finally:
-        seed.rmdir()
-    assert "seen far_city" not in neighbours.files("launch") and neighbours.lost("launch") == ["far_city"]
+    # a shown place no stage makes is never read from an old seed folder (retired, 2026-10-21): it is a gap
+    assert list(neighbours.files("launch")) == ["scene record"] and neighbours.lost("launch") == ["far_city"]
     assert neighbours.applies("square") and not neighbours.applies("nowhere")
     # a part of another scene's outside has no stage line, so no place reads its assembly (the owner, 2026-10-21)
     assert "launch" in neighbours.parts() and "launch" not in neighbours.neighbours("flat")
     root = pathlib.Path(tempfile.mkdtemp())
     try:
-        launch = a_place(root / "kept", "launch", ("square", "far_city"))
+        launch = a_place(root / "kept", "launch", ("square", "wreck"))
         (launch / assembly.RECORD).write_text(json.dumps({"places": [{"name": "square", "stage": "square"},
-                                                                     {"name": "far_city", "stage": "far_city"}]}))
+                                                                     {"name": "wreck", "stage": "wreck"}]}))
         inputs = {"assembly@square": a_place(root / "kept", "square"),
-                  "seen far_city": a_place(root / "kept", "far_city")}
+                  "assembly@wreck": a_place(root / "kept", "wreck")}
         shutil.move(str(launch), root / "alone")  # away from its neighbours, as the store keeps it
         alone = judge(root / "alone")
         assert alone.answer == checks.FAIL and alone.measures["faults"] == 4, alone
@@ -94,8 +89,7 @@ def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
 
 
 def test_a_lost_shown_place_is_the_place_s_gap_and_any_other_fault_still_fails():
-    """The far city's seed went with the old disk (2026-10-19) and no stage makes it: the make stands the rest and
-    names it a gap (gaps.json, gaps.py's form), and the gate moves only its faults to the completion gate."""
+    """No stage makes the far city and its old seed is retired: the make stands the rest and names it a gap (gaps.json, gaps.py's form), and the gate moves only its faults to the completion gate."""
     root = pathlib.Path(tempfile.mkdtemp())
     try:
         launch = a_place(root / "kept", "launch", ("square", "far_city"))

@@ -7,8 +7,8 @@ scene.json: the accepted scene-record output where the place has one, else data/
              reads `after`: versioned and waited on) into places/<neighbour>/, and points each layer's reference (the
              seed's base and the terrain's ground write ../../<neighbour>/<neighbour>.usda) there. A neighbour is its assembly alone, without its
              own neighbours: the showing place makes the shown one's Places inactive anyway (tools/usd/scene.py's
-             write_places), and so two places that show each other read no cycle. A shown place no stage makes yet
-             (the far city, far_city_stage.py's seed) is read from its seed folder, a declared world file.
+             write_places), and so two places that show each other read no cycle. A shown place no stage makes is a
+             gap of the place (the old seed folders are retired, 2026-10-21), never a stop.
     gate     neighbours  every entry of the record stands under /<place>/Places, each reference there resolves to a
                          file, each shown place has children, and none draws its own ground (its Outside) over the
                          place's own
@@ -20,11 +20,10 @@ import shutil
 from score import checks
 from score.stages import gaps, scene_record
 from score.stages.assembly import RECORD, stage_file
-from score.store import PROPS_HOME, Store
+from score.store import Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACES = "places"
-SEEN = "seen {}"
 # The shown places this row could not stand, as gaps (score/stages/gaps.py's entry form), in its output.
 GAPS = "gaps.json"
 # A shown place's own made ground (score/stages/terrain/outside.py writes it under /<place>/Outside).
@@ -63,17 +62,14 @@ def parts():
 
 
 def lost(place):
-    """The shown places no stage makes whose seed folder went with the old disk (2026-10-19; the far city, whose
-    towers' made models went too): nothing can stand them, so each is a gap of the place, never a stop."""
-    return [other for other in sorted(set(shown(place)) - set(neighbours(place)))
-            if not (PROPS_HOME / "work/usd-r3" / other).exists()]
+    """The shown places no stage makes: nothing can stand them (the old seed folders are retired, 2026-10-21), so each
+    is a gap of the place, never a stop."""
+    return sorted(set(shown(place)) - set(neighbours(place)))
 
 
 def files(place):
-    """The scene record, and the seed folder of each shown place no stage makes (a lost one is not read)."""
-    unmade = sorted(set(shown(place)) - set(neighbours(place)) - set(lost(place)))
-    return {"scene record": "{data}/scene/{place}.json", **{SEEN.format(other): f"{{seeds}}/usd-r3/{other}"
-                                                             for other in unmade}}
+    """The scene record."""
+    return {"scene record": "{data}/scene/{place}.json"}
 
 
 def lost_gap(place, other):
@@ -81,8 +77,8 @@ def lost_gap(place, other):
     form: what it is and why."""
     return {"name": f"{other}: shown by the plan, not stood", "row": "neighbours", "check": "neighbours",
             "objects": [f"/{place}/Places/{other}"],
-            "reason": f"no stage makes {other} and its seed (work/usd-r3/{other}) went with the old disk",
-            "decided": "lost input, 2026-10-19 (the old disk)", "faults": []}
+            "reason": f"no stage makes {other}: it is no place of the design, and the old seeds are retired",
+            "decided": "old seeds retired, 2026-10-21 (the owner)", "faults": []}
 
 
 def applies(place):
@@ -99,8 +95,8 @@ def make(inputs, out, seed, params):
     entries = json.loads((out / RECORD).read_text()).get("places", [])
     left = []
     for other in sorted({entry["stage"] for entry in entries} - {stage_file(out).stem}):
-        source = inputs.get(f"assembly@{other}") or inputs.get(SEEN.format(other))
-        if source is None and other in lost(stage_file(out).stem):
+        source = inputs.get(f"assembly@{other}")
+        if source is None:
             left.append(lost_gap(stage_file(out).stem, other))
             continue
         shutil.copytree(source, out / PLACES / other, copy_function=shutil.copyfile)

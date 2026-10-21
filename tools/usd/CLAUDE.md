@@ -224,12 +224,6 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   record's `tube_length` as the game's TubeKit lays it. `scene_test.py` checks the builders, the lights' units and
   turns, the kit lamps, the tube's laying and every real record.
 
-- `far_city_stage.py` stands the far city up as a place of its own (`<stages>/far_city/far_city.usda`): far_city.py's
-  seeded plan with each tower an instance of its kind's made model, the land, the mountains and the harbour out to its
-  shore, laid out as every place's stage (`layers/base.usda` rewritten, `layers/edit.usda` kept, `inputs.json`); each
-  kind's prototype names its launch inventory row (`score:row`), so the launch view's rows check finds the made kinds.
-  The flat, the street, the square and the launch view reference it through a `places` entry; it refuses to write
-  while a tower kind has no made model, so no stand-in tower is ever shown.
 - **The sound stage** (`sound.py`) writes `layers/sound.usda` only (UsdMedia.SpatialAudio: room tones from
   `data/sound/places.json`, objects' own sounds from their inventory rows, motions' sounds from `data/motion`, and
   a bank of surface sounds each library surface points at) and copies the files into `assets/sound/`. Levels come
