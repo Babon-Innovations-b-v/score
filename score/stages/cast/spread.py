@@ -2,9 +2,10 @@
 spot dealt by cast.py's own seeded rules, its feet put on the solid under it (measure.ground_under), and kept only
 when its body runs into nothing (measure.run_into), stands in no water and overlaps no body kept before it.
 
-A crowd's candidates are the spots of a lattice over its spread (LATTICE apart, each moved a little by JITTER), off
-the ground cast.py keeps it off and clear of whom it keeps clear of, dealt in a seeded order; the first `count` that
-fit are kept, each with the turn, clip, phase and palette cast.py's own draw gives the copy of that number, so the
+A crowd's candidates are the spots of a lattice over its spread (LATTICE apart, each moved a little by JITTER), on its
+grounds when it names them (a design's crowd: the plan items its row makes), off the ground cast.py keeps it off and
+clear of whom it keeps clear of, dealt in a seeded order; the first `count` that fit are kept (a design's crowd with
+no count, one mass SAM 3 could not part, as many as fit), each with the turn, clip, phase and palette cast.py's own draw gives the copy of that number, so the
 same cast always gives the same people. Random spots (cast.py's own spread) jam well short of a dense crowd: on the
 square 8,428 of 10,000 fitted from six times as many candidates. A group member that does not fit where its band puts it takes the first spot that does on a
 spiral round it (NUDGES), and is left out when none does. Named people are never moved: their spots are the
@@ -81,6 +82,13 @@ def nudged(members, found, kept):
     return placed
 
 
+def on_ground(crowd, x, z, cast_rules):
+    """Whether (x, z) lies on one of the crowd's grounds (a design's: the plan items its row makes), or anywhere on
+    its spread when it names none."""
+    grounds = crowd.get("grounds")
+    return not grounds or any(cast_rules.inside(ground, x, z) for ground in grounds)
+
+
 def lattice(crowd, keep_clear):
     """A crowd's candidates: lattice spots on its spread, in a seeded order, each with cast.py's draws for a copy."""
     cast_rules, _ = measure.characters()
@@ -95,11 +103,15 @@ def lattice(crowd, keep_clear):
             x = left + (column + 0.5 * (row % 2)) * LATTICE + draw.uniform(-JITTER, JITTER)
             z = near + row * rows + draw.uniform(-JITTER, JITTER)
             if (x <= left + wide and not any(cast_rules.inside(rectangle, x, z) for rectangle in kept_off)
+                    and on_ground(crowd, x, z, cast_rules)
                     and all(math.hypot(x - other[0], z - other[2]) >= radius for other in keep_clear)):
                 spots.append((x, z))
     draw.shuffle(spots)
     boxes = cast_rules.raised_ground(crowd)
-    copies = cast_rules.crowd_copies(dict(crowd, count=len(spots)), keep_clear)
+    # A design's crowd whose palettes are undecided (people_rows.UNDECIDED_PALETTES) still stands: its copies draw
+    # palette 0 of none, and the characters layer lays no crowd without its colours (it names the gap).
+    undecided = {} if crowd.get("palettes") else {"palettes": [None], "palette_shares": [1.0]}
+    copies = cast_rules.crowd_copies(dict(crowd, count=len(spots), **undecided), keep_clear)
     return [dict(copy, at=[x, cast_rules.ground_at(boxes, x, z), z],
                  turn=cast_rules.facing_degrees([x, 0.0, z], crowd["facing_to"]) + copy["turn"]
                  - cast_rules.facing_degrees(copy["at"], crowd["facing_to"]))

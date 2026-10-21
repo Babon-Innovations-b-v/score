@@ -1,8 +1,8 @@
 """The cast stage's make and gates on a one-person design on the hub's seed (#26: the cast reads the picked design,
 data/people/rows.json): the person stands and keeps clear and the cast holds what the design shows; one dealt into a
 thing is stood clear round it or left out and named; a look with no usable dress row is not made (an accepted gap,
-the gate passing), one whose dress row the runner gave is; a design's crowd with no ground is named short; a crowd's
-lattice keeps two body widths apart.
+the gate passing), one whose dress row the runner gave is; a design's crowd with no ground is named short, one with
+ground asks its count or its ground packed and stands only on it; a crowd's lattice keeps two body widths apart.
 
 Run: .venv/bin/python score/stages/cast/cast_test.py   (the two tests on the hub's round-three seed skip, saying so, without it)
 """
@@ -80,9 +80,29 @@ def test_a_person_dealt_into_a_thing_is_stood_clear_or_named():
 
 
 def test_a_designs_crowd_without_ground_is_named_short():
-    crowd = {"look": "kit_m_avg/coat-grey", "asked": None, "copies": []}
-    assert cast.short_of({"left_out": [], "crowd": crowd}) == [
-        "the crowd's ground and count are not in the design yet (kit_m_avg/coat-grey)"]
+    unread = {"look": "kit_m_avg/coat-grey", "asked": None, "grounds": None, "copies": []}
+    assert "not read from the plan yet" in cast.short_of({"left_out": [], "crowd": unread})[0]
+    unplanned = dict(unread, grounds=[])
+    assert cast.short_of({"left_out": [], "crowd": unplanned}) == [
+        "the crowd's row makes no item on the plan, so it has no ground (kit_m_avg/coat-grey)"]
+
+
+def test_a_designs_crowd_asks_its_count_else_its_ground_packed():
+    """A crowd SAM 3 counted asks that many; one mass it could not part asks every lattice spot of its ground; one
+    with no ground asks nothing."""
+    assert cast.asked_of({"count": 40, "spread": [0, 0, 5, 5]}, [{}] * 90) == 40
+    assert cast.asked_of({"count": None, "spread": [0, 0, 5, 5]}, [{}] * 90) == 90
+    assert cast.asked_of({"count": None, "spread": None}, []) is None
+
+
+def test_a_crowd_lattice_stands_only_on_its_grounds():
+    """A design's crowd stands on the plan items its row makes: two grounds 2 m wide, 6 m apart, none between."""
+    crowd = {"spread": [0.0, 0.0, 10.0, 4.0], "grounds": [[0.0, 0.0, 2.0, 4.0], [8.0, 0.0, 2.0, 4.0]], "seed": 3,
+             "count": None, "facing_to": [0.0, 0.0, -10.0], "turn_jitter": 0.1, "height_jitter": 0.0,
+             "doing": ["standing"], "shares": [1.0], "phases": 1, "palettes": [], "palette_shares": []}
+    spots = [copy["at"] for copy in spread.lattice(crowd, [])]  # its palettes undecided, it still stands
+    assert spots and all(spot[0] <= 2.0 or spot[0] >= 8.0 for spot in spots), spots
+    assert any(spot[0] <= 2.0 for spot in spots) and any(spot[0] >= 8.0 for spot in spots)
 
 
 def test_a_look_is_made_by_its_usable_dress_row():

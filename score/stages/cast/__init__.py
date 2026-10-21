@@ -10,7 +10,9 @@ shows, each placed in the place with a clip, and measured against the concept an
              spot measured on the seed's base layer (measure.py): what it stands on and what its body runs into;
              `measures.json`.
     gates    counted   the cast holds as many people as the design shows (its rows' counts), everyone fits on the
-                       place, and a crowd has its ground and count (not in a design yet: named)
+                       place, and a crowd stands on its ground as many as it asks (a design's: the plan items its
+                       row makes, its count SAM 3's instances, else as many as its ground holds packed; a crowd row
+                       with no plan item is named short)
              standing  everyone stands on something solid: the first solid under their knee within STAND_SLACK of
                        their feet, not in water (a seated person sits on a seat the same way: no clip sits on a chair
                        yet, so seated crew stand at their desks)
@@ -125,11 +127,20 @@ def crowd_of(record, singles, inputs):
         return None
     keep_clear = [single["at"] for single in singles if single["name"].startswith(crowd.get("keep_clear_of", "\0"))]
     look = look_of(crowd) or (crowd["character"], crowd.get("body", "far"))  # the record's far-only look
-    # a design's crowd has no ground or count yet (people_rows.cast_record): none stood, short_of names it
+    # a design's crowd with no plan item has no ground (people_rows.cast_record): none stood, short_of names it
     candidates = (spread.far_enough(spread.lattice(crowd, keep_clear), plan_views(inputs))
                   if crowd.get("spread") else [])
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
-            "made": made_row(look, None, inputs), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
+            "made": made_row(look, None, inputs), "doing": crowd["doing"], "asked": asked_of(crowd, candidates),
+            "grounds": crowd.get("grounds"), "copies": candidates}
+
+
+def asked_of(crowd, candidates):
+    """How many copies the crowd asks for: its count, else (a design's crowd SAM 3 saw as one mass) every candidate
+    of its ground, packed; None with no ground."""
+    if crowd.get("count") is not None:
+        return crowd["count"]
+    return len(candidates) if crowd.get("spread") else None
 
 
 def members_of(record):
@@ -140,9 +151,10 @@ def members_of(record):
 
 
 def design_count(place, found):
-    """The people the picked design shows (its scene inventory's people rows' counts; a crowd row is its crowd)."""
+    """The people the picked design shows (its scene inventory's people rows' counts); with a crowd row at least
+    those (`capped`: the crowd's copies stand on top, short_of judges their count)."""
     shown = len(people_rows.persons(place, found))
-    return {"people": shown, "capped": False, "views": {"design": shown}}
+    return {"people": shown, "capped": people_rows.crowd_row(place, found) is not None, "views": {"design": shown}}
 
 
 def make(inputs, out, seed, params):
@@ -232,8 +244,11 @@ def short_of(cast):
     short = [f"{len(cast['left_out'])} group members left out ({', '.join(cast['left_out'][:NAMED])})"
              ] if cast["left_out"] else []
     crowd = cast["crowd"]
-    if crowd and crowd["asked"] is None:
-        short.append(f"the crowd's ground and count are not in the design yet ({crowd['look']})")
+    if crowd and crowd["asked"] is None and crowd.get("grounds") is None:
+        short.append(f"the crowd's ground is not read from the plan yet: refresh data/people/rows.json "
+                     f"(python -m score.stages.people_rows) ({crowd['look']})")
+    elif crowd and crowd["asked"] is None:
+        short.append(f"the crowd's row makes no item on the plan, so it has no ground ({crowd['look']})")
     elif crowd and len(crowd["copies"]) < crowd["asked"]:
         short.append(f"{len(crowd['copies'])} of the crowd's {crowd['asked']} fit")
     return short

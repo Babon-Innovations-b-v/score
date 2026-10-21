@@ -1,0 +1,17 @@
+{
+ "name": "camp_astronaut_2_2",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the camp concept (5393e7f9): its scene inventory's people row astronaut_2 (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "astronaut of the camp concept, sitting at dining table",
+ "references": [],
+ "description": "astronaut, a slim build, as drawn in the camp concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the camp concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the camp concept",
+ "face": "the face as drawn in the camp concept"
+}

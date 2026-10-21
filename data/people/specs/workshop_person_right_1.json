@@ -1,0 +1,17 @@
+{
+ "name": "workshop_person_right_1",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the workshop concept (4a65322d): its scene inventory's people row person_right (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "person of the workshop concept, right",
+ "references": [],
+ "description": "person, an average build, as drawn in the workshop concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the workshop concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the workshop concept",
+ "face": "the face as drawn in the workshop concept"
+}
