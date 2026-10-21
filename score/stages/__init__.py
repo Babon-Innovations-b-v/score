@@ -176,7 +176,8 @@ SHELL_SPLIT = graph.Stage("shell-split", "place", shell_split.make, shell_split.
                           files=shell_split.files, after={"plan": ("place-plan", 2)}, applies=shell_split.applies)
 SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
                            scene_record.gates.CHECKS, files=scene_record.writer.files,
-                           after={"plan": ("place-plan", 2)}, applies=scene_record.written)
+                           after={"plan": ("place-plan", 2), scene_record.writer.LIBRARY_ROW: ("surface-library", 1)},
+                           applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: the cast of each place whose design shows people,
 # placed and measured against its locked design's people (data/people/rows.json, #26) and its seed's geometry.
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.

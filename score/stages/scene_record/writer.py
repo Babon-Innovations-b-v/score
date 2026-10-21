@@ -11,7 +11,9 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  outline's walls with every opening cut, the roofs), stood in the place's frame as builders' `slab` and
                  `gable` entries BACKING behind the plan's inside line; none where the place's base already lays it
                  (design_shell.laid_for: a room whose plan says its kit holds its walls); and each stair or ramp the
-                 plan draws as a flight of steps
+                 plan draws as a flight of steps; each entry's surface the scene's surface library's for its kind
+                 (surface-library@<place>, read as an `after`: design_shell.PART_KINDS), else none and
+                 `surface_missing` says why (the scene builder names it on the mesh, never paints another way)
     lights       one at each plan item of a glowing row (its row kind, score/stages/row_kinds.py): over the item's
                  middle, as high on it as the library's lamp for the row's mount says, its numbers that lamp's
                  (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs
@@ -45,8 +47,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 # (design_shell's, which lays the same shell in a kit room's base).
 BACKING = design_shell.BACKING
 DECK_BELOW = design_shell.DECK_BELOW
-SHELL_SURFACE = design_shell.SURFACE
-STAIR_SURFACE = "deck"
+# A part's surface is the scene's surface library's for its kind (design_shell.PART_KINDS), else none and named
+# missing (`surface_missing`, which tools/usd/scene.py marks the mesh with).
+LIBRARY_ROW = "surface-library"
 # A ramp is laid as a flight of steps this high each (metres), fine enough to walk as a slope.
 RAMP_STEP = 0.05
 # A view stands this far inside its doorway, and every view sees this wide (degrees).
@@ -85,11 +88,25 @@ def in_frame(design, points, level=0.0):
         round(float(corner[1]) + level, 4)
 
 
+def library_of(inputs):
+    """The scene's surface library (its surface-library output's materials.json content), else None: none made."""
+    return design_shell.library_of(pathlib.Path(inputs[LIBRARY_ROW]) / "materials.json") \
+        if LIBRARY_ROW in inputs else None
+
+
+def painted(entry, kind, place, library):
+    """The entry with its surface: the scene library's for a part of `kind`, else none and why (`surface_missing`)."""
+    surface = design_shell.surface_for(kind, library)
+    if surface is None:
+        return dict(entry, surface=None, surface_missing=design_shell.missing_why(place, kind, library))
+    return dict(entry, surface=surface)
+
+
 def shell_entry(name, number, piece, design, said):
-    """One shell piece (design_shell.pieces) as a structure entry in the place's frame."""
+    """One shell piece (design_shell.pieces) as a structure entry in the place's frame, its surface not yet given."""
     points, floor = in_frame(design, piece["points"])
     entry = {"name": name if number == 0 else f"{name}_{number + 1}", "builder": piece["builder"], "points": points,
-             "surface": SHELL_SURFACE, "plain": "shell", "from": said}
+             "plain": "shell", "from": said}
     if piece["builder"] == "gable":
         entry.update(eave=round(floor + piece["eave"], 4), top=round(floor + piece["top"], 4), layer=2)
     else:
@@ -99,9 +116,10 @@ def shell_entry(name, number, piece, design, said):
     return entry
 
 
-def shell(design):
-    """The room shell's entries (design_shell.pieces) stood in the place's frame."""
-    return [shell_entry(name, number, piece, design, said)
+def shell(design, place, library):
+    """The room shell's entries (design_shell.pieces) stood in the place's frame, each painted from the scene's
+    library by its part's kind."""
+    return [painted(shell_entry(name, number, piece, design, said), design_shell.part_kind(name), place, library)
             for name, parts, said in design_shell.pieces(design) for number, piece in enumerate(parts)]
 
 
@@ -120,15 +138,17 @@ def stair(number, entry, design):
         max(1, math.ceil(abs(high - low) / RAMP_STEP))
     return {"name": f"{entry.get('kind', 'stair')}_{number}", "builder": "stairs",
             "foot": [foot[0], round(floor + low, 4), foot[1]], "top": [top[0], round(floor + high, 4), top[1]],
-            "wide": round(float(side.max() - side.min()), 4), "steps": max(1, steps), "surface": STAIR_SURFACE,
+            "wide": round(float(side.max() - side.min()), 4), "steps": max(1, steps),
             "from": f"the plan's {entry.get('kind', 'stair')} {number}: from {low:g} m to {high:g} m, "
                     f"{max(1, steps)} steps up its footprint at {float(entry.get('angle') or 0.0):g} degrees"}
 
 
-def structure(plan, design):
-    """The record's structure: an inside place's shell where its base does not lay it, and the plan's stairs."""
-    shelled = shell(design) if inside(design) and not design_shell.laid_for(design) else []
-    return shelled + [stair(number, entry, design) for number, entry in enumerate(design.get("stairs") or [], 1)
+def structure(plan, design, library=None):
+    """The record's structure: an inside place's shell where its base does not lay it, and the plan's stairs, each
+    painted from the scene's surface library (`library`: its materials.json content, None while not made)."""
+    shelled = shell(design, plan["place"], library) if inside(design) and not design_shell.laid_for(design) else []
+    return shelled + [painted(stair(number, entry, design), "stair", plan["place"], library)
+                      for number, entry in enumerate(design.get("stairs") or [], 1)
                       if len(entry.get("points") or []) >= 3]
 
 
@@ -347,7 +367,7 @@ def record_of(plan, design, inputs):
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its design: its locked plan, "
                        "its scene inventory's row kinds, the library's lamp and the environment concept's physics at "
                        "its site. Frame: the plan's (x east, z south, y up over its floor).",
-              "floor": plan["floor"], "inside": inside(design), "structure": structure(plan, design), "objects": [],
+              "floor": plan["floor"], "inside": inside(design), "structure": structure(plan, design, library_of(inputs)), "objects": [],
               "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"])}
     record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye),

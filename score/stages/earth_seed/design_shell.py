@@ -47,9 +47,8 @@ from score.stages.scene_record import plan as place_plan
 import score.stages.surfaces.palette_library as palette_library  # the module alone in the key, not the surface line
 
 # The scene record's backing shell (scene_record.writer BACKING, DECK_BELOW; held equal by the test): the shell stands
-# this far behind the plan's inside line and the deck this far under the floor. The scene record's shell entries name
-# SURFACE (scene_record.writer SHELL_SURFACE); the parts laid here take the scene library's (PART_KINDS).
-SURFACE = "roof_steel_paint"
+# this far behind the plan's inside line and the deck this far under the floor. Both take each part's surface from the
+# scene's library (PART_KINDS).
 BACKING = 0.15
 DECK_BELOW = 0.042
 SLAB = 0.2  # metres of a deck, level or roof slab

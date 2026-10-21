@@ -13,13 +13,8 @@ models written) went with the old kits on
 (score/stages/earth_seed/design_shell.py).
 """
 import pathlib
-import sys
 
-HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-import library  # noqa: E402
-
-REPO = library.REPO
+REPO = pathlib.Path(__file__).resolve().parents[3]
 DETAILS = REPO / "data/library/details.json"
 # Composites split into one model per real-world object (round six): a parent kind's children, each its own kind
 # standing where the parent leaves room for it, in the parent's kit frame.

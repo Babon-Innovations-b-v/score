@@ -62,8 +62,6 @@ BENCHMARKS = (
                                                         "(demo.FRAME_MINUTES), plus about 10 min set-up"}},
     {"id": "light-passes", "what": "light passes at the hangar, once", "places": ("hangar",),
      "stages": ("light-passes",), "buys": {"light-passes": 1}},
-    {"id": "earth-kit", "what": "the airlock's earth kit, once: 15 make_kit jobs on one L4", "places": ("airlock",),
-     "stages": ("earth-kit",), "buys": {"earth-kit": 15}},
     {"id": "settle", "what": "settle: three drops in one run", "places": ("habitat", "hangar", "garage"),
      "stages": ("settle",), "buys": {"settle": 3}},
     {"id": "gemini-batch-direct", "what": "Gemini batch against direct on 20 finish lists",
