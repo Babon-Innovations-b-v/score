@@ -9,7 +9,8 @@ element it finds on each tile, and the masks become proposals on the whole pictu
 merged: specks and tile-filling masks dropped, one element found on two tiles kept once). The output: <scene>/tiles/
 (the tiles and their masks), <scene>/tiles.json and <scene>/proposals.json, which the agent maps to the scene's rows
 (partition.py apply) before its inventory lands. The gate `proposed`: every tile came back with its masks and every
-view has proposals; a tile with none fails by name.
+view has proposals; a tile with none fails by name. A scene whose place is designed (its locked concept read into its
+hand-in) is asked for no more (`asked`): its inventory has landed.
 """
 import json
 import os
@@ -32,15 +33,27 @@ def record():
     return json.loads(RECORD.read_text()) if RECORD.exists() else {"scenes": []}
 
 
+def asked():
+    """The record's scenes still to propose: those whose place is not designed. A designed place's inventory has
+    landed: its locked concept read into its hand-in, every row boxed there by SAM 3 (complete/prepare/handin.py), so
+    its old views (lost pictures of an older concept) are read by nothing."""
+    import score.stages.props.prop_data as prop_data
+    return [scene for scene in record()["scenes"] if not prop_data.designed(scene["scene"])]
+
+
 def files(place=None):
-    """The request record and each scene's view pictures."""
+    """The request record and each asked scene's view pictures."""
     return {"partitions": "{data}/definitions/partitions.json",
-            **{f"view {scene['scene']} {view['id']}": view["picture"]
-               for scene in record()["scenes"] for view in scene["views"]}}
+            **{f"view {scene['scene']} {view['id']}": view["picture"] for scene in asked() for view in scene["views"]}}
 
 
 def euros():
-    return round(EUROS_A_SCENE * max(1, len(record()["scenes"])), 2)
+    return round(EUROS_A_SCENE * len(asked()), 2)
+
+
+def declared(scenes, inputs):
+    """The scenes of the record whose every view is a declared input (`files`: the asked ones)."""
+    return [scene for scene in scenes if all(f"view {scene['scene']} {view['id']}" in inputs for view in scene["views"])]
 
 
 def partition_tools():
@@ -79,7 +92,7 @@ def tiles_of(scene, inputs, folder, partition):
 def make(inputs, out, seed, params, segmenter=segment):
     """Each scene's tiles, their masks and its proposals."""
     partition = partition_tools()
-    scenes = json.loads(pathlib.Path(inputs["partitions"]).read_text())["scenes"]
+    scenes = declared(json.loads(pathlib.Path(inputs["partitions"]).read_text())["scenes"], inputs)
     for scene in scenes:
         folder = out / scene["scene"]
         placed, sizes = tiles_of(scene, inputs, folder, partition)

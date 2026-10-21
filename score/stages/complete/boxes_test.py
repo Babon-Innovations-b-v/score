@@ -36,7 +36,35 @@ def test_the_rows_no_other_box_row_measures():
     assert {"ring_floor_plate", "hatch_door_frame"} <= rows and not {"pilot_seat", "door_leaf"} & rows, rows
     row = next(row for row in stages.STAGES if row.name == "complete-boxes")
     assert stages.ship_place("cockpit") and not stages.ship_place("hub")
-    assert row.applies("cockpit") and not row.applies("hub")
+    with designed(set()):
+        assert row.applies("cockpit") and not row.applies("hub")
+        assert boxes.files("cockpit")["view v1"] == "{seeds}/scene/cockpit/views/cockpit.png"
+
+
+def designed(places):
+    """prop_data.designed answering for `places` alone while held (the machine's own designs left out)."""
+    import contextlib
+    import score.stages.props.prop_data as prop_data
+
+    @contextlib.contextmanager
+    def held():
+        kept = prop_data.designed
+        prop_data.designed = lambda place: place in places
+        try:
+            yield
+        finally:
+            prop_data.designed = kept
+    return held()
+
+
+def test_a_designed_place_has_no_rows_and_reads_no_old_view():
+    """A designed place (its locked concept read into its hand-in, every row boxed there) has no complete-boxes row
+    and its files name none of its old inventory's views (the cockpit's, lost with the work folder, 2026-10-21)."""
+    row = next(row for row in stages.STAGES if row.name == "complete-boxes")
+    with designed({"cockpit"}):
+        assert not row.applies("cockpit") and not boxes.has_rows("cockpit")
+        assert not [name for name in boxes.files("cockpit") if name.startswith("view ")], boxes.files("cockpit")
+        assert row.applies("quarters") or not boxes.other_rows(inventory("quarters"))
 
 
 def test_the_other_rows_are_measured_as_motion_models_boxes_measures():
