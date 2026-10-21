@@ -1,5 +1,6 @@
 """The concept review (CONTEXT.md "concept review", owner 2026-10-20): one place's design page, opened from its card
-on the Environment screen; three parts in order, each folding, the next step's open (the owner, 2026-10-21): the
+on the Environment screen; three parts, all open as one cockpit of panels with one action rail, each panel enlarging
+to fill the screen (the owner, 2026-10-21): the
 concept (the picture shown, areas marked on it each with a note, a free note, Draw (or Redraw) priced per click, the
 place's draws, and Pick (lock it for the design) or Unlock), the inventory (the reading's boxes on the picked concept,
 its rows and what it skipped) and the plan (pages/plans.py).
@@ -145,9 +146,9 @@ def inventory_of(world, place, picked):
 def reading_view(world, place, picked):
     """The place's scene inventory reading of its picked draw as its concept page shows it (score/review/reading.py),
     None without one: its rows numbered, each instance SAM 3 found as a box in shares of the picture (`at`: left, top,
-    width, height in percent), its gaps grouped by row [{number, name, words}], what the agreement left out
-    (`skipped`, each with its box and why; `merged`, each with the row it went into), what it cost and how long it
-    took."""
+    width, height in percent) and its `group` (objects, structure, terrain), its gaps grouped by row [{number, name,
+    words}], what the agreement left out (`skipped`, each with its box and why; `merged`, each with the row it went
+    into), what it cost and how long it took."""
     found = world.inventory_readings.get(place)
     if not found or found["concept"] != picked:
         return None
@@ -156,7 +157,9 @@ def reading_view(world, place, picked):
     def at(box):
         return [round(100 * box[0] / wide, 2), round(100 * box[1] / tall, 2), round(100 * (box[2] - box[0]) / wide, 2),
                 round(100 * (box[3] - box[1]) / tall, 2)]
-    rows = [{**row, "number": number, "at": [at(box) for box in row["boxes"]]}
+    structural = set(found.get("structural", []))
+    rows = [{**row, "number": number, "at": [at(box) for box in row["boxes"]],
+             "group": "terrain" if row["terrain"] else "structure" if row["id"] in structural else "objects"}
             for number, row in enumerate(found["inventory"]["rows"], 1)]
     named = {row["id"]: row for row in rows}
     gaps = [{"number": named[row]["number"], "name": named[row]["name"],
@@ -187,14 +190,6 @@ def context_pictures(world, wording, names):
             found.append({"place": item["place"], "picture": picture,
                           "name": world.shells.get(item["place"]) or names.get(item["place"], item["place"])})
     return found
-
-
-def open_part(picked, read, review):
-    """The design page's part open by default: the next step's (concept until picked, inventory until read, then the
-    plan)."""
-    if not picked:
-        return "concept"
-    return "plan" if read and review else "inventory"
 
 
 def plan_part(world, place):
@@ -231,8 +226,7 @@ def concept_page(request, place):
         "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
         "approved": place in screens.approved_places(world), "inventory": inventory, "reading": reading,
-        "named": world.plan_named.get(place, []), **planned,
-        "open": open_part(picked, reading or (inventory or {}).get("state") == "made", planned["review"])})
+        "named": world.plan_named.get(place, []), **planned})
 
 
 def approved(source, place):

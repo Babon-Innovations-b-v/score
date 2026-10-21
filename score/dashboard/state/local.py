@@ -611,10 +611,13 @@ class LocalSource:
 
     def inventory_readings(self, places):
         """{inventory_readings, inventory_spend} (score/review/reading.py): each place's reading of its picked draw
-        (with `cost`, what it and the readings it was read again from took) and what every reading cost."""
+        (with `cost`, what it and the readings it was read again from took, and `structural`, the ids of its rows
+        that are the place's structure or ground) and what every reading cost."""
         from score.review import reading
         found = {place: reading.reading_of(self.store, place) for place in places}
-        return {"inventory_readings": {place: {**read, "cost": reading.cost(self.store, read)}
+        return {"inventory_readings": {place: {**read, "cost": reading.cost(self.store, read),
+                                               "structural": [row["id"] for row in read["inventory"]["rows"]
+                                                              if reading.structural(row)]}
                                        for place, read in found.items() if read},
                 "inventory_spend": reading.spent(self.store, places)}
 
