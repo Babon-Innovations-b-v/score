@@ -6,12 +6,15 @@
 The spec (in/spec.json, written by prop_person.py) names its `steps`, in order, out of STEPS:
   pose      SOMA-X's bind pose measured on the mean skeleton (prop_read.py)
   closeup   the front close-up in that pose, two klein seeds (prop_closeup.py)
+  clips     the spec's clips made by Kimodo with the fixed seed (people/clips.py, chain.py's clips step), each with its
+            record, copied into out/motions/ so the store keeps them
   rig       SOMA-X's mean skeleton, its surface's weights and the spec's clips exported (prop_skeleton.py)
   build     the glTF from the fitted rig, the mean rig's clips and the parts (prop_build.py), its UsdSkel asset
             (skel_usd.py) and joins.py's record into out/checks/
-  settle    the garment parts settled through every clip against the person's own posed surface (garment_settle.py,
-            Newton on the card), its offsets into out/settle_out.npz, baked into the body as corrective shapes
-            (garment_bake.py) and written as UsdSkel with them (skel_usd.py)
+  route     the people route (owner, 2026-10-18) on the built body: SOMA-X's base under the look from the identity
+            (route_base.py base), its pose correctives for every clip (route_base.py correctives), the garments bound
+            by limb, the webs cut, the face by route_head.FACE and the correctives as shared morph targets
+            (route_build.py), its UsdSkel asset and joins.py's record: out/route/
   shots     the comparison pictures of the spec's body (blender_shots.py: A-pose front and side, walking at 1/4 and
             3/4, sitting) into out/shots/
   review    turntables and clip frames rendered by Cycles (blender_review.py), as the shipped route's review
@@ -31,7 +34,7 @@ MAKER = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(MAKER))
 
 import chain as person_chain  # noqa: E402
-from chain import ENVS, MOTION, PICTURE  # noqa: E402
+from chain import MOTION, PICTURE  # noqa: E402
 
 SEEDS = (1, 2)
 
@@ -67,15 +70,35 @@ def closeup(chain):
     return f"{len(seeds)} seeds, {len(references)} references{', a pose picture' if posing else ''}"
 
 
+def motion_home():
+    """The motion home the people tools find their environment through (chain.py's MOTION_HOME, its `env` linked)."""
+    home = person_chain.MOTION_HOME
+    home.mkdir(exist_ok=True)
+    if not (home / "env").exists():
+        (home / "env").symlink_to(person_chain.ENVS / "motion")
+
+
+def clips(chain):
+    """The spec's clips made by Kimodo with the fixed seed (chain.py's clips step), copied with their records into
+    out/motions/."""
+    motions = chain.work / "motionwork" / "motions"
+    motions.mkdir(parents=True, exist_ok=True)
+    motion_home()
+    made = person_chain.clips(chain)
+    kept = chain.out / "motions"
+    kept.mkdir(exist_ok=True)
+    for path in sorted(motions.iterdir()):
+        if path.name.endswith((".npz", ".record.json")):
+            shutil.copy2(path, kept / path.name)
+    return made
+
+
 def rig(chain):
     """The rig file (out/rig.npz): the skeleton, the weights' source and the clips (prop_skeleton.py)."""
     motions = chain.work / "motionwork" / "motions"
     if not motions.exists():
         shutil.copytree(chain.folder / "in" / "motions", motions)
-    home = person_chain.MOTION_HOME
-    home.mkdir(exist_ok=True)
-    if not (home / "env").exists():
-        (home / "env").symlink_to(person_chain.ENVS / "motion")
+    motion_home()
     chain.run([MOTION, MAKER / "prop_skeleton.py", chain.out / "rig.npz", *chain.spec.get("clips", [])])
 
 
@@ -96,18 +119,27 @@ def build(chain):
     chain.run([MOTION, MAKER.parent / "people" / "joins.py", glb, "--out", chain.out / "checks", "--record-only"])
 
 
-def settle(chain):
-    """The garment settle (garment_settle.py run) on the spec's settle_in file, into out/settle_out.npz; with the
-    built body (`body`) given, baked into it as corrective shapes (garment_bake.py: out/<person>.glb and its
-    .bake.json) and that written as UsdSkel (skel_usd.py, the shapes as blend shapes: out/usd/)."""
+def route(chain):
+    """The people route on the built body (out/<person>.glb, this make's build step's, else the spec's `body`), with
+    the identity this make's identity step read: out/route/<person>.glb and its record (.json), its base and
+    correctives, its UsdSkel asset (out/route/usd/) and joins.py's record (out/route/checks/). The face by
+    route_head.FACE, route_build.py's default."""
     files = {name: chain.file(path) for name, path in chain.spec["files"].items()}
-    chain.run([ENVS / "newton/bin/python", MAKER / "garment_settle.py", "run", files["settle_in"],
-               chain.out / "settle_out.npz"])
-    if "body" in files:
-        settled = chain.out / f"{chain.spec['person']}.glb"
-        chain.run([MOTION, MAKER / "garment_bake.py", files["body"], files["settle_in"], chain.out / "settle_out.npz",
-                   settled])
-        chain.run([MOTION, MAKER.parent / "skel_usd.py", settled, "--out", chain.out / "usd"])
+    person = chain.spec["person"]
+    built = chain.out / f"{person}.glb"
+    body = built if built.exists() else files["body"]
+    out = chain.out / "route"
+    out.mkdir(exist_ok=True)
+    identity = chain.out / "identity.npz"
+    routed = out / f"{person}.glb"
+    chain.run([MOTION, MAKER / "route_base.py", "base", files["fit"], files["shell"], identity, out / "base.npz"])
+    chain.run([MOTION, MAKER / "route_base.py", "correctives", out / "base.npz", body, out / "correctives.npz",
+               identity])
+    chain.run([MOTION, MAKER / "route_build.py", body, files["fit"], out / "base.npz", routed, "--correctives",
+               out / "correctives.npz"])
+    chain.run([MOTION, MAKER.parent / "skel_usd.py", routed, "--out", out / "usd"])
+    chain.run([MOTION, MAKER.parent / "people" / "joins.py", routed, "--out", out / "checks", "--record-only"])
+    return json.loads(routed.with_suffix(".json").read_text())["head"]["face"]
 
 
 def shots(chain):
@@ -132,7 +164,7 @@ def identity(chain):
     return "read off the close-up"
 
 
-STEPS = {"pose": pose, "closeup": closeup, "rig": rig, "shell": shell, "build": build, "settle": settle,
+STEPS = {"pose": pose, "closeup": closeup, "clips": clips, "rig": rig, "shell": shell, "build": build, "route": route,
          "shots": shots, "review": review, "identity": identity}
 
 

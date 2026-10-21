@@ -27,12 +27,12 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
   build    on a characters machine (prop_chain.py): SOMA-X's skeleton placed inside the Pixal3D mesh (its bone
            lengths and rest pose fitted to the mesh's limbs; no SOMA surface is shown or shapes the mesh), its skin
            weights moved onto the mesh, the glTF with Kimodo's clips, UsdSkel and joins.py
-  settle   the garment parts settled through every clip (garment_settle.py, Newton on a characters machine), baked
-           there into corrective shapes each clip keys (garment_bake.py): <candidate>/settle/<name>.glb, and its
-           UsdSkel asset with them as blend shapes (<candidate>/settle/usd/)
+  route    the people route (owner, 2026-10-18) on a characters machine: the identity read, then the built body
+           rebuilt on SOMA-X's base under the look, garments bound by limb, the correctives as morph targets
+           (prop_chain.py route): <candidate>/route/<name>.glb, its record, its UsdSkel asset and joins.py's record
   checks   the per-frame pokes (pokes.py), the A-pose outline (outline.py) and the reviewer's skin through cloth count,
            written with joins.py's record to checks.txt
-  shots    the settled body rendered on a characters machine (blender_shots.py) beside today's body in the same five
+  shots    the route's body rendered on a characters machine (blender_shots.py) beside today's body in the same five
            views, into the coordinator's renders-r3/
 `--held` runs the characters stages on a machine characters.py --hold keeps (its run folder), as a step is tried.
 """
@@ -57,7 +57,7 @@ MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
 CANDIDATES = MOTION_HOME / "candidates" / "prop-people"
 PROPS_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
 MOTIONS = MOTION_HOME / "work" / "motions"
-STAGES = ("closeup", "rig", "mesh", "parts", "build", "settle", "checks", "shots")
+STAGES = ("closeup", "rig", "mesh", "parts", "build", "route", "checks", "shots")
 POLL_SECONDS = 30
 
 
@@ -97,7 +97,7 @@ def make_folder(place, spec, steps, files):
             machine_spec["references"].append(f"in/files/{target.name}")
         else:
             machine_spec.setdefault("files", {})[name] = f"in/files/{target.name}"
-    if "rig" in steps:
+    if "rig" in steps and "clips" not in steps:  # a make that makes its clips takes none from here
         shutil.copytree(MOTIONS, inputs / "motions", ignore=shutil.ignore_patterns("*.bvh"))
     (inputs / "spec.json").write_text(json.dumps(machine_spec, indent=1))
     return place
@@ -126,7 +126,7 @@ HOLD_WAIT_MINUTES = 45
 
 @contextlib.contextmanager
 def machine_held(spec, outfit, who, minutes=150):
-    """One characters machine rented and set up once for a look's build and settle (characters.py --hold on a make
+    """One characters machine rented and set up once for a look's build and route (characters.py --hold on a make
     with no steps), its run folder for `on_held`; let go when done. Two rentals each set up for about 15 minutes
     before (2026-10-12)."""
     place = make_place(folder_of(spec, outfit), "hold")
@@ -345,7 +345,7 @@ def parts(spec, outfit, who, held, dry_run):
 def build(spec, outfit, who, held, dry_run):
     """The rig fitted into the kept take (prop_rig.py, here) and its far body (prop_far.py, here), then the person built
     on a characters machine
-    (prop_chain.py build): <candidate>/out/. The pictures are the settled person's, made after the settle."""
+    (prop_chain.py build): <candidate>/out/. The pictures are the route body's, made after the route."""
     folder = folder_of(spec, outfit)
     take = (folder / "take.txt").read_text().strip()
     rig_file = CANDIDATES / spec["name"] / "rig.npz"
@@ -404,26 +404,41 @@ def shelled(spec, outfit, who, held, dry_run):
     return json.loads((folder / "fit" / "shell.json").read_text())
 
 
-def settle(spec, outfit, who, held, dry_run):
-    """The garment settle (garment_settle.py): its input from the built person here, Newton on a characters machine,
-    its offsets into <candidate>/settle/, baked here into corrective shapes per clip (garment_bake.py):
-    <candidate>/settle/<name>.glb."""
+def route(spec, outfit, who, held, dry_run):
+    """The people route on the built person (owner, 2026-10-18; prop_chain.py identity then route, on a characters
+    machine): SAM 3D Body's read of the take's close-up (<candidate>/fit/identity.npz), and the body rebuilt on
+    SOMA-X's base under the look, its garments bound by limb, its correctives as morph targets
+    (<candidate>/route/<name>.glb, its record, usd/ and checks/). Replaces the garment settle (#26)."""
     folder = folder_of(spec, outfit)
-    (folder / "settle").mkdir(exist_ok=True)
-    settle_in = folder / "settle" / "settle_in.npz"
-    local("garment_settle.py", "inputs", folder / "out" / f"{spec['name']}.glb", settle_in)
-    make = make_place(folder, "settle")
-    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-settle", person=spec["name"]), ("settle",),
-                {"settle_in": settle_in, "body": folder / "out" / f"{spec['name']}.glb"})
+    take = (folder / "take.txt").read_text().strip()
+    make = make_place(folder, "route")
+    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-route", person=spec["name"]), ("identity", "route"),
+                {"closeup": PIXAL / f"{take}.svviews" / "input.png", "fit": folder / "fit" / "rig.npz",
+                 "shell": folder / "fit" / "shell.json", "body": folder / "out" / f"{spec['name']}.glb"})
     on_characters(make, who, held, dry_run)
     if dry_run:
         return None
-    for name in ("settle_out.npz", "settle_out.json", f"{spec['name']}.glb", f"{spec['name']}.bake.json"):
-        shutil.copy2(make / "out" / name, folder / "settle" / name)
-    if (folder / "settle" / "usd").exists():
-        shutil.rmtree(folder / "settle" / "usd")
-    shutil.copytree(make / "out" / "usd", folder / "settle" / "usd")
-    return json.loads((folder / "settle" / f"{spec['name']}.bake.json").read_text())
+    shutil.copy2(make / "out" / "identity.npz", folder / "fit" / "identity.npz")
+    if (folder / "route").exists():
+        shutil.rmtree(folder / "route")
+    shutil.copytree(make / "out" / "route", folder / "route")
+    return json.loads((folder / "route" / f"{spec['name']}.json").read_text())
+
+
+def clips_rig(clips, out, who, dry_run):
+    """The people's Kimodo clips (`clips`, by name, made with clips.CLIP_SEED) and SOMA-X's rig with them
+    (prop_skeleton.py), on one rented characters machine (prop_chain.py clips then rig): out/rig.npz and out/motions/
+    (each clip's npz and record). The rig is the mean body's, every look's (prop_rig.py fits it into each)."""
+    make = CANDIDATES / "people-clips" / "people-clips-make"
+    make_folder(make, {"name": "people-clips", "approved": "the people line's batch (#26)", "clips": list(clips)},
+                ("clips", "rig"), {})
+    on_characters(make, who, None, dry_run)
+    if dry_run:
+        return None
+    shutil.copy2(make / "out" / "rig.npz", out / "rig.npz")
+    shutil.copytree(make / "out" / "motions", out / "motions")
+    shutil.copy2(make / "out" / "make.json", out / "make.json")
+    return json.loads((out / "make.json").read_text())
 
 
 CHECKS_TABLE = pathlib.Path.home() / ".farm-factory-props/score-coordinator/prop-people"
@@ -453,8 +468,8 @@ def materials_line(parts):
 def table_rows(spec, outfit, folder, take):
     """The checks' rows: (check, measure, value, gate, verdict)."""
     rig = json.loads((folder / "fit" / "rig.json").read_text())
-    joined = json.loads((folder / "out" / "checks" / f"{spec['name']}.json").read_text())["verdict"]
-    poked = json.loads((folder / "checks" / "pokes.json").read_text())
+    joined = json.loads((folder / "route" / "checks" / f"{spec['name']}.json").read_text())["verdict"]
+    poked =json.loads((folder / "checks" / "pokes.json").read_text())
     outlined = json.loads((folder / "checks" / "outline.json").read_text())
     parts = json.loads((folder / "parts" / take / "parts.json").read_text())
     rows = [("rig", "limbs apart (crotch, armpit found)", f"crotch {rig['fit']['crotch']:.3f} m, armpit "
@@ -493,10 +508,10 @@ def table_rows(spec, outfit, folder, take):
     rows.append(("build", "outfit triangles (tucks and prints in)", f"{triangles:,}", f"<= {SHIPPED_TRIANGLES:,}",
                  "pass" if triangles <= SHIPPED_TRIANGLES else "FAIL"))
     rows += bodycloth_rows(folder)
-    baked = json.loads((folder / "settle" / f"{spec['name']}.bake.json").read_text())
-    rows.append(("garment_bake.py", "corrective shapes (8 a clip) / their worst miss of the settle",
-                 f"{baked['targets']} / {max(clip['missed_mm'] for clip in baked['clips'].values()):.1f} mm",
-                 "record", "-"))
+    routed = json.loads((folder / "route" / f"{spec['name']}.json").read_text())
+    rows.append(("route_build.py", "web edges cut / closings / corrective shapes (energy kept) / face",
+                 f"{routed['web_edges']} / {routed['closings']} / {routed['corrective_shapes']} "
+                 f"({routed['corrective_energy_kept']}) / {routed['head']['face']}", "record", "-"))
     rows.append(("outline.py", "A-pose IoU against the cut-out, finished take / built",
                  f"{outlined['iou_finished']} / {outlined['iou_built']} (drop {outlined['iou_drop']})",
                  "drop <= 0.01, bands <= 1 %", "pass" if outlined["pass"] else "FAIL"))
@@ -510,12 +525,12 @@ def table_rows(spec, outfit, folder, take):
 
 
 def shots(spec, outfit, who, held, dry_run):
-    """The settled body's comparison pictures (blender_shots.py on a characters machine), each set beside today's body
+    """The route body's comparison pictures (blender_shots.py on a characters machine), each set beside today's body
     in the same view, and one sheet: <coordinator>/renders-r3/."""
     folder = folder_of(spec, outfit)
     make = make_place(folder, "shots")
     make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-shots", outfit=outfit), ("shots",),
-                {"body": folder / "settle" / f"{spec['name']}.glb"})
+                {"body": folder / "route" / f"{spec['name']}.glb"})
     on_characters(make, who, held, dry_run)
     if dry_run:
         return None
@@ -539,7 +554,7 @@ def side_by_side(person, raw):
         pair.paste(right, (width, 44))
         pen = ImageDraw.Draw(pair)
         pen.text((10, 10), f"today - {title}", fill="black", font=font)
-        pen.text((width + 10, 10), f"prop route, settled - {title}", fill="black", font=font)
+        pen.text((width + 10, 10), f"prop route, people route - {title}", fill="black", font=font)
         pen.line([(width, 0), (width, height + 44)], fill="black", width=2)
         pair.save(RENDERS / f"{person}_{view}.png")
         pictures.append(pair)
@@ -568,7 +583,7 @@ def bodycloth_rows(folder):
     """The reviewer's skin-and-hard-through-cloth count (BODYCLOTH): as the engine draws the body
     (bodycloth_shaped.py, the corrective shapes in) and as the reviewer's reader takes it (without them)."""
     rows = []
-    for name, how in (("bodycloth.json", "with the settle's shapes"), ("bodycloth_plain.json", "garments unsettled")):
+    for name, how in (("bodycloth.json", "with the corrective shapes"), ("bodycloth_plain.json", "without them")):
         if not (folder / "checks" / name).exists():
             rows.append(("bodycloth.py", f"skin and hard edges through cloth, {how}", "not finished", "record",
                          "the count did not finish (see the report)"))
@@ -590,7 +605,7 @@ def checks(spec, outfit, who, held, dry_run):
     folder = folder_of(spec, outfit)
     take = (folder / "take.txt").read_text().strip()
     (folder / "checks").mkdir(exist_ok=True)
-    body = folder / "settle" / f"{spec['name']}.glb"
+    body = folder / "route" / f"{spec['name']}.glb"
     if not body.exists():
         body = folder / "out" / f"{spec['name']}.glb"
     shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
@@ -610,7 +625,7 @@ def checks(spec, outfit, who, held, dry_run):
 
 def tucks_inputs(spec, folder, take):
     """The hash of what a look's tucks are made from: its take, its spec, its parts and the maker's and the people
-    tools' code (the rig, the shell's binding, the build, the settle, the tucks and their measure; their tests left
+    tools' code (the rig, the shell's binding, the build, the route, the tucks and their measure; their tests left
     out): a failed tucks record on the same hash predicts the same failure (#21)."""
     digest = hashlib.sha256(json.dumps([take, spec], sort_keys=True).encode())
     code = sorted(path for path in (*HERE.glob("*.py"), *(HERE.parent / "people").glob("*.py"))
@@ -621,7 +636,7 @@ def tucks_inputs(spec, folder, take):
 
 
 def tucks_record(spec, outfit):
-    """After the paid checks, the look's tucks as its settled pokes.json measured them: when every clip had a frame
+    """After the paid checks, the look's tucks as its route body's pokes.json measured them: when every clip had a frame
     with a tuck over the gate (frames_tuck_over), <candidate>/checks/failed_tucks.json with the worst and the hash of
     its inputs, the record; else any old record removed, None."""
     folder = folder_of(spec, outfit)
@@ -657,7 +672,7 @@ COUNT_SHARES = 6
 
 
 def counts_by_clips(body, outfit, checked):
-    """The two body-through-cloth counts (with the settle's shapes and without), each over COUNT_SHARES shares of
+    """The two body-through-cloth counts (with the corrective shapes and without), each over COUNT_SHARES shares of
     the body's clips side by side (a whole count took about an hour on one core): {name: command}."""
     sys.path.insert(0, str(HERE.parent / "people"))
     import joins
@@ -698,7 +713,7 @@ def checks_cloud(spec, outfit, who, held, dry_run):
     take = (folder / "take.txt").read_text().strip()
     checked = folder / "checks"
     checked.mkdir(exist_ok=True)
-    body = folder / "settle" / f"{spec['name']}.glb"
+    body = folder / "route" / f"{spec['name']}.glb"
     shipped, shipped_outfit = shipped_reference(spec, outfit)
     python = lambda script, *arguments: [str(HERE / script), *map(str, arguments)]  # noqa: E731
     first = {} if shipped is None or (checked / "pokes_shipped.json").exists() else {
@@ -785,7 +800,7 @@ def record_stage(folder, stage, began, result):
 
 
 STAGE_WORK = {"closeup": closeup, "rig": rig, "mesh": mesh, "parts": parts, "identity": identity, "build": build,
-              "settle": settle, "checks": checks, "checks-cloud": checks_cloud, "shots": shots}
+              "route": route, "checks": checks, "checks-cloud": checks_cloud, "shots": shots}
 
 
 if __name__ == "__main__":

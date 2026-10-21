@@ -17,7 +17,7 @@ read from the built glTF as the engine skins it (people/joins.py's reader). Meas
 - rigid_stretch: each hard part's own edges (boots, belt, buckle, helmet, pack: role "hard", its tuck left out) at
   their longest against the bind pose, per clip the worst frame's largest ratio: a hard part riding one joint stays at
   1.0; the gate is RIGID_MOST (plan step 3; the review found the boots at 6.7 and 8.2, 2026-10-10).
-- A settled body's garments carry morph targets keyed per clip (garment_bake.py); every frame is posed with them, as
+- A settled body's garments carry morph targets keyed per clip (the people route's correctives, route_build.py); every frame is posed with them, as
   the engine plays it.
 - A body built by the shipped route (no roles in its materials) is read the same way, its garments by joins.py's names
   and no tucks, so a candidate's crossings can be set beside the shipped body's.
