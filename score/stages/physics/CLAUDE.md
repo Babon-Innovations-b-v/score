@@ -17,8 +17,16 @@ rented machine.
   UsdPhysics measures the angle (checked on the toy place). A motor turns about its own x.
 - **Blender 5.0.1's USD reader may leave a y-up stage unturned** (a stage with no root object, the toy's): the script
   checks a body against its stage pose and turns the roots itself.
-- Only places with `data/physics/<place>.json` have the rows (the habitat). The rows read the place's accepted
-  assembly on its current key: they wait until the place's line has landed it. Run with
+- **The trial comes from the design, never a record written for a scene** (the owner, 2026-10-21: "the modules are
+  not agnostic"). `design.py` makes it: every laid object of a loose row (the row-kind classification,
+  `../row_kinds.py`, `data/checks/row-kinds.json`) dropped `DROP_OVER` straight up over where it stands and let fall
+  back onto it, one with something in its fall left out by name; the gravity is the body under the scene's top site
+  in the environment's physics (`data/physics/setting.json`, up `data/places/within.json`'s holders). The record is
+  written into the output (`record.json`) and the trial reads it there; the gate `designed` fails a body that is no
+  object of an inventory row. Doors move in the motion layer, so the trial hangs no hinge and says why (`no_hinges`).
+  A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never typed by hand.
+- Only scenes whose kept inventory has a loose row have the rows (`row_kinds.designed`). The rows read the place's
+  accepted assembly on its current key: they wait until the place's line has landed it. Run with
   `python -m score run world1 --place habitat --stage physics-trial --detach`, only when `python -m score.stages status
   habitat` shows `assembly@habitat` accepted (else `--stage` drives the place's surface line).
 - Tests: `physics_test.py` here (measures and gates on a written run), `tools/usd/physics_test.py` (the layers on a toy

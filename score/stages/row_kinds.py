@@ -10,6 +10,8 @@ motion when a row moves, physics when a row is loose, crops when a row grows on 
                                  "acts"}
     rows_that(inventory, what, table)   the inventory's rows whose kind does `what`
     objects_of(stage, place, row)       the prims of a row's objects on a composed stage (`<row>` or `<row>_<n>`)
+    strangers(names, inventory)         the names no row's object has (the layers' `designed` gate)
+    designed(place, what)               whether the scene's kept inventory has a row that does `what` (`applies`)
 """
 import json
 import pathlib
@@ -17,6 +19,8 @@ import re
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 TABLE = REPO / "data/checks/row-kinds.json"
+# A layer stage's declared inputs for the design: the scene's kept inventory and these rules.
+DESIGNED = {"design": "{home}/design/inventory/{place}.json", "row kinds": "{data}/checks/row-kinds.json"}
 # The prims of a place no row's object stands under: the layers' own.
 NOT_OBJECTS = ("Effects", "Physics", "Looks", "Sky", "Lights", "Shafts")
 
@@ -54,6 +58,20 @@ def rows_that(inventory, what, kinds):
 def of_row(name, row):
     """Whether a prim name is one of a row's objects: the row's id, or `<row>_<n>`."""
     return re.fullmatch(rf"{re.escape(row)}(_\d+)?", name) is not None
+
+
+def strangers(names, inventory):
+    """The prim names (a path's last part) that are no object of any row of the inventory: the layers' gate."""
+    rows = [row["id"] for row in inventory.get("rows", [])]
+    return [name for name in names if not any(of_row(name.rsplit("/", 1)[-1], row) for row in rows)]
+
+
+def designed(place, what, home=None):
+    """Whether the scene's kept inventory (DESIGNED under the props home) has a row whose kind does `what`: the rule
+    a layer stage applies by."""
+    from score.store import PROPS_HOME
+    path = pathlib.Path(home or PROPS_HOME) / "design/inventory" / f"{place}.json"
+    return path.is_file() and bool(rows_that(json.loads(path.read_text()), what, table()))
 
 
 def objects_of(stage, place, row):

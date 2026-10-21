@@ -254,8 +254,9 @@ stage as each stage is built; nothing moves before.
   body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `motion-models` (experimental, `stages/motion/models`, its overlay) lays each place's
   rigid moving models (`data/motion/models/<place>.json`: the garage's rover) on what holds them up, gated on outline,
   parts present and resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
-  overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place whose
-  design shows a loose row. `motion` (experimental, a place whose design shows a row that moves) writes a place's motion layer from its game
+  overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place whose design shows a loose row,
+  the trial made from its design (`stages/physics/design.py`: its loose objects dropped where they stand, its body's
+  gravity). `motion` (experimental, a place whose design shows a row that moves) writes a place's motion layer from its game
   motions and its rigid moves in `data/motion/rigid/`, gated on clear, speeds, loops, grounded, covered and the motion
   check (its overlay). These rows, settle, physics, the cast and people rows and the crops rows are the one motion
   layer (CONTEXT.md "motion"; `stages.MOTION_LAYER` names them by module).
