@@ -329,7 +329,8 @@ CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, cha
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
-                    euros=sound.EUROS, models=(sound.moss_takes.KIND,), applies=designed("sound"))
+                    euros=sound.EUROS, models=(sound.moss_takes.KIND,), after={"motion": ("motion-layer", 2)},
+                    applies=designed("sound"))
 
 # Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its
 # objects react (a place whose design shows a loose object).

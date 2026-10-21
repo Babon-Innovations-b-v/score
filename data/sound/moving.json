@@ -1,16 +1,14 @@
 {
- "is": "what the things that move sound like, where no record plays a sound with them: the library's sounds for a moving thing by what moves and how, keyed by its row's kind (data/checks/row-kinds.json, score/stages/row_kinds.py: door, crane, fan, vehicle, lift) and its move (slide, swing, path, spin, climb, turn), never by a place or a prim's name. A moving thing's kind is its inventory row's (the row its record names, else the row its prim is an object of), else the kind whose motion its record's `kind` is. Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound/moving.py) plays them in every round of the moving thing's or motion's loop. Only sounds with a picked file are named here: one that still needs making is said in `wanted`, never named until its take is picked.",
+ "is": "what the things that move sound like, where no record plays a sound with them: the library's sounds for a moving thing by what moves and how, keyed by its row's kind (data/checks/row-kinds.json, score/stages/row_kinds.py: door, crane, fan, vehicle, lift) and its move (slide, swing, path, spin, climb, turn), never by a place or a prim's name. A moving thing's kind is its inventory row's (the row its record names, else the row its prim is an object of), else the kind whose motion its record's `kind` is. Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound/moving.py) plays them in every round of the moving thing's or motion's loop. Only sounds with a picked file are named here (`name`), never one still to make: the old sound shelf's names were withdrawn (owner, 2026-10-21: all old stuff is retired), so each part below keeps its rule (when it plays) and names no sound until a fresh take is picked; a moving thing whose part names none plays nothing and is a gap.",
  "kinds": {
   "door": {
    "swing": {
     "sounds": [
      {
-      "name": "hatch_open",
       "part": "start",
       "when": "open"
      },
      {
-      "name": "airlock_hatch_seal_clunk",
       "part": "end",
       "when": "shut"
      }
@@ -20,12 +18,10 @@
    "slide": {
     "sounds": [
      {
-      "name": "door_slide_open",
       "part": "start",
       "when": "open"
      },
      {
-      "name": "door_slide_close",
       "part": "start",
       "when": "shut"
      }
@@ -37,17 +33,14 @@
    "swing": {
     "sounds": [
      {
-      "name": "lift_start",
       "part": "start",
       "when": "either"
      },
      {
-      "name": "lift_travel",
       "part": "travel",
       "when": "either"
      },
      {
-      "name": "lift_stop",
       "part": "end",
       "when": "either"
      }
@@ -59,7 +52,6 @@
    "spin": {
     "sounds": [
      {
-      "name": "vent_air",
       "part": "always"
      }
     ],
@@ -70,11 +62,9 @@
    "path": {
     "sounds": [
      {
-      "name": "rover_motor",
       "part": "drive"
      },
      {
-      "name": "rover_wheels_gravel",
       "part": "drive"
      }
     ],
@@ -82,9 +72,5 @@
    }
   }
  },
- "wanted": {
-  "fan spin": "ceiling_fan: a ceiling fan at 120 rpm, a soft rhythmic whoosh and a faint motor hum",
-  "door slide": "glass_door_slide: a light glass door sliding open on its track (the sliding door recording is a heavy pressure door)",
-  "footsteps": "footsteps_wood and footsteps_concrete: steps on old wooden boards with a light creak, and on concrete and paving"
- }
+ "wanted": {}
 }

@@ -1,12 +1,9 @@
-"""The sounds of the things that move with no sound of their own (data/sound/moving.json): a moving thing's (data/motion/rigid) or a
-silent game motion's (data/motion `sounds: []`), as the sound stage's motion uses, timed off the motion's own moves.
+"""The sounds of the things that move with no sound of their own (data/sound/moving.json): the motion row's moving
+things (its moves.json, made from the design), as the sound stage's motion uses, timed off each thing's own moves.
 Which sounds is the library table's for the thing's row kind (score/stages/row_kinds.py) and its move, never its name.
 
-A game motion's use is in its round's seconds, as the game's own motion sounds are (the assembly plays it in every
-round of its motion record, tools/usd/sound.rounds_of, found by its prim); a moving thing is in no motion record, and a game
-motion whose prim the place renamed (the rigid record's `renamed`, as the motion stage moves it) is found by no prim
-of its record, so each of their uses is one round's, in the stage's seconds, one use a round over
-SOUND_SPAN_SECONDS.
+A moving thing is in no game motion record, so each of its uses is one round's, in the stage's seconds, one use a
+round over SOUND_SPAN_SECONDS.
 """
 import math
 
@@ -89,10 +86,12 @@ def kind_of(entry, rows, kinds):
 
 
 def sounds_for(entry, rows, kinds, table):
-    """The table's sounds for a moving thing by its row kind and its move: {"sounds", "note"}, or None."""
+    """The table's named sounds for a moving thing by its row kind and its move: {"sounds", "note"}, or None (a part
+    that names no sound yet plays nothing)."""
     kind, move = kind_of(entry, rows, kinds), move_of(entry)
     found = table.get("kinds", {}).get(kind, {}).get(move)
-    return {"sounds": found["sounds"], "note": f"{kind} {move}: {found['from']}"} if found else None
+    named = [sound for sound in (found or {}).get("sounds", []) if sound.get("name")]
+    return {"sounds": named, "note": f"{kind} {move}: {found['from']}"} if named else None
 
 
 def use(entry, prim, at, until, note):
