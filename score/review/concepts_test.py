@@ -355,8 +355,10 @@ def test_an_edited_wording_is_sent_word_for_word_and_stays_the_places_own_until_
 
 def test_a_places_wording_names_its_own_doors_and_openings_and_no_others(store):
     flat = concepts.generated(store, "flat")
-    assert ("Its doors: balcony door (glass) onto the outside, over the square and the harbour; front door to the "
-            "stair landing into the stairwell; no other doors or openings.") in flat
+    # owner, 2026-10-21: doors drawn lettered with room names; where a door leads is never written on it
+    assert ("Its unlabelled doors: balcony door (glass) onto the outside, over the square and the harbour; front door "
+            "to the stair landing into the stairwell; no other doors or openings.") in flat
+    assert "no text or signs" in flat
     assert "neighbour's door behind its gate (1st floor) (shut)" in concepts.generated(store, "stairwell")
 
 
