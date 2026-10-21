@@ -7,9 +7,9 @@ the stairwell) and its open places (the street, the square, the launch view). Th
                  an open place
     lights       one at each lamp the kit lays of the scene's glowing rows (each inventory row whose row kind glows,
                  score/stages/row_kinds.py): on its glow part's middle, else just in front of the piece; its numbers
-                 the library's lamp (data/library/lamps.json) for the row's mount, its reach from how high the row's
-                 lamps hang over the plan's floor; a row the plan aims (`aims`) the library's aimed lamp, a spot
-                 aimed where the plan says, reaching past what it aims at, with its shaft
+                 the library's lamp (data/library/lamps.json) for the row's mount, its reach from how high the lamp
+                 hangs over the kit floor under it (else the plan's floor); a row the plan aims (`aims`) the
+                 library's aimed lamp, a spot aimed where the plan says, reaching past what it aims at, with its shaft
     environment  the body's night air (the sky record), its haze ring standing on the body's shared ground
     kit_glow, water   the body's (the sky record), in the place's frame; the water at the made ground's level
     objects      each plan item a released world model makes (the plan's `objects`), on its item's middle
@@ -135,15 +135,24 @@ def library_lamps():
     return library
 
 
-def hung_light(row, spots, floor, library, path, rows):
-    """A glowing row's light at the library's lamp for its mount (among its inventory's `rows`): its reach from how
-    high its lamps hang over the floor (their middle), in the game lamp's numbers."""
+def floor_under(kit, spot, floor):
+    """The floor a lamp hangs over: the top of the highest kit floor piece under it and below it (a stairwell's
+    landing), else the plan's floor."""
+    tops = [box["centre"][1] + box["size"][1] / 2 for box in kit_floors(kit)
+            if abs(spot[0] - box["centre"][0]) <= box["size"][0] / 2
+            and abs(spot[2] - box["centre"][2]) <= box["size"][2] / 2 and box["centre"][1] + box["size"][1] / 2 < spot[1]]
+    return max(tops) if tops else floor
+
+
+def hung_light(row, spot, floor, library, path, rows):
+    """A glowing row's lamp at the library's lamp for its mount (among its inventory's `rows`): its reach from how
+    high it hangs over the floor under it, in the game lamp's numbers."""
     energy, colour, attenuation = game_lamp()
-    high = float(np.median([spot[1] for spot in spots])) - floor
+    high = float(spot[1]) - floor
     light = library.light_at(row, high, rows, library.mounts(path), library.mount_words(path))
     return {"type": "omni", "colour": colour, "energy": round(energy * light["strength"], 4), "range": light["reach"],
             "attenuation": attenuation, "shadows": light["shadows"],
-            "from": f"library lamp (data/library/lamps.json) for its mount, {high:.2f} m over the floor"}
+            "from": f"library lamp (data/library/lamps.json) for its mount, {high:.2f} m over the floor under it"}
 
 
 def aimed_light(plan, row, spot, library, path):
@@ -167,9 +176,9 @@ def lamps(plan, kit, glowing, path, rows=()):
     for row in glowing:
         spots = lamp_spots(kit, row["id"], {})
         aimed = row["id"] in plan.get("aims", {})
-        hung = None if aimed or not spots else hung_light(row, spots, plan["floor_height"], library, path, rows)
         for number, spot in enumerate(spots, 1):
-            light = aimed_light(plan, row, spot, library, path) if aimed else dict(hung)
+            light = aimed_light(plan, row, spot, library, path) if aimed else hung_light(
+                row, spot, floor_under(kit, spot, plan["floor_height"]), library, path, rows)
             light.update(at=np.round(spot, 4).tolist(),
                          **{"from": f"inventory row {row['id']} (row kind {row['row_kind']}, it glows), its lamp "
                                     f"{number} as the kit lays it; {light['from']}"})
