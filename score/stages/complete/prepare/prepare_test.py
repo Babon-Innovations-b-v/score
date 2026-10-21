@@ -374,11 +374,10 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
 
 
 def test_a_design_row_s_bake_entry_and_kind_come_from_its_row_never_an_old_concept_s_details():
-    """The hub's new console row shares its id with the old concept's console (details.json `hub_console`: turned a
-    quarter round, two hand-set labels). Its take is the design's: its kind its noun, so its materials are the place's
-    palette; its entry no turn (the bake measures it over the take), no screens, cuts or decals."""
-    old = json.loads((REPO / "data/library/details.json").read_text())["hub_console"]
-    assert old["decals"] and old["turn"][0] == 0.0  # what the old lookup handed the new row
+    """The hub's new console row shares its id with the old concept's console (its details, a quarter turn and two
+    hand-set labels, retired with the old models on 2026-10-21). Its take is the design's: its kind its noun, so its
+    materials are the place's palette; its entry no turn (the bake measures it over the take), no screens, cuts or
+    decals."""
     row = {"id": "console", "name": "control console", "noun": "control console", "size": [1.6, 0.8, 1.1]}
     record = {"place": "hub", "rows": [row], "objects": {"console": {"route": "prop", "take": "console_ab12cd34"}}}
     found = handin.surface_record("hub", record)

@@ -43,7 +43,7 @@ def library_text(folder, kind_names, bakes):
     """The library a row reads (see the module's docstring), as sorted JSON; its pictures by their files' hashes."""
     folder = pathlib.Path(folder)
     library = json.loads((folder / "materials.json").read_text())
-    details = json.loads((folder / "details.json").read_text())
+    details = json.loads((folder / "details.json").read_text()) if (folder / "details.json").exists() else {}
     variants = named_variants(library, set(job_specs(library, bakes)))
     recipes = {variant["recipe"] for variant in variants.values() if "recipe" in variant}
     pictures = {spec["picture"] for spec in [*variants.values(), *(library["recipes"].get(name, {}) for name in recipes)]

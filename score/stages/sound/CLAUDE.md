@@ -35,6 +35,10 @@ gates; `takes.py` the paid part.
   withdrawn (owner, 2026-10-21: all old stuff is retired), so moving.json keeps each part's rule (when it plays) and
   voices.json its rule with no sound named, each a gap until a fresh take is picked and named. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
+- **Every old pick is retired** (owner, 2026-10-21: every old library sound withdrawn from score_lib, all remade
+  fresh): `data/sound/sounds.json` keeps each brief and `catalogue.json` how each sound plays (bus, loop, reach), but no
+  file, level or `chosen`; `licences.json` and `loudness.json` are empty. So every sound a scene plays is a brief this
+  row makes in the remake batch (priced by `sound_takes`), and a sound with no brief is a gap.
 - **A sound picked already is taken as it is** (from the library, tools/library; its credit off `data/sound/licences.json`, its CLAP
   score `chosen.clap` measured when it was made); only one whose files are off its category's loudness is levelled
   here, its volume moved so it plays as loud as before. Only briefs no environment file answers are made, MOSS on one rented
@@ -76,8 +80,9 @@ gates; `takes.py` the paid part.
   game batch, 244 takes on one L4 in 122.9 card minutes with set-up, timed none; environment 1's run of 2026-10-12,
   about 4 min to the first take and about 28 s a take of 10 to 15 s, EUR 0.72 for 56 takes, was written here, its
   ledger lost with the old disk). The benchmark that settles it is on #29.
-- **The owner's recordings stay** (2026-10-06: the breathing, the sliding doors and the steel footsteps were better
-  than the generated takes). `no freesound` passes them by their `chosen.by` owner with his decision and lists them,
+- **The owner's recordings** (2026-10-06: the breathing, the sliding doors and the steel footsteps were better
+  than the generated takes) went with every old pick on 2026-10-21 (his word: all old retired); the rule stands for
+  a pick of his again. `no freesound` passes them by their `chosen.by` owner with his decision and lists them,
   and passes a Freesound recording under CC0 with its licence row in `data/sound/licences.json` (the owner's
   exception, 2026-10-20, #29; the row read from that file, never the record's own credit); any other Freesound file
   fails it. Replacing them is his call, not the stage's.

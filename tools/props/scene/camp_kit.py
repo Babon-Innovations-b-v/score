@@ -506,7 +506,7 @@ def canister():
 def stored(model):
     """Whether a made model of the camp has its labelled take stored (data/parts/models.json): a model still being made
     is laid once it has."""
-    return model in json.loads(MODELS.read_text()).get(ROOM, {})
+    return MODELS.exists() and model in json.loads(MODELS.read_text()).get(ROOM, {})
 
 
 def kiosk():

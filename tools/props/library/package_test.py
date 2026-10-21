@@ -211,7 +211,8 @@ def box_gltf(path, low, high):
 def test_a_piece_laid_after_the_run_stands_on_its_model_s_foot_with_its_glow():
     """route.py late-lay: a piece naming its model is laid at the model's own box with the box's foot on its spot, its
     glowing part where the host's frame puts it; a piece whose model is not made yet is left out and named; late-plan
-    plans only the code models not made already, and a kind is code-built only on a named pipeline failure (#19)."""
+    plans only the code models not made already, and a piece is code-built only on a named pipeline failure (#19) or
+    a named fallback its layout records."""
     import route
     with tempfile.TemporaryDirectory() as folder:
         models = pathlib.Path(folder)
@@ -232,6 +233,8 @@ def test_a_piece_laid_after_the_run_stands_on_its_model_s_foot_with_its_glow():
         assert not route.late_plan(layout)["models"]
         named = {"pieces": [dict(axes, kind="hub_pipe_straight", at=[0.0, 2.0, 0.0], size=[1.0, 0.08, 0.08],
                                  model="pipe_straight_1")]}
+        assert not route.late_plan(named)["models"]  # no pipeline failure on file names it (old record retired)
+        named["models"] = {"pipe_straight_1": {"route": "code"}}  # a named fallback the layout records
         planned = route.late_plan(named)
         assert list(planned["models"]) == ["pipe_straight_1"] and planned["models"]["pipe_straight_1"]["atlas"] == "late"
         assert not route.late_plan(named, {"pipe_straight_1"})["models"]

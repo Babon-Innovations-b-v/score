@@ -536,7 +536,7 @@ def allowed_materials(place, kind, without):
     """The materials a piece may take: its kind's own list (details.json `materials`) or the place's, less those an
     object never is and those named in `without`."""
     every = library.resolved(place)
-    own = json.loads(DETAILS.read_text()).get(kind, {}).get("materials") if kind else None
+    own = (json.loads(DETAILS.read_text()) if DETAILS.exists() else {}).get(kind, {}).get("materials") if kind else None
     if own:
         missing = [name for name in own if name not in every]
         if missing:

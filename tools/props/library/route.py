@@ -296,7 +296,7 @@ def jobs(planned, takes, work, place):
     # A code-built part names a library variant; a generated piece's labelled parts are the place's own materials
     # (labels.py), which in the habitat are not named as their variants (brushed_steel takes bare_steel): both.
     specs = dict(library.by_library(place), **library.resolved(place))
-    details = json.loads(DETAILS.read_text())
+    details = (json.loads(DETAILS.read_text()) if DETAILS.exists() else {})
     found = {}
     for atlas, names in shared_sets(planned, measured_areas(work)).items():
         found[f"kit-{atlas}"] = {
@@ -312,6 +312,9 @@ def jobs(planned, takes, work, place):
         if entry["route"] != "model":
             continue
         own = details.get(entry["kind"], {})
+        if "turn" not in own:
+            raise SystemExit(f"{name}: no turn for {entry['kind']}: data/library/details.json holds none (the old "
+                             "kinds' details retired with the old models, 2026-10-21)")
         # Method B (hub round five): the pipeline gives shape only; surfaces are the library's alone, never the
         # picture's colours (round four's picture layer brought each piece its own rust and stains), and print comes
         # as the kind's few decals, placed on purpose (details.json `decals`).
@@ -735,7 +738,10 @@ def stamped(source, target):
 
 def record_fittings(reports, path=sorter.FITTINGS):
     """Method B's check, written back: for every room fitting a code build made, how much of each named part the room
-    can see (make_kit's parts_seen; the least over the kind's models), into data/library/fittings.json's `built`."""
+    can see (make_kit's parts_seen; the least over the kind's models), into data/library/fittings.json's `built`;
+    nothing while no fitting is recorded (the old record retired with the old models, 2026-10-21)."""
+    if not pathlib.Path(path).exists():
+        return {}
     data = json.loads(pathlib.Path(path).read_text())
     built = {}
     for report in reports:

@@ -722,10 +722,10 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         inventory_path = next((path for path in (INVENTORIES / f"{place}.json", INVENTORIES / f"{kit.get('place')}.json")
                                if path.exists()), INVENTORIES / f"{place}.json")
     inventory = json.loads(pathlib.Path(inventory_path).read_text())
-    children = child_pieces(place, kit, inventory, json.loads(COMPOSITES.read_text()))
+    children = child_pieces(place, kit, inventory, json.loads(COMPOSITES.read_text()) if COMPOSITES.exists() else {})
     if gaps is not None:
         children = {row: made_only(on_it, models, gaps) for row, on_it in children.items()}
-    details = json.loads(DETAILS.read_text())
+    details = (json.loads(DETAILS.read_text()) if DETAILS.exists() else {})
     variants = library.variants(library.theme_library())
     sounds = json.loads(SOUNDS.read_text())
     (out / "assets").mkdir(parents=True, exist_ok=True)

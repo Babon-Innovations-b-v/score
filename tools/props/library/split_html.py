@@ -81,8 +81,8 @@ def esc(text):
 
 def places_of():
     """Each take's places and model names, from data/parts/models.json."""
-    found = {}
-    for place, models in json.loads((split_compare.labels.REPO / "data/parts/models.json").read_text()).items():
+    found, index = {}, split_compare.labels.REPO / "data/parts/models.json"
+    for place, models in (json.loads(index.read_text()) if index.exists() else {}).items():
         for model, take in models.items():
             found.setdefault(take, []).append(f"{place}/{model}")
     return found

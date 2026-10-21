@@ -11,6 +11,14 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
+- **The old models' records are retired** (owner, 2026-10-21: every old model, kit, effect, sound, layer and place
+  withdrawn from score_lib, all remade fresh). `data/library/details.json`, `composites.json`, `fittings.json`,
+  `pipeline_failures.json` and `data/parts` are gone and their readers answer none: `sorter.failures` and
+  `sorter.fittings` are empty, so every kind goes to the prop pipeline; `route.jobs` names a kind with no turn and
+  stops; no take is stored. What a scene needs is its design's (`{home}/design/inventory/<scene>.json`, its hand-in
+  `{home}/design/props/<scene>.json`); the remake batch makes each model and hands it to score_lib as a draft
+  (`library@<place>`). The bullets below that name those files describe the old route; its builders (`inside/pieces*.py`,
+  `earth_*.py`) still stand, routed to by nothing until a pipeline failure is recorded.
 - **Experimental until the surface stage proves it** (docs/bible.md, `architecture/experimental`): everything in the
   painting after round four (the two-way split fit, round five's 3D split, paint by the model's own parts with
   `--face-parts` and `finish_masks.py`, the patchy rule), the surface check's dark rule (5c66c2e: a region the

@@ -117,8 +117,10 @@ def installed(but):
 
 
 def fittings_names():
-    """The fittings' own names (data/library/fittings.json)."""
-    return set(json.loads((REPO / "data/library/fittings.json").read_text())["fittings"])
+    """The fittings' own names (data/library/fittings.json); none while no fitting is recorded (the old record
+    retired with the old models, 2026-10-21)."""
+    path = REPO / "data/library/fittings.json"
+    return set(json.loads(path.read_text())["fittings"]) if path.exists() else set()
 
 
 def check(layout, room, others=None, texts=None, fittings=None):

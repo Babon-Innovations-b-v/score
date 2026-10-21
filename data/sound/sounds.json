@@ -1,5 +1,5 @@
 {
-	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (data/sound/catalogue.json) lays each entry here over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. 'near' (metres, only where named) is how far out a placed sound plays at its full level before it falls off with distance, for a source far louder than a room's (a lift-off); any other falls off past 10 m, Godot's unit size (tools/usd/sound.py NEAR_METRES). A name with no file plays nothing until the owner picks one (tools/sound/picker/)",
+	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (data/sound/catalogue.json) lays each entry here over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. 'near' (metres, only where named) is how far out a placed sound plays at its full level before it falls off with distance, for a source far louder than a room's (a lift-off); any other falls off past 10 m, Godot's unit size (tools/usd/sound.py NEAR_METRES). A name with no file plays nothing until the owner picks one (tools/sound/picker/). Retired on 2026-10-21 (owner: every old library sound withdrawn, remade fresh): every pick (its file, its volume_db and the picker's `chosen`) went with the old sounds; each brief stays, so the sound row makes it fresh (one MOSS take) in the remake batch",
 	"sounds": {
 		"habitat": {
 			"pick": {
@@ -17,32 +17,14 @@
 					"spaceship interior ambience",
 					"server room ambience"
 				],
-				"chosen": {
-					"take": "moss:habitat__p1__s2",
-					"by": "scoring",
-					"clap": 0.478
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "room",
 					"air": "sealed"
 				}
-			},
-			"file": "sound/habitat@1/audio/generated/places/habitat.wav",
-			"volume_db": -21.4
+			}
 		},
 		"footsteps_steel_plate": {
-			"file": [
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_1.ogg",
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_2.ogg",
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_3.ogg",
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_4.ogg",
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_5.ogg",
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_6.ogg",
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_7.ogg",
-				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_8.ogg"
-			],
-			"volume_db": -22.0,
 			"pick": {
 				"page": "game",
 				"category": "steps",
@@ -57,27 +39,10 @@
 					"footsteps metal floor",
 					"footsteps steel plate boots",
 					"footsteps ship deck"
-				],
-				"before": "footsteps_metal",
-				"chosen": {
-					"take": "game:footstep_steel_plate",
-					"by": "owner",
-					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
-				}
+				]
 			}
 		},
 		"footsteps_grating": {
-			"file": [
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_1.ogg",
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_2.ogg",
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_3.ogg",
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_4.ogg",
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_5.ogg",
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_6.ogg",
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_7.ogg",
-				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_8.ogg"
-			],
-			"volume_db": -35.0,
 			"pick": {
 				"page": "game",
 				"category": "steps",
@@ -92,26 +57,10 @@
 					"footsteps metal grate",
 					"footsteps grating catwalk",
 					"footsteps metal mesh"
-				],
-				"chosen": {
-					"take": "moss:footstep_grating__p2__s2",
-					"by": "scoring",
-					"clap": 0.3761
-				}
+				]
 			}
 		},
 		"footsteps_rubber": {
-			"file": [
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_1.ogg",
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_2.ogg",
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_3.ogg",
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_4.ogg",
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_5.ogg",
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_6.ogg",
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_7.ogg",
-				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_8.ogg"
-			],
-			"volume_db": -35.3,
 			"pick": {
 				"page": "game",
 				"category": "steps",
@@ -126,17 +75,10 @@
 					"footsteps rubber mat",
 					"footsteps rubber floor",
 					"footsteps gym floor"
-				],
-				"chosen": {
-					"take": "moss:footstep_rubber__p1__s1",
-					"by": "scoring",
-					"clap": 0.3968
-				}
+				]
 			}
 		},
 		"impact_steel_plate": {
-			"file": "sound/impact_steel_plate@1/audio/generated/doors/impact_steel_plate.ogg",
-			"volume_db": -23.0,
 			"pick": {
 				"page": "game",
 				"category": "shot",
@@ -144,17 +86,10 @@
 				"prompts": [
 					"A heavy metal tool dropped onto a thick steel floor plate: one loud solid metallic clang with a short ring, in a metal room."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:impact_steel_plate__p1__s3",
-					"by": "scoring",
-					"clap": 0.6074
-				}
+				"seconds": 3
 			}
 		},
 		"impact_grating": {
-			"file": "sound/impact_grating@1/audio/generated/doors/impact_grating.ogg",
-			"volume_db": -22.8,
 			"pick": {
 				"page": "game",
 				"category": "shot",
@@ -162,17 +97,10 @@
 				"prompts": [
 					"A metal box dropped onto a steel grating floor: a rattling clank of the grate and a short metallic buzz."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:impact_grating__p1__s3",
-					"by": "scoring",
-					"clap": 0.5152
-				}
+				"seconds": 3
 			}
 		},
 		"impact_rubber": {
-			"file": "sound/impact_rubber@1/audio/generated/doors/impact_rubber.ogg",
-			"volume_db": -22.2,
 			"pick": {
 				"page": "game",
 				"category": "shot",
@@ -180,17 +108,10 @@
 				"prompts": [
 					"A heavy object dropped onto a thick rubber mat: one dull muffled thud, short."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:impact_rubber__p1__s3",
-					"by": "scoring",
-					"clap": 0.4148
-				}
+				"seconds": 3
 			}
 		},
 		"scrape_steel_plate": {
-			"file": "sound/scrape_steel_plate@1/audio/generated/doors/scrape_steel_plate.ogg",
-			"volume_db": -22.7,
 			"pick": {
 				"page": "game",
 				"category": "shot",
@@ -198,17 +119,10 @@
 				"prompts": [
 					"A heavy metal crate dragged across a steel floor: a harsh grinding metallic scrape, about two seconds."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:scrape_steel_plate__p1__s1",
-					"by": "scoring",
-					"clap": 0.4413
-				}
+				"seconds": 3
 			}
 		},
 		"scrape_grating": {
-			"file": "sound/scrape_grating@1/audio/generated/doors/scrape_grating.ogg",
-			"volume_db": -22.7,
 			"pick": {
 				"page": "game",
 				"category": "shot",
@@ -216,17 +130,10 @@
 				"prompts": [
 					"A metal case dragged over a steel bar grating: a rattling, juddering metallic scrape, about two seconds."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:scrape_grating__p1__s1",
-					"by": "scoring",
-					"clap": 0.41
-				}
+				"seconds": 3
 			}
 		},
 		"scrape_rubber": {
-			"file": "sound/scrape_rubber@1/audio/generated/doors/scrape_rubber.ogg",
-			"volume_db": -23.0,
 			"pick": {
 				"page": "game",
 				"category": "shot",
@@ -234,12 +141,7 @@
 				"prompts": [
 					"A box pushed across a rubber floor mat: a soft rubbery squeaking drag, about two seconds."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:scrape_rubber__p1__s4",
-					"by": "scoring",
-					"clap": 0.4469
-				}
+				"seconds": 3
 			}
 		},
 		"door_slide_open": {
@@ -256,12 +158,7 @@
 					"sci-fi door open",
 					"pneumatic door open",
 					"hydraulic hatch open"
-				],
-				"chosen": {
-					"take": "game:door_slide_open",
-					"by": "owner",
-					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
-				}
+				]
 			}
 		},
 		"door_slide_close": {
@@ -278,12 +175,7 @@
 					"sci-fi door close",
 					"pneumatic door close",
 					"heavy metal door close"
-				],
-				"chosen": {
-					"take": "game:door_slide_close",
-					"by": "owner",
-					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
-				}
+				]
 			}
 		},
 		"airlock_hatch_seal_clunk": {
@@ -300,20 +192,11 @@
 					"heavy hatch lock clunk",
 					"metal door latch heavy",
 					"vault door close"
-				],
-				"chosen": {
-					"take": "moss:airlock_hatch_seal_clunk__p1__s2",
-					"by": "scoring",
-					"clap": 0.5127
-				}
-			},
-			"file": "sound/airlock_hatch_seal_clunk@1/audio/generated/doors/airlock_hatch_seal_clunk.ogg",
-			"volume_db": -18.4
+				]
+			}
 		},
 		"console_hum": {
-			"file": "sound/console_hum@1/audio/generated/machines/console_hum.wav",
 			"loops": true,
-			"volume_db": -28.0,
 			"reach": 6.0,
 			"pick": {
 				"page": "game",
@@ -330,18 +213,11 @@
 					"computer hum fan",
 					"electronics hum loop",
 					"server fan hum"
-				],
-				"chosen": {
-					"take": "moss:console_hum__p2__s2",
-					"by": "scoring",
-					"clap": 0.5404
-				}
+				]
 			}
 		},
 		"glovebox_hum": {
-			"file": "sound/glovebox_hum@1/audio/generated/machines/glovebox_hum.wav",
 			"loops": true,
-			"volume_db": -30.0,
 			"reach": 5.0,
 			"pick": {
 				"page": "game",
@@ -360,18 +236,11 @@
 					"aquarium air pump",
 					"small fan hum loop",
 					"fume hood fan"
-				],
-				"chosen": {
-					"take": "moss:glovebox_hum__p1__s1",
-					"by": "scoring",
-					"clap": 0.4832
-				}
+				]
 			}
 		},
 		"lamp_buzz": {
-			"file": "sound/lamp_buzz@1/audio/generated/machines/lamp_buzz.wav",
 			"loops": true,
-			"volume_db": -36.0,
 			"reach": 3.0,
 			"pick": {
 				"page": "game",
@@ -388,18 +257,11 @@
 					"fluorescent light buzz",
 					"lamp hum buzz",
 					"electrical buzz light"
-				],
-				"chosen": {
-					"take": "moss:lamp_buzz__p2__s2",
-					"by": "scoring",
-					"clap": 0.4928
-				}
+				]
 			}
 		},
 		"junction_hum": {
-			"file": "sound/junction_hum@1/audio/generated/machines/junction_hum.wav",
 			"loops": true,
-			"volume_db": -34.0,
 			"reach": 3.0,
 			"pick": {
 				"page": "game",
@@ -416,18 +278,11 @@
 					"transformer hum",
 					"electrical hum 50hz",
 					"power box hum"
-				],
-				"chosen": {
-					"take": "moss:junction_hum__p2__s2",
-					"by": "scoring",
-					"clap": 0.4796
-				}
+				]
 			}
 		},
 		"vent_air": {
-			"file": "sound/vent_air@1/audio/generated/machines/vent_air.wav",
 			"loops": true,
-			"volume_db": -32.0,
 			"reach": 4.0,
 			"pick": {
 				"page": "game",
@@ -444,12 +299,7 @@
 					"air vent loop",
 					"ventilation duct air",
 					"air conditioning vent"
-				],
-				"chosen": {
-					"take": "moss:vent_air__p1__s2",
-					"by": "scoring",
-					"clap": 0.4294
-				}
+				]
 			}
 		},
 		"base_hum": {
@@ -462,11 +312,6 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:base_hum__p1__s4",
-					"by": "scoring",
-					"clap": 0.3945
-				},
 				"bed": {
 					"plays": "layer",
 					"heard": "room",
@@ -474,9 +319,7 @@
 					"shell": "built",
 					"grounded": true
 				}
-			},
-			"file": "sound/base_hum@1/audio/generated/places/base_hum.wav",
-			"volume_db": -20.6
+			}
 		},
 		"greenhouse": {
 			"pick": {
@@ -488,11 +331,6 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:greenhouse__p1__s3",
-					"by": "scoring",
-					"clap": 0.4527
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "room",
@@ -507,9 +345,7 @@
 						"crop beds"
 					]
 				}
-			},
-			"file": "sound/greenhouse@1/audio/generated/places/greenhouse.wav",
-			"volume_db": -32.3
+			}
 		},
 		"garage": {
 			"pick": {
@@ -521,11 +357,6 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:garage__p1__s3",
-					"by": "scoring",
-					"clap": 0.3943
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "room",
@@ -533,9 +364,7 @@
 						"vehicle"
 					]
 				}
-			},
-			"file": "sound/garage@1/audio/generated/places/garage.wav",
-			"volume_db": -18.9
+			}
 		},
 		"workshop": {
 			"pick": {
@@ -547,11 +376,6 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:workshop__p1__s1",
-					"by": "scoring",
-					"clap": 0.4484
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "room",
@@ -562,9 +386,7 @@
 						"robots"
 					]
 				}
-			},
-			"file": "sound/workshop@1/audio/generated/places/workshop.wav",
-			"volume_db": -19.9
+			}
 		},
 		"link_tube": {
 			"pick": {
@@ -576,11 +398,6 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:link_tube__p1__s3",
-					"by": "scoring",
-					"clap": 0.3885
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "room",
@@ -588,9 +405,7 @@
 						"tube"
 					]
 				}
-			},
-			"file": "sound/link_tube@1/audio/generated/places/link_tube.wav",
-			"volume_db": -19.1
+			}
 		},
 		"ship_inside": {
 			"pick": {
@@ -602,19 +417,12 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:ship_inside__p1__s3",
-					"by": "scoring",
-					"clap": 0.4399
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "room",
 					"grounded": false
 				}
-			},
-			"file": "sound/ship_inside@1/audio/generated/places/ship_inside.wav",
-			"volume_db": -17.9
+			}
 		},
 		"mars_wind": {
 			"pick": {
@@ -625,15 +433,8 @@
 					"Thin, distant wind on a cold barren desert plain, heard muffled from inside a helmet: a soft steady low whoosh with gentle gusts."
 				],
 				"seconds": 15,
-				"loop": true,
-				"chosen": {
-					"take": "moss:mars_wind__p1__s1",
-					"by": "scoring",
-					"clap": 0.4951
-				}
-			},
-			"file": "sound/mars_wind@1/audio/generated/places/mars_wind.wav",
-			"volume_db": -25.7
+				"loop": true
+			}
 		},
 		"mars_dust_storm_wind": {
 			"pick": {
@@ -644,15 +445,8 @@
 					"A howling dust storm heard muffled from inside a spacesuit helmet: strong steady roaring wind with fine sand hissing against glass."
 				],
 				"seconds": 15,
-				"loop": true,
-				"chosen": {
-					"take": "moss:mars_dust_storm_wind__p1__s2",
-					"by": "scoring",
-					"clap": 0.4646
-				}
-			},
-			"file": "sound/mars_dust_storm_wind@1/audio/generated/places/mars_dust_storm_wind.wav",
-			"volume_db": -13.0
+				"loop": true
+			}
 		},
 		"earth_flat": {
 			"pick": {
@@ -664,19 +458,12 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:earth_flat__p1__s3",
-					"by": "scoring",
-					"clap": 0.474
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "room",
 					"air": "breathable"
 				}
-			},
-			"file": "sound/earth_flat@1/audio/generated/places/earth_flat.wav",
-			"volume_db": -22.9
+			}
 		},
 		"prologue_crowd": {
 			"pick": {
@@ -688,11 +475,6 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:prologue_crowd__p1__s1",
-					"by": "scoring",
-					"clap": 0.5228
-				},
 				"bed": {
 					"plays": "layer",
 					"heard": "open",
@@ -702,9 +484,7 @@
 						"people"
 					]
 				}
-			},
-			"file": "sound/prologue_crowd@1/audio/generated/places/prologue_crowd.wav",
-			"volume_db": -15.7
+			}
 		},
 		"suit_breathing_calm": {
 			"pick": {
@@ -716,11 +496,6 @@
 				],
 				"seconds": 12,
 				"loop": true,
-				"chosen": {
-					"take": "game:suit_breathing_calm",
-					"by": "owner",
-					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
-				},
 				"bed": {
 					"plays": "layer",
 					"heard": "suit"
@@ -736,12 +511,7 @@
 					"Fast heavy breathing of one out-of-breath person inside a closed space helmet, quick steady panting, close, no other sounds."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "game:suit_breathing_fast",
-					"by": "owner",
-					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
-				}
+				"loop": true
 			}
 		},
 		"suit_fans": {
@@ -754,18 +524,11 @@
 				],
 				"seconds": 15,
 				"loop": true,
-				"chosen": {
-					"take": "moss:suit_fans__p1__s2",
-					"by": "scoring",
-					"clap": 0.4523
-				},
 				"bed": {
 					"plays": "tone",
 					"heard": "suit"
 				}
-			},
-			"file": "sound/suit_fans@1/audio/generated/machines/suit_fans.wav",
-			"volume_db": -30.9
+			}
 		},
 		"radio_click_in": {
 			"pick": {
@@ -775,15 +538,8 @@
 				"prompts": [
 					"A short crisp click of a two-way radio push-to-talk button pressed, with a tiny burst of static, very short."
 				],
-				"seconds": 2,
-				"chosen": {
-					"take": "moss:radio_click_in__p1__s2",
-					"by": "scoring",
-					"clap": 0.1316
-				}
-			},
-			"file": "sound/radio_click_in.generated@1/audio/generated/doors/radio_click_in.ogg",
-			"volume_db": -19.7
+				"seconds": 2
+			}
 		},
 		"radio_click_out": {
 			"pick": {
@@ -793,15 +549,8 @@
 				"prompts": [
 					"A short crisp click of a two-way radio push-to-talk button released, with a short tail of static, very short."
 				],
-				"seconds": 2,
-				"chosen": {
-					"take": "moss:radio_click_out__p1__s1",
-					"by": "scoring",
-					"clap": 0.2058
-				}
-			},
-			"file": "sound/radio_click_out.generated@1/audio/generated/doors/radio_click_out.ogg",
-			"volume_db": -20.2
+				"seconds": 2
+			}
 		},
 		"radio_beep": {
 			"pick": {
@@ -811,15 +560,8 @@
 				"prompts": [
 					"A single short clean electronic radio beep, a soft two-tone chirp of a headset, very short."
 				],
-				"seconds": 2,
-				"chosen": {
-					"take": "moss:radio_beep__p1__s2",
-					"by": "scoring",
-					"clap": 0.2783
-				}
-			},
-			"file": "sound/radio_beep@1/audio/generated/doors/radio_beep.ogg",
-			"volume_db": -20.2
+				"seconds": 2
+			}
 		},
 		"radio_squelch": {
 			"pick": {
@@ -829,15 +571,8 @@
 				"prompts": [
 					"A short burst of radio squelch static, a crackling hiss that cuts off abruptly, from a walkie-talkie."
 				],
-				"seconds": 2,
-				"chosen": {
-					"take": "moss:radio_squelch__p1__s4",
-					"by": "scoring",
-					"clap": 0.4101
-				}
-			},
-			"file": "sound/radio_squelch@1/audio/generated/doors/radio_squelch.ogg",
-			"volume_db": -20.9
+				"seconds": 2
+			}
 		},
 		"cockpit_switch": {
 			"pick": {
@@ -847,15 +582,8 @@
 				"prompts": [
 					"A solid toggle switch flipped on an aircraft cockpit panel: one firm mechanical click, very short."
 				],
-				"seconds": 2,
-				"chosen": {
-					"take": "moss:cockpit_switch__p1__s2",
-					"by": "scoring",
-					"clap": 0.2997
-				}
-			},
-			"file": "sound/cockpit_switch.generated@1/audio/generated/doors/cockpit_switch.ogg",
-			"volume_db": -9.3
+				"seconds": 2
+			}
 		},
 		"desk_locked": {
 			"pick": {
@@ -865,15 +593,8 @@
 				"prompts": [
 					"A short dry plastic click of a locked button that does not give, a dull refusal tap, very short."
 				],
-				"seconds": 2,
-				"chosen": {
-					"take": "moss:desk_locked__p1__s4",
-					"by": "scoring",
-					"clap": 0.1215
-				}
-			},
-			"file": "sound/desk_locked.generated@1/audio/generated/doors/desk_locked.ogg",
-			"volume_db": -16.2
+				"seconds": 2
+			}
 		},
 		"geiger_ticks": {
 			"pick": {
@@ -884,15 +605,8 @@
 					"A geiger counter ticking: irregular sharp clicks at a steady moderate rate, close, no other sounds."
 				],
 				"seconds": 10,
-				"loop": true,
-				"chosen": {
-					"take": "moss:geiger_ticks__p1__s3",
-					"by": "scoring",
-					"clap": 0.4542
-				}
-			},
-			"file": "sound/geiger_ticks@1/audio/generated/machines/geiger_ticks.wav",
-			"volume_db": -13.0
+				"loop": true
+			}
 		},
 		"hatch_open": {
 			"pick": {
@@ -902,15 +616,8 @@
 				"prompts": [
 					"A spacecraft hatch unlatched and swung open: a heavy metal latch release clunk, a short air hiss and a hinge creak."
 				],
-				"seconds": 4,
-				"chosen": {
-					"take": "moss:hatch_open__p1__s2",
-					"by": "scoring",
-					"clap": 0.3331
-				}
-			},
-			"file": "sound/hatch_open@1/audio/generated/doors/hatch_open.ogg",
-			"volume_db": -20.0
+				"seconds": 4
+			}
 		},
 		"airlock_pump_down": {
 			"pick": {
@@ -921,15 +628,8 @@
 					"A powerful vacuum pump running steadily in a small metal chamber: a constant deep motor drone with a rushing air suction, steady."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "moss:airlock_pump_down__p1__s2",
-					"by": "scoring",
-					"clap": 0.4292
-				}
-			},
-			"file": "sound/airlock_pump_down@1/audio/generated/machines/airlock_pump_down.wav",
-			"volume_db": -20.6
+				"loop": true
+			}
 		},
 		"airlock_air_hiss": {
 			"pick": {
@@ -939,15 +639,8 @@
 				"prompts": [
 					"Strong pressurised air venting from a sealed metal chamber: a loud rushing hiss that slowly tapers off."
 				],
-				"seconds": 6,
-				"chosen": {
-					"take": "moss:airlock_air_hiss__p1__s3",
-					"by": "scoring",
-					"clap": 0.4107
-				}
-			},
-			"file": "sound/airlock_air_hiss@1/audio/generated/doors/airlock_air_hiss.ogg",
-			"volume_db": -15.3
+				"seconds": 6
+			}
 		},
 		"airlock_pressure_equalise": {
 			"pick": {
@@ -957,15 +650,8 @@
 				"prompts": [
 					"Air pressure equalising in a sealed airlock: a rising hiss of air flowing in that settles with a soft pop and a valve click."
 				],
-				"seconds": 5,
-				"chosen": {
-					"take": "moss:airlock_pressure_equalise__p1__s3",
-					"by": "scoring",
-					"clap": 0.5283
-				}
-			},
-			"file": "sound/airlock_pressure_equalise@1/audio/generated/doors/airlock_pressure_equalise.ogg",
-			"volume_db": -12.6
+				"seconds": 5
+			}
 		},
 		"lift_start": {
 			"pick": {
@@ -975,15 +661,8 @@
 				"prompts": [
 					"A heavy industrial freight lift starting: a motor whir spinning up with a mechanical clunk of the brake releasing."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:lift_start__p1__s3",
-					"by": "scoring",
-					"clap": 0.387
-				}
-			},
-			"file": "sound/lift_start@1/audio/generated/doors/lift_start.ogg",
-			"volume_db": -19.3
+				"seconds": 3
+			}
 		},
 		"lift_travel": {
 			"pick": {
@@ -994,15 +673,8 @@
 					"A heavy industrial freight platform lift moving steadily: a constant electric motor drone with a soft rattle of chains and rails."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "moss:lift_travel__p1__s1",
-					"by": "scoring",
-					"clap": 0.306
-				}
-			},
-			"file": "sound/lift_travel@1/audio/generated/machines/lift_travel.wav",
-			"volume_db": -18.2
+				"loop": true
+			}
 		},
 		"lift_stop": {
 			"pick": {
@@ -1012,15 +684,8 @@
 				"prompts": [
 					"A heavy industrial freight lift stopping: the motor winding down and a solid mechanical clunk of the brake."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:lift_stop__p1__s4",
-					"by": "scoring",
-					"clap": 0.4104
-				}
-			},
-			"file": "sound/lift_stop@1/audio/generated/doors/lift_stop.ogg",
-			"volume_db": -26.1
+				"seconds": 3
+			}
 		},
 		"footsteps_gravel": {
 			"pick": {
@@ -1031,15 +696,8 @@
 					"Slow footsteps of heavy boots crunching on loose gravel and dust, muffled and dull as if heard through a thick suit, an even walking rhythm."
 				],
 				"seconds": 10,
-				"loop": true,
-				"chosen": {
-					"take": "moss:footsteps_boots_gravel__p1__s1",
-					"by": "scoring",
-					"clap": 0.4725
-				}
-			},
-			"file": "sound/footsteps_gravel@1/audio/generated/machines/footsteps_boots_gravel.wav",
-			"volume_db": -17.0
+				"loop": true
+			}
 		},
 		"bench_tool": {
 			"pick": {
@@ -1050,15 +708,8 @@
 					"A small electric screwdriver and a cordless drill working on a metal robot part at a workbench: short whirring bursts and light metal clinks, steady work."
 				],
 				"seconds": 10,
-				"loop": true,
-				"chosen": {
-					"take": "moss:bench_tool__p1__s4",
-					"by": "scoring",
-					"clap": 0.4064
-				}
-			},
-			"file": "sound/bench_tool@1/audio/generated/machines/bench_tool.wav",
-			"volume_db": -19.7
+				"loop": true
+			}
 		},
 		"digger": {
 			"pick": {
@@ -1069,15 +720,8 @@
 					"A small digging machine scraping and scooping gravel: a steady motor grind with rocks and grit pouring, constant work."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "moss:digger__p1__s3",
-					"by": "scoring",
-					"clap": 0.4378
-				}
-			},
-			"file": "sound/digger@1/audio/generated/machines/digger.wav",
-			"volume_db": -20.3
+				"loop": true
+			}
 		},
 		"robot_planting": {
 			"pick": {
@@ -1087,15 +731,8 @@
 				"prompts": [
 					"A small robot arm pushing a seedling into soft soil: a short servo whir and a soft scoop of earth, short."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:robot_planting__p1__s2",
-					"by": "scoring",
-					"clap": 0.293
-				}
-			},
-			"file": "sound/robot_planting@1/audio/generated/doors/robot_planting.ogg",
-			"volume_db": -23.9
+				"seconds": 3
+			}
 		},
 		"robot_servo": {
 			"pick": {
@@ -1106,15 +743,8 @@
 					"Small electric servo motors of a robot moving: steady soft mechanical whirring rising and falling, constant."
 				],
 				"seconds": 10,
-				"loop": true,
-				"chosen": {
-					"take": "moss:robot_servo__p1__s2",
-					"by": "scoring",
-					"clap": 0.409
-				}
-			},
-			"file": "sound/robot_servo@1/audio/generated/machines/robot_servo.wav",
-			"volume_db": -21.0
+				"loop": true
+			}
 		},
 		"drone_hover": {
 			"pick": {
@@ -1125,15 +755,8 @@
 					"A small rocket-powered drone hovering: a steady soft hissing thrust of gas jets with a light electric whine, constant."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "moss:drone_hover__p1__s4",
-					"by": "scoring",
-					"clap": 0.3529
-				}
-			},
-			"file": "sound/drone_hover@1/audio/generated/machines/drone_hover.wav",
-			"volume_db": -27.3
+				"loop": true
+			}
 		},
 		"drone_thrust_burst": {
 			"pick": {
@@ -1144,15 +767,8 @@
 					"A small rocket thruster firing steadily: a strong roaring hiss of gas exhaust, constant, no ignition pop."
 				],
 				"seconds": 10,
-				"loop": true,
-				"chosen": {
-					"take": "moss:drone_thrust_burst__p1__s4",
-					"by": "scoring",
-					"clap": 0.3625
-				}
-			},
-			"file": "sound/drone_thrust_burst@1/audio/generated/machines/drone_thrust_burst.wav",
-			"volume_db": -23.8
+				"loop": true
+			}
 		},
 		"rover_motor": {
 			"pick": {
@@ -1163,15 +779,8 @@
 					"An electric off-road vehicle driving at a steady speed: a smooth high electric motor whine with a low gear hum, constant."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "moss:rover_motor__p1__s4",
-					"by": "scoring",
-					"clap": 0.4012
-				}
-			},
-			"file": "sound/rover_motor@1/audio/generated/machines/rover_motor.wav",
-			"volume_db": -22.6
+				"loop": true
+			}
 		},
 		"rover_wheels_gravel": {
 			"pick": {
@@ -1182,15 +791,8 @@
 					"Big rubber wheels rolling steadily over loose gravel and rocks: a constant crunching and popping of stones, no engine."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "moss:rover_wheels_gravel__p1__s4",
-					"by": "scoring",
-					"clap": 0.3393
-				}
-			},
-			"file": "sound/rover_wheels_gravel@1/audio/generated/machines/rover_wheels_gravel.wav",
-			"volume_db": -18.4
+				"loop": true
+			}
 		},
 		"rocket_launch": {
 			"pick": {
@@ -1200,15 +802,8 @@
 				"prompts": [
 					"A large rocket lifting off a few kilometres away: a deep thunderous roar with crackling low rumble that builds, holds and slowly fades as it climbs."
 				],
-				"seconds": 15,
-				"chosen": {
-					"take": "moss:rocket_launch__p1__s2",
-					"by": "scoring",
-					"clap": 0.4986
-				}
+				"seconds": 15
 			},
-			"file": "sound/rocket_launch@1/audio/generated/doors/rocket_launch.ogg",
-			"volume_db": -10.9,
 			"near": 300.0
 		},
 		"rocket_hull_roar": {
@@ -1219,15 +814,8 @@
 				"prompts": [
 					"A rocket launch heard from inside the crew capsule: an overwhelming deep rumbling roar muffled by the hull, violent crackling vibration that builds and holds."
 				],
-				"seconds": 15,
-				"chosen": {
-					"take": "moss:rocket_hull_roar__p1__s3",
-					"by": "scoring",
-					"clap": 0.5376
-				}
-			},
-			"file": "sound/rocket_hull_roar@1/audio/generated/doors/rocket_hull_roar.ogg",
-			"volume_db": -8.4
+				"seconds": 15
+			}
 		},
 		"rocket_landing_rumble": {
 			"pick": {
@@ -1238,15 +826,8 @@
 					"A rocket engine firing steadily during a slow descent: a constant deep roaring rumble with crackle, no start and no end."
 				],
 				"seconds": 12,
-				"loop": true,
-				"chosen": {
-					"take": "moss:rocket_landing_rumble__p1__s2",
-					"by": "scoring",
-					"clap": 0.4025
-				}
-			},
-			"file": "sound/rocket_landing_rumble@1/audio/generated/machines/rocket_landing_rumble.wav",
-			"volume_db": -9.2
+				"loop": true
+			}
 		},
 		"rocket_touchdown": {
 			"pick": {
@@ -1256,15 +837,8 @@
 				"prompts": [
 					"A huge heavy machine landing hard on a concrete pad: a deep booming thud with metal creaking and the engine roar cutting off."
 				],
-				"seconds": 4,
-				"chosen": {
-					"take": "moss:rocket_touchdown__p1__s1",
-					"by": "scoring",
-					"clap": 0.5166
-				}
-			},
-			"file": "sound/rocket_touchdown@1/audio/generated/doors/rocket_touchdown.ogg",
-			"volume_db": -7.6
+				"seconds": 4
+			}
 		},
 		"ground_thud": {
 			"pick": {
@@ -1274,15 +848,8 @@
 				"prompts": [
 					"A heavy metal object landing hard on packed dirt: one deep dull ground thud, short."
 				],
-				"seconds": 3,
-				"chosen": {
-					"take": "moss:ground_thud__p1__s3",
-					"by": "scoring",
-					"clap": 0.3369
-				}
-			},
-			"file": "sound/ground_thud@1/audio/generated/doors/ground_thud.ogg",
-			"volume_db": -16.0
+				"seconds": 3
+			}
 		},
 		"landing_thud": {
 			"pick": {
@@ -1292,15 +859,8 @@
 				"prompts": [
 					"A person in a heavy suit landing on their feet after a jump onto hard ground: one soft dull thud, short."
 				],
-				"seconds": 2,
-				"chosen": {
-					"take": "moss:landing_thud__p1__s1",
-					"by": "scoring",
-					"clap": 0.3716
-				}
-			},
-			"file": "sound/landing_thud.generated@1/audio/generated/doors/landing_thud.ogg",
-			"volume_db": -25.8
+				"seconds": 2
+			}
 		},
 		"camp_room": {
 			"pick": {

@@ -29,7 +29,9 @@ make, the output, the gate and the price; `sample.py` the sample shapes; `blende
   over a 600 s stage) opens on the puff, not an empty first frame. Not yet rendered since.
 - **The benchmark is `library-clips-sample`** (one environment node, paid): the same make over the drafts
   `data/definitions/clip_samples.json` names (one a framing), clipped and put into their entries, so a clip's
-  seconds and euros are measured. Only on the owner's yes: `SCORE_BENCHMARK_GRANT=<grant> python -m score run world1
+  seconds and euros are measured. The old record named withdrawn drafts and was retired (owner, 2026-10-21), so the
+  row blocks on its missing `samples` input until a record names fresh drafts the remake batch handed over. Only on
+  the owner's yes: `SCORE_BENCHMARK_GRANT=<grant> python -m score run world1
   --stage library-clips-sample --detach`.
 - **Never edit `tools/blender/inside/` for this row** (other rows declare that folder: their keys would move). The
   framing lives in `blender/framing.py`.

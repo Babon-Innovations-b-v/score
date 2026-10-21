@@ -35,7 +35,7 @@ def keys(row, place, data):
 
 
 def edit(path, change):
-    found = json.loads(path.read_text())
+    found = json.loads(path.read_text()) if path.exists() else {}  # details.json: none since the old kinds' retired
     change(found)
     path.write_text(json.dumps(found, indent=1))
 

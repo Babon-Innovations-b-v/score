@@ -88,30 +88,14 @@ def test_a_token_colour_is_linear():
     assert abs(library.linear("#808080")[0] - 0.2159) < 1e-3
 
 
-def test_every_generated_kind_has_a_turn_and_its_screens_and_cuts_are_sound():
-    """details.json: a proper turn (a rotation), cuts as boxes or circles. A screen's variant names a surface of
-    the retired library (2026-10-21) until the kinds are made again; its surface is the scene library's."""
-    details = json.loads((library.REPO / "data/library/details.json").read_text())
-    for kind, entry in details.items():
-        if kind == "is":
-            continue
-        turn = [entry["turn"][row * 3:row * 3 + 3] for row in range(3)]
-        determinant = (turn[0][0] * (turn[1][1] * turn[2][2] - turn[1][2] * turn[2][1])
-                       - turn[0][1] * (turn[1][0] * turn[2][2] - turn[1][2] * turn[2][0])
-                       + turn[0][2] * (turn[1][0] * turn[2][1] - turn[1][1] * turn[2][0]))
-        assert abs(determinant - 1.0) < 1e-3, kind
-        assert all(len(cut.get("box", cut.get("circle", []))) in (3, 4) for cut in entry["cuts"]), kind
-
-
 def test_nothing_goes_to_code_without_a_named_pipeline_failure():
     """#19 (the owner, 2026-10-20): every kind goes through the prop pipeline; neither plainness nor a fitting's
-    parts check sends one to code. Only a kind the pipeline-failure record names is code-built: the hub's thin pieces
-    every Pro close-up failed (paper/evidence/compare-hub), and the hangar ship from the owner's plan."""
-    for kind in ("hub_wall_upper_plain", "hub_wall_skirting", "hub_toolboard", "hub_talllocker", "hub_console",
-                 "hub_chair", "hub_desklamp", "hub_wrench", "garage_pipe_straight"):
-        assert sorter.route(kind) == "model", kind
-    for kind in ("hub_pipe_straight", "hub_lattice_hip_rib", "cockpit_thrust_indicator", "hangar_ship"):
-        assert sorter.route(kind) == "code", kind
+    parts check sends one to code. Only a kind the pipeline-failure record names is code-built; the old record
+    retired with the old models (2026-10-21), so with none on file every kind goes to the pipeline."""
+    for kind in ("hub_wall_upper_plain", "hub_toolboard", "hub_pipe_straight", "cockpit_thrust_indicator"):
+        assert sorter.route(kind, {}) == "model", kind
+        assert sorter.route(kind, {kind: {"failure": "every take failed"}}) == "code", kind
+    assert sorter.failures(HERE / "no-such-record.json") == {} and sorter.fittings(HERE / "no-such-record.json") == {}
     assert sorter.shape_class("hub_lattice_hip_rib", (0.12, 4.6, 0.12)) == "slender"
     assert sorter.shape_class("hub_porthole_panel", (1.2, 1.2, 0.1)) == "opening"
 
@@ -195,6 +179,8 @@ def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
         assert f"def {name}(size, laid):" in text, name
 
 
+@pytest.mark.xfail(strict=True, reason="the old fittings' builders (pieces*.py) stay until they are deleted; the "
+                                       "fittings record that allowed them retired with the old models (2026-10-21)")
 def test_every_code_builder_is_on_the_allow_list():
     """pieces.py builds only plain kinds and method B's room fittings: a builder for anything else is a piece made
     by hand from a sentence."""

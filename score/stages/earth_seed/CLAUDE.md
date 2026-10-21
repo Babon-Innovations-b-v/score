@@ -33,7 +33,7 @@ outputs, in place of the round-three folders (`usd-r3/<place>`, the ship's `usd-
   entry in the place's hand-in record (`data/props/<place>.json`, `"layer": "kit"`, and its take in the place's
   surface data, `bake.models` naming the kit's model names, so earth-seed lays the loop's bake under them). Every kit
   row not handed is named in earth-kit's `fallbacks.json` with its route (`code`, which earth-kit bakes, or `stored
-  take`, a picture-made model of the old prop route earth-seed lays from `data/parts`) and why (`NOT_HANDED`); both
+  take`, a picture-made model of the old prop route earth-seed laid from `data/parts`, retired 2026-10-21) and why (`NOT_HANDED`); both
   sides read the hand-in record through the loop's own reader (`prop_data`, `closeup_row.layer_of`). A handed row is the loop's
   alone, and a model the loop makes none of is a gap (the batch rule), never a code bake here. earth-kit cannot read
   the loop's ends: `likeness` reads `surfaces-check`, which reads `scene-record` beside, which reads earth-seed.

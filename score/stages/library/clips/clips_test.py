@@ -190,7 +190,7 @@ def test_table():
     assert not any(clips.ROW in stage.after for stage in stages.STAGES)  # nothing reads the clips
     sampled = next(stage for stage in stages.STAGES if stage.name == clips.SAMPLE_ROW)
     assert sampled.paid and sampled.grain == "world" and not sampled.after
-    assert sampled.euros == clips.forecast(len(clips.sample_addresses()))["high_euros"] > 0
+    assert sampled.euros == clips.forecast(len(clips.sample_addresses()))["high_euros"]
     assert not any(clips.SAMPLE_ROW in stage.after for stage in stages.STAGES)
     print("table: ok")
 

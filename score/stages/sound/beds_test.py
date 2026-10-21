@@ -93,8 +93,8 @@ def test_what_the_design_lacks_is_named_never_guessed(toy):
     data, design = toy
     gaps = {gap["id"]: gap for gap in needs.gaps("cave", data, design)}
     assert "rock has no surface pressure" in gaps["sound:bed:room"]["work"], gaps
-    assert "cave" in beds.places(data, design) and "sound:bed:room" not in {
-        gap["id"] for gap in needs.gaps("room", data, design)}
+    room = {gap["id"]: gap for gap in needs.gaps("room", data, design)}  # decided: a bed still to make, no old pick
+    assert "cave" in beds.places(data, design) and "still to make" in room["sound:bed:room"]["sentence"], room
 
 
 def test_the_bed_gate_fails_a_scene_whose_design_leaves_its_bed_undecided(toy):

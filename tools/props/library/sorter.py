@@ -5,8 +5,8 @@
 
 The owner's rule (2026-10-20, #19, #41): every object and every shell piece goes through the prop pipeline, the shared
 loop (score/stages/shapes_first); code builds a kind only when the pipeline failed on that object, named in the
-pipeline-failure record (data/library/pipeline_failures.json: the failure, where it was measured and when), or as one
-of the owner's named exceptions there (the hangar ship's hull, engines and thrusters from his plan v7). Nothing routes
+pipeline-failure record (data/library/pipeline_failures.json: the failure, where it was measured and when; retired
+with the old models on 2026-10-21, so none is recorded until today's pipeline fails on one). Nothing routes
 to code by default: neither plainness (PLAIN) nor a fitting's parts check (fittings.json) sends a kind there any more.
 
     code     a kind the pipeline-failure record names
@@ -79,8 +79,9 @@ SEEN_AT_LEAST = 0.1
 
 def fittings(path=FITTINGS):
     """Method B's room fittings, the parts check a code fallback's build is held to: {name: {"closeup", "parts",
-    "built"}}."""
-    return json.loads(pathlib.Path(path).read_text())["fittings"]
+    "built"}}; none while no fitting is recorded (the old record retired with the old models, owner, 2026-10-21)."""
+    path = pathlib.Path(path)
+    return json.loads(path.read_text())["fittings"] if path.exists() else {}
 
 
 def missing_parts(entry):
@@ -124,8 +125,11 @@ def fallback_parts_missing(kind, found=None):
 
 
 def failures(path=FAILURES):
-    """The pipeline-failure record: {kind: {"failure", "evidence", "on"}}, the only kinds built in code."""
-    return json.loads(pathlib.Path(path).read_text())["kinds"]
+    """The pipeline-failure record: {kind: {"failure", "evidence", "on"}}, the only kinds built in code; none while
+    no failure of today's pipeline is recorded (the old record retired with the old models, owner, 2026-10-21), so
+    every kind goes to the prop pipeline."""
+    path = pathlib.Path(path)
+    return json.loads(path.read_text())["kinds"] if path.exists() else {}
 
 
 def route(kind, found=None):

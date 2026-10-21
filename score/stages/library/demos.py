@@ -15,6 +15,7 @@ import json
 import pathlib
 import pkgutil
 
+from score import library
 from score.stages.library import backend, pictures
 
 MAX_BYTES = 400_000  # one demo's JSON
@@ -35,12 +36,17 @@ class Inputs:
 
     @staticmethod
     def library(address, named):
-        """One file of a library entry in the library cache, fetched once; NoExample when the library lost it."""
-        held, why = pictures.held_or_why(address, named, backend.settings().get("SCORE_LIB_ROOT"))
-        if not held:
-            raise NoExample(why or f"{address}: {named} not fetched")
+        """One file of a library entry in the library cache, fetched once; NoExample when the library lost it or
+        withdrew the entry (owner, 2026-10-21: the old places' layers withdrawn, so their examples went with them)."""
+        root = backend.settings().get("SCORE_LIB_ROOT")
         kind, rest = address.split("/", 1)
         entry_id, version = rest.split("@")
+        record = pathlib.Path(root or "") / "entries" / kind / entry_id / version / "entry.json"
+        if root and record.is_file() and library.entry(root, kind, entry_id, version).get("state") == "withdrawn":
+            raise NoExample(f"{address} is withdrawn from the library: no example until the remake hands a new one in")
+        held, why = pictures.held_or_why(address, named, root)
+        if not held:
+            raise NoExample(why or f"{address}: {named} not fetched")
         return backend.library_files.cache_folder() / "score_lib" / kind / entry_id / version / named
 
     @staticmethod

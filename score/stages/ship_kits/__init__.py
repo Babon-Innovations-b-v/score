@@ -80,7 +80,6 @@ def filed(place):
             "ship kit": "{repo}/tools/props/scene/ship_kit.py", "room kit": "{repo}/tools/props/scene/room_kit.py",
             "library": "{repo}/data/library/materials.json", "pictures": "{repo}/data/library/pictures",
             "route": "{repo}/tools/props/library/route.py", "sorter": "{repo}/tools/props/library/sorter.py",
-            "pipeline failures": "{repo}/data/library/pipeline_failures.json",
             "make_kit": "{repo}/tools/props/library/inside/make_kit.py",
             "pieces": "{repo}/tools/props/library/inside/pieces.py",
             "ship pieces": "{repo}/tools/props/library/inside/pieces_ship.py"}

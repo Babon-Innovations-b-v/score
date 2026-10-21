@@ -27,8 +27,7 @@ SURFACES = REPO / "data/surfaces"
 # data the assembly declares.
 FILES = {"plan": "{data}/plans/{place}.json", "ship made": "{repo}/score/stages/assembly/ship_made.py",
          "ship kit": "{repo}/tools/props/scene/ship_kit.py", "room kit": "{repo}/tools/props/scene/room_kit.py",
-         "hub kit": "{repo}/tools/props/scene/hub_kit.py", "sorter": "{repo}/tools/props/library/sorter.py",
-         "pipeline failures": "{repo}/data/library/pipeline_failures.json"}
+         "hub kit": "{repo}/tools/props/scene/hub_kit.py", "sorter": "{repo}/tools/props/library/sorter.py"}
 
 
 def made_rows(inventory):

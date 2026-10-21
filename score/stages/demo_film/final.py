@@ -114,12 +114,30 @@ def recorded_files(film, script):
                for number in numbers}}
 
 
+def withdrawn(address):
+    """Whether the library lists the entry `address` names ("sound/<entry>") only as withdrawn (owner, 2026-10-21:
+    every old library sound withdrawn); False where no library folder is set or the index does not list it."""
+    import score.stages.props.prop_data as prop_data
+    from score import library
+    with prop_data.tools("library"):
+        import library_files
+    root = library_files.settings().get("SCORE_LIB_ROOT")
+    kind = address.partition("/")[0]
+    if not root or not (pathlib.Path(root) / "index" / f"{kind}.json").exists():
+        return False
+    states = [entry.get("state") for entry in library.index(root, kind)["entries"]
+              if entry["address"].partition("@")[0] == address]
+    return bool(states) and all(state == "withdrawn" for state in states)
+
+
 def bed_file(script):
     """The script's sound bed: the library sound it names (`bed`, "sound/<entry>"), its newest version in the library
-    cache, its made take first (as the free preview takes it); a path that does not exist where none is cached, which
-    the runner names as a missing input."""
+    cache, its made take first (as the free preview takes it); a path that does not exist where none is cached, or
+    where the library withdrew the sound (its cached bytes stay), which the runner names as a missing input."""
     entry = str(script["bed"]).partition("/")[2]
     root = PROPS_HOME / "cache/library/score_lib/sound" / entry
+    if withdrawn(str(script["bed"])):
+        return root / "withdrawn.wav"
     versions = sorted((path for path in root.glob("*") if path.name.isdigit()), key=lambda path: int(path.name))
     found = sorted(versions[-1].glob("audio/**/*.wav"), key=lambda path: "made" not in path.parts) if versions else []
     return found[0] if found else root / "missing.wav"

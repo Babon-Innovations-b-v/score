@@ -251,7 +251,7 @@ from the hull's plan is the loop's first run.
 
 1. The place's record: its locked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
    with its size and spots), each kind's turn and allowed materials in `data/library/details.json` (an old concept's
-   place-prefixed kinds; a design's take reads none: its turn is measured over its take in the bake, its materials its
+   place-prefixed kinds, retired with the old models on 2026-10-21; a design's take reads none: its turn is measured over its take in the bake, its materials its
    place's palette, `score/stages/props/compare.py` `bake_entry`), and one close-up
    per generated row. Recorded inputs live in the work folder (`PROPS_WORK`), not in git (the pictures are large).
    The close-ups come from the close-up stage (`tools/props/closeup/stage.py`): Qwen-Image-Edit-2511 draws every
@@ -553,7 +553,8 @@ is meant to fix, where it is marked, and what proves it.
   one rented card (paid), chosen by the picker's rule; gated on `sources`, `level` (loudness and length, measured),
   `likeness` (CLAP to its prompt at least 0.30, the tenth percentile of the environment's MOSS picks) and `no freesound`
   (the owner's 2026-10-06 recordings excepted, and, by his decision of 2026-10-20, a CC0 recording with its row in
-  `data/sound/licences.json`; each listed). The layer is data (`sound.json` and its files); the assembly
+  `data/sound/licences.json`; each listed). Every old pick retired on 2026-10-21 (his recordings with them): each
+  sound is made fresh from its brief in the remake batch. The layer is data (`sound.json` and its files); the assembly
   does not read it yet. Proven when every place passes and the owner has heard the new sounds.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
