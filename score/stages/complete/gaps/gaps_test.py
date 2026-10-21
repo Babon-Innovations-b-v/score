@@ -247,19 +247,17 @@ def test_every_filler_is_a_stage_of_the_table_or_the_ship_kit():
 
 
 def test_lost_inputs_are_place_gaps_with_their_code_work():
-    """On a home whose work folder is gone: the cockpit's ship seed, its views copy and the owner's pictures, and the
-    launch's far rocket whose bake entry went with its old job, each a place gap with its code work and no node; the
-    cockpit's cast no longer asks for a scene record it never had. A kit-laid place's earth seed is no lost input: its
-    readers wait on earth-seed@<place> (#27); only a place with no kit (the far city) is still lost."""
+    """On a home whose work folder is gone: the cockpit's owner's pictures, and the launch's far rocket whose bake entry
+    went with its old job, each a place gap with its code work and no node; the cockpit's cast no longer asks for a
+    scene record it never had. A kit-laid or designed place's seed is no lost input, the ship's rooms' too: its readers
+    wait on earth-seed@<place> (#27; the owner, 2026-10-21); only a place with neither (the far city) is still lost."""
     from score.stages.complete.gaps import inputs
     from score.stages.complete.gaps.__main__ import lost_gaps
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
     cockpit = {gap["id"]: gap for gap in inputs.lost(runner, "cockpit")}
-    assert {"lost:ship-seed:cockpit",
-            "lost:reference:cockpit.png", "lost:reference:reference-shuttle.png"} <= set(cockpit), sorted(cockpit)
-    assert not any(gap.startswith("lost:earth-seed") for gap in cockpit), sorted(cockpit)
+    assert {"lost:reference:cockpit.png", "lost:reference:reference-shuttle.png"} <= set(cockpit), sorted(cockpit)
+    assert not any(gap.startswith(("lost:earth-seed", "lost:ship-seed")) for gap in cockpit), sorted(cockpit)
     assert "lost:views:cockpit.json" not in cockpit  # its light reads its views from its own scene record (#27)
-    assert "ship_kit@cockpit" in cockpit["lost:ship-seed:cockpit"]["work"]
     assert not any("data/scene/cockpit.json" in gap["sentence"] for gap in cockpit.values())
     launch = {gap["id"]: gap for gap in inputs.lost(runner, "launch")}
     assert not any("bake entry" in gap for gap in launch), sorted(launch)  # its rocket is the library's (#10)

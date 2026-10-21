@@ -172,7 +172,6 @@ WORK_TASKS = (
     (r"^a code body \(", "Code bodies per kit (body parts)"),
     (r"^Pixal3D take lost", "Lost Pixal3D takes made again"),
     (r"^earth seed lost", "Earth seed lost: a seed row that exports each scene's base"),
-    (r"^ship seed lost", "Ship seed lost: the ship kits made again and a ship-seed row"),
     (r"^views lost", "Views lost: read each scene's views from its own scene record"),
     (r"^an input under the work folder no row makes", "Inputs under the work folder no row makes"),
     (r"^an input the repository should hold", "Inputs the repository should hold"),

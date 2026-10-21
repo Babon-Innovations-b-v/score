@@ -1,8 +1,20 @@
 # score/stages/earth_seed/
 
-The earth seed rows (#27): each kit-laid earth place's base stage made again from the repository and the rows' own
-outputs, in place of the round-three `usd-r3/<place>` folder the old disk took (2026-10-19). `__init__.py`'s docstring
-has the rows, the output and the gates.
+The earth seed rows (#27): each place's base stage made again from the repository, its design and the rows' own
+outputs, in place of the round-three folders (`usd-r3/<place>`, the ship's `usd-ship/<place>`) the old disk took
+(2026-10-19). `__init__.py`'s docstring has the rows, the output and the gates.
+
+- **Every designed scene's base is its own design's** (the owner, 2026-10-21). The rows run for every place with a
+  kit laid or a locked plan (`{home}/design/plans`) and a style (`styled`), the ship's rooms and a scene added in the
+  app too (`stages.earth_place`); a top scene place.json does not name (the base's outside) has no base row, its seed
+  a named lost input, until it has a style. A kit is the base's only when laid for the room the locked plan keeps (`kit_of_design`: the
+  filed plan's w and d, which the kit was laid from, within 1 cm); then earth-kit bakes it as before (`stages.kit_based`).
+  Otherwise the base lays no kit piece: `kit.json` in the output says why, the inventory is the design's, the style
+  the place's own place.json entry (`known_as`) else the scene holding it (`style_of`, its holders' plans declared),
+  and an inside room whose kit holds its walls (shell `kit`, `inside`) is laid from the locked plan (`design_shell.py`:
+  deck, walls with their openings cut, roof, BACKING behind the plan's line as the scene record's backing shell,
+  painted with its library surface, `score:plain shell`). A domed or outdoor shell is the scene record's; an open
+  place (the street, the square) gets none. No special case by place name.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
