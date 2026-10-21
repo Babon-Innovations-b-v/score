@@ -1,10 +1,10 @@
 \section{With and without the agent tools}\label{with-and-without-the-agent-tools}
 
-The tools that check an agent's work were tested on three places of environment 1: a room (the workshop, 814 objects), an outdoor place (the street, 1,198 objects) and a dense room (the hangar, 1,657 objects). They are the completion gate (Section 3.6); a triage of the resting check, which judges each object by what holds it up, read from its inventory row, and keeps only real faults \citep{tam2025sceneeval, xia2026sage}; a pick lock, which refuses an export that would show anything but the model the creator picked for a row; and a render-and-compare, which lists the objects least like their close-ups by DINOv2 similarity \citep{oquab2023dinov2}. In both arms, the same agent (Claude Opus 5.5 in Claude Code, headless) started from the same exported stage and inventory and was asked to make the place as complete as it could in about 50 minutes, through its layout data only; one arm had the framework from before these tools. Each arm ran once, so Table E1 shows what happened, not an average.
+The tools that check an agent's work were tested on three scenes of environment 1: a room (the workshop, 814 objects), an outdoor scene (the street, 1,198 objects) and a dense room (the hangar, 1,657 objects). They are the completion gate (Section 3.6); a triage of the resting check, which judges each object by what holds it up, read from its inventory row, and keeps only real faults \citep{tam2025sceneeval, xia2026sage}; a pick lock, which refuses an export that would show anything but the model the creator picked for a row; and a render-and-compare, which lists the objects least like their close-ups by DINOv2 similarity \citep{oquab2023dinov2}. In both arms, the same agent (Claude Opus 5.5 in Claude Code, headless) started from the same exported stage and inventory and was asked to make the scene as complete as it could in about 50 minutes, through its layout data only; one arm had the framework from before these tools. Each arm ran once, so Table E1 shows what happened, not an average.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
-\textbf{Table E1.} One session per arm and place. Faults are the resting triage's real faults left on the final stage, measured against the arm's own data; placeholders by the first placeholder check; rows are inventory rows with no object and no written reason. Agent cost is the session's model cost; cloud is its rented machines' cost.
+\textbf{Table E1.} One session per arm and scene. Faults are the resting triage's real faults left on the final stage, measured against the arm's own data; placeholders by the first placeholder check; rows are inventory rows with no object and no written reason. Agent cost is the session's model cost; cloud is its rented machines' cost.
 
 \begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
@@ -22,7 +22,7 @@ The tools that check an agent's work were tested on three places of environment 
   >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1200}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
-Place, arm
+Scene, arm
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 Faults, start → end
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
@@ -57,4 +57,4 @@ Hangar, with & 14 → 9 & 5 → 0 & 0 → 0 & 32 & \$2.34 & 29.1k & €0.64 & 5 
 
 \endgroup
 
-The tools made building cheaper more often than they made the scene better. On the workshop and the street, the arm with the tools used about half the agent's output and cost, and exported the stage once or twice instead of seven to nine times, because the triage named the few real faults among hundreds of alarms. On the workshop, 13 of its 18 faults were cleared by writing into the inventory what holds a piece up, which the creator still has to confirm. On the hangar the arm without the tools left fewer faults: the arm with them spent its time replacing five placeholder slabs and trying the drop test, which failed on a room with no ground mesh (fixed after the run), and the nine faults it left are models with stray parts below their feet. No agent claimed a place was complete, so the gate's hook never had to refuse a claim. No row carries an owner's pick, so the pick lock was not tested.
+The tools made building cheaper more often than they made the scene better. On the workshop and the street, the arm with the tools used about half the agent's output and cost, and exported the stage once or twice instead of seven to nine times, because the triage named the few real faults among hundreds of alarms. On the workshop, 13 of its 18 faults were cleared by writing into the inventory what holds a piece up, which the creator still has to confirm. On the hangar the arm without the tools left fewer faults: the arm with them spent its time replacing five placeholder slabs and trying the drop test, which failed on a room with no ground mesh (fixed after the run), and the nine faults it left are models with stray parts below their feet. No agent claimed a scene was complete, so the gate's hook never had to refuse a claim. No row carries an owner's pick, so the pick lock was not tested.

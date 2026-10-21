@@ -128,23 +128,24 @@ Environments}
 Games, films and robot training need 3D environments that are complete,
 editable and owned by their makers; world models and one-shot generators
 give frames no engine opens, or one fused scene without separate objects
-or clear rights. Studios build environments in stages, from concept art
-to review. SCORE keeps these stages and automates them with open vision
-foundation models, procedural tools and coding agents, while the creator
-designs and reviews. The creator locks an environment concept and picks
-each place's concept; the pick is read into a scene inventory and
-written into a plan, and only such a design starts paid work, bought as
-one batch with one estimate and a stop at its high estimate plus 10
-percent. Every stage is a node of one runner: its output is keyed on its
-inputs and code, judged by gates that answer pass, fail or unknown, and
-accepted only when nothing got worse, so a fault is fixed in its own
-stage and only what follows it runs again. Every model allows commercial
-use of its output, so the creator stays the author. We describe the
-framework with its first environment, 26 places derived from the game
-2099, as the worked example, and separate what its runs prove, what is
-built but has not run, and what is missing: the first run brought every
-place through its completion gate, but its video was not accepted, and
-the remake from new designs has not run. Code and paper are available at
+or clear rights. Studios already build them by a standard: scenes
+layered in OpenUSD, each scene sitting within its parent scene and each
+department's work on it a layer of its own that can be checked and
+changed apart from the rest. SCORE builds environments by this
+convention. The creator decides from the top down: he locks an
+environment concept (EC), its style and its physics, which holds the
+scenes and their layering, and then a concept for each scene, in order
+of parent scene and child scene. The framework makes every layer below:
+it reads each locked concept into a scene inventory and a plan, and
+builds the scene's layers with open vision foundation models, procedural
+tools and coding agents, each layer checked before the next is made.
+Every model allows commercial use of its output, so the creator stays
+the author. We describe the framework with its first environment, 26
+scenes derived from the game 2099, as the worked example, and separate
+what its runs prove, what is built but has not run, and what is missing:
+the first run brought every scene through its completion gate, but its
+video was not accepted, and the remake from new designs has not run.
+Code and paper are available at
 https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}
 
@@ -161,70 +162,95 @@ workers thought generative AI was hurting the industry {[}2{]}; a tool
 for building environments has to leave the result in the creator's
 hands.
 
-World models generate an environment as frames {[}3{]}, {[}4{]} that no
-engine can open. 3D environment generators {[}5{]}, {[}6{]} produce
+Studios already have a standard for building environments: OpenUSD
+{[}3{]}, the scene description Pixar made for its films. In it each
+artist works in a file of their own, a layer, and the layers are stacked
+in a stated order, so artists in different departments work on one scene
+without editing each other's work; and scenes are assembled from smaller
+ones by reference {[}3{]}. In this convention a scene sits within its
+parent scene and holds its child scenes, and each department's work on
+it (layout, set dressing, surfaces, light, effects, motion, sound) is a
+layer that can be checked and changed apart from the rest. Decisions
+come from the top down: the look of the whole first, then each scene's,
+and the departments make the layers below. SCORE builds environments by
+this convention, with the creator deciding and the framework doing the
+departments' work. The creator locks an environment concept (EC): its
+style and its physics, what everything stands on and in and how it
+moves. The EC holds the scenes and their layering. For each scene a
+concept is then locked, in order of parent scene and child scene, each
+child scene drawn to the shape its parent scene's plan gives it. From
+each locked concept the framework reads a scene inventory and writes a
+plan, and makes every layer below with open vision foundation models
+{[}4{]}, procedural tools and coding agents, each layer its own OpenUSD
+layer, checked before the next is made. One runner keys, checks and
+accepts every layer, and paid work runs in batches the creator buys from
+an estimate (Section 2).
+
+World models generate an environment as frames {[}5{]}, {[}6{]} that no
+engine can open. 3D environment generators {[}7{]}, {[}8{]} produce
 geometry, but mostly as one fused asset, from which separate objects are
-recovered after the fact {[}7{]}, {[}8{]}. Both work in one shot, so a
-creator cannot find or change the step behind a fault. Procedural
-systems {[}9{]}, {[}10{]} and coding agents that write scenes as
-programs {[}11{]}, {[}12{]}, {[}13{]}, {[}14{]} keep the environment
-explicit, but rebuild a scene that already exists or draw their objects
-from a fixed library, and such agents judge their own geometry
-unreliably {[}15{]}. Open vision foundation models {[}16{]} now read
-shapes {[}17{]}, masks {[}18{]}, depth {[}19{]} and parts {[}20{]} out
-of pictures, and a coding agent can connect them as tools; none of them
-provides one style across objects that different models made, which the
-field names as an open problem {[}21{]}, {[}22{]}.
+recovered after the fact {[}9{]}, {[}10{]}. Both work in one shot, with
+no layers a creator could open, so a creator cannot find or change the
+step behind a fault. Procedural systems {[}11{]}, {[}12{]} and coding
+agents that write scenes as programs {[}13{]}, {[}14{]}, {[}15{]},
+{[}16{]} keep the environment explicit, but rebuild a scene that already
+exists or draw their objects from a fixed library, and such agents judge
+their own geometry unreliably {[}17{]}. Open vision foundation models
+{[}4{]} now read shapes {[}18{]}, masks {[}19{]}, depth {[}20{]} and
+parts {[}21{]} out of pictures, and a coding agent can connect them as
+tools; none of them provides one style across objects that different
+models made, which the field names as an open problem {[}22{]},
+{[}23{]}.
 
 Recent agents write Blender programs and check them against a target:
 from one image, in stages of geometry, materials, composition and light
-{[}23{]}; from text or video, as worlds for physical reasoning {[}24{]};
-and with motion added {[}25{]}, {[}26{]}. Benchmarks find that their
-procedural models often float or come apart {[}27{]}, and that on
+{[}24{]}; from text or video, as worlds for physical reasoning {[}25{]};
+and with motion added {[}26{]}, {[}27{]}. Benchmarks find that their
+procedural models often float or come apart {[}28{]}, and that on
 dynamic scenes rebuilt from video the best model scores 0.91 on static
 scenes but 0.67 on dynamic ones; mesh quality does not track fidelity,
 and VLM judges agree with people in 89.3 percent of comparisons but near
-chance between close models {[}28{]}. SCORE builds static environments
-in explicit, gated stages and treats motion as its own checked layer,
-which this gap between static and dynamic scenes supports.
+chance between close models {[}29{]}. In SCORE motion is a layer of its
+own, checked like the others, which this gap between static and dynamic
+scenes supports.
 
-Studios build environments in stages, each with an output a person can
-check; SCORE keeps these stages and automates them. Its environments are
-meant to be \textbf{complete}: every object, surface, light and sound
-exists wherever the viewer looks. They are \textbf{owned}: every model
-in the framework allows commercial use of its output, so the creator
-stays the author, holding the full commercial rights. They are meant to
-be \textbf{responsive}: every object has real collision, mass and
-material. And they can be any kind of \textbf{environment}, from a house
-on a plot of ground to a system of worlds. To our knowledge, no other
-openly available environment generation work joins vision foundation
-models into engine-ready scenes that are built from reference pictures,
-steered by a person's choices at each step, and made only with models
-that allow commercial use of their output.
+SCORE's environments are meant to be \textbf{complete}: every object,
+surface, light and sound exists wherever the viewer looks. They are
+\textbf{owned}: every model in the framework allows commercial use of
+its output, so the creator stays the author, holding the full commercial
+rights. They are meant to be \textbf{responsive}: every object has real
+collision, mass and material. And they can be any kind of
+\textbf{environment}, from a house on a plot of ground to a system of
+worlds. To our knowledge, no other openly available environment
+generation work joins vision foundation models into engine-ready
+environments that are built from reference pictures, steered by a
+person's choices at each step, and made only with models that allow
+commercial use of their output.
 
-We contribute \textbf{the SCORE framework}, a design step the creator
-owns and stages as nodes of one runner that keys, judges and accepts
-every output over one canonical scene (Section 2); \textbf{measured
-gates} for every layer of a place and a completion gate over them
-(Section 3); and \textbf{evidence from a first environment}, which
-separates what its runs prove from what is built but has not run and
-what is missing (Section 4).
+We contribute \textbf{the SCORE framework}, which builds an environment
+by the studios' convention: the creator decides the EC and each scene's
+concept from the top down, and the framework makes every layer below as
+an OpenUSD layer of its own (Section 2); \textbf{measured gates} for
+every layer of a scene and a completion gate over them (Section 3); and
+\textbf{evidence from a first environment}, which separates what its
+runs prove from what is built but has not run and what is missing
+(Section 4).
 
 \section{The framework}\label{the-framework}
 
 An environment is a table of stages; environment 1's has 149 rows, 89 of
 them one for each person's look, dress or take. A \textbf{node} is one
-stage for one place (\texttt{assembly@hangar}) or for the environment,
+stage for one scene (\texttt{assembly@hangar}) or for the environment,
 and one runner makes, judges and accepts every node. The creator works
 in the creator cockpit, one signed-in web page: there he designs each
-place (Section 2.2), buys paid work as batches and reviews what the
+scene (Section 2.2), buys paid work as batches and reviews what the
 runner reports. From an approved design everything runs without a
 further yes.
 
 \subsection{Keys, gates and accepts}\label{keys-gates-and-accepts}
 
 \textbf{Keys.} A node is made only when its key has no finish record.
-The key hashes the stage and place, a code version, the contracts of its
+The key hashes the stage and scene, a code version, the contracts of its
 output and inputs, its parameters, a seed derived from the
 environment's, the pinned model images, every environment file it reads
 and the accepted output of every node it reads. The code version hashes
@@ -262,7 +288,7 @@ known from the providers' bills, and its batch's stop has room for its
 forecast; everything that rents a machine or calls a paid model refuses
 without that clearance, and buying again more than EUR 5 of accepted
 outputs needs a written reason. Each node's review page is built from
-the store alone, and the creator reviews a place in a 3D viewer on the
+the store alone, and the creator reviews a scene in a 3D viewer on the
 store's copy of its accepted assembly.
 
 \textbf{The creator steers: the ship.} Figure 1 shows the creator's
@@ -299,33 +325,35 @@ ours. Shuttle concept by PAUL (zana), found online.}
 \subsection{From concept to scene}\label{from-concept-to-scene}
 
 \textbf{The design.} Before any paid batch the creator decides each
-place's design: its concept and its plan. He first locks an environment
-concept, in a short interview with Gemini 3.1 Pro {[}29{]} in the
-cockpit: its style, his reference pictures, its first places with the
-places each may hold, and its \textbf{setting}, what everything stands
-on and in at the scale he sets: a plot of ground with a gravity and a
-sun path, one world, or a system of bodies that move one another, a real
-body taking its values from a cited table and an invented one given by
-its radius, mass, orbit and spin. Each thing in the setting takes the
-form its scale calls for: a body near enough to matter moves under the
-physics, a far source of light is a light, and what is too far to move
-is a backdrop. An environment plan, written by the plan writer below,
-places each top place's site on the setting's ground at true size and
-works out each site's sky at its scene time. Concepts are drawn layer by
-layer on a concept review page, each draw one Nano Banana Pro {[}30{]}
-call that the creator's click pays for, where he marks areas and asks
-for a new draw. Every new draw is sent a \textbf{blockout} first: a grey
-model built in code from its parent's plan at real sizes and rendered
-free from the fixed concept view, so the draw keeps its layout and
-proportions and adds the look. A place within another is drawn only once
-its holder is picked and planned, on a crop of the holder's concept and
-its own shell inside the holder's, so inside places fit the shell they
-stand in.
+scene's design: its concept and its plan. He first locks an environment
+concept (EC), in a short interview with Gemini 3.1 Pro {[}30{]} in the
+cockpit: its style and its \textbf{physics}, with his reference
+pictures. The EC holds the scenes and their layering, its top scenes and
+the child scenes each may hold. Its physics is what everything stands on
+and in and how it moves, at the scale he sets: a plot of ground with a
+gravity and a sun path, one world, or a system of bodies that move one
+another, a real body taking its values from a cited table and an
+invented one given by its radius, mass, orbit and spin. Each thing in it
+takes the form its scale calls for: a body near enough to matter moves
+in the physics simulation, a far source of light is a light, and what is
+too far to move is a backdrop. An environment plan, written by the plan
+writer below, places each top scene's site on its physics' ground at
+true size and works out each site's sky at its scene time. For each
+scene a concept is then locked, in order of parent scene and child
+scene, drawn on a concept review page, each draw one Nano Banana Pro
+{[}31{]} call that the creator's click pays for, where he marks areas
+and asks for a new draw. Every new draw is sent a \textbf{blockout}
+first: a grey model built in code from its parent's plan at real sizes
+and rendered free from the fixed concept view, so the draw keeps its
+layout and proportions and adds the look. A child scene is drawn only
+once its parent scene is picked and planned, on a crop of the parent
+scene's concept and its own shell inside the parent's, so child scenes
+fit the parent scene they stand in.
 
 \textbf{Inventory and plan.} The creator's pick is the approval. It
 starts the scene inventory reading: Gemini 3.1 Pro lists every object of
 the picked concept as a row with its kind, count, anchor and size in
-metres, judged against the place's outline, and SAM 3 {[}18{]} boxes
+metres, judged against the scene's outline, and SAM 3 {[}19{]} boxes
 each row on the concept; a row without metres, or a disagreement between
 the two, is a named gap. One more Gemini 3.1 Pro call writes the plan in
 metres, element by element, as environment 1's hand-written plans were:
@@ -335,28 +363,28 @@ order the items, since boxes from a perspective painting laid flat put
 objects in the wrong place. Free checks follow, each failure a gap said
 where it is: every row placed as often as it counts, inside the outline,
 no two floor items in each other, every door and standing spot reached
-on foot, and the inside places tiling the shell. On the plan review page
-the creator moves, resizes and corrects, and his edits redo what
-follows. Readings and plan writings run without a yes under the
+on foot, and the child scenes tiling their parent scene. On the plan
+review page the creator moves, resizes and corrects, and his edits redo
+what follows. Readings and plan writings run without a yes under the
 creator's standing allowance, their cost shown in the cockpit. Only a
-place with a design gets the rows of a batch.
+scene with a design gets the rows of a batch.
 
 \textbf{Shapes first.} The route is one loop, the same at every scale. A
-place starts as its big shape, the outside shell, with a concept, a plan
+scene starts as its big shape, the parent scene, with a concept, a plan
 and a rough model: the concept goes through picture to model whole, and
-the rough model gives the plan its proportions. The shell's plan is then
-split into the shapes of the places inside it (rooms, corridors, holds),
-each sized inside the shell. Once those shapes are fixed, every place's
+the rough model gives the plan its proportions. The parent scene's plan
+is then split into the shapes of its child scenes (rooms, corridors,
+holds), each sized inside it. Once those shapes are fixed, every scene's
 concept, rough model, close-ups and finishes are made in parallel, since
 from then on each is a matter of proportions inside a fixed shape;
-zooming into an inside place repeats the same steps. This is the
-creator's order of 19 October 2026. The runner has its two rows:
-\texttt{rough-model} puts a place's concept through Pixal3D whole after
-its plan, and \texttt{shell-split}, free, cuts an outside shell's plan
-into its inside places' shapes, gated on \texttt{tiled},
-\texttt{reached} and \texttt{bounded}, which each inside place's plan
-reads. Neither has run on environment 1: no rough model has been made,
-and no plan of it has a split yet.
+zooming into a child scene repeats the same steps. This is the creator's
+order of 19 October 2026. The runner has its two rows:
+\texttt{rough-model} puts a scene's concept through Pixal3D whole after
+its plan, and \texttt{shell-split}, free, cuts a parent scene's plan
+into its child scenes' shapes, gated on \texttt{tiled}, \texttt{reached}
+and \texttt{bounded}, which each child scene's plan reads. Neither has
+run on environment 1: no rough model has been made, and no plan of it
+has a split yet.
 
 \textbf{Plan and scene record.} Nothing is made or placed that is not an
 inventory row. The plan stage is gated on \texttt{mapped} (every element
@@ -368,25 +396,25 @@ the plan), \texttt{openings} (every doorway onto a floor, no view into
 nothing) and \texttt{seed-matched} (every old entry matched or dropped
 with a reason). The \texttt{game-free} gate sees cited numbers only. In
 environment 1's first run a coding agent wrote the inventories and
-plans, and in 18 of its places the data still took positions from the
+plans, and in 18 of its scenes the data still took positions from the
 source game (Section 4).
 
-\textbf{The canonical scene.} Every place is one OpenUSD stage {[}31{]};
+\textbf{The canonical scene.} Every scene is one OpenUSD stage {[}3{]};
 each object, one per real-world object, carries its kind, transform,
 collision and each part's library surface. Its layers lie in a fixed
 order: a slot for the creator's edit layer on top, then people, sound,
 light, motion, effects, crops, machines, settle, ground and the
 generated base. The edit layer exists only as that slot, an empty layer
 the exporter makes once and never writes again; a test on a two-box
-place shows an edit there surviving a regenerated base, but the runner's
+scene shows an edit there surviving a regenerated base, but the runner's
 assembly does not yet carry a creator's edit from one assembly to the
-next. Each place is assembled once, from every layer's accepted output;
+next. Each scene is assembled once, from every layer's accepted output;
 its \texttt{layers} gate answers unknown while a needed layer has none,
 and an old output never stands in.
 
 \textbf{Models, generation first.} Every object goes the prop route
 first: Nano Banana Pro draws its close-up once from its crop of the
-concept, Pixal3D {[}17{]} builds it, the surface stage paints it, and a
+concept, Pixal3D {[}18{]} builds it, the surface stage paints it, and a
 likeness gate compares its outline from eight sides with its close-up. A
 close-up that fails the shape check's measured half (a plain border, one
 object filling the frame, the row's proportions) is a batch gap, so
@@ -459,7 +487,7 @@ builder. Generated models are split into library surfaces, not baked.}
 
 \subsection{Surfaces: the finish route}\label{surfaces-the-finish-route}
 
-Everything a place shows comes from the creator's library, score\_lib,
+Everything a scene shows comes from the creator's library, score\_lib,
 or is a written exception: every model, kit, finish, effect, light,
 sound, character, ground and algorithm (the creator's rule of 18 October
 2026). Models give shape only, picture-made and code-built alike, so one
@@ -467,14 +495,14 @@ style holds across them: a picture-made model keeps its geometry and its
 finish is replaced, never kept as the picture's own texture, its
 baked-in colour or a default grey. Every part takes one surface from a
 shared library of rule-based surfaces, written as ProcFunc functions
-{[}32{]} on Infinigen's shaders {[}9{]}, coloured from the place's
+{[}32{]} on Infinigen's shaders {[}11{]}, coloured from the scene's
 palette and worn only where wear has a cause (Appendix D).
 
 The finish route gives each model its finishes (the creator's choice of
 20 October 2026). Free renders of the raw model cover every face from as
 many angles as a coverage check needs, and each view is split into
 colour regions of the model's own texture. One Gemini 3.1 Pro answer a
-model, a place's models in one batch, lists its finishes, each matched
+model, a scene's models in one batch, lists its finishes, each matched
 first to a library surface with its settings (palette token, roughness,
 metal, seed), and labels each region of each view. Before anything is
 baked, a free check compares each region with its label's surface and
@@ -488,7 +516,7 @@ environment 1's first run, in which Nano Banana Pro drew the close-up
 again with one flat colour per finish, up to three times, and SegviGen
 {[}33{]} split the mesh along that map; that route gave every piece its
 own rust and stains until the parts were painted from the library
-(Appendix A). The finish route has run its free views on two places; its
+(Appendix A). The finish route has run its free views on two scenes; its
 paid steps have not run.
 
 The bake is checked against the close-up. A finish's surface must lie
@@ -502,13 +530,13 @@ one grey; and short legs are stretched onto one level plane, a foot over
 real edges, as the cut-down copy it bakes onto is shaded smooth except
 at folds of 60 degrees or more.
 
-A written exception names the place, the object, what it is, why it is
+A written exception names the scene, the object, what it is, why it is
 not from the library, who allowed it and when; only the creator allows
 one, and one without a reason or an owner refuses the whole file. A free
 library check traces every material, model, emitter, light, sound source
-and character of a place's accepted assembly to a library entry, by
+and character of a scene's accepted assembly to a library entry, by
 content hash or a recorded origin, and the cockpit shows what does not
-trace as the place's problems. It is not a gate of the completion gate,
+trace as the scene's problems. It is not a gate of the completion gate,
 since wiring it in would move the keys of paid rows; instead the library
 rows at the end of every line, which hand each accepted output to the
 library, fail when an output is covered by no entry or written
@@ -529,10 +557,10 @@ fault that appears with the layer and not without it).
 
 Lamp strengths are measured, never copied from the source game. The
 light layer places live lamps from the scene record, with the sky and
-its bodies. One paid render per place gives every lamp its own Cycles
-light group on the place's views; because light adds up, the look at any
+its bodies. One paid render per scene gives every lamp its own Cycles
+light group on the scene's views; because light adds up, the look at any
 strengths is mixed from these passes without rendering again, and a free
-sweep chooses the scale that brings the place's brightness within 1.5
+sweep chooses the scale that brings the scene's brightness within 1.5
 times its concept's, halving any lamp that turns what it lights white.
 Outdoors the suns are swept after the lamps. A lamp whose fixture stops
 90 percent of its rays moves out of it, and one behind a clear lens
@@ -549,8 +577,8 @@ of a moving kind says why). \textbf{Effects} are emitters measured
 against real footage (photographs of lift-offs, rover films of Martian
 dust devils), gated on \texttt{attached}, \texttt{footage},
 \texttt{light} (the flame lights the pad at least twice as brightly as
-the place's lamps) and \texttt{outside} (no open-sky particle inside a
-room). \textbf{Sound:} every source a place names (room tones, objects,
+the scene's lamps) and \texttt{outside} (no open-sky particle inside a
+room). \textbf{Sound:} every source a scene names (room tones, objects,
 motions, each surface's steps) gets the environment's picked file or one
 MOSS-SoundEffect {[}34{]} take of its brief, gated on \texttt{sources},
 \texttt{level}, \texttt{likeness} (CLAP {[}35{]} score at least 0.30,
@@ -576,21 +604,21 @@ tenth of a view's height.
 
 \subsection{Completion}\label{completion}
 
-A place is complete when its gate passes on its final assembly: every
+A scene is complete when its gate passes on its final assembly: every
 row made or dropped with a reason, nothing unmade, no placeholder or
-resting fault, the creator's picks shown, every layer and shown place
+resting fault, the creator's picks shown, every layer and shown scene
 present, nothing cited from the source game. \textbf{Accepted gaps.} A
 fault the creator decides to ship with is written down as an accepted
 gap: who decided, when, why, the objects and their measured faults. It
 moves only those objects' faults from the gate where they arise to the
-completion gate, which fails each gap by name with the numbers: a place
+completion gate, which fails each gap by name with the numbers: a scene
 whose accepted gaps are its only fail is complete apart from accepted
 gaps, every gap listed with who decided it; any other fault leaves it
 not complete, and the gate is never loosened. A batch gap moves the same
 way, the creator's yes to the batch being its decision, and is listed
-with the batch run that made it. A hook stops an agent claiming a place
+with the batch run that made it. A hook stops an agent claiming a scene
 is done while its gate fails: agents judging their own scenes agree with
-a measured geometry score only 45.8 percent of the time {[}15{]}.
+a measured geometry score only 45.8 percent of the time {[}17{]}.
 
 \subsection{Prices and ledgers}\label{prices-and-ledgers}
 
@@ -613,7 +641,7 @@ finish route's list and recheck are priced from the earlier route's 275
 list calls at the batch tier's half price, not yet from the route
 itself. The batch estimate and the runner use the same unit prices, and
 on 21 October they agreed to the cent per stage and per model on every
-designed place whose line could start. Before, the runner priced a run
+designed scene whose line could start. Before, the runner priced a run
 from a flat figure in its table, which overstated work it could carry
 over: the four runs of 15 October were forecast at up to EUR 72.57, 33,
 70.50 and 24 and cost 10.13, 10.14, 0.67 and 0.60, while measured unit
@@ -625,29 +653,29 @@ paid run.
 
 \section{Evidence}\label{evidence}
 
-Environment 1 is the worked example: 26 places, from a city square and a
+Environment 1 is the worked example: 26 scenes, from a city square and a
 flat to a Moon base, a ship and Mars, derived from the game 2099. Its
 first run ended on 18 October; its remake from new designs has not run.
 Table 3 sorts the framework's parts into what these runs prove, what is
 built but has not run, and what is missing.
 
-\textbf{The first run.} Each place was filmed once its completion gate
+\textbf{The first run.} Each scene was filmed once its completion gate
 passed or failed only on its accepted gaps: a 2 s title card, then one
 walk of 4 s (96 frames at 24 fps) on a path the planner keeps clear of
-walls, objects and people, with the place's own sound. The film gate
+walls, objects and people, with the scene's own sound. The film gate
 measures each film (its size, a sound track that is not silent, no black
 or frozen stretch after the title card, its length and the clearance)
 and the runner accepts it; no person reviewed the films before the cut,
 and the coding agent that made the cut checked only its order, frames
-and sound. On 18 October the cut held all 27 films, 26 places and the
+and sound. On 18 October the cut held all 27 films, 26 scenes and the
 ship's hull, 3 min 9 s (Figure 3). The final completion gate, run again
-on every place on 17 and 18 October, left all 26 places complete apart
+on every scene on 17 and 18 October, left all 26 scenes complete apart
 from accepted gaps (2 to 19 each) and none complete; many of those gaps
 were decided by the overseer, the coding-agent session that guards the
 run under the creator's rules, and wait for the creator's confirmation.
 The creator watched the video on 18 October and did not accept it,
 naming five faults: the ship looks poor, weakest where his own direction
-stopped; the films cut too fast, about 3.5 s a place; no people appear;
+stopped; the films cut too fast, about 3.5 s a scene; no people appear;
 the sound is only ambient, with no voices or event sounds; and moving
 things do not move convincingly. On 19 October the disk holding the
 store, both spend ledgers and the work folder was lost; the code, the
@@ -660,26 +688,26 @@ must be made again.
 \includegraphics[width=0.92\linewidth,height=\textheight,keepaspectratio,alt={The
 environment 1 video (demo K9) of the first run, 18 October: the middle
 frame of each of its 27 films' walks, in story order. Every frame is the
-runner's accepted film of a place that was complete apart from accepted
+runner's accepted film of a scene that was complete apart from accepted
 gaps; nothing was retouched or picked by hand. The creator did not
 accept this video.}]{figures/fig-k9.jpg}
 \caption{The environment 1 video (demo K9) of the first run, 18 October:
 the middle frame of each of its 27 films' walks, in story order. Every
-frame is the runner's accepted film of a place that was complete apart
+frame is the runner's accepted film of a scene that was complete apart
 from accepted gaps; nothing was retouched or picked by hand. The creator
 did not accept this video.}
 \end{figure}
 
 \textbf{Layouts from the source game.} In the first run the framework's
 own layout, made from the plan and the concept, was proven only on the
-ship's 8 places and the 2 door kits. The other 18 places took their
+ship's 8 scenes and the 2 door kits. The other 18 scenes took their
 layouts from the source game: 507 entries in their data cite the game,
 338 of them positions, and 7 kits are laid in the game's frame, with
 6,432 piece positions. The check sees cited numbers only, so an uncited
 copy passes: the launch's accepted scene record still lit the rocket at
-the game's position. Each of the 18 places shipped this as an accepted
+the game's position. Each of the 18 scenes shipped this as an accepted
 gap of the completion gate's game check. The remake's plans are written
-from each place's own concept and setting instead.
+from each scene's own concept and physics instead.
 
 \textbf{People.} Scored on what is drawn, no clip of any look is clean
 (Table 2). Takes in a wider A-pose crossed less at the bind and more in
@@ -718,17 +746,17 @@ Kit, average man, wider pose (olive) & fail: shell & 0 & not run & 0 \\
 
 \textbf{The design step, 20 and 21 October.} For the remake the creator
 drew 95 concepts, EUR 14.28 together, and picked 18 of them. Their
-readings (41, one refused) cost EUR 2.56: the latest of each place holds
+readings (41, one refused) cost EUR 2.56: the latest of each scene holds
 560 rows, 541 of them with metres on three sides, and 893 gaps where the
 reading and SAM 3 disagree or a row has no metres. The plan writer wrote
 all 18 plans without a refusal, EUR 0.13 to 0.74 and 62 to 325 s each,
-EUR 5.09 together, and the plan row accepted 17 of them (the base, an
-outside shell with no plan record of its own, has none). The environment
+EUR 5.09 together, and the plan row accepted 17 of them (the base, a
+parent scene with no plan record of its own, has none). The environment
 plan was written twice, EUR 0.20 each. Eight draws, one for each of the
 ship's rooms, were drawn on a blockout; none is picked yet.
 
 \textbf{The remake.} On 21 October the estimate for the batch of the 18
-designed places stood at EUR 186.50 likely and 271.89 high for 456
+designed scenes stood at EUR 186.50 likely and 271.89 high for 456
 models, with 45 gaps predicted from the hub's measured failures priced
 apart and not bought, and an ETA of at least 247 minutes with nine
 layers still untimed. The runner's own plan for every line priced 158 of
@@ -765,29 +793,29 @@ Record
 \bottomrule\noalign{}
 \endlastfoot
 Runner: keys, gates, automatic accepts, stale nodes & proven: first run,
-every place & Section 2; K9 \\
+every scene & Section 2; K9 \\
 Clearance, ledgers, books from the bills & proven: caught ledger misses
 & Section 3.7 \\
 Surfaces (finish-map route), resting, light, motion, effects, sound,
 completion gate, films & proven on the first run; video not accepted &
 Section 4; K9 \\
 Environment concept, concept review, inventory reading, plan writing and
-checks & ran at 18 places & design step \\
+checks & ran at 18 scenes & design step \\
 Measured prices, estimate and runner in agreement & priced; no batch
 spent & Section 3.7 \\
 Preview clips, one take a sound & one benchmark each & the remake \\
 One-shot batch, its stop, batch gaps & built, tested on fixtures; no
 batch bought & Section 2.1 \\
-Finish route & free views at 2 places; paid steps not run & Section
+Finish route & free views at 2 scenes; paid steps not run & Section
 3.1 \\
 Shapes first: rough model, shell split & built; never run & Section
 2.2 \\
 Code bodies for big objects & 8 builders; trial not run & Section 2.2 \\
-Blockouts, environment plan, setting & 8 draws, 2 environment plans;
+Blockouts, environment plan, physics & 8 draws, 2 environment plans;
 none picked & design step \\
 Usable people & missing: no clip clean on what is drawn & Table 2 \\
 Physics and interaction in a game engine & missing: no engine adapter;
-one place's physics trial, experimental & Section 5 \\
+one scene's physics trial, experimental & Section 5 \\
 Creator edits that survive a rebuild & missing: the edit layer is a slot
 & Section 2.2 \\
 Environments 2 to 4 & not started & \\
@@ -797,7 +825,7 @@ Environments 2 to 4 & not started & \\
 \endgroup
 
 \textbf{Agent tools.} With them an agent used about half the output and
-cost on two of three places; on the third it left more faults; one run
+cost on two of three scenes; on the third it left more faults; one run
 each (Appendix E).
 
 \section{Limitations, future work and
@@ -805,14 +833,14 @@ conclusion}\label{limitations-future-work-and-conclusion}
 
 One creator judges, and he has not yet accepted a run of environment 1.
 Closed models (Nano Banana Pro, Gemini 3.1 Pro) draw the concepts and
-close-ups and read and plan every place; they may change or go. Much of
+close-ups and read and plan every scene; they may change or go. Much of
 the first run was lost with its disk, and the new design step, the
 finish route, the shapes-first loop and the code bodies have not yet
-carried a place through a batch; people are not usable, light is live,
+carried a scene through a batch; people are not usable, light is live,
 objects are not interactive, and no game engine opens the result yet.
 Next: the remake's batch, the shapes-first loop on the ship, people, an
 engine adapter with physics and interaction, an edit layer the assembly
-carries, three more environments, open models, LEGO-Bench {[}15{]}. In
+carries, three more environments, open models, LEGO-Bench {[}17{]}. In
 short, SCORE keeps, keys and judges every stage's output, so a fault is
 fixed where it happens; an accepted environment will show if it holds.
 
@@ -834,184 +862,184 @@ of the IEEE/CVF conference on computer vision and pattern recognition
 generative {AI}, but half think it's bad for the industry}.''} Game
 Developer, Feb. 2026.}
 
-\bibitem[\citeproctext]{ref-bruce2024genie}
+\bibitem[\citeproctext]{ref-openusd}
 \CSLLeftMargin{{[}3{]} }%
+\CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
+{``{OpenUSD}: Universal scene description.''} 2026. Available:
+\url{https://openusd.org/}}
+
+\bibitem[\citeproctext]{ref-oquab2023dinov2}
+\CSLLeftMargin{{[}4{]} }%
+\CSLRightInline{{M. Oquab, T. Darcet, T. Moutakanni, \emph{et al.}},
+{``{DINOv2}: Learning robust visual features without supervision,''}
+\emph{arXiv preprint arXiv:2304.07193}, 2023.}
+
+\bibitem[\citeproctext]{ref-bruce2024genie}
+\CSLLeftMargin{{[}5{]} }%
 \CSLRightInline{{J. Bruce, M. Dennis, A. Edwards, J. Parker-Holder,
 \emph{et al.}}, {``{Genie}: Generative interactive environments,''}
 \emph{arXiv preprint arXiv:2402.15391}, 2024.}
 
 \bibitem[\citeproctext]{ref-genie3}
-\CSLLeftMargin{{[}4{]} }%
+\CSLLeftMargin{{[}6{]} }%
 \CSLRightInline{J. Parker-Holder and S. Fruchter, {``{Genie 3: A new
 frontier for world models}.''} Google DeepMind blog, Aug. 2025.
 Available:
 \url{https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/}}
 
 \bibitem[\citeproctext]{ref-wang2025worldgen}
-\CSLLeftMargin{{[}5{]} }%
+\CSLLeftMargin{{[}7{]} }%
 \CSLRightInline{{D. Wang, H. Jung, T. Monnier, K. Sohn, \emph{et al.}},
 {``{WorldGen}: From text to traversable and interactive {3D} worlds,''}
 \emph{arXiv preprint arXiv:2511.16825}, 2025.}
 
 \bibitem[\citeproctext]{ref-hyworld2}
-\CSLLeftMargin{{[}6{]} }%
+\CSLLeftMargin{{[}8{]} }%
 \CSLRightInline{Tencent Hunyuan, {``{HY-World} 2.0.''} GitHub
 repository, 2026. Available:
 \url{https://github.com/Tencent-Hunyuan/HY-World-2.0}}
 
 \bibitem[\citeproctext]{ref-hu2026worldact}
-\CSLLeftMargin{{[}7{]} }%
+\CSLLeftMargin{{[}9{]} }%
 \CSLRightInline{J. Hu, J. Guo, J. Cen, C. Yang, S. Li, and W. Shen,
 {``{WorldAct}: Activating monolithic {3D} worlds into interactive-ready
 object-centric scenes,''} \emph{arXiv preprint arXiv:2605.15843}, 2026.}
 
 \bibitem[\citeproctext]{ref-niu2026worldsculpt}
-\CSLLeftMargin{{[}8{]} }%
+\CSLLeftMargin{{[}10{]} }%
 \CSLRightInline{{M. Niu, J. He, R. Yu, L. Fu, \emph{et al.}},
 {``{WorldSculpt}: Generating compositional worlds from grounded
 videos,''} \emph{arXiv preprint arXiv:2609.05416}, 2026.}
 
 \bibitem[\citeproctext]{ref-raistrick2023infinigen}
-\CSLLeftMargin{{[}9{]} }%
+\CSLLeftMargin{{[}11{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``Infinite photorealistic
 worlds using procedural generation,''} \emph{arXiv preprint
 arXiv:2306.09310}, 2023.}
 
 \bibitem[\citeproctext]{ref-raistrick2024indoors}
-\CSLLeftMargin{{[}10{]} }%
+\CSLLeftMargin{{[}12{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``{Infinigen Indoors}:
 Photorealistic indoor scenes using procedural generation,''} in
 \emph{Proceedings of the IEEE/CVF conference on computer vision and
 pattern recognition (CVPR)}, 2024.}
 
 \bibitem[\citeproctext]{ref-hu2024scenecraft}
-\CSLLeftMargin{{[}11{]} }%
+\CSLLeftMargin{{[}13{]} }%
 \CSLRightInline{{Z. Hu, A. Iscen, A. Jain, T. Kipf, \emph{et al.}},
 {``{SceneCraft}: An {LLM} agent for synthesizing {3D} scene as {Blender}
 code,''} in \emph{International conference on machine learning (ICML)},
 2024.}
 
 \bibitem[\citeproctext]{ref-li2026rcwm}
-\CSLLeftMargin{{[}12{]} }%
+\CSLLeftMargin{{[}14{]} }%
 \CSLRightInline{Z. Li, Y. Liao, and B. Zhu, {``Recursive code world
 models: Building complex worlds through recursive scene programs,''}
 \emph{arXiv preprint arXiv:2609.11499}, 2026.}
 
 \bibitem[\citeproctext]{ref-guo2026worldclaw}
-\CSLLeftMargin{{[}13{]} }%
+\CSLLeftMargin{{[}15{]} }%
 \CSLRightInline{C. Guo, J. Li, Y. Li, and Z. Huang, {``{WorldClaw}:
 Agentic {3D} open-world generation at scale,''} \emph{arXiv preprint
 arXiv:2608.05248}, 2026.}
 
 \bibitem[\citeproctext]{ref-yin2026autoue}
-\CSLLeftMargin{{[}14{]} }%
+\CSLLeftMargin{{[}16{]} }%
 \CSLRightInline{{L. Yin, W. Cheng, Z. Qin, T. Huang, \emph{et al.}},
 {``{AutoUE}: Automated generation of {3D} games in {Unreal Engine} via
 multi-agent systems,''} \emph{arXiv preprint arXiv:2603.07106}, 2026.}
 
 \bibitem[\citeproctext]{ref-li2026lego}
-\CSLLeftMargin{{[}15{]} }%
+\CSLLeftMargin{{[}17{]} }%
 \CSLRightInline{X. Li \emph{et al.}, {``{LEGO-Anything}: Coding agents
 for {3D} scene reconstruction,''} \emph{arXiv preprint
 arXiv:2609.36380}, 2026.}
 
-\bibitem[\citeproctext]{ref-oquab2023dinov2}
-\CSLLeftMargin{{[}16{]} }%
-\CSLRightInline{{M. Oquab, T. Darcet, T. Moutakanni, \emph{et al.}},
-{``{DINOv2}: Learning robust visual features without supervision,''}
-\emph{arXiv preprint arXiv:2304.07193}, 2023.}
-
 \bibitem[\citeproctext]{ref-li2026pixal3d}
-\CSLLeftMargin{{[}17{]} }%
+\CSLLeftMargin{{[}18{]} }%
 \CSLRightInline{D.-Y. Li \emph{et al.}, {``{Pixal3D}: Pixel-aligned {3D}
 generation from images,''} \emph{arXiv preprint arXiv:2605.10922},
 2026.}
 
 \bibitem[\citeproctext]{ref-carion2025sam3}
-\CSLLeftMargin{{[}18{]} }%
+\CSLLeftMargin{{[}19{]} }%
 \CSLRightInline{{N. Carion \emph{et al.}}, {``{SAM 3}: {Segment
 Anything} with concepts,''} \emph{arXiv preprint arXiv:2511.16719},
 2025.}
 
 \bibitem[\citeproctext]{ref-wang2025moge2}
-\CSLLeftMargin{{[}19{]} }%
+\CSLLeftMargin{{[}20{]} }%
 \CSLRightInline{{R. Wang \emph{et al.}}, {``{MoGe-2}: Accurate monocular
 geometry with metric scale and sharp details,''} \emph{arXiv preprint
 arXiv:2507.02546}, 2025.}
 
 \bibitem[\citeproctext]{ref-lin2025partcrafter}
-\CSLLeftMargin{{[}20{]} }%
+\CSLLeftMargin{{[}21{]} }%
 \CSLRightInline{Y. Lin \emph{et al.}, {``{PartCrafter}: Structured {3D}
 mesh generation via compositional latent diffusion transformers,''} in
 \emph{Advances in neural information processing systems (NeurIPS)},
 2025.}
 
 \bibitem[\citeproctext]{ref-wu2026production}
-\CSLLeftMargin{{[}21{]} }%
+\CSLLeftMargin{{[}22{]} }%
 \CSLRightInline{J. Wu, Z. Lou, J. Liu, D. Du, C. Guo, and S. Guo,
 {``From visual synthesis to interactive worlds: Toward production-ready
 {3D} asset generation,''} \emph{arXiv preprint arXiv:2604.23629}, 2026.}
 
 \bibitem[\citeproctext]{ref-yang2026flowscene}
-\CSLLeftMargin{{[}22{]} }%
+\CSLLeftMargin{{[}23{]} }%
 \CSLRightInline{Z. Yang \emph{et al.}, {``{FlowScene}: Style-consistent
 indoor scene generation with multimodal graph rectified flow,''}
 \emph{arXiv preprint arXiv:2603.19598}, 2026.}
 
 \bibitem[\citeproctext]{ref-he2026thinking}
-\CSLLeftMargin{{[}23{]} }%
+\CSLLeftMargin{{[}24{]} }%
 \CSLRightInline{G. He, R. Luo, W.-C. Ma, and H. Averbuch-Elor,
 {``Thinking in {Blender}: Staged executable inverse graphics with
 vision-language models,''} \emph{arXiv preprint arXiv:2606.02580},
 2026.}
 
 \bibitem[\citeproctext]{ref-wang2026codeasworlds}
-\CSLLeftMargin{{[}24{]} }%
+\CSLLeftMargin{{[}25{]} }%
 \CSLRightInline{H. Wang \emph{et al.}, {``Code as worlds: Agentic
 discovery of executable world representations for physical reasoning,''}
 \emph{arXiv preprint arXiv:2608.27549}, 2026.}
 
 \bibitem[\citeproctext]{ref-zhang2026code2worlds}
-\CSLLeftMargin{{[}25{]} }%
+\CSLLeftMargin{{[}26{]} }%
 \CSLRightInline{Y. Zhang, Y. Wang, Z. Zhang, and H. Tang,
 {``{Code2Worlds}: Empowering coding {LLMs} for {4D} world generation,''}
 in \emph{International conference on machine learning (ICML)}, 2026.}
 
 \bibitem[\citeproctext]{ref-liu2026simworlds}
-\CSLLeftMargin{{[}26{]} }%
+\CSLLeftMargin{{[}27{]} }%
 \CSLRightInline{C. Liu, X. Wang, H. Chen, Y. Zhao, M.-H. Yang, and L. A.
 Jeni, {``{SimWorlds}: A multi-agent system for dynamic {3D} scene
 creation,''} \emph{arXiv preprint arXiv:2607.01766}, 2026.}
 
 \bibitem[\citeproctext]{ref-gao2026codebench3d}
-\CSLLeftMargin{{[}27{]} }%
+\CSLLeftMargin{{[}28{]} }%
 \CSLRightInline{Y. Gao \emph{et al.}, {``{3DCodeBench}: Benchmarking
 agentic procedural {3D} modeling via code,''} \emph{arXiv preprint
 arXiv:2606.01057}, 2026.}
 
 \bibitem[\citeproctext]{ref-shen2026codebench4d}
-\CSLLeftMargin{{[}28{]} }%
+\CSLLeftMargin{{[}29{]} }%
 \CSLRightInline{R. Shen \emph{et al.}, {``{4DCodeBench}: Benchmarking
 agents on inverse graphics of dynamic scenes,''} \emph{arXiv preprint
 arXiv:2610.03715}, 2026.}
 
 \bibitem[\citeproctext]{ref-gemini31pro}
-\CSLLeftMargin{{[}29{]} }%
+\CSLLeftMargin{{[}30{]} }%
 \CSLRightInline{Google, {``{Gemini 3.1 Pro} (gemini-3.1-pro-preview)
 through the gemini {API}.''} 2026. Available:
 \url{https://ai.google.dev/}}
 
 \bibitem[\citeproctext]{ref-nanobananapro}
-\CSLLeftMargin{{[}30{]} }%
+\CSLLeftMargin{{[}31{]} }%
 \CSLRightInline{Google, {``{Gemini 3 Pro Image ({`Nano Banana Pro'})
 through the Gemini {API}}.''} 2026. Available:
 \url{https://ai.google.dev/}}
-
-\bibitem[\citeproctext]{ref-openusd}
-\CSLLeftMargin{{[}31{]} }%
-\CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
-{``{OpenUSD}: Universal scene description.''} 2026. Available:
-\url{https://openusd.org/}}
 
 \bibitem[\citeproctext]{ref-raistrick2026procfunc}
 \CSLLeftMargin{{[}32{]} }%
@@ -1290,7 +1318,7 @@ four, and 187 MB on disk, against 487 MB.
   \textbf{Likeness gate:} a made model's outline from eight sides must
   overlap its close-up's by at least 0.50, a least set on the hub's
   twelve accepted generated models with a margin of 0.05, and its DINOv2
-  {[}16{]} similarity must reach a least set the same way; without that
+  {[}4{]} similarity must reach a least set the same way; without that
   calibration the gate answers unknown.
 \item
   \textbf{Finish maps (the first run's route):} a close-up's map passes
@@ -1299,12 +1327,12 @@ four, and 187 MB on disk, against 487 MB.
   its voted area mixes finishes and fails.
 \item
   \textbf{Bake check:} each baked part within ΔE 20 (CIE76) of its
-  surface's colour, worn and dirtied as far as its place's wear and
+  surface's colour, worn and dirtied as far as its scene's wear and
   dirt, and within ΔE 32 of its close-up's; lightness order fails when
   the close-up shows one surface more than 10 L* lighter and the bake
   makes it more than 3 L* darker; one look fails when no two
   near-neutral surfaces bake far enough apart for a viewer to tell at
-  the place's view distance, while the close-up shows them more than ΔE
+  the scene's view distance, while the close-up shows them more than ΔE
   24 apart. What a viewer tells is measured, not set: Stone, Szafir and
   Setlur measured the CIELAB difference half of their viewers see
   between two colours s degrees wide, per axis ND(50, s) = C + K/s, with
@@ -1312,7 +1340,7 @@ four, and 187 MB on disk, against 487 MB.
   b* on sizes 1/3 to 6 degrees {[}38{]}; two surfaces are told apart
   when their difference, each axis over its ND, is 1 or more. A
   surface's size is its model's middle size times the root of its area
-  share, seen from the place's nearest view. This replaced a fixed ΔE
+  share, seen from the scene's nearest view. This replaced a fixed ΔE
   12, which failed the wreck's access cover on a 9.3 L* step between its
   steel and its scorched white that its owner sees (11.3 degrees from
   the nearest view; half of viewers see 5.2 L* at that size); a quadrant
@@ -1328,7 +1356,7 @@ four, and 187 MB on disk, against 487 MB.
   The triage fails a foot off its support and an up axis leaning more
   than 3 degrees.
 \item
-  \textbf{Light:} the place's median brightness within 1.5 times its
+  \textbf{Light:} the scene's median brightness within 1.5 times its
   concept's and every view within 2.5 times; a lamp is blown when over
   20 percent of the pixels where it gives at least half the light are
   white, and unlit when it gives less than 0.001 percent of every view's
@@ -1380,7 +1408,7 @@ four, and 187 MB on disk, against 487 MB.
 \item
   \textbf{People seen by the cameras (experimental):} a clip's crossings
   of body through cloth are counted only where a camera that will show
-  the person can see them: the place's views at the person's cast spot,
+  the person can see them: the scene's views at the person's cast spot,
   and a close front and three-quarter view. Crossings no camera sees are
   recorded, not counted against the clip. So far this is a measure on
   the stored bodies (Section 3.5); the per-clip gate does not use it
@@ -1400,7 +1428,7 @@ bind pose, in every clip before any motion. Scored on drawn surfaces
 only, no clip of any look is usable: skin seams open and settled cloth
 crosses itself beyond the bind. Bound as one closed mesh, the player's
 limbs sink into chest and hips, 87 to 563 crossing points visible from
-the places' cameras and close views per clip, the armpit surface
+the scenes' cameras and close views per clip, the armpit surface
 stretching between arm and chest. Where hair or cloth meets the head or
 hand skin the two sides are weighted differently and open as the joints
 move (cloth seams never open); openings over 10 cm on three looks are
@@ -1466,19 +1494,19 @@ Licence
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Nano Banana Pro {[}30{]} & concepts, close-ups on the prop route, ground
+Nano Banana Pro {[}31{]} & concepts, close-ups on the prop route, ground
 skins; in the first run, finish maps (the close-up drawn again with one
 flat colour per finish) & paid API \\
-Gemini 3.1 Pro {[}29{]} & the environment concept's interview; scene
+Gemini 3.1 Pro {[}30{]} & the environment concept's interview; scene
 inventories and plans; each model's finishes listed and labelled,
 matched to library surfaces, and rechecked & paid API \\
 Qwen-Image-Edit-2511 {[}40{]} & close-ups, first, in the first run's
 close-up stage & Apache-2.0 \\
 Qwen3.8-27B {[}41{]} & the first run's close-up shape check judge; each
 part's material & Apache-2.0 \\
-Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}42{]} for its
+Pixal3D {[}18{]} & picture to 3D & MIT; DINOv3 licence {[}42{]} for its
 encoder \\
-PartCrafter {[}20{]} & parts & MIT; its non-commercial background
+PartCrafter {[}21{]} & parts & MIT; its non-commercial background
 remover not used \\
 SegviGen {[}33{]} & laid the close-up's finish map onto the 3D shape
 (the first run's surface stage) & MIT, on TRELLIS.2 (MIT); DINOv3
@@ -1493,7 +1521,7 @@ World Labs {[}45{]} & optional walkable reference & paid; outputs owned
 by paid users \\
 FLUX.2 klein 4B {[}36{]} & earlier prop pictures; the characters' A-pose
 pictures from words and their hair's clay pictures & Apache-2.0 \\
-MoGe-2 {[}19{]}, SAM 3 {[}18{]} & measuring and finding objects in
+MoGe-2 {[}20{]}, SAM 3 {[}19{]} & measuring and finding objects in
 pictures; boxing each inventory row on its concept; counting people and
 crops & MIT; SAM Licence \\
 Kimodo {[}37{]} & the characters' motion from sentences & Apache-2.0
@@ -1581,7 +1609,7 @@ Closed model
 \endlastfoot
 Lab, 22 rows (earlier check: one answer) & 22 & 8 & 14 & 0 & €4.12 &
 \$2.81 \\
-Environment 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06
+Environment 1's remaining rows (three scenes) & 17 & 0 & 10 & 7 & €3.06
 & \$4.02 \\
 \end{longtable}
 }
@@ -1617,24 +1645,24 @@ the creator accepts it.
 \section{With and without the agent
 tools}\label{with-and-without-the-agent-tools}
 
-The tools that check an agent's work were tested on three places of
-environment 1: a room (the workshop, 814 objects), an outdoor place (the
+The tools that check an agent's work were tested on three scenes of
+environment 1: a room (the workshop, 814 objects), an outdoor scene (the
 street, 1,198 objects) and a dense room (the hangar, 1,657 objects).
 They are the completion gate (Section 3.6); a triage of the resting
 check, which judges each object by what holds it up, read from its
 inventory row, and keeps only real faults {[}59{]}, {[}60{]}; a pick
 lock, which refuses an export that would show anything but the model the
 creator picked for a row; and a render-and-compare, which lists the
-objects least like their close-ups by DINOv2 similarity {[}16{]}. In
-both arms, the same agent (Claude Opus 5.5 in Claude Code, headless)
-started from the same exported stage and inventory and was asked to make
-the place as complete as it could in about 50 minutes, through its
-layout data only; one arm had the framework from before these tools.
-Each arm ran once, so Table E1 shows what happened, not an average.
+objects least like their close-ups by DINOv2 similarity {[}4{]}. In both
+arms, the same agent (Claude Opus 5.5 in Claude Code, headless) started
+from the same exported stage and inventory and was asked to make the
+scene as complete as it could in about 50 minutes, through its layout
+data only; one arm had the framework from before these tools. Each arm
+ran once, so Table E1 shows what happened, not an average.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
-\textbf{Table E1.} One session per arm and place. Faults are the resting
+\textbf{Table E1.} One session per arm and scene. Faults are the resting
 triage's real faults left on the final stage, measured against the arm's
 own data; placeholders by the first placeholder check; rows are
 inventory rows with no object and no written reason. Agent cost is the
@@ -1656,7 +1684,7 @@ session's model cost; cloud is its rented machines' cost.
   >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1200}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
-Place, arm
+Scene, arm
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 Faults, start → end
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
@@ -1707,7 +1735,7 @@ which the creator still has to confirm. On the hangar the arm without
 the tools left fewer faults: the arm with them spent its time replacing
 five placeholder slabs and trying the drop test, which failed on a room
 with no ground mesh (fixed after the run), and the nine faults it left
-are models with stray parts below their feet. No agent claimed a place
+are models with stray parts below their feet. No agent claimed a scene
 was complete, so the gate's hook never had to refuse a claim. No row
 carries an owner's pick, so the pick lock was not tested.
 

@@ -22,6 +22,16 @@ Diego Arg{\"u}ello.
 \newblock Game Developer, February 2026.
 \newblock Reporting GDC's 2026 State of the Game Industry survey.
 
+\bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
+{Pixar Animation Studios} and {Alliance for OpenUSD}.
+\newblock {OpenUSD}: Universal scene description, 2026.
+\newblock URL \url{https://openusd.org/}.
+
+\bibitem[Oquab et~al.(2023)Oquab, Darcet, Moutakanni, et~al.]{oquab2023dinov2}
+Maxime Oquab, Timoth{\'e}e Darcet, Th{\'e}o Moutakanni, et~al.
+\newblock {DINOv2}: Learning robust visual features without supervision.
+\newblock \emph{arXiv preprint arXiv:2304.07193}, 2023.
+
 \bibitem[Bruce et~al.(2024)Bruce, Dennis, Edwards, Parker-Holder,
   et~al.]{bruce2024genie}
 Jake Bruce, Michael Dennis, Ashley Edwards, Jack Parker-Holder, et~al.
@@ -110,11 +120,6 @@ Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
   Shuaichen Chang, Yi~Xiang, Lin Pan, and Jiarong Jiang.
 \newblock {LEGO-Anything}: Coding agents for {3D} scene reconstruction.
 \newblock \emph{arXiv preprint arXiv:2609.36380}, 2026{\natexlab{b}}.
-
-\bibitem[Oquab et~al.(2023)Oquab, Darcet, Moutakanni, et~al.]{oquab2023dinov2}
-Maxime Oquab, Timoth{\'e}e Darcet, Th{\'e}o Moutakanni, et~al.
-\newblock {DINOv2}: Learning robust visual features without supervision.
-\newblock \emph{arXiv preprint arXiv:2304.07193}, 2023.
 
 \bibitem[Li et~al.(2026{\natexlab{c}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
   Hu]{li2026pixal3d}
@@ -214,11 +219,6 @@ Ruihong Shen, {\v{Z}}iga Kova{\v{c}}i{\v{c}}, Peter Kulits, Xingrui Wang,
   2026{\natexlab{b}}.
 \newblock URL \url{https://ai.google.dev/}.
 \newblock Paid service. Vendor material.
-
-\bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
-{Pixar Animation Studios} and {Alliance for OpenUSD}.
-\newblock {OpenUSD}: Universal scene description, 2026.
-\newblock URL \url{https://openusd.org/}.
 
 \bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
   Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
