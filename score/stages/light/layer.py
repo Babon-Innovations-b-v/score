@@ -41,8 +41,6 @@ ASSETS = "assets/light"
 MOVE_MOST = 5.0
 # Two spots this close are one light.
 SAME_SPOT = 0.05
-# How near a record lamp stands to a kit lamp of the light data for the two to be one lamp, metres.
-LENS_NEAR = 1.0
 # A mesh no side of which is over this is small enough to be a lamp's fixture, metres; a freed lamp stands this far clear of it.
 FIXTURE_MOST = 1.5
 FIXTURE_GAP = 0.05
@@ -53,7 +51,7 @@ RAYS = 256
 
 def light_data(place):
     """The light stage's own additions to a place (data/light/<place>.json), kept out of its scene record, which
-    holds what the game drew: lamps on a kit kind's lenses (`kit_lamps`), the camera's glow (`glow`), and kit kinds
+    holds what the game drew: the camera's glow (`glow`) and kit kinds
     the seed laid where the kit no longer has them (`kit_moves`)."""
     path = REPO / f"data/light/{place}.json"
     return json.loads(path.read_text()) if path.exists() else {}
@@ -62,20 +60,6 @@ def light_data(place):
 def lens_middle(laid):
     """A kit piece's lens middle: its foot raised half its height along its own up."""
     return np.asarray(laid["at"], dtype=float) + np.asarray(laid["y"], dtype=float) * laid["size"][1] / 2
-
-
-def kit_lamps(place, data):
-    """A lamp on every lens (glow part) of each `kit_lamps` kind, `ahead` metres in front of it, as record lights."""
-    found = []
-    pieces = json.loads((REPO / f"data/kit/{place}.json").read_text())["pieces"] if data.get("kit_lamps") else []
-    for wanted in data.get("kit_lamps", []):
-        lenses = [laid for laid in pieces if laid["kind"] == wanted["kind"] and laid.get("part") == "glow"]
-        for number, laid in enumerate(lenses, start=1):
-            front = -np.asarray(laid["z"], dtype=float)
-            at = lens_middle(laid) + front * float(wanted["ahead"])
-            found.append(dict(wanted["light"], name=f"{wanted['kind']}_lamp_{number}",
-                              at=[round(float(value), 4) for value in at]))
-    return found
 
 
 def laid_again(stage, place, data):
@@ -106,22 +90,6 @@ def laid_again(stage, place, data):
                 xform.AddTransformOp().Set(Gf.Matrix4d(*[value for row in rows for value in row]))
         done[kind] = {"laid": len(laid), "seed": len(seeded)}
     return done
-
-
-def lights_of(place, record):
-    """The place's lights: its record's and the light data's lamps on its kit. A record lamp of the kit lamp's type
-    within LENS_NEAR of it is that lamp (the record holds the launch's pad lamps since 2026-10-12): it keeps its own
-    numbers and takes the kit lamp's shaft, and the kit lamp is not added."""
-    lights = [dict(entry) for entry in record.get("lights", [])]
-    added = []
-    for lamp in kit_lamps(place, light_data(place)):
-        near = [entry for entry in lights if entry["type"] == lamp["type"] and "at" in entry
-                and np.linalg.norm(np.asarray(entry["at"]) - np.asarray(lamp["at"])) <= LENS_NEAR]
-        if near:
-            near[0].setdefault("shaft", lamp.get("shaft"))
-        else:
-            added.append(lamp)
-    return lights + added
 
 
 def own_lamps(stage, place):
@@ -350,12 +318,10 @@ def pictures_moved(out, layer):
 
 
 def write(place, record, seed_folder, out, kept=None):
-    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lamps with the
-    light data's lamps among them, its sky from the physics (`kept`: its kept sky inputs, scene_sky.py), and the light
+    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lamps, its sky from the physics (`kept`: its kept sky inputs, scene_sky.py), and the light
     data's glow on the place's sky."""
     from pxr import Sdf, Usd
     out = pathlib.Path(out)
-    record = dict(record, lights=lights_of(place, record))
     (out / "layers").mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(out / LAYER))
     composed = Sdf.Layer.CreateAnonymous(".usda")

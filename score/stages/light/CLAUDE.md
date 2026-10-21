@@ -18,8 +18,8 @@ gates.
   its accepted record shows (`passes.neighbours`: its doors' places and what its views see over the made ground),
   each lit by its own record read beside (`scene-record@<name>`) on its earth seed (`stages.SHOWN_SEEDED`);
   light-haze applies where the kit lays a lamp with a shaft (`haze.shafted_kinds`: the sky record's shafted lamp
-  rows, the light data's shafted kit lamps), and the floodlight heads are those kinds' glow parts, the place's and
-  its shown places'. Never add a place name, a kind name or a picture's pixels to decide what a row does.
+  rows; a floodlight's shaft is its row's, never a hand-kept lamp of one place), and the floodlight heads are those
+  kinds' glow parts, the place's and its shown places'. Never add a place name, a kind name or a picture's pixels to decide what a row does.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
@@ -63,9 +63,10 @@ gates.
 - **Strengths are measured on the round-three seeds' layouts** (2026-10-12, tonight's cut): the passes render the
   seed with the layer, not the final assembly; once the assembly takes the layer the measurement moves onto it.
 - **The light data** (`data/light/<place>.json`) holds the light stage's own additions, never the scene record's:
-  lamps on a kit kind's lenses, the camera's glow the record left out, and kit kinds the seed laid where the kit no
-  longer has them (`kit_moves`: the launch's pad floodlights moved to concept K01's far side, 2026-10-12, because
-  seen from the balcony the old ones stood 70 to 170 degrees off their own beams and never glared).
+  the camera's glow the record left out, and kit kinds the seed laid where the kit no longer has them (`kit_moves`:
+  the launch's pad floodlights moved to concept K01's far side, 2026-10-12, because seen from the balcony the old
+  ones stood 70 to 170 degrees off their own beams and never glared). Never lamps: a lamp is its inventory row's (the
+  sky record's lamp rows), the pad floodlights' shaft too since 2026-10-21.
 - **Never edit what a running light node reads** (its layer code, the place's and its neighbours' records, kits and
   light data): the runner stores nothing for a node whose input changed while it ran (2026-10-12: six renders lost).
   The rows declare each place's own files, never a whole data folder.

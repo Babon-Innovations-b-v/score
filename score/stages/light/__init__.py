@@ -404,7 +404,7 @@ def lamp_heads(place, inputs):
         if not kinds:
             continue
         kit = json.loads((REPO / f"data/kit/{owner}.json").read_text())
-        lights = [entry for entry in layer.lights_of(owner, passes.record_of(owner, inputs)) if entry.get("shaft")]
+        lights = [entry for entry in passes.record_of(owner, inputs).get("lights", []) if entry.get("shaft")]
         for laid in kit["pieces"]:
             if laid["kind"] not in kinds or laid.get("part") != "glow":
                 continue
@@ -564,7 +564,7 @@ def sky_elements(place, out, record):
     where the record's air scatters one and the physics gives it a light, each floodlight's shaft. Where each body
     and light stands is the gate "sky bodies"."""
     held, faced = sky_prims(out, "sky body")
-    lights = layer.lights_of(place, record)
+    lights = record.get("lights", [])
     paths = {str(prim.GetPath()) for prim in held.TraverseAll()}
     picture = held.GetPrimAtPath(f"/{place}/Looks/earth_face/picture")
     nasa = bool(picture) and str(picture.GetAttribute("inputs:file").Get().path).endswith(

@@ -99,7 +99,7 @@
    "far_square_lamp": {"type": "omni", "colour": "#ffd29a", "energy": 4.0, "range": 18.0, "attenuation": 1.0, "shadows": false, "from": "seed: the square's lamps"},
    "far_floodlight_tower": {"type": "spot", "colour": "#f3f1ea", "energy": 3.0, "range": 90.0, "angle": 42.0, "attenuation": 0.5, "shadows": false, "shaft": {"near": 0.6, "length": 12.0, "colour": "#ffffff", "density": 0.005, "forward": 0.6}, "from": "seed: the square's tower floodlights"},
    "far_lectern": {"type": "omni", "colour": "#ffd29a", "energy": 18.0, "range": 12.0, "attenuation": 2.2, "shadows": true, "out": 2.4, "rise": 1.08, "from": "seed: the stage lamp on the speaker, 2.4 m in front of the lectern and 1.08 m over its middle"},
-   "far_pad_floodlight": {"type": "spot", "colour": "#f3f1ea", "energy": 14.0, "range": 100.0, "angle": 50.0, "attenuation": 0.5, "shadows": false, "from": "seed: the rocket's floodlight, on each of the pad's floodlights"}
+   "far_pad_floodlight": {"type": "spot", "colour": "#f3f1ea", "energy": 14.0, "range": 100.0, "angle": 50.0, "attenuation": 0.5, "shadows": false, "shaft": {"near": 0.6, "length": 12.0, "colour": "#ffffff", "density": 0.005, "forward": 0.6}, "from": "seed: the rocket's floodlight, on each of the pad's floodlights; its shaft the tower floodlights' (the row's own since 2026-10-21, once a hand-kept data/light/launch.json lamp)"}
   }
  }
 }
