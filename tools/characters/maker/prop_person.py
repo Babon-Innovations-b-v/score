@@ -4,7 +4,7 @@ some drape shaping"): a spec with "route": "prop" is made here; every other pers
 Experimental (#5): the player fails tucks and pokes and Nev is not made, so it runs, from make.py or by hand, only with
 --experimental (docs/bible.md, architecture/experimental).
 
-    .venv/bin/python tools/characters/maker/prop_person.py data/characters/makes/<name>.json --who "<session>"
+    .venv/bin/python tools/characters/maker/prop_person.py data/people/specs/<name>.json --who "<session>"
         --experimental [--outfit work] [--stages closeup,mesh,parts,build,checks] [--held <characters run folder>]
         [--dry-run]
 

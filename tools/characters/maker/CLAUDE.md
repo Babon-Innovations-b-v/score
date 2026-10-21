@@ -2,7 +2,7 @@
 
 The character maker: one entry point (`make.py`) for a person or an animal, from a picture or a short description to a
 rigged, clothed, textured, animated character as glTF and UsdSkel, with its far level for crowds and its clips. Specs
-are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a make produces lives outside the repo in
+are `data/people/specs/<name>.json` (`spec.py` says what they hold); what a make produces lives outside the repo in
 `~/.farm-factory-motion/made/<name>/`. People go through the person chain here; animals through `../animals/`.
 
 - **Experimental, refused unless asked for** (docs/bible.md, `architecture/experimental`): the prop route and the

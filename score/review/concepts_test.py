@@ -303,11 +303,11 @@ def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway(s
 
 
 def test_people_are_drawn_only_where_the_places_data_has_them(store, monkeypatch):
-    assert f"{concepts.EVERY_DRAW}, {concepts.WITH_PEOPLE}." in concepts.generated(store, "street")  # its cast: two
-    hub = concepts.generated(store, "hub")  # its cast holds none and its look names none
+    assert f"{concepts.EVERY_DRAW}, {concepts.WITH_PEOPLE}." in concepts.generated(store, "street")  # its design: people
+    hub = concepts.generated(store, "hub")  # its design shows none and its look names none
     assert f"{concepts.EVERY_DRAW}, {concepts.NO_PEOPLE}." in hub and concepts.WITH_PEOPLE not in hub
     monkeypatch.setattr(concepts, "inputs_of", lambda place: {"people": True} if place == "hub" else {})
-    assert concepts.WITH_PEOPLE in concepts.generated(store, "hub")  # the creator's say goes over the cast
+    assert concepts.WITH_PEOPLE in concepts.generated(store, "hub")  # the creator's say goes over the design
 
 
 def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monkeypatch):

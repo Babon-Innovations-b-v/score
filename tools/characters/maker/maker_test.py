@@ -20,11 +20,11 @@ PERSON = {"name": "someone", "kind": "person", "approved": "the owner", "descrip
 
 
 def test_the_checked_in_specs_can_be_made():
-    """A prop route spec carries its person's name (its takes go to that person's candidates folder), in a file named
-    <name>_prop.json."""
-    for path in sorted((REPO / "data/characters/makes").glob("*.json")):
+    """Every spec written from a design (data/people/specs, score/stages/people_rows.py) passes the maker's checks and
+    carries its person's name (its takes go to that person's candidates folder) in a file named <name>.json."""
+    for path in sorted((REPO / "data/people/specs").glob("*.json")):
         found = spec.read(path)
-        assert found["name"] + ("_prop" if found.get("route") == "prop" else "") == path.stem
+        assert found["name"] == path.stem
 
 
 def test_a_spec_without_approval_is_refused():
@@ -81,7 +81,7 @@ def test_the_hair_mesh_closes_every_row():
 
 
 def test_experimental_routes_and_drapes_run_only_when_asked_for():
-    """Fault (audit of 2026-10-11, items 1-3): make.py over data/characters/makes/*.json started paid prop-route runs
+    """Fault (audit of 2026-10-11, items 1-3): make.py over the old character specs started paid prop-route runs
     (the player fails tucks and pokes, Nev is not made), the animal route had never run on a world, and every person
     was draped by Newton, the drapes the owner rejected, with no one asking."""
     import make
@@ -100,8 +100,10 @@ def test_the_experimental_routes_refuse_when_started_round_make(tmp_path):
     """Fault (review of 2026-10-11): --experimental was checked only in make.py, so prop_person.py run by hand and
     route.make called directly made a prop-route person or an animal without it."""
     import subprocess
+    written = tmp_path / "player.json"
+    written.write_text(json.dumps(dict(PERSON, name="player", route="prop", outfit_words={"work": "a work suit"})))
     started = subprocess.run([sys.executable, str(REPO / "tools/characters/maker/prop_person.py"),
-                              str(REPO / "data/characters/makes/player_prop.json"), "--who", "a check", "--dry-run"],
+                              str(written), "--who", "a check", "--dry-run"],
                              capture_output=True, text=True)
     assert started.returncode != 0 and "only with --experimental" in started.stderr
     sys.path.insert(0, str(REPO / "tools/characters/animals"))

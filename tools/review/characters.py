@@ -1,14 +1,13 @@
 """The review page's characters: each of a place's people seen close from the front, each group and the crowd from where
 the cast says they are seen, and a short moving shot of each, all rendered by headless Blender from the place's OpenUSD
 stage with its characters layer (tools/characters/cast.py). Who is where is read from the place's cast
-(`data/characters/<place>.json`), the record the layer was written from.
+record as its design writes it (score/stages/people_rows.py cast_record), the record the layer is written from.
 
 A character's close view is taken from the first of a ring of eyes round its front with a clear line to it (a wall
 may stand in front of somebody), with any crowd left out so one of a group standing in it is seen; a group is seen from in front of its band; a crowd from the cast's own `views`
 (the balcony over the square) and from what it faces. The moving shots are consecutive frames of the stage's time,
 so every character plays its clip and starts where the cast started it.
 """
-import json
 import math
 import pathlib
 import shutil
@@ -21,7 +20,6 @@ sys.path.insert(0, str(REPO / "tools/characters"))
 sys.path.insert(0, str(HERE))
 import renders  # noqa: E402
 
-CASTS = REPO / "data/characters"
 STILL_SIZE = (640, 640)
 WIDE_SIZE = (960, 540)
 MOVE_SIZE = (480, 360)
@@ -43,9 +41,10 @@ GROUP_HIGH = 3.0
 
 
 def cast_of(place):
-    """The place's cast, or None when it has none."""
-    path = CASTS / f"{place}.json"
-    return json.loads(path.read_text()) if path.exists() else None
+    """The place's cast record from its design (people_rows.cast_record), or None for a place with no picked design
+    read."""
+    from score.stages import people_rows
+    return people_rows.cast_record(place) if people_rows.place_entry(place) else None
 
 
 def ahead(at, turn, distance, round_by=0.0):

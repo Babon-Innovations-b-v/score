@@ -786,15 +786,13 @@ def overhead_words(store, place):
 
 def has_people(place):
     """Whether `place`'s draw shows people (the owner, 2026-10-20: not in every concept): as the creator's `people`
-    says when set, else when its cast record (data/characters/<place>.json) holds people, groups or a crowd, or its
+    says when set, else when its picked design shows a person or a crowd (data/people/rows.json, people_rows) or its
     look names people."""
+    from score.stages import people_rows
     said = inputs_of(place).get("people")
     if said is not None:
         return said
-    cast_path = DATA / "characters" / f"{place}.json"
-    cast = json.loads(cast_path.read_text()) if cast_path.is_file() else {}
-    return bool(cast.get("people") or cast.get("groups") or cast.get("crowd")
-                or PEOPLE_WORDS.search(look_text(place)))
+    return bool(people_rows.persons(place) or people_rows.crowd_row(place) or PEOPLE_WORDS.search(look_text(place)))
 
 
 def indoors(store, place):

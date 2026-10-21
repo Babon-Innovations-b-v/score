@@ -5,7 +5,7 @@ make.py sends a spec here only with --experimental (docs/bible.md, architecture/
     import route
     route.make(spec, folder, who="<session>", dry_run=False, experimental=True)
 
-`spec` is a character spec (data/characters/makes/<name>.json, read by ../maker/spec.py) with "kind": "animal", its
+`spec` is a character spec (data/people/specs/<name>.json, read by ../maker/spec.py) with "kind": "animal", its
 "picture" (a side-on close-up), "body" ("fish" or "quadruped"), "length_m" and "clips"; `folder` is where the make
 lands (~/.farm-factory-motion/made/<name>/). The steps, each skipped when its output is already there:
 

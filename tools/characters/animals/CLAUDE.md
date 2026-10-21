@@ -1,7 +1,7 @@
 # tools/characters/animals/
 
 The character maker's animal route (job characters-full, 2026-10-09): one animal from its spec
-(`data/characters/makes/<name>.json`, `"kind": "animal"`) to a rigged, skinned, animated glTF, its
+(`data/people/specs/<name>.json`, `"kind": "animal"`) to a rigged, skinned, animated glTF, its
 UsdSkel asset, its lighter copies and its review frames. Entry: `route.make(spec, folder, who,
 dry_run)`, called by `../maker/make.py`; its docstring lists the steps.
 

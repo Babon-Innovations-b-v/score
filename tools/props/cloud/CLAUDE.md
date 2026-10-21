@@ -37,7 +37,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `../scene/place.py`), and every model is named for a row; Pixal3D is worded by nothing, so `batch.py` asks no style. A designed place's hand-in (`{home}/design/props/<place>.json`, `score/stages/complete/prepare/handin.py`) is
   approved by the creator's lock (owner, 2026-10-21) and taken as it stands (`batch.built_from`): its rows are his
   locked concept's reading, not page A's shape. No per-session job scripts: the wording comes from the repo's data. The one other thing a batch builds is a
-  character the owner asked for (`batch.py --characters data/characters/makes/<name>.json`, job characters-full,
+  character the owner asked for (`batch.py --characters data/people/specs/<name>.json`, job characters-full,
   2026-10-09): refused without the spec's `approved`, its model named after the spec.
 - **Three Pixal3D runs for every 24 GB of card** (`capacity.RUNS_PER_24GB`). Measured on a 24 GB L4: six at
   once is barely faster and ran out of memory.
