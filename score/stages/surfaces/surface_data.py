@@ -89,7 +89,8 @@ def parts_files(place):
 
 # What bake_job.py writes a place's bake job from besides its own code (which the bake's code version hashes, the
 # routes' with it): the kinds' details and the composites' children. The table keys each on the entries the place's
-# models read (library_reads.narrowed), so one kind's edit re-keys only the bakes that read it.
+# models read (library_reads.narrowed), so one kind's edit re-keys only the bakes that read it. Both retired with the
+# old models (owner, 2026-10-21): declared only while there, so no bake waits on a retired file by name.
 BAKE_JOB_FILES = {"details": "{data}/library/details.json", "composites": "{data}/library/composites.json"}
 
 
@@ -99,7 +100,8 @@ def job_files(place, bake):
     it. A model no entry can be written for blocks the same way, declared in the table (library_reads.narrowed)."""
     if not bake:
         return {"bake job": pattern(place) + " names no bake"}
-    found = dict(BAKE_JOB_FILES)
+    found = {name: path for name, path in BAKE_JOB_FILES.items()
+             if (REPO / "data" / path[len("{data}/"):]).is_file()}
     for folder in ("kit", "inventory"):
         if (REPO / "data" / folder / f"{place}.json").exists():
             found[folder] = "{data}/" + f"{folder}/{place}.json"

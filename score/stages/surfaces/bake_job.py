@@ -124,7 +124,7 @@ def child_of(model, kit, inventory):
     foot at its height there."""
     models = kit.get("models", {})
     parent = models[models[model]["child_of"]]
-    composites = json.loads(route.COMPOSITES.read_text())
+    composites = json.loads(route.COMPOSITES.read_text()) if route.COMPOSITES.is_file() else {}  # retired 2026-10-21
     kinds = [child["kind"] for child in composites.get(parent.get("prop"), {}).get("children", [])
              if f"{route.own_name(child['kind'])}_" in f"{model.rsplit('_', 1)[0]}_"
              and route.made_size(child["size"]) == route.made_size(models[model]["size"])]
@@ -199,6 +199,7 @@ def reads(place, model, kit):
         return [laid[0]["kind"]], []
     if own_model.get("child_of"):
         prop = models.get(own_model["child_of"], {}).get("prop")
-        children = json.loads(route.COMPOSITES.read_text()).get(prop, {}).get("children", [])
+        composites = json.loads(route.COMPOSITES.read_text()) if route.COMPOSITES.is_file() else {}  # retired
+        children = composites.get(prop, {}).get("children", [])
         return sorted({child["kind"] for child in children}), [prop] if prop else []
     return ([own_model["prop"]] if own_model.get("prop") else []), []
