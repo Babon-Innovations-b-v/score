@@ -23,8 +23,15 @@ def record(inputs):
                           "waits on a physics trial made from a design")
 
 
-def scene(inputs):
-    return json.loads((inputs.repo / "data/scene" / f"{PLACE}.json").read_text())
+def scene(inputs, place=PLACE):
+    """The place's scene record its demo is drawn on; NoExample while it has none (data/scene was retired with the old
+    concepts, 2026-10-21: the scene-record row writes it again from the place's design)."""
+    from score.stages.library.demos import NoExample
+    path = inputs.repo / "data/scene" / f"{place}.json"
+    if not path.exists():
+        raise NoExample(f"no scene record of the {place} to draw it on: the old records were retired (2026-10-21) and "
+                        "the scene-record row writes it from the design")
+    return json.loads(path.read_text())
 
 
 def seconds(ran):

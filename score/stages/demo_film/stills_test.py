@@ -67,7 +67,7 @@ def test_drawn_fails_a_missing_or_blank_still_by_name():
 def test_only_a_place_with_a_stills_record_has_the_row():
     assert not stills.applies("no such place")
     found = stills.files("hub")
-    assert found["stills"] == "{data}/definitions/demo_stills/hub.json" and found["scene"] == "{data}/scene/hub.json"
+    assert found["stills"] == "{data}/definitions/demo_stills/hub.json" and "scene" not in found  # seed records retired
 
 
 if __name__ == "__main__":

@@ -54,9 +54,14 @@ the current backend). No model runs on the coordinating machine.
 - `tools/sound/`: the sound picker and the loudness rule; MOSS takes are made in the cloud.
 - `data/library/`: the surface library (materials, fittings, composites, details per kind, printed pictures);
   `data/fonts/`: the fonts printed labels use (SIL OFL).
-- The first environment's data, the game 2099's, read as the example environment: `data/definitions/place.json` (each place's
-  style, palette, materials, wear), `design/tokens/tokens.json` (the palette), `data/inventory/` (scene
-  inventories), `data/kit/` (laid kit rooms), `data/sound/` (the sound catalogue, briefs, licences and loudness).
+- The first environment's data: `data/definitions/place.json` (each place's name, short name and style words, and the
+  shared scale and rules; its per-place palette, materials, wear, light, pictures and filed plan were retired with
+  the old concepts on 2026-10-21), `design/tokens/tokens.json` (the palette), `data/sound/` (the sound catalogue,
+  briefs, licences and loudness). The per-scene records of the old concepts and the old game (`data/kit/`,
+  `data/inventory/`, `data/plans/`, `data/scene/`, `data/surfaces/<place>.json`, `data/props/<place>.json`, the
+  accepted gaps of `data/checks/gaps/`) were retired on 2026-10-21 (owner: "all old stuff is retired"): each scene's
+  record is its design's, kept under `{home}/design/` (its locked concept, scene inventory, plan, hand-in and surface
+  data), and the people line keeps its own (`data/{props,inventory,surfaces}/people.json`).
 - `tools/library/`: the environment's made models and sounds come from the creator's library (score_lib, #22): a
   record names a file by its library reference (`<kind>/<id>@<version>/<file>`) or by its path in git;
   `library_files.py` fetches it with the library's own command and checks it against the entry's sha256, and a name
@@ -175,8 +180,8 @@ move assembly's, complete's and every later paid row's key.
 
 **The design** (CONTEXT.md "design", "plan review"; owner, 2026-10-21): per layer, concept, lock, scene inventory,
 plan. The lock is the approval; the inventory and then the plan are made from it with no further yes. The plan
-(`score/review/plans.py`) starts from data: the place's `data/plans` record (shell, frame, doors, leads), its
-outline from the layer above's plan, its inventory rows, keep-clear zones before its doors, and for a place holding
+(`score/review/plans.py`) starts from a bare plan of the house schema (the filed `data/plans` records were retired
+on 2026-10-21), its outline from the layer above's plan, its inventory rows, keep-clear zones before its doors, and for a place holding
 others the inside places it lays out (`holds`: name, the holder's row it stands in, box). Then it is written
 (`score/review/plan_writing.py`, owner 2026-10-21: "how we did that before was way better and reliable"): one Gemini
 3.1 Pro call writes it in metres element by element, as the hand plans of environment 1 were, from the locked concept,
@@ -249,7 +254,7 @@ from the hull's plan is the loop's first run.
 
 **One outdoor place, end to end** (the wreck is the worked example; commands in the README):
 
-1. The place's record: its locked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
+1. The place's record: its locked concept, its scene inventory (`{home}/design/inventory/<place>.json`, one row per object
    with its size and spots), each kind's turn and allowed materials in `data/library/details.json` (an old concept's
    place-prefixed kinds, retired with the old models on 2026-10-21; a design's take reads none: its turn is measured over its take in the bake, its materials its
    place's palette, `score/stages/props/compare.py` `bake_entry`), and one close-up
@@ -362,7 +367,7 @@ is meant to fix, where it is marked, and what proves it.
   The assembly takes the bake, each laid object carrying the baked file's hash (`score:model_sha256`) and the
   seed's as the model it repainted (`score:repaint_of`, which the pick lock reads). Proven when a place's line ends accepted at its checks and the owner
   reviews the baked models.
-- **The scene-record stage** (`score/stages/scene_record`, its overlay; `data/plans/<place>.json`,
+- **The scene-record stage** (`score/stages/scene_record`, its overlay; the kept plan `{home}/design/plans/<place>.json`,
   `data/definitions/sky.json`). For the 18 scene records that are the game transcribed (every `from` a game line)
   and for doors that lead nowhere. `plan@<place>` brings the dimensioned plan into the store (`place-plan` v1),
   gated on `mapped` (every plan item names inventory rows, every concept element rows, a door or a drop, every door

@@ -18,7 +18,7 @@ pathlib.Path(tempfile.tempdir).mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks  # noqa: E402
-from score.stages import assembly, scene_record  # noqa: E402
+from score.stages import assembly  # noqa: E402
 from score.stages.assembly import neighbours  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -57,14 +57,18 @@ def judge(output):
 def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
     """Fault (2026-10-12): the launch's accepted assembly showed Places/square and Places/far_city with no children,
     its references pointing at round-three seed files the store does not hold."""
-    assert neighbours.record_of("nowhere") == {}  # no record row, no seed record
-    for place in ("hangar", "hub", "garage"):  # a place without a record row reads its seed record
-        if not scene_record.written(place):
-            assert neighbours.record_of(place) == json.loads((REPO / f"data/scene/{place}.json").read_text())
-    assert "far_city" in neighbours.shown("launch") and "far_city" not in neighbours.neighbours("launch")
-    # a shown place no stage makes is never read from an old seed folder (retired, 2026-10-21): it is a gap
-    assert list(neighbours.files("launch")) == ["scene record"] and neighbours.lost("launch") == ["far_city"]
-    assert neighbours.applies("square") and not neighbours.applies("nowhere")
+    assert neighbours.record_of("nowhere") == {}  # no record row: no record (the old seed records are retired)
+    held = neighbours.record_of
+    neighbours.record_of = lambda place: {"places": [{"name": "square", "stage": "square"},
+                                                     {"name": "far_city", "stage": "far_city"}]} if place == "launch" \
+        else {"places": [{"name": "launch", "stage": "launch"}]} if place == "square" else {}
+    try:
+        assert "far_city" in neighbours.shown("launch") and "far_city" not in neighbours.neighbours("launch")
+        # a shown place no stage makes is never read from an old seed folder (retired, 2026-10-21): it is a gap
+        assert neighbours.files("launch") == {} and neighbours.lost("launch") == ["far_city"]
+        assert neighbours.applies("square") and not neighbours.applies("nowhere")
+    finally:
+        neighbours.record_of = held
     # a part of another scene's outside has no stage line, so no place reads its assembly (the owner, 2026-10-21)
     assert "launch" in neighbours.parts() and "launch" not in neighbours.neighbours("flat")
     root = pathlib.Path(tempfile.mkdtemp())

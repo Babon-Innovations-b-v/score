@@ -21,7 +21,7 @@ import pathlib
 import subprocess
 
 from score import checks, contracts, graph
-from score.stages import creator_plan, late_bake
+from score.stages import late_bake
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -62,21 +62,13 @@ def make_kit(inputs, out, seed, params):
     (out / "made").mkdir(exist_ok=True)
 
 
-def files(place):
-    """filed, with the creator's design in place of the filed plan and inventory where his are kept (the plan row's
-    stages.creator_plan: {home}/design/plans and {home}/design/inventory): the shell is laid from his locked design's
-    room, never the old filed one. The plan row's picked concept is left out: the kit never reads a picture."""
-    designed = creator_plan(filed)(place)
-    return {name: designed[name] for name in filed(place)}
-
-
 SHIP_KIT = contracts.Contract("ship-kit", 1, late_bake.late_faults, {"length": "metre", "up axis": "Y"})
 
 
-def filed(place):
-    """The place's filed plan and inventory (data/plans, data/inventory), the kit layout script and the route's and
-    library's files."""
-    return {"plan": "{data}/plans/" + f"{place}.json", "inventory": "{data}/inventory/" + f"{place}.json",
+def files(place):
+    """The place's design (his kept plan and its scene inventory, {home}/design/plans and {home}/design/inventory: the
+    shell is laid from his locked design's room), the kit layout script and the route's and library's files."""
+    return {"plan": "{home}/design/plans/" + f"{place}.json", "inventory": "{home}/design/inventory/" + f"{place}.json",
             "ship kit": "{repo}/tools/props/scene/ship_kit.py", "room kit": "{repo}/tools/props/scene/room_kit.py",
             "library": "{repo}/data/library/materials.json", "pictures": "{repo}/data/library/pictures",
             "route": "{repo}/tools/props/library/route.py", "sorter": "{repo}/tools/props/library/sorter.py",

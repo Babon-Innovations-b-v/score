@@ -161,7 +161,7 @@ def environment():
     return environment_concept
 
 
-def inventory_read(place, folder=DATA / "inventory"):
+def inventory_read(place, folder=PROPS_HOME / "design" / "inventory"):
     """{concept, rows} of the place's scene inventory file (CONTEXT.md "scene inventory"), None with none: the sha of
     the concept draw it was read from (its `concept_pick.sha256`; None when it names none) and its rows as [{name,
     count}]. It counts only while `concept` is the place's picked draw: none counts while its concept is not
@@ -322,8 +322,9 @@ def look_of(place):
 
 
 def plan_of(place):
-    """A place's plan (data/plans/<place>.json), {} when it has none."""
-    plan_path = DATA / "plans" / f"{place}.json"
+    """A place's kept plan ({home}/design/plans/<place>.json, plans.KEPT: his edit, else the written plan), {} when it
+    has none."""
+    plan_path = PROPS_HOME / "design" / "plans" / f"{place}.json"
     return json.loads(plan_path.read_text()) if plan_path.is_file() else {}
 
 
@@ -568,10 +569,10 @@ def plan_made(store, place):
 def holding_row(store, place):
     """The scene inventory row of the layer above whose outline holds `place` on its plan (the ship for the ship's
     rooms, a module for a base room, the block for the flat): the row its plan's inside places give it
-    (score/review/plans.holder_of), else the layer above's data/plans `holds` {place: row id}, else None."""
+    (score/review/plans.holder_of), else None."""
     from score.review import plans
     held = plans.holder_of(store, place)
-    return held["row"] if held and held["row"] else (plan_of(above(place, store)).get("holds") or {}).get(place)
+    return held["row"] if held and held["row"] else None
 
 
 def holding_box(store, place):
@@ -693,8 +694,7 @@ def compartments(store, place):
     holder = above(place, store)
     laid = {hold["place"]: hold.get("row")
             for hold in ((plans.current(store, holder) or {}).get("plan") or {}).get("holds", [])}
-    data = plan_of(holder).get("holds") or {}
-    rows = {name: laid.get(name) or data.get(name) for name in inside_of(holder, store)}
+    rows = {name: laid.get(name) for name in inside_of(holder, store)}
     return [name for name, row in rows.items() if row == rows.get(place)]
 
 

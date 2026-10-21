@@ -17,23 +17,24 @@ SHIP_KIT = "ship_kit"
 ASSEMBLY = "assembly"  # lays a place's kit pieces from its seed
 CONCEPT, PLAN, ROUGH_MODEL, SHELL_SPLIT = "concept", "plan", "rough-model", "shell-split"
 FILLERS = {
-    ROUTE: ("pixal", "prop data for {place}: data/props/{place}.json"),
+    ROUTE: ("pixal", "prop data for {place}: its design hand-in (prepare)"),
     CROP: ("crops-layer", None),
     MECHANIC: ("motion-models", None),
     CODE: (SHIP_KIT, "a code body (tools/props/library/body_parts.py) and the row in data/kit/{place}.json"),
     CONCEPT: (None, "the creator's concept for {place}, drawn and locked on its concept page"),
-    PLAN: ("plan", "data/plans/{place}.json with its leads"),
+    PLAN: ("plan", "a kept plan of {place} with its leads (the plan review)"),
     ROUGH_MODEL: (ROUGH_MODEL, None),
-    SHELL_SPLIT: (SHELL_SPLIT, "a `split` in data/plans/{place}.json: the shell's outline and its room list"),
+    SHELL_SPLIT: (SHELL_SPLIT, "a `split` in the kept plan of {place}: the shell's outline and its room list"),
 }
 # complete's gates by the stage that can fix what they find; the rest of its gates by the work they need.
 COMPLETE = "complete"
 COMPLETE_GATES = {"people": "characters-layer", "likeness": "likeness", "motion": "motion",
-                  "painted": "surfaces-paint", "effects": "effects-layer", "boxes": "complete-boxes",
+                  "painted": "surfaces-paint", "effects": "effects-layer",
                   "crops": "crops-layer", "light": "light", "sound": "sound", "neighbours": "neighbours"}
 COMPLETE_WORK = {"game": "a record that cites the game, written again from SCORE's own data",
                  "picks": "the owner's picked model shown, or a written decision for the model shown instead",
-                 "reach": "a way on the floor to the row's standing spot (the reach check is experimental)"}
+                 "reach": "a way on the floor to the row's standing spot (the reach check is experimental)",
+                 "boxes": "the row's box in its scene inventory reading (SAM 3's, else Gemini's region): the place read again"}
 NOT_HERE = "{stage} does not run for {place}: it needs that stage's data for the place"
 
 

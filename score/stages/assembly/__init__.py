@@ -64,17 +64,18 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "resting rules": "{data}/checks/resting.json",
          "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
          "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
-         "surfaces": "{data}/surfaces/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
+         "row kinds": "{data}/checks/row-kinds.json",
          "grounds": "{data}/ground"}
 
 
 def files(place):
-    """FILES, the place's seed scene record where it has one (the door leaves' kits have none), and its design (its
-    locked concept's scene inventory, design_layers.PATTERN) where it has one: the layers gate reads which layers it
-    needs from it."""
-    seed_record = {"scene": "{data}/scene/{place}.json"} if (REPO / f"data/scene/{place}.json").exists() else {}
+    """FILES, the place's surface data (its design's, else data/surfaces': surfaces/surface_data.pattern's rule, read
+    here so the surface package stays out of this code version) and its design (its locked concept's scene
+    inventory, design_layers.PATTERN) where it has one: the layers gate reads which layers it needs from it."""
+    designed = (design_layers.KEPT.parent / "surfaces" / f"{place}.json").is_file()
+    surfaces = ("{home}/design/surfaces/" if designed else "{data}/surfaces/") + f"{place}.json"
     design = {"design": design_layers.PATTERN} if (design_layers.KEPT / f"{place}.json").is_file() else {}
-    return {**FILES, **seed_record, **design}
+    return {**FILES, "surfaces": surfaces, **design}
 
 
 SEED_PARTS = ("layers", "assets", "inputs.json")

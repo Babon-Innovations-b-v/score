@@ -14,9 +14,10 @@ import pathlib
 from pxr import Usd
 
 from score.stages.complete.library import entries, exceptions, findings, stored, trace
-from score.store import Store
+from score.store import PROPS_HOME, Store
 
-BAKED_PLACES = ("kit", "plans")  # a world's places: each with a kit or a plan in its data (stages.places)
+# A world's places: each with a kept plan, its design's (stages.places; the filed kits and plans were retired, 2026-10-21).
+KEPT_PLANS = PROPS_HOME / "design" / "plans"
 
 
 def store_of(checkout):
@@ -28,8 +29,8 @@ def store_of(checkout):
 
 
 def places_in(data):
-    """Every place of the world whose data folder is `data`."""
-    return sorted({path.stem for folder in BAKED_PLACES for path in (pathlib.Path(data) / folder).glob("*.json")})
+    """Every place of the world (each with a kept plan; `data`, its data folder, holds none since 2026-10-21)."""
+    return sorted(path.stem for path in KEPT_PLANS.glob("*.json"))
 
 
 def context_of(place, library_root, exceptions_file, store, data):

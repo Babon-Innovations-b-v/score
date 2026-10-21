@@ -226,13 +226,15 @@ def is_floor(row, rows, seen=frozenset()):
 def claimants(place):
     """{take: [(the place that lays it, the model it lays)]} of each of the place's takes another place claims (that
     place's `elsewhere`): the hangar lays old_station's parts_rack-r1 as parts_rack_1 to parts_rack_4. Here, not in
-    surface_data.py, whose every reader is a paid row."""
+    surface_data.py, whose every reader is a paid row. Each place's surface data is its design's where designed
+    (surface_data.record), else data/surfaces' (the people line's)."""
     import surface_data
     found = {}
-    for other in sorted(surface_data.FOLDER.glob("*.json")):
-        for model, claim in json.loads(other.read_text()).get("elsewhere", {}).items():
+    others = sorted({path.stem for folder in (surface_data.DESIGN, surface_data.FOLDER) for path in folder.glob("*.json")})
+    for other in others:
+        for model, claim in surface_data.record(other).get("elsewhere", {}).items():
             if claim["place"] == place:
-                found.setdefault(claim["take"], []).append((other.stem, model))
+                found.setdefault(claim["take"], []).append((other, model))
     return found
 
 

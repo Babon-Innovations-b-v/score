@@ -169,8 +169,8 @@ def test_a_waived_gate_lets_its_output_be_accepted_for_that_key_only():
 
 def test_an_accepted_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks():
     """The got-worse comparison is a gate an accepted gap moves its objects' faults from (overseer 2026-10-16;
-    assembly@wreck: resting objects 2 became 3, all three in "wreck: three pieces do not rest"). With the environment's own
-    wreck gaps: the gap's objects at new faults pass; another object at a new fault still reads worse."""
+    assembly@wreck: resting objects 2 became 3, all three in "wreck: three pieces do not rest"). With a wreck gap written
+    here: the gap's objects at new faults pass; another object at a new fault still reads worse."""
     def resting(objects, findings):
         return {"resting": {"answer": "pass", "measures": {"objects": objects}, "better": {"objects": "lower"},
                             "findings": findings}}
@@ -179,8 +179,16 @@ def test_an_accepted_gaps_objects_leave_the_comparison_and_any_other_object_stil
                       "/wreck/Objects/crate_1: sunk 0.03: below"])
     named = ["/wreck/Objects/leg_strut_1: tips 0.4439: its weight falls outside",
              "/wreck/Objects/forward_section_1: unstable 0.3228: moves", "/wreck/Objects/crate_1: sunk 0.03: below"]
-    saved = review.accepted_card
+    import tempfile
+    from score.stages import gaps
+    saved, kept = review.accepted_card, gaps.FOLDER
     review.accepted_card = lambda store, node, output: old
+    gaps.FOLDER = pathlib.Path(tempfile.mkdtemp()) / "checks/gaps"  # the owner's decision, written here (the old
+    gaps.FOLDER.mkdir(parents=True)  # concepts' decisions were retired with them, 2026-10-21)
+    (gaps.FOLDER / "wreck.json").write_text(json.dumps({"gaps": [{
+        "name": "wreck: three pieces do not rest", "row": "assembly", "check": "resting",
+        "objects": ["/wreck/Objects/leg_strut_1", "/wreck/Objects/leg_foot_1", "/wreck/Objects/forward_section_1"],
+        "reason": "a test's decision", "decided": "owner, 2026-10-16", "faults": []}]}))
     try:
         judged = {"output": "new", "verdicts": resting(3, named)}
         assert review.worse_than_accepted(None, "assembly@wreck", judged) == []
@@ -193,7 +201,7 @@ def test_an_accepted_gaps_objects_leave_the_comparison_and_any_other_object_stil
         judged = {"output": "new", "verdicts": resting(3, named)}  # no gap reaches this node's gate
         assert review.worse_than_accepted(None, "assembly@hub", judged) != []
     finally:
-        review.accepted_card = saved
+        review.accepted_card, gaps.FOLDER = saved, kept
 
 
 if __name__ == "__main__":

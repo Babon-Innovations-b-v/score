@@ -26,7 +26,7 @@ import score.stages.props.likeness_row as likeness_row  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
 from score.stages.surfaces import surface_data  # noqa: E402
 
-# These tests hold the data/props and data/surfaces places; a designed place's hand-in (the home's design/, which
+# These tests hold their own hand-ins; a designed place's hand-in (the home's design/, which
 # the sandbox links) is prepare_test.py's, so none is read here.
 import score.stages.surfaces  # noqa: E402
 prop_data.DESIGN = surface_data.DESIGN = pathlib.Path(tempfile.mkdtemp()) / "no design"
@@ -36,17 +36,21 @@ PROPS = ("props-inputs", "closeup", "pixal", "likeness-calibration", "likeness")
 
 
 def test_only_the_places_with_prop_data_have_prop_rows_and_a_place_without_them_reads_without_one():
-    """The camp grounds' cairn (2026-10-13) was world 1's first object by the prop route; the ship's rooms (b31e05bd)
-    and the hangar (e24781c1) followed with prop data of their own; every other place's surface line reads without
-    its rows, so no other key moves."""
+    """A place's prop rows come with its hand-in (its design's: the old data/props hand-ins were retired, 2026-10-21);
+    every other place's surface line reads without its rows, so no other key moves."""
     runner = stages.runner()
-    places = stages.places(runner.world)
-    with_data = {"campgrounds", "hangar", "cockpit", "quarters", "galley", "storage", "engineroom",
-                 "shiplock", "greenhouse"}
-    assert {node[1] for node in runner.nodes(places) if node[0].name in PROPS} == with_data
-    inputs = runner.stages["finish-route-views"]
-    assert "pixal" in inputs.after and "pixal" not in runner.reads(inputs, "hub")
-    assert "pixal" in runner.reads(inputs, "campgrounds")
+    held = prop_data.DESIGN
+    prop_data.DESIGN = pathlib.Path(tempfile.mkdtemp())
+    (prop_data.DESIGN / "campgrounds.json").write_text(json.dumps({"objects": {}}))
+    try:
+        found = {node[1] for node in runner.nodes(["campgrounds", "hub"]) if node[0].name in PROPS}
+        assert found == {"campgrounds"}, found
+        inputs = runner.stages["finish-route-views"]
+        assert "pixal" in inputs.after and "pixal" not in runner.reads(inputs, "hub")
+        assert "pixal" in runner.reads(inputs, "campgrounds")
+    finally:
+        shutil.rmtree(prop_data.DESIGN)
+        prop_data.DESIGN = held
 
 
 def test_the_inputs_row_declares_its_scenes_inventory_not_the_whole_folder():

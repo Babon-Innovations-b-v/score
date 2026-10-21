@@ -57,7 +57,7 @@ PER_UNIT = {"stages": {
     "surfaces-bake": {"stage": "surfaces-bake", "unit": "bake job", "count": {"files": "made/*.gltf"}, "also": [],
                       "likely_euros": 0.04, "high_euros": 0.2, "runs": 200, "sources": {"google calls": "toy"},
                       "forecast": {"rule": "models", "source": "the takes and the models pixal makes"}}}}
-ROUTE_WORK = "prop data for square: data/props/square.json"
+ROUTE_WORK = "prop data for square: its design hand-in (prepare)"
 LINE_PAID = ("pixal@hangar", "sound@hangar", "surfaces-bake@hangar")  # the paid nodes of the hangar's whole line
 
 

@@ -89,10 +89,19 @@ def test_the_film_shot_matches_the_demo_film_rows():
     assert render.FILM_FRAMES == round(demo_film.SECONDS * 24)
 
 
+def design_scenes():
+    """Environment 1's scenes as its data names them (data/places/within.json's tree and shells, each look's scenes in
+    data/definitions/place.json): the test's store holds no design, so no scene of it is a place of the build here."""
+    data = settings.SCORE_REPO / "data"
+    within = json.loads((data / "places/within.json").read_text())
+    looks = json.loads((data / "definitions/place.json").read_text())
+    return ({*within["within"], *(entry["within"] for entry in within["within"].values()), *within["shells"]}
+            | {scene for look in looks.values() if isinstance(look, dict) for scene in look.get("scenes", [])})
+
+
 def test_world1_starter_is_sound_and_gives_the_places_the_time():
-    from score import stages
     film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "k9")
-    assert origin == "starter" and script.faults(film, set(stages.places(stages.world1()))) == []
+    assert origin == "starter" and script.faults(film, design_scenes()) == []
     lengths = dict(zip(range(len(film["segments"])), script.timeline(film)))
     walks = sum(lengths[index][1] for index, segment in enumerate(film["segments"]) if segment["cut"] == "walk-through")
     assert walks > script.total_seconds(film) / 2
@@ -275,10 +284,9 @@ def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_pat
 def test_environment_1_demo_is_its_complete_default():
     """env1_demo is environment 1's default film, complete (owner, 2026-10-21): every segment names a real scene, the
     physics animation long enough to see an orbit, the walk-throughs the Base's rooms, inside its target."""
-    from score import stages
     film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "env1_demo")
     assert origin == "starter" and film["default"] is True
-    assert script.faults(film, set(stages.places(stages.world1())) | {"base"}) == []
+    assert script.faults(film, design_scenes()) == []
     assert script.total_seconds(film) <= film["target_seconds"]
     animation = next(segment for segment in film["segments"] if segment["cut"] == "setting-animation")
     assert animation["seconds"] * animation["days_per_second"] >= 300  # Earth goes most of the way round the Sun

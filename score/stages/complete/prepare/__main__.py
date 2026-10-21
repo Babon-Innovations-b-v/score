@@ -166,10 +166,11 @@ def inventoried_places(world_places):
 
 def remake(runner, data, root, work, stock=None, moved=None):
     """The remake's prepare record (this package's docstring)."""
+    from score.review import plans
     inventories, waiting = groups.current(runner.store, inventoried_places(stages.places(runner.world, runner.store)))
     by_place = {place: groups.place_groups(place, record) for place, record in inventories.items()}
-    index, library_entry = read_library(root, groups.inventories(data))
-    rates = predict.hub_rates(data)
+    index, library_entry = read_library(root, groups.inventories(plans.KEPT_INVENTORY))
+    rates = predict.hub_rates()
     takes = [take_entry(group, inventories[place], index, rates, work)
              for place, found in by_place.items() for group in found if not group["reuse"]]
     route = design_route(runner)

@@ -81,15 +81,14 @@ def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a
                                                                       "by": "its rows' metres"}
     assert "a bench, 2 a crate" in ask.drawn[0] and len(asked[0]["contents"][0]["parts"]) == 3
     assert plan_writing.spent(store, ["shed"]) == 0.16 and plan_writing.price(store) == 0.16
-    told = asked[0]["contents"][0]["parts"][0]["text"]
-    assert '"leads to": "yard"' in told
     plan = plans.current(store, "shed")["plan"]
     assert plans.current(store, "shed")["how"] == "written"
     items = {item[0]: item for item in plan["items"]}
     assert items["BENCH 1"] == ["BENCH 1", 1.0, 0.3, 2.0, 0.6, "S", "item"]
     assert plan["rows"]["BENCH 1"] == ["bench", "vice"]  # the vice rides on it, placed by no item of its own
     assert plan["shapes"]["CRATE 1"]["shape"] == "circle" and plan["shapes"]["LAMP 1"]["base"] == 2.0
-    assert plan["doors"] == [["S", 2.0, 0.9, "DOOR to the yard"]] and plan["leads"]["S"]["to"] == "yard"
+    # no filed plan names its doors (retired 2026-10-21): its doorway is the answer's opening, leading to the yard
+    assert plan["doors"] == [] and [opening["to"] for opening in plan["openings"]] == ["yard"], plan["openings"]
     assert len(plan["walls"]) == 4 and plan["roofs"][0]["top"] == 3.4 and plan["section"] == {"y": 1.5}
     words = [gap["words"] for gap in plan["gaps"]]
     assert {"item": "ghost", "why": "no such row"} in plan["dropped"] and {"item": "walls", "why": "1 off the schema"} \

@@ -28,12 +28,13 @@ LINE = "people"
 
 
 def library_surfaces():
-    """{library surface: its spec} the people place allows."""
+    """{library surface: its spec}, every variant in its own token (the people place's own list of materials in
+    place.json was retired, 2026-10-21)."""
     folder = str(REPO / "tools/props/library")
     if folder not in sys.path:
         sys.path.append(folder)
     import library
-    return library.resolved(LINE)
+    return library.by_library(LINE)
 
 
 def read_glb(path):

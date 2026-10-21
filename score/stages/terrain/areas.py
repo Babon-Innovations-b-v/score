@@ -34,8 +34,10 @@ import numpy as np
 
 from score.stages.terrain import landforms, outside, plan as ground_plan
 import score.stages.shapes_first.align as align
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+KEPT_PLANS = PROPS_HOME / "design" / "plans"  # the kept plans (score/review/plans.py keep), the design's
 LAYER = "terrain"  # the layer its rows carry in the place's hand-in record (shapes_first.ADAPTERS)
 # The coarse plan grid the footprints are read on: one point a metre on a 260 m plan.
 GRID_STEP = 1.0
@@ -63,21 +65,22 @@ def body_plan(place, data):
     return None, None
 
 
-def laid_ground(place, data):
-    """The place's tools/usd/ground.Ground from its copied ground record, or None when it has none."""
+def laid_ground(place):
+    """The place's tools/usd/ground.Ground from its copied ground record, or None when it has none: the place's middle
+    on its seat (the old kits' seat offsets were retired with them, 2026-10-21)."""
     sys.path.insert(0, str(REPO / "tools/usd"))  # already on the path by the assembly stage's import
     import ground as grounds
-    kit = read(pathlib.Path(data) / "kit" / f"{place}.json") or {}
-    return grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))
+    return grounds.place_ground(place, [0.0, 0.0])
 
 
 def patch_box(place, data, laid):
-    """The place's fine patch as a box of the plan's flat numbers: its own box (terrain gates.footprint) grown by
-    outside.NEAR_MARGIN, mapped onto the plan (ground.plan_box)."""
+    """The place's fine patch as a box of the plan's flat numbers: its own box (terrain gates.footprint: its kept
+    plan's floor, wide and deep round its middle) grown by outside.NEAR_MARGIN, mapped onto the plan (ground.plan_box)."""
     from score.stages.terrain import gates
     import ground as grounds
-    scene = read(pathlib.Path(data) / "scene" / f"{place}.json") or {}
-    low, high = gates.footprint(scene, read(pathlib.Path(data) / "kit" / f"{place}.json"))
+    plan = read(KEPT_PLANS / f"{place}.json") or {}
+    wide, deep = float(plan.get("w") or 0.0), float(plan.get("d") or 0.0)
+    low, high = gates.footprint({"floor": [[-wide / 2, -deep / 2], [wide / 2, deep / 2]]}, None)
     return grounds.plan_box(laid, low - outside.NEAR_MARGIN, high + outside.NEAR_MARGIN)
 
 
@@ -128,7 +131,7 @@ def area_id(name):
 
 def concept_words(place, data):
     """The concept's elements the place's plan sends to the made ground (their own words), for the close-ups."""
-    found = read(pathlib.Path(data) / "plans" / f"{place}.json") or {}
+    found = read(KEPT_PLANS / f"{place}.json") or {}
     return [entry["element"] for entry in found.get("elements") or []
             if "drop" in entry and GROUND_WORDS.search(entry["drop"])]
 
@@ -196,7 +199,7 @@ def detail_areas(place, data, rough=None):
     """The place's detail areas, nearest first: [{id, kind, landform, words, plan_at, at, size, rough}], read over the
     registered rough model's points (`rough`, rough_points) when given."""
     record, _ = body_plan(place, data)
-    laid = laid_ground(place, data) if record else None
+    laid = laid_ground(place) if record else None
     if laid is None:
         return []
     grid = plan_grid(record)
@@ -252,6 +255,10 @@ def write(place, registration, data=REPO / "data"):
     found = detail_areas(place, data, rough_points(registration))
     paths = (data / "inventory" / f"{place}.json", data / "props" / f"{place}.json",
              data / "surfaces" / f"{place}.json")
+    if not (paths[0].exists() and paths[2].exists()):
+        raise SystemExit(f"{place}: no inventory and surface data under {data} to land its areas in (the per-place data "
+                         "was retired on 2026-10-21; a designed place's rows are its design hand-in's, written by "
+                         "prepare)")
     props = read(paths[1]) or {"place": place, "order": "prop-first", "objects": {}, "fallback": {}}
     for path, written in zip(paths, landed(json.loads(paths[0].read_text()), props,
                                            json.loads(paths[2].read_text()), place, found)):

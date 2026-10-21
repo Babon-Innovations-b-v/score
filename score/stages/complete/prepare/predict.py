@@ -1,8 +1,8 @@
 """Each take's predicted outcome before the batch, from a measured failure mode only (#21's batch contract): a group
 whose shape every measured row of that shape failed on is a predicted gap and is not bought; any other is bought,
 with its shape's measured close-up pass share beside it. No threshold is a guess at an outcome: the rates are counted
-here from the hub's prop-route table (paper/evidence/compare-hub/table.json, 13 objects, 2026-10) against the hub
-inventory's sizes, every time.
+here from the hub's prop-route table (paper/evidence/compare-hub/table.json, 13 objects, 2026-10) against those
+objects' sizes as measured (sizes.json beside it, from the hub's inventory of then), every time.
 
 Shapes by size alone (groups.sides, each side over the longest): a rod has its middle side at most ROD of its
 longest (a strut, a rib, a pipe), a sheet its shortest side at most SHEET (a mat, a panel), anything else is solid.
@@ -16,7 +16,7 @@ from score.stages.complete.prepare import groups
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 TABLE = REPO / "paper/evidence/compare-hub/table.json"
-TABLE_PLACE = "hub"  # the table's objects are the hub's rows
+SIZES = TABLE.with_name("sizes.json")  # each table object's size as the hub's inventory gave it when it was measured
 ROD = 0.15
 SHEET = 0.05
 MIN_MEASURED = 3
@@ -49,11 +49,10 @@ def measured(table_rows, sizes):
     return found
 
 
-def hub_rates(data):
-    """measured() of the hub's table against the hub inventory's sizes under `data`."""
+def hub_rates():
+    """measured() of the hub's table against its objects' sizes as measured (SIZES, beside the table)."""
     rows = json.loads(TABLE.read_text())["rows"]
-    inventory = json.loads((pathlib.Path(data) / "inventory" / f"{TABLE_PLACE}.json").read_text())
-    return measured(rows, {row["id"]: row.get("size") for row in inventory["rows"]})
+    return measured(rows, json.loads(SIZES.read_text())["sizes"])
 
 
 def predicted(size, rates):

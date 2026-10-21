@@ -48,7 +48,7 @@ import re
 from score import graph
 from score.adapters import compute
 from score.graph import chain
-from score.stages.complete.gaps import FINDINGS, PLACE, WORLD, fill, inputs, milestones, schedule
+from score.stages.complete.gaps import FINDINGS, PLACE, WORLD, fill, inputs, milestones, rows, schedule
 
 MISSING = "missing"
 # The code work whose make, once it lands, is Pixal3D's, a model a gap: (its work line's pattern, its label), priced
@@ -77,10 +77,12 @@ def current(written, store):
 
 
 def prop_objects(data, place):
-    """{row: entry} of the place's prop objects (data/props/<place>.json); none without the file."""
+    """{row: entry} of the place's prop objects (its design's hand-in, prop_data.DESIGN, else `data`'s props); none
+    without one."""
     from score.stages.props import prop_data
-    path = pathlib.Path(data) / "props" / f"{place}.json"
-    return prop_data.prop_objects(prop_data.record_at(path)) if path.is_file() else {}
+    found = [path for path in (prop_data.DESIGN / f"{place}.json", pathlib.Path(data) / "props" / f"{place}.json")
+             if path.is_file()]
+    return prop_data.prop_objects(prop_data.record_at(found[0])) if found else {}
 
 
 def take_of(objects, gap):
@@ -101,15 +103,17 @@ def pixal_models(found, data, place):
 
 
 def surface_takes(data, place):
-    """The takes the place's surface data lists (data/surfaces/<place>.json), by name."""
-    path = pathlib.Path(data) / "surfaces" / f"{place}.json"
-    return set(json.loads(path.read_text()).get("takes") or {}) if path.is_file() else set()
+    """The takes the place's surface data lists (its design's, surface_data.DESIGN, else `data`'s), by name."""
+    from score.stages.surfaces import surface_data
+    found = [path for path in (surface_data.DESIGN / f"{place}.json", pathlib.Path(data) / "surfaces" / f"{place}.json")
+             if path.is_file()]
+    return set(json.loads(found[0].read_text()).get("takes") or {}) if found else set()
 
 
 def light_jobs(data, place):
     """The light passes' render jobs a place's make sends (passes.pass_jobs: its scene record's views, VIEWS_A_JOB a
     job): its accepted scene-record output's views, which its light layer renders, else the views the scene-record
-    row will write from its filed plan (planned_views), else None (no plan with leads: no record to light)."""
+    row will write from its kept plan (planned_views), else None (no plan with leads: no record to light)."""
     from score.stages.light import passes
     from score.store import Store
     store = Store.default()
@@ -117,8 +121,7 @@ def light_jobs(data, place):
     record = store.read_file(output, f"record/{place}.json") if output else None
     if record is not None:
         return math.ceil(len(record.get("views") or []) / passes.VIEWS_A_JOB)
-    path = pathlib.Path(data) / "plans" / f"{place}.json"
-    plan = json.loads(path.read_text()) if path.is_file() else {}
+    plan = rows.plan(data, place) or {}
     if "leads" not in plan:
         return None
     return math.ceil(planned_views(plan) / passes.VIEWS_A_JOB)

@@ -78,9 +78,13 @@ def test_the_empty_library_names_the_missing_input():
             library.spec(library.theme_library(path), "rubber_mat", "panel-grey", {"panel-grey": [0, 0, 0]})
 
 
-def test_the_wear_levels_rise():
+def test_the_wear_levels_rise_and_a_place_s_own_wear_is_retired():
     levels = library.theme_library()["wear_levels"]
     assert levels["new"] == 0.0 < levels["worked"] < levels["worn"] <= 1.0
+    # a place's own wear and materials in place.json were retired (2026-10-21): a scene's are its scene palette's
+    with pytest.raises(library.LibraryEmpty, match="hub: no wear"):
+        library.wear_of("hub")
+    assert library.resolved("hub") == {}
 
 
 def test_a_token_colour_is_linear():
@@ -296,7 +300,8 @@ def test_the_command_line_says_the_empty_library():
     with tempfile.TemporaryDirectory() as folder:
         listed = pathlib.Path(folder) / "library-list.txt"
         assert command_output(["--list"], folder) == f"library: 0 families, 0 variants; list: {listed}\n"
-        assert command_output(["hub"], folder).startswith("library hub: 0 materials on 0 library variants")
+        with pytest.raises(SystemExit, match="library: hub: no wear"):  # a place's own wear, retired: refused by name
+            command_output(["hub"], folder)
 
 
 def main():

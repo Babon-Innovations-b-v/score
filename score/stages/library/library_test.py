@@ -95,9 +95,12 @@ FILM = graph.Stage("demo-film", "place", make_text, TOY, (checks.Check("ok", jud
 
 
 def world_data(root, free=False, exceptions=None):
-    """The toy environment's data folder: its record, a kit for its one place, the briefs, the library-free decisions."""
+    """The toy environment's data folder: its record, the briefs, the library-free decisions; and beside it the home
+    with its one place's kept plan (its design's, the place record the hand-over names it by)."""
     data = root / "data"
-    for path, content in {"definitions/world.json": {"name": WORLD, "seed": 7}, f"kit/{PLACE}.json": {"pieces": []},
+    (root / "home/design/plans").mkdir(parents=True, exist_ok=True)
+    (root / f"home/design/plans/{PLACE}.json").write_text(json.dumps({"leads": {}}))
+    for path, content in {"definitions/world.json": {"name": WORLD, "seed": 7},
                           "checks/library-free.json": {"worlds": [{"world": WORLD, "why": "a toy", "who": "@owner",
                                                                    "when": "2026-10-18"}] if free else []}}.items():
         (data / path).parent.mkdir(parents=True, exist_ok=True)
@@ -115,7 +118,8 @@ def toy_runner(name, free=False, exceptions=None):
     root = HOME / name
     data = world_data(root, free, exceptions)
     table = (GROUND, MADE, FILM)
-    return graph.Runner((*table, *library.rows(table, data)), graph.Environment(WORLD, 7, {"data": str(data)}),
+    return graph.Runner((*table, *library.rows(table, data)),
+                        graph.Environment(WORLD, 7, {"data": str(data), "home": str(root / "home")}),
                         Store.in_folder(root / "store"))
 
 
@@ -240,7 +244,7 @@ def fixture_inputs(name, fixture):
     as a place named "fixture" with an assembly of that one stage."""
     root = HOME / name
     data = world_data(root)
-    (data / "kit/fixture.json").write_text("{}")
+    (root / "home/design/plans/fixture.json").write_text("{}")
     assembled = root / "assembly"
     assembled.mkdir()
     (assembled / "fixture.usda").write_text((REPO / "data/checks/library" / fixture).read_text())
@@ -248,7 +252,7 @@ def fixture_inputs(name, fixture):
     output.mkdir()
     handover.write(output / handover.REPORT, json.loads((HERE / "handover_example.json").read_text()))
     return output, {"world record": data / "definitions/world.json", "library free": data / "checks/library-free.json",
-                    "place record": data / "kit/fixture.json", "assembly": assembled}
+                    "place record": root / "home/design/plans/fixture.json", "assembly": assembled}
 
 
 def fixture_library(name):

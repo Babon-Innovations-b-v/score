@@ -213,12 +213,13 @@ stage as each stage is built; nothing moves before.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `earth-kit` (paid) and `earth-seed` (free, `stages/earth_seed`, its overlay) make every place's base
-  stage again from git, its design and the rows' outputs (data/kit only where no design is locked, `kit_is_base`;
-  a designed scene's room shell laid from its locked plan), the ship's rooms and a scene added in the app too, and every row
+  stage again from git, its design and the rows' outputs (a designed scene's room shell laid from its locked plan;
+  `kit_is_base` reads a kit laid in data/kit, none since the old kits were retired on 2026-10-21, so earth-kit has
+  no row), the ship's rooms and a scene added in the app too, and every row
   that read the lost round-three or ship seed reads it (`stages.earth_seeded`). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
   every ground from its plan in `data/ground/plan/`, gated on scale and slope; `ground-fit@<place>` (free) judges each
   seated place's stage on it: ground under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
-  rows, the finish route to checked bake (its overlay; per-place data in
+  rows, the finish route to checked bake (its overlay; per-place data its design's, `{home}/design/surfaces/`, the people line's in
   `data/surfaces/`). Which layer rows a place has (people, crops, effects, motion, physics, light, sound) is read off its design alone, `stages/design_layers.py` (its locked concept's scene inventory, each row's
   row kind): the table's `designed(kind)` and the assembly's layers gate (`assembly.needed_layers`, reading the same
   kept inventory as its `design` input) give one answer, so the gate never waits on a layer the table has no row for
@@ -242,10 +243,9 @@ stage as each stage is built; nothing moves before.
   (`stages/complete/complete_test.py` holds them equal). The library check (`stages/complete/library`, its overlay) is
   not one of its gates: a standalone check of the accepted assembly against the library, its findings the cockpit's
   problems. Nor is the visual check (`stages/complete/visual`, its overlay): it reads the films, made only once
-  complete passes, and writes its findings, with their pictures, the same way. A ship place's assembly lays its made
-  pieces on its kit-built base (`stages/assembly/ship_made.py`, in the table). `complete-boxes` (paid, the ship's
-  places) measures the boxes no other row measures (code rows, rows taken from another place's take), so complete's
-  box check has a verdict for each. The materials checks (`stages/complete/materials`, its overlay: texture detail
+  complete passes, and writes its findings, with their pictures, the same way. (The old ship kit's made pieces laid on
+  its base, `ship_made.py`, and `complete-boxes`, which measured the old inventories' boxes, were retired with the old
+  kits and inventories on 2026-10-21: a design's every box is its reading's.) The materials checks (`stages/complete/materials`, its overlay: texture detail
   near cameras, finish-border raggedness, kit bakes older than their bake code) are not gates either: standalone and
   free, their findings reach the cockpit as problems with their pictures. `surface-tiles` (paid, its overlay) bakes
   each library surface a place's room shell names as a repeating tile, and the assembly draws the shell with them.
@@ -256,7 +256,7 @@ stage as each stage is built; nothing moves before.
   apply only to a place with a hand-in: its approved design's (`{home}/design/props/<place>.json`, written by
   prepare from the takes it priced, `stages/complete/prepare/handin.py`; with it its surface data,
   `{home}/design/surfaces/<place>.json`, and rough-model reads its locked concept), else `data/props/<place>.json`
-  (the ship rooms', the people's line). A place with neither has no rows: it waits on its design.
+  (the people's line; the old hand-ins were retired, 2026-10-21). A place with neither has no rows: it waits on its design.
   `rough-model` (paid, `stages/rough_model`, its overlay) puts each place's concept through the prop pipeline whole,
   after its plan: one Pixal3D model, its rough model, never shipped. The shared loop (`stages/shapes_first`, its
   overlay, #41) is every model layer's one way to a model: rough model, `rough-align` (its registration to the plan,

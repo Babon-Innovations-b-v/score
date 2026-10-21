@@ -154,7 +154,11 @@ def check_sky_builders():
 def check_sky(folder):
     """A record's haze body, Earth haze ring and water mirror written onto its stage, with the game's numbers kept
     where a renderer reads them; a place shown from another leaves its sky to the one showing it."""
-    ring = json.loads((scene.SCENES / "launch.json").read_text())["environment"]["haze"]
+    ring = {"shape": "ring", "radius": 297.0, "low": 0.0, "high": 150.0, "centre": [0.0, 0.0], "segments": 96,
+            "faint": 0.15, "thicken_from": 50.0, "thickest_at": 84.0, "thickest": 0.35, "gone_by": 150.0,
+            "ground_haze": 0.97, "ground_height": 24.0, "gap": [302.0, 58.0], "gap_edge": 4.0, "horizon": "#03335f",
+            "zenith": "#020c22", "deepest_at": 0.7, "deepening": 0.55, "eye": 1.7,
+            "from": "a ring written here, as the old launch record held one (its records retired 2026-10-21)"}
     record = {
         "water": [{"name": "harbour", "builder": "grid", "low": [-10, -10], "high": [10, 10], "height": 0.0,
                    "step": 5.0, "surface": "harbour_water",

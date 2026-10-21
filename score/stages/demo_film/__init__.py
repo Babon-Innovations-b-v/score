@@ -157,14 +157,11 @@ def applies_extra(place):
 
 
 def common_files(place):
-    """The place's seed scene record where it has one, the people its design stands (its entry of
-    data/people/rows.json: seen_faults), the surfaces' sounds (the soundtrack's footsteps), and every tool file a film
-    is made with. A ship room has no seed record (its record is its assembly's scene.json, which demo.plan reads
-    first), so it declares none (2026-10-16: demo-film@cockpit refused, data/scene/cockpit.json missing)."""
+    """The people its design stands (its entry of data/people/rows.json: seen_faults), the surfaces' sounds (the
+    soundtrack's footsteps), and every tool file a film is made with. No place has a seed record (retired 2026-10-21):
+    its record is its assembly's scene.json, which demo.plan reads first."""
     found = {f"tool {path}": "{repo}/" + path for path in TOOLS}
     found["sound surfaces"] = "{data}/sound/surfaces.json"  # the walker's footsteps by the kit kind underfoot
-    if (REPO / "data/scene" / f"{place}.json").exists():
-        found["scene"] = "{data}/scene/" + place + ".json"
     found["people"] = ("{data}/people/rows.json", people_rows.place_part(place))
     return found
 

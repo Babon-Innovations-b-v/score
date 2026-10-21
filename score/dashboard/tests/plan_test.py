@@ -15,17 +15,19 @@ pytestmark = pytest.mark.django_db(transaction=True)
 
 
 @pytest.fixture
+def world(drafting):
+    """The fixture environment still in design: its plans are made here."""
+    return drafting
+
+
+@pytest.fixture
 def planned(world, monkeypatch, tmp_path):
-    """alpha's concept picked and its inventory read from it, plans reading the fixture's data; alpha's plan."""
+    """alpha's concept picked and its inventory read from it, plans reading the fixture's data."""
     monkeypatch.setattr(plans, "DATA", world.data)
     monkeypatch.setattr(plans, "KEPT", tmp_path / "kept")
     monkeypatch.setattr(plans, "KEPT_INVENTORY", tmp_path / "kept-inventory")
     monkeypatch.setattr(plans, "KEPT_CONCEPT", tmp_path / "kept-concepts")
-    (world.data / "plans").mkdir(exist_ok=True)
-    (world.data / "plans/alpha.json").write_text(json.dumps({
-        "title": "ALPHA", "shell": "kit", "w": 6.0, "d": 4.0, "height": "ceiling 3 m",
-        "doors": [["S", 3.0, 0.9, "DOOR"]], "leads": {"S": {"to": "outside", "why": "its one door"}}, "items": []}))
-    sha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
+    sha = fixture.concept_of(world.store, "alpha")
     fixture.an_inventory_read(world.store, world.data, "alpha", sha)
     world.source.refresh()
     return world
@@ -84,9 +86,14 @@ def test_a_rough_plan_offers_make_plan_and_his_click_writes_it_with_its_gaps_to_
     from score.dashboard.pages import concepts
     from score.review import plan_drawing, plan_writing, web
     monkeypatch.setattr(concepts, "in_background", concepts.applied_here)  # the thread's work, now
-    # in units of its top-down drawing (100 a metre: its own plan's box, 6 x 4 m, measures it)
+    # in units of its top-down drawing (100 a metre: its lamp row's metres, 6 x 0.4 m, measure it)
+    fixture.an_inventory_read(planned.store, planned.data, "alpha", fixture.concept_of(planned.store, "alpha"),
+                              size=[6.0, 0.4, 0.8])
+    planned.source.refresh()
     answer = {"outline": [[0, 0], [600, 0], [600, 400], [0, 400]],
-              "items": [{"row": "r1", "box_2d": [180, 0, 220, 600], "tall": 0.8}], "people": [[100, 100], [500, 350]]}
+              "items": [{"row": "r1", "box_2d": [180, 0, 220, 600], "tall": 0.8}], "people": [[100, 100], [500, 350]],
+              "openings": [{"kind": "door", "at": [300, 400], "wide": 90, "angle": 0, "swing": "left", "sill": 0.0,
+                            "head": 2.1, "to": "outside"}]}  # its one door, in the south wall
     asked = []
 
     def written(store, place, euros, by):  # the writing's own process, its model call a stand-in

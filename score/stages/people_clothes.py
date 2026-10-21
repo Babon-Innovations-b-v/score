@@ -1,5 +1,5 @@
 """What a person row of a picked design wears (owner, 2026-10-13: the concept decides the clothes), read off the design
-alone in the people rows' refresh (people_rows.refreshed_place): of the people place's library fabrics, those whose name
+alone in the people rows' refresh (people_rows.refreshed_place): of the library's fabrics, those whose name
 shares a word with the row's name as read (words_of), the nearest by CIE76 dE to the row's measured
 torso, used only within WITHIN of it. The torso is measured on the locked concept: each figure's torso (rows 30-60%
 and columns 30-70% of its SAM 3 box), its median colour, and the median over the row's figures. Lightness never
@@ -35,11 +35,12 @@ def labels():
 
 
 def fabrics():
-    """{fabric: its CIELAB} of every library fabric the people place allows."""
+    """{fabric: its CIELAB} of every library fabric, each in its own token (the people place's own list of materials
+    in place.json was retired, 2026-10-21)."""
     found = labels()
     import library
     return {name: [float(value) for value in found.lab(found.srgb(np.array(spec["colour"], dtype=float))[None])[0]]
-            for name, spec in library.resolved(people_rows.LINE).items() if spec.get("family") == "fabric"}
+            for name, spec in library.by_library(people_rows.LINE).items() if spec.get("family") == "fabric"}
 
 
 def words_of(row):

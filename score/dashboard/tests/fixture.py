@@ -1,5 +1,5 @@
 """A tiny environment for the dashboard's tests, written with the framework's own store calls: two places (alpha, beta)
-from kit files in a temp data root; nodes of plan, scene-record, closeup (paid), assembly, complete and demo-film,
+designed in its store (concept picked, scene inventory read, plan written) over a temp data root; nodes of plan, scene-record, closeup (paid), assembly, complete and demo-film,
 each with a stored output, a finish record, a judgement and the runner's automatic accept (beta's close-up fails);
 one fault report, one log, a waiting worse close-up at alpha, a two-row ledger, and FakeBackend, a compute backend
 that records its calls and starts nothing."""
@@ -100,12 +100,11 @@ class Built:
 
 
 def data_root(root):
-    """The kit files, the looks, the gaps of the fixture environment."""
+    """The looks and the gaps of the fixture environment (its places are its designs': no kit or plan is filed in the
+    data since 2026-10-21)."""
     data = root / "data"
-    for place in PLACES:
-        (data / "kit").mkdir(parents=True, exist_ok=True)
-        (data / "kit" / f"{place}.json").write_text("{}")
     (data / "definitions").mkdir(parents=True, exist_ok=True)
+    (data / "places").mkdir(parents=True, exist_ok=True)
     (data / "definitions/place.json").write_text(json.dumps({
         "shared": {"is": "rules"},
         "alpha_look": {"name": "the alpha look", "scenes": ["alpha"], "style": {"text": "plain"}, "palette": PALETTE,
@@ -117,34 +116,79 @@ def data_root(root):
 
 
 def a_concept(store, data, folder, node):
-    """A concept picture of `node` in the store's blobs, named in data/places/concepts.json."""
+    """A concept picture of `node`: its concept review draw, its bytes in the store's blobs."""
+    from score.review import concepts
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{node}.png"
     path.write_bytes(picture((123, 45, 67)))  # a colour no output of the fixture has
     sha = file_hash(path)
     store.put_blob(path, sha)
-    listed = data / "places" / "concepts.json"
-    listed.parent.mkdir(parents=True, exist_ok=True)
-    found = json.loads(listed.read_text()) if listed.is_file() else {"concepts": {}}
-    found["concepts"][node] = {"sha256": sha, "name": path.name}
-    listed.write_text(json.dumps(found))
+    concepts.recorded(store, f"concepts/{node}/draws/2026-10-20T07-00-00.json",
+                      {"place": node, "sha": sha, "name": path.name, "by": "joey",
+                       "at": "2026-10-20T07:00:00+00:00"})
     return sha
 
 
-def an_inventory_read(store, data, node, sha):
-    """`node`'s concept `sha` picked (its concepts.json picture: a pick record, no draw) and its scene inventory read
-    from it, so its numbers count (CONTEXT.md "scene inventory")."""
+def a_lost_concept(store, node):
+    """A concept draw of `node` whose picture is lost (drawn on no room: an outside place then): its record only, no
+    bytes in the blobs."""
     from score.review import concepts
-    concepts.recorded(store, f"concepts/{node}/picks/2026-10-20T09-00-00.json",
-                      {"place": node, "sha": sha, "by": "joey", "at": "2026-10-20T09:00:00+00:00"})
-    (data / "inventory").mkdir(parents=True, exist_ok=True)
-    (data / "inventory" / f"{node}.json").write_text(json.dumps({
+    concepts.recorded(store, f"concepts/{node}/draws/2026-10-20T07-00-00.json",
+                      {"place": node, "sha": "b" * 64, "name": f"{node}.png", "by": "joey", "room": None,
+                       "at": "2026-10-20T07:00:00+00:00"})
+
+
+def an_inventory_read(store, data, node, sha, at=None, size=None):
+    """`node`'s concept `sha` picked (a pick record, no draw needed) and its scene inventory read from it by today's
+    method (score/review/reading.py), its lamp row `size` in metres when given, and, given the data root `data`, kept
+    in the design beside it, so its numbers count (CONTEXT.md "scene inventory")."""
+    from score.review import concepts, reading
+    if concepts.picked(store, node) != sha:
+        concepts.recorded(store, f"concepts/{node}/picks/2026-10-20T09-00-00.json",
+                          {"place": node, "sha": sha, "by": "joey", "at": "2026-10-20T09:00:00+00:00"})
+    reading.kept(store, {"place": node, "concept": sha, "at": at or concepts.now(), "method": reading.METHOD,
+                         "gaps": [], "skipped": [], "merged": [], "euros": {"total": 0.0}, "seconds": {},
+                         "size": [96, 60],
+                         "inventory": {"scene": node, "concept_pick": {"sha256": sha},
+                                       "rows": [{"id": "r1", "name": "lamp", "noun": "lamp", "kind": "generate",
+                                                 "terrain": False, "count": 2, "anchor": "floor", "where": "middle",
+                                                 "boxes": [[10, 10, 20, 30], [40, 10, 50, 30]],
+                                                 "box": [10, 10, 50, 30], **({"size": size} if size else {})}]}})
+    if data is not None:  # kept in the design too, where the cockpit counts it
+        kept_inventory(data.parent / "props", node, sha)
+
+
+def kept_inventory(props, node, sha):
+    """`node`'s scene inventory kept in the design where the cockpit reads it, read from its concept `sha`."""
+    folder = props / "design" / "inventory"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{node}.json").write_text(json.dumps({
         "scene": node, "concept_pick": {"sha256": sha}, "rows": [{"id": "r1", "name": "lamp", "count": 2}]}))
 
 
-def build(root):
+def concept_of(store, node):
+    """The sha of `node`'s picked concept, else of its newest draw, else None."""
+    from score.review import concepts
+    return concepts.picked(store, node) or next((draw["sha"] for draw in reversed(concepts.draws(store, node))), None)
+
+
+def designed(store, node, sha, props):
+    """`node`'s design done: its concept `sha` picked, its scene inventory read from it and kept in the design under
+    `props` (the cockpit's home) and its plan written from that reading, so it is a place of the build (stages.places:
+    no place is filed in the data since 2026-10-21)."""
+    from score.review import plan_writing
+    an_inventory_read(store, None, node, sha, at="2026-10-20T09:10:00+00:00")
+    kept_inventory(props, node, sha)
+    plan_writing.kept(store, {"place": node, "concept": sha, "reading": plan_writing.reading_at(store, node),
+                              "method": plan_writing.METHOD, "by": "test", "at": "2026-10-20T09:30:00+00:00",
+                              "euros": 0.0,
+                              "plan": {"title": node.upper(), "w": 6.0, "d": 4.0, "height": "", "doors": [],
+                                       "items": [], "rows": {}, "people": [], "gaps": []}})
+
+
+def build(root, design=True):
     """The fixture environment under `root`: its data, its store (not the framework's: owner writes are allowed), its
-    source and its ledger."""
+    source and its ledger; with `design` False alpha only drawn and beta not, neither a place of the build yet."""
     root = pathlib.Path(root)
     data = data_root(root)
     props = root / "props"
@@ -169,7 +213,11 @@ def build(root):
     ledger.write_text("\n".join(json.dumps(row) for row in (
         {"ticket": "closeup@alpha key-1", "euros": 10.0, "wall_minutes": 30},
         {"ticket": "closeup@beta key-2", "euros": 12.0, "wall_minutes": 40})) + "\n")
-    a_concept(store, data, root / "concepts", "alpha")  # beta's concept is lost
+    alpha = a_concept(store, data, root / "concepts", "alpha")
+    a_lost_concept(store, "beta")
+    if design:
+        designed(store, "alpha", alpha, props)
+        designed(store, "beta", "b" * 64, props)
     world = graph.Environment("world1", 3, {"data": str(data)})
     source = LocalSource(props, root / "dashboard", root / "web", store_root=root / "store", world=world,
                          rows=rows())

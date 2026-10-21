@@ -88,25 +88,53 @@ def test_the_row_stands_after_the_plan_and_reads_the_concept_and_the_plan():
     assert row.contract.schema == "rough-model" and [check.name for check in row.checks] == ["made", "concept"]
 
 
+def kept_plans(places):
+    """scene_record.KEPT and plans.KEPT pointed at a folder of kept plans, each with its leads, for `places`; the
+    folder (the old filed plans were retired, 2026-10-21: a place has a plan row by its kept plan alone)."""
+    from score.review import plans
+    folder = pathlib.Path(tempfile.mkdtemp())
+    for place in places:
+        (folder / f"{place}.json").write_text(json.dumps({"leads": {}}))
+    scene_record.KEPT = plans.KEPT = folder
+    return folder
+
+
 def test_every_place_with_a_plan_has_a_rough_model_node_shell_or_inside_alike():
-    runner = stages.runner()
-    places = stages.places(runner.world)
-    with_node = {place for stage, place in runner.nodes(places) if stage.name == "rough-model"}
-    assert with_node == {place for place in places if scene_record.written(place)} and with_node
+    from score.review import plans
+    held = scene_record.KEPT, plans.KEPT
+    kept_plans(["base", "airlock"])
+    try:
+        runner = stages.runner()
+        with_node = {place for stage, place in runner.nodes(["base", "airlock", "nowhere"])
+                     if stage.name == "rough-model"}
+        assert with_node == {"base", "airlock"}, with_node
+    finally:
+        scene_record.KEPT, plans.KEPT = held
 
 
-def test_a_place_reads_the_concept_its_plan_names_and_its_own_inventory():
-    """The airlock's plan names K02; the flat's plan names its inventory prologue_flat. No place reads the concept
-    views, whose requests name no place they are the concept of."""
-    runner = stages.runner()
-    row = runner.stages["rough-model"]
-    assert set(runner.reads(row, "airlock")) == set(runner.reads(row, "galley")) == {"plan"}
-    airlock = runner.files_of(row, "airlock")
-    assert airlock["concept"].endswith("/views/K02.png") and airlock["inventory"].endswith("/inventory/airlock.json")
-    assert runner.files_of(row, "flat")["inventory"].endswith("/inventory/prologue_flat.json")
-    assert "places" not in airlock  # no style is read: Pixal3D is worded by nothing
-    for name in rough_model.TOOLS:
-        assert name in airlock
+def test_a_place_reads_its_design_s_concept_and_inventory():
+    """A designed place's rough model reads its picked concept and its hand-in (the scene inventory the batch builds
+    from); one with no hand-in its kept inventory, and no concept: its make refuses it by name. No place reads the
+    concept views, whose requests name no place they are the concept of."""
+    from score.review import plans
+    held = scene_record.KEPT, plans.KEPT, prop_data.DESIGN
+    kept_plans(["airlock", "galley"])
+    prop_data.DESIGN = pathlib.Path(tempfile.mkdtemp())
+    (prop_data.DESIGN / "airlock.json").write_text(json.dumps({"objects": {}}))
+    try:
+        runner = stages.runner()
+        row = runner.stages["rough-model"]
+        assert set(runner.reads(row, "airlock")) == set(runner.reads(row, "galley")) == {"plan"}
+        airlock = runner.files_of(row, "airlock")
+        assert airlock["concept"] == "{home}/design/concepts/airlock.png", airlock
+        assert airlock["inventory"] == "{home}/design/props/airlock.json", airlock
+        galley = runner.files_of(row, "galley")
+        assert "concept" not in galley and galley["inventory"] == "{home}/design/inventory/{place}.json", galley
+        assert "places" not in airlock  # no style is read: Pixal3D is worded by nothing
+        for name in rough_model.TOOLS:
+            assert name in airlock
+    finally:
+        scene_record.KEPT, plans.KEPT, prop_data.DESIGN = held
 
 
 def test_the_make_sends_the_concept_to_the_batch_once_and_keeps_the_finished_model(made, tmp_path):

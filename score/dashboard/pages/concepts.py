@@ -40,8 +40,10 @@ def light_world(source):
 
 
 def checked_node(world, source, place):
-    """`place` when it is a place or shell of the environment, or an inside place his kept plans name; else 404."""
-    if place not in source.places() and place not in world.shells and place not in world.within:
+    """`place` when it is a place or shell of the environment, a scene in design (`concept_wordings`: every node
+    designed for) or an inside place his kept plans name; else 404."""
+    if (place not in source.places() and place not in world.shells and place not in world.within
+            and place not in world.concept_wordings):
         raise Http404(f"no place {place}")
     return place
 

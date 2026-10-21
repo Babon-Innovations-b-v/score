@@ -31,11 +31,10 @@ def shafted_kinds(place):
     """The kit kinds the place lays whose lamps light a shaft of haze (its floodlights): each inventory row whose row
     kind glows that the place's plan aims (`aims`), the library's aimed lamp, when that lamp has a shaft
     (data/library/lamps.json), laid as `<room>_<row>`, as the scene-record row lights them (scene_record/kit_shell)."""
-    kit_path, plan_path = passes.REPO / f"data/kit/{place}.json", passes.REPO / f"data/plans/{place}.json"
-    if not kit_path.is_file() or not plan_path.is_file() or not read(LAMPS)["aimed"].get("shaft"):
+    kit_path, plan = passes.REPO / f"data/kit/{place}.json", passes.plan_of(place)
+    if not kit_path.is_file() or not plan or not read(LAMPS)["aimed"].get("shaft"):
         return set()
-    plan = read(plan_path)
-    inventory = passes.REPO / f"data/inventory/{plan.get('inventory', place)}.json"  # scene_record/plan.inventory_name
+    inventory = passes.KEPT / "inventory" / f"{place}.json"  # the design's scene inventory
     if not plan.get("aims") or not inventory.is_file():
         return set()
     kit = read(kit_path)

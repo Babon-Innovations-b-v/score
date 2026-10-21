@@ -3,8 +3,8 @@ automatically once its concept is picked and its scene inventory read from it (o
 concept is the approval; the plan page is for inspecting and fixing it, his edits redoing what follows).
 
 The plan shown is written by the prompt model (plan_writing.py, `made_plan`); until it is, a rough one is drawn free
-from data already there (`derived`, also the skeleton the writing starts from): the place's plan in data/plans (its shell, frame, walls,
-doors and where each leads, the neighbours' joined doors in its leads), its outline from the layer above's plan (its
+from data already there (`derived`, also the skeleton the writing starts from): a bare plan of the house schema
+(the filed plans of the old concepts were retired, 2026-10-21), its outline from the layer above's plan (its
 box in that plan's `holds`), and its items from its scene inventory, each item tied to its inventory row (a row laid
 at a spot stands there, one with none along the walls in the order its SAM box stands on the picture (never projected);
 each sized by its reading's metres; a row the reading gives no size, and a lamp or beam on a row this concept's
@@ -44,7 +44,7 @@ from score.store import PROPS_HOME, stamp_key
 
 AREA = "plans"
 DATA = concepts.DATA
-KEPT = PROPS_HOME / "design" / "plans"  # the plan the plan stage reads in place of data/plans (stages.creator_plan)
+KEPT = PROPS_HOME / "design" / "plans"  # the plan the plan stage reads (stages.creator_plan)
 KEPT_INVENTORY = PROPS_HOME / "design" / "inventory"  # and the scene inventory it was made from
 KEPT_CONCEPT = PROPS_HOME / "design" / "concepts"  # and the picked concept both were made from (its `concept` input)
 SIDES = ("N", "S", "E", "W")
@@ -156,25 +156,13 @@ def pick_of(store, place):
 
 def inventory_of(store, place):
     """The place's scene inventory read from its picked concept, else None (CONTEXT.md "scene inventory": none counts
-    before the pick, an older one never does): its reading (score/review/reading.py), with the shell's room layout of
-    its data/inventory file (walls, doors, roof opening: the plan's numbers, no object of an older concept), else a
-    data/inventory file whose concept_pick is that pick."""
+    before the pick, an older one never does): its reading (score/review/reading.py)."""
     from score.review import reading
-    filed = filed_inventory(place)
     found = reading.reading_of(store, place)
     if found and found.get("inventory"):
         # its rows' boxes are pixels of the picture's size
-        return {**found["inventory"], "picture": found.get("size"), **({"room": filed["room"]} if "room" in filed else {})}
-    pick = pick_of(store, place)
-    return filed if pick and (filed.get("concept_pick") or {}).get("sha256") == pick else None
-
-
-def filed_inventory(place):
-    """The place's data/inventory file (its plan's `inventory` name, else its own), {} with none."""
-    plan_path = DATA / "plans" / f"{place}.json"
-    name = json.loads(plan_path.read_text()).get("inventory", place) if plan_path.is_file() else place
-    path = DATA / "inventory" / f"{name}.json"
-    return json.loads(path.read_text()) if path.is_file() else {}
+        return {**found["inventory"], "picture": found.get("size")}
+    return None
 
 
 def counts(store, place):
@@ -183,13 +171,9 @@ def counts(store, place):
 
 
 def made(store, place):
-    """Whether `place`'s plan is made (the step a place within it waits for, concepts.step_refusal): plan@<place>
-    accepted after its pick for a place with a plan row, else its plan shown here."""
-    if not has_row(place):
-        return current(store, place) is not None
-    picks = concepts.records(store, place, "picks")
-    accept = store.current_accept(f"plan@{place}")
-    return bool(picks and picks[-1]["sha"] and accept and accept["at"] > picks[-1]["at"])
+    """Whether `place`'s plan is made (the step a place within it waits for, concepts.step_refusal): its plan shown
+    here."""
+    return current(store, place) is not None
 
 
 def newest_edit(store, place):
@@ -289,10 +273,8 @@ def locked_rooms_kept(store, place, plan):
 # --- the plan drawn from data --------------------------------------------------------------------------------
 
 def base_plan(place):
-    """The place's plan in data/plans (a deep copy), else a bare one of the house schema."""
-    path = DATA / "plans" / f"{place}.json"
-    if path.is_file():
-        return json.loads(path.read_text())
+    """A bare plan of the house schema for the place (the filed plans of the old concepts were retired, 2026-10-21:
+    a plan starts from its own concept's inventory alone)."""
     return {"title": place.upper(), "shell": "kit", "w": 0.0, "d": 0.0, "height": "", "doors": [], "leads": {},
             "items": [], "rows": {}, "people": []}
 
@@ -436,52 +418,11 @@ def items_from(plan, inventory):
     return items, tied, unsized
 
 
-def unlit(plan, ids):
-    """(lamps, beams, gaps) of the plan: its outdoor lamps and beams standing on a row of its scene inventory (`ids`)
-    or another place's, and a gap for each whose row this concept's reading does not hold (the plan stage's `mapped`
-    gate refuses a lamp or beam on a row the inventory lacks: data/plans' lamps were written for an older concept)."""
-    kept, gaps = {}, []
-    for kind in ("lamps", "beams"):
-        kept[kind] = [entry for entry in plan.get(kind, []) if entry["row"] in ids or entry.get("place")]
-        gaps += [{"kind": kind[:-1], "item": entry["name"], "row": entry["row"],
-                  "words": f"{kind[:-1]} {entry['name']}: no {entry['row'].replace('_', ' ')} in this concept"}
-                 for entry in plan.get(kind, []) if entry not in kept[kind]]
-    return kept["lamps"], kept["beams"], gaps
-
-
-def unleafed(leads, ids):
-    """(leads, gaps) of the plan's doors: each lead whose leaf's row this concept's reading holds (`ids`) as it is, the
-    rest without their leaf and a gap each (the plan stage's `mapped` gate refuses a leaf on a row the inventory lacks:
-    data/plans' leaves were written for an older concept, the airlock's door_leaf, #10)."""
-    kept, gaps = {}, []
-    for side, lead in leads.items():
-        leaf = lead.get("leaf")
-        if leaf and leaf["row"] not in ids:
-            lead = {key: value for key, value in lead.items() if key != "leaf"}
-            gaps.append({"kind": "leaf", "item": leaf.get("name") or side, "row": leaf["row"],
-                         "words": f"door {side}'s leaf {leaf.get('name') or ''}: no "
-                                  f"{leaf['row'].replace('_', ' ')} in this concept"})
-        kept[side] = lead
-    return kept, gaps
-
 
 def size_gaps(unsized):
     """A gap for each item nothing gives a size (laid UNSIZED): the batch needs its size."""
     return [{"kind": "size", "item": name, "row": row_id, "words": f"{name.title()}: no size"}
             for name, row_id in unsized]
-
-
-def sized_doors(plan, filed):
-    """The plan's doors, each wall door whose words give no size given the one its leaf has in the data/inventory
-    file (`W x H m`, as the plan stage reads a door's height; the leaf is the shell's, not an object of a concept)."""
-    from score.stages.scene_record.plan import SIDES as WALLS, SIZE, leaf_tall
-    kinds = (filed.get("room") or {}).get("layout", {}).get("doors", {})
-    found = []
-    for door in plan.get("doors", []):
-        tall = (leaf_tall(filed, kinds[WALLS[door[0]]]) if door[0] in SIDES and not SIZE.search(str(door[3]))
-                and kinds.get(WALLS[door[0]]) and filed.get("rows") else None)
-        found.append([*door[:3], f"{door[3]} ({float(door[2]):g} x {tall:g} m)", *door[4:]] if tall else door)
-    return found
 
 
 def keep_clear(plan):
@@ -502,8 +443,8 @@ def keep_clear(plan):
 
 
 def held_size(place):
-    """(wide, deep) of an inside place from its own plan, else 6 x 6 m."""
-    path = DATA / "plans" / f"{place}.json"
+    """(wide, deep) of an inside place from its own kept plan, else 6 x 6 m."""
+    path = KEPT / f"{place}.json"
     plan = json.loads(path.read_text()) if path.is_file() else {}
     return float(plan.get("w") or 6.0), float(plan.get("d") or 6.0)
 
@@ -519,7 +460,7 @@ def holding_row(rows, place):
     said = json.loads((DATA / "places/within.json").read_text()).get("within", {}).get(place, {}).get("from", "") \
         if (DATA / "places/within.json").is_file() else ""
     # a thing it names that is no place (the hangar's rooms: "the ship"), as the end of a row's id ("spaceship")
-    places = {path.stem for path in (DATA / "plans").glob("*.json")} | set(within_file()[0]) | set(within_file()[1])
+    places = {path.stem for path in KEPT.glob("*.json")} | set(within_file()[0]) | set(within_file()[1])
     words = {word for word in re.findall(r"[a-z]{4,}", said.lower()) if word not in places}
     named = [row_id for row_id in ids if re.search(rf"\b{re.escape(row_id)}\b", said)
              or any(re.sub(r"(_\d+)+$", "", row_id).endswith(word) for word in words)]
@@ -616,19 +557,12 @@ def derived(store, place):
     """The place's plan drawn free from data (module docstring): None while its scene inventory does not count."""
     if not counts(store, place):
         return None
-    plan = copy.deepcopy(base_plan(place))
-    plan.pop("holds", None)  # a hand plan's {place: row} (concepts.holding_row's fallback): laid out here instead
+    plan = base_plan(place)
     plan["w"], plan["d"] = outline_from_holder(store, place, plan)
-    plan["doors"] = sized_doors(plan, filed_inventory(place))
     inventory = inventory_of(store, place)
     items, tied, unsized = items_from(plan, inventory)
-    ids = {row["id"] for row in inventory.get("rows", [])}
-    lamps, beams, unlit_gaps = unlit(plan, ids)
-    plan.update({key: found for key, found in (("lamps", lamps), ("beams", beams)) if key in plan})
-    leads, leaf_gaps = unleafed(plan.get("leads", {}), ids)
-    plan.update({"leads": leads} if "leads" in plan else {})
     # what this concept's inventory does not give: shown, never hidden
-    plan["gaps"] = unlit_gaps + leaf_gaps + size_gaps(unsized)
+    plan["gaps"] = size_gaps(unsized)
     zones = keep_clear(plan)
     plan["items"] = items + zones
     plan["rows"] = {**tied, **{zone[0]: [] for zone in zones}}  # a zone names no rows, and says so
@@ -843,7 +777,7 @@ def edited(store, place, plan, by, how="edited", calls=None, asked=None):
     record = kept_record(store, place, "edits", {
         "place": place, "plan": plan, "concept": pick_of(store, place), "by": by,
         "at": concepts.now(), "how": how, "calls": calls or [], **({"asked": asked} if asked else {})})
-    if has_row(place):
+    if design_done(store, place):
         kept_for_stage(store, place, record["plan"])
     return record
 
@@ -854,20 +788,14 @@ def name_inside(store, place, names, by, asked=None):
                                                "at": concepts.now(), **({"asked": asked} if asked else {})})
 
 
-def has_row(place):
-    """Whether `place` has a plan@ row: its plan in data/plans says where its doors lead (scene_record.written)."""
-    path = DATA / "plans" / f"{place}.json"
-    return path.is_file() and "leads" in json.loads(path.read_text())
-
-
 def plan_sha(plan):
     return hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest()
 
 
 def kept_for_stage(store, place, plan):
     """The plan, the scene inventory it was made from and the picked concept both were made from where the plan
-    stage reads them in place of data/plans, data/inventory and the plan's old concept picture (stages.creator_plan;
-    the plan names that picture as its concept), each unless it stands there already."""
+    stage reads them (stages.creator_plan; the plan names that picture as its concept), each unless it stands there
+    already."""
     pick = pick_of(store, place)
     plan = {**plan, "concept": {"pick": pick, "picture": f"{{home}}/design/concepts/{place}.png",
                                 "read": "its scene inventory, read from this picked concept (score/review/reading.py)"}}
@@ -888,16 +816,14 @@ def design_done(store, place):
 
 def keep(store, places):
     """Every place's plan shown where the plan stage reads it, a place with none (its pick unlocked, its inventory
-    not read from it) taken out there, so the stage reads data/plans again; ([kept], [changed]): the places whose
-    plan the plan stage reads now, and those whose file was written or taken out."""
+    not read from it, its plan not written) taken out there, so it has no plan row; ([kept], [changed]): the places
+    whose plan the plan stage reads now, and those whose file was written or taken out."""
     kept, changed = [], []
     for place in places:
         path = KEPT / f"{place}.json"
         before = path.read_text() if path.is_file() else None
-        # a scene he added in the app has no plan in data/plans: once its design is done, its kept plan is its plan
-        # row's (stages.plan_written)
-        filed = (DATA / "plans" / f"{place}.json").is_file()
-        shown = current(store, place) if has_row(place) or (not filed and design_done(store, place)) else None
+        # once its design is done, its kept plan is its plan row's (stages.plan_written)
+        shown = current(store, place) if design_done(store, place) else None
         if shown is not None:
             kept_for_stage(store, place, shown["plan"])
             kept.append(place)
@@ -1102,7 +1028,7 @@ def main(argv):
         # every scene of the tree, a parent scene with no plan in the data among them (the Moon base): its kept plan
         # lays out its child scenes for the scene tree (stages/assembly/scene_tree.py)
         laid = tree(store)["within"]
-        places = sorted({*(path.stem for path in (DATA / "plans").glob("*.json")), *laid, *laid.values()})
+        places = sorted({*(path.stem for path in KEPT.glob("*.json")), *laid, *laid.values()})
         # a locked, read place with no plan written from its reading (a reading before today's METHOD, a run cut off)
         # gets it on its own under the standing allowance; kept on a later pass
         owed = plan_writing.owed(store, places) if plan_writing.AUTOMATIC else []

@@ -39,7 +39,7 @@ EUROS = 2.0
 
 def neighbours(place):
     """The other places the place's accepted scene record shows (its `places`: the place each of its plan's doors
-    opens onto, and those its views see over the made ground's seats), each a place of the design: one whose filed
+    opens onto, and those its views see over the made ground's seats), each a place of the design: one whose kept
     plan says where its doors lead, so the scene-record row writes its lights too (scene_record.written's rule). The
     places rendered, each lit by its own record, through the doorways and past the edges. None before the place's
     scene record stands accepted (every light row reads it, so it is keyed again once it does); a shown place the
@@ -52,14 +52,18 @@ def neighbours(place):
     return sorted(name for name in shown if recorded(name))
 
 
+KEPT = PROPS_HOME / "design"  # the design's plans and scene inventories (score/review/plans.py keep)
+
+
 def plan_of(name):
-    """A place's filed plan (data/plans/<name>.json), {} for a place with none."""
-    path = REPO / "data/plans" / f"{name}.json"
+    """A place's kept plan ({home}/design/plans/<name>.json: his edit, else the written plan), {} for a place with
+    none."""
+    path = KEPT / "plans" / f"{name}.json"
     return json.loads(path.read_text()) if path.is_file() else {}
 
 
 def recorded(place):
-    """Whether the scene-record row writes the place's record (and so its lights and views): its filed plan says where
+    """Whether the scene-record row writes the place's record (and so its lights and views): its kept plan says where
     its doors lead (scene_record.written's rule, read here so the paid rows never hash the writer's code)."""
     return place is not None and "leads" in plan_of(place)
 

@@ -110,7 +110,9 @@ def test_a_method_change_moves_only_the_rows_that_read_the_library():
     for folder in ("library", "definitions"):
         shutil.copytree(REPO / "data" / folder, data / folder)
     (data / "surfaces").mkdir()
-    shutil.copy(surface_data.path("greenhouse"), data / "surfaces")
+    (data / "surfaces/greenhouse.json").write_text(json.dumps({"place": "greenhouse", "library": "greenhouse", "takes": {
+        "crate-t1": {"place": "greenhouse", "kind": "crate", "object": "a crop crate"}},
+        "bake": {"models": {"crate_1": "crate-t1"}}}))  # its own surface data (the old greenhouse's were retired)
     world = graph.Environment("world1", 1, {"data": str(data), "home": str(home), "repo": str(REPO), "seeds": str(home)})
     runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
     for stage in surfaces.ROWS:  # each file a row names, written small in the test's own home
@@ -135,6 +137,18 @@ def test_a_method_change_moves_only_the_rows_that_read_the_library():
 
 
 def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothing_to_paint_has_no_rows():
+    kept, surfaces.data.FOLDER = surfaces.data.FOLDER, pathlib.Path(tempfile.mkdtemp())
+    (surfaces.data.FOLDER / "tube.json").write_text(json.dumps({"place": "tube", "takes": {},
+                                                                "nothing": "code-built pieces only"}))
+    try:
+        blocked_without_data()
+    finally:
+        shutil.rmtree(surfaces.data.FOLDER)
+        surfaces.data.FOLDER = kept
+
+
+def blocked_without_data():
+    """A place with no surface data blocks at its first row and its bake; one with data listing nothing has none."""
     world = graph.Environment("world1", 1, {"data": str(REPO / "data"), "home": tempfile.mkdtemp(), "repo": str(REPO),
                                       "seeds": tempfile.mkdtemp()})
     runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
@@ -428,15 +442,26 @@ def test_a_tall_take_s_leg_ending_over_the_narrow_band_is_still_levelled():
 
 
 def test_a_take_another_place_lays_standing_is_levelled_by_its_rows():
-    """The hangar lays old_station's parts rack (its `elsewhere`, parts_rack_1 to parts_rack_4) on the floor; old
-    station lays none of its kind, so the rack was never levelled (2026-10-15). Its paint now counts the hangar's
-    standing rows: the claimed rack row, never another of the hangar's."""
+    """A hangar laid an old station's parts rack (its `elsewhere`, parts_rack_1 to parts_rack_4) on the floor; the
+    old station laid none of its kind, so the rack was never levelled (2026-10-15). Its paint counts the claiming
+    place's standing rows: the claimed rack row, never another of its rows. On surface data of the test's own."""
     from score.stages.surfaces import place_line
-    inputs = {"surfaces": surface_data.path("old_station"), "inventory hangar": REPO / "data/inventory/hangar.json",
-              "resting rules": REPO / "data/checks/resting.json"}
-    rows = place_line.claimed_rows("parts_rack-r1", inputs)
-    assert rows and {row["id"] for row in rows} == {"parts_rack"}, rows
-    assert place_line.claimed_rows("parts_rack-r1", dict(inputs, **{"inventory hangar": None})) == []
+    folder, kept = pathlib.Path(tempfile.mkdtemp()), surfaces.data.FOLDER
+    surfaces.data.FOLDER = folder  # the bare surface_data place_line reads (the table's own import)
+    (folder / "station.json").write_text(json.dumps({"place": "station", "takes": {"parts_rack-r1": {}}}))
+    (folder / "bay.json").write_text(json.dumps({"place": "bay", "takes": {}, "elsewhere": {
+        f"parts_rack_{number}": {"take": "parts_rack-r1", "place": "station"} for number in range(1, 5)}}))
+    (folder / "inventory.json").write_text(json.dumps({"rows": [
+        {"id": "parts_rack", "name": "parts rack", "anchor": "floor"}, {"id": "crane", "anchor": "floor"}]}))
+    try:
+        inputs = {"surfaces": folder / "station.json", "inventory bay": folder / "inventory.json",
+                  "resting rules": REPO / "data/checks/resting.json"}
+        rows = place_line.claimed_rows("parts_rack-r1", inputs)
+        assert rows and {row["id"] for row in rows} == {"parts_rack"}, rows
+        assert place_line.claimed_rows("parts_rack-r1", dict(inputs, **{"inventory bay": None})) == []
+    finally:
+        surfaces.data.FOLDER = kept
+        shutil.rmtree(folder)
 
 
 def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name():
@@ -460,9 +485,14 @@ def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fail
     rules = REPO / "data/checks/resting.json"
     tank = {"place": "greenhouse", "kind": "greenhouse_water_tank"}
     glove = {"place": "lab", "kind": "lab_hanging_glove"}  # held on its cabinet, but it hangs: no feet to level
-    assert place_line.stands_on_feet(tank, REPO / "data/inventory/greenhouse.json", rules)
-    assert not place_line.stands_on_feet(glove, REPO / "data/inventory/lab.json", rules)
-    assert paint.files("greenhouse")["inventory greenhouse"] == "{data}/inventory/greenhouse.json"
+    inventory = folder.parent / f"{folder.name}-inventory.json"
+    inventory.write_text(json.dumps({"rows": [
+        {"id": "water_tank", "name": "water tank", "anchor": "floor", "thing": "prop:greenhouse_water_tank"},
+        {"id": "cabinet", "anchor": "floor"},
+        {"id": "glove", "name": "hanging glove", "anchor": "on:cabinet", "thing": "prop:lab_hanging_glove"}]}))
+    assert place_line.stands_on_feet(tank, inventory, rules)
+    assert not place_line.stands_on_feet(glove, inventory, rules)
+    inventory.unlink()
 
 
 def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_inventory():
@@ -493,6 +523,9 @@ def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_
             {"id": "box", "anchor": "floor", "size": [1.0, 1.0, 1.0], "thing": "prop:x"},
             {"id": "tin", "name": "tin", "anchor": "on:box", "thing": "prop:gh_tin_ab12"}]
     hand_in.write_text(json.dumps({"place": "greenhouse", "rows": rows}))
+    kept_surfaces, surfaces.data.FOLDER = surfaces.data.FOLDER, pathlib.Path(tempfile.mkdtemp())  # its surface data
+    (surfaces.data.FOLDER / "greenhouse.json").write_text(json.dumps({"place": "greenhouse", "takes": {
+        "gh_crate_ab12": {"place": "greenhouse", "kind": "gh_crate"}}}))
     try:
         assert stages.paint_inventory("greenhouse") == "{home}/design/props/greenhouse.json"
         assert paint.files("greenhouse")["inventory greenhouse"] == "{home}/design/props/greenhouse.json"
@@ -509,8 +542,8 @@ def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_
                                              f"{kind}_ab12") is standing, kind
     finally:
         shutil.rmtree(prop_data.DESIGN)
-        prop_data.DESIGN = kept
-    assert stages.paint_inventory("greenhouse") == "{data}/inventory/greenhouse.json"
+        shutil.rmtree(surfaces.data.FOLDER)
+        prop_data.DESIGN, surfaces.data.FOLDER = kept, kept_surfaces
 
 
 def test_the_kit_route_s_bake_answers_the_empty_library_by_name():
@@ -542,8 +575,13 @@ def test_a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back():
     with tempfile.TemporaryDirectory() as temporary:
         out, parts = pathlib.Path(temporary) / "out", pathlib.Path(temporary) / "parts"
         out.mkdir()
-        inputs = {"surfaces": REPO / "data/surfaces/campgrounds.json", "surfaces-parts": parts,
-                  "inventory campgrounds": REPO / "data/inventory/campgrounds.json",
+        own = pathlib.Path(temporary)  # its own surface data and inventory (the old camp grounds' were retired)
+        (own / "surfaces.json").write_text(json.dumps({"place": "campgrounds", "library": "campgrounds", "takes": {
+            "crane-r1": {"place": "campgrounds", "kind": "crane"}}, "bake": {"models": {"crane": "crane-r1"}}}))
+        (own / "inventory.json").write_text(json.dumps({"rows": [{"id": "crane", "anchor": "ground",
+                                                                  "thing": "prop:crane"}]}))
+        inputs = {"surfaces": own / "surfaces.json", "surfaces-parts": parts,
+                  "inventory campgrounds": own / "inventory.json",
                   "resting rules": REPO / "data/checks/resting.json"}
         job = json.loads(place_line.paint_job(inputs, place_line.prop_env.short(inputs), out, "crane-r1",
                                               [{"part": 0}]).read_text())
@@ -800,18 +838,13 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     shutil.rmtree(folder)
 
 def test_only_a_place_nobody_walks_bakes_with_no_kick_wear():
-    """The wreck's surface data says nobody walks it: its bake's specs say kicks 0. Every other place's data says
-    nothing, so unwalked hands its specs back as given, the very same object (recipes.WALKED: kicked as before), and
-    its bake is the same as before the change (2026-10-13)."""
+    """A place whose surface data says nobody walks it (the wreck's did): its bake's specs say kicks 0. Data that
+    says nothing hands its specs back as given, the very same object (recipes.WALKED: kicked as before), and its bake
+    is the same as before the change (2026-10-13)."""
     from score.stages.surfaces import place_line
     specs = {"dark_panel": {"recipe": "painted_metal"}, "bare_steel": {"recipe": "bare_metal"}}
-    assert {spec["kicks"] for spec in place_line.unwalked(specs, surface_data.record("wreck")).values()} == {0.0}
-    unwalked = sorted(path.stem for path in surface_data.FOLDER.glob("*.json")
-                      if json.loads(path.read_text()).get("foot_traffic", True) is False)
-    assert unwalked == ["wreck"], unwalked
-    for path in surface_data.FOLDER.glob("*.json"):
-        if path.stem != "wreck":
-            assert place_line.unwalked(specs, surface_data.record(path.stem)) is specs, path.stem
+    assert {spec["kicks"] for spec in place_line.unwalked(specs, {"foot_traffic": False}).values()} == {0.0}
+    assert place_line.unwalked(specs, {"place": "hub"}) is specs
 
 
 if __name__ == "__main__":

@@ -385,7 +385,15 @@ def test_a_picked_place_it_opens_into_is_sent_after_the_one_above_and_its_new_pi
     assert not concepts.current_draw(store, "flat", concepts.wording_now(store, "flat"))
 
 
-def test_a_place_is_sized_against_the_places_beside_it_in_words_only(store):
+def test_a_place_is_sized_against_the_places_beside_it_in_words_only(store, tmp_path, monkeypatch):
+    """Ranked by the floor of each kept plan beside it (the design's, concepts.plan_of), its walls against a person."""
+    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path / "home")
+    sizes = {"hangar": (15.0, 14.0, "walls 12 m"), "hub": (5.0, 6.0, ""), "lab": (4.0, 3.0, ""), "tube": (3.0, 2.0, "")}
+    (tmp_path / "home/design/plans").mkdir(parents=True)
+    for place in concepts.inside_of("base", store):
+        wide, deep, height = sizes.get(place, (4.0, 4.0, ""))
+        (tmp_path / "home/design/plans" / f"{place}.json").write_text(json.dumps({"w": wide, "d": deep,
+                                                                                  "height": height}))
     hangar = concepts.generated(store, "hangar")
     assert "Size: the largest in the base, floor about seven times any other's, walls towering over people." in hangar
     assert concepts.ROOF_KEPT in hangar and concepts.ROOF_KEPT not in concepts.generated(store, "base")

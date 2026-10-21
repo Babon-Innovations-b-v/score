@@ -41,11 +41,9 @@ from score.stages.assembly import scene_tree
 import score.stages.motion.models as motion_models
 import score.stages.motion.models.boxes as model_boxes
 import score.stages.props.prop_data as prop_data
-import score.stages.complete.boxes as complete_boxes
-from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
-from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs
-from score.review import plans
+from score.stages.terrain import fit as ground_fit
+from score.review import concepts, plans
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -62,7 +60,7 @@ def designed(kind):
 
 WORLD1 = REPO / "data/definitions/world.json"
 
-TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain_inputs.FILES)
+TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain.FILES)
 # Each seated place's own stage judged standing on its made ground (score/stages/terrain/fit.py): under, floating,
 # continuous, openings; free, on its neighbours output where it shows other places, else its assembly.
 GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT, ground_fit.CHECKS,
@@ -136,14 +134,7 @@ COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PL
                        files=complete.files,
                        after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1),
                               "surfaces-check": ("surfaces-check", 1), "likeness": ("props-likeness", 1),
-                              "characters-layer": ("characters-layer", 1), "complete-boxes": ("complete-boxes", 1),
-                              "motion": ("motion-layer", 2)})
-# The box gate's measure of the boxes no other row measures (complete/boxes.py), so complete's boxes check has a
-# verdict for every boxed row: a ship place's code rows and the rows it takes from another place's take
-# (2026-10-15). The old places' partitions were measured whole by hand; a ship place only, so none of theirs moves.
-COMPLETE_BOXES = graph.Stage("complete-boxes", "place", complete_boxes.make_boxes, complete_boxes.CONTRACT,
-                             complete_boxes.CHECKS, files=complete_boxes.files, paid=True, euros=complete_boxes.EUROS,
-                             applies=lambda place: ship_place(place) and complete_boxes.has_rows(place))
+                              "characters-layer": ("characters-layer", 1), "motion": ("motion-layer", 2)})
 EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
                            euros=effects_look.EUROS,
@@ -166,60 +157,23 @@ def crops_designed(row):
 
 # Experimental (PRD #6) until the owner reviews it: the place's plan in the store, and its scene record written from
 # it (score/stages/scene_record), for the places whose plan says where each door leads. No assembly reads it yet.
-def kit_laid(place):
-    """Whether the place's kit is laid (data/kit/<place>.json): a new place, made from its plan, has none until its
-    pieces are made."""
-    return (REPO / "data/kit" / f"{place}.json").exists()
-
-
-def kit_if_base(files):
-    """The plan row's environment files without `kit` for a place whose kit is not its base's (earth_seed.kit_is_base:
-    none laid, so its plan runs before it, or a design locked for it, whose plan's spots are its design's, never a kit
-    laid for the old concept's room). Wrapped here, in the table, so the plan's code version stays as it was."""
+def creator_plan(files):
+    """The plan row's files with the picked concept (under {home}/design/concepts) as its `concept`, where it is kept;
+    its plan, inventory and every other plan are the design's (scene_record.plan.files). Wrapped here, in the table,
+    so the plan's code version moves for none."""
     @functools.wraps(files)
     def declared(place):
         found = files(place)
-        return found if earth_seed.kit_is_base(place) else {name: path for name, path in found.items() if name != "kit"}
-    return declared
-
-
-def creator_plan(files):
-    """The plan row's files with the place's plan made from its pick (score/review/plans.py, kept under
-    {home}/design/plans: his edit, else made from the pick's scene inventory) as its `plan`, and that inventory
-    (under {home}/design/inventory) as its `inventory`, and the picked concept (under {home}/design/concepts) as its
-    `concept`, where they are kept. Wrapped here, in the table, so a place
-    without one keeps its key and the plan's code version moves for none."""
-    @functools.wraps(files)
-    def declared(place):
-        found, kept = files(place), PROPS_HOME / "design"
-        if (kept / "plans" / f"{place}.json").is_file():
-            found = {**found, "plan": "{home}/design/plans/{place}.json"}
-        if (kept / "inventory" / f"{place}.json").is_file():
-            found = {**found, "inventory": "{home}/design/inventory/{place}.json"}
-        if (kept / "concepts" / f"{place}.png").is_file():  # the picked concept, not data/plans' older picture
+        if (PROPS_HOME / "design" / "concepts" / f"{place}.png").is_file():
             found = {**found, "concept": "{home}/design/concepts/{place}.png"}
         return found
     return declared
 
 
-def filed_plan(place):
-    return (REPO / "data/plans" / f"{place}.json").is_file()
-
-
-def kept_plan_only(files):
-    """The plan row's files for a scene he added in the app, with no plan in data/plans: only the other places' plans
-    there, its own plan, inventory and concept being the kept ones (creator_plan). Wrapped here, in the table, so every
-    filed place keeps its key."""
-    @functools.wraps(files)
-    def declared(place):
-        return files(place) if filed_plan(place) else {"plans": "{data}/plans"}
-    return declared
-
-
 def plan_written(place):
-    """Whether the plan row makes the place's plan: its plan in data/plans says where its doors lead
-    (scene_record.written), or, for a scene he added in the app (none there), its kept plan stands (plans.keep)."""
-    return scene_record.written(place) or (not filed_plan(place) and (plans.KEPT / f"{place}.json").is_file())
+    """Whether the plan row makes the place's plan: its kept plan stands (plans.keep: his edit, else the written
+    plan); a scene with none has no plan row and answers "no plan" where it is read."""
+    return (plans.KEPT / f"{place}.json").is_file()
 
 
 def plan_as_kit(function, position):
@@ -243,7 +197,7 @@ def shell_of(place):
 PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
-                   files=creator_plan(kit_if_base(kept_plan_only(scene_record.plan.files))), applies=plan_written,
+                   files=creator_plan(scene_record.plan.files), applies=plan_written,
                    beside={"shell-split": ("shell-split", 1)}, upward=True, neighbours=shell_of)
 # Shapes first (CONTEXT.md "shell split"): an outside shell's plan split into the shapes of its inside places, free and
 # local, for a place whose plan has a `split`; each inside place's plan reads its shell's split beside it (PLAN's
@@ -400,12 +354,12 @@ def paint_files(place):
 
 def paint_inventory(place):
     """The scene inventory the paint reads a place's rows from: a designed place's hand-in (prop_data.designed, its
-    rows read from its locked concept, as scene_inventory_read gives props-inputs), else its old inventory, or that
-    of the place its kit belongs to (tools/usd/stage_inputs.inventory_path)."""
+    rows read from its locked concept, as scene_inventory_read gives props-inputs), else its scene inventory
+    (tools/usd/stage_inputs.inventory_pattern: the design's, else the people line's)."""
     if prop_data.designed(place):
         return prop_data.pattern(place)
     import stage_inputs  # tools/usd, on the path by the assembly stage's import
-    return "{data}/inventory/" + stage_inputs.inventory_path(place).name
+    return stage_inputs.inventory_pattern(place)
 
 
 
@@ -531,7 +485,7 @@ STAGES = (TERRAIN, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
               boxed_split, map(designed_rough, shapes_first.rows())))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
-          *light.ROWS, *map(crops_designed, crops.ROWS), COMPLETE_BOXES,
+          *light.ROWS, *map(crops_designed, crops.ROWS),
           surface_tiles.STAGE)
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
@@ -547,9 +501,6 @@ MOTION_LAYER = {"models": ("motion-models", "motion-models-boxes"),  # rigid mov
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",),
-             # the ship rooms' box gate: a box on a plain code piece against a concept drawn before the plan (overseer
-             # 2026-10-15; navigation's door leaf, the walkway's upper wall plate), as complete's boxes check below
-             "complete-boxes": ("grounded",),
              # complete's own: the people the cast names and no accepted body of its look lays (the owner's rule: they
              # ship as named fails until the people work lands), a likeness no props file answers, a motion not built,
              # a row no stage makes yet (the launch's two far towers), a layout still taken from the source game (the
@@ -705,36 +656,6 @@ STAGES = tuple(dataclasses.replace(row, applies=hazed(row.applies)) if row.name 
                if row.name in ("light-layer", "light-passes", "light") else row for row in STAGES)
 
 
-def ship_assembled(row):
-    """The assembly with a ship place's made pieces laid on its base, its earth seed (assembly/ship_made.py, 2026-10-15:
-    the base lays the kit's code pieces only, so its bake had no object to lay the bunks, lockers and consoles in),
-    each from the bake of the place that paints it, read beside; its plan, the kit layout's tools and ship_made.py
-    declared. A place with a round-three seed is assembled as before: wrapped here, in the table, so its key stays."""
-    files, neighbours, make = row.files, row.neighbours, row.make
-
-    def declared(place):
-        return {**files(place), **ship_made.files(place)} if ship_place(place) else files(place)
-
-    def beside(place):
-        return sorted({*neighbours(place), *ship_made.neighbours(place)}) if ship_place(place) else neighbours(place)
-
-    def made(inputs, out, seed, params):
-        place = pathlib.Path(inputs["seed"]).name
-        if not ship_place(place):
-            return make(inputs, out, seed, params)
-        claimed = set(neighbours(place))  # the made pieces' bakes are ship_made's, not the surface data's claims
-        make({name: path for name, path in inputs.items() if "@" not in name or name.split("@", 1)[1] in claimed},
-             out, seed, params)
-        laid, unlaid = ship_made.lay(inputs, out, place)
-        if not (laid or unlaid):  # a place with no made rows (the walkway) is its seed's assembly, byte for byte
-            return
-        origin = json.loads((out / "origin.json").read_text())
-        (out / "origin.json").write_text(json.dumps({**origin, "made pieces": laid, "made rows unlaid": unlaid},
-                                                    indent=1))
-    return dataclasses.replace(row, files=functools.wraps(files)(declared),
-                               neighbours=functools.wraps(neighbours)(beside), make=functools.wraps(make)(made))
-
-
 OWN_RECORD = "scene-record"
 
 
@@ -751,7 +672,7 @@ def record_beside(inputs, place):
 def reading_own_record(row):
     """The row reading, for a ship place, its own scene-record output beside (own_record), so its views come from the
     stage that writes them and wait on it (2026-10-19: they were a copy under work/demo/world1-r4/views, made by hand,
-    lost with the work folder). A place with an old record reads nothing beside, so its key stays."""
+    lost with the work folder). Any other place reads nothing beside, so its key stays."""
     beside = {OWN_RECORD: ("scene-record", 1)}
     if row.beside and row.beside != beside:
         raise ValueError(f"{row.name} already reads beside; own_record would give its other reads the same places")
@@ -761,61 +682,31 @@ def reading_own_record(row):
 def ship_seen(row):
     """surfaces-check with a view distance for a ship place's models (2026-10-15: every model's was none, so the
     cockpit's pedestal, side console and ceiling equipment and the engine room's fuel tank were unknown): its views
-    its own scene record's, read beside (reading_own_record; it has no data/scene record), and its made
-    models' spots where the ship kit lays them (its installed kit holds the code pieces only), laid beside the kit
-    for the check. A place with a round-three seed is checked as before: wrapped here, so its key stays."""
-    files, make = row.files, row.make
-
-    def declared(place):
-        if not ship_place(place):
-            return files(place)
-        laid = {name: pattern for name, pattern in ship_made.files(place).items() if not name.startswith("surfaces ")}
-        return {**files(place), **laid}
+    its own scene record's, read beside (reading_own_record). The old ship kit's made pieces laid beside it went
+    with the old kits (2026-10-21). Any other place is checked as before: wrapped here, so its key stays."""
+    make = row.make
 
     def made(inputs, out, seed, params):
         place = json.loads(pathlib.Path(inputs["surfaces"]).read_text())["place"]
         if not ship_place(place):
             return make(inputs, out, seed, params)
-        inventory = json.loads(pathlib.Path(inputs[f"inventory {place}"]).read_text())
-        found = ship_made.row_models(inventory, {place: inputs["surfaces"]})
-        models = {row: model for row, (_, model) in found.items()}
-        kit = json.loads(pathlib.Path(inputs["kit"]).read_text())
-        made_pieces = ship_made.pieces(place, json.loads(pathlib.Path(inputs["plan"]).read_text()), inventory, models)
-        seen = out / ".seen-kit.json"
-        seen.write_text(json.dumps(dict(kit, pieces=kit["pieces"] + made_pieces)))
-        try:
-            return make(dict(inputs, kit=seen, **{"scene record": record_beside(inputs, place)}), out, seed, params)
-        finally:
-            seen.unlink()
-    return reading_own_record(dataclasses.replace(row, files=functools.wraps(files)(declared),
-                                                  make=functools.wraps(make)(made)))
+        return make(dict(inputs, **{"scene record": record_beside(inputs, place)}), out, seed, params)
+    return reading_own_record(dataclasses.replace(row, make=functools.wraps(make)(made)))
 
 
-def ship_completed(row):
-    """complete reading, for a ship place, the likeness output of each other place whose bake lays one of its made
-    pieces (2026-10-16: the galley's lockers are the shiplock's take, held to their close-up by likeness@shiplock, and
-    the gate read only likeness@galley), each where that place has props rows; read beside, so no other place's key
-    moves (a place with no such neighbour has no beside part)."""
-    def beside(place):
-        return [other for other in ship_made.neighbours(place) if prop_data.applies(other)] if ship_place(place) else []
-    return dataclasses.replace(row, beside={"likeness": ("props-likeness", 1)}, neighbours=beside)
-
-
-STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row) if row.name == "surfaces-check"
-               else ship_completed(row) if row.name == "complete" else row
-               for row in STAGES)
+STAGES = tuple(ship_seen(row) if row.name == "surfaces-check" else row for row in STAGES)
 # The assembly reading the round-three seed itself, before earth_seeded below: the worked example's (stages_test.py).
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
 def earth_place(place):
-    """A place of the earth seed rows, the base of every place's stage: its kit is laid or its design is locked (its
-    plan kept under {home}/design/plans: a ship room, a scene he added in the app), the earth's and the ship's alike
+    """A place of the earth seed rows, the base of every place's stage: its design is locked (its plan kept under
+    {home}/design/plans), the earth's and the ship's alike
     (the owner, 2026-10-21: every designed scene's base from its own design, never from a lost seed), and it has a
     style to make it in (earth_seed.styled: a top scene place.json does not name has none, so its seed stays a lost
     input, named, never a crash). A part of another scene's outside (the launch) is none: it has no stage line, so
     no row reads its earth seed beside (the owner, 2026-10-21; `places`)."""
-    return place is not None and (kit_laid(place) or earth_seed.locked_plan(place) is not None) and \
+    return place is not None and earth_seed.locked_plan(place) is not None and \
         earth_seed.styled(place) and place not in neighbours.parts()
 
 
@@ -955,27 +846,26 @@ def world1():
 
 
 def places(world, store=None):
-    """An environment's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
-    none for an environment without data, the images environment) and each scene the creator added in the app or that
-    holds others (a parent scene with no data of its own, the Moon base) whose design is done (added_by_him), less every
-    scene he took out: those places/within.json names `merged` into another (navigation into the cockpit, the owner
-    2026-10-21), and those his kept plans in `store` (the framework's by default) no longer lay out, removed or merged
-    into a shared room on the plan above (plans.removed, the cockpit's own reading), so the build follows the app
-    without a hand edit. A part of another scene's outside (within.json `parts`: the launch, the Square's) is no place
-    of the build either: the scene it is part of builds it, its inventory rows and plan area that scene's design (the
-    owner, 2026-10-21, asked "Shall Launch stop being a place the batch builds, so the Square's build covers it?":
-    "yes"). In the scene tree's order (parent_first): each parent scene before its child scenes."""
+    """An environment's places (none for an environment without data, the images environment): each scene of its
+    design whose design is done (designed_scenes: the scenes of the tree and every scene drawn in the concept review,
+    each once its concept is locked, its inventory read and its plan written or edited; the filed plans and kits of
+    the old concepts were retired, 2026-10-21), less every scene he took out: those places/within.json names `merged`
+    into another (navigation into the cockpit, the owner 2026-10-21), and those his kept plans in `store` (the
+    framework's by default) no longer lay out, removed or merged into a shared room on the plan above (plans.removed,
+    the cockpit's own reading), so the build follows the app without a hand edit. A part of another scene's outside
+    (within.json `parts`: the launch, the Square's) is no place of the build either: the scene it is part of builds
+    it, its inventory rows and plan area that scene's design (the owner, 2026-10-21, asked "Shall Launch stop being a
+    place the batch builds, so the Square's build covers it?": "yes"). In the scene tree's order (parent_first): each
+    parent scene before its child scenes."""
     if "data" not in world.roots:
         return []
     data = pathlib.Path(world.roots["data"])
     path = data / "places/within.json"
     found = json.loads(path.read_text()) if path.exists() else {}
     within = {name: entry["within"] for name, entry in found.get("within", {}).items()}
-    filed = {path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")}
-    store = (store or Store.default()) if within else None
-    gone = {*found.get("merged", {}), *found.get("parts", {}), *(removed_by_him(store, within) if within else ())}
-    kept = (filed | set(added_by_him(store, within, filed) if within else ())) - gone
-    return parent_first(kept, laid_out(store, within) if within else {})
+    store = store or Store.default()
+    gone = {*found.get("merged", {}), *found.get("parts", {}), *removed_by_him(store, within)}
+    return parent_first(set(designed_scenes(store, within)) - gone, laid_out(store, within))
 
 
 def parent_first(found, within):
@@ -998,15 +888,16 @@ def removed_by_him(store, within):
     return plans.once("removed", store, tuple(sorted(within.items())), lambda: plans.removed(store, within))
 
 
-def added_by_him(store, within, filed):
-    """The scenes of the tree his kept plans lay out with nothing of theirs `filed` in the data (a child scene he added
-    on a plan in the app, or a parent scene holding others, the Moon base) whose design is done (plans.design_done);
-    one still in design is no place yet: the cockpit shows it as a scene in design and no row of the batch reads it."""
+def designed_scenes(store, within):
+    """The scenes of the design whose design is done (plans.design_done): those of the tree as his kept plans lay it
+    out (a child scene he added on a plan in the app, a parent scene holding others, the Moon base) and every scene
+    drawn in the concept review (an outside place holding none, the wreck); one still in design is no place yet: the
+    cockpit shows it as a scene in design and no row of the batch reads it."""
     def found():
         tree = laid_out(store, within)
-        return sorted(place for place in {*tree, *tree.values()}
-                      if place not in filed and plans.design_done(store, place))
-    return plans.once("added", store, (tuple(sorted(within.items())), tuple(sorted(filed))), found)
+        drawn = {key.split("/")[1] for key in store.objects.keys(f"{concepts.AREA}/")}
+        return sorted(place for place in {*tree, *tree.values(), *drawn} if plans.design_done(store, place))
+    return plans.once("designed", store, tuple(sorted(within.items())), found)
 
 
 WORLDS = {"world1": world1, "images": images.image_world}

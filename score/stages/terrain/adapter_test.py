@@ -28,7 +28,7 @@ import score.stages.props.prop_data as prop_data  # noqa: E402
 import score.stages.surfaces  # noqa: E402
 from score.stages.surfaces import surface_data  # noqa: E402
 
-# These tests hold the data/props and data/surfaces places; a designed place's hand-in (the home's design/, which
+# These tests hold their own hand-ins; a designed place's hand-in (the home's design/, which
 # the sandbox links) is prepare_test.py's, so none is read here.
 prop_data.DESIGN = surface_data.DESIGN = pathlib.Path(tempfile.mkdtemp()) / "no design"
 score.stages.surfaces.data.DESIGN = surface_data.DESIGN  # the table's own import of it (bare `surface_data`)
@@ -39,7 +39,7 @@ def test_the_wreck_s_areas_are_its_plan_s_craters_in_its_patch():
     craters = [crater["name"] for crater in json.loads((REPO / "data/ground/plan/moon.json").read_text())["craters"]]
     assert found and all(area["kind"] == "crater" and area["landform"].split(" ")[1] in craters for area in found)
     assert all(area["size"][0] > 0 and area["size"][1] > 0 for area in found), found
-    assert "craters, rough regolith" in found[0]["words"]  # the concept's ground element, read from the plan
+    assert all(area["words"].startswith("ground detail: crater") for area in found), found  # its landform, named
     assert areas.detail_areas("hangar", REPO / "data") == []  # its patch reaches no landform of its plan
 
 
@@ -54,7 +54,7 @@ def test_areas_land_as_prop_route_rows_and_until_then_are_missing_gaps():
     assert surfaces["bake"]["models"][first] == f"{first}-g1" and f"{first}-g1" in surfaces["takes"]
     gaps = needs.gaps("wreck", REPO / "data")
     assert len(gaps) == len(found) and all(gap["rule"] == "missing" for gap in gaps), gaps
-    assert gaps[0]["work"] == "prop data for wreck: data/props/wreck.json" and gaps[0]["node"] is None, gaps[0]
+    assert gaps[0]["work"] == "prop data for wreck: its design hand-in (prepare)" and gaps[0]["node"] is None, gaps[0]
 
 
 def registered(root, rough_model, floor):

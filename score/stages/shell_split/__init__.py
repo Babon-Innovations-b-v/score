@@ -2,7 +2,7 @@
 "outside shell", "inside place"), one free place node per shell, local and deterministic. Generic: any shell (a ship's
 hull, a base's outer wall) in any environment.
 
-A place is an outside shell when its plan (`data/plans/<place>.json`) has a `split`:
+A place is an outside shell when its kept plan (`{home}/design/plans/<place>.json`) has a `split`:
 
     "split": {
       "outline": [[along, left, right, clear], ...],   # the inside's floor, front to back: metres along the long axis,
@@ -30,9 +30,10 @@ import pathlib
 
 from score import contracts
 from score.stages.shell_split import _gates, _split
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-PLANS = REPO / "data/plans"
+PLANS = PROPS_HOME / "design" / "plans"  # the kept plans (score/review/plans.py keep), the design's
 CHECKS = _gates.CHECKS
 
 SHELL_PLAN = _gates.SHELL_PLAN
@@ -40,7 +41,7 @@ SHELL_PLAN = _gates.SHELL_PLAN
 
 def files(place):
     """The shell's plan: its split's outline, bounds and room list."""
-    return {SHELL_PLAN: "{data}/plans/{place}.json"}
+    return {SHELL_PLAN: "{home}/design/plans/{place}.json"}
 
 
 def read_plan(path):
@@ -48,7 +49,7 @@ def read_plan(path):
 
 
 def applies(place):
-    """Whether the place is an outside shell: its plan has a split (the repository's plans, as scene_record.written
+    """Whether the place is an outside shell: its kept plan has a split (as scene_record.written
     reads them: `applies` is given the place alone)."""
     path = PLANS / f"{place}.json"
     return path.exists() and "split" in read_plan(path)

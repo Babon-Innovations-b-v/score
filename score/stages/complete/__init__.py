@@ -30,7 +30,7 @@ READS = ("assembly", "neighbours", "surfaces-check", "likeness")
 GATE = tuple(check for check in complete.CHECKS if check != "resting")
 # The world folders the checks read (complete.py and contents.py read them from the repository's data, the same
 # folders for world 1), declared so a change to any reruns the gate.
-FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit", "scenes": "{data}/scene",
+FILES = {"inventories": "{data}/inventory",
          "row kinds": "{data}/checks/row-kinds.json",
          "designed people": "{data}/people/rows.json"}
 

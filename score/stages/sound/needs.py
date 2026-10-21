@@ -15,14 +15,10 @@ brief): the gaps check (score/stages/complete/gaps) shows make and none as the p
 """
 import json
 import pathlib
-import sys
 
 from score.stages import design_layers, people_rows, row_kinds
 from score.stages.sound import beds
 from score.stages.sound import moving
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/usd"))
-import stage_inputs  # noqa: E402
 
 LIBRARY, MAKE, NONE = "library", "make", "none"
 
@@ -107,7 +103,7 @@ def state_of(names, catalogue, sounds):
 def inventory_of(place, data, design=beds.DESIGN):
     """The place's scene inventory: the creator's kept one (under `design`), else data/'s."""
     kept = design / "inventory" / f"{place}.json"
-    return kept if kept.is_file() else pathlib.Path(data) / "inventory" / stage_inputs.inventory_path(place).name
+    return kept if kept.is_file() else pathlib.Path(data) / "inventory" / f"{place}.json"
 
 
 def needs(place, data, design=beds.DESIGN):

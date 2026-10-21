@@ -246,55 +246,6 @@ def check_magenta():
         assert verdict.answer == checks.FAIL and verdict.measures["magenta share"] == 0.01, verdict
 
 
-def check_shafts_from_rows():
-    """A floodlight's shaft is its glowing inventory row's, the plan aiming it (the library's aimed lamp), never a
-    hand-kept lamp of one place: the launch's pad floodlights get theirs in the record the scene-record row writes
-    from its plan, inventory and kit; a glowing row the plan does not aim lights no shaft; the sky record holds no
-    lamps."""
-    from score.stages import row_kinds
-    from score.stages.light import haze
-    from score.stages.scene_record import kit_shell
-    aims = json.loads((REPO / "data/plans/launch.json").read_text())["aims"]
-    plan = {"aims": aims, "floor_height": 0.0,
-            "items": [{"name": aim["at"], "box": [0, 0, 1, 1]} for aim in aims.values()]}
-    kit = json.loads((REPO / "data/kit/launch.json").read_text())
-    glowing = row_kinds.rows_that(json.loads((REPO / "data/inventory/launch.json").read_text()), "glows",
-                                  row_kinds.table())
-    lights = kit_shell.lamps(plan, kit, glowing, REPO / "data/library/lamps.json")
-    pads = [light for light in lights if "far_pad_floodlight" in light["from"]]
-    assert all(light["type"] == "spot" and light["range"] > 2 * 30.0 for light in pads), pads
-    unaimed = kit_shell.lamps({**plan, "aims": {}}, kit, glowing, REPO / "data/library/lamps.json")
-    assert len(unaimed) == len(lights) and not [light for light in unaimed if light.get("shaft")], unaimed
-    assert not any("lamps" in body for body in json.loads((REPO / "data/definitions/sky.json").read_text()).values()
-                   if isinstance(body, dict))
-    lenses = [laid for laid in kit["pieces"]
-              if laid["kind"] == "launch_far_pad_floodlight" and laid.get("part") == "glow"]
-    assert len(pads) == len(lenses) > 0 and all(light.get("shaft") for light in pads), pads
-    assert haze.shafted_kinds("launch") == {"launch_far_pad_floodlight"}
-
-
-def check_lamps_hang_over_their_own_floor():
-    """A kit shell's hung lamp reaches by how high it hangs over the kit floor under it, never over the plan's ground
-    floor: the stairwell's seven landing lights, one per half landing 1.5 m apart, each hang the same 2.33 m over their
-    own landing, so each gets the same reach, the library wall lamp's for that height (11.65 m when every lamp was
-    measured from the ground floor), and the game lamp's energy at the wall lamp's share of it."""
-    sys.path.insert(0, str(REPO / "tools/usd"))
-    import scene
-    from score.stages import row_kinds
-    from score.stages.scene_record import kit_shell
-    name = json.loads((REPO / "data/plans/stairwell.json").read_text()).get("inventory", "stairwell")
-    inventory = json.loads((REPO / f"data/inventory/{name}.json").read_text())
-    kit = json.loads((REPO / "data/kit/stairwell.json").read_text())
-    glowing = [row for row in row_kinds.rows_that(inventory, "glows", row_kinds.table()) if row["id"] == "cage_bulkhead"]
-    lights = kit_shell.lamps({"floor_height": 0.0}, kit, glowing, REPO / "data/library/lamps.json", inventory["rows"])
-    wall = json.loads((REPO / "data/library/lamps.json").read_text())["mounts"]["wall"]
-    reach = round(wall["reach_per_height"] * 2.33, 2)
-    assert len(lights) == 7 and {light["range"] for light in lights} == {reach}, lights
-    assert all(light["energy"] == round(scene.LAMP_ENERGY * round(wall["strength_per_reach"] * reach, 3), 4)
-               for light in lights), lights
-    assert len({light["at"][1] for light in lights}) == 7  # seven heights, one reach
-
-
 def check_needs():
     """An outdoor place no ground seats lacks its seat and its sky; seated, it still lacks its sky until its kept sky
     has a site and a scene time on the environment's physics; a room under a roof needs neither, whatever an old
@@ -313,6 +264,9 @@ def check_needs():
     (data / "plans/room.json").write_text(json.dumps({"shell": "kit", "inside": True}))
     (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
     (data / "scene/oldonly.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
+    from score.stages.terrain import areas
+    kept = needs.KEPT_PLANS, areas.KEPT_PLANS
+    needs.KEPT_PLANS = areas.KEPT_PLANS = data / "plans"  # the kept plans the needs read (the design's)
 
     def ids(place):
         return sorted(gap["id"] for gap in needs.gaps(place, data, skies) + ground_needs.gaps(place, data))
@@ -328,6 +282,7 @@ def check_needs():
     assert ids("yard") == [], ids("yard")
     assert sorted(gap["id"] for gap in needs.gaps("room", data, skies)) == []
     assert needs.gaps("oldonly", data, skies) == [] and ids("nowhere") == []
+    needs.KEPT_PLANS, areas.KEPT_PLANS = kept
     shutil.rmtree(data)
 
 
@@ -352,22 +307,14 @@ def check_exposure():
 
 
 def check_design_rows():
-    """The rows read the design only: they apply to every place whose plan the scene-record row writes (and to no
-    place without a plan), light-haze where the kit lays a lamp with a shaft, the record is the scene-record output's
-    (a shown place's read beside), the floodlight heads are the shafted kinds' glow parts of the place and of the
-    places it shows, and no row declares a hand-kept record in data/scene."""
+    """The rows read the design only: no row declares a hand-kept record in data/scene (the old records were
+    retired, 2026-10-21), the record is the scene-record output's (a shown place's read beside), and a place with no
+    kept plan (the far city) has no light row."""
     import tempfile
-    from score.stages import light, scene_record
-    from score.stages.light import haze, passes
-    plans = sorted(path.stem for path in (REPO / "data/plans").glob("*.json"))
-    assert plans and all(light.applies(place) == scene_record.written(place) for place in plans)
+    from score.stages import light
+    from score.stages.light import passes
     assert not light.applies("far_city") and not light.applies(None)
-    # The square aims its floodlight towers, but their row ("floodlight tower", read with no noun) is no lamp by its
-    # row kind, so they light no shaft until its inventory is read with nouns.
-    assert [place for place in plans if haze.applies(place)] == ["launch"]
-    assert haze.shafted_kinds("launch") == {"launch_far_pad_floodlight"} and haze.shafted_kinds("square") == set()
-    assert haze.shafted_kinds("flat") == set()
-    for place in plans:
+    for place in ("launch", "square", "hub"):
         for files in (light.layer_files, light.light_files, passes.passes_files):
             assert not [path for path in files(place).values() if path.startswith("{data}/scene")], (place, files)
     with tempfile.TemporaryDirectory() as folder:
@@ -379,41 +326,37 @@ def check_design_rows():
             inputs[node] = str(pathlib.Path(folder) / node)
         assert passes.place_of(inputs) == "launch" and passes.shown_in(inputs) == ["square"]
         assert passes.record_of("square", inputs)["place"] == "square"
-        heads = len(light.lamp_heads("launch", inputs))
-        alone = len(light.lamp_heads("launch", {"scene-record": inputs["scene-record"]}))
-        glows = {place: sum(1 for laid in json.loads((REPO / f"data/kit/{place}.json").read_text())["pieces"]
-                            if laid["kind"] in haze.shafted_kinds(place) and laid.get("part") == "glow")
-                 for place in ("launch", "square")}
-        assert alone == glows["launch"] > 0 and heads == glows["launch"] + glows["square"], (alone, heads, glows)
+        assert light.lamp_heads("launch", inputs) == []  # no kit lays a shafted lamp: no floodlight head
 
 
 def check_haze_from_the_kit():
-    """light-haze applies at a place no list names whose kit lays a glowing row (row kind) its plan aims, and at none
-    whose plan aims no glowing row: one that aims nothing, or aims a row that does not glow."""
+    """light-haze applies at a place no list names whose kit lays a glowing row (row kind) its kept plan aims, and at
+    none whose plan aims no glowing row: one that aims nothing, or aims a row that does not glow."""
     import tempfile
     from score.stages.light import haze, passes
     rows = [{"id": "mast_lamp", "name": "mast lamp"}, {"id": "desk", "name": "desk"}]
     aims = {"yard": {"mast_lamp": {"at": "pad"}}, "hall": {}, "shed": {"desk": {"at": "pad"}}}
-    repo = passes.REPO
+    repo, kept = passes.REPO, passes.KEPT
     with tempfile.TemporaryDirectory() as folder:
-        for kind in ("kit", "plans", "inventory"):
-            (pathlib.Path(folder) / f"data/{kind}").mkdir(parents=True)
+        for kind in ("data/kit", "design/plans", "design/inventory"):
+            (pathlib.Path(folder) / kind).mkdir(parents=True)
         for place, aimed in aims.items():
             (pathlib.Path(folder) / f"data/kit/{place}.json").write_text(json.dumps(
                 {"room": place, "pieces": [{"kind": f"{place}_{row['id']}", "part": "glow"} for row in rows]}))
-            (pathlib.Path(folder) / f"data/plans/{place}.json").write_text(json.dumps({"aims": aimed}))
-            (pathlib.Path(folder) / f"data/inventory/{place}.json").write_text(json.dumps({"rows": rows}))
-        passes.REPO = pathlib.Path(folder)
+            (pathlib.Path(folder) / f"design/plans/{place}.json").write_text(json.dumps({"aims": aimed}))
+            (pathlib.Path(folder) / f"design/inventory/{place}.json").write_text(json.dumps({"rows": rows}))
+        passes.REPO, passes.KEPT = pathlib.Path(folder), pathlib.Path(folder) / "design"
         try:
             assert haze.shafted_kinds("yard") == {"yard_mast_lamp"} and haze.applies("yard")
             assert not haze.applies("hall") and not haze.applies("shed") and not haze.applies("nowhere")
         finally:
-            passes.REPO = repo
+            passes.REPO, passes.KEPT = repo, kept
 
 
 def check_neighbours_from_the_record():
-    """The places rendered with a place are its accepted scene record's `places` that the design has a plan with
+    """The places rendered with a place are its accepted scene record's `places` that the design has a kept plan with
     leads for (never an old hand-kept record's): none before the record stands accepted, a planless one left out."""
+    import tempfile
     from score.stages.light import passes
     from score.store import Store
     record = {"place": "flat", "places": [{"stage": "wreck"}, {"stage": "far_city"}, {"stage": "flat"}]}
@@ -428,14 +371,18 @@ def check_neighbours_from_the_record():
         def read_file(self, output, name):
             return self.held["scene-record@flat"] if name == "record/flat.json" else None
 
-    default = Store.default
-    try:
-        Store.default = classmethod(lambda cls: Accepted({"scene-record@flat": record}))
-        assert passes.neighbours("flat") == ["wreck"], passes.neighbours("flat")
-        Store.default = classmethod(lambda cls: Accepted({}))
-        assert passes.neighbours("flat") == []
-    finally:
-        Store.default = default
+    default, kept = Store.default, passes.KEPT
+    with tempfile.TemporaryDirectory() as folder:
+        passes.KEPT = pathlib.Path(folder)
+        (passes.KEPT / "plans").mkdir()
+        (passes.KEPT / "plans/wreck.json").write_text(json.dumps({"leads": {}}))
+        try:
+            Store.default = classmethod(lambda cls: Accepted({"scene-record@flat": record}))
+            assert passes.neighbours("flat") == ["wreck"], passes.neighbours("flat")
+            Store.default = classmethod(lambda cls: Accepted({}))
+            assert passes.neighbours("flat") == []
+        finally:
+            Store.default, passes.KEPT = default, kept
 
 
 def main():
@@ -448,8 +395,6 @@ def main():
     check_layer()
     check_glow_from_sky_record()
     check_copy_leaves_its_input()
-    check_shafts_from_rows()
-    check_lamps_hang_over_their_own_floor()
     check_neighbour_keeps_its_pictures()
     check_magenta()
     check_heads()

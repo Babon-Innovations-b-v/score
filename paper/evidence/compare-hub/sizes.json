@@ -1,0 +1,70 @@
+{
+ "about": "Each compare-hub table object's size in metres (across, deep, tall) as the hub's scene inventory gave it when the table was measured (data/inventory/hub.json, retired 2026-10-21): what score/stages/complete/prepare/predict.py counts the measured failure modes against.",
+ "sizes": {
+  "hammer": [
+   0.12,
+   0.03,
+   0.32
+  ],
+  "hatch_wheel": [
+   0.5,
+   0.08,
+   0.5
+  ],
+  "headset": [
+   0.2,
+   0.1,
+   0.27
+  ],
+  "keyboard": [
+   0.46,
+   0.17,
+   0.035
+  ],
+  "lattice_diamond_strut": [
+   0.08,
+   0.08,
+   1.6
+  ],
+  "lattice_hip_rib": [
+   0.12,
+   0.12,
+   4.9
+  ],
+  "lattice_node_plate": [
+   0.3,
+   0.05,
+   0.3
+  ],
+  "lattice_ring_rib": [
+   2.4115427318801044,
+   0.1,
+   0.1
+  ],
+  "pipe_bracket": [
+   0.12,
+   0.15,
+   0.1
+  ],
+  "pipe_straight": [
+   1.0,
+   0.1,
+   0.1
+  ],
+  "pliers": [
+   0.07,
+   0.02,
+   0.2
+  ],
+  "screwdriver": [
+   0.03,
+   0.03,
+   0.22
+  ],
+  "tread_mat": [
+   1.4,
+   0.02,
+   0.9
+  ]
+ }
+}

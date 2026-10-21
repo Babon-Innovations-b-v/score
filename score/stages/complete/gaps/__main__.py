@@ -197,7 +197,7 @@ def written_place(store, place, data, folder, runner=None):
     row_ids = {row["id"] for row in (inventory or {}).get("rows", [])}
     found = (missing_gaps(stage, place, inventory, kit)
              + gate_gaps(stage, place, store, data, folder.parent, row_ids)
-             + place_gaps(stage, place, store, inventory, read(data / "plans" / f"{place}.json"))
+             + place_gaps(stage, place, store, inventory, rows.plan(data, place))
              + layers.gaps(place, data)
              + (lost_gaps(runner, place) if runner is not None else []))
     layer.saved(stage)

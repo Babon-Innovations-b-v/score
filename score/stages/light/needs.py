@@ -1,7 +1,7 @@
 """What a place needs to be lit and to have its sky, worked out free from its design (#27), as the gaps check's
 layer gaps (score/stages/complete/gaps/layers.py):
 
-    plan    the plan its light is written from (data/plans/<place>.json): the scene-record row writes its record, its
+    plan    the plan its light is written from (its kept plan, the design's): the scene-record row writes its record, its
             lights and its views from it; with none, the route's own plan gap stands (gaps/route.py) and nothing is
             added here. A record with no view is the light-layer row's own fault, once the record is written
     sky     an outdoor place (its plan's shell `outdoor` or `inside` false) needs its sky from the environment
@@ -14,6 +14,9 @@ import json
 import pathlib
 
 from score.review import overhead, scene_sky
+from score.store import PROPS_HOME
+
+KEPT_PLANS = PROPS_HOME / "design" / "plans"  # the kept plans (score/review/plans.py keep), the design's
 
 
 def read(path):
@@ -47,7 +50,7 @@ def gaps(place, data, skies=None):
     """The place's light and sky needs not met: [{"id", "prim", "sentence", "node", "work"}]; `skies` the folder of
     the scenes' kept skies (scene_sky.KEPT)."""
     data = pathlib.Path(data)
-    plan = read(data / "plans" / f"{place}.json")
+    plan = read(KEPT_PLANS / f"{place}.json")
     if plan is None:
         return []  # the route's own gap: no plan (gaps/route.py), which its record, lights and views come from
     found = []

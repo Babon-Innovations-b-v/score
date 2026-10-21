@@ -61,7 +61,7 @@ def runner_route(runner):
 def declared_files(data):
     """The library rows' world files for a world whose data folder is `data`: the world record (its name and seed),
     the library-free decisions, the written exceptions once the file is there, and for a place node the place's
-    record (its kit, else its plan), whose name is the place the node hands."""
+    record (its kept plan, the design's), whose name is the place the node hands."""
     data = pathlib.Path(data)
 
     def files(place):
@@ -69,8 +69,7 @@ def declared_files(data):
         if (data / "checks/library-exceptions.json").exists():
             found[EXCEPTIONS] = "{data}/checks/library-exceptions.json"
         if place is not None:
-            kit = data / "kit" / f"{place}.json"
-            found[PLACE_RECORD] = "{data}/kit/{place}.json" if kit.exists() else "{data}/plans/{place}.json"
+            found[PLACE_RECORD] = "{home}/design/plans/{place}.json"
         return found
     return files
 

@@ -19,7 +19,7 @@ on each place's accepted assembly, read only, no Blender, no cloud.
 - Run: `.venv/bin/python -m score.stages.complete.materials [--place P] [--out FOLDER] [--judge-only]` under
   `systemd-run --user --scope -q -p MemoryMax=16G -p CPUQuota=400%`, in the background; it writes
   `WORK/checks/materials/<place>/` and `contact_sheet.png`.
-- The fixtures `data/checks/materials/<place>.json.gz` are real evidence (hangar fails all three, the cockpit's
-  consoles hold the kit's detail, the garage's wheel stand has clean borders); measure again with `measure.gather`
-  only when a rule needs a case they lack.
+- The fixtures of real evidence (`data/checks/materials/<place>.json.gz`, the old concepts' hangar, cockpit and
+  garage) were retired with those places on 2026-10-21; the test holds the measures on meshes of known shape. Measure
+  a place again with `measure.gather` when a rule needs a case of real evidence.
 - Test: `materials_test.py`.

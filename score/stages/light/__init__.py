@@ -753,16 +753,15 @@ def light_faults(folder):
 def light_files(place):
     """What the sweep and the measures read besides the scene records: the kits, the seed and the places it shows
     (the stage checks, their floodlight heads), the concepts; the views come with the layer."""
-    inventory = stage_inputs.inventory_path(place)
     found = {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
-             **passes.place_files(place), "inventory": "{data}/inventory/" + inventory.name,
+             **passes.place_files(place), "inventory": stage_inputs.inventory_pattern(place),
              # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
              "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
              **aimed_files(place)}
     if designed(place):  # its picked concept
         found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
     else:
-        found["concepts"] = f"{{seeds}}/scene/{inventory.stem}/views"
+        found["concepts"] = f"{{seeds}}/scene/{place}/views"
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
         found.update(passes.place_files(name))
@@ -771,15 +770,13 @@ def light_files(place):
 
 
 def aimed_files(name):
-    """A place's plan and inventory, which say which of its lamps are aimed and light a shaft (haze.shafted_kinds);
-    none for a place with no filed plan (it aims nothing)."""
-    path = REPO / f"data/plans/{name}.json"
-    if not path.exists():
+    """A place's kept plan and scene inventory (the design's), which say which of its lamps are aimed and light a
+    shaft (haze.shafted_kinds); none for a place with no kept plan (it aims nothing)."""
+    if not (passes.KEPT / "plans" / f"{name}.json").exists():
         return {}
-    inventory = json.loads(path.read_text()).get("inventory", name)  # scene_record/plan.inventory_name
-    found = {f"plan {name}": f"{{data}}/plans/{name}.json"}
-    if (REPO / f"data/inventory/{inventory}.json").exists():
-        found[f"inventory {name}"] = f"{{data}}/inventory/{inventory}.json"
+    found = {f"plan {name}": "{home}/design/plans/" + f"{name}.json"}
+    if (passes.KEPT / "inventory" / f"{name}.json").exists():
+        found[f"inventory {name}"] = "{home}/design/inventory/" + f"{name}.json"
     return found
 
 

@@ -42,7 +42,7 @@ def pattern(place):
 
 def boxes_files(place):
     """crops-boxes' files: the crop data, the place's inventory, the box check and the SAM 3 runner."""
-    return {"crops": pattern(place), "inventory": "{data}/inventory/" + f"{place}.json",
+    return {"crops": pattern(place), "inventory": "{home}/design/inventory/" + f"{place}.json",
             "box check": "{repo}/tools/props/scene/box_check.py", **MASKS_TOOLS}
 
 
@@ -65,7 +65,7 @@ def concept_files(place):
     runs on the rented card (not in the row's code version: it is copied up, not imported)."""
     if not applies(place):
         return {}
-    return {"crops": pattern(place), "concept": concept_picture(place), "plan": "{data}/plans/" + f"{place}.json",
+    return {"crops": pattern(place), "concept": concept_picture(place), "plan": "{home}/design/plans/" + f"{place}.json",
             **MASKS_TOOLS}
 
 
@@ -75,7 +75,7 @@ def layer_files(place):
     if not applies(place):
         return {}
     return {"crops": pattern(place), "scene": "{data}/scene/" + f"{place}.json",
-            "inventory": "{data}/inventory/" + f"{place}.json", "library": "{data}/library",
+            "inventory": "{home}/design/inventory/" + f"{place}.json", "library": "{data}/library",
             "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
             "sounds": "{data}/sound/surfaces.json", "export": "{repo}/tools/usd"}
 

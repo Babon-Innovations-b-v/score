@@ -3,13 +3,14 @@
 The scene-record stage (experimental, PRD #6): a place's scene record made by SCORE from its plan and concept, not
 transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `writer.py` and `gates.py` theirs.
 
-- **The plan is the input** (`data/plans/<place>.json`): its walls, doors, items and standing spots, plus what the
+- **The plan is the input**, the place's kept plan (`{home}/design/plans/<place>.json`: his edit, else the written
+  plan; the filed `data/plans` of the old concepts were retired on 2026-10-21): its walls, doors, items and standing spots, plus what the
   writer needs that the old plans lacked, written into the plan itself: `leads` (each door's side: `to` a place,
   `outside` or `sealed`, `why`, and for a joined door `joins` and `door`), `rows` (each
   plan item's inventory rows; a zone names none) and `elements` (the concept read element by element: `rows`, a plan
   `door`, or a `drop` with its reason). A place has the rows only when its plan has `leads` (`written`).
-- **The writer never reads the old record.** `data/scene/<place>.json` is an unverified seed that only `seed-matched`
-  reads; a seed entry the writer leaves out on purpose needs a reason in `gates.SEED_REASONS`, never a quiet drop.
+- **The writer never reads the old record.** The old records (`data/scene/<place>.json`) were retired on 2026-10-21, so
+  `seed-matched` has no seed to read (a place with none passes it); while one was there, only `seed-matched` read it; a seed entry the writer leaves out on purpose needs a reason in `gates.SEED_REASONS`, never a quiet drop.
   Numbers that moved are shown on the page, never judged.
 - **Nothing cites the game** (`game-free`): every `from` names the plan element, inventory row, ground seat or environment
   record it was made from. The environment's air and room fill come from `data/definitions/sky.json`, itself an unverified
@@ -69,11 +70,13 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   into the TV, 2026-10-13).
 - **Seed reasons can name a family** (`<section>/<start>_`, kept to one place with `<place>:`), so the greenhouse's
   old bed boxes need one reason and it never excuses another room's.
-- **The plan's inventory** is `data/inventory/<place>.json`, or the plan's `inventory` name (the prologue's rooms keep
-  `prologue_flat`, `prologue_stairwell`). Never add inventory rows for a record: every place's assembly declares the
-  whole inventory folder, so one changed file makes them all again; a concept element still waiting on rows is a
-  `drop` with that reason.
+- **The plan's inventory** is the design's kept scene inventory (`{home}/design/inventory/<place>.json`, read
+  from the locked concept). Never add inventory rows for a record; a concept element still waiting on rows is a
+  `drop` with that reason. The writer's `kits` (data/kit) and `tube length` (data/scene/tube.json) were the old
+  kits' and records', retired on 2026-10-21: until the writer reads the design alone they are named missing inputs,
+  so the row blocks by name, never a crash.
 - **No assembly reads the record yet.** It lands in the store as `record/<place>.json` (today's schema, so
   tools/usd/scene.py builds it unchanged); the assembly takes it when its builder from records is wired.
-- Run the proof with `python -m score run world1 --place garage --stage scene-record --detach`; the test is
-  `scene_record_test.py` (the garage's plan and record and the stairwell's record, each gate's fault).
+- Run the proof with `python -m score run world1 --place <place> --stage scene-record --detach`; the test is
+  `scene_record_test.py` (a plan of its own: `mapped` and its faults, a written plan's outline; the old places'
+  records went with them, 2026-10-21).

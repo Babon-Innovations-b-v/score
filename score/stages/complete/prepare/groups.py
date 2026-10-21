@@ -40,10 +40,9 @@ MODEL_ROUTES = ("prop", "shell", "people")  # the routes whose models the prop p
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
 
 
-def inventories(data):
-    """{place: its scene inventory record} of every data/inventory/<place>.json under `data`."""
-    folder = pathlib.Path(data) / "inventory"
-    return {path.stem: json.loads(path.read_text()) for path in sorted(folder.glob("*.json"))}
+def inventories(folder):
+    """{place: its scene inventory record} of every <place>.json in `folder` (the design's kept inventories)."""
+    return {path.stem: json.loads(path.read_text()) for path in sorted(pathlib.Path(folder).glob("*.json"))}
 
 
 def current(store, places):

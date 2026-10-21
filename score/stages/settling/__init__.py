@@ -60,17 +60,14 @@ FOR_THE_PAINT = ("foot off", "leans", "tips")
 
 
 def files(place):
-    """What the stage reads: the place's seed stage, kit (its seat and its pieces' spots), scene record (when it has
-    one: what the kit relay reads), inventory (what holds each object up), the resting rules and the drop script its
-    machine runs."""
+    """What the stage reads: the place's seed stage, kit (its seat and its pieces' spots), its design's surface data
+    and scene inventory (what holds each object up), the resting rules and the drop script its machine runs."""
     import stage_inputs
     found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
-             "surfaces": "{data}/surfaces/{place}.json",
-             "inventory": "{data}/inventory/" + stage_inputs.inventory_path(place).name,
+             "surfaces": "{home}/design/surfaces/{place}.json",
+             "inventory": stage_inputs.inventory_pattern(place),
              "resting rules": "{data}/checks/resting.json",
              "drop script": "{repo}/tools/blender/inside/settle_stage.py"}  # run by path on the machine
-    if (REPO / "data/scene" / f"{place}.json").exists():
-        found["scene"] = "{data}/scene/{place}.json"
     return found
 
 

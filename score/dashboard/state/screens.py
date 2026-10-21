@@ -321,7 +321,7 @@ def buy(items, choices, spend):
 
 
 # The Buy screen's layers, each the stage prefixes it gathers, in the order shown; any other stage is "other".
-LAYERS = (("models", ("rough-model", "rough-align", "props-inputs", "closeup", "pixal", "likeness", "complete-boxes",
+LAYERS = (("models", ("rough-model", "rough-align", "props-inputs", "closeup", "pixal", "likeness",
                       "motion-models-boxes", "ship_kit", "earth-kit")),
           ("finishes", ("finish-route-", "surfaces-", "surface-tiles")),
           ("people", ("people-", "concept_people", "cast", "characters-")),
@@ -365,8 +365,8 @@ def approved_places(world):
 
 def design(source, world):
     """The Buy screen's design (CONTEXT.md "design"), made first on each place's card: each place's concept
-    (missing, drawn or picked), its plan (remake, made or approved), its accepted plan output and the old
-    plan's pick as a hint, as prepare's design record says (None for a place it does not name, or before it ran);
+    (missing, drawn or picked), its plan (remake, made or approved) and its accepted plan output, as prepare's
+    design record says (None for a place it does not name, or before it ran);
     whether its layout still takes numbers from the source game (its gaps' game gate); the places approved."""
     found = world.remake.design if world.remake else {}
     return {"places": [{"place": card.place, "design": found.get("places", {}).get(card.place),

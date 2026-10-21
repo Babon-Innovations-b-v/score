@@ -253,7 +253,7 @@ def metres_of(metres):
 
 
 def outline_of(store, place):
-    """(wide, deep) metres of the place's outline: its box in the layer above's plan, else its own data/plans plan;
+    """(wide, deep) metres of the place's outline: its box in the layer above's plan, else round its inside places;
     None when neither gives one."""
     from score.review import plans
     found = plans.outline_from_holder(store, place, plans.base_plan(place))

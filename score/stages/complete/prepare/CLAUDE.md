@@ -10,7 +10,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   `score moved`'s dry run (minutes).
 - **The rows are the scene inventory readings** (owner, 2026-10-21; `groups.current`): each place's and outside
   shell's current reading (`score/review/reading.reading_of`: read from its locked draw by today's method), never
-  `data/inventory/` (still read for the library models' sizes and the hub's measured rates only). A place with none
+  `data/inventory/` (retired with the old concepts on 2026-10-21; the library models' sizes are read from the design's
+  kept inventories, the hub's measured rates from the evidence's own sizes, `paper/evidence/compare-hub/sizes.json`). A place with none
   waits on inventory, no euros (`inventory.waiting`). A reading gives each row its size in metres (Gemini, from
   what it is and the picture, against the place's outline; SAM 3 gives only where, #10): a row's size is its place's
   current plan's item (`groups.plan_sizes`, `score/review/plans.current`, laid at the reading's metres, his edits
@@ -65,16 +66,14 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   never substituted; the rest each one `score run`, one after another. A benchmark with no paid path is listed as a
   gap. Never start the batch from an agent.
 - **Design before the batch** (owner, 2026-10-20, CONTEXT.md "design"; `design.py`): each place's concept
-  (missing, drawn, picked: the stored state of a lock), inventory (None before the lock, made when `data/inventory/<place>.json` was read from the
+  (missing, drawn, picked: the stored state of a lock), inventory (None before the lock, made when its reading, else the design's kept inventory, was read from the
   locked draw, else to read; CONTEXT.md "scene inventory") and plan (approved only once the design stands whole on
   its lock, `design.waits`: its draw not on a room the plan above has since moved, `concepts.plan_changed`; its
   reading current, `reading.reading_of`; its plan written by today's method or edited after that reading,
-  `plans.design_done`; a plan row's plan@<place> accepted after the lock, `plans.made`; else remake with `waits`
+  `plans.design_done`; else remake with `waits`
   saying why, so the Buy lists it as waiting; a `parts` place of within.json is no place of the build and never
-  listed: the scene it is part of builds it, owner 2026-10-21, `stages.places`), read from the store (the concept review's draws and locks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
-  never judged. The lock is the approval (owner, 2026-10-21): its inventory and then its plan are made from it
-  automatically (`score/review/plans.py`; the plan page is for inspecting and fixing, his edits redoing what follows). The cockpit's batch buys only approved places' steps. The old plans'
-  `concept.pick` is a hint for drawing, not a constraint.
+  listed: the scene it is part of builds it, owner 2026-10-21, `stages.places`), read from the store (the concept review's draws and locks, `score/review/concepts.py`), never judged. The lock is the approval (owner, 2026-10-21): its inventory and then its plan are made from it
+  automatically (`score/review/plans.py`; the plan page is for inspecting and fixing, his edits redoing what follows). The cockpit's batch buys only approved places' steps.
 - **The runner runs what the figure prices** (`handin.py`, #10): for each designed place (its plan kept where the plan
   stage reads it, `score/review/plans.KEPT`) prepare writes its takes as the shared loop's hand-in
   (`{home}/design/props/<place>.json`: objects, the sized rows, each take's `stages` by `estimate.take_stages`) and
