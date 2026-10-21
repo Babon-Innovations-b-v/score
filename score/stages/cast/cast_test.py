@@ -113,6 +113,31 @@ def test_a_crowd_keeps_clear_of_each_view():
     assert spread.far_enough([near, far, behind], [view]) == [far, behind]
 
 
+def plan_views_of(plan):
+    """cast.plan_views of a plan row's output holding `plan`, with the environment's eye height."""
+    with tempfile.TemporaryDirectory() as folder:
+        (pathlib.Path(folder) / "plan.json").write_text(json.dumps(plan))
+        return cast.plan_views({"plan": folder, "places": REPO / "data/definitions/place.json"})
+
+
+def test_the_crowd_keeps_clear_of_its_plans_views():
+    """The views a crowd keeps clear of are its plan's (the plan row's output), never a hand-written record's: a room's
+    one inside its door and one from its standing spot, an outdoor plan's from its standing spot only, a place with no
+    plan row none; a copy right before the door's view is dropped, one far down it kept."""
+    eye = json.loads((REPO / "data/definitions/place.json").read_text())["shared"]["scale"]["eye_height"]
+    room = {"inside": True, "floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
+            "doors": [{"side": "south", "level": 0.0, "middle": [0.0, 0.0, 5.0], "normal": [0.0, 0.0, 1.0],
+                       "name": "S", "what": "door"}],
+            "standing": [{"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
+    views = plan_views_of(room)
+    assert [view["name"] for view in views] == ["from-south-door", "spot-1"]
+    assert views[0]["eye"] == [0.0, eye, 4.0] and views[1]["eye"] == [3.0, eye, 3.0]
+    assert [view["name"] for view in plan_views_of(dict(room, inside=False))] == ["spot-1"]
+    assert cast.plan_views({"places": REPO / "data/definitions/place.json"}) == []
+    near, far = {"at": [0.0, 0.0, 2.0]}, {"at": [0.0, 0.0, -40.0]}
+    assert spread.far_enough([near, far], views[:1]) == [far]
+
+
 def test_a_group_wears_only_its_kit():
     cast_rules, _ = measure.characters()
     kit = {"builds": ["m_avg", "w_slim"], "plain": ["uniform_olive"]}

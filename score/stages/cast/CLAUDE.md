@@ -18,6 +18,9 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   design's crowd has no ground or count yet, so `counted` names it short. Never hand-place a person to pass a gate:
   put the design right (`python -m score.stages.people_rows` refreshes rows.json from the store and keeps each row's
   looks while its concept stands).
+- **A crowd keeps clear of its plan's views** (`plan_views`: the plan row's output, an `after`, its views as the
+  scene record writes them), never a hand-written record's (data/scene's game shots) or kit: the cast reads only
+  the design, the seed, the environment's eye height and the rules (2026-10-21).
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of
   the seed's base layer (FCL); a point instancer's prototypes are left out (they stand only where it copies them).
 - **Do not import tools/characters at load.** Its `cast_check` on the path or in `sys.modules` joins the assembly's
