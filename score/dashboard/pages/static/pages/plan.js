@@ -5,7 +5,10 @@
 // shapes, the inside places in what holds them, dimension lines, a north arrow and a scale bar; under it a section
 // A-A (score/review/plan_writing.py's schema). Hover a thing for its details. Drag an item, a zone or an inside place
 // to move it (an inside place dropped on a building stands in it), its corner to resize it, a door along its wall, a
-// standing spot; drag on the floor or on the concept to mark an area, a note each. A gap's click lights it on the
+// standing spot; drag on the floor or on the concept to mark an area, a note each. The drop rule (owner, 2026-10-21):
+// a box dropped fully inside a room is a thing in that room (no scene of its own, kept with the room); a room dropped
+// on or resized over another is one shared room named from both; anywhere else a box is a child scene; each said with
+// an undo. A gap's click lights it on the
 // plan. Every edit saves on its own a moment later (his plan-edit request: the plan as he left it); removing an inside
 // place right after renaming another merges them, said with an undo. Correct with notes and Make plan post at the
 // price shown (his spend yes); Correct with no note typed sends his edits as the note. A refusal shows in red.
@@ -18,6 +21,7 @@
   // Correct sends
   const names = JSON.parse(document.getElementById("plan-names").textContent);
   const called = (id) => names[id] || id.replace(/_/g, " ");
+  const title = (hold) => hold.name || called(hold.place);  // a shared room by the name made from both
   const svg = document.getElementById("plan-drawing");
   const cut = document.getElementById("plan-section");
   const editing = "marking" in page.dataset;
@@ -122,9 +126,11 @@
     dragging.moved = true;
     draw();
   });
+  // `done` runs once the drag ends and may say what the drop made of it (a thing in a room, a shared room)
   svg.addEventListener("pointerup", () => {
-    if (dragging && dragging.done) { dragging.done(); draw(); listed(); }
-    if (dragging && dragging.moved) changed(dragging.what());
+    const said = dragging && dragging.moved && dragging.done ? dragging.done() : null;
+    if (said !== null) { draw(); listed(); }
+    if (dragging && dragging.moved) changed(said || dragging.what());
     dragging = null;
   });
 
@@ -243,12 +249,12 @@
 
   // --- items, zones, inside places ----------------------------------------------------------------------------------
   const lit_names = () => (lit ? lit.names : []);
-  const corner = (rect, sized, group, size, name) => {
+  const corner = (rect, sized, group, size, name, done = null) => {
     const [x, y, w, h] = rect();
     const handle = shape("rect", { x: x + w - size * 0.6, y: y + h - size * 0.6, width: size * 0.6, height: size * 0.6,
                                    class: "plan-corner" }, group);
     draggable(handle, rect, (was, dx, dy) => sized(Math.max(0.1, round(was[2] + dx)), Math.max(0.1, round(was[3] + dy))),
-              null, () => { const [, , cw, ch] = rect(); return `resized ${name()} to ${cw} x ${ch} m`; });
+              done, () => { const [, , cw, ch] = rect(); return `resized ${name()} to ${cw} x ${ch} m`; });
   };
   const rows_of = (name) => (plan.rows || {})[name] || [];
   const item_shape = (item) => {
@@ -290,14 +296,27 @@
     const group = shape("g", { class: `plan-hold${lit_names().includes(hold.place) ? " lit" : ""}` });
     shape("rect", { x: hold.x, y: hold.y, width: hold.w, height: hold.d }, group);
     const size = Math.max(Math.min(hold.w / 6, hold.d / 2.5, text * 1.2), longest / 140);
-    label(called(hold.place), hold.x + size * 0.4, hold.y + size * 1.2, size, "hold", group);
-    tip(group, `${called(hold.place)}: ${hold.w} x ${hold.d} m, ` +
+    label(title(hold), hold.x + size * 0.4, hold.y + size * 1.2, size, "hold", group);
+    tip(group, `${title(hold)}: ${hold.w} x ${hold.d} m, ` +
         `${hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this scene's own floor"}`);
     const rect = () => [hold.x, hold.y, hold.w, hold.d];
     draggable(group, rect, (was, dx, dy) => Object.assign(hold, { x: round(was[0] + dx), y: round(was[1] + dy) }),
-              () => { hold.row = holder_under(hold); },
+              () => dropped(hold),
               () => `moved ${hold.place.replace(/_/g, " ")} to ${hold.x}, ${hold.y} m${hold.row ? `, inside the ${hold.row.replace(/_/g, " ")}` : ""}`);
-    corner(rect, (w, d) => Object.assign(hold, { w, d }), group, size, () => called(hold.place));
+    corner(rect, (w, d) => Object.assign(hold, { w, d }), group, size, () => title(hold), () => overlapped(hold, false));
+    (hold.things || []).forEach((thing) => thing_shape(thing, hold));
+  };
+  // a thing in a room: its box at its spot in the room (its corner from the room's), its name in it
+  const thing_shape = (thing, hold) => {
+    const group = shape("g", { class: "plan-thing" });
+    const rect = () => [hold.x + thing.x, hold.y + thing.y, thing.w, thing.d];
+    shape("rect", { x: rect()[0], y: rect()[1], width: thing.w, height: thing.d }, group);
+    const size = Math.max(Math.min(thing.w / 5, thing.d / 2, text), longest / 160);
+    label(thing.name, rect()[0] + thing.w / 2, rect()[1] + thing.d / 2 + size * 0.35, size, "thing", group, "middle");
+    tip(group, `${thing.name}: ${thing.w} x ${thing.d} m, in ${title(hold)}`);
+    draggable(group, rect, (was, dx, dy) => Object.assign(thing, { x: round(was[0] + dx - hold.x), y: round(was[1] + dy - hold.y) }),
+              () => thing_dropped(thing, hold), () => `moved ${thing.name} in ${hold.place.replace(/_/g, " ")}`);
+    corner(rect, (w, d) => Object.assign(thing, { w, d }), group, size, () => thing.name);
   };
   const spot = (where) => {
     const dot = shape("circle", { cx: where[0], cy: where[1], r: longest / 110, class: "plan-spot" });
@@ -547,17 +566,26 @@
       row.title = hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this scene's own floor";
       if (!editing) {
         row.innerHTML = "<span data-v></span>";
-        row.querySelector("span").textContent = called(hold.place);
+        row.querySelector("span").textContent = title(hold);
         places.append(row);
+        (hold.things || []).forEach((thing) => thing_row(thing, hold));
         return;
       }
       row.innerHTML = '<input type="text" title="its name"><button type="button" class="concept-drop" title="remove this scene" ' +
         'aria-label="remove">&times;</button>';
       const input = row.querySelector("input");
-      input.value = called(hold.place);
+      input.value = title(hold);
       input.addEventListener("change", () => {
-        const was = hold.place;
         const typed = input.value.trim();
+        if (hold.name) {  // a shared room keeps its id: its name is his
+          const was_name = hold.name;
+          hold.name = typed || hold.name;
+          input.value = title(hold);
+          draw();
+          if (hold.name !== was_name) changed(`renamed the shared room ${hold.place.replace(/_/g, " ")} to ${hold.name}`);
+          return;
+        }
+        const was = hold.place;
         if (typed && typed !== called(was)) {
           hold.place = typed.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || hold.place;
           names[hold.place] = typed;
@@ -570,13 +598,45 @@
       });
       row.querySelector("button").addEventListener("click", () => removed(index));
       places.append(row);
+      (hold.things || []).forEach((thing) => thing_row(thing, hold));
     });
+  };
+  // a thing in a room: under its room, its name to change, x to take it out
+  const thing_row = (thing, hold) => {
+    const row = document.createElement("li");
+    row.className = "plan-thing-row";
+    row.title = `a thing in ${title(hold)}: no scene of its own`;
+    if (!editing) {
+      row.innerHTML = "<span data-v></span>";
+      row.querySelector("span").textContent = thing.name;
+      places.append(row);
+      return;
+    }
+    row.innerHTML = '<input type="text" title="its name"><button type="button" class="concept-drop" title="take it out of the room" ' +
+      'aria-label="remove">&times;</button>';
+    const input = row.querySelector("input");
+    input.value = thing.name;
+    input.addEventListener("change", () => {
+      const was = thing.name;
+      thing.name = input.value.trim() || thing.name;
+      input.value = thing.name;
+      draw();
+      if (thing.name !== was) changed(`renamed ${was} in ${hold.place.replace(/_/g, " ")} to ${thing.name}`);
+    });
+    row.querySelector("button").addEventListener("click", () => {
+      hold.things.splice(hold.things.indexOf(thing), 1);
+      if (!hold.things.length) delete hold.things;
+      listed();
+      draw();
+      changed(`removed ${thing.name} from ${hold.place.replace(/_/g, " ")}`);
+    });
+    places.append(row);
   };
   const adding = document.getElementById("plan-add");
   if (adding) {
     adding.addEventListener("click", () => {
       const side = Math.max(1, Math.min(wide, deep) / 4);
-      plan.holds.push({ place: `place_${plan.holds.length + 1}`, row: null, x: round(margin), y: round(margin),
+      plan.holds.push({ place: free_id(`place_${plan.holds.length + 1}`), row: null, x: round(margin), y: round(margin),
                         w: round(side), d: round(side) });
       listed();
       draw();
@@ -728,6 +788,19 @@
   // "cockpit" renamed "cockpit and nav", then "navigation" removed); said, with an undo, never asked
   let renamed = null;
   const merged_note = document.getElementById("plan-merged");
+  // said with an undo: `undo` puts the plan back, `back` says that in words
+  const undoable = (words, undo, back) => {
+    if (!merged_note) return;
+    merged_note.hidden = false;
+    merged_note.querySelector("[data-slot]").textContent = words;
+    merged_note.querySelector("button").onclick = () => {
+      undo();
+      merged_note.hidden = true;
+      listed();
+      draw();
+      changed(back);
+    };
+  };
   const removed = (index) => {
     const [gone] = plan.holds.splice(index, 1);
     const into = renamed && plan.holds.includes(renamed) ? renamed : null;
@@ -735,16 +808,84 @@
     listed();
     draw();
     changed(into ? `merged ${name(gone)} into ${name(into)}` : `removed ${name(gone)}`);
-    if (!into || !merged_note) return;
-    merged_note.hidden = false;
-    merged_note.querySelector("[data-slot]").textContent = `merged ${called(gone.place)} into ${called(into.place)}`;
-    merged_note.querySelector("button").onclick = () => {
-      plan.holds.splice(index, 0, gone);
-      merged_note.hidden = true;
-      listed();
-      draw();
-      changed(`kept ${name(gone)} apart from ${name(into)}`);
-    };
+    if (into) undoable(`merged ${called(gone.place)} into ${title(into)}`, () => plan.holds.splice(index, 0, gone),
+                       `kept ${name(gone)} apart from ${name(into)}`);
+  };
+
+  // --- the drop rule (owner, 2026-10-21): a box dropped fully inside a room is a thing in that room; two rooms that
+  // overlap are one shared room named from both; anywhere else a box is a child scene of its own --------------------
+  const OVERLAP = 0.05;  // metres two boxes must overlap each way to count
+  const box_of = (hold) => [hold.x, hold.y, hold.w, hold.d];
+  const within = (a, b) => a[0] >= b[0] && a[1] >= b[1] && a[0] + a[2] <= b[0] + b[2] && a[1] + a[3] <= b[1] + b[3];
+  const crossing = (a, b) => Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]) > OVERLAP &&
+                             Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]) > OVERLAP;
+  const room_round = (box, but) => plan.holds.filter((hold) => hold !== but && within(box, box_of(hold)))
+    .sort((a, b) => a.w * a.d - b.w * b.d)[0];
+  const copied = (hold) => JSON.parse(JSON.stringify(hold));
+  const put_back = (hold, was) => { for (const key of Object.keys(hold)) delete hold[key]; Object.assign(hold, was); };
+  // a room dropped: into the room round it as a thing, else onto one it overlaps as a shared room, else on its own
+  const dropped = (hold) => {
+    const room = room_round(box_of(hold), hold);
+    if (room) return into_room(hold, room);
+    const merged = overlapped(hold);
+    if (!merged) hold.row = holder_under(hold);
+    return merged;
+  };
+  // a room dropped onto another it overlaps (kept: the one it landed on), or resized over one (kept: itself): the two one
+  // shared room in the box round both, their things kept
+  const overlapped = (hold, landed = true) => {
+    const other = plan.holds.find((found) => found !== hold && crossing(box_of(hold), box_of(found)));
+    if (!other) return "";
+    const [kept, gone] = landed ? [other, hold] : [hold, other];
+    const was = copied(kept);
+    const at = plan.holds.indexOf(gone);
+    const x0 = Math.min(kept.x, gone.x), y0 = Math.min(kept.y, gone.y);
+    const x1 = Math.max(kept.x + kept.w, gone.x + gone.w), y1 = Math.max(kept.y + kept.d, gone.y + gone.d);
+    const things = [kept, gone].flatMap((room) => (room.things || []).map((thing) => (
+      { ...thing, x: round(thing.x + room.x - x0), y: round(thing.y + room.y - y0) })));
+    const name = `${title(kept)} and ${title(gone).toLowerCase()}`;
+    plan.holds.splice(at, 1);
+    Object.assign(kept, { x: round(x0), y: round(y0), w: round(x1 - x0), d: round(y1 - y0), name });
+    if (things.length) kept.things = things;
+    undoable(`${title(was)} and ${title(gone)} are one room`, () => { put_back(kept, was); plan.holds.splice(at, 0, gone); },
+             `kept ${gone.place.replace(/_/g, " ")} apart from ${kept.place.replace(/_/g, " ")}`);
+    return `made ${kept.place.replace(/_/g, " ")} and ${gone.place.replace(/_/g, " ")} one shared room called ${name}`;
+  };
+  // a room dropped fully inside another: a thing in it, no scene of its own, its own things with it
+  const into_room = (hold, room) => {
+    const was = copied(room);
+    const at = plan.holds.indexOf(hold);
+    const thing = { name: title(hold).toLowerCase(), x: round(hold.x - room.x), y: round(hold.y - room.y), w: hold.w, d: hold.d };
+    const carried = (hold.things || []).map((found) => ({ ...found, x: round(found.x + thing.x), y: round(found.y + thing.y) }));
+    plan.holds.splice(at, 1);
+    room.things = [...(room.things || []), thing, ...carried];
+    undoable(`${thing.name} stands in ${title(room)}`, () => { put_back(room, was); plan.holds.splice(at, 0, hold); },
+             `kept ${hold.place.replace(/_/g, " ")} a scene of its own`);
+    return `put ${thing.name} in ${room.place.replace(/_/g, " ")}, ${thing.w} x ${thing.d} m at ${thing.x}, ${thing.y} m from its corner`;
+  };
+  const free_id = (name) => {
+    const base = (/^[a-z]/i.test(name) ? "" : "place_") + name.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 34);
+    let found = base || "place";
+    for (let count = 2; plan.holds.some((hold) => hold.place === found); count += 1) found = `${base}_${count}`;
+    return found;
+  };
+  // a thing dropped: in the room round it (its own or another), else out on its own as a child scene again
+  const thing_dropped = (thing, hold) => {
+    const box = [hold.x + thing.x, hold.y + thing.y, thing.w, thing.d];
+    const room = room_round(box, null);
+    if (room === hold) return "";
+    hold.things.splice(hold.things.indexOf(thing), 1);
+    if (!hold.things.length) delete hold.things;
+    if (room) {
+      room.things = [...(room.things || []), { ...thing, x: round(box[0] - room.x), y: round(box[1] - room.y) }];
+      return `moved ${thing.name} from ${hold.place.replace(/_/g, " ")} to ${room.place.replace(/_/g, " ")}`;
+    }
+    const scene = { place: free_id(thing.name), row: null, x: box[0], y: box[1], w: thing.w, d: thing.d };
+    plan.holds.push(scene);
+    names[scene.place] = thing.name;
+    const merged = overlapped(scene);
+    if (!merged) scene.row = holder_under(scene);
+    return merged || `took ${thing.name} out of ${hold.place.replace(/_/g, " ")} as a scene of its own`;
   };
 
   // --- the clicks -------------------------------------------------------------------------------------------------

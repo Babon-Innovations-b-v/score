@@ -716,13 +716,31 @@ def checked_plan(plan, base):
     found["people"] = [[number(x, "a standing spot", -BIGGEST), number(y, "a standing spot", -BIGGEST), *rest]
                        for x, y, *rest in plan.get("people", [])]
     ids = {row for tied in base.get("rows", {}).values() for row in tied}
-    holds = [{"place": checked_names([hold["place"]])[0], "row": checked_row(hold.get("row"), ids),
-              **{key: number(hold[key], f"{hold['place']} {key}", -BIGGEST if key in "xy" else 0.5)
-                 for key in ("x", "y", "w", "d")}}
-             for hold in plan.get("holds", [])]
+    holds = [checked_hold(hold, ids) for hold in plan.get("holds", [])]
     if holds or "holds" in base:
         found["holds"] = holds
     return found
+
+
+def checked_hold(hold, ids):
+    """One inside place's room as given: {place, row, x, y, w, d}, plus `name` once two scenes overlapped into one
+    shared room and `things` once things stand in it (CONTEXT.md "shared room", "thing in a room"); each only when
+    given, so a room he left alone stays equal to the one its draws were drawn on (`moved_draws`)."""
+    place = checked_names([hold["place"]])[0]
+    found = {"place": place, "row": checked_row(hold.get("row"), ids),
+             **{key: number(hold[key], f"{place} {key}", -BIGGEST if key in "xy" else 0.5) for key in "xywd"}}
+    name = str(hold.get("name") or "").strip()[:80]
+    things = [checked_thing(thing, place) for thing in hold.get("things") or []]
+    return {**found, **({"name": name} if name else {}), **({"things": things} if things else {})}
+
+
+def checked_thing(thing, place):
+    """A thing standing in `place`'s room as given: {name, x, y, w, d}, its corner in metres from the room's corner."""
+    name = str((thing or {}).get("name") or "").strip()[:60]
+    if not name:
+        raise Refused(f"a thing in {place} has no name")
+    return {"name": name, **{key: number(thing.get(key), f"{name} {key}", 0.0 if key in "xy" else 0.1)
+                             for key in "xywd"}}
 
 
 def sized_by_him(base, items):
@@ -912,6 +930,20 @@ def hand_edits(base, plan):
             elif [round(value, 2) for value in was[name]] != [round(value, 2) for value in (x, y, wide, deep)]:
                 said.append(f"{kind} {name} now {wide} x {deep} m at {x}, {y} m (was {was[name][2]} x {was[name][3]} m "
                             f"at {was[name][0]}, {was[name][1]} m)")
+    return said + room_edits(base, plan)
+
+
+def room_edits(base, plan):
+    """[words] of the shared rooms he made and the things he put in a room, against the plan made without him."""
+    was = {hold["place"]: hold for hold in base.get("holds", [])}
+    said = []
+    for hold in plan.get("holds", []):
+        before = was.get(hold["place"], {})
+        if hold.get("name") and hold["name"] != before.get("name"):
+            said.append(f"made the scene {hold['place']} one shared room called {hold['name']}")
+        said += [f"put {thing['name']} in the scene {hold['place']}, {thing['w']} x {thing['d']} m at {thing['x']}, "
+                 f"{thing['y']} m from its corner" for thing in hold.get("things", [])
+                 if thing not in before.get("things", [])]
     return said
 
 

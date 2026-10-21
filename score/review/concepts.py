@@ -707,12 +707,39 @@ def compartment_words(store, place, crop):
     if not above(place, store):
         return ""
     listed = compartments(store, place)
-    entries = ", ".join(f"{number}. {bare(name)}" + (f" ({found})" if (found := purpose(name)) else "")
+    entries = ", ".join(f"{number}. {room_name(store, name)}" + (f" ({found})" if (found := purpose(name)) else "")
                         for number, name in enumerate(listed, 1))
     holder = holder_words(store, place) + (f" (picture {crop})" if crop else "")
     number = listed.index(place) + 1 if place in listed else None
     return (f"{holder[0].upper()}{holder[1:]} is divided into these compartments: {entries}."
-            + (f" This concept is number {number}: {bare(place)}." if number else ""))
+            + (f" This concept is number {number}: {room_name(store, place)}." if number else ""))
+
+
+def room_name(store, place):
+    """`place`'s name in its compartment list: its shared room's name on the plan above ("cockpit and nav", CONTEXT.md
+    "shared room"), else its short name (`bare`)."""
+    from score.review import plans
+    return str((plans.room_of(store, place) or {}).get("name") or "").lower() or bare(place)
+
+
+def thing_words(store, place):
+    """The things the plan above keeps in `place`'s room (CONTEXT.md "thing in a room"), each by its name and where it
+    stands in the room, one sentence; "" with none."""
+    from score.review import plans
+    room = plans.room_of(store, place) or {}
+    said = [f"{thing['name']} {spot_words(thing, room)}" for thing in room.get("things", [])]
+    return f"Standing in it: {'; '.join(said)}." if said else ""
+
+
+def spot_words(thing, room):
+    """Where a thing stands in its room, in words from its middle: "in the middle", "along the north side", "in the
+    north-west corner" (plan y runs south)."""
+    across = min(2, int(3 * (thing["x"] + thing["w"] / 2) / room["w"]))
+    along = min(2, int(3 * (thing["y"] + thing["d"] / 2) / room["d"]))
+    side = (("north", "", "south")[along] + "-" + ("west", "", "east")[across]).strip("-")
+    if not side:
+        return "in the middle"
+    return f"in the {side} corner" if "-" in side else f"along the {side} side"
 
 
 COMPASS = ("north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west")
@@ -794,7 +821,7 @@ def generated(store, place):
         compartment_words(store, place, crop),
         INSIDE_ONLY + "." if alone else f"Concept painting of {short_name(place)}.", floor_words(place),
         inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
-        holds_and_doors(store, place), size_words(store, place), overhead_words(store, place),
+        holds_and_doors(store, place), thing_words(store, place), size_words(store, place), overhead_words(store, place),
         listed if pictures else "",
         view_words(store, place),
         style(store)) if part)

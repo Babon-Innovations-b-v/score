@@ -16,7 +16,8 @@ What it is built from, by the node drawn (`scene_of`):
 - a place within another (`inside_parts`): its own room shell alone at full detail in its box on the holder's plan
   shown (`holds`), its own plan's walls, openings, levels, stairs, roofs and items (the written plan's schema,
   score/review/plan_writing.py), else its data plan's outline, doors and the heights its words give; no hull and no
-  rooms beside it (the owner, 2026-10-21: the room is drawn on its own).
+  rooms beside it (the owner, 2026-10-21: the room is drawn on its own); each thing the holder's plan keeps in the
+  room (CONTEXT.md "thing in a room") a box THING_TALL high at its spot and size, its name written over it.
 
 "At full detail" is: walls with their thickness and openings (straight or on an arc), levels as platforms, stairs,
 roofs by kind (a dome as a dome, a vault as a half cylinder, pitched, flat), a tube as a tube, and each item as a
@@ -68,6 +69,8 @@ MARGIN = 0.05  # of an inside place's box, the frame round it each way: its room
 BACKGROUND = (92, 92, 92)
 SKY_GREY = (196, 200, 206)
 CREASE = 0.62  # how dark a crease line is
+THING_TALL = 1.2  # metres a thing in a room stands: the plan above gives its footprint alone
+LABEL_SIZE = 22  # pixels of a thing's label
 LIT, UNLIT = (246, 246, 240), (168, 172, 180)  # a world's sunlit face and its dark side against the sky
 NEAR = 0.1  # metres: the near plane
 AMBIENT, SKY_FILL, KEY = 0.3, 0.2, 0.62  # the light: soft all round, a little more from above, the sun's key
@@ -952,10 +955,37 @@ def inside_parts(place, holder_plan, mine_plan, camera_way):
     return shell_parts(own, box, True, camera_way, standing=True), [*box, heights_of(own)[0]]
 
 
+def thing_parts(place, holder_plan):
+    """The things the holder's plan keeps in `place`'s room (CONTEXT.md "thing in a room"), each a box THING_TALL high
+    at its spot and size: ([(triangles, "item")], [(its name, the middle of its top [x, up, z])])."""
+    mine = next((hold for hold in holder_plan.get("holds") or [] if hold["place"] == place), {})
+    parts, labels = [], []
+    for thing in mine.get("things") or []:
+        x, y = mine["x"] + thing["x"], mine["y"] + thing["y"]
+        parts.append((prism(rectangle(x, y, thing["w"], thing["d"]), 0.0, THING_TALL), "item"))
+        labels.append((thing["name"], [x + thing["w"] / 2, THING_TALL, y + thing["d"] / 2]))
+    return parts, labels
+
+
+def labelled(image, labels, camera):
+    """The picture with each label written over its spot as `camera` sees it."""
+    from PIL import ImageDraw, ImageFont
+    if not labels:
+        return image
+    pen, font = ImageDraw.Draw(image), ImageFont.load_default(size=LABEL_SIZE)
+    xs, ys, depth = project(np.array([spot for _, spot in labels], float), *camera)
+    for (name, _), x, y, far in zip(labels, xs, ys, depth):
+        if far > 0:
+            pen.text((float(x), float(y) - 4), name, fill=(24, 24, 24), font=font, anchor="mb", stroke_width=3,
+                     stroke_fill=(250, 250, 250))
+    return image
+
+
 def scene_of(store, node):
-    """(parts, framed, worlds, light) of `node`'s blockout from its parent's plan (module docstring): `framed` the box
-    [x, y, wide, deep, tall] the view frames (None: every part), `light` the Sun's (azimuth, altitude) over its site
-    at its scene time (None: NO_SUN); Missing while that plan is not there. Inside plans.one_moment built once."""
+    """(parts, framed, worlds, light, labels) of `node`'s blockout from its parent's plan (module docstring): `framed`
+    the box [x, y, wide, deep, tall] the view frames (None: every part), `light` the Sun's (azimuth, altitude) over its
+    site at its scene time (None: NO_SUN), `labels` the names written over the things in its room (`thing_parts`);
+    Missing while that plan is not there. Inside plans.one_moment built once."""
     from score.review import plans
     return plans.once("blockout scene", store, node, lambda: built_scene(store, node), shared=True)  # read only
 
@@ -968,21 +998,22 @@ def built_scene(store, node):
         shown = plans.current(store, above)
         holder_plan = (shown or {}).get("plan") or {}
         parts, box = inside_parts(node, holder_plan, own_plan(store, node), corner_way())
-        return parts, box, [], None
+        things, labels = thing_parts(node, holder_plan)
+        return parts + things, box, [], None, labels
     from score.review import environment_plan
     site = environment_plan.site_of(store, node)
     if site is None:
         raise Missing(f"the environment's plan has no site for {node} yet")
     sun = next(iter((site.get("overhead") or {}).get("lights", [])), None)
     return (site_parts(site, lambda place: own_plan(store, place) if place else {}), None,
-            (site.get("overhead") or {}).get("bodies", []), (sun["azimuth"], sun["altitude"]) if sun else None)
+            (site.get("overhead") or {}).get("bodies", []), (sun["azimuth"], sun["altitude"]) if sun else None, [])
 
 
 def scene_key(scene):
     """The key of a scene's render: what it is built from and this module's code (VERSION), so a render made by older
     code is never served again."""
-    parts, framed, worlds, light = scene
-    digest = hashlib.sha256(json.dumps([VERSION, framed, worlds, light], sort_keys=True).encode())
+    parts, framed, worlds, light, labels = scene
+    digest = hashlib.sha256(json.dumps([VERSION, framed, worlds, light, labels], sort_keys=True).encode())
     for triangles, kind in parts:
         digest.update(kind.encode())
         digest.update(np.asarray(triangles, dtype=np.float64).tobytes())
@@ -998,8 +1029,9 @@ def own_plan(store, place):
 
 def drawn(scene):
     """The PIL blockout of a scene (`scene_of`) from the fixed concept view."""
-    parts, framed, worlds, light = scene
-    return render(parts, fixed_camera(parts, framed), worlds, light)
+    parts, framed, worlds, light, labels = scene
+    camera = fixed_camera(parts, framed)
+    return labelled(render(parts, camera, worlds, light), labels, camera)
 
 
 def picture(store, node):
@@ -1026,7 +1058,7 @@ def unseen(parts, worlds):
 def overhead_view(store, node):
     """The PIL picture from behind and above the site looking out at the largest world in its sky that the fixed view
     does not show, None when there is none (an inside place, or every world below the horizon or in frame)."""
-    parts, _, worlds, light = scene_of(store, node)
+    parts, _, worlds, light, _labels = scene_of(store, node)
     hidden = unseen(parts, worlds)
     if not hidden:
         return None
