@@ -69,6 +69,8 @@ def test_a_places_page_names_the_places_listed_inside_it_that_its_draw_holds(wor
     assert "drawn to hold" in page and "data-v>Beta</b>" in page and "data-v>Alpha</b>" not in page  # direct only
     assert "data-v>Alpha</b>" in owner.get("/concept/beta/").content.decode()  # every place: what is listed in it
     assert "drawn to hold" not in owner.get("/concept/alpha/").content.decode()  # it holds nothing
+    trail = owner.get("/concept/alpha/").content.decode().split('class="trail"')[1].split("</nav>")[0]
+    assert trail.index('href="/concept/yard/"') < trail.index('href="/concept/beta/"') < trail.index("Alpha")  # back up
 
 
 def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world, stand_in):
