@@ -78,8 +78,16 @@ def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
     assert crowd["spread"] == [-8.0, -4.0, 6.0, 4.0] and crowd["grounds"] == [[-8.0, -4.0, 6.0, 4.0]]
     assert crowd["count"] is None and crowd["seed"] == 0x0badcafe and crowd["facing_to"] == entry["middle"]
     assert crowd["palettes"] == [] and crowd["palettes_from"] == people_rows.UNDECIDED_PALETTES
-    counted = {**entry["rows"]["crowd"], "count": 30, "palettes": [["skin_light", "wool_grey", "leather_black"]]}
+    counted = {**entry["rows"]["crowd"], "count": 30}
     assert people_rows.crowd_record("crowd", counted, entry)["count"] == 30
+    import library
+    try:  # a palette of surfaces the (empty) library does not hold names them, never a KeyError
+        people_rows.crowd_record("crowd", {**counted, "palettes": [["skin_light", "wool_grey", "leather_black"]]},
+                                 entry)
+    except library.LibraryEmpty as empty:
+        assert "skin_light" in str(empty) and library.EMPTY in str(empty), empty
+    else:
+        raise AssertionError("a crowd palette was coloured from surfaces no library holds")
 
 
 def test_the_tube_casts_the_player_and_the_square_its_crowd():
@@ -194,10 +202,14 @@ def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
     look's own paint; and the cast and the dress rows follow the row (no hand-kept list of places)."""
     import numpy as np
     from score.stages import people_clothes
-    fabrics = people_clothes.fabrics()
     labels = people_clothes.labels()
-    import library
-    blue = np.round(labels.srgb(np.array(library.resolved("people")["jacket_blue"]["colour"])) * 255).astype(np.uint8)
+    # the people's fabrics as their surface library gives them (every old surface retired on 2026-10-21: stand-ins)
+    blue = np.array([38, 64, 150], dtype=np.uint8)
+
+    def lab(srgb):
+        return [float(value) for value in labels.lab(np.array(srgb, dtype=float)[None] / 255)[0]]
+    fabrics = {"jacket_blue": lab(blue), "suit_light_blue": lab([150, 180, 220]), "suit_grey": lab([128, 128, 128])}
+    assert people_clothes.fabrics() == {}  # the repository's library holds none
     box = [20, 10, 60, 90]
     inventory = {"concept_pick": {"sha256": "one"}, "rows": [
         {"id": "worker", "name": "worker in blue jumpsuit", "where": "near the light", "noun": "worker", "count": 1,

@@ -58,8 +58,25 @@ def place_data(folder):
 
 
 # The scene palette as its row writes it (scene_palette.py): the tokens the finish list may use, its wear and dirt.
-PALETTE = {"tokens": ["sign-red", "bay-three", "hull-trim", "steel", "glass"],
-        "wear": {"level": "worked", "dirt": 0.3, "dirt_token": "regolith", "cause": "worked hard"}}
+TOKENS = {"sign-red": "#b3241d", "bay-three": "#9a7be0", "hull-trim": "#8c96a0", "steel": "#9ba2a9",
+          "glass": "#24313a", "regolith": "#8b8883", "alarm": "#a3302a"}
+PALETTE = {"tokens": {token: TOKENS[token] for token in ("sign-red", "bay-three", "hull-trim", "steel", "glass",
+                                                "regolith")},
+           "wear": {"level": "worked", "dirt": 0.3, "dirt_token": "regolith", "cause": "worked hard"}}
+# The scene's surface library as the surface-library row writes it (scene_library.py): the method's recipes, the
+# scene's own variants in its own tokens and the variants its kinds are made of.
+VARIANTS = {"painted": {"painted_panel": {"recipe": "painted_metal", "token": "hull-trim", "bare": "steel",
+                                          "roughness": 0.31},
+                        "red_paint": {"recipe": "painted_metal", "token": "sign-red", "bare": "steel"},
+                        "blue_paint": {"recipe": "painted_metal", "token": "bay-three", "bare": "steel"}},
+            "steel": {"bare_steel": {"recipe": "bare_metal", "token": "steel", "roughness": 0.5}},
+            "glass": {"pane": {"recipe": "glass", "token": "glass"}}}
+
+
+def scene_library_record():
+    method = json.loads((REPO / "data/library/materials.json").read_text())
+    return {**method, "tokens": TOKENS, "dirt": "regolith", "kinds": {"two_boxes": ["painted_panel"]},
+            "families": {family: {"variants": variants} for family, variants in VARIANTS.items()}}
 
 
 def paletted(folder):
@@ -70,6 +87,14 @@ def paletted(folder):
     return found
 
 
+def libraried(folder):
+    """The surface-library row's output folder with the scene library."""
+    found = folder / "surface-library"
+    found.mkdir()
+    (found / "materials.json").write_text(json.dumps(scene_library_record()))
+    return found
+
+
 def cast_views(folder, takes=(TAKE,)):
     """The views row's make on the two boxes (each take named the same model), the object filter keeping `takes`;
     the inputs carry the scene palette."""
@@ -77,7 +102,7 @@ def cast_views(folder, takes=(TAKE,)):
     views.mkdir()
     model = two_boxes(folder)
     inputs = {"surfaces": place_data(folder), "finish-route-palette": paletted(folder),
-              **{f"model {take}": model for take in takes}}
+              "surface-library": libraried(folder), **{f"model {take}": model for take in takes}}
     route_views.make_views(inputs, views, 7, {"objects": list(takes)})
     return inputs, views
 
@@ -208,10 +233,11 @@ def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face
         # the ask offers the whole library filtered by the scene palette's tokens, and its wear
         question = body["contents"][0]["parts"][-1]["text"]
         offered = body["generationConfig"]["responseSchema"]["properties"]["finishes"]["items"]["properties"]
-        assert offered["token"]["enum"] == [token for token in route_list.palette_library.library_tokens()
+        palette = route_list.palette_library.read(rows)
+        assert offered["token"]["enum"] == [token for token in route_list.palette_library.library_tokens(palette)
                                              if token in PALETTE["tokens"]], offered["token"]
         assert len(offered["surface"]["enum"]) == len(route_list.palette_library.take_surfaces(
-            {"kind": "two_boxes"}, PALETTE)) and "Wear is the scene's level (worked)" in question
+            {"kind": "two_boxes"}, palette)) and "Wear is the scene's level (worked)" in question
         assert "token tarp" not in question and "token sign-red" in question
         own = json.loads((rows["finish-route-list"] / "questions.json").read_text())["own_wear"]
         assert len(own) == 2 and "worn (walked path" in own[0], own
@@ -291,7 +317,8 @@ def baked(folder, rows):
     data = json.loads(rows["surfaces"].read_text())
     rows["surfaces"].write_text(json.dumps(dict(data, library="cockpit", bake={"models": {"two_boxes": TAKE}})))
     inputs = {"surfaces": rows["surfaces"], "surfaces-parts": rows["surfaces-parts"],
-              "finish-route-palette": rows["finish-route-palette"], "resting rules": REPO / "data/checks/resting.json"}
+              "finish-route-palette": rows["finish-route-palette"], "surface-library": rows["surface-library"],
+              "resting rules": REPO / "data/checks/resting.json"}
     out = folder / "bake"
     out.mkdir()
     calls = []
@@ -322,6 +349,7 @@ def baked(folder, rows):
 
 def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over():
     import library
+    colours = library.token_colours({"tokens": TOKENS})
     finish_parts = route_parts.finish_parts
     kept = finish_parts.COLOUR_DELTA_E
     with tempfile.TemporaryDirectory() as temporary:
@@ -346,7 +374,7 @@ def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_sett
             assert record["surface"] == route_settings.settings_name(row["judge"], row["settings"]), record
             spec = head["specs"][record["surface"]]
             assert spec["library"] == row["judge"] and spec["token"] == row["settings"]["token"], spec
-            assert spec["colour"] == library.token_colours()[row["settings"]["token"]], spec
+            assert spec["colour"] == colours[row["settings"]["token"]], spec
             assert spec["roughness"] == row["settings"]["roughness"] == 1.0, spec  # the list's 1.4, clipped
             assert spec["seed"] == row["settings"]["seed"] and spec.get("wear") == row["settings"].get("wear"), spec
         # the blue finish's own wear (a cause given) rides its spec; the red one's level without a cause is not taken
@@ -373,7 +401,8 @@ def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
         route_check.bake_check.check_step = lambda inputs, out: seen.update(
             library=library.by_library("cockpit"), resolved=library.resolved("cockpit"), wear=library.wear_of("cockpit"))
         try:
-            route_check.check_step({"bake": bake, "finish-route-palette": paletted(bake)}, bake)
+            route_check.check_step({"bake": bake, "finish-route-palette": paletted(bake),
+                                    "surface-library": libraried(bake)}, bake)
         finally:
             (route_check.bake_check.check_step, library.by_library, library.resolved, library.wear_of,
              route_check.bake_check.check_model) = kept
@@ -381,7 +410,7 @@ def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
         assert "painted_panel" in seen["library"]  # the library's own surfaces stay
         # the scene's wear, dirt and dirt colour are its scene palette's, nothing of place.json's
         assert seen["wear"] == (0.4, 0.3) and seen["resolved"] == {}, seen["wear"]
-        assert seen["library"]["painted_panel"]["dirt_colour"] == library.token_colours()["regolith"]
+        assert seen["library"]["painted_panel"]["dirt_colour"] == library.token_colours({"tokens": TOKENS})["regolith"]
     # a surface with its own wear is measured at it, the others at the place's
     measured = lambda name, entry, labelled, made, materials, dirt=0.0, wear=0.0: {
         "surfaces": {surface: {"wear": wear} for surface in materials}}
@@ -464,45 +493,64 @@ def palette_asked(folder, answer, place="cockpit", concept=True):
     return out, scene_palette.judge_palette(out, inputs, {}), asked
 
 
+def coined(*tokens):
+    """A palette answer's tokens, each a name, its colour and what wears it."""
+    return [{"token": token, "colour": colour, "what": f"{token} surfaces"} for token, colour in tokens]
+
+
 def test_the_palette_is_read_from_the_locked_concept_by_one_ask():
+    import library
     from score.stages.surfaces import palette_library, scene_palette
-    answer = {"palette": ["steel", "hazard", "glass", "sign-red", "steel"], "wear": "worn", "cause": "scuffed decks",
-              "dirt": 1.7, "dirt_token": "regolith"}
+    answer = {"palette": coined(("steel", "#9BA2A9"), ("hazard", "#f2c21a"), ("glass", "#24313a"),
+                                ("regolith", "#8b8883"), ("steel", "#000000")),
+              "wear": "worn", "cause": "scuffed decks", "dirt": 1.7, "dirt_token": "regolith"}
     with tempfile.TemporaryDirectory() as temporary:
         out, verdict, asked = palette_asked(pathlib.Path(temporary), answer)
         assert len(asked) == 1 and list(asked[0]) == ["cockpit"], asked  # one ask a scene, in one batch
         parts = asked[0]["cockpit"]["contents"][0]["parts"]
         assert len(parts) == 2 and "inline_data" in parts[0] and "locked concept" in parts[1]["text"], parts
         palette = json.loads((out / "palette.json").read_text())
-        assert palette["tokens"] == [token for token in palette_library.library_tokens()
-                                   if token in ("steel", "hazard", "glass", "sign-red")], palette
+        # its own tokens in the answer's order, a token named twice keeping its first colour; no old token offered
+        assert palette["tokens"] == {"steel": "#9ba2a9", "hazard": "#f2c21a", "glass": "#24313a",
+                                     "regolith": "#8b8883"}, palette
         assert palette["wear"] == {"level": "worn", "dirt": 1.0, "dirt_token": "regolith", "cause": "scuffed decks"}
         assert verdict.answer == "pass" and palette_library.wear(palette) == (0.8, 1.0), verdict
-        assert set(palette_library.offered(palette)) and all(spec["token"] in palette["tokens"]
-                                                       for spec in palette_library.offered(palette).values())
+        assert "sign-red" not in parts[1]["text"] and "hull-trim" not in parts[1]["text"]
+        try:  # no surface exists until the surface-library row makes them: the missing input is named
+            palette_library.offered(palette)
+        except library.LibraryEmpty as empty:
+            assert "run surface-library first" in str(empty), empty
+        else:
+            raise AssertionError("surfaces offered before the scene's surface library was made")
         assert scene_palette.palette_faults(out) == []
 
 
 def test_a_palette_off_the_library_or_unanswered_or_too_narrow_fails_by_name():
     with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": ["steel"], "wear": "shiny", "cause": "",
-                                                             "dirt": 0.2, "dirt_token": "steel"})
+        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": coined(("steel", "#9ba2a9")),
+                                                             "wear": "shiny", "cause": "", "dirt": 0.2,
+                                                             "dirt_token": "steel"})
         assert not (out / "palette.json").exists() and verdict.answer == "fail", verdict
         assert "no usable answer" in verdict.findings[0], verdict
     with tempfile.TemporaryDirectory() as temporary:
         out, verdict, _ = palette_asked(pathlib.Path(temporary), route_ask.google_batch.Unanswered("none for it"))
         assert verdict.answer == "fail" and "none for it" in verdict.findings[0], verdict
     with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": ["steel"], "wear": "new", "cause": "",
-                                                             "dirt": 0.0, "dirt_token": "steel"})
+        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": coined(("steel", "#9ba2a9")),
+                                                             "wear": "new", "cause": "", "dirt": 0.0,
+                                                             "dirt_token": "steel"})
         assert verdict.answer == "fail" and "a palette of 1 tokens" in verdict.findings[0], verdict
+    with tempfile.TemporaryDirectory() as temporary:  # a colour not #rrggbb, or a dirt token not its own
+        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": coined(("steel", "grey")), "wear": "new",
+                                                             "cause": "", "dirt": 0.0, "dirt_token": "steel"})
+        assert verdict.answer == "fail" and "no usable answer" in verdict.findings[0], verdict
 
 
 def test_a_line_no_scene_owns_is_asked_over_every_concept():
     from score.stages.surfaces import scene_palette
     with tempfile.TemporaryDirectory() as temporary:
-        answer = {"palette": ["steel", "glass", "sign-red", "hull-trim"], "wear": "new", "cause": "fresh",
-                  "dirt": 0.0, "dirt_token": "regolith"}
+        answer = {"palette": coined(*((token, TOKENS[token]) for token in ("steel", "glass", "sign-red", "regolith"))),
+                  "wear": "new", "cause": "fresh", "dirt": 0.0, "dirt_token": "regolith"}
         out, verdict, asked = palette_asked(pathlib.Path(temporary), answer, place="people", concept=False)
         parts = asked[0]["people"]["contents"][0]["parts"]
         assert sum("inline_data" in part for part in parts) == 2 and "every scene" in parts[-1]["text"], parts
@@ -513,6 +561,97 @@ def test_a_line_no_scene_owns_is_asked_over_every_concept():
     for scene in ("cockpit", "no-such-scene"):
         found = scene_palette.files(scene)
         assert found["concept"] == "{home}/design/concepts/" + f"{scene}.png" and "concepts" not in found, found
+
+
+def library_made(folder, answer, kinds=("two_boxes",)):
+    """The surface-library row made on the scene palette and its takes' kinds, its one ask faked to answer `answer`
+    (a dict, or an exception the batch holds): its output, its verdict and the batches asked."""
+    from score.stages.surfaces import scene_library
+    concept = folder / "cockpit.png"
+    Image.new("RGB", (64, 36), (90, 90, 100)).save(concept)
+    surfaces_data = folder / "place.json"
+    surfaces_data.write_text(json.dumps({"place": "cockpit", "takes": {
+        f"{kind}-t1": {"kind": kind, "object": kind.replace("_", " ")} for kind in kinds}}))
+    inputs = {"surfaces": surfaces_data, "library": REPO / "data/library/materials.json", "concept": concept,
+              "sounds": REPO / "data/sound/surfaces.json", "finish-route-palette": paletted(folder)}
+    asked = []
+    original = scene_library.ask
+    scene_library.ask = lambda bodies: asked.append(bodies) or {
+        key: answer if isinstance(answer, Exception) else json.dumps(answer) for key in bodies}
+    out = folder / "made-library"
+    out.mkdir()
+    try:
+        scene_library.make_library(inputs, out, 7, {})
+    finally:
+        scene_library.ask = original
+    return out, scene_library.judge_library(out, inputs, {}), asked
+
+
+def test_the_scene_s_surfaces_are_made_fresh_from_its_palette_and_kinds_by_one_ask():
+    from score.stages.surfaces import palette_library
+    answer = {"surfaces": [
+        {"name": "Hull Panel", "family": "Paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
+         "metal": 0.0, "colours": [{"setting": "bare", "token": "steel"}, {"setting": "second", "token": "glass"}],
+         "sound": "steel_plate", "kinds": ["two_boxes"]},
+        {"name": "window", "family": "glass", "recipe": "glass", "token": "glass", "roughness": 1.6, "metal": 0.0,
+         "sound": "glass", "kinds": []}]}
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        out, verdict, asked = library_made(folder, answer)
+        assert len(asked) == 1 and list(asked[0]) == ["cockpit"], asked  # one ask a scene, in one batch
+        body = asked[0]["cockpit"]
+        text = body["contents"][0]["parts"][-1]["text"]
+        assert "two_boxes: two boxes" in text and "painted_metal" in text and "colours: bare" in text, text
+        assert "steel_grating" in text  # the sound surfaces it may sound like
+        schema = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]
+        assert schema["token"]["enum"] == list(PALETTE["tokens"]) and "glass" in schema["recipe"]["enum"], schema
+        made = json.loads((out / "materials.json").read_text())
+        panel = made["families"]["paint"]["variants"]["hull_panel"]
+        # its recipe's colour settings in its own tokens; a setting the recipe does not name is not taken
+        assert panel["bare"] == "steel" and "second" not in panel and panel["token"] == "hull-trim", panel
+        assert made["families"]["glass"]["variants"]["window"]["roughness"] == 1.0  # held to 0 to 1
+        assert made["kinds"] == {"two_boxes": ["hull_panel"]} and made["tokens"] == PALETTE["tokens"], made
+        assert made["dirt"] == "regolith" and panel["seed"] != made["families"]["glass"]["variants"]["window"]["seed"]
+        assert made["families"]["paint"]["surface"] == panel["surface"] == "steel_plate"  # what the sound layer plays
+        assert verdict.answer == "pass" and verdict.measures["surfaces"] == 2, verdict
+        # the rows after it read this library through the palette: the take's kind list, its specs in its tokens
+        palette = palette_library.read({"finish-route-palette": folder / "palette", "surface-library": out})
+        assert set(palette_library.take_surfaces({"kind": "two_boxes"}, palette)) == {"hull_panel", "window"}
+        assert palette_library.specs(palette)["hull_panel"]["bare"] == palette_library.library_tokens(palette)["steel"]
+
+
+def test_a_scene_library_missing_a_kind_or_unanswered_fails_by_name():
+    answer = {"surfaces": [{"name": "panel", "family": "paint", "recipe": "painted_metal", "token": "hull-trim",
+                            "roughness": 0.4, "metal": 0.0, "kinds": ["two_boxes"]}]}
+    with tempfile.TemporaryDirectory() as temporary:
+        out, verdict, _ = library_made(pathlib.Path(temporary), answer, kinds=("two_boxes", "crate"))
+        assert verdict.answer == "fail", verdict
+        assert {"kind crate has no surface", "panel: token None (bare) is not the palette's",
+                "panel: sound surface None is not known"} <= set(verdict.findings), verdict.findings
+    with tempfile.TemporaryDirectory() as temporary:
+        out, verdict, _ = library_made(pathlib.Path(temporary), route_ask.google_batch.Unanswered("none for it"))
+        assert not (out / "materials.json").exists() and verdict.answer == "fail", verdict
+        assert "none for it" in verdict.findings[0], verdict
+
+
+def test_the_empty_library_is_a_named_missing_input():
+    """Every old material retired (owner, 2026-10-21): the repository's library is the method alone, and a reader
+    of a surface gets the missing input named, never a KeyError."""
+    import library
+    method = library.theme_library()
+    assert method["families"] == {} and method["tokens"] == {} and method["pictures"] == {}, method
+    assert set(method["recipes"]) and set(method["wear_levels"]) == {"new", "worked", "worn"}
+    assert not [setting for defaults in method["recipes"].values() for setting in defaults
+                if isinstance(defaults[setting], str)], "a recipe default names an old token"
+    assert library.library_specs() == {} and library.variants(method) == {}  # a lookup finds no surface
+    for read in (lambda: library.spec(method, "painted_panel", "hull-trim", {}),
+                 lambda: route_list.palette_library.specs(PALETTE)):
+        try:
+            read()
+        except library.LibraryEmpty as empty:
+            assert library.EMPTY in str(empty), empty
+        else:
+            raise AssertionError("a surface read from the empty library")
 
 
 def test_paid_asks_refuse_outside_a_cleared_run():
@@ -542,10 +681,10 @@ def test_the_route_is_the_default_line():
     from score import graph, stages
     from score.store import Store
     assert [row.name for row in surfaces.ROWS] == [
-        "finish-route-palette", "finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts",
-        "surfaces-bake", "surfaces-paint", "finish-route-recheck", "surfaces-check"]
-    assert [row.name for row in surfaces.ROWS if row.paid] == ["finish-route-palette", "finish-route-list",
-                                                               "surfaces-bake", "finish-route-recheck"]
+        "finish-route-palette", "surface-library", "finish-route-views", "finish-route-list", "finish-route-split",
+        "surfaces-parts", "surfaces-bake", "surfaces-paint", "finish-route-recheck", "surfaces-check"]
+    assert [row.name for row in surfaces.ROWS if row.paid] == [
+        "finish-route-palette", "surface-library", "finish-route-list", "surfaces-bake", "finish-route-recheck"]
     # no row of the route reads data/definitions/place.json: a scene's palette comes from its design
     for row in surfaces.ROWS:
         assert "places" not in (row.files("cockpit") if callable(row.files) else row.files), row.name

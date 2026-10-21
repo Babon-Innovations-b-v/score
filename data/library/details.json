@@ -31,13 +31,6 @@
 		"cuts": []
 	},
 	"hub_chair": {
-		"materials": [
-			"vinyl_seat",
-			"vinyl_brown",
-			"pipe_steel",
-			"bare_steel",
-			"rubber"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -872,12 +865,6 @@
 		"square": true
 	},
 	"hub_telephone": {
-		"materials": [
-			"dark_panel",
-			"pipe_steel",
-			"bare_steel",
-			"rubber"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -893,10 +880,6 @@
 		"cuts": []
 	},
 	"hub_desklamp": {
-		"materials": [
-			"bare_steel",
-			"pipe_steel"
-		],
 		"turn": [
 			-0.0,
 			0.0,
@@ -912,11 +895,6 @@
 		"cuts": []
 	},
 	"hub_headset": {
-		"materials": [
-			"bare_steel",
-			"pipe_steel",
-			"rubber"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -932,12 +910,6 @@
 		"cuts": []
 	},
 	"hub_microscope": {
-		"materials": [
-			"painted_panel",
-			"bare_steel",
-			"pipe_steel",
-			"dark_panel"
-		],
 		"turn": [
 			-1.0,
 			0.0,
@@ -953,9 +925,6 @@
 		"cuts": []
 	},
 	"hub_wrench": {
-		"materials": [
-			"bare_steel"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -971,11 +940,6 @@
 		"cuts": []
 	},
 	"hub_hammer": {
-		"materials": [
-			"bare_steel",
-			"pipe_steel",
-			"rubber"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -991,10 +955,6 @@
 		"cuts": []
 	},
 	"hub_pump_pliers": {
-		"materials": [
-			"bare_steel",
-			"warning_paint"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1010,10 +970,6 @@
 		"cuts": []
 	},
 	"hub_pliers": {
-		"materials": [
-			"bare_steel",
-			"warning_paint"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1645,15 +1601,6 @@
 		]
 	},
 	"old_station_hab_lander": {
-		"materials": [
-			"mli_gold",
-			"mli_silver",
-			"bare_steel",
-			"galvanized_dull",
-			"glass",
-			"lamp_lens",
-			"hull_white_old"
-		],
 		"turn": [
 			-1.0,
 			0.0,
@@ -1670,13 +1617,6 @@
 		"square": false
 	},
 	"old_station_first_module": {
-		"materials": [
-			"mli_gold",
-			"mli_silver",
-			"galvanized_dull",
-			"bare_steel",
-			"hull_white_old"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1693,12 +1633,6 @@
 		"square": false
 	},
 	"old_station_lab_module": {
-		"materials": [
-			"hull_white_old",
-			"dark_panel",
-			"bare_steel",
-			"glass"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1715,13 +1649,6 @@
 		"square": false
 	},
 	"old_station_rover": {
-		"materials": [
-			"hull_white_old",
-			"rubber",
-			"glass",
-			"bare_steel",
-			"dark_panel"
-		],
 		"turn": [
 			-1.0,
 			0.0,
@@ -1738,11 +1665,6 @@
 		"square": false
 	},
 	"old_station_solar_mast": {
-		"materials": [
-			"galvanized_dull",
-			"solar_cell",
-			"bare_steel"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1759,12 +1681,6 @@
 		"square": false
 	},
 	"old_station_solar_mast_dead": {
-		"materials": [
-			"galvanized_dull",
-			"mli_gold",
-			"mli_silver",
-			"solar_cell"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -1781,11 +1697,6 @@
 		"square": false
 	},
 	"old_station_comms_mast": {
-		"materials": [
-			"bare_steel",
-			"hull_white_old",
-			"galvanized_dull"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -1802,10 +1713,6 @@
 		"square": false
 	},
 	"old_station_radiator": {
-		"materials": [
-			"bare_steel",
-			"galvanized_dull"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1822,12 +1729,6 @@
 		"square": false
 	},
 	"old_station_power_unit": {
-		"materials": [
-			"galvanized_dull",
-			"bare_steel",
-			"mli_gold",
-			"dark_panel"
-		],
 		"turn": [
 			0.065403,
 			0.0,
@@ -1844,10 +1745,6 @@
 		"square": false
 	},
 	"old_station_parts_rack": {
-		"materials": [
-			"bare_steel",
-			"galvanized_dull"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1864,9 +1761,6 @@
 		"square": false
 	},
 	"old_station_bag_pile": {
-		"materials": [
-			"regolith_bag"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -1883,9 +1777,6 @@
 		"square": false
 	},
 	"old_station_bag_stack": {
-		"materials": [
-			"regolith_bag"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1902,11 +1793,6 @@
 		"square": false
 	},
 	"old_station_spare_wheel": {
-		"materials": [
-			"rubber",
-			"galvanized_dull",
-			"bare_steel"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1923,11 +1809,6 @@
 		"square": false
 	},
 	"old_station_gas_bottle": {
-		"materials": [
-			"bare_steel",
-			"galvanized_dull",
-			"hull_white_old"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1944,13 +1825,6 @@
 		"square": false
 	},
 	"wreck_aft_section": {
-		"materials": [
-			"hull_white_scorched",
-			"bare_steel",
-			"cast_iron_dark",
-			"roof_steel_paint",
-			"mli_gold"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1967,11 +1841,6 @@
 		"square": false
 	},
 	"wreck_forward_section": {
-		"materials": [
-			"hull_white_scorched",
-			"bare_steel",
-			"cast_iron_dark"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -1988,12 +1857,6 @@
 		"square": false
 	},
 	"wreck_work_lamp": {
-		"materials": [
-			"bare_steel",
-			"lamp_lens",
-			"glass",
-			"cast_iron_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -2010,11 +1873,6 @@
 		"square": false
 	},
 	"wreck_hull_panel": {
-		"materials": [
-			"hull_white_scorched",
-			"bare_steel",
-			"cast_iron_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -2031,11 +1889,6 @@
 		"square": false
 	},
 	"wreck_small_panel": {
-		"materials": [
-			"hull_white_scorched",
-			"bare_steel",
-			"cast_iron_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -2052,10 +1905,6 @@
 		"square": false
 	},
 	"wreck_pressure_sphere": {
-		"materials": [
-			"bare_steel",
-			"roof_steel_paint"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -2072,9 +1921,6 @@
 		"square": false
 	},
 	"wreck_foil_blanket": {
-		"materials": [
-			"mli_gold"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2091,11 +1937,6 @@
 		"square": false
 	},
 	"wreck_access_cover": {
-		"materials": [
-			"hull_white_scorched",
-			"bare_steel",
-			"cast_iron_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -2112,11 +1953,6 @@
 		"square": false
 	},
 	"wreck_leg_strut": {
-		"materials": [
-			"bare_steel",
-			"hull_white_scorched",
-			"cast_iron_dark"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2133,11 +1969,6 @@
 		"square": false
 	},
 	"wreck_leg_foot": {
-		"materials": [
-			"bare_steel",
-			"hull_white_scorched",
-			"cast_iron_dark"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2154,10 +1985,6 @@
 		"square": false
 	},
 	"wreck_ring_frame": {
-		"materials": [
-			"cast_iron_dark",
-			"bare_steel"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2174,10 +2001,6 @@
 		"square": false
 	},
 	"wreck_tank_dome": {
-		"materials": [
-			"bare_steel",
-			"hull_white_scorched"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -2194,11 +2017,6 @@
 		"square": false
 	},
 	"wreck_fragment": {
-		"materials": [
-			"hull_white_scorched",
-			"bare_steel",
-			"cast_iron_dark"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2215,11 +2033,6 @@
 		"square": false
 	},
 	"lab_desk": {
-		"materials": [
-			"painted_panel",
-			"dark_panel",
-			"bare_steel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2235,12 +2048,6 @@
 		]
 	},
 	"lab_desk_chair": {
-		"materials": [
-			"vinyl_seat",
-			"cast_steel",
-			"bare_steel",
-			"rubber"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2280,12 +2087,6 @@
 		]
 	},
 	"lab_sample_store": {
-		"materials": [
-			"painted_panel",
-			"bare_steel",
-			"glass",
-			"dark_panel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2314,12 +2115,6 @@
 		]
 	},
 	"lab_microscope": {
-		"materials": [
-			"enamel_white",
-			"dark_panel",
-			"bare_steel",
-			"plastic_grey"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2335,11 +2130,6 @@
 		]
 	},
 	"lab_instrument_unit": {
-		"materials": [
-			"plastic_grey",
-			"dark_panel",
-			"glass"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2355,10 +2145,6 @@
 		]
 	},
 	"lab_desk_keyboard": {
-		"materials": [
-			"plastic_grey",
-			"dark_panel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2374,10 +2160,6 @@
 		]
 	},
 	"lab_sample_tray": {
-		"materials": [
-			"bare_steel",
-			"cast_steel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2393,12 +2175,6 @@
 		]
 	},
 	"lab_gauge_panel": {
-		"materials": [
-			"painted_panel",
-			"bare_steel",
-			"pipe_steel",
-			"glass"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2415,12 +2191,6 @@
 		"decals": []
 	},
 	"lab_junction_box": {
-		"materials": [
-			"painted_panel",
-			"dark_panel",
-			"pipe_steel",
-			"bare_steel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2437,11 +2207,6 @@
 		"decals": []
 	},
 	"lab_fire_extinguisher": {
-		"materials": [
-			"warning_paint",
-			"rubber",
-			"bare_steel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2457,11 +2222,6 @@
 		]
 	},
 	"lab_task_lamp": {
-		"materials": [
-			"painted_panel",
-			"bare_steel",
-			"lamp_lens"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2477,12 +2237,6 @@
 		]
 	},
 	"lab_ceiling_lamp": {
-		"materials": [
-			"painted_panel",
-			"bare_steel",
-			"cast_steel",
-			"lamp_lens"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2498,12 +2252,6 @@
 		]
 	},
 	"lab_glovebox_cabinet": {
-		"materials": [
-			"painted_panel",
-			"glass",
-			"rubber",
-			"bare_steel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -2545,11 +2293,6 @@
 		]
 	},
 	"lab_desk_monitor": {
-		"materials": [
-			"plastic_grey",
-			"dark_panel",
-			"glass"
-		],
 		"screens": [
 			{
 				"at": [
@@ -2577,10 +2320,6 @@
 		]
 	},
 	"workshop_desklamp": {
-		"materials": [
-			"bare_steel",
-			"pipe_steel"
-		],
 		"turn": [
 			-0.0,
 			0.0,
@@ -2596,9 +2335,6 @@
 		"cuts": []
 	},
 	"workshop_wrench": {
-		"materials": [
-			"bare_steel"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2614,11 +2350,6 @@
 		"cuts": []
 	},
 	"workshop_hammer": {
-		"materials": [
-			"bare_steel",
-			"pipe_steel",
-			"rubber"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2634,10 +2365,6 @@
 		"cuts": []
 	},
 	"workshop_pump_pliers": {
-		"materials": [
-			"bare_steel",
-			"warning_paint"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2653,10 +2380,6 @@
 		"cuts": []
 	},
 	"workshop_pliers": {
-		"materials": [
-			"bare_steel",
-			"warning_paint"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2672,11 +2395,6 @@
 		"cuts": []
 	},
 	"camp_galley": {
-		"materials": [
-			"stainless",
-			"anodized_natural",
-			"carbon_fibre"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2718,11 +2436,6 @@
 		"square": true
 	},
 	"camp_cold_store": {
-		"materials": [
-			"stainless",
-			"anodized_natural",
-			"carbon_fibre"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2763,11 +2476,6 @@
 		"square": true
 	},
 	"camp_bunk": {
-		"materials": [
-			"anodized_natural",
-			"quilted_white",
-			"stainless"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2784,11 +2492,6 @@
 		"square": true
 	},
 	"camp_lockers": {
-		"materials": [
-			"stainless",
-			"anodized_natural",
-			"carbon_fibre"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2830,11 +2533,6 @@
 		"square": true
 	},
 	"camp_growth_chamber": {
-		"materials": [
-			"stainless",
-			"glass",
-			"plastic_white"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2864,11 +2562,6 @@
 		"square": true
 	},
 	"flat_gas_stove": {
-		"materials": [
-			"enamel_white",
-			"bare_steel",
-			"rubber"
-		],
 		"turn": [
 			-0.0,
 			0.0,
@@ -2885,9 +2578,6 @@
 		"decals": []
 	},
 	"flat_quilt": {
-		"materials": [
-			"quilt_cotton"
-		],
 		"turn": [
 			-1.0,
 			0.0,
@@ -2904,11 +2594,6 @@
 		"decals": []
 	},
 	"flat_sauce_bottle": {
-		"materials": [
-			"glass",
-			"cotton_white",
-			"warning_paint"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2925,11 +2610,6 @@
 		"decals": []
 	},
 	"flat_thermos": {
-		"materials": [
-			"rail_green",
-			"bare_steel",
-			"rubber"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -2946,11 +2626,6 @@
 		"decals": []
 	},
 	"stairwell_extinguisher": {
-		"materials": [
-			"warning_paint",
-			"rubber",
-			"bare_steel"
-		],
 		"turn": [
 			-0.0,
 			0.0,
@@ -2983,12 +2658,6 @@
 		"decals": []
 	},
 	"flat_crt_tv": {
-		"materials": [
-			"plastic_grey",
-			"screen_off",
-			"bare_steel",
-			"rubber"
-		],
 		"turn": [
 			-0.0,
 			0.0,
@@ -3017,10 +2686,6 @@
 		"decals": []
 	},
 	"flat_kettle": {
-		"materials": [
-			"bare_steel",
-			"rubber"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -3037,9 +2702,6 @@
 		"decals": []
 	},
 	"flat_enamel_basin": {
-		"materials": [
-			"enamel_white"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -3056,10 +2718,6 @@
 		"decals": []
 	},
 	"flat_bedside_lamp": {
-		"materials": [
-			"cotton_white",
-			"anodized_gold"
-		],
 		"turn": [
 			-1.0,
 			0.0,
@@ -3076,9 +2734,6 @@
 		"decals": []
 	},
 	"flat_bowl_stack": {
-		"materials": [
-			"enamel_white"
-		],
 		"turn": [
 			-1.0,
 			0.0,
@@ -3094,10 +2749,6 @@
 		"cuts": []
 	},
 	"campgrounds_lander": {
-		"materials": [
-			"stainless",
-			"dust_coated_paint"
-		],
 		"turn": [
 			0.99875,
 			0.0,
@@ -3127,11 +2778,6 @@
 		"wall": 0.15
 	},
 	"campgrounds_crane": {
-		"materials": [
-			"dust_coated_paint",
-			"stainless",
-			"anodized_natural"
-		],
 		"turn": [
 			0.4131,
 			0.0,
@@ -3148,11 +2794,6 @@
 		"wall": 0.02
 	},
 	"campgrounds_cargo_case": {
-		"materials": [
-			"anodized_natural",
-			"dust_coated_paint",
-			"rubber"
-		],
 		"turn": [
 			0.00105,
 			0.0,
@@ -3182,12 +2823,6 @@
 		"square": true
 	},
 	"campgrounds_cargo_case_open": {
-		"materials": [
-			"anodized_natural",
-			"dust_coated_paint",
-			"carbon_fibre",
-			"rubber"
-		],
 		"turn": [
 			0.00854,
 			0.0,
@@ -3216,10 +2851,6 @@
 		]
 	},
 	"campgrounds_cargo_pallet": {
-		"materials": [
-			"stainless",
-			"anodized_natural"
-		],
 		"turn": [
 			0.07236,
 			0.0,
@@ -3235,12 +2866,6 @@
 		"cuts": []
 	},
 	"campgrounds_reactor": {
-		"materials": [
-			"stainless",
-			"anodized_natural",
-			"carbon_fibre",
-			"rubber"
-		],
 		"turn": [
 			0.52863,
 			0.0,
@@ -3281,11 +2906,6 @@
 		"wall": 0.012
 	},
 	"campgrounds_mast_cabinet": {
-		"materials": [
-			"dust_coated_paint",
-			"anodized_natural",
-			"carbon_fibre"
-		],
 		"turn": [
 			0.86404,
 			0.0,
@@ -3314,9 +2934,6 @@
 		]
 	},
 	"campgrounds_drift": {
-		"materials": [
-			"regolith"
-		],
 		"turn": [
 			0.7724,
 			0.0,
@@ -3332,13 +2949,6 @@
 		"cuts": []
 	},
 	"greenhouse_chair": {
-		"materials": [
-			"vinyl_seat",
-			"vinyl_brown",
-			"pipe_steel",
-			"bare_steel",
-			"rubber"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -3354,10 +2964,6 @@
 		"cuts": []
 	},
 	"greenhouse_desklamp": {
-		"materials": [
-			"bare_steel",
-			"pipe_steel"
-		],
 		"turn": [
 			-0.0,
 			0.0,
@@ -3373,11 +2979,6 @@
 		"cuts": []
 	},
 	"greenhouse_seed_tray": {
-		"materials": [
-			"tray_plastic",
-			"potting_soil",
-			"seedling_leaf"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -3482,9 +3083,6 @@
 			0.0,
 			0.0
 		],
-		"materials": [
-			"enamel_blue"
-		],
 		"wall": 0.012
 	},
 	"garage_chain_hoist": {
@@ -3500,9 +3098,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"machine_orange"
 		]
 	},
 	"garage_workbench": {
@@ -3519,10 +3114,6 @@
 			0.0,
 			0.0
 		],
-		"materials": [
-			"painted_panel",
-			"wood_board"
-		],
 		"wall": 0.012
 	},
 	"garage_task_lamp": {
@@ -3538,10 +3129,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"painted_panel",
-			"cast_steel"
 		]
 	},
 	"garage_bench_vise": {
@@ -3557,10 +3144,6 @@
 			0.0,
 			0.0,
 			-1.0
-		],
-		"materials": [
-			"cast_steel",
-			"bare_steel"
 		]
 	},
 	"garage_toolbox": {
@@ -3576,9 +3159,6 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"warning_paint"
 		]
 	},
 	"garage_rover_charger": {
@@ -3594,9 +3174,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"enamel_blue"
 		]
 	},
 	"garage_control_cabinet": {
@@ -3612,10 +3189,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"screen"
 		]
 	},
 	"garage_junction_box": {
@@ -3631,10 +3204,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"led_green"
 		]
 	},
 	"garage_pressure_gauge": {
@@ -3650,10 +3219,6 @@
 			0.0,
 			0.0,
 			-1.0
-		],
-		"materials": [
-			"bare_steel",
-			"warning_paint"
 		]
 	},
 	"garage_bay_panel": {
@@ -3669,9 +3234,6 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"dark_panel"
 		]
 	},
 	"garage_bracket_beacon": {
@@ -3687,10 +3249,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"led_red",
-			"cast_steel"
 		]
 	},
 	"garage_breaker_panel": {
@@ -3706,10 +3264,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"warning_paint"
 		]
 	},
 	"garage_ceiling_lamp": {
@@ -3725,10 +3279,6 @@
 			0.0,
 			0.0,
 			-1.0
-		],
-		"materials": [
-			"cast_steel",
-			"glass"
 		]
 	},
 	"garage_fluid_shelves": {
@@ -3745,11 +3295,6 @@
 			0.0,
 			0.0
 		],
-		"materials": [
-			"galvanized_steel",
-			"enamel_blue",
-			"wood_board"
-		],
 		"wall": 0.012
 	},
 	"garage_parts_trolley": {
@@ -3765,11 +3310,6 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"bare_steel",
-			"warning_paint",
-			"rubber"
 		]
 	},
 	"garage_spares_shelf": {
@@ -3786,11 +3326,6 @@
 			0.0,
 			0.0
 		],
-		"materials": [
-			"galvanized_steel",
-			"rubber",
-			"wood_board"
-		],
 		"wall": 0.012
 	},
 	"garage_tyre_shelving": {
@@ -3806,11 +3341,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"galvanized_steel",
-			"rubber",
-			"wood_board"
 		]
 	},
 	"garage_wheel_stand": {
@@ -3826,9 +3356,6 @@
 			0.0,
 			0.0,
 			-1.0
-		],
-		"materials": [
-			"rubber"
 		]
 	},
 	"hangar_access_stair": {
@@ -3844,10 +3371,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"galvanized_steel",
-			"rubber"
 		],
 		"wall": 0.012
 	},
@@ -3865,11 +3388,6 @@
 			0.0,
 			0.0
 		],
-		"materials": [
-			"painted_panel",
-			"screen",
-			"plastic_grey"
-		],
 		"wall": 0.012
 	},
 	"hangar_control_desk": {
@@ -3885,10 +3403,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"dark_panel"
 		]
 	},
 	"hangar_parts_crate": {
@@ -3904,10 +3418,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"wood_board",
-			"bare_steel"
 		]
 	},
 	"hangar_fuel_pump": {
@@ -3923,10 +3433,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"rubber"
 		]
 	},
 	"hangar_parts_rack": {
@@ -3942,10 +3448,6 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"galvanized_steel",
-			"wood_board"
 		],
 		"wall": 0.012
 	},
@@ -3963,10 +3465,6 @@
 			0.0,
 			0.0
 		],
-		"materials": [
-			"galvanized_steel",
-			"wood_board"
-		],
 		"wall": 0.012
 	},
 	"hangar_monitor_desk": {
@@ -3982,11 +3480,6 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"screen",
-			"dark_panel"
 		]
 	},
 	"hangar_crane_trolley": {
@@ -4002,9 +3495,6 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"machine_orange"
 		]
 	},
 	"hangar_bay_panel": {
@@ -4020,9 +3510,6 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"dark_panel"
 		]
 	},
 	"hangar_bracket_beacon": {
@@ -4038,10 +3525,6 @@
 			0.0,
 			0.0,
 			-1.0
-		],
-		"materials": [
-			"led_amber",
-			"cast_steel"
 		]
 	},
 	"hangar_floodlight": {
@@ -4057,9 +3540,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"cast_steel"
 		]
 	},
 	"hangar_pressure_gauge": {
@@ -4075,10 +3555,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"bare_steel",
-			"warning_paint"
 		]
 	},
 	"lab_wall_monitor": {
@@ -4106,9 +3582,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"painted_panel"
 		]
 	},
 	"lab_switch_panel": {
@@ -4124,10 +3597,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"bare_steel"
 		]
 	},
 	"lab_hose_loop": {
@@ -4143,10 +3612,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"pipe_steel",
-			"rubber"
 		]
 	},
 	"lab_desk_mouse": {
@@ -4162,9 +3627,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"plastic_grey"
 		]
 	},
 	"lab_desk_keypad": {
@@ -4180,9 +3642,6 @@
 			0.0,
 			0.0,
 			1.0
-		],
-		"materials": [
-			"plastic_grey"
 		]
 	},
 	"lab_sample_jar": {
@@ -4198,10 +3657,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"glass",
-			"bare_steel"
 		]
 	},
 	"lab_sample_scanner": {
@@ -4217,10 +3672,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"screen"
 		]
 	},
 	"lab_hanging_glove": {
@@ -4236,18 +3687,9 @@
 			-1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"rubber"
 		]
 	},
 	"campgrounds_ice_drill": {
-		"materials": [
-			"dust_coated_paint",
-			"anodized_natural",
-			"stainless",
-			"rubber"
-		],
 		"turn": [
 			0.28657,
 			0.0,
@@ -4276,11 +3718,6 @@
 		]
 	},
 	"campgrounds_power_unit": {
-		"materials": [
-			"dust_coated_paint",
-			"anodized_natural",
-			"rubber"
-		],
 		"turn": [
 			0.10957,
 			0.0,
@@ -4309,11 +3746,6 @@
 		]
 	},
 	"campgrounds_sample_case": {
-		"materials": [
-			"dust_coated_paint",
-			"anodized_natural",
-			"rubber"
-		],
 		"turn": [
 			0.15899,
 			0.0,
@@ -4343,9 +3775,6 @@
 		"square": true
 	},
 	"campgrounds_coiled_cable": {
-		"materials": [
-			"rubber"
-		],
 		"turn": [
 			0.87729,
 			0.0,
@@ -4361,11 +3790,6 @@
 		"cuts": []
 	},
 	"greenhouse_water_tank": {
-		"materials": [
-			"painted_panel",
-			"bare_steel",
-			"glass"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -4418,10 +3842,6 @@
 		]
 	},
 	"greenhouse_seed_bin": {
-		"materials": [
-			"bare_steel",
-			"potting_soil"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4496,10 +3916,6 @@
 		]
 	},
 	"greenhouse_soil_bin": {
-		"materials": [
-			"bare_steel",
-			"potting_soil"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -4528,10 +3944,6 @@
 		]
 	},
 	"greenhouse_crop_crate": {
-		"materials": [
-			"crate_wood",
-			"painted_panel"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -4560,12 +3972,6 @@
 		]
 	},
 	"launch_far_rocket": {
-		"materials": [
-			"hull_white_gloss",
-			"dark_panel",
-			"bare_steel",
-			"galvanized_dull"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4581,15 +3987,6 @@
 		"cuts": []
 	},
 	"far_city_glass_tower": {
-		"materials": [
-			"glass",
-			"galvanized_dull",
-			"gate_grey",
-			"concrete",
-			"window_lit",
-			"sign_lit",
-			"post_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4605,10 +4002,6 @@
 		"cuts": []
 	},
 	"far_city_crown_tower": {
-		"materials": [
-			"glass",
-			"gate_grey"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4624,15 +4017,6 @@
 		"cuts": []
 	},
 	"far_city_spire_tower": {
-		"materials": [
-			"glass",
-			"galvanized_dull",
-			"gate_grey",
-			"concrete",
-			"window_lit",
-			"sign_lit",
-			"post_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4648,15 +4032,6 @@
 		"cuts": []
 	},
 	"far_city_housing_tower": {
-		"materials": [
-			"facade_paint",
-			"concrete",
-			"wall_tile_white",
-			"window_lit",
-			"glass",
-			"galvanized_dull",
-			"post_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4672,15 +4047,6 @@
 		"cuts": []
 	},
 	"far_city_residential_tower": {
-		"materials": [
-			"facade_paint",
-			"concrete",
-			"wall_tile_white",
-			"window_lit",
-			"glass",
-			"galvanized_dull",
-			"post_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4696,15 +4062,6 @@
 		"cuts": []
 	},
 	"far_city_pencil_tower": {
-		"materials": [
-			"facade_paint",
-			"concrete",
-			"wall_tile_white",
-			"window_lit",
-			"glass",
-			"galvanized_dull",
-			"post_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4720,15 +4077,6 @@
 		"cuts": []
 	},
 	"far_city_housing_slab": {
-		"materials": [
-			"facade_paint",
-			"concrete",
-			"wall_tile_white",
-			"window_lit",
-			"glass",
-			"galvanized_dull",
-			"post_dark"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4744,15 +4092,6 @@
 		"cuts": []
 	},
 	"far_city_low_block": {
-		"materials": [
-			"facade_paint",
-			"concrete",
-			"wall_tile_white",
-			"window_lit",
-			"glass",
-			"galvanized_dull",
-			"post_dark"
-		],
 		"turn": [
 			0.0,
 			0.0,
@@ -4780,10 +4119,6 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"glass",
-			"bare_steel"
 		]
 	},
 	"camp_sample_jar": {
@@ -4799,17 +4134,9 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"glass",
-			"bare_steel"
 		]
 	},
 	"camp_sample_tray": {
-		"materials": [
-			"bare_steel",
-			"cast_steel"
-		],
 		"screens": [],
 		"cuts": [],
 		"turn": [
@@ -4825,11 +4152,6 @@
 		]
 	},
 	"camp_sample_case": {
-		"materials": [
-			"dust_coated_paint",
-			"anodized_natural",
-			"rubber"
-		],
 		"turn": [
 			0.15899,
 			0.0,
@@ -4859,10 +4181,6 @@
 		"square": true
 	},
 	"workshop_bench_lamp": {
-		"materials": [
-			"bare_steel",
-			"pipe_steel"
-		],
 		"turn": [
 			-0.0,
 			0.0,
@@ -4878,10 +4196,6 @@
 		"cuts": []
 	},
 	"flat_ashtray": {
-		"materials": [
-			"gate_grey",
-			"cotton_white"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4898,12 +4212,6 @@
 		"decals": []
 	},
 	"flat_balcony_fern_pot": {
-		"materials": [
-			"enamel_white",
-			"enamel_blue",
-			"foliage_leaf",
-			"potting_soil"
-		],
 		"turn": [
 			0.0,
 			1.0,
@@ -4920,12 +4228,6 @@
 		"decals": []
 	},
 	"flat_balcony_rubber_plant": {
-		"materials": [
-			"enamel_white",
-			"enamel_blue",
-			"foliage_leaf",
-			"potting_soil"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4942,13 +4244,6 @@
 		"decals": []
 	},
 	"wreck_supply_rocket": {
-		"materials": [
-			"hull_white_old",
-			"warning_paint",
-			"bare_steel",
-			"cast_iron_dark",
-			"dark_panel"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4965,12 +4260,6 @@
 		"decals": []
 	},
 	"wreck_cargo_lift": {
-		"materials": [
-			"galvanized_steel",
-			"bare_steel",
-			"chequer_plate_steel",
-			"cable_black"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -4987,11 +4276,6 @@
 		"decals": []
 	},
 	"camp_toaster": {
-		"materials": [
-			"brushed_steel_fine",
-			"plastic_white",
-			"rubber"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -5008,11 +4292,6 @@
 		"decals": []
 	},
 	"camp_coffee_maker": {
-		"materials": [
-			"rubber",
-			"glass",
-			"stainless"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -5029,12 +4308,6 @@
 		"decals": []
 	},
 	"camp_kiosk_terminal": {
-		"materials": [
-			"dust_coated_paint",
-			"screen",
-			"rubber",
-			"brushed_steel_fine"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -5051,12 +4324,6 @@
 		"decals": []
 	},
 	"wreck_probe_lander": {
-		"materials": [
-			"mli_silver",
-			"mli_gold",
-			"bare_steel",
-			"solar_cell"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -5073,13 +4340,6 @@
 		"decals": []
 	},
 	"old_station_supply_rocket": {
-		"materials": [
-			"hull_white_old",
-			"warning_paint",
-			"bare_steel",
-			"cast_iron_dark",
-			"dark_panel"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -5096,12 +4356,6 @@
 		"decals": []
 	},
 	"old_station_cargo_lift": {
-		"materials": [
-			"galvanized_steel",
-			"bare_steel",
-			"chequer_plate_steel",
-			"cable_black"
-		],
 		"turn": [
 			1.0,
 			0.0,
@@ -5130,18 +4384,9 @@
 			1.0,
 			0.0,
 			0.0
-		],
-		"materials": [
-			"painted_panel",
-			"screen"
 		]
 	},
 	"square_guard_hut": {
-		"materials": [
-			"concrete",
-			"post_dark",
-			"gate_grey"
-		],
 		"turn": [
 			-0.6122,
 			0.0,

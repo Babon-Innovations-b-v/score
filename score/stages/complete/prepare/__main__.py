@@ -177,6 +177,7 @@ def remake(runner, data, root, work, stock=None, moved=None):
     found, gaps, input_gaps = priced_layers(route, takes, fixed)
     found[clips.ROW] = estimate.clip_layer(collections.Counter(take["place"] for take in takes
                                                                if take["status"] == "bought"), price.run_cap())
+    found.update(estimate.scene_layers(route, len({take["place"] for take in takes if take["status"] == "bought"})))
     edges = estimate.route_edges(runner.stages, [*route, clips.ROW])
     record = {"made_at": graph.now(), "priced_on": price.priced_on(),
               "inventory": {"read": sorted(inventories), "waiting": waiting},

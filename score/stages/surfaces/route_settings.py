@@ -10,7 +10,7 @@ takes that surface's own spec: the list's settings were for the surface it named
 
     applied(finish)                   its settings, or None when the colour check moved its surface
     settings_name(surface, settings)  the surface a part paints and bakes as
-    set_spec(spec, settings, colours) the variant's spec with the settings over it (colours: library.token_colours())
+    set_spec(spec, settings, colours) the variant's spec with the settings over it (colours: palette_library.library_tokens)
 """
 SEPARATOR = "__"
 OWN = ("seed", "wear")  # what a spec carries of its own over the job's seed and the place's wear (recipes.arguments)

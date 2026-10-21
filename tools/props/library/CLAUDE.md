@@ -25,14 +25,20 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   one piece); `package.py` writes what any engine loads, every object its glTF and `scene.json` with each copy's
   transform, and refuses a package that does not match the inventory. `route.py install` (kit rooms) writes the
   environment's files (`data/kit/<room>.json`, the made models); an engine's own scenes for a kit are its adapter's.
-- **The library is data and only grows.** `data/library/materials.json` holds families of variants (each a recipe
-  name, a token, its settings over the recipe's defaults, and the reference patch it was tuned to), the wear
-  levels and the printed pictures (the finish route reads none of `place.json`: a scene takes the whole library filtered
-  by its scene palette, `score/stages/surfaces/palette_library.py`); the kit routes' place takes variants by name in its own `materials` in `place.json`, with its
-  own token and wear. `library.py` resolves them (`--list` lists the families; the command line prints one summary line naming
-  the file under `/tmp/score-output/` that holds the whole output, `--verbose` prints it); nothing else holds a colour. Add a
-  variant for a new surface; never change one a room already uses. `browser.py` writes the browser page from a
-  swatch run.
+- **Every old material is retired** (owner, 2026-10-21: "all materials, models all"; the base theme's 373 variants,
+  its printed pictures, every kind's `materials` list in `details.json` and the old game tokens as material colours
+  went; score_lib's 386 surface entries and `surface_recipes@1` withdrawn). `data/library/materials.json` holds the
+  method alone: the wear levels, each recipe's default settings (no token in them) and `colour_settings`, the colour
+  settings a variant of each recipe names in its own tokens. A scene's surfaces are made fresh by its
+  `surface-library` row (`score/stages/surfaces/scene_library.py`), a library of the same form with its families,
+  `kinds`, its own palette `tokens` ({name: "#rrggbb"}) and `dirt`. `library.py` loads either (`--list` lists the
+  families; the command line prints one summary line naming the file under `/tmp/score-output/`, `--verbose` prints
+  it); colours come only from a library's own tokens (`token_colours(library)`), never `design/tokens/tokens.json`,
+  which is the dashboard's palette alone. A surface or token a library lacks is `LibraryEmpty` ("surface library
+  empty: run surface-library first"), a `FileNotFoundError`, so a gate answers unknown and a row names it; a lookup
+  of every variant (`variants`, `library_specs`) of the method's library finds none, so a reader that names an
+  unknown surface (the sound layer, the library check) names every old one. The kit routes' place still names variants in its own `materials` in `place.json`; with
+  the library empty they name the missing input. `browser.py` writes the browser page from a swatch run.
 - **Recipes are ProcFunc** (`recipes.py`, the owner, 2026-10-06): composable functions (relief, edge wear, dirt,
   layering, grids on the surface's own plane, printed pictures), every setting an argument, the seed explicit, no
   Python branch on a setting, so ProcFunc's tracer lists them (`settings_of`). Relief from `vendor/infinigen2`'s

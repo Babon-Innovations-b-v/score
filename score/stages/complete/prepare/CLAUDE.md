@@ -37,6 +37,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   against the hub's sizes every run: a shape every one of at least `MIN_MEASURED` measured rows failed is a predicted
   gap, not bought, and priced apart (`predicted_gaps_if_bought`); fewer measured rows is `at risk`, still bought.
   The crop's upscale is said, never a prediction (no failure was measured against it).
+- **Once-a-scene rows** (`estimate.SCENE_ROWS`: the scene palette and the surface-library row, which makes every
+  scene's surfaces fresh, owner 2026-10-21): one unit a scene with a bought take, not one a take; each priced at its
+  own measured per unit, else at the measured Gemini 3.1 Pro batch answer (`estimate.ASK_PRICED_AS`, the finish
+  list's), marked `estimated_from` and counted in `totals.estimated`.
 - **Unmeasured stays unknown.** A layer with no per unit is unpriced and named; one with no measured minutes is
   untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`). The preview clips' layer
   (`estimate.clip_layer`, one clip a bought take) is priced and timed from library-clips' measured run, its minutes

@@ -5,8 +5,10 @@ library) as rows of world 1's stage table: each place's own line, side by side w
     surfaces.ROWS          # the rows, in the order a line runs them
 
 A line runs the finish route (owner, 2026-10-20, #18; route_*.py), then the framework:
-    route: finish-route-palette (Gemini 3.1 Pro, one ask a scene: its palette and wear read from its locked concept,
-        scene_palette.py; every row after it takes the library through palette_library.py, never place.json),
+    route: finish-route-palette (Gemini 3.1 Pro, one ask a scene: its palette tokens, colours and wear read from its
+        locked concept, scene_palette.py), surface-library (Gemini 3.1 Pro, one ask a scene: its surfaces made fresh
+        from today's recipes in its palette, scene_library.py; owner, 2026-10-21: every old material retired, the
+        library starts empty; every row after it takes this library through palette_library.py, never place.json),
         finish-route-views (free: renders of the raw model from every angle the coverage check needs, and its
         colour regions), finish-route-list (Gemini 3.1 Pro, one batch: the finish list matched library first, a label
         for each region in each view), finish-route-split (free: the labels voted across views, every face one
@@ -42,6 +44,7 @@ import route_parts  # noqa: E402
 import route_recheck  # noqa: E402
 import route_split  # noqa: E402
 import route_views  # noqa: E402
+import scene_library  # noqa: E402
 import scene_palette  # noqa: E402
 from surface_gates import guarded  # noqa: E402
 
@@ -66,32 +69,36 @@ def row(name, make, faults, check, judge, files, after=(), applies=data.paints, 
 ROUTE = (
     row("finish-route-palette", scene_palette.make_palette, scene_palette.palette_faults, "palette from the design",
         scene_palette.judge_palette, scene_palette.files, paid=True, euros=scene_palette.PALETTE_EUROS),
+    row(scene_library.ROW, scene_library.make_library, scene_library.library_faults, "surfaces from the design",
+        scene_library.judge_library, scene_library.files, ("finish-route-palette",), paid=True,
+        euros=scene_library.LIBRARY_EUROS),
     row("finish-route-views", route_views.make_views, route_views.views_faults, "views cast", route_views.judge_views,
         route_data.shape_files, selects=True),
     row("finish-route-list", route_list.make_list, route_list.list_faults, "library first", route_list.judge_list,
-        route_data.library_files, ("finish-route-palette", "finish-route-views"), paid=True,
+        route_data.library_files, ("finish-route-palette", scene_library.ROW, "finish-route-views"), paid=True,
         euros=route_list.LIST_EUROS, selects=True),
     row("finish-route-split", route_split.make_split, route_split.split_faults, "one finish a face",
         route_split.judge_split, route_data.shape_files, ("finish-route-views", "finish-route-list"), selects=True),
     graph.Stage("surfaces-parts", "place", route_parts.make_parts, PARTS, (guarded("parts", route_parts.judge_parts),),
-                files=route_data.parts_files, after=reads("finish-route-palette", "finish-route-views",
+                files=route_data.parts_files, after=reads("finish-route-palette", scene_library.ROW, "finish-route-views",
                                                           "finish-route-list", "finish-route-split"),
                 applies=data.paints, selects=True))
 LINE = (
     row("surfaces-bake", route_bake.make_bake, route_bake.bake_faults, "baked", route_bake.judge_baked,
-        data.bake_files, ("finish-route-palette", "surfaces-parts"), paid=True, euros=place_line.BAKE_EUROS),
+        data.bake_files, ("finish-route-palette", scene_library.ROW, "surfaces-parts"), paid=True, euros=place_line.BAKE_EUROS),
     graph.Stage("surfaces-paint", "place", route_paint.make_paint, contract("surfaces-paint", place_line.paint_faults),
                 (guarded("one surface a part", place_line.judge_one_surface),
                  guarded("colour against the close-up", place_line.judge_concept_colour)),
                 files=data.line_files, after=reads("surfaces-bake"), applies=data.paints),
     row("finish-route-recheck", route_recheck.make_recheck, route_recheck.recheck_faults, "library surface fits",
         route_recheck.judge_recheck, route_data.library_files,
-        ("finish-route-palette", "finish-route-views", "surfaces-parts"), paid=True, euros=route_recheck.RECHECK_EUROS,
+        ("finish-route-palette", scene_library.ROW, "finish-route-views", "surfaces-parts"), paid=True,
+        euros=route_recheck.RECHECK_EUROS,
         selects=True),
     graph.Stage("surfaces-check", "place", place_line.make_check, contract("surfaces-check", place_line.check_faults),
                 (guarded("baked matches its surfaces", place_line.judge_lit),
                  guarded("triangles within budget", place_line.judge_triangles)),
-                files=data.line_files, after=reads("finish-route-palette", "surfaces-bake", "surfaces-paint",
+                files=data.line_files, after=reads("finish-route-palette", scene_library.ROW, "surfaces-bake", "surfaces-paint",
                                   "finish-route-recheck"),
                 applies=data.paints))
 ROWS = (*ROUTE, *LINE)

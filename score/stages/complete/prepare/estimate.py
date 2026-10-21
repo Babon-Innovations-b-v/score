@@ -21,6 +21,12 @@ from score.stages.complete.prepare import groups
 # score/stages/people_bodies, the motion layer's "bodies" module; never the `motion` row, which moves rigid parts only);
 # the sky, the effects and the far city are layers without models, each its own route (CONTEXT.md "layer adapter").
 OWN_ROUTES = {"people": "people-body", "sky": "sky", "effects": "effects-look", "skyline": "skyline"}
+# The route's rows that run once a scene, not once a take: the scene palette and the scene's surfaces made fresh
+# (owner, 2026-10-21: every old material retired, so every scene's surfaces are made before anything is finished).
+# Each is one Gemini 3.1 Pro answer on its concept through the Batch API, priced at its own measured per unit, else
+# at the measured one of the same answer (ASK_PRICED_AS, the finish list's), named as estimated from it.
+SCENE_ROWS = ("finish-route-palette", "surface-library")
+ASK_PRICED_AS = "finish-route-list"
 DEADLINE_TIMES = 2  # a job's watchdog deadline: twice its measured high seconds (guard.py's runaway limit)
 
 
@@ -75,7 +81,7 @@ def settings(stage, rules, fixed_machine):
 def layers(route, groups_bought, rules, fixed):
     """{stage: {takes, units, price, minutes, settings}} of the batch's layers; `fixed` {stage: machine or None}."""
     found = {}
-    for stage, takes in takes_a_layer(route, groups_bought).items():
+    for stage, takes in takes_a_layer([stage for stage in route if stage not in SCENE_ROWS], groups_bought).items():
         found[stage] = {"takes": takes, **layer_cost(stage, takes, rules),
                         "settings": settings(stage, rules, fixed.get(stage)),
                         "runs": {"routes": list(groups.MODEL_ROUTES), "shell": True}}
@@ -96,6 +102,22 @@ def layer_cost(stage, takes, rules):
         return {"units": None, "price": {"likely_euros": None, "high_euros": None, "why": why},
                 "minutes": {"minutes_why": why}}
     return {"units": units, "price": layer_price(stage, units), "minutes": compute.unit_minutes(stage, units)}
+
+
+def scene_layers(route, scenes):
+    """{stage: {scenes, units, price, minutes, settings, runs}} of the route's once-a-scene rows (SCENE_ROWS) for
+    `scenes` scenes: each at its own measured per unit, else at ASK_PRICED_AS's with `estimated_from` named, else
+    unpriced (layer_cost)."""
+    found = {}
+    for stage in (stage for stage in route if stage in SCENE_ROWS):
+        own = compute.per_unit(stage)
+        measured = stage if own is not None and own["stage"] == stage else ASK_PRICED_AS
+        cost = layer_cost(measured, scenes, {})
+        if measured != stage and cost["units"]:
+            cost["price"] = {**cost["price"], "estimated_from": measured}
+        found[stage] = {"scenes": scenes, **cost, "settings": settings(stage, {}, None),
+                        "runs": {"routes": ["scene"], "shell": False}}
+    return found
 
 
 def own_route_layers(groups_bought):

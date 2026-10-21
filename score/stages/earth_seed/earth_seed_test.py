@@ -397,10 +397,16 @@ def test_a_design_base_passes_the_seed_gates_and_the_placeholder_gate():
         stage = Usd.Stage.Open(str(stage_path))
         shell = stage.GetPrimAtPath("/docking_bay/Shell").GetChildren()
         assert sorted(prim.GetName() for prim in shell) == sorted(kit["shell"])
-        for prim in shell:
+        for prim in shell:  # its backing surface named, and missing while the library holds none (2026-10-21)
+            assert prim.GetAttribute("score:surface").Get() == "roof_steel_paint"
             material = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
-            assert str(material.GetPath()) == "/docking_bay/Library/roof_steel_paint", material.GetPath()
-        assert placeholders.check(stage_path) == [], placeholders.check(stage_path)
+            assert (str(material.GetPath()) == "/docking_bay/Library/roof_steel_paint" if material else
+                    "run surface-library first" in prim.GetAttribute("score:surface:missing").Get()), prim
+        # the placeholder gate names only the shell's unpainted faces, each one its missing surface names
+        unpainted = {f"/docking_bay/Shell/{prim.GetName()}" for prim in shell
+                     if prim.GetAttribute("score:surface:missing").Get()}
+        assert sorted((fault["prim"], fault["rule"]) for fault in placeholders.check(stage_path)) == [
+            (prim, "material") for prim in sorted(unpainted)], placeholders.check(stage_path)
     finally:
         shutil.rmtree(root)
 

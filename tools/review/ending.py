@@ -279,13 +279,14 @@ def wave_tile(path, caption, size):
 
 
 def swatch_tile(name, caption, size):
-    """A library surface's swatch: its palette token's colour (design/tokens/tokens.json, the `ops` look) with its
-    name and recipe."""
+    """A library surface's swatch: its palette token's colour (the library's own tokens) with its name and recipe;
+    a surface the library no longer holds (every old material retired, 2026-10-21) its name on a plain card."""
     family, variant = name.split("/")
-    spec = json.loads((REPO / "data/library/materials.json").read_text())["families"][family]["variants"][variant]
-    tokens = json.loads((REPO / "design/tokens/tokens.json").read_text())["color"]["tokens"]
-    value = next(token["value"] for token in tokens if token["name"] == spec["token"])
-    colour = (value["ops"] if isinstance(value, dict) else value).lstrip("#")
+    library = json.loads((REPO / "data/library/materials.json").read_text())
+    spec = library["families"].get(family, {}).get("variants", {}).get(variant)
+    if spec is None or spec.get("token") not in library.get("tokens", {}):
+        return text_tile(f"{caption} (not in the surface library)", size)
+    colour = library["tokens"][spec["token"]].lstrip("#")
     picture = Image.new("RGB", size, tuple(int(colour[at:at + 2], 16) for at in (0, 2, 4)))
     draw = ImageDraw.Draw(picture)
     draw.rectangle((0, size[1] - 70, size[0], size[1]), fill=CARD)

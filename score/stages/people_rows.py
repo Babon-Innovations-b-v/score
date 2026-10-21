@@ -152,13 +152,18 @@ def srgb(colour):
 
 
 def palette_colours(palettes):
-    """Each palette's library surfaces as sRGB colours."""
+    """Each palette's library surfaces as sRGB colours; a surface the library does not hold (every old one retired,
+    2026-10-21) is library.LibraryEmpty naming it."""
     import sys
     folder = str(REPO / "tools/props/library")
     if folder not in sys.path:
         sys.path.append(folder)
     import library
     surfaces = library.resolved(LINE)
+    missing = sorted({name for palette in palettes for name in palette} - set(surfaces))
+    if missing:
+        raise library.LibraryEmpty(f"crowd palette surfaces {', '.join(missing)} are not in the surface library "
+                                   f"({library.EMPTY})")
     return [[srgb(surfaces[name]["colour"]) for name in palette] for palette in palettes]
 
 

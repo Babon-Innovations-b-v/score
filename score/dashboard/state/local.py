@@ -361,8 +361,7 @@ class LocalSource:
     def surface_library(self):
         """{surface: (rgb, roughness, metallic)} of the material library, the swatches' and painted takes' colours."""
         from score.dashboard.previews import swatches
-        return self.remembered(("surfaces",), lambda: swatches.library(
-            self.data / "library" / "materials.json", REPO / "design" / "tokens" / "tokens.json"))
+        return self.remembered(("surfaces",), lambda: swatches.library(self.data / "library" / "materials.json"))
 
     def work_picture(self, written):
         """A FileRef of a picture place.json names (WORK/ is the work folder); None when it is not there."""

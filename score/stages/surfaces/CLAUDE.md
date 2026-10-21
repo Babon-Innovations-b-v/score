@@ -36,12 +36,20 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   own texture from the front, `route_data.STAND_IN`), named so in every output, question and verdict that reads it.
   First the **scene palette** (CONTEXT.md; owner, 2026-10-21: every scene from its design alone):
   `finish-route-palette` (paid, `scene_palette.py`, one Gemini 3.1 Pro ask a scene in the Batch API) reads the
-  scene's palette tokens, wear level, dirt and dirt token off its locked concept (`{home}/design/concepts/<place>.png`;
-  a line no scene owns, the people's, over every locked concept); no rule could (the concept's pixels named shadows
-  and the people's skin and missed the accents, measured 2026-10-21). Every row after it takes the library through
-  `palette_library.py`: the whole library filtered by the palette (a variant whose own token is in it), the kind's
-  own list on top, the scene's wear and dirt in the list's question, the bake's job and the check. No route row reads
-  `data/definitions/place.json` (`materials`, `palette`, `wear`): the old route's and the kit routes' readers still do.
+  scene's palette tokens (each a name and a `#rrggbb` colour it coins from the concept, never an old game token),
+  wear level, dirt and dirt token off its locked concept (`{home}/design/concepts/<place>.png`; a line no scene owns,
+  the people's, over every locked concept); no rule could (the concept's pixels named shadows and the people's skin
+  and missed the accents, measured 2026-10-21). Then the **material step**, `surface-library` (paid,
+  `scene_library.py`, one Gemini 3.1 Pro ask a scene in the Batch API; owner, 2026-10-21: every old material
+  retired, the library starts empty): the scene's surfaces made fresh from its concept, palette and its takes' kinds
+  by today's method (each a `recipes.py` recipe with token, roughness, metal, colour settings, seed and sound
+  surface), written as `materials.json` in the loader's form, gated on every kind covered and everything the method's
+  and the palette's. Every row after it (list, parts, bake, recheck, check) reads both through `palette_library.py`
+  (`read` adds the scene library's path): that library filtered by the palette, the kind's own list (`kinds`) on
+  top, the scene's wear and dirt in the list's question, the bake's job and the check. With no scene library a reader
+  gets `library.LibraryEmpty` ("surface library empty: run surface-library first"), a missing input named, never a
+  KeyError. No route row reads `data/definitions/place.json` (`materials`, `palette`, `wear`): the old route's and the
+  kit routes' readers still do, and with the repository's library empty they name the missing input.
   Views (free, this PC's processor, no Blender): trimesh and Embree ray cast, orthographic, 384 px
   (`route_cast.py`), the six `BASE` sides (front is the close-up's, back, right, left, top, bottom), then the
   coverage check before the render (`route_views.covering_views`): from `CANDIDATES` the angle that sees the most area
@@ -143,8 +151,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   inside, so the maps drew what lies behind it on the cover's own faces (the garage beacon's reflector on its red
   dome). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
   row's key, so an edit there repaints and rebakes every place.
-- **New library surfaces are made the library's own way** (a variant in `data/library/materials.json` on a palette
-  token; a scene takes it when its scene palette holds that token), never a picture's colour.
+- **New library surfaces are made the library's own way** (a recipe variant in a scene palette's token, by the
+  surface-library row), never a picture's colour. `data/library/materials.json` is the method alone (wear levels,
+  recipes' defaults, the colour settings each recipe names): never add a family there.
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
   stops the bake before anything is rented. The job is written from git inside the bake (`bake_job.py`, 2026-10-19:

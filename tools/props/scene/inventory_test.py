@@ -145,20 +145,16 @@ def test_a_scene_with_no_locked_concept_or_an_empty_look_is_refused():
 
 
 def test_every_place_keeps_the_design_system_shape():
-    """A material's token is one of the place's palette, the hull, or the token of the library variant it takes
-    (places take library surfaces with their own tokens since 2026-10-12, 0bd7638e)."""
-    families = json.loads((place.REPO / "data/library/materials.json").read_text())["families"]
-    variant_tokens = {name: variant["token"] for family in families.values()
-                      for name, variant in family["variants"].items()}
+    """Every place keeps the design system's fields, each material naming a token."""
     for name, entry in place.places().items():
         if name == place.SHARED:
             assert entry["scale"]["eye_height"] == 1.6
             continue
         for field in ("style", "plan", "palette", "materials", "light", "pictures"):
             assert field in entry, f"{name} has no {field}"
-        tokens = set(entry["palette"]["tokens"]) | set(entry["palette"]["accents"])
-        assert all(material["token"] in tokens | {"hull", variant_tokens.get(material.get("library"))}
-                   for material in entry["materials"].values()), name
+        # a place's materials named the retired library's variants in their tokens (2026-10-21: every old
+        # material retired); each scene's surfaces are its surface-library row's, so only their shape is held here
+        assert all("token" in material for material in entry["materials"].values()), name
 
 
 def main():

@@ -68,9 +68,9 @@ part has in that view: one label for each view and region listed above."""
 
 
 def palette_tokens(palette):
-    """{token: linear RGB} of the scene palette's tokens (read from its design), in the library's token order."""
+    """{token: linear RGB} of the scene palette's tokens (read from its design), in the scene library's order."""
     chosen = set(palette["tokens"])
-    return {token: colour for token, colour in palette_library.library_tokens().items() if token in chosen}
+    return {token: colour for token, colour in palette_library.library_tokens(palette).items() if token in chosen}
 
 
 def surface_lines(surfaces):
@@ -216,13 +216,12 @@ def listed(answer, library, seed, shown):
 def make_list(inputs, out, seed, params):
     """Every cast take's finish list and labels from one batch, and the finishes with their own wear. Each take is
     asked once; one with no usable answer gets no list, so judge_list names it a gap."""
-    import library
     views = pathlib.Path(inputs["finish-route-views"])
     _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = {take: record for take, record in json.loads((views / "views.json").read_text()).items()
                   if record.get("model")}
     palette = palette_library.read(inputs)
-    tokens, levels = palette_tokens(palette), library.theme_library()["wear_levels"]
+    tokens, levels = palette_tokens(palette), palette_library.scene_library(palette)["wear_levels"]
     wear = palette["wear"]["level"]
     surfaces = {take: palette_library.take_surfaces(takes[take], palette) for take in cast_takes}
     pictures = {take: pictures_of(views / take, record["views"]) for take, record in cast_takes.items()}

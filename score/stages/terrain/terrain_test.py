@@ -133,10 +133,11 @@ def test_a_library_surface_added_for_a_model_leaves_terrains_key_alone():
     runner = graph.Runner((stage,), graph.Environment("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
     before = runner.file_keys(stage, None)["library"]
     library = json.loads((root / "library/materials.json").read_text())
-    library["families"]["plastic"]["variants"]["test_plastic"] = {"recipe": "rubber", "token": "sign-red"}
+    library["families"]["plastic"] = {"variants": {"test_plastic": {"recipe": "rubber", "token": "sign-red"}}}
     (root / "library/materials.json").write_text(json.dumps(library))
     assert runner.file_keys(stage, None)["library"] == before  # a model's surface: no ground reads it
-    library["families"]["mars_surface"]["variants"]["mars_regolith"]["token"] = "sign-red"
+    named = sorted(record.named_surfaces(json.loads(next((root / "ground/plan").glob("*.json")).read_text())))
+    library["families"]["ground"] = {"variants": {named[0]: {"recipe": "rubber", "token": "sign-red"}}}
     (root / "library/materials.json").write_text(json.dumps(library))
     assert runner.file_keys(stage, None)["library"] != before  # a ground's own surface: its key moves
     shutil.rmtree(root)
