@@ -29,7 +29,8 @@ import sys
 from PIL import Image, ImageDraw
 
 from score import checks, contracts, graph
-from score.store import Store
+import score.stages.props.prop_data as prop_data
+from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/props/cloud"))
@@ -55,14 +56,30 @@ QUESTION = ("The first picture is part of a concept painting of a place; one fig
             "crouching, lying, working or none.")
 
 
+def inventory_of(place, inventory_folder):
+    """The inventory a place's cast reads its count by (tools/usd/stage_inputs.inventory_path's rule): its own, else
+    the place its kit belongs to (the flat's is prologue_flat)."""
+    if (pathlib.Path(inventory_folder) / f"{place}.json").exists():
+        return place
+    return json.loads((REPO / "data/kit" / f"{place}.json").read_text()).get("place", place)
+
+
+def designed_views(inventory_folder):
+    """{inventory: {"concept": its picked design concept}} of every designed place (prop_data.designed: the old
+    concept views went with the old disk, 2026-10-19; rough-model reads the same picture, stages.designed_rough)."""
+    return {inventory_of(path.stem, inventory_folder): {"concept": "{home}/design/concepts/" + f"{path.stem}.png"}
+            for path in sorted(prop_data.DESIGN.glob("*.json"))}
+
+
 def place_views(inventory_folder):
-    """{place: {view id: picture path pattern}} from every inventory's plan views (WORK is the seeds root)."""
+    """{place: {view id: picture path pattern}} from every inventory's plan views (WORK is the seeds root), a
+    designed place's its picked concept instead."""
     found = {}
     for path in sorted(pathlib.Path(inventory_folder).glob("*.json")):
         record = json.loads(path.read_text())
         views = (record.get("plan") or {}).get("views", [])
         found[path.stem] = {view["id"]: view["picture"].replace("WORK/", "{seeds}/") for view in views}
-    return found
+    return {**found, **designed_views(inventory_folder)}
 
 
 def views_text(inventory_folder):
@@ -70,9 +87,19 @@ def views_text(inventory_folder):
     return json.dumps(place_views(inventory_folder), sort_keys=True)
 
 
+def there(pattern):
+    return pathlib.Path(pattern.replace("{seeds}", str(PROPS_HOME / "work")).replace("{home}", str(PROPS_HOME))).exists()
+
+
 VIEWS = place_views(REPO / "data/inventory")
+# A view picture not there (the old disk's, lost 2026-10-19, of a place with no design yet) is not read: that place's
+# cast answers "concept_people measured no view" (cast.judge_counted), a named unknown on its own line, while every
+# other place is measured. Its design's picked concept replaces it once the place is designed.
+LOST = sorted(f"{place}.{view}" for place, views in VIEWS.items() for view, picture in views.items()
+              if not there(picture))
 FILES = {"inventory": ("{data}/inventory", views_text),
-         **{f"{place}.{view}": picture for place, views in VIEWS.items() for view, picture in views.items()}}
+         **{f"{place}.{view}": picture for place, views in VIEWS.items() for view, picture in views.items()
+            if f"{place}.{view}" not in LOST}}
 
 
 def jobs_of(inputs):

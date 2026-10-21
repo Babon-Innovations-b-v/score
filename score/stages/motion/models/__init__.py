@@ -52,7 +52,19 @@ DROP_SAMPLES = 6000
 
 
 def applies(place):
-    return (FOLDER / f"{place}.json").exists()
+    """A place with a models record written for its concept: a designed place's only when every model's take is one
+    its design hands in; one naming an old concept's takes (the garage's kit5-rover-3, its close-up lost with the old
+    disk 2026-10-19) is a gap of the motion layer (motion/needs.py), not a row reading a lost picture."""
+    return (FOLDER / f"{place}.json").exists() and not old_takes(place)
+
+
+def old_takes(place):
+    """The takes of the place's models record its approved design does not hand in ([] for a place with no design)."""
+    import score.stages.props.prop_data as prop_data
+    if not prop_data.designed(place) or not (FOLDER / f"{place}.json").exists():
+        return []
+    handed = {entry.get("take") for entry in prop_data.objects(place).values()}
+    return sorted(entry["take"] for entry in record_of(place)["models"].values() if entry["take"] not in handed)
 
 
 def record_of(place):
@@ -67,6 +79,9 @@ def files(place):
              "kit": "{data}/kit/{place}.json", "surfaces": "{data}/surfaces/{place}.json"}
     if (REPO / "data/scene" / f"{place}.json").exists():  # the laid place's (grounded.py), as the settle reads them
         found["scene"] = "{data}/scene/{place}.json"
+    import score.stages.props.prop_data as prop_data
+    if prop_data.designed(place):  # its takes are painted by its design's surface data (surfaces/surface_data.DESIGN)
+        found["surfaces"] = "{home}/design/surfaces/" + f"{place}.json"
     for model, entry in record_of(place)["models"].items() if applies(place) else ():
         found[f"close-up {model}"] = "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
     return found

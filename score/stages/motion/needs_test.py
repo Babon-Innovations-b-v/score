@@ -39,6 +39,31 @@ def test_a_moving_row_and_a_need_are_gaps_until_a_record_answers_them():
             found["motion:move:hatch_door"]["work"]
 
 
+def test_a_designed_place_s_records_of_its_old_concept_are_gaps_and_their_rows_do_not_run():
+    """The garage's models record names its old take and the greenhouse's crop data its old view K09 (both lost with
+    the old disk, 2026-10-19): once each place is designed, the rows reading them do not apply and each record is a
+    named gap; concept_people reads each designed place's picked concept."""
+    import score.stages.concept_people as concept_people
+    import score.stages.crops.crop_data as crop_data
+    import score.stages.motion.models as models
+    import score.stages.props.prop_data as prop_data
+    kept = prop_data.DESIGN
+    with tempfile.TemporaryDirectory() as design:
+        prop_data.DESIGN = pathlib.Path(design)
+        try:
+            assert models.applies("garage") and crop_data.applies("greenhouse") and not needs.old_records("garage")
+            for place in ("garage", "greenhouse", "flat"):
+                (prop_data.DESIGN / f"{place}.json").write_text(json.dumps({"objects": {"rover": {"take": "new"}}}))
+            assert not models.applies("garage") and models.old_takes("garage") == ["kit5-rover-3"]
+            assert not crop_data.applies("greenhouse")
+            assert [gap["item"] for gap in needs.old_records("garage")] == ["models:kit5-rover-3"]
+            assert [gap["item"] for gap in needs.old_records("greenhouse")] == ["crops"]
+            views = concept_people.designed_views(concept_people.REPO / "data/inventory")
+            assert views["prologue_flat"] == {"concept": "{home}/design/concepts/flat.png"}, views
+        finally:
+            prop_data.DESIGN = kept
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()

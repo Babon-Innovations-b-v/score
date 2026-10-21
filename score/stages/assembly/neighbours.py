@@ -18,13 +18,15 @@ import pathlib
 import shutil
 
 from score import checks
-from score.stages import scene_record
+from score.stages import gaps, scene_record
 from score.stages.assembly import RECORD, stage_file
-from score.store import Store
+from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACES = "places"
 SEEN = "seen {}"
+# The shown places this row could not stand, as gaps (score/stages/gaps.py's entry form), in its output.
+GAPS = "gaps.json"
 # A shown place's own made ground (score/stages/terrain/outside.py writes it under /<place>/Outside).
 OUTSIDE = "Outside"
 
@@ -52,11 +54,27 @@ def neighbours(place):
     return [other for other in shown(place) if (REPO / f"data/kit/{other}.json").exists()]
 
 
+def lost(place):
+    """The shown places no stage makes whose seed folder went with the old disk (2026-10-19; the far city, whose
+    towers' made models went too): nothing can stand them, so each is a gap of the place, never a stop."""
+    return [other for other in sorted(set(shown(place)) - set(neighbours(place)))
+            if not (PROPS_HOME / "work/usd-r3" / other).exists()]
+
+
 def files(place):
-    """The scene record, and the seed folder of each shown place no stage makes."""
-    unmade = sorted(set(shown(place)) - set(neighbours(place)))
+    """The scene record, and the seed folder of each shown place no stage makes (a lost one is not read)."""
+    unmade = sorted(set(shown(place)) - set(neighbours(place)) - set(lost(place)))
     return {"scene record": "{data}/scene/{place}.json", **{SEEN.format(other): f"{{seeds}}/usd-r3/{other}"
                                                              for other in unmade}}
+
+
+def lost_gap(place, other):
+    """A shown place nothing can stand, as the gap the gate moves its faults to (gaps.moved), in gaps.py's entry
+    form: what it is and why."""
+    return {"name": f"{other}: shown by the plan, not stood", "row": "neighbours", "check": "neighbours",
+            "objects": [f"/{place}/Places/{other}"],
+            "reason": f"no stage makes {other} and its seed (work/usd-r3/{other}) went with the old disk",
+            "decided": "lost input, 2026-10-19 (the old disk)", "faults": []}
 
 
 def applies(place):
@@ -71,12 +89,17 @@ def make(inputs, out, seed, params):
     # The seed's base layer references its shown places, and the terrain's ground layer the ones the seed lacks.
     layers = [Sdf.Layer.FindOrOpen(str(path)) for path in sorted((out / "layers").glob("*.usd*"))]
     entries = json.loads((out / RECORD).read_text()).get("places", [])
+    left = []
     for other in sorted({entry["stage"] for entry in entries} - {stage_file(out).stem}):
-        source = inputs.get(f"assembly@{other}") or inputs[SEEN.format(other)]
+        source = inputs.get(f"assembly@{other}") or inputs.get(SEEN.format(other))
+        if source is None and other in lost(stage_file(out).stem):
+            left.append(lost_gap(stage_file(out).stem, other))
+            continue
         shutil.copytree(source, out / PLACES / other, copy_function=shutil.copyfile)
         for layer in layers:
             layer.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda", f"../{PLACES}/{other}/{other}.usda")
     place = stage_file(out).stem
+    (out / GAPS).write_text(json.dumps({"gaps": left}, indent=1))
     owns = has_own_ground(layers, place)
     for layer in layers:
         if owns:
@@ -114,7 +137,14 @@ def reference_faults(prim):
 
 def judge_neighbours(output, inputs, evidence):
     """Fail when a shown place is missing, its reference resolves to nothing, stands empty or draws its own ground over
-    the place's own."""
+    the place's own; only the faults of a shown place the make named lost (GAPS) move to the completion gate as its
+    gap (gaps.moved: every other fault still fails)."""
+    path = pathlib.Path(output) / GAPS
+    return gaps.moved(stood(output), json.loads(path.read_text())["gaps"] if path.exists() else [])
+
+
+def stood(output):
+    """The gate on what stands, nothing moved."""
     from pxr import Usd
     stage = Usd.Stage.Open(str(stage_file(output)))
     place = stage.GetDefaultPrim().GetName()

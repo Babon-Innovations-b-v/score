@@ -62,7 +62,13 @@ def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
         if not scene_record.written(place):
             assert neighbours.record_of(place) == json.loads((REPO / f"data/scene/{place}.json").read_text())
     assert "far_city" in neighbours.shown("launch") and "far_city" not in neighbours.neighbours("launch")
-    assert "seen far_city" in neighbours.files("launch")
+    seed = neighbours.PROPS_HOME / "work/usd-r3/far_city"
+    seed.mkdir(parents=True, exist_ok=True)
+    try:
+        assert "seen far_city" in neighbours.files("launch")
+    finally:
+        seed.rmdir()
+    assert "seen far_city" not in neighbours.files("launch") and neighbours.lost("launch") == ["far_city"]
     assert neighbours.applies("square") and not neighbours.applies("nowhere")
     root = pathlib.Path(tempfile.mkdtemp())
     try:
@@ -81,6 +87,28 @@ def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
         shutil.rmtree(root / "kept")
         verdict = judge(out)
         assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
+    finally:
+        shutil.rmtree(root)
+
+
+def test_a_lost_shown_place_is_the_place_s_gap_and_any_other_fault_still_fails():
+    """The far city's seed went with the old disk (2026-10-19) and no stage makes it: the make stands the rest and
+    names it a gap (gaps.json, gaps.py's form), and the gate moves only its faults to the completion gate."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        launch = a_place(root / "kept", "launch", ("square", "far_city"))
+        (launch / assembly.RECORD).write_text(json.dumps({"places": [{"name": "square", "stage": "square"},
+                                                                     {"name": "far_city", "stage": "far_city"}]}))
+        out = root / "out"
+        out.mkdir()
+        neighbours.make({"assembly": launch, "assembly@square": a_place(root / "kept", "square")}, out, 0, {})
+        found = json.loads((out / neighbours.GAPS).read_text())["gaps"]
+        assert [entry["objects"] for entry in found] == [["/launch/Places/far_city"]], found
+        verdict = judge(out)
+        assert verdict.answer == checks.PASS and "far_city: shown by the plan" in verdict.reason, verdict
+        assert verdict.findings and all(finding.startswith("/launch/Places/far_city") for finding in verdict.findings)
+        shutil.rmtree(out / "places" / "square")  # a fault no gap names still fails
+        assert judge(out).answer == checks.FAIL
     finally:
         shutil.rmtree(root)
 
