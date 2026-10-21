@@ -266,7 +266,11 @@ def style_of(place, inputs):
         return own
     plans, name = {key.split(" ", 1)[1]: read(path) for key, path in inputs.items() if key.startswith("holder ")}, place
     while name not in named or name == place:
-        name = holder_of(name, plans)
+        held = holder_of(name, plans)
+        if held is None or held == place:
+            raise ValueError(f"{place}: no scene holding it in its declared holder plans is in place.json "
+                             f"(stopped at {name}): it has no style")
+        name = held
     return name
 
 
