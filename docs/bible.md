@@ -491,7 +491,9 @@ is meant to fix, where it is marked, and what proves it.
   the scene holds somebody to pass through it (else it stands shut, the film diagnosis of 2026-10-18), a crane slews
   about its middle, a fan spins a whole number of turns a round, each at the middle of its kind's cited speeds; a
   vehicle or a lift stands with its rule's reason. A gate `designed` fails a moving thing on no inventory row's object
-  and a moving row with nothing on the stage.
+  and a moving row with nothing on the stage. A swing that strikes is fitted in the make (the other way, then less,
+  down to 60 degrees; one that strikes every way stands, its strike its reason), a thing lying lower than wide both
+  ways never swings, and `covered` asks for the moving rows' objects only.
 - **The light stage** (`score/stages/light`, its overlay; 2026-10-12). For lamps at the game's numbers, the cartoon
   Earth, the flat Mars sky with no sun, the camp's night windows in the record's afternoon and the floodlight heads
   read as white grids (paper-vs-world-1 items 9 and 17). `light-layer@<place>` (free) writes `layers/light.usda` over

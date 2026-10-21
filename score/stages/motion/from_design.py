@@ -9,6 +9,8 @@ rule says (data/checks/row-kinds.json `motion`), at the speed its motion kind's 
     spin    turned steadily about its own middle at the whole number of turns a round nearest the middle of its
             kind's cited speeds, so the layer loops
     still   standing, with the rule's reason
+    lying   a swing turns about an upright line, so only a thing standing upright swings: one whose own box is lower
+            than it is wide both ways (a hatch in a floor, a crane spanning a hall on its rails) stands, with LYING
     needs   a rule that moves only when the scene holds what it serves (a door swings only where somebody passes
             through it: a row whose kind `does` the need), else it stands with `still_without`
 
@@ -20,6 +22,8 @@ from score.stages import row_kinds
 ROUND = 20.0
 OPENS, SHUTS = 2.0, 10.0
 MOTION_KINDS = "data/checks/motion.json"
+LYING = ("it lies lower than it is wide both ways (its own box), so it would turn about a level line or travel on "
+         "rails, never about the upright line a swing turns on: it stands as the plan lays it")
 
 
 def middle_speed(rule, measure):
@@ -52,6 +56,18 @@ def spin(path, row, rule, motion_kind):
 WRITERS = {"swing": swing, "spin": spin}
 
 
+def upright(stage, path):
+    """Whether an object stands upright: its own box (untransformed, metres) at least as tall as its narrower side
+    across; one with no box is not judged here (the gates judge its swing)."""
+    from pxr import Usd, UsdGeom
+    found = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeUntransformedBound(
+        stage.GetPrimAtPath(path)).ComputeAlignedRange()
+    if found.IsEmpty():
+        return True
+    size = found.GetMax() - found.GetMin()
+    return size[1] >= min(size[0], size[2])
+
+
 def served(rule, inventory, kinds):
     """Whether the scene holds what a rule moves for (`needs`: a row whose kind does it); True for a rule needing
     nothing."""
@@ -71,6 +87,8 @@ def record(place, inventory, kinds, motion_kinds, stage):
                 still[path] = rule["why"]
             elif not served(rule, inventory, kinds):
                 still[path] = rule["still_without"]
+            elif rule["move"] == "swing" and not upright(stage, path):
+                still[path] = LYING
             else:
                 moves.append(WRITERS[rule["move"]](path, row["id"], rule, motion_kinds[rule["kind"]]))
     return {"place": place,
