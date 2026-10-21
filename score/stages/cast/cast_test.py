@@ -148,11 +148,11 @@ def test_the_crowd_keeps_clear_of_its_plans_views():
     plan row none; a copy right before the door's view is dropped, one far down it kept."""
     eye = json.loads((REPO / "data/definitions/place.json").read_text())["shared"]["scale"]["eye_height"]
     room = {"inside": True, "floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
-            "doors": [{"side": "south", "level": 0.0, "middle": [0.0, 0.0, 5.0], "normal": [0.0, 0.0, 1.0],
-                       "name": "S", "what": "door"}],
+            "doorways": [{"name": "door-1", "middle": [0.0, 0.0, 5.0], "inward": [0.0, 0.0, -1.0], "wide": 1.0,
+                          "sill": 0.0, "head": 2.1, "to": None}],
             "standing": [{"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
     views = plan_views_of(room)
-    assert [view["name"] for view in views] == ["from-south-door", "spot-1"]
+    assert [view["name"] for view in views] == ["from-door-1", "spot-1"]
     assert views[0]["eye"] == [0.0, eye, 4.0] and views[1]["eye"] == [3.0, eye, 3.0]
     assert [view["name"] for view in plan_views_of(dict(room, inside=False))] == ["spot-1"]
     assert cast.plan_views({"places": REPO / "data/definitions/place.json"}) == []

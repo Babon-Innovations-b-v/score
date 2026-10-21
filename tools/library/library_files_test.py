@@ -156,11 +156,11 @@ def check_a_reference_reads_as_its_parts():
                      "version": "1", "file": "audio/recordings/places/habitat.ogg"}, parts
     assert library_files.parsed("models/rover/rover.glb") is None
     assert library_files.stage_name("model/rover.gltf@2/gltf/rover.glb") == "model/rover.gltf/2/gltf/rover.glb"
-    assert library_files.stage_name("data/ground/moon.json") == "data/ground/moon.json"
+    assert library_files.stage_name("data/library/lamps.json") == "data/library/lamps.json"
 
 
 def check_a_repository_file_resolves_without_the_library():
-    assert library_files.resolve("data/ground/moon.json") == REPO / "data/ground/moon.json"
+    assert library_files.resolve("data/library/lamps.json") == REPO / "data/library/lamps.json"
 
 
 def toy_library(folder, files):

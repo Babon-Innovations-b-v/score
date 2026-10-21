@@ -57,10 +57,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   layer (`score/stages/light/sky.py`); `scene.py` draws a record's air (haze, dust, beams, the day dome when the record
   has its sun) and no sky. Every pull and orbit is the environment concept's physics too (the bodies table,
   `score/review/setting.py`): the game's orbit constants are retired (2026-10-21), and a trial record names its gravity.
-- **The ground is the game's arithmetic, repeated.** `ground.py` stands each object as 2099's MadePlace does (a seat
-  of its own under its spot on the 220 m ball, lifted by its `at` y off the planned ground there) and makes the
-  `/<place>/Ground` mesh; the plan and each place's seat are `data/ground/<ground>.json` (the heights and skin copied
-  from the game). Change it only with the game's Seat, Ground and MadePlace, or the stage and the game stop agreeing.
+- **The ground is the terrain stage's.** `ground.py` repeats the game's arithmetic on its copied ground records
+  (`data/ground/<ground>.json`), retired with them on 2026-10-21: with none, every place it lays stands flat at
+  y = 0, and the made ground is the terrain stage's layer from the design (`score/stages/terrain`, under
+  `/<place>/Outside`), which the assembly takes over the base.
 - **Children are child prims.** An object standing on another (the layout's `children`) is `<parent>/<row>_<n>`, its
   transform where the parent's composite (`data/library/composites.json`) puts it, so moving the parent moves it.
 - **Parts by the run's records.** `--work` reads the take `plan-route.json` names; `--parts` takes each model's newest

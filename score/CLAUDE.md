@@ -217,8 +217,9 @@ stage as each stage is built; nothing moves before.
   `kit_is_base` reads a kit laid in data/kit, none since the old kits were retired on 2026-10-21, so earth-kit has
   no row), the ship's rooms and a scene added in the app too, and every row
   that read the lost round-three or ship seed reads it (`stages.earth_seeded`). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
-  every ground from its plan in `data/ground/plan/`, gated on scale and slope; `ground-fit@<place>` (free) judges each
-  seated place's stage on it: ground under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
+  every ground from the design (a body or plot of the setting, each top scene at its site and what its plan holds,
+  the plans' terrain spots), gated on spots and curve; `ground-fit@<place>` (free) judges each place standing on it:
+  ground level under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish route to checked bake (its overlay; per-place data its design's, `{home}/design/surfaces/`, the people line's in
   `data/surfaces/`). Which layer rows a place has (people, crops, effects, motion, physics, light, sound) is read off its design alone, `stages/design_layers.py` (its locked concept's scene inventory, each row's
   row kind): the table's `designed(kind)` and the assembly's layers gate (`assembly.needed_layers`, reading the same

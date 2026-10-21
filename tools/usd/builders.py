@@ -1,6 +1,6 @@
 """Code builders for what a place's own engine code drew and no kit piece covers: room shells, stepped floors and pits,
-stairs, domes, a water surface, a ground of planned heights. Each builder takes plain numbers (from
-the place's scene record, data/scene/<place>.json, read by tools/usd/scene.py) and gives meshes in the place's frame
+stairs, domes, a water surface, a ground of planned heights. Each builder takes plain numbers (from the place's
+scene record, the scene-record row's record/<place>.json, read by tools/usd/scene.py) and gives meshes in its frame
 (metres, y up): {"points": (n, 3), "triangles": (m, 3), "uvs": (n, 2) in metres along the surface (a picture's 0..1 for
 a picture), "surface": the library surface it is painted with}. Nothing here knows an engine.
 
@@ -225,6 +225,77 @@ def heightfield(heights, low, high, surface, uv_low=(0.0, 0.0), uv_high=(1.0, 1.
             first = row * columns + column
             triangles += [[first, first + columns, first + 1], [first + 1, first + columns, first + columns + 1]]
     return mesh(points, triangles, np.column_stack([uu.ravel(), vv.ravel()]), surface)
+
+
+def turning(points):
+    """Twice the signed area of an outline [[x, z]]: positive when it runs clockwise seen from above (x east, z
+    south)."""
+    return sum(one[0] * two[1] - two[0] * one[1] for one, two in zip(points, points[1:] + points[:1]))
+
+
+def ear_clipped(points):
+    """An outline's triangles by ear clipping, as index triples (a simple outline, convex or not)."""
+    left, sign = list(range(len(points))), turning(points) > 0
+
+    def inside(point, corner):
+        signs = [(two[0] - one[0]) * (point[1] - one[1]) - (two[1] - one[1]) * (point[0] - one[0])
+                 for one, two in zip(corner, corner[1:] + corner[:1])]
+        return all(value >= 0 for value in signs) or all(value <= 0 for value in signs)
+    found = []
+    while len(left) > 3:
+        for position in range(len(left)):
+            before, at, after = left[position - 1], left[position], left[(position + 1) % len(left)]
+            corner = [points[before], points[at], points[after]]
+            if (turning(corner) > 0) != sign or abs(turning(corner)) < 1e-12:
+                continue
+            if any(inside(points[other], corner) for other in left if other not in (before, at, after)):
+                continue
+            found.append((before, at, after))
+            left.pop(position)
+            break
+        else:
+            raise ValueError(f"an outline of {len(points)} points crosses itself: it cannot be triangulated")
+    return found + [tuple(left)]
+
+
+def slab(points, low, high, surface):
+    """A closed solid of an outline seen from above (`points` [[x, z]], convex or not) from `low` to `high`: a deck, a
+    level, a wall's piece, a flat roof. Its top faces up, its foot down, its sides out; uvs its own metres."""
+    points = [[float(x), float(z)] for x, z in points]
+    if turning(points) < 0:
+        points = points[::-1]
+    count = len(points)
+    order = ear_clipped(points)
+    top = [[x, float(high), z] for x, z in points]
+    foot = [[x, float(low), z] for x, z in points]
+    faces = [mesh(top, [[one, three, two] for one, two, three in order], [[x, z] for x, z in points], surface),
+             mesh(foot, order, [[x, z] for x, z in points], surface)]
+    for step in range(count):
+        after = (step + 1) % count
+        faces.append(quad([foot[step], foot[after], top[after], top[step]], surface))
+    return joined(faces)
+
+
+def gable(points, eave, top, surface):
+    """A gable roof over an outline's box seen from above (`points` [[x, z]]) from its `eave` up to a ridge at `top`
+    along the box's longer side, its two ends closed."""
+    xs, zs = [float(point[0]) for point in points], [float(point[1]) for point in points]
+    west, east, north, south = min(xs), max(xs), min(zs), max(zs)
+    corners = np.array([[west, eave, north], [east, eave, north], [east, eave, south], [west, eave, south]], float)
+    if east - west >= south - north:
+        middle = (north + south) / 2
+        ridge = np.array([[west, top, middle], [east, top, middle]], float)
+        slopes = [[corners[0], corners[1], ridge[1], ridge[0]], [corners[2], corners[3], ridge[0], ridge[1]]]
+        ends = [[corners[3], corners[0], ridge[0]], [corners[1], corners[2], ridge[1]]]
+    else:
+        middle = (west + east) / 2
+        ridge = np.array([[middle, top, north], [middle, top, south]], float)
+        slopes = [[corners[1], corners[2], ridge[1], ridge[0]], [corners[3], corners[0], ridge[0], ridge[1]]]
+        ends = [[corners[0], corners[1], ridge[0]], [corners[2], corners[3], ridge[1]]]
+    faces = [quad(slope, surface) for slope in slopes]
+    faces += [mesh(end, [[0, 1, 2]], [[end[0][0] + end[0][2], end[0][1]], [end[1][0] + end[1][2], end[1][1]],
+                                      [end[2][0] + end[2][2], end[2][1]]], surface) for end in ends]
+    return joined(faces)
 
 
 def room_outline(wide, deep, corner, inset=0.0, steps=4):

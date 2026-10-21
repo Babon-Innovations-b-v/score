@@ -1,44 +1,96 @@
-"""The terrain stage's own checks, with no spend: the Moon's and Mars's plans made in code give the grounds the game
-laid (the same rocks to the centimetre, heights within the old fine relief), the sight and door measures find an
-opening onto nothing and lose it once ground lies outside, and ground-fit's (fit.py) find a hole in the ground and an
-object hanging over it.
+"""The terrain stage's own checks, with no spend: a design's top scene on the Moon at its site and a shed its plan
+holds stand on one ground, the true sphere raised by the plan's terrain spots, drawn in each one's frame; its gates
+pass, and a ground drawn on the wrong radius or without the spots fails them; the sight and door measures find an
+opening onto nothing and lose it once ground lies outside, and ground-fit's (fit.py) find a hole in the ground, an
+object hanging over it and one on rough ground.
 
 Run: .venv/bin/python score/stages/terrain/terrain_test.py
 """
 import json
+import math
 import pathlib
+import shutil
 import sys
+import tempfile
 
 import numpy as np
 import trimesh
-from scipy import ndimage
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from score.stages.terrain import fit, gates, landforms, measures, plan, record, rocks, sight  # noqa: E402
+from score.stages import terrain  # noqa: E402
+from score.stages.terrain import design, fit, gates, outside, sight  # noqa: E402
 
-GROUNDS = REPO / "data/ground"
+SPOTS = [[10.0, 10.0, 0.0], [30.0, 10.0, 2.0], [20.0, 30.0, -1.0], [20.0, 20.0, 1.0]]
+SITE = {"title": "SITE", "w": 40.0, "d": 40.0, "terrain": {"spots": SPOTS}, "structure": ["regolith"],
+        "holds": [{"place": "shed", "row": "shed", "x": 4.0, "y": 4.0, "w": 8.0, "d": 6.0}]}
+SHED = {"title": "SHED", "w": 8.0, "d": 6.0, "walls": [{"from": [0, 0], "to": [8, 0], "thick": 0.2, "tall": 3.0}]}
+ROOM = {"title": "ROOM", "w": 4.0, "d": 4.0}  # a scene no top holds and no site stands
 
 
-def copied_heights(ground):
-    old = json.loads((GROUNDS / f"{ground}.json").read_text())
-    return record.decoded(GROUNDS / old["heights"], old["low"], old["span"])
+def design_folder(root):
+    """A design's kept plans, skies and inventories under `root`: the site on the Moon (environment 1's setting),
+    holding the shed; the room on no ground."""
+    from score.review import setting
+    for folder in ("plans", "sky", "inventory"):
+        (root / folder).mkdir(parents=True)
+    for name, plan in (("site", SITE), ("shed", SHED), ("room", ROOM)):
+        (root / "plans" / f"{name}.json").write_text(json.dumps(plan))
+    sky = {"time": "2099-10-01T14:00:00Z", "setting": setting.now(),
+           "site": {"on": "moon", "latitude": 55.0, "longitude": 0.0, "height_m": 0.0}}
+    for name in ("site", "shed"):
+        (root / "sky" / f"{name}.json").write_text(json.dumps({**sky, "place": name, "top": "site"}))
+    (root / "inventory/site.json").write_text(json.dumps({"rows": [{"id": "regolith", "terrain": True}]}))
+    return {"plans": root / "plans", "skies": root / "sky", "inventories": root / "inventory"}
 
 
-def test_the_plans_lay_the_games_rocks_and_heights():
-    for ground in ("moon", "mars"):
-        made_plan = json.loads((GROUNDS / "plan" / f"{ground}.json").read_text())
-        shaped = plan.shape(made_plan)
-        laid = rocks.laid(shaped, made_plan)
-        old = json.loads((GROUNDS / made_plan["copied"]["rocks"]).read_text())["rocks"]
-        assert len(laid) == len(old), (ground, len(laid), len(old))
-        assert all(abs(new["x"] - before["x"]) < 0.01 and abs(new["z"] - before["z"]) < 0.01
-                   and abs(new["size"] - before["size"]) < 0.01 for new, before in zip(laid, old)), ground
-        large = ndimage.zoom(shaped.heights, 1024 / made_plan["points"], order=1)
-        difference = (large - copied_heights(ground)).std()
-        # The copied heights hold the old fine relief (0.25 m RMS) the large shape lacks.
-        assert difference < 0.3, (ground, difference)
+def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots():
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        inputs = design_folder(root / "design")
+        ground = design.layout(design.kept(inputs["plans"]), design.kept(inputs["skies"]))["moon"]
+        assert set(ground["places"]) == {"site", "shed"} and ground["radius"] == 1737400.0, ground["places"]
+        assert design.on_ground("shed", inputs["plans"], inputs["skies"])
+        assert not design.on_ground("room", inputs["plans"], inputs["skies"])
+        spot = gates.spot_in_frame(ground, "site", 30.0, 10.0)
+        assert np.allclose(spot, [10.0, -10.0]), spot  # the site's frame: its plan's middle, x east, z south
+        assert abs(design.ground_points(ground, "site", [spot])[0, 1] - 2.0) < 0.01
+        shed = design.ground_points(ground, "shed", [[0.0, 0.0]])[0]  # the shed's middle: site plan (8, 7)
+        assert abs(shed[1] - design.ground_points(ground, "site", [[-12.0, -13.0]])[0, 1]) < 1e-6, shed
+        out = root / "out"
+        terrain.make({key: str(value) for key, value in inputs.items()}, out, 0, {})
+        assert terrain.grounds_faults(out) == [] and sorted(path.name for path in (out / "moon/places").iterdir()) == \
+            ["shed.usdc", "site.usdc"]
+        assert json.loads((out / "moon/ground.json").read_text())["row"] == "regolith"
+        for check in terrain.CHECKS:
+            verdict = check.judge(out, inputs, {})
+            assert verdict.answer == "pass", (verdict.check, verdict.reason)
+        from pxr import Usd
+        layer = Usd.Stage.Open(str(out / "moon/places/shed.usdc"))  # held: a prim of a stage nobody holds is gone
+        near = layer.GetPrimAtPath("/shed/Outside/near")
+        assert near.GetAttribute("score:row").Get() == "regolith" and near.GetAttribute("score:surface:missing").Get()
+    finally:
+        shutil.rmtree(root)
+
+
+def test_a_ground_on_the_wrong_radius_or_without_its_spots_fails():
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        inputs = design_folder(root / "design")
+        ground = design.layout(design.kept(inputs["plans"]), design.kept(inputs["skies"]))["moon"]
+        flat = {**ground, "sources": []}
+        laid = {place: outside.meshes(flat, place) for place in ground["places"]}
+        spots, faults = gates.spot_faults(ground, laid)
+        assert len(spots) == 4 and len(faults) == 3, faults  # the spot at 0 m stands on the bare sphere anyway
+        small = {**ground, "radius": 220.0 * 1000}
+        laid = {place: outside.meshes(small, place) for place in ground["places"]}
+        _, faults = gates.curve_faults(ground, laid)
+        assert len(faults) == 2 and "the body's curve" in faults[0], faults
+        far = outside.reach(ground)
+        assert abs(far - math.sqrt(2 * 1737400.0 * outside.HORIZON_EYE)) < 1e-6, far
+    finally:
+        shutil.rmtree(root)
 
 
 def room(open_door, ground):
@@ -61,7 +113,8 @@ def room(open_door, ground):
 
 
 def test_a_door_onto_nothing_is_found_and_ground_outside_clears_it():
-    door = [{"door": "the +x doorway", "middle": np.array([2.05, 0.0, 0.0]), "normal": np.array([1.0, 0.0, 0.0])}]
+    record = {"doorways": [{"name": "door-1", "middle": [2.05, 0.0, 0.0], "inward": [-1.0, 0.0, 0.0]}]}
+    door = gates.record_doors(record)
     up = (0.0, 1.0, 0.0)
     for ground, onto_nothing, any_void in ((False, True, True), (True, False, False)):
         scene = room(True, ground)
@@ -74,43 +127,23 @@ def test_a_door_onto_nothing_is_found_and_ground_outside_clears_it():
 
 
 def test_a_hole_in_the_ground_is_found_and_ground_all_round_clears_it():
-    scene = {"floor": [[-2.0, -2.0], [2.0, 2.0]]}
+    record = {"floor": [[-2.0, -2.0], [2.0, 2.0]]}
     for ground, holes in ((False, True), (True, False)):
-        found = fit.measure_continuous(gates.caster(room(True, ground)), scene, None, 10.0)
+        found = fit.measure_continuous(gates.caster(room(True, ground)), record, 10.0)
         assert (found["holes"] > 0) is holes and found["rays"] > 400, (ground, found)
 
 
-def test_an_object_hanging_over_the_ground_floats_and_one_on_it_or_high_on_a_wall_does_not():
+def test_an_object_hanging_over_the_ground_floats_one_on_rough_ground_is_named_and_one_high_on_a_wall_is_neither():
     boxes = {"crate_1": (np.array([0.0, 0.12, 0.0]), np.array([1.0, 1.0, 1.0])),
              "rock_1": (np.array([3.0, 0.01, 0.0]), np.array([4.0, 0.5, 1.0])),
-             "lamp_1": (np.array([5.0, 2.4, 0.0]), np.array([5.2, 2.6, 0.2]))}
-    found = fit.measure_floating(boxes, lambda low, high: np.zeros(9))
-    assert found["standing"] == 2 and len(found["faults"]) == 1 and found["faults"][0].startswith("crate_1"), found
+             "lamp_1": (np.array([5.0, 2.4, 0.0]), np.array([5.2, 2.6, 0.2])),
+             "tank_1": (np.array([7.0, 0.0, 0.0]), np.array([8.0, 1.0, 1.0]))}
 
-
-def test_hills_over_their_plan_fail_and_hills_within_it_pass():
-    # The launch's Kowloon hills were made cresting at 526.8 m against the Earth plan's 240 to 495 m (2026-10-12).
-    made_plan = json.loads((GROUNDS / "plan" / "earth.json").read_text())
-    spec = made_plan["landforms"]["kowloon_hills"]
-    grid = landforms.Grid(made_plan["side"], 256)
-    gap, _ = landforms.segment_distance(grid.x, grid.z, spec["points"])
-    rounding = 600.0 / measures.CODES
-    for top, faulty in ((526.8, True), (spec["high"] + 2 * rounding, True), (spec["high"], False), (480.0, False)):
-        heights = np.where(gap < 50.0, top, 30.0)
-        found = measures.hill_ranges(heights, grid, made_plan, rounding)["kowloon_hills"]
-        assert ("fault" in found) is faulty, (top, found)
-
-
-def test_the_earths_hills_are_made_within_their_plan():
-    # The full plan's crest: the builder's 495 m on 28.87 m of plain (4096 points, 2026-10-12), with a flank beside it.
-    made_plan = json.loads((GROUNDS / "plan" / "earth.json").read_text())
-    spec = made_plan["landforms"]["kowloon_hills"]
-    rise, plain = np.array([495.0, 300.0, 0.5]), np.array([28.87, 20.0, 5.0])
-    shaped = plan.Shaped(None, plain + rise, None, None, masks={"kowloon_hills": rise.copy()})
-    plan.held_crests(shaped, made_plan)
-    top = float(shaped.heights.max())
-    assert spec["low"] <= top and abs(top - spec["high"]) < 1e-6, top
-    assert np.allclose(shaped.heights - shaped.masks["kowloon_hills"], plain), "the plain stays where it was"
+    def under(low, high):
+        return np.linspace(-0.3, 0.0, 9) if low[0] == 7.0 else np.zeros(9)
+    found = fit.measure_standing(boxes, under)
+    assert found["standing"] == 3 and len(found["floating"]) == 1 and found["floating"][0].startswith("crate_1")
+    assert len(found["rough"]) == 1 and found["rough"][0].startswith("tank_1"), found
 
 
 def test_a_small_worlds_horizon_dips():
@@ -119,34 +152,9 @@ def test_a_small_worlds_horizon_dips():
     assert sight.horizon([0.0, 1.7, 0.0], (0.0, 1.0, 0.0), None)[1] == 0.0
 
 
-def test_a_library_surface_added_for_a_model_leaves_terrains_key_alone():
-    import shutil
-    import tempfile
-    from score import graph
-    from score.stages import terrain
-    from score.store import Store
-    root = pathlib.Path(tempfile.mkdtemp())
-    shutil.copytree(REPO / "data/ground/plan", root / "ground/plan")
-    (root / "library").mkdir()
-    shutil.copy2(REPO / "data/library/materials.json", root / "library/materials.json")
-    stage = graph.Stage("terrain", "world", None, terrain.GROUNDS, files={"library": terrain.FILES["library"]})
-    runner = graph.Runner((stage,), graph.Environment("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
-    before = runner.file_keys(stage, None)["library"]
-    library = json.loads((root / "library/materials.json").read_text())
-    library["families"]["plastic"] = {"variants": {"test_plastic": {"recipe": "rubber", "token": "sign-red"}}}
-    (root / "library/materials.json").write_text(json.dumps(library))
-    assert runner.file_keys(stage, None)["library"] == before  # a model's surface: no ground reads it
-    named = sorted(record.named_surfaces(json.loads(next((root / "ground/plan").glob("*.json")).read_text())))
-    library["families"]["ground"] = {"variants": {named[0]: {"recipe": "rubber", "token": "sign-red"}}}
-    (root / "library/materials.json").write_text(json.dumps(library))
-    assert runner.file_keys(stage, None)["library"] != before  # a ground's own surface: its key moves
-    shutil.rmtree(root)
-
-
 if __name__ == "__main__":
-    import pathlib
     import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
+    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

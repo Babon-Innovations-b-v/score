@@ -86,8 +86,8 @@ def take_entry(group, record, index, rates, work):
             "key_diff": "made: its take stands, not bought again" if is_made else "new: no take of it stands"}
 
 
-# The ground itself: made by the terrain node from its plan (free), its detail areas landed as the terrain adapter's own
-# rows (score/stages/terrain areas.py), never a close-up of the whole picture; no take bought.
+# The ground itself: made by the terrain node from the design (free), its detail areas the scene inventory's terrain
+# rows, the terrain adapter's own, never a close-up of the whole picture; no take bought.
 TERRAIN = "terrain node"
 OWN_ROUTE = {"outcome": "pass", "shape": None, "pass_share": None, "mode": None,
              "measured": "its own route: no close-up, so no close-up failure is measured against it"}

@@ -29,6 +29,8 @@ from score.stages import (assembly, cast, complete, concept_people, crops, demo_
                           physics, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
+import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
+import score.stages.scene_record.writer  # noqa: F401
 from score.stages.library import clips as library_clips
 import score.stages.batch_gaps as batch_gaps
 import score.stages.cast.layer as characters_layer
@@ -57,11 +59,13 @@ def designed(kind):
 WORLD1 = REPO / "data/definitions/world.json"
 
 TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain.FILES)
-# Each seated place's own stage judged standing on its made ground (score/stages/terrain/fit.py): under, floating,
-# continuous, openings; free, on its neighbours output where it shows other places, else its assembly.
+# Each place the design stands on a ground judged standing on it (score/stages/terrain/fit.py): under, floating,
+# continuous, openings; free, on its neighbours output where it shows other places, else its assembly, with its scene
+# record's box, doorways and views.
 GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT, ground_fit.CHECKS,
                          files=ground_fit.files, after={"assembly": ("openusd-stage", 1),
-                                                        "neighbours": ("openusd-stage", 1), "terrain": ("grounds", 1)},
+                                                        "neighbours": ("openusd-stage", 1), "terrain": ("grounds", 2),
+                                                        "scene-record": ("scene-record", 1)},
                          applies=ground_fit.applies)
 # Experimental (PRD #6) until the owner reviews it: each scene's effects layer made from its design (its design shows a
 # row whose kind emits, score/stages/row_kinds.py), which its assembly takes.
@@ -71,12 +75,12 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 # row whose kind moves), over its seed with its accepted scene record written in (the seed alone where the place has
 # no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
-                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1)},
+                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 2)},
                      applies=designed("motion"))
 # Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
 # which its assembly takes (assembly.LAYERS): a place whose design shows a loose object (physics).
 SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, settling.CHECKS, files=settling.files,
-                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
+                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                             "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                      beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                      neighbours=assembly.claiming_places, paid=True, euros=settling.EUROS,
@@ -85,7 +89,7 @@ SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, se
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
                        files=assembly.files, gatherers=assembly.GATHERERS,
-                       after={"terrain": ("grounds", 1),
+                       after={"terrain": ("grounds", 2),
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places)
@@ -170,62 +174,9 @@ PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scen
 # `beside`, upward: up to the shell, never back down), so the drive makes the shell's split before its inside places.
 SHELL_SPLIT = graph.Stage("shell-split", "place", shell_split.make, shell_split.CONTRACT, shell_split.CHECKS,
                           files=shell_split.files, after={"plan": ("place-plan", 2)}, applies=shell_split.applies)
-# The openings gate's finding for a place no made ground seats (scene_record/gates.py judge_openings).
-NO_GROUND = "no made ground seats this place: its outside cannot be judged"
-
-
-def seed_if_any(files):
-    """scene-record's environment files without `seed record` for a place that never had an old record (the ship's places,
-    2026-10-15: the runner blocked on the missing file while `seed-matched` itself passes a place with none). Wrapped
-    here, in the table, so every place with a seed keeps its key."""
-    @functools.wraps(files)
-    def declared(place):
-        found = files(place)
-        return found if (REPO / "data/scene" / f"{place}.json").exists() else \
-            {name: path for name, path in found.items() if name != "seed record"}
-    return declared
-
-
-def seed_optional(judge):
-    """`seed-matched` reading a place with no seed record declared (seed_if_any): its seed path is the one that does
-    not exist, which the gate already passes as "the place had no old record"."""
-    @functools.wraps(judge)
-    def judged(output, inputs, evidence):
-        place = scene_record.writer.record_in(output)[0]
-        return judge(output, {"seed record": str(REPO / "data/scene" / f"{place}.json"), **inputs}, evidence)
-    return judged
-
-
-def ground_free(judge):
-    """The openings gate for a ground-free interior (the overseer, 2026-10-14: the ship's rooms, which stand in the
-    hangar's ship, not on a made ground): a place whose plan says `ground_free` and why is judged against its own
-    walls (every doorway onto a floor, no view ray out into nothing, every door's place past it), all still measured;
-    only the missing ground is not a fault. Wrapped here, in the table, so no other place's key or verdict moves;
-    it moves into gates.py the next time scene-record is made again for every place."""
-    @functools.wraps(judge)
-    def judged(output, inputs, evidence):
-        verdict = judge(output, inputs, evidence)
-        place = scene_record.gates.plan_of(inputs)["place"]
-        why = json.loads((pathlib.Path(inputs["plans"]) / f"{place}.json").read_text()).get("ground_free")
-        if not why or NO_GROUND not in verdict.findings:
-            return verdict
-        findings = tuple(finding for finding in verdict.findings if finding != NO_GROUND)
-        reason = "; ".join(findings[:3]) if findings else \
-            f"a ground-free interior ({why}): judged against its own walls, no doorway onto nothing, no view out " \
-            "into nothing, every door's place past it"
-        return dataclasses.replace(verdict, answer=checks.FAIL if findings else checks.PASS, reason=reason,
-                                   findings=findings)
-    return judged
-
-
 SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
-                           tuple(dataclasses.replace(check, judge=ground_free(check.judge))
-                                 if check.name == "openings" else
-                                 dataclasses.replace(check, judge=seed_optional(check.judge))
-                                 if check.name == "seed-matched" else check for check in scene_record.gates.CHECKS),
-                           files=seed_if_any(scene_record.writer.files),
-                           after={"plan": ("place-plan", 2), "terrain": ("grounds", 1)},
-                           applies=scene_record.written)
+                           scene_record.gates.CHECKS, files=scene_record.writer.files,
+                           after={"plan": ("place-plan", 2)}, applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: the cast of each place whose design shows people,
 # placed and measured against its locked design's people (data/people/rows.json, #26) and its seed's geometry.
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
@@ -663,9 +614,9 @@ def earth_place(place):
     """A place of the earth seed rows, the base of every place's stage: its design is locked (its plan kept under
     {home}/design/plans), the earth's and the ship's alike
     (the owner, 2026-10-21: every designed scene's base from its own design, never from a lost seed), and it has a
-    style to make it in (earth_seed.styled: a top scene place.json does not name has none, so its seed stays a lost
-    input, named, never a crash). A part of another scene's outside (the launch) is none: it has no stage line, so
-    no row reads its earth seed beside (the owner, 2026-10-21; `places`)."""
+    style to make it in (earth_seed.styled: its own, its holder's, else its top scene's, the environment concept's; plans
+    holding each other in a ring give none, its seed a lost input, named). A part of another scene's outside (the
+    launch) is none: it has no stage line, so no row reads its earth seed beside (the owner, 2026-10-21; `places`)."""
     return place is not None and earth_seed.locked_plan(place) is not None and \
         earth_seed.styled(place) and place not in neighbours.parts()
 

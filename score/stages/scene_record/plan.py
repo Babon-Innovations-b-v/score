@@ -19,9 +19,11 @@ place's own frame (contract `place-plan` v2: v1 had no shell, frame, block, leve
               sill's level), its wall's outward normal, its wide and tall, what it is, and where it leads (the plan's
               `leads`, by side or by `<side>@<level>`: a place, `outside` or `sealed`, with why), cut or shut, and
               the leaf the record stands in it (`leaf`: its inventory row and its name, the airlock's outer door)
+    doorways  each opening of the written plan a person walks through (a door, a gate, an open doorway) in the place's
+              frame: its middle on its sill, the way into the place, its wide, sill and head and where it leads
     items     each plan item's box in the place's frame, its facing and kind, and the inventory rows that make it
-    zones     the plan's keep-clear zones; standing: the plan's people spots (a third number their level, a fourth the
-              plan item they look at); elements: the concept's elements; shows: the places seen from it that no
+    zones     the plan's keep-clear zones; standing: the plan's person spots (on its floor, looking to its middle;
+              the cast's); elements: the concept's elements; shows: the places seen from it that no
               made ground seats (the far city), each with why; objects: the plan items a released world model
               makes; aims: where a spot lamp row aims (a plan item)
 
@@ -56,6 +58,8 @@ SHELLS = ("domed", "kit", "outdoor")
 # Plan items that name no rows: a keep-clear zone, a growing plot the writer lays as plain plates (writer.plots), and
 # a flat roof's door opening the writer leaves in its roof (writer.flat_shell).
 UNROWED = ("zone", "plot", "roof_door")
+# The openings of a written plan a person walks through (a window is none).
+DOORWAYS = ("door", "gate", "opening")
 # A row's laid spot this far outside its item's box is shown as off the plan (metres).
 SPOT_MARGIN = 0.6
 WALLS = re.compile(r"walls (\d+(?:\.\d+)?) m")
@@ -209,7 +213,8 @@ def walls_of(plan, layout):
     capsule = {"wide": float(plan["w"]), "deep": float(plan["d"]), "corner": corner_of(plan),
                **heights(plan, layout)}
     if plan.get("shape") == "flat":
-        return {**capsule, "shape": "flat", "opening": [float(value) for value in layout["opening"]]}
+        return {**capsule, "shape": "flat", **({"opening": [float(value) for value in layout["opening"]]}
+                                                 if layout.get("opening") else {})}
     return capsule
 
 
@@ -255,12 +260,37 @@ def items_of(plan):
 
 
 def standing_of(plan):
-    """Each people spot in the place's frame: [x, z], its level and the plan item it looks at (None: the middle)."""
+    """Each person spot (the plan's `people`, [x, y, facing, row]: the cast's spots) in the place's frame: [x, z] on
+    its floor, its level, and the plan item it looks at (none: the middle)."""
     found = []
-    for x, y, *rest in plan.get("people", []):
-        spot = placed(plan, x, y, float(rest[0]) if rest and rest[0] is not None else 0.0)  # no level: its floor
-        found.append({"at": [float(spot[0]), float(spot[2])], "level": float(spot[1]),
-                      "looks_at": rest[1] if len(rest) > 1 else None})
+    for x, y, *_ in plan.get("people", []):
+        spot = placed(plan, x, y)
+        found.append({"at": [float(spot[0]), float(spot[2])], "level": float(spot[1]), "looks_at": None})
+    return found
+
+
+def doorways_of(plan):
+    """Each opening of the plan a person walks through (`openings` of kind door, gate or opening) in the place's frame:
+    its middle on its sill, the way into the place (its wall's normal toward the outline's middle), its wide, sill,
+    head and where it leads (`to`)."""
+    outline = np.asarray(plan.get("outline") or [[0, 0], [plan["w"], 0], [plan["w"], plan["d"]], [0, plan["d"]]],
+                         dtype=float)
+    centre = outline.mean(axis=0)
+    _, east, south = frame_of(plan)
+    found = []
+    for number, opening in enumerate(plan.get("openings") or [], 1):
+        if opening.get("kind") not in DOORWAYS:
+            continue
+        turn = math.radians(float(opening.get("angle") or 0.0))
+        normal = np.array([-math.sin(turn), math.cos(turn)])
+        at = np.asarray(opening["at"], dtype=float)
+        if normal @ (centre - at) < 0:
+            normal = -normal
+        sill = float(opening.get("sill") or 0.0)
+        found.append({"name": f"{opening['kind']}-{number}", "middle": placed(plan, *at, sill).tolist(),
+                      "inward": np.round(east * normal[0] + south * normal[1], 6).tolist(),
+                      "wide": float(opening["wide"]), "sill": sill, "head": opening.get("head"),
+                      "to": opening.get("to")})
     return found
 
 
@@ -293,7 +323,7 @@ def make(inputs, out, seed, params):
               else bool(plan.get("inside")),
               "walls": walls, "glass": bool(layout.get("glass_dome")),
               "floor": floor, "floor_height": floor_height, "block": plan.get("block"),
-              "doors": doors, "items": items_of(plan), "standing": standing_of(plan),
+              "doors": doors, "doorways": doorways_of(plan), "items": items_of(plan), "standing": standing_of(plan),
               "elements": plan.get("elements", []), "shows": plan.get("shows", {}), "objects": plan.get("objects", {}),
               "aims": plan.get("aims", {}), "removes": plan.get("removes", []), "far_ground": plan.get("far_ground"),
               # Each door leaf a lead stands open (`moves`: its kit piece's node, by how far, why).

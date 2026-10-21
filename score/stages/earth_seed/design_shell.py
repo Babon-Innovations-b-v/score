@@ -264,48 +264,56 @@ def walls(plan, outline, roof_eave):
         along = (end - start) / length
         cuts = on_edge(openings, start, end, thick[index])
         high = wall_height(plan, entries[index], roof_eave)
-        triangles = []
+        parts = []
         for begin, finish, bottom, top in spans(length, cuts, -DECK_BELOW - SLAB, high):
             near = [inner[index] if begin <= 1e-9 else start + along * begin + normals[index] * BACKING,
                     inner[after] if finish >= length - 1e-9 else start + along * finish + normals[index] * BACKING]
             far = [outer[index] if begin <= 1e-9 else near[0] + normals[index] * thick[index],
                    outer[after] if finish >= length - 1e-9 else near[1] + normals[index] * thick[index]]
-            triangles += prism([list(near[0]), list(near[1]), list(far[1]), list(far[0])], bottom, top)
+            parts.append(slab_piece([list(near[0]), list(near[1]), list(far[1]), list(far[0])], bottom, top))
         said = (f"the plan's wall {index + 1} from {outline[index]} to {outline[after]}, {thick[index]:g} m thick "
                 f"{BACKING:g} m behind its inside line, {high:g} m high" +
                 (f", {len(cuts)} openings cut" if cuts else ""))
-        found.append((f"wall_{index + 1}", triangles, said))
+        found.append((f"wall_{index + 1}", parts, said))
     return found
 
 
 # --- the shell -----------------------------------------------------------------------------------------------------
 
+def slab_piece(points, low, high):
+    """A solid of an outline (plan metres) from `low` to `high`, in the numbers tools/usd/builders' `slab` takes."""
+    return {"builder": "slab", "points": [[float(x), float(y)] for x, y in points], "low": float(low),
+            "high": float(high)}
+
+
 def decks(plan, outline):
-    """[(name, triangles, from)] of each level's slab (else the outline's at the floor)."""
+    """[(name, pieces, from)] of each level's slab (else the outline's at the floor)."""
     levels = [level for level in plan.get("levels") or [] if len(level.get("points") or []) >= 3] or \
         [{"name": "floor", "height": 0.0, "points": outline}]
     found = []
     for number, level in enumerate(levels, 1):
         points = grown(outline_of({"outline": level["points"]}))
         top = float(level["height"]) - DECK_BELOW
-        found.append((f"deck_{number}", prism(points, top - SLAB, top),
+        found.append((f"deck_{number}", [slab_piece(points, top - SLAB, top)],
                       f"the plan's level {level.get('name', number)!r} at {float(level['height']):g} m: its deck "
                       f"{SLAB:g} m thick, {DECK_BELOW:g} m under it, out to the walls {BACKING:g} m behind its line"))
     return found
 
 
 def roofs(plan, outline, high):
-    """[(name, triangles, from)] of each written roof (module docstring), else a flat one on the walls' `high`."""
+    """[(name, pieces, from)] of each written roof (module docstring), else a flat one on the walls' `high`."""
     written = [entry for entry in plan.get("roofs") or [] if len(entry.get("points") or []) >= 3]
     if not written:
-        return [("roof_1", prism(grown(outline), high, high + SLAB), f"no written roof: flat on the walls' {high:g} m")]
+        return [("roof_1", [slab_piece(grown(outline), high, high + SLAB)],
+                 f"no written roof: flat on the walls' {high:g} m")]
     found = []
     for number, entry in enumerate(written, 1):
         points, eave = grown(outline_of({"outline": entry["points"]})), float(entry["eave"])
         top = float(entry.get("top") or eave)
         rising = top > eave + 1e-6
-        triangles = gable(points, eave, top) if rising else prism(points, eave, eave + SLAB)
-        found.append((f"roof_{number}", triangles,
+        piece = {"builder": "gable", "points": [[float(x), float(y)] for x, y in points], "eave": eave, "top": top} \
+            if rising else slab_piece(points, eave, eave + SLAB)
+        found.append((f"roof_{number}", [piece],
                       f"the plan's {entry.get('kind', 'flat')} roof, eave {eave:g} m" +
                       (f", top {top:g} m: a gable along its box's longer side (the blockout's)" if rising else
                        f": a slab {SLAB:g} m thick on it")))
@@ -324,13 +332,28 @@ def laid_for(plan):
     return plan.get("shell") == "kit" and bool(plan.get("inside"))
 
 
-def shell(plan):
-    """[(name, triangles [[[x, up, y] x 3]] in plan metres, what it was made from)] of the plan's room shell."""
+def pieces(plan):
+    """[(name, pieces, what it was made from)] of the plan's room shell, each piece a builder's numbers in plan metres
+    (points [[x, y]]): a `slab` (points, low, high) or a `gable` (points, eave, top), as tools/usd/builders takes them
+    once stood in the place's frame (the scene record's shell entries, scene_record.writer)."""
     outline = outline_of(plan)
     eave = lowest_eave(plan)
     found = decks(plan, outline) + walls(plan, outline, eave)
     high = eave if eave is not None else (measured_ceiling(plan) or STOREY)
     return found + roofs(plan, outline, high)
+
+
+def solid(piece):
+    """A piece's triangles [[[x, up, y] x 3]] in plan metres."""
+    if piece["builder"] == "gable":
+        return gable(piece["points"], piece["eave"], piece["top"])
+    return prism(piece["points"], piece["low"], piece["high"])
+
+
+def shell(plan):
+    """[(name, triangles [[[x, up, y] x 3]] in plan metres, what it was made from)] of the plan's room shell."""
+    return [(name, [triangle for piece in parts for triangle in solid(piece)], said)
+            for name, parts, said in pieces(plan)]
 
 
 def placed(triangles, plan):

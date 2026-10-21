@@ -265,11 +265,16 @@ def with_designs(plans):
 
 def test_a_designed_base_takes_its_style_from_its_own_entry_else_the_scene_holding_it():
     """A design's base is its design's, never a kit's (the old concepts' kits were retired, 2026-10-21); a scene added
-    in the app (not in place.json) takes the style of the scene whose plan holds it, and one nothing holds has none."""
+    in the app (not in place.json) takes the style of the scene whose plan holds it; a top scene place.json does not
+    name (the Base, nothing holds it) takes the environment concept's, its library entries its own name's, and the
+    scenes under it its; plans that hold each other round in a ring give none."""
     kept = earth_seed.DESIGN
     root = with_designs({"cockpit": {"w": 9.414, "d": 9.8},
                          "hangar": {"holds": [{"place": "cockpit", "row": "spaceship"},
-                                              {"place": "docking_bay", "row": "spaceship"}]}})
+                                              {"place": "docking_bay", "row": "spaceship"}]},
+                         "outpost": {"holds": [{"place": "yard_shed", "row": "shed"}]},
+                         "ring_a": {"holds": [{"place": "ring_b", "row": "b"}]},
+                         "ring_b": {"holds": [{"place": "ring_a", "row": "a"}]}})
     try:
         assert not earth_seed.kit_is_base("cockpit")
         declared = earth_seed.seed_files("cockpit")
@@ -281,13 +286,19 @@ def test_a_designed_base_takes_its_style_from_its_own_entry_else_the_scene_holdi
         inputs = {"places": REPO / "data/definitions/place.json",
                   "holder hangar": earth_seed.DESIGN / "plans/hangar.json"}
         assert earth_seed.style_of("docking_bay", inputs) == "hangar"
-        try:  # no declared holder reaches place.json: refused by name, never a loop with no end
-            earth_seed.style_of("nowhere_held", inputs)
-            raise AssertionError("a scene with no style was given one")
+        assert earth_seed.holders("outpost") == {} and earth_seed.style_of("outpost", inputs) == "outpost"
+        assert earth_seed.holders("yard_shed") == {"outpost": "{home}/design/plans/outpost.json"}
+        assert earth_seed.style_of("yard_shed", {**inputs, "holder outpost": earth_seed.DESIGN / "plans/outpost.json"}) \
+            == "outpost"
+        ring = {"places": inputs["places"], "holder ring_b": earth_seed.DESIGN / "plans/ring_b.json",
+                "holder ring_a": earth_seed.DESIGN / "plans/ring_a.json"}
+        try:  # plans holding each other round in a ring: refused by name, never a loop with no end
+            earth_seed.style_of("ring_a", ring)
+            raise AssertionError("a scene in a ring of holders was given a style")
         except ValueError as error:
-            assert "nowhere_held" in str(error), error
-        assert earth_seed.holders("nowhere_held") is None and not earth_seed.styled("nowhere_held")
-        assert earth_seed.styled("docking_bay") and earth_seed.styled("cockpit")
+            assert "ring_a" in str(error), error
+        assert earth_seed.holders("ring_a") is None and not earth_seed.styled("ring_a")
+        assert earth_seed.styled("docking_bay") and earth_seed.styled("cockpit") and earth_seed.styled("outpost")
     finally:
         shutil.rmtree(earth_seed.DESIGN, ignore_errors=True)
         shutil.rmtree(root, ignore_errors=True)

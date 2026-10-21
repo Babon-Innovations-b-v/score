@@ -144,29 +144,21 @@ def check_layer():
         assert held.GetPrimAtPath("/tiny/Lights/light_1").GetAttribute("inputs:intensity").Get() == 5.0
 
 
-def check_glow_from_sky_record():
-    """The camera's glow is the body's night air's (the sky record), carried into each place's record environment by
-    the scene-record row and written by the layer from there; no place's hand-kept light file adds it."""
+def check_no_glow_without_one():
+    """The camera's glow is written only from a record environment that holds one: the scene record, written from
+    the design alone, holds none (the old sky record's night glow was the game's, retired 2026-10-21), and no place's
+    hand-kept light file adds it."""
     import tempfile
     from pxr import Usd, UsdLux
-    from score.stages.scene_record import kit_shell
-    sky = json.loads((REPO / "data/definitions/sky.json").read_text())["earth"]
-    environment = kit_shell.environment({"inside": False}, dict(sky, body="earth"), [[0.0, 0.0, 0.0]])
-    assert environment["glow"] == sky["night"]["glow"] and environment["glow"]["threshold"] == 0.85, environment
-    assert not (REPO / "data/light").exists()
+    assert not (REPO / "data/light").exists() and not (REPO / "data/definitions/sky.json").exists()
     (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=PROPS_HOME / "store-tests") as folder:
-        seed, out = pathlib.Path(folder) / "seed", pathlib.Path(folder) / "out"
+        seed = pathlib.Path(folder) / "seed"
         tiny_seed(seed)
         base = Usd.Stage.Open(str(seed / "layers/base.usda"))
         UsdLux.DomeLight.Define(base, "/tiny/Environment")
         base.Save()
-        layer.write("tiny", {"lights": [], "environment": environment}, seed, out)
-        written = Usd.Stage.Open(str(out / layer.LAYER))  # kept: a prim of a stage nobody holds is gone
-        dome = written.GetPrimAtPath("/tiny/Environment")
-        assert abs(dome.GetAttribute("score:glow_threshold").Get() - 0.85) < 1e-6, dome
-        assert list(dome.GetAttribute("score:glow_levels").Get()) == [3, 5]
-        layer.write("tiny", {"lights": []}, seed, pathlib.Path(folder) / "dark")
+        layer.write("tiny", {"lights": [], "environment": {"inside": False}}, seed, pathlib.Path(folder) / "dark")
         dark = Usd.Stage.Open(str(pathlib.Path(folder) / "dark" / layer.LAYER))
         held = dark.GetPrimAtPath("/tiny/Environment")
         assert not held or not held.HasAttribute("score:glow_threshold")
@@ -247,32 +239,31 @@ def check_magenta():
 
 
 def check_needs():
-    """An outdoor place no ground seats lacks its seat and its sky; seated, it still lacks its sky until its kept sky
-    has a site and a scene time on the environment's physics; a room under a roof needs neither, whatever an old
-    hand-kept record beside it says; a place with no plan adds nothing (its route's plan gap stands)."""
+    """An outdoor place the design stands on no ground lacks its seat and its sky until its kept sky has a site and a
+    scene time on the environment's physics (the site stands it on its ground too); a room under a roof needs
+    neither, whatever an old hand-kept record beside it says; a place with no plan adds nothing (its route's plan gap
+    stands)."""
     import shutil
     import tempfile
     from score.stages.light import needs
     from score.review import setting
     from score.stages.terrain import needs as ground_needs
     data = pathlib.Path(tempfile.mkdtemp())
-    for folder in ("scene", "plans", "ground/plan", "definitions"):
+    for folder in ("scene", "plans", "definitions"):
         (data / folder).mkdir(parents=True)
     skies = data / "skies"
     skies.mkdir()
-    (data / "plans/yard.json").write_text(json.dumps({"shell": "outdoor"}))
+    (data / "plans/yard.json").write_text(json.dumps({"shell": "outdoor", "w": 10.0, "d": 10.0}))
     (data / "plans/room.json").write_text(json.dumps({"shell": "kit", "inside": True}))
     (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
     (data / "scene/oldonly.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
-    from score.stages.terrain import areas
-    kept = needs.KEPT_PLANS, areas.KEPT_PLANS
-    needs.KEPT_PLANS = areas.KEPT_PLANS = data / "plans"  # the kept plans the needs read (the design's)
+    kept = needs.KEPT_PLANS
+    needs.KEPT_PLANS = data / "plans"  # the kept plans the needs read (the design's)
 
     def ids(place):
-        return sorted(gap["id"] for gap in needs.gaps(place, data, skies) + ground_needs.gaps(place, data))
+        return sorted(gap["id"] for gap in needs.gaps(place, data, skies) +
+                      ground_needs.gaps(place, data, data / "plans", skies))
     assert ids("yard") == ["ground:seat:yard", "sky:site:yard"], ids("yard")
-    (data / "ground/plan/rock.json").write_text(json.dumps({"ground": "rock", "seats": {"yard": {}}}))
-    assert ids("yard") == ["sky:site:yard"], ids("yard")  # no copied ground record places a detail area
     house = {"plots": [{"name": "Rock", "gravity": 9.81}], "sites": [{"place": "yard", "on": "rock", "x": 0, "y": 0}],
              "lights": [{"name": "Sun", "kelvin": 5800, "lux": 100000, "latitude": 52.0, "tilt_deg": 23.44,
                          "day_hours": 24, "year_days": 365.2422, "equinox": "2024-03-20T12:00:00Z"}]}
@@ -282,7 +273,7 @@ def check_needs():
     assert ids("yard") == [], ids("yard")
     assert sorted(gap["id"] for gap in needs.gaps("room", data, skies)) == []
     assert needs.gaps("oldonly", data, skies) == [] and ids("nowhere") == []
-    needs.KEPT_PLANS, areas.KEPT_PLANS = kept
+    needs.KEPT_PLANS = kept
     shutil.rmtree(data)
 
 
@@ -393,7 +384,7 @@ def main():
     check_exposure()
     check_sweep()
     check_layer()
-    check_glow_from_sky_record()
+    check_no_glow_without_one()
     check_copy_leaves_its_input()
     check_neighbour_keeps_its_pictures()
     check_magenta()

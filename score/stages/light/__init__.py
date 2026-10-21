@@ -194,9 +194,9 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 
 
 def layer_files(place):
-    """The kit (its seat, its lenses: passes.place_files), the seed, the grounds the sky stands
-    on, and the scene's kept sky (sky.kept_input) when it has one; the record is the scene-record row's output."""
-    return {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
+    """The kit (its seat, its lenses: passes.place_files), the seed and the scene's kept sky (sky.kept_input) when it
+    has one; the record is the scene-record row's output."""
+    return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
             **passes.place_files(place), **sky.kept_input(place)}
 
 
@@ -753,7 +753,7 @@ def light_faults(folder):
 def light_files(place):
     """What the sweep and the measures read besides the scene records: the kits, the seed and the places it shows
     (the stage checks, their floodlight heads), the concepts; the views come with the layer."""
-    found = {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
+    found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
              **passes.place_files(place), "inventory": stage_inputs.inventory_pattern(place),
              # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
              "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",

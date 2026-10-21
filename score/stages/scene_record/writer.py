@@ -1,482 +1,213 @@
-"""scene-record@<place>: the place's scene record written by SCORE from its plan (plan@<place>), the inventory, the
-made ground's seats (the terrain stage) and the world's air record, never from the game and never from the old record
-(which only the `seed-matched` gate reads). Contract `scene-record` v1 is today's record schema, so tools/usd/scene.py
-and builders.py build it unchanged; it lands as record/<place>.json in the output.
+"""scene-record@<place>: the place's scene record written by SCORE from its design alone (the owner, 2026-10-21: every
+stage builds from the creator's design; nothing old is read): its locked plan (the plan row's plan.json, and the kept
+plan itself for what the plan row does not carry: its outline, walls, openings, levels, stairs, roofs, items' shapes
+and the places its holder's plan holds), its scene inventory (the row kinds: which rows glow), the library's lamp,
+and its sky inputs (`{home}/design/sky/<place>.json`: the environment concept's physics, its site and scene time,
+worked out by score/review/overhead.py). Contract `scene-record` v1 is today's record schema, so tools/usd/scene.py
+builds it unchanged; it lands as record/<place>.json in the output.
 
-    shell        a domed room (plan shell `domed`): room_walls, room_deck and dome_roof on the plan's inside grown by
-                 BACKING (the shell stands behind the kit's wall panels, which stand on the plan's line), its corners,
-                 walls' height, the dome's rise and run, and a doorway cut in each door that leads somewhere; a place
-                 whose kit holds its walls (plan shell `kit`: the Earth's) gets its block, lamps, night air,
-                 water and objects from kit_shell.py instead; a domed plan's `shape` makes a faceted room's shell
-                 (facet_shell), a walkway tube's (tube_shell) or a flat-roofed room's (flat_shell: the hangar's roof
-                 slabs round its door opening), its layout's glass_dome a glass dome; a sloped item outside is a plate
-                 (ramps), a plot soil in a curb (plots)
-    objects      each inventory row the kit does not lay, at its own spots: the route made it (the hub's furniture) or
-                 it names a library model (the airlock's suit); and each door leaf a plan lead names (`leaf`),
-                 shut in its doorway (the airlock's outer door, which its cycle moves and copies for the inner door);
-                 every object whose model the kit lists with `children` carries them (kit_children: the cases on the
-                 camp's stores rack, the hub console's screens), each with its glow parts, its row the inventory's
-    places       a door joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
-                 one, stretched along its run); and every other place seated on the same made ground, where its seat
-                 stands it in this place's frame (the ball's curve turns it: `rotation`)
-    lights       the room's fill at the sky record's height share, reaching the farthest floor corner (the lamps are
-                 the kit's: tools/usd/scene.kit_lights lights each inventory lamp row)
-    environment  the world body's indoor sky record (data/definitions/sky.json), its haze a box of the room's inside
-    views        one from inside each door looking across, one from each of the plan's standing spots to the middle
+    inside       the plan encloses the place (walls or roofs drawn) on no ground of its own (no terrain spots)
+    structure    an inside place's room shell from its plan (earth_seed/design_shell.pieces: each level's deck, the
+                 outline's walls with every opening cut, the roofs), stood in the place's frame as builders' `slab` and
+                 `gable` entries BACKING behind the plan's inside line; none where the place's base already lays it
+                 (design_shell.laid_for: a room whose plan says its kit holds its walls); and each stair or ramp the
+                 plan draws as a flight of steps
+    lights       one at each plan item of a glowing row (its row kind, score/stages/row_kinds.py): over the item's
+                 middle, as high on it as the library's lamp for the row's mount says, its numbers that lamp's
+                 (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs
+    environment  inside or not, and the sky at the place's site at its scene time from the physics (overhead.py: each
+                 light over the horizon, every other body, every backdrop), which the light layer draws
+                 (score/stages/light/sky.py); the record draws no sky and holds no air the design does not give
+    views        one from inside each doorway looking across, one from each of the plan's person spots (an inside
+                 place's only where the eye stands inside its outline: the others in `views_left_out`, with why)
+    doorways     the plan's doorways in the place's frame (the plan row's), which ground-fit judges
+    places       each other place its holder's plan holds that a door or opening of this place leads to, stood where
+                 the holder's plan holds it (`holds`), turned as its own plan's frame is
 
-Every entry's `from` names the plan element, inventory row, seat or world record it was made from. An outdoor place
-(plan shell `outdoor`) has its own shell writer, outdoor.py.
+Every entry's `from` names the plan element, inventory row or physics it was made from. Nothing of a game, a kit, a
+filed definition or an old record is read.
 """
 import json
 import math
 import pathlib
-import re
-from typing import NamedTuple
+import sys
 
 import numpy as np
 
 from score import contracts
+from score.review import overhead
 from score.stages import row_kinds
-from score.stages.scene_record import kit_shell, plan as place_plan
-from score.stages.terrain import outside, record as ground_records
-from score.store import PROPS_HOME
+from score.stages.earth_seed import design_shell
+from score.stages.scene_record import plan as place_plan
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-KEPT = PROPS_HOME / "design" / "plans"  # the kept plans (score/review/plans.py keep), the design's
-# The shell's backing stands this far behind the plan's inside line, where the kit's wall panels stand.
-BACKING = 0.15
-# The deck lies just under the kit's floor plates (0.04 thick, their tops at the floor).
-DECK_BELOW = 0.042
-SHELL_SURFACE = "roof_steel_paint"
-# A faceted room's roof and deck reach this far past its walls, over and under them.
-ROOF_OVER = 0.1
-# A walkway tube's hull stands this far outside its plan radius (the kit's hoops), its deck plate this thick.
-TUBE_BACKING = 0.02
-TUBE_DECK = 0.08
-# A sloped plan item outside the room (`2.5 m at 20 deg`): a plain deck plate this thick.
-SLOPE = re.compile(r"(\d+(?:\.\d+)?) m at (\d+(?:\.\d+)?) deg")
-RAMP_THICK = 0.2
-RAMP_SURFACE = "deck"
-GLASS_SURFACE = "clear_glass"
-# A flat roof's slabs are this thick on the walls' top.
-ROOF_SLAB = 0.25
-# A growing plot: its soil this deep, its curb (thick, high) round it.
-SOIL = 0.06
-SOIL_SURFACE = "potting_soil"
-CURB = (0.06, 0.16)
-CURB_SURFACE = "painted_panel"
+# The shell's backing: it stands this far behind the plan's inside line, its deck this far under the floor
+# (design_shell's, which lays the same shell in a kit room's base).
+BACKING = design_shell.BACKING
+DECK_BELOW = design_shell.DECK_BELOW
+SHELL_SURFACE = design_shell.SURFACE
+STAIR_SURFACE = "deck"
+# A ramp is laid as a flight of steps this high each (metres), fine enough to walk as a slope.
+RAMP_STEP = 0.05
 # A view stands this far inside its doorway, and every view sees this wide (degrees).
 VIEW_IN = 1.0
 VIEW_FOV = 80
 AIM_HEIGHT = 1.0
-# A wall's leaves stand turned about up by this (degrees): north and south walls unturned.
-LEAF_YAW = {"north": 0.0, "south": 0.0, "east": 90.0, "west": 90.0}
+# What a door may lead to that is no place.
+NOT_PLACES = ("outside", "sealed")
 
 
 def files(place):
-    """The world files the writer reads: the place's inventory and kit, every plan and kit (joined and seated places),
-    the sky record, the place definitions (the eye's height), the tube's record (only its length: the stage a tube
-    shows), the row-kind rules and the library's lamp (a kit shell's lamps); and for the gates the old record (the seed) and the old stages of the place and of each place a door leads
-    to (`seed <stage>`, seed_stages: what the views are cut by and the openings compose; the table reads each from its
-    earth-seed row)."""
-    return {"inventory": "{home}/design/inventory/{place}.json", "kits": "{data}/kit",
-            "plans": "{home}/design/plans",
-            "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
-            "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
-            "places": "{data}/definitions/place.json",
-            "seed record": "{data}/scene/{place}.json",
-            **{f"seed {stage}": f"{{seeds}}/usd-r3/{stage}" for stage in seed_stages(place)},
-            "tokens": "{data}/../design/tokens/tokens.json"}
-
-
-# What a door may lead to that is no place with a stage.
-NOT_PLACES = {"outside", "sealed"}
-
-
-def seed_stages(place):
-    """The places whose old stage the writer and its gates stand: the place's own (its stage in the base, for a module
-    of it: data/definitions/base.json) and each place a door of its plan leads to."""
-    path = KEPT / f"{place}.json"
-    leads = read(path).get("leads", {}) if path.exists() else {}
-    own = read(REPO / "data/definitions/base.json")["modules"].get(place, {}).get("stage", place)
-    return sorted({own, *(lead["to"] for lead in leads.values())} - NOT_PLACES)
-
-
-def seed_of(inputs, stage):
-    """A place's old stage folder (`seed <stage>`, files)."""
-    return pathlib.Path(inputs[f"seed {stage}"])
+    """The design files the writer reads: the place's kept plan and every other (its holder's `holds`, its siblings'
+    frames), its scene inventory, its sky inputs (scene_sky.keep's), the row-kind rules, the library's lamp and the
+    environment's eye height (place.json `shared`)."""
+    return {"inventory": "{home}/design/inventory/{place}.json", "plans": "{home}/design/plans",
+            "sky": "{home}/design/sky/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
+            "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json"}
 
 
 def read(path):
     return json.loads(pathlib.Path(path).read_text())
 
 
-# --- the shell --------------------------------------------------------------------------------------------------
+# --- the shell ----------------------------------------------------------------------------------------------------
 
-def facet_shell(plan):
-    """A faceted room's shell entries: its facets' walls with the cut doorways, a pyramid roof over them, the deck
-    round its sunken pit, and the pit's walls and floor; the walls BACKING behind the plan's apothem."""
-    walls = plan["walls"]
-    sides, turn, apothem = walls["facets"], walls["turn"], round(walls["apothem"] + BACKING, 4)
-    over = round(apothem + ROOF_OVER, 4)
-    cut = [door for door in plan["doors"] if door["cut"]]
-    said = (f"plan: {sides} facets, apothem {walls['apothem']} m turned {turn} degrees, backed {BACKING} m behind "
-            "the kit's wall line")
-    pit = f"the plan's pit, {walls['pit_radius']} m across its apothem, its floor {walls['pit_floor']} m"
-    return [
-        {"name": "shell_walls", "builder": "walls", "sides": sides, "apothem": apothem, "low": -DECK_BELOW,
-         "high": walls["high"], "surface": SHELL_SURFACE, "rotation": turn,
-         "openings": [[door["bearing"], door["wide"], door["tall"]] for door in cut],
-         "from": f"{said}; walls {walls['high']} m; doorways cut in " +
-                 (", ".join(f"door {door['plan_side']} ({door['what']}, leads {door['leads']})" for door in cut)
-                  or "no door")},
-        {"name": "shell_roof", "builder": "pyramid_roof", "sides": sides, "apothem": over, "eave": walls["high"],
-         "rise": walls["rise"], "surface": SHELL_SURFACE, "rotation": turn, "layer": 2,
-         "from": f"{said}; roof rising {walls['rise']} m to its apex (plan words), {ROOF_OVER} m over the walls"},
-        {"name": "shell_deck", "builder": "annulus", "sides": sides, "inner": walls["pit_radius"], "outer": over,
-         "height": -DECK_BELOW, "surface": SHELL_SURFACE, "rotation": turn, "plain": "shell",
-         "from": f"{said}; just under the kit's floor plates, cut round {pit}"},
-        {"name": "shell_pit_walls", "builder": "walls", "sides": sides, "apothem": walls["pit_radius"],
-         "low": walls["pit_floor"] - DECK_BELOW, "high": 0.0, "surface": SHELL_SURFACE, "rotation": turn,
-         "from": f"{pit}: its walls down from the deck"},
-        {"name": "shell_pit_floor", "builder": "annulus", "sides": sides, "inner": 0.0,
-         "outer": walls["pit_radius"], "height": walls["pit_floor"] - DECK_BELOW, "surface": SHELL_SURFACE,
-         "rotation": turn, "plain": "shell", "from": f"{pit}: its floor, just under the kit's pit plates"}]
+def inside(design):
+    """Whether the plan encloses the place: walls or roofs drawn, and no ground of its own (terrain spots)."""
+    return bool(design.get("walls") or design.get("roofs")) and not (design.get("terrain") or {}).get("spots")
 
 
-def tube_shell(plan):
-    """A walkway tube's shell entries along its run: the hull's crown and two feet (steel), a glass band each side
-    between them, and the deck where the hull meets the floor; the hull TUBE_BACKING outside the plan's radius."""
-    walls = plan["walls"]
-    radius, length = round(walls["radius"] + TUBE_BACKING, 4), walls["length"]
-    low, high = walls["glass"]
-    foot = round(math.degrees(math.acos(-walls["axis"] / walls["radius"])), 2)
-    said = (f"plan: a tube of radius {walls['radius']} m round an axis {walls['axis']} m over the deck, "
-            f"{length} m long; the hull {TUBE_BACKING} m outside the kit's hoops")
-    arc = {"builder": "tube_arc", "radius": radius, "axis_high": walls["axis"], "length": length}
-    return [
-        {"name": "hull_crown", **arc, "start": -low, "end": low, "surface": SHELL_SURFACE,
-         "from": f"{said}; its crown between the glass bands"},
-        {"name": "hull_foot_east", **arc, "start": high, "end": foot, "surface": SHELL_SURFACE,
-         "from": f"{said}; its foot under the east glass, down to the deck"},
-        {"name": "hull_foot_west", **arc, "start": -foot, "end": -high, "surface": SHELL_SURFACE,
-         "from": f"{said}; its foot under the west glass, down to the deck"},
-        {"name": "glass_east", **arc, "start": low, "end": high, "surface": GLASS_SURFACE, "segments": 5,
-         "from": f"{said}; the east glass band from {low} to {high} degrees off the crown (plan)"},
-        {"name": "glass_west", **arc, "start": -high, "end": -low, "surface": GLASS_SURFACE, "segments": 5,
-         "from": f"{said}; the west glass band from {low} to {high} degrees off the crown (plan)"},
-        {"name": "deck", "builder": "box", "centre": [0.0, -TUBE_DECK / 2 - DECK_BELOW, length / 2],
-         "size": [walls["deck"], TUBE_DECK, length], "surface": SHELL_SURFACE, "plain": "plate",
-         "from": f"{said}; the deck {walls['deck']} m wide where the hull meets the floor, under the kit's plates"}]
+def in_frame(design, points, level=0.0):
+    """Plan points [[x, y]] as [[x, z]] in the place's frame, and the frame's height `level` metres over its floor."""
+    corner, east, south = place_plan.frame_of(design)
+    placed = [corner + east * float(x) + south * float(y) for x, y in points]
+    return [[round(float(point[0]), 4), round(float(point[2]), 4)] for point in placed], \
+        round(float(corner[1]) + level, 4)
 
 
-def capsule_walls(plan):
-    """A capsule room's walls with the cut doorways and its deck, BACKING behind the plan's inside: the entries, the
-    grown numbers and what the plan said."""
-    walls = plan["walls"]
-    grown = {"wide": round(walls["wide"] + 2 * BACKING, 4), "deep": round(walls["deep"] + 2 * BACKING, 4),
-             "corner": round(walls["corner"] + BACKING, 4)}
-    cut = [door for door in plan["doors"] if door["cut"]]
-    said = (f"plan: inside {walls['wide']} x {walls['deep']} m, corners {walls['corner']} m, backed {BACKING} m "
-            f"behind the kit's wall line")
-    return [
-        {"name": "shell_walls", "builder": "room_walls", **grown, "high": walls["high"], "surface": SHELL_SURFACE,
-         "doors": [{"side": door["side"], "wide": door["wide"], "tall": door["tall"]} for door in cut],
-         "from": f"{said}; walls {walls['high']} m; doorways cut in " +
-                 (", ".join(f"door {door['plan_side']} ({door['what']}, leads {door['leads']})" for door in cut)
-                  or "no door")},
-        {"name": "shell_deck", "builder": "room_deck", **grown, "height": -DECK_BELOW, "surface": SHELL_SURFACE,
-         "from": f"{said}; just under the kit's floor plates"}], grown, said
+def shell_entry(name, number, piece, design, said):
+    """One shell piece (design_shell.pieces) as a structure entry in the place's frame."""
+    points, floor = in_frame(design, piece["points"])
+    entry = {"name": name if number == 0 else f"{name}_{number + 1}", "builder": piece["builder"], "points": points,
+             "surface": SHELL_SURFACE, "plain": "shell", "from": said}
+    if piece["builder"] == "gable":
+        entry.update(eave=round(floor + piece["eave"], 4), top=round(floor + piece["top"], 4), layer=2)
+    else:
+        entry.update(low=round(floor + piece["low"], 4), high=round(floor + piece["high"], 4))
+        if name.startswith("roof"):
+            entry["layer"] = 2
+    return entry
 
 
-def flat_shell(plan):
-    """A flat-roofed room's shell (the hangar): its capsule walls and deck, and its roof as four slabs ROOF_SLAB
-    thick on the walls' top round the door opening (the inventory's room layout's), which they leave open."""
-    walls = plan["walls"]
-    entries, grown, said = capsule_walls(plan)
-    half_wide, half_deep = grown["wide"] / 2, grown["deep"] / 2
-    open_wide, open_deep = walls["opening"][0] / 2, walls["opening"][1] / 2
-    level = walls["high"] + ROOF_SLAB / 2
-    slabs = {"west": ((-(half_wide + open_wide) / 2, 0.0), (half_wide - open_wide, 2 * half_deep)),
-             "east": (((half_wide + open_wide) / 2, 0.0), (half_wide - open_wide, 2 * half_deep)),
-             "north": ((0.0, -(half_deep + open_deep) / 2), (2 * open_wide, half_deep - open_deep)),
-             "south": ((0.0, (half_deep + open_deep) / 2), (2 * open_wide, half_deep - open_deep))}
-    return entries + [
-        {"name": f"roof_slab_{side}", "builder": "box", "centre": [round(across, 4), level, round(along, 4)],
-         "size": [round(wide, 4), ROOF_SLAB, round(deep, 4)], "surface": SHELL_SURFACE, "layer": 2, "plain": "plate",
-         "from": f"{said}; the flat roof {ROOF_SLAB} m thick on the walls' top ({walls['high']} m), its {side} slab "
-                 f"round the {walls['opening'][0]:g} x {walls['opening'][1]:g} m door opening (inventory room layout)"}
-        for side, ((across, along), (wide, deep)) in slabs.items()]
+def shell(design):
+    """The room shell's entries (design_shell.pieces) stood in the place's frame."""
+    return [shell_entry(name, number, piece, design, said)
+            for name, parts, said in design_shell.pieces(design) for number, piece in enumerate(parts)]
 
 
-def shell(plan):
-    """The room's shell entries: a faceted room's (facet_shell), a walkway tube's (tube_shell), a flat-roofed room's
-    (flat_shell), or a domed room's walls with the cut doorways, deck and dome."""
-    if plan["walls"].get("shape") == "faceted":
-        return facet_shell(plan)
-    if plan["walls"].get("shape") == "tube":
-        return tube_shell(plan)
-    if plan["walls"].get("shape") == "flat":
-        return flat_shell(plan)
-    walls = plan["walls"]
-    entries, grown, said = capsule_walls(plan)
-    return entries + [
-        {"name": "dome_glass" if plan.get("glass") else "shell_roof", "builder": "dome_roof", **grown,
-         "eave": walls["high"], "rise": walls["rise"], "run": walls["run"],
-         "surface": GLASS_SURFACE if plan.get("glass") else SHELL_SURFACE, "layer": 2,
-         "from": f"{said}; dome rising {walls['rise']} m over {walls['run']} m (plan words; inventory room layout run)"
-                 + ("; glazed (inventory room layout glass_dome)" if plan.get("glass") else "")}]
+def stair(number, entry, design):
+    """A stair or ramp the plan draws as a flight of steps up its footprint the way it says (`angle`: degrees from east,
+    clockwise as y runs south), from its `from` height to its `to`."""
+    points = np.asarray(entry["points"], dtype=float)
+    turn = math.radians(float(entry.get("angle") or 0.0))
+    way, across = np.array([math.cos(turn), math.sin(turn)]), np.array([-math.sin(turn), math.cos(turn)])
+    along, side = points @ way, points @ across
+    middle = way * (along.min() + along.max()) / 2 + across * (side.min() + side.max()) / 2
+    half = way * (along.max() - along.min()) / 2
+    (foot, top), floor = in_frame(design, [middle - half, middle + half])
+    low, high = float(entry["from"]), float(entry["to"])
+    steps = int(entry.get("steps") or 0) if entry.get("kind") != "ramp" else \
+        max(1, math.ceil(abs(high - low) / RAMP_STEP))
+    return {"name": f"{entry.get('kind', 'stair')}_{number}", "builder": "stairs",
+            "foot": [foot[0], round(floor + low, 4), foot[1]], "top": [top[0], round(floor + high, 4), top[1]],
+            "wide": round(float(side.max() - side.min()), 4), "steps": max(1, steps), "surface": STAIR_SURFACE,
+            "from": f"the plan's {entry.get('kind', 'stair')} {number}: from {low:g} m to {high:g} m, "
+                    f"{max(1, steps)} steps up its footprint at {float(entry.get('angle') or 0.0):g} degrees"}
 
 
-def picked(row, spot):
-    """The model the route's pick lays at a spot: the spot's own `model`, else the pick's one `model`, else the one
-    model of a pick that lists `models` (its glows left out); a pick of several models whose spot names none cannot
-    be read: an error naming the row."""
-    pick = row["pick"]
-    if spot.get("model"):
-        return spot["model"]
-    if pick.get("model"):
-        return pick["model"]
-    models = [name for name in pick.get("models", {}) if not name.endswith("_glow")]
-    if len(models) != 1:
-        raise ValueError(f"inventory row {row['id']}: its pick lists {len(models)} models and its spot names none")
-    return models[0]
+def structure(plan, design):
+    """The record's structure: an inside place's shell where its base does not lay it, and the plan's stairs."""
+    shelled = shell(design) if inside(design) and not design_shell.laid_for(design) else []
+    return shelled + [stair(number, entry, design) for number, entry in enumerate(design.get("stairs") or [], 1)
+                      if len(entry.get("points") or []) >= 3]
 
 
-def row_model(place, row, spot):
-    """The model an inventory row the kit does not lay stands as at a spot, and what made it: a library model
-    the row names (`release_model`, the airlock's suit) or the route's pick (picked, from the place's kit models);
-    else None."""
-    if row.get("release_model"):
-        return row["release_model"], f"the library's {row['release_model']}"
-    if str(row.get("made", "")).startswith("made by the route") and row.get("pick"):
-        model = picked(row, spot)
-        return f"models/{place}_kit/{model}.gltf", f"made by the route, its pick {model}"
-    return None
+# --- lights -------------------------------------------------------------------------------------------------------
+
+def library_lamps():
+    """The library's lamp code (tools/props/scene/lamps.py: its mounts and how a row is mounted)."""
+    sys.path.insert(0, str(REPO / "tools/props/scene"))
+    import lamps
+    return lamps
 
 
-def objects(place, inventory):
-    """Each inventory row the kit does not lay (row_model), laid at its own spots: one object at each spot, turned to
-    its facing."""
+def game_lamp():
+    """The lamp the library's strengths are shares of (tools/usd/scene.py): (energy, colour, attenuation)."""
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene
+    return scene.LAMP_ENERGY, scene.LAMP_COLOUR, scene.LAMP_ATTENUATION
+
+
+def item_lamp(item, row, rows, design, library, path):
+    """The light of a glowing row's plan item: over its middle, as high on it as the library's lamp for the row's
+    mount puts it, reaching by how high that is over the floor."""
+    name, x, y, wide, deep = item[0], *[float(value) for value in item[1:5]]
+    shape = (design.get("shapes") or {}).get(name) or {}
+    base, tall = float(shape.get("base") or 0.0), float(shape.get("tall") or 0.0)
+    mounts, words = library.mounts(path), library.mount_words(path)
+    share = float(mounts[library.mount_of(row, rows, words)]["high"])
+    high = base + tall * share
+    light = library.light_at(row, high, rows, mounts, words)
+    energy, colour, attenuation = game_lamp()
+    (spot,), floor = in_frame(design, [[x + wide / 2, y + deep / 2]], high)
+    return {"type": "omni", "at": [spot[0], floor, spot[1]], "colour": colour,
+            "energy": round(energy * light["strength"], 4), "range": light["reach"], "attenuation": attenuation,
+            "shadows": light["shadows"],
+            "from": f"plan item {name!r}, inventory row {row['id']} (row kind {row['row_kind']}, it glows): the "
+                    f"library's lamp (data/library/lamps.json) for its mount, {high:.2f} m over the floor"}
+
+
+def lights(design, inputs):
+    """A light at each plan item of the scene's glowing rows (row_kinds.rows_that)."""
+    inventory = read(inputs["inventory"])
+    glowing = {row["id"]: row for row in row_kinds.rows_that(inventory, "glows", row_kinds.table(inputs["row kinds"]))}
+    rows_of, library = design.get("rows") or {}, library_lamps()
     found = []
-    for row in inventory["rows"]:
-        for number, spot in enumerate((spot for spot in row.get("at", []) if "x" in spot), 1):
-            made = row_model(place, row, spot)
-            if made is None:
-                break
-            found.append({"name": f"{row['id']}_{number}", "row": row["id"], "model": made[0],
-                          "at": [spot["x"], spot["y"], spot["z"]], "yaw": -float(spot.get("facing", 0.0)),
-                          "from": f"inventory row {row['id']} ({made[1]}): its spot {number}, facing "
-                                  f"{spot.get('facing', 0.0)} degrees"})
-    return found
-
-
-def door_leaves(place, plan, kit):
-    """Each door leaf the plan's leads name (`leaf`: the airlock's outer door, which its cycle's motion moves and copies
-    for the inner door) as an object shut in its doorway, the kit's model of its inventory row."""
-    found = []
-    for door in plan["doors"]:
-        leaf = door.get("leaf")
-        if not leaf:
+    for item in design.get("items") or []:
+        if len(item) > 6 and item[6] == "zone":
             continue
-        model = f"{leaf['row']}_1"
-        if model not in kit.get("models", {}):
-            raise ValueError(f"{place}: door {door['plan_side']}'s leaf, row {leaf['row']}, has no model {model} in "
-                             "its kit")
-        found.append({"name": leaf["name"], "row": leaf["row"], "model": f"models/{place}_kit/{model}.gltf",
-                      "at": door["middle"], "yaw": LEAF_YAW[door["side"]],
-                      "from": f"plan door {door['plan_side']} ({door['what']}): its leaf, inventory row {leaf['row']} "
-                              f"(the kit's {model}), shut in its doorway"})
+        for row_id in rows_of.get(item[0]) or []:
+            if row_id in glowing:
+                found.append(item_lamp(item, glowing[row_id], inventory["rows"], design, library,
+                                       inputs["lamp library"]))
     return found
 
 
-def plots(plan):
-    """Each growing plot of the plan (kind `plot`) as plain plates: its soil a slab over the plot's box, a low curb
-    round it."""
-    found = []
-    for item in plan["items"]:
-        if item["kind"] != "plot":
-            continue
-        low_x, low_z, high_x, high_z = item["box"]
-        middle, wide, deep = ((low_x + high_x) / 2, (low_z + high_z) / 2), high_x - low_x, high_z - low_z
-        said = f"plan item {item['name']!r}"
-        found.append({"name": "plot_soil", "builder": "box", "centre": [middle[0], SOIL / 2, middle[1]],
-                      "size": [wide, SOIL, deep], "surface": SOIL_SURFACE, "plain": "soil",
-                      "from": f"{said}: its soil over the plot's box"})
-        for number, (centre, size) in enumerate((
-                ((middle[0], low_z), (wide + CURB[0], CURB[1], CURB[0])),
-                ((middle[0], high_z), (wide + CURB[0], CURB[1], CURB[0])),
-                ((low_x, middle[1]), (CURB[0], CURB[1], deep + CURB[0])),
-                ((high_x, middle[1]), (CURB[0], CURB[1], deep + CURB[0])))):
-            found.append({"name": f"plot_wall_{number}", "builder": "box",
-                          "centre": [round(centre[0], 4), CURB[1] / 2, round(centre[1], 4)],
-                          "size": [round(value, 4) for value in size], "surface": CURB_SURFACE, "plain": "plate",
-                          "from": f"{said}: the curb along its edge"})
-    return found
+# --- the sky ------------------------------------------------------------------------------------------------------
+
+def sky_seen(kept):
+    """What overhead.py says is overhead at the kept site at its scene time: its lights over the horizon (their disc
+    at least partly up), its bodies and backdrops; None while the site's position is not known."""
+    seen = overhead.seen(kept["setting"], kept["site"], kept["time"])
+    if seen is None:
+        return None
+    risen = [light for light in seen["lights"] if light["altitude"] + (light.get("across") or 0.0) / 2.0 > 0.0]
+    return {"lights": [{key: light[key] for key in ("name", "of", "azimuth", "altitude", "kelvin", "lux")
+                        if key in light} for light in risen],
+            "bodies": [{key: body[key] for key in ("body", "name", "azimuth", "altitude", "across", "lit")
+                        if key in body} for body in seen["bodies"]],
+            "backdrops": seen["backdrops"]}
 
 
-def ramps(plan, inventory):
-    """Each plan item outside the room that slopes (`<long> m at <angle> deg`) as a plain plate of its inventory row,
-    its top edge on the sill of the door it lies before (on the plan's wall line), falling away from the room."""
-    sizes = {row["id"]: row["size"] for row in inventory["rows"]}
-    found = []
-    for item in plan["items"]:
-        sloped = SLOPE.search(item["name"])
-        if item["kind"] != "outside" or sloped is None:
-            continue
-        long, angle = float(sloped.group(1)), math.radians(float(sloped.group(2)))
-        row = item["rows"][0]
-        door = min(plan["doors"], key=lambda entry: np.linalg.norm(
-            np.asarray(entry["middle"])[[0, 2]] - np.mean(np.reshape(item["box"], (2, 2)), axis=0)))
-        out = np.asarray(door["normal"], dtype=float)
-        along = out * math.cos(angle) + np.array([0.0, -math.sin(angle), 0.0])
-        top = np.array([0.0, math.cos(angle), 0.0]) + out * math.sin(angle)
-        wide = float(sizes[row][0])
-        centre = np.asarray(door["middle"], dtype=float) + along * long / 2 - top * RAMP_THICK / 2
-        # The plate is built long along the way out and tipped about the axis across the door, its far end down.
-        half = math.sin(angle / 2)
-        if door["side"] in ("south", "north"):
-            turn, size = [math.copysign(half, out[2]), 0.0, 0.0, math.cos(angle / 2)], [wide, RAMP_THICK, long]
-        else:
-            turn, size = [0.0, 0.0, -math.copysign(half, out[0]), math.cos(angle / 2)], [long, RAMP_THICK, wide]
-        found.append({"name": row, "builder": "box", "centre": [0.0, 0.0, 0.0], "size": size,
-                      "surface": RAMP_SURFACE, "placed_at": np.round(centre, 4).tolist(),
-                      "placed_turn": [round(value, 6) for value in turn], "plain": "plate", "row": row,
-                      "from": f"plan item {item['name']!r} (inventory row {row}, {wide} m wide, {RAMP_THICK} m "
-                              f"thick): its top edge on door {door['plan_side']}'s sill, falling away from the room"})
-    return found
+def environment(design, kept):
+    """Inside or not, and the place's sky from the physics at its site at its scene time (sky_seen)."""
+    site = kept["site"]
+    return {"inside": inside(design), "site": site, "time": kept["time"], "sky": sky_seen(kept),
+            "from": f"the environment concept's physics (score/review/overhead.py) at the place's site on "
+                    f"{site.get('on')} at its scene time {kept['time']}; its sky is drawn by the light layer"}
 
 
-# --- places -----------------------------------------------------------------------------------------------------
-
-class Seat(NamedTuple):
-    """Where a place stands: its made ground's name and record, its seat entry, its stage and its laid Ground."""
-    ground: str
-    made: dict
-    entry: dict
-    stage: str
-    laid: object
-
-
-def on_seat_of(kits, stage):
-    kit = pathlib.Path(kits) / f"{stage}.json"
-    return read(kit).get("on_seat", [0.0, 0.0]) if kit.exists() else [0.0, 0.0]
-
-
-def seats(inputs):
-    """Every seated place: the made grounds' own seats (the terrain stage), and the base's modules (data/definitions/
-    base.json) on the seat of the module it names: {name: Seat}."""
-    found = {}
-    for folder in sorted(pathlib.Path(inputs["terrain"]).iterdir()):
-        if not (folder / "ground.json").exists():
-            continue
-        made = ground_records.read(folder)
-        for place, entry in made.get("places", {}).items():
-            found[place] = Seat(folder.name, made, entry, place,
-                                outside.placed_ground(made, entry, on_seat_of(inputs["kits"], place)))
-    base = read(inputs["base"])
-    on = found[base["seat_of"]]
-    for name, module in base["modules"].items():
-        entry = {"out": on.entry["out"], "heading": module["heading"], "flat": module["flat"]}
-        found[name] = Seat(on.ground, on.made, entry, module["stage"],
-                           outside.placed_ground(on.made, entry, on_seat_of(inputs["kits"], module["stage"])))
-    return found
-
-
-def pose_in(laid, other):
-    """Another seated place's floor middle and axes (rows: across, up, along) in this place's frame."""
-    position = laid.in_place_frame(other.origin + other.frame[1] * other.drop)[0]
-    return position, other.frame @ laid.frame.T
-
-
-def quaternion(axes):
-    """A turn (rows: the turned x, y, z axes, row vectors) as [x, y, z, w], as scene.turn reads `rotation`."""
-    from pxr import Gf
-    quat = Gf.Matrix3d(*np.asarray(axes, dtype=float).ravel().tolist()).ExtractRotation().GetQuat()
-    return [round(value, 6) for value in (*quat.GetImaginary(), quat.GetReal())]
-
-
-def door_outside(door):
-    """A door's middle on the shell's outer face, in its own place's frame."""
-    return np.asarray(door["middle"], dtype=float) + np.asarray(door["normal"], dtype=float) * BACKING
-
-
-def neighbours(place, grounds):
-    """Every other place seated on this place's made ground, stood where its seat puts it."""
-    if place not in grounds:
-        return []
-    here = grounds[place]
-    found = []
-    for other, seat in sorted(grounds.items()):
-        if other == place or seat.ground != here.ground:
-            continue
-        position, axes = pose_in(here.laid, seat.laid)
-        found.append({"name": other, "stage": seat.stage, "at": np.round(position, 4).tolist(),
-                      "rotation": quaternion(axes),
-                      "from": f"the {seat.ground} ground's seats (terrain stage; the base's modules, data/definitions/"
-                              f"base.json): {other}'s seat in {place}'s frame"})
-    return found
-
-
-def joined_tube(place, door, plans, grounds, tube_length):
-    """The walkway tube joining a door to the joined place's door: the tube's stage stood at this doorway, turned
-    along the run to that doorway and stretched to reach it."""
-    if place not in grounds or door["joins"] not in grounds:
-        raise ValueError(f"{place}: door {door['plan_side']} joins {door['joins']}, but the two are not both seated "
-                         "on a made ground")
-    laid, other = grounds[place].laid, grounds[door["joins"]].laid
-    other_plan = read(pathlib.Path(plans) / f"{door['joins']}.json")
-    other_door = next(entry for entry in other_plan["doors"] if entry[0] == door["joins_door"])
-    far_local = np.asarray(place_plan.door_middle(other_plan, other_door[0], other_door[1]), dtype=float) + \
-        np.asarray(place_plan.outward(other_plan, other_door[0]), dtype=float) * BACKING
-    position, axes = pose_in(laid, other)
-    far = position + far_local @ axes
-    near = door_outside(door)
-    run = far - near
-    along = run / np.linalg.norm(run)
-    up = np.array([0.0, 1.0, 0.0]) - along * along[1]
-    up /= np.linalg.norm(up)
-    turn = np.array([np.cross(up, along), up, along])
-    return {"name": f"{door['side']}_tube", "stage": door["leads"], "at": np.round(near, 4).tolist(),
-            "rotation": quaternion(turn), "scale": [1.0, 1.0, round(float(np.linalg.norm(run)) / tube_length, 4)],
-            "joins": door["joins"],
-            "from": f"plan door {door['plan_side']} ({door['what']}) leads {door['leads']} to {door['joins']}'s door "
-                    f"{door['joins_door']} (its plan, its seat): {np.linalg.norm(run):.2f} m run, the tube's stage "
-                    f"{tube_length} m long stretched to it"}
-
-
-def places_of(place, plan, inputs, grounds):
-    """Every place this one shows: joined tubes, seated neighbours, and what the plan shows."""
-    found = []
-    for door in plan["doors"]:
-        if door["cut"] and door["joins"]:
-            found.append(joined_tube(place, door, inputs["plans"], grounds, read(inputs["tube length"])["tube_length"]))
-    return found + neighbours(place, grounds) + kit_shell.shown(plan, place, grounds, pose_in, quaternion)
-
-
-# --- light, sky, views ------------------------------------------------------------------------------------------
-
-def fill(plan, indoor):
-    """The room's fill light: at the sky record's height share of the walls, reaching the farthest floor corner."""
-    walls, light = plan["walls"], indoor["fill"]
-    height = round(walls["high"] * light["height_share"], 4)
-    reach = round(math.sqrt((walls["wide"] / 2) ** 2 + (walls["deep"] / 2) ** 2 + height ** 2), 3)
-    middle = middle_of(plan)
-    return {"type": "omni", "at": [middle[0], height, middle[1]], "colour": light["colour"], "energy": light["energy"],
-            "range": reach, "attenuation": light["attenuation"], "shadows": False,
-            "from": "sky record (data/definitions/sky.json) indoor fill, at its height share of the plan's walls, "
-                    "reaching the plan's farthest floor corner"}
-
-
-def environment(plan, indoor, body):
-    """The body's indoor sky, its haze a box of the plan's inside up to the walls' top."""
-    walls = plan["walls"]
-    return {"background": indoor["background"], "ambient": dict(indoor["ambient"]), "exposure": indoor["exposure"],
-            "inside": True, "from": f"sky record (data/definitions/sky.json) {body} indoor",
-            "haze": {"shape": "box", "centre": [middle_of(plan)[0], walls["high"] / 2, middle_of(plan)[1]],
-                     "size": [walls["wide"], walls["high"], walls["deep"]], **indoor["haze"],
-                     "from": f"sky record {body} indoor haze, a box of the plan's inside to its walls' top"}}
-
+# --- views --------------------------------------------------------------------------------------------------------
 
 def middle_of(plan):
     """The plan's inside's middle on its floor, in the place's frame (x, z)."""
@@ -490,18 +221,18 @@ def item_middle(plan, name):
 
 
 def views(plan, eye_height):
-    """One view inside each door looking across the inside's middle (the door's mirror through it), one from each
-    standing spot to the middle at its own level or to the plan item it looks at on the floor; each eye at standing
-    height over its level."""
+    """One view inside each doorway looking across the inside's middle (the doorway's mirror through it), one from
+    each standing spot to the middle at its own level or to the plan item it looks at on the floor; each eye at
+    standing height over its level (the plan row's plan.json: its `doorways` and `standing`)."""
     found, middle = [], middle_of(plan)
-    for door in plan["doors"]:
+    for door in plan.get("doorways", []):
         at = np.asarray(door["middle"], dtype=float)
-        eye = at - np.asarray(door["normal"], dtype=float) * VIEW_IN
+        eye = at + np.asarray(door["inward"], dtype=float) * VIEW_IN
         aim = 2 * middle - at[[0, 2]]
-        found.append({"name": f"from-{door['side']}-door" + (f"-at-{door['level']:g}" if door["level"] else ""),
-                      "eye": [round(eye[0], 3), round(at[1] + eye_height, 3), round(eye[2], 3)],
+        found.append({"name": f"from-{door['name']}", "eye": [round(eye[0], 3), round(at[1] + eye_height, 3),
+                                                             round(eye[2], 3)],
                       "aim": [round(aim[0], 3), round(at[1] + AIM_HEIGHT, 3), round(aim[1], 3)], "fov": VIEW_FOV,
-                      "from": f"plan door {door['name']} ({door['what']}), looking across"})
+                      "from": f"plan {door['name']} ({door['wide']:g} m wide, to {door['to']}), looking across"})
     for number, spot in enumerate(plan["standing"], 1):
         aim = item_middle(plan, spot["looks_at"]) if spot["looks_at"] else middle
         aim_level = plan["floor_height"] if spot["looks_at"] else spot["level"]
@@ -513,200 +244,136 @@ def views(plan, eye_height):
     return found
 
 
-# --- the record -------------------------------------------------------------------------------------------------
-
-def record_of(place, plan, inputs):
-    """The place's scene record from its plan and the world's records (module docstring)."""
-    grounds = seats(inputs)
-    seated = grounds.get(place)
-    if seated is None and plan["shell"] == "kit" and ground_free(place, inputs):
-        return ground_free_record(place, plan, inputs, grounds)
-    if seated is None:
-        raise ValueError(f"{place}: no seat on a made ground and no module of the base: its world body is unknown")
-    if plan["shell"] == "kit":
-        return kit_record(place, plan, inputs, grounds)
-    if plan["shell"] == "outdoor":
-        from score.stages.scene_record import outdoor  # it builds on this module's seats, places and views' numbers
-        return outdoor.record_of(place, plan, inputs, grounds)
-    if not plan["inside"] or not (plan["walls"].get("rise") or
-                                  plan["walls"].get("shape") in ("faceted", "tube", "flat")):
-        raise NotImplementedError(f"{place}: its plan's shell is domed but it is no domed room, faceted room, "
-                                  "walkway tube or flat-roofed room")
-    walls = plan["walls"]
-    body = seated.ground
-    indoor = read(inputs["sky"])[body]["indoor"]
-    eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
-    inventory = read(inputs["inventory"])
-    return {"place": place,
-            "about": f"{plan['title']}, written by SCORE's scene-record stage from its kept plan (the design's), "
-                     "its inventory, the made ground's seats and the world's sky record. Frame: the room's middle on "
-                     "its floor, x east, z south.",
-            "floor": plan["floor"], "ceiling": round(walls["high"] + walls["rise"], 4), "inside": True,
-            "structure": shell(plan) + ramps(plan, inventory) + plots(plan),
-            "objects": objects(place, inventory) + door_leaves(place, plan, read(pathlib.Path(inputs["kits"]) /
-                                                                                 f"{place}.json")),
-            "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body),
-            "views": views(plan, eye), "places": places_of(place, plan, inputs, grounds),
-            # A walkway tube's run, which its kit's bays are laid along (the assembly reads it).
-            **({"tube_length": walls["length"]} if walls.get("shape") == "tube" else {})}
+def inside_polygon(point, points):
+    """Whether a point [x, z] lies inside an outline [[x, z]] (even-odd rule)."""
+    found = False
+    for one, two in zip(points, points[1:] + points[:1]):
+        if (one[1] > point[1]) != (two[1] > point[1]):
+            cross = one[0] + (point[1] - one[1]) * (two[0] - one[0]) / (two[1] - one[1])
+            found ^= point[0] < cross
+    return found
 
 
-def ground_free(place, inputs):
-    """The plan's reason when it is a ground-free interior (its `ground_free`: the ship's rooms, which stand in the
-    hangar's ship, not on a made ground; the overseer, 2026-10-14), else None."""
-    return read(pathlib.Path(inputs["plans"]) / f"{place}.json").get("ground_free")
+def views_inside(found, design, enclosed):
+    """(kept, left out) of an inside place's views: one whose eye stands outside its plan's outline sees its walls
+    from behind, so it is left out with why; an open place keeps every view."""
+    if not enclosed:
+        return found, []
+    outline, _ = in_frame(design, design_shell.outline_of(design))
+    kept = [view for view in found if inside_polygon([view["eye"][0], view["eye"][2]], outline)]
+    return kept, [{"name": view["name"], "eye": view["eye"], "from": view["from"],
+                   "why": "its eye stands outside the plan's outline: it would see the walls from behind"}
+                  for view in found if view not in kept]
 
 
-def ground_free_record(place, plan, inputs, grounds):
-    """The scene record of a ground-free interior: no seat, so nothing outside it and no body's sky over it; its kit
-    holds its walls and floors, its air and fill are the base's body's indoor ones (the body the base's modules
-    stand on, base.json `seat_of`), its views its plan's, judged against its own walls."""
-    body = grounds[read(inputs["base"])["seat_of"]].ground
-    indoor = read(inputs["sky"])[body]["indoor"]
-    kit_path = pathlib.Path(inputs["kits"]) / f"{place}.json"
-    eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
-    return {"place": place,
-            "about": f"{plan['title']}, written by SCORE's scene-record stage from its kept plan (the design's), "
-                     f"a ground-free interior ({ground_free(place, inputs)}): no seat and nothing outside; its kit "
-                     f"holds its walls and floors, its air is the {body} base's indoor air from the world's sky "
-                     "record. Frame: the room's middle on its floor, x east, z south.",
-            "floor": plan["floor"], "inside": True, "ceiling": round(plan["floor_height"] + plan["walls"]["high"], 4),
-            "structure": [], "objects": kit_shell.objects(plan, read(kit_path) if kit_path.exists() else None),
-            "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body), "views": views(plan, eye),
-            "places": []}
+# --- places -------------------------------------------------------------------------------------------------------
+
+def holder_of(place, plans):
+    """(holder's name, its plan) of the plan that holds the place (`holds`), else (None, None)."""
+    for path in sorted(pathlib.Path(plans).glob("*.json")):
+        held = read(path)
+        if any(hold.get("place") == place for hold in held.get("holds") or []):
+            return path.stem, held
+    return None, None
 
 
-def glowing_rows(inputs):
-    """The scene's inventory rows whose row kind glows (score/stages/row_kinds.py): its lamps."""
-    return row_kinds.rows_that(read(inputs["inventory"]), "glows", row_kinds.table(inputs["row kinds"]))
+def leads_of(plan, design):
+    """Every place a door (the plan row's `leads`) or an opening (the kept plan's `to`) of the place leads to."""
+    found = {door["leads"] for door in plan["doors"]} | {opening.get("to") for opening in design.get("openings") or []}
+    return sorted(name for name in found if name and name not in NOT_PLACES)
 
 
-def kit_record(place, plan, inputs, grounds):
-    """The scene record of a place whose kit holds its walls and floors (kit_shell.py's docstring)."""
-    seated = grounds[place]
-    sky = {**read(inputs["sky"])[seated.ground], "body": seated.ground}
-    kit = read(pathlib.Path(inputs["kits"]) / f"{place}.json")
-    pose = kit_shell.shared_pose(place, grounds, sky, pose_in)
+def origin_on_holder(design, hold):
+    """The place's frame origin as a point of its holder's plan: its own plan laid unturned in its hold's box."""
+    corner, east, south = place_plan.frame_of(design)
+    return np.array([hold["x"] - float(corner @ east), hold["y"] - float(corner @ south)]), float(corner[1])
+
+
+def axes_in(design, other):
+    """The other place's frame axes (rows: across, up, along) in this place's frame, both plans laid unturned on
+    their holder's plan."""
+    _, east, south = place_plan.frame_of(design)
+    _, other_east, other_south = place_plan.frame_of(other)
+    return np.array([east * float(axis @ other_east) + south * float(axis @ other_south) + np.array([0.0, axis[1], 0.0])
+                     for axis in np.eye(3)])
+
+
+def quaternion(axes):
+    """A turn (rows: the turned x, y, z axes, row vectors) as [x, y, z, w], as scene.turn reads `rotation`."""
+    from pxr import Gf
+    quat = Gf.Matrix3d(*np.asarray(axes, dtype=float).ravel().tolist()).ExtractRotation().GetQuat()
+    return [round(value, 6) for value in (*quat.GetImaginary(), quat.GetReal())]
+
+
+def sibling(place, design, holder, name, plans):
+    """A place the holder's plan holds beside this one, stood in this place's frame where the holder holds it."""
+    holds = {hold["place"]: hold for hold in holder.get("holds") or []}
+    other = read(pathlib.Path(plans) / f"{name}.json")
+    here, floor = origin_on_holder(design, holds[place])
+    there, other_floor = origin_on_holder(other, holds[name])
+    _, east, south = place_plan.frame_of(design)
+    offset = there - here
+    at = east * offset[0] + south * offset[1]
+    return {"name": name, "stage": name, "at": [round(float(at[0]), 4), round(floor - other_floor, 4),
+                                                round(float(at[2]), 4)],
+            "rotation": quaternion(axes_in(design, other)),
+            "from": f"a door of {place} leads to {name}: where its holder's plan holds both (holds)"}
+
+
+def places_of(place, plan, design, plans):
+    """Each place a door or opening of this one leads to that its holder's plan holds beside it."""
+    _, holder = holder_of(place, plans)
+    if holder is None:
+        return []
+    held = {hold["place"] for hold in holder.get("holds") or []}
+    return [sibling(place, design, holder, name, plans) for name in leads_of(plan, design)
+            if name in held and name != place and (pathlib.Path(plans) / f"{name}.json").is_file()]
+
+
+# --- the record ---------------------------------------------------------------------------------------------------
+
+def ceiling(design):
+    """The highest roof's top, else the walls' tallest, over the floor; None for a place with neither."""
+    heights = [float(roof.get("top") or roof.get("eave") or 0.0) for roof in design.get("roofs") or []] + \
+        [float(wall.get("tall") or 0.0) for wall in design.get("walls") or []]
+    return max(heights) if heights and max(heights) > 0 else None
+
+
+def record_of(plan, design, inputs):
+    """The place's scene record from its design (module docstring)."""
+    place = plan["place"]
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     record = {"place": place,
-              "about": f"{plan['title']}, written by SCORE's scene-record stage from its kept plan (the design's), "
-                       f"its kit's lamps, the made ground's seats and the world body's air record (its sky is the "
-                       f"light layer's, from the environment concept's physics). Frame: its kit's, "
-                       f"{sky['frame_of']}'s frame moved to its seat.",
-              "floor": plan["floor"], "inside": plan["inside"], "structure": kit_shell.block(plan),
-              "objects": kit_shell.objects(plan, kit),
-              "lights": kit_shell.lamps(plan, kit, glowing_rows(inputs), inputs["lamp library"],
-                                        read(inputs["inventory"])["rows"]),
-              "kit_glow": kit_shell.kit_glow(sky),
-              "environment": kit_shell.environment(plan, sky, pose), "views": views(plan, eye),
-              "places": places_of(place, plan, inputs, grounds)}
-    if seated.made.get("water"):
-        record["water"] = kit_shell.water(sky, seated.made, pose)
-    if plan["inside"]:
-        record["ceiling"] = round(plan["floor_height"] + plan["walls"]["high"], 4)
-    if plan.get("moves"):
-        record["moved"] = [{"node": move["node"], "by": move["by"],
-                            "from": f"plan door {move['door']}: its leaf stands open ({move['why']})"}
-                           for move in plan["moves"]]
+              "about": f"{plan['title']}, written by SCORE's scene-record stage from its design: its locked plan, "
+                       "its scene inventory's row kinds, the library's lamp and the environment concept's physics at "
+                       "its site. Frame: the plan's (x east, z south, y up over its floor).",
+              "floor": plan["floor"], "inside": inside(design), "structure": structure(plan, design), "objects": [],
+              "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
+              "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"])}
+    record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye),
+                                             design, record["inside"])
+    if left_out:
+        record["views_left_out"] = left_out
+    high = ceiling(design)
+    if record["inside"] and high is not None:
+        record["ceiling"] = round(float(place_plan.frame_of(design)[0][1]) + high, 4)
+    if plan.get("removes"):
+        record["coordinator_removed"] = removed(plan)
     return record
 
 
-def planned_ground(plan):
-    """The ground past the place to the horizon and the ball under it (the plan's `far_ground`: how far round the
-    place, how fine, the ball's surface), as the record's `planned_ground`; None when the plan sees no far ground."""
-    far = plan.get("far_ground")
-    if not far:
-        return None
-    return {"reach": far["reach"], "step": far["step"], "ball": far["ball"],
-            "from": f"plan far_ground ({far['why']}): the made ground's place layer drawn out to {far['reach']} m round "
-                    "the place, the ball under it"}
-
-
 def removed(plan):
-    """The rows the plan's concept leaves out (its `removes`), as the record's coordinator_removed: the assembly takes
-    every seed object of those rows out of the base (assembly record.relay_kit)."""
+    """The rows the plan's concept leaves out (its `removes`), as the record's coordinator_removed."""
     return [{"what": f"inventory row {entry['row']}", "rows": [entry["row"]], "date": entry["date"],
              "why": entry["why"], "from": f"plan removes {entry['row']} ({entry['why']})"} for entry in plan["removes"]]
 
 
-def child_row(model, rows, place):
-    """The inventory row a kit child model is of: its name less its number (`case_1`: case), a row the inventory has."""
-    row = re.sub(r"_\d+$", "", model)
-    if row not in rows:
-        raise ValueError(f"{place}: kit child model {model} names no inventory row {row}")
-    return row
-
-
-def kit_children(entry, kit, rows, removed_rows, place):
-    """What stands on an object as its kit's model lists it (`children`: model, at and turn in the object's own
-    frame), each with the model's glow parts (kit models `part_of` it), less rows the plan removes; [] for a model
-    the kit lists none for. Left out, the cases on the camp's stores rack went missing (2026-10-13)."""
-    model_path = pathlib.PurePosixPath(entry["model"])
-    models = kit.get("models", {})
-    found = []
-    for number, child in enumerate(models.get(model_path.stem, {}).get("children", []), 1):
-        row = child_row(child["model"], rows, place)
-        if row in removed_rows:
-            continue
-        glows = [name for name, about in sorted(models.items()) if about.get("part_of") == child["model"]]
-        found += [{"model": str(model_path.parent / f"{name}.gltf"), "row": row, "at": child["at"],
-                   "yaw": float(child["turn"]),
-                   "from": f"kit model {model_path.stem}'s child {number} ({child['model']}), inventory row {row}"}
-                  for name in [child["model"], *glows]]
-    return found
-
-
-def with_children(record, place, inputs, plan):
-    """The record's objects, each carrying what its kit's model stands on it (kit_children)."""
-    kit_path = pathlib.Path(inputs["kits"]) / f"{place}.json"
-    if not kit_path.exists():
-        return
-    kit, rows = read(kit_path), {row["id"] for row in read(inputs["inventory"])["rows"]}
-    removed_rows = {entry["row"] for entry in plan.get("removes", [])}
-    for entry in record.get("objects", []):
-        children = kit_children(entry, kit, rows, removed_rows, place) if "model" in entry else []
-        if children:
-            entry["children"] = children
-
-
-def shown_only(place, plan, record, inputs):
-    """The record with only the seated neighbours its own views see (seen.py); the nearest place of each stage a door
-    leads to (its doorway opens onto it), a joined tube and a place the plan shows are always kept."""
-    from score.stages.scene_record import seen
-    from score.stages.terrain import gates as ground_gates
-    grounds = seats(inputs)
-    seated = [entry for entry in record["places"] if entry["name"] in grounds and "joins" not in entry
-              and entry["name"] not in plan.get("shows", {})]
-    opened = {id(min(those, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - door_outside(door))))
-              for door in plan["doors"] if door["cut"]
-              for those in [[entry for entry in seated if entry["stage"] == door["leads"]]] if those}
-    candidates = [entry for entry in seated if id(entry) not in opened]
-    if not candidates:
-        return record
-    here = grounds[place]
-    kit_path = pathlib.Path(inputs["kits"]) / f"{here.stage}.json"
-    kit = read(kit_path) if kit_path.exists() else None
-    zoned, _ = outside.meshes(here.made, here.entry, on_seat_of(inputs["kits"], here.stage),
-                              ground_gates.footprint(record, kit))
-    rays = ground_gates.caster(seen.occluders(seed_of(inputs, here.stage), zoned))
-    kept = seen.visible(record["views"], candidates, inputs["plans"], rays, VIEW_FOV)
-    return {**record, "places": [entry for entry in record["places"]
-                                 if entry not in candidates or entry["name"] in kept]}
-
-
 def make(inputs, out, seed, params):
-    """record/<place>.json: the place's scene record, with its planned ground when the plan sees one."""
+    """record/<place>.json: the place's scene record from its design."""
     plan = read(pathlib.Path(inputs["plan"]) / "plan.json")
-    place = plan["place"]
-    record = shown_only(place, plan, record_of(place, plan, inputs), inputs)
-    with_children(record, place, inputs, plan)
-    far = planned_ground(plan)
-    if far:
-        record["planned_ground"] = far
-    if plan.get("removes"):
-        record["coordinator_removed"] = removed(plan)
+    design = read(pathlib.Path(inputs["plans"]) / f"{plan['place']}.json")
     (out / "record").mkdir()
-    (out / "record" / f"{place}.json").write_text(json.dumps(record, indent=1))
+    (out / "record" / f"{plan['place']}.json").write_text(json.dumps(record_of(plan, design, inputs), indent=1))
 
 
 def record_faults(folder):

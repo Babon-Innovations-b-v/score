@@ -300,8 +300,8 @@ def place_files(name):
 def passes_files(place):
     """What the render reads besides the layer (which holds its views) and the scene records: the seed, the places it
     shows (neighbours) with the files their light layers are written from (theirs alone, never a whole folder:
-    another place's kit edited moves no render here), the planned grounds, the scripts."""
-    found = {"seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground", "kit": "{data}/kit/{place}.json",
+    another place's kit edited moves no render here), the scripts."""
+    found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
              "renderer": "{repo}/tools/blender/inside/usd_views.py", "passes script": "{repo}/" + SCRIPT}
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
