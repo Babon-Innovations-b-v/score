@@ -63,7 +63,7 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   the take rows were deleted 2026-10-21).
 - **No model around the loop** (`shapes_first_test.py`): a row of the table that reads a loop row and is no
   adapter's after-step reading `made.ENDS` fails, unless `READS_THE_LOOP` names it with why (the judges, the object
-  layer's assembly, the scene's base painting its shell, the motion rows not on an adapter yet); a paid row outside the loop says
+  layer's assembly, the scene's base and its scene record painting its shell, the motion rows not on an adapter yet); a paid row outside the loop says
   what it makes (`MAKES_NO_MODEL`) or is a named exception (`MADE_OUTSIDE`) its own record names (`failures`). A row
   joins either list only with its reason; one that stops reading the loop leaves `READS_THE_LOOP`.
 - Test: `shapes_first_test.py` (`.venv/bin/python -m pytest score/stages/shapes_first`), no spend.
