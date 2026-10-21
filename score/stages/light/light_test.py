@@ -218,16 +218,24 @@ def check_magenta():
         assert verdict.answer == checks.FAIL and verdict.measures["magenta share"] == 0.01, verdict
 
 
-def check_kit_lamps():
-    """The launch's light data puts a lamp in front of each pad floodlight's lens, among its record's lights."""
-    record = {"lights": [{"type": "point", "at": [0.0, 1.0, 0.0]}]}
-    added = layer.kit_lamps("launch", layer.light_data("launch"))
+def check_shafts_from_rows():
+    """A floodlight's shaft is its inventory row's lamp's (the sky record's lamp row), never a hand-kept lamp of one
+    place: the launch's pad floodlights get theirs in the record the scene-record row writes from its plan and kit,
+    and no place's light data adds lamps."""
+    from score.stages.light import haze
+    from score.stages.scene_record import kit_shell
+    sky = json.loads((REPO / "data/definitions/sky.json").read_text())["earth"]
+    aims = json.loads((REPO / "data/plans/launch.json").read_text())["aims"]
+    plan = {"aims": aims, "floor_height": 0.0,
+            "items": [{"name": aim["at"], "box": [0, 0, 1, 1]} for aim in aims.values()]}
     kit = json.loads((REPO / "data/kit/launch.json").read_text())
+    pads = [light for light in kit_shell.lamps(plan, kit, dict(sky, body="earth"))
+            if "far_pad_floodlight" in light["from"]]
     lenses = [laid for laid in kit["pieces"]
               if laid["kind"] == "launch_far_pad_floodlight" and laid.get("part") == "glow"]
-    assert len(added) == len(lenses) > 0 and all(lamp.get("shaft") for lamp in added), added
-    assert abs(np.linalg.norm(np.asarray(added[0]["at"]) - layer.lens_middle(lenses[0])) - 0.3) < 1e-3
-    assert len(layer.lights_of("launch", record)) == len(record["lights"]) + len(added)
+    assert len(pads) == len(lenses) > 0 and all(light.get("shaft") for light in pads), pads
+    assert not [path for path in (REPO / "data/light").glob("*.json") if "kit_lamps" in json.loads(path.read_text())]
+    assert haze.shafted_kinds("launch") == {"launch_far_pad_floodlight"}
 
 
 def check_needs():
@@ -326,7 +334,7 @@ def main():
     check_sweep()
     check_layer()
     check_copy_leaves_its_input()
-    check_kit_lamps()
+    check_shafts_from_rows()
     check_neighbour_keeps_its_pictures()
     check_magenta()
     check_heads()

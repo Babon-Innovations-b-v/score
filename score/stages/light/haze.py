@@ -18,8 +18,7 @@ SKY = passes.REPO / "data/definitions/sky.json"
 def shafted_kinds(place):
     """The kit kinds the place lays whose lamps light a shaft of haze (its floodlights): each lamp row the sky record
     gives a shaft (data/definitions/sky.json `lamps`, laid as `<room>_<row>`, as the scene-record row lights them:
-    scene_record/kit_shell.lamp_spots) and each kind the place's light data hangs a shafted lamp on
-    (layer.kit_lamps)."""
+    scene_record/kit_shell.lamp_spots)."""
     path = passes.REPO / f"data/kit/{place}.json"
     if not path.is_file():
         return set()
@@ -28,8 +27,6 @@ def shafted_kinds(place):
     rows = {row for body in sky.values() if isinstance(body, dict)
             for row, lamp in (body.get("lamps") or {}).items() if lamp.get("shaft")}
     kinds = {f"{kit.get('room', place)}_{row}" for row in rows}
-    kinds |= {wanted["kind"] for wanted in passes.layer.light_data(place).get("kit_lamps", [])
-              if wanted["light"].get("shaft")}
     return kinds & {laid["kind"] for laid in kit["pieces"]}
 
 
