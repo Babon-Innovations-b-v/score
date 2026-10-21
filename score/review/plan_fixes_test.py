@@ -26,7 +26,7 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
     assert {"placed", "people", "overlap", "arrangement"} <= set(before)
     plan, fixes = plan_fixes.fixed(plan, inventory)
-    assert plan["people"][0] == [5.0, 3.0, None, "worker"] and plan["people"][1] == [9.5, 9.5]
+    assert plan["people"][0] == [5.0, 3.0, 0.0, "worker"] and plan["people"][1] == [9.5, 9.5]
     assert "WORKER 1" not in {item[0] for item in plan["items"]}  # a person is no furniture
     barrels = sorted((item[1], item[2]) for item in plan["items"] if item[0].startswith("BARREL"))
     assert barrels == [(1.5, 6.5), (7.5, 6.5)]  # the missing one where its box projects

@@ -267,7 +267,7 @@ def standing_of(plan):
     """Each people spot in the place's frame: [x, z], its level and the plan item it looks at (None: the middle)."""
     found = []
     for x, y, *rest in plan.get("people", []):
-        spot = placed(plan, x, y, float(rest[0]) if rest else 0.0)
+        spot = placed(plan, x, y, float(rest[0]) if rest and rest[0] is not None else 0.0)  # no level: its floor
         found.append({"at": [float(spot[0]), float(spot[2])], "level": float(spot[1]),
                       "looks_at": rest[1] if len(rest) > 1 else None})
     return found
