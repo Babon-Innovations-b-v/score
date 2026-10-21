@@ -135,15 +135,16 @@ def segment_faults(script, number, segment):
 
 
 def zoom_faults(number, segment):
-    """What is wrong with a scale zoom's legs: each a layer of LAYERS, top down, with its seconds summing to the
-    segment's."""
+    """What is wrong with a scale zoom's legs: each a layer of LAYERS, top down (but for the journey's setting leg,
+    out from one body's world to the next), with its seconds summing to the segment's."""
     legs = segment.get("legs")
     if not isinstance(legs, list) or not legs:
         return [f"segment {number}: a scale zoom lists its legs"]
     found = [f"segment {number}: no layer {leg.get('layer')!r}" for leg in legs if leg.get("layer") not in LAYERS]
-    order = [LAYERS.index(leg["layer"]) for leg in legs if leg.get("layer") in LAYERS]
-    if order != sorted(order):
-        found.append(f"segment {number}: a scale zoom goes down through the layers, never back up")
+    order = [(LAYERS.index(leg["layer"]), bool(leg.get("from_body"))) for leg in legs if leg.get("layer") in LAYERS]
+    if any(after < before and not travels for (before, _), (after, travels) in zip(order, order[1:])):
+        found.append(f"segment {number}: a scale zoom goes down through the layers, back up only across the "
+                     "physics to another body (a setting leg naming `from_body`)")
     if any(not isinstance(leg.get("seconds"), (int, float)) or leg["seconds"] <= 0 for leg in legs):
         found.append(f"segment {number}: every leg names its seconds")
     elif segment.get("seconds") is not None and abs(sum(leg["seconds"] for leg in legs) - segment["seconds"]) > 1e-6:

@@ -36,15 +36,18 @@ def environment_default(source, film):
     setting places no scene holding others."""
     if hasattr(source, "hierarchy"):
         found = source.hierarchy()
-        concept, within, names = source.environment_concept()["environment_concept"], found["within"], found["shells"]
+        concept, plan = source.environment_concept()["environment_concept"], source.environment_plan()["environment_plan"]
     else:
         world = source.world_state()
-        concept, within, names = world.environment_concept, world.within, world.shells
+        concept, plan = world.environment_concept, world.environment_plan
+        found = {"within": world.within, "shells": world.shells, "parts": world.parts, "removed": world.removed}
+    within = {place: holder for place, holder in found["within"].items()
+              if place not in found["parts"] and place not in found["removed"]}
     from score.dashboard.pages.environment import title_of
     starters = [script.read(settings.SCORE_REPO, settings.SCORE_HOME, name)[0]
                 for name in script.names(settings.SCORE_REPO, settings.SCORE_HOME)]
-    facts = default.facts_of(WORLD, title_of(WORLD), (concept or {}).get("concept", {}).get("setting", {}), within,
-                             names, default.drawn_surfaces(starters))
+    facts = default.facts_of(WORLD, title_of(WORLD), (concept or {}).get("concept", {}).get("setting", {}),
+                             (plan or {}).get("plan"), within, found["shells"], default.drawn_surfaces(starters))
     return facts and default.built(film, facts)
 
 

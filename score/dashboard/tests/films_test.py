@@ -2,6 +2,7 @@
 from measured frames only, the page with its free preview's data, saving to the cockpit's home only, the basket taking
 only rows that exist, and environment 1's starter script."""
 import json
+import math
 import re
 
 import pytest
@@ -182,7 +183,7 @@ def test_a_screen_take_never_clicks_what_spends_and_a_scale_zoom_goes_down_only(
     assert any("segment 1 step 1: refused" in fault for fault in found)
     assert "segment 1 step 2: typing never presses Enter (it could send a form)" in found
     assert "segment 1 step 3: no step 'spin'" in found and "segment 1 step 4: move names the element it is `on`" in found
-    assert "segment 2: a scale zoom goes down through the layers, never back up" in found
+    assert any(fault.startswith("segment 2: a scale zoom goes down through the layers") for fault in found)
     assert "segment 2: no layer 'attic'" in found
     assert any(fault.startswith("segment 3: a picture-in-picture") for fault in found)
     for word in ("Draw fresh", "Pick", "Buy", "Keep", "Make plan", "Unlock", "EUR 0.15"):
@@ -338,24 +339,31 @@ def test_buy_leaves_out_the_film_rows_until_a_film_script_is_locked(world, tmp_p
     assert not any("film" in refusal for refusal in flow.item_refusals(items))
 
 
-SETTING = {"bodies": [{"body": "sun", "kelvin": 5772}, {"body": "kepler", "reference": "kepler"},
-                      {"body": "tess", "reference": "tess"}],
-           "sites": [{"place": "port", "on": "tess"}, {"place": "camp", "on": "kepler"}]}
+SETTING = {"bodies": [{"body": "sun", "kelvin": 5772}, {"body": "kepler", "reference": "kepler", "radius_km": 2000.0},
+                      {"body": "tess", "reference": "tess", "radius_km": 1000.0}]}
+# Its plan: the body without the top scene first, so the journey's order (the top scene's body first) is the film's.
+PLAN = {"maps": [{"on": "kepler", "sites": [{"place": "camp", "name": "Camp"}]},
+                 {"on": "tess", "distances": [{"from": "pier", "to": "port", "metres": 80.0}],
+                  "sites": [{"place": "port", "name": "Port"}, {"place": "pier", "name": "Pier",
+                            "sky": {"worlds": [{"world": "kepler", "across": 2 * math.degrees(math.atan(0.02))}]}}]}]}
 
 
 def test_an_environments_default_film_is_the_owners_structure_filled_from_its_own_scenes():
     """The owner's script for environment 1 as every environment's default (2026-10-21): the app's steps, then one
-    shot from the setting down into the top scene's rooms, here an environment that shares no name with his."""
+    shot from the setting down into the top scene's rooms, then on to every other top scene, body by body, here an
+    environment that shares no name with his."""
     from score.dashboard.films import default
     within = {"dock": "port", "bar": "port", "hold": "port", "deck": "port", "tent": "camp"}
-    facts = default.facts_of("world7", "Environment 7", SETTING, within, {"port": "The Port"}, {"tess": "tess_dust"})
+    facts = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
+                             {"tess": "tess_dust"})
     assert facts["top"] == "port" and [room for room, _ in facts["rooms"]] == ["dock", "bar", "hold"]
+    assert [stop["place"] for stop in facts["stops"]] == ["port", "pier", "camp"]
     film = default.built("world7-film", facts)
-    assert script.faults(film, {"port", "camp", "dock", "bar", "hold", "deck", "tent"}) == []
+    assert script.faults(film, {"port", "pier", "camp", "dock", "bar", "hold", "deck", "tent"}) == []
     assert [segment["cut"] for segment in film["segments"]] == [
         "title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take", "scale-zoom",
-        "walk-through", "walk-through", "walk-through"]
-    assert [segment["shows"]["place"] for segment in film["segments"][-3:]] == ["dock", "bar", "hold"]
+        "walk-through", "walk-through", "walk-through", "scale-zoom", "scale-zoom"]
+    assert [segment["shows"]["place"] for segment in film["segments"][-5:]] == ["dock", "bar", "hold", "pier", "camp"]
     assert script.total_seconds(film) <= film["target_seconds"] < script.total_seconds(film) + 5
     assert film["segments"][2]["seconds"] == 12.0
     pages = [segment["shows"].get("page") for segment in film["segments"] if segment["cut"] == "screen-take"]
@@ -363,8 +371,15 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     zoom = film["segments"][6]
     assert zoom["legs"][-1]["rooms"] == ["dock", "bar", "hold"] and zoom["legs"][3]["into"] == "dock"
     assert zoom["surfaces"] == {"tess": "tess_dust", "ground": "tess_dust"} and "kepler" in zoom["waiting"]
+    pier, camp = film["segments"][-2:]
+    assert [leg["layer"] for leg in pier["legs"]] == ["site", "place"] and pier["legs"][0]["from_place"] == "port"
+    assert "Pier, 80 m from The Port" in json.dumps(pier) and pier["pip"]["concept"] == "pier"
+    assert [leg["layer"] for leg in camp["legs"]] == ["world", "setting", "world", "site", "place", "room"]
+    assert camp["legs"][0]["place"] == "pier" and camp["legs"][1]["from_body"] == "tess"
+    assert "Kepler, 100,000 km away" in json.dumps(camp) and camp["legs"][-1]["rooms"] == ["tent"]
+    assert camp["pip"]["to"] - camp["pip"]["from"] >= 3 and all(3 <= shown["seconds"] <= 20 for shown in (pier, camp))
     assert ".sp-card:nth-child(3)" in json.dumps(film["segments"][1]) and "world1" not in json.dumps(film)
-    assert default.facts_of("world7", "E", {"bodies": [], "sites": []}, within, {}, {}) is None
+    assert default.facts_of("world7", "E", {"bodies": []}, {"maps": []}, within, {}, {}) is None
 
 
 def test_the_film_step_opens_on_the_environments_own_film(world, tmp_path, monkeypatch):
