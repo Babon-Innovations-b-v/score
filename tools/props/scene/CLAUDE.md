@@ -81,7 +81,8 @@ serve: skill `make-scene`, bible "How a scene is designed".
   kit builder's kinds table takes a kind's light from `lamps.py`, a row whose row kind glows (its reading `noun`,
   `score/stages/row_kinds.py`) lit by the library's lamp for its mount (`data/library/lamps.json`: ceiling, wall or
   stands; reach from its laid pieces' height, the starting strength the light sweep then measures, shadows by mount).
-  No row carries typed `light` numbers and no builder keeps a lamp list.
+  A reading's row anchored `on:<row>` is mounted as that row is (the library's `mount_words` in its noun, else its
+  own anchor, else what it rests on in turn), so builders pass the inventory's rows to `light_of`. No row carries typed `light` numbers and no builder keeps a lamp list.
 - `ship_kit.py <room> <out.json>` lays a ship room's kit (the ship as an environment 1 place, 2026-10-14; the bridge first)
   from its plan alone (`w`, `d`, the ceiling in its height words, its doors, its `kit` block: the nose's cut corners,
   the windows' sill, head and pillar) and its inventory's spots: walls in two bands of plain plates round the wedge

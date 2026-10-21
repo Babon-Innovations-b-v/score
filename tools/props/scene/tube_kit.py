@@ -184,7 +184,8 @@ def kinds_table(inventory, pieces):
     table = {f"{ROOM}_{kind}": dict(about) for kind, about in KINDS.items()}
     for row in inventory["rows"]:
         kind = f"{ROOM}_{row['id']}"
-        light = lamps.light_of(row, [laid for laid in pieces if laid["kind"] == kind]) if kind in table else None
+        laid = [found for found in pieces if found["kind"] == kind]
+        light = lamps.light_of(row, laid, inventory["rows"]) if kind in table else None
         if light:
             table[kind]["light"] = light
     return table
