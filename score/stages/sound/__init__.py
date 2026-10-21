@@ -16,6 +16,7 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
              the files under `files/`
     gates    sources   every source has a sound with its files, and every object it plays at stands in the place's
                        scene inventory, plan or cast
+             bed       its design decides its bed (beds.py): what the design lacks, or that no library bed fits, fails
              level     every file, measured: its true peak under the ceiling, its loudness within its category's
                        target (tools/sound/loudness), its length within its brief
              likeness  every MOSS-made sound's CLAP match to its prompt at least gates.CLAP_FLOOR
@@ -386,6 +387,7 @@ def layer_faults(folder):
 
 
 LAYER = contracts.Contract("sound-layer", 1, layer_faults, {"time": "second"})
-CHECKS = (checks.Check("sources", gates.judge_sources), checks.Check("level", gates.judge_level),
+CHECKS = (checks.Check("sources", gates.judge_sources), checks.Check("bed", gates.judge_bed),
+          checks.Check("level", gates.judge_level),
           checks.Check("likeness", gates.judge_likeness), checks.Check("no freesound", gates.judge_no_freesound),
           checks.Check("events", gates.judge_events), checks.Check("voices", gates.judge_voices))
