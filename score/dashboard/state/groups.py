@@ -28,8 +28,8 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "demo-stills": "stills", "terrain": "ground", "settle": "settle",
           "sound": "sound", "motion": "motion", "physics-layer": "physics", "physics-trial": "physics trial",
           "surface-tiles": "surface tiles", "ship_kit": "ship kit", "concept_people": "people concepts",
-          "concept-views": "concept views", "library": "library handover", "library-world": "library handover",
-          "demo-turntables": "turntable films", "partition-proposals": "partition proposals",
+          "library": "library handover", "library-world": "library handover",
+          "demo-turntables": "turntable films",
           "people-made": "people from the loop", "people-clips": "people clips"}
 # The crops' own rows: their models are the place's own prop and surface rows (2026-10-20, #26).
 LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on the concept", "crops-layer": "crops",

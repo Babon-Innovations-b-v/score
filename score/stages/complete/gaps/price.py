@@ -389,14 +389,11 @@ def line_chains(runner, places, reading):
 
 def lost_readers(runner, places):
     """{lost input gap id: the nodes that read it} of every place's line and the environment's own (inputs.py's
-    declared files; the owner's pictures read by the concept views' node), so a milestone knows where it waits."""
-    found, concept = {}, fill.FILLERS[fill.CONCEPT][0]
+    declared files), so a milestone knows where it waits."""
+    found = {}
     for place in [*places, None]:
         for (kind, item), entry in inputs.declared_lost(runner, place).items():
             found.setdefault(f"{PLACE}:{inputs.lost_id(kind, item)}", set()).update(entry["nodes"])
-        for path in (inputs.lost_pictures(runner, place) if place and concept in runner.stages else {}):
-            found.setdefault(f"{PLACE}:{inputs.lost_id(inputs.PICTURE, pathlib.Path(path).name)}", set()).add(
-                fill.node_of(concept, place))
     return found
 
 

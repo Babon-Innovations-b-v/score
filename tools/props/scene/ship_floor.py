@@ -3,7 +3,6 @@ rooms, each measured from the hull), read from data/definitions/ship_floor.json 
 (../library/inside/ship_outline.py over data/definitions/ship.json, at the floor plan's length).
 
     python3 tools/props/scene/ship_floor.py <out folder>           # ship-floor.png and ship-floor.json; faults exit 1
-    python3 tools/props/scene/ship_floor.py <out folder> --views   # also concept-views.json: each room's request
 
 Needs the hull's reader, ../library/inside/ship_outline.py, which lands with the 46 m hull (fix-ship-hull); until then
 run it with that file's folder on PYTHONPATH (git show fix-ship-hull:tools/props/library/inside/ship_outline.py).
@@ -29,11 +28,6 @@ PLANS = REPO / "data/plans"
 STEP = 0.1
 # The least clear height a person walks under, and the least depth a side room may have.
 LEAST_CLEAR, LEAST_DEEP = 2.2, 1.5
-# The owner's own reference pictures (the look the inside shares): his cockpit for the cockpit, his quarters for the rest.
-REFERENCES = {"cockpit": "{seeds}/scene/cockpit/views/cockpit.png"}
-QUARTERS_REFERENCE = "{seeds}/scene/cockpit/views/quarters.png"
-LOOK = ("dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white "
-        "panels, warm amber screens and readouts, white light strips")
 
 
 def read_floor(path=FLOOR):
@@ -201,14 +195,6 @@ def rooms_measured(ship, floor):
     return sorted((measured(hull, floor, space) for space in spaces(floor)), key=lambda found: found["y"][0])
 
 
-def neighbours(floor, room):
-    """The spaces a room meets: the ones across a door of its own, or whose doors lead to it."""
-    found = [door["leads"] for door in room.get("doors", []) if door["wall"] != "hull"]
-    found += [space["name"] for space in spaces(floor)
-              if any(door["leads"] == room["name"] for door in space.get("doors", []))]
-    return sorted(set(found) - {room["name"]})
-
-
 def wide_words(size):
     """A room's width in words: one number, or narrowest to widest when they differ by more than a door's width."""
     if size["widest"] - size["narrowest"] < 0.9:
@@ -298,46 +284,6 @@ def door_x(floor, space, door, hull):
     return sign * (floor["walkway"]["wide"] / 2)
 
 
-def wording(floor, room, size):
-    """A room's concept request, worded from its measures and what it holds."""
-    whole = "as wide as the ship" if room["side"] == "whole" else f"on the {room['side']} side, off the walkway"
-    ceiling = f"{size['clear'][0]:.1f} m clear at the front, {size['clear'][1]:.1f} m at the back"
-    holds = "; ".join(room["holds"])
-    joins = ", ".join(neighbours(floor, room))
-    walls = "Its side walls are the hull's sides: they lean" if room["side"] == "whole" else (
-        "Its outer wall is the hull's side: it leans")
-    hull_wall = ("" if room["side"] == "middle" else
-                 f" {walls} out up to {size['waist_over_floor']:.1f} m over the floor, then in toward the ceiling.")
-    steps = "" if len(size["floors"]) < 2 else (
-        f" Its floor steps up toward the back, {len(size['floors']) - 1} steps of "
-        f"{size['floors'][1] - size['floors'][0]:.1f} m, as the hull's belly rises under the stern.")
-    if room["name"] == "walkway":
-        shape = (f"the walkway, the corridor down the ship's middle joining every room, {size['long']:.1f} m long and "
-                 f"{floor['walkway']['wide']:.1f} m wide, {size['clear'][0]:.1f} m clear, a door on each side to the "
-                 "rooms, seen from its forward end at standing eye height, the whole length in view")
-    else:
-        shape = (f"the {room['name']}, {whole}: about {size['long']:.1f} m long and "
-                 f"{wide_words(size)} m wide ({ceiling}), seen from its doorway at standing eye height, the "
-                 "whole room in view")
-    attached = ("a reference picture of the cockpit" if room["place"] == "cockpit"
-                else "a concept painting of the crew quarters")
-    return (f"The attached picture is {attached} inside a spaceship: a flat wedge shuttle, white panels on a dark "
-            f"hull. Draw one concept painting of {shape}, in exactly the same style, materials and light: {LOOK}."
-            f"{hull_wall}{steps} Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: {joins}. "
-            f"It holds: {holds}. No people, no text, no labels, nothing outside the room.")
-
-
-def concept_views(ship, floor):
-    """Each room's request for the concept-views stage (data/definitions/concept_views.json's form)."""
-    sizes = {size["name"]: size for size in rooms_measured(ship, floor)}
-    return [{"id": f"ship46_{space['place']}", "reference": REFERENCES.get(space["place"], QUARTERS_REFERENCE),
-             "wording": wording(floor, space, sizes[space["name"]]), "shape": "landscape",
-             "why": (f"the {space['name']}'s concept cut from the 46 m ship's floor plan (data/definitions/"
-                     "ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; "
-                     "the look the owner's own reference pictures set")}
-            for space in spaces(floor)]
-
-
 def main(arguments):
     out = pathlib.Path(arguments[0])
     out.mkdir(parents=True, exist_ok=True)
@@ -346,8 +292,6 @@ def main(arguments):
     rooms = rooms_measured(ship, floor)
     (out / "ship-floor.json").write_text(json.dumps({"rooms": rooms, "faults": found}, indent=1))
     picture(ship, floor, out / "ship-floor.png")
-    if "--views" in arguments:
-        (out / "concept-views.json").write_text(json.dumps({"views": concept_views(ship, floor)}, indent=1))
     print(f"{len(rooms)} spaces, {len(found)} faults; wrote {out}/ship-floor.png, ship-floor.json")
     return 1 if found else 0
 
