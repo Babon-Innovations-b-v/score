@@ -259,7 +259,8 @@ async function scene(context, segment) {
 async function player(context, segment) {
   const page = await context.newPage();
   await page.goto(job.base + segment.page, { waitUntil: "networkidle" });
-  await page.addStyleTag({ content: `${STILL} #stage { position: fixed !important; inset: 0 !important; z-index: 2147483000; border-radius: 0 !important; }` });
+  // The stage over the whole viewport: its screen's size container (film.css) would hold a fixed child inside it.
+  await page.addStyleTag({ content: `${STILL} .film-screen { container-type: normal !important; } #stage { position: fixed !important; inset: 0 !important; width: auto !important; z-index: 2147483000; border-radius: 0 !important; }` });
   const frames = Math.round(segment.seconds * job.rate);
   for (let frame = 0; frame < frames; frame++) {
     const local = frame / job.rate;

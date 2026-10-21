@@ -2,17 +2,23 @@
 the structure of his script for environment 1 (data/films/env1_demo.json), filled in from the environment's own
 setting and scenes. The app's own steps in its own windows (the setting, its animation, the environment concept, a
 room's concept review, the top scene's inventory and plan), then one unbroken shot from the setting down into the top
-scene's rooms. The top scene is the site holding the most scenes; its rooms the first three it holds. The FILM page
-opens on it until he saves his own; plain Python, the hosted process reads it too.
+scene's rooms, then a walk through each of those rooms. The top scene is the site holding the most scenes; its rooms
+the first three it holds. Every segment long enough to read what it shows (owner, 2026-10-21: the physics animation
+long enough for a body to go a clear way round its orbit), the target the film's own length. The FILM page opens on
+it until he saves his own; plain Python, the hosted process reads it too.
 
     facts  {"world", "title" (the environment's name), "bodies" [body] (the setting's, in its order), "shining"
             [body] (those that shine: drawn by their light, no surface),
             "body" (the top scene's site's body), "top", "top_name", "rooms" [[place, name]],
             "surfaces" {body: library surface} (each body's, as earlier scripts drew it; a body with none waits)}
 """
+import math
+
 from score.dashboard.films import script
 
+# The physics animation: 12 s at 30 days a second, so a year-long orbit (Earth round the Sun) goes nearly once round.
 DAYS_PER_SECOND = 30
+ANIMATION_SECONDS = 12.0
 
 
 def titled(word):
@@ -121,24 +127,34 @@ def zoom(facts):
     return found
 
 
+def walk(room, name):
+    """6 on: a walk through one of the top scene's rooms, on its own sound."""
+    return {**segment("walk-through", {"place": room}, script.WALK_SECONDS, []), "sound": "place", "line": "Inside",
+            "text": name,
+            "waiting": "the finished room and its film (the batch): until then the preview shows its name"}
+
+
 def built(film, facts):
-    """The environment's default script, named `film`."""
+    """The environment's default script, named `film`: its target the film's length, rounded up to 5 s."""
     surfaces, _ = surfaces_of(facts)
-    animation = segment("setting-animation", {"world": facts["world"]}, 4.5, [caption(
-        0.5, 4.3, "Physics animation", f"Their real orbits, {DAYS_PER_SECOND} days a second")],
+    days = round(DAYS_PER_SECOND * ANIMATION_SECONDS)
+    animation = segment("setting-animation", {"world": facts["world"]}, ANIMATION_SECONDS, [caption(
+        0.5, ANIMATION_SECONDS - 0.3, "Physics animation",
+        f"Their real orbits: {days} days in {ANIMATION_SECONDS:g} s")],
         days_per_second=DAYS_PER_SECOND, surfaces={body: surface for body, surface in surfaces.items()
                                                     if body != "ground"},
         note="sizes and orbits enlarged to read")
     title = {"cut": "title", "shows": {"world": facts["world"]}, "transition": "fade-through-black", "sound": "bed",
              "text": "SCORE", "line": facts["title"], "seconds": 4.0}
-    return {"format": script.FORMAT, "version": script.VERSION, "film": film, "title": f"SCORE: {facts['title']}",
-            "world": facts["world"], "default": True, "target_seconds": 70, "size": [1280, 720], "rate": 24,
+    made = {"format": script.FORMAT, "version": script.VERSION, "film": film, "title": f"SCORE: {facts['title']}",
+            "world": facts["world"], "default": True, "size": [1280, 720], "rate": 24,
             "bed": "sound/base_hum", "defaults": {},
             "why": "The default film: the app's own steps in its own windows, then one unbroken shot from the "
-                   "setting down into the top scene's rooms (the owner's script for environment 1, filled in "
-                   "from this environment's scenes)",
+                   "setting down into the top scene's rooms and a walk through each (the owner's script for "
+                   "environment 1, filled in from this environment's scenes)",
             "segments": [title, setting_take(facts), animation, concept_take(facts), review_take(facts),
-                         plan_take(facts), zoom(facts)]}
+                         plan_take(facts), zoom(facts), *(walk(room, name) for room, name in facts["rooms"])]}
+    return {**made, "target_seconds": 5 * math.ceil(script.total_seconds(made) / 5)}
 
 
 def top_scene(sites, within):
