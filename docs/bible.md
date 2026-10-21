@@ -515,7 +515,8 @@ is meant to fix, where it is marked, and what proves it.
   node, so the launch's accepted assembly showed the square and the far city with no children. `neighbours@<place>`
   copies the place's accepted assembly and each neighbour's (read beside, `Stage.beside`: versioned and waited on like
   `after`; a neighbour is its assembly alone, so places that show each other make no cycle) and points the references
-  there; the far city, which no stage makes yet, comes from its seed folder. Gated on `neighbours` (every shown place
+  there; a shown place no stage makes is a gap of the place (the far city and the old seed folders are retired,
+  2026-10-21). Gated on `neighbours` (every shown place
   of the scene record stands, resolves and has children); `complete` reads it (2026-10-12: a place whose shown places
   do not stand is not complete, so the hub's failing assembly stops every place that shows the hub). Proven when the
   square's and the
@@ -578,7 +579,7 @@ is meant to fix, where it is marked, and what proves it.
   no environment 1 key moved. Proven fully when parts, sam and pixal run through it too, after the environment 1 run, and the
   pins gate checks each pin's hashes against the index the build installs from (a triton hash from the wrong index
   passed it and failed a paid build).
-- **Unreviewed environment data**: the far city's towers and lit windows (3 of 5 kinds made, no owner pick), the street
+- **Unreviewed environment data**: the street
   blocks (about 81 models only in a local package, not in the release), the rows made fixed so the drop leaves them
   (square lamp posts, street lamps and notice board, launch masts and floodlights: a count fell, nothing moved), the
   settled rest poses written back into the kit and scene records, the wreck re-laid after its review (e5d829c), and
