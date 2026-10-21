@@ -233,9 +233,9 @@ def test_a_shell_without_its_split_is_a_gap_filled_by_the_row():
 TOLERANCE = 0.5
 # Every room the stage does not reproduce, and why: the hand plan's own choices the split's rules do not make.
 DIFFERS = {
-    "cockpit": "the hand plan starts the inside at 13.5 m, its note saying the hull is under 2.6 m over the deck "
-               "ahead of it; measured from the hull at the deck (lining off) the 2.6 m clear starts at 11.7 m, where "
-               "the split starts, and the cockpit is sized inside plan v7's bounds",
+    "cockpit": "the hand plan starts the inside at 9.7 m, as far forward as 2.2 m clear (the owner's cockpit at the nose, "
+               "2026-10-21); the split starts where 2.6 m clear does, measured from the hull at the deck (lining "
+               "off) at 11.7 m, and sizes the cockpit inside plan v7's bounds",
     "walkway": "it opens behind the cockpit, which ends sooner (above)",
     "storage": "the hand plan sizes each side room by its story; the split grows every room the same share of "
                "its bounds and starts sooner",

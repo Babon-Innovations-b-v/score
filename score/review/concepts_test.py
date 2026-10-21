@@ -250,7 +250,7 @@ def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording
     picked_draw(store, monkeypatch, "base", (10, 200, 10))  # a new pick above: the lab's draw is out of date
     assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     assert concepts.undrawn(store, ["base", "lab"])[0] == ["lab"]
-    assert "In the ship; for flying the ship: two pilot seats" in concepts.generated(store, "cockpit")
+    assert "In the ship; for flying and navigating the ship, one room: the cockpit at the nose" in concepts.generated(store, "cockpit")
 
 
 def test_a_reference_comes_from_the_places_data_and_waits_while_it_is_not_here(store, tmp_path, monkeypatch):
@@ -492,7 +492,7 @@ def test_ship_rooms_share_one_compartment_block_and_are_sent_only_the_crop_of_th
     blocks = {room: concepts.generated(store, room).split(" This concept is number ")[0] for room in SHIP_ROOMS}
     assert len(set(blocks.values())) == 1  # every sibling the identical block
     assert blocks["cockpit"].startswith("The black angular spaceship (picture 1) is divided into these compartments: "
-                                        "1. cockpit and nav (flying the ship), 2. ")
+                                        "1. cockpit and nav (flying and navigating the ship), 2. ")
     assert "7. walkway (the corridor joining every room" in blocks["cockpit"]
     galley = concepts.generated(store, "galley")
     assert "This concept is number 4: galley. " + concepts.INSIDE_ONLY in galley
