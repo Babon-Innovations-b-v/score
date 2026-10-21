@@ -182,6 +182,7 @@ class FakeBackend:
     name = "fake"
     calls = []
     spent, reserved, ceiling = 100.0, 10.0, 250.0
+    paid_refused = None  # why the runner refuses paid work while the month's books are unknown
     euros = 13.67
     refusal = None
     missing = []
@@ -193,17 +194,21 @@ class FakeBackend:
     plan_buys = None  # [node]: what the fake plan buys, else its closeup nodes
 
     def plan(self, group):
+        """Its plan of a group: `plan_buys`, else the close-ups the group names (a stage at each of its places, or a
+        node named as the checkout's one run names each)."""
         FakeBackend.calls.append(("plan", group))
-        bought = (self.plan_buys if self.plan_buys is not None else
-                  [f"{stage}@{place}" for place in group.places for stage in group.stages if stage == "closeup"])
+        named = sorted({stage if "@" in stage else f"{stage}@{place}" for stage in group.stages
+                        for place in group.places})
+        bought = self.plan_buys if self.plan_buys is not None else [node for node in named
+                                                                     if node.startswith("closeup@")]
         buys = [{"node": node, "euros": self.euros, "why": "never ran", "again": False} for node in bought]
         return GroupPlan(missing=list(self.missing), buys=buys, refusal=self.refusal,
-                         to_run={f"{stage}@{place}": "to run: never ran" for place in group.places
-                                 for stage in group.stages}, blocked={})
+                         to_run={node: "to run: never ran" for node in named}, blocked={})
 
     def spend(self):
         FakeBackend.calls.append(("spend",))
-        return Spend(spent=self.spent, reserved=self.reserved, ceiling=self.ceiling, as_of="2026-10-18T12:00:00+00:00")
+        return Spend(spent=self.spent, reserved=self.reserved, ceiling=self.ceiling, as_of="2026-10-18T12:00:00+00:00",
+                     paid_refused=self.paid_refused)
 
     def launch(self, group, jobs, rebuy_reason):
         FakeBackend.calls.append(("launch", group, jobs, rebuy_reason))

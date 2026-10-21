@@ -122,6 +122,7 @@ class Checkout(models.Model):
     before = models.JSONField(default=dict)  # {node: accepted output at checkout}
     launch = models.ForeignKey(Launch, null=True, blank=True, on_delete=models.PROTECT, related_name="checkouts")
     detail = models.TextField(blank=True)
+    pid = models.IntegerField(null=True, blank=True)  # the process running it while launching: gone, it failed
 
     class Meta:
         ordering = ["-at"]

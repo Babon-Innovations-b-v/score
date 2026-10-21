@@ -25,12 +25,18 @@ ORIGIN = "http://127.0.0.1:8780"
 BOOKS = {"month": "2026-10", "bill": 0.0, "ledger": 0.0}  # what a first line counts from (the fake spend reads none)
 
 
+def made_now():
+    """The time a basket is made, as make.py writes it."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def a_basket(settings, buys, declared=None, missing=()):
     """The basket as make.py leaves it, its items from `buys` (priced at the fake backend's numbers)."""
     settings.SCORE_HOME.mkdir(parents=True, exist_ok=True)
     priced = [{"node": node, "why": "never ran", "again": False, "price": dict(FakeBackend.price_of)} for node in buys]
     found = make.grouped(priced, {"closeup": "pieces"}, list(missing), declared or {})
-    records.put_index(settings.SCORE_HOME / "proposals", {"made_at": "2026-10-19T08:00:00Z", "items": found})
+    records.put_index(settings.SCORE_HOME / "proposals", {"made_at": made_now(), "checkout": str(settings.SCORE_REPO),
+                                                          "items": found})
     return {item["id"]: item for item in found}
 
 
@@ -44,6 +50,7 @@ def shop(world, settings, monkeypatch):
     for name in AGENT_MARKERS:
         monkeypatch.delenv(name, raising=False)
     FakeBackend.plan_buys, FakeBackend.bill, FakeBackend.ceiling, FakeBackend.missing = None, [], 250.0, []
+    FakeBackend.paid_refused = None
     world.items = a_basket(settings, ["closeup@alpha", "closeup@beta"])
     return world
 
@@ -132,7 +139,7 @@ def test_an_item_changed_since_he_chose_it_or_waiting_or_missing_inputs_is_refus
 
 # --- the checkout ------------------------------------------------------------------------------------------------
 
-def test_the_checkout_plans_each_item_writes_the_line_and_launches_one_batch(shop, monkeypatch):
+def test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run(shop, monkeypatch):
     monkeypatch.setattr(FakeBackend, "log_folder", None)  # its run writes no result line: still running
     client = api()
     bought(shop, "alpha-pieces", "beta-pieces")
@@ -143,7 +150,7 @@ def test_the_checkout_plans_each_item_writes_the_line_and_launches_one_batch(sho
     assert "alpha: pieces, beta: pieces" in line["reason"]
     assert record["stop_line"]["high"] == 30.0
     planned = [call[1] for call in FakeBackend.calls if call[0] == "plan"]
-    assert planned == [RunGroup(("alpha",), ("closeup",)), RunGroup(("beta",), ("closeup",))]
+    assert planned == [RunGroup(("alpha", "beta"), ("closeup@alpha", "closeup@beta"))]
     assert [call[1] for call in launches()] == planned and "the owner's checkout" in launches()[0][3]
     assert record["launch"] is not None and [item["id"] for item in record["items"]] == ["alpha-pieces", "beta-pieces"]
     assert basket.last_batch()["state"] == "running"  # the Buy screen follows the launched run, not the checkout
@@ -183,6 +190,9 @@ def test_a_basket_that_cannot_fit_under_the_runners_spend_is_refused_before_star
     found = Checkout.objects.get(pk=checked_out(client, "h")["checkout"]["id"])
     assert found.state == "refused" and "cannot finish under the stop: high EUR 15.00, room EUR 5.00" in found.detail
     assert not launches()
+    line = stop_line(shop)  # the line its yes wrote is taken back to the spend so far plus what is in flight
+    assert line["euros"] == 110.0 and line["before"] == round(110.0 + 15.0 * 1.1, 2), line
+    assert found.stop_line["closed"]["euros"] == 110.0 and "refused" in line["reason"]
 
 
 def test_an_agents_process_writes_no_line_and_launches_nothing(shop):
@@ -196,6 +206,92 @@ def test_an_agents_process_writes_no_line_and_launches_nothing(shop):
     found = Checkout.objects.get(pk=record["id"])
     assert found.state == "failed" and "PermissionError" in found.detail
     assert stop_line(shop) is None and not launches()
+
+
+def test_two_items_sharing_an_upstream_node_are_planned_once_and_launched_as_one_run(shop, settings):
+    """Two items at one place (its pieces and its stage and films) read the same upstream nodes: one runner command
+    holds both, each node named, so the runner's clash check (graph/runs.py) has no second run to refuse."""
+    from score.dashboard.launch import localrun
+    shop.items = a_basket(settings, ["closeup@alpha", "pixal@alpha"])
+    assert sorted(shop.items) == ["alpha-pieces", "alpha-stage-and-films"]
+    FakeBackend.plan_buys = ["closeup@alpha", "pixal@alpha"]
+    bought(shop, "alpha-pieces", "alpha-stage-and-films")
+    record = checked_out(api(), "s")["checkout"]
+    assert record["state"] == "launched", record
+    (planned,) = [call[1] for call in FakeBackend.calls if call[0] == "plan"]
+    (launched,) = launches()
+    assert launched[1] == planned == RunGroup(("alpha",), ("closeup@alpha", "pixal@alpha"))
+    assert localrun.run_command(launched[1], 8, None)[4:] == [
+        "world1", "--place", "alpha", "--stage", "closeup@alpha", "--stage", "pixal@alpha", "--jobs", "8", "--detach"]
+
+
+def test_a_basket_made_in_another_checkout_or_before_the_design_changed_is_refused(shop, settings):
+    from score.review import concepts
+    client = api()
+    bought(shop, "alpha-pieces")
+    root = settings.SCORE_HOME / "proposals"
+    made = records.index(root)
+    records.put_index(root, {**made, "checkout": "/home/x/score/.claude/worktrees/agent-ad171d0a"})
+    said = checked_out(client, "w")["said"]
+    assert "the basket was made in /home/x/score/.claude/worktrees/agent-ad171d0a, not in this cockpit's" in said
+    records.put_index(root, {**made, "made_at": "2026-10-19T08:00:00Z"})
+    concepts.recorded(shop.store, "concepts/alpha/picks/20261021T090000.000000+0000.json",
+                      {"place": "alpha", "sha": "a" * 64, "by": "joey", "at": "2026-10-21T09:00:00+00:00"})
+    said = checked_out(client, "w")["said"]
+    assert "the basket was made at 2026-10-19T08:00:00Z, before the design last changed (" in said, said
+    assert not Checkout.objects.exists() and not launches()
+    records.put_index(root, {**made, "made_at": made_now()})  # the next pass's basket
+    assert checked_out(client, "w")["checkout"]["state"] == "launched"
+
+
+def test_the_months_books_unknown_refuse_before_any_line(shop):
+    FakeBackend.paid_refused = "the cloud bill of 2026-10 is not read"
+    client = api()
+    bought(shop, "alpha-pieces")
+    found = Checkout.objects.get(pk=checked_out(client, "b")["checkout"]["id"])
+    assert found.state == "refused" and "the month's books are not known (the cloud bill of 2026-10 is not read)" \
+        in found.detail and "press Read the bills on the Buy screen" in found.detail
+    assert stop_line(shop) is None and not launches()
+
+
+def test_a_checkout_left_launching_by_a_gone_process_is_failed_on_the_next_one(shop):
+    import subprocess
+    import sys
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    left = [Checkout.objects.create(key=key * 32, by="joey", state="launching", pid=pid)
+            for key, pid in (("p", gone.pid), ("q", None))]  # None: a row from before the pid was kept
+    client = api()
+    bought(shop, "alpha-pieces")
+    record = checked_out(client, "m")["checkout"]  # not refused as "another checkout is still launching"
+    assert record["state"] == "launched", record
+    for each in left:
+        each.refresh_from_db()
+        assert each.state == "failed" and f"(pid {each.pid}) ended before it launched" in each.detail
+
+
+def test_an_ended_batch_takes_its_line_back_once(shop, tmp_path, monkeypatch):
+    monkeypatch.setattr(FakeBackend, "log_folder", tmp_path)  # its run writes its result line: done
+    client = api()
+    bought(shop, "alpha-pieces")
+    record = checked_out(client, "t")["checkout"]
+    assert stop_line(shop)["euros"] == 126.5
+    assert flow.tidied(FakeBackend()) == "checkouts: 0 left launching failed, 1 ended batches' lines taken back"
+    line = stop_line(shop)
+    assert line["euros"] == 110.0 and f"checkout {record['id']} closed: its batch ended done" in line["reason"]
+    assert flow.tidied(FakeBackend()).endswith("0 ended batches' lines taken back")
+
+
+def test_a_hosted_checkout_is_followed_to_its_run_with_its_stop_line(shop, monkeypatch):
+    """Applied on the store's machine, a launched checkout reports running with its launch's id (the pass follows
+    it to its end) and the stop line it wrote."""
+    from score.dashboard.sync import applying
+    seen = [{"id": "alpha-pieces", "version": shop.items["alpha-pieces"]["version"]}]
+    item = {"id": 3, "kind": "checkout", "user": "joey", "payload": {"key": "h" * 32, "items": seen}}
+    applied = applying.apply_checkout(item)
+    found = Checkout.objects.get(key="h" * 32)
+    assert applied.state == "running" and applied.launch_id == found.launch_id is not None, applied
+    assert "stop line EUR 126.50" in applied.detail and "its high EUR 15.00 plus 10%" in applied.detail
 
 
 # --- results -----------------------------------------------------------------------------------------------------

@@ -292,7 +292,9 @@ def nodes_by_place(found):
 
 def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line: None, plan_only=False):
     """Make the basket into home/proposals/: the plan, its items, each place's details (none with `plan_only`: no
-    place is assembled), prepare's benchmarks item last (proposals/benchmarks.py); the index. `say` gets one line a place."""
+    place is assembled), prepare's benchmarks item last (proposals/benchmarks.py); the index, with when, on which
+    commit and in which checkout it was made (the checkout refuses one made elsewhere or before the design last
+    changed). `say` gets one line a place."""
     root, work = pathlib.Path(home) / "proposals", pathlib.Path(home) / WORK
     root.mkdir(parents=True, exist_ok=True)
     work.mkdir(parents=True, exist_ok=True)
@@ -312,7 +314,7 @@ def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line:
     for ident, given in declared.items():
         declared_details(ident, given, root)
     found = benchmarks.with_item(found, benchmarks.from_record(pathlib.Path(real_store).parent))
-    index = {"made_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "commit": commit(),
+    index = {"made_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "commit": commit(), "checkout": str(REPO),
              "refusal": planned.refusal, "missing": planned.missing, "items": found, "plan_only": plan_only}
     records.put_index(root, index)
     return index

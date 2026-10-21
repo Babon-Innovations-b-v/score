@@ -1,12 +1,19 @@
 """The owner's one checkout of the basket items he chose to buy. His signed-in checkout is his money yes: refused
-before anything happens when any reason below holds; then, in order, the runner's own plan of each item is checked to
-buy only the nodes he saw priced, the environment's stop line is written at the spend so far plus the basket's high
-total plus 10%, the batch's own stop (score.review.web.stop, refused in an agent's process), the runner's own spend reading must show room for it,
-and ONE batch launches through the compute backend (a run command an item, side by side), whose runner clears every
-paid node again. Nothing here stops a run once started.
+before anything happens when any reason below holds (a basket made in another checkout, or before the design last
+changed, among them); then, in order, the runner plans the whole batch once and must buy only the nodes he saw
+priced, the month's books must be known, the environment's stop line is written at the spend so far plus the basket's
+high total plus 10%, the batch's own stop (score.review.web.stop, refused in an agent's process), the runner's own
+spend reading must show room for it, and ONE run launches through the compute backend holding every bought node
+(`--stage <node>` each, so no two runs of one batch make the same upstream node), whose runner clears every paid node
+again. A checkout refused or failed after its line, and a batch that ended, take the line back to the spend so far
+plus what is in flight (`closed`); a checkout left launching by a process that is gone is failed (`abandoned`).
+Nothing here stops a run once started.
 """
 import datetime
+import os
+import pathlib
 import threading
+import time
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -16,6 +23,7 @@ from score.dashboard.checkout import WORLD, pricing
 from score.dashboard.films import script
 from score.dashboard.launch import guard
 from score.dashboard.launch.backend import GroupPlan, RunGroup
+from score.dashboard.launch.localrun import pid_alive
 from score.dashboard.pages import actions
 from score.dashboard.pages.basket import basket_root
 from score.dashboard.pages.models import Checkout, Launch, Plan, is_owner
@@ -24,6 +32,10 @@ from score.dashboard.state import screens
 
 ACTIVE = ("launching",)
 BUFFER = 1.10  # a batch's stop is its high plus 10%, set by the owner's yes, never a figure he sets (owner, 2026-10-20)
+# The store's areas a design change writes (score/review: a plan, its writing, a scene inventory reading, the
+# environment's plan and concept); a lock or unlock is a record under concepts/<place>/picks/.
+DESIGN_AREAS = ("plans", "plan-writings", "inventory-readings", "environment-plans", "environment-concept")
+ENDED_RUNS = ("done", "failed", "stopped", "refused")
 _checking_out = threading.Lock()
 
 
@@ -79,13 +91,49 @@ def item_refusals(items):
     return found
 
 
+def design_changed(objects_root):
+    """When the design last changed (UTC, to the second): the newest lock or unlock, plan, plan writing, scene
+    inventory reading, environment plan or environment concept version written under the store's `objects_root`;
+    None before any."""
+    root = pathlib.Path(objects_root)
+    folders = [*root.glob("concepts/*/picks"), *(root / area for area in DESIGN_AREAS)]
+    newest = max((path.stat().st_mtime for folder in folders for path in folder.rglob("*")
+                  if path.is_file() and not path.name.endswith(".partial")), default=None)
+    return None if newest is None else time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(newest))
+
+
+def stale_basket(index, checkout, changed):
+    """Why the basket (`index`, make.py's) is not what a run here would buy now, in words: none made, made in another
+    checkout than `checkout` (an agent's worktree), or made before the design last changed (`changed`). Each sync
+    pass makes it again."""
+    if not index:
+        return ["no basket is made yet: the next sync pass makes it"]
+    found, made_in = [], index.get("checkout")
+    if made_in is None or pathlib.Path(made_in).resolve() != pathlib.Path(checkout).resolve():
+        found.append(f"the basket was made in {made_in or 'a checkout it does not name'}, not in this cockpit's "
+                     f"checkout {checkout}: the next sync pass makes it again, then buy again")
+    if changed and index.get("made_at", "") < changed:
+        found.append(f"the basket was made at {index.get('made_at')}, before the design last changed ({changed}): "
+                     "the next sync pass makes it again, then buy again")
+    return found
+
+
+def basket_refusals():
+    """stale_basket of this cockpit's basket against its store; none while hosted (place_refusals says that)."""
+    if settings.SCORE_MODE != settings.LOCAL:
+        return []
+    return stale_basket(records.index(basket_root()), settings.SCORE_REPO,
+                        design_changed(state.source().store.objects.root))
+
+
 def refusals(user, seen, items, changed, confirmed):
     """Every reason the checkout is refused, in words; empty when it may go."""
     found = [] if is_owner(user) else ["only the owner checks out"]
     found += place_refusals()
     if not seen:
         found.append("choose Buy on at least one item first")
-    found += changed + item_refusals(items)
+    found += basket_refusals() + changed + item_refusals(items)
+    abandoned()
     if Checkout.objects.filter(state__in=ACTIVE).exists():
         found.append("another checkout is still launching")
     if actions.running_launch():
@@ -122,7 +170,8 @@ def start(user, key, confirmed, seen, at_once=False):
         try:
             with transaction.atomic():
                 record = Checkout.objects.create(key=key, by=user.username, items=bought, state="launching",
-                                                 totals=pricing.totals(pricing.basket_prices(bought)))
+                                                 totals=pricing.totals(pricing.basket_prices(bought)),
+                                                 pid=os.getpid())
         except IntegrityError:
             record = Checkout.objects.get(key=key)
             return record, f"checkout {record.pk} was already made with this key: {record.state}"
@@ -147,7 +196,9 @@ def ended(record, state_name, words):
 
 
 def run(record, chosen=None):
-    """The checkout's steps in order, in this thread; the Checkout row updated at each."""
+    """The checkout's steps in order, in this thread; the Checkout row updated at each. Every refusal that needs no
+    line comes before it is written (the month's books unknown among them: write_line); one after it, or a failure,
+    takes the line back (`closed`)."""
     chosen = chosen or guard.backend()
     try:
         planned = planned_items(record, chosen)
@@ -159,10 +210,13 @@ def run(record, chosen=None):
         write_line(record, chosen)
         refused = room_refusals(record, chosen)
         if refused:
-            return ended(record, "refused", "the stop line written; nothing launched: " + refused)
+            return closed(ended(record, "refused", "nothing launched: " + refused), chosen, "its checkout was refused")
         return launch(record, planned, chosen)
+    except Refused as refused:
+        return ended(record, "refused", f"nothing launched: {refused}")
     except Exception as error:  # the page shows where the checkout stopped and why
-        return ended(record, "failed", f"{record.detail} stopped: {type(error).__name__}: {error}".strip())
+        failed = ended(record, "failed", f"{record.detail} stopped: {type(error).__name__}: {error}".strip())
+        return closed(failed, chosen, "its checkout failed")
 
 
 def nodes_of(record):
@@ -175,26 +229,31 @@ def accepted_before(record):
     return {node: source.accepted_output(node) for node in nodes_of(record)}
 
 
-def item_group(item):
-    """One item's runner command: its places (none for the environment's own rows) and its nodes' stages; the
-    Benchmarks item's own batch."""
-    if item.get("benchmarks"):
-        return RunGroup(places=(), stages=(), world=WORLD, benchmarks=True)
-    return RunGroup(places=tuple(item["places"]), stages=tuple(sorted({node.split("@")[0] for node in item["nodes"]})),
-                    world=WORLD)
+def batch_groups(items):
+    """The checkout's runner commands: ONE holding every bought node of the items (their places, each node named in
+    --stage, so the run makes only those and what they read: graph line_nodes), so no two runs of the batch would
+    make the same upstream node (graph/runs.py refuses that clash); the Benchmarks item's own batch beside it."""
+    nodes = sorted({node for item in items if not item.get("benchmarks") for node in item["nodes"]})
+    places = sorted({node.partition("@")[2] for node in nodes} - {""})
+    groups = [RunGroup(places=tuple(places), stages=tuple(nodes), world=WORLD)] if nodes else []
+    if any(item.get("benchmarks") for item in items):
+        groups.append(RunGroup(places=(), stages=(), world=WORLD, benchmarks=True))
+    return groups
 
 
-def benchmarks_plan(item):
+def benchmarks_plan(items):
     """The Benchmarks item's plan: its benchmarks as he saw them priced (their batch plans each itself, free, and
     names any whose inputs do not stand a gap: score/stages/complete/prepare/benchmarks.py)."""
+    item = next(item for item in items if item.get("benchmarks"))
     buys = [{"node": node, "why": item["why"][node], "again": False} for node in item["nodes"]]
     return GroupPlan(missing=[], buys=buys, refusal=None, to_run={}, blocked={})
 
 
 def planned_items(record, chosen):
-    """[(group, the runner's plan of it)] an item; the Benchmarks item's own plan."""
-    return [(item_group(item), benchmarks_plan(item) if item.get("benchmarks") else chosen.plan(item_group(item)))
-            for item in record.items]
+    """[(group, the runner's plan of it)]: the batch's one run planned once by the runner; the Benchmarks item's own
+    plan."""
+    return [(group, benchmarks_plan(record.items) if group.benchmarks else chosen.plan(group))
+            for group in batch_groups(record.items)]
 
 
 def plan_refusals(record, planned):
@@ -210,10 +269,23 @@ def plan_refusals(record, planned):
     return found
 
 
-def spend_now(chosen):
+class Refused(RuntimeError):
+    """A reason the checkout is refused found once it runs, in words."""
+
+
+def books_words(why):
+    """The month's books unknown, in words naming the Buy screen's button that reads them."""
+    return (f"the month's books are not known ({why}), so the runner would clear no paid step: press Read the bills "
+            "on the Buy screen, then buy again")
+
+
+def spend_now(chosen, books=False):
     """(spent, reserved) since the environment's first stop line, nothing for an environment with none; RuntimeError when the
-    runner could not read them (a line too low would refuse the batch, one too high would let more through)."""
+    runner could not read them (a line too low would refuse the batch, one too high would let more through). With
+    `books`, Refused while the month's books are not known (compute.clearance refuses every paid job then)."""
     spend = chosen.spend()
+    if books and spend.paid_refused:
+        raise Refused(books_words(spend.paid_refused))
     if spend.ceiling is None:
         return 0.0, 0.0
     if spend.spent is None or spend.reserved is None:
@@ -224,9 +296,10 @@ def spend_now(chosen):
 
 def write_line(record, chosen):
     """The owner's money yes: the environment's stop line at the spend so far, what is in flight and the batch's own
-    stop, its high (pricing.cleared_high: the guessed nodes' estimates with it) plus BUFFER (CONTEXT.md "batch")."""
+    stop, its high (pricing.cleared_high: the guessed nodes' estimates with it) plus BUFFER (CONTEXT.md "batch").
+    Refused, nothing written, while the month's books are not known."""
     from score.review import web
-    spent, reserved = spend_now(chosen)
+    spent, reserved = spend_now(chosen, books=True)
     euros = round(spent + reserved + pricing.cleared_high(record.totals) * BUFFER, 2)
     bought = ", ".join(label(item) for item in record.items)
     line = web.stop(state.source().store, WORLD, euros, f"checkout {record.pk}: {bought}", by=record.by)
@@ -244,6 +317,69 @@ def room_refusals(record, chosen):
     if pricing.cleared_high(record.totals) > room:
         return f"cannot finish under the stop: high EUR {pricing.cleared_high(record.totals):.2f}, room EUR {room:.2f}"
     return ""
+
+
+# --- the line taken back ------------------------------------------------------------------------------------------
+
+def close_line(record, chosen, why):
+    """Write the environment's stop line back at the spend so far plus what is in flight, so nothing more is cleared
+    under this checkout's yes; kept on the record as `closed`. Only while the newest line is still the one this
+    checkout wrote (a later yes's line stands); said as `superseded` otherwise."""
+    from score.review import web
+    store = state.source().store
+    newest = web.stop_line(store, WORLD)
+    if newest is None or newest.get("at") != record.stop_line.get("at"):
+        record.stop_line = {**record.stop_line, "closed": {"superseded": True, "why": why}}
+        record.save()
+        return record
+    spent, reserved = spend_now(chosen)
+    line = web.stop(store, WORLD, round(spent + reserved, 2), f"checkout {record.pk} closed: {why}", by=record.by)
+    record.stop_line = {**record.stop_line, "closed": {"euros": line["euros"], "at": line["at"], "why": why}}
+    record.save()
+    return record
+
+
+def closed(record, chosen, why):
+    """close_line once a checkout that wrote its line ended refused or failed, or its batch ended; the record. A line
+    that cannot be taken back is said on the record, never silently left."""
+    if "euros" not in record.stop_line or record.stop_line.get("closed"):
+        return record
+    try:
+        return close_line(record, chosen or guard.backend(), why)
+    except Exception as error:  # said on the checkout's detail, the page shows it
+        record.detail = f"{record.detail}; its stop line could not be taken back: {type(error).__name__}: {error}"
+        record.save()
+        return record
+
+
+def abandoned(chosen=None):
+    """Fail each checkout left launching by a process that is gone (a cockpit or sync pass killed mid-checkout), with
+    why, its line taken back; the ones failed."""
+    found = []
+    for record in Checkout.objects.filter(state__in=ACTIVE):
+        if record.pid is not None and pid_alive(record.pid):
+            continue
+        gone = f"the process running it (pid {record.pid}) ended before it launched"
+        found.append(closed(ended(record, "failed", f"{record.detail} stopped: {gone}".lstrip()), chosen,
+                            "its checkout failed"))
+    return found
+
+
+def batches_ended(chosen=None):
+    """Take back the line of each launched checkout whose batch ended (done, failed, stopped or refused); the ones
+    closed."""
+    found = []
+    for record in Checkout.objects.filter(state="launched", launch__isnull=False):
+        if record.stop_line.get("closed") or guard.polled(record.launch, chosen).state not in ENDED_RUNS:
+            continue
+        found.append(closed(record, chosen, f"its batch ended {record.launch.state}"))
+    return found
+
+
+def tidied(chosen=None):
+    """Each pass's care of the checkouts: abandoned ones failed, ended batches' lines taken back; in words."""
+    failed, ended_batches = abandoned(chosen), batches_ended(chosen)
+    return f"checkouts: {len(failed)} left launching failed, {len(ended_batches)} ended batches' lines taken back"
 
 
 
@@ -267,5 +403,7 @@ def launch(record, planned, chosen):
     started = guard.launch(started, plan, chosen)
     record.launch = started
     if started.state == "refused":
-        return ended(record, "refused", f"the stop line written; the runner refused: {started.result}")
-    return ended(record, "launched", f"launched one batch of {len(nodes_of(record))} paid nodes")
+        return closed(ended(record, "refused", f"the runner refused: {started.result}"), chosen,
+                      "the runner refused its run")
+    return ended(record, "launched", f"launched one batch of {len(nodes_of(record))} paid nodes, stop line EUR "
+                                     f"{record.stop_line['euros']:.2f}")

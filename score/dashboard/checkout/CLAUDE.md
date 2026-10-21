@@ -7,10 +7,19 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   checkout (a second press with the same key is the same checkout), refused if any item's version moved since he
   chose it (`flow.bought_items`). The stop line is written only through `score.review.web.stop`, which refuses in any
   process an agent started; never write it any other way, never from a test against the real store.
-- **Order is fixed:** the runner's own plan of each item must buy only the priced nodes -> stop line at spend so far
-  + in flight + the basket's high plus 10% (`flow.BUFFER`: a batch's stop is its own high plus the buffer, set by
-  his yes; there is no stop he sets, CONTEXT.md "batch") -> the runner's spend must show room -> ONE batch through the compute backend (a
-  run command an item). Nothing here stops a run once started. The Benchmarks item (`proposals/benchmarks.py`) is
+- **The basket must be this checkout's and current** (`flow.stale_basket`): refused when made in another checkout
+  than the cockpit's (an agent's worktree) or before the design last changed (`flow.design_changed`: the newest
+  lock, plan, plan writing, scene inventory reading, environment plan or concept version in the store). Each sync
+  pass makes it again (`sync/client.basket_made`).
+- **Order is fixed:** the runner plans the whole batch ONCE and it must buy only the priced nodes -> the month's
+  books must be known (`flow.books_words`: else refused, naming Read the bills) -> stop line at spend so far + in
+  flight + the basket's high plus 10% (`flow.BUFFER`: a batch's stop is its own high plus the buffer, set by his
+  yes; there is no stop he sets, CONTEXT.md "batch") -> the runner's spend must show room -> ONE run command through
+  the compute backend holding every bought node (`flow.batch_groups`: each node in `--stage`, so no two runs of one
+  batch make the same upstream node, which graph/runs.py refuses). A refusal or failure after the line, and a batch
+  that ended, write it back at spent plus in flight (`flow.closed`, only while it is still this checkout's line); a
+  checkout left launching by a process that is gone (`Checkout.pid`) is failed (`flow.abandoned`). Nothing here
+  stops a run once started. The Benchmarks item (`proposals/benchmarks.py`) is
   priced at prepare's estimate and launched as its own batch (`RunGroup.benchmarks`), which plans each benchmark
   itself; its stop is its high, guesses in, plus 10% like any item's.
 - **Prices are the runner's.** Each node's likely and high euros, minutes and cards come from the runner's own plan

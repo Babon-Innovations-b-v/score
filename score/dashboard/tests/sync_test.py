@@ -426,9 +426,28 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     # and the gaps after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
     assert "gaps failed: exit 1: no store at " in said, said
     # priced before the push
-    assert said.endswith(f"{PRICED}; plans for the plan stage: test; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
+    assert said.endswith(f"{PRICED}; plans for the plan stage: test; remake batch (estimate): test; benchmarks: none listed; basket made: 0 items, 0 paid steps; library pictures: test; library demos: test")
+    assert "checkouts: 0 left launching failed, 0 ended batches' lines taken back" in said
     assert priced == [world.source.world.name]
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
+
+
+def test_each_pass_makes_the_basket_again_from_the_runners_plan_in_this_checkout(world, monkeypatch, settings):
+    """A basket an agent's worktree made yesterday (a scene merged away since, none of today's rows) is replaced by
+    the runner's plan of today, made here, when and on which commit said: what the checkout reads."""
+    from score.dashboard.proposals import make, records
+    from score.dashboard.tests.fixture import FakeBackend
+    fed(monkeypatch)
+    root = settings.SCORE_HOME / "proposals"
+    records.put_index(root, {"made_at": "2026-10-20T17:45:33Z", "checkout": "/x/.claude/worktrees/agent-a",
+                             "items": [{"id": "navigation-pieces", "nodes": {"closeup@navigation": {}}}]})
+    monkeypatch.setattr(FakeBackend, "plan_buys", ["closeup@alpha", "pixal@beta"])
+    said = client.sync_pass(Hosted([]), world.source, FakeBackend())
+    assert "basket made: 2 items, 2 paid steps" in said, said
+    index = records.index(root)
+    assert index["checkout"] == str(make.REPO) and index["plan_only"] and index["made_at"] > "2026-10-20T17:45:33Z"
+    assert index["commit"] == make.commit()
+    assert sorted(node for item in index["items"] for node in item["nodes"]) == ["closeup@alpha", "pixal@beta"]
 
 
 def test_a_pass_pushes_no_export_when_the_checkout_moved_during_it(world, monkeypatch):
