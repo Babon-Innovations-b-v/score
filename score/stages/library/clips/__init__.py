@@ -39,8 +39,7 @@ from score.stages.library.clips import sample
 from score.stages.library.clips.blender import framing
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
-ROW, SAMPLE_ROW = "library-clips", "library-clips-sample"
-SAMPLES = REPO / "data/definitions/clip_samples.json"  # {"why", "addresses"}: the clips' benchmark (SAMPLE_STAGE)
+ROW = "library-clips"
 SCRIPT = "score/stages/library/clips/blender/render_clips.py"
 FRAMER = "score/stages/library/clips/blender/framing.py"
 DRAWER = "tools/blender/inside/usd_views.py"
@@ -267,11 +266,6 @@ def make(inputs, out, seed, params):
     clipped(wanted(handover.report(pathlib.Path(inputs["library"]))), out)
 
 
-def make_samples(inputs, out, seed, params):
-    """The clips of the sample record's entries (SAMPLES): the clips' benchmark."""
-    clipped(json.loads(pathlib.Path(inputs["samples"]).read_text())["addresses"], out)
-
-
 def output_faults(folder):
     return [] if (pathlib.Path(folder) / CLIPS).is_file() else [f"no {CLIPS}"]
 
@@ -334,15 +328,3 @@ def files(place=None):
 
 STAGE = graph.Stage(ROW, "place", make, CONTRACT, CHECKS, files=files,
                     after={"library": (handover.SCHEMA, handover.VERSION)}, paid=True, euros=EUROS)
-
-
-def sample_addresses():
-    """The sample record's addresses (none without it)."""
-    return json.loads(SAMPLES.read_text())["addresses"] if SAMPLES.is_file() else []
-
-
-# The benchmark (environment data, SAMPLES): a few library drafts of different shelves clipped by the same make, so
-# a clip's seconds and euros are measured before a batch relies on the estimate. One environment node, paid.
-SAMPLE_STAGE = graph.Stage(SAMPLE_ROW, "world", make_samples, CONTRACT, CHECKS,
-                           files=lambda place=None: {"samples": "{data}/definitions/clip_samples.json", **files()},
-                           paid=True, euros=forecast(len(sample_addresses()))["high_euros"])
