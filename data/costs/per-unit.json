@@ -216,7 +216,7 @@
    "basis": "warm work time",
    "forecast": {
     "rule": "light_jobs",
-    "source": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record (data/scene/<place>.json), VIEWS_A_JOB a job"
+    "source": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record: its accepted scene-record output's views, else those the scene-record row writes from its filed plan (price.planned_views: a standing spot one, a door one but outdoors), VIEWS_A_JOB a job"
    }
   },
   "settle": {

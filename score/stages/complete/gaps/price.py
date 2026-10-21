@@ -106,18 +106,29 @@ def surface_takes(data, place):
     return set(json.loads(path.read_text()).get("takes") or {}) if path.is_file() else set()
 
 
-def light_jobs(place):
+def light_jobs(data, place):
     """The light passes' render jobs a place's make sends (passes.pass_jobs: its scene record's views, VIEWS_A_JOB a
-    job), or None while its views are not known (a place whose record the scene-record row has still to write): its
-    accepted scene-record output's views, which its light layer renders."""
+    job): its accepted scene-record output's views, which its light layer renders, else the views the scene-record
+    row will write from its filed plan (planned_views), else None (no plan with leads: no record to light)."""
     from score.stages.light import passes
     from score.store import Store
     store = Store.default()
     output = store.accepted(f"{passes.RECORD}@{place}")
     record = store.read_file(output, f"record/{place}.json") if output else None
-    if record is None:
+    if record is not None:
+        return math.ceil(len(record.get("views") or []) / passes.VIEWS_A_JOB)
+    path = pathlib.Path(data) / "plans" / f"{place}.json"
+    plan = json.loads(path.read_text()) if path.is_file() else {}
+    if "leads" not in plan:
         return None
-    return math.ceil(len(record.get("views") or []) / passes.VIEWS_A_JOB)
+    return math.ceil(planned_views(plan) / passes.VIEWS_A_JOB)
+
+
+def planned_views(plan):
+    """The views the scene-record row writes from a filed plan (scene_record/writer.views, outdoor.views): one from
+    each standing spot (`people`), and one inside each door but in an outdoor place not inside its kit's walls."""
+    outside = plan.get("shell") == "outdoor" and not plan.get("inside")
+    return len(plan.get("people", [])) + (0 if outside else len(plan.get("doors", [])))
 
 
 def sound_takes(data, place):
@@ -138,7 +149,7 @@ def rule_units(rule, found, data, place):
     if rule == "models":
         return len(surface_takes(data, place) | pixal_models(found, data, place))
     if rule == "light_jobs":
-        return light_jobs(place)
+        return light_jobs(data, place)
     if rule == "sound_takes":
         return sound_takes(data, place)
     if rule == "kit_jobs":
