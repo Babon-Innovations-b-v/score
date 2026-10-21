@@ -249,7 +249,7 @@ stage as each stage is built; nothing moves before.
   complete passes, and writes its findings, with their pictures, the same way. (The old ship kit's made pieces laid on
   its base, `ship_made.py`, and `complete-boxes`, which measured the old inventories' boxes, were retired with the old
   kits and inventories on 2026-10-21: a design's every box is its reading's.) The materials checks (`stages/complete/materials`, its overlay: texture detail
-  near cameras, finish-border raggedness, kit bakes older than their bake code) are not gates either: standalone and
+  near cameras, finish-border raggedness) are not gates either: standalone and
   free, their findings reach the cockpit as problems with their pictures.
   `settle` (experimental, paid, its overlay; a place whose design shows a loose row) drops a place's loose objects
   on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly

@@ -23,8 +23,8 @@ for name, entry in sorted(models.items()):
         continue
     bpy.ops.wm.read_factory_settings(use_empty=True)
     item = pieces.build(entry["kind"].split("_", 1)[1], entry["size"], entry.get("laid", {}), name)
-    # The glowing parts (screens, lenses) are split off into a model of their own by the bake (make_kit.glow_split):
-    # left out here, as the model check judges the piece without them.
+    # The glowing parts (screens, lenses) are a model of their own: left out here, as the model check judges the piece
+    # without them.
     glowing = [index for index, slot in enumerate(item.data.materials) if slot.name.split(".")[0] in GLOWING]
     if glowing:
         mesh = bmesh.new()

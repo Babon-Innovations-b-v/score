@@ -6,17 +6,14 @@ read from its design by the palette row, scene_palette.py, an input of the bake)
 records name and reads the kinds' details. The bake reads every library variant as the scene palette gives it
 (palette_library.specs) for the painted names and its job's specs. So a row's key holds, of the library, every variant for a bake row and none for a paint row,
 with their recipes, families and pictures, the kinds' details and the library's own settings (wear levels, dirt); a
-bake row's details.json and composites.json, of the entries its job reads (bake_reads), with each model its job would
-stop on declared missing. Before 2026-10-13 the rows
+bake row's models its job would stop on declared missing (bake_refusals). Before 2026-10-13 the rows
 hashed the whole library folder and place.json, and one surface added for one place re-keyed every place's paint and bake (the hub's assembly wanted
 about EUR 60 of re-buys).
 """
 import json
 import pathlib
 
-from score.store import PROPS_HOME, file_hash
-
-REPO = pathlib.Path(__file__).resolve().parents[3]
+from score.store import file_hash
 
 
 def kinds(record):
@@ -68,58 +65,31 @@ def library_part(kind_names, bakes):
     return part
 
 
-def entries_part(names):
-    """The part of a {name: entry} file (details.json, composites.json) of the entries `names`."""
-    def part(path):
-        found = json.loads(pathlib.Path(path).read_text())
-        return json.dumps({name: found.get(name) for name in names}, sort_keys=True)
-    return part
-
-
-def declared_record(wide, name):
-    """The record a row declares as `name` under {data} (the repository's data, as the table reads it) or {home} (the
-    store, where a scene's design is kept); {} when it declares none or it is not there."""
-    pattern = wide.get(name)
-    roots = {"{data}/": REPO / "data", "{home}/": PROPS_HOME}
-    root = next((prefix for prefix in roots if isinstance(pattern, str) and pattern.startswith(prefix)), None)
-    if root is None:
-        return {}
-    path = roots[root] / pattern[len(root):]
-    return json.loads(path.read_text()) if path.is_file() else {}
-
-
-def bake_reads(place, record, wide):
-    """A bake row's details and composites keyed on the entries its job reads for the models its data writes no
-    entry for (bake_job.reads), and each model bake_job would stop on whatever its take (bake_job.refusal) declared as
-    a file that is never there, naming it (`bake entry <model>`), so the run refuses before anything is cleared."""
+def bake_refusals(record, wide):
+    """Each model of a bake row's data whose entry bake_job would stop on whatever its take (bake_job.refusal),
+    declared as a file that is never there, naming it (`bake entry <model>`), so the run refuses before anything is
+    cleared."""
     import bake_job
     bake = record.get("bake") or {}
-    kit, inventory = declared_record(wide, "kit"), declared_record(wide, "inventory")
     written = bake.get("entries", {})
-    details, composites, refused = set(), set(), {}
+    refused = {}
     for model in bake.get("models", {}):
-        why = bake_job.refusal(place, model, written.get(model), kit, inventory)
+        why = bake_job.refusal(model, written.get(model))
         if why:
             said = why.replace("{", "").replace("}", "")
             refused[f"bake entry {model}"] = f"{wide['surfaces']} gives no entry ({said})"
-        elif not isinstance(written.get(model), dict):
-            kinds_read, props_read = bake_job.reads(place, model, kit)
-            details.update(kinds_read)
-            composites.update(props_read)
-    read = {"details": details, "composites": composites}
-    return {**{name: (wide[name], entries_part(sorted(names))) for name, names in read.items() if name in wide},
-            **refused}
+    return refused
 
 
 def narrowed(files, record_of):
     """A row's world files (`files`: a function of the place, or a dict) with its library keyed on what it reads
-    (`record_of(place)`: the surface data the row paints from), and a bake row's details and composites (it declares
-    `library bake`) on what its job reads (bake_reads). The wide map stays on it as `wide`."""
+    (`record_of(place)`: the surface data the row paints from), and a bake row's (it declares `library bake`) models
+    its job would stop on declared missing (bake_refusals). The wide map stays on it as `wide`."""
     def found(place):
         wide = files(place) if callable(files) else dict(files)
         record = record_of(place)
         bakes = "library bake" in wide
         return {**wide, "library": (wide["library"], library_part(kinds(record), bakes)),
-                **(bake_reads(place, record, wide) if bakes else {})}
+                **(bake_refusals(record, wide) if bakes else {})}
     found.wide = files
     return found

@@ -101,22 +101,14 @@ def a_record(**changes):
             "files": {}, **changes}
 
 
-def test_a_declared_record_is_read_from_the_design_in_the_store_or_the_data():
-    """A bake's scene inventory is its design's ({home}/design/inventory, kept in the store); a {data} record is read
-    from the repository's data; any other pattern, or one not there, reads as none."""
+def test_a_bake_model_with_no_written_entry_is_declared_missing_by_name():
+    """A bake row's model its data writes no entry for is a file that is never there, naming it; one written out, or
+    a design's written without a turn, is none."""
     from score.stages.surfaces import library_reads
-    (PROPS_HOME / "work").mkdir(parents=True, exist_ok=True)
-    folder = pathlib.Path(tempfile.mkdtemp(prefix="library-reads-", dir=PROPS_HOME / "work"))
-    try:
-        (folder / "inventory.json").write_text(json.dumps({"rows": [{"id": "crate"}]}))
-        kept = "{home}/" + folder.relative_to(PROPS_HOME).as_posix() + "/inventory.json"
-        assert library_reads.declared_record({"inventory": kept}, "inventory") == {"rows": [{"id": "crate"}]}
-        assert library_reads.declared_record({"row kinds": "{data}/checks/row-kinds.json"}, "row kinds") == \
-            json.loads((REPO / "data/checks/row-kinds.json").read_text())
-        assert library_reads.declared_record({"inventory": "{home}/nowhere.json"}, "inventory") == {}
-        assert library_reads.declared_record({"inventory": "{seeds}/x.json"}, "inventory") == {}
-    finally:
-        shutil.rmtree(folder)
+    record = {"bake": {"models": {"bench_1": "bench-t1", "lost_1": "lost-t1"},
+                       "entries": {"bench_1": {"size": [2.0, 0.9, 0.5]}}}}
+    refused = library_reads.bake_refusals(record, {"surfaces": "{home}/design/surfaces/hub.json"})
+    assert list(refused) == ["bake entry lost_1"] and "no entry for lost_1" in refused["bake entry lost_1"], refused
 
 
 def test_a_record_from_an_uncommitted_tree_or_a_changed_code_without_proof_never_carries():

@@ -79,11 +79,8 @@ def job_head(data, short, records):
     (palette_library.read, read from its design) with baked_specs, as the place walks it."""
     import bake_job
     palette = palette_library.read(short)
-    head = bake_job.job_head(palette_library.wear(palette), palette_library.specs(palette),
-                             bake_job.outside(place_line.read_or_none(short, "kit")))
+    head = bake_job.job_head(palette_library.wear(palette), palette_library.specs(palette))
     head["specs"] = place_line.unwalked(baked_specs(palette, head["specs"], records), data)
-    for key in ("kit", "pieces", "code", "was"):
-        head.pop(key, None)
     return head
 
 
@@ -111,7 +108,7 @@ def card_job(inputs, short, out, take, files):
     pixal = prop_env.PROPS_HOME / "work/pixal"
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     world = [path for name, path in short.items()
-             if name.startswith("inventory ") or name in ("kit", "inventory", "surfaces", "resting rules")]
+             if name.startswith("inventory ") or name in ("surfaces", "resting rules")]
     read = [listing, records, claimed, head, short["parts"] / "parts.json", short["parts"] / take, *world, *models,
             *(place_line.REPO / folder for folder in (*place_line.PAINT_REPO, *BAKE_REPO))]
     job = out / f".bake-{take}-job.json"
@@ -182,10 +179,9 @@ def bake_job_step(inputs, out):
     data = place_line.data_of(inputs)
     take = inputs[place_line.TAKE].name
     labelled = out / "labelled" / take
-    kit, inventory = place_line.read_or_none(inputs, "kit"), place_line.read_or_none(inputs, "inventory")
     head = json.loads(inputs[HEAD].read_text())
-    entries = {model: dict(bake_job.entry_of(data["place"], model, data["bake"].get("entries", {}).get(model), kit,
-                                             inventory, labelled), name=model, parts=str(labelled), regions=[])
+    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled), name=model,
+                           parts=str(labelled), regions=[])
                for model in head.pop("models")}
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))

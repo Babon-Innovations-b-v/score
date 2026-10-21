@@ -14,9 +14,7 @@ The gates, each failing an object by name:
   applies to it: its scores are measured and shown, never judged, and `outline` holds its likeness (#10; the accepted
   set the least was first set on went with the old disk, so a calibration for it is the owner's to name).
 - `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names; a code
-  build's fitting shows every part its close-up has (sorter.missing_parts, fittings.json: none recorded since the
-  old models retired); a plain kind (sorter.PLAIN)
-  has no parts to show; any other code build is unknown (nothing measured its parts).
+  build is unknown (nothing measures its parts: the fittings' parts check went with the code fallback, 2026-10-22).
 - `thin and in proportion`: tools/props/gates/model.py's check (thinnest wall, spread against the row's size).
 - `lean`: tools/props/library/straight.py on a generated model of a kind that stands square, as it exists: code
   builds are not held to it. No rule names such a kind since the old kinds' details (data/library/details.json)
@@ -84,14 +82,6 @@ def finishes_missing(take, parts):
         return None
     owned = {row["words"] for row in entry["parts"]}
     return [finish["finish"] for finish in entry["finishes"] if finish["finish"] not in owned]
-
-
-def code_parts_missing(place, row):
-    """A code fallback's parts its close-up shows and its build does not, by the one check route.py layout holds it to
-    (sorter.fallback_parts_missing: [] for a fallback fittings.json does not list)."""
-    with prop_data.tools("props/library"):
-        import sorter
-    return sorter.fallback_parts_missing(f"{place}_{row}")
 
 
 def model_checks(path, size, kind, square):
@@ -171,8 +161,8 @@ def object_record(row, record, inputs, baked, parts, sizes, square, cuts):
     kind = f"{place}_{row}"
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup),
                  **model_checks(model, sizes[row], kind, route == "prop" and kind in square))
-    found["parts_missing"] = (finishes_missing(record["objects"][row]["take"], parts) if route == "prop"
-                              else code_parts_missing(place, row))
+    # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
+    found["parts_missing"] = finishes_missing(record["objects"][row]["take"], parts) if route == "prop" else None
     return found
 
 

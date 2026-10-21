@@ -33,7 +33,7 @@ import recipes
 
 LARGEST = 4096
 # A generated piece past one LARGEST picture set at its density is split into maps (`split`), each a LARGEST set at most,
-# baked at the room kit's density (route.FAR and place_route's code jobs, 512 texels a metre of normal map; the kit
+# baked at the room kit's density (route.FAR, 512 texels a metre of normal map; the kit
 # measured 152 to 567 colour texels a metre near the films' cameras, the audit of 2026-10-18, against 52 to 89 on the
 # capped ship, wreck, lander and old station modules). The ship (854 m2) takes 22 maps; MOST_MAPS holds the memory a
 # piece's bake and the game's textures take, and past it the piece takes the density that fits and says so.

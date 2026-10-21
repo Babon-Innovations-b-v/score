@@ -1,15 +1,14 @@
-"""The materials checks' measures on small meshes of known shape, and the kit bake code they hold a kit's bake to.
+"""The materials checks' measures on small meshes of known shape.
 (Their fixtures of real evidence, data/checks/materials/<place>.json.gz from the old concepts' places, were retired
 with those places on 2026-10-21; measure a place again with measure.gather when a rule needs a case.)
 
     finish borders   a straight border between two finishes measures 1.00, a 45 degree staircase 1.4
     texture detail   a metre square painted from a 512 picture holds 512 pixels a metre
-    kit bake age     the bake code is the route and its bake, never the piece builders
 """
 import numpy as np
 from PIL import Image
 
-from score.stages.complete.materials import borders, judge, kit_age, meshes, texel
+from score.stages.complete.materials import borders, judge, meshes, texel
 
 
 def test_a_place_fails_on_any_finding_and_passes_with_none():
@@ -50,12 +49,3 @@ def test_a_metre_square_painted_from_a_512_picture_holds_512_pixels_a_metre(tmp_
     square = meshes.Drawn("square", points, triangles, corners, {}, {"": str(picture)})
     assert abs(texel.density([square]) - 512) < 1e-6
     assert abs(texel.density([square], area_scale=4.0) - 256) < 1e-6
-
-
-def test_the_bake_code_is_the_route_and_its_bake_not_the_piece_builders():
-    code = {path.name for path in kit_age.bake_files(kit_age.ROUTES["code"])}
-    generated = {path.name for path in kit_age.bake_files(kit_age.ROUTES["generate"])}
-    assert {"make_kit.py", "bake.py", "recipes.py"} <= code and "pieces.py" not in code
-    assert {"make_chunky.py", "bake.py", "recipes.py"} <= generated and "shapes.py" not in generated
-
-

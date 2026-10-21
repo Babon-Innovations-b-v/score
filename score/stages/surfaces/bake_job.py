@@ -1,26 +1,19 @@
 """A place's bake job written from git, inside the bake's make: no job file to keep or to lose (2026-10-19: the 30 job
 files under the work folder went with the old disk, and every surface bake blocked on them).
 
-    job_head(wear_dirt, specs, outside)           the job's top-level fields: script, density, wear, dirt, seed,
-                                                  faces, specs, as the place's route writes them
-    entry_of(place, model, inline, kit, inventory, labelled)  one model's make_chunky entry
-    measured_turn(labelled, size)                  a design entry's turn, measured over its labelled take
-    refusal(place, model, inline, kit, inventory)  why entry_of stops on it whatever its labelled take, or None
-    reads(place, model, kit)                       (details kinds, composite props) its route's entry reads
+    job_head(wear_dirt, specs)            the job's top-level fields: script, density, wear, dirt, seed, faces, specs
+    entry_of(model, inline, labelled)     one model's make_chunky entry
+    measured_turn(labelled, size)         a design entry's turn, measured over its labelled take
+    refusal(model, inline)                why entry_of stops on it whatever its labelled take, or None
 
-A model's entry is the one its surface data writes out (a design's written without a turn: measured_turn over its
-labelled take), else the route's own entry for it, written by the route's own
-code over the place's data: an outside place's (tools/props/library/place_route.py `chunky_entry`, its kit record has
-an `on_seat`: package.py's) sized by `place_route.made_size` over its labelled take and its inventory row, a kit
-room's (tools/props/library/route.py `jobs`) at its laid size in data/kit/<place>.json. A model with neither fails the
-make, by name: a gap, never a guessed size.
+A model's entry is the one its surface data writes out: its design's (prepare's hand-in, compare.bake_entry: the row's
+size, near density, faces and foot, written without a turn: measured_turn over its labelled take), the people line's
+as written. A model the data writes no entry for fails the make, by name: a gap, never a guessed size. The routes
+that wrote an entry from a kit room's laid size or an outside place's inventory row (and read the kinds' details and
+the composites) went with the old kits and inventories (owner, 2026-10-21: every stage builds from the design alone).
 
-The world files it reads are the bake row's (surface_data.job_files), its details and composites keyed on the
-entries `reads` names and each model `refusal` stops declared missing before anything is cleared (the table's
-library_reads.narrowed). Kept small and apart from place_line.py on
-purpose: the paid bake row's code version hashes it.
+Kept small and apart from place_line.py on purpose: the paid bake row's code version hashes it.
 """
-import json
 import math
 
 import library
@@ -33,39 +26,25 @@ TURNS = {0: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], 90: [0.0, 0.0, 1.0, 0
 
 
 class NoEntry(RuntimeError):
-    """A model the place bakes whose entry nothing in git gives."""
+    """A model the place bakes whose entry its data does not write."""
 
 
 class NoTake(NoEntry):
-    """An outside place's model with no labelled take to size its entry over."""
-
-
-def outside(kit):
-    """Whether a kit record is an outside place's (place_route's package: it says where it sits on its seat)."""
-    return "on_seat" in kit
+    """A model whose entry has no turn and no labelled take to measure one over."""
 
 
 def specs_of(library_name):
-    """Every library surface the place's route bakes with: each variant by its own name and the place's own names
-    (library.by_library, library.resolved), as both routes' `jobs` write them."""
+    """Every library surface the people line's bake bakes with: each variant by its own name and the place's own
+    names (library.by_library, library.resolved)."""
     return dict(library.by_library(library_name), **library.resolved(library_name))
 
 
-def job_head(wear_dirt, specs, is_outside):
-    """The job's top-level fields, as the place's route writes its make_chunky job (place_route.chunky_jobs or
-    route.jobs), at the scene's (wear, dirt) with its specs; its out and report are the bake's own."""
+def job_head(wear_dirt, specs):
+    """The job's top-level fields at the scene's (wear, dirt) with its specs, at a near model's density and triangle
+    budget (route.NEAR, route.CHUNKY_FACES); its out and report are the bake's own."""
     wear, dirt = wear_dirt
-    density, faces = (place_route.DENSITY, 19000) if is_outside else (route.NEAR, route.CHUNKY_FACES)
-    return {"script": "make_chunky.py", "density": density, "wear": wear, "dirt": dirt, "seed": 3, "faces": faces,
-            "specs": specs}
-
-
-def details_of(kind, model):
-    details = place_route.DETAILS
-    found = (json.loads(details.read_text()) if details.exists() else {}).get(kind)
-    if not found or "turn" not in found:
-        raise NoEntry(f"no entry for {model}: kind {kind} has no details (data/library/details.json turn)")
-    return found
+    return {"script": "make_chunky.py", "density": route.NEAR, "wear": wear, "dirt": dirt, "seed": 3,
+            "faces": route.CHUNKY_FACES, "specs": specs}
 
 
 def measured_turn(labelled, size):
@@ -79,127 +58,27 @@ def measured_turn(labelled, size):
     return TURNS[min(TURNS, key=misfit)]
 
 
-def outside_row(model, inventory):
-    """An outside place's inventory row a model is entered from (named by its id)."""
-    row = next((row for row in inventory.get("rows", []) if row["id"] == model), None)
-    if row is None:
-        raise NoEntry(f"no entry for {model}: no inventory row of that id")
-    return row
-
-
-def outside_entry(place, model, inventory, labelled):
-    """place_route's entry for an outside place's model (one inventory row, named by its id), sized over its
-    labelled take."""
-    row = outside_row(model, inventory)
-    own = details_of(f"{place}_{model}", model)
-    if labelled is None:
-        raise NoTake(f"no entry for {model}: no labelled take to size it over")
-    size = place_route.made_size(labelled, place_route.kit_size(row["size"]), place_route.yaw_of(own["turn"]))
-    planned = {"size": size, "faces": place_route.faces_for(model, row["size"])}
-    return place_route.chunky_entry(model, planned, own, labelled.parent, labelled.name)
-
-
-def laid_foot(piece):
-    """How high a laid piece's foot stands over its floor (route.foot_of), its own `foot` where it says one."""
-    return piece.get("foot", route.foot_of(piece["at"][1]))
-
-
-def laid_near(piece):
-    """Whether a laid piece comes within the player's reach (route: its middle under REACH_HIGH)."""
-    up = piece["y"][1] if "y" in piece else 1.0
-    return piece.get("near", piece["at"][1] + up * piece["size"][1] / 2 < route.REACH_HIGH)
-
-
-def furniture_foot(model, inventory):
-    """route.furniture's foot of a furniture model (`<row>_1`): its row's lowest spot, 0 with none."""
-    row = next((row for row in inventory.get("rows", []) if f"{row['id']}_1" == model), None)
-    if row is None:
-        raise NoEntry(f"no entry for {model}: not laid in the kit and no inventory row <row>_1")
-    return min((route.foot_of(spot["y"]) for spot in row.get("at", [])), default=0.0)
-
-
-def child_of(model, kit, inventory):
-    """route.children's kind and foot of a composite's child model (the hub's telephone on its comms desk): the kind
-    of its parent's composite child (data/library/composites.json) of its name and size, standing on its parent's
-    foot at its height there."""
-    models = kit.get("models", {})
-    parent = models[models[model]["child_of"]]
-    composites = json.loads(route.COMPOSITES.read_text()) if route.COMPOSITES.is_file() else {}  # retired 2026-10-21
-    kinds = [child["kind"] for child in composites.get(parent.get("prop"), {}).get("children", [])
-             if f"{route.own_name(child['kind'])}_" in f"{model.rsplit('_', 1)[0]}_"
-             and route.made_size(child["size"]) == route.made_size(models[model]["size"])]
-    spots = [child["at"][1] for child in parent.get("children", []) if child["model"] == model]
-    if not kinds or not spots:
-        raise NoEntry(f"no entry for {model}: its parent's composite names no child of its name and size")
-    return kinds[0], round(furniture_foot(models[model]["child_of"], inventory) + min(spots), 3)
-
-
-def room_entry(model, kit, inventory):
-    """route.jobs' entry for a kit room's model: at its laid size (its first piece's in the kit, or the furniture or
-    composite child model's own), its kind's details."""
-    laid = [piece for piece in kit.get("pieces", []) if piece.get("model") == model]
-    own_model = kit.get("models", {}).get(model, {})
-    if laid:
-        kind, size = laid[0]["kind"], laid[0]["size"]
-        near, foot = any(map(laid_near, laid)), min(map(laid_foot, laid))
-    elif own_model.get("child_of") and own_model.get("size"):
-        (kind, foot), size, near = child_of(model, kit, inventory), own_model["size"], True
-    elif own_model.get("prop") and own_model.get("size"):
-        kind, size, near, foot = own_model["prop"], own_model["size"], True, furniture_foot(model, inventory)
-    else:
-        raise NoEntry(f"no entry for {model}: not laid in the kit, no furniture or composite child size")
-    own = details_of(kind, model)
-    planned = {"kind": kind, "near": near}
-    return {"name": model, "base": own["turn"], "size": [float(side) for side in size],
-            "screens": own.get("screens", []), "cuts": own.get("cuts", []), "density": route.density_of(planned),
-            "decals": own.get("decals", []), "foot": foot, "faces": route.faces_for(size),
-            "regions": own.get("regions", []), "wall": own.get("wall", route.ROOM_WALL)}
-
-
-def entry_of(place, model, inline, kit, inventory, labelled):
-    """One model's make_chunky entry: `inline` (the surface data's own) when given, else its route's (module
-    docstring). `kit`, `inventory`: the place's records ({} when it has none); `labelled`: its labelled take."""
+def entry_of(model, inline, labelled):
+    """One model's make_chunky entry: `inline` (the surface data's own), turned by measured_turn over `labelled` (its
+    labelled take) when it says no turn (module docstring)."""
     if isinstance(inline, str):
         raise NoEntry(f"no entry for {model}: the data names a job file ({inline}); write its entry out or drop it")
-    if inline is not None and "base" not in inline:
-        if labelled is None:
-            raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
-        return dict(inline, name=model, base=measured_turn(labelled, inline["size"]))
-    if inline is not None:
+    if inline is None:
+        raise NoEntry(f"no entry for {model}: the data writes none (a design's hand-in writes one for every model)")
+    if "base" in inline:
         return dict(inline, name=model)
-    if not kit:
-        raise NoEntry(f"no entry for {model}: the data writes none and the place has no kit")
-    if outside(kit):
-        return outside_entry(place, model, inventory, labelled)
-    return room_entry(model, kit, inventory)
+    if labelled is None:
+        raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
+    return dict(inline, name=model, base=measured_turn(labelled, inline["size"]))
 
 
-def refusal(place, model, inline, kit, inventory):
-    """Why entry_of stops on a model whatever its labelled take, or None: entry_of's own checks, run without the
-    take (an outside place's model is sized over it in the bake, so its absence here is no refusal)."""
+def refusal(model, inline):
+    """Why entry_of stops on a model whatever its labelled take, or None: entry_of's own checks, run without the take
+    (a turn is measured over it in the bake, so its absence here is no refusal)."""
     try:
-        entry_of(place, model, inline, kit, inventory, None)
+        entry_of(model, inline, None)
     except NoTake:
         return None
     except NoEntry as refused:
         return str(refused)
     return None
-
-
-def reads(place, model, kit):
-    """(details kinds, composite props) of data/library the route's own entry of a model reads: an outside place's
-    `<place>_<model>`, a kit room's laid kind or furniture prop, a composite child's parent prop and its children's
-    kinds (child_of picks one of them by name and size)."""
-    if outside(kit):
-        return [f"{place}_{model}"], []
-    laid = [piece for piece in kit.get("pieces", []) if piece.get("model") == model]
-    models = kit.get("models", {})
-    own_model = models.get(model, {})
-    if laid:
-        return [laid[0]["kind"]], []
-    if own_model.get("child_of"):
-        prop = models.get(own_model["child_of"], {}).get("prop")
-        composites = json.loads(route.COMPOSITES.read_text()) if route.COMPOSITES.is_file() else {}  # retired
-        children = composites.get(prop, {}).get("children", [])
-        return sorted({child["kind"] for child in children}), [prop] if prop else []
-    return ([own_model["prop"]] if own_model.get("prop") else []), []

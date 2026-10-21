@@ -2,16 +2,15 @@
 
     <folder>/evidence.json   {"place", "outputs": {node: output read}, "objects": [{prim, model, row, kind, made,
                              near, px_per_m}], "models": [{prim, model, near, parts: [{part, border_m, smooth_m,
-                             ragged}]}], "kit": [{model, prims, route, baked_by, known_by}], "bake_code": {route:
-                             [{commit, at, subject}]}}
+                             ragged}]}]}
 
-`objects` feeds texel.py, `models` (each model with two finishes or more, once) borders.py, `kit` and `bake_code`
-kit_age.py. The place's accepted assembly is linked (assets.linked) under <cache>/<output>, where the pictures read it.
+`objects` feeds texel.py, `models` (each model with two finishes or more, once) borders.py. The place's accepted
+assembly is linked (assets.linked) under <cache>/<output>, where the pictures read it.
 """
 import json
 import pathlib
 
-from score.stages.complete.materials import assets, borders, kit_age, meshes, texel
+from score.stages.complete.materials import assets, borders, meshes, texel
 
 EVIDENCE = "evidence.json"
 
@@ -95,11 +94,9 @@ def gather(store, place, folder, cache):
                         place_cameras(store, outputs, linked, place))
     drawn = drawn_models(linked, objects)
     objects = with_density(objects, drawn)
-    seed = (json_file(linked, "inputs.json") or {}).get("models", {})
     evidence = {"place": place, "outputs": outputs, "linked": str(linked),
                 "objects": [kept(entry) for entry in objects],
-                "models": border_models(objects, drawn), "kit": kit_age.kit_models(objects, rows, seed),
-                "bake_code": {route: kit_age.code_commits(route) for route in kit_age.ROUTES}}
+                "models": border_models(objects, drawn)}
     path = pathlib.Path(folder) / EVIDENCE
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(evidence, indent=1))

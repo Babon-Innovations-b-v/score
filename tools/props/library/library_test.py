@@ -1,4 +1,4 @@
-"""Check the material library's data (library.py, data/library/) and the sorter (sorter.py): plain python, no Blender.
+"""Check the material library's data (library.py, data/library/): plain python, no Blender.
 Run: python3 tools/props/library/library_test.py
 """
 import ast
@@ -15,7 +15,6 @@ import pytest
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import library  # noqa: E402
-import sorter  # noqa: E402
 import stored  # noqa: E402
 
 
@@ -89,42 +88,6 @@ def test_a_token_colour_is_linear():
     assert abs(library.linear("#808080")[0] - 0.2159) < 1e-3
 
 
-def test_nothing_goes_to_code_without_a_named_pipeline_failure():
-    """#19 (the owner, 2026-10-20): every kind goes through the prop pipeline; neither plainness nor a fitting's
-    parts check sends one to code. Only a kind the pipeline-failure record names is code-built; the old record
-    retired with the old models (2026-10-21), so with none on file every kind goes to the pipeline."""
-    for kind in ("hub_wall_upper_plain", "hub_toolboard", "hub_pipe_straight", "cockpit_thrust_indicator"):
-        assert sorter.route(kind, {}) == "model", kind
-        assert sorter.route(kind, {kind: {"failure": "every take failed"}}) == "code", kind
-    assert sorter.failures(HERE / "no-such-record.json") == {} and sorter.fittings(HERE / "no-such-record.json") == {}
-    assert sorter.shape_class("hub_lattice_hip_rib", (0.12, 4.6, 0.12)) == "slender"
-    assert sorter.shape_class("hub_porthole_panel", (1.2, 1.2, 0.1)) == "opening"
-
-
-def test_every_named_failure_says_what_failed_where_and_when():
-    for kind, entry in sorter.failures().items():
-        assert entry["failure"] and entry["evidence"] and re.fullmatch(r"\d{4}-\d\d-\d\d", entry["on"]), kind
-
-
-def test_a_fitting_s_parts_check_holds_its_code_fallback_but_never_routes_it():
-    """Method B's parts check (hub round five) stays the check a code fallback's build must pass (route.py layout):
-    every part its close-up has seen at least SEEN_AT_LEAST from in front, no print over a part. It no longer sends
-    a fitting to code: a fitting whose build shows every part still goes through the pipeline unless its failure is
-    named."""
-    parts = ["slab", "slat", "vent_back"]
-    shown = {"parts": parts, "built": {"slab": 0.86, "slat": 1.0, "vent_back": 0.85}}
-    buried = {"parts": parts, "built": {"slab": 0.33, "slat": 0.0, "vent_back": 0.0}}
-    assert sorter.missing_parts(shown) == []
-    assert sorter.missing_parts(buried) == ["slat", "vent_back"]
-    assert sorter.missing_parts({"parts": parts, "built": {"slab": 0.9, "slat": 1.0}}) == ["vent_back"]
-    assert sorter.missing_parts({"parts": parts}) == parts
-    # A print over a part (round six: a locker's label over its vent) fails the fallback too.
-    assert sorter.missing_parts(dict(shown, prints_off=["wall_lower_vent_1: label#52"])) == [
-        "print off a clear area: wall_lower_vent_1: label#52"]
-    assert sorter.route("hub_wall_lower_vent", {}) == "model"
-    assert sorter.route("hub_wall_lower_vent", {"hub_wall_lower_vent": {"failure": "every take failed"}}) == "code"
-
-
 def chunky_default_wall():
     """make_chunky's default_wall with the constants it reads, taken from its text (make_chunky needs Blender)."""
     tree = ast.parse((HERE / "inside/make_chunky.py").read_text())
@@ -148,13 +111,6 @@ def builder_texts():
     kits' builders, the hub's, the camp's, the Earth rooms', the ship rooms' and the hangar ship's, went with the old
     kits on 2026-10-21)."""
     return [(HERE / "inside" / name).read_text() for name in ("pieces.py", "pieces_bodies.py")]
-
-
-def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
-    text = "\n".join(builder_texts())
-    for name, entry in sorter.fittings().items():
-        assert entry["closeup"] and entry["parts"], name
-        assert f"def {name}(size, laid):" in text, name
 
 
 def test_every_code_builder_is_a_body_a_take_names():

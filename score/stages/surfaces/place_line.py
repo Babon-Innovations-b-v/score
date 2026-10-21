@@ -587,23 +587,17 @@ def judge_concept_colour(output, inputs, evidence):
 
 # --- bake ----------------------------------------------------------------------------------------------------------
 
-def read_or_none(inputs, name):
-    return json.loads(inputs[name].read_text()) if name in inputs else {}
-
-
 def bake_entries(inputs, labelled):
     """The place's bake job and its make_chunky entries for the labelled takes ({take: folder}), written from git
-    (bake_job.py): each model the data names, by its entry written out in the data, else its route's own entry over
-    the place's kit, inventory and labelled take. A model with neither stops the bake before anything is rented."""
+    (bake_job.py): each model the data names, by its entry written out in the data. A model with none stops the bake
+    before anything is rented."""
     import bake_job
     data = data_of(inputs)
-    kit, inventory = read_or_none(inputs, "kit"), read_or_none(inputs, "inventory")
     import library
-    job = bake_job.job_head(library.wear_of(data["library"]), bake_job.specs_of(data["library"]),
-                            bake_job.outside(kit))
+    job = bake_job.job_head(library.wear_of(data["library"]), bake_job.specs_of(data["library"]))
     written = data["bake"].get("entries", {})
     # regions: an old job's boxes that forced a variant over the paint (the water tank's top as glass): the method paints
-    chunky = [dict(bake_job.entry_of(data["place"], name, written.get(name), kit, inventory, labelled[take]),
+    chunky = [dict(bake_job.entry_of(name, written.get(name), labelled[take]),
                    name=name, parts=str(labelled[take]), regions=[])
               for name, take in data["bake"]["models"].items() if take in labelled]
     return job, chunky
@@ -650,8 +644,6 @@ def make_bake(inputs, out, seed, params):
     jobs = []
     for entry in chunky:
         one = dict(job, chunky=[entry], out=str(out / "made"), report=f"report-{entry['name']}.json")
-        for key in ("kit", "pieces", "code", "was"):
-            one.pop(key, None)
         path = out / f".job-{entry['name']}.json"
         path.write_text(json.dumps(one, indent=1))
         jobs.append(str(path))

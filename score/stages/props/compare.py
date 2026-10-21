@@ -21,7 +21,7 @@ so its euros count apart from world 1's lines running beside it.
   with prop-first's accepted close-up: the code results. It generates nothing.
 
 Both orders are derived from the two result sets, so neither pays twice: prop-first tries the prop route, then the
-code build; code-first follows the parts check (sorter.route): the code build first where it says code, else the
+code build; code-first follows the parts check (parts_check_route): the code build first where it says code, else the
 prop route first; an object neither passes needs a builder an agent writes. `table` writes table.json and page.html in
 $PROPS_HOME/compare/<place>/: per order the objects passing by each route, those needing a builder, those a check could
 not tell, the euros and the agent hours (agent-hours-<order>.json, {row: hours}, written by the session that writes a
@@ -110,14 +110,10 @@ def code_build(row, code_builds):
 
 
 def parts_check_route(place, row):
-    """The parts check as it was (method B, the comparison's fixed arm, never the sorter's route since #19): "code" for
-    a plain kind or a listed fitting whose code build shows every part, else "model"."""
-    with prop_data.tools("props/library"):
-        import sorter
-    kind = f"{place}_{row}"
-    entry = sorter.fittings().get(kind.split("_", 1)[-1])
-    plain = sorter.own_name(kind) in sorter.PLAIN
-    return "code" if plain or (entry is not None and not sorter.missing_parts(entry)) else "model"
+    """The parts check as it was (method B, the comparison's fixed arm): "model" for every row. Its record (the old
+    kits' plain kinds and the fittings whose code build showed every part) went with the code fallback on 2026-10-22,
+    so it names no row for code."""
+    return "model"
 
 
 def prop_first_objects(place, inventory):
@@ -348,7 +344,7 @@ def order_route(first, second):
 
 def derived(place, prop, code):
     """{row: {"prop-first", "code-first", "parts check"}} from the prop results and the code results: prop-first tries
-    the prop route, then the object's code build; code-first follows the parts check (sorter.route): its code build
+    the prop route, then the object's code build; code-first follows the parts check (parts_check_route): its code build
     first where the check says code, else the prop route first."""
     found = {}
     for row in sorted(prop):

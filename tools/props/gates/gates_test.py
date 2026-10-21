@@ -39,6 +39,12 @@ def test_a_model_in_its_laid_proportions_passes_and_a_cube_laid_as_a_panel_fails
     assert cube["spread"] > 0.2 and not cube["pass"]
 
 
+def test_a_kind_s_shape_class_comes_from_its_name_and_box():
+    assert model.shape_class("hub_lattice_hip_rib", (0.12, 4.6, 0.12)) == "slender"
+    assert model.shape_class("hub_porthole_panel", (1.2, 1.2, 0.1)) == "opening"
+    assert model.shape_class("hub_wall_upper_plain", (1.2, 2.0, 0.06)) == "flat"
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:

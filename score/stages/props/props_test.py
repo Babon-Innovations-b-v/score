@@ -157,17 +157,13 @@ def test_the_takes_gate_judges_the_prop_objects_takes_only():
         shutil.rmtree(folder)
 
 
-def test_no_object_is_code_built_without_its_pipeline_failure_named():
-    """#19, #41: an object of a place's prop data is on the code route (a code object, or a prop object moved to the
-    fallback) only when the pipeline-failure record names the failure that sent it there."""
-    with props.prop_data.tools("props/library"):
-        import sorter
-    named = sorter.failures()
+def test_no_object_is_code_built():
+    """#19, #41: no object of a place's prop data is on the code route (a code object, or a prop object moved to the
+    fallback): the code fallback was removed on 2026-10-22, so every object is the shared loop's."""
     for path in sorted(props.prop_data.FOLDER.glob("*.json")):
         record = json.loads(path.read_text())
         coded = [row for row, entry in record["objects"].items() if entry["route"] == "code"]
-        unnamed = [row for row in coded + list(record.get("fallback", {})) if f"{record['place']}_{row}" not in named]
-        assert not unnamed, f"{path.stem}: code-built with no pipeline failure named: {', '.join(unnamed)}"
+        assert not coded + list(record.get("fallback", {})), f"{path.stem}: code-built: {', '.join(coded)}"
 
 
 def test_the_paid_rows_code_leaves_the_checks_and_the_comparison_out():

@@ -143,7 +143,7 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
                  "prop": "desk"},
                 {"id": "keyboard", "view": "v1", "box": [0, 0, 9, 9], "name": "keyboard", "kind": "code",
                  "anchor": "wall", "size": [0.4, 0.03, 0.15], "count": 1, "thing": "gear:keyboard"}]
-        # #19: the sorter routes a row, not its own kind: hub_keyboard is a named pipeline failure, built in code
+        # #19: a row's own kind routes nothing: the `code` keyboard is the loop's like every row
         inventory = {"scene": "hub", "place": "habitat", "plan": {"views": [{"id": "v1"}]},
                      "approved": "", "migrated": "",
                      "room": {"shell": "", "light": "place", "backdrop": "", "wall_fill": []}, "rows": rows}
@@ -159,21 +159,13 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
             else:
                 assert wanted is None, f"accepted without {wanted}"
         path.write_text(json.dumps(dict(inventory, approved="2026-10-05")))
-        listing.write_text(f"keyboard {picture}\n")
-        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "library"))
-        import sorter  # the old failure record is retired (2026-10-21): this test names its own
-        record = pathlib.Path(folder) / "pipeline_failures.json"
-        record.write_text(json.dumps({"kinds": {"hub_keyboard": {"failure": "a test's", "evidence": "", "on": ""}}}))
-        own = sorter.failures.__defaults__
-        sorter.failures.__defaults__ = (record,)
+        listing.write_text(f"no_such_row {picture}\n")
         try:
             batch.from_the_inventory(batch.read_list(listing), [path])
         except SystemExit as refused:
             assert "on no row" in str(refused)
         else:
-            raise AssertionError("a named pipeline failure's row was sent to be generated")
-        finally:
-            sorter.failures.__defaults__ = own
+            raise AssertionError("a model on no row was sent to be generated")
         # a designed place's hand-in is approved by the creator's pick, its reading's rows taken as they stand
         designed = {**inventory, "approved": {"by": batch.DESIGNED, "concept": "c" * 64}, "room": {},
                     "rows": [{**rows[0], "anchor": "ground", "box": None}]}

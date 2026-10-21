@@ -7,13 +7,13 @@ placed, the same way for a generated model and a code-built one.
     watertight   whether the mesh is closed
     pieces       how many separate pieces it is in, and the biggest one's share of its area (floaters)
     spread       how far its proportions are from the size it is laid at, on the sides its shape class can be
-                 judged on (sorter.py: a flat piece on its face, a slender one not at all, the rest on all three):
+                 judged on (shape_class: a flat piece on its face, a slender one not at all, the rest on all three):
                  the largest ratio between model and laid proportion, minus one (the hub kit's 20% rule)
     thinnest     the thinnest wall, in metres once fitted to its laid size: inward rays from 300 surface points,
                  the 5th percentile of how far each goes before leaving the mesh
 
-A kind fails at a spread over 0.2 or a thinnest wall under 3 mm; a failing kind is remade or routed to code, never
-stretched and never placed while flagged. A kind of leaves (data/library/details.json `leaves`: a palm's fronds, world
+A kind fails at a spread over 0.2 or a thinnest wall under 3 mm; a failing kind is remade, never stretched and never
+placed while flagged. A kind of leaves (data/library/details.json `leaves`: a palm's fronds, world
 1's square, 2026-10-07) is held to its spread only: a frond is thinner than any wall, and nothing is walked into there.
 """
 import argparse
@@ -28,12 +28,38 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "library"))
 import room  # noqa: E402
-import sorter  # noqa: E402
 
 DETAILS = HERE.parents[2] / "data/library/details.json"
 SPREAD_LIMIT = 0.2
 THINNEST_LIMIT = 0.003
 SAMPLES = 300
+# A kind's shape class (shape_class): a fact about its name and box that says how its model is judged, never whether
+# it is made (job robust-exp, 2026-10-06).
+OPENING_WORDS = ("frame", "surround", "porthole", "doorway", "hatch_leaf", "window")
+REPEAT_WORDS = ("grating", "tray", "tread", "ladder")
+DECAL_WORDS = ("sign", "label", "notice", "placard", "sticker")
+FLAT_SHARE = 0.18
+SLENDER_SHARE = 0.25
+
+
+def shape_class(kind, size):
+    """A kind's shape class (decal, opening, repeat, flat, slender, chunky) from its name and its laid size (wide,
+    tall, deep)."""
+    name = kind.lower()
+    if any(word in name for word in DECAL_WORDS):
+        return "decal"
+    if any(word in name for word in OPENING_WORDS):
+        return "opening"
+    if any(word in name for word in REPEAT_WORDS):
+        return "repeat"
+    smallest, middle, largest = sorted(float(value) for value in size)
+    if largest <= 0:
+        return "chunky"
+    if smallest / largest < FLAT_SHARE and middle / largest >= SLENDER_SHARE:
+        return "flat"
+    if middle / largest < SLENDER_SHARE:
+        return "slender"
+    return "chunky"
 
 
 def raw_model(name, about, folder):
@@ -51,12 +77,12 @@ def raw_model(name, about, folder):
 
 def spread(extents, laid):
     """The largest model-to-laid proportion error on the sides the laid shape can be judged on: a flat one's face,
-    a slender one's none, the rest all three (by the sorter's size rules, whatever the kind is named)."""
+    a slender one's none, the rest all three (by shape_class's size rules, whatever the kind is named)."""
     order = np.argsort(laid)
     smallest, middle, largest = np.sort(laid)
-    if middle / largest < sorter.SLENDER_SHARE:
+    if middle / largest < SLENDER_SHARE:
         return 0.0
-    judged = order[1:] if smallest / largest < sorter.FLAT_SHARE else order
+    judged = order[1:] if smallest / largest < FLAT_SHARE else order
     model = np.array(extents)[judged]
     target = np.array(laid)[judged]
     ratios = (model / model.max()) / (target / target.max())
@@ -77,7 +103,7 @@ def thinnest(mesh, laid):
 
 
 def check(kind, mesh, laid):
-    shape = sorter.shape_class(kind, laid)
+    shape = shape_class(kind, laid)
     parts = mesh.split(only_watertight=False) if len(mesh.faces) <= 60000 else [mesh]
     areas = sorted((part.area for part in parts), reverse=True)
     found = {"class": shape, "faces": int(len(mesh.faces)), "watertight": bool(mesh.is_watertight),

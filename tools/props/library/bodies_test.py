@@ -1,5 +1,5 @@
 """Check the code-built bodies of big objects seen up close (inside/bodies.py, inside/pieces_bodies.py, the bake's
-make_chunky.make_bodied): which of a take's faces each body keeps, the places' bake entries that name a body, and
+make_chunky.make_bodied): which of a take's faces each body keeps, the takes the registry builds over a body, and
 each body built at its laid size in headless Blender (inside/build_only.py, geometry only, no bake) with walls the
 model check passes.
 
@@ -11,6 +11,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -45,11 +46,6 @@ CRANE = [1.811, 3.2, 1.065]
 # Each built body's laid size, by the first word of its builder.
 SIZES = {"console": CONSOLE, "station": MODULE, "power": CORE, "fuel": FUEL, "water": WATER, "lander": LANDER,
          "rover": ROVER, "crane": CRANE}
-# Each place's bake entry that names a body: (place, model, builder).
-WIRED = (("cockpit", "main_console_1", "console_body"), ("old_station", "first_module", "station_module"),
-         ("engineroom", "power_core_1", "power_core"), ("engineroom", "fuel_tank_1", "fuel_tank"),
-         ("greenhouse", "water_tank_1", "water_tank"), ("campgrounds", "lander", "lander_body"),
-         ("garage", "rover_1", "rover_body"), ("campgrounds", "crane", "crane_body"))
 # The plan's kind for each builder (build_only builds the kind's part after its first underscore).
 KINDS = {"console_body": "cockpit_console_body", "station_module": "station_station_module",
          "power_core": "engineroom_power_core", "fuel_tank": "engineroom_fuel_tank",
@@ -161,23 +157,22 @@ def test_the_rover_s_detail_boxes_stand_in_its_laid_box():
         assert -ROVER[2] / 2 <= low[2] and high[2] <= ROVER[2] / 2
 
 
-def test_every_wired_body_is_built_by_a_body_builder_and_its_turn_is_a_turn():
-    """Each place's model named in WIRED is baked from a take BODIES builds over a body (the registry lives in the
-    bake's folder, bodies.py, not in the place's data), with a builder pieces_bodies has and a turn that is a turn."""
+def test_every_registered_body_is_built_by_a_body_builder_and_its_turn_is_a_turn():
+    """Each take the registry builds over a body (bodies.BODIES, in the bake's folder: the places' own surface data,
+    data/surfaces/<place>.json, went with the old concepts on 2026-10-21) names a builder pieces_bodies has, with its
+    details, and a turn that is a turn; and every builder built below is one a take names."""
     builders = re.findall(r'"(\w+)": \w+', (HERE / "inside/pieces_bodies.py").read_text().split("BUILDERS = ", 1)[1])
-    for place, model, builder in WIRED:
-        bake = json.loads((REPO / f"data/surfaces/{place}.json").read_text())["bake"]
-        take = bake.get("models", {}).get(model, model)
-        body = bodies.body_of(take)
-        assert body is not None and body["builder"] == builder and builder in builders, (place, take, body)
+    for take, body in bodies.BODIES.items():
+        assert bodies.body_of(take) is body and body["builder"] in builders, (take, body)
         turn = np.array(bodies.laid_turn(take, np.eye(3).flatten().tolist())).reshape(3, 3)
-        assert np.allclose(turn @ turn.T, np.eye(3)) and np.isclose(np.linalg.det(turn), 1.0), (place, turn)
-        assert builder in bodies.DETAILS
+        assert np.allclose(turn @ turn.T, np.eye(3)) and np.isclose(np.linalg.det(turn), 1.0), (take, turn)
+        assert body["builder"] in bodies.DETAILS, take
+    assert set(KINDS) <= {body["builder"] for body in bodies.BODIES.values()}
 
 
 def test_every_body_builds_with_walls_the_model_check_passes():
-    if not (REPO / "tools/blender/session.py").exists():
-        print("skipped: no Blender launcher")
+    if not (REPO / "tools/blender/session.py").exists() or shutil.which("Xvfb") is None:
+        print("skipped: no Blender launcher or no private screen for it (Xvfb, tools/blender/launch.sh)")
         return
     with tempfile.TemporaryDirectory() as folder:
         plan = pathlib.Path(folder) / "plan.json"
