@@ -10,7 +10,9 @@ named with a role and a material). When the paid checks find a tuck over the gat
 look's record of it (prop_person.tucks_record) carries its inputs' hash, and while that stands the row is refused
 before any machine (prop_person.predicted_tucks): the same failure is never bought twice.
 The maker works in its candidate folder (~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row
-copies the made body and every record the gates read into its output.
+copies the made body and every record the gates read into its output. Both rows read the look's take from the store,
+as people-made@people handed it on (its takes/<take>/: raw and finished Pixal3D model and close-up), and lay it where
+the maker reads it (`laid_take`), never from the work folder alone (#26: lost on 2026-10-19).
 
 Gates (unknown blocks): joins (wrist, ankle, stance; people/joins.py), clips (the body judged clip by clip, clips.py:
 tucks, rigid, cloth through cloth and body through cloth per clip; every clip judged, the failing ones named with
@@ -38,7 +40,6 @@ DATA = REPO / "data/surfaces/people.json"
 MADE, LINE = "people-made", "people"
 CUT = REPO / "data/people/bodies.json"
 MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
-PIXAL = "{home}/work/pixal"
 # A look's estimate: the build and the settle each on an L4 for about an hour with its setup (EUR 0.79 an hour),
 # measured on the player 2026-10-10; its parts are their own priced row (PARTS, #21), never bought inside it.
 EUROS = 2.0
@@ -79,25 +80,26 @@ def looks():
 
 
 def files(look, entry):
-    """The world files a look's body reads: its spec, the maker's and people tools' code (run
-    by path, so not in the code version otherwise), its take's model and close-up, and the clips. Its entry in the
-    people's data is its row's parameters, so another look's edit there leaves its key alone."""
-    take = entry["take"]
+    """The world files a look's body reads: its spec, the maker's and people tools' code (run by path, so not in the
+    code version otherwise) and the clips. Its take's model and close-up are no file of the work folder: they come
+    from the store, as people-made@people handed them on (`laid_take`, #26). Its entry in the people's data is its
+    row's parameters, so another look's edit there leaves its key alone."""
     return {"spec": "{repo}/" + entry["spec"],
             "maker": "{repo}/tools/characters/maker", "people tools": "{repo}/tools/characters/people",
-            "model": f"{PIXAL}/{take}.glb", "finished": f"{PIXAL}/{take}-final.glb",
-            "close-up": f"{PIXAL}/{take}.svviews", "clips": str(MOTION_HOME / "work/motions")}
+            "clips": str(MOTION_HOME / "work/motions")}
 
 
 def parts_files(entry):
-    """The world files a look's parts read: its spec, the maker's code and its take's model and close-up (not the
-    clips: a new clip never buys the parts again)."""
+    """The world files a look's parts read: its spec and the maker's code (not the clips: a new clip never buys the
+    parts again)."""
     return {name: path for name, path in files(None, entry).items() if name not in ("people tools", "clips")}
 
 
 def made(look, entry):
     """The make of one look's row."""
     def make(inputs, out, seed, params):
+        handed = pathlib.Path(inputs[f"{MADE}@{LINE}"])
+        refused_on_gap(handed, look)
         sys.path.insert(0, str(MAKER))
         import prop_person
         import spec as specs
@@ -105,6 +107,7 @@ def made(look, entry):
         outfit, who = entry["outfit"], f"people-body-{look}"
         folder = prop_person.folder_of(spec, outfit)
         folder.mkdir(parents=True, exist_ok=True)
+        laid_take(handed, look, prop_person.PIXAL)
         (folder / "take.txt").write_text(entry["take"])
         laid_parts(pathlib.Path(inputs[f"{PARTS}-{look}"]), folder / "parts" / entry["take"])
         if not entry.get("far_only"):
@@ -115,12 +118,28 @@ def made(look, entry):
                 prop_person.record_stage(folder, stage, *timed(prop_person.STAGE_WORK[stage], spec, outfit, who,
                                                                held))
         if entry.get("far_only"):
-            kept_far(folder, spec["name"], entry, out)
+            kept_far(folder, spec["name"], entry, out, take_folder(handed, look))
             return
         prop_person.record_stage(folder, "checks-cloud", *timed(prop_person.checks_cloud, spec, outfit, who, None))
         prop_person.tucks_record(spec, outfit)
-        kept(folder, spec["name"], entry, out)
+        kept(folder, spec["name"], entry, out, take_folder(handed, look))
     return make
+
+
+def take_folder(handed, look):
+    """The look's Pixal3D files as people-made@people handed them on (takes/<take>/ in its stored output)."""
+    return handed / json.loads((handed / "made.json").read_text())[look]["files"]
+
+
+def laid_take(handed, look, target):
+    """The look's Pixal3D files, from the store, laid where the maker reads them (`target`, its work folder; each
+    file copied plain, not as the checkout's read-only mode), over whatever is there."""
+    source = take_folder(handed, look)
+    for path in sorted(source.rglob("*")):
+        if path.is_file():
+            laid = target / path.relative_to(source)
+            laid.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, laid)
 
 
 def refused_on_record(foretold, who):
@@ -157,13 +176,15 @@ def parts_made(look, entry):
     """The make of one look's parts row: the parts the candidate folder holds, else bought once
     (prop_person.parts), copied into the output."""
     def make(inputs, out, seed, params):
-        refused_on_gap(pathlib.Path(inputs[f"{MADE}@{LINE}"]), look)
+        handed = pathlib.Path(inputs[f"{MADE}@{LINE}"])
+        refused_on_gap(handed, look)
         sys.path.insert(0, str(MAKER))
         import prop_person
         import spec as specs
         spec = specs.read(pathlib.Path(inputs["spec"]))
         folder = prop_person.folder_of(spec, entry["outfit"])
         folder.mkdir(parents=True, exist_ok=True)
+        laid_take(handed, look, prop_person.PIXAL)
         (folder / "take.txt").write_text(entry["take"])
         made_parts = folder / "parts" / entry["take"]
         if not (made_parts / "parts.npz").exists():
@@ -192,7 +213,7 @@ def timed(stage, spec, outfit, who, held):
     return began, stage(spec, outfit, who, held, False)
 
 
-def kept(folder, name, entry, out):
+def kept(folder, name, entry, out, takes):
     """The made body, its UsdSkel asset and every record the gates read, copied out of the candidate folder."""
     shutil.copy2(folder / "settle" / f"{name}.glb", out / "body.glb")
     shutil.copytree(folder / "settle" / "usd", out / "usd")
@@ -210,11 +231,11 @@ def kept(folder, name, entry, out):
     shutil.copy2(folder / "fit" / "shell.json", checks / "shell.json")
     shutil.copy2(folder / "parts" / entry["take"] / "parts.json", checks / "parts.json")
     shutil.copy2(folder / "fit" / "rig.npz", out / "rig.npz")  # the stand (turn, scale, shift) the dress row reads
-    likened(entry, out)
+    likened(out, takes / f"{entry['take']}.svviews" / "input.png")
     (out / "look.json").write_text(json.dumps({"name": name, **entry}, indent=1))
 
 
-def kept_far(folder, name, entry, out):
+def kept_far(folder, name, entry, out, takes):
     """A far-crowd look's built body (no settle: the crowd draws its far body), its UsdSkel asset and the records its
     gates read."""
     shutil.copy2(folder / "out" / f"{name}.glb", out / "body.glb")
@@ -227,20 +248,14 @@ def kept_far(folder, name, entry, out):
     shutil.copy2(folder / "fit" / "shell.json", checks / "shell.json")
     shutil.copy2(folder / "parts" / entry["take"] / "parts.json", checks / "parts.json")
     shutil.copy2(folder / "fit" / "rig.npz", out / "rig.npz")
-    likened(entry, out)
+    likened(out, takes / f"{entry['take']}.svviews" / "input.png")
     (out / "look.json").write_text(json.dumps({"name": name, **entry}, indent=1))
 
 
-def likened(entry, out):
-    """The props' likeness gate's record of the body against its close-up."""
+def likened(out, closeup):
+    """The props' likeness gate's record of the body against its close-up (the stored take's)."""
     import score.stages.props.likeness as likeness
-    closeup = pathlib.Path(PIXAL.format(home=str(prop_home()))) / f"{entry['take']}.svviews" / "input.png"
     (out / "checks" / "likeness.json").write_text(json.dumps(likeness.best_way(out / "body.glb", closeup), indent=1))
-
-
-def prop_home():
-    from score.store import PROPS_HOME
-    return PROPS_HOME
 
 
 def body_faults(folder):
@@ -377,6 +392,6 @@ def rows():
                     params={"take": entry["take"], "outfit": entry["outfit"]}, paid=True, euros=PARTS_EUROS),
         graph.Stage(f"{BODY}-{look}", "world", made(look, entry), contracts.Contract(BODY, 1, body_faults),
                     far_checks() if entry.get("far_only") else checks(), files=files(look, entry),
-                    after={f"{PARTS}-{look}": (PARTS, 1)},
+                    after={f"{PARTS}-{look}": (PARTS, 1)}, beside={MADE: (MADE, 1)}, neighbours=the_line,
                     params={key: value for key, value in entry.items() if key != "object"}, paid=True,
                     euros=FAR_EUROS if entry.get("far_only") else EUROS)))

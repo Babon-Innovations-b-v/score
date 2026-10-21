@@ -19,9 +19,19 @@ import clearance  # noqa: E402
 def loop_ends(folder):
     """The shared loop's ends (made.ENDS) for two looks of the people line and one object: the player made and
     painted, Nev's take never baked."""
-    ends = {name: folder / name for name in ("props-inputs", "surfaces-bake", "surfaces-parts", "likeness")}
+    import score.stages.props.pixal_row as pixal_row
+    ends = {name: folder / name for name in ("props-inputs", "surfaces-bake", "surfaces-parts", "likeness", "pixal")}
     for path in ends.values():
         path.mkdir()
+    for path in pixal_row.take_files("pp-player"):  # where pixal@people's batch brought the take
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.suffix == ".svviews":
+            path.mkdir(exist_ok=True)
+            (path / "input.png").write_bytes(b"the close-up")
+        else:
+            path.write_bytes(path.name.encode())
+    (ends["pixal"] / "takes.json").write_text(json.dumps({"player-work": {
+        "take": "pp-player", **{path.name: pixal_row.file_hash(path) for path in pixal_row.take_files("pp-player")}}}))
     rows = [{"id": "player-work", "take": "pp-player", "layer": "people", "failures": {"take": "made before the loop"}},
             {"id": "nev-space", "take": "pp-nev", "layer": "people"}, {"id": "crate", "take": "crate-s1"}]
     (ends["props-inputs"] / "rows.json").write_text(json.dumps({"rows": [dict({"layer": "objects"}, **row)
@@ -50,6 +60,13 @@ def test_the_loop_hands_each_look_on_and_names_its_gap():
         assert (out / found["player-work"]["labelled"]).exists() and "no baked model" in found["nev-space"]["gap"]
         assert found["player-work"]["failures"] == {"take": "made before the loop"}, found  # named, never silent
         assert found["player-work"]["model"].endswith("made/player-work.gltf"), found
+        stored = out / found["player-work"]["files"]  # the take's files kept in the store (#26)
+        assert (stored / "pp-player.svviews" / "input.png").read_bytes() == b"the close-up", found
+        laid = pathlib.Path(held) / "laid"
+        bodies.laid_take(out, "player-work", laid)
+        bodies.laid_take(out, "player-work", laid)  # laid again over itself: plain copies, never read-only
+        assert sorted(path.name for path in laid.iterdir()) == ["pp-player-final.glb", "pp-player.glb",
+                                                                "pp-player.svviews"]
         verdict = loop.judge_made(out, ends, {})
         assert verdict.answer == "pass" and verdict.measures["gaps"] == 1 and "nev-space" in verdict.findings[0]
         assert verdict.measures["named_failures"] == 1, verdict
@@ -61,6 +78,19 @@ def test_the_loop_hands_each_look_on_and_names_its_gap():
                 raise AssertionError(f"{look}: bought with no model from the loop")
             except graph.Blocked as blocked:
                 assert "made no model" in str(blocked)
+
+
+def test_a_take_whose_files_are_not_the_ones_pixal_made_is_a_gap():
+    """#26: the hand-on keeps only the bytes pixal@people's takes.json names; another file in the work folder is a gap
+    named, never handed to a body."""
+    import score.stages.props.pixal_row as pixal_row
+    with tempfile.TemporaryDirectory() as held:
+        ends, out = loop_ends(pathlib.Path(held)), pathlib.Path(held) / "out"
+        out.mkdir()
+        pixal_row.take_files("pp-player")[1].write_bytes(b"another finish")
+        loop.make(ends, out, 0, {})
+        found = json.loads((out / "made.json").read_text())
+        assert found["player-work"] == {"gap": "pp-player-final.glb not the bytes pixal made"}, found
 
 
 def test_people_are_made_by_the_loop_on_a_line_no_place_owns():
@@ -77,8 +107,11 @@ def test_people_are_made_by_the_loop_on_a_line_no_place_owns():
         assert not table[name].applies(bodies.LINE) and table[name].applies("hub"), name
     assert loop.ROW == bodies.MADE and shapes_first.no_place(bodies.LINE)
     look = next(iter(bodies.looks()))
-    for row in (table[f"people-dress-{look}"], table[f"{bodies.PARTS}-{look}"]):
+    for row in (table[f"people-dress-{look}"], table[f"{bodies.PARTS}-{look}"], table[f"{bodies.BODY}-{look}"]):
         assert row.beside == {bodies.MADE: (bodies.MADE, 1)} and row.neighbours(None) == [bodies.LINE], row.name
+    for row in (table[f"{bodies.PARTS}-{look}"], table[f"{bodies.BODY}-{look}"]):  # #26: the take is the store's
+        found = row.files(None) if callable(row.files) else row.files
+        assert not [path for path in found.values() if "work/pixal" in str(path)], found
 
 
 def write_checks(folder, deep, bind_deep, tuck_over=0):
