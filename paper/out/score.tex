@@ -201,21 +201,21 @@ remake has run (Section 4).
 
 The creator works in the creator cockpit, one signed-in web page: there
 he decides the design, buys paid work and reviews what the framework
-reports. Below him, an environment is a table of stages; environment 1's
-has 149 rows. A \textbf{node} is one stage for one scene
-(\texttt{assembly@hangar}) or for the environment, and one runner makes,
-judges and accepts every node. From an approved design everything runs
-without a further yes.
+reports. Below him, an environment is a table of stages read off its
+designs; environment 1's has 261 rows today, 201 of them the bodies of
+the 67 people its designs show. A \textbf{node} is one stage for one
+scene (\texttt{assembly@hangar}) or for the environment, and one runner
+makes, judges and accepts every node. From an approved design everything
+runs without a further yes.
 
 \subsection{Keys, gates and accepts}\label{keys-gates-and-accepts}
 
 \textbf{Keys.} A node is made only when its key has no finish record.
-The key hashes the stage and scene, a code version, the contracts of its
-output and inputs, its parameters, a seed derived from the
-environment's, the pinned model images, every environment file it reads
-and the accepted output of every node it reads. A fault fixed in one
-stage moves only its key and those after it. Outputs are kept by content
-hash, never overwritten.
+The key hashes the stage and scene, its code version, contracts,
+parameters and seed, the pinned model images, every file it reads and
+the accepted output of every node it reads. A fault fixed in one stage
+moves only its key and those after it. Outputs are kept by content hash,
+never overwritten.
 
 \textbf{Gates and accepts.} Each gate answers pass, fail or unknown,
 with measures and a reason; missing evidence is unknown, and unknown
@@ -232,12 +232,12 @@ a hook.
 
 \textbf{Batches.} Paid work is bought as a batch, with one estimate and
 one ETA; the creator's yes to that estimate is the only spend decision,
-and the batch stops at its high estimate plus 10 percent. Inside a batch
-every paid job runs once, with no retry; a failed output becomes a batch
-gap that the completion gate lists, and spending more on it is a new
-batch. Each node's review page is built from the store alone, and the
-creator reviews a scene in a 3D viewer on the store's copy of its
-accepted assembly.
+and the batch stops at its high estimate plus 10 percent. A scene enters
+a batch only once its design stands whole on its lock, and Buy waits
+until the film script is locked. Inside a batch every paid job runs
+once, with no retry; a failed output becomes a batch gap that the
+completion gate lists, and spending more on it is a new batch. The
+creator reviews each scene in a 3D viewer on its accepted assembly.
 
 \subsection{From concept to scene}\label{from-concept-to-scene}
 
@@ -257,12 +257,13 @@ site on that ground at true size and works out the sky each site sees.
 \textbf{A concept for each scene, top down.} For each scene a concept is
 then locked, in order of parent scene and child scene. Each draw is one
 Nano Banana Pro {[}29{]} call that the creator's click pays for, on a
-concept review page where he marks areas and asks for a new draw. Every
-draw is sent a \textbf{blockout} first, a grey model built in code from
-the parent's plan at real sizes, so it keeps that layout and proportions
-and adds the look. A child scene is drawn only once its parent scene is
-locked and planned, on a crop of the parent's concept, so it fits the
-parent it stands in.
+concept review page where he marks areas and asks for a new draw, or
+first discusses the draw with Gemini 3.1 Pro, the thread going with his
+next draw. Every draw is sent a \textbf{blockout} first, a grey model
+built in code from the parent's plan at real sizes, so it keeps that
+layout and proportions and adds the look. A child scene is drawn only
+once its parent scene is locked and planned, on a crop of the parent's
+concept, so it fits the parent it stands in.
 
 \textbf{Inventory and plan.} The creator's lock is the approval. Gemini
 3.1 Pro lists every object of the locked concept as a row of the scene
@@ -277,18 +278,19 @@ proportions; Gemini 3.1 Pro then writes the plan in metres from that
 drawing, the concept and the inventory, element by element: outline,
 walls, openings, levels, stairs, roofs, terrain heights, each item with
 its facing, people as the spots they stand on, and the child scenes'
-rooms. Free checks follow: every row placed as often as it counts,
-inside the outline, no two floor items in each other, each item on the
-same side and facing the same way as in the concept, no box round things
-drawn apart, every door and standing spot reached on foot, and the child
-scenes tiling their parent. What a check can settle is fixed in code
-before the plan is shown (items moved apart, turned, added at their
-place in the concept, split); what remains goes back to Gemini 3.1 Pro
-as notes at most twice; only what is left is shown as a gap. A plan the
-creator drew himself wins over a written one, his edits on the plan
-review page always win and redo what follows, and a child scene he has
-locked keeps its room when its parent's plan is written again. Only a
-scene with a design gets the rows of a batch.
+rooms. Free checks follow (every row placed as often as it counts,
+inside the outline, no two floor items in each other, each item placed
+and facing as in the concept, every door and standing spot reached on
+foot, the child scenes tiling their parent). What code can settle is
+fixed before the plan is shown, what remains goes back to Gemini 3.1 Pro
+as notes at most twice, and only what is left is a gap. A plan the
+creator drew himself wins over a written one, and his edits on the plan
+review page always win and redo what follows: he moves and resizes
+rooms, and a box he drops wholly inside a room is a thing in it, one
+dropped over another room makes the two one shared room, and one dropped
+anywhere else is a new child scene. A child scene he has locked keeps
+its room when its parent's plan is written again. Only a scene with a
+design gets the rows of a batch.
 
 \textbf{Shapes first.} The route is one loop, the same at every scale. A
 parent scene gets its concept, its plan and a rough model, its concept
@@ -301,25 +303,36 @@ runner's rows \texttt{rough-model} and \texttt{shell-split} (gated on
 have not run.
 
 \textbf{The scene record.} The scene record holds what no made piece
-covers (shells, stairs, ground and water, backdrop, lights, sky, the
-neighbours a scene shows), written from the plan, inventory, made ground
-and sky, and gated on \texttt{plan-matched} (the shell within 5 cm of
-the plan), \texttt{openings} (every doorway onto a floor, no view into
-nothing) and \texttt{seed-matched} (every old entry matched or dropped
-with a reason).
+covers (shells, stairs, ground and water, backdrop, lamps, the
+neighbours a scene shows), written from the plan, inventory and made
+ground, and gated on \texttt{game-free}, \texttt{plan-matched} (the
+shell within 5 cm of the plan) and \texttt{openings} (every doorway onto
+a floor, no view into nothing).
 
 \textbf{The canonical scene.} Every scene is one OpenUSD stage {[}3{]};
 each object, one per real-world object, carries its kind, transform,
-collision and each part's library surface. Each department's work is a
-layer, in a fixed order: a slot for the creator's edit layer on top,
-then people, sound, light, motion, effects, crops, machines, settle,
-ground and the generated base. Each scene is assembled once, from every
-layer's accepted output; its \texttt{layers} gate answers unknown while
-a needed layer has none, and an old output never stands in. A scene
-shows its neighbours by reference to their own accepted assemblies. The
-edit layer is still a slot: a test on a two-box scene shows an edit
-there surviving a regenerated base, but the assembly does not yet carry
-the creator's edits from one assembly to the next.
+collision and each part's library surface. Its layers are read off its
+design alone: each inventory row's kind, found free from the reading's
+noun, says what its objects do (emit, move, lie loose, glow, grow, act,
+sound), a scene gets an effects, motion, physics, crops or people layer
+only for rows that do so, and light and sound always. Each layer is made
+from the rows by their kind's rule, never from a record written for one
+scene, so a new environment needs no hand-written list. The layers stack
+in a fixed order: a slot for the creator's edit layer on top, then
+people, sound, light, motion, effects, crops, machines, settle, ground
+and the base, laid from the locked plan. Each scene is assembled once
+from every layer's accepted output; its \texttt{layers} gate answers
+unknown while a layer its design shows has none. Walls, floors, stairs
+and ground collide and every model has a collider (\texttt{collision});
+colliders are static, mass and interaction not yet written. \textbf{A
+parent scene holds its child scenes}: its scene tree references each
+child's own tree at the room its plan gives it, so opening a top scene
+opens all below it, each still its own layer stack
+(\texttt{child\ scenes}). Neighbours are referenced the same way; a
+shown scene no stage makes is a gap. The edit layer is still a slot: a
+test on a two-box scene shows an edit there surviving a regenerated
+base, but the assembly does not yet carry the creator's edits from one
+assembly to the next.
 
 \textbf{Models, generation first.} Every object goes the prop route
 first: Nano Banana Pro draws its close-up once from its crop of the
@@ -351,22 +364,26 @@ Models give shape only: a picture-made model keeps its geometry and its
 finish is replaced. Every part takes one surface from a shared library
 of rule-based surfaces, written as ProcFunc functions {[}30{]} on
 Infinigen's shaders {[}10{]}, coloured from the scene's palette and worn
-only where wear has a cause (Appendix D).
+only where wear has a cause. The library starts empty for the remake:
+every surface and model of the earlier runs was retired on 21 October
+2026, so the batch makes them fresh. Each scene's palette is coined from
+its locked concept, one Gemini 3.1 Pro batch answer gives its surfaces
+as settings of the recipes, and an entry is reused only when made under
+today's route.
 
 The finish route gives each model its finishes (the creator's choice of
-20 October 2026). Free renders cover every face of the raw model, and
-each view is split into colour regions. One Gemini 3.1 Pro answer a
-model lists its finishes, each matched first to a library surface with
-its settings, and labels each region of each view; the labels vote
-across views into one finish a face, and a face no label reaches or
-whose views disagree is a gap. Each part is painted from its library
-surface and baked, and the bake is checked against the close-up: a
-finish's surface must lie within ΔE 32 of its colour there, a bake fails
-when it darkens a finish the close-up shows lighter or turns all
-surfaces into one grey, and a foot over 3 cm off the floor fails. A free
-library check traces every material, model, light, sound and character
-of a scene's accepted assembly to a library entry or a written
-exception.
+20 October 2026). Free renders cover every face of the raw model, each
+view split into colour regions; one Gemini 3.1 Pro answer a model lists
+its finishes, each matched to a library surface, and labels each region,
+and the labels vote across views into one finish a face, a face no label
+reaches or whose views disagree being a gap. Each part is painted from
+its library surface and baked, and the bake is checked against the
+close-up: a finish's surface must lie within ΔE 32 of its colour there,
+a bake fails when it darkens a finish the close-up shows lighter or
+turns all surfaces into one grey, and a foot over 3 cm off the floor
+fails. A free library check traces every material, model, light, sound
+and character of a scene's accepted assembly to a library entry or a
+written exception.
 
 \subsection{Resting}\label{resting}
 
@@ -376,46 +393,58 @@ resting fault of the layout and keeps its laid pose. The settle stage
 lays where each object comes to rest as a layer (held objects snapped
 onto their holders, a stack onto one support, an object that would rest
 worse kept as laid), gated on \texttt{rested} and \texttt{resting} (no
-fault that appears with the layer and not without it).
+fault that appears with the layer and not without it). A physics layer
+writes the scene's physics in OpenUSD, and a trial on Bullet drops the
+loose rows' objects where they stand, under the gravity of the body the
+scene stands on (\texttt{reacted}, \texttt{at\ rest}, \texttt{energy},
+\texttt{hinge}).
 
 \subsection{Light}\label{light}
 
-Lamp strengths are measured. The light layer places live lamps from the
-scene record, with the sky and its bodies. One paid render per scene
-gives every lamp its own Cycles light group on the scene's views;
-because light adds up, the look at any strengths is mixed from these
-passes without rendering again, and a free sweep chooses the scale that
-brings the scene's brightness within 1.5 times its concept's, halving
-any lamp that turns what it lights white.
+The sky is worked out from the EC's physics, never drawn: the light
+layer writes what the scene's top site sees overhead at its scene time,
+each body at its true direction, size and phase (\texttt{sky\ bodies}),
+and a light under the horizon lights nothing. The lamps are the
+inventory's glowing rows, and their strengths are measured. One paid
+render per scene gives every lamp its own Cycles light group on the
+scene's views; because light adds up, the look at any strengths is mixed
+from these passes without rendering again, and a free sweep chooses the
+scale that brings the scene's brightness within 1.5 times its concept's,
+halving any lamp that turns what it lights white.
 
 \subsection{Motion, effects and sound}\label{motion-effects-and-sound}
 
-\textbf{Motion.} Each moving thing (a path, a hinge, a spin, a rail, a
-turn, a climb) has its kind's speed range cited from real machines,
-gated on \texttt{clear} (no moving thing within 3 cm of a still thing or
-another moving thing, read every quarter second), \texttt{speeds},
-\texttt{loops}, \texttt{grounded} and \texttt{covered}. \textbf{Effects}
-are emitters measured against real footage, gated on \texttt{attached},
-\texttt{footage}, \texttt{light} and \texttt{outside} (no open-sky
-particle inside a room). \textbf{Sound:} every source a scene names gets
-the environment's picked file or one MOSS-SoundEffect {[}31{]} take of
-its brief, gated on \texttt{sources}, \texttt{level}, \texttt{likeness}
-(CLAP {[}32{]} score at least 0.30; a take under it is a gap) and
-\texttt{no\ freesound}.
+\textbf{Motion.} Every object of a moving row moves by its kind's rule
+(a door swings and shuts, a crane slews, a fan spins) at the middle of
+its kind's speed range cited from real machines, gated on \texttt{clear}
+(no moving thing within 3 cm of a still thing or another moving thing,
+read every quarter second), \texttt{speeds}, \texttt{loops},
+\texttt{grounded}, \texttt{covered} and \texttt{designed}.
+\textbf{Effects:} an emitting row's objects carry their kind's emitters,
+measured against real footage, gated on \texttt{attached},
+\texttt{footage}, \texttt{light}, \texttt{outside} (no open-sky particle
+inside a room) and \texttt{designed}. \textbf{Sound:} a scene's sources
+come from its design (a bed from how the scene is heard, its sounding
+rows, its people's voices and its moving things), and each gets a
+library file or one MOSS-SoundEffect {[}31{]} take of its brief, gated
+on \texttt{sources}, \texttt{bed}, \texttt{events}, \texttt{voices},
+\texttt{level}, \texttt{likeness} (CLAP {[}32{]} score at least 0.30; a
+take under it is a gap) and \texttt{no\ freesound}.
 
 \subsection{People}\label{people}
 
-People are made like props: a FLUX.2 klein {[}33{]} close-up in SOMA-X's
-bind pose, built by Pixal3D, painted by the surface line, over SOMA-X's
-body fitted just inside, whose skin weights each look point takes from
-its closest triangle; Kimodo's clips {[}34{]}, from sentences, move it.
-The \textbf{shell gate} passes a look when 99 percent of its soft points
-lie within 5 cm of the body, its worst point recorded; each clip gets
-its own verdict (tucks, hard parts stretched, cloth or body through
-cloth), and casts use only passing clips. \textbf{Casts:} each person of
-a scene's inventory is a look of the people line, SAM 3 finds the
-concept's figures, and casts are gated on \texttt{counted},
-\texttt{standing}, \texttt{clear}, \texttt{made} and \texttt{drapes}.
+People are models like any other. The looks come from the person rows of
+the locked designs, each person from its own SAM 3 box on the concept
+and a crowd as one far look; the shared loop draws its close-up (one
+person, front on, in the rig's A-pose), Pixal3D builds it and the finish
+route paints it. SOMA-X's body, read from the close-up by SAM 3D Body
+{[}33{]}, is fitted under it as its rig, and Kimodo's clips {[}34{]},
+from sentences, move it. The \textbf{shell gate} passes a look when 99
+percent of its soft points lie within 5 cm of the body, its worst point
+recorded; each clip gets its own verdict, and casts use only passing
+clips. \textbf{Casts:} each person stands on a person spot of its
+scene's plan, gated on \texttt{counted}, \texttt{standing},
+\texttt{clear} and \texttt{made}.
 
 \subsection{Completion}\label{completion}
 
@@ -429,6 +458,13 @@ scene whose accepted gaps are its only fail is complete apart from
 accepted gaps. A hook stops an agent claiming a scene is done while its
 gate fails: agents judging their own scenes agree with a measured
 geometry score only 45.8 percent of the time {[}19{]}.
+
+\subsection{The film}\label{the-film}
+
+The film is a design step too: the creator locks a film script in the
+cockpit (by default the whole environment, body by body), and a scene's
+films are made from locked scripts only, once it is complete or complete
+apart from accepted gaps.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
@@ -444,13 +480,14 @@ They wait on the remake's assemblies.
 Every paid stage is priced from a unit cost measured on the ledgers,
 times the units its forecast rule counts, times the bill's share over
 the ledger; a stage with no measured run has no price, and its estimate
-is shown apart as a guess. Machines and Google calls write ledger lines
-with their node's clearance, and the month's spend is the higher of
-ledgers and bill, which caught misses: EUR 1,554 billed against EUR
-1,387 in the cloud ledger on 12 October 2026, and EUR 549 billed by
-Google for a day the earlier ledger put at EUR 30. A paid node runs only
-when every gate on its inputs passed, the month's books are known and
-its batch's stop has room for its forecast.
+is shown apart as a guess. Today 15 of the table's 29 paid kinds of row
+have a measured unit price, four of them from two benchmark batches of
+21 October 2026 that the creator approved, one node a kind. Machines and
+Google calls write ledger lines with their node's clearance, and the
+month's spend is the higher of ledgers and bill, which caught misses:
+EUR 1,554 billed against EUR 1,387 in the cloud ledger on 12 October
+2026. A paid node runs only when every gate on its inputs passed, the
+month's books are known and its batch's stop has room for its forecast.
 
 \section{Evidence}\label{evidence}
 
@@ -476,7 +513,7 @@ clip gates on the remake's people. It waits on the people line's batch.
 
 \textbf{Agent tools.} With them an agent used about half the output and
 cost on two of three scenes; on the third it left more faults; one run
-each (Appendix E).
+each.
 
 \section{Limitations, future work and
 conclusion}\label{limitations-future-work-and-conclusion}
@@ -484,14 +521,16 @@ conclusion}\label{limitations-future-work-and-conclusion}
 One creator judges, and he has not yet accepted a run. Closed models
 (Nano Banana Pro, Gemini 3.1 Pro) draw the concepts and close-ups and
 read and plan every scene; they may change or go. The design step, the
-finish route, the shapes-first loop and the code bodies have not yet
-carried a scene through a batch; the edit layer is a slot, objects are
-not interactive, and no game engine opens the result yet. Next: the
-remake's batch, an engine adapter with physics and interaction, an edit
-layer the assembly carries, three more environments, open models,
-LEGO-Bench {[}19{]}. In short, SCORE builds an environment the way
-studios do, scene by scene and layer by layer, so a fault is fixed in
-its own layer; an accepted environment will show if it holds.
+layers made from row kinds, the fresh library, the finish route, the
+shapes-first loop, the scene tree and the code bodies have not yet
+carried a scene through a batch; the edit layer is a slot, colliders are
+static and objects are not interactive, and no game engine opens the
+result yet. Next: the remake's batch, an engine adapter with physics and
+interaction, an edit layer the assembly carries, three more
+environments, open models, LEGO-Bench {[}19{]}. In short, SCORE builds
+an environment the way studios do, scene by scene and layer by layer, so
+a fault is fixed in its own layer; an accepted environment will show if
+it holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -697,11 +736,11 @@ Face, 2026. Available:
 fusion and keyword-to-caption augmentation,''} \emph{arXiv preprint
 arXiv:2211.06687}, 2022.}
 
-\bibitem[\citeproctext]{ref-flux2klein}
+\bibitem[\citeproctext]{ref-yang2026sam3dbody}
 \CSLLeftMargin{{[}33{]} }%
-\CSLRightInline{Black Forest Labs, {``{FLUX.2 {[}klein{]} 4B} model
-card.''} Hugging Face, 2026. Available:
-\url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}}
+\CSLRightInline{{X. Yang, D. Kukreja, D. Pinkus, others, and K. Kitani},
+{``{SAM 3D Body}: Robust full-body human mesh recovery,''} \emph{arXiv
+preprint arXiv:2602.15989}, 2026.}
 
 \bibitem[\citeproctext]{ref-rempe2026kimodo}
 \CSLLeftMargin{{[}34{]} }%
