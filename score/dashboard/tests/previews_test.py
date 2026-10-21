@@ -292,7 +292,7 @@ def test_an_accepted_gap_has_its_step_and_a_picture(world):
     beta = world.source.place_detail("beta")
     gap = beta.accepted_gaps[0]
     assert gap.step == "assembly" and gap.step_url == "/place/beta/step/assembly/"
-    assert gap.picture is not None and gap.picture_is == "the place in its film"  # it names nothing on the stage
+    assert gap.picture is not None and gap.picture_is == "the scene in its film"  # it names nothing on the stage
     assert world.source.thumb_path(gap.picture.sha) is not None
     assert gap.sentence == "Something in the beta is still a stand-in block: no finished model yet."
     stopped = beta.faults[0]
