@@ -135,16 +135,20 @@ stage as each stage is built; nothing moves before.
   above's plan (`outlined`: held by a row or by the holder's own walls). `setting.py` is an environment's setting
   (CONTEXT.md "setting", owner 2026-10-21), part of its environment concept: its bodies (a real one takes the cited
   reference table's values, `data/physics/bodies.json`; an invented one is given by its own: radius, mass and so
-  gravity, orbit, spin), its plots (flat ground with a gravity and a sun path, no body) and each top place's site
-  (latitude, longitude and height on a body, metres on a plot); environment 1's starts from `data/physics/setting.json`.
+  gravity, orbit, spin, and its light when it shines: kelvin, lux at lux_at_km), its lights (a far source of light
+  with no body, on its day path: a house's sun), its backdrops (too far to move: a dome round everything, the stars,
+  or a skyline), its plots (flat ground with a gravity, no body) and each top place's site (latitude, longitude and
+  height on a body, metres on a plot); no fixed sky (owner 2026-10-21); environment 1's starts from
+  `data/physics/setting.json` (the Sun, Earth, Moon and Mars as bodies, the stars a backdrop).
   No branch names a world. `environment_plan.py` is the environment's plan (CONTEXT.md "environment plan"): a map a
   ground of the concept's setting, each top place's site where the setting puts it at true size (the ground's fall
   from its true radius; the game's ground plans read only for the layout of a site's parts in metres), written by the
   plan writer's call (`plan_writing.asked`, cleared like a plan writing), the fixed facts kept over the answer, the
-  true distances and each site's sky worked out (`settled`, again on every read); kept under
+  true distances and what each site sees overhead worked out (`settled`, again on every read); kept under
   `environment-plans/<world>/` (writings; his edits in his process only), each with the concept version it was made
-  under, one under another out of date. `sky.py` runs the setting to a moment: every other body's direction, true
-  angular size and phase over a site on a body, a plot's sun from its path, the data a later sky layer runs live.
+  under, one under another out of date. `overhead.py` runs the setting to a moment at a site (`seen`): every other
+  body's direction, true angular size and phase, every light (a shining body's by its distance, a far light's from its
+  path), brightest first, and every backdrop; the data the engine runs live.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),

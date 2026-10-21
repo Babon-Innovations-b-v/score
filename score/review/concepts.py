@@ -620,7 +620,7 @@ def structure_pictures(store, place):
         return []
     found = [(STRUCTURE.format(parent="the environment", rest=", the ground round it at its heights"),
               ("blockout", place))]
-    worlds = (site.get("sky") or {}).get("worlds", [])
+    worlds = (site.get("overhead") or {}).get("bodies", [])
     return found + ([(SKY_PICTURE, ("sky", place))] if blockout.unseen(blockout.site_parts(site), worlds) else [])
 
 
@@ -659,25 +659,28 @@ def phase_words(world):
     return f"{phase}, lit from the {side}" if 0.03 <= lit < 0.97 else phase
 
 
-def sky_words(store, place):
-    """What the sky of a top place holds at its scene time (its site on the environment's plan), one sentence: each
-    world above the horizon where it stands, how big and its phase; the Sun's height. "" for a place within another
-    or before its sky is known."""
+def overhead_words(store, place):
+    """What is seen overhead at a top place at its scene time (its site on the environment's plan), one sentence: each
+    body above the horizon where it stands, how big and its phase; each light's height; each backdrop. "" for a place
+    within another or before it is known."""
     from score.review import environment_plan
     if above(place, store):
         return ""
     site = environment_plan.site_of(store, place)
-    found = (site or {}).get("sky")
+    found = (site or {}).get("overhead")
     if not found:
         return ""
     shown = [f"{world['name']} {world['altitude']:.0f} degrees up to the "
              f"{COMPASS[round(world['azimuth'] / 45) % 8]}, {world['across']:.1f} degrees across, {phase_words(world)}"
              if world["across"] >= 0.05 else
              f"{world['name']} {world['altitude']:.0f} degrees up to the {COMPASS[round(world['azimuth'] / 45) % 8]}, "
-             "a bright point" for world in found["worlds"] if world["altitude"] > 0]
-    sun = found["sun"]["altitude"]
-    light = "the Sun below the horizon" if sun < -6 else "the Sun low" if sun < 15 else f"the Sun {sun:.0f} degrees up"
-    return f"Sky: {'; '.join(shown + [light])}."
+             "a bright point" for world in found["bodies"] if world["altitude"] > 0]
+    lights = [f"the {light['name']} below the horizon" if light["altitude"] < -6 else
+              f"the {light['name']} low" if light["altitude"] < 15 else
+              f"the {light['name']} {light['altitude']:.0f} degrees up" for light in found["lights"]]
+    backdrops = [f"the {backdrop['name']} {'all round' if backdrop['shape'] == 'dome' else 'on the horizon'}"
+                 for backdrop in found["backdrops"]]
+    return f"Overhead: {'; '.join(shown + lights + backdrops)}."
 
 
 def has_people(place):
@@ -717,7 +720,8 @@ def generated(store, place):
     return " ".join(part for part in (
         f"Concept painting of {short_name(place)}" + (f": the inside of what picture {crop} shows." if crop else "."),
         floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
-        holds_and_doors(store, place), size_words(store, place), sky_words(store, place), listed if pictures else "",
+        holds_and_doors(store, place), size_words(store, place), overhead_words(store, place),
+        listed if pictures else "",
         view_words(store, place),
         style(store)) if part)
 

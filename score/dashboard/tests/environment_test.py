@@ -12,7 +12,7 @@ import pytest
 from django.test import override_settings
 from PIL import Image
 
-from score.dashboard.pages import concepts, environment
+from score.dashboard.pages import concepts, environment, setting_picture
 from score.dashboard.pages.models import SyncRequest
 from score.dashboard.sync import listen
 from score.dashboard.tests.pages_test import signed_in
@@ -70,12 +70,35 @@ def test_the_home_lists_environment_1_and_the_hub(world):
 def test_environment_1s_concept_is_todays_data_shown_locked_and_opens_its_places(world):
     html = signed_in().get(PAGE).content.decode()
     assert ">locked</b>" in html and 'href="/places/"' in html and "2099 space base" in html
-    assert "1.624 m/s²" in html and "3.728 m/s²" in html and "Unlock" in html  # every body, a decimal point
-    assert ">Setting</h2>" in html and "1737.4" in html  # the Moon at its true radius
+    assert ">Setting</h2>" in html and "Unlock" in html and 'class="sp-picture"' in html
+    assert "orbits Earth every 27 days, one face to Earth; gravity 1.6 m/s²" in html  # a plain line a thing
+    assert "orbits Sun every 687 days, a day of 25 h; gravity 3.7 m/s²" in html and ">backdrop<" in html
+    assert "radius_km 1737.4" in html and "gravity 1.624" in html  # the raw numbers as hover text only
+    assert "Moon&#x27;s orbit ×" in html and "sizes enlarged to read" in html  # what is drawn bigger, said
     assert "Question 1 of" not in html and "data-f=" not in html  # locked: no interview, no fields
     assert 'href="/environments/world1/"' in signed_in("ann").get("/places/").content.decode()  # one click up
     assert [(name, question) for name, _, question in environment.QUESTIONS] == list(environment_concept.QUESTIONS)
     assert [environment.steps_around(name)["number"] for name, _, _ in environment.QUESTIONS] == [1, 2, 3, 4, 5]
+
+
+def test_a_house_setting_is_its_plot_from_above_with_its_suns_path_and_no_bodies():
+    from score.review import overhead, setting
+    from score.review.setting_test import HOUSE
+    house = setting.checked(HOUSE)
+    found = setting_picture.view_of(house, {"house": "2024-03-20T12:00:00Z"}, {"house": "House"})
+    assert len(found["pictures"]) == 1 and "sp-path" in found["pictures"][0]["svg"]  # no system, one plot
+    svg = found["pictures"][0]["svg"]
+    assert "scene time 2024-03-20T12:00:00Z" in svg and ">House</text>" in svg
+    assert 'class="sp-body"' not in svg  # no body: the sun is a light on its path
+    assert [(card["name"], card["kind"]) for card in found["cards"]] == [
+        ("Sun", "light"), ("Sky", "backdrop"), ("Meadow", "ground")]
+    assert found["cards"][0]["line"] == "a far light crossing the sky every 24 h; 100,000 lux"
+    assert found["cards"][2]["sites"] == ["House"]
+    light = house["lights"][0]
+    for when in ("2024-03-20T12:00:00Z", "2024-05-02T07:30:00Z", "2024-12-21T15:00:00Z"):  # the page's sum: overhead's
+        seen = overhead.far_light(light, when)
+        since = overhead.day_of(when) - overhead.day_of(light["equinox"])
+        assert setting_picture.far_way(light, since) == pytest.approx((seen["azimuth"], seen["altitude"]), abs=0.01)
 
 
 def test_unlock_asks_to_be_sure_then_puts_every_draw_out_of_date(world, stand_in):

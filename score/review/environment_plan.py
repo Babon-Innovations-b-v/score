@@ -4,19 +4,19 @@ of its site there (score/review/blockout.py). One map a ground of its setting (s
 environment concept's: a body, at its true radius, or a plot), each top place's site on it where the setting puts it
 (its latitude, longitude and height on a body, metres on a plot), its footprint and rough size, its blocks, the ground
 and terrain heights round it and its scene time; the true distances between sites on the same ground; and the
-setting, from which each site's sky at its scene time is worked out (score/review/sky.py), never written by hand:
-every other body at its true direction, size and phase, lit from the star's side. A later sky layer runs the same
-setting live. The game 2099's ground plans (data/ground/plan/<ground>.json) are read only as the layout of a site's
-parts in metres (the Base's modules), never for a ground's size or a site's place.
+setting, from which what is seen overhead at each site at its scene time is worked out (score/review/overhead.py),
+never written by hand: every other body at its true direction, size and phase, every light and backdrop. The engine
+runs the same setting live. The game 2099's ground plans (data/ground/plan/<ground>.json) are read only as the layout
+of a site's parts in metres (the Base's modules), never for a ground's size or a site's place.
 
 It is made like a place's plan: what data already says is worked out free (`facts_of`: each site's place and parts,
 the fall of its ground's curve round it); Gemini 3.1 Pro writes the rest (`write`: one direct call through the plan
 writer's own call, score/review/plan_writing.py, run without asking under the owner's standing allowance of
 2026-10-21 for plan writing); the code then checks it, keeps the fixed facts over the answer, and works out the
-distances and skies (`settled`). Until it is written the plan shown is the free one (`derived`). He fixes it on its
-plan page (a site's time and size), his edit kept as his own and settled again; where a site stands is the
-environment concept's. A writing or edit records the environment concept's version it was made under, and one made
-under another is out of date: the plan shown is then the free one again (`current`).
+distances and what each site sees overhead (`settled`). Until it is written the plan shown is the free one
+(`derived`). He fixes it on its plan page (a site's time and size), his edit kept as his own and settled again;
+where a site stands is the environment concept's. A writing or edit records the environment concept's version it
+was made under, and one made under another is out of date: the plan shown is then the free one again (`current`).
 
 The store keeps it:
 
@@ -33,7 +33,7 @@ import sys
 
 import numpy as np
 
-from score.review import concepts, setting as settings, sky
+from score.review import concepts, overhead, setting as settings
 from score.store import stamp_key
 
 AREA = "environment-plans"
@@ -320,7 +320,7 @@ def points_of(value, least=3):
 def moment(value):
     """An ISO time in UTC as written, None when it is none."""
     try:
-        sky.day_of(value)
+        overhead.day_of(value)
     except (TypeError, ValueError):
         return None
     return str(value)
@@ -388,7 +388,8 @@ def gaps_of(plan):
 
 def settled(plan, store=None):
     """The plan with what follows from it worked out from the environment concept's setting (kept with it as
-    `setting`): where each site stands, each map's place on its map and distances, each site's sky, its gaps."""
+    `setting`): where each site stands, each map's place on its map and distances, what each site sees overhead, its
+    gaps."""
     from score.review import environment_concept
     setting = environment_concept.setting_of(store, plan.get("environment")) if store is not None else settings.now()
     placed = {site["place"]: site for site in setting["sites"]}
@@ -407,7 +408,7 @@ def settled(plan, store=None):
             sites.append({**site, **where})
         origin = sites[0] if sites else {}
         sites = [{**site, "at": map_at(site, origin, radius),
-                  "sky": sky.site_sky(setting, {**site, "on": world["on"]}, site["time"]) if site.get("time")
+                  "overhead": overhead.seen(setting, {**site, "on": world["on"]}, site["time"]) if site.get("time")
                   else None} for site in sites]
         maps.append({**world, "radius_m": radius, "sites": sites, "distances": distances(sites, radius)})
     found = {**plan, "setting": setting, "maps": maps}

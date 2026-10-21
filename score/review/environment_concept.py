@@ -48,7 +48,8 @@ LARGEST_PICTURE = 12 * 1024 * 1024
 QUESTIONS = (  # the set interview, asked in this order, one at a time
     ("style", "What style holds the whole environment, in one short line?"),
     ("setting", "What does everything stand on: a plot of ground, a world, or several bodies that move one another? "
-                "Name real bodies or give an invented one's values, and say where each first place stands."),
+                "Name real bodies or give an invented one's values, what lights it and what is too far to move, and "
+                "say where each first place stands."),
     ("references", "Which pictures guide the look, and what is each one for?"),
     ("places", "Which places come first?"),
     ("insides", "What places may each of them hold inside?"),
@@ -300,11 +301,15 @@ def question_of(topic):
 
 SETTING_SHAPE = ('{"bodies": [{"body": "key", "name": "", "reference": "a key of the real bodies"} for a real body, '
                  'or for an invented one {"body", "name", "radius_km", "mass_kg", "around": "the key it orbits, null '
-                 'for the star", "distance_km", "period_days", "eccentricity", "inclination_deg", "day_hours" or '
-                 '"locked_to", "tilt_deg"}], "plots": [{"plot": "key", "name": "", "gravity": 9.81, "latitude", '
-                 '"tilt_deg", "day_hours", "year_days", "equinox": "ISO moment"}] for flat ground with no body under '
-                 'it, "sites": [{"place": "the place", "on": "a body or plot key", "latitude", "longitude", '
-                 '"height_m"} on a body, {"place", "on", "x", "y", "height_m"} in metres on a plot]}')
+                 'for the root", "distance_km", "period_days", "eccentricity", "inclination_deg", "day_hours" or '
+                 '"locked_to", "tilt_deg", and for one that shines "kelvin", "lux", "lux_at_km"}] for what moves under '
+                 'the physics, "lights": [{"light": "key", "name": "", "kelvin", "lux", "latitude", "tilt_deg", '
+                 '"day_hours", "year_days", "equinox": "ISO moment"}] for a far light on its day path with no body '
+                 '(one house\'s sun), "backdrops": [{"backdrop": "key", "name": "", "shape": "dome" or "skyline", '
+                 '"lux", "kelvin"}] for what is too far to move (the stars), "plots": [{"plot": "key", "name": "", '
+                 '"gravity": 9.81}] for flat ground with no body under it, "sites": [{"place": "the place", "on": '
+                 '"a body or plot key", "latitude", "longitude", "height_m"} on a body, {"place", "on", "x", "y", '
+                 '"height_m"} in metres on a plot]}')
 
 
 def interview_question(topic, answer, concept):

@@ -222,10 +222,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   reads the readings (its `estimate`); the gaps check and the plan still read `data/inventory/`.
 - **The environment concept** (CONTEXT.md "environment concept", owner 2026-10-21; `pages/environment.py`,
   `environment_concept.html`, `static/pages/environment.js`): `/environments/<world>/` shows four cards (owner
-  2026-10-21: "this page is confusing"): Style (its line), Setting (CONTEXT.md "setting": its bodies, each with its
-  gravity worked out and a real one's values from the reference table, its plots, and each top place's site; a row's
-  values it shows no column for ride in its `data-keep`, and a field left empty takes the table's again), Reference
-  pictures (each with its
+  2026-10-21: "this page is confusing"): Style (its line), Setting (CONTEXT.md "setting", `pages/setting_picture.py`,
+  owner 2026-10-21: "this won't tell anyone anything"; never a raw table: a picture, then a short plain card a thing:
+  its bodies drawn round the one they orbit, the orbits round it to scale with one another, sizes and moons' orbits
+  enlarged to read and said so under it, each site a dot on its body; a plot from above at its metres with each far
+  light's path over its sky; a card a body, light, backdrop or ground with one line in plain words ("Moon: orbits
+  Earth every 27 days ...") and the sites on it, every raw number only as hover text; while unlocked its values in a
+  wrapping form, a row's values it shows no field for riding in its `data-keep`, a field left empty taking the
+  reference table's again; no horizontal scroll), Reference pictures (each with its
   place and what it is for) and Places (what each may hold inside); plain text while locked, fields only while
   unlocked, explanations as hover text. The set interview shows only while unlocked, beside them: the fixed questions
   (`QUESTIONS`, the same as `score/review/environment_concept.QUESTIONS`) one at a time, "Question N of 5" with the
