@@ -1,10 +1,5 @@
 {
-	"is": "how each surface sounds: what a boot on it, a thing dropped on it and a thing dragged over it play (names in sounds.json or the catalogue), and how much of a sound it soaks up (absorbs: the share of sound energy taken at about 1 kHz, Sabine's coefficient), which a room's echo is worked out from. A material library family names its surface in data/library/materials.json (its `surface`), a variant only when it sounds unlike its family; a room kit's piece kind names the surface it is, for the boots on its floors and the room's echo. A kit kind not named is 'steel_plate', the base's own",
-	"fallback": {
-		"footstep": "footsteps_steel_plate",
-		"impact": "",
-		"scrape": ""
-	},
+	"is": "how each surface sounds: what a boot on it, a thing dropped on it and a thing dragged over it play (names in sounds.json or the catalogue), and how much of a sound it soaks up (absorbs: the share of sound energy taken at about 1 kHz, Sabine's coefficient), which a room's echo is worked out from. A material library family names its surface in data/library/materials.json (its `surface`), a variant only when it sounds unlike its family. A piece is heard by its own library finish (tools/usd/hearing.py), never by its kind's name; a baked piece that names no finish sounds as the finished floor under it, and no surface stands in for one not known",
 	"surfaces": {
 		"steel_plate": {
 			"footstep": "footsteps_steel_plate",
@@ -57,15 +52,5 @@
 			"absorbs": 0.03,
 			"note": "Earth (the prologue build, 2026-10-07): the base's rubber and plate sounds stand in until Earth's own are made"
 		}
-	},
-	"kit": {
-		"hub_floor_grating": "steel_grating",
-		"hub_tread_mat": "rubber",
-		"hub_ceiling_cable_tray": "steel_grating",
-		"hub_hatch_window": "glass",
-		"hub_porthole_panel": "glass",
-		"hub_status_display": "glass",
-		"hub_wall_screen_cluster": "glass",
-		"hub_notice_board": "padding"
 	}
 }

@@ -55,8 +55,7 @@ gates; `takes.py` the paid part.
   run's `SCORE_RUN_ID`); new spend on it is a new batch, another run. `environment_takes` (free) lists the environment's takes still to make, each once with the places that
   play it, and the price's `sound_takes` forecast rule counts each at its first place, so it is priced once.
 - **One sound, one name** (#46): a surface's steps are `footsteps_<surface>` in `data/sound/surfaces.json` and
-  `sounds.json`; a sound two names would play the same files under is one name (the fallback footstep is
-  `footsteps_steel_plate`), so the library holds it once.
+  `sounds.json`; a sound two names would play the same files under is one name, so the library holds it once.
 - **What a place needs is worked out free** (`needs.py`, #29): its bed (`beds.py`), one event sound for each thing
   that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its
   cast stands people (`data/sound/voices.json`, on its first person, played at `/<place>/Characters/<name>`).

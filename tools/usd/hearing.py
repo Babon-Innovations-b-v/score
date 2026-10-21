@@ -8,8 +8,9 @@ The place's own room tones play as they are; a shown place's air is heard only i
 add none. Each spatial sound plays at its gain out to its `near` (data/sound/sounds.json, else NEAR_METRES, Godot's
 AudioStreamPlayer3D unit size, as the game plays a placed sound), then falls with the inverse of the distance, silent
 past its reach, and is panned by where it stands across the view; each motion's sound from its start. A footstep plays
-at every stride of the walk, from the floor under the eye: its library surface's footstep in the bank, else its kit
-kind's surface in data/sound/surfaces.json (a kind not named is steel_plate, as the game reads it). Outside, where the
+at every stride of the walk, from the floor under the eye: its library finish's footstep in the bank (the surface's in
+data/sound/surfaces.json, by its library family), else the finish of the floor under it (a baked piece laid on the
+deck sounds as the deck), else none: no surface is guessed. Outside, where the
 place's own room plays on the suit's bus, only what the boots feel carries (`score:sound:groundThud`). Every track is
 mixed at one gain (MIX_GAIN_DB) with a soft limit under sound.PEAK_DBFS, the same for every place, so a lift-off is
 loud and a cabin quiet: no track is brought to a loudness of its own (until 2026-10-18 sound.soundtrack pressed every
@@ -215,54 +216,52 @@ def turn(origin, one, other):
     return towards_one[:, 0] * towards_other[:, 1] - towards_other[:, 0] * towards_one[:, 1]
 
 
-def floor_under(meshes, feet):
-    """The mesh the walker stands on at `feet` and the triangle it stands on: (prim, triangle) or None."""
-    best = None
+def floors_under(meshes, feet):
+    """The meshes under the walker at `feet`, the highest first, each with the triangle under the feet:
+    [(prim, triangle)]."""
+    hits = []
     for prim, low, high in meshes:
         if not (low[0] <= feet[0] <= high[0] and low[2] <= feet[2] <= high[2] and low[1] <= feet[1] + 0.3):
             continue
         hit = hit_below(prim, feet)
-        if hit and (best is None or hit[0] > best[0]):
-            best = (hit[0], prim, hit[1])
-    return None if best is None else (best[1], best[2])
+        if hit:
+            hits.append((hit[0], prim, hit[1]))
+    return [(prim, triangle) for _, prim, triangle in sorted(hits, key=lambda hit: -hit[0])]
 
 
-def library_material(prim, triangle):
-    """The library material bound where the walker stands: the part (GeomSubset) holding the triangle, else the mesh's
-    own binding; None for a baked look."""
+def finish_of(prim, triangle):
+    """The library surface a mesh is finished with where the walker stands: on the part (GeomSubset) holding the
+    triangle, else on the mesh, the bound material of the place's Library by its name, else the `score:surface` the
+    material or the part names (a library tile, a labelled part); None for a baked look that names none."""
     from pxr import UsdShade
-    for part in prim.GetChildren():
-        if part.IsA(UsdGeom.Subset) and triangle in set(UsdGeom.Subset(part).GetIndicesAttr().Get() or []):
-            bound = UsdShade.MaterialBindingAPI(part).GetDirectBinding().GetMaterial()
-            if bound and "/Library/" in str(bound.GetPath()):
-                return bound.GetPrim()
-    bound = UsdShade.MaterialBindingAPI(prim).GetDirectBinding().GetMaterial()
-    return bound.GetPrim() if bound and "/Library/" in str(bound.GetPath()) else None
-
-
-def kind_of(prim):
-    """The kind of the object a mesh is part of (its nearest `score:kind`), or None."""
-    while prim and prim.GetPath() != Sdf.Path.absoluteRootPath:
-        kind = prim.GetAttribute("score:kind")
-        if kind and kind.Get():
-            return kind.Get()
-        prim = prim.GetParent()
+    part = next((child for child in prim.GetChildren() if child.IsA(UsdGeom.Subset)
+                 and triangle in set(UsdGeom.Subset(child).GetIndicesAttr().Get() or [])), prim)
+    for holder in dict.fromkeys((part, prim)):
+        material = UsdShade.MaterialBindingAPI(holder).GetDirectBinding().GetMaterial()
+        if material and material.GetPrim().GetParent().GetName() == "Library":
+            return material.GetPrim().GetName()
+        for named in ([material.GetPrim()] if material else []) + [holder]:
+            surface = named.GetAttribute("score:surface")
+            if surface and surface.Get():
+                return surface.Get()
     return None
 
 
-def footstep_of(stage, place, prim, triangle, surfaces):
-    """The bank's footstep for where the walker stands: its library surface's, else its object kind's surface (a room
-    kit's kind names it in surfaces.json `kit`; one not named is steel_plate, the base's own, as the game reads it);
-    None when the bank has no such footstep."""
-    material = library_material(prim, triangle)
-    if material is not None:
-        targets = material.GetRelationship("score:sound:footstep").GetTargets() \
-            if material.GetRelationship("score:sound:footstep") else []
-        return stage.GetPrimAtPath(targets[0]) if targets else None
-    surface = surfaces["kit"].get(kind_of(prim) or "", "steel_plate")
-    name = surfaces["surfaces"].get(surface, {}).get("footstep")
-    found = stage.GetPrimAtPath(f"/{place}/Sound/Bank/{name}") if name else None
-    return found if found and found.IsA(UsdMedia.SpatialAudio) else None
+def footstep_of(stage, place, floors):
+    """The bank's footstep for where the walker stands: its library surface's (score:sound:footstep on the place's
+    /Library/<surface>, as the assembly banks it), from the highest floor under the feet that has a library finish,
+    so a baked piece that names none sounds as the finished floor it lies on; None when no floor under it has one or
+    the bank has no such footstep."""
+    for prim, triangle in floors:
+        surface = finish_of(prim, triangle)
+        material = stage.GetPrimAtPath(f"/{place}/Library/{surface}") if surface else None
+        if not material:
+            continue
+        footstep = material.GetRelationship("score:sound:footstep")
+        targets = footstep.GetTargets() if footstep else []
+        found = stage.GetPrimAtPath(targets[0]) if targets else None
+        return found if found and found.IsA(UsdMedia.SpatialAudio) else None
+    return None
 
 
 def step_take(bank, number, cache):
@@ -281,12 +280,10 @@ def footsteps_mix(stage, moments, frame_rate, cache):
     frames = stride_frames(moments)
     if not frames:
         return mix
-    surfaces = sound.read(sound.SURFACES)
     meshes = floor_meshes(stage, place)
     for number, frame in enumerate(frames):
         feet = np.asarray(moments[frame]["eye"], dtype=float) - [0.0, EYE_OVER_FEET, 0.0]
-        under = floor_under(meshes, feet)
-        bank = footstep_of(stage, place, *under, surfaces) if under else None
+        bank = footstep_of(stage, place, floors_under(meshes, feet))
         if bank is None:
             continue
         samples, level = step_take(bank, number, cache)
