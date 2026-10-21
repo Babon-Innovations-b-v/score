@@ -108,6 +108,17 @@ def test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap():
     assert not [word for word in plan_checks.checked(plan, inventory) if "reached" in word]
 
 
+def test_people_things_seen_far_off_and_rows_beyond_the_place_are_no_gaps():
+    plan = {"w": 6.0, "d": 4.0, "doors": [], "people": [],
+            "items": [["CRATE 1", 1.0, 1.0, 1.0, 1.0, None, "item"], ["DINER 1", 1.2, 1.2, 0.5, 0.5, None, "item"],
+                      ["DISTANT FLAG 1", 9.0, 1.0, 1.0, 1.0, None, "item"]],
+            "rows": {"CRATE 1": ["crate"], "DINER 1": ["diner"], "DISTANT FLAG 1": ["distant_flag"]}}
+    inventory = {"rows": [{"id": "crate", "count": 1}, {"id": "diner", "noun": "person", "count": 1},
+                          {"id": "distant_flag", "count": 1}, {"id": "stage", "count": 1}]}
+    assert [gap["words"] for gap in plan_checks.checked(plan, inventory)] == ["stage: 1 in the concept, 0 on the plan"]
+    assert plan_checks.checked({**plan, "beyond": ["stage"]}, inventory) == []
+
+
 def test_with_the_flag_off_a_writing_runs_only_inside_his_yes(store, gemini, monkeypatch):
     _, ask = gemini
     picked(store, "shed")

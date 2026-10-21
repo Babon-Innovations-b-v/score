@@ -93,6 +93,8 @@ Write the plan as one JSON object with these keys:
   unless one stands on the other; keep a way on foot from every door to every other and to the standing spots.
 - "structure": the ids of the rows that are the place's own shell, walls, floors, roof, ground, terrain areas, water,
   sea, plaza or sky (drawn as walls, levels, roofs and terrain above, never as items).
+- "beyond": the ids of the rows the picture shows beyond this place (through a window or a door, past its edge, far
+  off): never placed here, they belong to the place they stand in.
 - "zones": areas to keep clear beyond the doors' (a vehicle's keep-out, a landing pad), {{"name": words, "x": m, "y":
   m, "wide": m, "deep": m}} (x, y their north-west corner).
 - "places": each inside place of the facts, laid out so they tile without overlap inside the outline, each inside
@@ -143,14 +145,24 @@ def within_told(store, place):
                                 for hold in above.get("holds", []) if hold["place"] != place]}
 
 
+def door_told(door, leads):
+    """A fixed door as told: a wall door [side, along, wide, what, ...], or a faceted room's door by bearing or a
+    tube's end [bearing or end, wide, what]."""
+    if door[0] in plans.SIDES:
+        side = f"{door[0]}@{door[4]:g}" if len(door) > 4 and f"{door[0]}@{door[4]:g}" in leads else door[0]
+        return {"wall": door[0], "along it": door[1], "wide": door[2], "what": door[3],
+                "leads to": (leads.get(side) or {}).get("to")}
+    return {"bearing or end": door[0], "wide": door[1], "what": door[2],
+            "leads to": (leads.get(str(door[0])) or {}).get("to")}
+
+
 def facts_of(store, place, skeleton, inventory):
     """Everything the writing is told about the place (ASKED's facts)."""
     leads = skeleton.get("leads", {})
     return {"place": place, "name": concepts.name_of(place), "title": skeleton.get("title"),
             "shell": skeleton.get("shell"), "heights in words": skeleton.get("height") or None,
             "outline box [wide, deep]": [skeleton["w"], skeleton["d"]], "within": within_told(store, place),
-            "fixed doors": [{"wall": door[0], "along it": door[1], "wide": door[2], "what": door[3],
-                             "leads to": (leads.get(door[0]) or {}).get("to")} for door in skeleton.get("doors", [])],
+            "fixed doors": [door_told(door, leads) for door in skeleton.get("doors", [])],
             "inside places": [{"place": hold["place"], "about [wide, deep]": [hold["w"], hold["d"]]}
                               for hold in skeleton.get("holds", [])],
             "rows": rows_told(inventory)}
@@ -390,6 +402,8 @@ def plan_from(answer, skeleton, inventory):
     section = number((answer.get("section") or {}).get("y")) if isinstance(answer.get("section"), dict) else None
     plan["section"] = {"y": section if section is not None else round(skeleton["d"] / 2, 3)}
     plan["structure"] = structure_of(answer, inventory)
+    said_beyond = answer.get("beyond") if isinstance(answer.get("beyond"), list) else []
+    plan["beyond"] = [row["id"] for row in inventory.get("rows", []) if row["id"] in said_beyond]
     plan["gaps"] = hold_gaps + plan_checks.checked(plan, inventory, plan["structure"])
     return plan
 
