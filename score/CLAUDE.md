@@ -197,7 +197,7 @@ stage as each stage is built; nothing moves before.
   (`SCORE_LIB_*`, else the score_lib checkout beside score and the cloud's object store, its key from the secret store, in the command's environment only) and gate on the report it writes (`handover.json`): a place is
   complete when its library node stands accepted, the environment when every one does (`status` prints it).
   `library-clips` (paid, after `library@<place>`, `stages/library/clips`, its overlay) renders a preview clip of
-  each item the handover made new, all of a place's on one card in cloud Blender with the films' renderer, and puts
+  each item the handover made new, a place's spread over warm cards (7 a card) in cloud Blender with the films' renderer, and puts
   each into its entry through the library's own command (CONTEXT.md "preview clip").
 
 Rules:

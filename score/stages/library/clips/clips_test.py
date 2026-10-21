@@ -42,14 +42,16 @@ words = sys.argv[sys.argv.index("--root") + 2:]
 value = lambda option: words[words.index(option) + 1]
 if words[0] == "clip-plan":
     into = pathlib.Path(value("--into"))
-    folder = into / "items" / "model-crate-1"
-    folder.mkdir(parents=True)
-    (folder / "model.usda").write_text('#usda 1.0\\n(\\n    defaultPrim = "crate"\\n)\\ndef Xform "crate" {}\\n')
-    (folder / "clip.usda").write_text('#usda 1.0\\n(\\n    subLayers = [@' + str(folder / "model.usda") + '@]\\n)\\n')
-    rows = [{"address": "model/crate@1", "kind": "model", "shelf": "model", "open": str(folder / "clip.usda"),
-             "search": str(into), "focus": None, "points": None, "material": None, "start": 0.0, "end": 0.0,
-             "per_second": 24.0, "why": ""},
-            {"address": "sound/hum@1", "kind": "sound", "shelf": None, "why": "no clip for this sound"}]
+    rows = []
+    for address in [word for word in words[1:words.index("--into")] if word.startswith("model/")]:
+        folder = into / "items" / address.replace("/", "-").replace("@", "-")
+        folder.mkdir(parents=True)
+        (folder / "model.usda").write_text('#usda 1.0\\n(\\n    defaultPrim = "crate"\\n)\\ndef Xform "crate" {}\\n')
+        (folder / "clip.usda").write_text('#usda 1.0\\n(\\n    subLayers = [@' + str(folder / "model.usda") + '@]\\n)\\n')
+        rows.append({"address": address, "kind": "model", "shelf": "model", "open": str(folder / "clip.usda"),
+                     "search": str(into), "focus": None, "points": None, "material": None, "start": 0.0, "end": 0.0,
+                     "per_second": 24.0, "why": ""})
+    rows.append({"address": "sound/hum@1", "kind": "sound", "shelf": None, "why": "no clip for this sound"})
     (into / "clip-plan.json").write_text(json.dumps(rows))
 if words[0] == "clip-attach":
     rows = json.loads(pathlib.Path(value("--clips")).read_text())
@@ -60,30 +62,29 @@ if words[0] == "clip-attach":
 (LIBRARY / "fake.py").write_text(FAKE)
 
 
-def fake_render(manifest, frames, minutes, log):
-    """Each item's frames as the Blender job would bring them back: a moving bar on grey; rendered.json."""
-    items = json.loads(manifest.read_text())["items"]
-    for item in items:
-        folder = frames / item["slug"]
-        folder.mkdir(parents=True)
-        for number in range(framing.FRAMES):
-            picture = Image.new("RGB", (64, 36), (40, 40, 40))
-            picture.paste((220, 180, 60), (number % 60, 8, number % 60 + 4, 28))
-            picture.save(folder / f"f{number:03d}-look.png")
-    (frames / "rendered.json").write_text(json.dumps({item["slug"]: {"rendered": True} for item in items}))
+RENDERED = []  # the shares each fake render was given, one list of slugs a job
+
+
+def fake_render(jobs, log, blank=False):
+    """Each share's frames as its Blender job would bring them back: a moving bar on grey (one flat grey when
+    `blank`, as the blank clips of 2026-10-20 came back); its rendered.json."""
+    for manifest, frames, minutes in jobs:
+        items = json.loads(manifest.read_text())["items"]
+        RENDERED.append([item["slug"] for item in items])
+        for item in items:
+            folder = frames / item["slug"]
+            folder.mkdir(parents=True)
+            for number in range(framing.FRAMES):
+                picture = Image.new("RGB", (64, 36), (89, 87, 84) if blank else (40, 40, 40))
+                if not blank:
+                    picture.paste((220, 180, 60), (number % 60, 8, number % 60 + 4, 28))
+                picture.save(folder / f"f{number:03d}-look.png")
+        (frames / "rendered.json").write_text(json.dumps({item["slug"]: {"rendered": True} for item in items}))
     log.write_text("fake render")
 
 
-def blank_render(manifest, frames, minutes, log):
-    """Each item's frames one flat grey, as the blank clips of 2026-10-20 came back."""
-    items = json.loads(manifest.read_text())["items"]
-    for item in items:
-        folder = frames / item["slug"]
-        folder.mkdir(parents=True)
-        for number in range(framing.FRAMES):
-            Image.new("RGB", (64, 36), (89, 87, 84)).save(folder / f"f{number:03d}-look.png")
-    (frames / "rendered.json").write_text(json.dumps({item["slug"]: {"rendered": True} for item in items}))
-    log.write_text("fake blank render")
+def blank_render(jobs, log):
+    fake_render(jobs, log, blank=True)
 
 
 def test_framing():
@@ -98,6 +99,13 @@ def test_framing():
     long = framing.time_codes(0.0, 960.0, 24.0)
     assert long[0] == 0.0 and abs(long[-1] - 960.0) < 1e-6  # a long move plays whole, sped up
     print("framing: ok")
+
+
+def test_shares():
+    assert clips.CLIPS_A_CARD == 7 and [len(share) for share in clips.shares(range(16))] == [7, 7, 2]
+    assert clips.shares([]) == [] and clips.forecast(16)["high_minutes"] == clips.forecast(7)["high_minutes"]
+    assert clips.forecast(8)["high_euros"] > clips.forecast(7)["high_euros"] + clips.per_item()["high_euros"]  # a card's set-up
+    print("shares: ok")
 
 
 def test_price():
@@ -163,6 +171,10 @@ def test_make_and_gate():
     (out / "model-crate-1.mp4").unlink()
     verdict = clips.judge_clipped(out, {}, {})
     assert verdict.answer == checks.FAIL and "None of 96 frames" in verdict.reason, verdict.reason
+    RENDERED.clear()
+    many = made("many", {f"model/crate{number}@1": "new" for number in range(9)})  # two shares: two jobs, two cards
+    assert [len(share) for share in RENDERED] == [7, 2], RENDERED
+    assert clips.judge_clipped(many, {}, {}).answer == checks.PASS
     clips.render = blank_render
     blank = made("blank", {"model/crate@1": "new"})
     assert json.loads((blank / clips.ATTACH).read_text())["attached"] == []  # a failed gate never attaches
@@ -186,6 +198,7 @@ def test_table():
 if __name__ == "__main__":
     try:
         test_framing()
+        test_shares()
         test_price()
         test_wanted()
         test_sample_shapes()

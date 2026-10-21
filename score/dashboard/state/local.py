@@ -94,12 +94,16 @@ def remake_of(written):
 def layers_of(written):
     """{stage: {takes, likely, high, places: {place: takes}, waits: {place: {why: takes}}}} of prepare's layers, its
     price as written (None while the stage has no measured per unit), each place's takes that wait on an input by
-    why (WAITS). A layer runs every bought take or only the whole models (no shell piece)."""
+    why (WAITS). A layer runs the bought takes of the routes its `runs` names, shell pieces only when it says so; a
+    record made before prepare wrote `runs`: every bought take or only the whole models (no shell piece)."""
     bought = [take for take in written.get("takes", []) if take["status"] == "bought"]
     found = {}
     for stage, layer in (written.get("layers") or {}).items():
-        # prepare writes no layer's places: one with fewer takes than bought runs the whole models only (SHELL_ROUTE)
-        runs = bought if layer["takes"] == len(bought) else [take for take in bought if not take.get("shell")]
+        if "runs" in layer:
+            runs = [take for take in bought if take.get("route", "prop") in layer["runs"]["routes"]
+                    and (layer["runs"]["shell"] or not take.get("shell"))]
+        else:
+            runs = bought if layer["takes"] == len(bought) else [take for take in bought if not take.get("shell")]
         price = layer.get("price") or {}
         waits = {}
         for take in runs:
