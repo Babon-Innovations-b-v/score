@@ -12,7 +12,7 @@ data/surfaces/people.json; after the loop:
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
     people-look                      the review page of the LOOKED looks (look.py)
 
-    .venv/bin/python -m score run world1 --stage people-look --detach
+    .venv/bin/python -m score run world1 --place people --stage people-look --stage people-clips --detach
 """
 from score import contracts, graph
 from score.stages import people_rows
