@@ -12,7 +12,7 @@ Reused only when made under today's route (owner, 2026-10-20, #21/#41): a model 
 prop pipeline's and finish route's code and gates, worked out as the library rows' key works it out and stamped by
 their handover) and the runner accepted it there, so today's gates passed. Any other match is remade:
 one the pipeline made from a picture (tags `prop`, `machine`, `crop`) under an older route counts as `old`, a
-code-built one (`piece`, or no tag) as `code`.
+code-built one (`piece`, or no tag) as `code`. A withdrawn model is out of the library and matches nothing.
 """
 from score import graph, library, stages
 from score.stages import library as library_rows
@@ -28,10 +28,12 @@ def todays_route():
 
 
 def library_models(root, route):
-    """[{address, id, place, source, tag, today}] of the library's models, from its index and each entry's record;
-    `today` when reusable under `route`."""
+    """[{address, id, place, source, tag, today}] of the library's models not withdrawn, from its index and each
+    entry's record; `today` when reusable under `route`."""
     found = []
     for entry in library.index(root, "model")["entries"]:
+        if entry.get("state") == "withdrawn":  # out of the library (owner, 2026-10-21: every old model withdrawn)
+            continue
         name, _, version = entry["address"].partition("/")[2].partition("@")
         record = library.entry(root, "model", name, version)
         provenance = record.get("provenance") or {}

@@ -50,7 +50,8 @@ def test_a_library_model_matches_by_kind_and_ratio_and_only_todays_route_or_lock
     entries = [("chair_1", "prop", "hub", "chair", today, "draft"), ("rack_1", "piece", "hub", "rack", {}, "draft"),
                ("lost_1", "prop", "x", "y", today, "draft"), ("lamp_1", "prop", "hub", "lamp", older, "draft"),
                ("bin_1", "piece", "hub", "bin", {}, "locked"),
-               ("box_1", "prop", "hub", "box", {"route": "r-today"}, "draft")]
+               ("box_1", "prop", "hub", "box", {"route": "r-today"}, "draft"),
+               ("chair_0", "prop", "hub", "chair", today, "withdrawn")]
     (root / "index").mkdir(parents=True)
     (root / "index" / "model.json").write_text(json.dumps({"schema": "score-lib-index/1", "entries": [
         {"address": f"model/{name}@1", "tags": {"model": [tag]}, "state": state}
