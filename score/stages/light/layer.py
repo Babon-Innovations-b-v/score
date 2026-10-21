@@ -324,7 +324,7 @@ def write_sky(stage, place, record, out, kept=None):
         scene.write_environment(stage, place, environment)
         scene.write_sky(stage, place, environment, out, planned_ground(place))
         done["environment"] = True
-    if environment.get("sky_dome") and seen and seen["lights"]:
+    if environment.get("sky_dome") and seen and sky.sun_entries(seen):
         UsdGeom.Scope.Define(stage, f"/{place}/Sky")
         scene.write_sky_dome(stage, place, environment["sky_dome"], sky.sun_entries(seen), out)
         done["sky_dome"] = True

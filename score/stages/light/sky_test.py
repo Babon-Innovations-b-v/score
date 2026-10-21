@@ -20,7 +20,7 @@ HOUSE = setting.checked({
     "sites": [{"place": "house", "on": "meadow", "x": 0, "y": 0}]})
 ENVIRONMENT_1 = setting.now()
 BASE = next(site for site in ENVIRONMENT_1["sites"] if site["place"] == "base")
-WHEN = "2099-06-15T12:00:00Z"
+WHEN = "2099-10-01T14:00:00Z"  # environment 1's scene time: the Sun 33 degrees over the base
 
 
 def stage_of(place):
@@ -114,6 +114,19 @@ def test_the_day_dome_is_scattered_from_the_brightest_light_the_way_it_shines():
     rise = math.radians(38.0)
     assert np.allclose(sky.sun_entries(seen)[0]["toward"], [0.0, -math.sin(rise), -math.cos(rise)], atol=1e-3)
     assert sky.sun_entries({**seen, "lights": []}) == []
+
+
+def test_a_sun_under_the_horizon_lights_nothing_and_its_light_held_anyway_is_a_fault():
+    # the house's equinox midnight: the sun as far under the horizon as it stands over it at noon, 90 - 52 = 38 degrees
+    seen = overhead.seen(HOUSE, HOUSE["sites"][0], "2024-03-20T00:00:00Z")
+    assert seen["lights"][0]["altitude"] == pytest.approx(-38.0, abs=0.5)
+    stage = stage_of("house")
+    written = sky.write(stage, "house", seen)
+    assert written["lights"] == [] and not stage.GetPrimAtPath("/house/Lights/sky_sun")
+    assert sky.sun_entries(seen) == []  # no day dome scattered from under the ground
+    assert sky.faults(seen, sky.held(stage, "house")) == []
+    sky.write_light(stage, "house", seen["lights"][0], None)  # a sky that shines it up through the ground anyway
+    assert "the light sun: in the sky, but not overhead" in sky.faults(seen, sky.held(stage, "house"))
 
 
 def text_type():
