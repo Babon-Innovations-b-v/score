@@ -103,10 +103,9 @@ SPECS = {
     "earth-kit": {"unit": "make_kit job of an earth place's code-built kit (library_bake.py, one picture set)",
                   "cloud": {"kind": "library", "who": "score earth_kit stage"}, "per_line": "jobs",
                   "count": {"files": "job-*.json"}, "forecast": "kit_jobs"},
-    # A sound line names no takes: one take a line, as sound@airlock's first run made one (2026-10-20, its log in the
-    # store), until the stage writes its takes into its line.
+    # A sound line names its takes (score/stages/sound/takes.py plan_for); the lines written before it, SOUND_TAKES.
     "sound": {"unit": "MOSS take (one brief and seed, its card rented for it)",
-              "cloud": {"kind": "prove", "who": "score runner, sound stage"}, "per_line": "one",
+              "cloud": {"kind": "prove", "who": "score runner, sound stage"}, "per_line": "takes",
               "forecast": "sound_takes"},
 }
 # Measured runs of today's route whose ledger lines went with the old disk (2026-10-19), their euros and the units they
@@ -204,8 +203,15 @@ def ledger_lines(paths):
     return found
 
 
+# The takes of the sound lines written before the stage wrote its takes into its line (#10), as their runs made them.
+SOUND_TAKES = {"prove-20261020-181655-1467389": 1,  # sound@airlock's first run: one take (2026-10-20, its store log)
+               "prove-20261021-005847-4017578": 11}  # sound@square: 11 takes (2026-10-21, #10's readiness report)
+
+
 def line_units(line, per_line):
     """The units one cloud ledger line finished."""
+    if per_line == "takes":
+        return line.get("takes") or SOUND_TAKES.get(line.get("batch"), 0)
     if per_line == "one":
         return 1
     if per_line == "jobs":

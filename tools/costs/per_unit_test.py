@@ -47,15 +47,22 @@ def test_a_batch_is_read_once_and_priced_over_the_units_it_finished():
 
 
 def test_a_ticketed_line_is_the_stage_its_ticket_names_and_a_warm_stage_is_priced_on_its_own_timed_jobs():
-    """A line whose ticket names earth-kit is no bake's, whatever its kind; sound's run is its one take; earth-kit's
-    own jobs price it in place of every library job in the paper's copy, and the add mode keeps every other stage."""
+    """A line whose ticket names earth-kit is no bake's, whatever its kind; sound's run is priced over the takes its
+    line names (one here), an older line's over its takes recorded in SOUND_TAKES, a line naming none counts none;
+    earth-kit's own jobs price it in place of every library job in the paper's copy, and the add mode keeps every
+    other stage."""
     kit = {"batch": "kit-1", "kind": "library", "ticket": "earth-kit@airlock abc", "jobs": ["a", "b"], "euros": 0.5,
            "machines": [{"type": "L4-1-24G", "started": True, "unit_seconds": [60.0, 120.0], "work_minutes": 4.0}]}
     take = {"batch": "prove-1", "kind": "prove", "who": "score runner, sound stage", "ticket": "sound@airlock abc",
-            "euros": 0.23, "machines": []}
+            "euros": 0.23, "machines": [], "takes": 1}
     lines = per_unit.ledger_lines([written([kit, take])])
     assert per_unit.cloud_measures(lines, per_unit.SPECS["surfaces-bake"]) == ([], [])
     assert per_unit.cloud_measures(lines, per_unit.SPECS["sound"]) == ([0.23], ["prove-1"])
+    square = {**take, "batch": "prove-20261021-005847-4017578", "euros": 0.0525}
+    del square["takes"]
+    unnamed = {**square, "batch": "prove-2"}
+    each, _ = per_unit.cloud_measures(per_unit.ledger_lines([written([square, unnamed])]), per_unit.SPECS["sound"])
+    assert each == [0.0525 / 11], each
     out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
     settle = {"stage": "settle", "likely_euros": 0.59, "high_euros": 1.6, "runs": 3, "sources": {}}
     out.write_text(json.dumps({"read": [], "high_quantile": 0.9, "stages": {"settle": settle}}))
