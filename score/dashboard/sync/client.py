@@ -6,7 +6,8 @@ there.
 
 The export is sent content-addressed (sync/endpoints.py): only the files the hosted side lacks, in the builder's
 priority order, CHUNK bytes of a file per request, so no request nears TIMEOUT on a slow link; files not started within
-PASS_SECONDS wait for the next pass and the export committed meanwhile names them "still uploading". An export the
+PASS_SECONDS of upload (counted from the end of the build) wait for the next pass and the export committed meanwhile
+names them "still uploading"; while one of its records (a .json) waits, nothing is committed. An export the
 hosted side refuses (a format it cannot read) is said in the pass's words, and the requests are still applied.
 
 A pass feeds the cockpit only from a checkout whose tracked files are committed and whose commit origin's main holds
@@ -176,21 +177,24 @@ def committed(remote, folder, manifest, present):
 
 
 def push_export(remote, source, chosen):
-    """Build the export in a temporary folder and send what the hosted side lacks, then commit it; what was sent."""
-    deadline = time.monotonic() + PASS_SECONDS
+    """Build the export in a temporary folder and send what the hosted side lacks, then commit it unless one of its
+    records (a .json) is still to come: the hosted side then keeps its last whole export; what was sent."""
     with tempfile.TemporaryDirectory(dir=settings.SCORE_HOME) as made:
         folder = pathlib.Path(made)
         manifest = building.build(source, folder, made_now(), settings.SCORE_EXPORT_MAX_MB, chosen.spend(),
                                   settings.SCORE_REPO)
+        deadline = time.monotonic() + PASS_SECONDS  # the upload's time: a build past it sent nothing (2026-10-21)
         files = listing(folder, manifest["written"])
         missing = set(remote.lacking({sha: size for sha, size in files.values()}))
         held, sent = uploaded(remote, folder, files, missing, deadline)
         waiting = missing - held
         manifest = with_still_uploading(manifest, files, waiting)
-        sent += committed(remote, folder, manifest, {path: sha for path, (sha, _) in files.items()
-                                                       if sha not in waiting})
+        whole = not any(path.endswith(".json") for path, (sha, _) in files.items() if sha in waiting)
+        if whole:
+            sent += committed(remote, folder, manifest, {path: sha for path, (sha, _) in files.items()
+                                                           if sha not in waiting})
     return {"made_at": manifest["made_at"], "files": len([path for path, (sha, _) in files.items() if sha in held]),
-            "bytes": sent,
+            "bytes": sent, "committed": whole,
             "to_come": len({path for path, (sha, _) in files.items() if sha in waiting}),
             "left_out": manifest["left_out"]}
 
@@ -259,7 +263,7 @@ def pushed_words(remote, source, chosen):
     except Refused as refused:
         return f"REFUSED: the hosted side did not take the export: {refused}"
     return (f"pushed the export of {pushed['made_at']}: {pushed['files']} files sent ({pushed['bytes'] / 1e6:.1f} MB), "
-            f"{pushed['to_come']} still to come")
+            f"{pushed['to_come']} still to come" + ("" if pushed["committed"] else ", records among them: not swapped in"))
 
 
 def library_sweep():

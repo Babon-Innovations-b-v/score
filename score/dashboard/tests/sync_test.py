@@ -184,12 +184,11 @@ def test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole(world
     from score.dashboard.tests.fixture import FakeBackend
     exports = settings.SCORE_HOME / "export"
     web = hosted_client()
-    monkeypatch.setattr(client, "PASS_SECONDS", -1.0)  # the pass is over before its first file: only the manifest
+    monkeypatch.setattr(client, "PASS_SECONDS", -1.0)  # the pass is over before its first file: its records wait
     first = client.push_export(remote_of(web), world.source, FakeBackend())
-    assert first["files"] == 0 and first["to_come"] > 0
-    shown = json.loads((exports / "current/manifest.json").read_text())
-    still = {entry["what"] for entry in shown["left_out"] if entry["why"] == client.STILL}
-    assert "state.json" in still and not (exports / "current/state.json").exists()
+    assert first["files"] == 0 and first["to_come"] > 0 and not first["committed"]
+    assert "state.json" in {entry["what"] for entry in first["left_out"] if entry["why"] == client.STILL}
+    assert not (exports / "current").exists()  # an export with no records is never swapped in
     monkeypatch.setattr(client, "PASS_SECONDS", 600.0)
     monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T13:00:00+00:00")
     second = client.push_export(remote_of(web), world.source, FakeBackend())
@@ -204,6 +203,24 @@ def test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole(world
     assert third["files"] <= 2  # only what changed: the new state.json and manifest
     kept = [path for path in exports.iterdir() if path.is_dir() and not path.is_symlink()]
     assert len(kept) == 2 and os.readlink(exports / "current") == "2026-10-18T140000+0000"
+
+
+@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
+def test_a_build_longer_than_the_pass_still_sends_the_export(world, settings, monkeypatch):
+    """2026-10-21: the build outgrew PASS_SECONDS, the deadline was counted from before it, and every pass sent
+    nothing and swapped in an export with no state.json (the cockpit's places 404)."""
+    from score.dashboard.tests.fixture import FakeBackend
+    clock, build = [0.0], building.build
+
+    def slow_build(*args):
+        clock[0] += client.PASS_SECONDS + 1
+        return build(*args)
+    monkeypatch.setattr(client.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(client.building, "build", slow_build)
+    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
+    pushed = client.push_export(remote_of(hosted_client()), world.source, FakeBackend())
+    assert pushed["committed"] and pushed["to_come"] == 0
+    assert (settings.SCORE_HOME / "export/current/state.json").is_file()
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
