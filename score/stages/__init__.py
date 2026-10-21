@@ -9,8 +9,7 @@ Step 0 holds the worked example: assembly (P5) on environment 1's round-three st
 (P11). Terrain (the paper's Methods, "Terrain") makes every ground of the environment from its plan, one environment node,
 free (the code fallback under its prop-pipeline adapter, ground-join), and ground-fit judges each seated place on it. The surface stage (step 1, its overlay) is each place's
 own line of rows, split to checked bake, beside the environment's seed of the finish registry. Effects (experimental) makes
-each designed place's effects layer from its design, which its assembly takes; effects-look (no place since the old
-launch records were retired) renders it before and after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
+each designed place's effects layer from its design, which its assembly takes. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
 own accepted assembly. The shared loop (shapes_first, #41: rough model, its registration to the plan, the parts split,
 close-up, Pixal3D, the finish route, the likeness gate, then each layer adapter's after-steps) is every model layer's
 one way to a model; its prop rows run only for a place with prop data. Plan and scene-record (experimental) write a
@@ -38,10 +37,7 @@ import score.stages.demo_film.final as demo_film_final
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 from score.stages.assembly import scene_tree
-import score.stages.motion.models as motion_models
-import score.stages.motion.models.boxes as model_boxes
 import score.stages.props.prop_data as prop_data
-from score.stages.effects import look as effects_look
 from score.stages.terrain import fit as ground_fit
 from score.review import concepts, plans
 from score.store import PROPS_HOME, Store
@@ -75,8 +71,7 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 # row whose kind moves), over its seed with its accepted scene record written in (the seed alone where the place has
 # no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
-                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
-                            "motion-models": ("motion-models", 1)},
+                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1)},
                      applies=designed("motion"))
 # Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
 # which its assembly takes (assembly.LAYERS): a place whose design shows a loose object (physics).
@@ -94,15 +89,6 @@ ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.O
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places)
-# Experimental (PRD #6) until the owner reviews it: the motion layer's models (data/motion/models/<place>.json), the
-# prop pipeline's models of its rigid moving things laid on what holds them up, as a layer the assembly takes.
-MOTION_MODELS = graph.Stage("motion-models", "place", motion_models.make, motion_models.LAYER_CONTRACT,
-                            motion_models.CHECKS, files=motion_models.files, after=motion_models.AFTER,
-                            applies=motion_models.applies)
-# Experimental (PRD #6): SAM 3's grounding of a place's ground_box rows' boxes, so the prop route may draw them.
-MOTION_MODEL_BOXES = graph.Stage("motion-models-boxes", "place", model_boxes.make_boxes, model_boxes.CONTRACT,
-                                 model_boxes.CHECKS, files=model_boxes.files, paid=True, euros=model_boxes.EUROS,
-                                 applies=model_boxes.applies)
 # Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
 # each read beside as its own accepted assembly. Complete reads it: a place whose shown places do not stand is not
 # complete, so a neighbour whose assembly fails (the hub's) stops every place that shows it.
@@ -135,10 +121,6 @@ COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PL
                        after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1),
                               "surfaces-check": ("surfaces-check", 1), "likeness": ("props-likeness", 1),
                               "characters-layer": ("characters-layer", 1), "motion": ("motion-layer", 2)})
-EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
-                           files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
-                           euros=effects_look.EUROS,
-                           applies=lambda place: place in effects_look.LOOKED and designed("effects")(place))
 # Experimental (PRD #6) until the owner reviews it: the place's plan in the store, and its scene record written from
 # it (score/stages/scene_record), for the places whose plan says where each door leads. No assembly reads it yet.
 def creator_plan(files):
@@ -457,20 +439,19 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
 STAGES = (TERRAIN, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           SCENE_TREE,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS, ENVIRONMENT_FILM,
-          GROUND_FIT, EFFECTS_LOOK, PHYSICS_LAYER,
+          GROUND_FIT, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
               boxed_split, map(designed_rough, shapes_first.rows())))))),
-          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE)
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
 # patterns) that make each. Every model comes from the prop pipeline; each module only adds what moves it.
-MOTION_LAYER = {"models": ("motion-models", "motion-models-boxes"),  # rigid moving things' models laid
-                "rigid": ("motion",),  # joints and paths: hinge, rail, lane, spin; the motion check
+MOTION_LAYER = {"rigid": ("motion",),  # joints and paths: hinge, rail, lane, spin; the motion check
                 "physics": ("settle", "physics-layer", "physics-trial"),  # settling, falling, cloth
                 "bodies": ("cast", "characters-layer", "people-body-*", "people-dress-*", "people-clips"),
                 "growth": ("crops-layer",)}
@@ -549,7 +530,7 @@ def accepted_gaps(row):
 # light-passes (its looks ship only through light's mix), the Workbench turntables (no sampling noise) and the
 # people's close-ups (an image model's, not a render).
 GRAIN_PICTURES = {"light": "looks/*/*-look.png", "demo-film": "concept.png", "demo-film-extra": "*/concept.png",
-                  "demo-stills": "*.png", "effects-look": "*/*/*-look.png", "crops-look": "render/*-look.png",
+                  "demo-stills": "*.png", "crops-look": "render/*-look.png",
                   "physics-trial": "frames/*-look.png"}
 
 
@@ -709,8 +690,8 @@ EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed
 SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}
 # Every row that read a place's round-three seed (`{seeds}/usd-r3/<place>`), each now reading earth-seed instead
 # (earth_seeded); stages_test.py holds the list to the declared files. terrain-look, the last reader, is retired (#27).
-EARTH_SEEDED = ("assembly", "settle", "effects-layer", "effects-look", "physics-trial", "cast", "motion",
-                "motion-models", "light-layer", "light-passes", "light-haze", "light", "scene-record")
+EARTH_SEEDED = ("assembly", "settle", "effects-layer", "physics-trial", "cast", "motion",
+                "light-layer", "light-passes", "light-haze", "light", "scene-record")
 
 
 # The rows reading beside the places they show (their scene records) and those places' seeds with them: the light

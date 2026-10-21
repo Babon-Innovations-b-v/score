@@ -26,13 +26,12 @@ def files(place):
 
 
 @contextlib.contextmanager
-def built(inputs, then=None):
+def built(inputs):
     """The stage folder a layer is written over, for the length of a `with`: the seed, or for a place with an
-    accepted scene record (or a `then` step, given the copy: the motion stage's models) a copy of the seed with it
-    written in as the assembly writes it (beside links to the seed's sibling places it references). The copy is
-    removed when the `with` ends, failed or not."""
+    accepted scene record a copy of the seed with it written in as the assembly writes it (beside links to the
+    seed's sibling places it references). The copy is removed when the `with` ends, failed or not."""
     seed = pathlib.Path(inputs["seed"])
-    if "scene-record" not in inputs and then is None:
+    if "scene-record" not in inputs:
         yield seed
         return
     SCRATCH.mkdir(parents=True, exist_ok=True)
@@ -49,10 +48,7 @@ def built(inputs, then=None):
                 shutil.copytree(seed / part, folder / part)
             elif (seed / part).exists():
                 shutil.copy2(seed / part, folder / part)
-        if "scene-record" in inputs:
-            record.take_record(inputs, folder, seed.name)
-        if then is not None:
-            then(folder)
+        record.take_record(inputs, folder, seed.name)
         yield folder
 
 

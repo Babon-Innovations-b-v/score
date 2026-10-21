@@ -11,7 +11,7 @@ Exactly one of node and work is set.
 from score import stages
 
 # A missing row's maker by how the inventory says it is made: (the stage, the work when it does not run here).
-ROUTE, CROP, MECHANIC, CODE = "route", "crop", "mechanic", "code"
+ROUTE, CROP, CODE = "route", "crop", "code"
 # The ship kits' own table (score/stages/ship_kits), not in STAGES: its node runs a ship place.
 SHIP_KIT = "ship_kit"
 ASSEMBLY = "assembly"  # lays a place's kit pieces from its seed
@@ -19,7 +19,6 @@ CONCEPT, PLAN, ROUGH_MODEL, SHELL_SPLIT = "concept", "plan", "rough-model", "she
 FILLERS = {
     ROUTE: ("pixal", "prop data for {place}: its design hand-in (prepare)"),
     CROP: ("crops-layer", None),
-    MECHANIC: ("motion-models", None),
     CODE: (SHIP_KIT, "a code body (tools/props/library/body_parts.py) and the row in data/kit/{place}.json"),
     CONCEPT: (None, "the creator's concept for {place}, drawn and locked on its concept page"),
     PLAN: ("plan", "a kept plan of {place} with its leads (the plan review)"),
@@ -60,18 +59,27 @@ def filled(stage, work, place):
 
 
 def made_by(row, place):
-    """How a scene inventory row is made, as FILLERS names it: a crop, a mechanic, a code build only when its kind is a
-    named pipeline failure (sorter.route, whatever the row's own kind or `made` says, #19), else the shared loop."""
+    """How a scene inventory row is made, as FILLERS names it: a crop (a row of a crop kind of the place's design,
+    crop_data), a code build only when its kind is a named pipeline failure (sorter.route, whatever the row's own kind
+    says, #19), else the shared loop (a moving machine's model too: the motion layer moves the loop's models)."""
     import score.stages.props.prop_data as prop_data
     with prop_data.tools("props/library"):
         import sorter
-    if row.get("made") == "crop":
+    if row["id"] in crop_rows(place):
         return CROP
-    if row.get("kind") == "mechanic":
-        return MECHANIC
     if sorter.route(f"{place}_{row['id']}") == "code":
         return CODE
     return ROUTE
+
+
+def crop_rows(place):
+    """The rows of the crop kinds the place's kept design shows (crop_data.record_of), none without a design."""
+    import json
+
+    from score.stages import design_layers
+    import score.stages.crops.crop_data as crop_data
+    path = design_layers.KEPT / f"{place}.json"
+    return set(crop_data.record_of(json.loads(path.read_text()))["kinds"]) if path.is_file() else set()
 
 
 def missing_row(row, place, in_kit):

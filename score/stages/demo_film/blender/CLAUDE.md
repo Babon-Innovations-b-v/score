@@ -5,7 +5,7 @@ folder and `tools/blender/inside` with the job): `tools/blender/inside/usd_views
 next frame's for motion blur (its docstring). The shutter and the next camera are worked out free, before the job, by
 `../__init__.py` (`motion_blurred`).
 
-- **usd_views.py stays untouched for this.** Many paid rows declare it (light passes, effects looks, library clips,
+- **usd_views.py stays untouched for this.** Many paid rows declare it (light passes, library clips,
   stills, crops); a change there moves all their keys. The films' own look goes here, which only the demo-film rows
   and the environment film declare (`TOOLS`).
 - Blur only what moves: the camera and the stage's moving transforms, never a mesh's deformation (it doubles a skinned

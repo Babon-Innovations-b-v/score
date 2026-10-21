@@ -58,7 +58,7 @@ seated place's own stage standing on it. `__init__.py`'s and `fit.py`'s docstrin
   every object that stood on the old ground with the made one; `floating` fails an object hanging over the ground;
   `continuous` casts rays straight down round the place for holes; `openings` casts rays from inside (`sight.py`). On a
   small environment the horizon dips with a viewer's height: a ray between level and that dip sees sky, not a void.
-- **No paid horizon check (owner, 2026-10-20, #27).** `terrain-look` and its paid `horizon` gate are retired from
-  the table: `ground-fit`'s free `openings` covers a view onto nothing. `look.py` holds only what `effects-look` and
-  `physics-trial` import from it (`tree`, `render`, `rendered`, `neighbours`); its make and horizon judge went with
-  the #41 rename, nothing being accepted since the 2026-10-19 store loss.
+- **No paid horizon check (owner, 2026-10-20, #27).** `terrain-look` and its paid `horizon` gate are retired from the
+  table: `ground-fit`'s free `openings` covers a view onto nothing. `look.py` holds only what `physics-trial` imports
+  from it (`tree`, `render`, `rendered`, `neighbours`); its make and horizon judge went with the #41 rename, nothing
+  being accepted since the 2026-10-19 store loss.

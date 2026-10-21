@@ -85,7 +85,6 @@ SEED_PARTS = ("layers", "assets", "inputs.json")
 LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets/effects"),
           "motion": (("motion-layer", 2), "layers/motion.usda", None),
           "light": (("light", 1), "layers/light.usda", "assets/light"),
-          "motion-models": (("motion-models", 1), "layers/motion-models.usda", "assets"),
           "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets"),
           "settle": (("settle-layer", 1), "layers/settle.usda", None),
           "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters"),
