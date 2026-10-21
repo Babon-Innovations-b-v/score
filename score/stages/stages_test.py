@@ -79,7 +79,7 @@ NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(nam
                                 (checks.Check("made", made),), applies=lambda place: False)
                     for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
                                  "sound", "scene-record", "motion", "light", "crops-layer", "settle",
-                                 "characters-layer", "motion-models", "surface-tiles"))
+                                 "characters-layer", "surface-tiles"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
@@ -177,7 +177,7 @@ def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():
 def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
     """Editing the surface line's paint, bake and check code (place_line.py, bake_check.py, feet.py), the resting
     triage, the settle, the pick check or the completion gate leaves the paid rows that do not run them alone: the
-    finish route's views, list, split and recheck, terrain and the paid effects look (each re-bought on the water
+    finish route's views, list, split and recheck and terrain (each re-bought on the water
     tank's fix, 2026-10-12, through the surfaces __init__ and complete.py); the paint, bake and check rows move. The
     free effects layer is made over the scene record as the assembly writes it (layer_base.py, 2026-10-21: its
     effects ride the design's objects), so like the motion and light rows it reads the exporter's code."""
@@ -186,7 +186,7 @@ def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
               "tools/props/library/feet.py", "tools/usd/triage.py", "tools/usd/settle.py", "tools/usd/picks.py",
               "tools/usd/complete.py")
     for name in ("finish-route-views", "finish-route-list", "finish-route-split", "finish-route-recheck",
-                 "terrain", "effects-look"):
+                 "terrain"):
         before = code_after_editing(table[name], "nothing")
         for path in edited:
             assert code_after_editing(table[name], path) == before, (name, path)
@@ -213,7 +213,7 @@ def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
     name a fabric near its torso (people_clothes.py), the plain row where the look wears its own paint; no
     hand-kept list of coloured places (captain, 2026-10-13: the concept decides the clothes)."""
     table = {stage.name: stage for stage in stages.STAGES}
-    plain = table["people-dress-player_wide-work"]
+    plain = table["people-dress-tube_person_right_1-drawn"]
     assert plain.applies("tube") and not plain.applies("square")  # the tube's "person in uniform" names no fabric
     worn =[stage for stage in stages.STAGES if stage.name.startswith("people-dress-") and "-in-" in stage.name]
     for stage in worn:
@@ -226,9 +226,9 @@ def test_a_worn_dress_row_applies_only_where_its_look_wears_that_fabric():
     from unittest import mock
 
     from score.stages import people
-    worn_row, plain_row = (stages.worn(people.dress_row("player_wide-work", surface))
+    worn_row, plain_row = (stages.worn(people.dress_row("tube_person_right_1-drawn", surface))
                            for surface in ("jacket_blue", None))
-    dressed = {"deck": {("player_wide-work", "jacket_blue")}, "hold": {("player_wide-work", None)}}
+    dressed = {"deck": {("tube_person_right_1-drawn", "jacket_blue")}, "hold": {("tube_person_right_1-drawn", None)}}
     with mock.patch.object(stages.characters_layer, "dressed_looks", lambda place: dressed.get(place, set())):
         assert worn_row.applies("deck") and not worn_row.applies("hold") and not worn_row.applies("nowhere")
         assert plain_row.applies("hold") and not plain_row.applies("deck")

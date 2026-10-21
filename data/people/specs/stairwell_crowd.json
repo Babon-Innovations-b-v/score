@@ -1,0 +1,17 @@
+{
+ "name": "stairwell_crowd",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the stairwell concept (68895bd4): its scene inventory's people row crowd (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "one person of the crowd of people of the stairwell concept, right side, background square",
+ "references": [],
+ "description": "one person of the crowd of people, an average build, as drawn in the stairwell concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the stairwell concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the stairwell concept",
+ "face": "the face as drawn in the stairwell concept"
+}

@@ -1,0 +1,17 @@
+{
+ "name": "quarters_person_desk_1",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the quarters concept (e71508a9): its scene inventory's people row person_desk (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "person sitting at desk of the quarters concept, at desk",
+ "references": [],
+ "description": "person sitting at desk, a slim build, as drawn in the quarters concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the quarters concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the quarters concept",
+ "face": "the face as drawn in the quarters concept"
+}

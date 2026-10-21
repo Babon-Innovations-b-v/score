@@ -3,24 +3,6 @@
  "order": "prop-first",
  "why": "The people line's hand-in to the shared loop (score/stages/shapes_first, #41): every look a row of the people layer, its close-up drawn by the loop's close-up row from the place's person that maps it (the people layer's own A-pose wording, stage.PERSON) and its take made by pixal@people, on the line `people`, which no place owns (#26).",
  "objects": {
-  "kit_m_avg-coat-grey": {
-   "route": "prop",
-   "take": "kit_m_avg-coat-grey-s1",
-   "layer": "people",
-   "failures": {
-    "parts": "split a second time by people-look-parts-kit_m_avg-coat-grey (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
-    "body": "people-body-kit_m_avg-coat-grey builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
-   }
-  },
-  "player_wide-work": {
-   "route": "prop",
-   "take": "player_wide-work-s1",
-   "layer": "people",
-   "failures": {
-    "parts": "split a second time by people-look-parts-player_wide-work (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
-    "body": "people-body-player_wide-work builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
-   }
-  },
   "airlock_astronaut_1-drawn": {
    "route": "prop",
    "take": "airlock_astronaut_1-drawn-s1",
@@ -487,6 +469,141 @@
    "failures": {
     "parts": "split a second time by people-look-parts-wreck_astronaut_3_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
     "body": "people-body-wreck_astronaut_3_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "base_astronaut_left_1-drawn": {
+   "route": "prop",
+   "take": "base_astronaut_left_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-base_astronaut_left_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-base_astronaut_left_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "base_astronaut_right_1-drawn": {
+   "route": "prop",
+   "take": "base_astronaut_right_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-base_astronaut_right_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-base_astronaut_right_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "cockpit_officer_1-drawn": {
+   "route": "prop",
+   "take": "cockpit_officer_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-cockpit_officer_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-cockpit_officer_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "cockpit_pilot_1-drawn": {
+   "route": "prop",
+   "take": "cockpit_pilot_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-cockpit_pilot_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-cockpit_pilot_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "quarters_person_bed_1-drawn": {
+   "route": "prop",
+   "take": "quarters_person_bed_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-quarters_person_bed_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-quarters_person_bed_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "quarters_person_desk_1-drawn": {
+   "route": "prop",
+   "take": "quarters_person_desk_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-quarters_person_desk_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-quarters_person_desk_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "square_crowd-drawn": {
+   "route": "prop",
+   "take": "square_crowd-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-square_crowd-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-square_crowd-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "stairwell_crowd-drawn": {
+   "route": "prop",
+   "take": "stairwell_crowd-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-stairwell_crowd-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-stairwell_crowd-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "stairwell_walkway_crowd_1-drawn": {
+   "route": "prop",
+   "take": "stairwell_walkway_crowd_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-stairwell_walkway_crowd_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-stairwell_walkway_crowd_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "stairwell_walkway_crowd_2-drawn": {
+   "route": "prop",
+   "take": "stairwell_walkway_crowd_2-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-stairwell_walkway_crowd_2-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-stairwell_walkway_crowd_2-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "stairwell_walkway_crowd_3-drawn": {
+   "route": "prop",
+   "take": "stairwell_walkway_crowd_3-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-stairwell_walkway_crowd_3-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-stairwell_walkway_crowd_3-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "stairwell_walkway_crowd_4-drawn": {
+   "route": "prop",
+   "take": "stairwell_walkway_crowd_4-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-stairwell_walkway_crowd_4-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-stairwell_walkway_crowd_4-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "stairwell_walkway_crowd_5-drawn": {
+   "route": "prop",
+   "take": "stairwell_walkway_crowd_5-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-stairwell_walkway_crowd_5-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-stairwell_walkway_crowd_5-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "street_distant_crowd-drawn": {
+   "route": "prop",
+   "take": "street_distant_crowd-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-street_distant_crowd-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-street_distant_crowd-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
+   }
+  },
+  "tube_person_right_1-drawn": {
+   "route": "prop",
+   "take": "tube_person_right_1-drawn-s1",
+   "layer": "people",
+   "failures": {
+    "parts": "split a second time by people-look-parts-tube_person_right_1-drawn (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
+    "body": "people-body-tube_person_right_1-drawn builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
    }
   }
  },

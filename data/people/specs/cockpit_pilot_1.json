@@ -1,0 +1,17 @@
+{
+ "name": "cockpit_pilot_1",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the cockpit concept (a984a44e): its scene inventory's people row pilot (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "pilot of the cockpit concept, sitting in the front seat",
+ "references": [],
+ "description": "pilot, a slim build, as drawn in the cockpit concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the cockpit concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the cockpit concept",
+ "face": "the face as drawn in the cockpit concept"
+}

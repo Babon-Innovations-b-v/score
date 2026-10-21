@@ -239,11 +239,13 @@ def size_of(look, found=None):
 
 
 def member_size(look, found):
-    """(size, "<place>/<row>") of one member of the first crowd row that maps the look when its size is the crowd's
-    extent: an average build's box (between SLIM and BROAD) as tall as the row; None with no such row."""
+    """(size, "<place>/<row>") of one member of the first row that maps the look when its size is the row's extent
+    (a crowd's, or a row of several people standing apart: the stairwell's walkway people): an average build's box
+    (between SLIM and BROAD) as tall as the row; None with no such row."""
     for place, entry in sorted(found["places"].items()):
         for row, fields in sorted(entry["rows"].items()):
-            if fields.get("crowd") == look and isinstance(fields.get("size"), list) and len(fields["size"]) == 3:
+            maps = fields.get("crowd") == look or look in fields.get("looks", [])
+            if maps and isinstance(fields.get("size"), list) and len(fields["size"]) == 3:
                 side = round((SLIM + BROAD) / 2, 3)
                 return [side, side, fields["size"][2]], f"{place}/{row}"
     return None
