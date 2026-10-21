@@ -35,7 +35,8 @@ anyway), and waits on every cloud step itself. A node that does not end accepted
 input is missing, it errored or waits for the owner) stops its own line only: the nodes after it are not run, and it
 leaves a plain fault report (`faults/<node>.txt` beside the store: the node, the cause, every blocking check's reason,
 measures and findings, and the tail of its log, `logs/<node>.log`) for an agent or the owner to be pointed at. A node
-that stands removes its old report. Once a node stops its line, nothing later on that line starts.
+that stands removes its old report. Once a node stops its line, every node that reads it (directly or through another
+node) is not run; a node on that line that reads nothing of it still runs, so a failure is a gap, not a stopped line.
 
 Runs side by side on one store make a node's key one at a time (`held`, a file lock in `locks/` beside the store): a
 second run waits, then finds the first's record and makes nothing. A record or judgement another run stored first is
@@ -1307,16 +1308,15 @@ class Runner:
         its own the moment every node it reads stands accepted, at most `jobs` at once, so a line waiting on a cloud
         step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
-        own line and leaves a fault report; {node: what it did}, in table order. `whole` False drives the places'
+        own line and leaves a fault report: every node that reads it, directly or through another, is not run, and a node
+        on that line that reads nothing of it still runs; {node: what it did}, in table order. `whole` False drives the places'
         lines alone, with only the environment nodes they read; `only` (stage names) those stages and the ones they read.
         `gauges`, given by score run alone (a stage's own drive says no beats), is called every HEARTBEAT seconds for
         the text a heartbeat line carries (the run's euros so far, its paid runs open)."""
         chosen = self.line_nodes(places, whole, only)
-        order = {node_name(*node): index for index, node in enumerate(chosen)}
         waiting = list(chosen)
         done, stopped, stood, running = {}, {}, set(), {}
         on_gaps = set()  # stopped nodes that fail only on their accepted gaps: a stage's `gapped` reads them
-        halted = {}  # {line: [(table index, node)]} of its stopped nodes: nothing later on the line starts
         beat_at = time.monotonic() + HEARTBEAT
         threads = node_threads(jobs)
         while waiting or running:
@@ -1324,9 +1324,6 @@ class Runner:
                 node, earlier = node_name(stage, place), self.earlier(stage, place)
                 passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}
                 waits = [stopped[before] for before in earlier if before in stopped and before not in passes]
-                if not waits:
-                    waits = [stop for index, stop in sorted(halted.get(place or WORLD_LINE, []))
-                             if index < order[node] and stop not in passes][:1]
                 if waits:
                     waiting.remove((stage, place))
                     stopped[node] = waits[0]
@@ -1349,7 +1346,6 @@ class Runner:
                     stood.add(node)
                 else:
                     stopped[node] = node
-                    halted.setdefault(place or WORLD_LINE, []).append((order[node], node))
                     with self.still():
                         if self.standing(stage, place, gapped=True) is None:
                             on_gaps.add(node)
