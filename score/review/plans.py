@@ -897,6 +897,37 @@ def yes_key(place, at):
     return f"plan-{place}-{stamp_key(at)}"
 
 
+def hand_edits(base, plan):
+    """[words] of what his plan changes from the plan made without him: inside places and items (by name) removed,
+    added, moved or resized, in metres."""
+    said = []
+    for kind, named in (("scene", lambda found: {hold["place"]: [hold["x"], hold["y"], hold["w"], hold["d"]]
+                                                for hold in found.get("holds", [])}),
+                        ("item", lambda found: {item[0]: list(item[1:5]) for item in found.get("items", [])})):
+        was, now = named(base), named(plan)
+        said += [f"removed the {kind} {name}" for name in was if name not in now]
+        for name, (x, y, wide, deep) in now.items():
+            if name not in was:
+                said.append(f"added the {kind} {name}, {wide} x {deep} m at {x}, {y} m")
+            elif [round(value, 2) for value in was[name]] != [round(value, 2) for value in (x, y, wide, deep)]:
+                said.append(f"{kind} {name} now {wide} x {deep} m at {x}, {y} m (was {was[name][2]} x {was[name][3]} m "
+                            f"at {was[name][0]}, {was[name][1]} m)")
+    return said
+
+
+def note_of(store, place, request):
+    """The note a Correct with notes sends: his typed note, else, with no mark either, his hand edits of the plan
+    shown in words (owner, 2026-10-21: Correct with no note sends his edits); Refused when there is neither."""
+    note = str(request.get("note") or "").strip()
+    if note or request.get("marks") or request.get("context_marks"):
+        return note
+    shown, made_one = current(store, place), made_plan(store, place)
+    edits = hand_edits(made_one["plan"], shown["plan"]) if shown and made_one and shown["how"] != made_one["how"] else []
+    if not edits:
+        raise Refused("no note to correct the plan by: type a note, mark an area or change the plan")
+    return f"I changed the plan by hand: {'; '.join(edits)}. Keep these changes and fit the rest of the plan to them."
+
+
 def plan_question(plan, marks, context, note):
     """What Gemini is asked: the plan as JSON corrected by his notes, answered as JSON of the same keys."""
     edited_keys = {key: plan.get(key) for key in ("w", "d", "items", "doors", "people", "holds") if key in plan}

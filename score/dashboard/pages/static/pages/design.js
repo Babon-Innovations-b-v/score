@@ -5,6 +5,12 @@
 // enlarged panel, else with Ctrl), pans with Space+drag or the middle button (data-pan="free": any drag); "fit" and
 // a resize put it back whole.
 (() => {
+  // --- the screen: on a desktop the cockpit fills the screen below where it starts (dash.css --design-top) ---------
+  const design = document.querySelector(".design");
+  const placed = () => design.style.setProperty("--design-top", `${design.getBoundingClientRect().top + window.scrollY}px`);
+  placed();
+  window.addEventListener("resize", placed);
+
   // --- focus --------------------------------------------------------------------------------------------------------
   const focused = () => {
     const wanted = /^#focus=([\w-]+)$/.exec(location.hash);

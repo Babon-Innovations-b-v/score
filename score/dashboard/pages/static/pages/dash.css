@@ -702,8 +702,9 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .plan-stair-cut { stroke: var(--ink); stroke-width: 2; }
 .plan-item-cut rect { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: var(--accent); stroke-width: 1.2; }
 .plan-gaps li { cursor: pointer; }
-.plan-places { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.plan-places li { display: flex; gap: 6px; align-items: center; }
+.plan-places { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.plan-places li { display: flex; gap: 2px; align-items: center; max-width: 100%; }
+.design-rail .plan-places input { width: auto; field-sizing: content; min-width: 6ch; max-width: 100%; padding: 2px 6px; }
 .plan-places input { flex: 1; min-width: 0; }
 /* a place's design steps (pages/c/steps.html): four pips, concept to approved */
 .design-steps { display: inline-flex; gap: 3px; align-items: center; font-size: var(--fs-sm); }
@@ -711,11 +712,14 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .design-steps .pip.done { background: var(--done); border-color: var(--done); }
 .design-steps b { margin-left: 4px; font-weight: 600; }
 /* the design page (concept.html, design.js): a cockpit of panels, each enlarging to fill the screen, beside one
-   action rail; pictures and drawings fit their panel at their own aspect */
+   action rail; pictures and drawings fit their panel at their own aspect. On a desktop screen it is one screen, an
+   instrument panel with no page scroll (below); narrower or lower, the panels flow down the page */
 main.wide { max-width: 2400px; }
 .design { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 .design-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 16px; align-items: start; }
-.design-panels:not(:has(#drawing-part)) #concept-part, #inventory-part, #plan-part { grid-column: 1 / -1; }
+@media (max-width: 1099.98px), (max-height: 599.98px) {
+  .design-panels:not(:has(#drawing-part)) #concept-part, #inventory-part, #plan-part { grid-column: 1 / -1; }
+}
 .dpanel { min-width: 0; padding: 10px 12px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .dpanel-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 0 0 8px; min-height: 30px; }
 .dpanel-head .num-label { font-size: 1.05em; }
@@ -738,8 +742,7 @@ main.wide { max-width: 2400px; }
 .inventory-list { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow-y: auto; }
 .inventory-list .concept-rows { max-height: none; padding-left: 30px; }
 .concept-rows li, .concept-gaps li { cursor: pointer; border-radius: var(--radius-small); }
-.plan-panel { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; align-items: center; }
-#plan-part.wide .plan-panel { grid-template-columns: minmax(0, 1fr); }  /* a long plan: its section under it, at its width */
+.plan-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: center; }  /* the section under the plan */
 .zoom-view { position: relative; overflow: hidden; width: 100%; aspect-ratio: 16 / 10; touch-action: none; }
 .zoom-view.panning { cursor: grabbing; }
 .plan-stage.zoom-view { max-height: 72vh; }
@@ -765,11 +768,58 @@ body.focusing { overflow: hidden; }
 .dpanel.focused #inventory-stage img { max-height: calc(100vh - 70px); }
 .dpanel.focused .inventory-list { max-height: calc(100vh - 70px); }
 .dpanel.focused .plan-drawing img { max-height: calc(100vh - 70px); }
-.dpanel.focused .plan-panel { height: 100%; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
-.dpanel.focused#plan-part.wide .plan-panel { grid-template-rows: minmax(0, 1fr) 24vh; }
+.dpanel.focused .plan-panel { height: 100%; grid-template-rows: minmax(0, 1fr) 22vh; align-items: stretch; }
 .dpanel.focused .zoom-view { height: 100%; max-height: none; aspect-ratio: auto !important; }
 @media (max-width: 1100px) { .design { grid-template-columns: minmax(0, 1fr); } .design-rail { position: static; max-height: none; } }
-@media (max-width: 860px) { .design-panels, .inventory-panel, .plan-panel, .dpanel.focused .inventory-panel { grid-template-columns: minmax(0, 1fr); } .design-panels > .dpanel { grid-column: 1 / -1; } }
+/* the instrument panel (owner, 2026-10-21: "this page also doesnt function as a dashboard/cockpit yet"): the page fits
+   the screen; concept and top-down drawing over the inventory, the plan a column as wide as its drawing at the height
+   it gets (--plan-aspect from plan.js) with its section under it, a long plan a row across the bottom instead; the
+   rail full height, its gaps list taking what is left. --design-top is set by design.js */
+@media (min-width: 1100px) and (min-height: 600px) {
+  main.wide:has(.design) { padding-bottom: 0; }
+  .design { --design-top: 120px; --plan-aspect: 0.75; --section-h: clamp(80px, 13vh, 160px); --design-h: calc(100vh - var(--design-top) - 14px);
+            height: var(--design-h); grid-template-columns: minmax(0, 1fr) clamp(260px, 17vw, 320px); gap: 12px; align-items: stretch; }
+  .design-panels { min-height: 0; gap: 12px; align-items: stretch; grid-auto-flow: row;
+                   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+                   grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) min(56%, max(240px, calc((var(--design-h) - var(--section-h) - 84px) * var(--plan-aspect) + 26px)));
+                   grid-template-areas: "concept drawing plan" "inventory inventory plan"; }
+  .design-panels:not(:has(#drawing-part)) { grid-template-areas: "concept concept plan" "inventory inventory plan"; }
+  .design-panels:not(:has(#plan)) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 260px; grid-template-areas: "concept concept inventory" "concept concept plan"; }
+  .design-panels:has(#plan-part.wide) { grid-template-columns: minmax(0, 3fr) minmax(0, 1.2fr) minmax(0, 4fr); grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+                                        grid-template-areas: "concept drawing inventory" "plan plan plan"; }
+  #concept-part { grid-area: concept; } #inventory-part { grid-area: inventory; } #drawing-part { grid-area: drawing; } #plan-part { grid-area: plan; }
+  .design-panels > .dpanel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 8px 10px 10px; }
+  .design-panels > .dpanel > .dpanel-head { margin-bottom: 6px; }
+  .design-panels > .dpanel > .dpanel-body { flex: 1 1 auto; min-height: 0; }
+  .concept-panel { display: flex; flex-direction: column; }
+  .concept-pics { flex: 1 1 auto; min-height: 0; container-type: size; grid-template-rows: minmax(0, 1fr); }
+  .concept-pics:has(.concept-context) { grid-template-columns: minmax(0, 1fr) fit-content(34%); }
+  .concept-pics > .concept-stage, #inventory-stage, .plan-drawing { width: fit-content; max-width: 100%; margin: 0 auto; }
+  .concept-pics > .concept-stage img { width: auto; max-width: 100%; max-height: 100cqh; }
+  .concept-context { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .concept-context-stage img { width: auto; max-width: 100%; max-height: calc((100cqh - 6px * (var(--n, 1) - 1)) / var(--n, 1)); }
+  .concept-history { margin-top: 6px; } .concept-past { width: 84px; }
+  .inventory-panel { container-type: size; grid-template-columns: minmax(0, 1fr) minmax(200px, 32%); grid-template-rows: minmax(0, 1fr); }
+  #inventory-stage img { width: auto; max-width: 100%; max-height: 100cqh; }
+  .inventory-list { max-height: 100cqh; }
+  #drawing-part > .dpanel-body { container-type: size; }
+  .plan-drawing img { width: auto; max-width: 100cqw; max-height: 100cqh; }
+  .plan-panel { display: flex; flex-direction: column; gap: 6px; }
+  .plan-panel .zoom-view { max-height: none; aspect-ratio: auto !important; }
+  .plan-panel .plan-stage { flex: 1 1 auto; min-height: 0; }
+  .plan-panel .section-stage { flex: none; height: var(--section-h); }
+  .design-rail { position: static; height: 100%; max-height: none; min-height: 0; box-sizing: border-box; gap: 10px; }
+  .design-rail > *, #plan-rail > * { flex-shrink: 0; }
+  #plan-rail { flex: 1 0 auto; }
+  #plan-rail:has(.plan-gaps) { flex: 1 1 auto; min-height: 0; }
+  .plan-gaps { flex: 1 1 auto !important; min-height: 96px; display: flex; flex-direction: column; }
+  .plan-gaps .concept-gaps { flex: 1 1 auto; min-height: 0; max-height: none; }
+  .dpanel.focused { padding: 10px 16px 14px; }
+  .dpanel.focused .plan-panel .plan-stage { height: auto; } .dpanel.focused .plan-panel .section-stage { height: 22vh; }
+  .dpanel.focused .concept-pics > .concept-stage img, .dpanel.focused #inventory-stage img, .dpanel.focused .plan-drawing img { max-height: 100cqh; }
+}
+@media (max-width: 860px) { .design-panels, .inventory-panel, .plan-panel, .dpanel.focused .inventory-panel { grid-template-columns: minmax(0, 1fr); } .design-panels > .dpanel { grid-column: 1 / -1; }
+  .concept-pics:has(.concept-context) { grid-template-columns: minmax(0, 1fr); } .concept-context { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } }
 .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .chips li { display: inline-flex; align-items: center; gap: 4px; padding: 1px 2px 1px 10px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--raised); }
 .chip-drop { padding: 0 7px; border: 0; background: transparent; line-height: 1.5; }

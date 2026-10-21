@@ -332,6 +332,7 @@ def plan_revise(store, place, request, euros, by, run=None):
         shown = "not measured" if price is None else f"EUR {price:.2f}"
         raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
                              "read the page again")
+    request = {**request, "note": plans.note_of(store, place, request)}  # before his yes: nothing to send, no spend
     key = plans.yes_key(place, review.now())
     review.spend(store, "override", key, price, name, purpose=f"plan review: one correction of {place}'s plan by "
                                                                "the creator's notes (Gemini)")

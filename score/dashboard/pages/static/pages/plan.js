@@ -14,6 +14,10 @@
   if (!page) return;
   const place = page.dataset.place;
   const plan = JSON.parse(document.getElementById("plan-data").textContent);
+  // an inside place is shown by its name (place.json `short`: "Cockpit and nav"); its id stays in the plan and the words
+  // Correct sends
+  const names = JSON.parse(document.getElementById("plan-names").textContent);
+  const called = (id) => names[id] || id.replace(/_/g, " ");
   const svg = document.getElementById("plan-drawing");
   const cut = document.getElementById("plan-section");
   const editing = "marking" in page.dataset;
@@ -45,6 +49,8 @@
   // fitted to its panel, zoomed and panned by design.js: the marks' layer is exactly the drawing's box
   svg.setAttribute("viewBox", `${-margin} ${-margin} ${wide + 2 * margin} ${deep + 2 * margin}`);
   page.closest(".dpanel").classList.toggle("wide", wide > 1.25 * deep);  // a long plan takes the cockpit's whole width
+  // the cockpit's plan column is as wide as the drawing at the height it gets (dash.css)
+  page.closest(".design").style.setProperty("--plan-aspect", String((wide + 2 * margin) / (deep + 2 * margin)));
 
   // --- drawing helpers ----------------------------------------------------------------------------------------------
   const shape = (name, attributes, parent = svg) => {
@@ -284,14 +290,14 @@
     const group = shape("g", { class: `plan-hold${lit_names().includes(hold.place) ? " lit" : ""}` });
     shape("rect", { x: hold.x, y: hold.y, width: hold.w, height: hold.d }, group);
     const size = Math.max(Math.min(hold.w / 6, hold.d / 2.5, text * 1.2), longest / 140);
-    label(hold.place.replace(/_/g, " "), hold.x + size * 0.4, hold.y + size * 1.2, size, "hold", group);
-    tip(group, `${hold.place.replace(/_/g, " ")}: ${hold.w} x ${hold.d} m, ` +
+    label(called(hold.place), hold.x + size * 0.4, hold.y + size * 1.2, size, "hold", group);
+    tip(group, `${called(hold.place)}: ${hold.w} x ${hold.d} m, ` +
         `${hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this scene's own floor"}`);
     const rect = () => [hold.x, hold.y, hold.w, hold.d];
     draggable(group, rect, (was, dx, dy) => Object.assign(hold, { x: round(was[0] + dx), y: round(was[1] + dy) }),
               () => { hold.row = holder_under(hold); },
               () => `moved ${hold.place.replace(/_/g, " ")} to ${hold.x}, ${hold.y} m${hold.row ? `, inside the ${hold.row.replace(/_/g, " ")}` : ""}`);
-    corner(rect, (w, d) => Object.assign(hold, { w, d }), group, size, () => hold.place.replace(/_/g, " "));
+    corner(rect, (w, d) => Object.assign(hold, { w, d }), group, size, () => called(hold.place));
   };
   const spot = (where) => {
     const dot = shape("circle", { cx: where[0], cy: where[1], r: longest / 110, class: "plan-spot" });
@@ -541,18 +547,22 @@
       row.title = hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this scene's own floor";
       if (!editing) {
         row.innerHTML = "<span data-v></span>";
-        row.querySelector("span").textContent = hold.place.replace(/_/g, " ");
+        row.querySelector("span").textContent = called(hold.place);
         places.append(row);
         return;
       }
       row.innerHTML = '<input type="text" title="its name"><button type="button" class="concept-drop" title="remove this scene" ' +
         'aria-label="remove">&times;</button>';
       const input = row.querySelector("input");
-      input.value = hold.place;
+      input.value = called(hold.place);
       input.addEventListener("change", () => {
         const was = hold.place;
-        hold.place = input.value.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || hold.place;
-        input.value = hold.place;
+        const typed = input.value.trim();
+        if (typed && typed !== called(was)) {
+          hold.place = typed.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || hold.place;
+          names[hold.place] = typed;
+        }
+        input.value = called(hold.place);
         draw();
         if (hold.place === was) return;
         renamed = hold;
@@ -727,7 +737,7 @@
     changed(into ? `merged ${name(gone)} into ${name(into)}` : `removed ${name(gone)}`);
     if (!into || !merged_note) return;
     merged_note.hidden = false;
-    merged_note.querySelector("[data-slot]").textContent = `merged ${name(gone)} into ${name(into)}`;
+    merged_note.querySelector("[data-slot]").textContent = `merged ${called(gone.place)} into ${called(into.place)}`;
     merged_note.querySelector("button").onclick = () => {
       plan.holds.splice(index, 0, gone);
       merged_note.hidden = true;
@@ -755,13 +765,14 @@
       }
     });
   };
-  // Correct with notes: his marks and note; with no note typed, the edits he made (saved first) are the note
+  // Correct with notes: his marks and note; with no note typed, the edits he made on this visit (saved first) are the
+  // note, else the store's machine words his kept edits (score/review/plans.note_of) or refuses before any spend
   click("plan-revise", "revise", async () => {
     if (timer) await save();
+    await saving;
     const own = marks.filter((mark) => !mark.on).map(sent);
     const context = marks.filter((mark) => mark.on).map(sent);
     const words = note.value.trim() || (edits.length ? `I changed the plan by hand: ${edits.join("; ")}. Keep these changes and fit the rest of the plan to them.` : "");
-    if (!words && !own.length && !context.length) throw new Error("no note to correct the plan by: type a note, mark an area or change the plan");
     return { marks: own, context_marks: context, note: words, euros: Number(page.dataset.euros) };
   }, true);
   click("plan-write", "write", () => ({ euros: Number(page.dataset.writeEuros) }), true);

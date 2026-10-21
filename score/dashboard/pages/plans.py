@@ -44,11 +44,14 @@ def pending_of(place):
                  if item.state in concepts.OPEN), None)
 
 
-def refused_of(place):
-    """Why his newest plan request of the place was refused, or None."""
+def refused_of(place, since=None):
+    """Why his newest plan request of the place was refused, or None; None too when it is older than `since` (the
+    plan shown's time: a refusal of a plan since changed says nothing about the one shown)."""
     found = sorted([item for kind in (EDIT, REVISE, WRITE) for item in concepts.asked(place, kind)],
                    key=lambda item: item.created)
-    return found[-1].detail if found and found[-1].state == "refused" else None
+    if not found or found[-1].state != "refused" or (since and found[-1].created.isoformat() < since):
+        return None
+    return found[-1].detail
 
 
 def picture_of(world, place):
