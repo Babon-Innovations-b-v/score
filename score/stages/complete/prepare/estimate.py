@@ -17,9 +17,10 @@ from score.stages.complete.gaps import schedule
 from score.stages.complete.prepare import groups
 
 # {route: its layer's stage} of a take's layers past or in place of the prop pipeline (groups.ROUTES): a person's
-# model is the prop pipeline's, then the motion layer's steps (CONTEXT.md "motion"); the sky, the effects and the far
-# city are layers without models, each its own route (CONTEXT.md "layer adapter").
-OWN_ROUTES = {"people": "motion", "sky": "sky", "effects": "effects-look", "skyline": "skyline"}
+# model is the prop pipeline's, then the people adapter's body step (rig, build, settle and every body gate:
+# score/stages/people_bodies, the motion layer's "bodies" module; never the `motion` row, which moves rigid parts only);
+# the sky, the effects and the far city are layers without models, each its own route (CONTEXT.md "layer adapter").
+OWN_ROUTES = {"people": "people-body", "sky": "sky", "effects": "effects-look", "skyline": "skyline"}
 DEADLINE_TIMES = 2  # a job's watchdog deadline: twice its measured high seconds (guard.py's runaway limit)
 
 
