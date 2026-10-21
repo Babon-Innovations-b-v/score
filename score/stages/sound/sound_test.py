@@ -21,14 +21,14 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks  # noqa: E402
 from score.stages import sound  # noqa: E402
-from score.stages.sound import gates  # noqa: E402
+from score.stages.sound import beds, gates  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 
 def inputs_for(place, folder, changes=None):
     """The place's inputs, with each changed record ({input name: document}) written into `folder`."""
-    inputs = {name: pathlib.Path(pattern.format(place=place, data=str(REPO / "data")))
+    inputs = {name: pathlib.Path(pattern.format(place=place, data=str(REPO / "data"), home=str(beds.DESIGN.parent)))
               for name, pattern in sound.files(place).items()}
     for name, document in (changes or {}).items():
         inputs[name] = pathlib.Path(folder) / f"{name}.json"
@@ -111,12 +111,17 @@ def test_needs_name_what_the_library_does_not_answer():
 
 def test_a_missing_sound_and_a_lost_row_fail_sources():
     places = read("places")
-    places["places"]["hub"]["loops"].append("no_such_sound")
-    places["places"]["hub"]["objects"] = [{"sound": "base_hum", "on": "no_such_row"}]
+    row = read_json_rows("hub")[0]["id"]
+    places["places"]["hub"] = {"objects": [{"sound": "no_such_sound", "on": row},
+                                           {"sound": "base_hum", "on": "no_such_row"}]}
     with tempfile.TemporaryDirectory() as folder:
         inputs, out = made("hub", folder, {"places": places})
         verdict = gates.judge_sources(out, inputs, None)
     assert verdict.answer == checks.FAIL and len(verdict.findings) == 2, verdict
+
+
+def read_json_rows(place):
+    return json.loads(sound.stage_inputs.inventory_path(place).read_text())["rows"]
 
 
 def test_a_loud_file_fails_level():
@@ -187,7 +192,7 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
         plan = sound.environment_takes(REPO / "data", sound.moss_weights())
         shared = [places for job, places in plan.values() if job["sound"] == "crew_talk"]
         assert len(shared) == 1 and len(shared[0]) > 1, shared
-        places = sound.read_json(REPO / "data/sound/places.json")["places"]
+        places = beds.places(REPO / "data")
         assert sum(price.rule_units("sound_takes", [], REPO / "data", place) for place in places) == len(plan)
         brief = sound.brief_of("crew_talk", {"sounds": REPO / "data/sound/sounds.json"})
         lines = [threading.Thread(target=takes.made, args=(takes.jobs_for("crew_talk", brief, "rev"),

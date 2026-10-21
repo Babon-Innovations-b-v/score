@@ -1,6 +1,7 @@
 """What a place needs to be heard, worked out free from its own records (#29), and what answers each need:
 
-    bed     its room tone: data/sound/places.json `loops` (or what the suit lets through, `heard_through`)
+    bed     its room tone, or what the suit lets through outside where no air carries sound: worked out from its
+            design (beds.py), never listed per place
     event   each thing that moves (data/motion/<place>.json motions and data/motion/rigid/<place>.json moving things with a move: a
             slide, swing, path, spin, climb or turn; a motion that only lights is none): its own `sounds`, else the
             sounds data/sound/moving.json gives its row kind's move (moving.sounds_for: the kind of its inventory row,
@@ -18,6 +19,7 @@ import pathlib
 import sys
 
 from score.stages import row_kinds
+from score.stages.sound import beds
 from score.stages.sound import moving
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/usd"))
@@ -76,8 +78,9 @@ def state_of(names, catalogue, sounds):
     return LIBRARY if all(has_file(name) for name in names) else MAKE
 
 
-def needs(place, data):
-    """Every sound need of the place: [{"kind", "item", "prim", "sounds", "state"}]."""
+def needs(place, data, design=beds.DESIGN):
+    """Every sound need of the place: [{"kind", "item", "prim", "sounds", "state"}], the bed's with what its design
+    does not give (`missing`)."""
     data = pathlib.Path(data)
     record = read(data / "sound/places.json").get("places", {}).get(place, {})
     catalogue = read(data / "sound/catalogue.json").get("sounds", {})
@@ -86,8 +89,9 @@ def needs(place, data):
     rows = read(data / "inventory" / stage_inputs.inventory_path(place).name).get("rows", [])
     kinds, table = row_kinds.table(data / "checks/row-kinds.json"), read(data / "sound/moving.json")
     found = []
-    bed = record.get("loops", []) + record.get("heard_through", [])
-    found.append({"kind": "bed", "item": "room", "prim": f"/{place}", "sounds": bed})
+    bed = beds.of_place(place, beds.paths(place, data, design))
+    found.append({"kind": "bed", "item": "room", "prim": f"/{place}", "sounds": bed["sounds"],
+                  "missing": bed["facts"]["missing"]})
     for event in events(read(data / f"motion/{place}.json").get("motions", []), rigid_record.get("moves", []),
                         rigid_record.get("renamed", {})):
         found.append({"kind": "event", "item": event["name"], "prim": event["prims"][0],
@@ -100,20 +104,22 @@ def needs(place, data):
 
 
 SENTENCES = {"bed": "no room tone", "event": "{item} moves without a sound", "voice": "people here, no voice"}
-WORK = {"bed": "name the place's room tone in data/sound/places.json loops: a library sound first, else a brief in "
-                "data/sound/sounds.json",
+WORK = {"bed": "a library bed whose brief fits the place (`bed` in data/sound/sounds.json: how it is heard, and the "
+               "shell, ground, shape, nouns or row kinds it asks), else a new brief there",
+        "design": "its design: {missing}",
         "event": "give {item}'s inventory row a kind (data/checks/row-kinds.json) and that kind's move its sound in "
                  "data/sound/moving.json: a library sound first, else a brief in data/sound/sounds.json",
         "voice": "name a voice on one of the place's people in data/sound/places.json voices: a library sound first, "
                  "else a brief in data/sound/sounds.json"}
 
 
-def gaps(place, data):
+def gaps(place, data, design=beds.DESIGN):
     """The place's sound needs not answered from the library: [{"id", "prim", "sentence", "node", "work"}], one the
-    sound row makes naming its node (`sound@<place>`), one with nothing to make naming its work."""
+    sound row makes naming its node (`sound@<place>`), one with nothing to make naming its work (a bed its design does
+    not decide names what the design lacks)."""
     found = []
-    makes = place in read(pathlib.Path(data) / "sound/places.json").get("places", {})
-    for need in needs(place, data):
+    makes = place in beds.places(data, design)
+    for need in needs(place, data, design):
         if need["state"] == LIBRARY:
             continue
         sentence = SENTENCES[need["kind"]].format(item=need["item"])
@@ -122,5 +128,12 @@ def gaps(place, data):
             sentence += f" from the library: {', '.join(need['sounds'])} still to make"
         found.append({"id": f"sound:{need['kind']}:{need['item']}", "prim": need["prim"], "sentence": sentence,
                       "node": f"sound@{place}" if made_here else None,
-                      "work": None if made_here else WORK[need["kind"]].format(item=need["item"])})
+                      "work": None if made_here else work_of(need)})
     return found
+
+
+def work_of(need):
+    """What answers a need with nothing to make: a bed its design does not decide names what the design lacks."""
+    if need.get("missing"):
+        return WORK["design"].format(missing="; ".join(need["missing"]))
+    return WORK[need["kind"]].format(item=need["item"])

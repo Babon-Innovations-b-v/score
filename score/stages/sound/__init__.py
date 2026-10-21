@@ -2,10 +2,12 @@
 place plays with its files, its level, where it plays and who made it, for the place's assembly to write into its
 OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions' sounds, the surfaces' bank).
 
-    make     every source the place names (data/sound/places.json: its room tones, what the suit lets through, its
-             `objects` and its `voices`, each on a person of its cast; its inventory rows' `sound`; its motions'
+    make     every source the place names (its bed, beds.py: its room tone, or what the suit lets through outside
+             where no air carries sound, worked out from its design; data/sound/places.json: its `objects` and its
+             `voices`, each on a person of its cast; its inventory rows' `sound`; its motions'
              `sounds`; the sounds data/sound/moving.json gives its moving things and its silent motions by each one's
-             row kind and move, timed off their moves (moving.py); every surface's footstep, impact and scrape in data/sound/surfaces.json) answered by
+             row kind and move, timed off their moves (moving.py); every surface's footstep, impact and scrape in
+             data/sound/surfaces.json) answered by
              one sound: the world's file of a sound already picked (a MOSS take, a file tools/sound/made.py makes, or
              a recording the owner chose over the takes), else one MOSS take of its brief (its first prompt, seed 1)
              made in the moss image on a rented card (PAID, takes.py), brought to its category's loudness and judged
@@ -21,7 +23,7 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
              events    every thing that moves in the place (needs.events: its motion and moving things records) plays a sound
              voices    a place whose cast stands people plays a voice on one of them (#29: voices where people are)
 
-Only places with an entry in data/sound/places.json have the row.
+Every scene with a plan (beds.places: his kept plan, else data/plans') has the row.
 """
 import json
 import pathlib
@@ -30,6 +32,7 @@ import sys
 
 from score import checks, contracts
 from score.stages import batch_gaps
+from score.stages.sound import beds
 from score.stages.sound import gates
 from score.stages import row_kinds
 from score.stages.sound import moving
@@ -51,19 +54,18 @@ import library_files  # noqa: E402
 FILES = "files"
 HAPPENINGS = ("footstep", "impact", "scrape")
 MADE_BY_MOSS = "MOSS"
-PLACES_JSON = REPO / "data/sound/places.json"
 # One rented L4 for a place's new briefs (8 takes a brief, about 30 s each): about EUR 0.2 measured on the image's
 # proof; the estimate leaves room for a slow card and a second claim.
 EUROS = 1.0
 
 
 def applies(place):
-    return place in json.loads(PLACES_JSON.read_text())["places"]
+    return place in beds.places()
 
 
 def files(place):
-    """What the stage reads: the sound data (each file a versioned library reference), and the place's own scene,
-    inventory, motion and cast records (where its sounds play)."""
+    """What the stage reads: the sound data (each file a versioned library reference), the place's own scene,
+    inventory, motion and cast records (where its sounds play), and its bed's design (beds.files)."""
     found = {"sounds": "{data}/sound/sounds.json", "catalogue": "{data}/sound/catalogue.json",
              "places": "{data}/sound/places.json", "surfaces": "{data}/sound/surfaces.json",
              "licences": "{data}/sound/licences.json",
@@ -79,7 +81,7 @@ def files(place):
     found["row kinds"] = "{data}/checks/row-kinds.json"
     if (REPO / f"data/characters/{place}.json").exists():
         found["cast"] = "{data}/characters/{place}.json"
-    return found
+    return {**found, **beds.files(place)}
 
 
 def place_of(inputs):
@@ -90,9 +92,9 @@ def place_of(inputs):
 
 def uses_of(place, inputs):
     """Every place the place plays a sound from: [{sound, role, on, from}]."""
-    record = read_json(inputs["places"])["places"][place]
-    uses = [{"sound": name, "role": "room", "on": None, "from": "data/sound/places.json"}
-            for name in record.get("loops", []) + record.get("heard_through", [])]
+    record = read_json(inputs["places"])["places"].get(place, {})
+    uses = [{"sound": name, "role": "room", "on": None, "from": "the scene's design (score/stages/sound/beds.py)"}
+            for name in beds.of_place(place, inputs)["sounds"]]
     uses += [{"sound": entry["sound"], "role": "object", "on": entry["on"], "from": "data/sound/places.json objects"}
              for entry in record.get("objects", [])]
     uses += [{"sound": entry["sound"], "role": "object", "on": entry["on"], "from": "data/sound/places.json voices"}
@@ -292,11 +294,11 @@ def jobs_of(names, inputs, weights):
 
 def environment_takes(data, weights):
     """The environment's takes still to make, each once (#29): {take file: (job, [the places that play it])}, in
-    data/sound/places.json's order. A brief several places play is one take: the first of their lines to reach it
+    beds.places' order. A brief several places play is one take: the first of their lines to reach it
     makes it in its batch (takes.made locks it), the others wait and read it, so it is made and counted once."""
     found = {}
-    for place in read_json(pathlib.Path(data) / "sound/places.json")["places"]:
-        inputs = {name: pathlib.Path(pattern.format(place=place, data=str(data)))
+    for place in beds.places(data):
+        inputs = {name: pathlib.Path(pattern.format(place=place, data=str(data), home=str(beds.DESIGN.parent)))
                   for name, pattern in files(place).items()}
         names = list(dict.fromkeys(use["sound"] for use in uses_of(place, inputs)))
         for job in moss_takes.missing(jobs_of(names, inputs, weights)):

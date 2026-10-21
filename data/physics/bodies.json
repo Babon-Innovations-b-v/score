@@ -5,9 +5,9 @@
  "sources": {
   "nasa-sun": "NASA GSFC, Sun Fact Sheet (nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html), read 2026-10-21: volumetric mean radius, mass, effective temperature (5772 K)",
   "wikipedia-sunlight": "Wikipedia, Sunlight (en.wikipedia.org/wiki/Sunlight), read 2026-10-21: the solar illuminance constant E_sc = 128 000 lux, sunlight's illuminance at Earth's mean distance (1 AU, 149597870.7 km) outside the atmosphere",
-  "nasa-earth": "NASA GSFC, Earth Fact Sheet (nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html), read 2026-10-21: volumetric mean radius, mass, obliquity to orbit",
-  "nasa-moon": "NASA GSFC, Moon Fact Sheet (nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html), read 2026-10-21: volumetric mean radius, mass, synchronous rotation (sidereal rotation 655.720 h = its orbit), obliquity to orbit",
-  "nasa-mars": "NASA GSFC, Mars Fact Sheet (nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html), read 2026-10-21: volumetric mean radius, mass, obliquity to orbit",
+  "nasa-earth": "NASA GSFC, Earth Fact Sheet (nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html), read 2026-10-21: volumetric mean radius, mass, obliquity to orbit; surface pressure 1014 mb (read 2026-10-21)",
+  "nasa-moon": "NASA GSFC, Moon Fact Sheet (nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html), read 2026-10-21: volumetric mean radius, mass, synchronous rotation (sidereal rotation 655.720 h = its orbit), obliquity to orbit; surface pressure (night) 3 x 10-15 bar (read 2026-10-21)",
+  "nasa-mars": "NASA GSFC, Mars Fact Sheet (nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html), read 2026-10-21: volumetric mean radius, mass, obliquity to orbit; surface pressure 6.36 mb at mean radius (4.0 to 8.7 mb by season) (read 2026-10-21)",
   "schlyter": "Paul Schlyter, How to compute planetary positions (stjarnhimlen.se/comp/ppcomp.html), read 2026-10-21: the orbital elements at day 0 = 2000 Jan 0.0 UT on the ecliptic and equinox of date and their drift a day (the Sun's orbit turned round to Earth's, periapsis + 180); distance_km its a (Earth's and Mars's in AU of 149597870.7 km, the Moon's in Earth radii of 6378.14 km); period_days 360 over the sum of its drifts of node, periapsis and mean anomaly (the period in that frame: Earth's 365.2422, the tropical year; NASA's sidereal 365.256, 27.3217, 686.980 differ by the equinox's precession)",
   "iau": "IAU WGCCRE report 2015 (Archinal et al. 2018, Celest. Mech. Dyn. Astr. 130:22), as kept before in this repository: the north pole's right ascension and declination on the J2000 equator, the prime meridian at J2000.0 from the equator's ascending node, and its turn a day as day_hours = 24 x 360 / that turn (Earth's: the stellar day)",
   "codata": "CODATA 2018: G = 6.67430e-11 m3 kg-1 s-2",
@@ -71,8 +71,10 @@
     "pole_ra_deg": "iau",
     "pole_dec_deg": "iau",
     "meridian_deg": "iau",
-    "tilt_deg": "nasa-earth"
-   }
+    "tilt_deg": "nasa-earth",
+    "surface_pressure_kpa": "nasa-earth"
+   },
+   "surface_pressure_kpa": 101.4
   },
   "moon": {
    "name": "Moon",
@@ -105,8 +107,10 @@
     "periapsis_drift_deg_day": "schlyter",
     "mean_anomaly_deg": "schlyter",
     "locked_to": "nasa-moon",
-    "tilt_deg": "nasa-moon"
-   }
+    "tilt_deg": "nasa-moon",
+    "surface_pressure_kpa": "nasa-moon"
+   },
+   "surface_pressure_kpa": 3e-13
   },
   "mars": {
    "name": "Mars",
@@ -145,8 +149,10 @@
     "pole_ra_deg": "iau",
     "pole_dec_deg": "iau",
     "meridian_deg": "iau",
-    "tilt_deg": "nasa-mars"
-   }
+    "tilt_deg": "nasa-mars",
+    "surface_pressure_kpa": "nasa-mars"
+   },
+   "surface_pressure_kpa": 0.636
   }
  }
 }
