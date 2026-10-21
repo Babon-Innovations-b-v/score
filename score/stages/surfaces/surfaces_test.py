@@ -487,7 +487,18 @@ def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_
             {"id": "jar", "name": "seed jar", "anchor": "on:table", "thing": "prop:gh_jar_ab12"},
             {"id": "table", "name": "work table", "anchor": "floor", "size": [1.5, 0.8, 0.8], "thing": "prop:x"},
             {"id": "wall", "name": "left wall", "anchor": "on:floor_plates", "route": "shell",
-             "thing": "prop:gh_wall_ab12"}]
+             "thing": "prop:gh_wall_ab12"},
+            # the cockpit's floor is mounted on its hull, a landing on its stairs: still the floor
+            {"id": "hull", "anchor": "ground", "size": [9.0, 9.0, 3.5], "thing": "prop:gh_hull_ab12"},
+            {"id": "deck", "anchor": "on:hull", "group": "kit: floor", "size": [9.0, 9.0, 0.1], "route": "shell",
+             "thing": "prop:gh_deck_ab12"},
+            {"id": "seat", "name": "pilot seat", "anchor": "on:deck", "thing": "prop:gh_seat_ab12"},
+            {"id": "lamp", "name": "desk lamp", "anchor": "on:hull", "thing": "prop:gh_lamp_ab12"},
+            # a stage on the floor is a floor too; a tin on a box on the floor is held
+            {"id": "stage", "anchor": "on:floor_plates", "size": [8.0, 6.0, 1.2], "thing": "prop:x"},
+            {"id": "drum", "name": "drum kit", "anchor": "on:stage", "thing": "prop:gh_drum_ab12"},
+            {"id": "box", "anchor": "floor", "size": [1.0, 1.0, 1.0], "thing": "prop:x"},
+            {"id": "tin", "name": "tin", "anchor": "on:box", "thing": "prop:gh_tin_ab12"}]
     hand_in.write_text(json.dumps({"place": "greenhouse", "rows": rows}))
     try:
         assert stages.paint_inventory("greenhouse") == "{home}/design/props/greenhouse.json"
@@ -500,6 +511,9 @@ def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_
         assert not place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_wall"}, hand_in, rules,
                                              "gh_wall_ab12")
         assert place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_floor"}, hand_in, rules, "gh_floor_ab12")
+        for kind, standing in (("gh_seat", True), ("gh_lamp", False), ("gh_drum", True), ("gh_tin", False)):
+            assert place_line.stands_on_feet({"place": "greenhouse", "kind": kind}, hand_in, rules,
+                                             f"{kind}_ab12") is standing, kind
     finally:
         shutil.rmtree(prop_data.DESIGN)
         prop_data.DESIGN = kept

@@ -200,17 +200,27 @@ def stands(row, rules_file, rows=()):
             and not row_words(row) & lying)
 
 
-def on_floor(row, rows):
-    """Whether a row's `on:` anchor is a floor its scene reads as a row: ground the reading calls terrain, or a slab
-    laid on the floor or ground (its height, the third of its size in metres, at most SLAB of its narrower side). A
-    designed scene reads its floor as a row (the airlock's floor plates, the street's surface), so what stands on it
-    stands on the floor; a table, a shelf, a wall or a building holds what is on it, which is left as made."""
+def on_floor(row, rows, seen=frozenset()):
+    """Whether a row's `on:` anchor is a floor its scene reads as a row (is_floor). A designed scene reads its floor
+    as a row (the airlock's floor plates, the street's surface), so what stands on it stands on the floor; a table, a
+    shelf, a wall or a building holds what is on it, which is left as made."""
     anchor = str(row.get("anchor", ""))
     holder = {found.get("id"): found for found in rows}.get(anchor.removeprefix("on:"))
-    if not anchor.startswith("on:") or holder is None or holder.get("anchor") not in ("floor", "ground"):
+    if not anchor.startswith("on:") or holder is None or holder.get("id") in seen:
         return False
-    size = holder.get("size") or ()
-    return bool(holder.get("terrain")) or (len(size) == 3 and size[2] <= SLAB * min(size[0], size[1]))
+    return is_floor(holder, rows, seen | {holder.get("id")})
+
+
+def is_floor(row, rows, seen=frozenset()):
+    """Whether a row is a floor: the reading's floor piece (group "kit: floor", whatever it is mounted on: the
+    cockpit's plates on its hull, a dome's floor in its dome, a landing on its stairs), its ground (route "ground"),
+    or terrain or a slab (its height, the third of its size in metres, at most SLAB of its narrower side) resting on
+    the floor, the ground or another floor (a stage on the plaza)."""
+    if row.get("group") == "kit: floor" or row.get("route") == "ground":
+        return True
+    size = row.get("size") or ()
+    flat = bool(row.get("terrain")) or (len(size) == 3 and size[2] <= SLAB * min(size[0], size[1]))
+    return flat and (row.get("anchor") in ("floor", "ground") or on_floor(row, rows, seen))
 
 
 def claimants(place):
