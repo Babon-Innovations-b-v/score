@@ -2,8 +2,8 @@
 bodies and row kinds: a room in a base on the Moon hears the base's room tone over its hum; a greenhouse's planters,
 a garage's rover, a tube's shape, a craft's room and a shelter alone in the open each hear their own tone; outside
 on the Moon and on Mars a person hears only the suit; outside on Earth the open air, its crowd where a crowd stands;
-a body with no surface pressure or a scene no site holds is undecided and named, never guessed; and gaps name what
-the design lacks.
+a body with no surface pressure or a scene no site holds is undecided and named, never guessed; gaps name what
+the design lacks, and the row's `bed` gate fails on it.
 
 Run: .venv/bin/python -m pytest score/stages/sound/beds_test.py
 """
@@ -17,7 +17,8 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
-from score.stages.sound import beds, needs  # noqa: E402
+from score import checks  # noqa: E402
+from score.stages.sound import beds, gates, needs  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SETTING = {"bodies": [{"body": "moon", "reference": "moon"}, {"body": "mars", "reference": "mars"},
@@ -95,6 +96,14 @@ def test_what_the_design_lacks_is_named_never_guessed(toy):
     assert "cave" in beds.places(data, design) and "sound:bed:room" not in {
         gap["id"] for gap in needs.gaps("room", data, design)}
 
+
+
+def test_the_bed_gate_fails_a_scene_whose_design_leaves_its_bed_undecided(toy):
+    data, design = toy
+    judged = {place: gates.judge_bed(None, beds.paths(place, data, design), None) for place in ("farm", "cave", "lost")}
+    assert judged["farm"].answer == checks.PASS, judged["farm"]
+    assert judged["cave"].answer == checks.FAIL and judged["cave"].findings == ("rock has no surface pressure",)
+    assert judged["lost"].answer == checks.FAIL and judged["lost"].findings == ("no site in the setting holds it",)
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

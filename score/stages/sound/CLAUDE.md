@@ -23,7 +23,7 @@ gates; `takes.py` the paid part.
   (`data/sound/sounds.json`: heard, air, shell, ground, shape, nouns, row kinds) fits it: every fitting `layer` and one
   `tone`, the first that asks more than how it is heard, else the first plain one. A new kind of room gets a library
   bed with its own `bed` brief, never a place name; what the design lacks (no plan, no site, no surface pressure) is a
-  named gap, never a guess.
+  named gap, never a guess, and fails the row's `bed` gate.
 - **Every source has a sound.** A place's sources are its bed, its objects' sounds (each scene inventory row whose
   row kind sounds plays its kind's `sound` from `data/checks/row-kinds.json` at that row), its people's voice
   (`data/sound/voices.json` on its cast's first person), its motions' `sounds`, the sounds

@@ -1,11 +1,12 @@
 """The sound stage's gates, each read off the output's record and its files (measured again, never trusted from the
-record): sources, level, likeness, no freesound, events and voices (the stage's docstring says what each passes on)."""
+record): sources, bed, level, likeness, no freesound, events and voices (the stage's docstring says what each passes
+on)."""
 import json
 import pathlib
 import sys
 
 from score import checks
-from score.stages.sound import needs
+from score.stages.sound import beds, needs
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 for folder in ("tools/sound/picker", "tools/sound/loudness"):
@@ -68,6 +69,20 @@ def judge_sources(output, inputs, evidence):
     return checks.Verdict("sources", checks.FAIL if faults else checks.PASS, reason,
                           {"sources": len(record["uses"]), "without": len(faults)}, {"without": "lower"},
                           tuple(faults))
+
+
+# --- bed -----------------------------------------------------------------------------------------------------------
+
+def judge_bed(output, inputs, evidence):
+    """Pass when the place's design decides its bed (beds.py: how it is heard, and a library bed whose brief fits);
+    fail naming what the design lacks, or that no library bed's brief fits it. Whether the bed's takes came back is
+    the batch's (sources and the take gaps), not this gate's."""
+    place = pathlib.Path(inputs.get("plan") or inputs["scene inventory"]).stem
+    bed = beds.of_place(place, inputs)
+    if bed["sounds"]:
+        return checks.Verdict("bed", checks.PASS, f"its design decides its bed: {', '.join(bed['sounds'])}")
+    lacks = bed["facts"]["missing"] or ["no library bed's brief (data/sound/sounds.json `bed`) fits its design"]
+    return checks.Verdict("bed", checks.FAIL, f"its bed is undecided: {'; '.join(lacks)}", findings=tuple(lacks))
 
 
 # --- events and voices (#29) ----------------------------------------------------------------------------------------
