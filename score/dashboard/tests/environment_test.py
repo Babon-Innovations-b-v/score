@@ -70,10 +70,11 @@ def test_the_home_lists_environment_1_and_the_hub(world):
 def test_environment_1s_concept_is_todays_data_shown_locked_and_opens_its_places(world):
     html = signed_in().get(PAGE).content.decode()
     assert ">locked</b>" in html and 'href="/places/"' in html and "2099 space base" in html
-    assert 'value="1.62"' in html and "Unlock" in html and "Send, EUR" not in html  # locked: no interview
+    assert "1.62 m/s²" in html and "3.71 m/s²" in html and "Unlock" in html  # every world, a decimal point
+    assert "Question 1 of" not in html and "data-f=" not in html  # locked: no interview, no fields
     assert 'href="/environments/world1/"' in signed_in("ann").get("/places/").content.decode()  # one click up
     assert [(name, question) for name, _, question in environment.QUESTIONS] == list(environment_concept.QUESTIONS)
-    assert all(f"?q={name}" in html for name, _, _ in environment.QUESTIONS)
+    assert [environment.steps_around(name)["number"] for name, _, _ in environment.QUESTIONS] == [1, 2, 3, 4, 5]
 
 
 def test_unlock_asks_to_be_sure_then_puts_every_draw_out_of_date(world, stand_in):
@@ -85,6 +86,7 @@ def test_unlock_asks_to_be_sure_then_puts_every_draw_out_of_date(world, stand_in
     assert drawing.waits(store, "alpha") == "waits for the environment concept to be locked"
     html = owner.get(PAGE).content.decode()
     assert ">unlocked</b>" in html and "Send, EUR 0.05" in html and ">Lock</button>" in html
+    assert "Question 1 of 5" in html and 'data-f="orbits"' in html  # unlocked: the interview and the fields
 
 
 def test_save_lock_send_and_take_reach_the_store(world, stand_in):

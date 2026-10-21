@@ -219,11 +219,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   every reading's euros in sum show on the Environment's top bar under spent and on Stats. Prepare's remake figure
   reads the readings (its `estimate`); the gaps check and the plan still read `data/inventory/`.
 - **The environment concept** (CONTEXT.md "environment concept", owner 2026-10-21; `pages/environment.py`,
-  `environment_concept.html`, `static/pages/environment.js`): `/environments/<world>/` shows its style line, physics
-  rows (world, gravity, the bodies it moves, the places on it), reference pictures (what each is for, its place) and
-  places with what each may hold, editable only while unlocked, and the set interview beside it: the fixed questions
-  (`QUESTIONS`, the same as `score/review/environment_concept.QUESTIONS`) one at a time (`?q=<topic>`, links, so back
-  and forward step through them), his answers and each answer's proposed fields with its price and a Take. Send is his
+  `environment_concept.html`, `static/pages/environment.js`): `/environments/<world>/` shows four cards (owner
+  2026-10-21: "this page is confusing"): Style (its line), Worlds (each world's gravity, what it orbits and the outside
+  places standing on it, `data/physics/worlds.json` and the ground plans' seats), Reference pictures (each with its
+  place and what it is for) and Places (what each may hold inside); plain text while locked, fields only while
+  unlocked, explanations as hover text. The set interview shows only while unlocked, beside them: the fixed questions
+  (`QUESTIONS`, the same as `score/review/environment_concept.QUESTIONS`) one at a time, "Question N of 5" with the
+  one before and after as links (`?q=<topic>`, `steps_around`, so back and forward step through them; no tabs), his answers and each answer's proposed fields with its price and a Take. Send is his
   spend yes for that one model call at the price it shows (`WorldState.environment_ask_euros`, the measured
   ask; `web.environment_ask`, refused when it moved), Save, Take, Lock and Unlock each a new version (`web.environment_saved`),
   Add a reference picture into the private bucket's references/ and his local copy, never this repository

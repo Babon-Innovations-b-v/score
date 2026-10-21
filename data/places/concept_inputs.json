@@ -1,11 +1,9 @@
 {
- "about": "What the creator gave a place's concept draw beyond its look (data/definitions/place.json), its floor plan's description (`for` in data/definitions/<shell>_floor.json, read for every place a floor plan names) and where it sits (within.json), read the same way for every place by score/review/concepts.py (CONTEXT.md \"concept\"): `says`, his words sent as they are (a measure he set stays: the ship's 46 m, data/definitions/ship_floor.json's length); `references`, his pictures sent for look only, each with what it `shows`, only with the place it shows (the owner, 2026-10-21: the cockpit's and the quarters' own; the other rooms take their look from the crop of the hangar's picked concept and the style) (`{home}`: the prop tools' home, whose references/ is the private bucket's references/ copied here, never this public repository); `people` (optional), whether its draw shows people, over its cast record. What a place sits in comes from no setting here: its draw is sent a crop of the layer above's picked concept to the inventory row its plan says holds it (score/review/concepts.py holding_box).",
+ "about": "What the creator gave a place's concept draw beyond its look (data/definitions/place.json), its floor plan's description (`for` in data/definitions/<shell>_floor.json, read for every place a floor plan names) and where it sits (within.json), read the same way for every place by score/review/concepts.py (CONTEXT.md \"concept\"): `says`, his words sent as they are (a measure he set stays: the ship's 46 m, data/definitions/ship_floor.json's length); `references`, his pictures sent for look only, each with what it `shows`, only with the place it shows (the owner, 2026-10-21: the cockpit's and the quarters' pictures removed; every ship room takes its look from the crop of the hangar's picked concept and the style; the pictures stay in the private bucket) (`{home}`: the prop tools' home, whose references/ is the private bucket's references/ copied here, never this public repository); `people` (optional), whether its draw shows people, over its cast record. What a place sits in comes from no setting here: its draw is sent a crop of the layer above's picked concept to the inventory row its plan says holds it (score/review/concepts.py holding_box).",
  "places": {
   "hangar": {
    "says": "It holds the ship, a crew shuttle 46 m long, at its true size.",
    "references": [{"picture": "{home}/references/shuttle-screenshot.png", "shows": "the ship's look only (a much smaller ship)"}]
-  },
-  "cockpit": {"references": [{"picture": "{home}/references/cockpit.png", "shows": "its look only"}]},
-  "quarters": {"references": [{"picture": "{home}/references/quarters.png", "shows": "its look only"}]}
+  }
  }
 }

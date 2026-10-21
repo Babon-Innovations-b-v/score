@@ -265,6 +265,8 @@ def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
 def test_a_reference_comes_from_the_places_data_and_waits_while_it_is_not_here(store, tmp_path, monkeypatch):
     monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
     monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "hangar" else None)
+    monkeypatch.setattr(concepts, "inputs_of", lambda place: {"references": [
+        {"picture": "{home}/references/quarters.png", "shows": "its look only"}]} if place == "quarters" else {})
     ready_above(monkeypatch)
     assert "is not on this machine" in concepts.waits(store, "quarters")  # its reference, the owner's quarters picture
     (tmp_path / "references").mkdir()
@@ -448,7 +450,7 @@ def test_no_two_ship_rooms_get_the_same_wording_or_references(store):
     assert "on the port side" in wordings["quarters"] and "four bunks in two stacks" in wordings["quarters"]
     references = {room: [source.name for _, source in concepts.sent_pictures(store, room) if not isinstance(source, str)]
                   for room in SHIP_ROOMS}
-    assert references == {**{room: [] for room in SHIP_ROOMS}, "cockpit": ["cockpit.png"], "quarters": ["quarters.png"]}
+    assert references == {room: [] for room in SHIP_ROOMS}  # the owner, 2026-10-21: no room has a picture of its own
 
 
 def test_a_place_is_drawn_only_once_the_layer_above_is_picked_read_and_planned_and_holds_it(store, monkeypatch):

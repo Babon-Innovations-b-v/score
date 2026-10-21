@@ -9,7 +9,7 @@ function concept() {
   return {
     style: value(root, "style"),
     physics: rows(root, "physics").map((row) => ({
-      world: value(row, "world"), gravity: value(row, "gravity"), moves: value(row, "moves"), places: value(row, "places"),
+      world: value(row, "world"), gravity: value(row, "gravity").replace(",", "."), orbits: value(row, "orbits"), places: value(row, "places"),
     })),
     references: rows(root, "references").filter((row) => !row.querySelector('[data-f="drop"]')?.checked)
       .map((row) => ({ picture: row.dataset.picture, shows: value(row, "shows"), place: value(row, "place") })),

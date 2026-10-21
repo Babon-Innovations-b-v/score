@@ -1,6 +1,6 @@
 """The environment concept (CONTEXT.md "environment concept", the owner 2026-10-21): what the creator locks down for a
-whole environment before any place is drawn: its style line, its physics (each world's gravity and the bodies that
-move one another), his reference pictures and what each is for, its first places and the places each may hold. Made
+whole environment before any place is drawn: its style line, its physics (each world's gravity and what it
+orbits), his reference pictures and what each is for, its first places and the places each may hold. Made
 in a set interview in the creator cockpit (QUESTIONS, one at a time, each answer one direct Gemini 3.1 Pro call inside
 his yes for it, `ask`), then locked by him.
 
@@ -11,8 +11,8 @@ The store keeps it, versioned, written only in the owner's process (concepts.rec
     environment-concept/<world>/asks/<time>.json      {world, topic, question, answer, proposed, euros, yes, by, at}
 
 With no version kept, the environment's concept is today's data (`prefilled`: the style line of
-data/definitions/concept_views.json, the references of data/places/concept_inputs.json, the worlds' pulls of
-tools/usd/orbits.py with the places of data/physics, the outside places and what each holds from
+data/definitions/concept_views.json, the references of data/places/concept_inputs.json, the worlds of
+data/physics/worlds.json with the outside places their ground plans seat, the outside places and what each holds from
 data/places/within.json), shown as locked, so no draw already made moves. A locked version is what every place's
 concept draw reads (`in_force`: its style line and references; score/review/concepts.py), and its places and what
 each may hold are the starting proposal of within.json (`places_in_force`). Every draw and pick records the version it
@@ -45,7 +45,7 @@ MOST_ROWS = 60  # physics rows, references, places, and places one place may hol
 LARGEST_PICTURE = 12 * 1024 * 1024
 QUESTIONS = (  # the set interview, asked in this order, one at a time
     ("style", "What style holds the whole environment, in one short line?"),
-    ("physics", "Which worlds are there, what is each one's gravity, and which bodies move one another?"),
+    ("physics", "Which worlds are there, what is each one's gravity, and what does it orbit?"),
     ("references", "Which pictures guide the look, and what is each one for?"),
     ("places", "Which places come first?"),
     ("insides", "What places may each of them hold inside?"),
@@ -86,29 +86,27 @@ def references_now():
             for place, inputs in found.items() for ref in inputs.get("references", [])]
 
 
-def pulls():
-    """{body: gravity in m/s²} of the worlds the game holds (tools/usd/orbits.py PULL)."""
-    kept = list(sys.path)
-    sys.path.insert(0, str(concepts.REPO / "tools/usd"))
-    try:
-        import orbits
-    finally:
-        sys.path[:] = kept
-    return dict(orbits.PULL)
+def outermost(node, tree):
+    """The outside place or shell holding `node` (itself when it is one; a part goes to the place it is part of)."""
+    node = tree["parts"][node][0] if node in tree["parts"] else node
+    while node in tree["within"]:
+        node = tree["within"][node]
+    return node
 
 
 def physics_now():
-    """[{world, gravity, moves, places}]: each world's pull, the other worlds it moves (each body moves every other
-    in orbits.py: the Moon and Earth round their shared middle) and the places whose physics stands on it
-    (data/physics/<place>.json `body`)."""
-    standing = {}
-    for path in sorted((concepts.DATA / "physics").glob("*.json")):
-        body = json.loads(path.read_text()).get("body")
-        if body:
-            standing.setdefault(body, []).append(json.loads(path.read_text()).get("place", path.stem))
-    found = pulls()
-    return [{"world": body, "gravity": pull, "moves": [other for other in found if other != body],
-             "places": standing.get(body, [])} for body, pull in found.items()]
+    """[{world, gravity, orbits, places}]: each world of data/physics/worlds.json, its gravity in m/s² and what it
+    orbits, with the outside places standing on it: those holding its ground plan's seats (data/ground/plan/<world>.json
+    `seats`), by name."""
+    tree = concepts.tree()
+    worlds = json.loads((concepts.DATA / "physics/worlds.json").read_text())["worlds"]
+    rows = []
+    for world, facts in worlds.items():
+        seats = json.loads((concepts.DATA / f"ground/plan/{world}.json").read_text())["seats"]
+        outside = dict.fromkeys(outermost(seat, tree) for seat in seats)
+        rows.append({"world": facts["name"], "gravity": facts["gravity"], "orbits": facts["orbits"],
+                     "places": [name_in(node, tree) for node in outside]})
+    return rows
 
 
 def places_now(places):
@@ -218,7 +216,7 @@ def names(value, what):
 
 def checked_physics(value):
     return [{"world": line(row.get("world"), "a world"), "gravity": gravity(row.get("gravity")),
-             "moves": names(row.get("moves"), "what a world moves"), "places": names(row.get("places"), "places")}
+             "orbits": line(row.get("orbits"), "what a world orbits"), "places": names(row.get("places"), "places")}
             for row in rows(value, "physics") if line(row.get("world"), "a world")]
 
 
@@ -320,7 +318,7 @@ def interview_question(topic, answer, concept):
     answers with (only the field the question is about)."""
     field = FIELDS[topic]
     shape = {"style": '"one short line"',
-             "physics": '[{"world": "", "gravity": 1.62, "moves": ["the other bodies it moves"], "places": []}]',
+             "physics": '[{"world": "", "gravity": 1.62, "orbits": "what it orbits", "places": []}]',
              "references": '[{"picture": "kept as given", "shows": "what it is for", "place": "its place or null"}]',
              "places": '[{"name": "", "holds": ["the places it may hold inside"]}]'}[field]
     return (f"You help a game environment's creator lock down its concept before any place is drawn. The concept so "

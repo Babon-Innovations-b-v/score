@@ -25,8 +25,8 @@ from score.dashboard.state.files import file_ref
 ASK, SAVE, REFERENCE = "environment-ask", "environment-save", "environment-reference"
 QUESTIONS = (  # score/review/environment_concept.QUESTIONS (environment_test holds them equal): hosted imports none
     ("style", "Style", "What style holds the whole environment, in one short line?"),
-    ("physics", "Physics", "Which worlds are there, what is each one's gravity, and which bodies move one another?"),
-    ("references", "References", "Which pictures guide the look, and what is each one for?"),
+    ("physics", "Worlds", "Which worlds are there, what is each one's gravity, and what does it orbit?"),
+    ("references", "Reference pictures", "Which pictures guide the look, and what is each one for?"),
     ("places", "Places", "Which places come first?"),
     ("insides", "Insides", "What places may each of them hold inside?"),
 )
@@ -109,8 +109,8 @@ def proposal_lines(proposed):
             lines.append(value)
         for row in value if isinstance(value, list) else []:
             if field == "physics":
-                moves = f" · {', '.join(row['moves'])}" if row.get("moves") else ""
-                lines.append(f"{row['world']} {row['gravity'] if row.get('gravity') is not None else '?'} m/s²{moves}")
+                orbits = f" · orbits {row['orbits']}" if row.get("orbits") else ""
+                lines.append(f"{row['world']} {row['gravity'] if row.get('gravity') is not None else '?'} m/s²{orbits}")
             elif field == "references":
                 lines.append(f"{row['shows']}" + (f" · {row['place']}" if row.get("place") else ""))
             elif field == "places":
@@ -138,6 +138,15 @@ def topic_now(asked, wanted):
         return wanted
     done = {item["topic"] for item in asked if item["state"] == "done"}
     return next((topic for topic in topics if topic not in done), topics[-1])
+
+
+def steps_around(topic):
+    """{number, previous, next} of the question shown: its place in QUESTIONS and the topics either side (None at
+    an end)."""
+    topics = [name for name, _, _ in QUESTIONS]
+    at = topics.index(topic)
+    return {"number": at + 1, "previous": topics[at - 1] if at else None,
+            "next": topics[at + 1] if at + 1 < len(topics) else None}
 
 
 def home(request):
@@ -169,8 +178,7 @@ def concept_page(request, world):
         "references": [{**ref, "file": found.get(ref["picture"])} for found in [pictures(world_state)]
                        for ref in concept["concept"]["references"]],
         "asks": [item for item in asked if item["topic"] == topic],
-        "topic": topic, "topics": [{"topic": name, "label": label, "question": question, "done": any(
-            item["topic"] == name and item["state"] == "done" for item in asked)} for name, label, question in QUESTIONS],
+        "topic": topic, "topics": QUESTIONS, **steps_around(topic),
         "question": next(question for name, _, question in QUESTIONS if name == topic),
         "euros": world_state.environment_ask_euros, "pending": waiting, "can": can,
         "editable": can and not concept["locked"] and not waiting,
