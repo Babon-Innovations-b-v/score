@@ -221,15 +221,20 @@ class WorldState(BaseModel):
     environment_ask_euros: float | None = None
     environment_pictures: dict[str, FileRef] = {}
     # The plan review's (score/review/plans.py): each place's or shell's plan, made once its scene inventory counts,
-    # the inside places he named on its concept page, and the euros of one Correct with notes (None: not measured).
+    # the inside places he named on its concept page, and the euros of one Correct with notes (None: not measured);
+    # plan writing's (score/review/plan_writing.py): the euros of one Make plan, whether plans are written on their own
+    # after a reading (the standing allowance) and what every writing cost in sum (None: not read).
     plan_reviews: dict[str, "PlanReview"] = {}
     plan_named: dict[str, list[str]] = {}
     plan_revise_euros: float | None = None
+    plan_write_euros: float | None = None
+    plan_automatic: bool = False
+    plan_spend: float | None = None
 
 
 class PlanReview(BaseModel):
     """One place's plan as its plan page shows it: the plan (data/plans' schema, its holds the inside places it lays
-    out), how it was made (derived, edited, revised), and when and by whom (None: derived)."""
+    out), how it was made (derived, written, edited, revised), and when and by whom (None: derived)."""
     plan: dict
     how: str
     at: str | None = None

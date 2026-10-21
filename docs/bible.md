@@ -175,10 +175,22 @@ move assembly's, complete's and every later paid row's key.
 
 **The design** (CONTEXT.md "design", "plan review"; owner, 2026-10-21): per layer, concept, pick, scene inventory,
 plan. The pick is the approval; the inventory and then the plan are made from it with no further yes. The plan
-(`score/review/plans.py`) is drawn free from data: the place's `data/plans` record (shell, frame, doors, leads), its
-outline from the layer above's plan, its items from its inventory rows (each tied to its row), keep-clear zones,
-standing spots, and for a place holding others the inside places it lays out (`holds`: name, the holder's row it
-stands in, box). His edits on the plan page are his own (store `plans/<place>/`, his process only) and redo what
+(`score/review/plans.py`) starts from data: the place's `data/plans` record (shell, frame, doors, leads), its
+outline from the layer above's plan, its inventory rows, keep-clear zones before its doors, and for a place holding
+others the inside places it lays out (`holds`: name, the holder's row it stands in, box). Then it is written
+(`score/review/plan_writing.py`, owner 2026-10-21: "how we did that before was way better and reliable"): one Gemini
+3.1 Pro call writes it in metres element by element, as the hand plans of environment 1 were, from the picked concept,
+the inventory's rows and metres (their SAM 3 boxes only an order hint, never projected: a perspective painting's boxes
+laid top down put the street in a thin bar), the layer above's plan and its inside places, in the stage table's
+schema plus its architecture (outline, walls with thickness, openings with swing, levels, stairs, roofs, terrain spot
+heights and contours, each item's shape, tall and base, a section cut); free checks follow (every row placed as
+often as it counts, inside the outline, no two on the floor in each other but a row on its parent, every door and
+standing spot reached on foot, the inside places tiling), each failure a gap said plainly where it is. It runs on its
+own after the reading (the owner's standing allowance, `plan_writing.AUTOMATIC`, cleared as `plan-write` like the
+readings, its cost in the cockpit's running total), else on his Make plan click as his spend yes; until a place's
+plan is written its page shows the rough one, its items laid along the walls. The plan page draws it as an
+architect's plan: hatched walls, door swings, windows, stairs with the way up, levels, contours, dimension lines,
+north and a scale bar, and a section A-A. His edits on the plan page are his own (store `plans/<place>/`, his process only) and redo what
 follows: the plan stage reads the plan shown and the inventory it was made from (`{home}/design/plans/<place>.json`,
 `{home}/design/inventory/<place>.json`, `stages.creator_plan`, written on
 his edit and by the sync pass, which makes the plan row again for those that changed), and an inside place's

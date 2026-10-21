@@ -33,6 +33,7 @@ urlpatterns = [
     path("plan/<slug:place>/", plans.plan_page),
     path("plan/<slug:place>/keep/", plans.plan_edit),
     path("plan/<slug:place>/revise/", plans.plan_revise),
+    path("plan/<slug:place>/write/", plans.plan_write),
     path("plan/<slug:place>/named/", plans.plan_named),
     path("plan/<slug:place>/state/", plans.plan_state),
     *[path(f"place/<slug:place>/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],

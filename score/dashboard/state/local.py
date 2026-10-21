@@ -598,9 +598,10 @@ class LocalSource:
                                        for name, sha in concepts.sent_picks(self.store, node).items()])
 
     def plan_review(self):
-        """{plan_reviews, plan_named, plan_revise_euros} of the plan review (score/review/plans.py): the plan each
-        place or shell shows once its scene inventory counts and the inside places he named."""
-        from score.review import plans
+        """{plan_reviews, plan_named, plan_revise_euros, plan_write_euros, plan_automatic, plan_spend} of the plan
+        review (score/review/plans.py, plan_writing.py): the plan each place or shell shows once its scene inventory
+        counts, the inside places he named, a writing's price, whether it runs on its own and what all cost."""
+        from score.review import plan_writing, plans
         found, named = {}, {}
         for node in self.design_nodes():
             if names := plans.named(self.store, node):
@@ -609,7 +610,10 @@ class LocalSource:
             if shown is None:
                 continue
             found[node] = PlanReview(**shown)
-        return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros()}
+        nodes = self.design_nodes()
+        return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros(),
+                "plan_write_euros": plan_writing.price(self.store, nodes), "plan_automatic": plan_writing.AUTOMATIC,
+                "plan_spend": plan_writing.spent(self.store, nodes)}
 
     def design_nodes(self):
         """Every place and shell a concept is designed for: the places, the shells, and the inside places only his kept

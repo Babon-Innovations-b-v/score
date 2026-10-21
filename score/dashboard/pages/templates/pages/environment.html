@@ -6,6 +6,7 @@
     <div class="num-label">spent</div>
     <div class="num-value" data-v>{% if money.spent is None %}<span class="unknown" title="{{ money.missing }}">unknown</span>{% else %}{% if not money.whole %}<small>&ge;</small> {% endif %}<small>EUR</small> {{ money.spent|floatformat:2 }}{% endif %}</div>
     {% if readings is not None %}<div class="num-sub" title="every scene inventory reading so far: read on its own after a pick" data-v><small>inventories EUR</small> {{ readings|floatformat:2 }}</div>{% endif %}
+    {% if plan_spend is not None %}<div class="num-sub" title="every plan written so far: written on its own after a reading" data-v><small>plans EUR</small> {{ plan_spend|floatformat:2 }}</div>{% endif %}
   </div>
   {% if not remake.approved and remake.estimate %}<div class="topbar-num" title="estimate from the scene inventories of {{ remake.estimate.places }} places: every model once through the prop route, measured likely to high; the places' own steps not in it">
     <div class="num-label">remake</div>

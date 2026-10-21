@@ -267,6 +267,37 @@ def plan_named(store, place, names, by):
         raise review.Refused(str(refused)) from refused
 
 
+def plan_write(store, place, euros, by, run=None):
+    """His Make plan on a plan page: the place's plan written (score/review/plan_writing.py) as its own process, one
+    Gemini call; with plan_writing.AUTOMATIC off his click is his yes for exactly that call at `euros` (refused when
+    its price moved), on, the standing allowance clears it. Its record's line. review.Refused for an empty or the
+    runner's name, a price that moved, or a writing refused (its words); PermissionError in an agent's process."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from score.review import concepts, plan_writing
+    from score.store import stamp_key
+    name = checked_by(by)
+    env = {**os.environ, "SCORE_SPEND_STORE": str(store.cache.parent)}
+    if not plan_writing.AUTOMATIC:
+        price = plan_writing.price(store, [place])
+        if abs(float(euros) - price) > 0.005:
+            raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's price (EUR {price:.2f}): "
+                                 "read the page again")
+        key = f"plan-write-{place}-{stamp_key(review.now())}"
+        review.spend(store, "override", key, price, name, purpose=f"plan writing: one plan of {place} (Gemini)")
+        env["SCORE_SPEND_TICKET"] = f"override {key}"
+    done = (run or subprocess.run)([sys.executable, "-m", "score.review.plan_writing", place, "--by", name],
+                                   env=env, capture_output=True, text=True, timeout=plan_writing.TIMEOUT + 60,
+                                   cwd=str(concepts.REPO))
+    if done.returncode != 0:
+        raise review.Refused((done.stderr.strip().splitlines() or ["the writing failed"])[-1]
+                             .removeprefix("refused: "))
+    lines = done.stdout.strip().splitlines()
+    return json.loads(lines[-1]) if lines else {"place": place, "written": "already"}
+
+
 def plan_revise(store, place, request, euros, by, run=None):
     """His Correct with notes on a plan page: his yes for exactly that one Gemini call at `euros` (refused when the
     measured price moved), then the call as its own process inside it (score.review.plans); its record."""

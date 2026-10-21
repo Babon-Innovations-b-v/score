@@ -2,10 +2,11 @@
 automatically once its concept is picked and its scene inventory read from it (owner, 2026-10-21: picking the
 concept is the approval; the plan page is for inspecting and fixing it, his edits redoing what follows).
 
-A plan is drawn free from data already there (`derived`): the place's plan in data/plans (its shell, frame, walls,
+The plan shown is written by the prompt model (plan_writing.py, `made_plan`); until it is, a rough one is drawn free
+from data already there (`derived`, also the skeleton the writing starts from): the place's plan in data/plans (its shell, frame, walls,
 doors and where each leads, the neighbours' joined doors in its leads), its outline from the layer above's plan (its
 box in that plan's `holds`), and its items from its scene inventory, each item tied to its inventory row (a row laid
-at a spot stands there, one with none where its SAM box stands on the picture, else along the walls for him to drag;
+at a spot stands there, one with none along the walls in the order its SAM box stands on the picture (never projected);
 each sized by its reading's metres; a row the reading gives no size, and a lamp or beam on a row this concept's
 inventory lacks, is named in the plan's `gaps`, shown on his page), a keep-clear zone in front of every
 door, its standing spots. A place holding others (a shell, the Square, the Hangar, the Campgrounds) lays out its
@@ -254,18 +255,19 @@ def anchor_of(row):
 WHOLE = 0.6  # a row whose surest box spans this share of the picture both ways is the place itself (its ground, sky)
 
 
+GROUND = {"sea", "ocean", "water", "lake", "pool", "river", "harbour", "plaza", "square", "ground", "terrain", "sky",
+          "floor", "road", "street", "pavement", "grass", "sand", "dust", "regolith", "soil"}
+
+
 def whole(row, picture):
-    """Whether a row is the place itself rather than a thing in it: its surest box spans most of the picture."""
+    """Whether a row is the place itself rather than a thing in it: its surest box spans most of the picture, or it
+    is the place's ground, water or sky (`GROUND`: the plan's ground and terrain, never a sized object; owner,
+    2026-10-21)."""
     box = (row.get("boxes") or [None])[0]
-    return bool(box and picture and (box[2] - box[0]) >= WHOLE * picture[0] and (box[3] - box[1]) >= WHOLE * picture[1])
-
-
-def from_picture(box, picture, plan, wide, deep):
-    """(x, y) of a box (wide, deep) on the plan where a row's box on the picked concept stands, read straight off the
-    picture: its middle across, its foot down (the concept is a three-quarter view: a first guess he drags)."""
-    x = (box[0] + box[2]) / 2 / picture[0] * plan["w"] - wide / 2
-    y = box[3] / picture[1] * plan["d"] - deep
-    return min(max(0.0, x), max(0.0, plan["w"] - wide)), min(max(0.0, y), max(0.0, plan["d"] - deep))
+    # what it is, the last word of its id or noun ("harbour_water", not "floor_lamp")
+    words = {re.split(r"[_\s]+", str(said).strip().lower())[-1] for said in (row["id"], row.get("noun") or "")}
+    return bool(box and picture and (box[2] - box[0]) >= WHOLE * picture[0] and (box[3] - box[1]) >= WHOLE * picture[1]
+                or row.get("anchor") == "sky" or (anchor_of(row) in ("floor", "ground") and words & GROUND))
 
 
 def row_items(rows):
@@ -309,21 +311,27 @@ def laid_along(boxes, wide):
     return found
 
 
+def across(box):
+    """Where a SAM box stands across the picture (its middle), the order unplaced items are laid in: a hint of order,
+    never a plan position (owner, 2026-10-21: boxes on a perspective painting projected top down are no plan)."""
+    return (box[0] + box[2]) / 2 if box else math.inf
+
+
 def items_from(plan, inventory):
     """(items, rows, unsized) of the plan from its scene inventory: each floor instance a box at its laid spot, else
-    where its box on the picked concept stands (`from_picture`), else laid along the walls, sized by `measured` (its
-    reading's metres), tied to its row and the rows riding on it; one walls-and-ceiling item over the whole floor, the
-    rows that are the place itself (`whole`) on it; `unsized` [(item, row id)] the items nothing gives a size."""
+    laid along the walls in the order their boxes stand on the picked concept left to right (`across`), sized by
+    `measured` (its reading's metres), tied to its row and the rows riding on it; one walls-and-ceiling item over the
+    whole floor, the rows that are the place itself (`whole`) on it; `unsized` [(item, row id)] the items nothing
+    gives a size. The written plan (plan_writing.py) places them; this one is the free stand-in until it is."""
     picture = inventory.get("picture")
     rows = [row for row in inventory.get("rows", []) if not whole(row, picture)]
     riders = children(rows)
-    instances = row_items(rows)
+    instances = sorted(row_items(rows), key=lambda instance: across(instance[3]))
     by_id = {row["id"]: row for row in rows}
-    unplaced = [footprint(by_id[row_id], None) for _, row_id, spot, box in instances if spot is None
-                and not (box and picture)]
+    unplaced = [footprint(by_id[row_id], None) for _, row_id, spot, _ in instances if spot is None]
     free = iter(laid_along(unplaced, plan["w"]))
     items, tied, unsized = [], {}, []
-    for name, row_id, spot, box in instances:
+    for name, row_id, spot, _ in instances:
         facing = facing_of(spot) if spot else None
         wide, deep = footprint(by_id[row_id], facing)
         if measured(by_id[row_id]) is None:
@@ -331,8 +339,6 @@ def items_from(plan, inventory):
         if spot:
             middle_x, middle_y = to_plan(plan, spot)
             x, y = middle_x - wide / 2, middle_y - deep / 2
-        elif box and picture:
-            x, y = from_picture(box, picture, plan, wide, deep)
         else:
             x, y = next(free)
         items.append([name, round(x, 3), round(y, 3), round(wide, 3), round(deep, 3), facing, "item"])
@@ -526,14 +532,32 @@ def derived(store, place):
     return plan
 
 
+def written(store, place):
+    """The plan written for `place` from its pick and inventory (plan_writing.written_of), None while none is."""
+    from score.review import plan_writing
+    return plan_writing.written_of(store, place)
+
+
+def made_plan(store, place):
+    """{plan, how, at, by} of the plan made for `place` without him: its written plan (how: written), else the derived
+    one (how: derived, at and by None); None while its inventory does not count."""
+    if not counts(store, place):
+        return None
+    found = written(store, place)
+    if found:
+        return {"plan": found["plan"], "how": "written", "at": found["at"], "by": found["by"]}
+    return {"plan": derived(store, place), "how": "derived", "at": None, "by": None}
+
+
 def current(store, place):
-    """{plan, how, at, by} of the plan shown: his newest edit made on the current pick (how: edited or revised),
-    else the derived one (how: derived, at and by None); None while its inventory does not count."""
-    edit = newest_edit(store, place)
-    if edit and counts(store, place):
+    """{plan, how, at, by} of the plan shown: the newer of his newest edit made on the current pick (how: edited or
+    revised) and the plan made without him (`made_plan`: written, else derived); None while its inventory does not
+    count."""
+    made_one = made_plan(store, place)
+    edit = newest_edit(store, place) if made_one else None
+    if edit and (made_one["at"] is None or edit["at"] > made_one["at"]):
         return {key: edit.get(key) for key in ("plan", "how", "at", "by")}
-    plan = derived(store, place)
-    return None if plan is None else {"plan": plan, "how": "derived", "at": None, "by": None}
+    return made_one
 
 
 # --- his edits --------------------------------------------------------------------------------------------------
@@ -619,11 +643,16 @@ def checked_row(row, ids):
 def edited(store, place, plan, by, how="edited", calls=None):
     """Keep his plan for `place` (checked against the derived one) as his own, and where the plan stage reads it;
     the record."""
-    base = derived(store, place)
+    base = (made_plan(store, place) or {}).get("plan")
     if base is None:
         raise Refused(f"{place}'s scene inventory is not read from its picked concept: no plan yet")
+    plan = checked_plan(plan, base)
+    if "shapes" in base:  # a written plan: its free checks run again on his edit
+        from score.review import plan_checks
+        plan["gaps"] = [gap for gap in plan["gaps"] if gap["kind"] not in plan_checks.KINDS] + plan_checks.checked(
+            plan, inventory_of(store, place), base.get("structure", []))
     record = kept_record(store, place, "edits", {
-        "place": place, "plan": checked_plan(plan, base), "concept": pick_of(store, place), "by": by,
+        "place": place, "plan": plan, "concept": pick_of(store, place), "by": by,
         "at": concepts.now(), "how": how, "calls": calls or []})
     if has_row(place):
         kept_for_stage(store, place, record["plan"])

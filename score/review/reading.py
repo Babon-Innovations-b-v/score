@@ -1,6 +1,7 @@
 """Scene inventory reading (CONTEXT.md "scene inventory"; the owner, 2026-10-21): a picked concept read into its rows
 in two steps, no agent in the loop, run on its own after his pick (root CLAUDE.md: readings run without asking; every
-reading's cost is recorded and its running total shown in the cockpit).
+reading's cost is recorded and its running total shown in the cockpit). Its plan is written next, on its own
+(plan_writing.py, `planned`).
 
 1. Gemini 3.1 Pro gets the picked concept and the picked concept of the place it sits within and answers its rows
    (ASKED: kind, name, the noun SAM 3 finds it by, count, its size in metres judged from what it is and the picture,
@@ -459,6 +460,24 @@ def main(argv):
     for record in found:
         print(json.dumps({"place": record["place"], "rows": len(record["inventory"]["rows"]),
                           "gaps": len(record["gaps"]), "euros": record["euros"], "seconds": record["seconds"]}))
+    return planned(store, [record["place"] for record in found], options.by)
+
+
+def planned(store, places, by):
+    """Each place read gets its plan written next, on its own (plan_writing.AUTOMATIC: the owner's standing allowance
+    of 2026-10-21); one line a place, or the refusal on stderr with exit 1. Nothing while the flag is off: his Make
+    plan click writes it."""
+    from score.adapters.compute import Refused as NotCleared
+    from score.review import plan_writing
+    if not plan_writing.AUTOMATIC or not places:
+        return 0
+    try:
+        written = plan_writing.write(store, places, by)
+    except (concepts.Refused, NotCleared) as refused:
+        print(f"refused: plan writing: {refused}", file=sys.stderr)
+        return 1
+    for record in written:
+        print(plan_writing.said(record))
     return 0
 
 

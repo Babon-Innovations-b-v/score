@@ -384,6 +384,10 @@ def test_a_scene_inventory_reading_is_cleared_under_the_owners_allowance_alone()
         assert compute.require_cleared("a SAM 3 card", runner.store)["node"] == compute.READING
     assert "outside the allowance" in compute_test.refused(lambda: compute.reading_clearance(runner.store, ["a"], 1.5))
     assert "outside the allowance" in compute_test.refused(lambda: compute.reading_clearance(runner.store, [], 0.1))
+    writing = as_agent(lambda: compute.reading_clearance(runner.store, ["hall"], 0.05, node=compute.PLAN_WRITING))
+    assert "plan writing runs without asking" in writing["clearance"]["by"]
+    assert "no standing allowance" in compute_test.refused(
+        lambda: compute.reading_clearance(runner.store, ["hall"], 0.05, node="render@hall"))
     grant = compute.grant_benchmark("Yes", QUESTION, 1.0, store=runner.store)["id"]
     clear = lambda euros: lambda: compute.reading_clearance(runner.store, ["a", "b"], euros)  # noqa: E731
     assert as_benchmark(grant, "reading-1", clear(0.6))["clearance"]["grant"] == grant
