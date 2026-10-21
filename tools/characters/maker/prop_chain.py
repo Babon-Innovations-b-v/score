@@ -15,7 +15,11 @@ The spec (in/spec.json, written by prop_person.py) names its `steps`, in order, 
   shots     the comparison pictures of the spec's body (blender_shots.py: A-pose front and side, walking at 1/4 and
             3/4, sitting) into out/shots/
   review    turntables and clip frames rendered by Cycles (blender_review.py), as the shipped route's review
-No body is read off a picture on this route (owner, 2026-10-10): SOMA-X gives the skeleton and its skin weights only.
+  identity  the body under the clothes read off the person's close-up by SAM 3D Body (body_picture.py) into
+            out/identity.npz: the people route's base (route_base.py) reads it; the A-pose picture it was read from
+            before is lost (2026-10-19), and the close-up is the same person front on in the rig's A-pose
+SOMA-X gives the skeleton and its skin weights; the identity shapes only the route's base under the look, never the
+look's mesh (owner, 2026-10-10: "soma is for the rig, not the mesh").
 The record of every step (minutes, card, failure) is out/make.json, as chain.py writes it.
 """
 import json
@@ -121,8 +125,15 @@ def review(chain):
     return f"turntables and {len(shown)} clips"
 
 
+def identity(chain):
+    """The body under the clothes read off the close-up (body_picture.py, SAM 3D Body): out/identity.npz."""
+    chain.run([MOTION, MAKER / "body_picture.py", chain.file(chain.spec["files"]["closeup"]),
+               chain.out / "identity.npz"])
+    return "read off the close-up"
+
+
 STEPS = {"pose": pose, "closeup": closeup, "rig": rig, "shell": shell, "build": build, "settle": settle,
-         "shots": shots, "review": review}
+         "shots": shots, "review": review, "identity": identity}
 
 
 def main():

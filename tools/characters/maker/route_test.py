@@ -96,6 +96,21 @@ def test_a_limb_point_keeps_only_its_chain_and_its_shoulder():
     assert np.allclose(kept[1], weights[1])
 
 
+def test_the_face_is_one_setting_and_keeps_the_made_face_by_default():
+    """#26: until the owner decides, the body keeps the face Pixal3D made (its print from the close-up) and reads no
+    old body; `drawn` drops the made face for the old drawn head, and refuses without the old body."""
+    import argparse
+    assert route_head.FACE == "made" and set(route_head.FACES) == {"made", "drawn"}
+    document = {"materials": [{"name": "skin_head", "extras": {"role": "skin"}}, {"name": "hair", "extras": {"role": "hair"}},
+                              {"name": "suit", "extras": {"role": route_build.pokes.GARMENT}}]}
+    surfaces = [route_build.Surface(number, None, None, None, None) for number in range(3)]
+    named = lambda face: [document["materials"][surface.material]["name"]  # noqa: E731
+                          for surface in route_build.kept_surfaces(document, surfaces, face)]
+    assert named("made") == ["skin_head", "hair"] and named("drawn") == ["hair"]
+    with pytest.raises(SystemExit, match="--old"):
+        route_build.drawn_head(argparse.Namespace(old=None), document, surfaces, None, None, [], None)
+
+
 def test_the_collar_line_is_filled_round_the_neck():
     turns = np.linspace(-np.pi, np.pi, 8, endpoint=False) + 0.01
     border = np.stack([np.cos(turns) * 0.06, 1.45 + 0.01 * np.sin(turns), np.sin(turns) * 0.06], 1)
