@@ -23,7 +23,8 @@ PLACE = "testplace"
 NONE = {name: None for name in contents.OUTPUTS}
 # Row-kind rules written here (data/checks/row-kinds.json's shape), so the checks do not follow the house's table.
 RULES = {"kettle": {"nouns": ["kettle"], "does": ["emits"]}, "door": {"nouns": ["door"], "does": ["moves"]},
-         "plant": {"nouns": ["plants", "planter"], "does": ["grows"]}}
+         "plant": {"nouns": ["plants", "planter"], "does": ["grows"]},
+         "person": {"nouns": ["person", "crowd"], "does": ["acts"]}}
 NOBODY = {"concept": "c0ffee00", "spots": [], "middle": [0.0, 0.0, 0.0], "rows": {}}
 
 
@@ -82,9 +83,14 @@ def problems_of(cases):
 
 def people_mapped(rows, place=PLACE):
     """The place's design's people rows (`rows`, each mapped to its looks) written where the people check reads them
-    (contents.DATA's people/rows.json)."""
+    (contents.DATA's people/rows.json), each a person row of its design too (contents.DESIGN)."""
     entry = {**NOBODY, "spots": [[0.0, 0.0, 0.0]], "rows": rows}
     (contents.DATA / "people/rows.json").write_text(json.dumps({"places": {place: entry}, "new": {}}))
+    kept = contents.DESIGN / f"{place}.json"
+    design = json.loads(kept.read_text())
+    shown = {found["id"] for found in design["rows"]}
+    design["rows"] += [row(row_id, "person") for row_id in rows if row_id not in shown]
+    kept.write_text(json.dumps(design))
 
 
 BRAM = {"bram": {"name": "bram", "noun": "person", "count": 1, "where": "by the door", "looks": ["bram-work"]}}
@@ -95,10 +101,11 @@ def row(row_id, noun, anchor="floor"):
 
 
 def people_both_ways():
-    """The cast is the design's people row mapped to its look (data/people/rows.json): bram must stand there."""
+    """The cast is the design's people row mapped to its look (data/people/rows.json): bram must stand there. A design
+    that shows nobody wants nobody, mapped or not; one that shows somebody nobody mapped is unknown, as is no design."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        world_data(folder)
+        world_data(folder, design=[row("bram", "person")])
         people_mapped(BRAM)
         path = bare_stage(folder)
         missing = judged("people", path)
@@ -115,17 +122,30 @@ def people_both_ways():
                                                                               "missing": "no built model"}},
                                                            "licence": []}))
         unmade = judged("people", path, outputs={**NONE, "characters-layer": layer})
+        world_data(folder, people=None)
+        stranger = judged("people", path)
         stage.RemovePrim(f"/{PLACE}/Characters/bram")
         stage.GetRootLayer().Save()
         world_data(folder)
         nobody = judged("people", path)
         world_data(folder, people=None)
+        unmapped_nobody = judged("people", path)
+        world_data(folder, design=[row("bram", "person")])
+        mapped_none = judged("people", path)
+        world_data(folder, people=None, design=[row("bram", "person")])
+        unmapped = judged("people", path)
+        (contents.DESIGN / f"{PLACE}.json").unlink()
+        undesigned = judged("people", path)
         return problems_of([("a cast person not on the stage", missing, contents.FAIL),
                             ("a body of SOMA's mesh in drapes", draped, contents.FAIL),
                             ("a made body", made, contents.PASS),
                             ("a characters layer with a look not made", unmade, contents.FAIL),
+                            ("a design with nobody, somebody on the stage", stranger, contents.FAIL),
                             ("a design with nobody, nobody on the stage", nobody, contents.PASS),
-                            ("no people mapped for the design", judged("people", path), contents.UNKNOWN)])
+                            ("a design with nobody, no people mapped", unmapped_nobody, contents.PASS),
+                            ("a design with a person, its mapping of nobody", mapped_none, contents.UNKNOWN),
+                            ("a design with a person, no people mapped", unmapped, contents.UNKNOWN),
+                            ("no design", undesigned, contents.UNKNOWN)])
 
 
 def effects_and_motion_both_ways():
@@ -376,7 +396,8 @@ def a_far_look_near_a_view_both_ways():
             "bram": {"name": "bram", "looks": ["bram-work"], "share": 0.3},
             "crowd": {"name": "crowd", "noun": "crowd", "crowd": "kit_m_avg-coat-grey", "palettes": palette}}}
         view = {"name": "gate", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, 10.0], "fov": 60}
-        world_data(folder, people=people, scene={"place": PLACE, "lights": [], "places": [], "views": [view]})
+        world_data(folder, people=people, scene={"place": PLACE, "lights": [], "places": [], "views": [view]},
+                   design=[row("guard", "person"), row("bram", "person"), row("crowd", "crowd")])
         path = bare_stage(folder)
         stage = Usd.Stage.Open(str(path))
         for name, depth in (("guard", 3.0), ("bram", 3.0)):

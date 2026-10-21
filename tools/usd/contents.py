@@ -13,7 +13,8 @@ blocks like fail.
                 "soma is for the rig, not the mesh"); and no far-only look (one the design does not make in
                 full: score/stages/people_bodies/full.py on data/people/rows.json; the crowd's far body always) stands near enough to fill over FAR_SHARE of the frame
                 height in any of the record's views, as the cast stage measures it (score/stages/cast/spread.py).
-                No people mapped for its design: unknown
+                A design that shows nobody (no row that acts, score/stages/design_layers.py): nobody may stand
+                there. One that shows people while none are mapped for it: unknown
     effects     every row of the place's design that emits (its row kind, score/stages/row_kinds.py) has an effect
                 standing: an entry of its effects record that stands under /<place>/Effects (in any variant), under
                 its name or as its cells (`<name>_<row>_<column>`), or an emitter laid on one of the row's objects,
@@ -191,12 +192,27 @@ def layer_faults(layer):
             if "missing" in look] + [f"refused by the licence rule: {fault}" for fault in written["licence"]]
 
 
+def designed_cast(place):
+    """The cast the place's design gives: nobody where its design shows no row that acts (design_layers), else its
+    people mapped (cast_of); why it is not known, a sentence, while it has no design or its people are not mapped."""
+    found = design(place)
+    if found is None:
+        return NO_DESIGN.format(place=place, folder=DESIGN)
+    if "people" not in stages_module("design_layers").kinds_of(found, row_rules()):
+        return {"place": place, "people": [], "note": "nobody, as its design shows"}
+    cast = cast_of(place)
+    if cast is None or not (cast.get("people") or cast.get("crowd") or cast.get("groups")):
+        return (f"its design shows people and data/{DESIGNED_PEOPLE} maps none of them for it: who is here is not "
+                "known")
+    return cast
+
+
 def judge_people(stage, place, inventory, outputs):
     """The stage's characters against the cast: each by name, the crowd's count, every look a made model."""
     from pxr import UsdGeom
-    cast = cast_of(place)
-    if cast is None:
-        return UNKNOWN, [], f"no people mapped for its design ({DESIGNED_PEOPLE}): who is here is not known"
+    cast = designed_cast(place)
+    if isinstance(cast, str):
+        return UNKNOWN, [], cast
     scope = stage.GetPrimAtPath(f"/{place}/Characters")
     standing = {prim.GetName(): prim for prim in (scope.GetChildren() if scope else [])}
     wanted = cast_names(cast)
