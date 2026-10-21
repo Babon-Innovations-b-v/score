@@ -18,7 +18,7 @@
  "rows": [
   {
    "id": "kit_m_avg-coat-grey",
-   "name": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
+   "name": "a Chinese man in his thirties, an average build, an ordinary citizen in the crowd, short black hair; a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
    "size": [
     0.5,
     0.3,
@@ -33,11 +33,12 @@
     358,
     816
    ],
-   "grounded": "SAM 3's box in the reading of the picked concept"
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes"
   },
   {
    "id": "player_wide-work",
-   "name": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
+   "name": "a Chinese man in his thirties, an astronaut of a Moon base, a slim athletic build, short black hair swept up and over to one side, clean shaven; an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
    "size": [
     0.3,
     0.5,
@@ -52,7 +53,8 @@
     2179,
     1093
    ],
-   "grounded": "SAM 3's box in the reading of the picked concept"
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots"
   }
  ],
  "approved": {

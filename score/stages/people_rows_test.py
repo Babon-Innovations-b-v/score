@@ -77,6 +77,18 @@ def test_each_line_row_is_drawn_from_the_person_that_maps_it():
     assert "closeup" not in props["objects"]["player_wide-work"]
 
 
+def test_each_line_rows_close_up_words_say_who_the_look_is():
+    """#26: the first people benchmark drew the player, a Chinese man in his thirties by his spec, as someone else:
+    the close-up's words were the reading's clothes alone. Every look's words start with its spec's description."""
+    from score.stages.props import closeup_row
+    inventory = json.loads(people_rows.LINE_FILES["inventory"].read_text())
+    rows = {row["id"]: row for row in inventory["rows"]}
+    words = {row["id"]: row["words"] for row in closeup_row.inventory_rows(inventory, people_rows.every_look())}
+    assert words["player_wide-work"].startswith("a Chinese man in his thirties")
+    for look, said in words.items():
+        assert said == f"{people_rows.description_of(look)}; {rows[look]['clothes']}"
+
+
 def test_a_refresh_keeps_the_choices_of_the_same_concept():
     inventory = {"concept_pick": {"sha256": "one"}, "rows": [
         {"id": "pilot", "name": "person", "noun": "person", "count": 2, "size": [0.5, 0.3, 1.8], "route": "people"},
