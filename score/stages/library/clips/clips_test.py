@@ -188,10 +188,7 @@ def test_table():
     row = next(stage for stage in stages.STAGES if stage.name == clips.ROW)
     assert row.paid and row.euros == clips.EUROS and set(row.after) == {library.PLACE_ROW} and row.grain == "place"
     assert not any(clips.ROW in stage.after for stage in stages.STAGES)  # nothing reads the clips
-    sampled = next(stage for stage in stages.STAGES if stage.name == clips.SAMPLE_ROW)
-    assert sampled.paid and sampled.grain == "world" and not sampled.after
-    assert sampled.euros == clips.forecast(len(clips.sample_addresses()))["high_euros"]
-    assert not any(clips.SAMPLE_ROW in stage.after for stage in stages.STAGES)
+    assert "library-clips-sample" not in {stage.name for stage in stages.STAGES}  # its benchmark retired 2026-10-21
     print("table: ok")
 
 

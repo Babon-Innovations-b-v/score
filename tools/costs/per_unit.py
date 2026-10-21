@@ -188,19 +188,6 @@ RECORDED = {
                                    "slots_from": "one chain on its one card", "holds": "machines", "lines": 1,
                                    "from": ["ledger batch characters-20261021-203329-3895203 (its machine's "
                                             "unit_seconds; start wait 0.37 and set-up 14.15 min)"]}},
-    # One make of the sample: the clips its entries lack (this run 1 of its 7 entries), so a make of more clips costs
-    # more; library-clips' own unit (a clip) is the per-clip figure.
-    "library-clips-sample": {"unit": "make of the library's clip sample (the clips its entries lack; 1 clip here)",
-                             "forecast": "one",
-                             "runs": [{"euros": 0.3675, "units": 1,
-                                       "source": "ledger batch blender-20261021-203342-3898641 (library-clips-sample, "
-                                                 "2026-10-21, benchmark grant 20261021T182203): 1 clip of 7 entries "
-                                                 "on one L4, 27.4 machine minutes, its card parked after"}],
-                             "time": {"unit_seconds": {"likely": 1542.8, "high": 1542.8},
-                                      "setup_minutes": {"likely": 1.63, "high": 1.63}, "slots": 1,
-                                      "slots_from": "one job on its one card", "holds": "machines", "lines": 1,
-                                      "from": ["ledger batch blender-20261021-203342-3898641 (its machine's "
-                                               "unit_seconds; start wait 0.37 and set-up 1.26 min)"]}},
 }
 
 

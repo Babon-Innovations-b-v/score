@@ -27,12 +27,10 @@ make, the output, the gate and the price; `sample.py` the sample shapes; `blende
   sky's dome picture; before, a sky rendered magenta), and plays an effect as one loop (`score:effect:loop`) from the
   time code where its points show most (`clip.busiest_loop`), so a sparse effect (the breath: a puff every 20 s
   over a 600 s stage) opens on the puff, not an empty first frame. Not yet rendered since.
-- **The benchmark is `library-clips-sample`** (one environment node, paid): the same make over the drafts
-  `data/definitions/clip_samples.json` names (one a framing), clipped and put into their entries, so a clip's
-  seconds and euros are measured. The old record named withdrawn drafts and was retired (owner, 2026-10-21), so the
-  row blocks on its missing `samples` input until a record names fresh drafts the remake batch handed over. Only on
-  the owner's yes: `SCORE_BENCHMARK_GRANT=<grant> python -m score run world1
-  --stage library-clips-sample --detach`.
+- **No benchmark row.** `library-clips-sample` clipped the old library drafts `data/definitions/clip_samples.json`
+  named; it measured the make (its runs are the price above) on old models only, so it was dropped with them (owner,
+  2026-10-21: all old stuff is retired). The clips of the batch's own new items are their own measure: each run of
+  library-clips is a ledger line `tools/costs/per_unit.py` reads.
 - **Never edit `tools/blender/inside/` for this row** (other rows declare that folder: their keys would move). The
   framing lives in `blender/framing.py`.
 - Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python score/stages/library/clips/clips_test.py` (no Blender, no spend:

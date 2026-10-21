@@ -248,41 +248,6 @@
     ]
    }
   },
-  "library-clips-sample": {
-   "stage": "library-clips-sample",
-   "unit": "make of the library's clip sample (the clips its entries lack; 1 clip here)",
-   "count": null,
-   "also": [],
-   "likely_euros": 0.3675,
-   "high_euros": 0.3675,
-   "runs": 1,
-   "sources": {
-    "recorded runs": [
-     "ledger batch blender-20261021-203342-3898641 (library-clips-sample, 2026-10-21, benchmark grant 20261021T182203): 1 clip of 7 entries on one L4, 27.4 machine minutes, its card parked after"
-    ]
-   },
-   "forecast": {
-    "rule": "one",
-    "source": "one a place (one for an environment node)"
-   },
-   "time": {
-    "unit_seconds": {
-     "likely": 1542.8,
-     "high": 1542.8
-    },
-    "setup_minutes": {
-     "likely": 1.63,
-     "high": 1.63
-    },
-    "slots": 1,
-    "slots_from": "one job on its one card",
-    "holds": "machines",
-    "lines": 1,
-    "from": [
-     "ledger batch blender-20261021-203342-3898641 (its machine's unit_seconds; start wait 0.37 and set-up 1.26 min)"
-    ]
-   }
-  },
   "pixal": {
    "stage": "pixal",
    "unit": "model",
