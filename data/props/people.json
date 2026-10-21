@@ -1,27 +1,23 @@
 {
  "place": "people",
  "order": "prop-first",
- "why": "The people line's hand-in to the shared loop (score/stages/shapes_first, #41): every look a row of the people layer, its close-up and take made by its own take row (people-take-<look>), on the line `people`, which no place owns.",
+ "why": "The people line's hand-in to the shared loop (score/stages/shapes_first, #41): every look a row of the people layer, its close-up drawn by the loop's close-up row from the place's person that maps it (the people layer's own A-pose wording, stage.PERSON) and its take made by pixal@people, on the line `people`, which no place owns (#26).",
  "objects": {
   "kit_m_avg-coat-grey": {
    "route": "prop",
-   "take": "pp-kit_m_avg-coat-grey-s3",
-   "closeup": "{home}/work/pixal/pp-kit_m_avg-coat-grey-s3.svviews/input.png",
+   "take": "kit_m_avg-coat-grey-s1",
    "layer": "people",
    "failures": {
-    "take": "made before the loop by people-take-kit_m_avg-coat-grey (its close-up and Pixal3D take): the Pixal3D batch refuses a no_place inventory (tools/props/cloud/batch.py), so pixal@people only finds it",
-    "parts": "split a second time by people-look-parts-kit_m_avg-coat-grey (SAM 2.1, GeoSAM2, the judge's materials) for the garments the settle needs, beside the loop's finish-route split",
+    "parts": "split a second time by people-look-parts-kit_m_avg-coat-grey (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
     "body": "people-body-kit_m_avg-coat-grey builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
    }
   },
   "player_wide-work": {
    "route": "prop",
-   "take": "pp-player_wide-work-s1",
-   "closeup": "{home}/work/pixal/pp-player_wide-work-s1.svviews/input.png",
+   "take": "player_wide-work-s1",
    "layer": "people",
    "failures": {
-    "take": "made before the loop by people-take-player_wide-work (its close-up and Pixal3D take): the Pixal3D batch refuses a no_place inventory (tools/props/cloud/batch.py), so pixal@people only finds it",
-    "parts": "split a second time by people-look-parts-player_wide-work (SAM 2.1, GeoSAM2, the judge's materials) for the garments the settle needs, beside the loop's finish-route split",
+    "parts": "split a second time by people-look-parts-player_wide-work (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
     "body": "people-body-player_wide-work builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
    }
   }

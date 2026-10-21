@@ -1085,12 +1085,16 @@ class Runner:
         nodes they read (directly or through another environment node); `only` (stage names) keeps those stages' nodes and
         the nodes they read, place by place: a stage one place reads (the garage's motion its motion models layer, and so
         its surface line) is not run for a place that does not read it. A node name in `only` (`demo-film@hub`) keeps
-        that one node, so one run can hold a benchmark batch of different stages at different places."""
+        that one node, so one run can hold a benchmark batch of different stages at different places. An environment
+        stage named in `only` with places given is kept too, with what it reads: `--place people --stage people-look`
+        is the people line and the bodies that read it beside, in one run (#26)."""
         found = list(self.nodes(places))
+        named = set()
         if only:
             reading = [(stage, place) for stage, place in found
                        if stage.name in only or node_name(stage, place) in only]
             names = {node_name(*node) for node in reading}
+            named = set(names)
             while reading:
                 for before in self.read_nodes(*reading.pop()):
                     if node_name(*before) not in names:
@@ -1099,7 +1103,8 @@ class Runner:
             found = [(stage, place) for stage, place in found if node_name(stage, place) in names]
         if whole:
             return found
-        chosen = [(stage, place) for stage, place in found if stage.grain == "place"]
+        chosen = [(stage, place) for stage, place in found
+                  if stage.grain == "place" or node_name(stage, place) in named]
         names, reading = {node_name(*node) for node in chosen}, list(chosen)
         while reading:  # the environment nodes and other places' nodes the places read, and what those read
             for before in self.read_nodes(*reading.pop()):

@@ -2,9 +2,18 @@
  "scene": "people",
  "place": "people",
  "no_place": true,
- "why": "The people line's rows (#41), no scene's inventory: a line no place owns (no_place), so no owner's approval and no scene schema; the Pixal3D batch refuses it, so each look's take is made by its own take row (people-take-<look>). Each look one row, its words its take's. No concept view and no box: each look's close-up is drawn by its take row in SOMA-X's bind pose. Each row's size is the person row's metres that maps it in a picked design (`size_from`, score/stages/people_rows.py, #26).",
+ "why": "The people line's rows (#41), no scene's inventory: a line no place owns (no_place). Each look one row, drawn from the picked design's person row that maps it (data/people/rows.json, #26): its view that place's kept concept, its box SAM 3's in that concept's reading (grounded), its size that row's metres (`size_from`), approved by those places' picks (the creator's pick, which the Pixal3D batch takes). Written by python -m score.stages.people_rows.",
  "plan": {
-  "views": []
+  "views": [
+   {
+    "id": "square",
+    "picture": "{home}/design/concepts/square.png"
+   },
+   {
+    "id": "tube",
+    "picture": "{home}/design/concepts/tube.png"
+   }
+  ]
  },
  "rows": [
   {
@@ -15,9 +24,16 @@
     0.3,
     1.8
    ],
-   "view": null,
-   "box": null,
-   "size_from": "square/crowd of data/people/rows.json"
+   "size_from": "square/crowd of data/people/rows.json",
+   "prop": "kit_m_avg-coat-grey",
+   "view": "square",
+   "box": [
+    0,
+    534,
+    358,
+    816
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept"
   },
   {
    "id": "player_wide-work",
@@ -27,9 +43,23 @@
     0.5,
     1.8
    ],
-   "view": null,
-   "box": null,
-   "size_from": "tube/person_right of data/people/rows.json"
+   "size_from": "tube/person_right of data/people/rows.json",
+   "prop": "player_wide-work",
+   "view": "tube",
+   "box": [
+    2062,
+    709,
+    2179,
+    1093
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept"
   }
- ]
+ ],
+ "approved": {
+  "by": "the creator's pick",
+  "places": [
+   "square",
+   "tube"
+  ]
+ }
 }

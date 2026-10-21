@@ -57,6 +57,26 @@ def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
     assert people_rows.person_sized(size) and origin == "square/crowd"  # never the street crowd's 8 x 10 m extent
 
 
+def test_each_line_row_is_drawn_from_the_person_that_maps_it():
+    """#26: the shared loop draws each look's close-up from the picked design's person row that maps it (its view the
+    kept concept, its box SAM 3's, grounded), so no take row and no work folder stands before the line; the line is
+    approved by those picks, as the Pixal3D batch takes a design."""
+    import tempfile
+    records = {name: json.loads(path.read_text()) for name, path in people_rows.LINE_FILES.items()}
+    with tempfile.TemporaryDirectory() as held:
+        kept = pathlib.Path(held)
+        (kept / "tube.json").write_text(json.dumps({"rows": [{"id": "person_right", "box": [1, 2, 3, 4]}]}))
+        props, inventory, _ = people_rows.line_rows(people_rows.read(), records["props"], records["inventory"],
+                                                    records["surfaces"], kept)
+    rows = {row["id"]: row for row in inventory["rows"]}
+    assert rows["player_wide-work"]["view"] == "tube" and rows["player_wide-work"]["box"] == [1, 2, 3, 4]
+    assert rows["player_wide-work"]["grounded"] and rows["player_wide-work"]["prop"] == "player_wide-work"
+    assert rows[people_rows.CROWD_LOOK]["view"] is None, "the square keeps no inventory here"
+    assert inventory["plan"]["views"] == [{"id": "tube", "picture": "{home}/design/concepts/tube.png"}]
+    assert inventory["approved"]["by"] == "the creator's pick" and inventory["approved"]["places"] == ["tube"]
+    assert "closeup" not in props["objects"]["player_wide-work"]
+
+
 def test_a_refresh_keeps_the_choices_of_the_same_concept():
     inventory = {"concept_pick": {"sha256": "one"}, "rows": [
         {"id": "pilot", "name": "person", "noun": "person", "count": 2, "size": [0.5, 0.3, 1.8], "route": "people"},

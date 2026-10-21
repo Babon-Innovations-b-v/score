@@ -34,7 +34,7 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
 LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on the concept", "crops-layer": "crops",
                "crops-look": "crop renders"})
 # A person's rows, one a look: the step's words, then the look.
-PEOPLE = {"people-body-": "body", "people-dress-": "dressed body", "people-take-": "model"}
+PEOPLE = {"people-body-": "body", "people-dress-": "dressed body"}
 
 
 def label(stage):

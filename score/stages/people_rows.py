@@ -225,24 +225,57 @@ def refresh(store):
 
 # --- the people line's data for the mapped looks -------------------------------------------------------------------
 
-def line_rows(found, props, inventory, surfaces):
+def drawn_from(origin, kept):
+    """A line row's concept view and box from the picked design's person row that maps it (`origin` "<place>/<row>"):
+    the view named by its place, its picture the kept concept, its box SAM 3's in the reading (handin.GROUNDED), so
+    the shared loop's close-up draws the look from the place's own person; {} where the design keeps no inventory
+    (`kept`: the kept inventories' folder)."""
+    from score.stages.complete.prepare import handin
+    place, row_id = origin.split("/", 1)
+    path = kept / f"{place}.json"
+    read = next((row for row in json.loads(path.read_text())["rows"] if row["id"] == row_id), None) \
+        if path.is_file() else None
+    if not read or not read.get("box"):
+        return {}
+    return {"view": place, "box": read["box"], "grounded": handin.GROUNDED}
+
+
+def line_inventory(inventory, rows):
+    """The line's inventory of `rows`: a view a place its rows are drawn from (its kept concept), approved by the
+    creator's picks that map them (handin.APPROVED_BY, which the Pixal3D batch takes)."""
+    from score.stages.complete.prepare import handin
+    places = sorted({row["view"] for row in rows if row.get("view")})
+    return {**inventory, "approved": {"by": handin.APPROVED_BY, "places": places},
+            "plan": {"views": [{"id": place, "picture": "{home}/design/concepts/" + f"{place}.png"}
+                               for place in places]}, "rows": rows}
+
+
+def line_rows(found, props, inventory, surfaces, kept=None):
     """The people line's three records narrowed to the looks the designs map, each inventory row and bake entry with
-    the look's size (size_of): (props, inventory, surfaces)."""
+    the look's size (size_of) and each row drawn from its mapping person's view and box (drawn_from): (props,
+    inventory, surfaces)."""
+    from score.review import plans
     from score.stages.props import compare
+    kept = kept or plans.KEPT_INVENTORY
     details = json.loads((REPO / "data/library/details.json").read_text())
     wanted = every_look(found) & set(props["objects"])
     rows = []
     for row in inventory["rows"]:
         if row["id"] in wanted:
             size, origin = size_of(row["id"], found)
-            rows.append({**row, "size": size, "size_from": f"{origin} of data/people/rows.json"})
+            rows.append({**{key: value for key, value in row.items() if key not in ("view", "box", "grounded")},
+                         "prop": row["id"], "size": size, "size_from": f"{origin} of data/people/rows.json",
+                         "view": None, "box": None, **drawn_from(origin, kept)})
     takes = {props["objects"][look]["take"] for look in wanted}
     models = {look: take for look, take in surfaces["bake"]["models"].items() if look in wanted}
     entries = {look: compare.bake_entry(LINE, {"id": look, "size": next(row["size"] for row in rows
                                                                         if row["id"] == look)}, details)
                for look in models}
-    return ({**props, "objects": {look: entry for look, entry in props["objects"].items() if look in wanted}},
-            {**inventory, "rows": rows},
+    drawn = {row["id"] for row in rows if row["view"]}  # the loop's close-up draws these: no close-up named
+    return ({**props, "objects": {look: {key: value for key, value in entry.items()
+                                         if not (key == "closeup" and look in drawn)}
+                                  for look, entry in props["objects"].items() if look in wanted}},
+            line_inventory(inventory, rows),
             {**surfaces, "takes": {take: entry for take, entry in surfaces["takes"].items() if take in takes},
              "bake": {**surfaces["bake"], "models": models, "entries": entries}})
 

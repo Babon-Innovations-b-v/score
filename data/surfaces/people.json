@@ -3,7 +3,7 @@
  "library": "people",
  "why": "The people line's surface data (score/stages/people, #5; on the shared loop since 2026-10-20, #41): each look's Pixal3D take, painted and baked by the loop's finish route as a place's takes are, on the line `people`, which no place owns; its body rows read `spec` and `outfit` beside each take. Only the looks the final casts name are kept (captain, 2026-10-13).",
  "takes": {
-  "pp-kit_m_avg-coat-grey-s3": {
+  "kit_m_avg-coat-grey-s1": {
    "places": [
     "people"
    ],
@@ -17,7 +17,7 @@
    "outfit": "coat-grey",
    "far_only": true
   },
-  "pp-player_wide-work-s1": {
+  "player_wide-work-s1": {
    "places": [
     "people"
    ],
@@ -34,8 +34,8 @@
  "bake": {
   "why": "Each look's model, baked from its take by the loop's bake, its entry at the size of the person row that maps it (data/people/rows.json, score/stages/people_rows.size_of: the picked design's metres, #26). Only the looks a design maps are on the line; the rest left it with the old library models (2026-10-21).",
   "models": {
-   "kit_m_avg-coat-grey": "pp-kit_m_avg-coat-grey-s3",
-   "player_wide-work": "pp-player_wide-work-s1"
+   "kit_m_avg-coat-grey": "kit_m_avg-coat-grey-s1",
+   "player_wide-work": "player_wide-work-s1"
   },
   "entries": {
    "kit_m_avg-coat-grey": {

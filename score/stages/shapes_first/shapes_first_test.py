@@ -13,7 +13,6 @@ import pytest
 
 from score import checks, contracts, graph, stages
 from score.stages import shapes_first
-import score.stages.people_takes as people_takes
 import score.stages.props.closeup_row as closeup_row
 import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.align as align
@@ -194,12 +193,11 @@ MAKES_NO_MODEL = {
     "motion-models-boxes": "measured boxes", "light-passes": "renders", "light-haze": "renders",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
     "complete-boxes": "measured boxes", "surface-tiles": "surface tiles", "library-clips*": "preview clips (renders)",
+    "people-clips-made": "Kimodo clips and the mean rig",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
 MADE_OUTSIDE = {
     "earth-kit": "earth_seed.fallbacks: the Earth kit's code bodies the loop was not handed",
-    "people-take-*": "data/props/people.json or data/people/takes.json `failures`: the Pixal3D batch refuses a "
-                     "no_place inventory",
     "people-look-parts-*": "data/props/people.json `failures`: the garments' second split",
     "people-body-*": "data/props/people.json `failures`: the body built from the raw take",
 }
@@ -226,8 +224,7 @@ def test_every_model_layer_reaches_its_models_only_through_the_loop():
 
 def test_a_paid_row_outside_the_loop_makes_no_model_but_a_named_exception():
     loop = {row.name for row in shapes_first.rows(())}
-    records = [*json.loads((prop_data.FOLDER / "people.json").read_text())["objects"].values(),
-               *json.loads(people_takes.TAKES.read_text())["looks"].values()]
+    records = json.loads((prop_data.FOLDER / "people.json").read_text())["objects"].values()
     named = {row for entry in records for text in (entry.get("failures") or {}).values()
              for row in re.findall(r"people-[a-z0-9_-]*[a-z0-9]", text)}
     unsaid, unnamed = [], []

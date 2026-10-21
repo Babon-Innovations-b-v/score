@@ -13,7 +13,9 @@ import subprocess
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
-VIEWS = ("apose_front", "apose_side", "apose_back", "walk_a", "walk_b", "sit", "wait", "point", "reach", "clap", "door")
+# The A-pose views and the shots of the clips the bodies are made with (people_bodies/made_clips.CLIPS: walking,
+# sitting, the bench work); blender_shots.py skips a shot whose clip a body lacks.
+VIEWS = ("apose_front", "apose_side", "apose_back", "walk_a", "walk_b", "sit", "work")
 # A card render of eleven views at 768 px, 64 samples: about 6 minutes a look with the import (blender_shots.py on
 # 2026-10-10 took about 3 minutes for five).
 MINUTES = 12
@@ -78,7 +80,8 @@ def page(inputs, out):
             ".strip{display:flex;flex-wrap:wrap;gap:8px}figure{margin:0;width:min(220px,45%)}"
             "img{width:100%;border-radius:4px}figcaption{color:var(--mute);font-size:12px}"
             "pre{overflow-x:auto;font-size:11px}</style>"
-            "<h1>People on the prop route</h1><p>Each look's body as built, settled and dressed with library "
+            "<h1>People on the prop route</h1><p>Each look's body as built, put through the people route and dressed "
+            "with library "
             "surfaces, its gates measured by the people stage (#5).</p>" + "".join(sections))
 
 

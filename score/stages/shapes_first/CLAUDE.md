@@ -55,12 +55,13 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   reads one beside, `neighbours` naming the line (`people_bodies/bodies.the_line`).
 - **Not moved yet** (#41's other agents): the motion rows. Each joins as an adapter here; its side route goes. The
   people's adapter (`PEOPLE`) is in, its one after-step the hand-on (`people-made`).
-- **Named exception: the people's motion steps stay world rows.** Each look's parts, body (rig, settle, checks) and
-  dress, and the clips, are world rows of their own (`../people_bodies`, `../people`) so the looks run side by side,
-  each a node of its own; they read the hand-on beside (`neighbours`), so `after_step`'s check does not reach them.
-  Each look's record (`data/props/people.json`, `failures`) names what is still made outside the loop: its take
-  (`people-take-<look>`: the Pixal3D batch refuses a `no_place` inventory), its second split
-  (`people-look-parts-<look>`) and its body built from the raw take, not the baked model handed on.
+- **Named exception: the people's motion steps stay world rows.** Each look's parts, body (build, the people route,
+  checks) and dress, and the clips, are world rows of their own (`../people_bodies`, `../people`) so the looks run
+  side by side, each a node of its own; they read the hand-on beside (`neighbours`), so `after_step`'s check does not
+  reach them. Each look's record (`data/props/people.json`, `failures`) names what is still made outside the loop:
+  its second split (`people-look-parts-<look>`) and its body built from the raw take, not the baked model handed on.
+  Its take is the loop's (closeup and pixal on the line, each row drawn from the design's person that maps it, #26;
+  the take rows were deleted 2026-10-21).
 - **No model around the loop** (`shapes_first_test.py`): a row of the table that reads a loop row and is no
   adapter's after-step reading `made.ENDS` fails, unless `READS_THE_LOOP` names it with why (the judges, the object
   layer's assembly, the kit's fallback base, the motion rows not on an adapter yet); a paid row outside the loop says

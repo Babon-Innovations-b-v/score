@@ -27,7 +27,7 @@ TOOLS = {
         "use": WIRED, "image": "pixal", "names": ("image-to-3dlab",),
         "callers": ("tools/props/pixal.py", "tools/props/paths.py", "tools/props/cloud/batch.py",
                     "tools/cloud/images/pixal/Dockerfile"),
-        "stages": ("props", "crops", "people_takes"),
+        "stages": ("props", "crops"),
         "why": "Pixal3D, the model made from a picture (asset route locked 2026-09-28), always through pixal.py"},
     "infinigen2": {
         "use": WIRED, "image": None, "names": ("infinigen2",),

@@ -27,7 +27,7 @@ import pathlib
 from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
-                          earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_rows, people_takes,
+                          earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_rows,
                           physics, proposals, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
@@ -337,9 +337,6 @@ def paint_files(place):
     return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json"}
 
 
-# The people's render row is not run: the owner reviews people in the browser viewer and page renders wait for each
-# place's assembly (captain, 2026-10-13); its looks left the people line.
-NOT_RUN = ("people-look",)
 
 
 def far_judged(row):
@@ -376,7 +373,9 @@ def box_checked(files):
     the old failed boxes and stayed failed with its key unmoved). Wrapped here, in the table, so no row's code moves."""
     @functools.wraps(files)
     def declared(place):
-        if prop_data.designed(place):  # its boxes are SAM 3's in its reading, in its hand-in (prepare/handin.py)
+        # A designed place's boxes are SAM 3's in its reading, in its hand-in (prepare/handin.py); a line no place owns
+        # (the people's) takes its rows' boxes from the designs that map them (people_rows.drawn_from, #26).
+        if prop_data.designed(place) or shapes_first.no_place(place):
             return files(place)
         return {**files(place), "decided boxes": "{seeds}/partition/" + f"{place}/boxes.json"}
     return declared
@@ -471,7 +470,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
               boxed_split, map(designed_rough, shapes_first.rows())))))),
-          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
           *light.ROWS, *crops.ROWS, COMPLETE_BOXES,
           surface_tiles.STAGE)
 

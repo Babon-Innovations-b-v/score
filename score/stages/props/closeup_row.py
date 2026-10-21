@@ -73,10 +73,11 @@ def inputs_faults(folder):
 
 
 def designed_inventory(inputs):
-    """A designed place's hand-in as the box gate reads it (its views' pictures the declared files), else None: the
-    gate reads the scene's own inventory file."""
+    """A designed place's hand-in, or a line no place owns (the people line, its rows drawn from the designs that map
+    them, #26), as the box gate reads it (its views' pictures the declared files), else None: the gate reads the
+    scene's own inventory file."""
     found = json.loads(inputs["inventory"].read_text())
-    if "objects" not in found:
+    if "objects" not in found and not found.get("no_place"):
         return None
     views = [{**view, "picture": str(inputs[f"view {view['id']}"])} for view in found["plan"]["views"]]
     return {**found, "plan": {**found["plan"], "views": views}}
