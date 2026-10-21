@@ -21,16 +21,17 @@ The record (`WORK/checks/prepare/remake.json` by default):
      "inventory": {read: [place], waiting: [place]},     (priced from each place's current scene inventory reading,
                                                           groups.current; the rest wait on inventory, no euros)
      "counts": {rows, instances, groups, reused, shell_groups, crops, across_places, library, library_old,
-                library_code_only, bought, predicted_gaps, at_risk, inputs_missing},
+                library_code_only, bought, predicted_gaps, input_gaps, terrain, at_risk},
                                          (library: reused, made under today's route or locked; library_old and
                                           library_code_only: a library model matched, but the take is remade)
      "rates": {shape: {failed, of, objects}},             (the measured close-up failures by shape, predict.py)
      "library": {"root", "models"} or {"root": null, "why"},
      "takes": [{place, rows, take, key, route, shell, instances, crop, library, prediction, inputs, upscale, status,
-                key_diff}],                               (status: library, predicted gap or bought; route groups.ROUTES')
+                key_diff}],                               (status: library, made, input gap, predicted gap,
+                                                          terrain node or bought; route groups.ROUTES')
      "layers": {stage: {takes, units, price, minutes, settings, runs: {routes, shell}}},
      "totals": {likely_euros, high_euros, unpriced}, "eta": schedule.schedule's, "expected_gaps",
-     "predicted_gaps_if_bought": {likely_euros, high_euros},
+     "predicted_gaps_if_bought": {likely_euros, high_euros}, "input_gaps_if_bought": {likely_euros, high_euros},
      "moved": {"rows": [{node, euros, why, again}]} or {"not_run": why},
      "benchmarks": {"listed": [...], "guard": {total_euros, high_euros, cap_euros, refusal}},
      "design": {"places": {place: {concept, plan, output, hint}}, "approved": [place]},   (design.py)

@@ -67,6 +67,9 @@ import submit as job_contract  # noqa: E402
 TICKET = "SCORE_SPEND_TICKET"
 # Each paid stage's measured cost of one unit of its work, with the ledger lines it rests on (tools/costs/per_unit.py).
 PER_UNIT = REPO / "data/costs/per-unit.json"
+# The forecast rules whose 0 is a count, not an unknown: the sound takes still to make (every take a place plays
+# stands made, or another place's line makes it first), so its make reads cached takes at EUR 0 (#10).
+COUNTED_ZERO = ("sound_takes",)
 # The folder of the store the ticket's clearance is in, set beside the ticket (a trial store's, compare.py's).
 STORE = "SCORE_SPEND_STORE"
 # The `score run` a clearance was made under (score/__main__.py): its reservations end with it, even when stopped.
@@ -265,16 +268,23 @@ def forecast_price(node, units):
     """A paid node priced per unit before it is made: its own stage's measured per-unit euros (PER_UNIT, never an
     `also` stage's) times the `units` its stage's forecast rule counted ({likely_euros, high_euros, unit, units,
     unit_likely_euros, unit_high_euros, runs, unit_source}), or None when the stage has no measured unit or no
-    forecast rule, or no units were counted (none, or 0: nothing counted is unknown, never free)."""
+    forecast rule, or no units were counted (none, or 0: nothing counted is unknown, never free; but a rule whose 0
+    is a count, COUNTED_ZERO, prices its 0 at EUR 0)."""
     stage = node.partition("@")[0]
     entry = per_unit(stage)
-    if not units or entry is None or entry["stage"] != stage or not entry.get("forecast"):
+    if entry is None or entry["stage"] != stage or not entry.get("forecast") or not counted(entry, units):
         return None
     share = bill_share(entry)
     return {"likely_euros": round(entry["likely_euros"] * units * share, 4),
             "high_euros": round(entry["high_euros"] * units * share, 4), "unit": entry["unit"], "units": units,
             "unit_likely_euros": entry["likely_euros"], "unit_high_euros": entry["high_euros"], "runs": entry["runs"],
             "unit_source": entry["forecast"]["source"], "bill_share": round(share, 4)}
+
+
+def counted(entry, units):
+    """Whether `units` are a count under the per-unit entry's forecast rule: any above 0, and 0 for a rule whose 0 is
+    a count (COUNTED_ZERO)."""
+    return bool(units) or (units == 0 and entry["forecast"]["rule"] in COUNTED_ZERO)
 
 
 def unit_minutes(stage, units):
@@ -285,6 +295,8 @@ def unit_minutes(stage, units):
     counted."""
     entry = per_unit(stage)
     time = (entry or {}).get("time") or {}
+    if units == 0:
+        return {"likely_minutes": 0.0, "high_minutes": 0.0, "cards": 0}  # nothing to make keeps no card
     if not units:
         return {"minutes_why": "no units counted"}
     if "unit_seconds" not in time:

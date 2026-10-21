@@ -167,7 +167,7 @@ def forecast_units(node, found, data):
         return None
     designed = design_takes(node)
     units = len(designed) if designed is not None else rule_units(entry["forecast"]["rule"], found, data, place)
-    return round(units * entry["forecast"].get("per_model", 1), 2) if units else None
+    return round(units * entry["forecast"].get("per_model", 1), 2) if compute.counted(entry, units) else None
 
 
 def planned_units(node, data, store, root=None):

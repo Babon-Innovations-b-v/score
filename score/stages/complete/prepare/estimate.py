@@ -2,8 +2,9 @@
 (schedule.py) and the predicted gaps beside them. Free and local; it buys nothing.
 
 Each take a group needs runs once through its route's layers (the prop route, price.route_stages: close-up, Pixal3D,
-the surface line, the bake); a shell piece takes its library surface with no maps, so only its close-up, model and
-bake (SHELL_ROUTE). A layer's units are its takes times its one-shot units a take (ONE_SHOT, else one), its euros
+the finish route, the bake); a shell piece too (CONTEXT.md "prop pipeline": every object and shell piece; the
+finish route lists its library surface, no maps, and the bake bakes only the takes the route listed, #10). A layer's
+units are its takes times its one-shot units a take (ONE_SHOT, else one), its euros
 those units at its stage's measured per unit (data/costs/per-unit.json), a card or processor layer's times the
 provider's bill over the ledger (compute.bill_share, the runner's: disks, addresses and storage the ledger misses). A
 layer with no measured per unit is unpriced and named, never guessed. Its minutes are compute.unit_minutes on its
@@ -15,7 +16,6 @@ from score.adapters import compute
 from score.stages.complete.gaps import schedule
 from score.stages.complete.prepare import groups
 
-SHELL_ROUTE = ("closeup", "pixal", "surfaces-bake")
 # {route: its layer's stage} of a take's layers past or in place of the prop pipeline (groups.ROUTES): a person's
 # model is the prop pipeline's, then the motion layer's steps (CONTEXT.md "motion"); the sky, the effects and the far
 # city are layers without models, each its own route (CONTEXT.md "layer adapter").
@@ -29,21 +29,16 @@ def one_shot():
 
 
 def takes_a_layer(route, groups_bought):
-    """{stage: takes} of the bought groups: every route layer for a whole model, SHELL_ROUTE's for a shell piece."""
-    found = dict.fromkeys(route, 0)
-    for group in groups_bought:
-        for stage in route:
-            found[stage] += stage in SHELL_ROUTE or not group["shell"]
-    return found
+    """{stage: takes} of the bought groups: every route layer for every model, a shell piece's too."""
+    return dict.fromkeys(route, len(groups_bought))
 
 
 def take_stages(route, take):
-    """The paid layers one bought take runs once each, as the figure counts them: its model's route layers (a shell
-    piece SHELL_ROUTE's only; none off the prop pipeline), its own route's past or in place of the model (OWN_ROUTES),
-    then its preview clip. The runner counts a designed place's units from these (prepare/handin.py)."""
+    """The paid layers one bought take runs once each, as the figure counts them: its model's route layers (none off
+    the prop pipeline), its own route's past or in place of the model (OWN_ROUTES), then its preview clip. The runner
+    counts a designed place's units from these (prepare/handin.py)."""
     from score.stages.library import clips
-    model = ([stage for stage in route if stage in SHELL_ROUTE or not take["shell"]]
-             if take["route"] in groups.MODEL_ROUTES else [])
+    model = list(route) if take["route"] in groups.MODEL_ROUTES else []
     return [*model, *([OWN_ROUTES[take["route"]]] if take["route"] in OWN_ROUTES else []), clips.ROW]
 
 
@@ -82,7 +77,7 @@ def layers(route, groups_bought, rules, fixed):
     for stage, takes in takes_a_layer(route, groups_bought).items():
         found[stage] = {"takes": takes, **layer_cost(stage, takes, rules),
                         "settings": settings(stage, rules, fixed.get(stage)),
-                        "runs": {"routes": list(groups.MODEL_ROUTES), "shell": stage in SHELL_ROUTE}}
+                        "runs": {"routes": list(groups.MODEL_ROUTES), "shell": True}}
     return found
 
 
@@ -202,4 +197,4 @@ def line(record):
             f"{counts['predicted_gaps']} predicted gaps not bought), "
             f"EUR {money['likely_euros']:.2f} likely, {money['high_euros']:.2f} high, every job once{unpriced}; "
             f"ETA {minutes}; about {record['expected_gaps']} gaps expected after; "
-            f"{counts['inputs_missing']} takes wait on lost inputs")
+            f"{counts['input_gaps']} input gaps (no box or size) priced apart, not bought")

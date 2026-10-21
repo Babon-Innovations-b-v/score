@@ -12,16 +12,17 @@ owner 2026-10-21, which tools/props/cloud/batch.py built_from takes as it stands
      "approved": {"by": "the creator's pick", "concept": <sha256>}, "migrated": false, "room",
      "plan": {"views": [{"id": "v1", "picture": "{home}/design/concepts/<place>.png"}]},
      "rows": [the reading's rows, each sized as prepare sizes it; a handed row's `kind` generate, `was` its own;
-              a row with a box `grounded`: SAM 3's, which the box gate passes],
+              a row with a box `grounded`: SAM 3's, else Gemini's region, said which (BOXED); the box gate passes
+              it],
      "objects": {<a take's first row>: {"route": "prop", "take", "layer", "rows"}},   (bought and made model takes)
      "takes": {<take>: {"place", "rows", "route", "shell", "status", "stages"}},       (every take prepare listed)
      "fallback": {}}
 
 `stages` are the paid layers the take runs once each (estimate.take_stages: [] when it is not bought); the runner
 counts a node's units from them (gaps/price.design_units), so its plan lists and prices the same takes. The surface
-data (`{home}/design/surfaces/<place>.json`, surface_data's form) lists the takes the finish route paints (the whole
-models, no shell piece) and bakes each model take (compare.bake_entry: its entry and faces, which Pixal3D's finish
-reads). A file is written only when its bytes change, so a key moves only with what the design says; a place no
+data (`{home}/design/surfaces/<place>.json`, surface_data's form) lists the takes the finish route paints (every
+model take, a shell piece's too: CONTEXT.md "prop pipeline") and bakes each model take (compare.bake_entry: its entry
+and faces, which Pixal3D's finish reads). A file is written only when its bytes change, so a key moves only with what the design says; a place no
 longer designed has its files taken out.
 """
 import json
@@ -32,6 +33,8 @@ from score.stages.complete.prepare import estimate, groups
 ROOT = pathlib.Path(__file__).resolve().parents[4]
 APPROVED_BY = "the creator's pick"  # what the Pixal3D batch takes as a design's approval (batch.py DESIGNED)
 GROUNDED = "SAM 3's box in the reading of the picked concept"  # the box gate passes it (box_check.row_verdict)
+# A row SAM 3 found none of is framed by Gemini's region round it in the same reading (groups.boxed_by), said so.
+BOXED = {"SAM 3": GROUNDED, "Gemini": "Gemini's region in the reading of the picked concept (SAM 3 found none)"}
 LAYERS = {"people": "people"}  # a route's layer at the loop's seam (shapes_first.ADAPTERS); a terrain row's is terrain
 
 
@@ -56,7 +59,7 @@ def hand_in(place, inventory, takes, route):
     """The place's hand-in record (module docstring) of its takes, `inventory` its sized scene inventory."""
     first = {take["rows"][0]: take for take in takes if handed(take)}
     rows = [{**row, **({"kind": "generate", "was": row["kind"]} if row["id"] in first else {}),
-             **({"grounded": GROUNDED} if row.get("box") else {})} for row in inventory["rows"]]
+             **({"grounded": BOXED[row["boxed_by"]]} if row.get("boxed_by") else {})} for row in inventory["rows"]]
     return {"place": library_of(place), "scene": place, "order": "prop-first",
             "approved": {"by": APPROVED_BY, "concept": inventory["concept_pick"]["sha256"]},
             "migrated": False, "room": inventory.get("room", {}),
@@ -75,16 +78,16 @@ def take_row(rows, row_id):
 
 
 def surface_record(place, record, details):
-    """The place's surface data (surface_data's form) of its hand-in: the whole models' takes, every model take baked
-    as <row>_1 with its entry where its row has a size."""
+    """The place's surface data (surface_data's form) of its hand-in: every model take painted by the finish route (a
+    shell piece's too, so the bake that bakes the listed takes bakes it) and baked as <row>_1 with its entry where its
+    row has a size."""
     from score.stages.props import compare
     by_id = {row["id"]: row for row in record["rows"]}
-    painted = {row: entry for row, entry in record["objects"].items() if not record["takes"][entry["take"]]["shell"]}
     sized = {row: entry for row, entry in record["objects"].items() if groups.sides(by_id[row].get("size"))}
     return {"place": place, "library": record["place"],
             "takes": {entry["take"]: {"places": [place], "library_places": [record["place"]], "place": place,
                                       "kind": f"{place}_{row}", "object": by_id[row]["name"]}
-                      for row, entry in painted.items()},
+                      for row, entry in record["objects"].items()},
             "bake": {"models": {f"{row}_1": entry["take"] for row, entry in sized.items()},
                      "entries": {f"{row}_1": compare.bake_entry(place, by_id[row], details) for row in sized}},
             "elsewhere": {}}

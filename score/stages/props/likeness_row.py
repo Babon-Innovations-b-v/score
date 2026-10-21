@@ -9,7 +9,10 @@ checks written to likeness.json; an object that fails any goes to code (prop rou
 The gates, each failing an object by name:
 - `outline`: likeness.OUTLINE_LEAST on the best of eight ways round (likeness.py, set on the hub's accepted models).
 - `likeness`: DINOv2 on the best way's silhouette, at the least likeness likeness-calibration@<place> set on the
-  place's accepted models; its evidence, the pairs' scores, is gathered on a rented machine (similar.py, paid).
+  place's accepted models; its evidence, the pairs' scores, is gathered on a rented machine (similar.py, paid). A
+  designed place (its hand-in an approved design's, prepare/handin.py) names no accepted models, so no calibration
+  applies to it: its scores are measured and shown, never judged, and `outline` holds its likeness (#10; the accepted
+  set the least was first set on went with the old disk, so a calibration for it is the owner's to name).
 - `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names; a code
   build's fitting shows every part its close-up has (sorter.missing_parts, fittings.json); a plain kind (sorter.PLAIN)
   has no parts to show; any other code build is unknown (nothing measured its parts).
@@ -26,6 +29,7 @@ import pathlib
 import numpy as np
 from PIL import Image
 
+from score import checks
 import score.stages.props.calibration_row as calibration_row
 import score.stages.props.likeness as likeness
 import score.stages.props.prop_data as prop_data
@@ -250,12 +254,31 @@ def free_judge(name):
 def judge_likeness(output, inputs, evidence):
     """Each best way's DINOv2 likeness ({row: score}, the gathered evidence) at least the calibration's least."""
     least = calibration_row.least(inputs.get("likeness-calibration"))
+    if least is None and designed(inputs):
+        return measured_only(json.loads(pathlib.Path(evidence).read_text()))
     if least is None:
         return unknown("likeness", "DINOv2's least likeness is not set: no accepted calibration of the place's "
                                    "accepted models (likeness-calibration)")
     found = objects(output)
     return judged("likeness", found,
                   object_faults(found, scored(json.loads(pathlib.Path(evidence).read_text()), least)))
+
+
+def designed(inputs):
+    """Whether the row's prop data is an approved design's hand-in (prepare/handin.py), which names no accepted
+    models to calibrate on."""
+    return "props" in inputs and bool(prop_data.record_at(inputs["props"]).get("approved"))
+
+
+def measured_only(scores):
+    """A designed place's likeness verdict: DINOv2's scores ({row: likeness}) measured and shown, not judged (module
+    docstring)."""
+    least = min(scores.values()) if scores else -1.0
+    return checks.Verdict("likeness", checks.PASS,
+                          f"measured, not judged: a designed place has no calibration of accepted models; DINOv2 "
+                          f"scored {len(scores)} objects (least {least:.3f}), outline holds its likeness",
+                          {"scored": len(scores), "least scored": round(least, 4)}, {},
+                          tuple(f"{row}: likeness {score:.3f}" for row, score in sorted(scores.items())[:40]))
 
 
 def stored_pairs(output):

@@ -119,14 +119,14 @@ def test_the_first_class_in_the_kinds_order_is_fixed_in_its_zone_with_the_best_b
     assert machines.fixed("closeup", records, cap) is None  # Google calls rent nothing
 
 
-def test_layers_run_each_take_once_shells_skip_the_surface_line_and_cards_carry_the_bill_share():
+def test_layers_run_each_take_once_a_shell_piece_through_the_whole_route_and_cards_carry_the_bill_share():
     rules = estimate.one_shot()
     route = ["closeup", "pixal", "finish-route-list", "surfaces-bake", "likeness-calibration"]
     bought = [{"shell": False}, {"shell": False}, {"shell": True}]
     found = estimate.layers(route, bought, rules, {})
-    assert {stage: layer["takes"] for stage, layer in found.items()} == {
-        "closeup": 3, "pixal": 3, "finish-route-list": 2, "surfaces-bake": 3, "likeness-calibration": 2}
-    assert found["finish-route-list"]["units"] == 2  # one list ask a take
+    # a shell piece too: the finish route lists its library surface, so the bake that bakes listed takes bakes it
+    assert {stage: layer["takes"] for stage, layer in found.items()} == dict.fromkeys(route, 3)
+    assert found["finish-route-list"]["units"] == 3  # one list ask a take
     unmeasured = found["likeness-calibration"]
     assert unmeasured["units"] is None and unmeasured["price"]["likely_euros"] is None
     pixal = compute.per_unit("pixal")
@@ -244,8 +244,38 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
     assert "no size of three sides" not in takes["fuel_drum"]["inputs"] and takes["night_sky"]["inputs"] == []
     assert "no size of three sides" not in takes["wall_lamp"]["inputs"]
     assert "no size of three sides" in takes["astronaut"]["inputs"]  # the reading's gap stays the take's
-    assert record["layers"]["motion"]["takes"] == 1 and record["layers"]["sky"]["takes"] == 1
-    assert record["layers"]["pixal"]["takes"] == 3 and "sky" in record["totals"]["unpriced"]  # the sky: no prop route
+    assert takes["astronaut"]["status"] == "input gap"  # so it is not bought: priced apart, never a stopped line
+    assert "motion" not in record["layers"] and record["layers"]["sky"]["takes"] == 1
+    assert record["layers"]["pixal"]["takes"] == 2 and "sky" in record["totals"]["unpriced"]  # the sky: no prop route
+    assert record["counts"]["input_gaps"] == 1 and record["input_gaps_if_bought"]["likely_euros"] > 0
+
+
+def test_a_row_sam_3_missed_is_framed_by_gemini_and_one_with_neither_or_the_whole_picture_is_an_input_gap():
+    unboxed = {"box": None, "boxes": []}
+    rows = [{**a_read_row("crate", "generate", "crate"), **unboxed, "size": [0.5, 0.4, 0.4],
+             "region": [500, 250, 750, 500]},
+            {**a_read_row("drum", "generate", "drum"), **unboxed, "size": [0.6, 0.6, 0.9], "region": None},
+            {**a_read_row("hall", "generate", "building"), "size": [12.0, 8.0, 12.0], "box": [0, 0, 100, 95]},
+            {**a_read_row("chair", "generate", "chair"), "size": [0.5, 0.5, 0.9]},
+            {**a_read_row("martian_ground", "generate", "ground", terrain=True), "box": [0, 0, 100, 100]}]
+    store = a_read_store("wreck", "e" * 64, rows, picture=[100, 100])
+    found, _ = groups.current(store, ["wreck"])
+    by_id = {row["id"]: row for row in found["wreck"]["rows"]}
+    assert (by_id["crate"]["box"], by_id["crate"]["boxed_by"]) == ([25, 50, 50, 75], "Gemini"), by_id["crate"]
+    assert by_id["chair"]["boxed_by"] == "SAM 3" and "boxed_by" not in by_id["drum"]
+    runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
+    record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
+    takes = {take["rows"][0]: take for take in record["takes"]}
+    assert takes["crate"]["status"] == takes["chair"]["status"] == "bought"
+    assert (takes["drum"]["status"], takes["drum"]["inputs"]) == ("input gap", ["no box of four numbers"])
+    assert takes["hall"]["status"] == "input gap" and "whole picture" in takes["hall"]["inputs"][0]
+    assert takes["martian_ground"]["status"] == prepare.TERRAIN  # the terrain node's: no close-up, no take bought
+    assert record["layers"]["pixal"]["takes"] == 2 and record["counts"]["input_gaps"] == 2
+    handed = handin.hand_in("wreck", found["wreck"], record["takes"], prepare.design_route(runner))
+    marks = {row["id"]: row.get("grounded") for row in handed["rows"]}
+    assert marks["crate"] == handin.BOXED["Gemini"] and marks["chair"] == handin.GROUNDED and marks["drum"] is None
+    assert set(handed["objects"]) == {"crate", "chair"}  # the gaps are listed, never handed to the loop
+    assert handed["takes"][takes["drum"]["take"]]["stages"] == []  # so the runner counts none of them
 
 
 def test_a_places_current_reading_is_its_inventory_and_a_place_with_none_waits():
@@ -284,8 +314,8 @@ def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     counts = record["counts"]
     assert counts["groups"] == len(record["takes"])
     assert counts["library"] == 0 and record["library"]["root"] is None  # no library given: nothing matches
-    assert counts["bought"] + counts["predicted_gaps"] + counts["made"] == counts["groups"], counts
-    assert counts["inputs_missing"] == counts["bought"]  # a reading measures no size
+    assert counts["bought"] + counts["predicted_gaps"] + counts["made"] + counts["input_gaps"] == counts["groups"]
+    assert counts["input_gaps"] == counts["groups"]  # this reading measures no size: every take an input gap
     assert all(take["inputs"] == ["no size of three sides"] for take in record["takes"])  # its picture is the blob
     assert "every job once" in record["line"]
     assert record["moved"] == {"not_run": "--moved not given"}
@@ -306,7 +336,8 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
     store = a_read_store("wreck", sha, rows, picture=[100, 100])
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
-    route = price.route_stages(runner)
+    route = prepare.design_route(runner)
+    assert "likeness-calibration" not in route and "likeness-calibration" not in record["layers"]
     home = pathlib.Path(tempfile.mkdtemp())
     prop_data.DESIGN = home / "props"
     surface_data.DESIGN = stages.surfaces.data.DESIGN = home / "surfaces"  # the table's own import too
@@ -320,8 +351,7 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
         assert all(sha[:8] in take["take"] for take in bought)  # a re-pick names new takes: their keys move
         models = sorted(take["take"] for take in bought if take["route"] in groups.MODEL_ROUTES)
         assert price.design_takes("pixal@wreck") == models and price.design_takes("sound@wreck") is None
-        assert sorted(surface_data.takes("wreck")) == sorted(take["take"] for take in bought if not take["shell"]
-                                                             and take["route"] in groups.MODEL_ROUTES)
+        assert sorted(surface_data.takes("wreck")) == models  # a shell piece's too: the bake bakes what is listed
         for stage, layer in record["layers"].items():  # every layer prepare priced, the runner's node priced the same
             units = price.forecast_units(f"{stage}@wreck", [], REPO / "data")
             assert units == layer["units"], (stage, units, layer["units"])

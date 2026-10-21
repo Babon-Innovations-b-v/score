@@ -1,5 +1,6 @@
 """A take's inputs checked by contract before the batch, free: its row names a view of its place's plan, a box of
-that view's picture, a size, and the view's picture stands in the work folder; plus the crop's risk, said apart (no
+that view's picture that is not the whole picture, a size, and the view's picture stands in the work folder (a take
+whose inputs break it is an input gap, not bought: __main__.status_of); plus the crop's risk, said apart (no
 measured failure is tied to it, so it is never a predicted gap).
 
 The crop is cut from the box with a fifth of margin and scaled up to SHORTEST_CROP on its long side when shorter
@@ -9,6 +10,7 @@ import pathlib
 
 SHORTEST_CROP = 512  # tools/props/closeup/stage.py SHORTEST_CROP
 MARGIN = 0.2  # tools/props/closeup/stage.py MARGIN: a fifth of the box's long side on each side
+WHOLE = 0.8  # tools/props/scene/box_check.py WHOLE: a box over this share of its picture marks no place in it
 
 
 def view_pictures(record):
@@ -39,9 +41,16 @@ def faults(record, group, work):
     box = box_faults(group["box"])
     if box:
         found.append(box)
+    elif whole(group["box"], record.get("size")):
+        found.append("its box is the whole picture, which frames no close-up (the box gate fails it)")
     if group["size"] is None or not isinstance(group["size"], list) or len(group["size"]) != 3:
         found.append("no size of three sides")
     return found
+
+
+def whole(box, size):
+    """Whether a box covers more than WHOLE of a picture of `size` [wide, tall] (False when the size is not said)."""
+    return bool(size) and (box[2] - box[0]) * (box[3] - box[1]) > WHOLE * size[0] * size[1]
 
 
 def upscale(box):
