@@ -108,7 +108,7 @@ stage as each stage is built; nothing moves before.
   Gemini 3.1 Pro's rows, each with its size in metres judged against the place's outline (`plans.outline_from_holder`:
   the layer above's box, its own plan, else round its inside places), then SAM 3's boxes of each row on one rented
   card (where, never size; its own words first, then its noun); only what both agree on is a row, its count SAM 3's
-  instances (owner, 2026-10-21), the structure, ground and rows holding an inside place kept as read, duplicates
+  instances (owner, 2026-10-21), the structure, ground and rows holding an inside place or standing in one kept as read, duplicates
   merged, the rest kept apart as `skipped` (never a row or a gap); a kept row with no metres or anchor its gaps; a
   reading by an older method is read again from its own rows, SAM 3 only; each
   reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no pick of its own.

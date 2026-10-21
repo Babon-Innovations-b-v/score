@@ -16,7 +16,8 @@ reading's cost is recorded and its running total shown in the cockpit). Its plan
    named it and SAM 3 found it, its count the instances SAM 3 found of it; a row SAM 3 found none of and a find no
    row names are `skipped`, kept in the record with why and shown muted on the concept page, never a row, a gap, nor
    read by prepare or the plan. The place's structure and ground (`structural`: STRUCTURE's walls, floors, shells,
-   modules, tubes, terrain, sky, and a row holding an inside place) is no object detection and stays as read.
+   modules, tubes, terrain, sky, a row holding an inside place or standing in one) is no object detection and
+   stays as read.
    Duplicates go first: one thing found twice is one box, two rows of one thing whose boxes overlap are one row
    (`merged_rows`), a box two rows hold goes to the one it fits best (`unshared`). The gaps left are a kept row whose
    size or anchor was not read.
@@ -347,8 +348,8 @@ def same(first, second):
 
 def structural(row):
     """Whether a row is the place's structure or ground (STRUCTURE, terrain, the sky, a row that holds an inside
-    place: `holds_place`): no object detection."""
-    return (row["terrain"] or row["anchor"] == "sky" or row.get("holds_place", False)
+    place or stands in one: `inside_place`): no object detection."""
+    return (row["terrain"] or row["anchor"] == "sky" or row.get("inside_place", False)
             or bool(STRUCTURE & set(row["noun"].lower().split())))
 
 
@@ -443,10 +444,21 @@ def gaps(rows):
             if not row[name]]
 
 
+def inside_rows(rows, holds):
+    """The ids of `holds` (rows holding an inside place) and of every row standing on one, at any depth (the plants
+    in the greenhouse's dome, the spacecraft in the hangar: that inside place's own, read again on its concept)."""
+    found = set(holds)
+    while grown := {row["id"] for row in rows if row["id"] not in found and row["anchor"]
+                    and row["anchor"].startswith("on:") and row["anchor"][3:] in found}:
+        found |= grown
+    return found
+
+
 def settled(place, rows, measured, size, holds=()):
     """The reading's {rows, gaps, skipped, merged} from Gemini's rows and SAM 3's instances (`agreed`); the rows of
-    `holds` (ids) marked `holds_place`."""
-    rows = [{**row, "holds_place": True} if row["id"] in holds else row for row in rows]
+    `holds` (ids) and those standing on them marked `inside_place`."""
+    inside = inside_rows(rows, holds)
+    rows = [{**row, "inside_place": True} if row["id"] in inside else row for row in rows]
     boxed, loose = boxed_rows(place, rows, measured, size)
     kept, skipped, merged = agreed(boxed, loose, unnamed(place, boxed, measured, size), size)
     return {"rows": kept, "gaps": gaps(kept), "skipped": skipped, "merged": merged}

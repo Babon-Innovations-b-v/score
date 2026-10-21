@@ -108,7 +108,7 @@ def row(row_id, noun, region, boxes, **more):
 
 
 def test_only_what_both_readers_agree_on_is_a_row_and_the_structure_stays():
-    rows = [row("wall", "wall", None, []), row("dome", "building", None, [], holds_place=True),
+    rows = [row("wall", "wall", None, []), row("dome", "building", None, [], inside_place=True),
             row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 500, 500], []),
             row("chair", "chair", [0, 0, 500, 500], [[0, 0, 10, 10], [20, 0, 30, 10]]),
             row("cup", "cup", None, [], anchor="on:crate")]
@@ -117,6 +117,9 @@ def test_only_what_both_readers_agree_on_is_a_row_and_the_structure_stays():
     assert [(item["name"], item["why"]) for item in skipped] == [
         ("crate", reading.ONLY_GEMINI), ("cup", reading.ONLY_GEMINI), ("machine", reading.ONLY_SAM)]
     assert merged == []
+    inside = [row("hangar", "building", None, []), row("ship", "spacecraft", None, [], anchor="on:hangar"),
+              row("hatch", "door", None, [], anchor="on:ship"), row("cup", "cup", None, [])]
+    assert reading.inside_rows(inside, {"hangar"}) == {"hangar", "ship", "hatch"}  # an inside place's own, kept
 
 
 def test_duplicates_go_one_box_one_row():
