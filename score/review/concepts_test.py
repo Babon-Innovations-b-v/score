@@ -55,6 +55,7 @@ def ready_above(monkeypatch, box=(0, 0, 32, 20)):
     monkeypatch.setattr(reading, "reading_of", lambda store, place: {"stand-in": place})
     monkeypatch.setattr(concepts, "plan_made", lambda store, place: True)
     monkeypatch.setattr(concepts, "holding_row", lambda store, place: "holder")
+    monkeypatch.setattr(concepts, "holder_words", lambda store, place: "the black angular spaceship")
     monkeypatch.setattr(concepts, "outlined", lambda store, place: True)
     monkeypatch.setattr(reading, "row_boxes", lambda store, place, row: [list(box)])
 
@@ -247,8 +248,9 @@ def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording
     record = concepts.draw(store, "lab", {}, "joey", caller=stand_in(asked))
     wording, sizes = asked[0]
     assert sizes == [(32, 20)] and record["picks"] == {"base": base}  # only the crop of what holds it
-    assert wording.startswith("Concept painting of the lab: the inside of what picture 1 shows.")
-    assert "1. a crop of the base's picked concept: draw the inside of what this crop shows" in wording
+    assert wording.startswith("The black angular spaceship (picture 1) is divided into these compartments: 1. hub, ")
+    assert "This concept is number 8: lab. " + concepts.INSIDE_ONLY in wording
+    assert "1. a crop of the base's picked concept: the black angular spaceship, which holds it" in wording
     assert concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     picked_draw(store, monkeypatch, "base", (10, 200, 10))  # a new pick above: the lab's draw is out of date
     assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
@@ -396,14 +398,13 @@ def test_a_picked_place_it_opens_into_is_sent_after_the_one_above_and_its_new_pi
     concepts.pick(store, "stairwell", concepts.draw(store, "stairwell", {}, "joey", caller=stand_in([]))["sha"],
                   "joey")
     words = [words for words, _ in concepts.sent_pictures(store, "flat")]
-    assert words[0] == "a crop of the square's picked concept: draw the inside of what this crop shows"
-    assert words[1] == "the square's picked concept around it: through its windows, this view"  # its balcony door
-    assert words[2] == "the stairwell, picked: match the door they share"
+    assert words[0] == "a crop of the square's picked concept: the black angular spaceship, which holds it"
+    assert words[1] == "the stairwell, picked: match the door they share"  # no view through its balcony door
     said_yes(store, monkeypatch, "flat")
     asked = []
     record = concepts.draw(store, "flat", {}, "joey", caller=stand_in(asked))
-    assert len(asked[0][1]) == 3 and set(record["picks"]) == {"square", "stairwell"}
-    assert "3. the stairwell, picked: match the door they share" in asked[0][0]
+    assert len(asked[0][1]) == 2 and set(record["picks"]) == {"square", "stairwell"}
+    assert "2. the stairwell, picked: match the door they share" in asked[0][0]
     assert concepts.current_draw(store, "flat", concepts.wording_now(store, "flat"))
     said_yes(store, monkeypatch, "stairwell")
     concepts.pick(store, "stairwell", concepts.draw(store, "stairwell", {}, "joey", caller=stand_in([1]))["sha"],
@@ -491,20 +492,30 @@ def test_a_part_of_a_places_outside_has_no_concept_of_its_own(store):
     assert "launch" not in concepts.undrawn(store, ["square", "launch"])[1]
     assert "part of it: across the water in the distance, the rocket launch" in concepts.generated(store, "square")
 
-def test_a_place_with_windows_is_sent_the_view_around_what_holds_it_and_one_without_is_not(store, monkeypatch,
-                                                                                           tmp_path):
+def test_ship_rooms_share_one_compartment_block_and_are_sent_only_the_crop_of_the_ship(store, monkeypatch, tmp_path):
     # the hangar's reference is the owner's private picture: a stand-in in this test's home, never the machine's copy
     monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
     for ref in concepts.references_of(store, "hangar"):
         concepts.resolved(ref["picture"]).parent.mkdir(parents=True, exist_ok=True)
         Image.new("RGB", (8, 8)).save(concepts.resolved(ref["picture"]))
+    from score.review import reading
+    named = concepts.holder_words
     picked_draw(store, monkeypatch, "base", (200, 10, 10))
     ready_above(monkeypatch, box=(16, 10, 32, 20))
-    hangar = picked_draw(store, monkeypatch, "hangar", (90, 90, 90))
-    cockpit = [source for _, source in concepts.sent_pictures(store, "cockpit")]
-    assert cockpit[:2] == [("crop", "hangar", [16, 10, 32, 20]), ("view", "hangar", [16, 10, 32, 20])]
-    assert "through its windows, this view" in concepts.generated(store, "cockpit")
-    assert [source for _, source in concepts.sent_pictures(store, "storage")] == [("crop", "hangar", [16, 10, 32, 20])]
-    assert "through its windows" not in concepts.generated(store, "storage")
-    assert concepts.sent_picture(store, cockpit[1]).size == (40, 26)  # 2.5 times the box about its middle, whole pixels
-    assert hangar
+    picked_draw(store, monkeypatch, "hangar", (90, 90, 90))
+    with monkeypatch.context() as inventory:  # the holding row's name on the reading above
+        inventory.setattr(reading, "reading_of", lambda store, place: {"inventory": {"rows": [
+            {"id": "holder", "name": "black angular spaceship"}]}})
+        assert named(store, "cockpit") == "the black angular spaceship"
+    for room in SHIP_ROOMS:  # the owner, 2026-10-21: no window view, only the crop of what holds it
+        sources = [source for _, source in concepts.sent_pictures(store, room)]
+        assert sources == [("crop", "hangar", [16, 10, 32, 20])], room
+    assert concepts.sent_picture(store, ("crop", "hangar", [16, 10, 32, 20])).size == (16, 10)
+    blocks = {room: concepts.generated(store, room).split(" This concept is number ")[0] for room in SHIP_ROOMS}
+    assert len(set(blocks.values())) == 1  # every sibling the identical block
+    assert blocks["cockpit"].startswith("The black angular spaceship (picture 1) is divided into these compartments: "
+                                        "1. cockpit (flying the ship), 2. ")
+    assert "8. walkway (the corridor joining every room" in blocks["cockpit"]
+    galley = concepts.generated(store, "galley")
+    assert "This concept is number 5: galley. " + concepts.INSIDE_ONLY in galley
+    assert "window" not in galley.replace(concepts.INSIDE_ONLY, "")
