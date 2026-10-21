@@ -5,7 +5,8 @@ footprint off that drawing, in its units (0..1000 of the squared drawing), and w
 from the concept, its scene inventory (rows with metres), the layer above's plan (where this place sits there, its
 doors and neighbours) and its inside places; it never packs. The units are turned into metres here (`measured`): a
 place the layer above lays out fills its box there, any other is scaled by its rows' metres (the median of each drawn
-item's footprint against its row's), its outline box the drawn outline. Then the free checks
+item's footprint against its row's), its outline box the drawn outline. A thing the creator already planned
+(creator_plans: the ship's floor plan) is laid from his plan, never from the drawing's shapes (`creator_laid`). Then the free checks
 (score/review/plan_checks.py, the arrangement against the concept's boxes among them), each failure a named gap of
 the plan, never guessed past. A writing that wrote no plan from words alone (METHOD 1) is never shown again.
 
@@ -44,7 +45,7 @@ import sys
 import time
 import urllib.error
 
-from score.review import concepts, plan_checks, plan_drawing, plans, reading
+from score.review import concepts, creator_plans, plan_checks, plan_drawing, plans, reading
 from score.store import Store, locked, stamp_key
 
 AREA = "plan-writings"
@@ -65,6 +66,7 @@ OPENINGS = ("door", "window", "opening", "gate")
 ROOFS = ("flat", "dome", "pitched", "vault", "shed")
 SHAPES = ("rect", "circle", "polygon")
 FACINGS = ("N", "E", "S", "W")
+SEEN = ("toward", "away", "left", "right")  # the way a thing faces in the painting, from its viewer
 ASKED = """You are an architect drawing the dimensioned floor plan of one place of a game environment, element by
 element. The first picture is the place's plan drawn from directly above (orthographic, north up, to scale): read every
 position and shape off it, where it is drawn, and never move, pack or tidy anything. The second picture is the place's
@@ -98,14 +100,20 @@ Write the plan as one JSON object with these keys:
   "top": m}}.
 - "terrain": for ground outside, {{"spots": [[x, y, height m], ...], "contours": [{{"height": m, "points": [[x, y],
   ...]}}]}}: spot heights where the ground rises or falls and contour lines at an even step; {{}} for a place indoors.
-- "items": every instance of every row of the facts' rows that stands on the floor or the ground (as many as the row
-  counts), and the things on walls, ceilings or other rows worth placing, each where the drawing shows it, {{"row": the
-  row's id, "box_2d": [ymin, xmin, ymax, xmax] of its footprint as drawn (in the drawing's units, never the row's
-  metres), "shape": "rect"|"circle"|"polygon", "points": [[x, y], ...] (a polygon's corners, for a thing turned off
-  the grid, a tube running at a slant, or of its own outline), "facing": "N"|"E"|"S"|"W"|null (the way its front
-  faces), "tall": m, "base": m (the height it stands at: 0 on the floor, its parent's top on another row)}}. Every
-  building, module, dome, hall and tube of the rows is an item of its row, also when it holds an inside place. A tube
-  or corridor is one item from the part it leaves to the part it reaches, as long as drawn.
+- "items": every row of the facts' rows that stands on the floor or the ground (its items' counts adding up to the
+  row's count), and the things on walls, ceilings or other rows worth placing, each where the drawing shows it,
+  {{"row": the row's id, "count": how many of its row the item is (1 for one thing; a run of shelving, a row or stack
+  of crates, a line of drums or cylinders standing together is ONE item counting them all, its box round the run),
+  "box_2d": [ymin, xmin, ymax, xmax] of its footprint as drawn (in the drawing's units, never the row's metres),
+  "shape": "rect"|"circle"|"polygon", "points": [[x, y], ...] (a polygon's corners, for a thing turned off the grid, a
+  tube running at a slant, or of its own outline), "facing": "N"|"E"|"S"|"W"|null (the way its front or nose points
+  on the drawing), "seen": the way its front or nose points in the painting, from its viewer: "toward"|"away"|"left"|
+  "right", two joined by "-" for a slant ("toward-left"), null for a thing with no front, "tall": m, "base": m (the
+  height it stands at: 0 on the floor, its parent's top on another row)}}. Every building, module, dome, hall and tube
+  of the rows is an item of its row, also when it holds an inside place. A tube or corridor is one item from the part
+  it leaves to the part it reaches, as long as drawn. A row the facts name under "planned by the creator" is laid
+  from the creator's own plan at its own size: give its one item's box_2d where it is drawn, its facing the way its
+  nose or front points as drawn and its seen; its inside places come from that plan: leave them out of "places".
 - "structure": the ids of the rows that are the place's own shell, walls, floors, roof, ground, terrain areas, water,
   sea, plaza or sky (drawn as walls, levels, roofs and terrain above, never as items); never a building, module or
   tube standing on this place's ground.
@@ -138,11 +146,22 @@ def order_hint(row, picture):
     return sorted([round((box[0] + box[2]) / 2 / picture[0], 2), round(box[3] / picture[1], 2)] for box in boxes)
 
 
-def rows_told(inventory):
-    """The inventory's rows as Gemini is told them: id, name, count, metres, anchor, where, terrain, its order hint."""
+def creator_metres(planned):
+    """{row id: [wide, long, tall]} of the row a creator planned (creator_plans.planned's answer; None: none)."""
+    if not planned:
+        return {}
+    row, found = planned
+    return {row: [found["wide"], found["length"], found["tall"]]}
+
+
+def rows_told(inventory, planned=None):
+    """The inventory's rows as Gemini is told them: id, name, count, metres (a creator's plan's own over the
+    reading's), anchor, where, terrain, its order hint."""
     picture = inventory.get("picture")
+    metres = creator_metres(planned)
     return [{"id": row["id"], "name": row.get("name") or row["id"], "count": int(row.get("count", 1) or 1),
-             "metres [wide, deep, tall]": row.get("size") if isinstance(row.get("size"), list) else None,
+             "metres [wide, deep, tall]": metres.get(row["id"]) or (
+                 row.get("size") if isinstance(row.get("size"), list) else None),
              "size in words": row.get("size_words") or (row.get("size") if isinstance(row.get("size"), str) else None),
              "anchor": row.get("anchor") or "floor", "where": row.get("where"), "terrain": row.get("terrain", False),
              "seen at": order_hint(row, picture)} for row in inventory.get("rows", [])]
@@ -176,13 +195,19 @@ def door_told(door, leads):
 def facts_of(store, place, skeleton, inventory):
     """Everything the writing is told about the place (ASKED's facts)."""
     leads = skeleton.get("leads", {})
+    planned = creator_plans.planned(skeleton.get("holds", []))
     return {"place": place, "name": concepts.name_of(place), "title": skeleton.get("title"),
             "shell": skeleton.get("shell"), "heights in words": skeleton.get("height") or None,
             "within": within_told(store, place),
             "fixed doors": [door_told(door, leads) for door in skeleton.get("doors", [])],
             "inside places": [{"place": hold["place"], "about [wide, deep]": [hold["w"], hold["d"]]}
-                              for hold in skeleton.get("holds", [])],
-            "rows": rows_told(inventory)}
+                              for hold in skeleton.get("holds", [])
+                              if not planned or hold["place"] not in planned[1]["places"]],
+            "planned by the creator": planned and {
+                "row": planned[0], "what": planned[1]["what"],
+                "metres [wide, long, tall]": creator_metres(planned)[planned[0]],
+                "its inside places": planned[1]["places"]},
+            "rows": rows_told(inventory, planned)}
 
 
 def squared(picture):
@@ -339,6 +364,14 @@ def footprint_of(item):
                                                                     else "rect"}
 
 
+def counted_seen(item):
+    """An answered item's count (kept when more than one) and the way it is seen facing in the painting (SEEN words
+    joined by "-"), as its shape keeps them."""
+    count = int(number(item.get("count"), 1) or 1)
+    seen = [word for word in str(item.get("seen") or "").lower().split("-") if word in SEEN]
+    return {**({"count": count} if count > 1 else {}), **({"seen": seen} if seen else {})}
+
+
 def structure_of(answer, inventory):
     """The ids of the rows that are the place's own shell or ground: those the answer names so, and every row that is
     the place itself (plans.whole: its ground, water, sky), never a sized item."""
@@ -364,13 +397,13 @@ def items_of(answer, inventory, wide, deep):
             continue
         numbered[row] += 1
         name = f"{row.replace('_', ' ').upper()} {numbered[row]}"
-        x, y, wide, deep, shape = found
+        x, y, across, along, shape = found
         facing = item.get("facing") if item.get("facing") in FACINGS else None
-        items.append([name, round(x, 3), round(y, 3), round(wide, 3), round(deep, 3), facing, "item"])
+        items.append([name, round(x, 3), round(y, 3), round(across, 3), round(along, 3), facing, "item"])
         rows[name] = [row]
         size = by_id[row].get("size")
         shapes[name] = {**shape, "tall": number(item.get("tall"), number(size[2]) if isinstance(size, list) else None),
-                        "base": number(item.get("base"), 0.0)}
+                        "base": number(item.get("base"), 0.0), **counted_seen(item)}
     placed = set(numbered)
     for row_id, row in by_id.items():
         parent = plans.anchor_of(row)
@@ -560,6 +593,34 @@ def measured(answer, skeleton, inventory, held):
     return found, skeleton, {"metres a unit": [round(scale[0], 5), round(scale[1], 5)], "by": how}
 
 
+def creator_laid(plan):
+    """Lay the thing a creator planned (creator_plans) on `plan`, in place: its item at its own size and outline, its
+    middle where it is drawn, its nose the way it is drawn, its inside places that plan's rooms; (the places laid,
+    gaps). Not drawn, it is a gap and its places stay as answered; drawn with no facing, it is laid along its drawn
+    box's long side, nose south or east, and that is a gap."""
+    found = creator_plans.planned(plan.get("holds", []))
+    if not found:
+        return set(), []
+    row, creator = found
+    drawn = [number for number, item in enumerate(plan["items"]) if (plan["rows"].get(item[0]) or [None])[0] == row]
+    if not drawn:
+        return set(), [{"kind": "placed", "item": row, "row": row,
+                        "words": f"{row.replace('_', ' ')} is not drawn, so {creator['what']} is not laid"}]
+    gaps = []
+    name, x, y, wide, deep, facing, kind = plan["items"][drawn[0]]
+    middle = [x + wide / 2, y + deep / 2]
+    if facing is None:
+        facing = "S" if deep >= wide else "E"
+        gaps.append({"kind": "arrangement", "item": name, "row": row, "at": [round(value, 2) for value in middle],
+                     "words": f"the way {name.lower()}'s nose points was not read: laid nose {facing}"})
+    box, shape, rooms = creator_plans.laid(creator, middle, facing)
+    plan["items"][drawn[0]] = [name, *box, facing, kind]
+    plan["shapes"][name] = {**plan["shapes"].get(name, {}), **shape}
+    plan["holds"] = [{**hold, "row": row, **dict(zip(("x", "y", "w", "d"), rooms[hold["place"]]))}
+                     if hold["place"] in rooms else hold for hold in plan["holds"]]
+    return set(rooms), gaps
+
+
 def plan_from(answer, skeleton, inventory):
     """The written plan: the skeleton (its outline box, doors, leads, lamps, elements, the stage table's keys) with the
     answer's items, zones, inside places, standing spots and architecture, and every gap: the skeleton's that still
@@ -572,6 +633,8 @@ def plan_from(answer, skeleton, inventory):
     plan["rows"] = {**rows, **{item[0]: [] for item in plan["items"] if item[6] == "zone"}}
     plan["shapes"] = shapes
     plan["holds"], hold_gaps = holds_of(answer, skeleton, {row["id"] for row in inventory.get("rows", [])})
+    laid_places, laid_gaps = creator_laid(plan)
+    hold_gaps = [gap for gap in hold_gaps if gap["item"] not in laid_places] + laid_gaps
     if not plan["holds"]:
         plan.pop("holds")
     spots = points(answer.get("people"), 1)

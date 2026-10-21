@@ -125,8 +125,12 @@ stage as each stage is built; nothing moves before.
   3.1 Pro call reading positions and footprints off it in its units, which part is which from the pick, the
   inventory's metres, the layer above's plan and its inside places (the stage table's schema plus outline, walls,
   openings, levels, stairs, roofs, terrain, shapes, section), turned into metres by the holder's box or the rows'
-  metres, kept under `plan-writings/<place>/`, then `plan_checks.py`'s free checks (the arrangement against the
-  concept's SAM boxes, left of, behind, what a tube joins, among them), each failure a plain gap with where it is; run on its own after a reading
+  metres, kept under `plan-writings/<place>/`; a thing the creator already planned (`creator_plans.py`: the ship's
+  floor plan, its hull outline and rooms, held by the hangar's row holding its rooms) is laid from his plan at its own
+  size, its middle where drawn and its nose the way drawn, and the drawing is asked for it at that size in its box's
+  frame; then `plan_checks.py`'s free checks (the arrangement against the
+  concept's SAM boxes, left of, behind, place across the view, the way a thing faces, what a tube joins, among them; a
+  run of crates one item with its `count`), each failure a plain gap with where it is; run on its own after a reading
   (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
   on his Make plan click as his spend yes (`web.plan_write`).
   `blockout.py` builds a place's blockout (CONTEXT.md "blockout", owner 2026-10-21) from its parent's plan: a top

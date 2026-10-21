@@ -65,8 +65,13 @@ def records(store, place, kind):
 
 
 def kept_record(store, place, kind, record):
-    """Write one of his records once (the owner's process only); the record."""
-    concepts.recorded(store, f"{AREA}/{place}/{kind}/{stamp_key(record['at'])}.json", record)
+    """Write one of his records once (the owner's process only, or an agent's carrying his words for a design edit he
+    asked for in a session: `asked`, root CLAUDE.md, the owner 2026-10-21); the record."""
+    key = f"{AREA}/{place}/{kind}/{stamp_key(record['at'])}.json"
+    if kind == "edits" and (record.get("asked") or {}).get("words") and (record["asked"]).get("at"):
+        store.write_once(key, record)
+    else:
+        concepts.recorded(store, key, record)
     return record
 
 
@@ -656,9 +661,9 @@ def checked_row(row, ids):
     return row
 
 
-def edited(store, place, plan, by, how="edited", calls=None):
+def edited(store, place, plan, by, how="edited", calls=None, asked=None):
     """Keep his plan for `place` (checked against the derived one) as his own, and where the plan stage reads it;
-    the record."""
+    the record. `asked`: {words, at} of his request when an agent makes the edit he asked for in a session."""
     base = (made_plan(store, place) or {}).get("plan")
     if base is None:
         raise Refused(f"{place}'s scene inventory is not read from its picked concept: no plan yet")
@@ -669,7 +674,7 @@ def edited(store, place, plan, by, how="edited", calls=None):
             plan, inventory_of(store, place), base.get("structure", []))
     record = kept_record(store, place, "edits", {
         "place": place, "plan": plan, "concept": pick_of(store, place), "by": by,
-        "at": concepts.now(), "how": how, "calls": calls or []})
+        "at": concepts.now(), "how": how, "calls": calls or [], **({"asked": asked} if asked else {})})
     if has_row(place):
         kept_for_stage(store, place, record["plan"])
     return record
