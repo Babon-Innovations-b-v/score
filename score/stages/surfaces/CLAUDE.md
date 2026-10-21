@@ -141,7 +141,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
   stops the bake before anything is rented. The job is written from git inside the bake (`bake_job.py`, 2026-10-19:
   the job files lived in the work folder and went with the old disk): each model's entry is the one its data writes
-  out, else its route's own (`place_route.chunky_entry` sized over its labelled take for an outside place, whose kit
+  out (a design's, written without a turn, turned 0 or 90 degrees by its labelled take's footprint against its row:
+  `bake_job.measured_turn`), else its route's own (`place_route.chunky_entry` sized over its labelled take for an outside place, whose kit
   says `on_seat`; `route.jobs`' fields at its laid size in `data/kit/<place>.json` for a kit room), the specs every
   library variant (`library.by_library` and `resolved`, as both routes write a job), so a variant added anywhere
   re-keys every bake; details.json and composites.json are keyed on only the entries the place's models read

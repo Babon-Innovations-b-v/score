@@ -250,7 +250,9 @@ from the hull's plan is the loop's first run.
 **One outdoor place, end to end** (the wreck is the worked example; commands in the README):
 
 1. The place's record: its locked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
-   with its size and spots), each kind's turn and allowed materials in `data/library/details.json`, and one close-up
+   with its size and spots), each kind's turn and allowed materials in `data/library/details.json` (an old concept's
+   place-prefixed kinds; a design's take reads none: its turn is measured over its take in the bake, its materials its
+   place's palette, `score/stages/props/compare.py` `bake_entry`), and one close-up
    per generated row. Recorded inputs live in the work folder (`PROPS_WORK`), not in git (the pictures are large).
    The close-ups come from the close-up stage (`tools/props/closeup/stage.py`): Qwen-Image-Edit-2511 draws every
    one in a cloud batch, a shape check (cheap measurements and an open vision-language judge, tuned to fail rather
