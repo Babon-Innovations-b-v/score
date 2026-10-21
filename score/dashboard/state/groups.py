@@ -20,16 +20,14 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "surfaces-parts": "parts", "surfaces-paint": "paint", "surfaces-bake": "bake",
           "surfaces-check": "surface check", "finish-route-views": "finish views", "finish-route-list": "finish lists",
           "finish-route-split": "finish split", "finish-route-recheck": "finish recheck", "light-layer": "lamps", "light-passes": "light renders",
-          "light-haze": "haze", "light": "light sweep", "effects-layer": "effects", "effects-look": "effects renders",
+          "light": "light sweep", "effects-layer": "effects", "effects-look": "effects renders",
           "motion-models": "motion models", "motion-models-boxes": "motion model boxes", "characters-layer": "people layer",
           "cast": "cast", "assembly": "OpenUSD stage", "neighbours": "with neighbours", "scene-tree": "with child scenes",
           "complete": "completion",
           "demo-film": "film", "demo-film-extra": "extra film",
-          "demo-stills": "stills", "terrain": "ground", "settle": "settle",
+          "terrain": "ground", "settle": "settle",
           "sound": "sound", "motion": "motion", "physics-layer": "physics", "physics-trial": "physics trial",
-          "surface-tiles": "surface tiles", "concept_people": "people concepts",
           "library": "library handover", "library-world": "library handover",
-          "demo-turntables": "turntable films",
           "people-made": "people from the loop", "people-clips": "people clips"}
 # The crops' own rows: their models are the place's own prop and surface rows (2026-10-20, #26).
 LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on the concept", "crops-layer": "crops",

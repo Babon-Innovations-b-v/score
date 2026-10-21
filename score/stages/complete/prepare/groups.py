@@ -24,7 +24,7 @@ from score.stages.complete.prepare import contract
 SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
 # A reading's code row of one of these nouns (" panel" or " plate" after it too) is that shell piece (read_row).
 SHELL_NOUNS = {"wall": "kit: wall", "floor": "kit: floor", "ceiling": "kit: ceiling", "roof": "kit: ceiling"}
-# A row's route by its noun (owner's rules, CONTEXT.md "layer adapter", "motion", "shell section"): people are models
+# A row's route by its noun (owner's rules, CONTEXT.md "layer adapter", "motion"): people are models
 # of the prop pipeline with the motion layer's steps after; the sky, the effects and the far city have routes of their
 # own (layers without models); windows, stairs and building shells are shell pieces (route "shell"); the
 # ground itself is the terrain node's (its own rows, CONTEXT.md "layer adapter": no take); every other row, a terrain

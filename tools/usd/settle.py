@@ -1,6 +1,7 @@
 """Settle a place's loose objects with physics and write where they came to rest into its layout.
 
-    .venv/bin/python tools/usd/settle.py <stage.usda> [--dry-run] [--cloud] [--reuse] [--detach]
+    .venv/bin/python tools/usd/settle.py <stage.usda> --kit <the place's kit.json> [--dry-run] [--cloud] [--reuse]
+                                         [--detach]
 
 --dry-run simulates and writes nothing to the layout; its result (settle/settled.json beside the stage) is what the
 resting triage (triage.py --settled) reads for SAGE's stability rule (unstable: over SAGE_MOVE or SAGE_TURN).
@@ -11,8 +12,8 @@ fixed rows stay where they are and are static in the simulation. Each loose obje
 (SETTLE_DROP over its lowest point) and dropped in headless Blender onto the stage's real ground with its own triangles
 for collision (tools/blender/inside/settle_stage.py), so it tilts and comes to rest the way a real object would.
 
-Where it rests is written back to the place's layout, data/inventory/<place>.json (the spot) and data/kit/<place>.json
-(the piece), as the layout says where a piece is: its spot (`x`, `z`) and its lift off the ground there (`y`), and its
+Where it rests is written back to the place's layout, data/inventory/<place>.json (the spot) and the kit given (the
+piece; the old kits under data/kit were retired, 2026-10-21), as the layout says where a piece is: its spot (`x`, `z`) and its lift off the ground there (`y`), and its
 turn in its own seat's frame as a unit quaternion `rotation` [x, y, z, w] (x across, y up, z along), which replaces
 `facing` and `tilt` (`facing` is kept as the rotation's heading for readers that know only a heading; `tilt` is
 dropped). Settling only corrects a laid pose: an object that would turn more than TURN_MOST or whose middle would drift
@@ -52,7 +53,6 @@ INSIDE = REPO / "tools/blender/inside/settle_stage.py"
 # drop fails at once (blender_cloud.price), a gap; a later drop is a new batch. The machine is parked for its billed hour after its drop
 # (blender_cloud's kind is in park.CLEANUPS), so the places' drops after the free triage share one rental within it.
 DROP_CLASSES = ("cpu-4c-32gb",)
-KITS = REPO / "data/kit"
 # How far over the ground an object's lowest point starts its fall, in metres.
 SETTLE_DROP = 0.02
 # An object still moving faster than this at the end of the simulation has not settled (metres a second).
@@ -81,12 +81,13 @@ FOOT_BAND = 0.15
 STACK_REACH = 0.05
 
 
-def loose_objects(stage, place, inventory):
+def loose_objects(stage, place, inventory, kit_path=None):
     """The stage's top-level objects whose row lies loose on the ground: {object name: its lift for the drop}. Loose
-    is what the resting triage judges as standing on the floor (triage.support_type): a kit's shell piece (a floor
-    plate, data/checks/resting.json `fixed_in_kit`) and a glowing part judged with its host are not dropped."""
+    is what the resting triage judges as standing on the floor (triage.support_type, the kit given its kinds'
+    groups): a kit's shell piece (a floor plate, data/checks/resting.json `fixed_in_kit`) and a glowing part judged
+    with its host are not dropped."""
     import triage
-    data, groups = triage.rules(), triage.kit_groups(place)
+    data, groups = triage.rules(), triage.kit_groups(kit_path)
     rows = {row["id"]: row for row in inventory["rows"]}
     height = resting.ground_height(stage, place)
     found = {}
@@ -103,12 +104,12 @@ def loose_objects(stage, place, inventory):
     return found
 
 
-def part_objects(stage, place, inventory):
-    """The stage's glowing parts (a lamp's lens, a screen: rows the triage judges with their host, support `part`),
-    which the drop leaves out of its statics: a part lies on or in its host by design, so a host would otherwise
-    start "inside" it and be dropped on the bare ground alone."""
+def part_objects(stage, place, inventory, kit_path=None):
+    """The stage's glowing parts (a lamp's lens, a screen: rows the triage judges with their host, support `part`,
+    the kit given its kinds' groups), which the drop leaves out of its statics: a part lies on or in its host by
+    design, so a host would otherwise start "inside" it and be dropped on the bare ground alone."""
     import triage
-    data, groups = triage.rules(), triage.kit_groups(place)
+    data, groups = triage.rules(), triage.kit_groups(kit_path)
     rows = {row["id"]: row for row in inventory["rows"]}
     return sorted(path.removeprefix(f"/{place}/Objects/") for path, prim in resting.objects_of(stage, place).items()
                   if triage.support_type(rows.get(prim.GetAttribute("score:row").Get(), {}), prim, data, groups)
@@ -320,14 +321,16 @@ def box_in(frame, corners):
 def drop_job(stage, place, inventory, upright, kit_path=None):
     """What a drop of the stage takes: the loose objects with their lifts, what is left out of the statics, the
     upright starts (only when `upright`: a drop that finds rest poses; a drop that judges the laid pose, SAGE's,
-    starts as laid; the kit, data/kit/<place>.json or the file given, names the place's seat) and what each loose
-    object is stacked on."""
-    loose = loose_objects(stage, place, inventory)
-    ignore = (part_objects(stage, place, inventory) + held_on_loose(stage, place, inventory, loose)
+    starts as laid; the kit file given, which `upright` needs, names the place's seat) and what each loose object is
+    stacked on."""
+    loose = loose_objects(stage, place, inventory, kit_path)
+    ignore = (part_objects(stage, place, inventory, kit_path) + held_on_loose(stage, place, inventory, loose)
               + fixtures_on_loose(stage, place, loose))
     starts, under = {}, stacked_under(stage, place, loose)
     if upright:
-        kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
+        if kit_path is None:
+            raise ValueError(f"{place}: an upright drop needs the place's kit; the old kits (data/kit) were retired")
+        kit = json.loads(pathlib.Path(kit_path).read_text())
         starts = upright_starts(stage, place, inventory, loose, seat_ground(place, kit))
         for name, (support, shift) in onto_one_support(stage, place, under).items():
             starts[name] = shift @ starts.get(name, np.eye(4))
@@ -688,7 +691,7 @@ def moved_piece(piece, before, after):
 
 
 def write_kit_room(settled, kit, kit_path):
-    """write_layout for a kit room (data/kit/<room>.json laid in the stage's own frame, no inventory spots): each piece
+    """write_layout for a kit room (its kit laid in the stage's own frame, no inventory spots): each piece
     whose object came to rest by a small correction turned and carried with it, the others marked `unrested`. A piece
     whose axes are not its object's as the stage lays it (another frame) is refused."""
     pieces = kit_room_pieces(kit, kit_path.stem)
@@ -715,19 +718,19 @@ def write_kit_room(settled, kit, kit_path):
     return moved
 
 
-def detach(stage_path):
+def detach(stage_path, kit_path):
     """Rerun this call detached (tools/props/cloud/detached.py); its outputs are the settle folder and the layout."""
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import detached
     stage = Usd.Stage.Open(str(stage_path))  # held: a prim of a stage nothing holds expires at once
     place = stage.GetDefaultPrim().GetName()
-    detached.relaunch(sys.argv, "settle", [stage_path.parent / "settle", stage_inputs.inventory_path(place),
-                                           KITS / f"{place}.json"])
+    detached.relaunch(sys.argv, "settle", [stage_path.parent / "settle", stage_inputs.inventory_path(place), kit_path])
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("stage", type=pathlib.Path)
+    parser.add_argument("--kit", required=True, type=pathlib.Path, help="the place's kit (its design's kit.json)")
     parser.add_argument("--dry-run", action="store_true", help="simulate and print, write nothing")
     parser.add_argument("--cloud", action="store_true", help="simulate on a rented processor machine")
     parser.add_argument("--reuse", action="store_true", help="write back the last run's result (settle/settled.json)")
@@ -735,14 +738,16 @@ def main():
                         "(tools/props/cloud/detached.py): start it with run_in_background, never poll it")
     arguments = parser.parse_args()
     stage_path = arguments.stage.resolve()
+    kit_path = arguments.kit.resolve()
     if arguments.detach:
-        detach(stage_path)
+        detach(stage_path, kit_path)
     stage = Usd.Stage.Open(str(stage_path))
     place = stage.GetDefaultPrim().GetName()
-    inventory_path, kit_path = stage_inputs.inventory_path(place), KITS / f"{place}.json"
+    inventory_path = stage_inputs.inventory_path(place)
     last = stage_path.parent / "settle" / "settled.json"
     inventory = json.loads(inventory_path.read_text())
-    loose, ignore, starts, under = drop_job(stage, place, inventory, upright=not arguments.dry_run)
+    loose, ignore, starts, under = drop_job(stage, place, inventory, upright=not arguments.dry_run,
+                                            kit_path=kit_path)
     simulated = (json.loads(last.read_text()) if arguments.reuse
                  else simulate(stage_path, loose, stage_path.parent / "settle", arguments.cloud, ignore, starts, under))
     for first, second in simulated["overlaps"]:

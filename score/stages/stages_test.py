@@ -79,7 +79,7 @@ NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(nam
                                 (checks.Check("made", made),), applies=lambda place: False)
                     for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
                                  "sound", "scene-record", "motion", "light", "crops-layer", "settle",
-                                 "characters-layer", "surface-tiles"))
+                                 "characters-layer"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 2, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))

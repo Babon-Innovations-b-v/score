@@ -714,6 +714,8 @@ def arguments():
     parser.add_argument("--out", type=pathlib.Path, required=True)
     for name in ("before", "concept", "references", "stage", "before-stage", "agreement"):
         parser.add_argument(f"--{name}", type=pathlib.Path)
+    parser.add_argument("--kit", type=pathlib.Path, help="the place's layout, its design's kit.json (none: no kit "
+                        "room or outdoor kit is drawn)")
     parser.add_argument("--game-shots", type=pathlib.Path, help="the folder the scene record's views name the game's "
                         "own shots in, laid beside the scene's")
     parser.add_argument("--no-render", action="store_true")
@@ -736,7 +738,7 @@ def render_all(options, runs, out):
         found = json.loads((out / "renders.json").read_text())
         return found["shots"], found["scene"], found.get("characters")
     shots = renders.model_shots(names, runs, records.surfaces(options.place), out)
-    layout = records.kit(options.place)
+    layout = records.kit(getattr(options, "kit", None))
     # A kit room with a roof (draw layer 2) is drawn from inside; a kit laid outdoors (the prologue's street) from round it.
     room = layout if layout and any(piece.get("layer") == renders.ROOF_LAYER for piece in layout.get("pieces", [])) \
         else None

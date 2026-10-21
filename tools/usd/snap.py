@@ -1,9 +1,10 @@
 """Snap an object of a place into place instead of laying it by hand: straight down onto what is under it, along a way
 until it meets a wall or a neighbour, or onto a free spot of a rectangle found by trying seeded spots.
 
-    .venv/bin/python tools/usd/snap.py <stage.usda> <object> down [--write]
-    .venv/bin/python tools/usd/snap.py <stage.usda> <object> to <x,z> [<x,z> ...] [--write]
-    .venv/bin/python tools/usd/snap.py <stage.usda> <object> free <xmin,zmin,xmax,zmax> [--seed N] [--write]
+    .venv/bin/python tools/usd/snap.py <stage.usda> <object> down --kit <kit.json> [--write]
+    .venv/bin/python tools/usd/snap.py <stage.usda> <object> to <x,z> [<x,z> ...] --kit <kit.json> [--write]
+    .venv/bin/python tools/usd/snap.py <stage.usda> <object> free <xmin,zmin,xmax,zmax> --kit <kit.json> [--seed N]
+                                       [--write]
 
 The object is named as under `/<place>/Objects` (`crate_2`); the stage is read as composed, in its frame (metres, y
 up). What it meets is the place's ground (`/<place>/Ground`, or y = 0 on a flat place), the other objects (not the
@@ -20,7 +21,8 @@ ones it carries: its child prims move with it), and the scene record's Structure
 
 Every move is a plain shift in the stage's frame. By default the proposed pose is printed as JSON (the shift, the new
 matrix, and the spot as the layout would say it); with --write it is written into the place's layout
-(data/inventory/<place>.json and data/kit/<place>.json) the way settle.py writes a settled pose: spot `x`, `z`, lift
+(data/inventory/<place>.json and the kit given, the place's design kit.json: the old kits under data/kit were
+retired, 2026-10-21) the way settle.py writes a settled pose: spot `x`, `z`, lift
 `y` and a `rotation` quaternion in the piece's own seat frame. Export the stage again after, and run the resting check.
 
 The idea of placing by snapping (dropping onto a support, sliding until contact, rejection sampling of free spots)
@@ -303,15 +305,16 @@ def main():
     parser.add_argument("object", help="the object's name under /<place>/Objects, e.g. crate_2")
     parser.add_argument("mode", choices=("down", "to", "free"))
     parser.add_argument("values", nargs="*", help="to: one or more ways x,z; free: xmin,zmin,xmax,zmax")
+    parser.add_argument("--kit", required=True, type=pathlib.Path, help="the place's kit (its design's kit.json)")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--write", action="store_true", help="write the pose into the place's layout")
     options = parser.parse_args(with_negatives(sys.argv[1:]))
     laid = read_place(options.stage)
     if options.object not in laid["objects"]:
         raise SystemExit(f"{options.object}: no such object in {options.stage}")
-    kit_path, inventory_path = settle.KITS / f"{laid['place']}.json", settle.stage_inputs.inventory_path(laid["place"])
-    kit = json.loads(kit_path.read_text()) if kit_path.exists() else {}
-    ground = grounds.place_ground(laid["place"], kit.get("on_seat", [0.0, 0.0])) if kit else None
+    kit_path, inventory_path = options.kit, settle.stage_inputs.inventory_path(laid["place"])
+    kit = json.loads(kit_path.read_text())
+    ground = grounds.place_ground(laid["place"], kit.get("on_seat", [0.0, 0.0]))
     try:
         offset = offset_for(laid, options)
     except ValueError as problem:

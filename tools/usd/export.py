@@ -1,6 +1,7 @@
 """Write one place as an OpenUSD stage: the framework's canonical scene, which Blender and other engines load.
 
-    .venv/bin/python tools/usd/export.py <place> --models <folder of the place's made .gltf> [<more folders>] --out <folder>
+    .venv/bin/python tools/usd/export.py <place> --kit <the place's kit.json> --models <folder of the place's made .gltf>
+                                         [<more folders>] --out <folder>
                                          [--work <the route run's work folder> | --parts <folder of labelled takes>]
 
 The labelled parts are read where the run's records put them: with --work, <work>/parts/<model>-<take>/ for the take
@@ -9,7 +10,8 @@ plan-route.json names; with --parts (or a run that recorded no take), each model
 with neither, the takes stored in the repository (`data/parts`, tools/props/library/stored_parts.py) by the place's
 `models.json` entry.
 
-A place today is its made models (glTF) and its layout (`data/kit/<place>.json`), read by the game in Godot. The
+A place today is its made models (glTF) and its layout (its design's kit, earth-seed's `kit.json`, always given:
+the old kits under `data/kit` were retired with the old concepts, 2026-10-21). The
 stage holds the same place in three layers, from the strongest down:
 
     <out>/<place>.usda           the stage itself: no prims, only its two layers and the units (metres, y up)
@@ -77,7 +79,6 @@ import pick_lock as picks  # noqa: E402
 import scene as scene_record  # noqa: E402
 import stored_parts  # noqa: E402
 
-KITS = REPO / "data/kit"
 INVENTORIES = REPO / "data/inventory"
 DETAILS = REPO / "data/library/details.json"
 COMPOSITES = REPO / "data/library/composites.json"
@@ -709,7 +710,9 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         parts = stored_parts.takes_of(place)
     elif isinstance(parts, dict):  # a kit room's run: a model its bake jobs do not name (laid later) by its stored take
         parts = {**stored_parts.takes_of(place), **parts}
-    kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
+    if kit_path is None:
+        raise ValueError(f"{place}: no kit given; the old kits (data/kit) were retired: pass the design's kit.json")
+    kit = json.loads(pathlib.Path(kit_path).read_text())
     if gaps is not None:
         kit = dict(kit, pieces=made_only(kit["pieces"], models, gaps))
     if scene:
@@ -753,7 +756,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     write_base(place, kit, inventory, assets, out, children, ground, scene, world, hashes)
     ensure_edit(out)
     stage = write_root(place, out)
-    record_inputs(place, out, kit_path or KITS / f"{place}.json", inventory_path, models, hashes)
+    record_inputs(place, out, kit_path, inventory_path, models, hashes)
     return stage
 
 
@@ -813,6 +816,7 @@ def record_inputs(place, out, kit_path, inventory_path, models, hashes):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("place")
+    parser.add_argument("--kit", required=True, type=pathlib.Path, help="the place's kit (its design's kit.json)")
     parser.add_argument("--models", required=True, type=pathlib.Path, nargs="+",
                         help="the place's made models; more folders after it for models laid in it later")
     parser.add_argument("--out", required=True, type=pathlib.Path)
@@ -824,9 +828,10 @@ def main():
                         "instead of the library (tools/library/library_files.py)")
     arguments = parser.parse_args()
     parts, take = run_parts(arguments.work) if arguments.work else (arguments.parts, None)
-    kit = json.loads((KITS / f"{arguments.place}.json").read_text())
+    kit = json.loads(arguments.kit.read_text())
     laid_on = None if arguments.flat else grounds.place_ground(arguments.place, kit.get("on_seat", [0.0, 0.0]))
-    print(export(arguments.place, arguments.models, arguments.out, parts, take=take, ground=laid_on,
+    print(export(arguments.place, arguments.models, arguments.out, parts, kit_path=arguments.kit, take=take,
+                 ground=laid_on,
                  world=arguments.assets, scene=scene_record.record(arguments.place)))
 
 

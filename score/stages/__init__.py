@@ -13,8 +13,8 @@ each designed place's effects layer from its design, which its assembly takes. N
 own accepted assembly. The shared loop (shapes_first, #41: rough model, its registration to the plan, the parts split,
 close-up, Pixal3D, the finish route, the likeness gate, then each layer adapter's after-steps) is every model layer's
 one way to a model; its prop rows run only for a place with prop data. Plan and scene-record (experimental) write a
-place's scene record from its plan and concept. Cast (experimental) places each place's people and measures them against its concept's count
-(concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its design's
+place's scene record from its plan and concept. Cast (experimental) places each place's people and measures them against its design's count
+and its geometry. Motion (experimental) makes each place's motion layer from its design's
 moving rows. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
@@ -24,17 +24,15 @@ import pathlib
 
 from score import checks, contracts, graph
 from score.checks import grain
-from score.stages import (assembly, cast, complete, concept_people, crops, demo_film, demo_turntable,
-                          design_layers, earth_seed, effects, gaps, images, library, light, motion, people,
-                          physics, scene_record, settling, shapes_first, shell_split, sound,
-                          surface_tiles, surfaces, terrain)
+from score.stages import (assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
+                          gaps, images, library, light, motion, people, physics, scene_record, settling,
+                          shapes_first, shell_split, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 from score.stages.library import clips as library_clips
 import score.stages.batch_gaps as batch_gaps
 import score.stages.cast.layer as characters_layer
-import score.stages.demo_film.stills as demo_stills
 import score.stages.demo_film.final as demo_film_final
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -348,11 +346,6 @@ def boxed_split(row):
     return dataclasses.replace(row, files=scene_inventory_read(row.files))
 
 
-# Experimental (2026-10-14): models that already exist turned round for the paper's demos
-# (data/definitions/demo_turntables.json), one environment node, paid: demo K2's hub objects first.
-DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, demo_turntable.CONTRACT,
-                              demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
-                              euros=demo_turntable.euros())
 # Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, or
 # fails it only on its accepted gaps (gapped: the overseer, 2026-10-15), only for the places a locked film script
 # shows (demo_film.films), paid.
@@ -365,10 +358,6 @@ DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT
 DEMO_FILM_EXTRA = dataclasses.replace(DEMO_FILM, name="demo-film-extra", make=demo_film.make_extra,
                                       contract=demo_film.EXTRA_CONTRACT, checks=demo_film.EXTRA_CHECKS,
                                       files=demo_film.extra_files, applies=demo_film.applies_extra)
-# Single pictures of a place's final stage for the paper's demos (data/definitions/demo_stills/<place>.json), paid.
-DEMO_STILLS = dataclasses.replace(DEMO_FILM, name="demo-stills", make=demo_stills.make, contract=demo_stills.CONTRACT,
-                                  checks=demo_stills.CHECKS, files=demo_stills.files, applies=demo_stills.applies,
-                                  euros=demo_stills.euros())
 
 
 def filmed_places(place=None):
@@ -389,18 +378,17 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
                                neighbours=filmed_places)
 
 
-STAGES = (TERRAIN, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
+STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           SCENE_TREE,
-          COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS, ENVIRONMENT_FILM,
+          COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, ENVIRONMENT_FILM,
           GROUND_FIT, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
               boxed_split, map(designed_rough, shapes_first.rows())))))),
-          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION,
-          *light.ROWS, *crops.ROWS,
-          surface_tiles.STAGE)
+          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, MOTION,
+          *light.ROWS, *crops.ROWS)
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
 # patterns) that make each. Every model comes from the prop pipeline; each module only adds what moves it.
@@ -480,10 +468,10 @@ def accepted_gaps(row):
 
 # The rendered pictures of each row that ship (to the library, the films, the paper), relative to its output: the grain
 # check fails a grainy one (the owner, 2026-10-20: the Library's Camp picture full of specks). Left out: the paid
-# light-passes (its looks ship only through light's mix), the Workbench turntables (no sampling noise) and the
+# light-passes (its looks ship only through light's mix) and the
 # people's close-ups (an image model's, not a render).
 GRAIN_PICTURES = {"light": "looks/*/*-look.png", "demo-film": "concept.png", "demo-film-extra": "*/concept.png",
-                  "demo-stills": "*.png", "crops-look": "render/*-look.png",
+                  "crops-look": "render/*-look.png",
                   "physics-trial": "frames/*-look.png"}
 
 
@@ -550,22 +538,11 @@ STAGES = tuple(grained(accepted_gaps(layered(worn(row), {stage.name for stage in
 characters_layer.loaded("cast")
 
 
-def hazed(applies):
-    """light-haze's `applies` at a designed place (designed("light")) whose kit lays a lamp with a shaft
-    (haze.applies)."""
-    shown = designed("light")
-
-    def applied(place):
-        return shown(place) and applies(place)
-    return functools.wraps(applies)(applied)
-
-
 # The light rows of every designed place (designed("light")), a ship place's too: its base stage is its earth seed's
 # (earth_seeded reads it as the seed); every place's views and lights are its own scene-record output's, which its
 # light layer writes into views.json (a designed place the scene-record row writes no record for is refused by name:
-# light.passes.place_of). light-haze only where the kit lays a shafted lamp.
-STAGES = tuple(dataclasses.replace(row, applies=hazed(row.applies)) if row.name == "light-haze" else
-               dataclasses.replace(row, applies=designed("light"))
+# light.passes.place_of).
+STAGES = tuple(dataclasses.replace(row, applies=designed("light"))
                if row.name in ("light-layer", "light-passes", "light") else row for row in STAGES)
 
 
@@ -634,13 +611,13 @@ SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.
 # and its design's kit); stages_test.py holds the list to the declared files. terrain-look, the last reader of a seed
 # alone, is retired (#27).
 EARTH_SEEDED = ("assembly", "settle", "effects-layer", "cast", "motion",
-                "light-layer", "light-passes", "light-haze", "light", "scene-record")
+                "light-layer", "light-passes", "light", "scene-record")
 
 
 # The rows reading beside the places they show (their scene records) and those places' seeds with them: the light
 # rows that render or check a place with its neighbours (light.passes.neighbours), each shown place's earth seed
 # read beside too. Every other row reading beside reads no other place's seed.
-SHOWN_SEEDED = ("light-passes", "light-haze", "light")
+SHOWN_SEEDED = ("light-passes", "light")
 KITS = "{data}/kit/"  # the old kits' folder: a declared kit there is the earth place's design kit (earth_seed.kit_in)
 
 

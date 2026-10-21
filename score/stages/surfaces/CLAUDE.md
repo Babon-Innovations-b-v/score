@@ -81,8 +81,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`bake_job_step`), then make_chunky; priced at the bake's warm figure. Here first, free: the proposals into the
   registry, and the specs (a part with settings paints and bakes as `route_settings.settings_name`: its variant's
   spec in the list's token colour, roughness, metal, seed and own wear; specs.json in the output). The bake applies
-  them: `recipes.arguments` takes a spec's own seed and wear over the job's (2026-10-20; that edit re-keyed
-  surface-tiles, nothing accepted there). Paint (free, after the bake): the
+  them: `recipes.arguments` takes a spec's own seed and wear over the job's (2026-10-20). Paint (free, after the bake): the
   bake's labelled takes and painted.json copied over, so every reader of the paint stays, with its gates (one
   surface a part, colour against the close-up, feet), which now judge after the bake: the parts' "off colour"
   measure names the colour faults before it. `place_line.make_paint` (rented) stays the people's. Check:

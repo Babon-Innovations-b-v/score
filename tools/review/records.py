@@ -5,7 +5,9 @@ The records of a place live in four kinds of folder, each written by its own sta
 
     the repo           data/definitions/place.json (the style), data/inventory/<place>.json (the inventory, its boxes
                        on the concept's picture, and its plan's `dimensioned`: the dimensioned plans the place was
-                       drawn to, wherever the concept step left them), data/kit/<place>.json (the layout), the library and its tokens
+                       drawn to, wherever the concept step left them), the library and its tokens
+    a kit file         the place's layout, its design's kit.json, read only when given (the old kits under data/kit
+                       were retired with the old concepts, 2026-10-21)
     a concept folder   plan.json (the concept's pick and the dimensioned plan's elements), plan.png, refs.json (the
                        creator's references), ledger.json (every concept take's prompt and cost), C<n>.png (the takes)
     a references folder the reference pictures as downloaded, named as in their URL
@@ -28,7 +30,6 @@ from paths import WORK  # noqa: E402
 
 PLACES = REPO / "data/definitions/place.json"
 INVENTORIES = REPO / "data/inventory"
-KITS = REPO / "data/kit"
 
 
 def json_or_none(path):
@@ -90,8 +91,9 @@ def dimensioned_plan(path):
     return {"path": path, "found": path.exists(), "plan": None, "picture": path if path.exists() else None}
 
 
-def kit(place):
-    return json_or_none(KITS / f"{place}.json")
+def kit(path):
+    """The place's layout from the kit file given (its design's kit.json), None without one."""
+    return json_or_none(pathlib.Path(path) if path else None)
 
 
 def concept(folder):

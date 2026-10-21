@@ -129,7 +129,7 @@ def with_pro_wordings(rows):
 def rows_from_inventory(inventory):
     """The stage's rows from a scene inventory: every row the sorter sends to the shared loop (sorter.row_route
     `model`, whatever the row's own kind), with its name, size, view picture and box. A row with no box (a shell piece
-    the concept does not frame) gets none: its close-up is #41's shell-section step, a gap until then."""
+    the concept does not frame) gets none: no step takes its close-up yet, a gap until one does."""
     sys.path.insert(0, str(HERE.parent / "library"))
     import sorter
     views = {view["id"]: view["picture"] for view in inventory["plan"]["views"]}

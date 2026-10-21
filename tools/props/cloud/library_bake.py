@@ -6,7 +6,7 @@ coordinator moved every Blender bake to the cloud).
         --who "<session>" [--classes gpu-48gb] [--dry-run]
 
 Each job is one of tools/props/library/inside/'s: it names its `script` (make_kit.py, make_chunky.py, show.py or
-swatch.py, make_tiles.py) and its `out` folder; a make_chunky job's pieces name their `parts` folders (labels.py). Up there Blender
+swatch.py) and its `out` folder; a make_chunky job's pieces name their `parts` folders (labels.py). Up there Blender
 5.0.1 (the version this repo's tools pin, checked against blender.org's sha256) runs each job with `-b` and Cycles on
 the card (FARM_CYCLES_GPU), with ProcFunc and infinigen2's shaders from the repo's vendored copies; each job's `out`
 comes back to where it says. The jobs are spread over as many machines as finish them in about the setup and one
@@ -43,7 +43,7 @@ SETUP_MINUTES = 10
 # views, a code-built piece, a generated piece cut down and detailed, a row of pictured pieces (a library tile, not
 # measured: taken as a code-built piece, one flat square). A processor machine
 # took about three times as long.
-MINUTES_EACH = {"materials": 0.1, "pieces": 0.3, "chunky": 1.5, "rows": 0.2, "tiles": 0.3}
+MINUTES_EACH = {"materials": 0.1, "pieces": 0.3, "chunky": 1.5, "rows": 0.2}
 PROCESSOR_SLOWER = 3
 # What of the repo the Blender side reads.
 SHIPPED = ("tools/props/library", "data/library", "vendor/procfunc/src", "vendor/infinigen2")

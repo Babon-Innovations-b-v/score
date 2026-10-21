@@ -58,7 +58,7 @@ def take_record(inputs, out, place):
     stage = Usd.Stage.Open(base)
     laid, waiting = without_waiting(record)
     scene.write(stage, place, laid, out, kit=kit, pieces=laid_pieces(kit, record), ground=ground,
-                near=near_patch(stage, place), tiles=inputs.get("surface-tiles"))
+                near=near_patch(stage, place))
     if waiting:
         stage.GetPrimAtPath(f"/{place}").CreateAttribute(WAITING, Sdf.ValueTypeNames.StringArray).Set(waiting)
     base.Save()
