@@ -1,19 +1,20 @@
-"""The crops stage (experimental, PRD #6, design D of 2026-10-12): the crop kinds a place's concept shows, grown on
-its beds as the concept grows them, as a layer of point instancers the assembly takes.
+"""The crops stage (experimental, PRD #6, design D of 2026-10-12): the crop kinds a place's design shows (its
+inventory's rows that grow on a bed), grown on the plan's beds as the concept grows them, as a layer of point
+instancers the assembly takes.
 
     crops-concept   paid  SAM 3 on the concept view and its tiles: each kind's patches and spacing (concept.py)
     crops-boxes     paid  the box gate's SAM 3 measure of the crop rows' boxes (boxes.py)
     (the models)          the crop kinds are models like any other (the owner, 2026-10-20): the place's own prop
-                          route (props-inputs, closeup, pixal: data/props/<place>.json) and its own surface line,
-                          the finish route to surfaces-bake (data/surfaces/<place>.json); this package adds only
+                          route (props-inputs, closeup, pixal: its design's hand-in) and its own surface line,
+                          the finish route to surfaces-bake; this package adds only
                           what the motion layer's growth module needs around them (CONTEXT.md "layer adapter")
     crops-layer     free  each kind's baked model laid on its beds at the concept's spacing, one point instancer a
                           kind (layer.py; the assembly takes it as one of its LAYERS)
     crops-look      paid  the beds and crops rendered at the concept's slant and counted with SAM 3 again: the
                           concept-density check on the render (look.py)
 
-Each row applies only to a place with crop data written from its design (data/crops/<place>.json, crop_data.py):
-none since the old concepts' was retired (2026-10-21). Import this
+Each row applies only to a place whose design shows crops, and reads them off its kept inventory and plan
+(crop_data.py; no per-place crop data since 2026-10-21). Import this
 package's modules by their full name, never `from score.stages.crops import ...` (that hashes this file into their
 code version, so a table edit would re-buy the paid rows).
 """

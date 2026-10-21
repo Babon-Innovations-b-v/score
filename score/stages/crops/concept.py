@@ -11,21 +11,20 @@ instances. Free measures here, kept in concept.json:
                over the whole picture is the mask's share of the picture)
     plants     every tile's instances mapped back onto the picture, centred in the plot's box, each the kind of its
                noun; where boxes overlap over SAME_PLANT (one plant found twice: on two tiles, or by two kinds'
-               nouns) the earlier kind in the crop data's order keeps it (the more specific nouns first), within a
+               nouns) the earlier kind in the record's order keeps it (the more specific nouns first), within a
                kind the surest
     kinds      per kind: its patches (plants linked within LINK median spacings, at least PATCH_LEAST; strays left
                out and counted), their share of the plot (each patch's hull of centres widened by one spacing), and
                its spacing in plant widths: the median distance from a plant to its nearest neighbour over the
-               median plant's width (its box's); a canopy kind (bushes whose leaves meet, which SAM 3 finds only as
-               merged masses, boxes over MERGED median widths) is its masses, its share their boxes' union, its
-               spacing CANOPY_SPACING by the crop data's written word
+               median plant's width (its box's); a box over MERGED median widths is several plants SAM 3 merged
+               into one mass, left out
 
 The spacing is scale-free: the concept draws its plants larger than the plan's 12 m plot would hold them, so a
 density in plants a square metre read off the plan's metres would lay them metres apart. The view looks down on the
 floor at a slant, so distances across the picture's height are short by the plot's height over its width (a square
 plot turned a quarter seen from above at a slant); centres are stretched back by that before measuring.
 The gate `measured`: the plot found and every kind at least FOUND_LEAST plants in patches; else unknown, naming what
-SAM 3 did not find (change the nouns in the crop data, never the count).
+SAM 3 did not find (a kind's nouns are its inventory row's words; never typed as a count).
 """
 import json
 import math
@@ -42,8 +41,6 @@ SAME_INSIDE = 0.7
 SAME_CENTRE = 0.5
 # A box over this many times its kind's median width is several plants SAM 3 merged into one mass.
 MERGED = 2.5
-# A canopy kind's plants stand one width apart: leaves meeting, as the concept draws them.
-CANOPY_SPACING = 1.0
 FOUND_LEAST = 5
 # A patch: plants linked within LINK times their kind's median nearest-neighbour distance, at least PATCH_LEAST.
 LINK = 2.0
@@ -172,22 +169,22 @@ def merged(instance, found):
     return width(instance["box"]) > MERGED * statistics.median(width(other["box"]) for other in found)
 
 
-def kept_kind(found, canopy):
-    """A plant kind's instances without its merged masses; a canopy kind's merged masses only."""
-    return [instance for instance in found if merged(instance, found) == bool(canopy)]
+def kept_kind(found):
+    """A kind's instances without its merged masses."""
+    return [instance for instance in found if not merged(instance, found)]
 
 
 def plants_in(instances, plot_box, kinds):
     """Every kind's instances centred in the plot's box, each with its kind and noun, kind by kind in the crop data's
-    order, surest first: a plant kind's merged masses left out, a canopy kind's only kept (`kept_kind`); one dropped
+    order, surest first, its merged masses left out (`kept_kind`); one dropped
     where it is a plant of its kind kept before it (`same_plant`), or shares over SAME_PLANT with any plant kept
     before it (so a plant two kinds' nouns find is the earlier kind's)."""
     kept = []
-    for kind, entry in kinds.items():
+    for kind in kinds:
         found = [{**instance, "kind": kind, "noun": key.split(":", 1)[1]}
                  for key, listed in instances.items() if key.split(":", 1)[0] == kind for instance in listed
                  if inside(centre(instance["box"]), plot_box)]
-        found = sorted(kept_kind(found, entry.get("canopy")), key=lambda instance: -instance["score"])
+        found = sorted(kept_kind(found), key=lambda instance: -instance["score"])
         for instance in found:
             if not any(same_plant(instance["box"], other["box"]) if other["kind"] == kind
                        else overlap(instance["box"], other["box"]) > SAME_PLANT for other in kept):
@@ -251,36 +248,13 @@ def patch_area(points):
     return hull * (across / (across - 1)) ** 2
 
 
-def union_area(boxes):
-    """The area the union of pixel boxes covers."""
-    import numpy as np
-    if not boxes:
-        return 0.0
-    right, bottom = (int(math.ceil(max(box[index] for box in boxes))) for index in (2, 3))
-    covered = np.zeros((bottom + 1, right + 1), dtype=bool)
-    for box in boxes:
-        covered[int(box[1]):int(math.ceil(box[3])), int(box[0]):int(math.ceil(box[2]))] = True
-    return float(covered.sum())
-
-
-def canopy_measures(own, plot_area):
-    """A canopy kind's measures: its masses, the share of the plot their boxes' union covers, and its spacing,
-    CANOPY_SPACING by the crop data's word (bushes whose leaves meet, which SAM 3 finds only as merged masses)."""
-    return {"count": len(own), "patches": 1 if own else 0, "strays": 0,
-            "share": round(union_area([plant["box"] for plant in own]) / plot_area, 4),
-            "spacing": CANOPY_SPACING if own else None, "width_px": None, "canopy": True}
-
-
 def kind_measures(plants, kinds, plot):
     """{kind: plants in its patches, patches, strays, the patches' share of the plot, its spacing in plant widths
     (None when not measurable)}."""
     slant = (plot["box"][3] - plot["box"][1]) / (plot["box"][2] - plot["box"][0])
     found = {}
-    for kind, entry in kinds.items():
+    for kind in kinds:
         own = [plant for plant in plants if plant["kind"] == kind]
-        if entry.get("canopy"):
-            found[kind] = canopy_measures(own, plot["area"])
-            continue
         floor = [(centre(plant["box"])[0], centre(plant["box"])[1] / slant) for plant in own]
         grouped = patches(floor)
         members = [point for group in grouped for point in group]
@@ -307,7 +281,7 @@ def make_concept(inputs, out, seed, params):
     """SAM 3 on the concept view and its tiles on one rented card; concept.json with the plot and every kind's
     patches and spacing."""
     from PIL import Image
-    record = json.loads(pathlib.Path(inputs["crops"]).read_text())
+    record = crop_data.read(inputs)
     size = list(Image.open(inputs["concept"]).size)
     tiles = write_tiles(inputs["concept"], out)
     jobs = jobs_of(record, inputs["concept"], size, tiles)
@@ -325,15 +299,13 @@ def concept_faults(folder):
 
 
 def judge_measured(output, inputs, evidence):
-    """The plot was found, every plant kind has at least FOUND_LEAST plants in patches on it and a spacing, and every
-    canopy kind at least one mass."""
+    """The plot was found and every kind has at least FOUND_LEAST plants in patches on it and a spacing."""
     found = json.loads((output / "concept.json").read_text())
-    kinds = json.loads(pathlib.Path(inputs["crops"]).read_text())["kinds"]
+    kinds = crop_data.read(inputs)["kinds"]
     if found["plot"] is None:
         return checks.Verdict("measured", checks.UNKNOWN, "SAM 3 found no plot on the concept")
-    short = [f"{kind}: {found['kinds'][kind]['count']} plants in patches" for kind, entry in kinds.items()
-             if found["kinds"][kind]["count"] < (1 if entry.get("canopy") else FOUND_LEAST)
-             or found["kinds"][kind]["spacing"] is None]
+    short = [f"{kind}: {found['kinds'][kind]['count']} plants in patches" for kind in kinds
+             if found["kinds"][kind]["count"] < FOUND_LEAST or found["kinds"][kind]["spacing"] is None]
     spacings = {f"{kind} spacing": found["kinds"][kind]["spacing"] or 0.0 for kind in kinds}
     reason = (f"{len(short)} of {len(kinds)} kinds under {FOUND_LEAST} plants: {', '.join(short)}" if short
               else f"{len(found['plants'])} plants of {len(kinds)} kinds on the plot")

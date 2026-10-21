@@ -1,7 +1,7 @@
 """crops-look@<place> (paid): the crops layer on its beds, rendered from above at a slant as the concept looks down
 on its plot, and its plants counted with SAM 3 the way the concept's were: the concept-density check on the render.
 
-    make     a stage of the beds alone (the scene record's bed boxes, nothing else of the place) with the crops layer
+    make     a stage of the beds alone (the plan's bed boxes, crop_data.beds_in, nothing else of the place) with the crops layer
              and its assets over it, rendered from VIEWS (tools/blender/inside/usd_views.py through
              tools/props/cloud/blender_cloud.py, the look's pictures); SAM 3 asked for every kind's nouns on each
              picture (box_masks_cloud.py), each plant once whatever noun found it; each plant's centre taken back
@@ -9,10 +9,10 @@ on its plot, and its plants counted with SAM 3 the way the concept's were: the c
              the kind of the bed it stands on;
              seen.json per view and kind: plants seen on the kind's beds and their spacing in plant widths
              (the median distance to the nearest seen neighbour over the made model's width)
-    gates    seen      every kind seen on its beds: at least SEEN_LEAST of its laid plants (a canopy at least one mass),
-                       in the view that sees it best
-             density   every plant kind's seen spacing within SEEN_WITHIN of the concept's (a canopy kind's is the
-                       crop data's word, not measured): the plants read as the concept's, not merged or sparse
+    gates    seen      every kind seen on its beds: at least SEEN_LEAST of its laid plants, in the view that sees it
+                       best
+             density   every kind's seen spacing within SEEN_WITHIN of the concept's: the plants read as the
+                       concept's, not merged or sparse
 """
 import json
 import math
@@ -176,8 +176,8 @@ def on_bed(spot, bed):
 
 def make_look(inputs, out, seed, params):
     """The beds and crops rendered on VIEWS, SAM 3 on each picture, seen.json."""
-    record = json.loads(pathlib.Path(inputs["crops"]).read_text())
-    beds = layer.beds_of(json.loads(pathlib.Path(inputs["scene"]).read_text()), record["beds"])
+    record = crop_data.read(inputs)
+    beds = crop_data.beds_in(inputs, record)
     crops_folder = pathlib.Path(inputs["crops-layer"])
     spots_record = json.loads((crops_folder / "spots.json").read_text())
     views = views_of(beds)
@@ -212,12 +212,12 @@ def best_seen(output, kind):
 
 
 def judge_seen(output, inputs, evidence):
-    """Every kind seen on its beds: at least SEEN_LEAST of its laid plants, a canopy at least one mass."""
-    record = json.loads(pathlib.Path(inputs["crops"]).read_text())
+    """Every kind seen on its beds: at least SEEN_LEAST of its laid plants."""
+    record = crop_data.read(inputs)
     failing = []
-    for kind, entry in record["kinds"].items():
+    for kind in record["kinds"]:
         found = best_seen(output, kind)
-        least = 1 if entry.get("canopy") else math.ceil(SEEN_LEAST * found["laid"])
+        least = math.ceil(SEEN_LEAST * found["laid"])
         if found["seen"] < least:
             failing.append(f"{kind}: {found['seen']} seen of {found['laid']} laid")
     return checks.Verdict("seen", checks.FAIL if failing else checks.PASS,
@@ -229,12 +229,10 @@ def judge_seen(output, inputs, evidence):
 
 def judge_density(output, inputs, evidence):
     """Every plant kind's seen spacing in plant widths within SEEN_WITHIN of the concept's."""
-    record = json.loads(pathlib.Path(inputs["crops"]).read_text())
+    record = crop_data.read(inputs)
     measured = json.loads((pathlib.Path(inputs["crops-concept"]) / "concept.json").read_text())["kinds"]
     failing, spacings = [], {}
-    for kind, entry in record["kinds"].items():
-        if entry.get("canopy"):
-            continue
+    for kind in record["kinds"]:
         wanted, got = measured[kind]["spacing"], best_seen(output, kind)["spacing"]
         spacings[f"{kind} spacing"] = got or 0.0
         if got is None:
