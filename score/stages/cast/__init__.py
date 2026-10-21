@@ -22,8 +22,8 @@ shows, each placed in the place with a clip, and measured against the concept an
 `drapes` (no body in the rejected Newton drapes) is retired, 2026-10-13: the SOMA-shell rig (the owner, 2026-10-12
 21:40) replaced the drapes route, and the people rows' per-clip, shell and outline gates judge the cloth now.
 
-Only places whose concept shows people (PLACES) have the row. Nothing reads its output yet: the characters layer is
-written from it once every look is made (the people agent's route), and the assembly takes that layer then.
+Only places whose concept shows people (PLACES), or whose record names people for its count_reason, have the row. The
+characters layer (layer.py) reads its output and lays each person whose look's dressed body stands usable.
 """
 import json
 import pathlib
