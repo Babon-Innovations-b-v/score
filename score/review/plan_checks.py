@@ -21,7 +21,8 @@ ROUND = 24  # sides of a circle's polygon
 FLOOR_ANCHORS = ("floor", "ground")
 PEOPLE = {"person", "people", "crowd", "man", "woman", "child", "figure", "pedestrian", "astronaut", "worker"}
 AFAR = {"distant", "far", "background", "faraway"}
-KINDS = ("placed", "outside", "overlap", "reach", "tiling", "arrangement", "joined")  # the gaps' kinds written here
+CROWD = {"crowd", "crowds", "audience", "spectators"}  # a people row the cast stands as a far crowd, no spots
+KINDS = ("placed", "people", "outside", "overlap", "reach", "tiling", "arrangement", "joined")  # the gaps' kinds
 # The arrangement against the concept: two rows' order counts where clear in both, the concept's as shares of its
 # picture, the plan's as a share of its reach; left and right only for rows at about one depth (perspective).
 SAME_DEPTH = 0.12
@@ -167,6 +168,16 @@ def people(inventory):
     return {row["id"] for row in inventory.get("rows", []) if last_words(row) & PEOPLE}
 
 
+def crowd(row):
+    """Whether a people row is a crowd (the cast's far crowd, never single person spots)."""
+    return bool(last_words(row) & CROWD or set(row["id"].split("_")) & CROWD)
+
+
+def person_rows(inventory):
+    """The people rows stood as person spots (plan["people"] entries [x, y, facing, row]): every one but a crowd."""
+    return [row for row in inventory.get("rows", []) if row["id"] in people(inventory) and not crowd(row)]
+
+
 def afar(inventory):
     """The ids of the rows seen far off (AFAR in their id: a distant crowd): outside the place on purpose."""
     return {row["id"] for row in inventory.get("rows", []) if set(row["id"].split("_")) & AFAR}
@@ -186,7 +197,7 @@ def count_gaps(plan, inventory, structure):
     placed = collections.Counter()
     for _, row, shape in placed_items(plan):
         placed[row] += int((shape or {}).get("count") or 1)
-    gaps, beyond = [], set(plan.get("beyond", []))
+    gaps, beyond = [], set(plan.get("beyond", [])) | people(inventory)  # people stand on person spots
     for row in inventory.get("rows", []):
         if row["id"] in structure | beyond or (row.get("anchor") or "floor") not in FLOOR_ANCHORS:
             continue
@@ -195,6 +206,17 @@ def count_gaps(plan, inventory, structure):
             gaps.append({"kind": "placed", "item": row["id"], "row": row["id"],
                          "words": f"{said_name(row['id'])}: {count} in the concept, {placed[row['id']]} on the plan"})
     return gaps
+
+
+def people_gaps(plan, inventory):
+    """A gap for each people row (no crowd) stood on fewer person spots than the concept shows (owner, 2026-10-21:
+    people are never furniture; the cast stands on these spots)."""
+    stood = collections.Counter(spot[3] for spot in plan.get("people", []) if len(spot) >= 4)
+    return [{"kind": "people", "item": row["id"], "row": row["id"],
+             "words": f"{said_name(row['id'])}: {int(row.get('count', 1) or 1)} in the concept, "
+                      f"{stood[row['id']]} person spots on the plan"}
+            for row in person_rows(inventory) if row["id"] not in set(plan.get("beyond", []))
+            and stood[row["id"]] < int(row.get("count", 1) or 1)]
 
 
 def outside(polygon, grid, outline):
@@ -572,7 +594,7 @@ def checked(plan, inventory, structure=()):
                               if not set(plan.get("rows", {}).get(item[0]) or []) & structure]}
     grid = Grid(plan)
     outline = grid.covered(outline_of(plan))
-    return (count_gaps(plan, inventory, set(structure)) + outside_gaps(plan, inventory, grid, outline)
+    return (count_gaps(plan, inventory, set(structure)) + people_gaps(plan, inventory) + outside_gaps(plan, inventory, grid, outline)
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
             + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + frame_gaps(plan, inventory)
             + facing_gaps(plan, inventory) + run_gaps(plan, inventory) + join_gaps(plan, inventory))
