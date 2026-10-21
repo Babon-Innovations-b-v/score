@@ -52,10 +52,31 @@ def test_a_ship_deck_has_no_seam_round_a_grate():
     assert round(span[0] - min(low for low, _ in gaps), 4) == 0.004, (span, gaps)
 
 
+def test_the_kit_reads_the_creators_kept_design():
+    """Where his plan and scene inventory are kept ({home}/design), the kit lays from them, never the filed ones; the
+    picked concept is no input of it; a place with none kept keeps the filed plan and inventory."""
+    import tempfile
+    import score.stages as stages
+    held = stages.PROPS_HOME
+    with tempfile.TemporaryDirectory() as folder:
+        stages.PROPS_HOME = pathlib.Path(folder)
+        try:
+            for kind, suffix in (("plans", "json"), ("inventory", "json"), ("concepts", "png")):
+                (stages.PROPS_HOME / "design" / kind).mkdir(parents=True)
+                (stages.PROPS_HOME / "design" / kind / f"quarters.{suffix}").write_text("{}")
+            kept, cockpit = ship_kits.STAGE.files("quarters"), ship_kits.STAGE.files("cockpit")
+        finally:
+            stages.PROPS_HOME = held
+    assert kept["plan"] == "{home}/design/plans/{place}.json", kept
+    assert kept["inventory"] == "{home}/design/inventory/{place}.json", kept
+    assert "concept" not in kept and set(kept) == set(ship_kits.filed("quarters"))
+    assert cockpit == ship_kits.filed("cockpit"), cockpit
+
 if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     test_the_kit_keeps_only_the_named_pipeline_failures()
     test_a_ship_deck_has_no_seam_round_a_grate()
-    print("ship_kits: 2 tests pass")
+    test_the_kit_reads_the_creators_kept_design()
+    print("ship_kits: 3 tests pass")

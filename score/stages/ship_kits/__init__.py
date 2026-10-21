@@ -5,7 +5,8 @@ strips, door leaves, grates, frame ribs, windows), baked with the material libra
     .venv/bin/python -m score.stages.ship_kits run <place> [<place> ...]
     .venv/bin/python -m score.stages.ship_kits status <place> [<place> ...]
 
-tools/props/scene/ship_kit.py writes the place's whole layout from its plan and inventory; the stage keeps its code
+tools/props/scene/ship_kit.py writes the place's whole layout from its plan and inventory (the creator's kept design
+where it is kept, `files`); the stage keeps its code
 pieces only (a row the inventory makes by the prop route comes from its own take, and route.py plan refuses it as
 "generated kinds with no labelled parts"); route.py plan sorts them into make_kit.py jobs; library_bake.py runs them.
 The layout, the plan and the made models with make_kit's reports are the output. route.py's `layout` and `install`
@@ -20,7 +21,7 @@ import pathlib
 import subprocess
 
 from score import checks, contracts, graph
-from score.stages import late_bake
+from score.stages import creator_plan, late_bake
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -61,11 +62,20 @@ def make_kit(inputs, out, seed, params):
     (out / "made").mkdir(exist_ok=True)
 
 
+def files(place):
+    """filed, with the creator's design in place of the filed plan and inventory where his are kept (the plan row's
+    stages.creator_plan: {home}/design/plans and {home}/design/inventory): the shell is laid from his locked design's
+    room, never the old filed one. The plan row's picked concept is left out: the kit never reads a picture."""
+    designed = creator_plan(filed)(place)
+    return {name: designed[name] for name in filed(place)}
+
+
 SHIP_KIT = contracts.Contract("ship-kit", 1, late_bake.late_faults, {"length": "metre", "up axis": "Y"})
 
 
-def files(place):
-    """The place's plan and inventory, the kit layout script and the route's and library's files."""
+def filed(place):
+    """The place's filed plan and inventory (data/plans, data/inventory), the kit layout script and the route's and
+    library's files."""
     return {"plan": "{data}/plans/" + f"{place}.json", "inventory": "{data}/inventory/" + f"{place}.json",
             "ship kit": "{repo}/tools/props/scene/ship_kit.py", "room kit": "{repo}/tools/props/scene/room_kit.py",
             "library": "{repo}/data/library/materials.json", "pictures": "{repo}/data/library/pictures",
