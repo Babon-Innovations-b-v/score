@@ -138,6 +138,22 @@ def test_a_row_laid_as_another_row_s_object_keeps_its_own_row_and_model():
     assert laid[0]["size"] == [0.91, 1.09, 0.68] and np.allclose(laid[0]["z"], [-1.0, 0.0, 0.0])
 
 
+def test_a_kit_s_lamps_are_its_glowing_rows_never_a_typed_light():
+    """A new reading's lamp row (no `light` on it) is lit by the library's lamp for its mount and how high it is laid;
+    a locker carrying a typed light is not; a walkway tube's crown lamp is lit as its inventory row reads."""
+    import lamps
+    rows = [{"id": "pendant", "noun": "lamp", "anchor": "ceiling", "made": "kit piece", "group": "kit: light"},
+            {"id": "locker", "noun": "locker", "anchor": "floor", "made": "kit piece",
+             "light": {"strength": 9.0, "reach": 9.0, "high": 0.5}}]
+    pieces = [{"kind": "lab_pendant", "at": [0.0, 3.1, 0.0]}, {"kind": "lab_locker", "at": [1.0, 0.0, 0.0]}]
+    table = room_kit.kinds_table("lab", {"rows": rows}, pieces)
+    assert table["lab_pendant"]["light"] == lamps.light_of(rows[0], pieces[:1]) and table["lab_pendant"]["light"]["shadows"]
+    assert "light" not in table["lab_locker"]
+    tube = json.loads((room_kit.REPO / "data/inventory/tube.json").read_text())
+    crown = tube_kit.kinds_table(tube, tube_kit.bay() + tube_kit.end())["tube_crown_strip_lamp"]
+    assert crown["light"]["reach"] > 0 and crown["light"]["shadows"], crown
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:
