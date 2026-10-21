@@ -172,12 +172,13 @@ def face_surfaces(geometry, points, names):
 def sound_of(variant, variants, sounds):
     """A library surface's sounds: the surface it sounds like (its own, else its family's) and that surface's
     footstep, impact, scrape and absorption; None for a part named after a place's own material that is no library
-    surface (the hub's older `brushed_steel`), whose sound is not known."""
+    surface (the hub's older `brushed_steel`), or a surface data/sound/surfaces.json does not name: its sound is not
+    known, and none stands in for it."""
     if variant not in variants:
         return None
     surface = variants[variant].get("surface") or library.theme_library()["families"][variants[variant]["family"]]["surface"]
-    entry = sounds["surfaces"].get(surface, sounds["fallback"])
-    return dict(entry, surface=surface)
+    entry = sounds["surfaces"].get(surface)
+    return None if entry is None else dict(entry, surface=surface)
 
 
 # --- the asset of one model ---------------------------------------------------------------------------------------

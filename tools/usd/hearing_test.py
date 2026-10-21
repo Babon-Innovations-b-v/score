@@ -1,7 +1,9 @@
 """Check what a camera hears (tools/usd/hearing.py) without Blender and without the world's release: on a small stage of
 the hub made here (sound.py's layer over it, with a world folder of short made sounds), a spatial sound is heard louder
 near it and on the side it stands; a shown place's room tone is not heard, and outside (the place's own room on the
-suit's bus) only what the boots feel carries; a walk steps on the floor's footstep and a stand does not; every track is
+suit's bus) only what the boots feel carries; a walk steps on the floor's footstep and a stand does not; a step sounds
+as the library finish under it (a library tile's by its `score:surface`), a baked piece naming none as the finished
+floor it lies on, and with no finish under the feet as nothing; every track is
 mixed at the one gain, so a quieter stage stays quieter, its peak under the ceiling; and a bed is what the camera hears
 standing before its first moment.
 
@@ -62,6 +64,17 @@ def small_stage(out):
     floor.CreateFaceVertexIndicesAttr([0, 2, 1, 0, 3, 2])
     deck = UsdShade.Material(base.GetPrimAtPath(f"/{PLACE}/Library/deck"))
     UsdShade.MaterialBindingAPI.Apply(floor.GetPrim()).Bind(deck)
+    UsdShade.Material.Define(base, f"/{PLACE}/Library/rubber_floor_bumpy")
+    tile = UsdShade.Material.Define(base, f"/{PLACE}/Looks/rubber_floor_bumpy")
+    tile.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set("rubber_floor_bumpy")
+    for name, low, high, height, look in (("plate_1", 10, 14, 0.05, "baked"), ("mat_1", 20, 24, 0.02, "tile"),
+                                          ("platform_1", -28, -24, 5.0, "baked")):
+        piece = UsdGeom.Mesh.Define(base, f"/{PLACE}/Objects/{name}/geo")
+        piece.CreatePointsAttr([(low, height, -2), (high, height, -2), (high, height, 2), (low, height, 2)])
+        piece.CreateFaceVertexCountsAttr([3, 3])
+        piece.CreateFaceVertexIndicesAttr([0, 2, 1, 0, 3, 2])
+        bound = tile if look == "tile" else UsdShade.Material.Define(base, f"/{PLACE}/Objects/{name}/Looks/baked")
+        UsdShade.MaterialBindingAPI.Apply(piece.GetPrim()).Bind(bound)
     base.GetRootLayer().Save()
     root = Sdf.Layer.CreateNew(str(out / f"{PLACE}.usda"))
     root.subLayerPaths.append("./layers/edit.usda")
@@ -120,6 +133,22 @@ def check_the_footsteps(sound, hearing, out):
     assert np.abs(walked).max() > 0 and not np.abs(stood).any()
 
 
+def check_the_finish_underfoot(sound, hearing, out):
+    """A step sounds as the library finish under it: the deck's, a library tile's by the surface it names, the deck's
+    again on a baked plate laid over it, and nothing on a baked platform with no finished floor under it."""
+    stage = Usd.Stage.Open(str(out / f"{PLACE}.usda"))
+    meshes = hearing.floor_meshes(stage, PLACE)
+
+    def heard(x, height=0.0):
+        bank = hearing.footstep_of(stage, PLACE, hearing.floors_under(meshes, np.array([x, height + 0.05, 0.0])))
+        return bank.GetName() if bank else None
+    deck = stage.GetPrimAtPath(f"/{PLACE}/Library/deck").GetRelationship("score:sound:footstep").GetTargets()
+    assert deck and heard(0.0) == deck[0].name, (deck, heard(0.0))
+    assert heard(12.0) == deck[0].name, heard(12.0)
+    assert heard(22.0) == "footsteps_rubber" != deck[0].name, heard(22.0)
+    assert heard(-26.0, 5.0) is None, heard(-26.0, 5.0)
+
+
 def check_one_level(sound, hearing, out):
     """The soundtrack is mixed at one gain: halving every source halves the track; nothing passes the ceiling."""
     loud = np.full((4800, 2), 0.01)
@@ -141,6 +170,7 @@ def main():
         world_folder(folder / "world", sound)
         small_stage(folder / "stage")
         sound.write_layer(PLACE, folder / "stage")
+        check_the_finish_underfoot(sound, hearing, folder / "stage")
         check_the_soundtrack(sound, hearing, folder / "stage")
         check_what_is_heard(sound, hearing, folder / "stage")
         check_the_footsteps(sound, hearing, folder / "stage")

@@ -155,14 +155,12 @@ def moving_uses(inputs):
 
 
 def bank_uses(surfaces):
-    """Every surface's footstep, impact and scrape, and the fallback footstep, as bank sounds."""
+    """Every surface's footstep, impact and scrape as bank sounds."""
     found = {}
     for surface, sounds in surfaces["surfaces"].items():
         for happening in HAPPENINGS:
             if sounds.get(happening):
                 found.setdefault(sounds[happening], []).append(f"{surface} {happening}")
-    if surfaces.get("fallback", {}).get("footstep"):
-        found.setdefault(surfaces["fallback"]["footstep"], []).append("fallback footstep")
     return [{"sound": name, "role": "bank", "on": ", ".join(where), "from": "data/sound/surfaces.json"}
             for name, where in found.items()]
 
