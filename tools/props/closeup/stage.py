@@ -122,13 +122,14 @@ def rows_from_inventory(inventory):
             for row in inventory["rows"] if sorter.row_route(inventory["scene"], row) == "model" and row.get("box")]
 
 
-def gate_problems(rows):
+def gate_problems(rows, found=None):
     """Why rows may not be drawn: the box gate (../scene/box_check.py gate()) must pass every row's box first, and a
     row naming no scene cannot be gated. Unknown blocks like a fail: a typed box made the camp's close-ups of the
-    wrong things (2026-10-09)."""
+    wrong things (2026-10-09). `found`: the scene inventory to gate (a designed place's hand-in), else each scene's
+    own file."""
     sys.path.insert(0, str(HERE.parent / "scene"))
     import box_check
-    gates = {scene: box_check.gate(scene) for scene in {row.get("scene") for row in rows} if scene}
+    gates = {scene: box_check.gate(scene, found) for scene in {row.get("scene") for row in rows} if scene}
     problems = []
     for row in rows:
         if not row.get("scene"):

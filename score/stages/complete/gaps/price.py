@@ -54,12 +54,9 @@ MISSING = "missing"
 # The code work whose make, once it lands, is Pixal3D's, a model a gap: (its work line's pattern, its label), priced
 # at pixal's measured per unit after that work (code_work).
 PIXAL_WORK = ((r"^Pixal3D take lost", "pixal: the lost Pixal3D takes made again"),)
+TAKE_RULES = ("prop_takes", "models")  # the forecast rules counting a place's takes (a designed place's: design_takes)
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
-# The provider's bill over the cloud ledger's sum for 2026-10 up to 2026-10-10 (EUR 627.74 against 547.31: disks,
-# addresses, storage and registry the ledger misses; paper/evidence/cloud/cost-tables-2026-10.txt): what a card or
-# processor layer's ledger euros come to on the bill (prepare's batch estimate; prop_batch.py prices its card steps
-# with the same figure).
-BILL_SHARE = 627.74 / 547.31
+BILL_SHARE = compute.BILL_SHARE  # the runner's (compute.bill_share); prop_batch.py prices its card steps by it too
 
 
 def own_tables():
@@ -146,15 +143,30 @@ def rule_units(rule, found, data, place):
     raise ValueError(f"unknown forecast rule {rule!r} in {compute.PER_UNIT}")
 
 
+def design_takes(node):
+    """The takes a designed place's node makes, as prepare priced them (its hand-in, prepare/handin.py: each bought
+    take's `stages`; [] when it counts none of the stage), or None when the place has no design's hand-in or the stage
+    is not made a take at a time (its forecast rule counts no takes: a rough model is one a place)."""
+    from score.stages.props import prop_data
+    stage, _, place = node.partition("@")
+    rule = ((compute.per_unit(stage) or {}).get("forecast") or {}).get("rule")
+    if not place or rule not in TAKE_RULES or not prop_data.designed(place):
+        return None
+    takes = prop_data.record_at(prop_data.path_of(place)).get("takes", {})
+    return sorted(take for take, entry in takes.items() if stage in entry["stages"])
+
+
 def forecast_units(node, found, data):
-    """The units a make of the node is forecast to make by its stage's rule (PER_UNIT's `forecast`, times its
-    `per_model` where a model makes more than one unit), or None when its stage has no rule (an `also` stage has none
-    of its own) or nothing is counted; `found` are the place's gaps."""
+    """The units a make of the node is forecast to make: a designed place's takes of its stage (design_takes, the
+    takes prepare priced), else by its stage's rule (PER_UNIT's `forecast`); times its `per_model` where a model makes
+    more than one unit; None when its stage has no rule (an `also` stage has none of its own) or nothing is counted;
+    `found` are the place's gaps."""
     stage, _, place = node.partition("@")
     entry = compute.per_unit(stage)
     if entry is None or entry["stage"] != stage or not entry.get("forecast"):
         return None
-    units = rule_units(entry["forecast"]["rule"], found, data, place)
+    designed = design_takes(node)
+    units = len(designed) if designed is not None else rule_units(entry["forecast"]["rule"], found, data, place)
     return round(units * entry["forecast"].get("per_model", 1), 2) if units else None
 
 

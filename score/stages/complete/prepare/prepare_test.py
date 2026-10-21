@@ -16,8 +16,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 from score import stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.stages.complete.gaps import price  # noqa: E402
-from score.stages.complete.prepare import (__main__ as prepare, benchmarks, contract, design, estimate,  # noqa: E402
-                                           groups, library, machines, predict)
+from score.stages.complete.prepare import (__main__ as prepare, benchmarks, contract, design,  # noqa: E402
+                                           estimate, groups, handin, library, machines, predict)
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 
@@ -292,6 +292,47 @@ def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     assert record["across_places"]["takes"] <= counts["bought"]
     assert record["design"]["places"]["garage"]["hint"] == "K04"  # the old plan's pick, a hint only
     assert set(record["design"]["places"]) == set(stages.places(runner.world))
+
+
+def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_them():
+    from score.stages.props import prop_data
+    from score.stages.surfaces import surface_data
+    sha = "d" * 64
+    rows = [{**a_read_row("fuel_drum", "generate", "drum", 2), "size": [0.6, 0.6, 0.9]},
+            {**a_read_row("crate", "generate", "crate"), "size": [0.5, 0.4, 0.4]},
+            {**a_read_row("wall_panel", "code", "wall"), "anchor": "wall", "size": [1.2, 0.06, 1.1]},
+            {**a_read_row("astronaut", "generate", "astronaut"), "size": [0.5, 0.4, 1.8]},
+            {**a_read_row("night_sky", "generate", "sky"), "anchor": "sky"}]
+    store = a_read_store("wreck", sha, rows, picture=[100, 100])
+    runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
+    record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
+    route = price.route_stages(runner)
+    home = pathlib.Path(tempfile.mkdtemp())
+    prop_data.DESIGN = home / "props"
+    surface_data.DESIGN = stages.surfaces.data.DESIGN = home / "surfaces"  # the table's own import too
+    try:
+        assert handin.kept(store, record, route, ["wreck"]) == (["wreck"], ["wreck"])
+        assert handin.kept(store, record, route, ["wreck"]) == (["wreck"], [])  # unchanged: no key moves
+        assert prop_data.applies("wreck") and prop_data.pattern("wreck") == "{home}/design/props/wreck.json"
+        assert prop_data.pixal_files("wreck")["inventory"] == prop_data.pattern("wreck")
+        assert surface_data.pattern("wreck") == "{home}/design/surfaces/wreck.json"
+        bought = [take for take in record["takes"] if take["status"] == "bought"]
+        assert all(sha[:8] in take["take"] for take in bought)  # a re-pick names new takes: their keys move
+        models = sorted(take["take"] for take in bought if take["route"] in groups.MODEL_ROUTES)
+        assert price.design_takes("pixal@wreck") == models and price.design_takes("sound@wreck") is None
+        assert sorted(surface_data.takes("wreck")) == sorted(take["take"] for take in bought if not take["shell"]
+                                                             and take["route"] in groups.MODEL_ROUTES)
+        for stage, layer in record["layers"].items():  # every layer prepare priced, the runner's node priced the same
+            units = price.forecast_units(f"{stage}@wreck", [], REPO / "data")
+            assert units == layer["units"], (stage, units, layer["units"])
+            if layer["price"]["likely_euros"] is not None:
+                runner_price = compute.forecast_price(f"{stage}@wreck", units)
+                assert round(runner_price["likely_euros"], 2) == layer["price"]["likely_euros"], stage
+                assert round(runner_price["high_euros"], 2) == layer["price"]["high_euros"], stage
+        handin.kept(store, record, route, [])  # a place no longer designed: its hand-in goes, its rows with it
+        assert not prop_data.applies("wreck") and not surface_data.designed("wreck")
+    finally:
+        prop_data.DESIGN = surface_data.DESIGN = stages.surfaces.data.DESIGN = home / "none"
 
 
 class NoKeys:

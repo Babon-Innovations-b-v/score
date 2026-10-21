@@ -9,12 +9,18 @@ object goes the prop route first, and only one whose measured checks fail is bui
                                   | {"route": "code", "code_model": <the code build's .gltf>, "closeup": <...>}},
      "fallback": {<row>: <the code build's .gltf> | null}}
 
+A designed place's hand-in is its approved design's instead (DESIGN, `{home}/design/props/<place>.json`, written by
+prepare from the takes it priced: score/stages/complete/prepare/handin.py): the same `objects`, and in the same file
+the scene inventory its rows are drawn and built from (its picked concept the view). It stands in place of the
+data/props file, so a re-pick re-keys the rows that read it; a place with neither has no prop-route rows (waiting on
+its design).
+
 `closeup` names a close-up already drawn (a pattern, as the files below); without one the close-up row draws it from
 the row's box in its concept view. `fallback` holds the prop objects that failed their checks, each with its code
 build (null: no builder yet, an agent must write one); the paid rows read only the prop objects' part of the file, so
-moving an object there re-makes no paid row. A place with no file has no prop-route rows (`applies`): no world 1 place
-has one yet. FOLDER is the repository's; the comparison (compare.py) points it, and the surface stage's, at its own
-copy of the data.
+moving an object there re-makes no paid row. A place with no file has no prop-route rows (`applies`). FOLDER is the
+repository's; the comparison (compare.py) points it, and the surface stage's, at its own copy of the data (and DESIGN
+at none).
 
 The rows import the prop tools inside their functions, under `tools()`, which puts the tools' folders on the path
 and takes them off again: a folder left on the path at the table's import adds files to other stages' code versions
@@ -25,11 +31,14 @@ Kept apart from the rows' code on purpose: every row's code version hashes this 
 """
 import contextlib
 import json
+import os
 import pathlib
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FOLDER = REPO / "data/props"
+# The designed places' hand-ins (prepare's handin.py), under the prop tools' home (tools/props/paths.py HOME).
+DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "design" / "props"
 INPUTS_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "box check": "{repo}/tools/props/scene/box_check.py"}
 CLOSEUP_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "google spend": "{repo}/tools/props/cloud/google_spend.py"}
 PIXAL_TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
@@ -52,8 +61,23 @@ def tools(*folders):
         sys.path[:] = kept
 
 
+def designed(place):
+    """Whether the place's hand-in is its approved design's (DESIGN)."""
+    return (DESIGN / f"{place}.json").exists()
+
+
+def path_of(place):
+    """The place's hand-in file: its design's, else data/props'."""
+    return DESIGN / f"{place}.json" if designed(place) else FOLDER / f"{place}.json"
+
+
 def pattern(place):
-    return "{data}/props/" + f"{place}.json"
+    return ("{home}/design/props/" if designed(place) else "{data}/props/") + f"{place}.json"
+
+
+def inventory_pattern(place):
+    """The scene inventory its rows are drawn from: a designed place's hand-in itself, else data/inventory's."""
+    return pattern(place) if designed(place) else "{data}/inventory/" + f"{place}.json"
 
 
 def record_at(path):
@@ -62,12 +86,12 @@ def record_at(path):
 
 def applies(place):
     """Whether the place makes objects by the prop route (it has a file)."""
-    return (FOLDER / f"{place}.json").exists()
+    return path_of(place).exists()
 
 
 def objects(place):
     """{row: entry} of the place's file; none without one."""
-    return record_at(FOLDER / f"{place}.json")["objects"] if applies(place) else {}
+    return record_at(path_of(place))["objects"] if applies(place) else {}
 
 
 def prop_objects(record):
@@ -88,7 +112,7 @@ def closeup_files(place):
 
 def view_files(place):
     """{name: pattern} of the place's concept views (WORK/ is the seeds' work folder)."""
-    inventory = FOLDER.parent / "inventory" / f"{place}.json"
+    inventory = path_of(place) if designed(place) else FOLDER.parent / "inventory" / f"{place}.json"
     views = record_at(inventory)["plan"]["views"] if inventory.exists() else []
     return {f"view {view['id']}": view["picture"].replace("WORK/", "{seeds}/") for view in views}
 
@@ -96,7 +120,7 @@ def view_files(place):
 def inputs_files(place):
     """The inputs row's files: the place's file, its inventory and concept views, every close-up named, the inventory
     folder (the box gate reads the scene's inventory) and its tools."""
-    return {"props": pattern(place), "inventory": "{data}/inventory/" + f"{place}.json",
+    return {"props": pattern(place), "inventory": inventory_pattern(place),
             "inventories": "{data}/inventory", **view_files(place), **closeup_files(place), **INPUTS_TOOLS}
 
 
@@ -108,18 +132,19 @@ def closeup_row_files(place):
 def pixal_files(place):
     """The Pixal3D row's: the prop objects' takes, the place's inventory (the batch builds only its rows), the place's
     surface data, which must list every take it makes, and its tools."""
-    return {"props": (pattern(place), prop_part), "inventory": "{data}/inventory/" + f"{place}.json",
-            "surfaces": "{data}/surfaces/" + f"{place}.json", **PIXAL_TOOLS}
+    return {"props": (pattern(place), prop_part), "inventory": inventory_pattern(place),
+            "surfaces": ("{home}/design/surfaces/" if designed(place) else "{data}/surfaces/") + f"{place}.json",
+            **PIXAL_TOOLS}
 
 
 def calibration_applies(place):
     """Whether the place's prop data names accepted models to calibrate DINOv2 on."""
-    return applies(place) and bool(record_at(FOLDER / f"{place}.json").get("accepted"))
+    return applies(place) and bool(record_at(path_of(place)).get("accepted"))
 
 
 def calibration_files(place):
     """The calibration row's: the place's file, each accepted model (its .gltf and buffer) and close-up, its tools."""
-    accepted = record_at(FOLDER / f"{place}.json").get("accepted", {}) if applies(place) else {}
+    accepted = record_at(path_of(place)).get("accepted", {}) if applies(place) else {}
     found = {"props": pattern(place), **LIKENESS_TOOLS}
     for model, entry in accepted.items():
         found.update({f"accepted model {model}": entry["model"],
@@ -131,10 +156,10 @@ def calibration_files(place):
 def likeness_files(place):
     """The likeness row's: the place's whole file, its inventory, every code build it names, the kinds' details
     (which kinds must stand square) and its tools."""
-    record = record_at(FOLDER / f"{place}.json") if applies(place) else {"objects": {}, "fallback": {}}
+    record = record_at(path_of(place)) if applies(place) else {"objects": {}, "fallback": {}}
     builds = {row: entry["code_model"] for row, entry in record["objects"].items() if entry["route"] == "code"}
     builds.update({row: model for row, model in record.get("fallback", {}).items() if model})
-    return {"props": pattern(place), "inventory": "{data}/inventory/" + f"{place}.json",
+    return {"props": pattern(place), "inventory": inventory_pattern(place),
             "details": "{data}/library/details.json", **LIKENESS_TOOLS,
             **{f"code build {row}": model for row, model in builds.items()},
             **{f"code build {row} buffer": model.removesuffix(".gltf") + ".bin" for row, model in builds.items()}}

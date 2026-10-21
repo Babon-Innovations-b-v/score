@@ -7,6 +7,7 @@ import json
 import pathlib
 import re
 import struct
+import tempfile
 
 import pytest
 
@@ -17,6 +18,13 @@ import score.stages.props.closeup_row as closeup_row
 import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.align as align
 import score.stages.shapes_first.made as made
+from score.stages.surfaces import surface_data
+
+# These tests hold the data/props and data/surfaces places; a designed place's hand-in (the home's design/, which
+# the sandbox links) is prepare_test.py's, so none is read here.
+import score.stages.surfaces  # noqa: E402
+prop_data.DESIGN = surface_data.DESIGN = pathlib.Path(tempfile.mkdtemp()) / "no design"
+score.stages.surfaces.data.DESIGN = surface_data.DESIGN  # the table's own import of it (bare `surface_data`)
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 LOOP = ("rough-model", "rough-align", "props-inputs", "closeup", "pixal", "finish-route-views", "likeness")

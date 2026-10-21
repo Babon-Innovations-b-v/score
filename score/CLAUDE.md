@@ -127,7 +127,8 @@ stage as each stage is built; nothing moves before.
   stage's forecast rule (`forecast_price`, PER_UNIT's `forecast`; the gaps' price, whose node is made again with what
   the gap adds; `score plan` and `score price` through `planned_units`, so the plan's stop line rests on the same
   measured per unit prepare uses, #10) "per unit × forecast" first, else the same as the forecast (basis "measured
-  runs", then "per unit × counted"), and a node with none of these has no price: its estimate is kept apart as
+  runs", then "per unit × counted"; a per-unit price at `bill_share`, the provider's bill over the ledger, 1 for
+  Google calls, as prepare's figure), and a node with none of these has no price: its estimate is kept apart as
   `guess_euros`, with `guess_from` (`Stage.euros_from`, the line of the row that names it), never shown as a price
   (owner, 2026-10-18); `guard.py`: the environment's stop line, the owner's
   money figure, refuses a paid job before it starts when its forecast with the environment's spend since its first line and
@@ -175,7 +176,10 @@ stage as each stage is built; nothing moves before.
   on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly
   takes, gated on `rested` and `resting`. `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
-  apply only to a place with `data/props/<place>.json`, which only the camp grounds have (their cairn).
+  apply only to a place with a hand-in: its approved design's (`{home}/design/props/<place>.json`, written by
+  prepare from the takes it priced, `stages/complete/prepare/handin.py`; with it its surface data,
+  `{home}/design/surfaces/<place>.json`, and rough-model reads its picked concept), else `data/props/<place>.json`
+  (the ship rooms', the people's line). A place with neither has no rows: it waits on its design.
   `rough-model` (paid, `stages/rough_model`, its overlay) puts each place's concept through the prop pipeline whole,
   after its plan: one Pixal3D model, its rough model, never shipped. The shared loop (`stages/shapes_first`, its
   overlay, #41) is every model layer's one way to a model: rough model, `rough-align` (its registration to the plan,

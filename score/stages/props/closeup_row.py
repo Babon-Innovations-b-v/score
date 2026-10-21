@@ -71,6 +71,16 @@ def inputs_faults(folder):
     return [] if (folder / "rows.json").exists() else ["no rows.json"]
 
 
+def designed_inventory(inputs):
+    """A designed place's hand-in as the box gate reads it (its views' pictures the declared files), else None: the
+    gate reads the scene's own inventory file."""
+    found = json.loads(inputs["inventory"].read_text())
+    if "objects" not in found:
+        return None
+    views = [{**view, "picture": str(inputs[f"view {view['id']}"])} for view in found["plan"]["views"]]
+    return {**found, "plan": {**found["plan"], "views": views}}
+
+
 def judge_inputs(output, inputs, evidence):
     """Every object is an inventory row, and has a drawn close-up or a box the close-up stage's box gate passes."""
     found = json.loads((output / "rows.json").read_text())
@@ -79,7 +89,7 @@ def judge_inputs(output, inputs, evidence):
     failing += [f"{row['id']}: no close-up and no box" for row in to_draw if not row["box"]]
     stage, _ = closeup_tools()
     with prop_data.tools("props/scene"):  # the box gate puts its folder on the path when it runs
-        failing += stage.gate_problems([row for row in to_draw if row["box"]])
+        failing += stage.gate_problems([row for row in to_draw if row["box"]], designed_inventory(inputs))
     return verdict("boxed or drawn", failing, len(found["rows"]) + len(found["not_in_inventory"]), "objects")
 
 

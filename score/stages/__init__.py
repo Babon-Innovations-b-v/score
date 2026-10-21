@@ -378,6 +378,8 @@ def box_checked(files):
     the old failed boxes and stayed failed with its key unmoved). Wrapped here, in the table, so no row's code moves."""
     @functools.wraps(files)
     def declared(place):
+        if prop_data.designed(place):  # its boxes are SAM 3's in its reading, in its hand-in (prepare/handin.py)
+            return files(place)
         return {**files(place), "decided boxes": "{seeds}/partition/" + f"{place}/boxes.json"}
     return declared
 
@@ -393,10 +395,28 @@ def scene_inventory_read(files):
         found = files(place)
         if found.get("inventories") != "{data}/inventory":
             return found
+        if prop_data.designed(place):  # a designed place's rows are its hand-in's (prepare/handin.py)
+            return {**found, "inventories": prop_data.pattern(place)}
         own = prop_data.FOLDER.parent / "inventory" / f"{place}.json"
         scene = json.loads(own.read_text()).get("scene", place) if own.exists() else place
         return {**found, "inventories": "{data}/inventory/" + f"{scene}.json"}
     return declared
+
+
+def designed_rough(row):
+    """rough-model reading a designed place's design (prop_data.designed): its picked concept (under
+    {home}/design/concepts) as its `concept` and its hand-in, the scene inventory the batch builds from, as its
+    `inventory`. Wrapped here, in the table, so a place without one keeps its key and no row's code moves."""
+    if row.name != "rough-model":
+        return row
+
+    @functools.wraps(row.files)
+    def declared(place):
+        found = row.files(place)
+        if not prop_data.designed(place):
+            return found
+        return {**found, "concept": "{home}/design/concepts/" + f"{place}.png", "inventory": prop_data.pattern(place)}
+    return dataclasses.replace(row, files=declared)
 
 
 def boxed_split(row):
@@ -451,8 +471,8 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(boxed_split,
-                                                                                         shapes_first.rows()))))),
+          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
+              boxed_split, map(designed_rough, shapes_first.rows())))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
           *light.ROWS, *crops.ROWS, COMPLETE_BOXES,
           surface_tiles.STAGE)

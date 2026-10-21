@@ -165,6 +165,19 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
             assert "on no row" in str(refused)
         else:
             raise AssertionError("a named pipeline failure's row was sent to be generated")
+        # a designed place's hand-in is approved by the creator's pick, its reading's rows taken as they stand
+        designed = {**inventory, "approved": {"by": batch.DESIGNED, "concept": "c" * 64}, "room": {},
+                    "rows": [{**rows[0], "anchor": "ground", "box": None}]}
+        path.write_text(json.dumps(designed))
+        listing.write_text(f"habitat-locker {picture}\n")
+        assert batch.from_the_inventory(batch.read_list(listing), [path]) >= {"r1"}
+        path.write_text(json.dumps({**designed, "scene": "lab"}))  # a hand-in under another place's name: page A's
+        try:
+            batch.from_the_inventory(batch.read_list(listing), [path])
+        except SystemExit as refused:
+            assert "not sound" in str(refused) or "not approved" in str(refused), refused
+        else:
+            raise AssertionError("a hand-in under another place's name was taken")
 
 
 def test_a_batch_builds_a_character_only_when_its_spec_is_approved():

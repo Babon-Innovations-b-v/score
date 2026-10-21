@@ -6,24 +6,32 @@ library knows the place by (`library`), its bake (`bake`: the model each take is
 written out where the route's own would not do; the job is written in the bake from git, bake_job.py), and the models
 it lays that another place claims (`elsewhere`: {model: {take, place}}, read from that place's bake); a place with nothing to paint lists
 no takes and says why (`nothing`). Every model is painted, the owner's picks included (a pick chooses the model,
-never its old paint: owner, 2026-10-12), and each take by one place only: a model is painted once world-wide.
+never its old paint: owner, 2026-10-12), and each take by one place only: a model is painted once world-wide. A
+designed place's surface data is its approved design's instead (DESIGN, `{home}/design/surfaces/<place>.json`, written
+by prepare with its hand-in: score/stages/complete/prepare/handin.py), so its line paints the takes the estimate prices.
 
 Kept apart from the rows' code on purpose: a paid row's code version hashes this module, so it stays small.
 """
 import json
+import os
 import pathlib
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FOLDER = REPO / "data/surfaces"
+DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "design" / "surfaces"
 PIXAL = "{home}/work/pixal"
 
 
+def designed(place):
+    return (DESIGN / f"{place}.json").exists()
+
+
 def path(place):
-    return FOLDER / f"{place}.json"
+    return DESIGN / f"{place}.json" if designed(place) else FOLDER / f"{place}.json"
 
 
 def pattern(place):
-    return "{data}/surfaces/" + f"{place}.json"
+    return ("{home}/design/surfaces/" if designed(place) else "{data}/surfaces/") + f"{place}.json"
 
 
 def record(place):

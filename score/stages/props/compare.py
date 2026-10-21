@@ -225,8 +225,8 @@ def use_data(place, order):
     """Point the prop route's and the surface stage's environment data at the order's copy (their FOLDERs), in this
     process and the nodes it forks."""
     data = order_folder(place, order) / "data"
-    prop_data.FOLDER = data / "props"
-    stages.surfaces.data.FOLDER = data / "surfaces"
+    prop_data.FOLDER, prop_data.DESIGN = data / "props", data / "props" / "no design"
+    stages.surfaces.data.FOLDER, stages.surfaces.data.DESIGN = data / "surfaces", data / "surfaces" / "no design"
     return data
 
 

@@ -365,13 +365,16 @@ def from_proposals(row, proposals):
 def row_verdict(row, size, proposals, recorded):
     """One row's gate verdict and why. Fail: a box outside its picture or the whole picture, a typed box, a box that
     is not the box round the proposals it names, or a box the measurement or the judge failed. Pass: a box from its
-    proposals that SAM 3 grounded or the judge passed. Unknown, which blocks like a fail: anything not yet
-    measured, or measured on a box that has changed since."""
+    proposals that SAM 3 grounded or the judge passed, or SAM 3's own box in a designed place's reading of its picked
+    concept (`grounded`, score/review/reading.py; its hand-in, score/stages/complete/prepare/handin.py). Unknown,
+    which blocks like a fail: anything not yet measured, or measured on a box that has changed since."""
     if row.get("box") is None:
         return (PASS, f"not in the concept: {row['unseen']}") if row.get("unseen") else (FAIL, "no box, no reason")
     problems = box_problems(row, size)
     if problems:
         return FAIL, "; ".join(problems)
+    if row.get("grounded"):
+        return PASS, f"grounded: {row['grounded']}"
     if typed(row):
         return FAIL, "typed: round numbers and no proposal it came from"
     if not row.get("box_from"):

@@ -50,8 +50,9 @@ TABLE = [row("pixal", ("scene-record",), paid=True, euros=20.0),
          row("plan", ("terrain",)),
          row("rough-model", ("plan",), paid=True, euros=4.0), row("shell-split", ("rough-model",)),
          row("scene-record", ("shell-split",)), row("library", ("demo-film", "complete"))]
+# Priced as their ledger says (sources: Google calls, no bill share), so the sums read straight off the euros.
 PER_UNIT = {"stages": {name: {"stage": name, "unit": "make", "count": {"one": True}, "also": [], "likely_euros": euros,
-                              "high_euros": euros * 2, "runs": 3, "sources": {},
+                              "high_euros": euros * 2, "runs": 3, "sources": {"google calls": "toy"},
                               "forecast": {"rule": "one", "source": "one a place"}}
                        for name, euros in (("terrain", 5.0), ("rough-model", 1.0), ("pixal", 0.5))}}
 

@@ -5,8 +5,11 @@ measured checks fail is built in code and checked again (owner, 2026-10-12, flip
 `props-inputs` (free, the box gate), `closeup` (paid, Nano Banana Pro through `tools/props/closeup/pro.py`), `pixal`
 (paid, `tools/props/cloud/batch.py`), then the surface line (its first row waits on `pixal`), then `likeness` (free;
 DINOv2 evidence gathered, paid). These rows are the shared loop's (`../shapes_first`, #41): the table takes them from
-`shapes_first.rows()`, and `props-inputs` waits on `rough-align` and holds every row to the registered floor. Environment data: `data/props/<place>.json` (`prop_data.py`); in environment 1 only the camp grounds have one (their cairn,
-2026-10-13).
+`shapes_first.rows()`, and `props-inputs` waits on `rough-align` and holds every row to the registered floor.
+Environment data (`prop_data.py`): a designed place's hand-in, `{home}/design/props/<place>.json` (`prop_data.DESIGN`,
+written by prepare from the takes it priced: `../complete/prepare/handin.py`; it is also the scene inventory its rows
+are drawn and built from, each SAM 3 box of its reading `grounded`, which the box gate passes), else
+`data/props/<place>.json` (the ship rooms', the people's line).
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
