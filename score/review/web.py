@@ -193,6 +193,36 @@ def reading_started(store, place, by, start=None):
     return str(log)
 
 
+def concept_discuss(store, place, request, euros, by, run=None):
+    """His Discuss on a concept review: his yes for exactly that one Gemini call at `euros` (the price his button
+    showed; refused when the measured price moved since), then the call as its own process inside it
+    (score/review/discuss.py); the discussion entry. review.Refused for an empty or the runner's name, a price that
+    moved, or a Discuss refused (its words); PermissionError in an agent's process."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from score.review import concepts, discuss
+    name = checked_by(by)
+    price = discuss.price()
+    if price is None or abs(float(euros) - price) > 0.005:
+        shown = "not measured" if price is None else f"EUR {price:.2f}"
+        raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
+                             "read the page again")
+    key = discuss.yes_key(place, review.now())
+    review.spend(store, "override", key, price, name, purpose=f"concept review: one Discuss of {place}'s draw (Gemini)")
+    asked = store.cache / concepts.AREA / "asked" / f"{key}.json"
+    asked.parent.mkdir(parents=True, exist_ok=True)
+    asked.write_text(json.dumps(request))
+    env = {**os.environ, "SCORE_SPEND_TICKET": f"override {key}", "SCORE_SPEND_STORE": str(store.cache.parent)}
+    done = (run or subprocess.run)([sys.executable, "-m", "score.review.discuss", place, str(asked), name],
+                                   env=env, capture_output=True, text=True, timeout=concepts.TIMEOUT + 60)
+    if done.returncode != 0:
+        raise review.Refused((done.stderr.strip().splitlines() or ["the Discuss failed"])[-1]
+                             .removeprefix("refused: "))
+    return json.loads(done.stdout.strip().splitlines()[-1])
+
+
 def environment_ask(store, world, request, euros, by, run=None):
     """His Send in the environment concept's set interview: his yes for exactly that one model call at `euros` (the
     price his Send showed; refused when the measured price moved since), then the ask as its own process inside it

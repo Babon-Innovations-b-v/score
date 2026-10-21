@@ -25,7 +25,7 @@ from score.dashboard.state import groups, screens
 from score.dashboard.state.files import file_ref
 from score.dashboard.state.models import ConceptDraw, ConceptWording, WorldState
 
-DRAW, PICK, WORDING = "concept-draw", "concept-pick", "concept-wording"
+DRAW, DISCUSS, PICK, WORDING = "concept-draw", "concept-discuss", "concept-pick", "concept-wording"
 OPEN = ("waiting", "picked_up", "running")
 
 
@@ -117,9 +117,42 @@ def corrected_in(item):
         return None
 
 
+def thread_of(world, place, base):
+    """[{question, answer, at, euros, closed}] of the Discuss entries about draw `base`, oldest first: the source's,
+    and hosted, those answered since its export; closed once a draw of the place was made after it (it went with that
+    draw, or was left), kept for the record."""
+    held = list(world.concept_discussions.get(place, []))
+    seen = {entry["at"] for entry in held}
+    for item in asked(place, DISCUSS):
+        if item.state == "done" and (entry := answer_of(item)).get("at") not in seen:
+            held.append(entry)
+    drawn = max((draw.at or "" for draw in draws_of(world, place)), default="")
+    return [{**entry, "closed": entry["at"] < drawn}
+            for entry in sorted(held, key=lambda entry: entry.get("at") or "") if base and entry.get("base") == base]
+
+
+def answer_of(item):
+    try:
+        found = json.loads(item.detail or "{}")
+    except ValueError:
+        return {}
+    return found if isinstance(found, dict) else {}
+
+
+def discussing_of(place):
+    """The owner's open Discuss request for the place, or None."""
+    return next((item for item in reversed(asked(place, DISCUSS)) if item.state in OPEN), None)
+
+
 def pending_of(place):
     """The owner's open draw request for the place, or None."""
     return next((item for item in reversed(asked(place, DRAW)) if item.state in OPEN), None)
+
+
+def discuss_refused_of(place):
+    """Why the place's newest Discuss was refused, when it was; else None."""
+    found = asked(place, DISCUSS)
+    return (found[-1].detail or "refused") if found and found[-1].state == "refused" else None
 
 
 def refused_of(place):
@@ -237,6 +270,8 @@ def concept_page(request, place):
     return render(request, "pages/concept.html", {
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
         "parents": parents_of(world, place, names), "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "replan": place in world.plan_changed, "euros": world.concept_draw_euros, "redraw_euros": world.concept_redraw_euros,
+        "discuss_euros": world.concept_discuss_euros, "thread": thread_of(world, place, shown and shown.picture.sha),
+        "discussing": bool(discussing_of(place)), "discuss_refused": discuss_refused_of(place),
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
         "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
@@ -278,7 +313,7 @@ def queued(request, place, kind, payload):
     model's time); its id."""
     item = SyncRequest.objects.create(kind=kind, user=request.user.username, payload={"place": place, **payload})
     if not actions.hosted():
-        (in_background if kind == DRAW else applied_here)(item.pk)
+        (in_background if kind in (DRAW, DISCUSS) else applied_here)(item.pk)
     return item.pk
 
 
@@ -309,6 +344,30 @@ def concept_draw(request, place):
     if body.get("wording") and not payload["base"]:
         payload["wording"] = str(body["wording"])  # whole: the store's machine refuses one too long, never cut
     return JsonResponse({"said": "asked", "request": queued(request, place, DRAW, payload)})
+
+
+@require_POST
+def concept_discuss(request, place):
+    """POST {base, question, marks, context_marks, euros}: the owner's Discuss click on the draw shown, its spend yes
+    at `euros` (the price his button showed); JSON {said, request}, or {detail} when refused."""
+    source = state.source()
+    world = light_world(source)
+    checked_node(world, source, place)
+    body = body_of(request)
+    if not is_owner(request.user):
+        return JsonResponse({"detail": "only the owner discusses a draw"}, status=403)
+    if body is None or not str(body.get("question") or "").strip():
+        return JsonResponse({"detail": "refused: write your question in the note first"}, status=422)
+    if picked_of(world, place):
+        return JsonResponse({"detail": "refused: the concept is locked; unlock it first"}, status=409)
+    if body.get("base") not in {draw.picture.sha for draw in draws_of(world, place)}:
+        return JsonResponse({"detail": "refused: that is no draw of this scene"}, status=422)
+    if discussing_of(place) or pending_of(place):
+        return JsonResponse({"detail": "refused: a Discuss or a draw of this scene is on its way"}, status=409)
+    payload = {"base": body["base"], "question": str(body["question"]).strip()[:2000],
+               "marks": body.get("marks") or [], "context_marks": body.get("context_marks") or [],
+               "euros": body.get("euros")}
+    return JsonResponse({"said": "asked", "request": queued(request, place, DISCUSS, payload)})
 
 
 @require_POST
@@ -420,11 +479,14 @@ def concept_pick(request, place):
 
 
 def concept_state(request, place):
-    """GET: {pending (a draw on its way), refused (why the newest draw was refused), newest (the newest draw's sha)}
-    for the page to ask until its draw is answered."""
+    """GET: {pending (a draw on its way), refused (why the newest draw was refused), newest (the newest draw's sha),
+    discussing (a Discuss on its way), discuss_refused (why the newest was refused), thread (the shown draw's,
+    `?draw=`)} for the page to ask until its draw or Discuss is answered."""
     source = state.source()
     world = light_world(source)
     checked_node(world, source, place)
     draws = draws_of(world, place)
     return JsonResponse({"pending": pending_of(place) is not None, "refused": refused_of(place),
-                         "newest": draws[-1].picture.sha if draws else None})
+                         "newest": draws[-1].picture.sha if draws else None,
+                         "discussing": discussing_of(place) is not None, "discuss_refused": discuss_refused_of(place),
+                         "thread": thread_of(world, place, request.GET.get("draw"))})

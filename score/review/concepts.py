@@ -988,11 +988,11 @@ def blob_picture(store, sha):
     return Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{sha}")))
 
 
-def redrawn(store, place, request, by, reviser):
-    """(wording, [PIL pictures], record fields) of a Redraw with notes: Gemini (`reviser(question, pictures)`) corrects
-    the prompt the base was drawn from by his notes, seeing the base boxed and clean and each picked concept he marked
-    (the layer above's, a joined place's) with its boxes; the corrected prompt is kept as the place's own wording; the
-    draw then sends it with every note and the same pictures."""
+def redraw_parts(store, place, request):
+    """{record, marks, note, context, pictures, prompt} of a redraw of the draw `request["base"]` (a Redraw with notes
+    and a Discuss send the same): the base's record, his marks and note checked, the base boxed and clean and each
+    picked concept he marked (the layer above's, a joined place's) with its boxes, and the prompt the base was drawn
+    from; Refused for no such draw or while the place waits."""
     base = request["base"]
     found = [record for record in draws(store, place) if record["sha"] == base]
     if not found:
@@ -1008,7 +1008,20 @@ def redrawn(store, place, request, by, reviser):
                                                           if mark.get("on") == name])
                  for name in dict.fromkeys(mark["on"] for mark in context)]
     prompt = found[-1].get("corrected") or found[-1].get("wording") or wording_now(store, place)
-    question = prompt_question(prompt, marks, context, note)
+    return {"record": found[-1], "marks": marks, "note": note, "context": context, "pictures": pictures,
+            "prompt": prompt}
+
+
+def redrawn(store, place, request, by, reviser):
+    """(wording, [PIL pictures], record fields) of a Redraw with notes: Gemini (`reviser(question, pictures)`) corrects
+    the prompt the base was drawn from by his notes and his open discussion of it (score/review/discuss.py), seeing
+    redraw_parts' pictures; the corrected prompt is kept as the place's own wording; the draw then sends it with every
+    note and the same pictures."""
+    from score.review import discuss
+    parts = redraw_parts(store, place, request)
+    marks, note, context, pictures = parts["marks"], parts["note"], parts["context"], parts["pictures"]
+    thread = discuss.open_thread(store, place, request["base"])
+    question = prompt_question(parts["prompt"], marks, context, note) + discuss.redraw_words(thread)
     corrected = checked_wording(reviser(question, pictures))
     if not corrected:
         raise Refused("the prompt model answered with no prompt")
@@ -1016,8 +1029,8 @@ def redrawn(store, place, request, by, reviser):
         worded(store, place, corrected, by)  # before the draw: a refused draw still keeps the paid correction
     calls = [{"model": PROMPT_MODEL, "asked": question, "answered": corrected}]
     return redraw_wording(corrected, marks, context, note), pictures, {
-        "corrected": corrected, "calls": calls, "context_marks": context, "picks": found[-1].get("picks"),
-        "blockout": found[-1].get("blockout")}
+        "corrected": corrected, "calls": calls, "context_marks": context, "picks": parts["record"].get("picks"),
+        "blockout": parts["record"].get("blockout"), "discussed": [entry["at"] for entry in thread]}
 
 
 def redraw_preview():

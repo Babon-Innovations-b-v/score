@@ -371,3 +371,67 @@ def test_draw_and_pick_are_disabled_with_the_reason_while_the_layer_above_is_not
     answer = owner.post("/concept/beta/pick/", json.dumps({"sha": sha}), content_type="application/json")
     assert answer.status_code == 409 and "plan to be made" in answer.json()["detail"]  # the server refuses the same
     assert drawing.picked(world.source.store, "beta") is None
+
+
+DISCUSS_PRICE = 0.04
+
+
+@pytest.fixture
+def answerer(world, stand_in, monkeypatch):
+    """The Discuss's own process run in-process with a stand-in prompt model; [what each Discuss was asked]."""
+    from score.review import discuss
+    asked = []
+    monkeypatch.setattr(discuss, "price", lambda *given: DISCUSS_PRICE)
+
+    def run(argv, env, **kwargs):
+        monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
+        model = lambda question, pictures: asked.append(question) or ("Paint the door red.", 0.0271)  # noqa: E731
+        entry = discuss.discuss(world.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1], asker=model)
+        return subprocess.CompletedProcess(argv, 0, json.dumps(entry) + "\n", "")
+    discussed_here = web.concept_discuss
+    monkeypatch.setattr(web, "concept_discuss", lambda *args, **named: discussed_here(*args, run=run, **named))
+    return asked
+
+
+def test_a_discuss_is_answered_under_the_note_kept_and_goes_with_the_next_draw(world, stand_in, answerer):
+    owner = signed_in()
+    owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    base = owner.get("/concept/beta/state/").json()["newest"]
+    page = owner.get("/concept/beta/").content.decode()
+    assert 'id="concept-discuss"' in page and "EUR 0.04" in page
+    asked = json.dumps({"base": base, "question": "is the door too small?", "euros": DISCUSS_PRICE})
+    assert owner.post("/concept/beta/discuss/", asked, content_type="application/json").status_code == 200
+    assert "is the door too small?" in answerer[-1]
+    state = owner.get(f"/concept/beta/state/?draw={base}").json()
+    assert state["discussing"] is False and state["thread"][0]["answer"] == "Paint the door red."
+    assert not state["thread"][0]["closed"]
+    page = owner.get("/concept/beta/").content.decode()  # a reload keeps it
+    assert "Paint the door red." in page and "data-open" in page
+    assert owner.post("/concept/beta/discuss/", json.dumps({"base": base, "question": "?", "euros": 0.03}),
+                      content_type="application/json").status_code == 200
+    assert "not today" in owner.get("/concept/beta/state/").json()["discuss_refused"]  # red, with why
+    owner.post("/concept/beta/draw/", json.dumps({"base": base, "euros": REDRAW_PRICE}),
+               content_type="application/json")
+    assert "Creator: is the door too small?\nYou: Paint the door red." in stand_in[-2]  # to the prompt rewrite
+    assert owner.get(f"/concept/beta/state/?draw={base}").json()["thread"][0]["closed"] is True
+    assert world.source.world_state().discuss_spend == 0.0271
+
+
+def test_a_hosted_discuss_reaches_the_listener_and_shows_before_the_next_export(world, stand_in, answerer, settings):
+    owner = signed_in()
+    owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    base = owner.get("/concept/beta/state/").json()["newest"]
+    settings.SCORE_MODE = settings.HOSTED
+    try:
+        owner.post("/concept/beta/discuss/", json.dumps({"base": base, "question": "why?", "euros": DISCUSS_PRICE}),
+                   content_type="application/json")
+        assert owner.get("/concept/beta/state/").json()["discussing"] is True
+    finally:
+        settings.SCORE_MODE = settings.LOCAL
+    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
+        remote = remote_of(hosted_client())
+        item = SyncRequest.objects.get(kind=concepts.DISCUSS)
+        assert listen.round_once(remote, world.source) == [(item.pk, "done")]
+    item.refresh_from_db()
+    assert json.loads(item.detail)["answer"] == "Paint the door red."
+    assert concepts.thread_of(world.source.world_state(), "beta", base)[0]["question"] == "why?"

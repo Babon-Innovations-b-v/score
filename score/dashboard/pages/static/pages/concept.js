@@ -3,7 +3,9 @@
 // (a new first draw from the place's own wording: no base), else Redraw with notes (the marks, the note and the shown
 // draw as its base); then it asks the page's state until the draw is answered and shows it. A first draw sends the
 // wording box's text when he edited it (it becomes the place's own wording); "back to generated" drops it. Pick and
-// Unlock post the shown draw (or none). The inventory panel's boxes: the second part below.
+// Unlock post the shown draw (or none). Discuss posts the note as a question with the marks (its own spend yes) and
+// shows the answer in the thread above the note; an open thread makes the draw button Redraw with notes, which sends
+// it along (score/review/discuss.py). The inventory panel's boxes: the second part below.
 (() => {
   const page = document.getElementById("concept");
   if (!page) return;
@@ -45,7 +47,9 @@
     Object.assign(mark.box.style, { left: `${mark.x * 100}%`, top: `${mark.y * 100}%`,
                                     width: `${mark.w * 100}%`, height: `${mark.h * 100}%` });
   };
-  const plain = () => !marks.length && !note.value.trim();  // nothing asked of the shown draw: draw fresh
+  const thread = document.getElementById("concept-thread");
+  const talked = () => Boolean(thread && thread.querySelector("li[data-open]"));  // an open discussion goes with a redraw
+  const plain = () => !marks.length && !note.value.trim() && !talked();  // nothing asked of the shown draw: draw fresh
   const named = () => (!page.dataset.base ? "Draw concept" : plain() ? "Draw fresh" : "Redraw with notes");
   // a Redraw with notes is two calls (the prompt model corrects the prompt, then the draw): its own price
   const euros = () => Number(!page.dataset.base || plain() ? page.dataset.euros : page.dataset.redrawEuros);
@@ -106,6 +110,74 @@
     });
   }
 
+  // the marks as a redraw or a Discuss sends them: the draw's, and the picked concepts' (context_marks)
+  const marked = () => ({
+    marks: marks.filter((mark) => !mark.on).map((mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h,
+                                                              note: mark.row.querySelector("input").value })),
+    context_marks: marks.filter((mark) => mark.on).map((mark) => ({
+      on: mark.on, x: mark.x, y: mark.y, w: mark.w, h: mark.h, note: mark.row.querySelector("input").value })),
+  });
+
+  // --- Discuss: the note as a question to the prompt model, its answer in the thread above the note -------------
+  const discuss = document.getElementById("concept-discuss");
+  const shown_thread = (entries) => {
+    thread.replaceChildren(...entries.map((entry) => {
+      const row = document.createElement("li");
+      const asked = document.createElement("b");
+      const answer = document.createElement("p");
+      asked.dataset.v = answer.dataset.v = "";
+      asked.textContent = entry.question;
+      answer.textContent = entry.answer;
+      if (entry.closed) { row.className = "closed"; row.title = "closed: a draw was made after it"; }
+      else row.dataset.open = "";
+      row.append(asked, answer);
+      return row;
+    }));
+    thread.hidden = !entries.length;
+  };
+  const answered = () => {
+    const label = discuss.querySelector('[data-slot="label"]');
+    discuss.disabled = true;
+    const started = Date.now();
+    const tick = () => { label.textContent = `asking ${Math.round((Date.now() - started) / 1000)} s`; };
+    tick();
+    const clock = setInterval(tick, 1000);
+    const ask = async () => {
+      const found = await fetch(`/concept/${place}/state/?draw=${page.dataset.base}`, { credentials: "same-origin" })
+        .then((answer) => answer.json()).catch(() => null);
+      if (!found || found.discussing) { setTimeout(ask, ASK_EVERY); return; }
+      clearInterval(clock);
+      label.textContent = "Discuss";
+      discuss.disabled = false;
+      if (found.discuss_refused) {
+        tell("bad", found.discuss_refused);
+        console.error("concept discuss refused", found.discuss_refused);
+        return;
+      }
+      shown_thread(found.thread);
+      note.value = "";
+      relabel();
+    };
+    setTimeout(ask, ASK_EVERY);
+  };
+  if (discuss) {
+    if ("discussing" in page.dataset) answered();
+    discuss.addEventListener("click", async () => {
+      if (!note.value.trim()) { tell("bad", "write your question in the note first"); note.focus(); return; }
+      discuss.disabled = true;
+      try {
+        await post("discuss", { ...marked(), question: note.value, base: page.dataset.base,
+                                euros: Number(discuss.dataset.euros) });
+        said.hidden = true;
+        answered();
+      } catch (error) {
+        tell("bad", error.message);
+        console.error("concept discuss refused", error);
+        discuss.disabled = false;
+      }
+    });
+  }
+
   // --- draw, then ask until it is answered ----------------------------------------------------------------------
   const busy = document.getElementById("concept-busy");
   const waiting = (since) => {
@@ -136,17 +208,12 @@
   if (draw) {
     if (page.dataset.pending) waiting(page.dataset.pending);
     if (note) note.addEventListener("input", relabel);
+    relabel();  // an open discussion makes it a Redraw with notes from the start
     draw.addEventListener("click", async () => {
       draw.disabled = true;
       const body = plain()
         ? { marks: [], note: "", base: null, euros: euros() }
-        : {
-          marks: marks.filter((mark) => !mark.on).map((mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h,
-                                                                    note: mark.row.querySelector("input").value })),
-          context_marks: marks.filter((mark) => mark.on).map((mark) => ({
-            on: mark.on, x: mark.x, y: mark.y, w: mark.w, h: mark.h, note: mark.row.querySelector("input").value })),
-          note: note.value, base: page.dataset.base || null, euros: euros(),
-        };
+        : { ...marked(), note: note.value, base: page.dataset.base || null, euros: euros() };
       // a first draw sends the wording box when he edited it; untouched, the store's machine words it as it is now
       if (!body.base && wording && wording.value.trim() !== wording.defaultValue.trim()) body.wording = wording.value.trim();
       try {

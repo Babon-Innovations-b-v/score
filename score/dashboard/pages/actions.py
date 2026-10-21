@@ -385,6 +385,26 @@ def concept_draw(user, payload):
     return f"drawn: {record['sha'][:12]} for EUR {record['euros']:.2f}{kept}", record
 
 
+def concept_discuss(user, payload):
+    """His Discuss on a place's shown draw, his click its spend yes (score.review.web.concept_discuss); (words, the
+    discussion entry or None)."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why, None
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        asked = {"base": payload.get("base") or None, "question": str(payload.get("question") or ""),
+                 "marks": payload.get("marks") or [], "context_marks": payload.get("context_marks") or []}
+        entry = web.concept_discuss(source.store, str(payload["place"]), asked, float(payload["euros"]), by=user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError, TypeError, ValueError,
+            subprocess.TimeoutExpired) as refused:
+        return f"refused: {refused}", None
+    source.refresh()
+    return f"answered for EUR {entry['euros']:.2f}", entry
+
+
 def concept_generated(user, payload):
     """His "back to generated": the place's own draw wording dropped (score.review.web.concept_generated); in words."""
     why = owner_figure_off_why(user)

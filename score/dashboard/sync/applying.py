@@ -3,7 +3,7 @@ through score.review.web.decide and the owner's advance into this machine's mark
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
 marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
 owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
-owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, picks and back to the generated wording (CONCEPT_KINDS), his
+owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, Discusses, picks and back to the generated wording (CONCEPT_KINDS), his
 environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS) and his plan review's clicks (PLAN_KINDS),
 each through the local cockpit's own owner-only function."""
 import dataclasses
@@ -17,7 +17,7 @@ from score.dashboard.pages import actions, library_actions, seen
 from score.dashboard.pages.models import Launch, Plan
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 
-CONCEPT_KINDS = ("concept-draw", "concept-pick", "concept-wording")
+CONCEPT_KINDS = ("concept-draw", "concept-discuss", "concept-pick", "concept-wording")
 # the environment concept's (CONTEXT.md "environment concept"): an interview answer, a new version, a reference picture
 ENVIRONMENT_KINDS = ("environment-ask", "environment-save", "environment-reference")
 # The plan review's (score/review/plans.py): his plan kept, inside places named, a Correct with notes.
@@ -26,6 +26,7 @@ PLAN_KINDS = {"plan-edit": actions.plan_edit, "plan-named": actions.plan_named, 
               "env-plan-edit": actions.environment_plan_edit,
               "env-plan-write": actions.environment_plan_write}
 DRAWN = ("sha", "name", "at", "by", "euros", "base", "marks", "note")  # a draw's fields its answer carries
+DISCUSSED = ("place", "base", "question", "answer", "at", "by", "euros")  # a discussion entry's its answer carries
 
 
 @dataclasses.dataclass
@@ -189,6 +190,21 @@ def apply_concept_draw(item, source):
     return Applied("done", with_prompt if len(with_prompt) <= 4000 else json.dumps(said), files=files)
 
 
+def apply_concept_discuss(item):
+    """His Discuss of a shown draw (pages/actions.concept_discuss); done: the detail the discussion entry as JSON
+    (DISCUSSED), so the hosted page shows it before the next export holds it."""
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    said, entry = actions.concept_discuss(item["user"], item["payload"])
+    if entry is None:
+        return Applied("refused", said)
+    found = {name: entry[name] for name in DISCUSSED}
+    over = len(json.dumps(found)) - 4000  # the detail keeps 4000 characters: a long answer is cut there, kept whole
+    if over > 0:                          # in the store, which the next export carries
+        found["answer"] = found["answer"][:-over - 8] + " ..."
+    return Applied("done", json.dumps(found))
+
+
 def apply_concept_said(item, action):
     """The owner's Pick or unlock of a place's concept (pages/actions.concept_pick), or his back to the generated
     wording (concept_generated): `action`, answered in words."""
@@ -244,6 +260,8 @@ def apply(item, source, chosen=None):
         return apply_answer(item)
     if kind == "concept-draw":
         return apply_concept_draw(item, source)
+    if kind == "concept-discuss":
+        return apply_concept_discuss(item)
     if kind == "concept-pick":
         return apply_concept_said(item, actions.concept_pick)
     if kind == "concept-wording":

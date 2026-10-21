@@ -9,6 +9,7 @@
     {% include "pages/c/number.html" with label="Total" value=money.total unit="EUR" of=None bar=None tone=None tip="cloud and AI calls together, this month so far" unknown_tip="a bill is not known yet" %}
     {% include "pages/c/number.html" with label="Inventory readings" value=readings unit="EUR" of=None bar=None tone=None tip="every scene inventory reading so far, read on its own after a lock" unknown_tip="not read yet" %}
     {% include "pages/c/number.html" with label="Plans written" value=plan_spend unit="EUR" of=None bar=None tone=None tip="every plan written so far, written on its own after a reading" unknown_tip="none written yet" %}
+    {% include "pages/c/number.html" with label="Discussions" value=discuss_spend unit="EUR" of=None bar=None tone=None tip="every Discuss of a concept draw so far, as each call measured" unknown_tip="not read yet" %}
     {% if so_far is not None %}{% include "pages/c/number.html" with label="This remake so far" value=so_far unit="EUR" of=None bar=None tone=None tip="spent since this remake's first batch was bought" unknown_tip="not read yet" %}{% endif %}
   </div>
   <div class="chart-card" title="what was spent each day; a bar from the bills where they were read that day and the day before, else a paler bar from the ledgers' own count (low), no bar where the day is not known">

@@ -251,7 +251,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   no note, Draw fresh: a new first draw from the place's current first-draw wording, no base; with any, Redraw with
   notes: the prompt model corrects the shown draw's prompt by them, then one draw repaints it, two calls at
   `WorldState.concept_redraw_euros`, the corrected prompt then the place's own wording; the owner, 2026-10-20; the
-  locked concepts the draw is drawn on show beside it (`ConceptWording.context`), marked too, their boxes P1, P2, ...) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
+  locked concepts the draw is drawn on show beside it (`ConceptWording.context`), marked too, their boxes P1, P2, ...; Discuss beside it, CONTEXT.md "discussion", owner 2026-10-21: his note as a question with
+  his marks, one prompt-model call at `WorldState.concept_discuss_euros` (SyncRequest `concept-discuss`, `web.concept_discuss`, local in a thread, hosted the listener), its answer under
+  the note (`concepts.thread_of`: the store's `concept_discussions`, hosted with those answered since the export; faint once a draw follows), an open one making the button Redraw with notes,
+  which sends it to the prompt rewrite; every call's measured cost sums as `discuss_spend` on the top bar and Stats) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
   picture at the standard tier, `score/review/concepts.draw_euros`), the place's draws, Lock (locks it: the card loses
   the button) and Unlock. A click is the owner's request (SyncRequest `concept-draw`, `concept-pick`), applied on the
   store's machine through `actions.concept_draw` / `concept_pick` and `score.review.web` (his yes for that one call
