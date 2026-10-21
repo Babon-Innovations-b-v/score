@@ -65,11 +65,12 @@ def code_moved(priced_on):
 
 def take_counts(takes):
     """{takes, bought, made, library, predicted_gaps, blocked} of prepare's takes: each by its status, `blocked` the
-    bought ones that wait on a lost input."""
+    input gaps (no box or size: not bought), and in a record made before them the bought ones that wait on one."""
     found = Counter(take["status"] for take in takes)
     return {"takes": len(takes), "bought": found["bought"], "made": found["made"], "library": found["library"],
             "predicted_gaps": found["predicted gap"],
-            "blocked": sum(1 for take in takes if take["status"] == "bought" and take.get("inputs"))}
+            "blocked": found["input gap"] + sum(1 for take in takes
+                                                if take["status"] == "bought" and take.get("inputs"))}
 
 
 def remake_of(written):

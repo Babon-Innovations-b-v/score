@@ -9,8 +9,9 @@ model are one group: one take, drawn from the first row's concept crop (its plac
 The same model across places is counted apart (`across_places`): a place's style may differ, so sharing a take
 across places is the owner's call, never assumed.
 
-A shell piece (a wall, floor or ceiling kit piece, SHELL) takes its library surface with no maps (#21 cut 1), so its
-route is shorter (estimate.py). A row that already reuses another place's take (`reuse`) needs no take of its own.
+A shell piece (a wall, floor or ceiling kit piece, SHELL) is marked `shell`; it takes the whole route like any model
+(estimate.py: the finish route lists its library surface, no maps). A row that already reuses another place's take
+(`reuse`) needs no take of its own.
 """
 import hashlib
 import json
@@ -25,14 +26,16 @@ SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
 SHELL_NOUNS = {"wall": "kit: wall", "floor": "kit: floor", "ceiling": "kit: ceiling", "roof": "kit: ceiling"}
 # A row's route by its noun (owner's rules, CONTEXT.md "layer adapter", "motion", "shell section"): people are models
 # of the prop pipeline with the motion layer's steps after; the sky, the effects and the far city have routes of their
-# own (layers without models); windows, stairs and building shells are shell sections (estimate.SHELL_ROUTE); every
-# other row, terrain too, a model through the prop pipeline.
+# own (layers without models); windows, stairs and building shells are shell pieces (route "shell"); the
+# ground itself is the terrain node's (its own rows, CONTEXT.md "layer adapter": no take); every other row, a terrain
+# feature too, a model through the prop pipeline.
 ROUTES = {"people": {"astronaut", "person", "people", "pedestrian", "crowd", "child", "worker"},
           "sky": {"sky", "planet", "moon"},
           "effects": {"water", "ocean", "puddles", "rain", "smoke", "mist", "plume", "steam", "fog"},
           "skyline": {"city", "cityscape", "city skyline", "skyline"},
           "shell": {"window", "windows", "stairs", "steps", "staircase", "building", "buildings", "building facade",
-                    "facade", "exterior wall"}}
+                    "facade", "exterior wall"},
+          "ground": {"ground"}}
 MODEL_ROUTES = ("prop", "shell", "people")  # the routes whose models the prop pipeline makes
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
 
@@ -49,7 +52,7 @@ def current(store, places):
     a place with none waits, with no rows and no euros (the old data/inventory files count for nothing here)."""
     from score.review import reading
     found = {place: reading.reading_of(store, place) for place in places}
-    return ({place: {**record["inventory"], "rows": sized_rows(store, place, record),
+    return ({place: {**record["inventory"], "rows": sized_rows(store, place, record), "size": record.get("size"),
                      "plan": {"views": [{"id": "v1", "picture": str(blob_path(store, record["concept"]))}]}}
              for place, record in found.items() if record},
             sorted(place for place, record in found.items() if not record))
@@ -114,10 +117,30 @@ def read_row(record, row):
     """A reading's row as a take's: its take named by its place, row and concept (a take made from another concept
     never counts as made), its route by its noun (route_of), and a code row whose noun is a shell word (SHELL_NOUNS)
     that shell piece's kit; every other row, a terrain feature's too, a model through the prop pipeline. A reading
-    sizes in metres; its plan's item, his edits counted, gives it first (sized_rows)."""
+    sizes in metres; its plan's item, his edits counted, gives it first (sized_rows). Its box is SAM 3's, else
+    Gemini's (boxed_by)."""
     noun = SHELL_NOUNS.get(row["noun"].removesuffix(" panel").removesuffix(" plate")) if row["kind"] == "code" else None
-    return {**row, "thing": f"prop:{record['place']}_{row['id']}_{record['concept'][:8]}",
+    return {**row, **boxed_by(record, row), "thing": f"prop:{record['place']}_{row['id']}_{record['concept'][:8]}",
             "route": "shell" if noun else route_of(row["noun"]), **({"group": noun} if noun else {})}
+
+
+def boxed_by(record, row):
+    """A reading row's box and who placed it: SAM 3's surest instance, else Gemini's region round all of it (the
+    reading's first step, #10), so its close-up can still be framed; neither, nothing (its take an input gap)."""
+    if row.get("box"):
+        return {"boxed_by": "SAM 3"}
+    if row.get("region") and record.get("size"):
+        box = gemini_box(row["region"], record["size"])
+        return {"box": box, "boxes": [box], "boxed_by": "Gemini"}
+    return {}
+
+
+def gemini_box(region, size):
+    """A 0 to 1000 [ymin, xmin, ymax, xmax] region (score/review/reading.py) as a pixel box [left, top, right,
+    bottom] on a picture of `size` [wide, tall]."""
+    wide, tall = size
+    return [round(region[1] * wide / 1000), round(region[0] * tall / 1000), round(region[3] * wide / 1000),
+            round(region[2] * tall / 1000)]
 
 
 def route_of(noun):

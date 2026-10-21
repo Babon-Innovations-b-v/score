@@ -357,6 +357,22 @@ def unlit(plan, ids):
     return kept["lamps"], kept["beams"], gaps
 
 
+def unleafed(leads, ids):
+    """(leads, gaps) of the plan's doors: each lead whose leaf's row this concept's reading holds (`ids`) as it is, the
+    rest without their leaf and a gap each (the plan stage's `mapped` gate refuses a leaf on a row the inventory lacks:
+    data/plans' leaves were written for an older concept, the airlock's door_leaf, #10)."""
+    kept, gaps = {}, []
+    for side, lead in leads.items():
+        leaf = lead.get("leaf")
+        if leaf and leaf["row"] not in ids:
+            lead = {key: value for key, value in lead.items() if key != "leaf"}
+            gaps.append({"kind": "leaf", "item": leaf.get("name") or side, "row": leaf["row"],
+                         "words": f"door {side}'s leaf {leaf.get('name') or ''}: no "
+                                  f"{leaf['row'].replace('_', ' ')} in this concept"})
+        kept[side] = lead
+    return kept, gaps
+
+
 def size_gaps(unsized):
     """A gap for each item nothing gives a size (laid UNSIZED): the batch needs its size."""
     return [{"kind": "size", "item": name, "row": row_id, "words": f"{name.title()}: no size"}
@@ -489,9 +505,13 @@ def derived(store, place):
     plan["doors"] = sized_doors(plan, filed_inventory(place))
     inventory = inventory_of(store, place)
     items, tied, unsized = items_from(plan, inventory)
-    lamps, beams, unlit_gaps = unlit(plan, {row["id"] for row in inventory.get("rows", [])})
+    ids = {row["id"] for row in inventory.get("rows", [])}
+    lamps, beams, unlit_gaps = unlit(plan, ids)
     plan.update({key: found for key, found in (("lamps", lamps), ("beams", beams)) if key in plan})
-    plan["gaps"] = unlit_gaps + size_gaps(unsized)  # what this concept's inventory does not give: shown, never hidden
+    leads, leaf_gaps = unleafed(plan.get("leads", {}), ids)
+    plan.update({"leads": leads} if "leads" in plan else {})
+    # what this concept's inventory does not give: shown, never hidden
+    plan["gaps"] = unlit_gaps + leaf_gaps + size_gaps(unsized)
     zones = keep_clear(plan)
     plan["items"] = items + zones
     plan["rows"] = {**tied, **{zone[0]: [] for zone in zones}}  # a zone names no rows, and says so

@@ -15,17 +15,23 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   what it is and the picture, against the place's outline; SAM 3 gives only where, #10): a row's size is its place's
   current plan's item (`groups.plan_sizes`, `score/review/plans.current`, laid at the reading's metres, his edits
   counted: wide and deep as laid, tall the reading's), else its reading's own metres (on a wall, the ceiling or
-  another row); a row the reading gave none has none and its take waits on "no size". Rows of
+  another row); a row the reading gave none has none. A row's box is SAM 3's, else Gemini's region from the same
+  reading (`groups.boxed_by`, marked so in the hand-in). A model take with no box, a box that is the whole picture or
+  no size is an **input gap** (`contract.faults`, `__main__.status_of`): not bought, priced apart
+  (`input_gaps_if_bought`), never handed to the loop, so the runner neither buys nor counts it. Rows of
   one model (kind, size ratio, kit) share a take. Each row's route is its noun's (`groups.ROUTES`, owner's rules,
   CONTEXT.md "layer adapter", "motion"): a code row of a shell noun (`groups.SHELL_NOUNS`), a window, stairs or
-  building shell is a shell piece (`estimate.SHELL_ROUTE`); people are models of the prop pipeline with the motion
+  building shell is a shell piece (route `shell`); the ground itself is the terrain node's (route `ground`, status
+  `terrain node`: no take, never a close-up of the whole picture); people are models of the prop pipeline with the motion
   layer's steps after (`estimate.OWN_ROUTES`); the sky, the effects (water, rain, smoke, mist) and the far city
   are their own routes, priced only by their own measured per unit (unpriced until then), their inputs their
   route's own (not checked here); every other row, terrain too, is a model through the prop pipeline. Each layer
   names the routes it runs (`runs`). Plans may refine positions later, never the count.
 - **Every job once.** The figure prices each take's layers one run each (`estimate.one_shot`: one Pro wording a row,
-  one draw a map, no finish asked again); no retry share, no second take, no fallback class. A shell piece takes its
-  library surface with no maps (`estimate.SHELL_ROUTE`). Card and processor layers carry the bill share
+  one draw a map, no finish asked again); no retry share, no second take, no fallback class. A shell piece runs the
+  whole route like any model (CONTEXT.md "prop pipeline": the finish route lists its library surface, no maps, so the
+  bake, which bakes the listed takes, bakes it, #10). likeness-calibration is no layer of a design's take
+  (`__main__.design_route`: it applies only to prop data naming accepted models). Card and processor layers carry the bill share
   (`gaps/price.py` `BILL_SHARE`); Google calls do not.
 - **A prediction comes from a measured failure mode, never a guess.** `predict.py` counts the hub's prop-route table
   against the hub's sizes every run: a shape every one of at least `MIN_MEASURED` measured rows failed is a predicted

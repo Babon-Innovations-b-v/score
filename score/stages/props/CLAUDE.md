@@ -8,7 +8,8 @@ DINOv2 evidence gathered, paid). These rows are the shared loop's (`../shapes_fi
 `shapes_first.rows()`, and `props-inputs` waits on `rough-align` and holds every row to the registered floor.
 Environment data (`prop_data.py`): a designed place's hand-in, `{home}/design/props/<place>.json` (`prop_data.DESIGN`,
 written by prepare from the takes it priced: `../complete/prepare/handin.py`; it is also the scene inventory its rows
-are drawn and built from, each SAM 3 box of its reading `grounded`, which the box gate passes), else
+are drawn and built from, each box of its reading `grounded`: SAM 3's, else Gemini's region, said which; the box
+gate passes it), else
 `data/props/<place>.json` (the ship rooms', the people's line).
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
@@ -29,8 +30,9 @@ are drawn and built from, each SAM 3 box of its reading `grounded`, which the bo
   alone: silhouettes from eight ways round, no renderer. `OUTLINE_LEAST` was set on the hub's twelve accepted
   round-six generated models with a 0.05 margin (`likeness.py measure`). DINOv2's least is set the same way by the
   paid row `likeness-calibration@<place>` (`calibration_row.py`, about EUR 0.43) on the accepted models the prop data
-  names (`accepted`); without it the `likeness` check answers unknown and blocks. Change a threshold only by measuring
-  the accepted set again.
+  names (`accepted`); without it the `likeness` check answers unknown and blocks. A designed place's hand-in names
+  none, so it has no calibration row: its DINOv2 scores are measured and shown, never judged (`measured_only`), and
+  `outline` holds its likeness (#10). Change a threshold only by measuring the accepted set again.
 - **The comparison** (`compare.py`) runs one place prop-first and code-first, each in its own data copy and store
   under `$PROPS_HOME/compare/<place>/`, and writes the table and review page there. Run it with `--detach`; it spends,
   every ledger line tagged `compare-<place>-<order>` (`ledger_tag/`).

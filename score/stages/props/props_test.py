@@ -249,6 +249,11 @@ def test_routes_send_a_failed_prop_object_to_code_and_a_failed_code_build_to_a_b
         parts = likeness_row.free_judge("close-up parts present")(output, {}, None)
         assert parts.answer == "fail" and any("untold: cannot tell" == line for line in parts.findings)
         assert likeness_row.judge_likeness(output, {}, None).answer == "unknown"  # no calibration, no least
+        handed = root / "designed.json"
+        handed.write_text(json.dumps({"approved": {"by": "the creator's pick"}, "objects": {}}))
+        (root / "scores.json").write_text(json.dumps({"good": 0.91, "thin": 0.42}))
+        shown = likeness_row.judge_likeness(output, {"props": handed}, root / "scores.json")
+        assert shown.answer == "pass" and "not judged" in shown.reason and shown.measures["scored"] == 2, shown
         scored = likeness_row.routes(output, {"good": 0.9, "built": 0.4}, 0.5)
         assert scored["good"] == "prop" and scored["built"] == "builder", scored
     finally:

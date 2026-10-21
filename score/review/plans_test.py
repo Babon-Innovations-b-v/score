@@ -75,6 +75,18 @@ def test_no_plan_before_the_inventory_counts_then_each_item_tied_to_its_row(stor
     assert plan["elements"][0] == {"element": "a bench", "rows": ["bench"]}
 
 
+def test_a_doors_leaf_on_a_row_this_concept_lacks_is_a_gap_and_its_door_keeps_its_lead(store, data):
+    shed = json.loads((data / "plans/shed.json").read_text())
+    leads = {"S": {**shed["leads"]["S"], "leaf": {"row": "door_leaf", "name": "shed_door"}},
+             "N": {"to": "sealed", "why": "a blind wall", "leaf": {"row": "crate", "name": "crate_door"}}}
+    (data / "plans/shed.json").write_text(json.dumps({**shed, "leads": leads}))
+    picked(store, "shed")
+    plan = plans.current(store, "shed")["plan"]
+    assert plan["leads"]["S"] == {"to": "yard", "why": "its one door"}  # its leaf dropped: the plan stage maps it
+    assert plan["leads"]["N"]["leaf"] == {"row": "crate", "name": "crate_door"}  # a row the reading holds stays
+    assert [(gap["kind"], gap["row"]) for gap in plan["gaps"]] == [("leaf", "door_leaf")]
+
+
 def test_his_edit_is_kept_as_his_own_and_checked(store):
     picked(store, "shed")
     plan = plans.current(store, "shed")["plan"]
