@@ -660,10 +660,13 @@ class LocalSource:
         return file_ref(sha, f"{node}-plan-drawing.png", blob.stat().st_size)
 
     def design_nodes(self):
-        """Every place and shell a concept is designed for: the places, the shells, and the inside places only his kept
+        """Every place and shell a concept is designed for: the environment concept's places (never a stage line that is no
+        place to the creator, e.g. the old `ship`), the shells, and the inside places only his kept
         plans name (no line of their own yet: CONTEXT.md "plan review")."""
+        from score.review import environment_concept
         found = self.hierarchy()
-        return list(dict.fromkeys([*self.places(), *found["shells"],
+        top = [entry["place"] for entry in environment_concept.places_in_force(self.store, self.places())]
+        return list(dict.fromkeys([*top, *found["shells"],
                                    *[node for node in found["within"] if node not in found["parts"]]]))
 
     def hierarchy(self):
