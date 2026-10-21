@@ -406,9 +406,9 @@ def refused_words(why):
 
 def sync_pass(remote, source, chosen=None):
     """One pass; what it did, in words. Nothing is synced from a checkout not clean and pushed, when the runner's
-    price fails; no export is pushed when the checkout moved to another commit during the pass (prepare's and the
-    price's records name the commit they were made on, so it would show every figure stale: the next pass sends it),
-    the owner's requests are still applied."""
+    price fails; the export is pushed even when the checkout moved to another commit during the pass, so his locks and
+    designs reach the cockpit while agents push (owner 2026-10-21, "my concepts still not back"): prepare's and the
+    price's records name the commit they were made on, so the cockpit shows those figures stale and Buy waits."""
     refused = tree_refusal(settings.SCORE_REPO)
     if refused:
         return refused_words(refused)
@@ -424,9 +424,9 @@ def sync_pass(remote, source, chosen=None):
         return refused_words(f"{failed}; {swept}; {gaps}; {planned}; {prepared}; {benched}; {pictured}; {demos}")
     basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
     now = head(settings.SCORE_REPO)
-    pushed = pushed_words(remote, source, chosen) if now == started else (
-        f"NOT PUSHED: the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass, so its remake and "
-        "price would show as stale; the next pass sends them")
+    pushed = pushed_words(remote, source, chosen) + ("" if now == started else (
+        f" (the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass: its remake and price show "
+        "as stale, Buy waits for the next pass)"))
     tidy = checkouts_tidied(chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
