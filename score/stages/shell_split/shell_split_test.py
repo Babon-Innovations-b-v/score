@@ -236,11 +236,10 @@ DIFFERS = {
     "cockpit": "the hand plan starts the inside at 13.5 m, its note saying the hull is under 2.6 m over the deck "
                "ahead of it; measured from the hull at the deck (lining off) the 2.6 m clear starts at 11.7 m, where "
                "the split starts, and the cockpit is sized inside plan v7's bounds",
-    "walkway": "it opens behind the cockpit, which ends 2.7 m sooner (above)",
-    "navigation": "the hand plan sizes each side room by its story; the split grows every room the same share of "
-                  "its bounds and starts 2.7 m sooner",
-    "quarters": "as navigation", "galley": "as navigation", "storage": "as navigation",
-    "shiplock": "the hand plan stands it behind the side ring; the split knows no ring, only the room list's order",
+    "walkway": "it opens behind the cockpit, which ends sooner (above)",
+    "storage": "the hand plan sizes each side room by its story; the split grows every room the same share of "
+               "its bounds and starts sooner",
+    "quarters": "as storage", "galley": "as storage",
     "engineroom": "the hand plan steps its floor up over the rising keel to 42.4 m; the split lays one deck, which "
                   "ends where the keel rises into the floor (35.9 m), and keeps the room inside plan v7's bounds",
 }
@@ -269,12 +268,15 @@ def ship_split_plan():
     floor, ship = ship_floor.read_floor(), json.loads(ship_floor.SHIP.read_text())
     drawn = {room["name"]: room["long"] for room in ship["rooms"]}
     drawn["ship's lock"] = drawn["airlock"]
+    # navigation merged into the cockpit, storage reaching forward over its old place (the owner, 2026-10-21)
+    drawn["cockpit and nav"] = drawn["cockpit"] + drawn["navigation room"]
+    drawn["storage"] = drawn["storage"] + drawn["navigation room"]
     scale = ship["length"] / ship["drawn_length"]
     sides = {"whole": "whole", "port": "left", "starboard": "right"}
     rooms = [{"place": room["place"], "name": room["name"], "side": sides[room["side"]],
               "long": [drawn[room["name"]], round(drawn[room["name"]] * scale, 3)]}
              for room in sorted(floor["rooms"], key=lambda room: room["y"][0])]
-    hall = floor["walkway"]["hall"]
+    hall = floor["walkway"].get("hall", [0.0, 0.0])  # none since navigation merged into the cockpit
     return floor, {"outline": ship_outline(floor, ship, ship_floor),
                    "least": {"clear": floor["ceiling"], "wide": ship_floor.LEAST_DEEP},
                    "door": {"wide": floor["door"]["wide"], "tall": floor["door"]["tall"]},
@@ -305,8 +307,8 @@ def test_the_ships_shell_splits_into_its_hand_plans_rooms_and_says_where_it_diff
     assert set(differs) == set(DIFFERS), sorted(set(differs) ^ set(DIFFERS))
     found = verdicts(out, inputs)
     assert found["tiled"].answer == checks.PASS and found["reached"].answer == checks.PASS, found
-    # The side band runs from port's least (12 m) to starboard's most (12.91 m), so every room keeps plan v7's
-    # bounds and the bands, at most 23.45 m, still fill the 22.7 m the span has less the hall.
+    # Every room keeps its bounds (plan v7's, navigation's added to the cockpit and to storage, the owner's merge of
+    # 2026-10-21) and the side bands still fill the span.
     assert found["bounded"].answer == checks.PASS, found["bounded"]
 
 

@@ -5,7 +5,7 @@
   "People keep their size at 46 m: doors stay 0.9 x 2.0 m and rooms take a person's ceiling; only the hull's lengths grow. The fix-ship-rooms branch scaled every room 1.5 times instead (ceilings 3 to 5 m, a 1.8 m walkway): replaced by this plan.",
   "Sizes and order come from the hull and the story: the cockpit under the nose windows, navigation beside it, the crew's quarters and galley together, storage beside the ship's lock so cargo comes in through the one hatch, the engine room aft over the engines, the walkway joining them all."
  ],
- "made": "2026-10-19, the ship lead, from plan v7 at 46 m",
+ "made": "2026-10-19, the ship lead, from plan v7 at 46 m; navigation merged into the cockpit (the owner, 2026-10-21, on the hangar's plan: \"changed cockpit to cockpit and nav ; and removed nav\"; from tail to nose the engine room, shiplock (west) and galley (east), storage (west) and quarters (east), the walkway down the middle, at the nose one room 'cockpit and nav'; rooms fill the hull width)",
  "length": 46.0,
  "deck": 2.4,
  "deck_why": "the main deck's floor over the ground: plan v7's 1.6 m drawn times 1.5, the height the hull's side ring is built on (fix-ship-hull)",
@@ -26,21 +26,17 @@
  "walkway": {
   "place": "walkway",
   "y": [
-   18.0,
+   19.5,
    31.5
   ],
   "wide": 1.5,
   "ceiling": 2.4,
-  "hall": [
-   18.0,
-   19.5
-  ],
-  "for": "the corridor joining every room, cockpit to engine room, down the ship's middle line; a hall as wide as the hull behind the cockpit",
+  "for": "the corridor joining every room, cockpit to engine room, down the ship's middle line",
   "doors": [
    {
-    "y": 18.0,
+    "y": 19.5,
     "wall": "forward",
-    "leads": "cockpit"
+    "leads": "cockpit and nav"
    },
    {
     "y": 31.5,
@@ -52,24 +48,24 @@
    "grey panelled walls and ceiling, dark deck, a steel grating down the middle of the deck",
    "steel frame ribs arching over the corridor between the doors",
    "white light strips down the ceiling, amber strips along the wall tops",
-   "the rooms' doors in hexagonal orange and white frames off both sides, a wider hall at its forward end before the cockpit's door"
+   "the rooms' doors in hexagonal orange and white frames off both sides, the cockpit and nav's door at its forward end"
   ]
  },
  "rooms": [
   {
-   "name": "cockpit",
+   "name": "cockpit and nav",
    "place": "cockpit",
    "side": "whole",
    "y": [
     13.5,
-    18.0
+    19.5
    ],
-   "ceiling": "hull",
-   "for": "flying the ship: two pilot seats with the flight stick and consoles under the nose windows; take-off, landing and flight",
-   "why": "under the nose windows (plan v7: 9 to 12 m drawn), as wide as the hull there; its roof is the windows, so its ceiling is the hull's",
+   "ceiling": 3.9,
+   "for": "flying the ship: two pilot seats with the flight stick and consoles under the nose windows; take-off, landing and flight; and navigation systems: the star map and route plotting between the Moon and Mars",
+   "why": "under the nose windows (plan v7: 9 to 12 m drawn), as wide as the hull there; its roof is the windows, so its ceiling is the hull's up to 3.9 m (the old cockpit's back height), flat at 3.9 m where it reaches back past them; reaching back to the side rooms with navigation merged in (the owner, 2026-10-21, on the hangar's plan: \"changed cockpit to cockpit and nav ; and removed nav\"; from tail to nose the engine room, shiplock (west) and galley (east), storage (west) and quarters (east), the walkway down the middle, at the nose one room 'cockpit and nav'; rooms fill the hull width)",
    "doors": [
     {
-     "y": 18.0,
+     "y": 19.5,
      "wall": "aft",
      "leads": "walkway"
     }
@@ -83,27 +79,7 @@
     "the overhead console with two black vent boxes, black equipment boxes in the ceiling's corners",
     "warm amber light strips along the ceiling's edges, small orange lamps in the upper front corners",
     "dark grey panelled walls, dark deck with a grated step between the seats",
-    "the aft door to the walkway's hall in the ship's hexagonal frame"
-   ]
-  },
-  {
-   "name": "navigation room",
-   "place": "navigation",
-   "side": "starboard",
-   "y": [
-    19.5,
-    23.5
-   ],
-   "for": "navigation systems: the star map and route plotting between the Moon and Mars",
-   "why": "first off the hall, next to the cockpit it serves",
-   "doors": [
-    {
-     "y": 21.5,
-     "wall": "walkway",
-     "leads": "walkway"
-    }
-   ],
-   "holds": [
+    "the aft door to the walkway in the ship's hexagonal frame",
     "a star map table in the room's middle, glowing amber with a cyan route",
     "two consoles along the front wall with a seat before them",
     "two wall screens over the table: the route between the Moon and Mars",
@@ -141,11 +117,11 @@
    "place": "storage",
    "side": "starboard",
    "y": [
-    23.5,
+    19.5,
     27.2
    ],
    "for": "storage: cargo racks and crates for the base's supplies and parts",
-   "why": "beside the ship's lock, so cargo comes in through the one hatch and goes straight to the racks",
+   "why": "beside the ship's lock, so cargo comes in through the one hatch and goes straight to the racks; forward to the cockpit and nav now navigation is merged (the owner, 2026-10-21, on the hangar's plan: \"changed cockpit to cockpit and nav ; and removed nav\"; from tail to nose the engine room, shiplock (west) and galley (east), storage (west) and quarters (east), the walkway down the middle, at the nose one room 'cockpit and nav'; rooms fill the hull width)",
    "doors": [
     {
      "y": 25.35,

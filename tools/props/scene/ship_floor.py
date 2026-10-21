@@ -129,7 +129,7 @@ def overlap(first, second):
 
 
 def overlap_faults(floor):
-    """Spaces that share floor (the walkway's hall excepted: it runs between the cockpit and the side rooms)."""
+    """Spaces that share floor."""
     found, every = [], spaces(floor)
     for index, first in enumerate(every):
         for second in every[index + 1:]:
@@ -258,9 +258,6 @@ def picture(ship, floor, destination):
         above.text(sum(space["y"]) / 2, middle_x, label, ha="center", va="center", fontsize=7)
         for door in space.get("doors", []):
             above.plot([door["y"]], [door_x(floor, space, door, hull)], marker="s", color="black", ms=5)
-    hall = samples(floor["walkway"]["hall"])
-    hall_half = [inner_half(hull, floor, along, floor["deck"]) for along in hall]
-    above.fill(hall + hall[::-1], hall_half + [-half for half in hall_half[::-1]], color="0.85", alpha=0.55, ec="0.3")
     ring = ring_y(ship, floor)
     above.plot([ring], [inner_half(hull, floor, ring, floor["deck"]) + floor["lining"]], marker="o", ms=11,
                mfc="none", mec="darkorange", mew=2.5, label="side ring: docking hatch and people airlock")
