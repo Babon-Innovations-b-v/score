@@ -36,15 +36,13 @@ AFTER = {**made.ENDS, "earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EA
 
 
 def applies(place):
-    """An Earth kit place whose plan marks shell sections: its kit laid (data/kit), no ship place (whose base is
-    usd-ship's, never earth-seed's) and `sections` in data/plans/<place>.json (stages.earth_place's rule, read here so
-    the table stays out of the code)."""
-    data = earth_seed.REPO / "data"
-    plan = data / "plans" / f"{place}.json"
-    if place is None or not (data / "kit" / f"{place}.json").exists() or not plan.exists():
+    """A kit place whose plan marks shell sections: its kit laid (data/kit) and its base's (earth_seed.kit_of_design:
+    laid for the room its locked plan keeps; a base of its design alone lays no kit piece to section) and `sections`
+    in data/plans/<place>.json (stages.kit_based's rule, read here so the table stays out of the code)."""
+    plan = earth_seed.REPO / "data/plans" / f"{place}.json"
+    if place is None or not earth_seed.kit_of_design(place) or not plan.exists():
         return False
-    ship = read(data / "definitions/place.json").get(place, {})
-    return not (isinstance(ship, dict) and ship.get("ship")) and bool(read(plan).get("sections"))
+    return bool(read(plan).get("sections"))
 
 
 def files(place):

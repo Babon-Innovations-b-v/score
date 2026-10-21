@@ -662,7 +662,7 @@ def worn(row):
         place == coloured if coloured else place not in characters_layer.coloured_places()))
 
 
-OLD_SEED, SHIP_SEED = "usd-r3", "usd-ship"
+OLD_SEED = "usd-r3"
 
 
 PLACE_DEFINITIONS = REPO / "data/definitions/place.json"
@@ -676,26 +676,11 @@ def ship_places():
 
 
 def ship_place(place):
-    """A place the game never had (the ship's rooms): no round-three seed, its base stage written from its kit. Read
-    from git (its `ship` mark in place.json), never from the disk: with the work folder lost (2026-10-19) a test for
-    usd-ship/<place> took the cockpit off the ship's route and its cast blocked on a scene record it never had."""
+    """A place the game never had (the ship's rooms): no round-three seed and no old scene record; its base stage is
+    its earth seed's, like every place's (earth_seeded). Read from git (its `ship` mark in place.json), never from the
+    disk: with the work folder lost (2026-10-19) a test for usd-ship/<place> took the cockpit off the ship's route and
+    its cast blocked on a scene record it never had."""
     return place is not None and place in ship_places()
-
-
-def ship_seeded(files):
-    """A row's environment files with a ship place's base stage for its seed: the ship's places never had a round-three stage
-    (usd-r3), so each one's is written from its installed kit by tools/usd/export.py into usd-ship/<place> (2026-10-15)
-    and read there. Kept out of usd-r3, which the terrain and scene-record rows declare whole, so no environment key moves;
-    a place with a round-three seed reads it as before."""
-    def declared(place):
-        found = files(place) if callable(files) else files
-        if not ship_place(place):
-            return found
-        old = (f"{{seeds}}/{OLD_SEED}/{{place}}", f"{{seeds}}/{OLD_SEED}/{place}")
-        return {name: f"{{seeds}}/{SHIP_SEED}/{place}" if path in old else path for name, path in found.items()}
-    if callable(files):
-        declared = functools.wraps(files)(declared)
-    return declared
 
 
 STAGES = tuple(grained(accepted_gaps(layered(worn(row), {stage.name for stage in STAGES}))) for row in STAGES)
@@ -705,7 +690,6 @@ STAGES = tuple(grained(accepted_gaps(layered(worn(row), {stage.name for stage in
 # imports a tools/characters name as "code changed" (complete.py's stage requirement on the five prologue places:
 # cast@ blocked there and pass, accepted in status, 2026-10-15). Loaded with the table, so every process keys alike.
 characters_layer.loaded("cast")
-STAGES = tuple(dataclasses.replace(row, files=ship_seeded(row.files)) if row.files else row for row in STAGES)
 
 
 def has_old_record(place):
@@ -741,8 +725,8 @@ def hazed(applies):
     return functools.wraps(applies)(applied)
 
 
-# The light rows of every designed place (designed("light")), a ship place's too: its base stage is usd-ship/<place>
-# (ship_seeded reads it as the seed); every place's views and lights are its own scene-record output's, which its
+# The light rows of every designed place (designed("light")), a ship place's too: its base stage is its earth seed's
+# (earth_seeded reads it as the seed); every place's views and lights are its own scene-record output's, which its
 # light layer writes into views.json (a designed place the scene-record row writes no record for is refused by name:
 # light.passes.place_of). light-haze only where the kit lays a shafted lamp.
 STAGES = tuple(dataclasses.replace(row, applies=hazed(row.applies)) if row.name == "light-haze" else
@@ -751,7 +735,7 @@ STAGES = tuple(dataclasses.replace(row, applies=hazed(row.applies)) if row.name 
 
 
 def ship_assembled(row):
-    """The assembly with a ship place's made pieces laid on its kit-built base (assembly/ship_made.py, 2026-10-15:
+    """The assembly with a ship place's made pieces laid on its base, its earth seed (assembly/ship_made.py, 2026-10-15:
     the base lays the kit's code pieces only, so its bake had no object to lay the bunks, lockers and consoles in),
     each from the bake of the place that paints it, read beside; its plan, the kit layout's tools and ship_made.py
     declared. A place with a round-three seed is assembled as before: wrapped here, in the table, so its key stays."""
@@ -872,8 +856,19 @@ ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
 def earth_place(place):
-    """A place of the earth seed rows: its kit is laid and it is no ship place (whose base is usd-ship's)."""
-    return place is not None and kit_laid(place) and not ship_place(place)
+    """A place of the earth seed rows, the base of every place's stage: its kit is laid or its design is locked (its
+    plan kept under {home}/design/plans: a ship room, a scene he added in the app), the earth's and the ship's alike
+    (the owner, 2026-10-21: every designed scene's base from its own design, never from a lost seed), and it has a
+    style to make it in (earth_seed.styled: a top scene place.json does not name has none, so its seed stays a lost
+    input, named, never a crash)."""
+    return place is not None and (kit_laid(place) or earth_seed.locked_plan(place) is not None) and \
+        earth_seed.styled(place)
+
+
+def kit_based(place):
+    """A place whose base lays its kit (earth_seed.kit_of_design: laid for the room its locked plan keeps): the
+    earth-kit row bakes it; any other earth place's base is its design's alone."""
+    return earth_place(place) and earth_seed.kit_of_design(place)
 
 
 # earth-kit bakes the kit's named code fallbacks only, the rows not handed to the shared loop (#41;
@@ -881,7 +876,7 @@ def earth_place(place):
 EARTH_KIT = graph.Stage("earth-kit", "place", earth_seed.make_kit, earth_seed.EARTH_KIT,
                         (checks.Check("made", late_bake.judge_made),
                          checks.Check("surfaces", late_bake.judge_surfaces)),
-                        files=earth_seed.kit_files, paid=True, euros=earth_seed.EUROS, applies=earth_place)
+                        files=earth_seed.kit_files, paid=True, euros=earth_seed.EUROS, applies=kit_based)
 EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed.EARTH_SEED, earth_seed.SEED_CHECKS,
                          files=earth_seed.seed_files,
                          after={"earth-kit": ("earth-kit", 2), "surfaces-bake": ("surfaces-bake", 1)},
@@ -930,7 +925,7 @@ def earth_seeded(row):
     """A row that read round-three seeds reading each from its earth-seed row (#27: the work folder's usd-r3 was lost
     on 2026-10-19 and blocked every line behind it): the place's own as an `after`, another place's beside; its make,
     judges and gatherers given the seed folders under their old names. A seed of a place with no earth-seed row (no kit
-    laid) stays a declared file, so it is still named lost."""
+    laid and no design locked: the far city) stays a declared file, so it is still named lost."""
     files, place_files = row.files, row.files if callable(row.files) else (lambda place: row.files)
 
     def declared(place):

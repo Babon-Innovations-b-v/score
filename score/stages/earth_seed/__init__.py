@@ -1,16 +1,27 @@
-"""The earth seed (#27): each earth place's base stage made again from git and the rows' own outputs, in place
-of the round-three folder `usd-r3/<place>` the old disk took (2026-10-19). Every row that read that folder reads
-this row's output instead (the table's `earth_seeded`), so the runner can plan and price everything after it.
+"""The earth seed (#27): each place's base stage made again from git, its design and the rows' own outputs, in place
+of the round-three folders (`usd-r3/<place>`, the ship's `usd-ship/<place>`) the old disk took (2026-10-19). Every
+row that read those folders reads this row's output instead (the table's `earth_seeded`), so the runner can plan and
+price everything after it. Its places are every place with a kit laid and every designed scene (the plan the creator
+locked, kept under {home}/design/plans: the ship's rooms, a scene he added in the app), the earth's and the ship's
+alike (the owner, 2026-10-21: every designed scene's base from its own design).
 
-    earth-kit@<place>   paid   the kit's named code fallbacks only (#41: the shared loop makes every kit piece, code
-                               only where a record names why): of the place's installed kit (data/kit/<place>.json,
-                               less its prop-route pieces and the glowing parts make_kit splits off), the pieces of
-                               each row not handed to the loop (its hand-in record, data/props/<place>.json,
-                               `"layer": "kit"`); fallbacks.json names every kit row not handed, with its route
-                               (`code`, baked here, or `stored take`, a picture-made model of the old prop route that
-                               earth-seed lays from data/parts) and why (NOT_HANDED); a handed row is the loop's
-                               alone, and a model it makes none of is a gap, not a code bake (the batch rule).
-                               Planned by route.py's
+A place's kit is its base's when it is its design's (kit_of_design): laid (data/kit) for the room its locked plan
+keeps, the filed plan's size (data/plans, which the kit was laid from) the same as the locked plan's; a place with no
+locked plan has only its kit. Otherwise (the ship's rooms, whose kits were laid for the plans before his layout of
+2026-10-21; a scene added in the app, which has none) its base is its design's alone: no kit piece, its room shell
+from its locked plan (design_shell.py), its inventory the design's, its style its own place.json entry's, else that
+of the scene holding it (style_of); nothing here bakes or lays a kit laid for another room. A place with no style
+(styled: a top scene place.json does not name) has no base row until it has one.
+
+    earth-kit@<place>   paid   (a place whose kit is its base's) the kit's named code fallbacks only (#41: the shared
+                               loop makes every kit piece, code only where a record names why): of the place's
+                               installed kit (data/kit/<place>.json, less its prop-route pieces and the glowing
+                               parts make_kit splits off), the pieces of each row not handed to the loop (its
+                               hand-in record, data/props/<place>.json, `"layer": "kit"`); fallbacks.json names
+                               every kit row not handed, with its route (`code`, baked here, or `stored take`, a
+                               picture-made model of the old prop route that earth-seed lays from data/parts) and
+                               why (NOT_HANDED); a handed row is the loop's alone, and a model it makes none of is a
+                               gap, not a code bake (the batch rule). Planned by route.py's
                                late-plan into make_kit jobs and baked once with the material library on rented cards
                                (tools/props/cloud/library_bake.py), as the ship-kit and late-bake stages do; gates
                                `made` and `surfaces` are theirs
@@ -18,7 +29,12 @@ this row's output instead (the table's `earth_seeded`), so the runner can plan a
                                and old scene record, each model read from the earth-kit's made folder, the place's
                                own surfaces-bake and the bakes of the places that paint its claimed models (read
                                beside); the stage under <place>/ in the output, as the old folder held it (a loop-made
-                               kit model is its bake's, named as the kit names it)
+                               kit model is its bake's, named as the kit names it). A place whose kit is not its
+                               base's: the export on no piece (kit.json in the output says why), in its design's
+                               inventory and style, and its room shell from its locked plan (design_shell.py; an
+                               inside room whose kit holds its walls only: a domed or outdoor shell is its scene
+                               record's, an open place has none); its made ground is the terrain row's, which the
+                               assembly takes
              gates      laid    every kit piece's model was made by a row; a piece whose model no row made is left out
                                 and named (gaps.json `models`), never a stand-in
                         picks   every row the owner picked a model for shows that model (pick_lock.py), its faults
@@ -34,10 +50,14 @@ import subprocess
 import sys
 
 from score import checks, contracts
+from score.stages.earth_seed import design_shell
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = PROPS_HOME / "env/bin/python"
+DESIGN = PROPS_HOME / "design"  # the locked designs, where the plan stage reads them (score/review/plans.KEPT's folder)
+KIT_FILE = "kit.json"  # a design base's kit: no piece, and why (make_design_seed)
+SAME_SIZE = 0.01  # metres a locked plan's w or d may differ from the filed plan's and keep its kit's room
 ROUTE = REPO / "tools/props/library/route.py"
 GAPS = "gaps.json"
 FALLBACKS = "fallbacks.json"
@@ -174,14 +194,93 @@ def make_kit(inputs, out, seed, params):
     (out / "made").mkdir(exist_ok=True)
 
 
+# --- the base's kit ------------------------------------------------------------------------------------------------
+
+def read(path):
+    return json.loads(pathlib.Path(path).read_text())
+
+
+def locked_plan(place):
+    """The plan the creator locked for the place (DESIGN/plans), or None."""
+    path = DESIGN / "plans" / f"{place}.json"
+    return read(path) if path.is_file() else None
+
+
+def kit_of_design(place):
+    """Whether the place's kit (data/kit) is its base's: laid, and either no locked plan (the kit is all it has) or the
+    locked plan keeps the room the kit was laid for (the filed plan's w and d, within SAME_SIZE)."""
+    if not (REPO / "data/kit" / f"{place}.json").exists():
+        return False
+    locked, filed = locked_plan(place), REPO / "data/plans" / f"{place}.json"
+    if locked is None:
+        return True
+    if not filed.exists():
+        return False
+    laid_for = read(filed)
+    return all(abs(float(locked[side]) - float(laid_for[side])) <= SAME_SIZE for side in ("w", "d"))
+
+
+def holder_of(name, plans):
+    """The scene whose plan (`plans`: {scene: its plan}) holds `name` (its `holds`), else None."""
+    return next((holder for holder, plan in plans.items()
+                 if any(hold.get("place") == name for hold in plan.get("holds", []))), None)
+
+
+def known_as(place, surfaces=None):
+    """The name the library and data/definitions/place.json know a place by: its surface data's `library` (`surfaces`,
+    data/surfaces/<place>.json where it has one: the camp's expedition_camp, the street's prologue_street), else its
+    own (prepare's handin.library_of rule)."""
+    return read(surfaces).get("library", place) if surfaces is not None else place
+
+
+def holders(place):
+    """{scene: its locked plan's path pattern} of the scenes up from the place to the first one
+    data/definitions/place.json knows (known_as), nearest first, each the one whose plan holds the one under it; none
+    for a place place.json knows; None for one with no such scene above it (no style: a top scene place.json does not
+    name, the base's outside, has no base row until it has one)."""
+    surfaces = REPO / "data/surfaces" / f"{place}.json"
+    named, found = read(REPO / "data/definitions/place.json"), {}
+    if known_as(place, surfaces if surfaces.is_file() else None) in named:
+        return found
+    plans, name = {path.stem: read(path) for path in sorted((DESIGN / "plans").glob("*.json"))}, place
+    while True:
+        holder = holder_of(name, plans)
+        if holder is None or holder in found or holder == place:
+            return None
+        found[holder] = "{home}/design/plans/" + f"{holder}.json"
+        if holder in named:
+            return found
+        name = holder
+
+
+def styled(place):
+    """Whether the place has a style its base can be made in (holders)."""
+    return holders(place) is not None
+
+
+def style_of(place, inputs):
+    """The place.json entry whose style the place takes: its own (known_as, its `surfaces` input where declared), else
+    the nearest scene holding it that place.json names (its holders' plans declared as `holder <scene>`)."""
+    named, own = read(inputs["places"]), known_as(place, inputs.get("surfaces"))
+    if own in named:
+        return own
+    plans, name = {key.split(" ", 1)[1]: read(path) for key, path in inputs.items() if key.startswith("holder ")}, place
+    while name not in named or name == place:
+        name = holder_of(name, plans)
+    return name
+
+
 # --- earth-seed ------------------------------------------------------------------------------------------------------
 
 def seed_files(place):
-    """What the export reads: the kit, the inventories, the stored takes, the grounds, the library and sounds, the
-    place definitions and composites, and the place's old scene record where it has one."""
+    """What the export reads: the kit (where it is not the base's, the design's files instead: design_files), the
+    inventories, the stored takes, the grounds, the library and sounds, the place definitions and composites, and the
+    place's old scene record where it has one."""
     found = {"kit": "{data}/kit/" + f"{place}.json", "inventories": "{data}/inventory", "parts": "{data}/parts",
              "grounds": "{data}/ground", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
              "places": "{data}/definitions/place.json", "export": "{repo}/tools/usd/export.py"}
+    if not kit_of_design(place):
+        found = {**{name: path for name, path in found.items() if name != "kit"}, **design_files(place)}
     if (REPO / "data/scene" / f"{place}.json").exists():
         found["scene"] = "{data}/scene/" + f"{place}.json"
     if (REPO / "data/surfaces" / f"{place}.json").exists():
@@ -211,8 +310,40 @@ def model_folders(inputs, scratch):
     return folders
 
 
+def design_files(place):
+    """A design base's own inputs: the locked plan, its inventory, and the plans of the scenes holding it up to one
+    with a style (holders)."""
+    return {"design plan": "{home}/design/plans/" + f"{place}.json",
+            "design inventory": "{home}/design/inventory/" + f"{place}.json",
+            **{f"holder {holder}": path for holder, path in (holders(place) or {}).items()}}
+
+
+def make_design_seed(inputs, out):
+    """A place whose kit is not its base's: its stage under out/<place> exported on no kit piece, in its design's
+    inventory and style, its room shell laid from its locked plan (an inside room whose kit holds its walls:
+    design_shell.laid_for); kit.json says what was laid and why, gaps.json its picks' faults."""
+    export, _ = export_tools()
+    plan_path = pathlib.Path(inputs["design plan"])
+    place, plan = plan_path.stem, read(plan_path)
+    kit_path = out / KIT_FILE
+    kit = {"room": place, "place": style_of(place, inputs), "pieces": [],
+           "why": "no kit laid for this design: its base is its locked plan's room shell and what the rows make "
+                  "(data/kit's, where there is one, was laid for another room)"}
+    kit_path.write_text(json.dumps(kit, indent=1))
+    gaps = []
+    export.export(place, [], out / place, kit_path=kit_path, inventory_path=pathlib.Path(inputs["design inventory"]),
+                  gaps=gaps)
+    shell = design_shell.lay(out / place / "layers/base.usda", place, plan, export.scene_record) \
+        if design_shell.laid_for(plan) else []
+    kit_path.write_text(json.dumps({**kit, "shell": shell}, indent=1))
+    (out / GAPS).write_text(json.dumps({"models": [], "picks": [gap for gap in gaps if "row" in gap]}, indent=1))
+
+
 def make_seed(inputs, out, seed, params):
-    """The place's base stage under out/<place> (export.py), every model a row made; gaps.json names the rest."""
+    """The place's base stage under out/<place> (export.py), every model a row made; gaps.json names the rest. A
+    place whose kit is not its base's is its design's (make_design_seed)."""
+    if "kit" not in inputs:
+        return make_design_seed(inputs, out)
     export, _ = export_tools()
     kit_path = pathlib.Path(inputs["kit"])
     place = kit_path.stem

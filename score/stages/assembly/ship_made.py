@@ -1,7 +1,8 @@
-"""A ship place's made pieces laid on its kit-built base (2026-10-15: complete@quarters failed "no object of this row
-on the stage" for its bunks, lockers, console, screens, vents and door frame).
+"""A ship place's made pieces laid on its base (2026-10-15: complete@quarters failed "no object of this row on the
+stage" for its bunks, lockers, console, screens, vents and door frame).
 
-A ship place's base (usd-ship/<place>, exported from its installed kit) holds the code pieces only: the ship-kit stage
+A ship place's base (its earth seed: its installed kit's code pieces where the kit is its design's, else its design's
+room shell alone, score/stages/earth_seed) holds no made piece: the ship-kit stage
 keeps those (ship_kits.code_only), a prop-route row's model being its own take, made later. An old room's seed laid
 every row, so its bake only swaps the assets under objects already laid; a ship place has no object to swap into.
 The table runs this for the ship places only (score.stages.ship_assembled), so no other place's assembly moves; the

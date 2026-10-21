@@ -312,7 +312,7 @@ def test_a_ship_place_is_read_from_git_and_reads_its_own_scene_record():
     """Both ways, on a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is
     not; the cockpit's cast declares neither data/scene/cockpit.json nor a views file under work/, reads its own
     scene-record output beside and crowds from the record in it; the hub's cast reads nothing beside."""
-    assert not (SEEDS / stages.SHIP_SEED / "cockpit").exists()
+    assert not (SEEDS / "usd-ship" / "cockpit").exists()
     assert stages.ship_place("cockpit") and not stages.ship_place("hub")
     row = next(row for row in stages.STAGES if row.name == "cast")
     declared = row.files("cockpit")

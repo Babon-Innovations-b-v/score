@@ -7,7 +7,7 @@ score/store/restore's key rule), never passed.
 
 Read from the stage table: every node's declared world files (a ship place's through the table's own wrappers) under
 the work folder ({seeds}, {home}/work) or in the repository ({data}, {repo}) that are not there, grouped by what they
-are (KINDS: an earth seed, a ship seed, a place's views copy, a Pixal3D take), each kind with its code work; and the
+are (KINDS: an earth seed, a place's views copy, a Pixal3D take), each kind with its code work; and the
 owner's reference pictures the concept views of the place name (a view whose id names the place, or `ship` for a ship
 place). A Pixal3D take some place's pixal row makes is that row's gap (node `pixal@<place>`), priced through it. An
 id names the lost thing itself, never the place reading it, so one input many places read is one gap world-wide
@@ -21,14 +21,12 @@ from score.stages.props import prop_data
 
 WORK_ROOTS = ("{seeds}/", "{home}/work/")
 DATA_ROOTS = ("{data}/", "{repo}/")
-EARTH, SHIP, VIEWS, PIXAL, OTHER, DATA, PICTURE = ("earth-seed", "ship-seed", "views", "pixal", "work", "data",
-                                                   "reference")
+EARTH, VIEWS, PIXAL, OTHER, DATA, PICTURE = ("earth-seed", "views", "pixal", "work", "data", "reference")
 # What a lost path under the work folder is, by its start there: (kind, the code work that makes it again).
 KINDS = (("usd-r3/", EARTH, "earth seed lost: the earth-seed row exports a place's base from its kit once the kit is "
-                            "laid (score/stages/earth_seed); a place with no kit laid has none"),
-         ("usd-ship/", SHIP, "ship seed lost: ship_kit@{place} (paid, the ship kits' own table) made again, then a "
-                             "free ship-seed row that exports its base from that output's models (tools/usd/export.py "
-                             "write_base) in place of the usd-ship folder"),
+                            "laid, or from its design once it is locked (score/stages/earth_seed); a place with "
+                            "neither, or with no style (no data/definitions/place.json entry and no scene holding "
+                            "it that has one), has none"),
          ("demo/world1-r4/views/", VIEWS, "views lost (a copy of the scene record under work/demo, made by hand): the "
                                           "rows that read it read the place's views from its own scene record, as "
                                           "the light rows do (their light layer's views.json)"),
