@@ -2,8 +2,8 @@
 `/environments/<world>/plan/`, the plan page pattern for the environment, the first parent. One map a ground of its
 setting (a body or a plot), drawn top down (each top place's site with its blocks, the true distances between sites),
 and a row a site: its size and scene time (fields for the owner), where it stands (the environment concept's setting,
-shown here, set there), the Sun's height and every other body in its sky at that moment (worked out from the setting,
-never typed), and its blockout, the structure picture its next draw is drawn on. Keep (SyncRequest `env-plan-edit`)
+shown here, set there) and its blockout, the structure picture its next draw is drawn on. Its sky is no column: it
+follows from the setting's bodies at its place and scene time (the owner, 2026-10-21), shown on hover over its time. Keep (SyncRequest `env-plan-edit`)
 keeps his times and sizes as his own; Write (`env-plan-write`)
 has the plan writer write it again under the owner's standing allowance for plan writing. The places picked before
 blockouts existed are named (`without_blockout`)."""
@@ -71,19 +71,18 @@ def where_of(site):
             f"{abs(site['longitude']):.4f}° {'E' if site['longitude'] >= 0 else 'W'}")
 
 
-def sky_line(found):
-    """[(name, words, tip)] of the worlds above a site's horizon at its scene time."""
-    lines = []
-    for world in (found or {}).get("bodies", []):
-        if world["altitude"] <= 0:
-            continue
-        where = f"{world['altitude']:.0f}° {COMPASS[round(world['azimuth'] / 45) % 8]}"
-        size = "point" if world["across"] < 0.05 else f"{world['across']:.1f}°"
-        lines.append((world["name"], f"{where}, {size}, {world['lit'] * 100:.0f}% lit",
-                      f"azimuth {world['azimuth']:.1f}°, altitude {world['altitude']:.1f}°, "
-                      f"{world['across']:.4f}° across, lit from east {world['lit_from'][0]:.2f}, "
-                      f"north {world['lit_from'][1]:.2f}, up {world['lit_from'][2]:.2f}"))
-    return lines
+def sky_tip(found):
+    """A site's sky at its scene time in one line, worked out from the setting (never set here): each light's height and
+    each body above its horizon, where, how big and how much lit; "" before it has a scene time."""
+    if not found:
+        return ""
+    words = [f"{light['name']} {light['altitude']:.0f}° up" for light in found.get("lights", [])]
+    for world in found.get("bodies", []):
+        if world["altitude"] > 0:
+            size = "a point" if world["across"] < 0.05 else f"{world['across']:.1f}°"
+            words.append(f"{world['name']} {world['altitude']:.0f}° {COMPASS[round(world['azimuth'] / 45) % 8]}, "
+                         f"{size}, {world['lit'] * 100:.0f}% lit")
+    return "Its sky, from the setting: " + "; ".join(words)
 
 
 def plan_page(request, world):
@@ -93,10 +92,8 @@ def plan_page(request, world):
     plan = shown.get("plan") or {"maps": [], "gaps": []}
     names = {**groups.short_names(world_state), **world_state.shells}
     maps = [{**found, "svg": map_svg(found, names), "rows": [{
-        **site, "title": names.get(site["place"], site["name"]), "sky_lines": sky_line(site.get("overhead")),
-        "where": where_of(site),
-        "sun": next(iter((site.get("overhead") or {}).get("lights", [])), None),
-        "blockout": world_state.blockouts.get(site["place"])}
+        **site, "title": names.get(site["place"], site["name"]), "sky_tip": sky_tip(site.get("overhead")),
+        "where": where_of(site), "blockout": world_state.blockouts.get(site["place"])}
         for site in found["sites"]]} for found in plan["maps"]]
     can = is_owner(request.user) and actions.decisions_on()
     return render(request, "pages/environment_plan.html", {

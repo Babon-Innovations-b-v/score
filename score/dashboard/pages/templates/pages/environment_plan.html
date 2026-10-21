@@ -17,15 +17,13 @@
     <h2 class="eyebrow" title="{{ map.ground|default:'its sites on its ground' }}">{{ map.name }}</h2>
     {{ map.svg }}
     <div class="ec-scroll"><table class="ec-rows">
-      <thead><tr><th>Site</th><th title="wide, deep, tall in metres">Size</th><th title="its scene time in UTC: its sky is worked out at this moment">Time</th><th title="where it stands on its ground, set in the environment concept's setting: latitude and longitude on a body, metres on a plot">Where</th><th title="the Sun's height over the horizon">Sun</th><th title="each other world above its horizon: where, how big, how much lit">Sky</th><th title="the structure picture its next draw is drawn on">Blockout</th></tr></thead>
+      <thead><tr><th>Site</th><th title="wide, deep, tall in metres">Size</th><th title="its scene time in UTC, your choice; its sky follows from the setting's bodies at its place and this moment (hover a time to see it)">Time</th><th title="where it stands on its ground, set in the environment concept's setting: latitude and longitude on a body, metres on a plot">Where</th><th title="the structure picture its next draw is drawn on">Blockout</th></tr></thead>
       <tbody>{% for site in map.rows %}<tr data-row="site" data-place="{{ site.place }}">
         <td><b data-v>{{ site.title }}</b></td>
         {% if can %}<td><input type="text" data-f="size" value="{{ site.size|join:' x '|unlocalize }}" title="wide x deep x tall, metres"></td>
-        <td><input type="text" data-f="time" value="{{ site.time|default_if_none:'' }}" placeholder="2099-06-01T20:00:00Z"></td>
-        {% else %}<td data-v>{{ site.size|join:' x '|unlocalize }} m</td><td data-v>{{ site.time|default_if_none:'?' }}</td>{% endif %}
+        <td title="{{ site.sky_tip }}"><input type="text" data-f="time" value="{{ site.time|default_if_none:'' }}" placeholder="2099-06-01T20:00:00Z" title="{{ site.sky_tip }}"></td>
+        {% else %}<td data-v>{{ site.size|join:' x '|unlocalize }} m</td><td title="{{ site.sky_tip }}" data-v>{{ site.time|default_if_none:'?' }}</td>{% endif %}
         <td data-v>{{ site.where }}</td>
-        <td data-v>{% if site.sun %}{{ site.sun.altitude|floatformat:0 }}°{% else %}<span class="unknown" title="no scene time or place yet">?</span>{% endif %}</td>
-        <td>{% for name, words, tip in site.sky_lines %}<div title="{{ tip }}"><b data-v>{{ name }}</b> <span class="soft" data-v>{{ words }}</span></div>{% empty %}<span class="soft" data-v>{% if site.sky %}none up{% else %}?{% endif %}</span>{% endfor %}</td>
         <td>{% if site.blockout %}<a href="{{ site.blockout.url }}" target="_blank" rel="noopener"><img class="ep-blockout" src="{{ site.blockout.thumb_url }}" alt="{{ site.title }} blockout" loading="lazy"></a>{% else %}<span class="unknown" data-v>none</span>{% endif %}</td>
       </tr>{% endfor %}</tbody>
     </table></div>

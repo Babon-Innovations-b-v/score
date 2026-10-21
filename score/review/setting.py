@@ -239,6 +239,26 @@ def proposed(setting):
     return {**setting, "bodies": bodies}
 
 
+def spot(site):
+    """Where a site stands, rounded to a few millimetres on any body: (on, latitude, longitude) or (on, x, y)."""
+    return (site.get("on"), *(round(float(site.get(name) or 0.0), 7) for name in (
+        ("latitude", "longitude") if site.get("latitude") is not None else ("x", "y"))))
+
+
+def kept_apart(proposed, before):
+    """The proposed setting with each site a model put on one spot with another (a rounded answer) back where
+    `before` had it, when `before` had them apart: two sites are never collapsed onto one spot by a model's answer."""
+    earlier = {site.get("place"): site for site in (before or {}).get("sites") or [] if isinstance(site, dict)}
+    sites = [site for site in proposed.get("sites") or [] if isinstance(site, dict)]
+    count = {}
+    for site in sites:
+        count[spot(site)] = count.get(spot(site), 0) + 1
+    apart = {spot(site) for site in earlier.values()}
+    kept = [earlier[site.get("place")] if count[spot(site)] > 1 and site.get("place") in earlier and
+            len(apart) == len(earlier) else site for site in sites]
+    return {**proposed, "sites": kept}
+
+
 def now(path=PROPOSED):
     """Environment 1's setting as its data proposes it (data/physics/setting.json), checked."""
     return checked(json.loads(path.read_text()))

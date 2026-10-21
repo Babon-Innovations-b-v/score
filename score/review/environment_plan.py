@@ -43,6 +43,7 @@ LOOK_MOST = 400  # characters of a site's look the writing is told
 ITEMS_MOST = 30  # a site's plan items the writing is told
 DROP_RINGS = (0.5, 1.0, 2.0)  # of a site's reach: the rings its ball-fall spots stand on
 ROOFS = ("flat", "dome", "pitched", "vault")
+SAME_SPOT = 1.0  # metres: two sites closer than this stand on one spot
 ASKED = """You are an architect drawing the site plan of a game environment's worlds: one map a world, each top place's
 site on it, in metres. The facts below are fixed: where each site stands on its ground (a world at its true radius,
 or a flat plot), the parts of a site with their sizes and headings, the fall of the ground round each site on its
@@ -379,11 +380,15 @@ def distances(sites, radius):
 
 
 def gaps_of(plan):
-    """What the plan does not know yet, each in words: a site's scene time or its place on its ground."""
+    """What the plan does not know yet, each in words: a site's scene time or its place on its ground, and two sites
+    standing on one spot of a ground (under a metre apart: each site has its own place in the setting)."""
+    names = {site["place"]: site["name"] for world in plan["maps"] for site in world["sites"]}
     return [f"{site['name']}: no {what}" for world in plan["maps"] for site in world["sites"]
             for what, missing in (("scene time", site.get("time") is None),
                                   ("place on its ground", "x" not in site and site.get("latitude") is None))
-            if missing]
+            if missing] + \
+        [f"{names[found['from']]} and {names[found['to']]} stand on one spot of {world['name']}"
+         for world in plan["maps"] for found in world.get("distances", []) if found["metres"] < SAME_SPOT]
 
 
 def settled(plan, store=None):
@@ -456,12 +461,12 @@ def current(store, world=None):
 
 
 def site_of(store, place, world=None):
-    """The site of a top place on the environment's plan shown, with the ground it stands on (`on`), None when it
-    has none."""
+    """The site of a top place on the environment's plan shown, with the ground it stands on (`on`) and that
+    ground's radius in metres (`radius_m`, None on a plot), None when it has none."""
     for found in current(store, world)["plan"]["maps"]:
         for site in found["sites"]:
             if site["place"] == place:
-                return {**site, "on": found["on"]}
+                return {**site, "on": found["on"], "radius_m": found.get("radius_m")}
     return None
 
 

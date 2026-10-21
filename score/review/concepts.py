@@ -621,7 +621,8 @@ def structure_pictures(store, place):
     found = [(STRUCTURE.format(parent="the environment", rest=", the ground round it at its heights"),
               ("blockout", place))]
     worlds = (site.get("overhead") or {}).get("bodies", [])
-    return found + ([(SKY_PICTURE, ("sky", place))] if blockout.unseen(blockout.site_parts(site), worlds) else [])
+    parts = blockout.scene_of(store, place)[0]
+    return found + ([(SKY_PICTURE, ("sky", place))] if blockout.unseen(parts, worlds) else [])
 
 
 def sent_pictures(store, place):

@@ -79,3 +79,15 @@ def test_a_setting_out_of_shape_is_refused():
 def test_a_models_values_for_a_real_body_are_dropped_for_the_tables():
     proposed = setting.proposed({"bodies": [{"body": "moon", "name": "Moon", "reference": "moon", "radius_km": 220}]})
     assert proposed["bodies"] == [{"body": "moon", "name": "Moon", "reference": "moon"}]
+
+
+def test_a_models_answer_never_stacks_two_sites_the_concept_had_apart():
+    before = setting.now()
+    rounded = [{**site, "latitude": 55.0, "longitude": 0.0} if site["on"] == "moon" else site
+               for site in before["sites"]]
+    kept = setting.kept_apart({**before, "sites": rounded}, before)
+    assert kept["sites"] == before["sites"]  # every Moon site back where it stood
+    spots = [setting.spot(site) for site in before["sites"]]
+    assert len(set(spots)) == len(spots)  # environment 1's proposal: each site its own spot
+    moved = [{**site, "longitude": 0.5} if site["place"] == "base" else site for site in before["sites"]]
+    assert setting.kept_apart({**before, "sites": moved}, before)["sites"] == moved  # a site he moves alone moves

@@ -526,21 +526,17 @@ class LocalSource:
 
     def blockout_ref(self, node):
         """The FileRef of `node`'s blockout (score/review/blockout.py) rendered into this home's blockouts/ under the
-        hash of what it is built from, None while its parent's plan is not there."""
-        import numpy as np
+        hash of what it is built from and the blockout code (blockout.scene_key: a render of older code is never
+        served), None while its parent's plan is not there."""
         from score.review import blockout
         try:
-            parts, framed, worlds = blockout.scene_of(self.store, node)
+            scene = blockout.scene_of(self.store, node)
         except blockout.Missing:
             return None
-        digest = hashlib.sha256(json.dumps([framed, worlds], sort_keys=True).encode())
-        for triangles, kind in parts:
-            digest.update(kind.encode())
-            digest.update(np.asarray(triangles, dtype=np.float64).tobytes())
-        path = self.home / "blockouts" / f"{digest.hexdigest()}.png"
+        path = self.home / "blockouts" / f"{blockout.scene_key(scene)}.png"
         if not path.is_file():
             path.parent.mkdir(parents=True, exist_ok=True)
-            blockout.render(parts, blockout.fixed_camera(parts, framed), worlds).save(path)
+            blockout.drawn(scene).save(path)
         sha = self.remembered(("blockout", str(path)), lambda: hashlib.sha256(path.read_bytes()).hexdigest())
         self.known.add(sha, f"{node}-blockout.png", path)
         return file_ref(sha, f"{node}-blockout.png", path.stat().st_size)
