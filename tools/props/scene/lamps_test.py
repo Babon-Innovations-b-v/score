@@ -36,6 +36,33 @@ def test_a_typed_light_on_a_row_whose_kind_does_not_glow_gives_no_lamp():
     assert lamps.light_of(row, laid(0.0), library=LIBRARY) is None
 
 
+# A reading's rows as the creator's kept scene inventories carry them: each anchored on the row it rests on.
+READING = [{"id": "floor_plates", "noun": "floor plates", "anchor": "ground"},
+           {"id": "left_wall", "noun": "wall", "anchor": "on:floor_plates"},
+           {"id": "roof_dome", "noun": "roof", "anchor": "on:left_wall"},
+           {"id": "ceiling_beam", "name": "ceiling beam", "noun": "beam", "anchor": "roof"},
+           {"id": "ribs", "noun": "ribs", "anchor": "on:left_wall"},
+           {"id": "desk", "noun": "desk", "anchor": "floor"},
+           {"id": "loop_a", "noun": "frame", "anchor": "on:loop_b"},
+           {"id": "loop_b", "noun": "frame", "anchor": "on:loop_a"}]
+WORDS = {"ceiling": ["ceiling", "roof"], "wall": ["wall", "walls"]}
+
+
+def test_a_reading_s_lamp_is_mounted_as_the_row_it_is_on():
+    """`on:<row>`: the held row's noun, else its own anchor, else what it is on in turn; a desk lamp stands."""
+    def mount(on):
+        return lamps.mount_of({"id": "lamp", "noun": "lamp", "anchor": on}, READING, WORDS)
+    assert [mount(on) for on in ("on:roof_dome", "on:left_wall", "on:ceiling_beam", "on:ribs", "on:desk",
+                                 "on:loop_a", "on:nothing", "floor")] == \
+        ["ceiling", "wall", "ceiling", "wall", "stands", "stands", "stands", "stands"]
+
+
+def test_a_reading_s_lamp_on_its_roof_gets_the_ceiling_lamp_with_its_shadows():
+    row = {"id": "roof_light", "noun": "light", "anchor": "on:roof_dome"}
+    assert lamps.light_of(row, laid(2.5), READING, library=LIBRARY, words=WORDS) == \
+        {"strength": 0.25, "reach": 5.0, "high": 0.05, "shadows": True}
+
+
 def test_a_lens_part_is_not_where_the_lamp_hangs():
     row = {"id": "lamp", "noun": "lamp", "anchor": "ceiling"}
     pieces = laid(3.0) + [{"kind": "x_lamp", "at": [0.0, 0.0, 0.0], "part": "glow"}]
@@ -56,11 +83,15 @@ def test_every_installed_kit_s_lamps_are_the_rule_s_and_no_other_kind_shines():
         rows = {f"{kit['room']}_{row['id']}": row for row in json.loads(inventory_path.read_text())["rows"]
                 if row.get("made") == "kit piece"}
         for kind, about in kit["kinds"].items():
-            wanted = lamps.light_of(rows[kind], [laid for laid in kit["pieces"] if laid["kind"] == kind]) \
-                if kind in rows else None
+            wanted = lamps.light_of(rows[kind], [laid for laid in kit["pieces"] if laid["kind"] == kind],
+                                    list(rows.values())) if kind in rows else None
             assert about.get("light") == wanted, (kit_path.name, kind, about.get("light"), wanted)
             lit += wanted is not None
     assert lit >= 40, lit
+
+
+def test_the_real_library_names_the_words_of_a_ceiling_and_a_wall():
+    assert {"ceiling", "roof"} <= set(lamps.mount_words()["ceiling"]) and "wall" in lamps.mount_words()["wall"]
 
 
 def test_every_mount_of_the_real_library_has_its_numbers():

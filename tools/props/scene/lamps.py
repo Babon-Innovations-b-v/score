@@ -2,7 +2,8 @@
 reading noun) gives its kind a light from the library's lamp (data/library/lamps.json) for the row's mount, its reach
 from how high its laid pieces hang. No per-scene number decides it; the light sweep measures the strength after.
 
-    light_of(row, laid)     the light a row's kind gives ({strength, reach, high, shadows}), or None
+    light_of(row, laid, rows)   the light a row's kind gives ({strength, reach, high, shadows}), or None
+    mount_of(row, rows)         how a row is mounted: ceiling, wall or stands
 """
 import json
 import pathlib
@@ -19,9 +20,33 @@ def mounts(path=LIBRARY):
     return json.loads(pathlib.Path(path).read_text())["mounts"]
 
 
-def mount_of(row):
-    """How a row is mounted: its anchor when it is the ceiling or a wall, else it stands on something."""
-    return row.get("anchor") if row.get("anchor") in ("ceiling", "wall") else "stands"
+def mount_words(path=LIBRARY):
+    return json.loads(pathlib.Path(path).read_text())["mount_words"]
+
+
+def mount_named(text, words):
+    """The mount a row's noun or anchor names (a word of it in the library's mount words), or None."""
+    said = set(row_kinds.words(text).split())
+    return next((mount for mount, named in words.items() if said & set(named)), None)
+
+
+def mount_of(row, rows=(), words=None):
+    """How a row is mounted: its anchor when it is the ceiling or a wall; for a row anchored `on:<row>` (a reading's
+    rows), what that row is (its noun, else its own anchor, else what it is on in turn); else it stands on something."""
+    words = words if words is not None else mount_words()
+    by_id = {other["id"]: other for other in rows}
+    anchor, seen = row.get("anchor") or "", set()
+    if anchor in ("ceiling", "wall"):
+        return anchor
+    while anchor.startswith("on:") and anchor[3:] in by_id and anchor[3:] not in seen:
+        seen.add(anchor[3:])
+        held = by_id[anchor[3:]]
+        anchor = held.get("anchor") or ""
+        found = mount_named(held.get("noun") or held.get("name"), words) or (
+            None if anchor.startswith("on:") else mount_named(anchor, words))
+        if found:
+            return found
+    return "stands"
 
 
 def glows(row, kinds=None):
@@ -35,12 +60,12 @@ def height(laid):
     return statistics.median(feet) if feet else 0.0
 
 
-def light_of(row, laid, kinds=None, library=None):
-    """The light of a row's kind laid as `laid` (its pieces), from the library's lamp for its mount; None when the
-    row's kind does not glow."""
+def light_of(row, laid, rows=(), kinds=None, library=None, words=None):
+    """The light of a row's kind laid as `laid` (its pieces), from the library's lamp for its mount among its
+    inventory's `rows`; None when the row's kind does not glow."""
     if not glows(row, kinds):
         return None
-    lamp = (library if library is not None else mounts())[mount_of(row)]
+    lamp = (library if library is not None else mounts())[mount_of(row, rows, words)]
     reach = max(float(lamp["least_reach"]), float(lamp["reach_per_height"]) * height(laid))
     return {"strength": round(float(lamp["strength_per_reach"]) * reach, 3), "reach": round(reach, 2),
             "high": float(lamp["high"]), "shadows": bool(lamp["shadows"])}

@@ -951,7 +951,8 @@ def kinds_table(inventory, pieces):
     table = {}
     for ident, row in kit_kinds(inventory).items():
         about = {}
-        light = lamps.light_of(row, [laid for laid in pieces if laid["kind"] == f"hub_{ident}"])
+        laid = [found for found in pieces if found["kind"] == f"hub_{ident}"]
+        light = lamps.light_of(row, laid, inventory["rows"])
         if light:
             about["light"] = light
         if ident in FLOORS:

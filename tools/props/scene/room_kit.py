@@ -548,7 +548,7 @@ def kinds_table(room, inventory, pieces):
             continue
         about = {}
         kind = f"{room}_{row['id']}"
-        light = lamps.light_of(row, [laid for laid in pieces if laid["kind"] == kind])
+        light = lamps.light_of(row, [laid for laid in pieces if laid["kind"] == kind], inventory["rows"])
         if light:
             about["light"] = light
         if row["id"] in FLOORS:
