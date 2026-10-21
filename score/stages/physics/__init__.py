@@ -74,8 +74,14 @@ def trial_files(place):
     """What the trial reads besides the layer's output (its record there): the Blender scripts it runs, the
     neighbours' seeds the stage references."""
     found = {"renderer": "{data}/../tools/blender/inside", "trial script": "{repo}/" + TRIAL_SCRIPT}
-    found.update({f"neighbour {name}": f"{{seeds}}/usd-r3/{name}" for name in terrain_look.neighbours(place)})
+    found.update({f"neighbour {name}": f"{{seeds}}/usd-r3/{name}" for name in shown_places(place)})
     return found
+
+
+def shown_places(place):
+    """The places the scene's stage references (its data/scene record's `places`); none for a scene with no record
+    there (a scene of the new designs: the engine room)."""
+    return terrain_look.neighbours(place) if (REPO / f"data/scene/{place}.json").is_file() else []
 
 
 def read_json(path):

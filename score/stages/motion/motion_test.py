@@ -134,7 +134,7 @@ def test_a_row_that_moves_with_no_object_fails_designed():
 
 def test_a_speed_is_the_middle_of_its_kind_s_cited_range():
     assert from_design.middle_speed({"angular": [15.0, 53.0]}, "angular") == 34.0
-    assert from_design.middle_speed({"linear": [0.08, 0.4]}, "linear") == 0.24
+    assert abs(from_design.middle_speed({"linear": [0.08, 0.4]}, "linear") - 0.24) < 1e-12
 
 
 if __name__ == "__main__":
