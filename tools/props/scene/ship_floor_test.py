@@ -46,7 +46,7 @@ def test_every_room_keeps_a_persons_size():
 
 def test_each_ship_place_has_one_space():
     places = sorted(space["place"] for space in ship_floor.spaces(FLOOR))
-    assert places == sorted(["cockpit", "quarters", "galley", "navigation", "engineroom", "storage", "shiplock",
+    assert places == sorted(["cockpit", "quarters", "galley", "engineroom", "storage", "shiplock",
                              "walkway"])
 
 
@@ -58,8 +58,8 @@ def test_the_lock_stands_behind_the_side_ring():
 
 def test_an_overlapping_room_is_a_fault():
     floor = copy.deepcopy(FLOOR)
-    room(floor, "storage")["y"] = [22.0, 27.2]
-    assert "navigation room and storage overlap" in ship_floor.faults(SHIP, floor)
+    room(floor, "storage")["y"] = [18.0, 27.2]
+    assert "cockpit and nav and storage overlap" in ship_floor.faults(SHIP, floor)
 
 
 def test_a_floor_under_the_keel_is_a_fault():
