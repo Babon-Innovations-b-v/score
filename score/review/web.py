@@ -281,7 +281,7 @@ def plan_write(store, place, euros, by, run=None):
     name = checked_by(by)
     env = {**os.environ, "SCORE_SPEND_STORE": str(store.cache.parent)}
     if not plan_writing.AUTOMATIC:
-        price = plan_writing.price(store, [place])
+        price = plan_writing.price(store)
         if abs(float(euros) - price) > 0.005:
             raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's price (EUR {price:.2f}): "
                                  "read the page again")
