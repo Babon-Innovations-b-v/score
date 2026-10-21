@@ -11,5 +11,6 @@ Looks are `data/people/takes.json` entries (spec and outfit).
   take's `input.png`) and `data/inventory/people.json`, so the shared loop finishes it (#41); its look into
   `data/people/bodies.json`, its cast name into the place's cast record. Still a model made before the loop (the
   loop's Pixal3D batch takes only an approved scene's rows): an accepted gap of #41.
-- Gates measure, unknown blocks: `close-ups` (one with the arms apart), `take` (a kept take on disk). Tests:
-  `people_takes_test.py`.
+- Gates measure, unknown blocks: `close-ups` (one with the arms apart), `take` (a kept take whose files, its raw
+  and finished model and its close-up, are in the output, `take/`, so the store keeps them: #26, the work folder
+  was lost on 2026-10-19). Tests: `people_takes_test.py`.
