@@ -162,7 +162,8 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
         {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop"}]}
     fresh = people_rows.refreshed_place("deck", inventory, None, None)
     assert fresh["rows"]["pilot"]["looks"] == ["deck_pilot_1-drawn", "deck_pilot_2-drawn"] and "chair" not in fresh["rows"]
-    assert fresh["rows"]["crowd"]["crowd"] == "square_crowd-drawn" and fresh["rows"]["crowd"]["palettes"] is None
+    assert fresh["rows"]["crowd"]["crowd"] == "deck_crowd-drawn" and fresh["rows"]["crowd"]["palettes"] is None, \
+        "a crowd takes no look drawn from another scene's row"
     fresh["rows"]["pilot"]["looks"] = ["tube_person_right_1-drawn", "deck_pilot_2-drawn"]
     assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
         "deck_pilot_1-drawn", "a pick with no why is no hand-made choice: read again from the design"
@@ -193,6 +194,14 @@ def test_a_crowds_look_is_read_off_its_words():
         # who the row names decides, never its crowd word alone: a city crowd's look is no one else's crowd
         assert look("crowd of aliens", "crowd") == look("crowd of martian colonists", "crowd") == "moon_crowd-drawn"
         assert look("crowd of shoppers in grey coats", "crowd") == "citizen-coat"
+        # a look drawn from another scene's crowd row is that row's own, however its words match
+        drawn = pathlib.Path(held) / "square_crowd.json"
+        drawn.write_text(json.dumps({"description": "one person of the crowd of people, as drawn in the square concept"}))
+        square = {"square_crowd-drawn": {"object": "one person of the crowd of people", "far_only": True,
+                                         "spec": str(drawn)}}
+        row = {"id": "crowd", "name": "crowd of people", "noun": "crowd"}
+        assert people_rows.crowd_look("moon", row, square) == "moon_crowd-drawn"
+        assert people_rows.crowd_look("moon", row, {**line, **square}) == "citizen-coat"
 
 
 def a_concept(fabric_lab_colour, box):
