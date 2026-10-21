@@ -6,8 +6,8 @@ environment concept's: a body, at its true radius, or a plot), each top place's 
 and terrain heights round it and its scene time; the true distances between sites on the same ground; and the
 setting, from which what is seen overhead at each site at its scene time is worked out (score/review/overhead.py),
 never written by hand: every other body at its true direction, size and phase, every light and backdrop. The engine
-runs the same setting live. The game 2099's ground plans (data/ground/plan/<ground>.json) are read only as the layout
-of a site's parts in metres (the Base's modules), never for a ground's size or a site's place.
+runs the same setting live. A site's parts are laid where its own kept plan holds them (the creator's design: the
+Base's modules), never from the game's ground plans (retired, 2026-10-21).
 
 It is made like a place's plan: what data already says is worked out free (`facts_of`: each site's place and parts,
 the fall of its ground's curve round it); Gemini 3.1 Pro writes the rest (`write`: one direct call through the plan
@@ -76,81 +76,24 @@ def world_name():
     return json.loads((concepts.DATA / "definitions/world.json").read_text())["name"]
 
 
-def layout(ground):
-    """The game 2099's ground plan of `ground` (data/ground/plan/<ground>.json), read only for the layout of a site's
-    parts in metres; None with none."""
-    path = concepts.DATA / f"ground/plan/{ground}.json"
-    return json.loads(path.read_text()) if path.is_file() else None
-
-
-def seat_frame(out):
-    """(across, out, along) of a seat at `out` on its ball, as the game built it."""
-    out = np.asarray(out, float) / np.linalg.norm(out)
-    reference = np.array([0.0, 0.0, 1.0]) if abs(out[2]) <= 0.9 else np.array([1.0, 0.0, 0.0])
-    along = reference - out * reference.dot(out)
-    along /= np.linalg.norm(along)
-    return np.cross(out, along), out, along
-
-
-def map_point(out, flat, reference, radius):
-    """Where a seat's flat point stands in the game's layout: [x, y] metres from the reference seat's middle along its
-    across and along axes, the game's ball unrolled round it."""
-    across, up, along = seat_frame(out)
-    point = radius * up + across * flat[0] + along * flat[1]
-    ref_across, ref_up, ref_along = seat_frame(reference)
-    way = point / np.linalg.norm(point)
-    angle = math.acos(max(-1.0, min(1.0, float(np.dot(way, ref_up)))))
-    level = way - ref_up * float(np.dot(way, ref_up))
-    if np.linalg.norm(level) < 1e-12:
-        return [0.0, 0.0]
-    level /= np.linalg.norm(level)
-    return [round(radius * angle * float(np.dot(level, ref_across)), 2),
-            round(radius * angle * float(np.dot(level, ref_along)), 2)]
-
-
-def seat_flat(seat):
-    """A seat's middle on its own plane: its `flat`, else its yard level's middle, else its seat's middle."""
-    if seat.get("flat"):
-        return list(seat["flat"])
-    if seat.get("level"):
-        box = seat["level"]["box"]
-        return [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]
-    return [0.0, 0.0]
-
-
-def parts_on(ground, tree):
-    """{top place or shell: [{place, at, heading}]} of the game's layout of `ground`: every seat on its ground plan and
-    every base module seated on one of them (data/definitions/base.json), grouped by the outside place or shell
-    holding it, in layout metres; {} with no ground plan."""
-    from score.review import environment_concept
-    plan = layout(ground)
-    if plan is None:
-        return {}
-    seats, radius = plan["seats"], float(plan["radius"])
-    reference = next((seat for seat in seats.values() if seat.get("flat") == [0.0, 0.0]),
-                     next(iter(seats.values())))["out"]
-    found = {}
-    for name, seat in seats.items():
-        if name in tree["parts"]:
-            continue  # a part of a place's outside (the Square's launch) stands in its place's own site
-        found.setdefault(environment_concept.outermost(name, tree), []).append(
-            {"place": name, "at": map_point(seat["out"], seat_flat(seat), reference, radius),
-             "heading": float(seat.get("heading") or 0.0)})
-    base = json.loads((concepts.DATA / "definitions/base.json").read_text())
-    if base.get("ground") == ground and base.get("seat_of") in seats:
-        seat = seats[base["seat_of"]]
-        node = environment_concept.outermost(base["seat_of"], tree)
-        for module in base["modules"].values():
-            found[node].append({"place": module["stage"], "at": map_point(seat["out"], module["flat"], reference,
-                                                                          radius),
-                                "heading": float(module.get("heading") or 0.0)})
-    return found
+def parts_of(place):
+    """[{place, at, heading}] of the child scenes the site's own kept plan lays out (its `holds`, the creator's design:
+    {home}/design/plans/<place>.json), each at its hold's middle in the plan's metres (x east, y south); [] while it
+    has no kept plan."""
+    from score.review import plans
+    path = plans.KEPT / f"{place}.json"
+    if not path.is_file():
+        return []
+    return [{"place": hold["place"], "at": [hold["x"] + hold["w"] / 2, hold["y"] + hold["d"] / 2], "heading": 0.0}
+            for hold in json.loads(path.read_text()).get("holds", [])]
 
 
 def sizes_of(place):
-    """(wide, deep, walls, rise, roof) of a place's data plan (blockout.heights_of), None with no plan."""
-    from score.review import blockout
-    plan = concepts.plan_of(place)
+    """(wide, deep, walls, rise, roof) of a place's plan (blockout.heights_of): its kept plan, the creator's design,
+    else its data plan; None with neither."""
+    from score.review import blockout, plans
+    kept = plans.KEPT / f"{place}.json"
+    plan = json.loads(kept.read_text()) if kept.is_file() else concepts.plan_of(place)
     if not plan.get("w"):
         return None
     walls, rise, roof = blockout.heights_of(plan)
@@ -171,7 +114,7 @@ def radius_m(ground):
 
 def site_facts(site, parts, tree):
     """What data says of one site: its name and look, where the setting puts it, its parts in site metres with their
-    sizes (the game's layout), its own plan's items and height words."""
+    sizes (its kept plan's holds), its own plan's items and height words."""
     from score.review import environment_concept
     node = site["place"]
     middle = np.mean([part["at"] for part in parts], axis=0) if parts else np.zeros(2)
@@ -208,8 +151,7 @@ def facts_of(store, world_id=None):
     found = []
     for ground, kind in grounds_of(setting):
         key = ground[kind]
-        layouts = parts_on(key, tree)
-        sites = [site_facts(site, layouts.get(site["place"], []), tree)
+        sites = [site_facts(site, parts_of(site["place"]), tree)
                  for site in setting["sites"] if site["on"] == key]
         for site in sites:
             site["ball fall spots"] = fall_spots(site, radius_m(ground))

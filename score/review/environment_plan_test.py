@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from score.review import environment_concept, environment_plan
+from score.review import environment_concept, environment_plan, plans
 from score.review.setting_test import HOUSE
 from score.store import Store
 
@@ -14,6 +14,17 @@ from score.store import Store
 @pytest.fixture()
 def store(tmp_path):
     return Store.in_folder(tmp_path)
+
+
+def kept_base(monkeypatch, folder):
+    """The Base's kept plan laying out two of its modules, and their own kept plans (the creator's design)."""
+    monkeypatch.setattr(plans, "KEPT", folder / "kept-plans")
+    plans.KEPT.mkdir()
+    holds = [{"place": "hub", "row": "central_hub", "x": 40.0, "y": 50.0, "w": 18.0, "d": 18.0},
+             {"place": "hangar", "row": "large_hangar", "x": 50.0, "y": 0.0, "w": 56.0, "d": 58.0}]
+    (plans.KEPT / "base.json").write_text(json.dumps({"w": 110.0, "d": 110.0, "holds": holds}))
+    (plans.KEPT / "hub.json").write_text(json.dumps({"w": 18.0, "d": 18.0, "height": "walls 4 m"}))
+    (plans.KEPT / "hangar.json").write_text(json.dumps({"w": 56.0, "d": 58.0, "height": "walls 15 m to a flat roof"}))
 
 
 def sites_of(plan):
@@ -26,7 +37,8 @@ def kept_setting(store, setting, locked=True):
                                      "joey")
 
 
-def test_each_top_place_stands_where_the_setting_puts_it_at_true_size(store):
+def test_each_top_place_stands_where_the_setting_puts_it_at_true_size(store, monkeypatch, tmp_path):
+    kept_base(monkeypatch, tmp_path)
     plan = environment_plan.derived(store)
     assert sites_of(plan) == {"earth": ["square"], "moon": ["wreck", "old_station", "base"], "mars": ["campgrounds"]}
     moon = next(world for world in plan["maps"] if world["on"] == "moon")
@@ -34,7 +46,7 @@ def test_each_top_place_stands_where_the_setting_puts_it_at_true_size(store):
     apart = {(found["from"], found["to"]): found["metres"] for found in moon["distances"]}
     assert apart[("old_station", "base")] == pytest.approx(62.5, abs=0.5) and len(apart) == 3
     base = next(site for site in moon["sites"] if site["place"] == "base")
-    assert len(base["blocks"]) == 12 and base["size"][2] == pytest.approx(15.0)  # its modules; the hangar's walls
+    assert len(base["blocks"]) == 2 and base["size"][2] == pytest.approx(15.0)  # its kept plan's holds; the hangar's
     assert (base["latitude"], base["longitude"]) == (55.0, 0.0) and base["overhead"] is None  # no scene time yet: a gap
     assert min(spot[2] for spot in base["terrain"]["spots"]) > -0.02  # 100 m on the Moon: all but flat
     assert "Base: no scene time" in plan["gaps"] and not any("place on its ground" in gap for gap in plan["gaps"])
@@ -63,13 +75,14 @@ def answer_of(plan):
              "terrain": {"spots": [[50, 0, -3.5]]}} for site in world["sites"]]} for world in plan["maps"]]}
 
 
-def test_a_written_plan_keeps_the_fixed_facts_and_works_out_what_each_site_sees_overhead(store):
+def test_a_written_plan_keeps_the_fixed_facts_and_works_out_what_each_site_sees_overhead(store, monkeypatch, tmp_path):
+    kept_base(monkeypatch, tmp_path)
     free = environment_plan.derived(store)
     plan = environment_plan.plan_from(answer_of(free), free, store)
     assert plan["gaps"] == [] and plan["time"] == "2099-06-01T12:00:00Z"
     sites = {site["place"]: site for world in plan["maps"] for site in world["sites"]}
     base, square, wreck = sites["base"], sites["square"], sites["wreck"]
-    assert len(base["blocks"]) == 12 and base["latitude"] == 55.0  # its parts and the setting's place stand
+    assert len(base["blocks"]) == 2 and base["latitude"] == 55.0  # its parts and the setting's place stand
     assert square["latitude"] == 22.28 and square["blocks"][0]["name"] == "a tower"  # written where data says nothing
     earth = next(body for body in base["overhead"]["bodies"] if body["body"] == "earth")
     assert 1.75 < earth["across"] < 2.05 and earth["altitude"] > 0  # seen from the Moon's near side: about 1.9 degrees
