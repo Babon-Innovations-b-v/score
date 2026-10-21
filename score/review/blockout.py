@@ -13,12 +13,10 @@ What it is built from, by the node drawn (`scene_of`):
   plan at full detail where it has one (as an inside place's), else the site's blocks at their heights and roofs; lit
   from the direction of the setting's first light over the site at its scene time (score/review/overhead.py),
   every body in its sky at its true direction, size and phase;
-- a place within another (`inside_parts`; the owner, 2026-10-21: consistency between rooms comes from the
-  blockouts alone): its own shell at full detail in its box on the holder's plan shown (`holds`), its own plan's
-  walls, openings, levels, stairs, roofs and items (the written plan's schema, score/review/plan_writing.py), else its
-  data plan's outline, doors and the heights its words give; its siblings' shells round it in a darker grey and the
-  holder's own shell round them all, framed on it with a margin so the hull, the walkway and the rooms beside it
-  frame it.
+- a place within another (`inside_parts`): its own room shell alone at full detail in its box on the holder's plan
+  shown (`holds`), its own plan's walls, openings, levels, stairs, roofs and items (the written plan's schema,
+  score/review/plan_writing.py), else its data plan's outline, doors and the heights its words give; no hull and no
+  rooms beside it (the owner, 2026-10-21: the room is drawn on its own).
 
 "At full detail" is: walls with their thickness and openings (straight or on an arc), levels as platforms, stairs,
 roofs by kind (a dome as a dome, a vault as a half cylinder, pitched, flat), a tube as a tube, and each item as a
@@ -65,10 +63,8 @@ GROUND_BLUR = 31  # pixels (at twice the size) the ground's facet normals are av
 BEYOND = 0.1  # of a plan's box: an item standing further out than this is beyond the place, not drawn
 PERSON = 1.8  # metres: the person standing for scale
 GREY = 0.86  # the place's own solids: light grey
-ALBEDO = {"ground": 0.42, "sibling": 0.5, "holder": 0.6, "person": 0.62}
-FLOOR_DROP = 0.03  # metres the holder's floor sits under its inside places' floors
-SIBLING_WALL = 1.2  # metres a sibling's walls stand in an inside place's blockout
-MARGIN = 0.35  # of an inside place's box, the frame round it each way, so its siblings frame it
+ALBEDO = {"ground": 0.42, "person": 0.62}
+MARGIN = 0.05  # of an inside place's box, the frame round it each way: its room alone fills the view
 BACKGROUND = (92, 92, 92)
 SKY_GREY = (196, 200, 206)
 CREASE = 0.62  # how dark a crease line is
@@ -470,25 +466,6 @@ def level_solid(points, height):
     """A level as a solid: a raised deck, plaza or platform up to a storey high stands solid from the ground, a higher
     one (an upper floor, a balcony) or a sunken one is a slab at its height."""
     return prism(points, 0.0, height) if 0.0 < height <= STOREY else prism(points, height - SLAB, height)
-
-
-def standing_on(plan, box):
-    """The height of the holder's raised level (a deck or plaza up to a storey high) under the middle of `box` [x, y,
-    wide, deep], 0 with none: what an inside place laid there stands on."""
-    middle = (box[0] + box[2] / 2, box[1] + box[3] / 2)
-    found = [float(level["height"]) for level in plan.get("levels", []) if 0.05 < level["height"] <= STOREY and
-             inside_box(middle, level["points"])]
-    return max(found, default=0.0)
-
-
-def inside_box(point, points):
-    xs, ys = [corner[0] for corner in points], [corner[1] for corner in points]
-    return min(xs) <= point[0] <= max(xs) and min(ys) <= point[1] <= max(ys)
-
-
-def raised(triangles, by):
-    """Triangles moved up `by` metres."""
-    return dropped(triangles, -by)
 
 
 def up_to_roof(tall, start, end, roofs, placed):
@@ -962,53 +939,17 @@ def sized(own, hold, holder_plan):
     return {**found, "shell": None, "height": f"walls {STOREY} m"} if outdoor(found) else found
 
 
-def dropped(triangles, by):
-    """Triangles moved down `by` metres: a floor under another's, so the two never fight for a pixel."""
-    return [[[x, y - by, z] for x, y, z in triangle] for triangle in triangles]
-
-
-def lowered(triangles):
-    """A sibling's walls cut down to SIBLING_WALL, so they lay out the rooms round a place without hiding it."""
-    return [[[x, min(y, SIBLING_WALL), z] for x, y, z in triangle] for triangle in triangles]
-
-
-def inside_parts(place, holder_plan, mine_plan, plan_of, camera_way):
-    """An inside place's parts (the owner, 2026-10-21: consistency between rooms comes from the blockouts alone): its
-    own shell at full detail (walls, openings, levels, stairs, items, a person on its first standing spot; `mine_plan`
-    its own plan) where the holder's plan lays it, its siblings' floors and low walls round it in a darker grey (kind
-    sibling; `plan_of(place)` their data plans, {} with none), inside the holder's own shell (kind holder), all cut
-    away. Missing when the holder's plan does not lay `place` out."""
-    holds = holder_plan.get("holds") or []
-    mine = next((hold for hold in holds if hold["place"] == place), None)
+def inside_parts(place, holder_plan, mine_plan, camera_way):
+    """An inside place's parts: its own room shell alone at full detail (walls, openings, levels, stairs, items, a
+    person on its first standing spot; `mine_plan` its own plan) where the holder's plan lays it, cut away; no hull and
+    no rooms beside it (the owner, 2026-10-21: the room is drawn on its own). Missing when the holder's plan does not
+    lay `place` out."""
+    mine = next((hold for hold in holder_plan.get("holds") or [] if hold["place"] == place), None)
     if mine is None:
         raise Missing(f"the plan holding {place} does not lay it out yet")
-    middle = np.array([mine["x"] + mine["w"] / 2, mine["y"] + mine["d"] / 2])
-    base = standing_on(holder_plan, [mine["x"], mine["y"], mine["w"], mine["d"]])
-    tall = base + heights_of(sized(mine_plan or {}, mine, holder_plan))[0]
-
-    def in_front(corners):
-        """Whether a holder's wall stands on the fixed view's side of the place: lowered, so it never hides it."""
-        return float(np.dot(corners[:, [0, 2]].mean(axis=0) - middle, camera_way)) > 0
-
-    parts = []
-    for triangles, kind in shell_parts(holder_plan, None, True, camera_way):
-        corners = np.asarray(triangles, float).reshape(-1, 3)
-        if kind not in ("floor", "wall", "level", "stair") or not triangles or corners[:, 1].min() >= tall:
-            continue  # what stands over the place (an upper floor, a balcony) is cut away with the roofs
-        parts.append((dropped(triangles, FLOOR_DROP) if kind in ("floor", "level") else
-                      lowered(triangles) if kind == "wall" and in_front(corners) else triangles, "holder"))
-    for hold in holds:
-        box = [hold["x"], hold["y"], hold["w"], hold["d"]]
-        own = sized((mine_plan if hold["place"] == place else plan_of(hold["place"])) or {}, hold, holder_plan)
-        lift = standing_on(holder_plan, box)
-        if hold["place"] == place:
-            parts += [(raised(triangles, lift), kind) for triangles, kind in
-                      shell_parts(own, box, True, camera_way, standing=True)]
-        else:
-            parts += [(raised(dropped(triangles, FLOOR_DROP / 2) if kind == "floor" else lowered(triangles), lift),
-                       "sibling") for triangles, kind in shell_parts(own, box, True, camera_way)
-                      if kind in ("wall", "floor")]
-    return parts, [mine["x"], mine["y"], mine["w"], mine["d"], tall]
+    own = sized(mine_plan or {}, mine, holder_plan)
+    box = [mine["x"], mine["y"], mine["w"], mine["d"]]
+    return shell_parts(own, box, True, camera_way, standing=True), [*box, heights_of(own)[0]]
 
 
 def scene_of(store, node):
@@ -1020,7 +961,7 @@ def scene_of(store, node):
     if above:
         shown = plans.current(store, above)
         holder_plan = (shown or {}).get("plan") or {}
-        parts, box = inside_parts(node, holder_plan, own_plan(store, node), concepts.plan_of, corner_way())
+        parts, box = inside_parts(node, holder_plan, own_plan(store, node), corner_way())
         return parts, box, [], None
     from score.review import environment_plan
     site = environment_plan.site_of(store, node)

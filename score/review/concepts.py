@@ -43,9 +43,13 @@ the pictures sent with it named in order, the fixed viewpoint, people only where
 the environment's style
 (its locked environment concept's, else data/definitions/concept_views.json `style`; its references the same way; a
 draw and a pick record the environment concept's version they were made under, one under another is out of date, and
-none is made while it is unlocked: score/review/environment_concept.py). A place within another is sent first a crop of that one's picked concept
-to the scene inventory row its plan says holds it ("the inside of what this crop shows": the ship for its rooms, the
-block for the flat), never the whole scene; the design steps are strict, in one place (`step_refusal`, owner
+none is made while it is unlocked: score/review/environment_concept.py). A place within another is sent, after its
+blockout (its own room shell alone), a crop of that one's picked concept to the scene inventory row its plan says holds
+it (the ship for its rooms, the block for the flat), never the whole scene and never a view round it (the owner,
+2026-10-21); its wording opens with one block its siblings share word for word ("<the holding row> is divided into
+these compartments: 1. cockpit (flying the ship), 2. ..."; `compartment_words`), then "This concept is number x" and
+its inside alone (`INSIDE_ONLY`: its own walls, floor, ceiling, doors and furniture, windows as glass on a plain dark
+backdrop, nothing of what holds it or round it); the design steps are strict, in one place (`step_refusal`, owner
 2026-10-21): it is drawn or picked only once the layer above is picked (the pick is the approval), its inventory read,
 its plan made and that row outlined; then the picked concept of each place beside it that it opens into,
 so their shared door matches; then its references (the owner's, kept in the private bucket's references/, never the
@@ -273,7 +277,8 @@ PEOPLE_WORDS = re.compile(r"\b(people|person|crowd|crew)\b", re.IGNORECASE)
 COPIED_STYLE = re.compile(r"\bin the ([\w' ]+?)'s style\b")  # a look that says it copies another place's style
 FACING = re.compile(r"^(over|facing|towards|toward|across|to the|onto the) ")  # a lead's last clause that faces
 LOOK_MOST = 160  # characters of a place's look a draw sends
-LONGEST_GENERATED = 1100  # characters of a generated wording, the test's cap (about a third of 2026-10-20's longest, 2992)
+LONGEST_GENERATED = 1400  # characters of a generated wording, the test's cap (about a third of 2026-10-20's longest, 2992,
+# with the compartments' block of 2026-10-21)
 
 
 def resolved(path):
@@ -379,16 +384,34 @@ def look_text(place):
     return "" if copied_from(text) else no_sizes(text)
 
 
-def floor_words(place):
-    """What a floor plan the creator approved says `place` is for (data/definitions/<shell>_floor.json: a room's or
-    its walkway's `for`, with its side of the shell), as a sentence; "" when no floor plan names it."""
+def floor_entry(place):
+    """(the shell's name, the room or walkway entry) a floor plan the creator approved gives `place`
+    (data/definitions/<shell>_floor.json, one with a `for`), or None when none names it."""
     for path in sorted((DATA / "definitions").glob("*_floor.json")):
         plan = json.loads(path.read_text())
         for entry in [*plan.get("rooms", []), plan.get("walkway") or {}]:
             if entry.get("place") == place and entry.get("for"):
-                side = f" on the {entry['side']} side" if entry.get("side") in ("port", "starboard") else ""
-                return f"In the {path.stem.removesuffix('_floor')}{side}; for {no_sizes(entry['for'])}."
-    return ""
+                return path.stem.removesuffix("_floor"), entry
+    return None
+
+
+def floor_words(place):
+    """What a floor plan the creator approved says `place` is for (`floor_entry`: its `for`, with its side of the
+    shell), as a sentence; "" when no floor plan names it."""
+    found = floor_entry(place)
+    if found is None:
+        return ""
+    shell, entry = found
+    side = f" on the {entry['side']} side" if entry.get("side") in ("port", "starboard") else ""
+    return f"In the {shell}{side}; for {no_sizes(entry['for'])}."
+
+
+def purpose(place):
+    """What `place` is for in a few words: its floor plan's `for` up to its first colon, semicolon or comma; "" with
+    none, or when that only says its name again."""
+    found = floor_entry(place)
+    said = re.split(r"[:;,]", no_sizes(found[1]["for"]))[0].strip() if found else ""
+    return "" if said == bare(place) else said
 
 
 def short_look(place):
@@ -577,30 +600,6 @@ def waits(store, place):
     return step_refusal(store, place, "draw")
 
 
-WINDOW_ROW = re.compile(r"\b(window|windows|porthole|portholes|pane|panes|glazing)$", re.IGNORECASE)
-WINDOW_LOOK = re.compile(r"\b(windows?|portholes?|glazing)\b", re.IGNORECASE)
-VIEW_SCALE = 2.5  # how much wider than what holds a place the view through its windows reaches, each way
-
-
-def looks_out(place):
-    """Whether `place` has windows or openings to the outside (the owner, 2026-10-21): a plan lead onto the outside,
-    a scene inventory row that is a window (its name, before any colon, ends in window, porthole, pane or glazing),
-    or its own look naming windows."""
-    leads = (plan_of(place).get("leads") or {}).values()
-    rows = (inventory_read(place) or {}).get("rows", [])
-    return (any(lead.get("to") == "outside" for lead in leads)
-            or any(WINDOW_ROW.search(row["name"].split(":")[0].strip()) for row in rows)
-            or bool(WINDOW_LOOK.search(look_text(place))))
-
-
-def view_box(box, size):
-    """The box around `box` (pixels) VIEW_SCALE times as wide and tall about its middle, inside a picture of `size`."""
-    wide, tall = (box[2] - box[0]) * VIEW_SCALE / 2, (box[3] - box[1]) * VIEW_SCALE / 2
-    middle = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
-    return (max(0, middle[0] - wide), max(0, middle[1] - tall), min(size[0], middle[0] + wide),
-            min(size[1], middle[1] + tall))
-
-
 STRUCTURE = ("the structure: a rough grey model of it at real sizes from {parent}'s plan, seen from the fixed view{rest}; "
              "keep this layout, shapes and proportions exactly, add the look")
 OVERHEAD_VIEW = "what is seen overhead at its site: keep each body's place, size and phase, add the look"
@@ -613,8 +612,8 @@ def structure_pictures(store, place):
     from score.review import blockout, environment_plan, plans
     holder = above(place, store)
     if holder:  # its blockout stands once the holder's plan lays out its outline (blockout.scene_of)
-        return [(STRUCTURE.format(parent=short_name(holder), rest=", its own shell lighter, the places beside it "
-                                  "darker"), ("blockout", place))] if plans.holder_of(store, place) else []
+        return [(STRUCTURE.format(parent=short_name(holder), rest=", its own room alone"), ("blockout", place))
+                ] if plans.holder_of(store, place) else []
     site = environment_plan.site_of(store, place)
     if site is None:
         return []
@@ -627,21 +626,68 @@ def structure_pictures(store, place):
 
 def sent_pictures(store, place):
     """[(what it is, its source)] a first draw of `place` sends, in order: its blockout and overhead view
-    (`structure_pictures`), a crop of the layer above's picked concept
-    showing only what holds it (source: ("crop", the place above, its box)), for a place that looks out (looks_out) the
-    surroundings of that around it (("view", the place above, the same box)), each joined place's picked concept
-    (source: that place's name), then the creator's references (their paths)."""
+    (`structure_pictures`), a crop of the layer above's picked concept showing only what holds it (source: ("crop",
+    the place above, its box)), never the whole scene and never what lies round it (the owner, 2026-10-21), each
+    joined place's picked concept (source: that place's name), then the creator's references (their paths)."""
     holder = above(place, store)
     box = holding_box(store, place) if holder else None
     found = structure_pictures(store, place)
-    found += [(f"a crop of {short_name(holder)}'s picked concept: draw the inside of what this crop shows",
+    found += [(f"a crop of {short_name(holder)}'s picked concept: {holder_words(store, place)}, which holds it",
                ("crop", holder, box))] if box else []
-    found += [(f"{short_name(holder)}'s picked concept around it: through its windows, this view",
-               ("view", holder, box))] if box and looks_out(place) else []
     found += [(f"{short_name(other)}, picked: match the door they share", other)
               for other in joined(store, place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
                     for ref in references_of(store, place)]
+
+
+# --- the compartments (the owner, 2026-10-21: "divide it into the following compartments; this concept is number x of
+# that list"): every inside place held by the same thing gets one identical block naming them all in one order, then
+# its own number; it is drawn alone, its inside only.
+
+INSIDE_ONLY = ("Concept painting of its inside alone: its own walls, floor, ceiling, doors (closed, or open doorways "
+               "onto the compartments named) and furniture; windows as glass with a plain dark backdrop behind; nothing "
+               "of what holds it (no hull), nothing outside or round it")
+
+
+def holder_words(store, place):
+    """What holds `place`, in a few words: the name of its holding row on the layer above's reading ("the black
+    angular spaceship"), else the layer above's short name."""
+    from score.review import reading
+    holder, row = above(place, store), holding_row(store, place)
+    found = reading.reading_of(store, holder) if row else None
+    names = {item["id"]: item.get("name") for item in (found["inventory"]["rows"] if found else [])}
+    return f"the {names[row]}" if names.get(row) else short_name(holder)
+
+
+def compartments(store, place):
+    """[place] held by what holds `place` (the same row of the layer above, or the layer above's own walls), in the
+    layer above's order (`inside_of`); `holding_row`'s rule, the plan above read once."""
+    from score.review import plans
+    holder = above(place, store)
+    laid = {hold["place"]: hold.get("row")
+            for hold in ((plans.current(store, holder) or {}).get("plan") or {}).get("holds", [])}
+    data = plan_of(holder).get("holds") or {}
+    rows = {name: laid.get(name) or data.get(name) for name in inside_of(holder, store)}
+    return [name for name, row in rows.items() if row == rows.get(place)]
+
+
+def bare(place):
+    """A place's short name without its article ("cockpit", "crew quarters")."""
+    return short_name(place).removeprefix("the ")
+
+
+def compartment_words(store, place, crop):
+    """The block every compartment of the same holder shares word for word ("<holder> (picture <crop>) is divided
+    into these compartments: 1. cockpit (flying the ship), 2. ..."), then this one's number; "" for a top place."""
+    if not above(place, store):
+        return ""
+    listed = compartments(store, place)
+    entries = ", ".join(f"{number}. {bare(name)}" + (f" ({found})" if (found := purpose(name)) else "")
+                        for number, name in enumerate(listed, 1))
+    holder = holder_words(store, place) + (f" (picture {crop})" if crop else "")
+    number = listed.index(place) + 1 if place in listed else None
+    return (f"{holder[0].upper()}{holder[1:]} is divided into these compartments: {entries}."
+            + (f" This concept is number {number}: {bare(place)}." if number else ""))
 
 
 COMPASS = ("north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west")
@@ -718,9 +764,11 @@ def generated(store, place):
     listed = "Pictures: " + "; ".join(f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "."
     crop = next((number for number, (_, source) in enumerate(pictures, 1)
                  if isinstance(source, tuple) and source[0] == "crop"), None)
+    alone = above(place, store) and indoors(store, place)
     return " ".join(part for part in (
-        f"Concept painting of {short_name(place)}" + (f": the inside of what picture {crop} shows." if crop else "."),
-        floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
+        compartment_words(store, place, crop),
+        INSIDE_ONLY + "." if alone else f"Concept painting of {short_name(place)}.", floor_words(place),
+        inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
         holds_and_doors(store, place), size_words(store, place), overhead_words(store, place),
         listed if pictures else "",
         view_words(store, place),
@@ -874,9 +922,8 @@ def sent_picture(store, source):
         from score.review import blockout
         return (blockout.picture if source[0] == "blockout" else blockout.overhead_view)(store, source[1])
     if isinstance(source, tuple):
-        kind, holder, box = source
-        picture = blob_picture(store, picked(store, holder))
-        return picture.crop(tuple(box) if kind == "crop" else view_box(box, picture.size))
+        _, holder, box = source
+        return blob_picture(store, picked(store, holder)).crop(tuple(box))
     if isinstance(source, str):
         return blob_picture(store, picked(store, source))
     return Image.open(source)

@@ -13,20 +13,18 @@ ROOM_A = {"w": 6.0, "d": 4.0, "height": "ceiling 2.5 m", "doors": [["E", 2.0, 1.
           "people": [[1.0, 1.0, 0.0, "DESK"]]}  # a data plan's standing spot: x, y, facing, words
 
 
-def own_plans(place):
-    return {"room_a": ROOM_A}.get(place, {})
-
-
-def test_an_inside_places_blockout_holds_its_own_shell_its_siblings_and_its_holder():
-    parts, framed = blockout.inside_parts("room_a", HOLDER, ROOM_A, own_plans, blockout.corner_way())
+def test_an_inside_places_blockout_is_its_own_room_alone():
+    parts, framed = blockout.inside_parts("room_a", HOLDER, ROOM_A, blockout.corner_way())
     kinds = {kind for _, kind in parts}
-    assert {"holder", "sibling", "wall", "floor", "person"} <= kinds and "roof" not in kinds  # a cutaway: no roofs
+    assert {"wall", "floor", "person"} <= kinds and not kinds & {"holder", "sibling", "roof"}  # no hull, no roof
+    points = np.concatenate([np.asarray(triangles).reshape(-1, 3) for triangles, _ in parts])
+    assert points[:, 0].min() >= 2.0 - 0.5 and points[:, 0].max() <= 8.0 + 0.5  # no room beside it
     assert framed == [2.0, 2.0, 6.0, 4.0, 2.5]
     walls = np.concatenate([np.asarray(triangles).reshape(-1, 3) for triangles, kind in parts if kind == "wall"])
     assert walls[:, 1].max() == pytest.approx(2.5)  # its own ceiling, in metres
     assert walls[:, 0].min() >= 2.0 - 1e-6 and walls[:, 0].max() <= 8.0 + 1e-6  # inside its box on the holder
     with pytest.raises(blockout.Missing):
-        blockout.inside_parts("room_c", HOLDER, {}, own_plans, blockout.corner_way())
+        blockout.inside_parts("room_c", HOLDER, {}, blockout.corner_way())
 
 
 def test_a_door_is_a_hole_in_its_wall():
@@ -39,12 +37,12 @@ def test_a_door_is_a_hole_in_its_wall():
 
 
 def test_a_blockout_renders_grey_from_the_fixed_view():
-    parts, framed = blockout.inside_parts("room_a", HOLDER, ROOM_A, own_plans, blockout.corner_way())
+    parts, framed = blockout.inside_parts("room_a", HOLDER, ROOM_A, blockout.corner_way())
     picture = blockout.render(parts, blockout.fixed_camera(parts, framed))
     assert picture.size == (blockout.WIDE, blockout.TALL)
     pixels = np.asarray(picture)
     assert (pixels[..., 0] == pixels[..., 1]).all() and (pixels[..., 1] == pixels[..., 2]).all()  # neutral grey
-    assert (pixels != blockout.BACKGROUND).any(axis=-1).mean() > 0.3  # the model fills the frame
+    assert (pixels != blockout.BACKGROUND).any(axis=-1).mean() > 0.2  # its room alone fills the frame
 
 
 def test_a_sites_world_is_drawn_at_its_true_size_where_it_stands():
@@ -151,7 +149,7 @@ def test_a_site_fills_the_frame_lit_by_its_sun_with_shadows():
 
 
 def test_a_render_is_keyed_by_what_it_is_built_from_and_the_code_that_draws_it(monkeypatch):
-    parts, framed = blockout.inside_parts("room_a", HOLDER, ROOM_A, own_plans, blockout.corner_way())
+    parts, framed = blockout.inside_parts("room_a", HOLDER, ROOM_A, blockout.corner_way())
     key = blockout.scene_key((parts, framed, [], None))
     assert blockout.scene_key((parts, framed, [], (180.0, 40.0))) != key  # another sun
     monkeypatch.setattr(blockout, "VERSION", "older code")
