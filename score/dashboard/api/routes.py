@@ -408,8 +408,8 @@ def buy_screen(user=Depends(signed_in), month: Spend = Depends(actions.spend)):
     items = basket.items(basket_root())
     source = state.source()
     world = source.world_state()
-    return {**screens.buy(items, basket_page.current_choices(items), month),
-            "design": screens.design(source, world), "batch": screens.batch(world, items)}
+    return {**screens.buy(items, basket_page.current_choices(items), month), "design": screens.design(source, world),
+            "batch": screens.batch(world, items, basket.index(basket_root()).get("made_at"))}
 
 
 @api.get("/screens/stats")

@@ -131,14 +131,16 @@ def buy(request):
     source = state.source()
     found = overview_of(source)
     world = found["world"]
-    items = records.items(basket_items.basket_root())
+    root = basket_items.basket_root()
+    items = records.items(root)
     names = groups.short_names(world)
     design = screens.design(source, world)
     for row in design["places"]:
         row["name"] = names.get(row["place"], present.place_title(row["place"]))
-    batch = screens.batch(world, items)
+    batch = screens.batch(world, items, records.index(root).get("made_at"))
     return render(request, "pages/buy.html", {
-        "design": design, "batch": batch, "estimate": cockpit.estimate(batch["estimate"]), "money": found["view"],
+        "design": design, "batch": batch, "estimate": cockpit.estimate(batch["estimate"]),
+        "hours": cockpit.eta_hours(batch["now"]["eta"]), "money": found["view"],
         "last": basket_items.last_batch(), "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex, "film_waits": screens.film_waits()})
 

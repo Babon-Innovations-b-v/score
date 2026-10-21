@@ -655,12 +655,27 @@ def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_fo
     world.source.refresh()
     html = client.get("/buy/").content.decode()
     top = html.split('<ul class="buy-layers buy-design">')[0]
-    assert "1 <small>of</small> 2 <small>approved</small>" in top and '"batch": "now"' in top
-    assert "<small>EUR</small> 4.00&ndash;6.00" in top  # alpha's part: the basket's close-up and settle
+    # the basket (2026-10-19) was planned before the price beside it: Buy shows, disabled, with why
+    assert "1 <small>of</small> 2 <small>approved</small>" in top and '"batch": "now"' not in top
+    assert re.search(r'<button type="button" class="primary big" disabled title="the basket \(2026-10-19 08:00\) is '
+                     r'older than the price', top) and "<small>basket</small> 2026-10-19T08:00:00Z" in top
+    from score import graph
+    from score.dashboard.proposals import records
+    root = settings.SCORE_HOME / "proposals"
+    records.put_index(root, {**records.index(root), "made_at": graph.now()})  # the basket made again
+    html = client.get("/buy/").content.decode()
+    top = html.split('<ul class="buy-layers buy-design">')[0]
+    assert '"batch": "now"' in top and " disabled " not in top
+    buy_now, waits = top.split(">Buy now<")[1].split(">Waits<")
+    # the headline is what Buy buys: the basket's close-up at alpha, measured; its stop, its ETA; settle waits
+    assert "<small>EUR</small> 2.00&ndash;3.00" in buy_now and "<small>stop EUR</small> 3.30" in buy_now
+    assert "<small>EUR</small> 0.00 <small>guessed,</small> 0 <small>of</small> 1 <small>steps</small>" in buy_now
+    assert "<small>ETA</small> 0.2&ndash;0.3 <small>h</small>" in buy_now and "it stops at EUR 3.30" in buy_now
+    assert "<small>EUR</small> 2.00&ndash;3.00" in waits and "1 <small>scenes in design</small>" in waits
+    assert "an earlier step first, predicted to fail" in waits  # what waits, with why
     layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>', html)
     assert layers == [("Models", "2"), ("Motion", "1"), ("Sound", "1")]
-    assert not re.search(r"predicted to fail|calibration|earlier step|lost concept|<details", html)
-    assert "it stops at EUR 3.30" in top
+    assert not re.search(r"calibration|lost concept|<details", html)  # no step's own name
     assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
     refused = client.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
     assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")  # no Benchmarks item
