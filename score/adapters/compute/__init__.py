@@ -220,11 +220,13 @@ def unit_price(node, store):
             "unit_high_euros": entry["high_euros"], "runs": entry["runs"]}
 
 
-def run_forecast(node, euros, store=None):
+def run_forecast(node, euros, store=None, units=None):
     """A paid node's run forecast ({euros, minutes, high_minutes, measured}): its stage's measured runs in the cloud
     ledger at their high euros, likely and high minutes (tools/props/cloud/preflight.py), else its measured per-unit
-    high times its units (unit_price, on `store`) with no minutes, else the stage's own estimate `euros` with no
-    minutes; Refused with none. The runner's numbers, never an agent's: the owner, 2026-10-18."""
+    high times its units (unit_price, on `store`) with no minutes, else its measured per-unit high times the `units`
+    its forecast rule counted (forecast_price, as the run's plan prices it, so a stop line set on the plan rests on
+    the same measured figures) with their unit minutes, else the stage's own estimate `euros` with no minutes;
+    Refused with none. The runner's numbers, never an agent's: the owner, 2026-10-18."""
     books = ledger()
     import preflight  # beside ledger.py
     run = preflight.node_run(books.entries(), node.partition("@")[0])
@@ -234,6 +236,11 @@ def run_forecast(node, euros, store=None):
     unit = unit_price(node, store)
     if unit:
         return {"euros": unit["high_euros"], "minutes": None, "high_minutes": None, "measured": unit["runs"]}
+    planned = forecast_price(node, units)
+    if planned:
+        timed = unit_minutes(node.partition("@")[0], units)
+        return {"euros": planned["high_euros"], "minutes": timed.get("likely_minutes"),
+                "high_minutes": timed.get("high_minutes"), "measured": planned["runs"]}
     if euros is None:
         raise Refused(f"{node}: a paid run needs its estimate in euros, or measured runs of its stage in the ledger, "
                       "before the runner can clear it")
@@ -551,7 +558,9 @@ def clearance(runner, node, euros):
     clearance kept in the store and its
     forecast reserved, under the clearing lock. A benchmark batch (GRANT set) is checked against its grant instead of
     the world's stop line (grant_refusal), and its clearance counted against the grant. Else Refused."""
-    forecast = run_forecast(node, euros, runner.store)
+    from score.stages.complete.gaps import price  # the units the run's plan prices it by
+    forecast = run_forecast(node, euros, runner.store,
+                            price.planned_units(node, runner.world.roots.get("data"), runner.store))
     grant_id = os.environ.get(GRANT)
     try:
         ticket = runner.ticket(node)

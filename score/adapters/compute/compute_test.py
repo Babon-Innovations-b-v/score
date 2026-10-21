@@ -264,6 +264,9 @@ def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it
             assert found["likely_euros"] is None and found["guess_euros"] == 3.0, (node, units, found)
             assert found["guess_from"] == "score/stages/x.py:12" and found["basis"] == "not measured yet"
         assert "guess_from" not in compute.run_price("bake@lab", 3.0)
+        # the clearance reserves what the plan priced: the forecast's high, never the guess, where it is measured
+        assert compute.run_forecast("render@lab", 9.0, outputs, units=4)["euros"] == price["high_euros"] == 2.0
+        assert compute.run_forecast("render@lab", 9.0, outputs)["euros"] == 9.0  # nothing counted: the estimate
     finally:
         BOOKS.entries, compute.PER_UNIT = saved, kept
 

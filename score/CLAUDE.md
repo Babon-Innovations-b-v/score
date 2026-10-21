@@ -105,7 +105,9 @@ stage as each stage is built; nothing moves before.
   each draw is copied to the private bucket as it is made (`concept-draws/<sha>.png` and `.json`; a failed copy is
   named in its record), and each pick or unlock is handed to score_lib through its own `score-lib concept` command.
   `reading.py` reads a picked concept into its scene inventory, started on its own by the pick (`web.reading_started`):
-  Gemini 3.1 Pro's rows, then SAM 3's boxes of each row on one rented card, their disagreements its gaps, each
+  Gemini 3.1 Pro's rows, each with its size in metres judged against the place's outline (`plans.outline_from_holder`:
+  the layer above's box, its own plan, else round its inside places), then SAM 3's boxes of each row on one rented
+  card (where, never size), their disagreements and a row with no metres its gaps, each
   reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no pick of its own.
   `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the picked concept.
   `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its pick, inventory and the layer
@@ -119,11 +121,13 @@ stage as each stage is built; nothing moves before.
   cleared under one lock so two lines never both spend the last euros; kept
   in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point; the forecast a
   node is cleared at is its stage's measured runs, else its stage's measured per-unit high times the units its
-  accepted output made (`unit_price`, `data/costs/per-unit.json` from `tools/costs/per_unit.py`), else its estimate;
-  `run_price` (`score price`, the cockpit's): when its caller counted a node's units before the make by its stage's
-  forecast rule (`forecast_price`, PER_UNIT's `forecast`; the gaps' price, whose node is made again with what the
-  gap adds) "per unit × forecast" first, else the same as the forecast (basis "measured runs", then "per unit ×
-  counted"), and a node with none of these has no price: its estimate is kept apart as
+  accepted output made (`unit_price`, `data/costs/per-unit.json` from `tools/costs/per_unit.py`), else that high
+  times the units its forecast rule counts (`gaps/price.planned_units`, as the run's plan priced it), else its
+  estimate; `run_price` (`score price`, the cockpit's): when its caller counted a node's units before the make by its
+  stage's forecast rule (`forecast_price`, PER_UNIT's `forecast`; the gaps' price, whose node is made again with what
+  the gap adds; `score plan` and `score price` through `planned_units`, so the plan's stop line rests on the same
+  measured per unit prepare uses, #10) "per unit × forecast" first, else the same as the forecast (basis "measured
+  runs", then "per unit × counted"), and a node with none of these has no price: its estimate is kept apart as
   `guess_euros`, with `guess_from` (`Stage.euros_from`, the line of the row that names it), never shown as a price
   (owner, 2026-10-18); `guard.py`: the environment's stop line, the owner's
   money figure, refuses a paid job before it starts when its forecast with the environment's spend since its first line and

@@ -508,7 +508,8 @@ def plan_json(runner, places, whole, options):
     (buy_price)}, and the run's price over them (plan_price), the only euros and minutes the cockpit shows."""
     found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
     found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again,
-                      "price": buy_price(buy, counting_store(runner.store))} for buy in found["buys"]]
+                      "price": buy_price(buy, counting_store(runner.store), runner.world.roots["data"])}
+                     for buy in found["buys"]]
     return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found,
             "price": plan_price([buy["price"] for buy in found["buys"]], options.jobs)}
 
@@ -523,15 +524,18 @@ def counting_store(store):
     return store
 
 
-def buy_price(buy, store):
-    """One buy's price on the runner's own numbers (compute.run_price: its stage's measured runs, the numbers its
-    clearance reserves, else its measured units on `store`, else not measured yet with its estimate as a guess), or
-    nothing for a Google ask its cache answers (rebuy prices it EUR 0)."""
+def buy_price(buy, store, data):
+    """One buy's price on the runner's own numbers (compute.run_price: its stage's measured per unit times the units
+    its forecast rule counts under `data` (gaps price.planned_units, as prepare and the gaps' price count them), else
+    its stage's measured runs, the numbers its clearance reserves, else its measured units on `store`, else not
+    measured yet with its estimate as a guess), or nothing for a Google ask its cache answers (rebuy prices it EUR
+    0)."""
     from score.adapters import compute
+    from score.stages.complete.gaps import price
     if buy.euros == 0:
         return {"likely_euros": 0.0, "high_euros": 0.0, "likely_minutes": 0.0, "high_minutes": 0.0, "cards": None,
                 "runs": 0, "basis": "cached"}
-    return compute.run_price(buy.node, buy.euros, store)
+    return compute.run_price(buy.node, buy.euros, store, units=price.planned_units(buy.node, data, store))
 
 
 def plan_price(prices, jobs):
@@ -641,12 +645,14 @@ def price_json(world, nodes):
     accepted outputs, its stage's estimate as the guess); a node that is not a paid row of the stage table says so
     instead."""
     from score.adapters import compute
+    from score.stages.complete.gaps import price
     from score.store import Store
     rows, store = {row.name: row for row in stages.STAGES}, counting_store(Store.default())
-    found = {}
+    data, found = stages.WORLDS[world]().roots["data"], {}
     for node in nodes:
         row = rows.get(node.partition("@")[0])
-        found[node] = (compute.run_price(node, float(row.euros or 0), store, guess_from=row.euros_from)
+        found[node] = (compute.run_price(node, float(row.euros or 0), store, guess_from=row.euros_from,
+                                         units=price.planned_units(node, data, store))
                        if row is not None and row.paid
                        else {"error": f"{node} is not a paid row of the stage table"})
     return {"world": world, "nodes": found}
