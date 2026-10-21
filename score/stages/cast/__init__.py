@@ -63,10 +63,15 @@ def plan_views(inputs):
     writes them (scene_record.writer.views): one inside each door looking across and one from each of the plan's
     standing spots, each eye at the environment's eye height over its level; an outdoor plan's from its standing spots
     only, over the plan's own level (the made ground's rise under a spot is not the plan's). None for a place with no
-    plan row (Runner.reads leaves it out), so no copy is kept off a view."""
+    plan row (Runner.reads leaves it out), so no copy is kept off a view. A standing spot looking at something the
+    plan's items do not hold (the camp's, at its kit's objects) is refused by name: its view has no aim."""
     if "plan" not in inputs:
         return []
     plan = read_json(pathlib.Path(inputs["plan"]) / "plan.json")
+    items = {item["name"] for item in plan["items"]}
+    unaimed = [spot["looks_at"] for spot in plan["standing"] if spot["looks_at"] and spot["looks_at"] not in items]
+    if unaimed:
+        raise ValueError(f"plan of {plan.get('place')}: standing spots look at {unaimed}, which are no plan items")
     eye = read_json(inputs["places"])["shared"]["scale"]["eye_height"]
     return writer.views(plan if plan["inside"] else dict(plan, doors=[]), eye)
 
@@ -109,16 +114,18 @@ def dealt(record, place, inputs):
     return found
 
 
-def crowd_of(record, singles, place, inputs, views):
+def crowd_of(record, singles, place, inputs):
     """The crowd's far body's look and its candidate copies (spread.lattice, kept off each of the place's plan's views:
-    spread.far_enough), or None for a cast with no crowd."""
+    spread.far_enough), or None for a cast with no crowd. The views are read only for a crowd with ground to stand
+    on, so a place with none never reads them."""
     crowd = record.get("crowd")
     if not crowd:
         return None
     keep_clear = [single["at"] for single in singles if single["name"].startswith(crowd.get("keep_clear_of", "\0"))]
     look = look_of(crowd) or (crowd["character"], crowd.get("body", "far"))  # the record's far-only look
     # a design's crowd has no ground or count yet (people_rows.cast_record): none stood, short_of names it
-    candidates = spread.far_enough(spread.lattice(crowd, keep_clear), views) if crowd.get("spread") else []
+    candidates = (spread.far_enough(spread.lattice(crowd, keep_clear), plan_views(inputs))
+                  if crowd.get("spread") else [])
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
             "made": made_row(look, place, inputs), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
 
@@ -144,7 +151,7 @@ def make(inputs, out, seed, params):
     design = read_json(inputs["design"])
     record = people_rows.cast_record(place, design)
     singles = dealt(record, place, inputs)
-    crowd = crowd_of(record, singles, place, inputs, plan_views(inputs))
+    crowd = crowd_of(record, singles, place, inputs)
     found = measure.solids(base, place) if singles or crowd else {}
     if found:
         members = members_of(record)

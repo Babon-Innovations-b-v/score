@@ -20,7 +20,8 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   looks while its concept stands).
 - **A crowd keeps clear of its plan's views** (`plan_views`: the plan row's output, an `after`, its views as the
   scene record writes them), never a hand-written record's (data/scene's game shots) or kit: the cast reads only
-  the design, the seed, the environment's eye height and the rules (2026-10-21).
+  the design, the seed, the environment's eye height and the rules (2026-10-21). They are read only for a crowd with
+  ground; a plan spot looking at no plan item (the camp's, at its kit's objects) is refused by name.
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of
   the seed's base layer (FCL); a point instancer's prototypes are left out (they stand only where it copies them).
 - **Do not import tools/characters at load.** Its `cast_check` on the path or in `sys.modules` joins the assembly's
