@@ -1,6 +1,11 @@
-"""The people route's head (owner, 2026-10-18, score #10): the made mesh's head is split, its hair kept and its face
-dropped, and the face is the old SOMA-X head with the person's drawn face (`work/bodies/<person>.glb`'s skin_head,
-eyes, irises and eyebrows, people/skin.py's head), laid on the made skeleton. Plain numpy and scipy.
+"""The people route's head (owner, 2026-10-18, score #10). Which face a body wears is one setting, `FACE` (the
+owner's choice, #26, 2026-10-21: the drawn faces were lost on 2026-10-19 and the old library bodies are withdrawn):
+
+- `made` (the default until he decides): the made head kept whole, the face Pixal3D made with its face print cut
+  from the person's close-up (prop_prints.py), the hair as made. Nothing old is read.
+- `drawn`: the made mesh's head is split, its hair kept and its face dropped, and the face is the old SOMA-X head
+  with the person's drawn face (an old body's skin_head, eyes, irises and eyebrows, people/skin.py's head), laid on
+  the made skeleton (route_build.py `--old`). Everything below is this choice's. Plain numpy and scipy.
 
 - **The split.** The made body's parts already name the hair and the face (`hair`, `skin_head`, from the parts
   judge); the hair is kept as made, riding the head joint, and every `skin_head` surface is left out.
@@ -25,6 +30,8 @@ eyes, irises and eyebrows, people/skin.py's head), laid on the made skeleton. Pl
 import numpy as np
 from scipy.spatial import cKDTree
 
+FACES = ("made", "drawn")
+FACE = "made"
 NECK_REACH = 0.08
 SEAM_BELOW = 0.02
 HEAD_JOINTS = ("Neck1", "Neck2", "Head", "HeadEnd")

@@ -235,16 +235,40 @@ def test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs(tmp_path, 
     assert prop_person.predicted_tucks(PERSON, "work") is None, "a people tools fix left the old prediction"
 
 
+def test_the_identity_is_read_off_the_takes_close_up(tmp_path, monkeypatch):
+    """#26: SAM 3D Body reads the body under the clothes off the kept take's close-up (the A-pose picture is lost):
+    one characters make whose only step is `identity`, its one file that close-up."""
+    import prop_person
+    monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path / "candidates")
+    monkeypatch.setattr(prop_person, "PIXAL", tmp_path / "pixal")
+    asked = []
+    monkeypatch.setattr(prop_person, "on_characters", lambda place, who, held, dry_run: asked.append(place))
+    folder = prop_person.folder_of(PERSON, "work")
+    folder.mkdir(parents=True)
+    (folder / "take.txt").write_text("pp-a_s1")
+    closeup = tmp_path / "pixal" / "pp-a_s1.svviews" / "input.png"
+    closeup.parent.mkdir(parents=True)
+    closeup.write_bytes(b"the close-up")
+    assert prop_person.identity(PERSON, "work", "a test", None, True) is None
+    machine = json.loads((asked[0] / "in" / "spec.json").read_text())
+    assert machine["steps"] == ["identity"] and machine["program"] == "prop_chain.py", machine
+    assert (asked[0] / machine["files"]["closeup"]).read_bytes() == b"the close-up"
+    import prop_chain
+    assert "identity" in prop_chain.STEPS
+
+
 def test_a_kimodo_clip_is_made_with_the_fixed_seed_and_records_it(tmp_path):
     """#26: every clip is asked for with the one fixed seed, and its record beside it names the seed, so a lost clip
     is made again the same."""
-    sys.path.insert(0, str(REPO / "tools/characters/people"))
-    import clips
-    arguments = clips.kimodo_arguments("walking", tmp_path / "walking")
-    assert arguments[arguments.index("--seed") + 1] == str(clips.CLIP_SEED), arguments
-    clips.write_record("walking", tmp_path / "walking")
+    ask = ("import json, sys; import clips; arguments = clips.kimodo_arguments('walking', sys.argv[1]); "
+           "clips.write_record('walking', sys.argv[1]); "
+           "print(json.dumps([arguments, clips.CLIP_SEED, clips.SENTENCES['walking'][0], clips.MODEL]))")
+    # its own process: clips.py imports the people tools' paths.py by name, which another test's import shadows
+    done = subprocess.run([sys.executable, "-c", ask, str(tmp_path / "walking")], capture_output=True, text=True,
+                          cwd=REPO / "tools/characters/people", check=True)
+    arguments, seed, sentence, model = json.loads(done.stdout.splitlines()[-1])
+    assert arguments[arguments.index("--seed") + 1] == str(seed), arguments
     record = json.loads((tmp_path / "walking.record.json").read_text())
-    assert record == {"clip": "walking", "sentence": clips.SENTENCES["walking"][0], "seconds": 5.0,
-                      "model": clips.MODEL, "seed": clips.CLIP_SEED}, record
+    assert record == {"clip": "walking", "sentence": sentence, "seconds": 5.0, "model": model, "seed": seed}, record
     chain_words = (pathlib.Path(__file__).resolve().parent / "chain.py").read_text()
     assert "sentences.kimodo_arguments(name" in chain_words and "sentences.write_record(name" in chain_words

@@ -2,14 +2,15 @@
 body's look and clips rebuilt on the SOMA-X base with the route's four changes, written as a glTF the checks read
 (joins.py, pokes.py, route_stretch.py) and Blender renders.
 
-    ~/.farm-factory-props/env/bin/python route_build.py <made body.glb> <made rig.npz> <base.npz> <old body.glb>
-        <out.glb> [--correctives <correctives.npz>] [--base under|shell] [--labels under|shell] [--no-cut]
-        [--no-under]
-        [--shapes 24]
+    ~/.farm-factory-props/env/bin/python route_build.py <made body.glb> <made rig.npz> <base.npz> <out.glb>
+        [--face made|drawn] [--old <old body.glb>] [--correctives <correctives.npz>] [--base under|shell]
+        [--labels under|shell] [--no-cut] [--no-under] [--shapes 24]
 
 - the garments bound by limb on the base, the arm and leg webs cut and closed (route_bind.py);
-- the head split: the made hair kept, the made face dropped, the old SOMA-X head with its drawn face and eyes laid on
-  the made skeleton and run down the neck to 2 cm under the collar line, its neck a tuck (route_head.py);
+- the head by `--face` (route_head.FACE, the owner's one setting): `made` keeps the made head whole, the face
+  Pixal3D made with its face print from the close-up; `drawn` splits it, keeps the made hair, drops the made face and
+  lays the old SOMA-X head with its drawn face and eyes (`--old`) on the made skeleton, run down the neck to 2 cm
+  under the collar line, its neck a tuck (route_head.py);
 - no settled cloth: the made body's per-clip garment shapes (the Newton settle) are dropped, the clothes move with
   the body (the owner's option A);
 - SOMA-X's pose correctives (route_base.py correctives) carried onto the garments by their bind places and baked as
@@ -449,7 +450,8 @@ def written(path, document, blob, old_document, old_blob, old_head, surfaces, sh
     """The new body file: the made file's skeleton, far body and clips, the new work surfaces."""
     contents = Copying()
     materials, textures = copied_materials(contents, document, blob, old_document, old_blob, old_head)
-    materials[old_head["skin_head"].material]["extras"]["tuck_from"] = old_head["skin_head"].tuck_from
+    if old_head:  # the drawn face's neck is a tuck; the made face keeps its own record
+        materials[old_head["skin_head"].material]["extras"]["tuck_from"] = old_head["skin_head"].tuck_from
     work_node = next(number for number, node in enumerate(document["nodes"]) if node.get("name") == NODE)
     far = next(node for node in document["nodes"] if node.get("name") == "far")
     meshes = [copied_mesh(contents, document, blob, document["meshes"][far["mesh"]])]
@@ -510,9 +512,31 @@ def clip_offsets(correctives, clips, bound):
     return {clip: welded_offsets(correctives, clip, bound) for clip in clips}
 
 
+def kept_surfaces(document, surfaces, face):
+    """The made surfaces carried as they are: all but the garments, and but the made face where the drawn head
+    takes its place (route_head.FACE)."""
+    dropped = ("skin_head",) if face == "drawn" else ()
+    return [surface for surface in surfaces
+            if role_of(document, surface) != pokes.GARMENT and name_of(document, surface) not in dropped]
+
+
+def drawn_head(options, document, surfaces, rig, base, names, bind):
+    """The old body's drawn head laid on the made skeleton (`--face drawn`): ({name: Surface}, head record, hair
+    record, old document, old blob)."""
+    if options.old is None:
+        raise SystemExit("--face drawn lays the old body's drawn head: give its file with --old")
+    old_document, old_blob = joins.read_glb(options.old)
+    old_head = old_surfaces(old_document, old_blob, names, bind)
+    hair_record = hair_on_old_head(document, surfaces, old_head, bind, names)
+    line, centre = made_collar(document, surfaces, bind, names)
+    picture = picture_of(old_document, old_blob, old_head["skin_head"].material)
+    old_head["skin_head"], head_record = new_head(old_head["skin_head"], picture, rig, base["weights"], names, line,
+                                                  centre)
+    return old_head, {"face": "drawn", **head_record}, hair_record, old_document, old_blob
+
+
 def build(options):
     document, blob = joins.read_glb(options.made)
-    old_document, old_blob = joins.read_glb(options.old)
     rig, base = np.load(options.rig), np.load(options.base)
     names = skin_names(document)
     bind = bind_of(document, blob)
@@ -532,18 +556,14 @@ def build(options):
             new.offsets = {clip: rebound_offsets(moves, welded, start, surface) for clip, moves in welded_moves.items()}
         out.append(new)
         cut_faces, closings = cut_faces + removed, closings + middles
-    kept = [surface for surface in surfaces
-            if role_of(document, surface) != pokes.GARMENT and name_of(document, surface) != "skin_head"]
+    kept = kept_surfaces(document, surfaces, options.face)
     bands_rebound(document, kept, out, np.asarray(rig["parents"]))
-    old_head = old_surfaces(old_document, old_blob, names, bind)
-    hair_record = hair_on_old_head(document, surfaces, old_head, bind, names)
-    line, centre = made_collar(document, surfaces, bind, names)
-    picture = picture_of(old_document, old_blob, old_head["skin_head"].material)
-    old_head["skin_head"], head_record = new_head(old_head["skin_head"], picture, rig, base["weights"], names, line,
-                                                  centre)
+    old_head, head_record, hair_record, old_document, old_blob = (
+        drawn_head(options, document, surfaces, rig, base, names, bind) if options.face == "drawn"
+        else ({}, {"face": "made"}, None, None, None))
     layer = None if options.no_under else under_layer(garments, welded, base_points, base["faces"], base["weights"],
                                                       correctives, clips)
-    drawn = out + ([] if layer is None else [layer]) + kept + [old_head[name] for name in OLD_HEAD]
+    drawn = out + ([] if layer is None else [layer]) + kept + [old_head[name] for name in OLD_HEAD if old_head]
     if correctives is not None:
         bands_follow_cloth(drawn, out, clips)
     shapes, clip_weights, energy = (corrective_shapes(drawn, clips, options.shapes) if correctives is not None
@@ -599,8 +619,11 @@ def rebound_offsets(moves, welded, start, surface):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    for name in ("made", "rig", "base", "old", "out"):
+    for name in ("made", "rig", "base", "out"):
         parser.add_argument(name, type=pathlib.Path)
+    parser.add_argument("--face", choices=route_head.FACES, default=route_head.FACE,
+                        help="made: keep the face Pixal3D made with its print; drawn: the old body's drawn head")
+    parser.add_argument("--old", type=pathlib.Path, help="the old body whose drawn head --face drawn lays")
     parser.add_argument("--correctives", type=pathlib.Path)
     parser.add_argument("--base", dest="base_body", choices=("under", "shell"), default="under")
     parser.add_argument("--labels", choices=("under", "shell"), default="under",
@@ -612,7 +635,7 @@ def main():
     record = build(options)
     options.out.with_suffix(".json").write_text(json.dumps(record, indent=1))
     print(f"route build: {options.out} (web edges {record['web_edges']}, cut {record['cut_triangles']}, "
-          f"closings {record['closings']}, head cut {record['head']['cut_m']} m)")
+          f"closings {record['closings']}, face {record['head']['face']})")
 
 
 if __name__ == "__main__":

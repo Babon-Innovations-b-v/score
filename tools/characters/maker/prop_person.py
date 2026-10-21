@@ -12,7 +12,7 @@ Everything lands in ~/.farm-factory-motion/candidates/prop-people/<name>/<outfit
 body. The stages, each a cloud job through the repo's runners (only plain CPU geometry runs on this PC):
   closeup  on a characters machine (prop_chain.py): the bind pose measured on SOMA-X's skeleton, the close-up drawn
            by klein in it (two seeds, the spec's `closeup_seeds` else [1, 2], each drawn once; Pixal3D on the one
-           predicted best, #21); no body is read off it (SAM3DBody-cpp is not used on this route)
+           predicted best, #21); the mesh is never shaped by a body read off it
   rig      on a characters machine (prop_skeleton.py): SOMA-X's mean skeleton, its surface's weights (the source the
            weights are moved from, never drawn) and the clips Kimodo made, against their parents
   mesh     Pixal3D on the one close-up that passed with its arms furthest apart (../../props/cloud/batch.py
@@ -21,6 +21,9 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
   parts    SAM 2.1's regions of the close-up (segment.py), GeoSAM2 seeded with them on the raw model (meshparts.py),
            the judge naming each part's and each finish region's material (judge.py), the regions carried onto the
            faces the camera sees, laid onto the finished model (prop_parts.py)
+  identity on a characters machine (prop_chain.py): the body under the clothes read off the kept take's close-up by
+           SAM 3D Body (body_picture.py), <candidate>/fit/identity.npz, for the people route's base (route_base.py);
+           run by name (`--stages identity`), not by default
   build    on a characters machine (prop_chain.py): SOMA-X's skeleton placed inside the Pixal3D mesh (its bone
            lengths and rest pose fitted to the mesh's limbs; no SOMA surface is shown or shapes the mesh), its skin
            weights moved onto the mesh, the glTF with Kimodo's clips, UsdSkel and joins.py
@@ -364,6 +367,24 @@ def build(spec, outfit, who, held, dry_run):
             shutil.rmtree(folder / "out")
         shutil.copytree(make / "out", folder / "out")
     return json.loads((folder / "fit" / "rig.json").read_text())["matched_share"]
+
+
+def identity(spec, outfit, who, held, dry_run):
+    """The body under the clothes read off the kept take's close-up by SAM 3D Body (prop_chain.py identity, on a
+    characters machine): <candidate>/fit/identity.npz, which the people route's base reads (route_base.py). The
+    A-pose picture it was read from before is lost (2026-10-19); the close-up is the person front on in the rig's
+    A-pose."""
+    folder = folder_of(spec, outfit)
+    take = (folder / "take.txt").read_text().strip()
+    make = make_place(folder, "identity")
+    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-identity", person=spec["name"]), ("identity",),
+                {"closeup": PIXAL / f"{take}.svviews" / "input.png"})
+    on_characters(make, who, held, dry_run)
+    if dry_run:
+        return None
+    (folder / "fit").mkdir(exist_ok=True)
+    shutil.copy2(make / "out" / "identity.npz", folder / "fit" / "identity.npz")
+    return str(folder / "fit" / "identity.npz")
 
 
 def shelled(spec, outfit, who, held, dry_run):
@@ -763,8 +784,8 @@ def record_stage(folder, stage, began, result):
     print(f"== {stage}: {result}", flush=True)
 
 
-STAGE_WORK = {"closeup": closeup, "rig": rig, "mesh": mesh, "parts": parts, "build": build, "settle": settle,
-              "checks": checks, "checks-cloud": checks_cloud, "shots": shots}
+STAGE_WORK = {"closeup": closeup, "rig": rig, "mesh": mesh, "parts": parts, "identity": identity, "build": build,
+              "settle": settle, "checks": checks, "checks-cloud": checks_cloud, "shots": shots}
 
 
 if __name__ == "__main__":
