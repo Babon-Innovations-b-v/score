@@ -28,6 +28,7 @@ import zlib
 from score import checks, contracts
 import score.stages.earth_seed as earth_seed
 import score.stages.shapes_first.made as made
+from score.stages.surfaces import surface_data
 
 OUTPUT = "sections.json"
 LAYER = "layers/sections.usda"
@@ -46,9 +47,10 @@ def applies(place):
 
 
 def files(place):
-    """The plan (its sections), the place definitions (its wear) and the surface data (its library's name)."""
+    """The plan (its sections), the place definitions (its wear) and the surface data (its library's name:
+    surface_data.pattern, its design's where designed)."""
     return {"plan": "{data}/plans/" + f"{place}.json", "places": "{data}/definitions/place.json",
-            "surfaces": "{data}/surfaces/" + f"{place}.json"}
+            "surfaces": surface_data.pattern(place)}
 
 
 def read(path):

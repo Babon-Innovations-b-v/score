@@ -51,6 +51,7 @@ import sys
 
 from score import checks, contracts
 from score.stages.earth_seed import design_shell
+from score.stages.surfaces import surface_data
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -220,8 +221,8 @@ def holder_of(name, plans):
 
 def known_as(place, surfaces=None):
     """The name the library and data/definitions/place.json know a place by: its surface data's `library` (`surfaces`,
-    data/surfaces/<place>.json where it has one: the camp's expedition_camp, the street's prologue_street), else its
-    own (prepare's handin.library_of rule)."""
+    surface_data.path's where it has one, its design's where designed: the camp's expedition_camp, the street's
+    prologue_street), else its own (prepare's handin.library_of rule)."""
     return read(surfaces).get("library", place) if surfaces is not None else place
 
 
@@ -230,7 +231,7 @@ def holders(place):
     data/definitions/place.json knows (known_as), nearest first, each the one whose plan holds the one under it; none
     for a place place.json knows; None for one with no such scene above it (no style: a top scene place.json does not
     name, the base's outside, has no base row until it has one)."""
-    surfaces = REPO / "data/surfaces" / f"{place}.json"
+    surfaces = surface_data.path(place)
     named, found = read(REPO / "data/definitions/place.json"), {}
     if known_as(place, surfaces if surfaces.is_file() else None) in named:
         return found
@@ -270,18 +271,25 @@ def style_of(place, inputs):
 
 def seed_files(place):
     """What the export reads: the kit (where it is not the base's, the design's files instead: design_files), the
-    inventories, the stored takes, the grounds, the library and sounds, the place definitions and composites, and the
-    place's old scene record where it has one."""
+    inventories, the stored takes, the grounds, the library and sounds, the place definitions and composites, the
+    place's surface data (surface_data.pattern: its design's where designed, which its finish route paints) and, for a
+    base that lays its kit, the old scene record where it has one (a design base's room shell is its locked plan's)."""
     found = {"kit": "{data}/kit/" + f"{place}.json", "inventories": "{data}/inventory", "parts": "{data}/parts",
              "grounds": "{data}/ground", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
              "places": "{data}/definitions/place.json", "export": "{repo}/tools/usd/export.py"}
     if not kit_is_base(place):
         found = {**{name: path for name, path in found.items() if name != "kit"}, **design_files(place)}
-    if (REPO / "data/scene" / f"{place}.json").exists():
+    elif (REPO / "data/scene" / f"{place}.json").exists():
         found["scene"] = "{data}/scene/" + f"{place}.json"
-    if (REPO / "data/surfaces" / f"{place}.json").exists():
-        found["surfaces"] = "{data}/surfaces/" + f"{place}.json"
+    if surface_data.path(place).exists():
+        found["surfaces"] = surface_data.pattern(place)
     return found
+
+
+def claiming_places(place):
+    """The places whose surface line paints models this place lays (its surface data's `elsewhere`, surface_data's:
+    its design's where designed), read beside."""
+    return sorted({claim["place"] for claim in surface_data.record(place).get("elsewhere", {}).values()})
 
 
 def export_tools():

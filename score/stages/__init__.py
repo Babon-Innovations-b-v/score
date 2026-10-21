@@ -863,7 +863,7 @@ EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed
                          files=earth_seed.seed_files,
                          after={"earth-kit": ("earth-kit", 2), "surfaces-bake": ("surfaces-bake", 1)},
                          beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
-                         neighbours=assembly.claiming_places, applies=earth_place)
+                         neighbours=earth_seed.claiming_places, applies=earth_place)
 SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}
 # Every row that read a place's round-three seed (`{seeds}/usd-r3/<place>`), each now reading earth-seed instead
 # (earth_seeded); stages_test.py holds the list to the declared files. terrain-look, the last reader, is retired (#27).

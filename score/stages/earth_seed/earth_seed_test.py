@@ -334,6 +334,37 @@ def test_a_kit_is_the_base_s_only_where_no_design_is_locked():
         earth_seed.DESIGN = kept
 
 
+def test_the_seed_and_its_sections_read_the_design_s_surface_data():
+    """A place's earth seed and kit sections declare its design's surface data where it has one (surface_data.pattern,
+    the one its finish route paints), the places it claims models from are that data's `elsewhere`, through the
+    registered row too, and a design base declares no old scene record (data/scene) though one is filed for it."""
+    from score.stages.earth_seed import kit_sections
+    from score.stages.surfaces import surface_data
+    kept_surfaces, kept = surface_data.DESIGN, earth_seed.DESIGN
+    root = with_designs({"hub": {"w": 12.0, "d": 12.0}})
+    surface_data.DESIGN = root / "surfaces"
+    surface_data.DESIGN.mkdir()
+    for place in ("hangar", "hub"):
+        (surface_data.DESIGN / f"{place}.json").write_text(json.dumps(
+            {"library": place, "takes": {}, "elsewhere": {"rack_1": {"take": "rack-x", "place": "lab"}}}))
+    try:
+        assert earth_seed.kit_is_base("hangar") and not earth_seed.kit_is_base("hub")
+        declared = earth_seed.seed_files("hangar")
+        assert declared["surfaces"] == "{home}/design/surfaces/hangar.json", declared
+        assert declared["scene"] == "{data}/scene/hangar.json", declared  # a kit base still lays its scene record
+        assert earth_seed.claiming_places("hangar") == ["lab"]
+        assert stages.EARTH_SEED.neighbours("hangar") == ["lab"]  # the registered row reads the design's claims
+        assert kit_sections.files("hangar")["surfaces"] == "{home}/design/surfaces/hangar.json"
+        assert kit_sections.applies("hangar")
+        assert (REPO / "data/scene/hub.json").exists()
+        declared = earth_seed.seed_files("hub")
+        assert "scene" not in declared and declared["surfaces"] == "{home}/design/surfaces/hub.json", declared
+        assert earth_seed.seed_files("launch")["surfaces"] == "{data}/surfaces/launch.json"  # no design data
+    finally:
+        surface_data.DESIGN, earth_seed.DESIGN = kept_surfaces, kept
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_a_design_base_passes_the_seed_gates_and_the_placeholder_gate():
     """earth-seed's make for a scene added in the app (no kit), on ROOM: one stage under its name, no gap, its shell
     under /<place>/Shell painted with the library's backing surface, nothing the placeholder gate fails, its style the
