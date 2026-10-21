@@ -2,12 +2,11 @@
 
     bed     its room tone, or what the suit lets through outside where no air carries sound: worked out from its
             design (beds.py), never listed per place
-    event   each thing that moves (data/motion/<place>.json motions and data/motion/rigid/<place>.json moving things with a move: a
-            slide, swing, path, spin, climb or turn; a motion that only lights is none): its own `sounds`, else the
-            sounds data/sound/moving.json gives its row kind's move (moving.sounds_for: the kind of its scene inventory
-            row, inventory_of, by data/checks/row-kinds.json). Things moving exactly together (a hatch's wheel and window
-            riding its leaf) are one event
-    voice   the people of its cast (data/characters/<place>.json, counted off the concept): the people's voice
+    event   each row of its scene inventory whose kind moves (data/checks/row-kinds.json `motion`: a swing or a spin;
+            one its rule keeps still is none): the sounds data/sound/moving.json gives its row kind's move
+            (moving.sounds_for). The stage's events are the motion row's own moves (design_moves: its moves.json,
+            made from the design, one an object); things moving exactly together are one event
+    voice   the people its picked design stands (data/people/rows.json, people_rows.persons): the people's voice
             (data/sound/voices.json), on the first of them
 
 Each need is in one state: `library` (every sound named has a library file), `make` (a sound named has a brief with
@@ -18,7 +17,7 @@ import json
 import pathlib
 import sys
 
-from score.stages import design_layers
+from score.stages import design_layers, people_rows, row_kinds
 from score.stages.sound import beds
 from score.stages.sound import moving
 
@@ -61,9 +60,27 @@ def events(motions, rigid, renamed):
     return found
 
 
-def people(cast):
-    """The names of the people a cast record stands in the place."""
-    return [person["name"] for person in cast.get("people", [])]
+def people(place, rows_path):
+    """The names of the people the place's picked design stands (data/people/rows.json at `rows_path`), each a prim
+    of its characters layer."""
+    return [person["name"] for person in people_rows.persons(place, read(rows_path) or {"places": {}})]
+
+
+def design_moves(inputs):
+    """The motion row's rigid record of the place (its output's moves.json, made from the design); {} where the place
+    has no motion row."""
+    return read(pathlib.Path(inputs["motion"]) / "moves.json") if "motion" in inputs else {}
+
+
+def designed_movers(place, inventory, kinds):
+    """One moving thing a row of the scene inventory whose kind moves (a swing or a spin), at the row's prim, as the
+    motion row moves its objects: [{"name", "prim", "row", <move>}]."""
+    found = []
+    for row in row_kinds.rows_that(inventory, "moves", kinds):
+        move = kinds[row["row_kind"]]["motion"]["move"]
+        if move in moving.MOVES:
+            found.append({"name": row["id"], "prim": f"/{place}/{row['id']}", "row": row["id"], move: {}})
+    return found
 
 
 def event_sounds(event, rows, kinds, table):
@@ -100,18 +117,17 @@ def needs(place, data, design=beds.DESIGN):
     voice = read(data / "sound/voices.json").get("people")
     catalogue = read(data / "sound/catalogue.json").get("sounds", {})
     sounds = read(data / "sound/sounds.json").get("sounds", {})
-    rigid_record = read(data / f"motion/rigid/{place}.json")
-    rows = read(inventory_of(place, data, design)).get("rows", [])
+    inventory = read(inventory_of(place, data, design))
+    rows = inventory.get("rows", [])
     kinds, table = read(data / "checks/row-kinds.json").get("kinds", {}), read(data / "sound/moving.json")
     found = []
     bed = beds.of_place(place, beds.paths(place, data, design))
     found.append({"kind": "bed", "item": "room", "prim": f"/{place}", "sounds": bed["sounds"],
                   "missing": bed["facts"]["missing"]})
-    for event in events(read(data / f"motion/{place}.json").get("motions", []), rigid_record.get("moves", []),
-                        rigid_record.get("renamed", {})):
+    for event in events([], designed_movers(place, inventory, kinds), {}):
         found.append({"kind": "event", "item": event["name"], "prim": event["prims"][0],
                       "sounds": event_sounds(event, rows, kinds, table)})
-    cast = people(read(data / f"characters/{place}.json"))
+    cast = people(place, data / "people/rows.json")
     if cast:
         found.append({"kind": "voice", "item": "people", "prim": f"/{place}/Characters/{cast[0]}",
                       "sounds": [voice] if voice else []})

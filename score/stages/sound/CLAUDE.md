@@ -26,13 +26,14 @@ gates; `takes.py` the paid part.
   named gap, never a guess, and fails the row's `bed` gate.
 - **Every source has a sound.** A place's sources are its bed, its objects' sounds (each scene inventory row whose
   row kind sounds plays its kind's `sound` from `data/checks/row-kinds.json` at that row), its people's voice
-  (`data/sound/voices.json` on its cast's first person), its motions' `sounds`, the sounds
-  `data/sound/moving.json` gives its moving things and silent motions by their row kind
-  (`score/stages/row_kinds.py`: the inventory row's, else the kind whose motion the record's `kind` is) and move, never by
+  (`data/sound/voices.json` on the first person its design stands, `data/people/rows.json`), the sounds
+  `data/sound/moving.json` gives the motion row's moving things (its `moves.json`, read through the row's `after`) by
+  their row kind (`score/stages/row_kinds.py`) and move, never by
   a place's or a prim's name (`moving.py`: a door's latch as it swings open, a vehicle's drive over its path, timed off
   the record's own moves, so a moving thing that stops moving stops sounding; things moving as one, about one named pivot, sound once; things only moving alike, two doors of a row, each sound) and the whole
-  surface bank (`data/sound/surfaces.json`). That table names only picked sounds; one still to make is in its
-  `wanted` until its brief is written and made. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
+  surface bank (`data/sound/surfaces.json`). Those tables name only picked sounds: the old sound shelf's names were
+  withdrawn (owner, 2026-10-21: all old stuff is retired), so moving.json keeps each part's rule (when it plays) and
+  voices.json its rule with no sound named, each a gap until a fresh take is picked and named. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
 - **A sound picked already is taken as it is** (from the library, tools/library; its credit off `data/sound/licences.json`, its CLAP
   score `chosen.clap` measured when it was made); only one whose files are off its category's loudness is levelled
@@ -48,7 +49,7 @@ gates; `takes.py` the paid part.
   come back usable has no sound, its uses left out of the record (so the assembly plays nothing there) and named in
   its gap. A picked sound under the floor is no take of the batch and still fails. A new take (another seed, the
   brief's next prompt) is a new batch, never inside this one.
-- **One take across places** (#29): a brief several places play (crew_talk, wherever people stand) is one take. Each take is
+- **One take across places** (#29): a brief several places play (a voice, wherever people stand) is one take. Each take is
   locked while its batch runs (`takes.held`), so the first line to reach it makes it on its card and the others wait
   and read it; a take its batch asked for and did not get (lost, failed, no card) is a named failure and a gap on
   every place that plays it, never asked again by a waiting line (`takes.asked_here`: one ask a take a score run, the
@@ -57,16 +58,17 @@ gates; `takes.py` the paid part.
   gaps name work, never a `sound@` node the table lacks), and the price's `sound_takes` forecast rule counts each at its first place, so it is priced once.
 - **One sound, one name** (#46): a surface's steps are `footsteps_<surface>` in `data/sound/surfaces.json` and
   `sounds.json`; a sound two names would play the same files under is one name, so the library holds it once.
-- **What a place needs is worked out free** (`needs.py`, #29): its bed (`beds.py`), one event sound for each thing
-  that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its
-  cast stands people (`data/sound/voices.json`, on its first person, played at `/<place>/Characters/<name>`).
+- **What a place needs is worked out free** (`needs.py`, #29): its bed (`beds.py`), one event sound for each row
+  of its scene inventory whose kind moves and a voice where its design stands people
+  (`data/sound/voices.json`, on its first person, played at `/<place>/Characters/<name>`).
   Each need is answered from the library, by a brief this row makes, or not at all; the gaps check shows the last
   two (`score/stages/complete/gaps/layers.py`), and the `events` and `voices` gates fail a place's output that
   leaves one silent. Keep needs generic: read them off the records, never a list of places.
 - **The design decides, never a list** (owner, 2026-10-21: the framework is agnostic): the row's places, its objects'
-  sounds and its people's voice come from the design (plan, scene inventory and cast, kept under `{home}/design`
-  where the creator's are, else `data/`) and general rules (row kinds, voices.json); no per-place or per-object table.
-  What the people say (a speech, a radio call) is not in the cast, so the voice is one sound for every place's
+  sounds and its people's voice come from the design (plan and scene inventory, kept under `{home}/design` where the
+  creator's are, else `data/`; its people, `data/people/rows.json`; its moves, the motion row's) and general rules
+  (row kinds, voices.json); no per-place or per-object table.
+  What the people say (a speech, a radio call) is not in the design, so the voice is one sound for every place's
   people until a rule or a recorded model call reads it from the concept.
 - **Unit cost: measured** in `data/costs/per-unit.json` over the takes each batch's ledger line names (`takes.plan_for`
   writes them; tools/costs/per_unit.py `SOUND_TAKES` holds the airlock's and the square's, written before): two runs

@@ -40,16 +40,24 @@ def record_of(output):
 
 def standing(inputs):
     """What an object sound may play at: the design's rows (the scene inventory's row ids and those its plan lays)
-    and the cast's people (a voice)."""
+    and the people its design stands (a voice)."""
     names = set()
     for part in ("scene inventory", "inventory"):
         if part in inputs:
             names |= {row["id"] for row in read_json(inputs[part]).get("rows", [])}
     if "plan" in inputs:
         names |= {row for rows in (read_json(inputs["plan"]).get("rows") or {}).values() for row in rows}
-    if "cast" in inputs:
-        names |= set(needs.people(read_json(inputs["cast"])))
-    return names
+    return names | set(people_of(inputs))
+
+
+def place_of(inputs):
+    """The place, by its design's name (its plan, else its scene inventory: each named for it)."""
+    return pathlib.Path(inputs.get("plan") or inputs["scene inventory"]).stem
+
+
+def people_of(inputs):
+    """The people the place's design stands (needs.people), none without its people input."""
+    return needs.people(place_of(inputs), inputs["people"]) if "people" in inputs else []
 
 
 def judge_sources(output, inputs, evidence):
@@ -59,7 +67,7 @@ def judge_sources(output, inputs, evidence):
     there = standing(inputs)
     faults = [f"{use['sound']} ({use['role']}, {use['from']}): no sound" for use in record["uses"]
               if not record["sounds"].get(use["sound"], {}).get("files")]
-    faults += [f"{use['sound']} plays at {use['on']}, which the place's inventory, plan and cast do not hold"
+    faults += [f"{use['sound']} plays at {use['on']}, which the place's inventory, plan and people do not hold"
                for use in record["uses"] if use["role"] == "object" and use["on"] not in there]
     if not record["uses"]:
         return checks.Verdict("sources", checks.UNKNOWN, "the place names no source of sound")
@@ -77,8 +85,7 @@ def judge_bed(output, inputs, evidence):
     """Pass when the place's design decides its bed (beds.py: how it is heard, and a library bed whose brief fits);
     fail naming what the design lacks, or that no library bed's brief fits it. Whether the bed's takes came back is
     the batch's (sources and the take gaps), not this gate's."""
-    place = pathlib.Path(inputs.get("plan") or inputs["scene inventory"]).stem
-    bed = beds.of_place(place, inputs)
+    bed = beds.of_place(place_of(inputs), inputs)
     if bed["sounds"]:
         return checks.Verdict("bed", checks.PASS, f"its design decides its bed: {', '.join(bed['sounds'])}")
     lacks = bed["facts"]["missing"] or ["no library bed's brief (data/sound/sounds.json `bed`) fits its design"]
@@ -88,12 +95,11 @@ def judge_bed(output, inputs, evidence):
 # --- events and voices (#29) ----------------------------------------------------------------------------------------
 
 def judge_events(output, inputs, evidence):
-    """Pass when every thing that moves in the place (needs.events over its motion and moving things records) plays a sound
-    at one of its prims; a place where nothing moves passes with nothing to judge."""
+    """Pass when every thing the motion row moves in the place (needs.events over its moves, needs.design_moves) plays
+    a sound at one of its prims; a place where nothing moves passes with nothing to judge."""
     record = record_of(output)
-    moves = read_json(inputs["moves"]) if "moves" in inputs else {}
-    motions = read_json(inputs["motion"]).get("motions", []) if "motion" in inputs else []
-    found = needs.events(motions, moves.get("moves", []), moves.get("renamed", {}))
+    moves = needs.design_moves(inputs)
+    found = needs.events([], moves.get("moves", []), moves.get("renamed", {}))
     sounding = {use["on"] for use in record["uses"] if use["role"] == "motion"}
     silent = [f"{event['name']} ({event['prims'][0]}) moves without a sound" for event in found
               if not sounding & set(event["prims"])]
@@ -106,9 +112,9 @@ def judge_events(output, inputs, evidence):
 
 
 def judge_voices(output, inputs, evidence):
-    """Pass when a place whose cast stands people plays a voice (a sound with files) on one of them; a place with no
-    one passes."""
-    cast = needs.people(read_json(inputs["cast"])) if "cast" in inputs else []
+    """Pass when a place whose design stands people plays a voice (a sound with files) on one of them; a place with
+    no one passes."""
+    cast = people_of(inputs)
     record = record_of(output)
     voiced = sorted({use["on"] for use in record["uses"] if use["role"] == "object" and use["on"] in cast
                      and record["sounds"].get(use["sound"], {}).get("files")})
