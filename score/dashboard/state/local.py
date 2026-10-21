@@ -610,11 +610,12 @@ class LocalSource:
                 **self.inventory_readings(concepts.placed(self.store))}
 
     def inventory_readings(self, places):
-        """{inventory_readings, inventory_spend} (score/review/reading.py): each place's reading of its picked draw and
-        what every reading cost."""
+        """{inventory_readings, inventory_spend} (score/review/reading.py): each place's reading of its picked draw
+        (with `cost`, what it and the readings it was read again from took) and what every reading cost."""
         from score.review import reading
         found = {place: reading.reading_of(self.store, place) for place in places}
-        return {"inventory_readings": {place: read for place, read in found.items() if read},
+        return {"inventory_readings": {place: {**read, "cost": reading.cost(self.store, read)}
+                                       for place, read in found.items() if read},
                 "inventory_spend": reading.spent(self.store, places)}
 
     def concept_wording(self, node):

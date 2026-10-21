@@ -511,7 +511,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 #concept-boxes-quiet[aria-pressed="true"], #concept-skipped-shown[aria-pressed="true"] { border-color: var(--done); }
 .concept-rows li.lit, .concept-gaps li.lit, .concept-rows li.held, .concept-gaps li.held { color: var(--done); }
 .concept-gaps li { cursor: pointer; }
-.concept-skipped-note { cursor: help; }
+.concept-skipped-note { cursor: help; white-space: nowrap; }
 .concept-gaps { list-style: none; margin: 4px 0 0; padding: 0; max-height: 200px; overflow-y: auto; font-size: var(--fs-sm); }
 .concept-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .concept-notes li { display: flex; gap: 6px; align-items: center; }

@@ -162,8 +162,9 @@ def reading_view(world, place, picked):
             for row in dict.fromkeys(gap["row"] for gap in found["gaps"]) if row in named]
     skipped = [{**item, "at": item["box"] and at(item["box"])} for item in found.get("skipped", [])]
     merged = [{**item, "into": named[item["into"]]["name"]} for item in found.get("merged", []) if item["into"] in named]
-    return {"rows": rows, "gaps": gaps, "skipped": skipped, "merged": merged, "euros": found["euros"]["total"],
-            "minutes": round(sum(found["seconds"].values()) / 60, 1), "at": found["at"]}
+    paid = found.get("cost") or {"euros": found["euros"]["total"], "seconds": sum(found["seconds"].values())}
+    return {"rows": rows, "gaps": gaps, "skipped": skipped, "merged": merged, "euros": paid["euros"],
+            "minutes": round(paid["seconds"] / 60, 1), "at": found["at"]}
 
 
 def asked_to_hold(world, place, names):

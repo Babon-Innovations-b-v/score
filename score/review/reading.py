@@ -155,6 +155,15 @@ def row_boxes(store, place, row):
     return rows[row]["boxes"] if row in rows else None
 
 
+def cost(store, record):
+    """{euros, seconds} a reading took, with the earlier readings it was read again from (`from`)."""
+    euros, seconds = 0.0, 0.0
+    while record:
+        euros, seconds = euros + record["euros"]["total"], seconds + sum(record["seconds"].values())
+        record = record.get("from") and store.read(record["from"])
+    return {"euros": round(euros, 4), "seconds": round(seconds, 1)}
+
+
 def spent(store, places):
     """The euros every reading of `places` cost, in sum (the cockpit's running total)."""
     return round(sum(found["euros"]["total"] for place in places for found in readings(store, place)), 4)
@@ -437,11 +446,11 @@ def agreed(rows, loose, things, size):
 
 
 def gaps(rows):
-    """What the inventory's kept rows still lack, a gap each (CONTEXT.md "gap"), never guessed past: a size or what
-    it stands on not read."""
+    """What the inventory's kept rows still lack, a gap each (CONTEXT.md "gap"), never guessed past: a size (the
+    ground and the sky have none of their own: the plan's outline sizes them) or what it stands on not read."""
     said = {"size": "its size in metres not read", "anchor": "what it stands on not read"}
     return [{"kind": name, "row": row["id"], "words": words} for row in rows for name, words in said.items()
-            if not row[name]]
+            if not row[name] and not (name == "size" and (row["terrain"] or row["anchor"] == "sky"))]
 
 
 def inside_rows(rows, holds):

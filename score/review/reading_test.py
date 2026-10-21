@@ -163,7 +163,7 @@ def test_a_row_is_found_by_its_own_words_first_and_an_older_reading_is_read_agai
         "inventory-readings/wreck/")
     assert record["euros"] == {"rows": 0.0, "boxes": 0.08, "total": 0.08} and record["answered"][0]["metres"] == [
         0.4, 0.4, 18.0]
-    assert reading.spent(store, ["wreck"]) == 0.21
+    assert reading.spent(store, ["wreck"]) == 0.21 and reading.cost(store, record)["euros"] == 0.21
 
 
 def test_rows_off_the_schema_are_refused():
@@ -177,8 +177,9 @@ def test_rows_off_the_schema_are_refused():
     assert reading.rows_of(good.replace('"floor"', '"on:b"'))[0]["anchor"] is None  # a gap of its row, not a refusal
     assert reading.anchor_of("a", ["a", "b"]) == "on:a" and reading.region_of([10, 20, 5, 30]) is None
     assert reading.region_of([10, 20, 500, 300]) == [10, 20, 500, 300]
-    assert [gap["kind"] for gap in reading.gaps([{"id": "a", "anchor": None, "region": None, "noun": "a", "count": 1,
+    assert [gap["kind"] for gap in reading.gaps([{"id": "a", "anchor": None, "region": None, "terrain": False, "count": 1,
                                                   "size": None, "boxes": [[0, 0, 1, 1]]}])] == ["size", "anchor"]
+    assert reading.gaps([{"id": "g", "anchor": "ground", "terrain": True, "size": None}]) == []  # the plan sizes it
     assert reading.metres_of([4.8, 1.9, 1.5]) == [4.8, 1.9, 1.5]
     assert [reading.metres_of(wrong) for wrong in ([4.8, 1.9], [4.8, 0, 1.5], "4.8 m", [True, 1, 1])] == [None] * 4
     with pytest.raises(concepts.Refused, match="no JSON"):
