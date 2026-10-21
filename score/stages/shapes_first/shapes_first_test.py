@@ -188,18 +188,17 @@ READS_THE_LOOP = {
     "assembly": "the object layer laid (OBJECTS: nothing after the model), its baked models and their paint",
     "earth-seed": "the Earth kit's base: earth-kit's named code fallbacks baked (earth_seed.fallbacks)",
     "settle": "the motion layer's physics: not on an adapter yet (#41's motion track)",
-    "motion-models": "the motion layer's models: not on an adapter yet (#41's motion track)",
     "crops-layer": "the motion layer's growth: not on an adapter yet (#41's motion track)",
 }
 # Every paid row outside the loop and what it makes: none a model, but the named exceptions MADE_OUTSIDE holds.
 MAKES_NO_MODEL = {
     "demo-turntables": "renders",
     "settle": "rest poses of the made models", "sound": "sounds", "demo-film*": "films", "demo-stills": "stills",
-    "effects-look": "renders", "physics-trial": "a physics trial", "concept_people": "people's concept pictures",
-    "motion-models-boxes": "measured boxes", "light-passes": "renders", "light-haze": "renders",
+    "physics-trial": "a physics trial", "concept_people": "people's concept pictures",
+    "light-passes": "renders", "light-haze": "renders",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
     "surface-tiles": "surface tiles", "library-clips*": "preview clips (renders)",
-    "people-clips-made": "Kimodo clips and the mean rig",
+    "people-clips-made": "Kimodo clips and the mean rig", "people-look": "renders of the made bodies (its review page)",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
 MADE_OUTSIDE = {

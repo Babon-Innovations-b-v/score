@@ -60,9 +60,8 @@ def test_a_person_row_s_look_is_written_from_the_row_alone():
     assert take == "deck_pilot_1-drawn-s1" and props["objects"]["deck_pilot_1-drawn"]["take"] == take
     assert lined["takes"][take]["spec"] == "data/people/specs/deck_pilot_1.json"
     assert lined["takes"][take]["outfit"] == "drawn" and {row["id"] for row in inventory["rows"]} == set(made)
-    hand = {look for look, entry in surfaces["bake"]["models"].items() if "characters/makes" in
-            surfaces["takes"][entry]["spec"]}
-    assert not hand & set(people_rows.designed_specs(people_rows.read(), surfaces)), "a hand spec written over"
+    assert all(entry["spec"].startswith("data/people/specs/") for entry in surfaces["takes"].values()), \
+        "every look on the line is written from a design's row (the hand-made makes were retired, 2026-10-21)"
 
 
 def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
@@ -90,14 +89,14 @@ def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
         raise AssertionError("a crowd palette was coloured from surfaces no library holds")
 
 
-def test_the_tube_casts_the_player_and_the_square_its_crowd():
+def test_the_tube_casts_its_people_and_the_square_its_crowd():
     tube = people_rows.cast_record("tube")
-    player = next(person for person in tube["people"] if person["name"] == "person_right")
-    assert (player["character"], player["look"]) == ("player_wide", "player_wide_work"), player
+    person = next(person for person in tube["people"] if person["name"] == "person_right")
+    assert (person["character"], person["look"]) == ("tube_person_right_1", "tube_person_right_1_drawn"), person
     assert all(person["at"] in people_rows.place_entry("tube")["spots"] for person in tube["people"])
     assert "concept 3059819b" in tube["from"] and "crowd" not in tube
     square = people_rows.cast_record("square")
-    assert square["crowd"]["look"] == "kit_m_avg_coat-grey" and square["crowd"]["count"] is None
+    assert square["crowd"]["look"] == "square_crowd_drawn" and square["crowd"]["count"] is None
     assert square["crowd"]["palettes"] == [] and square["crowd"]["palettes_from"] == people_rows.UNDECIDED_PALETTES
 
 
@@ -109,9 +108,11 @@ def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
         "the line's data is not written from rows.json: run python -m score.stages.people_rows"
     assert set(props["objects"]) == people_rows.every_look()  # every look the designs map, each on the line
     assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"]) == set(props["objects"])
-    assert people_rows.size_of("player_wide-work")[1] == "tube/person_right"
-    size, origin = people_rows.size_of("kit_m_avg-coat-grey")
-    assert people_rows.person_sized(size) and origin == "square/crowd"  # never the street crowd's 8 x 10 m extent
+    assert people_rows.size_of("tube_person_right_1-drawn")[1] == "tube/person_right"
+    size, origin = people_rows.size_of("square_crowd-drawn")
+    assert people_rows.person_sized(size) and origin == "square/crowd"  # one member, never the crowd's extent
+    size, origin = people_rows.size_of("stairwell_walkway_crowd_1-drawn")  # five people standing apart on 10 x 30 m
+    assert people_rows.person_sized(size) and origin == "stairwell/walkway_crowd", (size, origin)
 
 
 def test_each_line_row_is_drawn_from_the_person_that_maps_it():
@@ -129,26 +130,27 @@ def test_each_line_row_is_drawn_from_the_person_that_maps_it():
         props, inventory, _ = people_rows.line_rows(people_rows.read(), records["props"], records["inventory"],
                                                     records["surfaces"], kept)
     rows = {row["id"]: row for row in inventory["rows"]}
-    assert rows["player_wide-work"]["view"] == "tube" and rows["player_wide-work"]["box"] == [1, 2, 3, 4]
-    assert rows["player_wide-work"]["grounded"] and rows["player_wide-work"]["prop"] == "player_wide-work"
-    assert rows["kit_m_avg-coat-grey"]["view"] is None, "the square keeps no inventory here"
+    right = rows["tube_person_right_1-drawn"]
+    assert right["view"] == "tube" and right["box"] == [1, 2, 3, 4]
+    assert right["grounded"] and right["prop"] == "tube_person_right_1-drawn"
+    assert rows["square_crowd-drawn"]["view"] is None, "the square keeps no inventory here"
     assert inventory["plan"]["views"] == [{"id": place, "picture": f"{{home}}/design/concepts/{place}.png"}
                                           for place in ("campgrounds", "tube")]
     assert inventory["approved"]["by"] == "the creator's pick"
     assert inventory["approved"]["places"] == ["campgrounds", "tube"]
-    assert "closeup" not in props["objects"]["player_wide-work"]
+    assert "closeup" not in props["objects"]["tube_person_right_1-drawn"]
     # each of a row's people drawn from its own SAM 3 instance, never seven close-ups of the first one
     assert [rows[f"campgrounds_astronaut_{number}-drawn"]["box"] for number in range(1, 8)] == boxes
 
 
 def test_each_line_rows_close_up_words_say_who_the_look_is():
-    """#26: the first people benchmark drew the player, a Chinese man in his thirties by his spec, as someone else:
+    """#26: the first people benchmark drew its player, a Chinese man in his thirties by his spec, as someone else:
     the close-up's words were the reading's clothes alone. Every look's words start with its spec's description."""
     from score.stages.props import closeup_row
     inventory = json.loads(people_rows.LINE_FILES["inventory"].read_text())
     rows = {row["id"]: row for row in inventory["rows"]}
     words = {row["id"]: row["words"] for row in closeup_row.inventory_rows(inventory, people_rows.every_look())}
-    assert words["player_wide-work"].startswith("a Chinese man in his thirties")
+    assert words["tube_person_right_1-drawn"].startswith("person in uniform, an average build")
     for look, said in words.items():
         assert said == f"{people_rows.description_of(look)}; {rows[look]['clothes']}"
 
@@ -160,12 +162,13 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
         {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop"}]}
     fresh = people_rows.refreshed_place("deck", inventory, None, None)
     assert fresh["rows"]["pilot"]["looks"] == ["deck_pilot_1-drawn", "deck_pilot_2-drawn"] and "chair" not in fresh["rows"]
-    assert fresh["rows"]["crowd"]["crowd"] == "kit_m_avg-coat-grey" and fresh["rows"]["crowd"]["palettes"] is None
-    fresh["rows"]["pilot"]["looks"] = ["player_wide-work", "deck_pilot_2-drawn"]
+    assert fresh["rows"]["crowd"]["crowd"] == "square_crowd-drawn" and fresh["rows"]["crowd"]["palettes"] is None
+    fresh["rows"]["pilot"]["looks"] = ["tube_person_right_1-drawn", "deck_pilot_2-drawn"]
     assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
         "deck_pilot_1-drawn", "a pick with no why is no hand-made choice: read again from the design"
     fresh["rows"]["pilot"]["why"] = "the owner's pick"
-    assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == "player_wide-work"
+    assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
+        "tube_person_right_1-drawn"
     redrawn = {**inventory, "concept_pick": {"sha256": "two"}}
     assert people_rows.refreshed_place("deck", redrawn, None, fresh)["rows"]["pilot"]["looks"][0] == "deck_pilot_1-drawn"
 
@@ -173,18 +176,23 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
 def test_a_crowds_look_is_read_off_its_words():
     """No city square's coats on every crowd: the people line's look sharing the most of the row's words, a crowd
     word only between looks that share no other, a new look when none shares a word."""
-    line = {"kit_m_avg-coat-grey": {"object": "a person in a plain mid grey coat", "far_only": True,
-                                    "spec": "data/characters/makes/kit_m_avg_prop.json"},
-            "player_wide-work": {"object": "a person in a dark navy one-piece work suit",
-                                 "spec": "data/characters/makes/player_wide_prop.json"}}
-    def look(name, noun):
-        return people_rows.crowd_look("moon", {"id": "crowd", "name": name, "noun": noun}, line)
-    assert look("crowd of people", "people") == "kit_m_avg-coat-grey"  # "an ordinary citizen in the crowd"
-    assert look("crowd of astronauts", "crowd") == "player_wide-work"  # "an astronaut of a Moon base"
-    assert look("flock of penguins", "penguin") == "moon_crowd-drawn"  # drawn from its row (designed_specs)
-    # who the row names decides, never its crowd word alone: a city crowd's look is no one else's crowd
-    assert look("crowd of aliens", "crowd") == look("crowd of martian colonists", "crowd") == "moon_crowd-drawn"
-    assert look("crowd of shoppers in grey coats", "crowd") == "kit_m_avg-coat-grey"
+    import tempfile
+    with tempfile.TemporaryDirectory() as held:
+        citizen, astronaut = pathlib.Path(held) / "citizen.json", pathlib.Path(held) / "astronaut.json"
+        citizen.write_text(json.dumps({"description": "a man in his thirties, an ordinary citizen in the crowd"}))
+        astronaut.write_text(json.dumps({"description": "a man in his thirties, an astronaut of a Moon base"}))
+        line = {"citizen-coat": {"object": "a person in a plain mid grey coat", "far_only": True,
+                                 "spec": str(citizen)},
+                "astronaut-work": {"object": "a person in a dark navy one-piece work suit", "spec": str(astronaut)}}
+
+        def look(name, noun):
+            return people_rows.crowd_look("moon", {"id": "crowd", "name": name, "noun": noun}, line)
+        assert look("crowd of people", "people") == "citizen-coat"  # "an ordinary citizen in the crowd"
+        assert look("crowd of astronauts", "crowd") == "astronaut-work"  # "an astronaut of a Moon base"
+        assert look("flock of penguins", "penguin") == "moon_crowd-drawn"  # drawn from its row (designed_specs)
+        # who the row names decides, never its crowd word alone: a city crowd's look is no one else's crowd
+        assert look("crowd of aliens", "crowd") == look("crowd of martian colonists", "crowd") == "moon_crowd-drawn"
+        assert look("crowd of shoppers in grey coats", "crowd") == "citizen-coat"
 
 
 def a_concept(fabric_lab_colour, box):

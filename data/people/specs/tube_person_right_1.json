@@ -1,0 +1,17 @@
+{
+ "name": "tube_person_right_1",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the tube concept (3059819b): its scene inventory's people row person_right (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "person in uniform of the tube concept, right midground, at console",
+ "references": [],
+ "description": "person in uniform, an average build, as drawn in the tube concept",
+ "outfit_words": {
+  "drawn": "the clothes as drawn in the tube concept"
+ },
+ "outfits": [
+  "drawn"
+ ],
+ "hair": "the hair as drawn in the tube concept",
+ "face": "the face as drawn in the tube concept"
+}

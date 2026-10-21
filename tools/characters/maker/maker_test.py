@@ -1,5 +1,5 @@
-"""The character maker's pure pieces: the spec check, the face's kept boxes and the hair shell's grid. Nothing here
-loads a model or needs numpy beyond the grid's own maths."""
+"""The character maker's pure pieces: the spec check, the routes' refusals and the prop route's free steps. Nothing
+here loads a model."""
 import json
 import pathlib
 import subprocess
@@ -10,13 +10,11 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-import face_pick  # noqa: E402
-import hair_shell  # noqa: E402
 import spec  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PERSON = {"name": "someone", "kind": "person", "approved": "the owner", "description": "a person",
-          "hair": "short hair", "face": "a face"}
+          "hair": "short hair", "face": "a face", "route": "prop", "outfit_words": {"work": "a work suit"}}
 
 
 def test_the_checked_in_specs_can_be_made():
@@ -42,8 +40,9 @@ def test_a_relative_picture_is_refused_and_one_from_home_is_kept():
     assert spec.inputs_of(dict(PERSON, picture="~/a.png"))["picture"].is_absolute()
 
 
-def test_an_unknown_outfit_is_refused():
-    assert any("outfit 'gown'" in problem for problem in spec.problems_of(dict(PERSON, outfits=["gown"])))
+def test_an_outfit_without_words_is_refused():
+    assert "no outfit_words for gown" in spec.problems_of(dict(PERSON, outfits=["gown"]))
+    assert "route 'drape' is not prop" in spec.problems_of(dict(PERSON, route="drape"))
 
 
 def test_reading_raises_with_every_problem(tmp_path):
@@ -53,47 +52,19 @@ def test_reading_raises_with_every_problem(tmp_path):
         spec.read(path)
 
 
-def test_take_c_keeps_his_own_face_boxes():
-    joints = {"LeftEye": [0.031, 1.649, 0.06], "HeadEnd": [0.0, 1.757, 0.0]}
-    view = {"window": [-0.145, 0.145, 1.495, 1.785], "size": 1024}
-    nose, mouth = face_pick.boxes(joints, view, 0.0, False)
-    # The nose box sits between 35 and 50 mm under the eyes, centred a little to his left.
-    assert nose[1] < nose[3] and mouth[1] < mouth[3]
-    assert nose[3] < mouth[1]
-    assert abs((nose[0] + nose[2]) / 2 - 512) < 5
-    assert face_pick.boxes(joints, view, 0.0, True) == [nose]
-
-
-def test_the_hair_grid_runs_from_the_crown_to_the_hairline():
-    dirs = hair_shell.directions(8, 16)
-    assert dirs.shape == (9, 16, 3)
-    assert np.allclose(np.linalg.norm(dirs, axis=-1), 1.0)
-    assert np.allclose(dirs[0], [0.0, 1.0, 0.0])
-    assert (dirs[-1][:, 1] < dirs[1][:, 1]).all()
-
-
-def test_the_hair_mesh_closes_every_row():
-    grid = np.random.default_rng(1).normal(size=(5, 12, 3))
-    points, faces = hair_shell.mesh(grid, grid[-1] * 0.9)
-    assert len(points) == 1 + 4 * 12 + 12
-    assert faces.max() == len(points) - 1
-    assert len(faces) == 12 + 2 * 12 * 3 + 2 * 12
-
-
-def test_experimental_routes_and_drapes_run_only_when_asked_for():
+def test_experimental_routes_run_only_when_asked_for_and_the_shipped_chain_never():
     """Fault (audit of 2026-10-11, items 1-3): make.py over the old character specs started paid prop-route runs
-    (the player fails tucks and pokes, Nev is not made), the animal route had never run on a world, and every person
-    was draped by Newton, the drapes the owner rejected, with no one asking."""
+    (the player fails tucks and pokes, Nev is not made) and the animal route had never run on a world; the shipped
+    person chain and its garment drapes were retired on 2026-10-21, so a person on no route is refused always."""
     import make
 
-    prop = dict(PERSON, name="player_prop", route="prop", outfit_words={"work": "a work suit"})
+    prop = dict(PERSON, name="player_prop")
     animal = {"name": "fish", "kind": "animal", "approved": "the owner", "description": "a fish"}
-    undraped = dict(PERSON, name="nev")
-    draped = dict(PERSON, name="ama", drape_simulator="newton")
-    refused = make.refusals([prop, animal, undraped, draped], experimental=False)
+    shipped = {key: value for key, value in dict(PERSON, name="nev").items() if key != "route"}
+    refused = make.refusals([prop, animal, shipped], experimental=False)
     assert [line.split(":")[0] for line in refused] == ["player_prop", "fish", "nev"], refused
-    assert [line.split(":")[0] for line in make.refusals([prop, animal, draped], experimental=True)] == []
-    assert "drape_simulator 'warp'" in spec.problems_of(dict(PERSON, drape_simulator="warp"))[0]
+    assert [line.split(":")[0] for line in make.refusals([prop, animal, shipped], experimental=True)] == ["nev"]
+    assert "retired" in make.refusals([shipped], experimental=True)[0]
 
 
 def test_the_experimental_routes_refuse_when_started_round_make(tmp_path):
@@ -111,16 +82,6 @@ def test_the_experimental_routes_refuse_when_started_round_make(tmp_path):
     with pytest.raises(SystemExit, match="only with make.py --experimental"):
         route.make({"name": "fish_tang"}, tmp_path, "a check", dry_run=True)
     assert not (tmp_path / "work").exists()
-
-def test_a_drape_has_no_default_simulator(tmp_path):
-    """Fault (audit of 2026-10-11, item 1): drape_garment.py and rebuild.py draped with Newton by default, the drapes
-    the owner rejected and drape_measure fails."""
-    import drape_garment
-
-    with pytest.raises(ValueError, match="no default simulator"):
-        drape_garment.drape(tmp_path / "body", "work_suit", tmp_path / "out", "work")
-    assert not (tmp_path / "out").exists()
-
 
 def test_a_spec_bind_pose_is_written_over_the_measured_pose(tmp_path):
     """A wider A-pose (2026-10-13): the spec's numbers replace the measured ones, the rest stay; an unknown number is

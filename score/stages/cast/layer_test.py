@@ -75,11 +75,11 @@ def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_named(
 
 def test_a_place_reads_only_the_looks_its_design_names():
     """#26: each cast place waits on its own looks' bodies, the looks its picked design names (data/people/rows.json)
-    in what each row wears: the tube's player in uniform (no fabric named: its own paint) and the square's crowd far
+    in what each row wears: the tube's person in uniform (no fabric named: its own paint) and the square's crowd far
     look; no old record, no lost concept picture, no hand-kept colours."""
     tube = layer.dressed_looks("tube")
-    assert ("player_wide-work", None) in tube and not any(look == "player-work" for look, _ in tube)
-    assert layer.dressed_looks("square") == {("kit_m_avg-coat-grey", None)}
+    assert ("tube_person_right_1-drawn", None) in tube and not any(look == "player-work" for look, _ in tube)
+    assert layer.dressed_looks("square") == {("square_crowd-drawn", None)}
     assert layer.dressed_looks("nowhere") == set()
 
 

@@ -10,7 +10,7 @@ data/surfaces/people.json; after the loop:
     people-dress-<look>              the loop's library surfaces laid on the body (dress.py)
     people-dress-<look>-in-<surface> the same worn in a fabric a design's person row reads (people_clothes.py)
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
-    people-look                      the review page of the LOOKED looks (look.py)
+    people-look                      the review page of every full look the designs name (look.py)
 
     .venv/bin/python -m score run world1 --place people --stage people-look --stage people-clips --detach
 """
@@ -19,10 +19,6 @@ from score.stages import people_rows
 from score.stages.people import dress, look
 from score.stages.people_bodies import bodies, clips, made_clips
 from score.stages.people_bodies.bodies import guarded
-
-# The looks the review page shows: the people benchmark's two (#26), the player in the tube and the far look the
-# square's crowd maps to by its words (people_rows.crowd_look). A benchmark's pick: it decides no scene's people.
-LOOKED = ("player_wide-work", "kit_m_avg-coat-grey")
 
 
 def dress_row(name, surface=None):
@@ -39,13 +35,6 @@ def dress_row(name, surface=None):
                        params={"surface": surface} if surface else {})
 
 
-LOOK = graph.Stage("people-look", "world", look.make_look, contracts.Contract("people-look", 1, look.look_faults),
-                   (guarded("rendered", look.judge_rendered),),
-                   files={"shots": "{repo}/tools/characters/maker/blender_shots.py",
-                          "review": "{repo}/tools/characters/maker/blender_review.py"},
-                   after={**{f"people-dress-{name}": ("people-dress", 1) for name in LOOKED},
-                          **{f"{bodies.BODY}-{name}": (bodies.BODY, 1) for name in LOOKED}},
-                   paid=True, euros=look.EUROS * len(LOOKED))
 def cast_looks():
     """The full looks the places' designs name (data/people/rows.json, #26)."""
     named = people_rows.every_look()
@@ -59,6 +48,16 @@ CLIPS = graph.Stage("people-clips", "world", clips.make_usable, contracts.Contra
                     (guarded("casts use passing clips", clips.judge_casts),),
                     files={"casts": "{data}/people/rows.json"},
                     after={f"{bodies.BODY}-{look}": (bodies.BODY, 1) for look in FULL})
+# The review page of every full body the designs name (FULL): each look's dress and body, rendered. Its two looks of
+# the people benchmark (#26, the tube's player and the square's crowd) were made from the retired makes and went with
+# them (owner, 2026-10-21: all old stuff is retired).
+LOOK = graph.Stage("people-look", "world", look.make_look, contracts.Contract("people-look", 1, look.look_faults),
+                   (guarded("rendered", look.judge_rendered),),
+                   files={"shots": "{repo}/tools/characters/maker/blender_shots.py",
+                          "review": "{repo}/tools/characters/maker/blender_review.py"},
+                   after={**{f"people-dress-{name}": ("people-dress", 1) for name in FULL},
+                          **{f"{bodies.BODY}-{name}": (bodies.BODY, 1) for name in FULL}},
+                   paid=True, euros=look.EUROS * len(FULL))
 
 
 def worn_rows():

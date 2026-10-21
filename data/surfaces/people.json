@@ -3,33 +3,6 @@
  "library": "people",
  "why": "The people line's surface data (score/stages/people, #5; on the shared loop since 2026-10-20, #41): each look's Pixal3D take, painted and baked by the loop's finish route as a place's takes are, on the line `people`, which no place owns; its body rows read `spec` and `outfit` beside each take. Only the looks the picked designs map are kept (data/people/rows.json); a look a design's row reads anew has its spec written from that row (data/people/specs, score/stages/people_rows.designed_specs), no hand-written character file (#26).",
  "takes": {
-  "kit_m_avg-coat-grey-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "spec": "data/characters/makes/kit_m_avg_prop.json",
-   "outfit": "coat-grey",
-   "far_only": true
-  },
-  "player_wide-work-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
-   "spec": "data/characters/makes/player_wide_prop.json",
-   "outfit": "work"
-  },
   "airlock_astronaut_1-drawn-s1": {
    "places": [
     "people"
@@ -705,13 +678,206 @@
    "object": "the clothes as drawn in the wreck concept",
    "spec": "data/people/specs/wreck_astronaut_3_1.json",
    "outfit": "drawn"
+  },
+  "base_astronaut_left_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the base concept",
+   "spec": "data/people/specs/base_astronaut_left_1.json",
+   "outfit": "drawn"
+  },
+  "base_astronaut_right_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the base concept",
+   "spec": "data/people/specs/base_astronaut_right_1.json",
+   "outfit": "drawn"
+  },
+  "cockpit_officer_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the cockpit concept",
+   "spec": "data/people/specs/cockpit_officer_1.json",
+   "outfit": "drawn"
+  },
+  "cockpit_pilot_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the cockpit concept",
+   "spec": "data/people/specs/cockpit_pilot_1.json",
+   "outfit": "drawn"
+  },
+  "quarters_person_bed_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the quarters concept",
+   "spec": "data/people/specs/quarters_person_bed_1.json",
+   "outfit": "drawn"
+  },
+  "quarters_person_desk_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the quarters concept",
+   "spec": "data/people/specs/quarters_person_desk_1.json",
+   "outfit": "drawn"
+  },
+  "square_crowd-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the square concept",
+   "spec": "data/people/specs/square_crowd.json",
+   "outfit": "drawn"
+  },
+  "stairwell_crowd-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the stairwell concept",
+   "spec": "data/people/specs/stairwell_crowd.json",
+   "outfit": "drawn"
+  },
+  "stairwell_walkway_crowd_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the stairwell concept",
+   "spec": "data/people/specs/stairwell_walkway_crowd_1.json",
+   "outfit": "drawn"
+  },
+  "stairwell_walkway_crowd_2-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the stairwell concept",
+   "spec": "data/people/specs/stairwell_walkway_crowd_2.json",
+   "outfit": "drawn"
+  },
+  "stairwell_walkway_crowd_3-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the stairwell concept",
+   "spec": "data/people/specs/stairwell_walkway_crowd_3.json",
+   "outfit": "drawn"
+  },
+  "stairwell_walkway_crowd_4-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the stairwell concept",
+   "spec": "data/people/specs/stairwell_walkway_crowd_4.json",
+   "outfit": "drawn"
+  },
+  "stairwell_walkway_crowd_5-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the stairwell concept",
+   "spec": "data/people/specs/stairwell_walkway_crowd_5.json",
+   "outfit": "drawn"
+  },
+  "street_distant_crowd-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the street concept",
+   "spec": "data/people/specs/street_distant_crowd.json",
+   "outfit": "drawn"
+  },
+  "tube_person_right_1-drawn-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the tube concept",
+   "spec": "data/people/specs/tube_person_right_1.json",
+   "outfit": "drawn"
   }
  },
  "bake": {
   "why": "Each look's model, baked from its take by the loop's bake, its entry at the size of the person row that maps it (data/people/rows.json, score/stages/people_rows.size_of: the picked design's metres, #26). Only the looks a design maps are on the line; the rest left it with the old library models (2026-10-21).",
   "models": {
-   "kit_m_avg-coat-grey": "kit_m_avg-coat-grey-s1",
-   "player_wide-work": "player_wide-work-s1",
    "airlock_astronaut_1-drawn": "airlock_astronaut_1-drawn-s1",
    "camp_astronaut_1_1-drawn": "camp_astronaut_1_1-drawn-s1",
    "camp_astronaut_2_1-drawn": "camp_astronaut_2_1-drawn-s1",
@@ -763,35 +929,24 @@
    "workshop_person_right_1-drawn": "workshop_person_right_1-drawn-s1",
    "wreck_astronaut_1_1-drawn": "wreck_astronaut_1_1-drawn-s1",
    "wreck_astronaut_2_1-drawn": "wreck_astronaut_2_1-drawn-s1",
-   "wreck_astronaut_3_1-drawn": "wreck_astronaut_3_1-drawn-s1"
+   "wreck_astronaut_3_1-drawn": "wreck_astronaut_3_1-drawn-s1",
+   "base_astronaut_left_1-drawn": "base_astronaut_left_1-drawn-s1",
+   "base_astronaut_right_1-drawn": "base_astronaut_right_1-drawn-s1",
+   "cockpit_officer_1-drawn": "cockpit_officer_1-drawn-s1",
+   "cockpit_pilot_1-drawn": "cockpit_pilot_1-drawn-s1",
+   "quarters_person_bed_1-drawn": "quarters_person_bed_1-drawn-s1",
+   "quarters_person_desk_1-drawn": "quarters_person_desk_1-drawn-s1",
+   "square_crowd-drawn": "square_crowd-drawn-s1",
+   "stairwell_crowd-drawn": "stairwell_crowd-drawn-s1",
+   "stairwell_walkway_crowd_1-drawn": "stairwell_walkway_crowd_1-drawn-s1",
+   "stairwell_walkway_crowd_2-drawn": "stairwell_walkway_crowd_2-drawn-s1",
+   "stairwell_walkway_crowd_3-drawn": "stairwell_walkway_crowd_3-drawn-s1",
+   "stairwell_walkway_crowd_4-drawn": "stairwell_walkway_crowd_4-drawn-s1",
+   "stairwell_walkway_crowd_5-drawn": "stairwell_walkway_crowd_5-drawn-s1",
+   "street_distant_crowd-drawn": "street_distant_crowd-drawn-s1",
+   "tube_person_right_1-drawn": "tube_person_right_1-drawn-s1"
   },
   "entries": {
-   "kit_m_avg-coat-grey": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "player_wide-work": {
-    "size": [
-     0.3,
-     1.8,
-     0.5
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
    "airlock_astronaut_1-drawn": {
     "size": [
      0.6,
@@ -820,9 +975,9 @@
    },
    "camp_astronaut_2_1-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -833,9 +988,9 @@
    },
    "camp_astronaut_2_2-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -859,9 +1014,9 @@
    },
    "camp_astronaut_6_1-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -872,9 +1027,9 @@
    },
    "camp_astronaut_6_2-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -976,9 +1131,9 @@
    },
    "garage_astronaut_1-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -989,9 +1144,9 @@
    },
    "garage_astronaut_2-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1002,9 +1157,9 @@
    },
    "garage_astronaut_3-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1015,9 +1170,9 @@
    },
    "garage_astronaut_4-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1028,9 +1183,9 @@
    },
    "garage_astronaut_5-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1106,9 +1261,9 @@
    },
    "hangar_worker_blue_1-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1119,9 +1274,9 @@
    },
    "hangar_worker_blue_2-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1132,9 +1287,9 @@
    },
    "hangar_worker_blue_3-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1145,9 +1300,9 @@
    },
    "hangar_worker_blue_4-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1158,9 +1313,9 @@
    },
    "hangar_worker_blue_5-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1171,9 +1326,9 @@
    },
    "hangar_worker_blue_6-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1184,9 +1339,9 @@
    },
    "hangar_worker_blue_7-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1197,9 +1352,9 @@
    },
    "hangar_worker_blue_8-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1210,9 +1365,9 @@
    },
    "lab_person_1-drawn": {
     "size": [
-     0.72,
+     0.5,
      1.8,
-     0.72
+     0.5
     ],
     "screens": [],
     "cuts": [],
@@ -1223,9 +1378,9 @@
    },
    "lab_person_2-drawn": {
     "size": [
-     0.72,
+     0.5,
      1.8,
-     0.72
+     0.5
     ],
     "screens": [],
     "cuts": [],
@@ -1236,9 +1391,9 @@
    },
    "lab_person_3-drawn": {
     "size": [
-     0.72,
+     0.5,
      1.8,
-     0.72
+     0.5
     ],
     "screens": [],
     "cuts": [],
@@ -1379,9 +1534,9 @@
    },
    "tube_person_mid_left_1-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1392,9 +1547,9 @@
    },
    "tube_person_mid_left_2-drawn": {
     "size": [
-     0.3,
+     0.5,
      1.8,
-     0.5
+     0.3
     ],
     "screens": [],
     "cuts": [],
@@ -1405,9 +1560,9 @@
    },
    "workshop_person_centre_1-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1418,9 +1573,9 @@
    },
    "workshop_person_right_1-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1431,9 +1586,9 @@
    },
    "wreck_astronaut_1_1-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1457,9 +1612,204 @@
    },
    "wreck_astronaut_3_1-drawn": {
     "size": [
-     0.4,
+     0.6,
      1.8,
-     0.6
+     0.4
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "base_astronaut_left_1-drawn": {
+    "size": [
+     0.6,
+     1.8,
+     0.4
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "base_astronaut_right_1-drawn": {
+    "size": [
+     0.6,
+     1.8,
+     0.4
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "cockpit_officer_1-drawn": {
+    "size": [
+     0.5,
+     1.8,
+     0.3
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "cockpit_pilot_1-drawn": {
+    "size": [
+     0.5,
+     1.8,
+     0.3
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "quarters_person_bed_1-drawn": {
+    "size": [
+     0.5,
+     1.3,
+     0.4
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "quarters_person_desk_1-drawn": {
+    "size": [
+     0.5,
+     1.3,
+     0.4
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "square_crowd-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "stairwell_crowd-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "stairwell_walkway_crowd_1-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "stairwell_walkway_crowd_2-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "stairwell_walkway_crowd_3-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "stairwell_walkway_crowd_4-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "stairwell_walkway_crowd_5-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "street_distant_crowd-drawn": {
+    "size": [
+     0.55,
+     1.8,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "tube_person_right_1-drawn": {
+    "size": [
+     0.5,
+     1.8,
+     0.3
     ],
     "screens": [],
     "cuts": [],

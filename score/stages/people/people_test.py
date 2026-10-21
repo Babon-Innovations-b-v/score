@@ -325,34 +325,34 @@ def test_full_or_far_follows_the_design():
 
 
 def test_todays_design_makes_the_tube_player_full_and_the_crowd_far():
-    """On today's data/people/rows.json: the tube's person on the right (a quarter of the concept's height, the
-    player) gets a full body; the square's crowd look stays far; every rule shares one FAR_SHARE."""
+    """On today's data/people/rows.json: the tube's person on the right (a quarter of the concept's height) gets a
+    full body; the square's crowd look stays far; every rule shares one FAR_SHARE."""
     sys.path.insert(0, str(REPO / "tools/usd"))
     import contents
     from score.stages.cast import spread
     from score.stages.people_bodies import full
     looks = bodies.looks()
-    assert not looks["player_wide-work"].get("far_only") and looks["kit_m_avg-coat-grey"]["far_only"], looks
+    assert not looks["tube_person_right_1-drawn"].get("far_only") and looks["square_crowd-drawn"]["far_only"], looks
     assert full.FAR_SHARE == spread.FAR_SHARE == contents.FAR_SHARE
 
 
 def test_the_body_rows_follow_the_design_s_share():
     """The body rows read the design, nothing else: today's rows.json with the tube's person shrunk under FAR_SHARE
-    makes player_wide-work far, and the same rows with the crowd's look given to a near person make it full."""
+    makes its look far, and the same rows with the crowd's look given to a near person make it full."""
     design = json.loads(bodies.DESIGN.read_text())
     tube = design["places"]["tube"]["rows"]["person_right"]
-    assert tube["looks"] == ["player_wide-work"], tube
+    assert tube["looks"] == ["tube_person_right_1-drawn"], tube
     held = bodies.DESIGN
     with tempfile.TemporaryDirectory() as folder:
         bodies.DESIGN = pathlib.Path(folder) / "rows.json"
         try:
             bodies.DESIGN.write_text(json.dumps({**design, "places": {**design["places"], "tube": {
                 **design["places"]["tube"], "rows": {"person_right": {**tube, "share": 0.05}}}}}))
-            assert bodies.looks()["player_wide-work"].get("far_only"), "a far person kept a full body"
+            assert bodies.looks()["tube_person_right_1-drawn"].get("far_only"), "a far person kept a full body"
             bodies.DESIGN.write_text(json.dumps({"places": {"p": {"rows": {
-                "near": {"looks": ["kit_m_avg-coat-grey"], "share": 0.3}}}}}))
+                "near": {"looks": ["square_crowd-drawn"], "share": 0.3}}}}}))
             made = bodies.looks()
-            assert not made["kit_m_avg-coat-grey"].get("far_only") and made["player_wide-work"].get("far_only"), made
+            assert not made["square_crowd-drawn"].get("far_only") and made["tube_person_right_1-drawn"].get("far_only"), made
         finally:
             bodies.DESIGN = held
 

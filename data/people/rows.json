@@ -5,14 +5,29 @@
    "concept": "c84a4a2c64886109e207b6b7c93d6a31942e89f0cf8a9d6e4a4d960b3eaf58e0",
    "spots": [
     [
+     4.874,
      0.0,
-     0.0,
-     -1.0
+     3.831
     ],
     [
+     -3.38,
      0.0,
+     -2.869
+    ],
+    [
+     0.656,
      0.0,
-     1.0
+     -2.869
+    ],
+    [
+     -3.38,
+     0.0,
+     2.793
+    ],
+    [
+     0.656,
+     0.0,
+     2.793
     ]
    ],
    "middle": [
@@ -51,24 +66,142 @@
     }
    }
   },
+  "base": {
+   "concept": "a89ee5cf2a6a9239028dc2545efb8bf986092bfbaf5c6937dff41d67cdd4bc5a",
+   "spots": [
+    [
+     -28.4625,
+     0.0,
+     25.4975
+    ],
+    [
+     25.3325,
+     0.0,
+     34.7565
+    ],
+    [
+     -38.2025,
+     0.0,
+     29.4705
+    ],
+    [
+     26.1965,
+     0.0,
+     42.5685
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "astronaut_left": {
+     "name": "astronaut in white suit",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "bottom left",
+     "share": 0.0384,
+     "looks": [
+      "base_astronaut_left_1-drawn"
+     ],
+     "dress": {
+      "words": "astronaut in white suit",
+      "named": [],
+      "torso_lab": [
+       42.8,
+       1.9,
+       2.3
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    },
+    "astronaut_right": {
+     "name": "astronaut in white suit",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.6,
+      0.4,
+      1.8
+     ],
+     "where": "bottom right",
+     "share": 0.0378,
+     "looks": [
+      "base_astronaut_right_1-drawn"
+     ],
+     "dress": {
+      "words": "astronaut in white suit",
+      "named": [],
+      "torso_lab": [
+       43.2,
+       4.0,
+       0.2
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    }
+   }
+  },
   "camp": {
    "concept": "5393e7f9f2a2cf323b56d2ca574b840a9266f97f58b7af27e509c3584f937422",
    "spots": [
     [
-     3.0,
+     3.316,
      0.0,
-     0.0
+     -7.231
     ],
     [
-     10.0,
+     1.907,
      0.0,
-     -10.0
+     -4.981
+    ],
+    [
+     3.435,
+     0.0,
+     -3.916
+    ],
+    [
+     9.227,
+     0.0,
+     -14.015
+    ],
+    [
+     12.58,
+     0.0,
+     -12.264
+    ],
+    [
+     12.055,
+     0.0,
+     -10.893
+    ],
+    [
+     0.615,
+     0.0,
+     -4.068
+    ],
+    [
+     9.752,
+     0.0,
+     -13.016
     ]
    ],
    "middle": [
-    5.0,
+    4.798,
     0.0,
-    -5.0
+    -8.202
    ],
    "rows": {
     "astronaut_1": {
@@ -104,8 +237,8 @@
      "noun": "person",
      "count": 2,
      "size": [
-      0.4,
       0.6,
+      0.4,
       1.8
      ],
      "where": "sitting at dining table",
@@ -161,8 +294,8 @@
      "noun": "person",
      "count": 2,
      "size": [
-      0.4,
       0.6,
+      0.4,
       1.8
      ],
      "where": "right side of right dome, standing",
@@ -191,20 +324,60 @@
    "concept": "b5bbdad53339f4d380fb111ee143edffff48ca108fa99a3df3a5df4e68a1ba80",
    "spots": [
     [
-     -3.0,
+     -14.616,
      0.0,
-     4.0
+     -2.865
     ],
     [
-     -14.0,
+     -21.226,
      0.0,
-     1.0
+     -13.308
+    ],
+    [
+     -16.724,
+     0.0,
+     -11.711
+    ],
+    [
+     -6.304,
+     0.0,
+     -12.583
+    ],
+    [
+     -18.59,
+     0.0,
+     -16.745
+    ],
+    [
+     -16.936,
+     0.0,
+     -2.012
+    ],
+    [
+     -18.295,
+     0.0,
+     -16.428
+    ],
+    [
+     -16.202,
+     0.0,
+     -11.753
+    ],
+    [
+     -11.303,
+     0.0,
+     -16.652
+    ],
+    [
+     -8.854,
+     0.0,
+     -4.404
     ]
    ],
    "middle": [
-    -2.5,
+    -13.7525,
     0.0,
-    -3.5
+    -11.7525
    ],
    "rows": {
     "astronaut": {
@@ -243,23 +416,240 @@
     }
    }
   },
+  "cockpit": {
+   "concept": "a984a44ef4623d4e6c8c3010d0c1700d1c409df66c2fd85fa4e924d4eb49875b",
+   "spots": [
+    [
+     0.324,
+     0.0,
+     2.294
+    ],
+    [
+     3.619,
+     0.0,
+     4.717
+    ],
+    [
+     -1.147,
+     0.0,
+     4.401
+    ],
+    [
+     4.031,
+     0.0,
+     4.401
+    ]
+   ],
+   "middle": [
+    1.442,
+    0.0,
+    3.4
+   ],
+   "rows": {
+    "pilot": {
+     "name": "pilot",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.5,
+      0.3,
+      1.8
+     ],
+     "where": "sitting in the front seat",
+     "share": 0.1426,
+     "looks": [
+      "cockpit_pilot_1-drawn"
+     ],
+     "dress": {
+      "words": "pilot",
+      "named": [],
+      "torso_lab": [
+       30.2,
+       2.4,
+       -3.2
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    },
+    "officer": {
+     "name": "officer",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.5,
+      0.3,
+      1.8
+     ],
+     "where": "standing at the centre table",
+     "share": 0.1771,
+     "looks": [
+      "cockpit_officer_1-drawn"
+     ],
+     "dress": {
+      "words": "officer",
+      "named": [],
+      "torso_lab": [
+       31.6,
+       1.4,
+       -4.9
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    }
+   }
+  },
+  "docking_airlock": {
+   "concept": "c1fc54d1249e36490a3dabac91ab7b9518a95168c2e68d4fc2968737d87ca7ae",
+   "spots": [
+    [
+     -0.373,
+     0.0,
+     -0.329
+    ],
+    [
+     0.421,
+     0.0,
+     0.037
+    ]
+   ],
+   "middle": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rows": {}
+  },
+  "engineroom": {
+   "concept": "5ed06108b87db65a30c68ab70426b31a891d22b72df7c78da815b4ce43e6b553",
+   "spots": [
+    [
+     1.622,
+     0.0,
+     -0.063
+    ],
+    [
+     1.622,
+     0.0,
+     7.164
+    ],
+    [
+     -0.951,
+     0.0,
+     2.346
+    ],
+    [
+     4.195,
+     0.0,
+     2.346
+    ]
+   ],
+   "middle": [
+    1.654,
+    0.0,
+    3.4
+   ],
+   "rows": {}
+  },
+  "flat": {
+   "concept": "e3e25a1d0080c0c2de136173a81186f46700549f2a8c87b21992f719179bc8b4",
+   "spots": [
+    [
+     -2.176,
+     0.0,
+     -2.062
+    ],
+    [
+     -1.318,
+     0.0,
+     -4.14
+    ],
+    [
+     -0.632,
+     0.0,
+     -1.568
+    ]
+   ],
+   "middle": [
+    -1.9275,
+    0.0,
+    -2.6955
+   ],
+   "rows": {}
+  },
+  "galley": {
+   "concept": "0c660a80f945c2064af5d94c68c5a18b9c2f11c7f5d73b13815211aa813cb533",
+   "spots": [
+    [
+     -0.609,
+     0.0,
+     -0.746
+    ],
+    [
+     -0.609,
+     0.0,
+     0.717
+    ],
+    [
+     4.173,
+     0.0,
+     -0.746
+    ]
+   ],
+   "middle": [
+    0.7695,
+    0.0,
+    0.0
+   ],
+   "rows": {}
+  },
   "garage": {
    "concept": "b26f85f9990257187890acbdee56397452f61fa9334a978661c998b694fbed2f",
    "spots": [
     [
-     -3.0,
+     -0.9995,
      0.0,
-     -2.0
+     5.9085
     ],
     [
-     3.0,
+     1.8335,
      0.0,
-     -2.0
+     -0.4335
     ],
     [
+     0.2935,
      0.0,
+     5.2405
+    ],
+    [
+     0.0845,
      0.0,
-     3.0
+     -0.8945
+    ],
+    [
+     -2.4395,
+     0.0,
+     -1.4275
+    ],
+    [
+     -3.2265,
+     0.0,
+     3.5285
+    ],
+    [
+     1.3085,
+     0.0,
+     -2.6775
+    ],
+    [
+     1.3085,
+     0.0,
+     7.9615
     ]
    ],
    "middle": [
@@ -273,8 +663,8 @@
      "noun": "astronaut",
      "count": 5,
      "size": [
-      0.4,
       0.6,
+      0.4,
       1.8
      ],
      "where": "around the room",
@@ -306,14 +696,44 @@
    "concept": "a9585cc6d0b0ea09289f03dfa3b4ace1dd287ce182671cf42d546f560bbcb757",
    "spots": [
     [
+     -2.0515,
      0.0,
-     0.0,
-     6.0
+     -5.5595
     ],
     [
+     -0.0005,
      0.0,
+     0.3365
+    ],
+    [
+     -4.4185,
      0.0,
-     2.0
+     -1.3475
+    ],
+    [
+     5.0495,
+     0.0,
+     0.3365
+    ],
+    [
+     4.2615,
+     0.0,
+     4.5485
+    ],
+    [
+     -0.0005,
+     0.0,
+     -5.0545
+    ],
+    [
+     -0.0005,
+     0.0,
+     5.0545
+    ],
+    [
+     -4.7335,
+     0.0,
+     0.0005
     ]
    ],
    "middle": [
@@ -360,14 +780,19 @@
    "concept": "55ed3cdb76818f88d88e2cc4f38836198adcf7790b1a65038f81ecb081224a8a",
    "spots": [
     [
+     -1.1955,
      0.0,
-     0.0,
-     -1.0
+     -2.7575
     ],
     [
+     1.1955,
      0.0,
+     -1.6805
+    ],
+    [
+     -0.6035,
      0.0,
-     3.0
+     2.7575
     ]
    ],
    "middle": [
@@ -381,19 +806,24 @@
    "concept": "72d9da61096110f6ee794e39b20fc73bcca7cb8cb7ccba7d8510ad860c5c79f9",
    "spots": [
     [
-     -8.0,
+     0.123,
      0.0,
-     0.0
+     -21.947
     ],
     [
-     8.0,
+     0.123,
      0.0,
-     0.0
+     0.708
     ],
     [
+     19.815,
      0.0,
+     -13.451
+    ],
+    [
+     32.123,
      0.0,
-     18.0
+     -13.451
     ]
    ],
    "middle": [
@@ -407,8 +837,8 @@
      "noun": "worker",
      "count": 8,
      "size": [
-      0.3,
       0.5,
+      0.3,
       1.8
      ],
      "where": "scattered around the room",
@@ -425,19 +855,16 @@
      ],
      "dress": {
       "words": "worker in blue jumpsuit",
-      "named": [
-       "jacket_blue",
-       "suit_light_blue"
-      ],
+      "named": [],
       "torso_lab": [
        34.8,
        3.9,
        -19.0
       ],
       "figures": 8,
-      "surface": "jacket_blue",
-      "de": 13.1,
-      "why": "the words name jacket_blue, suit_light_blue; jacket_blue the nearest to the torso"
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
      }
     }
    }
@@ -446,19 +873,24 @@
    "concept": "de318a5e7621134c9d07737d4ee4e7cf5dc04aa984a28c35b386b62818b66044",
    "spots": [
     [
+     -3.0605,
      0.0,
-     0.0,
-     0.0
+     -3.1345
     ],
     [
+     3.0605,
      0.0,
-     0.0,
-     -1.5
+     -3.1345
     ],
     [
-     -1.5,
+     -3.0605,
      0.0,
-     0.0
+     3.1345
+    ],
+    [
+     3.0605,
+     0.0,
+     3.1345
     ]
    ],
    "middle": [
@@ -472,19 +904,39 @@
    "concept": "71416d39169f17e23fe287d6b00d0c0430b18c51e6add38f4c904f100e79b6be",
    "spots": [
     [
-     -1.0,
+     2.576,
      0.0,
-     1.0
+     -3.555
     ],
     [
-     1.0,
+     1.182,
      0.0,
-     1.0
+     1.312
+    ],
+    [
+     0.347,
+     0.0,
+     2.921
+    ],
+    [
+     -2.528,
+     0.0,
+     0.0
+    ],
+    [
+     2.528,
+     0.0,
+     0.0
     ],
     [
      0.0,
      0.0,
-     -1.0
+     -2.528
+    ],
+    [
+     0.0,
+     0.0,
+     2.528
     ]
    ],
    "middle": [
@@ -498,8 +950,8 @@
      "noun": "person",
      "count": 3,
      "size": [
-      0.72,
-      0.72,
+      0.5,
+      0.5,
       1.8
      ],
      "where": "at desks and bottom right",
@@ -529,20 +981,30 @@
    "concept": "1003bf34858d5a995323ab433bcecbaa35ef7ee9ce45dff91e8fe7f7f4077ef2",
    "spots": [
     [
-     2.5,
+     4.302,
      0.0,
-     4.5
+     1.069
     ],
     [
-     1.5,
+     5.026,
      0.0,
-     3.5
+     1.435
+    ],
+    [
+     -0.893,
+     0.0,
+     7.371
+    ],
+    [
+     0.0,
+     0.0,
+     7.371
     ]
    ],
    "middle": [
+    -0.8935,
     0.0,
-    0.0,
-    0.0
+    0.1065
    ],
    "rows": {
     "astronaut_1": {
@@ -576,29 +1038,133 @@
     }
    }
   },
+  "quarters": {
+   "concept": "e71508a9782a5c9b5a319f2ceffb0d634297b08eeb08cd9331e3ea587304b751",
+   "spots": [
+    [
+     1.06,
+     0.0,
+     -0.165
+    ],
+    [
+     0.834,
+     0.0,
+     1.692
+    ],
+    [
+     1.375,
+     0.0,
+     -0.312
+    ],
+    [
+     1.697,
+     0.0,
+     0.625
+    ]
+   ],
+   "middle": [
+    0.8745,
+    0.0,
+    0.0
+   ],
+   "rows": {
+    "person_bed": {
+     "name": "person sitting on bed",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.5,
+      0.4,
+      1.3
+     ],
+     "where": "bottom bunk",
+     "share": 0.1562,
+     "looks": [
+      "quarters_person_bed_1-drawn"
+     ],
+     "dress": {
+      "words": "person sitting on bed",
+      "named": [],
+      "torso_lab": [
+       39.0,
+       6.6,
+       3.7
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    },
+    "person_desk": {
+     "name": "person sitting at desk",
+     "noun": "person",
+     "count": 1,
+     "size": [
+      0.5,
+      0.4,
+      1.3
+     ],
+     "where": "at desk",
+     "share": 0.1172,
+     "looks": [
+      "quarters_person_desk_1-drawn"
+     ],
+     "dress": {
+      "words": "person sitting at desk",
+      "named": [],
+      "torso_lab": [
+       46.8,
+       3.5,
+       1.3
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    }
+   }
+  },
+  "shiplock": {
+   "concept": "1ba92852595eaf4250100295bfc66c0da5f134f4306370fef154e10c253b8423",
+   "spots": [
+    [
+     0.813,
+     0.0,
+     0.8
+    ],
+    [
+     0.813,
+     0.0,
+     1.812
+    ]
+   ],
+   "middle": [
+    0.8135,
+    0.0,
+    0.8
+   ],
+   "rows": {}
+  },
   "square": {
    "concept": "0303c9f4bb5d7377c51f6e925c6390f190401a401d25133cfc50df5457dd8ef7",
    "spots": [
     [
-     -51.2779,
+     -6.0403,
      0.0,
-     -4.9395
+     -38.0595
     ],
     [
-     -71.2686,
+     -23.4252,
      0.0,
-     -5.5521
-    ],
-    [
-     -60.6607,
-     0.0,
-     -25.2364
+     -38.5922
     ]
    ],
    "middle": [
-    -56.2756,
+    -14.3954,
     0.0,
-    -5.0927
+    -49.3362
    ],
    "rows": {
     "crowd": {
@@ -606,13 +1172,13 @@
      "noun": "people",
      "count": 1,
      "size": [
-      0.5,
-      0.3,
+      14.842,
+      14.842,
       1.8
      ],
      "where": "everywhere",
      "share": 0.1836,
-     "crowd": "kit_m_avg-coat-grey",
+     "crowd": "square_crowd-drawn",
      "palettes": null,
      "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
      "dress": {
@@ -627,33 +1193,220 @@
       "surface": null,
       "de": null,
       "why": "the words name no library fabric of the people place: the look's own paint"
+     },
+     "ground": [
+      [
+       -22.0397,
+       -56.9815,
+       15.2897,
+       15.2896
+      ]
+     ]
+    }
+   }
+  },
+  "stairwell": {
+   "concept": "68895bd46462bbeeafe21c5f09258932e307e44999fc0bf89ff04be37b76473f",
+   "spots": [
+    [
+     4.777,
+     0.0,
+     -2.922
+    ],
+    [
+     9.044,
+     0.0,
+     -2.692
+    ]
+   ],
+   "middle": [
+    6.9105,
+    0.0,
+    -3.971
+   ],
+   "rows": {
+    "crowd": {
+     "name": "crowd of people",
+     "noun": "crowd",
+     "count": 3,
+     "size": [
+      120.0,
+      120.0,
+      1.8
+     ],
+     "where": "right side, background square",
+     "share": 0.2565,
+     "crowd": "stairwell_crowd-drawn",
+     "palettes": null,
+     "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
+     "dress": {
+      "words": "crowd of people",
+      "named": [],
+      "torso_lab": [
+       36.6,
+       4.2,
+       -1.7
+      ],
+      "figures": 3,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     },
+     "ground": []
+    },
+    "walkway_crowd": {
+     "name": "people on walkway",
+     "noun": "people",
+     "count": 5,
+     "size": [
+      10.0,
+      30.0,
+      1.8
+     ],
+     "where": "bottom right, walkway",
+     "share": 0.0586,
+     "looks": [
+      "stairwell_walkway_crowd_1-drawn",
+      "stairwell_walkway_crowd_2-drawn",
+      "stairwell_walkway_crowd_3-drawn",
+      "stairwell_walkway_crowd_4-drawn",
+      "stairwell_walkway_crowd_5-drawn"
+     ],
+     "dress": {
+      "words": "people on walkway",
+      "named": [],
+      "torso_lab": [
+       23.7,
+       5.3,
+       -4.1
+      ],
+      "figures": 5,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
      }
     }
    }
+  },
+  "storage": {
+   "concept": "d36b2c57cac96ed1f57c42e22a86ad6499ce19052e98c92cf622f67745d593ae",
+   "spots": [
+    [
+     0.948,
+     0.0,
+     0.449
+    ],
+    [
+     1.84,
+     0.0,
+     3.373
+    ],
+    [
+     0.948,
+     0.0,
+     4.348
+    ]
+   ],
+   "middle": [
+    0.7695,
+    0.0,
+    2.35
+   ],
+   "rows": {}
   },
   "street": {
    "concept": "474a6c69493d0b519dd1997fbb30c28028a6988667f49abdae4c66e7d1cdc44c",
    "spots": [
     [
-     10.2,
+     10.49,
      0.0,
-     14.0
+     1.693
+    ],
+    [
+     10.989,
+     0.0,
+     4.592
+    ],
+    [
+     8.0,
+     0.0,
+     3.3
+    ],
+    [
+     8.5,
+     0.0,
+     0.3
+    ],
+    [
+     10.0,
+     0.0,
+     -1.7
+    ],
+    [
+     10.5,
+     0.0,
+     6.3
+    ],
+    [
+     11.0,
+     0.0,
+     5.3
+    ],
+    [
+     10.19,
+     0.0,
+     1.393
+    ],
+    [
+     10.689,
+     0.0,
+     4.292
+    ],
+    [
+     7.2,
+     0.0,
+     0.814
+    ],
+    [
+     7.7,
+     0.0,
+     3.0
+    ],
+    [
+     7.8,
+     0.0,
+     3.1
     ],
     [
      8.2,
      0.0,
-     -1.0
+     0.0
     ],
     [
-     12.2,
+     8.4,
      0.0,
-     9.0
+     -0.2
+    ],
+    [
+     9.7,
+     0.0,
+     -2.0
+    ],
+    [
+     10.2,
+     0.0,
+     6.0
+    ],
+    [
+     10.7,
+     0.0,
+     5.0
     ]
    ],
    "middle": [
-    10.2,
+    8.983,
     0.0,
-    2.0
+    -1.5055
    ],
    "rows": {
     "pedestrian_umbrella": {
@@ -729,7 +1482,7 @@
      ],
      "where": "in the background square",
      "share": 0.0475,
-     "crowd": "kit_m_avg-coat-grey",
+     "crowd": "street_distant_crowd-drawn",
      "palettes": null,
      "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
      "dress": {
@@ -744,7 +1497,8 @@
       "surface": null,
       "de": null,
       "why": "the words name no library fabric of the people place: the look's own paint"
-     }
+     },
+     "ground": []
     }
    }
   },
@@ -752,25 +1506,35 @@
    "concept": "3059819b2ca6abdc4b9d75b8455794bdde9b74f2acf726bc0f86f4706c1013d5",
    "spots": [
     [
+     1.598,
      0.0,
-     0.0,
-     1.0
+     0.736
     ],
     [
+     1.598,
      0.0,
-     0.0,
-     2.175
+     2.109
     ],
     [
+     4.89,
      0.0,
+     3.153
+    ],
+    [
+     3.786,
      0.0,
-     3.5
+     4.472
+    ],
+    [
+     3.786,
+     0.0,
+     8.317
     ]
    ],
    "middle": [
+    3.421,
     0.0,
-    0.0,
-    2.175
+    5.021
    ],
    "rows": {
     "person_mid_left": {
@@ -778,8 +1542,8 @@
      "noun": "person",
      "count": 2,
      "size": [
-      0.3,
       0.5,
+      0.3,
       1.8
      ],
      "where": "left midground, at console",
@@ -807,16 +1571,15 @@
      "noun": "person",
      "count": 1,
      "size": [
-      0.3,
       0.5,
+      0.3,
       1.8
      ],
      "where": "right midground, at console",
      "share": 0.25,
      "looks": [
-      "player_wide-work"
+      "tube_person_right_1-drawn"
      ],
-     "why": "the nearest of the three, in the navy work suit at the right-hand console: the player (#26, the people benchmark)",
      "dress": {
       "words": "person in uniform",
       "named": [],
@@ -833,18 +1596,54 @@
     }
    }
   },
+  "walkway": {
+   "concept": "af9dc3a0a2a9d6df038e31ee79bedeb75e0be7a7f442cba2c58d6f056a551022",
+   "spots": [
+    [
+     0.15,
+     0.0,
+     -2.831
+    ],
+    [
+     0.15,
+     0.0,
+     1.307
+    ],
+    [
+     0.15,
+     0.0,
+     5.445
+    ]
+   ],
+   "middle": [
+    0.15,
+    0.0,
+    1.1
+   ],
+   "rows": {}
+  },
   "workshop": {
    "concept": "4a65322da8a3d94e6eeb88c9c1923d6a47532185468fc5fa29812c24b2ebca7e",
    "spots": [
     [
-     -1.0,
+     -0.444,
      0.0,
-     0.5
+     0.3145
     ],
     [
-     5.5,
+     2.453,
      0.0,
-     0.0
+     -0.2415
+    ],
+    [
+     -2.248,
+     0.0,
+     -0.3015
+    ],
+    [
+     2.248,
+     0.0,
+     -0.3015
     ]
    ],
    "middle": [
@@ -858,8 +1657,8 @@
      "noun": "person",
      "count": 1,
      "size": [
-      0.4,
       0.6,
+      0.4,
       1.8
      ],
      "where": "centre",
@@ -886,8 +1685,8 @@
      "noun": "person",
      "count": 1,
      "size": [
-      0.4,
       0.6,
+      0.4,
       1.8
      ],
      "where": "right",
@@ -915,20 +1714,40 @@
    "concept": "c80eddadd5232413772cc6a1cf1cdc985c1ee9c40ec32725d3aa4ae8e3b80302",
    "spots": [
     [
-     2.0,
+     -0.563,
      0.0,
-     3.0
+     -3.883
     ],
     [
-     6.0,
+     -0.754,
      0.0,
-     4.0
+     -1.254
+    ],
+    [
+     -8.528,
+     0.0,
+     -10.034
+    ],
+    [
+     -2.214,
+     0.0,
+     -3.143
+    ],
+    [
+     1.0,
+     0.0,
+     -2.071
+    ],
+    [
+     -5.429,
+     0.0,
+     -12.786
     ]
    ],
    "middle": [
+    -3.2855,
     0.0,
-    0.0,
-    -1.5
+    -5.2855
    ],
    "rows": {
     "astronaut_1": {
@@ -936,8 +1755,8 @@
      "noun": "astronaut",
      "count": 1,
      "size": [
-      0.4,
       0.6,
+      0.4,
       1.8
      ],
      "where": "standing near centre light",
@@ -992,8 +1811,8 @@
      "noun": "astronaut",
      "count": 1,
      "size": [
-      0.4,
       0.6,
+      0.4,
       1.8
      ],
      "where": "standing far left background",

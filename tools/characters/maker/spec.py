@@ -8,14 +8,12 @@ anything is rented. Paths are absolute or start from ~ (the creator's own pictur
      "references": ["<abs path>", ...],          pictures the A-pose drawing follows (the owner's drawing of them)
      "head": "<abs path of a picture of the head>" or null,   what the face and the hair are drawn after
      "hair": "<the hair in words>", "face": "<the face in words>",
-     "outfits": ["work", "space"],              GarmentCode designs draped on the body (data/characters/garments)
-     "garment_body": "mean_male" or "mean_female",   GarmentCode body the measurements are scaled from
+     "outfits": ["work", "space"],              the outfits, each drawn from its words (outfit_words)
      "clips": ["standing", "walking", ...],     sentences of tools/characters/people/clips.py (all when left out)
      "look": {...},                             tools/characters/people/person.py's settings (scale, colours, ...)
-     "drape_simulator": "newton" or "blender",  the drapes' simulator; experimental, so a person is made only when
-                                                its spec names one (make.py refuses it otherwise)
-     "route": "prop"}                           the prop route (prop_person.py) instead of the shipped one; it also
-                                                takes "outfit_words" ({outfit: the outfit by its parts, in words}),
+     "route": "prop"}                           the prop route (prop_person.py), every person's since the shipped
+                                                chain was retired (2026-10-21); it also takes "outfit_words"
+                                                ({outfit: the outfit by its parts, in words}),
                                                 "pose_picture" (someone standing in the bind pose, a last reference
                                                 the close-up takes the pose from) and "closeup_seeds"
 
@@ -26,9 +24,7 @@ import json
 import pathlib
 
 KINDS = ("person", "animal")
-OUTFITS = ("work", "space", "jacket", "coat", "trousers")
 REQUIRED = ("name", "kind", "approved")
-DRAPE_SIMULATORS = ("newton", "blender")
 
 
 class SpecError(ValueError):
@@ -61,20 +57,15 @@ def problems_of(spec):
 
 def person_problems(spec):
     """What is wrong with a person's own part of the spec."""
-    # A prop-route outfit is a close-up drawn from its words (driver-suit, coat-grey), not a GarmentCode design.
-    problems = [f"outfit {outfit!r} is not one of {', '.join(OUTFITS)}"
-                for outfit in spec.get("outfits", ["work"]) if outfit not in OUTFITS and spec.get("route") != "prop"]
+    problems = []
     if not spec.get("hair"):
         problems.append("no hair in words")
     if not spec.get("face"):
         problems.append("no face in words")
-    if spec.get("drape_simulator") not in (None, *DRAPE_SIMULATORS):
-        problems.append(f"drape_simulator {spec['drape_simulator']!r} is not one of {', '.join(DRAPE_SIMULATORS)}")
     if spec.get("route") not in (None, "prop"):
-        problems.append(f"route {spec['route']!r} is not prop (or left out for the shipped route)")
-    if spec.get("route") == "prop":
-        problems += [f"no outfit_words for {outfit}" for outfit in spec.get("outfits", ["work"])
-                     if outfit not in spec.get("outfit_words", {})]
+        problems.append(f"route {spec['route']!r} is not prop")
+    problems += [f"no outfit_words for {outfit}" for outfit in spec.get("outfits", ["work"])
+                 if outfit not in spec.get("outfit_words", {})]
     return problems
 
 

@@ -2,26 +2,20 @@
 clothed, textured, animated character (glTF and UsdSkel) with its crowd levels and its clips, made in the cloud.
 
     .venv/bin/python tools/characters/maker/make.py data/people/specs/<name>.json [...] --who "<session>"
-        [--classes gpu-24gb,gpu-80gb] [--dry-run] [--experimental]
+        [--dry-run] [--experimental]
 
-Each spec (spec.py says what it holds) gets a make folder, ~/.farm-factory-motion/made/<name>/: `in/` is written here
-(the spec with its files renamed to where they lie up there, the files, and what every person shares: the boots,
-MakeHuman's eyes, the garment designs and the clips already made), and `out/` comes back from the machine. People go
-to the person chain on rented cards (tools/props/cloud/characters.py, tools/characters/maker/chain.py), one machine a
-person; animals go to the animal route (tools/characters/animals/). A person spec with "route": "prop" goes to the prop
-route instead (prop_person.py: Pixal3D's mesh with SOMA-X's skeleton fitted inside it, candidates only); every other
-person keeps the shipped route. Nothing here loads a model.
+A person spec ("route": "prop") goes to the prop route (prop_person.py: Pixal3D's mesh with SOMA-X's skeleton fitted
+inside it, made on rented cards); an animal to the animal route (tools/characters/animals/), each in its make folder
+~/.farm-factory-motion/made/<name>/. The shipped person chain (GarmentCode's drapes on a body read off an A-pose
+picture) was retired with its garment designs (owner, 2026-10-21: all old stuff is retired): a person spec on no
+route is refused. Nothing here loads a model.
 
 Experimental, so refused unless asked for (docs/bible.md, architecture/experimental): the prop route and the animal
-route run only with --experimental, and a person's drapes only with the spec's "drape_simulator" (the owner rejected
-the Newton drapes and drape_measure fails them; no drape route passes yet). Every refusal is said before anything is
-bundled or rented.
+route run only with --experimental. Every refusal is said before anything is rented.
 """
 import argparse
-import json
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
 
@@ -33,16 +27,6 @@ import spec as specs  # noqa: E402
 
 MOTION_HOME = pathlib.Path(os.environ.get("MOTION_HOME", pathlib.Path.home() / ".farm-factory-motion"))
 MADE = MOTION_HOME / "made"
-# What every person shares, kept on this box (the bible's workflow/bootstrap): the boots Hi3DGen made, MakeHuman's
-# CC0 base mesh and eyes (the eyes are seated on each head from them), and the clips Kimodo made.
-SHARED = {
-    "work_boot.npz": MOTION_HOME / "look" / "work_boot.npz",
-    "space_boot.npz": MOTION_HOME / "look" / "space_boot.npz",
-    "makehuman/base.obj": MOTION_HOME / "rnd/garmentcode/round3/assets/base.obj",
-    "makehuman/eyes/low-poly.mhclo": MOTION_HOME / "rnd/garmentcode/round3/assets/mh/eyes/low-poly/low-poly.mhclo",
-    "makehuman/eyes/low-poly.obj": MOTION_HOME / "rnd/garmentcode/round3/assets/mh/eyes/low-poly/low-poly.obj",
-}
-MOTIONS = MOTION_HOME / "work" / "motions"
 # The routes that run only with --experimental: each the fault it is for, and why it is not proven yet.
 EXPERIMENTAL_ROUTES = {
     "prop": ("the prop route (#5, bloated clothes on SOMA-made people): the player fails tucks and pokes, Nev is not "
@@ -51,33 +35,8 @@ EXPERIMENTAL_ROUTES = {
 }
 
 
-def bundle(spec):
-    """Write the make folder's `in/` for a person: the spec as the machine reads it, its files and the shared ones.
-    The make folder."""
-    folder = MADE / spec["name"]
-    inputs = folder / "in"
-    if inputs.exists():
-        shutil.rmtree(inputs)
-    (inputs / "files").mkdir(parents=True)
-    machine_spec = dict(spec)
-    for name, path in specs.inputs_of(spec).items():
-        target = inputs / "files" / f"{name}{path.suffix}"
-        shutil.copy2(path, target)
-        machine_spec[name] = f"in/files/{target.name}"
-    machine_spec["references"] = [f"in/files/reference_{number}{pathlib.Path(path).suffix}"
-                                  for number, path in enumerate(spec.get("references", []))]
-    for name, path in SHARED.items():
-        target = inputs / "shared" / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, target)
-    if MOTIONS.exists():
-        shutil.copytree(MOTIONS, inputs / "motions", ignore=shutil.ignore_patterns("*.bvh"))
-    (inputs / "spec.json").write_text(json.dumps(machine_spec, indent=1))
-    return folder
-
-
 def route_of(spec):
-    """The route a spec takes: "prop", "animal" or "person" (the shipped person chain)."""
+    """The route a spec takes: "prop", "animal" or "person" (the retired shipped person chain)."""
     if spec["kind"] == "animal":
         return "animal"
     return "prop" if spec.get("route") == "prop" else "person"
@@ -85,26 +44,16 @@ def route_of(spec):
 
 def refusals(found, experimental):
     """Why the specs in `found` may not be made as asked, one line a spec: an experimental route without
-    `experimental`, a person on the shipped chain whose spec names no drape simulator. Empty when all may."""
+    `experimental`, a person on the retired shipped chain. Empty when all may."""
     lines = []
     for spec in found:
         route = route_of(spec)
         if route in EXPERIMENTAL_ROUTES and not experimental:
             lines.append(f"{spec['name']}: {EXPERIMENTAL_ROUTES[route]}; experimental, so only with --experimental")
-        if route == "person" and not spec.get("drape_simulator"):
-            lines.append(f"{spec['name']}: the drapes are experimental (the owner rejected the Newton drapes, "
-                         "drape_measure fails them): name drape_simulator in the spec to drape anyway")
+        if route == "person":
+            lines.append(f"{spec['name']}: the shipped person chain and its garment drapes are retired "
+                         "(2026-10-21): a person is made on the prop route (\"route\": \"prop\")")
     return lines
-
-
-def make_people(folders, who, classes, dry_run):
-    """The people's chains on rented cards, one machine a person."""
-    command = [sys.executable, str(REPO / "tools/props/cloud/characters.py"), *map(str, folders), "--who", who]
-    if classes:
-        command += ["--classes", classes]
-    if dry_run:
-        command.append("--dry-run")
-    subprocess.run(command, check=True)
 
 
 def make_prop_person(path, who, dry_run):
@@ -125,7 +74,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("specs", nargs="+", type=pathlib.Path, help="data/people/specs/<name>.json")
     parser.add_argument("--who", required=True, help="the session asking")
-    parser.add_argument("--classes", help="capability classes for the people's cards, comma separated")
     parser.add_argument("--dry-run", action="store_true", help="check, bundle and price, rent nothing")
     parser.add_argument("--experimental", action="store_true", help="allow the prop and animal routes")
     options = parser.parse_args()
@@ -136,9 +84,6 @@ def main():
     for spec, path in zip(found, options.specs):
         if spec["kind"] == "person" and spec.get("route") == "prop":
             make_prop_person(path, options.who, options.dry_run)
-    people = [bundle(spec) for spec in found if spec["kind"] == "person" and spec.get("route") != "prop"]
-    if people:
-        make_people(people, options.who, options.classes, options.dry_run)
     animals = [spec for spec in found if spec["kind"] == "animal"]
     if animals:
         make_animals(animals, options.who, options.dry_run)

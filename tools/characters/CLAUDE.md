@@ -3,11 +3,11 @@
 The characters stage: the people (and, next, the animals) a place holds, made from the place's data and put into its
 OpenUSD stage as skinned characters (UsdSkel) playing their clips. Bible chapter: `architecture/components`.
 
-- `people/` makes the bodies: one skinned, animated glTF per person (27 joints, the clips Kimodo wrote from
-  sentences, a 1,220-triangle distant body and the dressed ones), from each look kept outside the repo. It moved here
-  from the game 2099's `tools/crew` with its history; its own overlay has its rules. Its model steps (Kimodo, SAM 3D
-  Body, GarmentCode) ran on the owner's PC before 2026-10-03 and have no cloud runner yet: the built bodies in
-  `~/.farm-factory-motion/work/bodies` are what the stage reads.
+- `people/` makes the bodies: one skinned, animated glTF per person (27 joints, the clips Kimodo wrote from sentences, a
+  1,220-triangle distant body and the dressed ones), from each look kept outside the repo. It moved here from the game
+  2099's `tools/crew` with its history; its own overlay has its rules. Its model steps (Kimodo, SAM 3D Body;
+  GarmentCode's drapes until their retirement, 2026-10-21) ran on the owner's PC before 2026-10-03 and have no cloud
+  runner yet: the built bodies in `~/.farm-factory-motion/work/bodies` are what the stage reads.
 - `skel_usd.py` turns a built body into a UsdSkel asset; `cast.py` writes a place's characters layer from its cast
   record (written from its design by `score/stages/people_rows.py`). Their docstrings have the layout of each.
 - **The cast is the record.** Nobody is placed who is not an entry of the place's cast, and every entry says `why`

@@ -1,19 +1,18 @@
-"""Make people with the character maker's person route on rented cards: one machine a person, every model step of the
-person (the A-pose picture, the body read off it, the clips, the drapes, the hair, the face, the build) run up there
-one after another, the made person brought back, the machines deleted (job characters-full, 2026-10-09: no model runs
-on the owner's PC, and the character model steps had no cloud runner).
+"""Make people with the character maker's prop route on rented cards: one machine a person, its chain's steps
+(prop_chain.py) run up there one after another, the made person brought back, the machines deleted (job
+characters-full, 2026-10-09: no model runs on the owner's PC, and the character model steps had no cloud runner).
 
     .venv/bin/python tools/props/cloud/characters.py <make folder> [<make folder> ...] --who "<session>"
         [--classes gpu-24gb,gpu-80gb] [--hold] [--dry-run]
 
-A make folder is ~/.farm-factory-motion/made/<name>/, written by tools/characters/maker/make.py: `in/` holds the spec
-and every file the chain reads (the pictures, the shared look parts, the clips already made). Up there the chain is
-tools/characters/maker/chain.py; what it makes comes back into the folder's `out/`, with `out/make.json` saying what
-each step did and how long it took. The people are spread over machines (spread.py), one person a machine at a
-time; characters_setup.sh sets each machine up once (about 14 minutes: six environments side by side).
+A make folder is ~/.farm-factory-motion/made/<name>/, written by tools/characters/maker/prop_person.py: `in/` holds
+the spec and every file the chain reads. Up there the chain is tools/characters/maker/prop_chain.py; what it makes
+comes back into the folder's `out/`, with `out/make.json` saying what each step did and how long it took. The people
+are spread over machines (spread.py), one person a machine at a time; characters_setup.sh sets each machine up once
+(about 14 minutes when it built six environments side by side, before the retired chain's three went).
 
-A make folder whose spec names another maker program (`program`: rebuild.py, which drapes kept looks again and
-builds them; prop_chain.py, the prop route's steps) runs that program instead of chain.py, on the same machines.
+The shipped person chain (chain.py's own steps) and rebuild.py, which draped kept looks again, were retired with the
+garment designs (owner, 2026-10-21: all old stuff is retired).
 
 --hold keeps the first machine after its people, for hands-on work over ssh, until the run folder holds `release`
 (or `--minutes`, the run's time limit, has passed). A machine whose set-up failed is deleted, never held to mend: its
@@ -52,11 +51,11 @@ SHIPPED = ("tools", "vendor/kimodo", "vendor/sam3dbody-cpp", "data/characters")
 # still ends inside it.
 SETUP_MINUTES = 14
 PERSON_MINUTES = 43
-# Room for six environments, CUDA, the Llama 3 encoder, the picture models and Hi3DGen's weights.
+# Room for the environments, CUDA, the Llama 3 encoder and the picture model (sized when it held six and Hi3DGen).
 DISK_GB = 200
 POLL_SECONDS = 30
 # The programs of tools/characters/maker a make folder may run, by the name its spec gives.
-PROGRAMS = {"chain.py": "chain.py", "rebuild.py": "rebuild.py run", "prop_chain.py": "prop_chain.py"}
+PROGRAMS = {"prop_chain.py": "prop_chain.py"}
 
 
 def price(makes, account, classes, minutes=None):
@@ -93,15 +92,14 @@ def set_up(machine):
 
 
 def program_of(make):
-    """The maker program a make folder runs up there: chain.py, or the one its spec names (rebuild.py's make
-    folders name `rebuild.py`, which takes `run` before the folder)."""
-    program = json.loads((make / "in" / "spec.json").read_text()).get("program", "chain.py")
+    """The maker program a make folder runs up there: the one its spec names, prop_chain.py by default."""
+    program = json.loads((make / "in" / "spec.json").read_text()).get("program", "prop_chain.py")
     if program not in PROGRAMS:
         raise SystemExit(f"{make}: no maker program {program!r}")
     return PROGRAMS[program]
 
 
-def chain_line(name, program=PROGRAMS["chain.py"]):
+def chain_line(name, program=PROGRAMS["prop_chain.py"]):
     """The detached command that runs one make's program and leaves its exit code beside its log."""
     place = REMOTE / name
     run = (f"cd {place} && /root/envs/motion/bin/python /root/score/tools/characters/maker/{program} {place} "

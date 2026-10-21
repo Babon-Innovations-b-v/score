@@ -10,12 +10,20 @@
     "picture": "{home}/design/concepts/airlock.png"
    },
    {
+    "id": "base",
+    "picture": "{home}/design/concepts/base.png"
+   },
+   {
     "id": "camp",
     "picture": "{home}/design/concepts/camp.png"
    },
    {
     "id": "campgrounds",
     "picture": "{home}/design/concepts/campgrounds.png"
+   },
+   {
+    "id": "cockpit",
+    "picture": "{home}/design/concepts/cockpit.png"
    },
    {
     "id": "garage",
@@ -38,8 +46,16 @@
     "picture": "{home}/design/concepts/old_station.png"
    },
    {
+    "id": "quarters",
+    "picture": "{home}/design/concepts/quarters.png"
+   },
+   {
     "id": "square",
     "picture": "{home}/design/concepts/square.png"
+   },
+   {
+    "id": "stairwell",
+    "picture": "{home}/design/concepts/stairwell.png"
    },
    {
     "id": "street",
@@ -61,46 +77,6 @@
  },
  "rows": [
   {
-   "id": "kit_m_avg-coat-grey",
-   "name": "a Chinese man in his thirties, an average build, an ordinary citizen in the crowd, short black hair; a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "size": [
-    0.5,
-    0.3,
-    1.8
-   ],
-   "size_from": "square/crowd of data/people/rows.json",
-   "prop": "kit_m_avg-coat-grey",
-   "clothes": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "view": "square",
-   "box": [
-    0,
-    534,
-    358,
-    816
-   ],
-   "grounded": "SAM 3's box in the reading of the picked concept"
-  },
-  {
-   "id": "player_wide-work",
-   "name": "a Chinese man in his thirties, an astronaut of a Moon base, a slim athletic build, short black hair swept up and over to one side, clean shaven; an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
-   "size": [
-    0.3,
-    0.5,
-    1.8
-   ],
-   "size_from": "tube/person_right of data/people/rows.json",
-   "prop": "player_wide-work",
-   "clothes": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
-   "view": "tube",
-   "box": [
-    2062,
-    709,
-    2179,
-    1093
-   ],
-   "grounded": "SAM 3's box in the reading of the picked concept"
-  },
-  {
    "id": "airlock_astronaut_1-drawn",
    "name": "seated astronaut, an average build, as drawn in the airlock concept; the clothes as drawn in the airlock concept",
    "prop": "airlock_astronaut_1-drawn",
@@ -119,6 +95,46 @@
    ],
    "grounded": "SAM 3's box in the reading of the picked concept",
    "clothes": "the clothes as drawn in the airlock concept"
+  },
+  {
+   "id": "base_astronaut_left_1-drawn",
+   "name": "astronaut in white suit, an average build, as drawn in the base concept; the clothes as drawn in the base concept",
+   "prop": "base_astronaut_left_1-drawn",
+   "size": [
+    0.6,
+    0.4,
+    1.8
+   ],
+   "size_from": "base/astronaut_left of data/people/rows.json",
+   "view": "base",
+   "box": [
+    382,
+    1371,
+    420,
+    1430
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the base concept"
+  },
+  {
+   "id": "base_astronaut_right_1-drawn",
+   "name": "astronaut in white suit, an average build, as drawn in the base concept; the clothes as drawn in the base concept",
+   "prop": "base_astronaut_right_1-drawn",
+   "size": [
+    0.6,
+    0.4,
+    1.8
+   ],
+   "size_from": "base/astronaut_right of data/people/rows.json",
+   "view": "base",
+   "box": [
+    2026,
+    1355,
+    2057,
+    1413
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the base concept"
   },
   {
    "id": "camp_astronaut_1_1-drawn",
@@ -145,8 +161,8 @@
    "name": "astronaut, a slim build, as drawn in the camp concept; the clothes as drawn in the camp concept",
    "prop": "camp_astronaut_2_1-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "camp/astronaut_2 of data/people/rows.json",
@@ -165,8 +181,8 @@
    "name": "astronaut, a slim build, as drawn in the camp concept; the clothes as drawn in the camp concept",
    "prop": "camp_astronaut_2_2-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "camp/astronaut_2 of data/people/rows.json",
@@ -205,8 +221,8 @@
    "name": "astronaut, an average build, as drawn in the camp concept; the clothes as drawn in the camp concept",
    "prop": "camp_astronaut_6_1-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "camp/astronaut_6 of data/people/rows.json",
@@ -225,8 +241,8 @@
    "name": "astronaut, an average build, as drawn in the camp concept; the clothes as drawn in the camp concept",
    "prop": "camp_astronaut_6_2-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "camp/astronaut_6 of data/people/rows.json",
@@ -381,12 +397,52 @@
    "clothes": "the clothes as drawn in the campgrounds concept"
   },
   {
+   "id": "cockpit_officer_1-drawn",
+   "name": "officer, an average build, as drawn in the cockpit concept; the clothes as drawn in the cockpit concept",
+   "prop": "cockpit_officer_1-drawn",
+   "size": [
+    0.5,
+    0.3,
+    1.8
+   ],
+   "size_from": "cockpit/officer of data/people/rows.json",
+   "view": "cockpit",
+   "box": [
+    1568,
+    661,
+    1691,
+    933
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the cockpit concept"
+  },
+  {
+   "id": "cockpit_pilot_1-drawn",
+   "name": "pilot, a slim build, as drawn in the cockpit concept; the clothes as drawn in the cockpit concept",
+   "prop": "cockpit_pilot_1-drawn",
+   "size": [
+    0.5,
+    0.3,
+    1.8
+   ],
+   "size_from": "cockpit/pilot of data/people/rows.json",
+   "view": "cockpit",
+   "box": [
+    812,
+    687,
+    946,
+    906
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the cockpit concept"
+  },
+  {
    "id": "garage_astronaut_1-drawn",
    "name": "astronaut, an average build, as drawn in the garage concept; the clothes as drawn in the garage concept",
    "prop": "garage_astronaut_1-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "garage/astronaut of data/people/rows.json",
@@ -405,8 +461,8 @@
    "name": "astronaut, an average build, as drawn in the garage concept; the clothes as drawn in the garage concept",
    "prop": "garage_astronaut_2-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "garage/astronaut of data/people/rows.json",
@@ -425,8 +481,8 @@
    "name": "astronaut, an average build, as drawn in the garage concept; the clothes as drawn in the garage concept",
    "prop": "garage_astronaut_3-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "garage/astronaut of data/people/rows.json",
@@ -445,8 +501,8 @@
    "name": "astronaut, an average build, as drawn in the garage concept; the clothes as drawn in the garage concept",
    "prop": "garage_astronaut_4-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "garage/astronaut of data/people/rows.json",
@@ -465,8 +521,8 @@
    "name": "astronaut, an average build, as drawn in the garage concept; the clothes as drawn in the garage concept",
    "prop": "garage_astronaut_5-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "garage/astronaut of data/people/rows.json",
@@ -585,8 +641,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_1-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -605,8 +661,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_2-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -625,8 +681,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_3-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -645,8 +701,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_4-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -665,8 +721,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_5-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -685,8 +741,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_6-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -705,8 +761,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_7-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -725,8 +781,8 @@
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "hangar_worker_blue_8-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "hangar/worker_blue of data/people/rows.json",
@@ -742,11 +798,11 @@
   },
   {
    "id": "lab_person_1-drawn",
-   "name": "person in spacesuit, a broad build, as drawn in the lab concept; the clothes as drawn in the lab concept",
+   "name": "person in spacesuit, an average build, as drawn in the lab concept; the clothes as drawn in the lab concept",
    "prop": "lab_person_1-drawn",
    "size": [
-    0.72,
-    0.72,
+    0.5,
+    0.5,
     1.8
    ],
    "size_from": "lab/person of data/people/rows.json",
@@ -762,11 +818,11 @@
   },
   {
    "id": "lab_person_2-drawn",
-   "name": "person in spacesuit, a broad build, as drawn in the lab concept; the clothes as drawn in the lab concept",
+   "name": "person in spacesuit, an average build, as drawn in the lab concept; the clothes as drawn in the lab concept",
    "prop": "lab_person_2-drawn",
    "size": [
-    0.72,
-    0.72,
+    0.5,
+    0.5,
     1.8
    ],
    "size_from": "lab/person of data/people/rows.json",
@@ -782,11 +838,11 @@
   },
   {
    "id": "lab_person_3-drawn",
-   "name": "person in spacesuit, a broad build, as drawn in the lab concept; the clothes as drawn in the lab concept",
+   "name": "person in spacesuit, an average build, as drawn in the lab concept; the clothes as drawn in the lab concept",
    "prop": "lab_person_3-drawn",
    "size": [
-    0.72,
-    0.72,
+    0.5,
+    0.5,
     1.8
    ],
    "size_from": "lab/person of data/people/rows.json",
@@ -841,6 +897,186 @@
    "clothes": "the clothes as drawn in the old_station concept"
   },
   {
+   "id": "quarters_person_bed_1-drawn",
+   "name": "person sitting on bed, a slim build, as drawn in the quarters concept; the clothes as drawn in the quarters concept",
+   "prop": "quarters_person_bed_1-drawn",
+   "size": [
+    0.5,
+    0.4,
+    1.3
+   ],
+   "size_from": "quarters/person_bed of data/people/rows.json",
+   "view": "quarters",
+   "box": [
+    1319,
+    549,
+    1443,
+    789
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the quarters concept"
+  },
+  {
+   "id": "quarters_person_desk_1-drawn",
+   "name": "person sitting at desk, a slim build, as drawn in the quarters concept; the clothes as drawn in the quarters concept",
+   "prop": "quarters_person_desk_1-drawn",
+   "size": [
+    0.5,
+    0.4,
+    1.3
+   ],
+   "size_from": "quarters/person_desk of data/people/rows.json",
+   "view": "quarters",
+   "box": [
+    1089,
+    812,
+    1241,
+    992
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the quarters concept"
+  },
+  {
+   "id": "square_crowd-drawn",
+   "name": "one person of the crowd of people, an average build, as drawn in the square concept; the clothes as drawn in the square concept",
+   "prop": "square_crowd-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "square/crowd of data/people/rows.json",
+   "view": "square",
+   "box": [
+    0,
+    534,
+    358,
+    816
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the square concept"
+  },
+  {
+   "id": "stairwell_crowd-drawn",
+   "name": "one person of the crowd of people, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "stairwell_crowd-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "stairwell/crowd of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    2163,
+    533,
+    2716,
+    918
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
+   "id": "stairwell_walkway_crowd_1-drawn",
+   "name": "people on walkway, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "stairwell_walkway_crowd_1-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "stairwell/walkway_crowd of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    2188,
+    1344,
+    2217,
+    1429
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
+   "id": "stairwell_walkway_crowd_2-drawn",
+   "name": "people on walkway, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "stairwell_walkway_crowd_2-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "stairwell/walkway_crowd of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    2246,
+    1285,
+    2274,
+    1365
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
+   "id": "stairwell_walkway_crowd_3-drawn",
+   "name": "people on walkway, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "stairwell_walkway_crowd_3-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "stairwell/walkway_crowd of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    2218,
+    1419,
+    2255,
+    1493
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
+   "id": "stairwell_walkway_crowd_4-drawn",
+   "name": "people on walkway, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "stairwell_walkway_crowd_4-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "stairwell/walkway_crowd of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    2112,
+    1424,
+    2140,
+    1509
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
+   "id": "stairwell_walkway_crowd_5-drawn",
+   "name": "people on walkway, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "stairwell_walkway_crowd_5-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "stairwell/walkway_crowd of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    2284,
+    1355,
+    2312,
+    1445
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
    "id": "street_diner_seated_1-drawn",
    "name": "person sitting at a table, an average build, as drawn in the street concept; the clothes as drawn in the street concept",
    "prop": "street_diner_seated_1-drawn",
@@ -856,6 +1092,26 @@
     741,
     1117,
     794
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the street concept"
+  },
+  {
+   "id": "street_distant_crowd-drawn",
+   "name": "one person of the crowd of people, an average build, as drawn in the street concept; the clothes as drawn in the street concept",
+   "prop": "street_distant_crowd-drawn",
+   "size": [
+    0.55,
+    0.55,
+    1.8
+   ],
+   "size_from": "street/distant_crowd of data/people/rows.json",
+   "view": "street",
+   "box": [
+    1841,
+    407,
+    2303,
+    480
    ],
    "grounded": "SAM 3's box in the reading of the picked concept",
    "clothes": "the clothes as drawn in the street concept"
@@ -1005,8 +1261,8 @@
    "name": "person in uniform, an average build, as drawn in the tube concept; the clothes as drawn in the tube concept",
    "prop": "tube_person_mid_left_1-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "tube/person_mid_left of data/people/rows.json",
@@ -1025,8 +1281,8 @@
    "name": "person in uniform, an average build, as drawn in the tube concept; the clothes as drawn in the tube concept",
    "prop": "tube_person_mid_left_2-drawn",
    "size": [
-    0.3,
     0.5,
+    0.3,
     1.8
    ],
    "size_from": "tube/person_mid_left of data/people/rows.json",
@@ -1041,12 +1297,32 @@
    "clothes": "the clothes as drawn in the tube concept"
   },
   {
+   "id": "tube_person_right_1-drawn",
+   "name": "person in uniform, an average build, as drawn in the tube concept; the clothes as drawn in the tube concept",
+   "prop": "tube_person_right_1-drawn",
+   "size": [
+    0.5,
+    0.3,
+    1.8
+   ],
+   "size_from": "tube/person_right of data/people/rows.json",
+   "view": "tube",
+   "box": [
+    2062,
+    709,
+    2179,
+    1093
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the tube concept"
+  },
+  {
    "id": "workshop_person_centre_1-drawn",
    "name": "person, an average build, as drawn in the workshop concept; the clothes as drawn in the workshop concept",
    "prop": "workshop_person_centre_1-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "workshop/person_centre of data/people/rows.json",
@@ -1065,8 +1341,8 @@
    "name": "person, an average build, as drawn in the workshop concept; the clothes as drawn in the workshop concept",
    "prop": "workshop_person_right_1-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "workshop/person_right of data/people/rows.json",
@@ -1085,8 +1361,8 @@
    "name": "astronaut, an average build, as drawn in the wreck concept; the clothes as drawn in the wreck concept",
    "prop": "wreck_astronaut_1_1-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "wreck/astronaut_1 of data/people/rows.json",
@@ -1125,8 +1401,8 @@
    "name": "astronaut, an average build, as drawn in the wreck concept; the clothes as drawn in the wreck concept",
    "prop": "wreck_astronaut_3_1-drawn",
    "size": [
-    0.4,
     0.6,
+    0.4,
     1.8
    ],
    "size_from": "wreck/astronaut_3 of data/people/rows.json",
@@ -1145,14 +1421,18 @@
   "by": "the creator's pick",
   "places": [
    "airlock",
+   "base",
    "camp",
    "campgrounds",
+   "cockpit",
    "garage",
    "greenhouse",
    "hangar",
    "lab",
    "old_station",
+   "quarters",
    "square",
+   "stairwell",
    "street",
    "tube",
    "workshop",
