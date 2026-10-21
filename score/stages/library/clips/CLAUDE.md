@@ -18,9 +18,10 @@ make, the output, the gate and the price; `sample.py` the sample shapes; `blende
   and about 12 min a clip, 7.3 s a frame), a `RECORDED` run in `tools/costs/per_unit.py`, so prepare prices the layer
   from `data/costs/per-unit.json`. `per_item` (the films' seconds a frame, `ESTIMATED_FROM`) is now only the row's
   clearance estimate. The clip gate's check runs before attach: one clip not whole and none goes into the library.
-- **Known gaps:** a sky's dome picture is not fetched by the library's `clip-plan` (role picture), so a sky renders
-  magenta; a long sparse effect (breath: 14400 time codes in 96 frames) can open on an empty first frame and fail
-  as blank.
+- **What the plan opens** (score_lib 259d7488, 2026-10-21): `clip-plan` fetches an entry's picture-role files too (a
+  sky's dome picture; before, a sky rendered magenta), and plays an effect as one loop (`score:effect:loop`) from the
+  time code where its points show most (`clip.busiest_loop`), so a sparse effect (the breath: a puff every 20 s
+  over a 600 s stage) opens on the puff, not an empty first frame. Not yet rendered since.
 - **The benchmark is `library-clips-sample`** (one environment node, paid): the same make over the drafts
   `data/definitions/clip_samples.json` names (one a framing), clipped and put into their entries, so a clip's
   seconds and euros are measured. Only on the owner's yes: `SCORE_BENCHMARK_GRANT=<grant> python -m score run world1
