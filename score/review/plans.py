@@ -1047,7 +1047,7 @@ def revised(store, place, request, by, reviser=concepts.revise):
 def main(argv):
     """`<place> <request.json> <by>`: one Correct with notes inside the owner's yes (its ticket in the environment);
     its record as the last line, or `refused: <why>` on stderr. `keep`: every place's plan where the plan stage
-    reads it; one line."""
+    reads it, and its sky inputs where its light layer reads them (scene_sky); one line."""
     import os
     from score.adapters.compute import STORE, Refused as NotCleared
     from score.store import Store
@@ -1063,9 +1063,11 @@ def main(argv):
         owed = plan_writing.owed(store, places) if plan_writing.AUTOMATIC else []
         writing = f"; plans of {', '.join(owed)} being written: {plan_writing.started(store, owed)}" if owed else ""
         kept, changed = keep(store, places)
+        from score.review import scene_sky
+        skies, _ = scene_sky.keep(store, places)  # each scene's sky inputs, which its light layer reads
         # changed, or not made yet (a run refused while another held the store is asked again next pass)
         again = [place for place in sorted({*changed, *kept}) if place in changed or not made(store, place)]
-        print(f"plans for the plan stage: {len(kept)} kept, {len(changed)} changed"
+        print(f"plans for the plan stage: {len(kept)} kept, {len(changed)} changed; skies {len(skies)} kept"
               + (f"; plan rows of {len(again)} made again: {made_again(again)}" if again else "") + writing)
         return 0
     place, request, by = argv

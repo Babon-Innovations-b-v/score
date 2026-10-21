@@ -44,6 +44,11 @@ MATCH_REACH = 2.0
 # What the writer leaves out of a record on purpose: by the old record's section, one entry as
 # `<place>:<section>/<name>`, or a family of entries by its name's start (`<section>/<start>_`, kept to one place
 # with `<place>:`).
+# The old records' sky (their suns, the light the Moon and the Earth gave, the Moon's picture, a world hung as
+# structure): the environment concept's physics now, worked out over each scene's site at its scene time and written by
+# the light layer (score/stages/light/sky.py; the owner, 2026-10-21: no fixed sky).
+SKY_REASON = ("the sky is the environment concept's physics overhead at the scene's site at its scene time, the light "
+              "layer's (score/stages/light/sky.py), never a record's")
 SEED_REASONS = {
     "game_only": "the record holds no notes about the game: what the concept shows is an inventory row or a plan item",
     "owner_rejected": "what the owner took out is in no plan item, concept element or inventory row, so nothing "
@@ -103,9 +108,7 @@ SEED_REASONS = {
     "greenhouse:structure/tarp_": "the concept K09 shows no tarps on the deck",
     "greenhouse:lights/omni": "the grow lights are the grow-light bars' lamps (inventory grow_light_glow), which the "
                               "kit lights",
-    "greenhouse:lights/sun": "the sun through the glass is the world's sky, the light stage's, not one room's record",
-    "hub:lights/sun": "the sun is the world's sky, the light stage's, not one room's record",
-    "tube:lights/sun": "the sun through the glass bands is the world's sky, the light stage's, not one room's record",
+    **{key: SKY_REASON for key in ("lights/sun", "lights/moonlight", "lights/earthshine", "moon", "structure/earth")},
 }
 # A kit doorway: an opening in a kit piece (a wall, a facade) from its foot up, at least this tall.
 DOORWAY_TALL = 1.9

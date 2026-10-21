@@ -212,7 +212,9 @@ stars, a light-giving dome round everything; a distant skyline), plots (flat gro
 (latitude, longitude and height on a body, the ground curving with its true radius; metres on a plot). There is no
 fixed sky (owner 2026-10-21): what each site sees overhead at its scene time is worked out from these
 (`score/review/overhead.py`), every other body at its true direction, size and phase, every light and backdrop, the
-data the engine runs live. No branch names a world. A plan made under another version of the environment concept
+data the engine runs live; each scene's light layer writes that sky over the scene from its top scene's site and scene
+time (`score/review/scene_sky.py` keeps them, `score/stages/light/sky.py` writes and gates it), and no record, data
+file or game constant holds a sky of its own. No branch names a world. A plan made under another version of the environment concept
 is out of date; the game 2099's ground plans are read only for the layout of a site's parts. An inside place's blockout is its own
 shell inside its holder's, its siblings' shells round it, so rooms fit together from the blockouts alone. A draw made
 without the blockout that can be built now is out of date; locked places stay locked and are named.
@@ -363,17 +365,18 @@ is meant to fix, where it is marked, and what proves it.
   and for doors that lead nowhere. `plan@<place>` brings the dimensioned plan into the store (`place-plan` v1),
   gated on `mapped` (every plan item names inventory rows, every concept element rows, a door or a drop, every door
   says where it leads and why); `scene-record@<place>` writes the record (`scene-record` v1, today's schema) from the
-  plan, the inventory, the made ground's seats and the sky record, gated on `game-free`, `plan-matched`, `openings`
+  plan, the inventory, the made ground's seats and the sky record's air (never its sky: the light layer's, from the
+  environment concept's physics), gated on `game-free`, `plan-matched`, `openings`
   (the record composed over the made ground: every doorway onto a floor, no view into nothing, every door's place
   standing in it) and `seed-matched` (the old record an unverified seed: each entry matched or left out with a
   written reason). Only places whose plan has `leads` have the rows; the assembly writes the accepted record over its
   seed's record prims (the final assembly, below). Two shell
   writers: domed rooms, and kit shells (`kit_shell.py`, 2026-10-12: the Earth's flat, stairwell, street, square and
   launch view, whose kits hold their walls; the record adds the block round a room, the lamps of the sky record's
-  lamp rows where the kit lays them, the Earth's night, moon, glow and harbour, the plan's released models and the
+  lamp rows where the kit lays them, the Earth's night air, glow and harbour, the plan's released models and the
   far city it shows; `plan-matched` holds the plan's doors to the kit's doorways), and outdoor places (`outdoor.py`,
   2026-10-12: the wreck, the old station, the camp grounds and the camp, whose kit holds its domes and whose
-  furniture is the released camp models as plan objects; no walls of the record's; the body's outdoor sky in `sky.json` with
+  furniture is the released camp models as plan objects; no walls of the record's; the body's outdoor air in `sky.json` with
   its ways in the body's own frame, and the plan's lamps, decals and beams on their rows over the made ground). The
   wreck's supply rocket, cargo lift and landing dust are out, as its concept C2 shows none. A domed plan's `shape` adds the faceted hub and the walkway tube, a
   glass dome, the airlock's ramp and the greenhouse's plot (2026-10-12: the Moon base's airlock, workshop, lab,
@@ -470,7 +473,9 @@ is meant to fix, where it is marked, and what proves it.
   Earth, the flat Mars sky with no sun, the camp's night windows in the record's afternoon and the floodlight heads
   read as white grids (paper-vs-world-1 items 9 and 17). `light-layer@<place>` (free) writes `layers/light.usda` over
   the round-three seed from today's scene record with `tools/usd/scene.py`'s own writers (lamps where the record puts
-  them, the Earth with NASA's surface, the day dome and the sun's disc, the shafts); `light-passes@<place>` (paid,
+  them, the day dome, the shafts) and its sky from the environment concept's physics (`sky.py`, 2026-10-21: each light
+  overhead a distant light, the Sun's disc and every other body a ball at its true direction and size, the Earth with
+  NASA's surface, each backdrop; the old sky turned off; gated on `sky bodies`, the layer against overhead.py); `light-passes@<place>` (paid,
   about EUR 2) renders it once on the demo's views with every lamp in a Cycles light group of its own;
   `light@<place>` (free) mixes the passes at any strengths with no render again, takes the scale that brings the
   place's brightness to its concept's, turns a blown-out lamp down, writes the strengths into the layer and judges

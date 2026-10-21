@@ -4,9 +4,9 @@ flattened ring, the ship's hull with its windows lying flat on it), a structure 
 surface and carrying its roof layer and the plain thing a primitive says it is, a piece built in its own frame and
 placed, a place shown turned and stretched, the game's lights in the stage's units with the game's own numbers kept,
 a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay along its length, a kit piece the
-game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit light's night glow kept to its
+game moves shifted by its node, a kit light's night glow kept to its
 picture's bright parts, the engine's seeded random numbers, the planned rocks lying as the game lays them, the ground
-shader's detail baked with a decal, the stars turned at the record's minute, a water's lit columns, the night's glow, a
+shader's detail baked with a decal, a water's lit columns, the night's glow, a
 column of light and a shown place's left-out piece, a lamp's shaft of light and a day sky's dome, and every real record in data/scene naming only builders,
 surfaces, plain kinds and fields that exist.
 
@@ -32,7 +32,6 @@ import ground  # noqa: E402
 import ground_detail  # noqa: E402
 import mars_sky  # noqa: E402
 import library  # noqa: E402
-import orbits  # noqa: E402
 import placeholders  # noqa: E402
 import rocks  # noqa: E402
 import scene  # noqa: E402
@@ -122,22 +121,10 @@ def check_lights_and_structure(folder):
 
 
 def check_sky_builders():
-    """The star field is the game's (Godot's RandomNumberGenerator of seed 9, as this port of random_pcg.h draws it:
-    its first draws pinned so a change to the port shows, not checked against a running Godot; 1800 stars as wide
-    seen from the middle wherever they hang), and a haze shell closes round its body in each of the game's FogVolume
-    shapes."""
+    """The engine's seeded random numbers are Godot's (its RandomNumberGenerator of seed 9, as this port of
+    random_pcg.h draws it: its first draws pinned so a change to the port shows, not checked against a running Godot),
+    and a haze shell closes round its body in each of the game's FogVolume shapes."""
     assert [round(float(value), 6) for value in builders.pcg32_floats(9, 3)] == [0.896333, 0.085484, 0.925146]
-    near = builders.stars(1800, 9, 700.0, 700.0, 0.7, 0.4, 1.3, None)
-    far = builders.stars(1800, 9, 700.0, 1900.0, 0.7, 0.4, 1.3, None)
-    assert len(near["points"]) == 1800 * 6 and len(near["triangles"]) == 1800 * 8
-    middles = far["points"].reshape(1800, 6, 3).mean(axis=1)
-    assert np.allclose(np.linalg.norm(middles, axis=1), 1900.0)
-    widths = np.ptp(far["points"].reshape(1800, 6, 3), axis=1).max(axis=1) / 1900.0
-    assert np.allclose(widths, np.ptp(near["points"].reshape(1800, 6, 3), axis=1).max(axis=1) / 700.0)
-    assert 2 * 0.7 * 0.4 / 700 - 1e-9 <= widths.min() and widths.max() <= 2 * 0.7 * 1.3 / 700 + 1e-9
-    first = middles[0] / 1900.0
-    way = np.array([0.896333 * 2 - 1, 0.085484 * 2 - 1, 0.925146 * 2 - 1])
-    assert np.allclose(first, way / np.linalg.norm(way), atol=1e-5), first
     for shape in ("box", "cylinder", "ellipsoid"):
         shell = builders.haze_volume(shape, [1.0, 2.0, 3.0], [4.0, 2.0, 6.0], None)
         assert np.allclose(shell["points"].min(axis=0), [-1.0, 1.0, 0.0], atol=1e-6), shape
@@ -145,16 +132,14 @@ def check_sky_builders():
 
 
 def check_sky(folder):
-    """A record's stars, haze body, Earth haze ring and water mirror written onto its stage, with the game's numbers
-    kept where a renderer reads them; a place shown from another leaves its sky to the one showing it."""
+    """A record's haze body, Earth haze ring and water mirror written onto its stage, with the game's numbers kept
+    where a renderer reads them; a place shown from another leaves its sky to the one showing it."""
     ring = json.loads((scene.SCENES / "launch.json").read_text())["environment"]["haze"]
     record = {
         "water": [{"name": "harbour", "builder": "grid", "low": [-10, -10], "high": [10, 10], "height": 0.0,
                    "step": 5.0, "surface": "harbour_water",
                    "mirror": {"along": 0.65, "down": 0.2, "ripple_tip": 0.03, "ripple_size": 0.2}}],
         "environment": {"background": "#030409", "ambient": {"colour": "#9fb8e6", "energy": 0.1}, "exposure": 0.85,
-                        "stars": {"count": 10, "seed": 9, "sky_distance": 700.0, "distance": 1900.0, "radius": 0.7,
-                                  "size": [0.4, 1.3], "colour": "#eef2ff"},
                         "haze": {"shape": "box", "centre": [0.0, 1.4, 0.0], "size": [6.0, 2.8, 6.0],
                                  "colour": "#ece8e0", "density": 0.025, "forward": 0.3, "reach": 24.0}}}
     stage = Usd.Stage.CreateNew(str(folder / "sky.usda"))
@@ -166,8 +151,6 @@ def check_sky(folder):
     assert math.isclose(haze.GetAttribute("score:haze_density").Get(), 0.025, rel_tol=1e-6)
     assert math.isclose(haze.GetAttribute("score:haze_forward").Get(), 0.3, rel_tol=1e-6)
     assert np.allclose(haze.GetAttribute("score:haze_colour").Get(), scene.colour("#ece8e0"), atol=1e-6)
-    stars = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/Stars"))
-    assert len(stars.GetPointsAttr().Get()) == 60
     water = stage.GetPrimAtPath(f"/{PLACE}/Water/harbour")
     assert math.isclose(water.GetAttribute("score:mirror_along").Get(), 0.65, rel_tol=1e-6)
     assert math.isclose(water.GetAttribute("score:mirror_ripple_size").Get(), 0.2, rel_tol=1e-6)
@@ -196,11 +179,8 @@ def check_sky(folder):
 
 
 def check_light_pieces(folder):
-    """The stars turned as the game turns them at the record's minute, a water's lit columns, the sky's glow and a
-    column of light written where a renderer reads them, and a shown place's piece the game does not draw here left
-    out."""
-    stars = {"count": 10, "seed": 9, "sky_distance": 700.0, "distance": 1900.0, "radius": 0.7, "size": [0.4, 1.3],
-             "colour": "#eef2ff", "turn": {"minute": 60.0, "axes": "site"}}
+    """A water's lit columns, the sky's glow and a column of light written where a renderer reads them, and a shown
+    place's piece the game does not draw here left out."""
     lit = {"name": "rocket", "at": [-270.0, -60.0], "low": 0.0, "high": 60.0, "half_width": 9.48, "colour": "#f3f1ea",
            "strength": 1.6}
     record = {
@@ -209,7 +189,6 @@ def check_light_pieces(folder):
                    "mirror": {"along": 0.65, "down": 0.2, "ripple_tip": 0.03, "ripple_size": 0.2, "lit": [lit],
                               "column_smear": 0.35, "column_soft": 0.6}}],
         "environment": {"background": "#030409", "ambient": {"colour": "#9fb8e6", "energy": 0.1}, "exposure": 0.85,
-                        "stars": stars,
                         "glow": {"threshold": 0.85, "intensity": 0.8, "hdr_scale": 2.0, "levels": [3, 5]},
                         "beams": [{"name": "beam", "foot": [1.0, 0.0, 2.0], "way": [0.0, 1.0, 0.1], "low": 12.0,
                                    "high": 100.0, "radius": 0.8, "sides": 8, "least_half_angle": 0.0035,
@@ -218,10 +197,6 @@ def check_light_pieces(folder):
     UsdGeom.Xform.Define(stage, f"/{PLACE}")
     export.library_materials(stage, PLACE, f"/{PLACE}")
     scene.write(stage, PLACE, record, folder)
-    points = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/Stars")).GetPointsAttr().Get())
-    unturned = builders.stars(10, 9, 700.0, 1900.0, 0.7, 0.4, 1.3, None)["points"]
-    assert np.allclose(points, unturned @ orbits.stars_turn(60.0, np.eye(3)).T, atol=1e-2)
-    assert not np.allclose(points, unturned, atol=1.0)
     water = stage.GetPrimAtPath(f"/{PLACE}/Water/harbour")
     assert np.allclose(water.GetAttribute("score:mirror_lit_columns").Get()[0], [-270.0, -60.0, 0.0, 60.0])
     assert np.allclose(water.GetAttribute("score:mirror_lit_lights").Get()[0],
@@ -281,26 +256,6 @@ def check_moved():
     except ValueError:
         return
     raise AssertionError("a move naming no piece of the kit went unnoticed")
-
-
-def check_moon(folder):
-    """The Moon's face covers its 4.4 degrees and no more, its halo falls off from its way, and both stand square to
-    the way far out from the eye."""
-    entry = {"way": [-0.90042, 0.39071, -0.1913], "eye": [-4.0, 9.0, -3.5], "across": 4.4, "colour": "#e6ebf2",
-             "brightness": 1.2, "seas": 0.4, "halo": 0.35, "halo_fall": 0.09, "distance": 1800.0}
-    face, half = scene.moon_face_picture(entry, pixels=200)
-    assert face[100, 100, 3] == 255 and face[0, 0, 3] == 0 and face[100, 2, 3] == 0
-    covered = (face[100, :, 3] > 127).sum() / 200 * 2 * math.tan(half)
-    assert math.isclose(covered, 2 * math.tan(math.radians(2.2)), rel_tol=0.03), covered
-    halo, _ = scene.moon_halo_picture(entry, pixels=101)
-    assert math.isclose(halo[50, 50, 3] / 255, 0.35, abs_tol=0.01) and halo[50, 0, 3] < 2
-    stage = Usd.Stage.CreateNew(str(folder / "moon.usda"))
-    UsdGeom.Xform.Define(stage, f"/{PLACE}")
-    scene.write_moon(stage, PLACE, entry, folder)
-    points = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/moon")).GetPointsAttr().Get())
-    middle = points.mean(axis=0) - np.array(entry["eye"])
-    assert math.isclose(np.linalg.norm(middle), 1800.0, rel_tol=1e-4)
-    assert np.allclose(middle / 1800.0, np.array(entry["way"]) / np.linalg.norm(entry["way"]), atol=1e-4)
 
 
 def check_night_glow(folder):
@@ -573,11 +528,6 @@ def check_records():
             assert haze["centre"] != "ball" or record.get("planned_ground"), path.name
             if haze["shape"] != "ring":
                 builders.haze_volume(haze["shape"], [0.0, 0.0, 0.0], haze["size"], None)
-        if environment.get("stars"):
-            assert environment["stars"].get("from") and environment["stars"]["distance"] < 2000.0, path.name
-            turn = environment["stars"].get("turn")
-            assert turn is None or (turn["axes"] in ("site", "seat") and turn.get("from")), path.name
-            assert turn is None or turn["axes"] != "seat" or record.get("planned_ground"), path.name
         for beam in environment.get("beams", []):
             assert beam.get("from") and beam["high"] > beam["low"] and beam["radius"] > 0.0, (path.name, beam)
         assert not environment.get("glow") or environment["glow"].get("from"), path.name
@@ -608,7 +558,7 @@ def check_rejected():
 
 def check_shafts_and_dome(folder):
     """A lamp with a shaft fills its own cone with haze only the lamps light, under the place's own Shafts (kept when
-    another place shows it); a day sky's dome hangs between the sun's disc and the stars with its picture, brighter
+    another place shows it); a day sky's dome hangs far out round the place with its picture, brighter
     toward the horizon away from the sun and brightest round the sun."""
     lamp = {"type": "spot", "at": [0.0, 10.0, 0.0], "aim": [10.0, 0.0, 0.0], "colour": "#ffffff", "energy": 3.0,
             "range": 30.0, "angle": 30.0, "attenuation": 0.5, "shadows": False,
@@ -653,7 +603,6 @@ def main():
     check_sky_builders()
     with tempfile.TemporaryDirectory() as folder:
         check_lights_and_structure(pathlib.Path(folder))
-        check_moon(pathlib.Path(folder))
         check_night_glow(pathlib.Path(folder))
         check_stretched_fixture(pathlib.Path(folder))
         check_metal_map(pathlib.Path(folder))

@@ -7,15 +7,16 @@ layer gaps (score/stages/complete/gaps/layers.py):
     views   the views its light is judged on: its record's (an old record's `views`, else the ones the scene-record
             row writes from its plan's doors and standing spots); none is a gap
     sky     an outdoor place (its record's environment not `inside`, or its plan's shell `outdoor` or `inside` false)
-            needs its body's outdoor sky in data/definitions/sky.json (the body: the ground plan that seats it); a
-            body with no sky entry past its indoor air is a gap
+            needs its sky from the environment concept's physics: its kept sky (score/review/scene_sky.py: its top
+            scene's site and scene time on the environment's plan) with a position overhead.py can work from; none
+            is a gap
 
 Whether the place's light passes, sweep and sky gates pass is the light row's own (gate gaps, from its node).
 """
 import json
 import pathlib
 
-NOT_SKY = ("about", "indoor")
+from score.review import overhead, scene_sky
 
 
 def read(path):
@@ -39,8 +40,15 @@ def body_of(place, data):
     return None
 
 
-def gaps(place, data):
-    """The place's light and sky needs not met: [{"id", "prim", "sentence", "node", "work"}]."""
+def sky_known(place, skies):
+    """Whether the scene's kept sky (in `skies`) gives a sky overhead.py can work out."""
+    kept = read(pathlib.Path(skies) / f"{place}.json")
+    return kept is not None and overhead.seen(kept["setting"], kept["site"], kept["time"]) is not None
+
+
+def gaps(place, data, skies=None):
+    """The place's light and sky needs not met: [{"id", "prim", "sentence", "node", "work"}]; `skies` the folder of
+    the scenes' kept skies (scene_sky.KEPT)."""
     data = pathlib.Path(data)
     record, plan = read(data / "scene" / f"{place}.json"), read(data / "plans" / f"{place}.json")
     if record is None and plan is None:
@@ -51,12 +59,10 @@ def gaps(place, data):
                       "sentence": "its scene record holds no view to judge its light on",
                       "work": f"views in {place}'s scene record (data/scene/{place}.json `views`), from its plan's "
                               "doors and standing spots"})
-    if outdoor(record, plan):
-        body = body_of(place, data)
-        sky = (read(data / "definitions/sky.json") or {}).get(body) or {}
-        if not set(sky) - set(NOT_SKY):
-            found.append({"id": f"sky:body:{body or place}", "prim": f"/{place}", "node": None,
-                          "sentence": f"an outdoor place with no sky for its body ({body or 'no ground seats it'})",
-                          "work": f"{body}'s outdoor sky in data/definitions/sky.json" if body else
-                                  f"a seat for {place} on its body's ground plan (data/ground/plan/<body>.json)"})
+    if outdoor(record, plan) and not sky_known(place, skies or scene_sky.KEPT):
+        found.append({"id": f"sky:site:{place}", "prim": f"/{place}", "node": None,
+                      "sentence": "an outdoor place with no sky: its site or its scene time is not on the "
+                                  "environment's plan",
+                      "work": "its top scene's site in the environment concept's physics and its scene time on the "
+                              "environment's plan, kept for its light layer (python -m score.review.plans keep)"})
     return found

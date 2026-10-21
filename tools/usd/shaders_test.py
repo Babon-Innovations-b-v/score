@@ -8,7 +8,6 @@ missing materials are library surfaces.
 Run: .venv/bin/python tools/usd/shaders_test.py   (make tests runs it with the framework's environment)
 """
 import json
-import math
 import pathlib
 import sys
 import tempfile
@@ -65,20 +64,6 @@ def check_the_earth_look(folder):
         Sdf.Path(f"/{PLACE}/Library/earth_face")
 
 
-def check_the_sun_disc():
-    stage = stage_with_library()
-    lights = [{"type": "sun", "energy": 1.25, "toward": [0.6, -0.8, 0.0]},
-              {"type": "sun", "name": "earthshine", "energy": 0.1, "toward": [0.0, -1.0, 0.0]}]
-    count = shaders.sun_discs(stage, PLACE, lights, lambda path, centre, radius: scene.sun_ball(stage, PLACE, path,
-                                                                                                 centre, radius))
-    assert count == 1
-    points = np.array(UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/sun_disc_0")).GetPointsAttr().Get())
-    middle = (points.min(axis=0) + points.max(axis=0)) / 2
-    assert np.allclose(middle / np.linalg.norm(middle), [-0.6, 0.8, 0.0], atol=1e-3)
-    across = math.degrees(2 * math.asin((points.max(axis=0) - points.min(axis=0)).max() / 2 / np.linalg.norm(middle)))
-    assert abs(across - shaders.SUN_ACROSS_DEGREES) < 0.05, across
-
-
 def check_the_missing_materials_are_library_surfaces():
     families = json.loads((REPO / "data/library/materials.json").read_text())["families"]
     variants = {name: about for family in families.values() for name, about in family["variants"].items()}
@@ -128,7 +113,6 @@ def main():
         check_the_earth_look(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_the_tile_look(pathlib.Path(folder))
-    check_the_sun_disc()
     check_the_missing_materials_are_library_surfaces()
     print("shaders_test: ok")
 

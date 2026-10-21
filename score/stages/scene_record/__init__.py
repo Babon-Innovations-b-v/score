@@ -4,7 +4,7 @@ from its plan and concept, not transcribed from the game. Two free rows a place:
     plan@<place>          the dimensioned plan (data/plans/<place>.json) in metres and the place's frame, contract
                           `place-plan` v2, gated on `mapped` (plan.py)
     scene-record@<place>  the record the assembly can read (record/<place>.json, contract `scene-record` v1: today's
-                          schema), written from the plan, the inventory, the made ground's seats and the world's sky
+                          schema), written from the plan, the inventory, the made ground's seats and the world's air
                           record (writer.py; kit_shell.py for a place whose kit holds its walls, outdoor.py for an
                           outdoor place), gated on
                           `game-free`, `plan-matched`, `openings` and `seed-matched` (gates.py); the old record is an

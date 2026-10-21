@@ -236,24 +236,34 @@ def check_kit_lamps():
 
 
 def check_needs():
-    """An outdoor place no ground seats lacks its seat and its sky; seated on a body with only indoor air it lacks
-    the sky; a record with no view lacks its views; a room under a roof needs neither."""
+    """An outdoor place no ground seats lacks its seat and its sky; seated, it still lacks its sky until its kept sky
+    has a site and a scene time on the environment's physics; a record with no view lacks its views; a room under a
+    roof needs neither."""
     import shutil
     import tempfile
     from score.stages.light import needs
+    from score.review import setting
     from score.stages.terrain import needs as ground_needs
     data = pathlib.Path(tempfile.mkdtemp())
     for folder in ("scene", "plans", "ground/plan", "definitions"):
         (data / folder).mkdir(parents=True)
-    (data / "definitions/sky.json").write_text(json.dumps({"rock": {"indoor": {}}}))
+    skies = data / "skies"
+    skies.mkdir()
     (data / "plans/yard.json").write_text(json.dumps({"shell": "outdoor"}))
     (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": True}, "views": []}))
 
     def ids(place):
-        return sorted(gap["id"] for gap in needs.gaps(place, data) + ground_needs.gaps(place, data))
-    assert ids("yard") == ["ground:seat:yard", "sky:body:yard"], ids("yard")
+        return sorted(gap["id"] for gap in needs.gaps(place, data, skies) + ground_needs.gaps(place, data))
+    assert ids("yard") == ["ground:seat:yard", "sky:site:yard"], ids("yard")
     (data / "ground/plan/rock.json").write_text(json.dumps({"ground": "rock", "seats": {"yard": {}}}))
-    assert ids("yard") == ["sky:body:rock"], ids("yard")  # no copied ground record places a detail area
+    assert ids("yard") == ["sky:site:yard"], ids("yard")  # no copied ground record places a detail area
+    house = {"plots": [{"name": "Rock", "gravity": 9.81}], "sites": [{"place": "yard", "on": "rock", "x": 0, "y": 0}],
+             "lights": [{"name": "Sun", "kelvin": 5800, "lux": 100000, "latitude": 52.0, "tilt_deg": 23.44,
+                         "day_hours": 24, "year_days": 365.2422, "equinox": "2024-03-20T12:00:00Z"}]}
+    (skies / "yard.json").write_text(json.dumps({"place": "yard", "top": "yard", "time": "2024-06-01T12:00:00Z",
+                                                 "site": {"on": "rock", "x": 0, "y": 0, "height_m": 0},
+                                                 "setting": setting.checked(house)}))
+    assert ids("yard") == [], ids("yard")
     assert ids("room") == ["light:views:room"], ids("room")
     assert ids("nowhere") == []
     shutil.rmtree(data)

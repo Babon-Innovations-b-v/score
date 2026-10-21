@@ -5,7 +5,8 @@ The light stage (experimental, PRD #6; paper-vs-world-1 items 9 and 17) as three
 `light-passes@<place>` (paid: the seed with that layer rendered on its own scene record's views, every own lamp in a
 Cycles light group of its own, `inside/light_passes.py`) and `light@<place>` (free: the sweep on the passes, `mix.py`;
 the strengths written into the layer; the gates). A row of every place with a scene record (`applies`), ship places
-too (through the table's wrappers); `needs.py` gives the gaps check what a place needs lit and its sky (#27). Run with `python -m score run world1 --place <place> --stage light
+too (through the table's wrappers); `needs.py` gives the gaps check what a place needs lit and its sky (#27);
+`sky.py` its sky from the environment concept's physics. Run with `python -m score run world1 --place <place> --stage light
 --detach`. `__init__.py`'s docstring has the rows and the gates; `lightkit` (kit.py, the square's proscenium) keeps
 its own runner (`python -m score.stages.light run lightkit`).
 
@@ -65,4 +66,13 @@ its own runner (`python -m score.stages.light run lightkit`).
   rough-model reads it; `concept_pictures`, `light_files`): its old views and the K04 and C4 the reference measures
   read went with the old disk (2026-10-19), so `measures.json`'s `concept` is None there. A shown place no stage makes
   whose seed is lost (the far city) is left out of the render (`passes.neighbours`); the neighbours row names it a gap.
-- `light_test.py` checks the measures, the sweep and the layer on pictures, passes and a stage made in the test.
+- **The sky is the environment concept's physics** (the owner, 2026-10-21: no fixed sky; CONTEXT.md "physics"):
+  `sky.py` writes what overhead.py says is overhead at the scene's site at its scene time (each light a distant light,
+  a shining body's disc and every other body a ball at its true direction and size, each backdrop), from the scene's
+  kept sky inputs (`{home}/design/sky/<scene>.json`, `score/review/scene_sky.py`, kept by `python -m
+  score.review.plans keep`; a room takes its top scene's site), and turns the seed's and the record's old sky off. The
+  light-layer gate `sky bodies` holds the layer's geometry to overhead.py; unknown while the scene has no site or
+  scene time on the environment's plan. A ball's finish is its library surface (`<body>_face`, `<body>_disc`) or named
+  missing, never grey.
+- `light_test.py` checks the measures, the sweep and the layer on pictures, passes and a stage made in the test;
+  `sky_test.py` the sky against skies worked out by hand.

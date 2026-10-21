@@ -167,7 +167,9 @@ stage as each stage is built; nothing moves before.
   `environment-plans/<world>/` (writings; his edits in his process only), each with the concept version it was made
   under, one under another out of date. `overhead.py` runs the setting to a moment at a site (`seen`): every other
   body's direction, true angular size and phase, every light (a shining body's by its distance, a far light's from its
-  path), brightest first, and every backdrop; the data the engine runs live.
+  path), brightest first, and every backdrop; the data the engine runs live. `scene_sky.py` keeps each scene's sky
+  inputs where its light layer reads them (`{home}/design/sky/<scene>.json`: the physics, and the site and scene time
+  of the top scene it stands in), on `python -m score.review.plans keep`.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
@@ -254,7 +256,8 @@ stage as each stage is built; nothing moves before.
   check (its overlay). These rows, settle, physics, the cast and people rows and the crops rows are the one motion
   layer (CONTEXT.md "motion"; `stages.MOTION_LAYER` names them by module).
   `light-layer`, `light-passes` (paid) and `light` (experimental, `stages/light`, its overlay) make each place's
-  light layer: today's sky and lamps over the seed, one render with a light group a lamp, the lamps' strengths
+  light layer: today's lamps over the seed and its sky from the environment concept's physics overhead at its site
+  (`sky.py`, gated on `sky bodies`), one render with a light group a lamp, the lamps' strengths
   swept on it against the concept; the assembly takes the accepted layer (`assembly.LAYERS`). A
   stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). Environment 1's record is `data/definitions/world.json`. The `images` environment (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
