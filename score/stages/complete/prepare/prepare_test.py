@@ -461,8 +461,7 @@ def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_wait
     data = pathlib.Path(tempfile.mkdtemp())
     for folder in ("places", "plans", "inventory"):
         (data / folder).mkdir()
-    (data / "places" / "within.json").write_text(json.dumps({
-        "within": {}, "shells": {}, "parts": {"part": {"of": "whole", "as": "in the distance"}}}))
+    (data / "places" / "within.json").write_text(json.dumps({"within": {}, "shells": {}}))
     for place in ("rowed", "rowed_old"):  # places with a plan row: their plan says where their doors lead
         (data / "plans" / f"{place}.json").write_text(json.dumps({"leads": {}}))
     was = plans.DATA  # where plan rows, within.json and inventory files are read
@@ -470,7 +469,7 @@ def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_wait
     try:
         made = Locked()
         for place in ("done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again",
-                      "rowed", "rowed_old", "part"):
+                      "rowed", "rowed_old"):
             made.locked(place, room="the room it had" if place == "moved" else None)
             if place != "unread":
                 made.read(place, "2026-10-21T10:00", method=-1 if place == "old_reading" else None)
@@ -485,7 +484,7 @@ def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_wait
         made.accepts.update({"plan@rowed": {"output": "p" * 64, "at": "2099-01-01T00:00"},  # after the lock
                              "plan@rowed_old": {"output": "p" * 64, "at": "2026-10-20T10:00"}})  # before it
         places = sorted(["done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again",
-                         "rowed", "rowed_old", "part", "never"])
+                         "rowed", "rowed_old", "never"])
         found = design.designs(made.store, data, places)
     finally:
         plans.DATA = was
@@ -498,9 +497,8 @@ def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_wait
         "derived": "plan not written by today's method", "old_method": "plan not written by today's method",
         "read_again": "plan made before its inventory was read again",
         "rowed_old": "plan row not accepted",
-        "part": None,  # a part of another place: approved on its pick and inventory alone (the owner's call pending)
         "never": "concept not locked, or its inventory not read from it"}, why
-    assert found["approved"] == ["done", "edited", "part", "rowed"], found["approved"]
+    assert found["approved"] == ["done", "edited", "rowed"], found["approved"]
     assert {place for place, row in found["places"].items() if row["plan"] == "approved"} == set(found["approved"])
     assert found["places"]["rowed"]["output"] == "p" * 64
 

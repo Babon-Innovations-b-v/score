@@ -223,6 +223,9 @@ def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
         (root / "places").mkdir()
         (root / "places/within.json").write_text(json.dumps({"merged": {"new": {"into": "laid"}}}))
         assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid"]
+        # nor has a part of another scene's outside: the scene it is part of builds it (the owner, 2026-10-21)
+        (root / "places/within.json").write_text(json.dumps({"parts": {"new": {"of": "laid", "as": "far off"}}}))
+        assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid"]
     finally:
         shutil.rmtree(root)
 
