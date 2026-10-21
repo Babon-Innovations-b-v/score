@@ -29,7 +29,7 @@ SETTING = {"bodies": [{"body": "moon", "reference": "moon"}, {"body": "mars", "r
 HOLDERS = {"within": {name: {"within": "base"} for name in ("room", "farm", "bay", "link", "cabin")} |
            {"hut": {"within": "dunes"}, "flatlet": {"within": "plaza"}},
            "parts": {"pier": {"of": "plaza"}}, "merged": {}}
-PLANS = {"room": {}, "farm": {}, "bay": {}, "link": {"shape": "tube"}, "cabin": {"ground_free": "in the ship"},
+PLANS = {"base": {"shell": "kit"}, "room": {}, "farm": {}, "bay": {}, "link": {"shape": "tube"}, "cabin": {"ground_free": "in the ship"},
          "hut": {"shell": "outdoor", "inside": True}, "crater": {"shell": "outdoor"}, "dunes": {"shell": "outdoor"},
          "plaza": {"shell": "kit", "inside": False}, "pier": {"shell": "kit", "inside": False},
          "flatlet": {"shell": "kit", "inside": True}, "cave": {"shell": "outdoor"}, "lost": {}}
@@ -81,6 +81,8 @@ def test_outside_hears_the_suit_or_the_open_air(toy):
         assert found["facts"]["heard"] == "suit" and found["sounds"] == ["suit_fans", "suit_breathing_calm"], found
     assert bed(toy, "plaza")["sounds"] == ["street_night", "prologue_crowd", "square_pa"]
     assert bed(toy, "pier")["sounds"] == ["launch_pad"]  # a part of the plaza, its site the plaza's
+    found = bed(toy, "base")  # a top scene round its rooms stands on its site: outside, though its shell is a kit
+    assert found["facts"]["heard"] == "suit" and found["sounds"] == ["suit_fans", "suit_breathing_calm"], found
 
 
 def test_what_the_design_lacks_is_named_never_guessed(toy):

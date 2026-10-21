@@ -3,7 +3,8 @@ from its design alone, never from a list written per scene: where it is heard fr
 on, then the library beds whose brief fits it.
 
     facts     how the scene is heard:
-                heard      `room` (its plan is a room: not an outdoor shell, not `inside` false), `suit` (outside on
+                heard      `room` (its plan is a room: not an outdoor shell, not `inside` false, and, for a top
+                           scene, held by none and so standing on its site, `inside` true), `suit` (outside on
                            a body or plot whose surface pressure is under the Armstrong limit: a person there wears a
                            pressure suit and hears through it), else `open` (outside in air a person breathes)
                 air        the outside air of the body it stands on: `sealed` under the Armstrong limit, else
@@ -88,9 +89,10 @@ def holds(row_words, phrase):
     return bool(wanted) and any(row_words[at:at + len(wanted)] == wanted for at in range(len(row_words)))
 
 
-def outside(plan):
-    """Whether the plan's scene stands outside: an outdoor shell not marked inside, or marked not inside."""
-    return plan.get("inside") is False or (plan.get("shell") == "outdoor" and plan.get("inside") is not True)
+def outside(plan, top):
+    """Whether the plan's scene stands outside: an outdoor shell or a top scene (held by none, standing on its site:
+    the Moon base round its modules) not marked inside, or marked not inside."""
+    return plan.get("inside") is False or ((plan.get("shell") == "outdoor" or top) and plan.get("inside") is not True)
 
 
 def site_place(place, holders):
@@ -135,7 +137,7 @@ def facts(place, plan, inventory, setting, reference, holders, kinds):
     else:
         found["air"] = "sealed" if kpa < ARMSTRONG_KPA else "breathable"
     if plan is not None:
-        found["heard"] = ("room" if not outside(plan) else
+        found["heard"] = ("room" if not outside(plan, site_place(place, holders) == place) else
                           None if kpa is None else "suit" if kpa < ARMSTRONG_KPA else "open")
         found["shell"] = "open" if plan.get("shell") == "outdoor" else "built"
         found["grounded"] = not plan.get("ground_free")

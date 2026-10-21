@@ -16,6 +16,7 @@ pathlib.Path(tempfile.tempdir).mkdir(parents=True, exist_ok=True)
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux
 
 HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import contents  # noqa: E402
 
@@ -28,28 +29,34 @@ RULES = {"kettle": {"nouns": ["kettle"], "does": ["emits"]}, "door": {"nouns": [
 NOBODY = {"concept": "c0ffee00", "spots": [], "middle": [0.0, 0.0, 0.0], "rows": {}}
 
 
-def world_data(folder, place=PLACE, people=NOBODY, design=(), scene=None, sound=None):
+def world_data(folder, place=PLACE, people=NOBODY, design=(), scene=None):
     """A world's data folder holding only what the contents checks read of the place (its people's mapping, `people`,
     None for none), the place's design (its scene inventory's rows, `design`) and the bodies folder; all made the
-    module's (contents.DATA, contents.DESIGN, contents.BODIES)."""
+    module's (contents.DATA, contents.DESIGN, contents.BODIES). Its plan and setting give the place a room's bed in a
+    base on the Moon (score/stages/sound/beds.py over the environment's library briefs and reference bodies)."""
     data = folder / "data"
-    for kind in ("people", "scene", "sound", "checks", "effects", "motion"):
+    for kind in ("people", "scene", "sound", "checks", "effects", "motion", "plans", "physics", "places"):
         (data / kind).mkdir(parents=True, exist_ok=True)
+    for name in ("sound/sounds.json", "physics/bodies.json"):
+        (data / name).write_text((REPO / "data" / name).read_text())
+    (data / "plans" / f"{place}.json").write_text(json.dumps({"inside": True}))
+    (data / "physics/setting.json").write_text(json.dumps({"bodies": [{"body": "moon", "reference": "moon"}],
+                                                            "plots": [], "sites": [{"place": place, "on": "moon"}]}))
+    (data / "places/within.json").write_text(json.dumps({}))
     (data / "people/rows.json").write_text(json.dumps({"places": {place: people} if people else {}, "new": {}}))
     (data / "checks/row-kinds.json").write_text(json.dumps({"kinds": RULES}))
     (folder / "design").mkdir(exist_ok=True)
     (folder / "design" / f"{place}.json").write_text(json.dumps({"place": place, "rows": list(design)}))
     contents.DESIGN = folder / "design"
     (data / "scene" / f"{place}.json").write_text(json.dumps(scene or {"place": place, "lights": [], "places": []}))
-    (data / "sound/places.json").write_text(json.dumps({"places": {place: sound or {"loops": ["hum"],
-                                                                                     "from": "the creator's brief"}}}))
+    (data / "sound/places.json").write_text(json.dumps({"places": {}}))
     (folder / "bodies").mkdir(exist_ok=True)
     contents.DATA, contents.BODIES = data, folder / "bodies"
     return data
 
 
-def held_layers(stage_file, place=PLACE, room_tones=("hum",)):
-    """The light and sound layers held by the stage's root, the sound layer with the place's room tones."""
+def held_layers(stage_file, place=PLACE, room_tones=("habitat", "base_hum")):
+    """The light and sound layers held by the stage's root, the sound layer with the place's bed."""
     folder = pathlib.Path(stage_file).parent
     (folder / "layers").mkdir(exist_ok=True)
     Sdf.Layer.CreateNew(str(folder / "layers/light.usda")).Save()
@@ -339,7 +346,7 @@ def light_sound_neighbours_and_game_both_ways():
         scene["lights"][0]["from"] = "the light stage's sweep against concept K04"
         (data / "scene" / f"{PLACE}.json").write_text(json.dumps(scene))
         cases += [("the light layer and the lamp", judged("light", path), contents.PASS),
-                  ("the sound layer and its room tone", judged("sound", path), contents.PASS),
+                  ("the sound layer and its bed", judged("sound", path), contents.PASS),
                   ("the shown place standing", judged("neighbours", path), contents.PASS),
                   ("no record citing the game", judged("game", path), contents.PASS)]
         return problems_of(cases)
@@ -422,9 +429,27 @@ def a_far_look_near_a_view_both_ways():
                                        ("both stood back", judged("people", path), contents.PASS)])
 
 
+def the_bed_from_the_design_both_ways():
+    """The sound check asks for the bed the place's design gives, so a stage with another room's tone fails, and a
+    place its design leaves undecided (no site holds it) is unknown."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        data = world_data(folder)
+        path = bare_stage(folder)
+        held_layers(path, room_tones=("habitat",))
+        cases = [("the bed's hum missing", judged("sound", path), contents.FAIL)]
+        sound = Usd.Stage.Open(str(folder / "layers/sound.usda"))
+        sound.OverridePrim(f"/{PLACE}/Sound/Room/base_hum")
+        sound.GetRootLayer().Save()
+        cases += [("the whole bed", judged("sound", path), contents.PASS)]
+        (data / "physics/setting.json").write_text(json.dumps({"bodies": [], "plots": [], "sites": []}))
+        cases += [("no site holding the place", judged("sound", path), contents.UNKNOWN)]
+        return problems_of(cases)
+
+
 TESTS = (people_both_ways, effects_and_motion_both_ways, crops_both_ways, likeness_and_paint_both_ways,
          light_sound_neighbours_and_game_both_ways, the_assembled_record_and_a_waiting_entry_both_ways,
-         a_far_look_near_a_view_both_ways)
+         a_far_look_near_a_view_both_ways, the_bed_from_the_design_both_ways)
 
 if __name__ == "__main__":
     import pathlib

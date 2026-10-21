@@ -15,6 +15,7 @@ from score.stages.complete.gaps import fill
 from score.stages.complete.gaps.__main__ import gaps_faults, main
 from score.store import PROPS_HOME, Store
 
+REPO = pathlib.Path(__file__).resolve().parents[4]
 PLACE = "gaptoy"
 STAGE = f"""#usda 1.0
 (
@@ -104,6 +105,7 @@ def ran(tmp_path_factory):
                             ("checks/gaps", {"gaps": [GAP, ROWS_GAP]})):
         (data / folder).mkdir(parents=True, exist_ok=True)
         (data / folder / f"{PLACE}.json").write_text(json.dumps(written))
+    (data / "checks/row-kinds.json").write_text((REPO / "data/checks/row-kinds.json").read_text())  # sound's needs
     store = Store.in_folder(PROPS_HOME / "store")
     assembly = made(store, root / "assembly", f"assembly@{PLACE}", {f"{PLACE}.usda": STAGE},
                     {"placeholders": verdict("placeholders", "pass")})

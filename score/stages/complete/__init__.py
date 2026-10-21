@@ -38,7 +38,8 @@ FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit",
 
 def files(place):
     """The world folders, the place's design (its locked concept's scene inventory) and rigid record where it has
-    them, and the built body's report of every body the cast its design gives draws."""
+    them, the built body's report of every body the cast its design gives draws, and its bed's design (the sound
+    check's)."""
     moves = {"moves": "{data}/motion/rigid/{place}.json"} if contents.record("motion/rigid", place) else {}
     design = {"design": "{home}/design/inventory/{place}.json"} if contents.design(place) is not None else {}
     cast = contents.cast_of(place) or {}
@@ -47,7 +48,9 @@ def files(place):
     bodies |= {path.stem for path in contents.BODIES.glob("kit_*.json")} if cast.get("groups") else set()  # dealt mixes
     reports = {f"body {body}": str(contents.BODIES / f"{body}.json") for body in sorted(bodies)
                if (contents.BODIES / f"{body}.json").exists()}  # a missing one the people check fails by name
-    return {**FILES, **moves, **design, **reports}
+    from score.stages.sound import beds  # the sound check's bed, worked out from the scene's design
+    bed = {f"bed {name}": pattern for name, pattern in beds.files(place).items()}
+    return {**FILES, **moves, **design, **reports, **bed}
 
 
 def make_manifest(inputs, out, seed, params):
