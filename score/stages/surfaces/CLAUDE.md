@@ -139,8 +139,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   library variant (`library.by_library` and `resolved`, as both routes write a job), so a variant added anywhere
   re-keys every bake; details.json and composites.json are keyed on only the entries the place's models read
   (`bake_job.reads`, through `library_reads.narrowed`), and the routes' code is in the bake's code version, not its
-  files. A model neither gives (`bake_job.refusal`, entry_of's own checks run without the take: the launch's far
-  rocket) is declared as a file that is never there, naming it, so the run refuses before anything is cleared; the
+  files. A model neither gives (`bake_job.refusal`, entry_of's own checks run without the take; the launch's far
+  rocket was one until it left the launch's bake, its scene placing the library's baked rocket, #10) is declared as a file that is never there, naming it, so the run refuses before anything is cleared; the
   crops bake too.
 - **The people's paint runs on rented processor machines, a job a take** (the place lines' paint runs in
   their bake's card job, `route_bake.py`; `make_paint`, `inside/paint_take.py` through

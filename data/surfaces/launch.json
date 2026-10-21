@@ -12,24 +12,13 @@
    "place": "launch",
    "kind": "launch_far_ferry",
    "object": "harbour ferry"
-  },
-  "wf-launch-rocket-2": {
-   "places": [
-    "launch"
-   ],
-   "library_places": [
-    "prologue_launch"
-   ],
-   "place": "launch",
-   "kind": "launch_far_rocket",
-   "object": "the launch rocket on its pad"
   }
  },
  "bake": {
   "models": {
-   "far_ferry_1": "far_ferry-s1",
-   "far_rocket_1": "wf-launch-rocket-2"
+   "far_ferry_1": "far_ferry-s1"
   },
-  "entries": {}
+  "entries": {},
+  "why": "The rocket is not baked here: its entry stood only in its lost job file (4df6867a), and its scene places the library's baked rocket (data/scene/launch.json: model/far_rocket_1.gltf@1). The Launch is a part of the Square (data/places/within.json), so a rocket made again comes from the Square's own reading (its rocket_launch row), priced there (#10)."
  }
 }

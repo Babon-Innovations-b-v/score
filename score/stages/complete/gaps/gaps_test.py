@@ -260,7 +260,7 @@ def test_lost_inputs_are_place_gaps_with_their_code_work():
     assert "ship_kit@cockpit" in cockpit["lost:ship-seed:cockpit"]["work"]
     assert not any("data/scene/cockpit.json" in gap["sentence"] for gap in cockpit.values())
     launch = {gap["id"]: gap for gap in inputs.lost(runner, "launch")}
-    assert "lost:data:surfaces/launch.json:bake entry far_rocket_1" in launch, sorted(launch)
+    assert not any("bake entry" in gap for gap in launch), sorted(launch)  # its rocket is the library's (#10)
     # no row reads the launch's own round-three seed since terrain-look was retired (#27)
     assert "lost:earth-seed:launch" not in launch and "lost:earth-seed:far_city" in launch, sorted(launch)
     found = [dict(gap, low=None, high=None) for gap in lost_gaps(runner, "launch")]
