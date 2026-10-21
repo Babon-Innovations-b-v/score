@@ -68,13 +68,22 @@ def small_stage(out):
     tile = UsdShade.Material.Define(base, f"/{PLACE}/Looks/rubber_floor_bumpy")
     tile.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set("rubber_floor_bumpy")
     for name, low, high, height, look in (("plate_1", 10, 14, 0.05, "baked"), ("mat_1", 20, 24, 0.02, "tile"),
-                                          ("platform_1", -28, -24, 5.0, "baked")):
+                                          ("platform_1", -28, -24, 5.0, "baked"), ("crate_1", -20, -16, 0.03, "labelled"),
+                                          ("tray_1", -15, -12, 0.03, "unbanked")):
         piece = UsdGeom.Mesh.Define(base, f"/{PLACE}/Objects/{name}/geo")
         piece.CreatePointsAttr([(low, height, -2), (high, height, -2), (high, height, 2), (low, height, 2)])
         piece.CreateFaceVertexCountsAttr([3, 3])
         piece.CreateFaceVertexIndicesAttr([0, 2, 1, 0, 3, 2])
         bound = tile if look == "tile" else UsdShade.Material.Define(base, f"/{PLACE}/Objects/{name}/Looks/baked")
         UsdShade.MaterialBindingAPI.Apply(piece.GetPrim()).Bind(bound)
+        if look == "labelled":  # a labelled part of a surface the place's Library does not hold, as export writes it
+            part = UsdGeom.Subset.Define(base, f"/{PLACE}/Objects/{name}/geo/crate_wood")
+            part.CreateElementTypeAttr(UsdGeom.Tokens.face)
+            part.CreateIndicesAttr([0, 1])
+            for key, value in (("score:surface", "crate_wood"), ("score:sound:footstep", "footsteps_rubber")):
+                part.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+        if look == "unbanked":  # a finish the place's Library does not hold, naming no footstep of its own
+            bound.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set("tray_plastic")
     base.GetRootLayer().Save()
     root = Sdf.Layer.CreateNew(str(out / f"{PLACE}.usda"))
     root.subLayerPaths.append("./layers/edit.usda")
@@ -135,7 +144,9 @@ def check_the_footsteps(sound, hearing, out):
 
 def check_the_finish_underfoot(sound, hearing, out):
     """A step sounds as the library finish under it: the deck's, a library tile's by the surface it names, the deck's
-    again on a baked plate laid over it, and nothing on a baked platform with no finished floor under it."""
+    again on a baked plate laid over it, and nothing on a baked platform with no finished floor under it; a labelled
+    part of a surface the Library does not hold by the footstep it names, and a finish with no banked footstep as
+    nothing, never as the deck under it."""
     stage = Usd.Stage.Open(str(out / f"{PLACE}.usda"))
     meshes = hearing.floor_meshes(stage, PLACE)
 
@@ -147,6 +158,8 @@ def check_the_finish_underfoot(sound, hearing, out):
     assert heard(12.0) == deck[0].name, heard(12.0)
     assert heard(22.0) == "footsteps_rubber" != deck[0].name, heard(22.0)
     assert heard(-26.0, 5.0) is None, heard(-26.0, 5.0)
+    assert heard(-18.0) == "footsteps_rubber", heard(-18.0)
+    assert heard(-13.5) is None, heard(-13.5)
 
 
 def check_one_level(sound, hearing, out):
