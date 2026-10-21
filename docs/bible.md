@@ -424,7 +424,11 @@ is meant to fix, where it is marked, and what proves it.
   rests worse with the layer than without). Only a place whose design shows a loose row has the row (`score/stages/design_layers.py`).
   Proven when a place's assembly passes its own drop and triage with the layer, and the owner has seen its racks
   stand.
-- **The effects stage and its look** (`score/stages/effects`, its overlay; `data/effects/launch.json`). For the 15 of
+- **The effects stage and its look** (`score/stages/effects`, its overlay; the measured kinds in
+  `data/checks/effects.json`). Since 2026-10-21 a scene's record is made from its design (each object of a row whose
+  kind emits carries its kind's measured effects) and the per-place records written for the old concepts
+  (`data/effects/`) are retired with them (owner: all old stuff is retired); the look has no place until it reads a
+  design's record (its launch rocket was an old record's). What follows is its history. For the 15 of
   18 places with no effects, the launch first: its lift-off had no flame, cloud, steam or light. `effects-layer@<place>`
   makes the place's effects layer from its record (emitters riding a prim, following a motion's climb, or played once;
   lights on a prim), gated on `attached` (read off the composed stage), `footage` (each measure of the baked particles
@@ -474,8 +478,11 @@ is meant to fix, where it is marked, and what proves it.
   (bodies: rigging, body reading, generated body motion, drapes) and the crops rows (growth); `stages.MOTION_LAYER`
   names them by module. Motion sources: formula-driven paths for prescribed moves, generated motion for bodies,
   simulation for physics; every job one shot in a batch.
-- **The motion stage** (the layer's rigid module; `tools/usd/motion_layer.py`; `data/motion/rigid/`,
-  `data/checks/motion.json`). For the things that stood still only because the game never moved them (2026-10-12:
+- **The motion stage** (the layer's rigid module; `tools/usd/motion_layer.py`; `data/checks/row-kinds.json`,
+  `data/checks/motion.json`). Since 2026-10-21 its moves are made from the design (each moving row by its kind's
+  rule, `score/stages/motion/from_design.py`); the game's timed motions (`data/motion/`) and the rigid records
+  (`data/motion/rigid/`) are retired with the old concepts (owner: all old stuff is retired), and the sound row reads
+  the motion row's own moves. What follows is its history. For the things that stood still only because the game never moved them (2026-10-12:
   motion on 4 of 18 places). `motion@<place>` writes one motion layer over the place's seed from the game's timed
   motions (`data/motion`, unchanged) and its rigid record: each move a closed path (a ferry's harbour lane), a
   swing on a hinge (a hatch), a spin (a fan) or a slide on a rail (a boom, a crane trolley), its kind's speed range
@@ -588,7 +595,9 @@ is meant to fix, where it is marked, and what proves it.
   his yes or no on the removals.
 - **The motion, sound and effects layers.** Built, not reviewed: nobody has heard the sound. Proven by the owner's
   review of one place per layer, render and audio.
-- **The motion layer's models step** (`score/stages/motion/models`, its overlay; `data/motion/models/<place>.json`).
+- **The motion layer's models step** (`score/stages/motion/models`, its overlay; `data/motion/models/<place>.json`,
+  none since the garage's, the old concept's, was retired on 2026-10-21: no place has the row until a record is
+  written from a design).
   For the moving things that were absent or stood in: no rover in the garage, a code cylinder for the hangar's ship,
   primitive shapes for the workshop's robot. `motion-models@<place>` (free) lays each made model (the prop route's
   take, painted and baked by the place's surface line) on what holds it up, as a layer the assembly takes, gated on
@@ -598,7 +607,9 @@ is meant to fix, where it is marked, and what proves it.
   the ship is the hangar's `ship` inventory row, grounded by `motion-models-boxes@hangar` (paid, SAM 3) and made by
   the prop route on the hangar's own surface line (its take `ship-s1` in `data/surfaces/hangar.json`); the workshop
   has no robot row: its concept K10 shows none, and the concept decides (captain, 2026-10-12).
-- **The crops stage** (the motion layer's growth module; `score/stages/crops`, its overlay; `data/crops/greenhouse.json`). For the greenhouse's bare
+- **The crops stage** (the motion layer's growth module; `score/stages/crops`, its overlay; `data/crops/<place>.json`,
+  written from the place's design: the greenhouse's, the old concept's, was retired on 2026-10-21, so a design that
+  shows crops waits on its crop data by name). For the greenhouse's bare
   beds under a concept of planted ones. `crops-concept@greenhouse` (paid) measures each kind on the concept with SAM 3
   on 2x tiles: its patches' share of the plot and its spacing in plant widths (2026-10-12: lettuce 49 plants 1.06
   widths apart, potato 65 at 1.57, herb 28 at 1.27, the parsley and kale one canopy, `greens`; seedlings dropped with

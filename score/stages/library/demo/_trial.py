@@ -1,6 +1,6 @@
 """What the physics setups' demos share (not a demo: `demos.modules` skips a module whose name starts with _): the
-habitat's physics trial (physics-trial@habitat, recorded in the library's physics layer entry), its trial record and
-its scene, and the plan drawing of them."""
+habitat's physics trial (physics-trial@habitat, recorded in the library's physics layer entry), its scene, and the
+plan drawing of them. Its trial record is retired (record names why, so a demo reading it shows none)."""
 import json
 
 import numpy as np
@@ -15,8 +15,12 @@ def trial(inputs):
 
 
 def record(inputs):
-    """The trial record (data/physics/habitat.json): body, material, drops, hinges, pushes, moved."""
-    return json.loads((inputs.repo / "data/physics" / f"{PLACE}.json").read_text())
+    """The trial record: body, material, drops, hinges, pushes, moved. None is kept: the habitat's hand-written trial
+    record (data/physics/habitat.json) was the old concept's and is retired (owner, 2026-10-21: all old stuff is
+    retired), and a design's trial is made from its design (score/stages/physics/design.py), not written down."""
+    from score.stages.library import demos
+    raise demos.NoExample(f"the {PLACE}'s trial record was the old concept's and is retired (2026-10-21); a demo "
+                          "waits on a physics trial made from a design")
 
 
 def scene(inputs):

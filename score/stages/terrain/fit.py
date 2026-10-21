@@ -46,11 +46,8 @@ def applies(place):
 
 def files(place):
     """The ground plans and copied grounds (the old ground `under` reads), and the place's own records: its scene
-    record, its kit and, where it has one, its motion record (its sliding door leaves)."""
-    found = {"grounds": "{data}/ground", "scene": "{data}/scene/{place}.json", "kit": "{data}/kit/{place}.json"}
-    if (REPO / "data/motion" / f"{place}.json").is_file():
-        found["motion"] = "{data}/motion/{place}.json"
-    return found
+    record and its kit (its door leaves)."""
+    return {"grounds": "{data}/ground", "scene": "{data}/scene/{place}.json", "kit": "{data}/kit/{place}.json"}
 
 
 def read_optional(path):
@@ -99,22 +96,21 @@ def make(inputs, out, seed, params):
     ground = seated(place)
     plan_record = json.loads((pathlib.Path(inputs["grounds"]) / "plan" / f"{ground}.json").read_text())
     made = record.read(pathlib.Path(inputs["terrain"]) / ground)
-    scene, kit, motion = (read_optional(inputs[name]) if name in inputs else None
-                          for name in ("scene", "kit", "motion"))
+    scene, kit = (read_optional(inputs[name]) if name in inputs else None for name in ("scene", "kit"))
     scene = scene or {}
     on_seat = (kit or {}).get("on_seat", [0.0, 0.0])
     laid = outside.placed_ground(made, made["places"][place], on_seat)
     stage = judged_stage(inputs, place)
     boxes = gates.object_boxes(stage, place)
     water = made["water"]["level"] - laid.drop if made.get("water") else None
-    seen = sight.gathered(stage, gates.leaves(stage, place, kit, motion))
+    seen = sight.gathered(stage, gates.leaves(stage, place, kit))
     found = {"place": place, "ground": ground,
              "under": gates.measure_under(boxes, gates.old_ground(inputs["grounds"], plan_record, place, on_seat),
                                           laid, water),
              "floating": measure_floating(boxes, lambda low, high: gates.heights_under(
                  laid, gates.footprint_spots(low, high))),
              "continuous": measure_continuous(gates.caster(seen), scene, kit, float(seen.bounds[1][1]) + 1.0),
-             "openings": gates.measure_openings(stage, place, (scene, kit, motion), gates.ball_of(laid))}
+             "openings": gates.measure_openings(stage, place, (scene, kit), gates.ball_of(laid))}
     (out / MEASURES).write_text(json.dumps(found, indent=1))
 
 

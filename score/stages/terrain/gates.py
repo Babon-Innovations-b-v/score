@@ -46,17 +46,16 @@ def footprint(scene, kit):
 
 
 def place_files(inputs, place):
-    """A place's scene record, kit (or None) and motion record (or None, also when no motion folder is read)."""
+    """A place's scene record and kit (or None)."""
     def read(folder):
         path = pathlib.Path(inputs[folder]) / f"{place}.json" if folder in inputs else None
         return json.loads(path.read_text()) if path and path.exists() else None
-    return read("scenes") or {}, read("kits"), read("motion")
+    return read("scenes") or {}, read("kits")
 
 
-def leaves(stage, place, kit, motion):
-    """The prims of the place's moving door leaves: its motion record's sliding prims and its kit's `_leaf` pieces'
-    objects."""
-    found = [entry["prim"] for entry in (motion or {}).get("motions", []) if "slide" in entry]
+def leaves(stage, place, kit):
+    """The prims of the place's moving door leaves: its kit's `_leaf` pieces' objects."""
+    found = []
     stems = {piece["model"].rsplit("_", 1)[0] for piece in (kit or {}).get("pieces", [])
              if piece["kind"].endswith("_leaf") and piece.get("model")}
     objects = stage.GetPrimAtPath(f"/{place}/Objects")
@@ -140,10 +139,10 @@ def probes(rays, scene, kit, up):
 
 def measure_openings(stage, place, records, ball=None, up=(0.0, 1.0, 0.0)):
     """A place stage's openings: every doorway's floors and the void rays from inside, the doors open; `records` its
-    (scene record, kit or None, motion record or None); `ball` the world's middle and radius in the place's frame on
+    (scene record, kit or None); `ball` the world's middle and radius in the place's frame on
     a small world (its horizon dips)."""
-    scene, kit, motion = records
-    seen = sight.gathered(stage, leaves(stage, place, kit, motion))
+    scene, kit = records
+    seen = sight.gathered(stage, leaves(stage, place, kit))
     rays = caster(seen)
     doors = door_floors(rays, kit_doors(kit) + shell_doors(scene), up)
     viewed = sight.voids(seen, probes(rays, scene, kit, up), up, ball=ball)

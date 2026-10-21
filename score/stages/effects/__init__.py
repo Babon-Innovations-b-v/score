@@ -53,7 +53,7 @@ import effects as effect_layer  # noqa: E402
 DRIFT_MOST = 0.01
 # How often the composed stage is read along a motion and an event, seconds.
 READ_EVERY = 0.5
-# The flame's light on the pad against the place's own lamps: in the night footage (data/effects/launch.json's
+# The flame's light on the pad against the place's own lamps: in the night launch footage (the old launch record's
 # footage sources) the apron round the flame is lit far brighter than the floodlit tower beside it.
 LIGHT_OVER = 2.0
 # The pad round the rocket the light is judged on: rings this far out from its middle, eight spots each, metres.

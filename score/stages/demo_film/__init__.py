@@ -3,21 +3,23 @@ complete, with its own sound; place nodes, paid (the frames on the cheapest card
 tools/props/cloud/blender_cloud.py inside the runner's clearance, drawn by tools/blender/inside/usd_views.py as
 tools/review/demo.py plans them).
 
-    data/definitions/demo_films/<film>.json   {"place", "camera" (a camera of the place's scene record), "why",
-                                               and optionally "eye" and "aim" or "across" (a spot of its own for
-                                               that camera, own_cameras), "then" (its second shot's camera: a
-                                               record camera's name or a spot of its own), "start", "leave_out",
-                                               "final" (the creator's yes: true)}
+    a locked film script's walk-through or hero still   its `shows`: {"place", and optionally "film" (another film
+                                               of the place than its own), "camera" (a camera of the place's scene
+                                               record, else its first), "eye" and "aim" or "across" (a spot of its
+                                               own for that camera, own_cameras), "then" (its second shot's camera:
+                                               a record camera's name or a spot of its own), "start", "leave_out"}
 
-A film named for its place (<place>.json) is the place's own film, the demo-film row; any other film of a place (the
-ship's hull through the hangar: hull.json, place hangar) is the demo-film-extra row's, which makes all of them for
-that place. One file a film, so adding a film moves no other film's key; a place with no file has no node.
+The films are the creator's locked film scripts' (CONTEXT.md "film script"; final.scripts), never a record written
+per place: the old per-place film records (data/definitions/demo_films) were the old concepts' and are retired
+(owner, 2026-10-21: all old stuff is retired). A segment naming no `film` shows the place's own film, the demo-film
+row; one naming a `film` (the ship's hull through the hangar: film hull, place hangar) is the demo-film-extra row's,
+which makes all of them for that place. A place no locked script shows has no node.
 
 A film is one batch (#21, the owner's batch of 2026-10-20): its frames are bought once, after the creator's yes, and
 never again inside it. Before the yes everything is free: the creator looks at the free local preview
 (tools/review/film_preview.py: the same plan, a few frames drawn on this PC) and the forecast (`python -m
 score.stages.demo_film forecast <place>`: frames, cards, card minutes and euros, likely and high, from a scan of the
-stage for fog, volumes and glass); then he writes `"final": true` in the film's record. A film without it keeps
+stage for fog, volumes and glass); his lock of the script is the yes (`final`). A film without it keeps
 its node (the basket takes it), but its row is Blocked before anything is bought (require_yes); a film whose
 forecast's high passes the euros its run was cleared at is Blocked the same way (refuse_over_clearance), so a dearer
 film is a new ask at the forecast's price. A frame job that dies or passes its deadline is a gap: its film fails
@@ -42,7 +44,7 @@ the gate, and a new film is a new batch and a new yes.
                    frozen stretch after the title card, a length within LENGTH_SLACK of planned_seconds for its
                    shots) and clearance_checks on the final stage (no eye nearer a mesh, a person or a moving thing than the
                    planner's clearance, at each frame's own moment); every shot at least SECONDS; a frame showing a
-                   person where the stage holds people; no thing seen moving in a shot without a sound of its own
+                   person where the place's design stands people; no thing seen moving in a shot without a sound of its own
                    (shots.py)
 """
 import json
@@ -55,10 +57,10 @@ import sys
 import numpy as np
 
 from score import checks, contracts, graph
+from score.stages import people_rows
 from score.stages.demo_film import shots
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-FILMS = REPO / "data/definitions/demo_films"
 SIZE = (1280, 720)
 # Two shots a place, each from its own camera, so a finished place stays on screen about 7 s unbroken instead of 3.5 s
 # (the finish plan for world 1, 2026-10-18); a place whose record holds one camera only gets one.
@@ -72,9 +74,6 @@ LENGTH_SLACK = 0.5
 # standing person's chest, so the view runs level across the room.
 ACROSS_EYE = 1.6
 ACROSS_AIM = 1.2
-# A film starts this long before the first one-off moment of its place's motion record (motion_start), so the moment
-# lands about a second into the shot (the launch's lift-off; overseer, 2026-10-15).
-LEAD = 1.0
 # Workbench and Cycles on a 24 GB card only: the forecast prices that card, and a dearer class taken when it is out
 # of stock would be a fallback chain inside the batch (#21); none in stock is a gap and a new ask.
 CLASSES = "gpu-24gb"
@@ -106,13 +105,32 @@ STILL_PIXELS = 0.5
 OUTPUTS = ("film.mp4", "views.json", "concept.png")
 
 
+# A segment's `shows` keys a film takes over (own_cameras, leave_out, film_start); the rest is the script's.
+FILM_KEYS = ("camera", "eye", "aim", "across", "fov", "stand", "then", "start", "leave_out")
+
+
+def films_of(scripts):
+    """{film: its record} of every film the scripts ({name: script}) show, each with its `script`, its place and the
+    segment's own camera keys: the first segment showing it decides; `final` is true, the script being locked."""
+    from score.stages.demo_film import final
+    found = {}
+    for name, script in scripts.items():
+        for _, segment in final.shown(script):
+            shows = segment["shows"]
+            found.setdefault(shows.get("film") or shows["place"], {
+                "place": shows["place"], "script": name, "final": True,
+                **{key: shows[key] for key in FILM_KEYS if key in shows}})
+    return found
+
+
 def films():
-    """{film: its record} of every film the world names (none without the folder)."""
-    return {path.stem: json.loads(path.read_text()) for path in sorted(FILMS.glob("*.json"))}
+    """{film: its record} of every film the creator's locked scripts show."""
+    from score.stages.demo_film import final
+    return films_of(final.scripts())
 
 
 def said_yes(film):
-    """Whether the creator said yes to the film (its record's `final`), after its free preview and forecast."""
+    """Whether the creator said yes to the film (its `final`: his lock of the script that shows it)."""
     return film.get("final") is True
 
 
@@ -139,32 +157,34 @@ def applies_extra(place):
 
 
 def common_files(place):
-    """The place's seed scene record, motion record and picked viewpoints where it has them, the surfaces' sounds (the
-    soundtrack's footsteps), and every tool file a film is made with. A ship room has no seed record (its record is its assembly's scene.json, which demo.plan reads
-    first), so it declares none, as stills.files (2026-10-16: demo-film@cockpit refused, data/scene/cockpit.json
-    missing)."""
+    """The place's seed scene record where it has one, the people its design stands (its entry of
+    data/people/rows.json: seen_faults), the surfaces' sounds (the soundtrack's footsteps), and every tool file a film
+    is made with. A ship room has no seed record (its record is its assembly's scene.json, which demo.plan reads
+    first), so it declares none (2026-10-16: demo-film@cockpit refused, data/scene/cockpit.json missing)."""
     found = {f"tool {path}": "{repo}/" + path for path in TOOLS}
     found["sound surfaces"] = "{data}/sound/surfaces.json"  # the walker's footsteps by the kit kind underfoot
     if (REPO / "data/scene" / f"{place}.json").exists():
         found["scene"] = "{data}/scene/" + place + ".json"
-    if (REPO / "data/motion" / f"{place}.json").exists():
-        found["motion"] = "{data}/motion/" + place + ".json"
-    if (REPO / "data/review" / place / "viewpoints.json").exists():
-        found["viewpoints"] = "{data}/review/" + place + "/viewpoints.json"
-    if (REPO / "data/characters" / f"{place}.json").exists():  # who the place's cast stands (seen_faults)
-        found["cast"] = "{data}/characters/" + place + ".json"
+    found["people"] = ("{data}/people/rows.json", people_rows.place_part(place))
     return found
 
 
+def script_files(names):
+    """The locked film scripts that show the named films, keyed `script <name>`: a lock or its change makes them again."""
+    from score.stages.demo_film import final
+    every = films()
+    return {"script " + script: "{dashboard}/" + f"{final.LOCKED}/{script}.json"
+            for script in sorted({every[name]["script"] for name in names if name in every})}
+
+
 def files(place):
-    """The place's own film record and the common files."""
-    return {"film " + place: "{data}/definitions/demo_films/" + place + ".json", **common_files(place)}
+    """The locked scripts showing the place's own film and the common files."""
+    return {**script_files([place]), **common_files(place)}
 
 
 def extra_files(place):
-    """Each of the place's other film records and the common files."""
-    return {**{"film " + name: "{data}/definitions/demo_films/" + name + ".json" for name in extras(place)},
-            **common_files(place)}
+    """The locked scripts showing the place's other films and the common files."""
+    return {**script_files(extras(place)), **common_files(place)}
 
 
 def film_tools():
@@ -188,10 +208,12 @@ def place_of(folder):
     return next(pathlib.Path(folder).glob("*.usda")).stem
 
 
-def named_films(inputs):
-    """{film: its record} of the film records among the node's inputs."""
-    return {name.removeprefix("film "): json.loads(pathlib.Path(path).read_text())
-            for name, path in inputs.items() if name.startswith("film ")}
+def named_films(inputs, place, own):
+    """{film: its record} of the place's films the locked scripts among the node's inputs show: its own (`own`) or
+    its others."""
+    found = films_of({name.removeprefix("script "): json.loads(pathlib.Path(path).read_text())
+                      for name, path in inputs.items() if name.startswith("script ")})
+    return {name: film for name, film in found.items() if film["place"] == place and (name == place) == own}
 
 
 def render(jobs, out):
@@ -205,21 +227,10 @@ def render(jobs, out):
         raise RuntimeError(f"blender_cloud.py failed: {done.stderr[-2000:]}")
 
 
-def motion_start(inputs):
-    """The stage's second a film starts at: LEAD before the first one-off moment of the place's motion record (a
-    motion that does not loop: its start, or for a climb its lift-off), never before 0; 0 with no such motion."""
-    if "motion" not in inputs:
-        return 0.0
-    motions = json.loads(pathlib.Path(inputs["motion"]).read_text()).get("motions", [])
-    moments = [motion["start"] + motion.get("climb", {}).get("lift", 0.0) for motion in motions
-               if not motion.get("loop")]
-    return max(0.0, min(moments) - LEAD) if moments else 0.0
-
-
-def film_start(film, inputs):
-    """The second the film starts at: its record's own `start` where it names one (the airlock's 6 s, after its pump's
-    fog clears: inside that fog a frame took 47 s to 17 min, 2026-10-18), else motion_start's."""
-    return float(film["start"]) if "start" in film else motion_start(inputs)
+def film_start(film):
+    """The second the film starts at: its segment's own `start` where it names one (a pump's fog cleared first:
+    inside that fog a frame took 47 s to 17 min, 2026-10-18), else the stage's start."""
+    return float(film.get("start", 0.0))
 
 
 def film_one(stage_folder, name, film, out, log_folder, start=0.0):
@@ -386,7 +397,7 @@ def own_cameras(record_path, film):
     scene record itself untouched): the first its `camera`, the second its `then`, else the record camera standing
     furthest from the first (second_camera); one only where the record holds no other."""
     record = json.loads(record_path.read_text())
-    first = film_view(record, film["camera"], film)
+    first = film_view(record, film.get("camera") or first_camera(record), film)
     then = film.get("then")
     second = (film_view(record, then if isinstance(then, str) else then["camera"], then if isinstance(then, dict)
                         else {}) if then else second_camera(record, first))
@@ -395,6 +406,13 @@ def own_cameras(record_path, film):
     record["views"] += shots
     record_path.write_text(json.dumps(record, indent=1))
     return [shot["name"] for shot in shots][:SHOTS]
+
+
+def first_camera(record):
+    """The scene record's first camera's name (the plan's first view, as the scene record writes them)."""
+    if not record.get("views"):
+        raise ValueError("the scene record has no camera to start the film at")
+    return record["views"][0]["name"]
 
 
 def film_view(record, name, spot):
@@ -451,17 +469,18 @@ def make(inputs, out, seed, params):
     """The place's own film, in the output's root."""
     stage_folder = final_stage(inputs)
     place = place_of(stage_folder)
-    film = named_films(inputs)[place]
+    film = named_films(inputs, place, True)[place]
     require_yes({place: film})
-    film_one(stage_folder, place, film, out, out, film_start(film, inputs))
+    film_one(stage_folder, place, film, out, out, film_start(film))
 
 
 def make_extra(inputs, out, seed, params):
     """Each of the place's other films, in a folder of its name."""
     stage_folder = final_stage(inputs)
-    require_yes(named_films(inputs))
-    for name, film in sorted(named_films(inputs).items()):
-        film_one(stage_folder, name, film, out / name, out, film_start(film, inputs))
+    named = named_films(inputs, place_of(stage_folder), False)
+    require_yes(named)
+    for name, film in sorted(named.items()):
+        film_one(stage_folder, name, film, out / name, out, film_start(film))
 
 
 def film_faults(folder):
@@ -516,27 +535,25 @@ def seen_faults(stage, views, people=0):
     seen = shots.people_seen(stage, views)
     if seen is not None and not any(seen.values()):
         found.append("the place holds people and no frame shows one")
-    elif seen is None and people:  # the motion layer's bodies: the cast stands people the stage never got (#26)
-        found.append(f"the place's cast stands {people} people and the film's stage holds none")
+    elif seen is None and people:  # the motion layer's bodies: the design stands people the stage never got (#26)
+        found.append(f"the place's design stands {people} people and the film's stage holds none")
     found += [f"{shot}: {path} moves in view with no sound" for shot, paths in shots.silent_moving(stage, views).items()
               for path in paths]
     return found
 
 
-def cast_people(cast):
-    """How many people the place's cast record stands (data/characters/<place>.json: its `people`, each group's
-    `count` and the crowd's `count`; 0 with none)."""
-    if not cast:
-        return 0
-    record = json.loads(pathlib.Path(cast).read_text())
-    return (len(record.get("people", [])) + sum(group["count"] for group in record.get("groups", []))
-            + (record.get("crowd") or {}).get("count", 0))
+def cast_people(place, rows):
+    """How many people the place's design stands (data/people/rows.json at `rows`): its people and its crowd's count
+    (one at least where SAM 3 could not part the crowd); 0 with none, or no rows read."""
+    found = json.loads(pathlib.Path(rows).read_text()) if rows else {"places": {}}
+    crowd = people_rows.crowd_row(place, found)
+    return len(people_rows.persons(place, found)) + ((people_rows.crowd_count(crowd[1]) or 1) if crowd else 0)
 
 
 def film_verdict(folders, inputs):
     """The `film` verdict over the given films' folders (module docstring)."""
     stage_folder = final_stage(inputs)
-    people = cast_people(inputs.get("cast"))
+    people = cast_people(place_of(stage_folder), inputs.get("people"))
     measured = {folder.name: film_measures(folder, stage_folder, people) for folder in folders}
     faults = [fault for _, _, _, found in measured.values() for fault in found]
     reason = "; ".join(faults[:3]) if faults else "; ".join(

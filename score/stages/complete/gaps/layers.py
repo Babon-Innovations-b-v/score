@@ -6,12 +6,11 @@ inventory are `missing`, with their "row")."""
 from score.stages.complete.gaps import PLACE
 from score.stages.demo_film import needs as film_needs
 from score.stages.light import needs as light_needs
-from score.stages.motion import needs as motion_needs
 from score.stages.sound import needs as sound_needs
 from score.stages.terrain import needs as ground_needs
 
 SOURCES = {"sound": sound_needs.gaps, "light": light_needs.gaps, "ground": ground_needs.gaps,
-           "film": film_needs.gaps, "motion": motion_needs.gaps}
+           "film": film_needs.gaps}
 
 
 def gaps(place, data):

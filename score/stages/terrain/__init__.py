@@ -46,7 +46,7 @@ def place_layers(folder, made, record_plan, inputs):
     {place: the neighbours written (none: a place's shown places are its own stage's)}."""
     written = {}
     for place, seat in record_plan["seats"].items():
-        scene, kit, _ = gates.place_files(inputs, place)
+        scene, kit = gates.place_files(inputs, place)
         if not scene:
             continue
         zoned, laid = outside.meshes(made, seat, (kit or {}).get("on_seat", [0.0, 0.0]), gates.footprint(scene, kit))

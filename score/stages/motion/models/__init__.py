@@ -18,7 +18,7 @@ effects stages' (captain, 2026-10-12): they ride the model's prim, /<place>/Obje
                             place's seed): no gap over what is under it, its weight over what it touches, nothing of
                             it sunk, and it lies in no other object deeper than resting.TOLERANCE
 
-A place without a record has no row. DINOv2's likeness is not judged here until likeness.LIKENESS_LEAST is set (the
+A place without a record has no row (none has one since the old records were retired, 2026-10-21). DINOv2's likeness is not judged here until likeness.LIKENESS_LEAST is set (the
 prop route's likeness row blocks on it the same way); the outline alone does not tell like shapes apart.
 """
 import json
@@ -52,19 +52,9 @@ DROP_SAMPLES = 6000
 
 
 def applies(place):
-    """A place with a models record written for its concept: a designed place's only when every model's take is one
-    its design hands in; one naming an old concept's takes (the garage's kit5-rover-3, its close-up lost with the old
-    disk 2026-10-19) is a gap of the motion layer (motion/needs.py), not a row reading a lost picture."""
-    return (FOLDER / f"{place}.json").exists() and not old_takes(place)
-
-
-def old_takes(place):
-    """The takes of the place's models record its approved design does not hand in ([] for a place with no design)."""
-    import score.stages.props.prop_data as prop_data
-    if not prop_data.designed(place) or not (FOLDER / f"{place}.json").exists():
-        return []
-    handed = {entry.get("take") for entry in prop_data.objects(place).values()}
-    return sorted(entry["take"] for entry in record_of(place)["models"].values() if entry["take"] not in handed)
+    """A place with a models record. None has one: the old records, written for the old concepts (the garage's rover),
+    were retired (owner, 2026-10-21: all old stuff is retired), and no rule writes one from a design yet."""
+    return (FOLDER / f"{place}.json").exists()
 
 
 def record_of(place):

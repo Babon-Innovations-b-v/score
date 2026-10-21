@@ -272,29 +272,26 @@ def a_sound_output(folder, uses):
 def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said():
     """Fault (2026-10-12): the assembly kept the seed's sound layer, so camp, launch and square failed complete's
     sound check. The layer is written from the accepted output: the room tone under Sound/Room, the hum at the fan's
-    row, a motion's sound at its prim from its start, each file under its world name; a hum on a row the stage lacks
-    is named."""
+    row, a motion's sound at its prim at its own second of the stage (the sound record gives one use a round), each
+    file under its world name; a hum on a row the stage lacks is named."""
     from pxr import Usd, UsdMedia
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         root = a_toy(folder / "out")
-        (folder / "motion").mkdir()
-        (folder / f"motion/{TOY}.json").write_text(json.dumps({"motions": [{"prim": f"/{TOY}/Objects/door_1",
-                                                                             "start": 2.0}]}))
         uses = [{"sound": "tone", "role": "room", "on": None, "from": "places.json"},
                 {"sound": "hum", "role": "object", "on": "fan", "from": "row fan"},
-                {"sound": "hum", "role": "motion", "on": f"/{TOY}/Objects/door_1", "at": 0.5, "loops_until": None,
+                {"sound": "hum", "role": "motion", "on": f"/{TOY}/Objects/door_1", "at": 2.5, "loops_until": None,
                  "from": "door"},
                 {"sound": "hum", "role": "object", "on": "pump", "from": "row pump"}]
         made = a_sound_output(folder / "sound", uses)
-        unplaced = sounds.take(made, root, {"motions": folder / "motion", "sounds": folder / "none.json"})
+        unplaced = sounds.take(made, root, {"sounds": folder / "none.json"})
         assert unplaced == ["hum (object): no prim of the row or name pump on the stage"], unplaced
         stage = Usd.Stage.Open(str(root))
         tone = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Sound/Room/tone"))
         assert tone.GetFilePathAttr().Get().path == "../assets/sound/tone.ogg"
         assert (root.parent / "assets/sound/tone.ogg").read_bytes() == b"tone"
         assert stage.GetPrimAtPath(f"/{TOY}/Objects/fan_1/Sound")
-        door = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Objects/door_1/Sound_0_2000"))  # its round starts at 2 s
+        door = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Objects/door_1/Sound_0"))
         assert door.GetStartTimeAttr().Get().GetValue() == 2.5 * stage.GetTimeCodesPerSecond()
         assert stage.GetRootLayer().subLayerPaths[2] == "./layers/sound.usda"
 

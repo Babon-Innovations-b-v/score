@@ -14,9 +14,9 @@ adds what moves it. `stages.MOTION_LAYER` names each module's rows in the stage 
 
 Every paid job of the layer is one shot in a batch: no paid retry, no fallback chain, no tweak loop; a job that fails
 is a gap. The free motion check (`check.py`, #23) judges every rigid move against its intended motion; the films'
-gate (`../demo_film`, `seen_faults`) holds a place whose cast record stands people to showing one. What the layer
-needs at a place is worked out free in `needs.py` (a row of a moving kind nothing moves, a motion need no record
-names), the gaps check's `motion` source (`../complete/gaps/layers.py`), each a line of code work, never a guess.
+gate (`../demo_film`, `seen_faults`) holds a place whose cast record stands people to showing one. The rigid
+module moves every moving row of the design by its kind's rule, so it leaves no motion gap of its own (its old
+`needs.py`, which named rows the old records left unmoved, went with them, 2026-10-21).
 
 The motion stage (the paper's Methods, "The canonical scene": motion; experimental, PRD #6): a scene's motion layer,
 its rigid moves made from its design (`from_design.py`), written by `tools/usd/motion_layer.py` over the scene's
@@ -33,9 +33,9 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   read it there; `designed` fails a moving thing on no inventory row's object and a moving row with no object on
   the stage. A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never
   typed by hand.
-- **The old records** (`data/motion/<place>.json`, the game's timed motions, and `data/motion/rigid/<place>.json`,
-  written for the old concepts) are no input of this stage; the sound stage and the completion gate's contents check
-  still read them until their owners move.
+- **The old records are retired** (`data/motion/<place>.json`, the game's timed motions, `data/motion/rigid/` and
+  `data/motion/models/`, written for the old concepts; owner, 2026-10-21: all old stuff is retired). The sound row
+  reads this row's `moves.json` for its moving things.
 
 - **Motion that fits the place.** A moving thing's numbers are measured, not typed by eye: its path stays in its free space
   (`clear`), its speed in the cited range of its kind (`data/checks/motion.json`, every range with its source), its

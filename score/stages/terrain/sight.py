@@ -10,7 +10,7 @@ taken under that dip.
     scene = sight.gathered(stage)                   # one trimesh of everything drawn, the sky and lights left out
     found = sight.voids(scene, probes, up, ball=(middle, radius))   # the void rays from each probe, and their share
 
-Doors are judged open: every moving leaf (a motion record's sliding prim, a kit piece whose kind ends in `_leaf`) is
+Doors are judged open: every moving leaf (a kit piece whose kind ends in `_leaf`) is
 left out of the gathered mesh, so an opening is judged as it stands when the door is open.
 """
 import numpy as np

@@ -105,20 +105,26 @@ def test_the_locked_script_is_the_rows_input_and_a_new_lock_moves_its_key():
         final.DASHBOARD = kept
 
 
-def test_a_place_a_script_shows_needs_its_film_record_its_yes_and_two_shots():
-    """The film layer's gaps (needs.py), worked out from the scripts and records alone."""
+def test_a_film_a_script_shows_waits_on_its_lock():
+    """The film layer's gaps (needs.py), worked out from the scripts alone: a film a starter shows that no locked
+    script shows waits on his lock, its node named; a locked one is no gap."""
+    import shutil
+    from score.stages import demo_film
     data = pathlib.Path(tempfile.mkdtemp())
-    for folder in ("films", "definitions/demo_films", "scene"):
-        (data / folder).mkdir(parents=True)
-    (data / "films/toy.json").write_text(json.dumps(a_script(
-        [*WALKS, {"cut": "walk-through", "shows": {"place": "alpha", "film": "wing"}, "seconds": 7.0}])))
-    (data / "definitions/demo_films/alpha.json").write_text(json.dumps({"place": "alpha", "camera": "door"}))
-    (data / "definitions/demo_films/beta.json").write_text(json.dumps({"place": "beta", "camera": "door",
-                                                                       "then": "back", "final": True}))
-    (data / "scene/alpha.json").write_text(json.dumps({"views": [{"name": "door"}]}))
-    assert [(gap["id"], gap["node"]) for gap in needs.gaps("alpha", data)] == [
-        ("film:yes:alpha", "demo-film@alpha"), ("film:shot:alpha", None), ("film:record:wing", None)]
-    assert needs.gaps("beta", data) == [] and needs.gaps("gamma", data) == []
+    (data / "films").mkdir()
+    walk = {"cut": "walk-through", "seconds": 4.0}
+    script = {"segments": [dict(walk, shows={"place": "alpha"}), dict(walk, shows={"place": "beta"})]}
+    (data / "films/env.json").write_text(json.dumps(script))
+    real = final.scripts
+    final.scripts = lambda: {"env": {"segments": [dict(walk, shows={"place": "beta"})]}}
+    try:
+        assert [(gap["id"], gap["node"]) for gap in needs.gaps("alpha", data)] == [
+            ("film:yes:alpha", "demo-film@alpha")]
+        assert needs.gaps("beta", data) == [] and needs.gaps("gamma", data) == []
+        assert demo_film.films()["beta"]["final"] is True, "the lock is the yes"
+    finally:
+        final.scripts = real
+        shutil.rmtree(data)
 
 
 def a_film(folder, tone, volume):

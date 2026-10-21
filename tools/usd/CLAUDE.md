@@ -19,7 +19,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   between the edit layer and the base; `write_root` keeps it there when it exists. It is the characters stage's, never
   written here.
 - **The effects layer** (`effects.py`, `layers/effects.usda`, between the edit layer and the base with the other stage
-  layers): a place's particle effects from its record (`data/effects/<place>.json`, every entry with its game `from`),
+  layers): a place's particle effects from its record (made from its design by the effects stage; the old per-place
+  records, `data/effects/`, were retired on 2026-10-21),
   each emitter written twice. The schema is an Xform `/<place>/Effects/<emitter>` in the emitter's own frame carrying
   `score:effect:*` (kind; look `speck` or `puff`; a puff's card, dust or plain for steam, fog and mist; emitter shape and size; count, rate, lifetime, explosiveness and a
   burst's period; direction, spread, flatness, speed; gravity in the emitter's frame; damping, radial push,
@@ -225,7 +226,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   turns, the kit lamps, the tube's laying and every real record.
 
 - **The sound stage** (`sound.py`) writes `layers/sound.usda` only (UsdMedia.SpatialAudio: room tones from
-  `data/sound/places.json`, objects' own sounds from their inventory rows, motions' sounds from `data/motion`, and
+  `data/sound/places.json`, objects' own sounds from their inventory rows, and
   a bank of surface sounds each library surface points at) and copies the files into `assets/sound/`. Levels come
   from `data/sound/catalogue.json` with `sounds.json` over it. It never writes the base. `soundtrack` mixes what a
   camera hears; nothing calls it since 2026-10-18 (`hearing.py` replaced it; it goes the next time sound.py changes
@@ -239,13 +240,15 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   no card is silent. Keep the mix out of sound.py for the reason above.
 - **The motion stage** (`motion.py`) writes `layers/motion.usda` only: time samples on prims the base already has (a
   door's translate, a light's intensity, a turntable's rotateY; a kit piece keeps its own transform under the slide's
-  outermost translate), as overs, from `data/motion/<place>.json` (each motion's prim, its cycle:
+  outermost translate), as overs, from a timed motion record given to it (the game's per-place records, `data/motion/`,
+  were retired on 2026-10-21; each motion's prim, its cycle:
   start, length, loop, its game numbers with a `from`, and the sounds the game plays with it for `sound.py`). A thing
   the game moves but the base does not draw while it rests (the airlock's sunk inner door, a dark warning light) is
   the motion's `adds`, the layer's only defs. A game motion keeps the game's own speeds and lengths; a rest
   the player's pace decides is the record's and says so. `motion_test.py` checks it without Blender.
 - **Moving things** (`motion_layer.py`, experimental): what the game left standing set moving in its place from
-  `data/motion/rigid/<place>.json` (a closed path, a swing on a hinge, a spin, or a motion record's slide), written into the
+  the motion stage's rigid record, made from the design (`--record`: a closed path, a swing on a hinge, a spin, or a
+  slide), written into the
   same `layers/motion.usda` with the game's motions over a stage folder's own layers. Every number has a source (its
   `from`; the kind's speed range in `data/checks/motion.json`); the motion stage (`score/stages/motion`) gates it.
 - **Framework shaders** (`shaders.py`): a surface the library's flat colour cannot carry gets a UsdPreviewSurface

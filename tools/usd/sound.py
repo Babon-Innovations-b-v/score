@@ -11,8 +11,6 @@ catalogue's level in dB) and how it plays, with the framework's own facts beside
                                       stage's start; outside on the Moon, what is heard through the suit instead
     <object>/Sound                    an object's own sound (its inventory row's `sound`: a hum, a buzz, a fan):
                                       spatial, at the object, looping
-    <moving prim>/Sound_<n>           a sound the game plays with a motion (data/motion/<place>.json `sounds`):
-                                      spatial, from its start time code, once or looping to its end
     /<place>/Sound/Bank/<name>        every surface sound (footstep, impact, scrape) as a sound an engine plays on
                                       an event; each library surface (/<place>/Library/<surface>) points at its own
                                       through the relationships score:sound:footstep, :impact and :scrape
@@ -52,7 +50,6 @@ SOUNDS = REPO / "data/sound/sounds.json"
 SURFACES = REPO / "data/sound/surfaces.json"
 PLACES = REPO / "data/sound/places.json"
 INVENTORIES = REPO / "data/inventory"
-MOTIONS = REPO / "data/motion"
 # Buses heard as they are, not from a spot in the room: a place's air, and the player's own suit.
 NON_SPATIAL_BUSES = ("ambience", "suit")
 HAPPENINGS = ("footstep", "impact", "scrape")
@@ -192,29 +189,6 @@ def rounds_of(motion):
     return [start + length * number for number in range(max(1, math.ceil(SOUND_SPAN_SECONDS / length)))]
 
 
-def motion_sounds(stage, place, out, rate, found):
-    """The sounds the game plays with each motion (data/motion/<place>.json), spatial at the moving prim from their
-    start time code; a looping one plays until its end."""
-    path = MOTIONS / f"{place}.json"
-    if not path.exists():
-        return
-    for motion in read(path).get("motions", []):
-        target = stage.GetPrimAtPath(motion.get("prim", ""))
-        if not target:
-            continue
-        for round_start in rounds_of(motion):
-            for number, sound in enumerate(motion.get("sounds", [])):
-                start = (round_start + float(sound["at"])) * rate
-                until = sound.get("loops_until")
-                end = None if until is None else (round_start + float(until)) * rate
-                playback = UsdMedia.Tokens.loopFromStartToEnd if end is not None else UsdMedia.Tokens.onceFromStart
-                name = f"Sound_{number}" + (f"_{round(round_start * 1000)}" if round_start else "")
-                if audio_prim(stage, target.GetPath().AppendChild(name), sound["name"], entry_of(sound["name"]), out,
-                              aural=UsdMedia.Tokens.spatial, playback=playback, start=start, end=end,
-                              source=sound.get("from", "")):
-                    found["motion"] += 1
-
-
 def surface_sounds(stage, place, out, found):
     """Every library surface's footstep, impact and scrape as bank sounds, each surface pointing at its own."""
     import export  # noqa: E402  (tools/usd; its import is heavy, so only here)
@@ -259,11 +233,9 @@ def write_layer(place, out):
     export.held_by_root(place, out)
     stage = Usd.Stage.Open(str(out / f"{place}.usda"))
     stage.SetEditTarget(Usd.EditTarget(layer))
-    rate = stage.GetTimeCodesPerSecond()
-    found = {"room": 0, "object": 0, "motion": 0, "bank": 0}
+    found = {"room": 0, "object": 0, "bank": 0}
     room_tones(stage, place, out, found)
     object_sounds(stage, place, out, found)
-    motion_sounds(stage, place, out, rate, found)
     surface_sounds(stage, place, out, found)
     layer.Save()
     return found
