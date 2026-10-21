@@ -94,23 +94,54 @@ def test_every_committed_inventory_is_sound():
         assert inventory.problems(found, scene) == [], scene
 
 
-def test_the_habitat_and_the_flat_have_their_style_text_in_the_repo():
-    assert "pale panelled sleep pods" in place.style_text("habitat")  # its style v2, from its picked concept K03
-    assert "one-room state flat" in place.style_text("prologue_flat")
+def a_design(folder, scene, sha, colour):
+    """A store in `folder` holding one locked concept of `scene`: its picture (a plain `colour` PNG) and its lock."""
+    from PIL import Image
+    _, _, Store = place.design()
+    store = Store.in_folder(folder)
+    objects = pathlib.Path(folder) / "objects"
+    (objects / "blobs").mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (64, 36), colour).save(objects / "blobs" / sha, "PNG")
+    picks = objects / "concepts" / scene / "picks"
+    picks.mkdir(parents=True, exist_ok=True)
+    (picks / f"{len(list(picks.iterdir())):04d}.json").write_text(json.dumps(
+        {"place": scene, "sha": sha, "by": "owner", "at": "2026-10-21T10:00:00+00:00", "environment": None}))
+    return store
 
 
-def test_a_place_with_no_style_text_or_none_at_all_is_refused():
+def test_a_scenes_style_is_its_environments_line_and_its_locked_concepts_look():
+    """A scene added in the app (no place.json entry) is worded from its design alone: the environment concept's
+    style line, then its locked concept's look, read once by one call on that very picture and kept."""
+    asked = []
+    def asker(question, picture):
+        asked.append((question, picture.getpixel((0, 0))))
+        return "  matte  sand-blasted steel, warm amber light "
     with tempfile.TemporaryDirectory() as folder:
-        path = pathlib.Path(folder) / "place.json"
-        path.write_text(json.dumps({"shared": {}, "lab": {"style": {"text": ""}}}))
-        assert "no style text" in refusal(lambda: place.style_text("lab", path))
-        assert "no place" in refusal(lambda: place.style_text("garage", path))
-        assert "no place" in refusal(lambda: place.style_text("shared", path))
+        store, looks = a_design(folder, "garden_shed", "a" * 64, (200, 10, 10)), pathlib.Path(folder) / "looks"
+        assert "garden_shed" not in place.places()
+        assert place.unread(["garden_shed"], store, looks) == ["garden_shed"]
+        assert place.kept_style("garden_shed", store, looks) is None  # a dry run's words: nothing asked
+        environment = place.environment_style(store)
+        assert environment == place.design()[1].style_now() and environment  # no EC version kept: today's
+        style = place.style_text("garden_shed", store, asker, looks)
+        assert style == f"{environment.rstrip('.')}. matte sand-blasted steel, warm amber light"
+        assert asked == [(place.LOOK_QUESTION, (200, 10, 10))]
+        assert place.style_text("garden_shed", store, asker, looks) == style and len(asked) == 1  # kept, asked once
+        assert place.kept_style("garden_shed", store, looks) == style and place.unread(["garden_shed"], store, looks) == []
+        kept = json.loads((looks / "garden_shed" / f"{'a' * 64}.json").read_text())
+        assert kept["concept"] == "a" * 64 and kept["model"] == place.LOOK_MODEL
+        a_design(folder, "garden_shed", "b" * 64, (10, 10, 200))  # a new lock: its look is read again
+        place.style_text("garden_shed", store, asker, looks)
+        assert asked[-1][1] == (10, 10, 200) and len(asked) == 2
 
 
-def test_an_objects_picture_is_worded_from_the_place():
-    wording = place.object_wording("habitat", "white louvred locker", (0.6, 0.5, 1.9))
-    assert wording.startswith("one white louvred locker, 0.60 m wide") and place.style_text("habitat") in wording
+def test_a_scene_with_no_locked_concept_or_an_empty_look_is_refused():
+    with tempfile.TemporaryDirectory() as folder:
+        store, looks = a_design(folder, "galley", "c" * 64, (0, 0, 0)), pathlib.Path(folder) / "looks"
+        assert "no locked concept" in refusal(lambda: place.style_text("lab", store, lambda *_: "x", looks))
+        assert "no locked concept" in refusal(lambda: place.unread(["lab"], store, looks))
+        assert "came back empty" in refusal(lambda: place.style_text("galley", store, lambda *_: " ", looks))
+        assert place.unread(["galley"], store, looks) == ["galley"]  # nothing kept for an empty answer
 
 
 def test_every_place_keeps_the_design_system_shape():

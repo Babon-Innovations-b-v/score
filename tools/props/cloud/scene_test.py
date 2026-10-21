@@ -20,10 +20,21 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import scene  # noqa: E402
 
 ROOM = _SANDBOX / "work" / "scene" / "lab"
-# An approved inventory for the lab, in a place whose style text is in the repo.
+# The lab's scene's design in the sandbox's store: its locked concept (its lock, no picture needed: its look is
+# kept) and that concept's look, read once before.
+LOCKED = "d" * 64
+_PICKS = _SANDBOX / "store" / "objects" / "concepts" / "labscene" / "picks"
+_PICKS.mkdir(parents=True)
+(_PICKS / "0001.json").write_text(json.dumps({"place": "labscene", "sha": LOCKED, "by": "owner", "at": "2026-10-21",
+                                              "environment": None}))
+(_SANDBOX / "design" / "looks" / "labscene").mkdir(parents=True)
+(_SANDBOX / "design" / "looks" / "labscene" / f"{LOCKED}.json").write_text(json.dumps(
+    {"scene": "labscene", "concept": LOCKED, "look": "worn white composite panels", "model": "m", "euros": 0.03,
+     "at": "2026-10-21"}))
+# An approved inventory for the lab, in a scene whose concept is locked (labscene: no place.json entry).
 INVENTORY = _SANDBOX / "lab.json"
 INVENTORY.write_text(json.dumps({
-    "scene": "lab", "place": "habitat", "plan": {"world": "w1", "seed": 7, "views": [{"id": "v1"}]},
+    "scene": "lab", "place": "labscene", "plan": {"world": "w1", "seed": 7, "views": [{"id": "v1"}]},
     "approved": "2026-10-05", "migrated": "",
     "room": {"shell": "", "light": "place", "backdrop": "", "wall_fill": []},
     "rows": [{"id": "r1", "view": "v1", "box": [0, 0, 300, 300], "name": "bench", "kind": "generate",
@@ -52,9 +63,10 @@ def test_a_target_plan_draws_takes_alone_in_the_places_words():
     assert arguments[3:] == ["--takes", "2", "--refs-on", "2"]
     [job] = scene.target_jobs(plan)
     assert job["refs"] == ["/root/props/inputs/1-one.png"] and job["scene"] == "lab"
-    assert job["sentence"] == scene.place.style_text("habitat")
+    assert job["sentence"].endswith(". worn white composite panels")  # the environment's line, then its look
+    assert job["sentence"].startswith(scene.place.environment_style(scene.place.design()[2].default()).rstrip("."))
     refused(dict(plan, names=["bench"]), "pick one")
-    refused(planned(target={"sentence": "a lab"}), "style text")
+    refused(planned(target={"sentence": "a lab"}), "its design")
 
 
 def test_the_steps_run_in_order_on_the_target():
@@ -63,7 +75,8 @@ def test_the_steps_run_in_order_on_the_target():
     assert [step for step, _ in found] == ["cutout", "depth", "redraw"]
     assert found[0][1] == ["tools/props/scene/cutout.py", "lab", "bench", "desk@0.4"]
     assert found[2][1] == ["tools/props/scene/redraw.py", "lab", "bench-1:bench", "desk-2:desk",
-                           "--place", "habitat", "--seeds", "7", "--side", "1536"]
+                           "--style", scene.style_of(plan), "--seeds", "7", "--side", "1536"]
+    assert scene.style_of(plan).endswith("worn white composite panels")
 
 
 def test_a_plan_view_is_uploaded_and_its_folder_mapped():
@@ -81,6 +94,12 @@ def test_nothing_runs_without_an_approved_inventory():
     unapproved = _SANDBOX / "workshop.json"
     unapproved.write_text(json.dumps(dict(json.loads(INVENTORY.read_text()), scene="workshop", approved="")))
     refused(planned(inventory=str(unapproved), names=["bench"]), "not approved")
+
+
+def test_a_scene_whose_concept_is_not_locked_is_refused():
+    unlocked = _SANDBOX / "shed.json"
+    unlocked.write_text(json.dumps(dict(json.loads(INVENTORY.read_text()), scene="shed", place="shed")))
+    refused(planned(inventory=str(unlocked), names=["bench"]), "no locked concept")
 
 
 def test_an_object_with_no_cut_out_is_refused():

@@ -33,8 +33,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   through `batch.py` as one batch. Their machines run the same scripts with `FARM_LOCAL_MODELS=1`.
 - **A batch builds approved scene rows** (2026-10-04, #121; several scenes a batch since 2026-10-07): `batch.py --inventory
   data/inventory/<scene>.json` and `scene.py` (its plan's `inventory`) refuse without the owner's
-  approval on page A and the place's style text in `place.json`, and every model is named for a
-  row. A designed place's hand-in (`{home}/design/props/<place>.json`, `score/stages/complete/prepare/handin.py`) is
+  approval on page A (`scene.py` also without the scene's locked concept: its words are the scene's style,
+  `../scene/place.py`), and every model is named for a row; Pixal3D is worded by nothing, so `batch.py` asks no style. A designed place's hand-in (`{home}/design/props/<place>.json`, `score/stages/complete/prepare/handin.py`) is
   approved by the creator's lock (owner, 2026-10-21) and taken as it stands (`batch.built_from`): its rows are his
   locked concept's reading, not page A's shape. No per-session job scripts: the wording comes from the repo's data. The one other thing a batch builds is a
   character the owner asked for (`batch.py --characters data/characters/makes/<name>.json`, job characters-full,

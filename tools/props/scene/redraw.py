@@ -20,8 +20,8 @@ objects get close-ups. Writes redraw/<model>.png (redraw/<model>-s<seed>.png for
 --seeds) and redraw/<model>-cut.png (the reference it was given), and redraw/report.json: every
 object with its cut-out's size and the way it took, and the build list for the cloud batch. Holds
 the card. Runs on a rented card through cloud/scene.py (a plan's "objects"); on this PC it is
-refused. Every picture is worded with its place's style text from data/definitions/place.json
-(--place, place.py), never with words a session wrote.
+refused. Every picture is worded with its scene's style (--style: place.style_text, worked out on this PC by
+cloud/scene.py from the scene's design, the machine having no design store), never with words a session wrote.
 """
 import argparse
 import json
@@ -33,7 +33,6 @@ import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
 import picture  # noqa: E402
-import place  # noqa: E402
 from card import claimed  # noqa: E402
 from cutsize import ROUTES, route, size_of  # noqa: E402
 from paths import scene_folder as folder  # noqa: E402
@@ -112,7 +111,7 @@ def planned(out, pairs, can_close_up):
 
 
 def in_the_place(prompt, style):
-    """A picture's words with its place's style text after them."""
+    """A picture's words with its scene's style after them."""
     return f"{prompt}, in the look of this place: {style}"
 
 
@@ -147,11 +146,12 @@ def main():
     parser.add_argument("--side", type=int, default=DRAW_SIDE, help="the picture's side in pixels")
     parser.add_argument("--picture", type=pathlib.Path, help="a plan view in place of the target")
     parser.add_argument("--out", type=pathlib.Path, help="where cutout.py put that view's cut-outs")
-    parser.add_argument("--place", required=True, help="the place whose style text words every picture")
+    parser.add_argument("--style", required=True, help="the scene's style every picture is worded in "
+                        "(place.style_text, given by cloud/scene.py)")
     options = parser.parse_args()
     if bool(options.picture) != bool(options.out):
         parser.error("--picture and --out go together")
-    style = place.style_text(options.place)
+    style = options.style
     out = options.out or folder(options.room)
     (out / "redraw").mkdir(parents=True, exist_ok=True)
     rows = planned(out, options.pairs, bool(options.picture) or drawn_here(out, options.room))

@@ -14,8 +14,8 @@ the output and the gates. Bible: `architecture/components`.
   wrong picture. Once a request names its place, the row reads `concept-views` there.
 - **The existing cloud path, not a new one.** `_cloud.py` runs `tools/props/cloud/batch.py`'s own command (its plan,
   price, clearance at every rent point, ledger line and finish) with only its row check swapped for the approval half
-  (the inventory approved, the place's style text written): a rough model is on no inventory row. `batch.py` is never
-  edited for it: the `pixal` row declares that file, so an edit there moves a paid key.
+  (the inventory approved; no style: Pixal3D is worded by nothing): a rough model is on no inventory row. `batch.py`
+  is never edited for it: the `pixal` row declares that file, so an edit there moves a paid key.
 - **Paid, priced only from measured runs.** No rough-model run is measured, so the runner prices it unknown; `EUROS`
   is its clearance estimate (four one-model Pixal3D batches, EUR 0.26 to 1.42) and is never shown as a price. Pixal's
   per-model unit is not carried over: it is measured over batches whose set-up many models share.

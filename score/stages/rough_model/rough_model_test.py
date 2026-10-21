@@ -104,7 +104,8 @@ def test_a_place_reads_the_concept_its_plan_names_and_its_own_inventory():
     airlock = runner.files_of(row, "airlock")
     assert airlock["concept"].endswith("/views/K02.png") and airlock["inventory"].endswith("/inventory/airlock.json")
     assert runner.files_of(row, "flat")["inventory"].endswith("/inventory/prologue_flat.json")
-    for name in ("places", *rough_model.TOOLS):
+    assert "places" not in airlock  # no style is read: Pixal3D is worded by nothing
+    for name in rough_model.TOOLS:
         assert name in airlock
 
 
@@ -192,10 +193,9 @@ def test_the_batch_check_keeps_the_owner_s_approval_without_the_rows():
     batch's command still looks that check up by name, so the replacement takes."""
     asked = []
     batch = types.SimpleNamespace(
-        inventories=types.SimpleNamespace(approved_inventory=lambda path: asked.append(path) or {"place": "lab"}),
-        place=types.SimpleNamespace(style_text=lambda place: asked.append(place) or "a style"))
+        inventories=types.SimpleNamespace(approved_inventory=lambda path: asked.append(path) or {"place": "lab"}))
     cloud.concept_check(batch)([object()], ["data/inventory/lab.json"])
-    assert asked == ["data/inventory/lab.json", "lab"]
+    assert asked == ["data/inventory/lab.json"]
     assert "        from_the_inventory(models, options.inventory)\n" in cloud.BATCH.read_text()
 
 

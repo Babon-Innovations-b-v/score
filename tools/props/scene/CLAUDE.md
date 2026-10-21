@@ -18,9 +18,13 @@ from the splats and cuts each item out, resolved against its neighbours, on a ca
 serve: skill `make-scene`, bible "How a scene is designed".
 
 - **The scene workflow of 2026-10-04 (#121): look pick, then pages A, B and C.** `place.py`
-  reads a place's style text from `data/definitions/place.json`, and every painting
-  (`marble.py --place`), redraw (`redraw.py --place`) and cloud run is worded from it alone; only
-  a look-pick take is worded by hand (`marble.py --look --text`). `inventory.py` is the shape of
+  gives a scene's style from its design alone (owner, 2026-10-21: no per-place prose decides a picture): the
+  environment concept's style line and the look of the scene's locked concept, keyed by the scene id the design store
+  holds, read once per lock by one Gemini 3.1 Pro call on that picture inside the cleared run that draws (priced at the
+  measured ask, kept under `{home}/design/looks/`); every painting (`marble.py --place`), redraw (`redraw.py --style`,
+  worked out here by `cloud/scene.py`) and klein close-up (`cloud/pictures.py`) is worded from it alone; only a
+  look-pick take is worded by hand (`marble.py --look --text`). `data/definitions/place.json`'s `style.text` is read
+  by none of these (the concept draws still read it, `score/review/concepts.py`). `inventory.py` is the shape of
   a scene inventory and the shell hash; `placed.py` reads what every layer places in a scene
   today (layout, the room's scene, main.tscn's game nodes, the machines, the kit's wall fill, the
   opening's constants, an outdoor place's made layout `data/kit/<place>.json`: the old station, the wreck; a walkway
@@ -38,7 +42,7 @@ serve: skill `make-scene`, bible "How a scene is designed".
   concept does not show has `"box": null` and says why in `"unseen"`. `duplicates.py` fails when two places'
   made rows name one real-world object and are made from different takes, or one is about to be made again, unless a row
   says why in `own_model` or names the row it reuses in `reuse` (the owner, 2026-10-09: no duplicates; reuse first). `cloud/scene.py` and `cloud/batch.py`
-  refuse to run without an approved inventory and its place's style text.
+  refuse to run without an approved inventory; `cloud/scene.py` also without the scene's concept locked.
 - Everything a run makes goes under `WORK/scene/<room>/` (`~/.farm-factory-props/work/scene/`);
   target pictures, masks, worlds and layouts never go in the repo.
 - **No model runs on this PC** (owner, 2026-10-03: "My GPU is only for game tests; do all model

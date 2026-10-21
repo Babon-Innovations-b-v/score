@@ -22,6 +22,17 @@ def test_a_job_carries_its_model_s_steps_and_settings():
             assert job["wording"] == "a crate" and job["refs"] == ["a.png"]
 
 
+def test_a_job_naming_its_scene_is_worded_in_that_scenes_style():
+    with tempfile.TemporaryDirectory() as folder:
+        listing = pathlib.Path(folder) / "jobs.json"
+        listing.write_text(json.dumps([{"name": "openpics-check-never-made-1", "wording": "a crate", "place": "galley"},
+                                       {"name": "openpics-check-never-made-2", "wording": "a tile"}]))
+        assert pictures.scenes_of(pictures.listed(listing)) == ["galley"]
+        crate, tile = pictures.jobs_to_make(listing, "klein", {"galley": "Style line. Its look."})
+        assert crate["wording"] == "a crate, in the look of this place: Style line. Its look."
+        assert tile["wording"] == "a tile"
+
+
 def test_every_model_runs_on_cards_that_hold_it():
     # A card smaller than the model whole moves it on and off part by part; nothing smaller than these was tried.
     smallest = {"klein": 24, "qwen-edit": 48}
