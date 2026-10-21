@@ -205,7 +205,7 @@ class WorldState(BaseModel):
     concept_picked: dict[str, str] = {}
     concept_draw_euros: float | None = None
     concept_redraw_euros: float | None = None  # a Redraw with notes: its prompt correction and its draw
-    plan_changed: list[str] = []  # picked places drawn on another room than the layer above's plan gives them now
+    plan_changed: list[str] = []  # places whose pick, else every draw, is on another room than the plan above gives now
     concept_undrawn: list[str] = []  # the places and shells with no draw yet whose first draw can be made now
     concept_unready: dict[str, str] = {}  # {place or shell with no draw yet: why its first draw cannot be made now}
     concept_wordings: dict[str, "ConceptWording"] = {}  # {place or shell: what its draws send, word for word}

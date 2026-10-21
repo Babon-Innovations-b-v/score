@@ -568,9 +568,11 @@ class LocalSource:
                 "environment_pictures": pictures}
 
     def concepts(self, review):
-        """{place or shell: FileRef} of each concept picture: the concept `review`'s picked draw, else its newest draw unless all its draws are from an older wording,
+        """{place or shell: FileRef} of each concept picture: the concept `review`'s picked draw, else its newest draw,
         else the one data/places/concepts.json names, where its bytes stand in the store's blobs; a place it lists
-        as lost with no draw, or whose blob is not here, has none."""
+        as lost with no draw, or whose blob is not here, has none, and so has one whose draws are out of date (every
+        draw from an older wording, or its pick or every draw on a room the plan above has since changed: owner,
+        2026-10-21), so its card offers the draw again, never an old picture as current."""
         path = self.data / "places" / "concepts.json"
         found = json.loads(path.read_text())["concepts"] if path.is_file() else {}
         refs = {}
@@ -581,8 +583,9 @@ class LocalSource:
                 refs[node] = file_ref(concept["sha256"], concept["name"], blob.stat().st_size)
         for node, draws in review["concept_draws"].items():
             chosen = review["concept_picked"].get(node)
-            if not chosen and node in review["concept_undrawn"]:
-                continue  # only draws from an older wording: out of date, kept in its history, never on its card
+            if (not chosen and node in review["concept_undrawn"]) or node in review["plan_changed"]:
+                refs.pop(node, None)  # out of date: kept in its history, never on its card
+                continue
             refs[node] = next((draw.picture for draw in draws if draw.picture.sha == chosen), draws[-1].picture)
         return refs
 
@@ -613,7 +616,8 @@ class LocalSource:
             return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
                     "concept_redraw_euros": concepts.redraw_euros(),
                     "concept_undrawn": ready, "concept_unready": waiting,
-                    "plan_changed": [node for node in picked if concepts.plan_changed(self.store, node)],
+                    "plan_changed": [node for node in nodes if node in draws
+                                     and concepts.plan_changed(self.store, node)],
                     "concept_wordings": {node: self.concept_wording(node) for node in nodes},
                     "inventories": {place: read for place, read in reads.items() if read},
                     **self.inventory_readings(concepts.placed(self.store))}
@@ -685,14 +689,15 @@ class LocalSource:
     def hierarchy(self):
         """{within, removed, shells, parts} of data/places/within.json: what each place or shell sits within (a part of
         a place's outside, `parts`, sits within that place and has no card; one his kept plans no longer lay out,
-        `removed`, has none either), and the shells that are no place of their own with
+        `removed`, has none either, nor has one within.json says was merged into another), and the shells that are no place of their own with
         their short names; empty while the file is not there."""
         path = self.data / "places" / "within.json"
         found = json.loads(path.read_text()) if path.is_file() else {}
         parts = {name: {"within": entry["of"]} for name, entry in found.get("parts", {}).items()}
         from score.review import plans
         within = {name: entry["within"] for name, entry in {**found.get("within", {}), **parts}.items()}
-        return {"within": plans.overlaid(self.store, within), "removed": plans.removed(self.store, within),
+        return {"within": plans.overlaid(self.store, within),
+                "removed": sorted({*plans.removed(self.store, within), *found.get("merged", {})}),
                 "shells": {name: entry["name"] for name, entry in found.get("shells", {}).items()},
                 "parts": sorted(parts)}
 

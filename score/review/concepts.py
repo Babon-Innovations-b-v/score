@@ -207,11 +207,13 @@ def current_draw(store, place, wording):
 
 
 def plan_changed(store, place):
-    """Whether `place`'s picked concept was drawn on another room than the layer above's plan gives it now (owner,
-    2026-10-21): flagged "plan changed since you picked it" and offered by Draw all again."""
+    """Whether `place`'s picked concept, else (none picked) every draw of it, was drawn on another room than the layer
+    above's plan gives it now (owner, 2026-10-21): flagged "plan changed" and offered by Draw all again."""
     from score.review import plans
-    sha = picked(store, place)
-    return bool(sha) and sha in plans.moved_draws(store, place)
+    sha, moved = picked(store, place), plans.moved_draws(store, place)
+    if sha:
+        return sha in moved
+    return bool(moved) and moved >= {draw.get("sha") for draw in draws(store, place)}
 
 
 def placed(store):
@@ -349,8 +351,8 @@ def style(store):
 
 def tree(store=None):
     """data/places/within.json: {within: {place: what holds it}, shells: {shell: its short name}, parts: {part: (the
-    place whose outside it is part of, its words in that place's draw)}}: a part has no concept of its own (the
-    owner, 2026-10-21: the launch, now the Square's). Given the store, each holder's inside places are those his
+    place whose outside it is part of, its words in that place's draw)}, merged: [place merged into another]}: a part
+    has no concept of its own (the owner, 2026-10-21: the launch, now the Square's), a merged place no place at all. Given the store, each holder's inside places are those his
     newest kept plan of it lays out (plans.overlaid, the one rule of what sits inside what)."""
     found = json.loads((DATA / "places/within.json").read_text())
     within = {name: entry["within"] for name, entry in found["within"].items()}
@@ -359,7 +361,8 @@ def tree(store=None):
         within = plans.once("within", store, None, lambda: plans.overlaid(store, within))
     return {"within": within,
             "shells": {name: entry["name"] for name, entry in found["shells"].items()},
-            "parts": {name: (entry["of"], entry["as"]) for name, entry in found.get("parts", {}).items()}}
+            "parts": {name: (entry["of"], entry["as"]) for name, entry in found.get("parts", {}).items()},
+            "merged": sorted(found.get("merged", {}))}
 
 
 def above(place, store=None):

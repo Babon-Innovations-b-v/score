@@ -73,11 +73,12 @@ def draws_of(world, place):
 
 
 def since_export(world, place):
-    """Hosted, the place's draws answered since its export (the source holds none of them yet); local, none."""
+    """Hosted, the place's draws answered since its export (the source holds none of them yet); local, none. A draw
+    from before the export that it does not hold (its place removed, say) is not one."""
     if not actions.hosted():
         return []
     held = {draw.picture.sha for draw in world.concept_draws.get(place, [])}
-    return [draw for draw in answered_draws(place) if draw.picture.sha not in held]
+    return [draw for draw in answered_draws(place) if draw.picture.sha not in held and (draw.at or "") > world.made_at]
 
 
 def picked_of(world, place):
@@ -128,8 +129,9 @@ def refused_of(place):
 
 
 def review_href(world, place):
-    """The concept review page of a card's place, None once its concept is locked."""
-    return None if picked_of(world, place) else f"/concept/{place}/"
+    """The concept review page of a card's place, None once its concept is locked (unless the plan above has since
+    changed its room: drawn again)."""
+    return None if picked_of(world, place) and place not in world.plan_changed else f"/concept/{place}/"
 
 
 def inventory_of(world, place, picked):
@@ -345,8 +347,9 @@ def newest_pictures(world):
     for place in {*world.concept_draws, *(item.payload.get("place") for item in
                                           SyncRequest.objects.filter(kind=DRAW, state="done"))} - {None}:
         draws, picked = draws_of(world, place), picked_of(world, place)
-        if not picked and place in world.concept_undrawn and not since_export(world, place):
-            continue  # only draws from an older wording: out of date, never on its card
+        if ((not picked and place in world.concept_undrawn) or place in world.plan_changed) \
+                and not since_export(world, place):
+            continue  # only draws from an older wording or on a room since changed: out of date, never on its card
         if draws:
             found[place] = next((draw.picture for draw in draws if draw.picture.sha == picked), draws[-1].picture)
     return found

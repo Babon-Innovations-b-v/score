@@ -60,8 +60,11 @@ def design_state(world, place):
     """What a place whose scene inventory does not count shows instead of its numbers: `draw` (no concept), `review`
     (drawn, not picked), `read` (picked, its inventory not read from it yet), `plan` (its scene inventory reading of
     the pick made, its plan not: score/review/reading.py), `check` (its inventory file read from the pick, its gaps not
-    checked from it yet); None once its numbers count (`counted`)."""
+    checked from it yet); None once its numbers count (`counted`); `draw` too once the plan above changed its room
+    (WorldState.plan_changed)."""
     picked = world.concept_picked.get(place)
+    if place in world.plan_changed:
+        return "draw"  # drawn on a room the plan above has since changed: drawn again, nothing of it counts
     if counted(world, place):
         return None
     if inventory_current(world, place, picked):
