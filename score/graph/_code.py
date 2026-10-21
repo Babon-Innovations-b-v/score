@@ -86,24 +86,45 @@ def start_files(functions):
             for each in (function, inspect.unwrap(function))]
 
 
-def followed(starts, framework, is_file, read_text):
+def imports_of(path, is_file, read_text):
+    """The repository files a file's imports could be found as, in the tree `is_file` and `read_text` read."""
+    return {module for name in imported_names(read_text(path), path, package_of(path, is_file))
+            for module in module_files(name, is_file)}
+
+
+def followed(starts, framework, imports):
     """Every repository file of a tree the start files are or import, followed through each import, the files in
-    `framework` left out; `is_file` and `read_text` read that tree."""
+    `framework` left out; `imports` gives a file's imported files in that tree (imports_of)."""
     pending, found = list(starts), set()
     while pending:
         path = pending.pop()
         if path in found or path in framework or not in_repo(path):
             continue
         found.add(path)
-        for name in imported_names(read_text(path), path, package_of(path, is_file)):
-            pending += [module for module in module_files(name, is_file) if module not in found]
+        pending += [module for module in imports(path) if module not in found]
     return sorted(found)
+
+
+LIVE_IMPORTS = {}  # (path, search_folders()): ((mtime_ns, size), imports_of's answer) for this checkout's files
+
+
+def live_imports(path):
+    """imports_of for a file of this checkout, worked out again only when its size or modification time moved or a
+    file it found is gone: every row's walk parses each module behind it, about 1 s a row cold, and the runner's plan
+    and the sync's price ask for every row (#49). A new file an unchanged file's import would now also find is not
+    seen until that file changes or the process restarts."""
+    stat = path.stat()
+    stamp, key = (stat.st_mtime_ns, stat.st_size), (path, search_folders())
+    known = LIVE_IMPORTS.get(key)
+    if known is None or known[0] != stamp or not all(module.is_file() for module in known[1]):
+        known = LIVE_IMPORTS[key] = (stamp, imports_of(path, pathlib.Path.is_file, pathlib.Path.read_text))
+    return known[1]
 
 
 def source_files(functions):
     """Every repository file the functions' modules are or import, followed through each import, the framework's
     own files (FRAMEWORK) left out."""
-    return followed(start_files(functions), FRAMEWORK, pathlib.Path.is_file, pathlib.Path.read_text)
+    return followed(start_files(functions), FRAMEWORK, live_imports)
 
 
 def python_part():
@@ -185,7 +206,7 @@ def rebuilt_at(commit, starts):
 
     parts = [python_part()]
     parts += [f"{relative(path)} {hashlib.sha256(blob_bytes(blobs[relative(path)])).hexdigest()}"
-              for path in followed(starts, framework, is_file, read_text)]
+              for path in followed(starts, framework, lambda path: imports_of(path, is_file, read_text))]
     return parts
 
 

@@ -428,6 +428,28 @@ def test_a_wrapped_judge_s_own_module_is_in_the_code_version():
         shutil.rmtree(root)
 
 
+def test_a_file_edited_between_two_code_versions_in_one_process_gives_a_new_version():
+    """The import walk is cached a process (#49); an import added to a file is followed at the next read."""
+    root = pathlib.Path(tempfile.mkdtemp(prefix="_code_edited_", dir=_code.REPO / "score/graph"))
+    saved = list(sys.path)
+    try:
+        (root / "edited_start.py").write_text("def work():\n    return 1\n")
+        (root / "edited_added.py").write_text("VALUE = 1\n")
+        sys.path.insert(0, str(root))
+        _code.search_folders.cache_clear()
+        import edited_start
+        before = _code.code_version([edited_start.work], lambda path: "same")
+        assert before == _code.code_version([edited_start.work], lambda path: "same")
+        (root / "edited_start.py").write_text("import edited_added\n\n\ndef work():\n    return 1\n")
+        after = _code.code_version([edited_start.work], lambda path: "same")
+        assert after != before and any("edited_added.py" in part for part in after), after
+    finally:
+        sys.path[:] = saved
+        sys.modules.pop("edited_start", None)
+        _code.search_folders.cache_clear()
+        shutil.rmtree(root)
+
+
 def test_the_code_version_does_not_depend_on_the_order_of_the_path():
     """A name two path folders both hold is hashed from both, whichever one a process happened to put first (judge.py
     puts tools/props first when imported: a row's key moved between two runs with no file changed, 2026-10-11)."""
