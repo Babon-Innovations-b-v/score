@@ -29,9 +29,9 @@ WALK_SECONDS = 7.0
 CUTS = {
     "walk-through": {"label": "Walk-through", "seconds": WALK_SECONDS, "needs": ("place",),
                      "transition": "cross-fade", "sound": "place",
-                     "words": "the camera's path through the place"},
+                     "words": "the camera's path through the scene"},
     "orbit": {"label": "Orbit", "seconds": 6.0, "needs": ("place",), "transition": "cross-fade", "sound": "bed",
-              "words": "a slow circle round the whole place"},
+              "words": "a slow circle round the whole scene"},
     "hero-still": {"label": "Hero still", "seconds": 3.0, "needs": ("place",), "transition": "cross-fade",
                    "sound": "bed", "words": "one picture held, slowly closing in"},
     "exploded": {"label": "Exploded view", "seconds": 6.0, "needs": ("place",), "transition": "cross-fade",
@@ -52,11 +52,11 @@ CUTS = {
              "words": "a line of words"},
     "screen-take": {"label": "Screen take", "seconds": 8.0, "needs": ("page",), "transition": "cross-fade",
                     "sound": "bed", "words": "a real cockpit page, its cursor, clicks and highlights scripted"},
-    "setting-animation": {"label": "Setting animation", "seconds": 4.0, "needs": ("world",),
+    "setting-animation": {"label": "Physics animation", "seconds": 4.0, "needs": ("world",),
                           "transition": "cross-fade", "sound": "bed",
-                          "words": "the setting's bodies on their orbits, time sped up"},
+                          "words": "the physics' bodies on their orbits, time sped up"},
     "scale-zoom": {"label": "Scale zoom", "seconds": 20.0, "needs": ("place",), "transition": "cross-fade",
-                   "sound": "bed", "words": "one camera path from the setting down to the place's rooms"},
+                   "sound": "bed", "words": "one camera path from the physics down to the scene's rooms"},
 }
 # The cuts the free preview renders itself in headless Chromium (films/preview), not the editor's live player.
 RECORDED = ("screen-take", "setting-animation", "scale-zoom")
@@ -66,7 +66,7 @@ CORNERS = ("top-left", "top-right", "bottom-left", "bottom-right")
 TRANSITIONS = {"cut": "Cut", "cross-fade": "Cross-fade", "fade-through-black": "Fade through black",
                "push": "Push"}
 OVERLAPPING = ("cross-fade", "push")
-SOUNDS = {"place": "The place's own sound", "bed": "Sound bed (nearest film)", "silence": "Silence"}
+SOUNDS = {"place": "The scene's own sound", "bed": "Sound bed (nearest film)", "silence": "Silence"}
 # The framework's steps a step card shows, in the chain's order.
 STEPS = {"reference": "References and style", "concept": "Concept", "plan": "Plan", "pieces": "Pieces"}
 
@@ -151,7 +151,7 @@ def pip_faults(number, pip):
     if pip is None:
         return []
     if not isinstance(pip, dict) or not (pip.get("concept") or pip.get("picture")):
-        return [f"segment {number}: a picture-in-picture names a place's concept or a picture"]
+        return [f"segment {number}: a picture-in-picture names a scene's concept or a picture"]
     return [f"segment {number}: no corner {pip.get('corner')!r}"] if pip.get("corner", "top-right") not in CORNERS \
         else []
 
@@ -171,7 +171,7 @@ def faults(script, places=None):
         if cut not in CUTS or not (isinstance(seconds, (int, float)) and SHORTEST <= seconds <= LONGEST):
             found.append(f"default {cut!r}: {seconds!r} s")
     if places is not None:
-        found += [f"segment {number}: no place {segment['shows']['place']!r}"
+        found += [f"segment {number}: no scene {segment['shows']['place']!r}"
                   for number, segment in enumerate(segments, 1)
                   if (segment.get("shows") or {}).get("place") and segment["shows"]["place"] not in places]
     return found

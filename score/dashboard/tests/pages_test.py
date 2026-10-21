@@ -131,7 +131,7 @@ def test_the_step_page_shows_its_output_beside_what_it_read(world):
 
 def test_the_3d_viewer_without_a_copy_says_so(world):
     html = signed_in().get("/view/alpha").content.decode()
-    assert "No 3D web copy of this place yet" in html and "view3d.js" not in html
+    assert "No 3D web copy of this scene yet" in html and "view3d.js" not in html
     assert signed_in("other").get("/view/nowhere").status_code == 404
 
 
@@ -470,7 +470,7 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
     assert "<b data-v>Beta, 1 room</b>" in found[0][1] and "tone-gap-route" in found[0][1]  # alpha's gaps summed
     assert "concept missing" in found[0][1]  # the yard has no concept, and never takes one from inside
     found, html = tiles("/places/?in=yard")
-    assert [href for href, _ in found] == ["/places/?in=beta"] and '<a href="/places/" data-v>Places</a>' in html
+    assert [href for href, _ in found] == ["/places/?in=beta"] and '<a href="/places/" data-v>Scenes</a>' in html
     assert "<b data-v>+1</b>" in found[0][1]  # alpha sits in beta, a leaf
     found, html = tiles("/places/?in=beta")
     assert [href for href, _ in found] == ["/place/alpha/"]  # only what it holds: beta is no card of its own
@@ -662,7 +662,7 @@ def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_fo
     client = signed_in()
     html = client.get("/buy/").content.decode()
     top = html[html.index('<div class="topbar">'):html.index('<ul class="buy-layers buy-design">')]
-    assert "0 <small>of</small> 2 <small>approved</small>" in top and "2 <small>places await design</small>" in top
+    assert "0 <small>of</small> 2 <small>approved</small>" in top and "2 <small>scenes await design</small>" in top
     assert "EUR" not in top and 'data-url="/buy/yes/"' not in html  # no design approved: no price, nothing to buy
     rows = re.findall(r'href="/place/(\w+)/" data-v>.*?</a><span class="buy-n" data-v>(\w+)</span>'
                       r'<span class="buy-n" data-v>([\w ]+)</span>', html)

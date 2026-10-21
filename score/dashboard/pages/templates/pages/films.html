@@ -8,7 +8,7 @@
   <a class="tile film-tile" href="/film/{{ item.film }}/">
     <span class="frame">{% if item.picture %}<img class="pic" src="{{ item.picture.thumb }}" alt="{{ item.title }}" loading="lazy">{% else %}<span class="pic empty">no picture yet</span>{% endif %}</span>
     <span class="tile-foot"><span class="tile-name">{{ item.title }}</span>
-      <span class="status quiet">{{ item.segments }} segments, {{ item.places }} places</span></span>
+      <span class="status quiet">{{ item.segments }} segments, {{ item.places }} scenes</span></span>
     <span class="film-length"><b>{{ item.seconds|floatformat:1 }} s</b>{% if item.target %} of {{ item.target }} s{% endif %}, {% if item.origin == "saved" %}saved in the cockpit{% else %}the starter{% endif %}</span>
   </a>
   {% empty %}<p class="soft">No film script yet.</p>

@@ -78,8 +78,8 @@ function segmentWords(segment) {
   if (segment.cut === "isolate") return `${where}: ${(shows.part || "a part").split("/").pop()}`;
   if (segment.cut === "title" || segment.cut === "text") return segment.text || given.cuts[segment.cut].label;
   if (segment.cut === "screen-take") return `${shows.page || "a page"}`;
-  if (segment.cut === "setting-animation") return "the setting";
-  if (segment.cut === "scale-zoom") return `down to ${media ? media.words : (given.shells || {})[shows.place] || shows.place || "a place"}`;
+  if (segment.cut === "setting-animation") return "the physics";
+  if (segment.cut === "scale-zoom") return `down to ${media ? media.words : (given.shells || {})[shows.place] || shows.place || "a scene"}`;
   return shows.film ? `${where}: ${shows.film}` : where;
 }
 
@@ -226,7 +226,7 @@ function filmField(segment) {
   const media = mediaOf(placeOf(segment));
   const extras = Object.keys((media && media.extras) || {});
   if (!extras.length) return null;
-  return field("Film", choice([["", "the place's own"], ...extras.map((name) => [name, name])], segment.shows.film || "",
+  return field("Film", choice([["", "the scene's own"], ...extras.map((name) => [name, name])], segment.shows.film || "",
                               (value) => setShows(segment, "film", value)));
 }
 
@@ -276,7 +276,7 @@ async function drawInspector() {
                                      (value) => { segment.cut = value; changed(); drawInspector(); })),
                  element("p", "small soft", cut.words)];
   if (cut.needs.includes("place")) {
-    parts.push(field("Place", choice([["", "choose a place"], ...placeOptions()], placeOf(segment) || "",
+    parts.push(field("Scene", choice([["", "choose a scene"], ...placeOptions()], placeOf(segment) || "",
                                      (value) => { setShows(segment, "place", value); loadPictures(value); drawInspector(); })));
   }
   if (cut.needs.includes("layer")) parts.push(layerField(segment));
@@ -415,7 +415,7 @@ function drawRender() {
   }
   const ids = element("details", "ids");
   ids.append(element("summary", "", "Rows it would queue"),
-             element("p", "small", totals.basket.length ? totals.basket.join(", ") : "none: every place it shows has its film"));
+             element("p", "small", totals.basket.length ? totals.basket.join(", ") : "none: every scene it shows has its film"));
   $("render").replaceChildren(head, moneyBar(), groups, ids);
   const form = $("basket-form");
   if (form) form.hidden = !totals.basket.length;
@@ -752,7 +752,7 @@ function sourceOf(segment) {
   if (given.recorded.includes(segment.cut)) return renderedOf(segment);
   if (segment.cut === "step-card") return { kind: "card" };
   if (segment.cut === "before-after") return { kind: "before-after" };
-  if (!media) return { kind: "words", note: "no place chosen" };
+  if (!media) return { kind: "words", note: "no scene chosen" };
   if (segment.cut === "walk-through") {
     const film = segment.shows.film ? (media.extras || {})[segment.shows.film] : media.film && media.film.url;
     if (film && !segment.camera && seconds <= given.film_shot_seconds + 1e-6) return { kind: "film", url: film };
@@ -794,7 +794,7 @@ function chainBar(step, share) {
   const at = STEP_ORDER.indexOf(step);
   STEP_ORDER.forEach((name, index) => {
     const cell = element("span", index === at ? "on" : index < at ? "done" : "");
-    cell.append(element("b", "", `${index + 1}  ${given.steps[name] || "Place"}`));
+    cell.append(element("b", "", `${index + 1}  ${given.steps[name] || "Scene"}`));
     const track = element("i");
     const fill = element("u");
     fill.style.width = `${index < at ? 100 : index === at ? 100 * share : 0}%`;
@@ -870,7 +870,7 @@ class Shot {
     await loadPictures(place);
     const concept = ((given.pictures[place] || {}).concept || [])[0];
     const media = mediaOf(place);
-    if (!concept || !media || !media.hero) throw new Error("needs the place's concept and its film");
+    if (!concept || !media || !media.hero) throw new Error("needs the scene's concept and its film");
     const before = element("img", "before"), after = element("img", "after");
     before.src = concept.url;
     after.src = media.hero.url;

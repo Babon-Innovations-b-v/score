@@ -39,11 +39,11 @@ def test_the_viewer_frames_one_gap_with_or_without_a_web_copy(cockpit, read):
     assert given["gap"] == "missing:lamp_2" and given["gaps_only"] is True
     assert "missing:lamp_2" in [mark["id"] for mark in given["marks"]]
     page = unescape(answer.content.decode())
-    assert "No 3D web copy of this place yet: only its gaps are drawn" in page
+    assert "No 3D web copy of this scene yet: only its gaps are drawn" in page
     assert ('Framed: A lamp should be in the alpha but nothing is made for it yet. '
             '<a href="/place/alpha/#gap-missing:lamp_1">') in page  # its line: the row's first lamp
     assert 'class="mark-key framed"' in page and 'class="mark-key gate"' in page  # the crate's gate has a box
-    assert "work once a 3D web copy of this place exists" in page
+    assert "work once a 3D web copy of this scene exists" in page
     # a click on a box names its gap: each mark carries its sentence and its line; the corner button is the gaps'
     lamp = next(mark for mark in given["marks"] if mark["id"] == "missing:lamp_2")
     assert lamp["sentence"].startswith("A lamp should be in the alpha") and lamp["url"] == (
@@ -57,7 +57,7 @@ def test_the_viewer_frames_one_gap_with_or_without_a_web_copy(cockpit, read):
     assert given["gaps_only"] is False and given["gap"] == "missing:lamp_2"
 
 
-EARTH = "earth seed lost: a seed row that exports each place's base; terrain and every row after it stay blocked"
+EARTH = "earth seed lost: a seed row that exports each scene's base; terrain and every row after it stay blocked"
 
 
 def a_lost_input(world):
@@ -148,7 +148,7 @@ def test_a_gaps_check_run_again_shows_at_once_not_after_the_index(cockpit):
     later = price.stat().st_mtime + 2
     os.utime(findings, (later, later))
     assert numbers.measured_prices(cockpit.source.gaps_price()) == (None, None)
-    assert "the gaps check ran again at 1 place since the price was made" in unescape(
+    assert "the gaps check ran again at 1 scene since the price was made" in unescape(
         signed_in().get("/places/").content.decode())  # the remake's hover text
 
 

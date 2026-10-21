@@ -64,7 +64,7 @@ def walk_item(number, segment, seconds, rate, media):
         return item(number, segment, REUSE, "the accepted film's shot")
     if not film and not (segment.get("shows") or {}).get("film"):
         place = segment["shows"]["place"]
-        return item(number, segment, BASKET, "the place's own film, a row the basket can buy", FILM_FRAMES, "film",
+        return item(number, segment, BASKET, "the scene's own film, a row the basket can buy", FILM_FRAMES, "film",
                     f"demo-film@{place}")
     why = "its own camera" if segment.get("camera") else f"{seconds:g} s, longer than the film's shot"
     return item(number, segment, NEW, f"the film rendered again: {why}", round(seconds * rate), "film")
@@ -73,7 +73,7 @@ def walk_item(number, segment, seconds, rate, media):
 def still_item(number, segment, media):
     """A hero still: the place's hero picture, or one new look frame from the camera it names."""
     if media.get("hero") and not segment.get("camera"):
-        return item(number, segment, REUSE, "the place's hero picture")
+        return item(number, segment, REUSE, "the scene's hero picture")
     return item(number, segment, NEW, "one new frame", 1, "look")
 
 
@@ -83,8 +83,8 @@ def zoom_item(number, segment, rate):
     made them."""
     frames = round(sum(leg["seconds"] for leg in segment.get("legs", []) if leg.get("layer") in FILMED_LAYERS) * rate)
     if not frames:
-        return item(number, segment, FREE, "the setting, world and site drawn locally")
-    return item(number, segment, NEW, "the place and room legs filmed in the finished places", frames, "film")
+        return item(number, segment, FREE, "the physics, world and site drawn locally")
+    return item(number, segment, NEW, "the scene and room legs filmed in the finished scenes", frames, "film")
 
 
 def segment_item(number, segment, seconds, rate, media):
@@ -103,7 +103,7 @@ def segment_item(number, segment, seconds, rate, media):
     if cut == "scale-zoom":
         return zoom_item(number, segment, rate)
     if cut == "orbit":
-        return item(number, segment, NEW, "new film frames round the place", round(seconds * rate), "film")
+        return item(number, segment, NEW, "new film frames round the scene", round(seconds * rate), "film")
     return item(number, segment, NEW, f"new frames: no row renders {script.CUTS[cut]['label'].lower()} yet",
                 round(seconds * rate), cut)
 

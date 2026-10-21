@@ -127,7 +127,7 @@ def test_before_any_design_is_approved_the_remake_is_estimated_from_the_read_inv
         html = client.get(page).content.decode()
         tile = html[html.index(start):html.index(end)]
         assert "<small>EUR</small> 10&ndash;12<small>, " in tile and "&ge; 0.5 h" in tile, tile
-        assert "1 <small>of</small> 2 <small>places</small>" in tile and "+ 1 <small>unpriced</small>" in tile
+        assert "1 <small>of</small> 2 <small>scenes</small>" in tile and "+ 1 <small>unpriced</small>" in tile
         assert "likeness-calibration" in tile  # its name as hover text
     assert 'data-url="/buy/yes/"' not in client.get("/buy/").content.decode()  # an estimate buys nothing
     a_remake(cockpit, approved=(), inventory={"read": ["alpha"], "waiting": ["beta"]},

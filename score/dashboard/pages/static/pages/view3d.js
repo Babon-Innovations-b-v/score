@@ -1016,7 +1016,7 @@ function openGapsOnly() {
   markChanges(given.marks || []);
   const first = gapView() || allGapsView();
   aimAt(first.eye, first.aim, first.fov);
-  say("No 3D web copy of this place yet: only its gaps are drawn.");
+  say("No 3D web copy of this scene yet: only its gaps are drawn.");
   requestAnimationFrame(frame);
 }
 
@@ -1045,7 +1045,7 @@ function pickGap(screen) {
   markChanges(given.marks || [], chosen.id);
   const link = document.createElement("a");
   link.href = chosen.url;
-  link.textContent = "its line on the place page";
+  link.textContent = "its line on the scene page";
   $("gap-picked").replaceChildren(`${chosen.sentence} `, link);
   const linked = new URLSearchParams(location.search);  // its other words (embed) kept: back to its page restores this
   linked.set("gaps", "1");

@@ -33,13 +33,13 @@ CHOICES = {"buy": "Bought", "later": "Not now"}
 NUMBERED = re.compile(r"[_-]?\d+$")
 # A buy's reason in the runner's words, and in the owner's.
 REASONS = {"code changed": "the code that makes it changed", "never ran": "it was never made",
-           "library changed": "the library changed", "places changed": "the places changed",
+           "library changed": "the library changed", "places changed": "the scenes changed",
            "maker changed": "its maker changed", "files changed": "its data changed"}
 OBJECT_WORDS = (("added", "added"), ("removed", "taken out"), ("moved", "moved"), ("reshaped", "reshaped"),
                 ("refinished", "refinished"))
 KEYED_WORDS = (("added", "added"), ("removed", "taken out"), ("changed", "changed"))
 MOST_NAMED = 8
-SEVERAL = "several places"
+SEVERAL = "several scenes"
 
 
 def basket_root():

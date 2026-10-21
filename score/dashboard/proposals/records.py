@@ -40,7 +40,7 @@ class BadName(ValueError):
 def checked(name):
     """The name, when it is a plain place or item name (no path, no dots in front); BadName otherwise."""
     if not NAME.match(name or "") or ".." in name:
-        raise BadName(f"{name!r} is not a place or item name")
+        raise BadName(f"{name!r} is not a scene or item name")
     return name
 
 

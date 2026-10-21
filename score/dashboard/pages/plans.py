@@ -75,7 +75,7 @@ def asked_of(request, place, kind):
     if body is None:
         return JsonResponse({"detail": "refused: not a plan request"}, status=422), None
     if kind in SLOW and pending_of(place):
-        return JsonResponse({"detail": "refused: a correction of this place is on its way"}, status=409), None
+        return JsonResponse({"detail": "refused: a correction of this scene is on its way"}, status=409), None
     return None, body
 
 

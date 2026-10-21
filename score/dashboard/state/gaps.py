@@ -167,13 +167,13 @@ def per_place(price, details):
 # Each unfillable work line folded into its code task: the first pattern it matches names the task; a line no
 # pattern matches is its own task, said by its first clause.
 WORK_TASKS = (
-    (r"^prop data for ", "Prop data: a props file per place, so the prop route can price and make its rows"),
+    (r"^prop data for ", "Prop data: a props file per scene, so the prop route can price and make its rows"),
     (r"^no props file |no likeness output holds", "Likeness of the props laid without a props file"),
     (r"^a code body \(", "Code bodies per kit (body parts)"),
     (r"^Pixal3D take lost", "Lost Pixal3D takes made again"),
-    (r"^earth seed lost", "Earth seed lost: a seed row that exports each place's base"),
+    (r"^earth seed lost", "Earth seed lost: a seed row that exports each scene's base"),
     (r"^ship seed lost", "Ship seed lost: the ship kits made again and a ship-seed row"),
-    (r"^views lost", "Views lost: read each place's views from its own scene record"),
+    (r"^views lost", "Views lost: read each scene's views from its own scene record"),
     (r"^an input under the work folder no row makes", "Inputs under the work folder no row makes"),
     (r"^an input the repository should hold", "Inputs the repository should hold"),
     (r"^no accepted body of their looks|no pilot look is made", "People: bodies for their looks"),

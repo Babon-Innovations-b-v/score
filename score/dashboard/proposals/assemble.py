@@ -116,7 +116,7 @@ class ProposalRunner(graph.Runner):
     def taken_output(self, stage, place):
         """The node's output for this item, or the Blocked saying why there is none."""
         if place not in (None, self.place):
-            return self.stood_in(stage, place, AS_NOW, "another place's, shown as it stands")
+            return self.stood_in(stage, place, AS_NOW, "another scene's, shown as it stands")
         try:
             keyed = self.key(stage, place)
         except graph.Blocked as block:

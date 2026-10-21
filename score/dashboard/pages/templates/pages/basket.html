@@ -30,7 +30,7 @@
   <div class="group-head">
     {% if group.hero %}<img class="look-ref" src="{{ group.hero }}" alt="{{ group.name }} now" loading="lazy">{% endif %}
     <h2>{{ group.name|capfirst }}</h2>
-    {% if group.place %}<a class="small" href="/place/{{ group.place }}/">the place</a>{% endif %}
+    {% if group.place %}<a class="small" href="/place/{{ group.place }}/">the scene</a>{% endif %}
   </div>
   <div class="item-tiles">
     {% for tile in group.tiles %}

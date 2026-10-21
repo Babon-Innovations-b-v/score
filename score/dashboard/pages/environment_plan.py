@@ -82,7 +82,7 @@ def overhead_tip(found):
             size = "a point" if world["across"] < 0.05 else f"{world['across']:.1f}°"
             words.append(f"{world['name']} {world['altitude']:.0f}° {COMPASS[round(world['azimuth'] / 45) % 8]}, "
                          f"{size}, {world['lit'] * 100:.0f}% lit")
-    return "Overhead, from the setting: " + "; ".join(words)
+    return "Overhead, from the physics: " + "; ".join(words)
 
 
 def plan_page(request, world):

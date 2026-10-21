@@ -287,7 +287,7 @@ def concept_draw(request, place):
     if picked_of(world, place):
         return JsonResponse({"detail": "refused: the concept is locked; unlock it first"}, status=409)
     if pending_of(place):
-        return JsonResponse({"detail": "refused: a draw of this place is on its way"}, status=409)
+        return JsonResponse({"detail": "refused: a draw of this scene is on its way"}, status=409)
     payload = {"marks": body.get("marks") or [], "context_marks": body.get("context_marks") or [],
                "note": str(body.get("note") or "")[:2000],
                "base": body.get("base") or None, "euros": body.get("euros")}
@@ -365,7 +365,7 @@ def concept_draw_all(request):
         return JsonResponse({"detail": "refused: not a draw request"}, status=422)
     shown = draw_all(world)
     if shown is None or sorted(map(str, body.get("places") or [])) != sorted(shown["places"]):
-        return JsonResponse({"detail": "refused: the places to draw changed; read the page again"}, status=409)
+        return JsonResponse({"detail": "refused: the scenes to draw changed; read the page again"}, status=409)
     try:
         euros = float(body.get("euros"))
     except (TypeError, ValueError):
@@ -392,7 +392,7 @@ def concept_pick(request, place):
         return JsonResponse({"detail": "refused: not a pick"}, status=422)
     sha = body.get("sha") or None
     if sha and sha not in {draw.picture.sha for draw in draws_of(world, place)}:
-        return JsonResponse({"detail": "refused: that is no draw of this place"}, status=422)
+        return JsonResponse({"detail": "refused: that is no draw of this scene"}, status=422)
     if sha is None and approved(source, place):
         return JsonResponse({"detail": "refused: the design is approved; its concept stays locked"}, status=409)
     item = SyncRequest.objects.get(pk=queued(request, place, PICK, {"sha": sha}))

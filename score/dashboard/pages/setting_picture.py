@@ -154,7 +154,7 @@ def system_svg(setting, times, place_names):
     domes = backdrop_rings(setting, REACH + 24)
     note = " · ".join([f"orbits round {root['name']} to scale" if len(top) > 1 else "", "sizes enlarged to read",
                        *notes])
-    return picture(domes + rings + discs, "the setting's bodies"), note.strip(" ·")
+    return picture(domes + rings + discs, "the physics' bodies"), note.strip(" ·")
 
 
 def backdrop_rings(setting, radius):

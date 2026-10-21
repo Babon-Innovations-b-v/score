@@ -286,7 +286,7 @@
     const size = Math.max(Math.min(hold.w / 6, hold.d / 2.5, text * 1.2), longest / 140);
     label(hold.place.replace(/_/g, " "), hold.x + size * 0.4, hold.y + size * 1.2, size, "hold", group);
     tip(group, `${hold.place.replace(/_/g, " ")}: ${hold.w} x ${hold.d} m, ` +
-        `${hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this place's own floor"}`);
+        `${hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this scene's own floor"}`);
     const rect = () => [hold.x, hold.y, hold.w, hold.d];
     draggable(group, rect, (was, dx, dy) => Object.assign(hold, { x: round(was[0] + dx), y: round(was[1] + dy) }),
               () => { hold.row = holder_under(hold); },
@@ -341,7 +341,7 @@
     const group = shape("g", { class: "plan-cut" });
     line([-margin * 0.6, y], [wide + margin * 0.6, y], "plan-cut-line", group);
     for (const x of [-margin * 0.6, wide + margin * 0.6]) label("A", x, y - text * 0.4, text, "cut", group, "middle");
-    tip(group, "where the section A-A below cuts the place");
+    tip(group, "where the section A-A below cuts the scene");
   };
 
   const defs = () => {
@@ -538,14 +538,14 @@
     places.replaceChildren();
     plan.holds.forEach((hold, index) => {
       const row = document.createElement("li");
-      row.title = hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this place's own floor";
+      row.title = hold.row ? `inside the ${hold.row.replace(/_/g, " ")}` : "on this scene's own floor";
       if (!editing) {
         row.innerHTML = "<span data-v></span>";
         row.querySelector("span").textContent = hold.place.replace(/_/g, " ");
         places.append(row);
         return;
       }
-      row.innerHTML = '<input type="text" title="its name"><button type="button" class="concept-drop" title="remove this place" ' +
+      row.innerHTML = '<input type="text" title="its name"><button type="button" class="concept-drop" title="remove this scene" ' +
         'aria-label="remove">&times;</button>';
       const input = row.querySelector("input");
       input.value = hold.place;
