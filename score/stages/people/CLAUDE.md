@@ -20,9 +20,10 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   and assembly, complete and the library hand-over do not apply there). The loop's close-up, Pixal3D, finish route,
   bake and likeness make it; no side route of the people's own. Run it by name: `python -m score run world1 --place
   people --detach` (it is no place of the environment's, so a whole run leaves it out). The people layer's after-step,
-  `people-made@people` (`loop.py`), hands each look on (its take, its finishes, its labelled take) or names its gap;
-  each look's parts row and dress row read it (beside, on the line) and are Blocked on the look's gap before
-  anything is bought. Never edit the surface stage for people. **A person's close-up is the people layer's own**
+  `people-made@people` (`loop.py`), hands each look on (its take, its finishes, its labelled take, and its Pixal3D
+  files as pixal@people's takes.json names them, `takes/<take>/`) or names its gap; each look's parts, body and
+  dress rows read it (beside, on the line) and are Blocked on the look's gap before anything is bought. The body
+  rows build from the take the store keeps (`bodies.laid_take`), never the work folder alone (#26). Never edit the surface stage for people. **A person's close-up is the people layer's own**
   (`tools/props/closeup/stage.PERSON`, chosen for every row whose `layer` is `people`, on this line and in a designed
   place's hand-in alike): one person, or one member of a crowd row, front on in the rig's A-pose, never the concept's
   pose; its gate is `check.person_faults` (framed, arms clear of the body: Pixal3D fused Nev's), not a box's

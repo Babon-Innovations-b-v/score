@@ -61,7 +61,7 @@ KIT = Adapter(earth_seed.KIT_LAYER,
 # The people layer: every look a row, on the line `people`, which no place owns (align.NO_PLACE); after the model, the
 # looks handed on (score/stages/people/loop.py; each look's parts row, before its rig, and its dress row read it).
 PEOPLE = Adapter("people", after=(graph.Stage(people_loop.ROW, "place", people_loop.make, people_loop.CONTRACT,
-                                              (guarded("made", people_loop.judge_made),), after=dict(made.ENDS)),))
+                                              (guarded("made", people_loop.judge_made),), after=dict(people_loop.AFTER)),))
 ADAPTERS = (OBJECTS, TERRAIN, KIT, PEOPLE)
 
 ROUGH_MODEL = graph.Stage("rough-model", "place", rough_model.make, rough_model.CONTRACT, rough_model.CHECKS,
