@@ -33,17 +33,17 @@ def planned(world, monkeypatch, tmp_path):
 
 def test_no_plan_page_numbers_before_the_inventory_counts(world, monkeypatch):
     monkeypatch.setattr(plans, "DATA", world.data)
-    html = signed_in().get("/plan/alpha/").content.decode()
-    assert "inventory to read" in html and "plan-drawing" not in html
+    html = signed_in().get("/plan/alpha/", follow=True).content.decode()
+    assert "made once the inventory is read" in html and "plan-drawing" not in html
 
 
 def test_the_plan_page_shows_the_plan_made_from_the_pick_and_keeps_his_edit(planned):
     owner = signed_in()
-    html = owner.get("/plan/alpha/").content.decode()
+    html = owner.get("/plan/alpha/", follow=True).content.decode()
     assert 'id="plan-drawing"' in html and "R1 1" in html and "Approve" not in html and 'id="plan-keep"' in html
     assert "data-v>R1 1: no size</span>" in html  # its row gives no size: a gap shown, never hidden
     card = owner.get("/places/").content.decode()
-    assert 'href="/plan/alpha/"' in card  # its card's Plan button
+    assert 'href="/concept/alpha/#plan-part"' in card  # its card's Plan button: the design page's plan part
     plan = json.loads(html.split('<script id="plan-data" type="application/json">')[1].split("</script>")[0])
     plan["items"][0][1] = 2.5
     answer = owner.post("/plan/alpha/keep/", json.dumps({"plan": plan}), content_type="application/json")
@@ -77,10 +77,11 @@ def test_an_inside_place_his_kept_plan_adds_gets_a_card_and_a_concept_page(plann
 
 def test_a_rough_plan_offers_make_plan_and_his_click_writes_it_with_its_gaps_to_light(planned, monkeypatch):
     from score.dashboard.pages import concepts
-    from score.review import plan_writing, web
+    from score.review import plan_drawing, plan_writing, web
     monkeypatch.setattr(concepts, "in_background", concepts.applied_here)  # the thread's work, now
-    answer = {"items": [{"row": "r1", "x": 3.0, "y": 2.0, "wide": 6.0, "deep": 0.4, "tall": 0.8}],
-              "people": [[1.0, 1.0], [5.0, 3.5]]}
+    # in units of its top-down drawing (100 a metre: its own plan's box, 6 x 4 m, measures it)
+    answer = {"outline": [[0, 0], [600, 0], [600, 400], [0, 400]],
+              "items": [{"row": "r1", "box_2d": [180, 0, 220, 600], "tall": 0.8}], "people": [[100, 100], [500, 350]]}
     asked = []
 
     def written(store, place, euros, by):  # the writing's own process, its model call a stand-in
@@ -91,17 +92,28 @@ def test_a_rough_plan_offers_make_plan_and_his_click_writes_it_with_its_gaps_to_
 
     monkeypatch.setattr(web, "plan_write", written)
     monkeypatch.setattr(plan_writing, "call_euros", lambda found: 0.04)
+    monkeypatch.setattr(plan_drawing, "called", lambda wording, pictures: (drawing_png(), 0.13, 1.0))
     monkeypatch.setattr(plan_writing, "cleared", lambda *found, **named: contextlib.nullcontext())
     monkeypatch.setattr("score.adapters.compute.require_cleared", lambda what, store=None: None)
     owner = signed_in()
-    html = owner.get("/plan/alpha/").content.decode()
-    assert 'id="plan-write"' in html and "EUR 0.05" in html and ">rough<" in html
-    sent = owner.post("/plan/alpha/write/", json.dumps({"euros": 0.05}), content_type="application/json")
+    html = owner.get("/plan/alpha/", follow=True).content.decode()
+    price = plan_writing.price(planned.store)  # the writing and its top-down drawing
+    assert 'id="plan-write"' in html and f"EUR {price:.2f}" in html and "data-v>rough" in html
+    sent = owner.post("/plan/alpha/write/", json.dumps({"euros": price}), content_type="application/json")
     assert sent.status_code == 200, sent.content
-    assert asked == [0.05] and plans.current(planned.store, "alpha")["how"] == "written"
+    assert asked == [price] and plans.current(planned.store, "alpha")["how"] == "written"
     planned.source.refresh()
-    html = owner.get("/plan/alpha/").content.decode()
-    assert 'id="plan-write"' not in html and ">written<" in html and 'id="plan-section"' in html
+    html = owner.get("/plan/alpha/", follow=True).content.decode()
+    assert 'id="plan-write"' not in html and "data-v>written" in html and 'id="plan-section"' in html
     # r1 across the room cuts the north spot off its door: a gap, said plainly, lit on the drawing by its click
     assert "data-gap" in html and "the standing spot (north-west) cannot be reached on foot" in html
     assert 'data-at="[' in html
+    assert "the concept drawn top down" in html  # the drawing it was measured from, the third picture
+
+
+def drawing_png():
+    import io
+    from PIL import Image
+    buffer = io.BytesIO()
+    Image.new("RGB", (600, 600), (255, 255, 255)).save(buffer, "PNG")
+    return buffer.getvalue()

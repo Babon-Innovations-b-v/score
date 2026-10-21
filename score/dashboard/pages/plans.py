@@ -1,41 +1,41 @@
-"""The plan review (CONTEXT.md "plan", "design"; score/review/plans.py): one place's plan page, reached from its card
-and its concept page once its scene inventory counts. The plan is made automatically after the pick (owner,
-2026-10-21: the pick is the approval); the page is for inspecting and fixing it. The plan drawn top down beside the
-picked concept: its outline, doors and where each leads, items as labelled boxes tied to their inventory rows,
-keep-clear zones, standing spots, and for a place holding others the inside places it lays out (a list beside it:
-rename, remove, add; dropped on a building it stands in it). He drags and resizes items and inside places, moves doors along their
-walls, marks areas on the plan or the concept with a note each; Keep keeps his plan as his own (what follows is made
-from it), Correct with notes sends the marks and notes to the prompt model (priced, his click the spend yes).
+"""The plan review (CONTEXT.md "plan", "design"; score/review/plans.py): the plan part of one place's design page
+(pages/concepts.py, `/concept/<place>/#plan-part`; the owner, 2026-10-21: concept, inventory and plan on one page),
+open by default once its scene inventory is read. The plan is made automatically after the pick (owner, 2026-10-21:
+the pick is the approval); the part is for inspecting and fixing it. The top-down drawing a written plan was measured
+from (score/review/plan_drawing.py), the plan drawn top down, its section, and the picked concept: its outline, doors
+and where each leads, items as labelled boxes tied to their inventory rows, keep-clear zones, standing spots, and for
+a place holding others the inside places it lays out (a list beside it: rename, remove, add; dropped on a building it
+stands in it). He drags and resizes items and inside places, moves doors along their walls, marks areas on the plan
+or the concept with a note each; Keep keeps his plan as his own (what follows is made from it), Correct with notes
+sends the marks and notes to the prompt model (priced, his click the spend yes). `/plan/<place>/` leads there.
 
 Each click is the owner's request (SyncRequest kinds in sync/applying.PLAN_KINDS), applied on the store's machine:
 locally at once (a correction in a thread: a model call), hosted by its listener. Hosted, his plan kept since the
 export shows at once (`review_of`)."""
-import json
-
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.views.decorators.http import require_POST
 
 from score.dashboard import state
-from score.dashboard.pages import actions, concepts, present
+from score.dashboard.pages import actions, concepts
 from score.dashboard.pages.models import SyncRequest, is_owner
-from score.dashboard.state import groups
 
 EDIT, NAMED, REVISE, WRITE = "plan-edit", "plan-named", "plan-revise", "plan-write"
 SLOW = (REVISE, WRITE)  # applied in a thread locally: a model call
 
 
 def review_of(world, place):
-    """{plan, how, at} the page shows: the source's PlanReview, and hosted, his newest plan kept since its export
-    (what he sent), unless refused; None while the place has no plan."""
+    """{plan, how, at, drawing} the page shows: the source's PlanReview (its top-down drawing too), and hosted, his
+    newest plan kept since its export (what he sent), unless refused; None while the place has no plan."""
     review = world.plan_reviews.get(place)
     if review is None:
         return None
     since = [item for item in concepts.asked(place, EDIT)
              if item.state != "refused" and item.created.isoformat() > (world.made_at or "")]
     if actions.hosted() and since:
-        return {"plan": since[-1].payload["plan"], "how": "edited", "at": since[-1].created.isoformat()}
-    return {"plan": review.plan, "how": review.how, "at": review.at}
+        return {"plan": since[-1].payload["plan"], "how": "edited", "at": since[-1].created.isoformat(),
+                "drawing": review.drawing}
+    return {"plan": review.plan, "how": review.how, "at": review.at, "drawing": review.drawing}
 
 
 def pending_of(place):
@@ -58,20 +58,10 @@ def picture_of(world, place):
 
 
 def plan_page(request, place):
-    """The plan review page of one place (module docstring)."""
+    """`/plan/<place>/`: the plan part of the place's design page."""
     source = state.source()
-    world = source.world_state()
-    concepts.checked_node(world, source, place)
-    names = groups.short_names(world)
-    review = review_of(world, place)
-    pending = pending_of(place)
-    return render(request, "pages/plan.html", {
-        "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
-        "review": review, "plan_json": json.dumps(review["plan"]).replace("</", "<\\/") if review else "null",
-        "picture": picture_of(world, place), "euros": world.plan_revise_euros, "write_euros": world.plan_write_euros,
-        "automatic": world.plan_automatic,
-        "inventory": world.inventories.get(place), "pending": pending and pending.created.isoformat(),
-        "refused": refused_of(place), "can": is_owner(request.user) and actions.decisions_on()})
+    concepts.checked_node(concepts.light_world(source), source, place)
+    return redirect(f"/concept/{place}/#plan-part")
 
 
 def asked_of(request, place, kind):

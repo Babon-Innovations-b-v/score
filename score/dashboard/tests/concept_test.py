@@ -335,6 +335,7 @@ def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_run
     world.source.refresh()
     page = signed_in().get("/concept/alpha/").content.decode()
     assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 1 gaps, EUR 0.13, 10.0 min" in page
+    assert "1 rows, 1 gaps, 1 skipped" in page  # the inventory part's summary
     assert 'style="left:0.0%;top:0.0%;width:50.0%;height:50.0%"' in page
     assert ('data-v>1. fuel drum</span> <span class="soft" data-v>its size in metres not read; what it stands on not '
             'read</span>') in page  # one line a row, its gaps in plain words

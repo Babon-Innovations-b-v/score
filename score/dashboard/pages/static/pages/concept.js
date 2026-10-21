@@ -3,8 +3,15 @@
 // (a new first draw from the place's own wording: no base), else Redraw with notes (the marks, the note and the shown
 // draw as its base); then it asks the page's state until the draw is answered and shows it. A first draw sends the
 // wording box's text when he edited it (it becomes the place's own wording); "back to generated" drops it. Pick and
-// Unlock post the shown draw (or none).
+// Unlock post the shown draw (or none). The design page's part the link names opens.
 (() => {
+  // The design page's part a link names (#plan-part, as /plan/<place>/ leads here) opens.
+  const opened = () => {
+    const part = location.hash && document.getElementById(location.hash.slice(1));
+    if (part && part.tagName === "DETAILS") part.open = true;
+  };
+  opened();
+  window.addEventListener("hashchange", opened);
   const page = document.getElementById("concept");
   if (!page) return;
   const place = page.dataset.place;

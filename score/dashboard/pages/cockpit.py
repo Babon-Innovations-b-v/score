@@ -134,12 +134,12 @@ def designed(world, cards):
 
 
 def steps_of(world, node):
-    """{steps, steps_done, steps_tip, plan} of a place's or shell's design steps (screens.design_steps): `plan` its plan
-    page once it has a plan (None before)."""
+    """{steps, steps_done, steps_tip, plan} of a place's or shell's design steps (screens.design_steps): `plan` the plan
+    part of its design page once it has a plan (None before)."""
     steps = screens.design_steps(world, node)
     return {"steps": steps, "steps_done": sum(steps),
             "steps_tip": " · ".join(f"{name} {'yes' if done else 'no'}" for name, done in zip(screens.DESIGN_STEPS, steps)),
-            "plan": f"/plan/{node}/" if steps[2] else None}
+            "plan": f"/concept/{node}/#plan-part" if steps[2] else None}
 
 
 def design_of(design):
