@@ -37,10 +37,10 @@ def _run(payload, env=None):
 
 
 def _with_place(tmp_path, monkeypatch):
-    """Make the test place known to the guard (a kit file of its name) and its stage folder empty."""
-    kit = pathlib.Path(__file__).resolve().parents[3] / "data/kit" / f"{_PLACE}.json"
-    kit.parent.mkdir(exist_ok=True)
-    kit.write_text("{}")
+    """Make the test place known to the guard (a places file naming it) and its stage folder empty."""
+    kit = tmp_path / "within.json"
+    kit.write_text(json.dumps({"shells": {_PLACE: {}}}))
+    monkeypatch.setenv("SCORE_GUARD_WITHIN", str(kit))
     monkeypatch.setenv("PROPS_WORK", str(tmp_path / "work"))
     return kit
 

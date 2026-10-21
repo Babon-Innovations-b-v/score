@@ -184,7 +184,8 @@ def built_meshes(entry):
         raise ValueError(f"no code builder named {entry['builder']}")
     builder = getattr(builders, entry["builder"])
     numbers = {key: value for key, value in entry.items()
-               if key not in ("name", "builder", "from", "layer", "mirror", "placed_at", "placed_turn", "plain", "row")}
+               if key not in ("name", "builder", "from", "layer", "mirror", "placed_at", "placed_turn", "plain", "row",
+                              "surface_missing")}
     built = builder(**numbers)
     return [placed(part, entry) for part in (built if isinstance(built, list) else [built])]
 
@@ -213,7 +214,11 @@ def write_structure(stage, place, entries, root="Structure", kind="structure", o
         for number, built in enumerate(built_meshes(entry)):
             name = entry["name"] if number == 0 else f"{entry['name']}_{number + 1}"
             prim = mesh_prim(stage, f"/{place}/{root}/{name}", built)
-            bind_surface(stage, prim, place, built["surface"], out, tiles)
+            if built["surface"] is None:  # the scene library gives the part none: named, never painted another way
+                prim.GetPrim().CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
+                    entry.get("surface_missing") or f"{place}: {entry['name']} names no surface")
+            else:
+                bind_surface(stage, prim, place, built["surface"], out, tiles)
             if colliders.is_solid(kind, entry.get("plain")):
                 colliders.solid(prim.GetPrim(), built["points"], built["triangles"])
             for key, value in (("score:kind", kind), ("score:builder", entry["builder"]),

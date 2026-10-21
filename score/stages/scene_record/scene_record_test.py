@@ -173,10 +173,43 @@ def test_the_record_is_written_from_the_design():
         assert verdict.answer == checks.FAIL and "'moon_city'" in " ".join(verdict.findings), verdict.findings
 
 
+def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
+    """Each shell part and stair takes the variant the scene's surface library gives its kind (a stair the floor's
+    when the library names no stair), and a part it gives none, or every part while no library is made, carries no
+    surface and says why; the scene builder names that on the mesh and binds nothing."""
+    from pxr import Usd
+    from score.stages.scene_record import writer
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene
+    with tempfile.TemporaryDirectory() as folder:
+        made_library = pathlib.Path(folder) / "library"
+        made_library.mkdir()
+        (made_library / "materials.json").write_text(json.dumps({"kinds": {"wall": ["painted_panel"],
+                                                                          "floor": ["deck_plate"]}}))
+        (pathlib.Path(folder) / "with").mkdir()
+        output, inputs = written(pathlib.Path(folder) / "with", WRITTEN)
+        painted = {entry["name"]: entry for entry in writer.record_in(output)[1]["structure"]}
+        record = writer.record_of(json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text()), WRITTEN,
+                                  {**inputs, writer.LIBRARY_ROW: made_library})
+        surfaces = {entry["name"]: entry for entry in record["structure"]}
+    assert {surfaces["wall_1"]["surface"], surfaces["deck_1"]["surface"], surfaces["stair_1"]["surface"]} == \
+        {"painted_panel", "deck_plate"} and surfaces["stair_1"]["surface"] == "deck_plate", surfaces
+    roof = surfaces["roof_1"]
+    assert roof["surface"] is None and "names no surface for the kinds a roof takes" in roof["surface_missing"], roof
+    assert all(entry["surface"] is None and "not made" in entry["surface_missing"] for entry in painted.values()), \
+        painted  # no library row read: every part named missing, none painted another way
+    stage = Usd.Stage.CreateInMemory()
+    scene.write_structure(stage, "shed", [roof])
+    mesh = stage.GetPrimAtPath("/shed/Structure/roof_1")
+    assert "roof takes" in mesh.GetAttribute("score:surface:missing").Get(), mesh
+    assert not mesh.HasRelationship("material:binding"), mesh
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
     test_a_plan_maps_and_faults_fail()
     test_a_written_plan_with_no_corner_takes_its_outline()
     test_the_record_is_written_from_the_design()
+    test_the_shell_and_stairs_take_the_scene_librarys_surfaces()
     print("scene_record_test: ok")

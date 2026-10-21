@@ -16,7 +16,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   `slab` and `gable` entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
   inside place (walls or roofs drawn, no terrain spots) whose base does not lay it already (`design_shell.laid_for`: a
   room whose plan says its kit holds its walls, laid by earth-seed); an open place has none. Every stair or ramp the
-  plan draws is a flight of `stairs`.
+  plan draws is a flight of `stairs`. Each entry's surface is the scene's surface library's for its kind
+  (surface-library@<place>, an `after`; `design_shell.PART_KINDS`, as earth-seed paints), else none and its
+  `surface_missing` says why; tools/usd/scene.py names that on the mesh and binds nothing (no fixed surface name).
 - **Lamps from the row kinds**: a light at each plan item of a glowing row, over its middle, as high on it as the
   library's lamp for the row's mount says, numbered by that lamp. No lamp list per place.
 - **The sky is the physics'**: the record's environment says inside or not and what overhead.py sees at the site at
@@ -33,4 +35,5 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   ground fits round the doorways is ground-fit's.
 - Run the proof with `python -m score run world1 --place <place> --stage scene-record --detach`; the test is
   `scene_record_test.py` (a shed of its own: its plan maps, its record is written from a written plan, and a filled
-  door, a moved lamp and a door to no place fail by name).
+  door, a moved lamp and a door to no place fail by name; its shell and stairs take the scene library's surfaces, or
+  name why not).

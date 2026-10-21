@@ -191,7 +191,7 @@ def test_the_earth_seed_and_the_scene_record_lay_each_shell_once():
     assert design_shell.shell(domed) == []  # enclosed, no room of the earth seed's: the scene record's shell
     room = {name for name, _, _ in design_shell.shell(dict(ROOM, stairs=OPEN["stairs"]))}
     assert not any(name.startswith(("stair_", "level_")) for name in room), room  # a room's levels are its decks
-    recorded = writer.structure({}, dict(ROOM, stairs=OPEN["stairs"]))
+    recorded = writer.structure({"place": "room"}, dict(ROOM, stairs=OPEN["stairs"]))
     assert [entry["builder"] for entry in recorded] == ["stairs", "stairs"]  # the room's shell is the earth seed's
 
 

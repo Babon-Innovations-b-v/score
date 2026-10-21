@@ -15,6 +15,7 @@ verdict of unknown blocks like fail. Exit 2 + stderr is the only block path.
 """
 
 import json
+import os
 import pathlib
 import re
 import sys
@@ -34,12 +35,12 @@ _PAGE = re.compile(r"\bcreator cockpit\b", re.IGNORECASE)
 
 
 def places():
-    """Every scene the framework knows: data/places/within.json's (the kits and old scene records are retired)."""
-    path = _REPO_ROOT / "data/places/within.json"
+    """Every scene the framework knows: data/places/within.json's, or the file SCORE_GUARD_WITHIN names (tests); the
+    kits and old scene records are retired."""
+    path = pathlib.Path(os.environ.get("SCORE_GUARD_WITHIN") or _REPO_ROOT / "data/places/within.json")
     found = json.loads(path.read_text()) if path.is_file() else {}
     names = {*found.get("within", {}), *found.get("shells", {}),
              *(entry["within"] for entry in found.get("within", {}).values())}
-    names |= {path.stem for path in (_REPO_ROOT / "data/kit").glob("*.json")}  # a scene known by a kit file (tests)
     return sorted(name for name in names if name)
 
 
