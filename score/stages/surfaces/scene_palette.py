@@ -29,7 +29,6 @@ if str(HERE) not in sys.path:
 
 import finish_ask  # noqa: E402
 import palette_library  # noqa: E402
-import prop_env  # noqa: E402
 import route_ask  # noqa: E402
 import surface_data as data  # noqa: E402
 import surface_gates as gates  # noqa: E402
@@ -51,11 +50,6 @@ scuffed floors, faded paint, patches), and say the cause you see in "cause". The
 (caked), and the token its dirt is drawn in, the dust or grime the picture shows."""
 
 
-def concept_path(place):
-    """The scene's own locked concept, here or not."""
-    return prop_env.PROPS_HOME / "design/concepts" / f"{place}.png"
-
-
 def library_read(path):
     """What the ask reads of the library (materials.json): the tokens its variants are drawn in and its wear levels,
     so a surface added in a token the library already has asks no scene again."""
@@ -67,9 +61,12 @@ def library_read(path):
 
 def files(place):
     """The row's files: the place's surface data, its locked concept (or, for a line no scene owns, every locked
-    concept), the library's tokens and wear levels (library_read) and the tokens' colours."""
-    concept = ("concept", "{home}/design/concepts/" + f"{place}.png") if concept_path(place).exists() else \
-        ("concepts", "{home}/design/concepts")
+    concept), the library's tokens and wear levels (library_read) and the tokens' colours. A scene declares its own
+    concept whether or not it is locked yet, so a scene without one blocks on it by name, never asked over every
+    other scene's concept."""
+    from score.stages.shapes_first import align  # here, not at the top: shapes_first imports this stage
+    concept = ("concepts", "{home}/design/concepts") if place in align.NO_PLACE else \
+        ("concept", "{home}/design/concepts/" + f"{place}.png")
     return {"surfaces": data.pattern(place), concept[0]: concept[1],
             "library": ("{data}/library/materials.json", library_read), "tokens": "{repo}/design/tokens/tokens.json"}
 

@@ -507,9 +507,12 @@ def test_a_line_no_scene_owns_is_asked_over_every_concept():
         parts = asked[0]["people"]["contents"][0]["parts"]
         assert sum("inline_data" in part for part in parts) == 2 and "every scene" in parts[-1]["text"], parts
         assert verdict.answer == "pass" and json.loads((out / "palette.json").read_text())["pictures"] == 2
-    # the row declares the scene's own locked concept when it has one, else the folder of every one
-    assert "concept" in scene_palette.files("cockpit") or "concepts" in scene_palette.files("cockpit")
-    assert scene_palette.files("no-such-scene")["concepts"] == "{home}/design/concepts"
+    # only a line no scene owns reads every locked concept; a scene declares its own, locked yet or not, so a scene
+    # with none (environment 1's launch) blocks on it by name instead of being asked over every other scene's
+    assert scene_palette.files("people")["concepts"] == "{home}/design/concepts"
+    for scene in ("cockpit", "no-such-scene"):
+        found = scene_palette.files(scene)
+        assert found["concept"] == "{home}/design/concepts/" + f"{scene}.png" and "concepts" not in found, found
 
 
 def test_paid_asks_refuse_outside_a_cleared_run():
