@@ -258,6 +258,26 @@ def plan_edit(store, place, plan, by):
         raise review.Refused(str(refused)) from refused
 
 
+def environment_plan_edit(store, plan, by):
+    """His environment's plan as he left it on its page (score/review/environment_plan.py), kept as his own; the
+    record."""
+    from score.review import environment_plan
+    try:
+        return environment_plan.edited(store, plan, checked_by(by))
+    except environment_plan.Refused as refused:
+        raise review.Refused(str(refused)) from refused
+
+
+def environment_plan_write(store, by):
+    """His Write on the environment's plan page: one Gemini writing under the owner's standing allowance for plan
+    writing (score/review/environment_plan.write); the record, refused when the answer was no plan."""
+    from score.review import environment_plan
+    record = environment_plan.write(store, checked_by(by))
+    if record.get("refused"):
+        raise review.Refused(record["refused"])
+    return record
+
+
 def plan_named(store, place, names, by):
     """The inside places he named up front on `place`'s concept page; the record."""
     from score.review import plans

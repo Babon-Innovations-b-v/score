@@ -55,6 +55,7 @@ def ready_above(monkeypatch, box=(0, 0, 32, 20)):
     monkeypatch.setattr(reading, "reading_of", lambda store, place: {"stand-in": place})
     monkeypatch.setattr(concepts, "plan_made", lambda store, place: True)
     monkeypatch.setattr(concepts, "holding_row", lambda store, place: "holder")
+    monkeypatch.setattr(concepts, "outlined", lambda store, place: True)
     monkeypatch.setattr(reading, "row_boxes", lambda store, place, row: [list(box)])
 
 
@@ -79,7 +80,10 @@ def test_a_first_draw_is_worded_from_the_places_data_and_kept(store, monkeypatch
     assert store.objects.exists(f"blobs/{record['sha']}")
     assert concepts.draws(store, "campgrounds") == [record] and concepts.placed(store) == ["campgrounds"]
     wording, sizes = asked[0]
-    assert "campgrounds" in wording and "The creator's note: more dust" in wording and sizes == []  # an outside place with no reference
+    assert "campgrounds" in wording and "The creator's note: more dust" in wording
+    assert sizes == [(1280, 720)]  # an outside place with no reference: its site's blockout only
+    assert "1. the structure: a rough grey model of it at real sizes from the environment's plan" in wording
+    assert record["blockout"] and store.objects.exists(f"blobs/{record['blockout']}")
 
 
 def test_a_redraw_sends_the_base_boxed_and_clean_with_each_marks_note(store, monkeypatch):
@@ -320,10 +324,12 @@ def test_people_are_drawn_only_where_the_places_data_has_them(store, monkeypatch
 
 def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monkeypatch):
     store = Store.in_folder(tmp_path)
-    older = [{"base": None, "wording": "an older wording"}]
+    older = [{"base": None, "wording": "an older wording", "blockout": "b"}]
     monkeypatch.setattr(concepts, "draws", lambda _store, _place: older)
     assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]
     older.append({"base": None, "wording": concepts.generated(store, "old_station")})
+    assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]  # drawn without its blockout: out of date
+    older.append({"base": None, "wording": concepts.generated(store, "old_station"), "blockout": "b"})
     assert concepts.undrawn(store, ["old_station"])[0] == []
 
 
@@ -357,7 +363,7 @@ def test_an_edited_wording_is_sent_word_for_word_and_stays_the_places_own_until_
 
 def test_an_edited_wording_makes_the_draw_from_the_generated_one_out_of_date(tmp_path, monkeypatch):
     store = Store.in_folder(tmp_path)
-    drawn = [{"base": None, "wording": concepts.generated(store, "old_station")}]
+    drawn = [{"base": None, "wording": concepts.generated(store, "old_station"), "blockout": "b"}]
     monkeypatch.setattr(concepts, "draws", lambda _store, _place: drawn)
     assert concepts.undrawn(store, ["old_station"])[0] == []
     concepts.worded(store, "old_station", "One concept painting of the old station at night.", "joey")
@@ -461,7 +467,7 @@ def test_a_place_is_drawn_only_once_the_layer_above_is_picked_read_and_planned_a
     monkeypatch.setattr(reading, "reading_of", lambda store, place: {"stand-in": place})
     assert concepts.waits(store, "hub") == "waits for base's plan to be made"
     monkeypatch.setattr(concepts, "plan_made", lambda store, place: True)
-    assert concepts.waits(store, "hub") == "waits for base's plan to outline what holds it"
+    assert concepts.waits(store, "hub") == "waits for base's plan to lay it out"
     ready_above(monkeypatch)
     assert concepts.waits(store, "hub") is None and "hub" in concepts.undrawn(store, ["hub"])[0]
     said_yes(store, monkeypatch, "hub")

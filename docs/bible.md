@@ -194,8 +194,19 @@ north and a scale bar, and a section A-A. His edits on the plan page are his own
 follows: the plan stage reads the plan shown and the inventory it was made from (`{home}/design/plans/<place>.json`,
 `{home}/design/inventory/<place>.json`, `stages.creator_plan`, written on
 his edit and by the sync pass, which makes the plan row again for those that changed), and an inside place's
-concept is drawn only once that plan is made, from the row holding it there (`plans.holder_of`,
-`concepts.step_refusal`).
+concept is drawn only once that plan is made and lays out its outline (`plans.holder_of`, held by a row or by the
+holder's own walls; `concepts.step_refusal`).
+
+**The blockout** (CONTEXT.md "blockout", "environment plan"; owner 2026-10-21, after ArtCraft's "stage the scene in
+3D, then generate"): every new concept draw is drawn on a rough grey model built in code from its parent's plan, at
+real sizes, rendered free from the fixed concept view (`score/review/blockout.py`, a numpy z-buffer: no card, no
+Blender) and sent first as its structure picture. The environment is the first parent: its own plan
+(`score/review/environment_plan.py`) holds a map a world with each top place's site (from the ground plans' seats),
+written by the plan writer's call, and the environment's physics state (`data/physics/worlds.json`: true radii, Kepler
+elements, spins; `score/review/sky.py`), from which each site's sky at its scene time is worked out, every other world
+at its true direction, size and phase, the data a later sky layer runs live. An inside place's blockout is its own
+shell inside its holder's, its siblings' shells round it, so rooms fit together from the blockouts alone. A draw made
+without the blockout that can be built now is out of date; picked places keep their picks and are named.
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's

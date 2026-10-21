@@ -501,6 +501,20 @@ def plan_edit(user, payload):
                      lambda record: f"kept {len(record['plan']['items'])} items")
 
 
+def environment_plan_edit(user, payload):
+    """His environment's plan as he left it on its page (score.review.web.environment_plan_edit); in words."""
+    from score.review import web
+    return plan_said(user, lambda store, by: web.environment_plan_edit(store, payload["plan"], by),
+                     lambda record: f"kept, {len(record['plan']['gaps'])} gaps")
+
+
+def environment_plan_write(user, payload):
+    """His Write on the environment's plan page (score.review.web.environment_plan_write); in words."""
+    from score.review import web
+    return plan_said(user, lambda store, by: web.environment_plan_write(store, by),
+                     lambda record: f"written, {len(record['plan']['gaps'])} gaps, EUR {record['euros'] or 0:.3f}")
+
+
 def plan_named(user, payload):
     """The inside places he named on a concept page (score.review.web.plan_named); in words."""
     from score.review import web

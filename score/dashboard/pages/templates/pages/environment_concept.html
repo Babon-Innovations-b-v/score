@@ -7,6 +7,7 @@
   <span class="ec-state" title="{% if shown.locked %}every place's concept is drawn from this; unlock to change it{% else %}being changed: no place is drawn until it is locked again{% endif %}{% if not shown.prefilled %} (version {{ shown.versions }}, {{ shown.by }}, {{ shown.at|slice:':16' }}){% endif %}">{% include "pages/c/dot.html" with tone=shown.locked|yesno:"done,review" tip=None %} <b data-v>{{ shown.locked|yesno:"locked,unlocked" }}</b></span>
   <div class="phead-actions">
     <a class="button primary big" href="/places/" title="its places, each drawn from this concept" data-v>Places</a>
+    <a class="button big" href="/environments/{{ world }}/plan/" title="its plan: a map a world, each top place's site and sky" data-v>Plan</a>
     {% if can %}{% if shown.locked %}<details class="ec-unlock"><summary class="button" title="change it">Unlock</summary>
       <div class="ec-confirm"><p data-v>Every place's concept goes out of date and is drawn again.</p>
         <form data-yes data-reload data-url="/environments/{{ world }}/save/" data-body='{{ unlock_body }}'><button type="submit" class="button bad" data-slot="post-label" data-v>Unlock</button><i class="dot" data-slot="said" hidden></i></form></div>

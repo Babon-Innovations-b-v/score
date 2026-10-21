@@ -220,6 +220,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
     for picture in world.environment_pictures.values():  # the environment concept's references
         for side in (THUMB_SIDE, HERO_SIDE):
             filler.picture(source.file(picture.sha)[1], picture.sha, side, f"reference {picture.name}")
+    for picture in world.blockouts.values():  # the blockouts every new draw is drawn on (score/review/blockout.py)
+        filler.picture(source.file(picture.sha)[1], picture.sha, HERO_SIDE, f"blockout {picture.name}")
     drawn = [draw.picture for draws in world.concept_draws.values() for draw in reversed(draws)]
     for side in (THUMB_SIDE, HERO_SIDE):  # the concept review's draws, newest first, its history then its page
         for picture in drawn:

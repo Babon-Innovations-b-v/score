@@ -507,7 +507,43 @@ class LocalSource:
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
                           gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
                           remake=self.remake(), concepts=self.concepts(), **self.concept_review(),
-                          **self.environment_concept(), **self.plan_review(), **self.hierarchy())
+                          **self.environment_concept(), **self.plan_review(), **self.hierarchy(),
+                          **self.environment_plan())
+
+    def environment_plan(self):
+        """{environment_plan, blockouts} (score/review/environment_plan.py, blockout.py): the environment's plan as its
+        page shows it, with the places whose picked draw was drawn without a blockout, and the blockout picture of
+        every top place's site and every place or shell one can be built for (rendered once each into this
+        dashboard's home, by what it is built from)."""
+        from score.review import concepts, environment_plan
+        shown = environment_plan.current(self.store, self.world.name)
+        nodes = self.design_nodes()
+        pictures = {node: found for node in dict.fromkeys(
+            [*[site["place"] for world in shown["plan"]["maps"] for site in world["sites"]], *nodes])
+            if (found := self.remembered(("blockout-ref", node), lambda node=node: self.blockout_ref(node)))}
+        return {"environment_plan": {**shown, "without_blockout": concepts.without_blockout(self.store, nodes)},
+                "blockouts": pictures}
+
+    def blockout_ref(self, node):
+        """The FileRef of `node`'s blockout (score/review/blockout.py) rendered into this home's blockouts/ under the
+        hash of what it is built from, None while its parent's plan is not there."""
+        import numpy as np
+        from score.review import blockout
+        try:
+            parts, framed, worlds = blockout.scene_of(self.store, node)
+        except blockout.Missing:
+            return None
+        digest = hashlib.sha256(json.dumps([framed, worlds], sort_keys=True).encode())
+        for triangles, kind in parts:
+            digest.update(kind.encode())
+            digest.update(np.asarray(triangles, dtype=np.float64).tobytes())
+        path = self.home / "blockouts" / f"{digest.hexdigest()}.png"
+        if not path.is_file():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            blockout.render(parts, blockout.fixed_camera(parts, framed), worlds).save(path)
+        sha = self.remembered(("blockout", str(path)), lambda: hashlib.sha256(path.read_bytes()).hexdigest())
+        self.known.add(sha, f"{node}-blockout.png", path)
+        return file_ref(sha, f"{node}-blockout.png", path.stat().st_size)
 
     def environment_concept(self):
         """{environment_concept, environment_ask_euros, environment_pictures} (score/review/environment_concept.py):
