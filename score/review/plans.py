@@ -480,11 +480,8 @@ def holding_row(rows, place):
     names or ends in a thing it names that is no place (the hangar's `spaceship` for its rooms, "the ship"); None:
     the holder's own walls (he sets it on the plan page)."""
     ids = [row["id"] for row in rows]
-    if place in ids:
-        return place
-    worded = [row_id for row_id in ids if re.sub(r"(_\d+)+$", "", row_id).split("_")[-1] == place]
-    if worded:
-        return min(worded, key=len)
+    if named_row(ids, place):
+        return named_row(ids, place)
     said = json.loads((DATA / "places/within.json").read_text()).get("within", {}).get(place, {}).get("from", "") \
         if (DATA / "places/within.json").is_file() else ""
     # a thing it names that is no place (the hangar's rooms: "the ship"), as the end of a row's id ("spaceship")
@@ -493,6 +490,34 @@ def holding_row(rows, place):
     named = [row_id for row_id in ids if re.search(rf"\b{re.escape(row_id)}\b", said)
              or any(re.sub(r"(_\d+)+$", "", row_id).endswith(word) for word in words)]
     return min(named, key=len) if named else None
+
+
+def named_row(ids, place):
+    """The row of `ids` named as `place`, else the shortest whose id ends in its name (`central_hub` for the hub);
+    None."""
+    if place in ids:
+        return place
+    worded = [row_id for row_id in ids if re.sub(r"(_\d+)+$", "", row_id).split("_")[-1] == place]
+    return min(worded, key=len) if worded else None
+
+
+def neighbours_row(hold, holds):
+    """The row `hold`'s room stands in: the row holding rooms it touches or adjoins (within GAP; the longest shared
+    edge) when that row holds more rooms than its own, over the row its box was guessed into by overlap (owner,
+    2026-10-21, the docking airlock behind the engine room filed under the crane: "that part is still part of the
+    ship"); its own row when that names it (the base's `central_hub` for the hub) or is None (its own floor)."""
+    if not hold["row"] or named_row([hold["row"]], hold["place"]):
+        return hold["row"]
+    held = [other["row"] for other in holds]
+    shared = {}
+    for other in holds:
+        if other is hold or not other["row"] or held.count(other["row"]) <= held.count(hold["row"]):
+            continue
+        across = min(hold["x"] + hold["w"], other["x"] + other["w"]) - max(hold["x"], other["x"])
+        along = min(hold["y"] + hold["d"], other["y"] + other["d"]) - max(hold["y"], other["y"])
+        if min(across, along) > -GAP and max(across, along) > 0:
+            shared[other["row"]] = shared.get(other["row"], 0.0) + max(across, along)
+    return max(shared, key=shared.get) if shared else hold["row"]
 
 
 def holds_of(store, place, plan, rows):
@@ -717,6 +742,7 @@ def checked_plan(plan, base):
                        for x, y, *rest in plan.get("people", [])]
     ids = {row for tied in base.get("rows", {}).values() for row in tied}
     holds = [checked_hold(hold, ids) for hold in plan.get("holds", [])]
+    holds = [{**hold, "row": neighbours_row(hold, holds)} for hold in holds]
     if holds or "holds" in base:
         found["holds"] = holds
     return found

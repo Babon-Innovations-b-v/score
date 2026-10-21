@@ -49,12 +49,12 @@ blockout (its own room shell alone), a crop of that one's picked concept to the 
 it (the ship for its rooms, the block for the flat), never the whole scene and never a view round it (the owner,
 2026-10-21); its wording opens with one block its siblings share word for word ("<the holding row> is divided into
 these compartments: 1. cockpit (flying the ship), 2. ..."; `compartment_words`), then "This concept is number x" and
-its inside alone (`INSIDE_ONLY`: its own walls, floor, ceiling, doors and furniture, windows as glass on a plain dark
-backdrop, nothing of what holds it or round it); the design steps are strict, in one place (`step_refusal`, owner
-2026-10-21): it is drawn or picked only once the layer above is picked (the pick is the approval), its inventory read,
-its plan made and that row outlined; then the picked concept of each place beside it that it opens into,
-so their shared door matches; then its references (the owner's, kept in the private bucket's references/, never the
-public repository; read from the local copy under {home}/references; a draw whose reference is not here waits). A
+its inside alone (`INSIDE_ONLY`: cut away at its own walls, nothing beyond them, no hull; every door and hatch set in
+its own walls; windows on a plain dark backdrop; doors unlabelled and no text or signs in any draw); the design
+steps are strict, in one place (`step_refusal`, owner 2026-10-21): it is drawn or picked only once the layer above
+is picked (the pick is the approval), its inventory read, its plan made and that row outlined; then the picked
+concept of each place beside it that it opens into, so their shared door matches; then its references
+(the owner's, kept in the private bucket's references/, never the public repository; read from the local copy under {home}/references; a draw whose reference is not here waits). A
 draw's record keeps the picks it was sent (`picks`), so a new pick of one puts it out of date (`current_draw`). A draw's
 price is the measured Nano Banana Pro picture (data/costs/per-unit.json, stage closeup) at the standard tier: a draw
 is one direct call, not a batch call.
@@ -284,7 +284,7 @@ def recorded(store, key, record):
 OUTSIDE_VIEW = "View: high three-quarter from a corner, 35 to 45 degrees down, the whole place in frame, long lens"
 INSIDE_VIEW = "View: cutaway (roof and near walls removed), high three-quarter from a corner, 35 to 45 degrees down"
 ROOF_KEPT = ", roof openings and domes kept at the cut edges"
-EVERY_DRAW = "16:9, no text"
+EVERY_DRAW = "16:9, no text or signs"
 WITH_PEOPLE = "people for scale"
 NO_PEOPLE = "no people"
 PEOPLE_WORDS = re.compile(r"\b(people|person|crowd|crew)\b", re.IGNORECASE)
@@ -490,8 +490,8 @@ def holds_and_doors(store, place):
     shown = [words for of, words in tree()["parts"].values() if of == place]
     parts = [f"inside: {', '.join(short_name(name) for name in inside)}" if inside else "",
              f"part of it: {'; '.join(shown)}" if shown else "",
-             (f"its doors: {'; '.join(door_words(place, side, lead) for side, lead in leads.items())}; no other doors "
-              "or openings") if leads else ""]
+             (f"its unlabelled doors: {'; '.join(door_words(place, side, lead) for side, lead in leads.items())}; "
+              "no other doors or openings") if leads else ""]
     said = "; ".join(part for part in parts if part)
     return f"{said[0].upper()}{said[1:]}." if said else ""
 
@@ -625,8 +625,8 @@ def waits(store, place):
     return step_refusal(store, place, "draw")
 
 
-STRUCTURE = ("the structure: a rough grey model of it at real sizes from {parent}'s plan, seen from the fixed view{rest}; "
-             "keep this layout, shapes and proportions exactly, add the look")
+STRUCTURE = ("the structure: a grey model of it at real sizes from {parent}'s plan, the fixed view{rest}; "
+             "keep its layout, shapes and proportions exactly, add the look")
 OVERHEAD_VIEW = "what is seen overhead at its site: keep each body's place, size and phase, add the look"
 
 
@@ -669,9 +669,11 @@ def sent_pictures(store, place):
 # that list"): every inside place held by the same thing gets one identical block naming them all in one order, then
 # its own number; it is drawn alone, its inside only.
 
-INSIDE_ONLY = ("Concept painting of its inside alone: its own walls, floor, ceiling, doors (closed, or open doorways "
-               "onto the compartments named) and furniture; windows as glass with a plain dark backdrop behind; nothing "
-               "of what holds it (no hull), nothing outside or round it")
+# owner, 2026-10-21: the walkway drawn as the whole hull with the corridor cut in it, the shiplock's hatch hanging past
+# its wall, doors lettered with room names: a cutaway of its own room, every door in its own walls, no text anywhere
+INSIDE_ONLY = ("Concept painting of its inside alone, cut away at its own walls: floor, ceiling, furniture, nothing "
+               "beyond (no hull, no outer shell); every door and hatch set in its own walls, shut or open onto the rooms "
+               "named; windows on a plain dark backdrop")
 
 
 def holder_words(store, place):

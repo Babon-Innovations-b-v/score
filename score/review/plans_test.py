@@ -135,6 +135,23 @@ def test_his_inside_places_and_rows_redo_what_follows(store, data):
         plans.edited(store, "yard", {**plan, "holds": [{**plan["holds"][0], "row": "silo"}]}, "joey")
 
 
+def test_a_room_adjoining_rooms_a_row_holds_is_held_by_that_row_over_one_it_only_overlaps(store, data):
+    """Owner, 2026-10-21: the docking airlock just behind the engine room, its box over the crane, "is still part of
+    the ship"; a room its row names (the hub's central_hub) or on its own floor keeps its own."""
+    rows = [{"id": row, "name": row, "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []}
+            for row in ("ship", "crane", "loft")]
+    (data / "inventory/yard.json").write_text(json.dumps({"concept_pick": {"sha256": PICK}, "rows": rows}))
+    picked(store, "yard")
+    plan = plans.current(store, "yard")["plan"]
+    room = {"x": 2.0, "y": 2.0, "w": 4.0, "d": 3.0}
+    plan["holds"] = [{**room, "place": "shed", "row": "ship"}, {**room, "place": "cabin", "row": "ship", "y": -1.0},
+                     {**room, "place": "dock", "row": "crane", "x": 3.0, "y": 5.15, "w": 2.0},  # 0.15 m behind it
+                     {**room, "place": "loft", "row": "loft", "x": 6.1},  # beside it, its own row by its name
+                     {**room, "place": "hut", "row": None, "y": 5.0, "x": 0.0, "w": 1.0}]
+    held = {hold["place"]: hold["row"] for hold in plans.edited(store, "yard", plan, "joey")["plan"]["holds"]}
+    assert held == {"shed": "ship", "cabin": "ship", "dock": "ship", "loft": "loft", "hut": None}
+
+
 def test_a_room_changed_on_the_holders_plan_puts_draws_on_it_out_of_date_and_flags_its_pick(store, data, monkeypatch):
     """Owner, 2026-10-21: a merge, move or resize of a room on the plan above means the room is drawn again; a place
     the plan no longer lays out is removed, never an outside place, and has no stage line."""
