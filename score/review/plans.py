@@ -256,7 +256,8 @@ WHOLE = 0.6  # a row whose surest box spans this share of the picture both ways 
 
 
 GROUND = {"sea", "ocean", "water", "lake", "pool", "river", "harbour", "plaza", "square", "ground", "terrain", "sky",
-          "floor", "road", "street", "pavement", "grass", "sand", "dust", "regolith", "soil"}
+          "floor", "road", "street", "pavement", "grass", "sand", "dust", "regolith", "soil", "skyline", "backdrop",
+          "horizon", "mountains", "hills"}
 
 
 def whole(row, picture):

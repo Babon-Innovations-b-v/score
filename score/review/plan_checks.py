@@ -321,7 +321,13 @@ def hold_gaps(plan, grid, outline):
 
 def checked(plan, inventory, structure=()):
     """Every free check's gaps on `plan` against its scene inventory (`structure`: the rows that are the place's own
-    shell, walls, floor, roof or ground, drawn as the plan's walls and levels, never items)."""
+    shell, walls, floor, roof or ground, drawn as the plan's walls and levels, never items: an item of one, a backdrop
+    the writer placed, is left out of the checks), and the rows that are the place itself (plans.whole) counted so."""
+    from score.review.plans import whole
+    structure = set(structure) | {row["id"] for row in inventory.get("rows", [])
+                                  if whole(row, inventory.get("picture"))}
+    plan = {**plan, "items": [item for item in plan.get("items", [])
+                              if not set(plan.get("rows", {}).get(item[0]) or []) & structure]}
     grid = Grid(plan)
     outline = grid.covered(outline_of(plan))
     return (count_gaps(plan, inventory, set(structure)) + outside_gaps(plan, grid, outline)
