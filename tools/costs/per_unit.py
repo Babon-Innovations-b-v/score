@@ -145,6 +145,62 @@ RECORDED = {
                        "runs": [{"euros": 2.41, "units": 1,
                                  "source": f"{STAGE_EUROS_13} line 12 (world 1's ticketed run, 16 rows), its re-buy "
                                            f"priced at it in {CLOSEUPS_15} line 55"}]},
+    # The benchmark batch of 2026-10-21 (grant 20261021T182203, one score run at commit 99106427): one node a kind,
+    # each its node's whole make (forecast "one"); one run, so likely and high alike.
+    "finish-route-palette": {"unit": "scene palette of a place (one Gemini 3.1 Pro answer)", "forecast": "one",
+                             "runs": [{"euros": 0.022318, "units": 1,
+                                       "source": "google ledger call 80322def0eb2437e8ac358dcfccf3e67 "
+                                                 "(finish-route-palette@greenhouse, 2026-10-21, benchmark grant "
+                                                 "20261021T182203), standard tier"}],
+                             "time": {"unit_seconds": {"likely": 189.0, "high": 189.0},
+                                      "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
+                                      "slots_from": "one call a place", "holds": "calls", "lines": 1,
+                                      "from": ["google ledger call 80322def0eb2437e8ac358dcfccf3e67 (started "
+                                               "20:33:26, finished 20:36:35 +02:00)"]}},
+    "concept-views": {"unit": "make of the environment's concept views (16 Pro pictures, "
+                              "data/definitions/concept_views.json)", "forecast": "one",
+                      "runs": [{"euros": 2.254, "units": 1,
+                                "source": "google ledger, caller pro, the 16 finished calls 2026-10-21 20:33:25 to "
+                                          "20:39:33 +02:00 (concept-views, benchmark grant 20261021T182203), "
+                                          "standard tier"}],
+                      "time": {"unit_seconds": {"likely": 368.0, "high": 368.0},
+                               "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
+                               "slots_from": "its 16 calls one after another", "holds": "calls", "lines": 16,
+                               "from": ["google ledger, caller pro, 20:33:25 to 20:39:33 +02:00 on 2026-10-21"]}},
+    "surface-tiles": {"unit": "tile job of a place's shell surfaces (library_bake.py, one card)", "forecast": "one",
+                      "runs": [{"euros": 0.07875, "units": 1,
+                                "source": "ledger batch library-20261021-203323-3894491 (surface-tiles@greenhouse, "
+                                          "2026-10-21, benchmark grant 20261021T182203): one L4, 5.1 machine "
+                                          "minutes, its card parked after"}],
+                      "time": {"unit_seconds": {"likely": 187.8, "high": 187.8},
+                               "setup_minutes": {"likely": 1.9, "high": 1.9}, "slots": 1,
+                               "slots_from": "one job on its one card", "holds": "machines", "lines": 1,
+                               "from": ["ledger batch library-20261021-203323-3894491 (its machine's unit_seconds; "
+                                        "start wait 0.37 and set-up 1.53 min)"]}},
+    "people-clips-made": {"unit": "make of the people's Kimodo clips and mean rig (one characters machine)",
+                          "forecast": "one",
+                          "runs": [{"euros": 0.249375, "units": 1,
+                                    "source": "ledger batch characters-20261021-203329-3895203 (people-clips-made, "
+                                              "2026-10-21, benchmark grant 20261021T182203): one L4, 18.7 machine "
+                                              "minutes"}],
+                          "time": {"unit_seconds": {"likely": 245.6, "high": 245.6},
+                                   "setup_minutes": {"likely": 14.5, "high": 14.5}, "slots": 1,
+                                   "slots_from": "one chain on its one card", "holds": "machines", "lines": 1,
+                                   "from": ["ledger batch characters-20261021-203329-3895203 (its machine's "
+                                            "unit_seconds; start wait 0.37 and set-up 14.15 min)"]}},
+    # One make of the sample: the clips its entries lack (this run 1 of its 7 entries), so a make of more clips costs
+    # more; library-clips' own unit (a clip) is the per-clip figure.
+    "library-clips-sample": {"unit": "make of the library's clip sample (the clips its entries lack; 1 clip here)",
+                             "forecast": "one",
+                             "runs": [{"euros": 0.3675, "units": 1,
+                                       "source": "ledger batch blender-20261021-203342-3898641 (library-clips-sample, "
+                                                 "2026-10-21, benchmark grant 20261021T182203): 1 clip of 7 entries "
+                                                 "on one L4, 27.4 machine minutes, its card parked after"}],
+                             "time": {"unit_seconds": {"likely": 1542.8, "high": 1542.8},
+                                      "setup_minutes": {"likely": 1.63, "high": 1.63}, "slots": 1,
+                                      "slots_from": "one job on its one card", "holds": "machines", "lines": 1,
+                                      "from": ["ledger batch blender-20261021-203342-3898641 (its machine's "
+                                               "unit_seconds; start wait 0.37 and set-up 1.26 min)"]}},
 }
 
 
