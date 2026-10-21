@@ -158,6 +158,19 @@ def forecast_units(node, found, data):
     return round(units * entry["forecast"].get("per_model", 1), 2) if units else None
 
 
+def planned_units(node, data, store, root=None):
+    """forecast_units of a node at its place with the place's current gaps (none while its gaps check has not run or
+    stands over an output no longer accepted): the units a run's plan and its clearance price it by (ADR-0006: the
+    same measured per unit the gaps' price and prepare use, never the row's estimate where one is measured)."""
+    from score.stages.complete.gaps import OUT
+    if data is None:  # an environment with no data root (a test's toy) counts nothing
+        return None
+    place = node.partition("@")[2]
+    written = findings_of(root or OUT, place) if place else None
+    found = written.get("findings", []) if written and current(written, store) else []
+    return forecast_units(node, found, data)
+
+
 def node_price(node, found, data, store):
     """One paid node at compute.run_price with its forecast units, and the units and their source; with no measured
     price it is unknown, its stage's own estimate left out (a flat guess is no price, the owner 2026-10-20)."""

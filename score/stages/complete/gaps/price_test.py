@@ -256,6 +256,9 @@ def test_the_forecast_rules_one_and_unknown():
                                         "forecast": {"rule": "one", "source": "one a place"}},
                               "pixal": {**PER_UNIT["stages"]["pixal"], "forecast": {"rule": "made-up", "source": ""}}}}):
         assert price.forecast_units("sound@hangar", [], "/nowhere") == 1
+        # a run's plan and its clearance count the same units, with no gaps check run there; no data root, none
+        assert price.planned_units("sound@hangar", "/nowhere", None, root="/nowhere") == 1
+        assert price.planned_units("sound@hangar", None, None) is None
         try:
             price.forecast_units("pixal@hangar", [], "/nowhere")
         except ValueError as error:
