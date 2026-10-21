@@ -380,8 +380,22 @@ addEventListener("pageshow", (event) => {
   reread(event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward");
 });
 
-// The top bar's back and forward buttons: the browser's own history, so they match its arrows.
+// The top bar's back and forward buttons move between layers, not through the browser's history (owner, 2026-10-21):
+// back goes up to the layer this page sits within (its trail's last link), forward goes down again to the layer last
+// opened from here this session.
+const upLink = [...document.querySelectorAll('nav.trail[aria-label="where"] a')].pop();
+const up = upLink && new URL(upLink.href).pathname;
+const downKey = (path) => `score-down:${path}`;
+try {
+  if (up) sessionStorage.setItem(downKey(up), location.pathname);
+} catch { /* storage refused: forward stays off */ }
+const down = (() => { try { return sessionStorage.getItem(downKey(location.pathname)); } catch { return null; } })();
+const stepTo = { back: up, forward: down };
+document.querySelectorAll(".steps [data-step]").forEach((button) => {
+  button.disabled = !stepTo[button.dataset.step];
+  if (stepTo[button.dataset.step]) button.title = `${button.dataset.step === "back" ? "up" : "down"} a layer`;
+});
 document.addEventListener("click", (event) => {
-  const step = event.target.closest("[data-step]");
-  if (step) history[step.dataset.step]();
+  const step = event.target.closest(".steps [data-step]");
+  if (step && stepTo[step.dataset.step]) location.href = stepTo[step.dataset.step];
 });
