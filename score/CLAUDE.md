@@ -109,7 +109,9 @@ stage as each stage is built; nothing moves before.
   the layer above's box, its own plan, else round its inside places), then SAM 3's boxes of each row on one rented
   card (where, never size; its own words first, then its noun); only what both agree on is a row, its count SAM 3's
   instances (owner, 2026-10-21), the structure, ground and rows holding an inside place or standing in one kept as read, duplicates
-  merged, the rest kept apart as `skipped` (never a row or a gap); a kept row with no metres or anchor its gaps; a
+  merged, a single object Gemini counted once over `LARGE` of the picture that SAM 3 found under no word kept with
+  Gemini's region as its box (`boxed_by` "gemini", the engine room's core), the rest kept apart as `skipped` (never a
+  row or a gap); `--again` reads a place already read again from its own rows, SAM 3 only; a kept row with no metres or anchor its gaps; a
   reading by an older method is read again from its own rows, SAM 3 only; each
   reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no lock of its own.
   `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the locked concept.

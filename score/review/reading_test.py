@@ -91,6 +91,9 @@ def test_a_picked_place_is_read_once_with_its_boxes_and_gaps(store, tmp_path, mo
     assert reading.row_boxes(store, "wreck", "drum_right") == [[150, 10, 170, 30]]
     assert reading.row_boxes(store, "wreck", "lamp") is None and reading.row_boxes(store, "wreck", "nothing") is None
     assert reading.row_boxes(store, "lab", "drum") is None
+    [again] = reading.read(store, ["wreck"], "joey", clear=clear, ask=None, boxes=stand_in_boxes, again=True)
+    assert again["euros"]["rows"] == 0.0 and again["answered"] == record["answered"]  # its own rows, SAM 3 only
+    assert reading.reading_of(store, "wreck") == again
 
 
 def test_a_new_pick_has_no_reading_until_read(store, tmp_path):
@@ -109,7 +112,7 @@ def row(row_id, noun, region, boxes, **more):
 
 def test_only_what_both_readers_agree_on_is_a_row_and_the_structure_stays():
     rows = [row("wall", "wall", None, []), row("dome", "building", None, [], inside_place=True),
-            row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 500, 500], []),
+            row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 100, 100], []),
             row("chair", "chair", [0, 0, 500, 500], [[0, 0, 10, 10], [20, 0, 30, 10]]),
             row("cup", "cup", None, [], anchor="on:crate")]
     kept, skipped, merged = reading.agreed(rows, [], [{"word": "machine", "box": [50, 50, 60, 60]}], (100, 100))
@@ -122,13 +125,27 @@ def test_only_what_both_readers_agree_on_is_a_row_and_the_structure_stays():
     assert reading.inside_rows(inside, {"hangar"}) == {"hangar", "ship", "hatch"}  # an inside place's own, kept
 
 
+def test_a_large_single_object_only_gemini_found_is_a_row_boxed_by_its_region():
+    size = (1000, 1000)
+    rows = [row("core", "core", [200, 400, 600, 600], []),  # 8% of the picture, counted once: kept
+            row("drums", "drum", [0, 0, 500, 500], [], count=3),  # counted three times: one region is no box
+            row("pipes", "pipe", [0, 0, 500, 500], [], kind="code"),  # no object of its own
+            row("cup", "cup", [0, 0, 100, 100], []),  # 1%: too small to stand on Gemini alone
+            row("crate", "crate", [700, 700, 1000, 1000], []),  # its region is the bench's box: another's
+            row("bench", "bench", None, [[700, 700, 1000, 1000]])]
+    kept, skipped, _ = reading.agreed(rows, [], [], size)
+    assert [(item["id"], item["box"], item.get("boxed_by")) for item in kept] == [
+        ("core", [400.0, 200.0, 600.0, 600.0], "gemini"), ("bench", [700, 700, 1000, 1000], None)]
+    assert [item["row"] for item in skipped] == ["drums", "pipes", "cup", "crate"]
+
+
 def test_duplicates_go_one_box_one_row():
     size = (100, 100)
     # one instance boxed twice on one row: one box
     [only], _, _ = reading.agreed([row("chair", "chair", None, [[0, 0, 10, 10], [0, 0, 10, 11]])], [], [], size)
     assert only["boxes"] == [[0, 0, 10, 10]] and only["count"] == 1
     # one box held by two rows: the one whose region it fits
-    kept, skipped, _ = reading.agreed([row("locker", "locker", [500, 500, 1000, 1000], [[0, 0, 10, 10]]),
+    kept, skipped, _ = reading.agreed([row("locker", "locker", [500, 500, 600, 600], [[0, 0, 10, 10]]),
                                        row("chest", "chest", [0, 0, 200, 200], [[0, 0, 10, 10], [40, 40, 50, 50]])],
                                       [], [], size)
     assert {item["id"]: item["boxes"] for item in kept} == {"chest": [[0, 0, 10, 10], [40, 40, 50, 50]]}

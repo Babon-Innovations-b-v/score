@@ -15,7 +15,9 @@ reading's cost is recorded and its running total shown in the cockpit). Its plan
 3. Their agreement is the confidence cut-off (`agreed`, the owner, 2026-10-21): an object is a row only where Gemini
    named it and SAM 3 found it, its count the instances SAM 3 found of it; a row SAM 3 found none of and a find no
    row names are `skipped`, kept in the record with why and shown muted on the concept page, never a row, a gap, nor
-   read by prepare or the plan. The place's structure and ground (`structural`: STRUCTURE's walls, floors, shells,
+   read by prepare or the plan. One exception (`seen_large`, the engine room's energy core SAM 3 found under no
+   word, 2026-10-21): a single object Gemini counted once whose region covers LARGE of the picture, that no box of
+   another row is, is a row with Gemini's region its box (`boxed_by` "gemini"). The place's structure and ground (`structural`: STRUCTURE's walls, floors, shells,
    modules, tubes, terrain, sky, a row holding an inside place or standing in one) is no object detection and
    stays as read.
    Duplicates go first: one thing found twice is one box, two rows of one thing whose boxes overlap are one row
@@ -32,11 +34,12 @@ SCORE_BENCHMARK_GRANT names one) and each place's reading kept in the store, wri
                                              it was read again from, SAM 3 only), euros {rows, boxes, total},
                                              seconds {rows, boxes, card}, clearance}
 
-A place whose picked draw has a reading by today's METHOD is not read again (`to_read`); one read by an older method
-is read again from its own rows, no Gemini call (`earlier_rows`). A place whose rows answer is off the
+A place whose picked draw has a reading by today's METHOD is not read again (`to_read`) unless named with `--again`
+(a fix of how its rows are settled, `seen_large`); one read by an older method or again is read again from its own
+rows, no Gemini call (`earlier_rows`). A place whose rows answer is off the
 row schema is kept with `refused` (why) and its call's euros, no SAM 3 asked for it, and is read again next time.
 
-    python -m score.review.reading <place> [<place> ...] [--by <name>]
+    python -m score.review.reading <place> [<place> ...] [--by <name>] [--again]
 """
 import argparse
 import concurrent.futures
@@ -77,6 +80,8 @@ MARGIN = 0.05
 # the place's outline: #10, 2026-10-21; 5: only what both readers agree on is a row, duplicates merged, the rest
 # skipped: owner, 2026-10-21).
 METHOD = 5
+# A single object row SAM 3 found none of is kept at this share of the picture or more (`seen_large`).
+LARGE = 0.02
 # A row whose noun names one of these is the place's structure or ground, kept as read whatever SAM 3 finds.
 STRUCTURE = {"wall", "walls", "floor", "floors", "ceiling", "ceilings", "roof", "roofs", "shell", "hull", "tube",
              "tubes", "tunnel", "tunnels", "ground", "terrain", "sea", "ocean", "sky", "skyline", "deck", "plaza",
@@ -426,12 +431,26 @@ def reanchored(rows, gone):
     return rows
 
 
+def seen_large(rows, size):
+    """The rows with each object row SAM 3 found none of, that Gemini counted once ("generate") with a region of at
+    least LARGE of the picture which is no box another row holds, given that region as its one box (`boxed_by`
+    "gemini"): a thing that big is plainly there, SAM 3 only lacked its word."""
+    held = [box for row in rows for box in row["boxes"]]
+    for row in rows:
+        region = row["region"] and pixels(row["region"], size, 0)
+        if (region and not row["boxes"] and not structural(row) and row["kind"] == "generate" and row["count"] == 1
+                and area(region) >= LARGE * size[0] * size[1] and not any(same(region, box) for box in held)):
+            row["boxes"], row["boxed_by"] = [[round(value, 1) for value in region]], "gemini"
+    return rows
+
+
 def agreed(rows, loose, things, size):
-    """(the inventory's rows: the structure as read and every object row SAM 3 found, its count the instances found;
-    [{name, row, why, box}] skipped: an object row SAM 3 found none of (its region its box), a find no row names;
-    [{name, row, into}] merged), duplicates gone first (`merged_rows`, `unshared`)."""
+    """(the inventory's rows: the structure as read and every object row SAM 3 found, its count the instances found,
+    and a large single one only Gemini found (`seen_large`); [{name, row, why, box}] skipped: an object row SAM 3
+    found none of (its region its box), a find no row names; [{name, row, into}] merged), duplicates gone first
+    (`merged_rows`, `unshared`)."""
     rows, merged = merged_rows([dict(row) for row in rows], size)
-    rows = unshared(rows, size)
+    rows = seen_large(unshared(rows, size), size)
     kept = [{**row, "count": len(row["boxes"]), "box": row["boxes"][0]} if row["boxes"] and not structural(row)
             else row for row in rows if structural(row) or row["boxes"]]
     skipped = [{"name": row["name"], "row": row["id"], "why": ONLY_GEMINI,
@@ -546,15 +565,15 @@ def asked_again(store, place, folder):
 
 def read(store, places, by, **steps):
     """read_now holding each place's lock (taken in order, across processes), so a second run of the same place (a
-    second pick, the backfill) waits for the first and then finds it read: nothing is paid twice."""
+    second pick, the backfill) waits for the first and then finds it read: nothing is paid twice (unless `again`)."""
     with contextlib.ExitStack() as held:
         for place in sorted(set(places)):
             held.enter_context(locked(store.cache / AREA / "locks" / f"{place}.lock"))
         return read_now(store, places, by, **steps)
 
 
-def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of):
-    """Read every place of `places` whose pick has no reading yet, inside one clearance (`clear(places, euros)`,
+def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of, again=False):
+    """Read every place of `places` whose pick has no reading yet (`again`: every one, read again), inside one clearance (`clear(places, euros)`,
     compute.reading_clearance by default) and one SAM 3 card; the readings kept. concepts.Refused or
     compute.Refused when it may not run or a step fails (the steps already paid stay on their ledgers)."""
     from score.adapters import compute
@@ -562,7 +581,7 @@ def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of):
     if unpicked:
         raise concepts.Refused(f"{', '.join(unpicked)}: no locked concept; a place's inventory is read only after its "
                                "own lock")
-    places = to_read(store, places)
+    places = places if again else to_read(store, places)
     if not places:
         return []
     folder = store.cache / AREA / stamp_key(concepts.now())
@@ -620,10 +639,11 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("places", nargs="+")
     parser.add_argument("--by", default="the owner's standing allowance")
+    parser.add_argument("--again", action="store_true", help="read again a place already read by today's method")
     options = parser.parse_args(argv)
     store = Store.in_folder(os.environ["SCORE_SPEND_STORE"]) if os.environ.get("SCORE_SPEND_STORE") else Store.default()
     try:
-        found = read(store, options.places, options.by)
+        found = read(store, options.places, options.by, again=options.again)
     except (concepts.Refused, NotCleared) as refused:
         print(f"refused: {refused}", file=sys.stderr)
         return 1
