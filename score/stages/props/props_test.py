@@ -41,7 +41,7 @@ def test_only_the_places_with_prop_data_have_prop_rows_and_a_place_without_them_
     its rows, so no other key moves."""
     runner = stages.runner()
     places = stages.places(runner.world)
-    with_data = {"campgrounds", "hangar", "cockpit", "quarters", "navigation", "galley", "storage", "engineroom",
+    with_data = {"campgrounds", "hangar", "cockpit", "quarters", "galley", "storage", "engineroom",
                  "shiplock", "greenhouse"}
     assert {node[1] for node in runner.nodes(places) if node[0].name in PROPS} == with_data
     inputs = runner.stages["finish-route-views"]

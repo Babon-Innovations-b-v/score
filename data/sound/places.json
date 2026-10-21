@@ -240,27 +240,6 @@
 			],
 			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the vent alone, the quietest room"
 		},
-		"navigation": {
-			"loops": [
-				"ship_inside"
-			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
-			"objects": [
-				{
-					"sound": "console_hum",
-					"on": "nav_table"
-				},
-				{
-					"sound": "console_hum",
-					"on": "side_console"
-				},
-				{
-					"sound": "vent_air",
-					"on": "overhead_vent"
-				}
-			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the chart table's and the side console's fans and the vent"
-		},
 		"galley": {
 			"loops": [
 				"ship_inside"

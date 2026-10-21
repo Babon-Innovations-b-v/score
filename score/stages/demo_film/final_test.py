@@ -62,7 +62,7 @@ def test_world1s_script_is_paced_and_names_the_cuts_no_row_makes_yet():
     assert final.pacing_faults(final.script_segments(k9)) == []
     faults = final.plan_faults(k9)
     assert faults and all("no row makes" in fault for fault in faults), faults
-    assert len(final.shown_places()) == 26 and final.film_node(
+    assert len(final.shown_places()) == 25 and final.film_node(
         {"shows": {"place": "hangar", "film": "hull"}}) == ("demo-film-extra@hangar", "hull")
 
 
