@@ -210,9 +210,9 @@ def test_the_place_lacks_its_concept_plan_and_rough_model(ran):
     assert found["place:rough-model"]["work"] and found["place:rough-model"]["node"] is None
     assert list(stage.GetPrimAtPath(f"/{PLACE}").GetAttribute("score:gaps:place").Get()) == [
         "concept", "plan", "rough-model"]
-    # a layer's own gap (layers.py): the toy names no room tone, so the sound layer says what to write
+    # a layer's own gap (layers.py): the toy has no plan, so the sound layer names what its design lacks for a bed
     sound = found["place:sound:bed:room"]
-    assert sound["source"] == "layer:sound" and sound["node"] is None and "loops" in sound["work"], sound
+    assert sound["source"] == "layer:sound" and sound["node"] is None and "no plan" in sound["work"], sound
     assert written["counts"] == {"missing": 7, "gate": 4, "place": 4}
 
 

@@ -21,6 +21,11 @@
 					"take": "moss:habitat__p1__s2",
 					"by": "scoring",
 					"clap": 0.478
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"air": "sealed"
 				}
 			},
 			"file": "sound/habitat@1/audio/generated/places/habitat.wav",
@@ -461,6 +466,13 @@
 					"take": "moss:base_hum__p1__s4",
 					"by": "scoring",
 					"clap": 0.3945
+				},
+				"bed": {
+					"plays": "layer",
+					"heard": "room",
+					"air": "sealed",
+					"shell": "built",
+					"grounded": true
 				}
 			},
 			"file": "sound/base_hum@1/audio/generated/places/base_hum.wav",
@@ -480,6 +492,20 @@
 					"take": "moss:greenhouse__p1__s3",
 					"by": "scoring",
 					"clap": 0.4527
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"nouns": [
+						"planter",
+						"planters",
+						"plant bed",
+						"plant beds",
+						"grow bed",
+						"grow beds",
+						"crop bed",
+						"crop beds"
+					]
 				}
 			},
 			"file": "sound/greenhouse@1/audio/generated/places/greenhouse.wav",
@@ -499,6 +525,13 @@
 					"take": "moss:garage__p1__s3",
 					"by": "scoring",
 					"clap": 0.3943
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"kinds": [
+						"vehicle"
+					]
 				}
 			},
 			"file": "sound/garage@1/audio/generated/places/garage.wav",
@@ -518,6 +551,16 @@
 					"take": "moss:workshop__p1__s1",
 					"by": "scoring",
 					"clap": 0.4484
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"nouns": [
+						"arm",
+						"robot arm",
+						"robot",
+						"robots"
+					]
 				}
 			},
 			"file": "sound/workshop@1/audio/generated/places/workshop.wav",
@@ -537,6 +580,13 @@
 					"take": "moss:link_tube__p1__s3",
 					"by": "scoring",
 					"clap": 0.3885
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"shape": [
+						"tube"
+					]
 				}
 			},
 			"file": "sound/link_tube@1/audio/generated/places/link_tube.wav",
@@ -556,6 +606,11 @@
 					"take": "moss:ship_inside__p1__s3",
 					"by": "scoring",
 					"clap": 0.4399
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"grounded": false
 				}
 			},
 			"file": "sound/ship_inside@1/audio/generated/places/ship_inside.wav",
@@ -613,6 +668,11 @@
 					"take": "moss:earth_flat__p1__s3",
 					"by": "scoring",
 					"clap": 0.474
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"air": "breathable"
 				}
 			},
 			"file": "sound/earth_flat@1/audio/generated/places/earth_flat.wav",
@@ -632,6 +692,15 @@
 					"take": "moss:prologue_crowd__p1__s1",
 					"by": "scoring",
 					"clap": 0.5228
+				},
+				"bed": {
+					"plays": "layer",
+					"heard": "open",
+					"nouns": [
+						"crowd",
+						"crowds",
+						"people"
+					]
 				}
 			},
 			"file": "sound/prologue_crowd@1/audio/generated/places/prologue_crowd.wav",
@@ -651,6 +720,10 @@
 					"take": "game:suit_breathing_calm",
 					"by": "owner",
 					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
+				},
+				"bed": {
+					"plays": "layer",
+					"heard": "suit"
 				}
 			}
 		},
@@ -685,6 +758,10 @@
 					"take": "moss:suit_fans__p1__s2",
 					"by": "scoring",
 					"clap": 0.4523
+				},
+				"bed": {
+					"plays": "tone",
+					"heard": "suit"
 				}
 			},
 			"file": "sound/suit_fans@1/audio/generated/machines/suit_fans.wav",
@@ -1235,7 +1312,13 @@
 					"Calm interior ambience of a cramped planetary research camp module: a soft hiss of circulating air, a distant pump drone and a faint electrical hum behind panel walls, very steady, nothing sudden."
 				],
 				"seconds": 15,
-				"loop": true
+				"loop": true,
+				"bed": {
+					"plays": "tone",
+					"heard": "room",
+					"air": "sealed",
+					"shell": "open"
+				}
 			},
 			"bus": "ambience"
 		},
@@ -1249,7 +1332,16 @@
 					"Open-air ambience near a large rocket standing on its launch pad before lift-off: a steady hiss of cryogenic venting and a deep hum of ground equipment carried on a soft breeze, nothing sudden."
 				],
 				"seconds": 15,
-				"loop": true
+				"loop": true,
+				"bed": {
+					"plays": "tone",
+					"heard": "open",
+					"nouns": [
+						"launch pad",
+						"launch tower",
+						"launch site"
+					]
+				}
 			},
 			"bus": "ambience"
 		},
@@ -1263,7 +1355,11 @@
 					"Outdoor room tone of an empty wet city street late at night: far-off traffic wash echoing between concrete buildings, a faint electrical hum of a neon sign, steady and even, nothing close and nothing sudden."
 				],
 				"seconds": 15,
-				"loop": true
+				"loop": true,
+				"bed": {
+					"plays": "tone",
+					"heard": "open"
+				}
 			},
 			"bus": "ambience"
 		},
@@ -1278,7 +1374,18 @@
 					"Loudspeaker towers carrying an amplified speech across a vast stone plaza: a distant booming reverberant male voice, delayed echoes overlapping, a faint mains hum of the loudspeakers, no music."
 				],
 				"seconds": 15,
-				"loop": true
+				"loop": true,
+				"bed": {
+					"plays": "layer",
+					"heard": "open",
+					"nouns": [
+						"speaker",
+						"speakers",
+						"loudspeaker",
+						"loudspeakers",
+						"public address"
+					]
+				}
 			},
 			"bus": "ambience"
 		},

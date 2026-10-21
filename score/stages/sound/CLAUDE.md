@@ -1,7 +1,7 @@
 # score/stages/sound/
 
 The sound stage (the paper's Methods, "The canonical scene": sound, and "Shape and surface apart": sound by MOSS;
-experimental, PRD #6, until the owner has heard it): row `sound`, one per place in `data/sound/places.json`. It makes
+experimental, PRD #6, until the owner has heard it): row `sound`, one per scene with a plan (`beds.places`). It makes
 the place's sound layer data, `sound.json` and its files under `files/`, which the place's assembly writes into its
 OpenUSD stage (`tools/usd/sound.py`'s layout). `__init__.py`'s docstring has the make and the gates; `gates.py` the
 gates; `takes.py` the paid part.
@@ -13,7 +13,15 @@ gates; `takes.py` the paid part.
   palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
-- **Every source has a sound.** A place's sources are its room tones, what the suit lets through, its `objects` and
+- **A scene's bed comes from its design, never a list per scene** (`beds.py`, the owner's agnostic rule): how it is
+  heard (a room by its plan; outside, through the suit where its body's surface pressure, `data/physics/bodies.json`
+  cited or the setting's own, is under the Armstrong limit, else the open air; its body the site's of the outside place
+  holding it, `data/physics/setting.json` up `data/places/within.json`), then the library beds whose brief's `bed`
+  (`data/sound/sounds.json`: heard, air, shell, ground, shape, nouns, row kinds) fits it: every fitting `layer` and one
+  `tone`, the first that asks more than how it is heard, else the first plain one. A new kind of room gets a library
+  bed with its own `bed` brief, never a place name; what the design lacks (no plan, no site, no surface pressure) is a
+  named gap, never a guess.
+- **Every source has a sound.** A place's sources are its bed, its `objects` and
   `voices` (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds`, the sounds
   `data/sound/moving.json` gives its moving things and silent motions by their row kind
   (`score/stages/row_kinds.py`: the inventory row's, else the kind whose motion the record's `kind` is) and move, never by
@@ -45,7 +53,7 @@ gates; `takes.py` the paid part.
 - **One sound, one name** (#46): a surface's steps are `footsteps_<surface>` in `data/sound/surfaces.json` and
   `sounds.json`; a sound two names would play the same files under is one name (the fallback footstep is
   `footsteps_steel_plate`), so the library holds it once.
-- **What a place needs is worked out free** (`needs.py`, #29): its bed (room tones), one event sound for each thing
+- **What a place needs is worked out free** (`needs.py`, #29): its bed (`beds.py`), one event sound for each thing
   that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its
   cast stands people (`voices` in `data/sound/places.json`, each on a person, played at `/<place>/Characters/<name>`).
   Each need is answered from the library, by a brief this row makes, or not at all; the gaps check shows the last
