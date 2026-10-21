@@ -74,15 +74,14 @@ serve: skill `make-scene`, bible "How a scene is designed".
 - **The per-place kit scripts lay the old concepts' rooms** (owner, 2026-10-21: no hand-written per-scene list decides
   what a scene gets). Their data/kit/<place>.json is never a designed scene's base (`score/stages/earth_seed`
   `kit_is_base`: the base and the plan row read it only where no design is locked), so earth-kit bakes none of it for
-  a designed scene. The scene record, assembly, terrain and surface rows still read data/kit; a script goes once none does.
+  a designed scene. data/kit, data/inventory and data/scene were retired on 2026-10-21, so these scripts have nothing
+  to lay and their tests went with the data; the scene record, assembly, light and settle rows still name the kit and
+  wait on it by name until a design-made shell replaces it, and each script goes once nothing imports it.
 - **Kit layouts for the route** (`route.py`'s input): `hub_kit.py` for the hub's twelve walls, `room_kit.py <room>` for
   a rounded module room from its inventory's `room.layout` (the shell's own outline, its dome's rings, the floor's
   cross and corner fans, door spots, the rows' spots; the habitat and the airlock, modules batch one), and
   `tube_kit.py` for one bay and one end of a walkway tube, which the game lays along any tube (`TubeKit`).
-  `room_kit_test.py` checks them. `greenhouse_kit.py` is room_kit's room with what only the greenhouse has (environment 1's
-  place job, 2026-10-07): a glass dome on a frame of ribs instead of plates, the floor's rises (SteppedFloor's dais,
-  steps and ledges) surfaced, the robot station's pieces on PlotField's spots and the grow-light gantry over the plot;
-  `greenhouse_kit_test.py` reads the game's own numbers (SteppedFloor, PlotField, main.tscn) and holds it to them.
+  (`greenhouse_kit.py` and the per-room kit tests were retired with the old inventories, 2026-10-21.)
 - **A kit's lamps come from the design** (owner, 2026-10-21: no per-scene list decides what a scene gets): every
   kit builder's kinds table takes a kind's light from `lamps.py`, a row whose row kind glows (its reading `noun`,
   `score/stages/row_kinds.py`) lit by the library's lamp for its mount (`data/library/lamps.json`: ceiling, wall or
@@ -98,10 +97,11 @@ serve: skill `make-scene`, bible "How a scene is designed".
   each plate, its floor and roof in rows with tapering slivers at the sides, its windows lights in the sloping roof.
   Shell plates take the sorter's plain names; a room's name is one word (`bridge`), as the route's
   kinds are `<room>_<own>`. `ship_kit_test.py` checks it on a bridge-shaped room.
-- `camp_kit.py` lays the expedition camp habitat's kit on Mars (data/kit/camp.json via route.py) from the camp scripts' own numbers; `camp_kit_test.py` reads them back. `camp_shots.tscn` draws the habitat from cameras in its own frame (run with `--mars`, so the game's own check stays on Mars while it shoots).
+- `camp_kit.py` lays the expedition camp habitat's kit on Mars (data/kit/camp.json via route.py) from the camp scripts' own numbers (its test retired with data/scene, 2026-10-21). `camp_shots.tscn` draws the habitat from cameras in its own frame (run with `--mars`, so the game's own check stays on Mars while it shoots).
 - `ship_floor.py <out>` is the ship's floor plan inside its 46 m hull (the owner's loop, 2026-10-19: the outside's
   plan split into the inside's rooms): data/definitions/ship_floor.json names each room's span, side, floors and doors;
   every size and section is measured from the hull (`../library/inside/ship_outline.py`), people keep their size
-  (0.9 x 2.0 m doors, a 2.6 m ceiling), and its faults (overlaps, a floor under the keel, a door to nowhere) exit 1.
+  (0.9 x 2.0 m doors, a 2.6 m ceiling), and its faults (overlaps, a floor under the keel, a door to nowhere, a room
+  naming no place of data/definitions/place.json) exit 1.
   It draws the plan (`ship-floor.png`) and, with `--views`, each room's concept request in concept_views.json's form.
   `ship_floor_test.py` checks it.

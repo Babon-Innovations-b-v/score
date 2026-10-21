@@ -243,7 +243,8 @@ def check_every_record_name_is_a_reference_a_repository_file_or_a_gap():
         walk(json.loads(path.read_text()), None)
     odd = sorted(name for name in named if not (library_files.parsed(name) or name.startswith(("models/", "sound/"))
                                                 or (name.startswith("data/") and (REPO / name).exists())))
-    assert named and not odd, "names that are neither a reference, a repository file nor a gap:\n  " + "\n  ".join(odd)
+    # the data named old models and sounds until they were retired (2026-10-21): now it may name none
+    assert not odd, "names that are neither a reference, a repository file nor a gap:\n  " + "\n  ".join(odd)
 
 
 def main():

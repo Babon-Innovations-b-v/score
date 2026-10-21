@@ -69,27 +69,6 @@ def test_a_lens_part_is_not_where_the_lamp_hangs():
     assert lamps.light_of(row, pieces, library=LIBRARY)["reach"] == 6.0
 
 
-def test_every_installed_kit_s_lamps_are_the_rule_s_and_no_other_kind_shines():
-    """data/kit/<place>.json, as the scene record and the light layer read it: each kind's light is exactly what its
-    inventory row's kind and the library's lamp give for the pieces laid there, and a kind no glowing row names has
-    none (a typed number put back on a kit, or a kit left from before the rule, fails here)."""
-    import json
-    lit = 0
-    for kit_path in sorted((lamps.REPO / "data/kit").glob("*.json")):
-        kit = json.loads(kit_path.read_text())
-        inventory_path = lamps.REPO / "data/inventory" / kit_path.name
-        if "kinds" not in kit or not inventory_path.exists():
-            continue
-        rows = {f"{kit['room']}_{row['id']}": row for row in json.loads(inventory_path.read_text())["rows"]
-                if row.get("made") == "kit piece"}
-        for kind, about in kit["kinds"].items():
-            wanted = lamps.light_of(rows[kind], [laid for laid in kit["pieces"] if laid["kind"] == kind],
-                                    list(rows.values())) if kind in rows else None
-            assert about.get("light") == wanted, (kit_path.name, kind, about.get("light"), wanted)
-            lit += wanted is not None
-    assert lit >= 40, lit
-
-
 def test_the_real_library_names_the_words_of_a_ceiling_and_a_wall():
     assert {"ceiling", "roof"} <= set(lamps.mount_words()["ceiling"]) and "wall" in lamps.mount_words()["wall"]
 
