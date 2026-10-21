@@ -176,22 +176,16 @@ def two_colour_close_up():
 
 
 def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged():
-    import labels
     navy, grey, black = [0.03, 0.06, 0.10], [0.35, 0.35, 0.35], [0.01, 0.01, 0.01]
     library = {"vinyl_seat": {"family": "plastic", "colour": navy},
                "grey_plastic": {"family": "plastic", "colour": grey},
                "dark_panel": {"family": "steel", "colour": black}}
-    saved = labels.allowed_materials
-    labels.allowed_materials = lambda place, kind, without: library
-    try:
-        light_grey = finish_parts.library_lab(library["grey_plastic"]) + np.array([3.0, 0, 0])
-        found = finish_parts.checked_finishes(
-            {"library_places": ["lab"], "kind": "lab_chair", "object": "desk chair"},
-            [{"finish": "grey vinyl", "parts": "seat", "surface": "vinyl_seat", "fits": True},
-             {"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True}],
-            [light_grey, light_grey])
-    finally:
-        labels.allowed_materials = saved
+    light_grey = finish_parts.library_lab(library["grey_plastic"]) + np.array([3.0, 0, 0])
+    found = finish_parts.checked_finishes(
+        {"kind": "lab_chair", "object": "desk chair"},
+        [{"finish": "grey vinyl", "parts": "seat", "surface": "vinyl_seat", "fits": True},
+         {"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True}],
+        [light_grey, light_grey], library)
     assert found[0]["surface"] == "grey_plastic" and found[0]["by"] == "nearest of its family by colour"
     assert found[1]["surface"] == "dark_panel" and found[1]["by"] == "off its colour" and not found[1]["fits"]
     assert found[1]["new_surface"]["lab"] == [round(float(value), 1) for value in light_grey]
@@ -217,15 +211,9 @@ def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_co
     assert flagged[0]["by"] == "off its colour" and "lighter than bare_steel" in flagged[0]["new_surface"]["why"]
     kept = [{"finish": "steel legs", "surface": "bare_steel", "measured_lab": steel_lab, "by": "the list"}]
     assert finish_parts.in_close_up_order({"object": "x"}, [dict(kept[0])], every) == kept  # nothing to order
-    import labels
-    saved = labels.allowed_materials
-    labels.allowed_materials = lambda place, kind, without: every
-    try:
-        lit = finish_parts.checked_finishes({"library_places": ["lab"], "kind": "lamp", "object": "lamp"},
-                                            [{"finish": "red lit lens", "parts": "lens", "surface": "glass"}],
-                                            [np.array([45.0, 60.0, 40.0])])
-    finally:
-        labels.allowed_materials = saved
+    lit = finish_parts.checked_finishes({"kind": "lamp", "object": "lamp"},
+                                        [{"finish": "red lit lens", "parts": "lens", "surface": "glass"}],
+                                        [np.array([45.0, 60.0, 40.0])], every)
     assert lit[0]["surface"] == "glass" and lit[0]["by"] == "its own colour" and "cover" not in lit[0], lit[0]
 
 
@@ -255,19 +243,13 @@ def test_a_finish_a_little_out_of_order_keeps_it_by_a_nearer_surface_of_either()
 def test_a_coloured_see_through_finish_keeps_its_surface_against_its_highlights():
     """The beacon's red transparent dome measured pale pink on its brighter half: it keeps red_plastic, not the
     nearer plastic_grey; an opaque grey plastic that far off still moves."""
-    import labels
     library = {"red_plastic": {"family": "plastic", "colour": [0.45, 0.02, 0.01]},
                "plastic_grey": {"family": "plastic", "colour": [0.33, 0.31, 0.27]}}
-    saved = labels.allowed_materials
-    labels.allowed_materials = lambda place, kind, without: library
-    try:
-        pale = np.array([70.8, 21.2, 11.5])
-        found = finish_parts.checked_finishes(
-            {"library_places": ["garage"], "kind": "beacon", "object": "beacon"},
-            [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
-             {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [pale, pale])
-    finally:
-        labels.allowed_materials = saved
+    pale = np.array([70.8, 21.2, 11.5])
+    found = finish_parts.checked_finishes(
+        {"kind": "beacon", "object": "beacon"},
+        [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
+         {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [pale, pale], library)
     assert found[0]["surface"] == "red_plastic" and found[0]["by"] == "its own colour" and found[0]["cover"], found[0]
     assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "nearest of its family by colour", found[1]
 

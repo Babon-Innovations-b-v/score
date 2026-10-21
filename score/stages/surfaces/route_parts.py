@@ -26,6 +26,7 @@ if str(HERE) not in sys.path:
 import numpy as np  # noqa: E402
 
 import finish_parts  # noqa: E402
+import palette_library  # noqa: E402
 import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
 import route_settings  # noqa: E402
@@ -55,13 +56,15 @@ def part_finish(mesh, part_of, finish_of, part):
     return int(np.bincount(finish_of[members], weights=mesh.area_faces[members]).argmax())
 
 
-def parts_take(folders, entry, finishes, kit):
-    """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record."""
+def parts_take(folders, entry, finishes, surfaces):
+    """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record. `surfaces`: the take's
+    library surfaces (palette_library.take_surfaces) and the room's kit surfaces."""
     finish_of = np.load(folders["split"] / "finish.npy").astype(int)
     part_of = np.load(folders["split"] / "parts.npy").astype(int)
     mesh = route_split.model_of(folders["views"])
+    every, kit = surfaces
     checked = finish_parts.checked_finishes(entry, finishes, seen_colours(folders["views"], finish_of, len(finishes)),
-                                            kit)
+                                            every, kit)
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
@@ -79,7 +82,7 @@ def make_parts(inputs, out, seed, params):
     views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
     split = pathlib.Path(inputs["finish-route-split"])
     place, takes = route_data.takes_written(out, inputs, params)
-    kit = kit_surfaces.surfaces(place)
+    kit, palette = kit_surfaces.surfaces(place), palette_library.read(inputs)
     split_takes = json.loads((split / "split.json").read_text())
     named = {take: entry["name"] for entry in batch_gaps.of(inputs) for take in entry["objects"]}
     found, left = {}, {}
@@ -90,7 +93,7 @@ def make_parts(inputs, out, seed, params):
             continue
         finishes = json.loads((listed / f"{take}.json").read_text())["finishes"]
         found[take] = parts_take({"views": views / take, "split": split / take, "out": out / take}, takes[take],
-                                 finishes, kit)
+                                 finishes, (palette_library.take_surfaces(takes[take], palette), kit))
     (out / "parts.json").write_text(json.dumps({"takes": found, "left_out": left}, indent=1))
 
 

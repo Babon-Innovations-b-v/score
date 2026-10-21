@@ -27,7 +27,8 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   environment's files (`data/kit/<room>.json`, the made models); an engine's own scenes for a kit are its adapter's.
 - **The library is data and only grows.** `data/library/materials.json` holds families of variants (each a recipe
   name, a token, its settings over the recipe's defaults, and the reference patch it was tuned to), the wear
-  levels and the printed pictures; a place takes variants by name in its own `materials` in `place.json`, with its
+  levels and the printed pictures (the finish route reads none of `place.json`: a scene takes the whole library filtered
+  by its scene palette, `score/stages/surfaces/palette_library.py`); the kit routes' place takes variants by name in its own `materials` in `place.json`, with its
   own token and wear. `library.py` resolves them (`--list` lists the families; the command line prints one summary line naming
   the file under `/tmp/score-output/` that holds the whole output, `--verbose` prints it); nothing else holds a colour. Add a
   variant for a new surface; never change one a room already uses. `browser.py` writes the browser page from a
@@ -137,7 +138,8 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   resting triage judges each foot of a laid object, the settle refuses a tip onto uneven feet.
 - **A generated piece's back is baked at full density** (`bake.Atlas(backs_hidden=False)` from make_chunky): shrunk
   face by face its remeshed triangles fell under a texel and baked black (every generated piece's back, 2026-10-08).
-- **One wear for the room, from a cause:** a place's wear level (`place.json`), the bevel test on edges, and kick
+- **One wear for the room, from a cause:** a scene's wear level (its scene palette's on the finish route; `place.json`
+  on the kit routes), the bevel test on edges, and kick
   wear (`recipes.kick_mask`) within 32 cm over the floor a piece stands on (`foot`, route.py). A finish may carry its
   own wear level and seed (owner, 2026-10-20, #18): the finish route's list gives a level only with a cause the views
   show (walked paths, edges, round doors), and `recipes.arguments` takes a spec's own `wear` and `seed` over the

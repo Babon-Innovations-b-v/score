@@ -28,6 +28,7 @@ import numpy as np  # noqa: E402
 
 import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
+import palette_library  # noqa: E402
 import route_ask  # noqa: E402
 import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
@@ -103,14 +104,14 @@ def token_colour(token):
     return np.clip(labels.srgb(np.array(library.token_colours()[token], dtype=float)) * 255, 0, 255).astype(np.uint8)
 
 
-def drawn(folders, entry, record):
+def drawn(folders, every, record):
     """Each view of the take drawn flat in its parts' library surface colours (a part with the list's settings in
     its token's: the colour the bake gives it, route_settings) into folders["out"]
     (checked-<view>.png); the pictures by view."""
     from PIL import Image
     mesh = route_split.model_of(folders["views"])
     part_of = np.load(folders["parts"] / "parts.npy").astype(int)
-    colours = finish_parts.surface_colours(entry, {row["judge"] for row in record["parts"]})
+    colours = finish_parts.surface_colours(every, {row["judge"] for row in record["parts"]})
     by_face = np.array([token_colour(row["settings"]["token"]) if row.get("settings") else colours[row["judge"]]
                         for row in record["parts"]], dtype=np.uint8)[part_of]
     angles = json.loads((folders["views"].parent / "views.json").read_text())[folders["views"].name]["views"]
@@ -159,7 +160,7 @@ def make_recheck(inputs, out, seed, params):
     views, parts = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["surfaces-parts"])
     _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = json.loads((views / "views.json").read_text())
-    tokens = route_list.library_tokens()
+    tokens, palette = palette_library.library_tokens(), palette_library.read(inputs)
     found, bodies = {}, {}
     records = json.loads((parts / "parts.json").read_text())["takes"]
     for take, record in records.items():
@@ -168,8 +169,9 @@ def make_recheck(inputs, out, seed, params):
             found[take] = {"colour_faults": faults, "asked": False, "passed": False, "suggested": {}, "gemini": {},
                            "fault": "the free colour check, not asked: " + "; ".join(faults)}
             continue
-        pictures = drawn({"views": views / take, "parts": parts / take, "out": out / take}, takes[take], record)
-        context = {"surfaces": finish_parts.take_surfaces(takes[take]), "tokens": tokens,
+        every = palette_library.take_surfaces(takes[take], palette)
+        pictures = drawn({"views": views / take, "parts": parts / take, "out": out / take}, every, record)
+        context = {"surfaces": every, "tokens": tokens,
                    "stand_in": cast_takes[take].get("close_up") == route_data.STAND_IN}
         bodies[take] = recheck_body(pictures, takes[take], record["finishes"], context)
     answers = ask(bodies) if bodies else {}

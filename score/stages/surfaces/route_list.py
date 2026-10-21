@@ -4,13 +4,15 @@ price, route_ask.py: asked once, an ask asked before read back free).
 Gemini sees the take's close-up (its own, or the stand-in, said so in the question), every view of the model's own
 texture and the same views split into the views row's colour regions, and gives in one answer the take's complete
 finish list and a label for each region in each view. Each finish is matched FIRST to a surface of the library with
-its settings: the palette token of its colour (one the library's variants or the places use), its shine (roughness,
-metal), its seed (one a finish of each take, `take_seed`, so each object's wear and dirt pattern is its own) and its
-wear: the place's level, or its own level of the library's where the pictures show a cause for it (a walked path,
-worn edges, the ground round a door; owner, 2026-10-20), the level and its cause both given or neither. A new surface
-is proposed only when no surface fits with any settings (`fits` false). Each region showing in a view is labelled
-with the finish its part has there; the split votes the labels across views. Each finish also keeps its token's
-colour and its surface's family, which the split's colour check reads before anything is baked.
+its settings: the palette token of its colour (one of the scene palette's, read from its design by the palette row,
+scene_palette.py), its shine (roughness, metal), its seed (one a finish of each take, `take_seed`, so each object's wear
+and dirt pattern is its own) and its wear: the scene's level (its scene palette's), or its own level of the library's
+where the pictures show a cause for it (a walked path, worn edges, the ground round a door; owner, 2026-10-20), the
+level and its cause both given or neither. The surfaces offered are the whole library filtered by the scene palette,
+with the kind's own (palette_library.take_surfaces). A new surface is proposed only when no surface fits with any
+settings (`fits` false). Each region showing in a view is labelled with the finish its part has there; the split votes
+the labels across views. Each finish also keeps its token's colour and its surface's family, which the split's colour
+check reads before anything is baked.
 
 Output: <take>.json per take (its finishes, each with surface, settings, fits, new_surface, wear_level, wear_cause,
 colour, family; its labels, {view: {region: finish}}, 0-based), questions.json (the finishes with their own wear and
@@ -32,7 +34,7 @@ if str(HERE) not in sys.path:
 import numpy as np  # noqa: E402
 
 import finish_ask  # noqa: E402
-import finish_parts  # noqa: E402
+import palette_library  # noqa: E402
 import route_ask  # noqa: E402
 import route_data  # noqa: E402
 import surface_gates as gates  # noqa: E402
@@ -57,7 +59,7 @@ otherwise). The library's surfaces, each with its own token, roughness and metal
 The palette tokens:
 {tokens}
 Choose by what the part is and how such a part is made, then by its colour. Only when no library surface fits with
-any settings, set "fits" to false and propose a new library surface. Wear is the place's level ({wear}). A finish
+any settings, set "fits" to false and propose a new library surface. Wear is the scene's level ({wear}). A finish
 takes another of the library's wear levels ({levels}) only where the pictures show a cause for it, such as a walked
 path, worn edges or the ground round a door: then set "wear" to that level and say the cause in "wear_cause"; else
 leave both out.
@@ -65,15 +67,10 @@ Then label every region showing in every view with the finish (its number in you
 part has in that view: one label for each view and region listed above."""
 
 
-def library_tokens():
-    """{token: linear RGB} of the palette tokens the library's variants and the places use."""
-    import library
-    every = library.token_colours()
-    used = {variant["token"] for variant in library.variants(library.theme_library()).values()}
-    places = json.loads(library.PLACES.read_text())
-    used |= {entry["token"] for place in places.values() for entry in place.get("materials", {}).values()
-             if isinstance(entry, dict) and "token" in entry}
-    return {token: every[token] for token in sorted(used) if token in every}
+def palette_tokens(palette):
+    """{token: linear RGB} of the scene palette's tokens (read from its design), in the library's token order."""
+    chosen = set(palette["tokens"])
+    return {token: colour for token, colour in palette_library.library_tokens().items() if token in chosen}
 
 
 def surface_lines(surfaces):
@@ -126,7 +123,8 @@ def list_schema(surfaces, tokens, views, levels):
 
 def list_body(pictures, entry, record, library, wear):
     """The request: the close-up, the views, the region views, the question and its schema. `record` is the take's
-    views record; `library` its surfaces, the tokens and the wear levels; `wear` the place's level."""
+    views record; `library` its surfaces, the tokens and the wear levels; `wear` the scene's level (its scene
+    palette's)."""
     surfaces, tokens, levels = library
     stand_in = record.get("close_up") == route_data.STAND_IN
     views = list(record["views"])
@@ -220,14 +218,15 @@ def make_list(inputs, out, seed, params):
     asked once; one with no usable answer gets no list, so judge_list names it a gap."""
     import library
     views = pathlib.Path(inputs["finish-route-views"])
-    place, takes = route_data.takes_written(out, inputs, params)
+    _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = {take: record for take, record in json.loads((views / "views.json").read_text()).items()
                   if record.get("model")}
-    tokens, levels = library_tokens(), library.theme_library()["wear_levels"]
-    wear = json.loads(library.PLACES.read_text())[place]["wear"]["level"]
+    palette = palette_library.read(inputs)
+    tokens, levels = palette_tokens(palette), library.theme_library()["wear_levels"]
+    wear = palette["wear"]["level"]
+    surfaces = {take: palette_library.take_surfaces(takes[take], palette) for take in cast_takes}
     pictures = {take: pictures_of(views / take, record["views"]) for take, record in cast_takes.items()}
-    bodies = {take: list_body(pictures[take], takes[take], record,
-                              (finish_parts.take_surfaces(takes[take]), tokens, levels), wear)
+    bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear)
               for take, record in cast_takes.items()}
     answers = ask(bodies) if bodies else {}
     own, unanswered = [], {}
@@ -236,14 +235,14 @@ def make_list(inputs, out, seed, params):
         try:
             if isinstance(answer, Exception):
                 raise answer
-            finishes, labels = listed(answer, (finish_parts.take_surfaces(takes[take]), tokens, levels),
+            finishes, labels = listed(answer, (surfaces[take], tokens, levels),
                                       take_seed(seed, take), pictures[take]["shown"])
         except route_ask.UNANSWERED as error:
             unanswered[take] = f"no usable answer: {error!r}"[:300]
             continue
         (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes,
                                                       "labels": labels}, indent=1))
-        own += [f"{take}: {entry['finish']}: {entry['wear_level']} ({entry['wear_cause']}; the place's wear is {wear})"
+        own += [f"{take}: {entry['finish']}: {entry['wear_level']} ({entry['wear_cause']}; the scene's wear is {wear})"
                 for entry in finishes if entry["wear_level"]]
     (out / "questions.json").write_text(json.dumps({"own_wear": own, "unanswered": unanswered}, indent=1))
     batch_gaps.write(out, [*batch_gaps.of(inputs), *list_gaps(out, cast_takes, unanswered, tokens)])
@@ -282,7 +281,7 @@ def judge_list(output, inputs, evidence):
     not fit proposes a surface. The finishes with their own wear and the labels left out as measures."""
     cast_takes = [take for take, record in json.loads((pathlib.Path(inputs["finish-route-views"]) /
                                                        "views.json").read_text()).items() if record.get("model")]
-    tokens = library_tokens()
+    tokens = palette_tokens(palette_library.read(inputs))
     asked = json.loads((output / "questions.json").read_text())
     failing, unlabelled = [], 0
     for take in cast_takes:

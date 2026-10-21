@@ -28,6 +28,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.append(str(HERE))
 
+import palette_library  # noqa: E402
 import place_line  # noqa: E402
 import prop_env  # noqa: E402
 import route_settings  # noqa: E402
@@ -49,12 +50,13 @@ def named_records(records):
             if record.get("settings") and record.get("surface") else record for record in records]
 
 
-def baked_specs(library_name, specs, records):
-    """The job's specs: its own (decals, screens) and every surface the records name, from today's library in the
-    place's tokens (library.by_library, library.resolved), a surface with settings as its variant's spec with them
-    (route_settings.set_spec). A surface in no library, or a spec naming a picture not there, stops the bake here."""
+def baked_specs(palette, specs, records):
+    """The job's specs: its own (decals, screens) and every surface the records name, from today's library as the
+    scene palette gives it (palette_library.specs: each variant in its own token, dirtied in its dirt token), a
+    surface with settings as its variant's spec with them (route_settings.set_spec). A surface in no library, or a
+    spec naming a picture not there, stops the bake here."""
     import library
-    every = {**library.by_library(library_name), **library.resolved(library_name)}
+    every = palette_library.specs(palette)
     colours = library.token_colours()
     found = {**specs, **{name: every[name] for name in specs if name in every}}
     unknown = []
@@ -74,10 +76,13 @@ def baked_specs(library_name, specs, records):
 
 
 def job_head(data, short, records):
-    """The place's bake job's top-level fields (bake_job.job_head) with baked_specs, as the place walks it."""
+    """The place's bake job's top-level fields (bake_job.job_head) at its scene palette's wear and dirt
+    (palette_library.read, read from its design) with baked_specs, as the place walks it."""
     import bake_job
-    head = bake_job.job_head(data["library"], bake_job.outside(place_line.read_or_none(short, "kit")))
-    head["specs"] = place_line.unwalked(baked_specs(data["library"], head["specs"], records), data)
+    palette = palette_library.read(short)
+    head = bake_job.job_head(palette_library.wear(palette), palette_library.specs(palette),
+                             bake_job.outside(place_line.read_or_none(short, "kit")))
+    head["specs"] = place_line.unwalked(baked_specs(palette, head["specs"], records), data)
     for key in ("kit", "pieces", "code", "was"):
         head.pop(key, None)
     return head

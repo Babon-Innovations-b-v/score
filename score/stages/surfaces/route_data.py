@@ -55,9 +55,9 @@ def shape_files(place):
 
 
 def library_files(place):
-    """The rows that read the library (list, parts, recheck): shape_files, the library, the places and the palette."""
-    return {**shape_files(place), "library": "{data}/library", "places": "{data}/definitions/place.json",
-            "tokens": "{repo}/design/tokens/tokens.json"}
+    """The rows that read the library (list, parts, recheck): shape_files, the library and the palette tokens (a
+    scene's palette tokens and wear are its scene palette's, an input, never place.json)."""
+    return {**shape_files(place), "library": "{data}/library", "tokens": "{repo}/design/tokens/tokens.json"}
 
 
 def parts_files(place):

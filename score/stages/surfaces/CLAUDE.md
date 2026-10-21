@@ -34,6 +34,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   A take's model is its raw take (`route_data.py`); one with none here, or whose faces the paint loads differently, is
   named by the views gate before anything is asked. Its close-up is its own, else a **stand-in close-up** (the model's
   own texture from the front, `route_data.STAND_IN`), named so in every output, question and verdict that reads it.
+  First the **scene palette** (CONTEXT.md; owner, 2026-10-21: every scene from its design alone):
+  `finish-route-palette` (paid, `scene_palette.py`, one Gemini 3.1 Pro ask a scene in the Batch API) reads the
+  scene's palette tokens, wear level, dirt and dirt token off its locked concept (`{home}/design/concepts/<place>.png`;
+  a line no scene owns, the people's, over every locked concept); no rule could (the concept's pixels named shadows
+  and the people's skin and missed the accents, measured 2026-10-21). Every row after it takes the library through
+  `palette_library.py`: the whole library filtered by the palette (a variant whose own token is in it), the kind's
+  own list on top, the scene's wear and dirt in the list's question, the bake's job and the check. No route row reads
+  `data/definitions/place.json` (`materials`, `palette`, `wear`): the old route's and the kit routes' readers still do.
   Views (free, this PC's processor, no Blender): trimesh and Embree ray cast, orthographic, 384 px
   (`route_cast.py`), the six `BASE` sides (front is the close-up's, back, right, left, top, bottom), then the
   coverage check before the render (`route_views.covering_views`): from `CANDIDATES` the angle that sees the most area
@@ -109,9 +117,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   and every declared file: a code-only check missed the turntables' declared `blender_cloud.py`, 2026-10-14);
   `score run` lists the re-buys again before it starts and refuses over EUR 5 without `--rebuy-reason`.
 - **The paint and bake rows (and the people's paint) key only what they read of the library**
-  (`library_reads.py`, set in the table by `score/stages/__init__.py` `library_narrowed`): their library places'
-  materials and wear in place.json, the variants those name and the bake job's specs, with their recipes, families,
-  pictures and the kinds' details. A surface added for one place re-keys no other place's paint (2026-10-13: the
+  (`library_reads.py`, set in the table by `score/stages/__init__.py` `library_narrowed`): the bake job's specs
+  (every variant), with their recipes, families, pictures and the kinds' details; nothing of place.json (2026-10-21:
+  the scene palette, an input, gives the wear and tokens). A surface added for one place re-keys no other place's paint (2026-10-13: the
   hub's assembly wanted about EUR 60 of re-buys). Before making one, the runner keeps its accepted output under the
   new key when nothing it reads changed (`carry.py`: the library parts rebuilt from git at the record's commit, a
   committed record only); a row whose own code changed carries only with a proof stored as evidence on the output
@@ -136,7 +144,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   dome). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
   row's key, so an edit there repaints and rebakes every place.
 - **New library surfaces are made the library's own way** (a variant in `data/library/materials.json` on a palette
-  token, the place taking it in `place.json`), never a picture's colour.
+  token; a scene takes it when its scene palette holds that token), never a picture's colour.
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
   stops the bake before anything is rented. The job is written from git inside the bake (`bake_job.py`, 2026-10-19:
@@ -144,7 +152,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   out (a design's, written without a turn, turned 0 or 90 degrees by its labelled take's footprint against its row:
   `bake_job.measured_turn`), else its route's own (`place_route.chunky_entry` sized over its labelled take for an outside place, whose kit
   says `on_seat`; `route.jobs`' fields at its laid size in `data/kit/<place>.json` for a kit room), the specs every
-  library variant (`library.by_library` and `resolved`, as both routes write a job), so a variant added anywhere
+  library variant (`palette_library.specs`, at the scene palette's wear and dirt), so a variant added anywhere
   re-keys every bake; details.json and composites.json are keyed on only the entries the place's models read
   (`bake_job.reads`, through `library_reads.narrowed`), and the routes' code is in the bake's code version, not its
   files. A model neither gives (`bake_job.refusal`, entry_of's own checks run without the take; the launch's far
