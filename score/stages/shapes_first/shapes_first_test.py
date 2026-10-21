@@ -187,7 +187,7 @@ READS_THE_LOOP = {
 }
 # Every paid row outside the loop and what it makes: none a model, but the named exceptions MADE_OUTSIDE holds.
 MAKES_NO_MODEL = {
-    "concept-views": "concept pictures", "partition-proposals": "partition pictures", "demo-turntables": "renders",
+    "demo-turntables": "renders",
     "settle": "rest poses of the made models", "sound": "sounds", "demo-film*": "films", "demo-stills": "stills",
     "effects-look": "renders", "physics-trial": "a physics trial", "concept_people": "people's concept pictures",
     "motion-models-boxes": "measured boxes", "light-passes": "renders", "light-haze": "renders",

@@ -7,21 +7,19 @@ score/store/restore's key rule), never passed.
 
 Read from the stage table: every node's declared world files (a ship place's through the table's own wrappers) under
 the work folder ({seeds}, {home}/work) or in the repository ({data}, {repo}) that are not there, grouped by what they
-are (KINDS: an earth seed, a place's views copy, a Pixal3D take), each kind with its code work; and the
-owner's reference pictures the concept views of the place name (a view whose id names the place, or `ship` for a ship
-place). A Pixal3D take some place's pixal row makes is that row's gap (node `pixal@<place>`), priced through it. An
+are (KINDS: an earth seed, a place's views copy, a Pixal3D take), each kind with its code work. A Pixal3D take some place's pixal row makes is that row's gap (node `pixal@<place>`), priced through it. An
 id names the lost thing itself, never the place reading it, so one input many places read is one gap world-wide
 (`distinct`).
 """
 import pathlib
 
 from score import stages
-from score.stages import concept_view, surfaces
+from score.stages import surfaces
 from score.stages.props import prop_data
 
 WORK_ROOTS = ("{seeds}/", "{home}/work/")
 DATA_ROOTS = ("{data}/", "{repo}/")
-EARTH, VIEWS, PIXAL, OTHER, DATA, PICTURE = ("earth-seed", "views", "pixal", "work", "data", "reference")
+EARTH, VIEWS, PIXAL, OTHER, DATA = ("earth-seed", "views", "pixal", "work", "data")
 # What a lost path under the work folder is, by its start there: (kind, the code work that makes it again).
 KINDS = (("usd-r3/", EARTH, "earth seed lost: the earth-seed row exports a place's base from its kit once the kit is "
                             "laid, or from its design once it is locked (score/stages/earth_seed); a place with "
@@ -37,8 +35,6 @@ EARTH_VIEWS_WORK = ("views lost (a copy of the scene record under work/demo, mad
                     "they read the place's views from its own scene-record output instead, or a row writes the copy")
 OTHER_WORK = "an input under the work folder no row makes: a row that makes it, or the code that stops reading it"
 DATA_WORK = "an input the repository should hold and does not: {name} ({path})"
-PICTURE_WORK = ("the owner supplies {name}, his own reference picture (kept off the public repository until he says "
-                "it may be public, then under data/)")
 TAKE_ENDS = ("-final.glb", ".glb", ".svviews")
 
 
@@ -123,18 +119,6 @@ def takes_lost(runner, place):
     return found
 
 
-def lost_pictures(runner, place):
-    """The owner's reference pictures a concept view of the place names that are not there: {path: [view ids]}."""
-    found = {}
-    for view in concept_view.record()["views"]:
-        named = view["id"].split("_")
-        if place in named or ("ship" in named and stages.ship_place(place)):
-            path = pathlib.Path(view["reference"].format(**runner.world.roots))
-            if not path.exists():
-                found.setdefault(str(path), []).append(view["id"])
-    return found
-
-
 def lost_id(kind, item):
     """A lost input's gap id (its rule's prefix apart): it names the thing, so every place that reads it shares it."""
     return f"lost:{kind}:{item}"
@@ -156,17 +140,10 @@ def declared_gap(kind, item, entry, place, makers):
 
 
 def lost(runner, place):
-    """The lost inputs of the place's line (of the world's own nodes for None) as gaps (module docstring), declared
-    ones first, then the owner's pictures."""
+    """The lost inputs of the place's line (of the world's own nodes for None) as gaps (module docstring)."""
     makers = pixal_makers(place)
     declared = {**(takes_lost(runner, place) if place else {}), **declared_lost(runner, place)}
-    found = [declared_gap(kind, item, entry, place, makers) for (kind, item), entry in sorted(declared.items())]
-    for path, views in sorted((lost_pictures(runner, place) if place else {}).items()):
-        name = pathlib.Path(path).name
-        found.append({"id": lost_id(PICTURE, name),
-                      "sentence": f"owner's reference picture {name} missing ({path}), for the concept views "
-                                  f"{', '.join(views)}", "node": None, "work": PICTURE_WORK.format(name=name)})
-    return found
+    return [declared_gap(kind, item, entry, place, makers) for (kind, item), entry in sorted(declared.items())]
 
 
 def is_lost(gap_id):

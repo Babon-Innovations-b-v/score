@@ -11,9 +11,8 @@ outside shell's split), each a gap of the whole place, on its root prim.
     shell split  an outside shell's only (shell-split applies: its plan has a split), done when its shell-split node
                  stands accepted
 """
-import json
 
-from score.stages import concept_view, scene_record, shell_split
+from score.stages import scene_record, shell_split
 from score.stages.complete.gaps import fill
 
 
@@ -36,11 +35,10 @@ def has_split(store, place):
 
 
 def wanted(kind, place):
-    """Whether the step's stage has something to make for the place: a concept view its record names (a view's id
-    holds the place's name), a plan that says where each door leads."""
+    """Whether the step's stage has something to make for the place: a plan that says where each door leads (no
+    row makes a concept: the creator draws and locks it)."""
     if kind == fill.CONCEPT:
-        views = json.loads(concept_view.RECORD.read_text())["views"]
-        return any(place in view["id"].split("_") for view in views)
+        return False
     if kind == fill.PLAN:
         return scene_record.written(place)
     return True

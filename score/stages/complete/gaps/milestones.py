@@ -43,7 +43,7 @@ from score.graph import chain, node_name
 from score.stages.complete.gaps import fill, inputs
 
 GROUND = (stages.TERRAIN.name,)
-SHAPES = tuple(fill.FILLERS[kind][0] for kind in (fill.CONCEPT, fill.PLAN, fill.ROUGH_MODEL)) + (stages.OWN_RECORD,)
+SHAPES = tuple(fill.FILLERS[kind][0] for kind in (fill.PLAN, fill.ROUGH_MODEL)) + (stages.OWN_RECORD,)
 SPLIT = (fill.FILLERS[fill.SHELL_SPLIT][0],)
 STEPS = (("ground", "The ground"),
          ("shapes", "Shapes first: concept, plan and rough model"),

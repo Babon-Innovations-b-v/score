@@ -21,7 +21,7 @@ FILLERS = {
     CROP: ("crops-layer", None),
     MECHANIC: ("motion-models", None),
     CODE: (SHIP_KIT, "a code body (tools/props/library/body_parts.py) and the row in data/kit/{place}.json"),
-    CONCEPT: ("concept-views", "a concept view request for {place}"),
+    CONCEPT: (None, "the creator's concept for {place}, drawn and locked on its concept page"),
     PLAN: ("plan", "data/plans/{place}.json with its leads"),
     ROUGH_MODEL: (ROUGH_MODEL, None),
     SHELL_SPLIT: (SHELL_SPLIT, "a `split` in data/plans/{place}.json: the shell's outline and its room list"),

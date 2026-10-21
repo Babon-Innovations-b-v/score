@@ -75,16 +75,6 @@ def test_a_door_to_nowhere_is_a_fault():
     assert "galley: a door leads to bridge, no space of the plan" in found and "galley: no door to the walkway" in found
 
 
-def test_each_space_has_one_concept_request_in_its_measured_size():
-    views = ship_floor.concept_views(SHIP, FLOOR)
-    sizes = {size["place"]: size for size in ship_floor.rooms_measured(SHIP, FLOOR)}
-    assert len({view["id"] for view in views}) == len(ship_floor.spaces(FLOOR)) == len(views)
-    for view in views:
-        place = view["id"].removeprefix("ship46_")
-        assert f"{sizes[place]['long']:.1f} m long" in view["wording"], view["id"]
-        assert "—" not in view["wording"] and view["reference"].startswith("{seeds}/")
-
-
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

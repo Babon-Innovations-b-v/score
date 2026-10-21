@@ -25,9 +25,9 @@ import pathlib
 
 from score import checks, contracts, graph
 from score.checks import grain
-from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
+from score.stages import (assembly, cast, complete, concept_people, crops, demo_film, demo_turntable,
                           design_layers, earth_seed, effects, gaps, images, late_bake, library, light, motion, people,
-                          physics, proposals, scene_record, settling, shapes_first, shell_split, sound,
+                          physics, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
 from score.stages.library import clips as library_clips
@@ -444,20 +444,6 @@ def library_narrowed(row):
     return dataclasses.replace(row, files=files)
 
 
-def box_checked(files):
-    """props-inputs' environment files with the box gate's decided boxes (WORK/partition/<scene>/boxes.json, which
-    motion-models-boxes writes), so a box check that passes later re-runs the inputs row (the cockpit, 2026-10-14: it read
-    the old failed boxes and stayed failed with its key unmoved). Wrapped here, in the table, so no row's code moves."""
-    @functools.wraps(files)
-    def declared(place):
-        # A designed place's boxes are SAM 3's in its reading, in its hand-in (prepare/handin.py); a line no place owns
-        # (the people's) takes its rows' boxes from the designs that map them (people_rows.drawn_from, #26).
-        if prop_data.designed(place) or shapes_first.no_place(place):
-            return files(place)
-        return {**files(place), "decided boxes": "{seeds}/partition/" + f"{place}/boxes.json"}
-    return declared
-
-
 def scene_inventory_read(files):
     """props-inputs' environment files with "inventories" the scene's own inventory, the one the box gate reads
     (box_check.gate: inventory.path_of(scene), the scene the place's inventory names), not the whole folder: every
@@ -494,21 +480,12 @@ def designed_rough(row):
 
 
 def boxed_split(row):
-    """props-inputs, the loop's parts split, with the box gate's decided boxes and its scene's inventory declared
-    (box_checked, scene_inventory_read)."""
+    """props-inputs, the loop's parts split, with its scene's inventory declared (scene_inventory_read)."""
     if row.name != "props-inputs":
         return row
-    return dataclasses.replace(row, files=box_checked(scene_inventory_read(row.files)))
+    return dataclasses.replace(row, files=scene_inventory_read(row.files))
 
 
-# Experimental (2026-10-14) until the owner reviews it: concept views drawn by Pro from a creator's reference and a
-# written request (data/definitions/concept_views.json), one environment node, paid: the ship's top and side views first.
-CONCEPT_VIEWS = graph.Stage("concept-views", "world", concept_view.make, concept_view.CONTRACT, concept_view.CHECKS,
-                            files=concept_view.files, paid=True, euros=concept_view.euros())
-# Experimental (2026-10-14): the concept partition's SAM 2.1 proposals for scenes whose inventory has not landed
-# (data/definitions/partitions.json), one environment node, paid: the cockpit first.
-PARTITION_PROPOSALS = graph.Stage("partition-proposals", "world", proposals.make, proposals.CONTRACT, proposals.CHECKS,
-                                  files=proposals.files, paid=True, euros=proposals.euros())
 # Experimental (2026-10-14): models that already exist turned round for the paper's demos
 # (data/definitions/demo_turntables.json), one environment node, paid: demo K2's hub objects first.
 DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, demo_turntable.CONTRACT,
@@ -550,7 +527,7 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
                                neighbours=filmed_places)
 
 
-STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
+STAGES = (TERRAIN, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           SCENE_TREE,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS, ENVIRONMENT_FILM,
           GROUND_FIT, EFFECTS_LOOK, PHYSICS_LAYER,

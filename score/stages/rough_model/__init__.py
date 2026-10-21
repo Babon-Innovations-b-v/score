@@ -12,9 +12,6 @@ row. A row of every place with a plan (scene_record.written, as plan@<place>), o
                      deep), measures only: no proportion threshold is measured yet
             concept  the model was made from the concept this node read (its sha256 as rough.json names it)
 
-The concept views (the concept-views row) are not read: a view's request names no place it is the concept of (the
-cockpit's are `cockpit_seat`, `cockpit_stick` and `ship46_cockpit`, the hangar's `hangar_thrusters` a close-up), so a
-place's concept is the one its plan names until a view's request says which place it is drawn for.
 
 The take is named for the place and its concept's hash (take_name), so a new concept is a new take, and a take the
 batch already brought back is not made again (the batch refuses to overwrite one); one brought back raw whose finish
