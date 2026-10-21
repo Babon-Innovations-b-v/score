@@ -847,6 +847,11 @@ def test_only_a_place_nobody_walks_bakes_with_no_kick_wear():
     assert place_line.unwalked(specs, {"place": "hub"}) is specs
 
 
+def test_bake_and_paint_rent_one_machine_class_each():
+    """A batch job runs on its one priced class; no stock is a gap, never another class (#21)."""
+    from score.stages.surfaces import place_line
+    assert "," not in place_line.CLASSES and "," not in place_line.PAINT_CLASSES
+
 if __name__ == "__main__":
     import pathlib
     import runpy

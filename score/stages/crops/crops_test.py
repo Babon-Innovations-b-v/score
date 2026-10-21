@@ -237,6 +237,10 @@ def test_look_counts_a_plant_the_kind_of_its_bed():
     assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen
 
 
+def test_look_rents_one_card_class():
+    """A batch job runs on its one priced class; no stock is a gap, never a larger card (#21)."""
+    assert "," not in look.CARDS, look.CARDS
+
 if __name__ == "__main__":
     import pathlib
     import runpy
