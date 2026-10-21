@@ -16,6 +16,7 @@ from pxr import Gf, Sdf, UsdGeom, UsdShade, Vt
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
+import colliders  # noqa: E402
 import ground as grounds  # noqa: E402
 import scene as scene_records  # noqa: E402
 
@@ -131,7 +132,8 @@ def srgb_to_linear(value):
 
 
 def write_mesh(stage, path, points, triangles, kind):
-    """One mesh of triangles, a static collider, named for what it is (score:kind)."""
+    """One mesh of triangles named for what it is (score:kind), a static collider when it is solid (ground, not
+    water: colliders.solid)."""
     mesh = UsdGeom.Mesh.Define(stage, path)
     mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points.astype(np.float32)))
     mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(triangles), 3, dtype=np.int32)))
@@ -140,6 +142,8 @@ def write_mesh(stage, path, points, triangles, kind):
     used = points[np.unique(triangles)] if len(triangles) else points[:1]
     mesh.CreateExtentAttr([Gf.Vec3f(*used.min(axis=0).tolist()), Gf.Vec3f(*used.max(axis=0).tolist())])
     mesh.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)
+    if kind in colliders.SOLID_KINDS:
+        colliders.solid(mesh.GetPrim(), points, triangles)
     return mesh
 
 
@@ -181,6 +185,7 @@ def write_ball(stage, place, laid, made, looks):
     first = made["surfaces"][-1]["surface"]
     UsdShade.MaterialBindingAPI.Apply(sphere.GetPrim()).Bind(looks[first])
     sphere.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
+    colliders.solid(sphere.GetPrim())
 
 
 def write_places(stage, place, places, neighbour_path):

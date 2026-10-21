@@ -4,7 +4,9 @@ asset, for a place's `objects` in its scene record (tools/usd/scene.py).
     asset(glb, out_file, textures) -> the asset's box (low, high) in metres, y up
 
 Every mesh of the file becomes a UsdGeomMesh with its node's transform baked in, and every material a UsdPreviewSurface
-from the file's own base colour (its texture, else its factor), roughness, metal and emission. These models are not
+from the file's own base colour (its texture, else its factor), roughness, metal and emission. Each mesh collides by a
+convex hull round itself (colliders.hull_of), static: no extra prim, so what reads a fixture's drawn meshes reads the
+same ones. These models are not
 labelled by parts, so a part carries no library surface: the model's own materials are what is drawn.
 """
 import pathlib
@@ -13,6 +15,8 @@ import numpy as np
 import trimesh
 from PIL import Image
 from pxr import Gf, Kind, Sdf, Usd, UsdGeom, UsdShade, Vt
+
+import colliders
 
 
 def flat_rgb(values, fallback):
@@ -139,6 +143,7 @@ def asset(glb, out_file, textures):
         mesh = scene.geometry[geometry_name].copy()
         mesh.apply_transform(transform)
         prim = mesh_prim(stage, f"/{name}/mesh_{number}", mesh)
+        colliders.hull_of(prim.GetPrim())
         material = getattr(mesh.visual, "material", None)
         if material is None:
             continue

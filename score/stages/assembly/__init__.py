@@ -27,6 +27,9 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                            fail on a sound placed nowhere
              placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
                            code-built ship fails, 12 meshes)
+             collision     tools/usd/colliders.py: every wall, floor, stair and ground (a gprim of kind structure or
+                           ground) collides, and every model (a prim naming its score:model) has a collider of its
+                           own; free. Static colliders only: mass and interaction are the named gap
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
                            settled.json, stored as the check's evidence); with none it answers unknown and blocks,
                            and the runner's drive gathers it (gather_drop_run: one drop run on a rented processor
@@ -51,6 +54,7 @@ from score.stages.assembly.record import (  # noqa: F401  (motion and light call
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
+import colliders  # noqa: E402
 import placeholders  # noqa: E402
 import triage  # noqa: E402
 
@@ -203,6 +207,19 @@ def judge_placeholders(output, inputs, evidence):
                           {"faults": "lower"}, findings)
 
 
+def judge_collision(output, inputs, evidence):
+    """Fail on every wall, floor, stair or ground with no collision and every model with no collider."""
+    from pxr import Usd
+    faults = colliders.faults(Usd.Stage.Open(str(stage_file(output))))
+    findings = tuple(f"{fault['prim']}: {fault['why']}" for fault in faults)
+    solid = sum(fault["what"] != "model" for fault in faults)
+    reason = (f"{solid} walls, floors or grounds without collision, {len(faults) - solid} models without a collider"
+              if faults else "every wall, floor, stair and ground collides and every model has a collider")
+    return checks.Verdict("collision", checks.FAIL if faults else checks.PASS, reason,
+                          {"uncolliding": solid, "models without collider": len(faults) - solid},
+                          {"uncolliding": "lower", "models without collider": "lower"}, findings)
+
+
 def declared_inventory(output, inventories):
     """The inventory the seed was laid from (its inputs.json), in the world's declared inventory folder; None when it
     names none there."""
@@ -288,5 +305,6 @@ def judge_layers(output, inputs, evidence):
 
 
 CHECKS = (checks.Check("layers", judge_layers), checks.Check("placeholders", judge_placeholders),
+          checks.Check("collision", judge_collision),
           checks.Check("resting", judge_resting, evidence="a drop run (settle.py --dry-run)"))
 GATHERERS = {"resting": (gather_drop_run, DROP_EUROS)}

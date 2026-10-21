@@ -228,6 +228,36 @@ def test_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_i
         assert "unverified" in said and kept.GetPrimAtPath(f"/{TOY}/Structure/old_wall")
 
 
+def test_the_collision_gate_fails_a_seed_s_bare_wall_and_passes_the_record_written_again():
+    """A seed's record wall drawn with no collision (as round three wrote every wall, floor and stair) fails the
+    collision gate by name; the accepted record written over it (a wall and a flight of stairs) collides, so it
+    passes."""
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        root = a_toy(folder / "out")
+        base = Usd.Stage.Open(str(root.parent / "layers/base.usda"))
+        UsdShade.Material.Define(base, f"/{TOY}/Library/concrete")
+        bare = UsdGeom.Mesh.Define(base, f"/{TOY}/Structure/seed_floor")
+        bare.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
+        base.GetRootLayer().Save()
+        before = assembly.judge_collision(root.parent, {}, None)
+        assert before.answer == checks.FAIL and before.measures == {"uncolliding": 1, "models without collider": 0}
+        assert before.findings[0].startswith(f"/{TOY}/Structure/seed_floor: "), before.findings
+        (folder / "record/record").mkdir(parents=True)
+        record = {"place": TOY, "structure": [
+            {"name": "wall", "builder": "box", "centre": [0, 1.5, -4], "size": [8, 3, 0.2], "surface": "concrete"},
+            {"name": "steps", "builder": "stairs", "foot": [2, 0, 0], "top": [2, 1.2, -1.8], "wide": 1.0, "steps": 6,
+             "surface": "concrete"}]}
+        (folder / f"record/record/{TOY}.json").write_text(json.dumps(record))
+        (folder / "kit.json").write_text(json.dumps({"pieces": []}))
+        assembly.take_record({"scene-record": folder / "record", "kit": folder / "kit.json"}, root.parent, TOY)
+        after = assembly.judge_collision(root.parent, {}, None)
+        assert after.answer == checks.PASS and after.measures == {"uncolliding": 0, "models without collider": 0}, \
+            after.findings
+        stage = Usd.Stage.Open(str(root))  # held: a prim of a stage nothing holds expires at once
+        assert all(stage.GetPrimAtPath(f"/{TOY}/Structure/{name}") for name in ("wall", "steps"))
+
 def a_sound_output(folder, uses):
     """A sound stage's output: hum and tone, each one file, played by `uses`."""
     for name in ("hum", "tone"):
