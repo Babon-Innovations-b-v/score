@@ -23,16 +23,12 @@ from score.dashboard.state.names import plain
 # a sky is no light; the lamps are), the motion layer's people, and a place with its own layers under it (a layer is a
 # part of its place, no shelf of its own). Ground is retired: a terrain piece is a model, a ground finish a surface.
 # The kind ids stay; only what the owner reads changes. The algorithm kind's shelf is Physics: only physics setups
-# (CONTEXT.md "physics setup", owner 2026-10-20); code that makes other things sits on the shelf of what it makes,
-# marked made by code (CODE_SHELF), the code that makes films on Films.
+# (CONTEXT.md "physics setup", owner 2026-10-20). The one other code entry is the surface recipes, on Surfaces marked
+# made by code (CODE_SHELF); a layer's placement, layout, terrain, sky, light, sound and film code is the framework's
+# own steps, withdrawn from the library (owner, 2026-10-21).
 KINDS = [("model", "Models"), ("surface", "Surfaces"), ("kit", "Kits"), ("character", "Motion"), ("effect", "Effects"),
-         ("light", "Skies"), ("lamp", "Lamps"), ("sound", "Sound"), ("film", "Films"), ("algorithm", "Physics"),
-         ("place", "Places")]
-CODE_SHELF = {  # an algorithm entry that is no physics setup, by its id: the shelf of what it makes
-    "camera_paths": "film", "cast_spread": "model", "crops_spots": "model", "far_city": "model",
-    "ground_detail": "model", "light_rig": "lamp", "machines_lay": "model", "mars_sky": "light", "motion": "character",
-    "motion_movers": "character", "particle_effects": "effect", "room_layout": "model", "sky_dust_stars_haze": "light",
-    "sky_orbits": "light", "sound_layer": "sound", "surface_recipes": "surface", "terrain_landforms": "model"}
+         ("light", "Skies"), ("lamp", "Lamps"), ("sound", "Sound"), ("algorithm", "Physics"), ("place", "Places")]
+CODE_SHELF = {"surface_recipes": "surface"}  # an algorithm entry that is no physics setup: the shelf of what it makes
 MADE_BY_CODE = "made_by_code"  # the folder a shelf's code entries sit in (state/library_tree.py)
 WHAT = {"model": "a model made through the prop pipeline (a terrain piece too)",
         "surface": "a surface and the material a place writes for it (a ground finish too)",
@@ -40,7 +36,6 @@ WHAT = {"model": "a model made through the prop pipeline (a terrain piece too)",
         "light": "a sky dome or a planet's backdrop, seen from inside", "lamp": "a place's lamps and their strengths",
         "sound": "a sound source with its takes and levels",
         "character": "the motion layer's people: a body look or a dress", "kit": "a set of shell-piece variants",
-        "film": "the code that makes a film's camera paths",
         "algorithm": "a physics setup with its settings, preset, tests and run line: a body's weight, a hinge and its "
                      "motor, a drop, a push, settling, snapping, a planet's gravity",
         "place": "a place's root with its own layers, plan and cast"}

@@ -141,9 +141,9 @@ def shelf(tmp_path):
     entry(root, blobs, "layer", "light.alpha", title="Alpha light layer", files={"lamps.json": ("record", LAMPS)})
     entry(root, blobs, "kit", "alpha", files={"web3d/light.glb": ("web3d", glb() + b" " * 8)},
           web3d={"light": "web3d/light.glb", "objects": 12}, tags={"place_kind": ["inside", "moon"]})
-    entry(root, blobs, "algorithm", "camera_paths", title="Camera moves: walk paths and film shots",
-          provenance={"stage": "demo-film", "nodes": ["demo-film@alpha", "demo-film@beta"]},
-          requires=["algorithm/terrain@1"], score=25, files={"presets/world1/data/definitions/demo_films/alpha.json":
+    entry(root, blobs, "algorithm", "surface_recipes", title="Surface functions: material recipes and wear",
+          provenance={"stage": "surfaces-bake", "nodes": ["surfaces-bake@alpha", "surfaces-bake@beta"]},
+          requires=["algorithm/terrain@1"], score=25, files={"presets/world1/data/surface_recipes/alpha.json":
                                                               ("record", b"{}")})
     entry(root, blobs, "ground", "earth.alpha")
     entry(root, blobs, "layer", "base.alpha")
@@ -201,10 +201,11 @@ def node_of(tree, node_id):
 
 def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
-    for kind, count in (("Models", 3), ("Surfaces", 1), ("Kits", 1), ("Motion", 1), ("Effects", 1), ("Skies", 1),
-                        ("Lamps", 1), ("Sound", 1), ("Films", 1), ("Physics", 0), ("Places", 3)):
+    for kind, count in (("Models", 3), ("Surfaces", 2), ("Kits", 1), ("Motion", 1), ("Effects", 1), ("Skies", 1),
+                        ("Lamps", 1), ("Sound", 1), ("Physics", 0), ("Places", 3)):
         assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
     assert 'data-v>Algorithms<' not in html  # the shelf holds physics setups only: code sits where its work does
+    assert 'data-v>Films<' not in html  # camera paths are the film route's own step, no library entry
     assert 'data-v>Ground<' not in html and 'data-v>Layers<' not in html  # retired, and a layer sits under its place
     assert 'data-children="/api/library/children?node=model"' in html
     assert "Lamp post" not in html and "Wrench" not in html  # entries load only when their branch opens
@@ -213,10 +214,10 @@ def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch
 
 def test_code_that_makes_something_sits_on_its_shelf_in_a_made_by_code_folder_beside_the_shelfs_own(world, shelf):
     client = api()
-    films = client.get("/api/library/children", params={"node": "film"}).json()
-    assert [(node["label"], node["count"]) for node in films] == [("Made by code", 1)]
-    held = client.get("/api/library/children", params={"node": "film/made_by_code"}).json()
-    assert [node["href"] for node in held] == ["/library/algorithm/camera_paths/1/"]
+    surfaces = client.get("/api/library/children", params={"node": "surface"}).json()
+    assert [(node["label"], node["count"]) for node in surfaces] == [("Made by code", 1), ("Brushed steel", None)]
+    held = client.get("/api/library/children", params={"node": "surface/made_by_code"}).json()
+    assert [node["href"] for node in held] == ["/library/algorithm/surface_recipes/1/"]
     skies = client.get("/api/library/children", params={"node": "light"}).json()
     assert [node["href"] for node in skies] == ["/library/light/sky.alpha/1/"]  # no code here: no folder
 
@@ -400,19 +401,19 @@ def test_a_sky_is_looked_around_in_and_a_place_s_lamps_light_a_test_scene(world,
 def test_an_algorithm_shows_its_work_on_a_real_example_else_what_it_reads_and_makes(world, shelf):
     from django.conf import settings
     client = signed_in()
-    paths = an_item_page(client, "/library/algorithm/camera_paths/1/")  # no demo made yet: the plain diagram
-    assert ">Camera paths<" in paths and 'title="Camera moves: walk paths and film shots"' in paths
-    assert ">Films<" in paths and ">made by code<" in paths
-    assert "demo films" in paths and "demo film &times; 2" in paths and "code only" not in paths
+    paths = an_item_page(client, "/library/algorithm/surface_recipes/1/")  # no demo made yet: the plain diagram
+    assert ">Surface finishes<" in paths and 'title="Surface functions: material recipes and wear"' in paths
+    assert ">Surfaces<" in paths and ">made by code<" in paths
+    assert "surface recipes" in paths and "surfaces bake &times; 2" in paths and "code only" not in paths
     assert "score" not in paths.split('class="nums"')[-1].split("item-actions")[0].lower()  # its score means nothing
     demos = settings.SCORE_PROPS_HOME / "cache" / "library" / "demos.json"
     demos.parent.mkdir(parents=True, exist_ok=True)
-    demos.write_text(json.dumps({"camera_paths": DEMO}))
-    shown = an_item_page(client, "/library/algorithm/camera_paths/1/")
+    demos.write_text(json.dumps({"surface_recipes": DEMO}))
+    shown = an_item_page(client, "/library/algorithm/surface_recipes/1/")
     assert '<script type="module" src="/static/pages/demo.js">' in shown and "the alpha&#x27;s two beds" in shown
     assert ">The beds<" in shown and number_shown(shown, "plants", "9")
-    demos.write_text(json.dumps({"camera_paths": {"missing": "no example kept"}}))
-    assert "no example of its work is here yet: no example kept" in an_item_page(client, "/library/algorithm/camera_paths/1/")
+    demos.write_text(json.dumps({"surface_recipes": {"missing": "no example kept"}}))
+    assert "no example of its work is here yet: no example kept" in an_item_page(client, "/library/algorithm/surface_recipes/1/")
 
 
 def test_a_place_or_layer_shows_its_places_3d_copy_and_a_ground_its_picture(world, shelf):
@@ -540,7 +541,7 @@ client.force_login(get_user_model().objects.create_user("joey", password="a long
 codes = [client.get(page, HTTP_HOST="127.0.0.1").status_code for page in (
     "/library/", "/library/model/crate/1/", "/library/model/lamp_post.alpha/1/", "/library/surface/brushed_steel.alpha/1/",
     "/library/sound/hum.alpha/1/", "/library/effect/devil.alpha/1/", "/library/light/sky.alpha/1/",
-    "/library/algorithm/camera_paths/1/", "/library/place/alpha/1/")]
+    "/library/algorithm/surface_recipes/1/", "/library/place/alpha/1/")]
 branch = [node["label"] for node in library.children(lib.library(), "model")]
 import score.dashboard.site.asgi  # what the hosted image serves
 heavy = [name for name in sys.modules if name.startswith("score.") and not name.startswith("score.dashboard")]
@@ -568,8 +569,8 @@ def test_the_library_screen_shows_numbers_not_prose(world, shelf):
 
 def test_names_are_everyday_words_with_the_library_title_kept_as_hover_text():
     from score.dashboard.state.names import plain
-    assert plain("algorithm", "camera_paths", "Camera moves: RRT* walk paths (the render needs a GPU)") == (
-        "Camera paths", "Camera moves: RRT* walk paths (the render needs a GPU)")
+    assert plain("algorithm", "surface_recipes", "Surface functions: ProcFunc material recipes and wear") == (
+        "Surface finishes", "Surface functions: ProcFunc material recipes and wear")
     assert plain("ground", "earth.flat", "Flat ground (earth)")[0] == "Flat ground, earth"
     assert plain("model", "ac_unit_1", "Ac unit 1")[0] == "Air conditioner 1"
     assert plain("model", "apron_2p6", "Apron 2p6")[0] == "Apron 2.6 m"

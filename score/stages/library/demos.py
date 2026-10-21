@@ -1,7 +1,7 @@
 """Each library algorithm's demo, made on the store's machine for the cockpit's item page (#42: an algorithm's page
 showed a still from a film and "in: code only"; owner, 2026-10-20: show what it does on one real example).
 
-    .venv/bin/python -m score.stages.library.demos [--only crops_spots ...]
+    .venv/bin/python -m score.stages.library.demos [--only snap ...]
 
 One module an algorithm in `score/stages/library/demo/` (its overlay has the shape) makes the demo from real data:
 the repository's `data/` and the library entries' files, each fetched once into the library cache by the library's
