@@ -460,8 +460,8 @@ def check_dust(folder):
 
 
 def check_shared_paint(folder):
-    """A game model whose surfaces are named after the game's shared materials is drawn in them (a hull surface in
-    hull's flat colour), its children too; a surface named nothing shared keeps its own look."""
+    """A game model whose surfaces are named after the game's shared materials is never drawn in the game's colours
+    (every old material retired, 2026-10-21): each named surface is marked missing by its name, its children too."""
     import trimesh
     world = folder / "world"
     (world / "models").mkdir(parents=True)
@@ -478,15 +478,15 @@ def check_shared_paint(folder):
     stage = Usd.Stage.CreateNew(str(folder / "layers/paint.usda"))
     UsdGeom.Xform.Define(stage, f"/{PLACE}")
     scene.write(stage, PLACE, record, folder, world=world)
-    hull_colour = json.loads(scene.SHARED_PAINT.read_text())["paints"]["hull"]["colour"]
-    looks = {}
+    missing = {}
     for prim in Usd.PrimRange(stage.GetPrimAtPath(f"/{PLACE}/Fixtures/robot")):
         if prim.IsA(UsdGeom.Mesh):
             bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
-            colour = UsdShade.Shader(stage.GetPrimAtPath(f"{bound.GetPath()}/surface")).GetInput("diffuseColor").Get()
-            looks.setdefault(round(float(colour[0]), 3), []).append(str(prim.GetPath()))
-    painted = round(hull_colour[0] ** 2.2, 3)
-    assert len(looks.get(painted, [])) == 2 and len(looks.get(1.0, [])) == 2, looks
+            assert "_paint" not in str(bound.GetPath()), bound.GetPath()
+            if prim.HasAttribute("score:surface:missing"):
+                missing.setdefault(prim.GetAttribute("score:surface").Get(), []).append(str(prim.GetPath()))
+    assert len(missing.get("hull", [])) == 2 and len(missing.get("decal", [])) == 2, missing
+    assert "retired" in stage.GetPrimAtPath(missing["hull"][0]).GetAttribute("score:surface:missing").Get()
 
 
 def check_labels_and_glow(folder):
