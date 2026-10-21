@@ -526,7 +526,8 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
 ALL = None
 BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                "finish-route-split": ("one finish a face",), "surfaces-bake": ("baked",),
-               "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL}
+               "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
+               "sound": ("likeness",)}
 
 
 def with_gap_files(files, row=None):

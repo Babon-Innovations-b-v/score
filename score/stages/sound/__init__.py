@@ -29,6 +29,7 @@ import shutil
 import sys
 
 from score import checks, contracts
+from score.stages import batch_gaps
 from score.stages.sound import gates
 from score.stages.sound import moving
 from score.stages.sound import takes as moss_takes
@@ -313,7 +314,30 @@ def make(inputs, out, seed, params):
             sounds[name] = found
     shutil.rmtree(out / "work", ignore_errors=True)
     shutil.rmtree(out / "cloud", ignore_errors=True)
-    (out / RECORD).write_text(json.dumps({"place": place, "sounds": sounds, "uses": uses}, indent=1))
+    made_here = to_make(names, inputs)
+    batch_gaps.write(out, take_gaps(made_here, sounds, uses))
+    kept = [use for use in uses if use["sound"] in sounds or use["sound"] not in made_here]
+    (out / RECORD).write_text(json.dumps({"place": place, "sounds": sounds, "uses": kept}, indent=1))
+
+
+def take_gaps(made_here, sounds, uses):
+    """The batch gaps of the sounds made here (score/stages/batch_gaps.py), each a gap by the creator's yes to the
+    batch (a new take is a new batch): a brief whose take did not come back usable has no sound, its uses left out of
+    the record (the gap names each, so the assembly plays nothing in its place); a take under gates.CLAP_FLOOR plays,
+    its `likeness` fault moved to the gap (stages.BATCH_GATES)."""
+    found = []
+    for name in made_here:
+        if name not in sounds:
+            found.append(batch_gaps.gap(
+                f"{name}: no MOSS take came back", "sound", "sources", (name,),
+                [f"{name}: no sound ({use['role']}, {use['from']})" for use in uses if use["sound"] == name],
+                "its MOSS take was asked once in the batch and did not come back usable; its uses left out"))
+        elif sounds[name].get("clap") is not None and sounds[name]["clap"] < gates.CLAP_FLOOR:
+            found.append(batch_gaps.gap(
+                f"{name}: MOSS take under the CLAP floor", "sound", "likeness", (name,),
+                [f"{name}: CLAP {sounds[name]['clap']} under {gates.CLAP_FLOOR}"],
+                "its one MOSS take of the batch came back under the CLAP floor"))
+    return found
 
 
 def layer_faults(folder):
