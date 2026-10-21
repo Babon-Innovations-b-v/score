@@ -107,7 +107,10 @@ stage as each stage is built; nothing moves before.
   `reading.py` reads a picked concept into its scene inventory, started on its own by the pick (`web.reading_started`):
   Gemini 3.1 Pro's rows, each with its size in metres judged against the place's outline (`plans.outline_from_holder`:
   the layer above's box, its own plan, else round its inside places), then SAM 3's boxes of each row on one rented
-  card (where, never size), their disagreements and a row with no metres its gaps, each
+  card (where, never size; its own words first, then its noun); only what both agree on is a row, its count SAM 3's
+  instances (owner, 2026-10-21), the structure, ground and rows holding an inside place kept as read, duplicates
+  merged, the rest kept apart as `skipped` (never a row or a gap); a kept row with no metres or anchor its gaps; a
+  reading by an older method is read again from its own rows, SAM 3 only; each
   reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no pick of its own.
   `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the picked concept.
   `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its pick, inventory and the layer

@@ -326,15 +326,21 @@ def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_run
              "anchor": "ground", "where": "left", "boxes": [[0, 0, 48, 30]], "box": [0, 0, 48, 30]}]
     reading.kept(store, {"place": "alpha", "concept": alpha, "at": "2026-10-21T08:00:00+00:00", "by": "joey",
                          "method": reading.METHOD, "size": [96, 60], "inventory": {"rows": rows},
-                         "gaps": [{"kind": "count", "row": "drum", "words": "2 read, 1 found"},
-                                  {"kind": "unnamed", "row": None, "box": [48, 30, 96, 60], "words": "a crate"}],
+                         "gaps": [{"kind": "size", "row": "drum", "words": "its size in metres not read"},
+                                  {"kind": "anchor", "row": "drum", "words": "what it stands on not read"}],
+                         "skipped": [{"name": "crate", "row": None, "why": reading.ONLY_SAM, "box": [48, 30, 96, 60]}],
+                         "merged": [{"name": "blue drum", "row": "blue", "into": "drum"}],
                          "euros": {"rows": 0.03, "boxes": 0.1, "total": 0.13},
                          "seconds": {"rows": 20.0, "boxes": 30.0, "card": 550.0}})
     world.source.refresh()
     page = signed_in().get("/concept/alpha/").content.decode()
-    assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 2 gaps, EUR 0.13, 10.0 min" in page
+    assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 1 gaps, EUR 0.13, 10.0 min" in page
     assert 'style="left:0.0%;top:0.0%;width:50.0%;height:50.0%"' in page
-    assert 'class="concept-box unnamed"' in page and 'style="left:50.0%;top:50.0%' in page
+    assert ('data-v>1. fuel drum</span> <span class="soft" data-v>its size in metres not read; what it stands on not '
+            'read</span>') in page  # one line a row, its gaps in plain words
+    assert 'class="concept-box skipped"' in page and 'style="left:50.0%;top:50.0%' in page
+    assert "crate: only the outline finder found it" in page and "blue drum: the same as fuel drum" in page
+    assert "skipped 1, merged 1</span>" in page and 'id="concept-skipped-shown"' in page
     assert 'id="concept-boxes-quiet"' in page  # concept.js wires it whenever the reading shows
     assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/places/").content.decode()
     assert "Inventory readings" in signed_in("joey3").get("/stats/").content.decode()

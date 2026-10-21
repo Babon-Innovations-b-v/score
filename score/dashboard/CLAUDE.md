@@ -215,7 +215,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`score/review/reading.py`, `web.reading_started`, no yes asked: owner, 2026-10-21), kept in the store
   (`inventory-readings/`, `WorldState.inventory_readings` and `inventory_spend`); the concept page shows the reading
   of the picked draw beside its picture (`concepts.reading_view`: rows numbered, each instance found boxed on the
-  picture, the gaps listed, a dashed box for a thing no row names; a row and its boxes light together on hover), and
+  picture; the gaps one line a row, its name and what is unclear in plain words, a click lighting its boxes; a
+  "skipped N, merged M" note listing what the readers' agreement left out as hover text, and "show skipped" drawing
+  those faint and dashed, each saying why on hover; a row and its boxes light together on hover), and
   every reading's euros in sum show on the Environment's top bar under spent and on Stats. Prepare's remake figure
   reads the readings (its `estimate`); the gaps check and the plan still read `data/inventory/`.
 - **The environment concept** (CONTEXT.md "environment concept", owner 2026-10-21; `pages/environment.py`,

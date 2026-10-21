@@ -143,7 +143,9 @@ def inventory_of(world, place, picked):
 def reading_view(world, place, picked):
     """The place's scene inventory reading of its picked draw as its concept page shows it (score/review/reading.py),
     None without one: its rows numbered, each instance SAM 3 found as a box in shares of the picture (`at`: left, top,
-    width, height in percent), its gaps, what it cost and how long it took."""
+    width, height in percent), its gaps grouped by row [{number, name, words}], what the agreement left out
+    (`skipped`, each with its box and why; `merged`, each with the row it went into), what it cost and how long it
+    took."""
     found = world.inventory_readings.get(place)
     if not found or found["concept"] != picked:
         return None
@@ -154,9 +156,13 @@ def reading_view(world, place, picked):
                 round(100 * (box[3] - box[1]) / tall, 2)]
     rows = [{**row, "number": number, "at": [at(box) for box in row["boxes"]]}
             for number, row in enumerate(found["inventory"]["rows"], 1)]
-    numbers = {row["id"]: row["number"] for row in rows}
-    gaps = [{**gap, "number": numbers.get(gap["row"]), "at": gap.get("box") and at(gap["box"])} for gap in found["gaps"]]
-    return {"rows": rows, "gaps": gaps, "euros": found["euros"]["total"],
+    named = {row["id"]: row for row in rows}
+    gaps = [{"number": named[row]["number"], "name": named[row]["name"],
+             "words": [gap["words"] for gap in found["gaps"] if gap["row"] == row]}
+            for row in dict.fromkeys(gap["row"] for gap in found["gaps"])]
+    skipped = [{**item, "at": item["box"] and at(item["box"])} for item in found.get("skipped", [])]
+    merged = [{**item, "into": named[item["into"]]["name"]} for item in found.get("merged", []) if item["into"] in named]
+    return {"rows": rows, "gaps": gaps, "skipped": skipped, "merged": merged, "euros": found["euros"]["total"],
             "minutes": round(sum(found["seconds"].values()) / 60, 1), "at": found["at"]}
 
 
