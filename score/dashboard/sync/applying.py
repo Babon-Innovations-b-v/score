@@ -129,6 +129,18 @@ def apply_library(item):
     return Applied("refused" if said.startswith("refused") else "done", said)
 
 
+def checkout_applied(record, said):
+    """A checkout's Applied: running with its launch's id and the stop line it wrote once launched (so the pass
+    follows the run to its end and reports it, client.report_launches), done when it bought nothing, else refused
+    (a failed checkout too: the hosted side's states, sync/endpoints.STATES, have no failed; its words say it)."""
+    if record is not None and record.state == "launched" and record.launch_id:
+        line = record.stop_line
+        return Applied("running", f"{said}; stop line EUR {line['euros']:.2f} at {line['at']} (its high EUR "
+                                  f"{line['high']:.2f} plus 10%, spent EUR {line['spent']:.2f}, in flight EUR "
+                                  f"{line['reserved']:.2f})", launch_id=record.launch_id)
+    return Applied("done" if record is not None and record.state == "done" else "refused", said)
+
+
 def apply_checkout(item):
     """The owner's hosted checkout of the items he bought, run here in this pass (checkout/flow.py, every refusal of a
     local checkout, an item changed since he chose it among them)."""
@@ -140,7 +152,7 @@ def apply_checkout(item):
     owner, _ = get_user_model().objects.get_or_create(username=item["user"])
     seen = [{"id": chosen["id"], "version": chosen["version"]} for chosen in item["payload"].get("items", [])]
     record, said = flow.start(owner, item["payload"]["key"], True, seen, at_once=True)
-    return Applied("done" if record is not None and record.state in ("launched", "done") else "refused", said)
+    return checkout_applied(record, said)
 
 
 def apply_answer(item):

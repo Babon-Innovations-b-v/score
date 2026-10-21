@@ -242,18 +242,30 @@ def apply_waiting(remote, source, chosen):
 
 
 def report_launches(remote, chosen):
-    """Report each followed launch that ended; [(id, state)]."""
+    """Report each followed launch that ended (done, else refused: the hosted side's states have no failed, so the
+    run's own state leads its words); [(id, state)]."""
     following, reported = tracked(), []
     for request_id, launch_id in list(following.items()):
         record = guard.polled(Launch.objects.get(pk=launch_id), chosen)
         if record.state in ("running", "starting"):
             continue
         tail = "\n".join(item.get("log_tail", "") for item in record.handles)[-4000:]
-        remote.report(int(request_id), "done" if record.state == "done" else "failed", record.result, tail)
+        said = record.result if record.state == "done" else f"{record.state}: {record.result}"
+        remote.report(int(request_id), "done" if record.state == "done" else "refused", said, tail)
         reported.append((int(request_id), record.state))
         following.pop(request_id)
     keep_tracked(following)
     return reported
+
+
+def checkouts_tidied(chosen):
+    """The checkouts cared for (checkout/flow.tidied: one left launching by a process now gone failed, an ended
+    batch's stop line taken back); its words, or why it could not be done (the pass goes on)."""
+    from score.dashboard.checkout import flow
+    try:
+        return flow.tidied(chosen)
+    except Exception as error:  # reported in the pass's line, never swallowed
+        return f"checkouts not tidied: {type(error).__name__}: {error}"[:400]
 
 
 def pushed_words(remote, source, chosen):
@@ -318,6 +330,19 @@ def basket_benchmarks():
     pass's estimate; its line."""
     from score.dashboard.proposals import benchmarks
     return benchmarks.put(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME)
+
+
+def basket_made(chosen):
+    """The basket made again from the runner's plan on this checkout (proposals/make.py, plan only: free, no place
+    assembled), so what Buy buys is what a run here buys now and the checkout reads a basket made after the design
+    last changed; its line. One that fails is said in the pass's words, and the pass goes on (the checkout refuses
+    the older basket)."""
+    from score.dashboard.proposals import make
+    try:
+        made = make.make(settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", chosen=chosen, plan_only=True)
+    except Exception as error:  # reported in the pass's line, never swallowed
+        return f"basket failed: {type(error).__name__}: {error}"[:400]
+    return f"basket made: {len(made['items'])} items, {sum(len(item['nodes']) for item in made['items'])} paid steps"
 
 
 def library_pictures():
@@ -397,11 +422,13 @@ def sync_pass(remote, source, chosen=None):
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
         return refused_words(f"{failed}; {swept}; {gaps}; {planned}; {prepared}; {benched}; {pictured}; {demos}")
+    basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
     now = head(settings.SCORE_REPO)
     pushed = pushed_words(remote, source, chosen) if now == started else (
         f"NOT PUSHED: the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass, so its remake and "
         "price would show as stale; the next pass sends them")
+    tidy = checkouts_tidied(chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {gaps}; {priced}; "
-            f"{planned}; {prepared}; {benched}; {pictured}; {demos}")
+    return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {tidy}; {swept}; {gaps}; "
+            f"{priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}")
