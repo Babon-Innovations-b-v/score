@@ -119,6 +119,9 @@ def test_a_crowds_look_is_read_off_its_words():
     assert look("crowd of people", "people") == "kit_m_avg-coat-grey"  # "an ordinary citizen in the crowd"
     assert look("crowd of astronauts", "crowd") == "player_wide-work"  # "an astronaut of a Moon base"
     assert look("flock of penguins", "penguin") == "moon_crowd_1-new"
+    # who the row names decides, never its crowd word alone: a city crowd's look is no one else's crowd
+    assert look("crowd of aliens", "crowd") == look("crowd of martian colonists", "crowd") == "moon_crowd_1-new"
+    assert look("crowd of shoppers in grey coats", "crowd") == "kit_m_avg-coat-grey"
     assert people_rows.new_looks({"moon": {"rows": {"crowd": {"name": "flock of penguins", "crowd": "moon_crowd_1-new"}}}},
                                  set(line)) == {"moon_crowd_1-new": {"words": "flock of penguins", "from": "moon/crowd"}}
 
