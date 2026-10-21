@@ -142,7 +142,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   owner 2026-10-20) as its dome looked around in from inside or a planet's backdrop as its globe, a place's lamps (the
   Lamps shelf: a `light.<place>` layer, `library.shelf_of`; its `lamps.json`) at their spots over a neutral test
   scene, a sound's takes as waveforms played side by side (`static/pages/takes.js`), a place or layer's place viewer
-  in a frame, an algorithm's own work on one real example (the kind `algorithm` is the Physics shelf, physics setups only, CONTEXT.md "physics setup"; code that makes something else sits on the shelf of what it makes in a "Made by code" folder, `library.CODE_SHELF`, its page saying made by code, Films holding the camera paths; `static/pages/demo.js`: its steps played on a plan, a side
+  in a frame, an algorithm's own work on one real example (the kind `algorithm` is the Physics shelf, physics setups only, CONTEXT.md "physics setup"; the one other code entry, the surface recipes, sits on Surfaces in a "Made by code" folder, `library.CODE_SHELF`, its page saying made by code; a layer's placement, layout, terrain, sky, light, sound and film code is the framework's own steps, withdrawn from the library, owner 2026-10-21; `static/pages/demo.js`: its steps played on a plan, a side
   chart or a raised relief, a path flown as a camera, a slider showing its output at another setting; the demo made
   on the store's machine by `score/stages/library/demos.py`, read from the library cache's `demos.json`, hosted
   the export's `library/demos.json`), else a plain diagram of what it reads and makes, with why there is no example

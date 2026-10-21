@@ -30,4 +30,4 @@ def test_a_module_without_an_example_or_that_fails_is_missing_with_why():
 
 def test_every_module_names_its_algorithm():
     found = demos.modules()
-    assert "crops_spots" in found and all(module.ALGORITHM == name for name, module in found.items())
+    assert "surface_recipes" in found and all(module.ALGORITHM == name for name, module in found.items())
