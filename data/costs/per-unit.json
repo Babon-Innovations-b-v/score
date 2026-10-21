@@ -52,6 +52,24 @@
     "why": "priced from runs written down when they ran, euros and units but no time; their ledger lines went with the old disk (2026-10-19)"
    }
   },
+  "library-clips": {
+   "stage": "library-clips",
+   "unit": "preview clip of a new item",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.15969,
+   "high_euros": 0.15969,
+   "runs": 1,
+   "sources": {
+    "recorded runs": [
+     "ledger batch blender-20261021-005907-4020565 (library-clips-sample, 2026-10-21, benchmark grant 20261020T224639): 6 clips (4 models, a surface, an effect) of 96 frames at 1280x720 on one L4, 72.2 min, its output fdfb21959984's clips.json"
+    ]
+   },
+   "forecast": {
+    "rule": "models",
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
+   }
+  },
   "concept_people": {
    "stage": "concept_people",
    "unit": "make of the environment's people concept",
@@ -411,6 +429,43 @@
     "source": "score/stages/earth_seed kit_jobs: route.py late-plan's picture sets of the place's code-built kit pieces (data/kit/<place>.json), one make_kit job a set"
    }
   },
+  "sound": {
+   "stage": "sound",
+   "unit": "MOSS take (one brief and seed, its card rented for it)",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.14149,
+   "high_euros": 0.21268,
+   "runs": 2,
+   "sources": {
+    "cloud batches": [
+     "prove-20261020-181655-1467389",
+     "prove-20261021-005847-4017578"
+    ]
+   },
+   "forecast": {
+    "rule": "sound_takes",
+    "source": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief and seed, each counted once at the first place in data/sound/places.json that plays it"
+   },
+   "time": {
+    "unit_seconds": {
+     "likely": 187.166,
+     "high": 207.556
+    },
+    "setup_minutes": {
+     "likely": 0.68,
+     "high": 0.834
+    },
+    "slots": 1,
+    "slots_from": "one a machine: no line names jobs at once",
+    "failed_start_share": 0.333,
+    "holds": "machines",
+    "lines": 2,
+    "from": [
+     "$PROPS/cloud/ledger.jsonl"
+    ]
+   }
+  },
   "finish-route-list": {
    "stage": "finish-route-list",
    "unit": "finish list and labels of a take (Gemini 3.1 Pro, batch)",
@@ -454,42 +509,6 @@
     "batch tier": "google_spend.TIER_PRICE['batch'] = 0.5"
    },
    "basis": "batch price of measured calls"
-  },
-  "sound": {
-   "stage": "sound",
-   "unit": "MOSS take (one brief and seed, its card rented for it)",
-   "count": null,
-   "also": [],
-   "likely_euros": 0.23047,
-   "high_euros": 0.23047,
-   "runs": 1,
-   "sources": {
-    "cloud batches": [
-     "prove-20261020-181655-1467389"
-    ]
-   },
-   "forecast": {
-    "rule": "sound_takes",
-    "source": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief and seed, each counted once at the first place in data/sound/places.json that plays it"
-   },
-   "time": {
-    "unit_seconds": {
-     "likely": 161.68,
-     "high": 161.68
-    },
-    "setup_minutes": {
-     "likely": 0.873,
-     "high": 0.873
-    },
-    "slots": 1,
-    "slots_from": "one a machine: no line names jobs at once",
-    "failed_start_share": 0.5,
-    "holds": "machines",
-    "lines": 1,
-    "from": [
-     "$PROPS/cloud/ledger.jsonl"
-    ]
-   }
   }
  },
  "node_minutes": {}
