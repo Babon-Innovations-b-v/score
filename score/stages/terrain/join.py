@@ -1,7 +1,8 @@
 """ground-join@<place> (#27, #41; the terrain adapter's one after-step in the shared loop, shapes_first.ADAPTERS; free,
 local, pxr and ray casts): a place's detail areas, each a model the shared loop made (the terrain-layer rows the place
-handed it, areas.py; close-up, Pixal3D, the finish route, the bake), joined into its made ground. The plan's code ground
-(the terrain row's) stays only where the loop made no piece: the named fallback, each with the loop's own why.
+handed it: its scene inventory's terrain rows; close-up, Pixal3D, the finish route, the bake), joined into its made
+ground. The design's code ground (the terrain row's) stays only where the loop made no piece: the named fallback, each
+with the loop's own why.
 
     make     the terrain row's layer of the place's ground (<ground>/places/<place>.usdc) copied, and for each terrain
              row the loop made a model of (made.made: its baked model; a gap or the code route is left to the code
@@ -50,7 +51,7 @@ RIM_SHARE = 0.9
 SEAM_STEP = 0.5
 OVER = 50.0  # a ray down starts this far over a seam spot
 NOT_GROUND = ("water", "ball", "Detail")  # what under /<place>/Outside is no code ground to cut
-LAYER = "terrain"  # areas.LAYER: the rows this after-step joins
+LAYER = "terrain"  # the hand-in layer of the rows this after-step joins (shapes_first.ADAPTERS)
 
 
 def files(place):
@@ -193,7 +194,7 @@ def make(inputs, out, seed, params):
     for row, model, finishes in pieces:
         geometry, surfaces, maps = piece_geometry(model, pathlib.Path(inputs["surfaces-bake"]),
                                                   pathlib.Path(inputs["surfaces-paint"]))
-        half = np.array([row["size"][0], row["size"][1]]) / 2  # the row's across and along (areas.inventory_rows)
+        half = np.array([row["size"][0], row["size"][1]]) / 2  # the row's across and along
         middle = np.array([row["at"][0]["x"], row["at"][0]["z"]])
         points, lift = seated(np.asarray(geometry["positions"], dtype=float), middle, half, rays)
         cut = sum(cut_mesh(mesh, middle, half) for mesh in ground_meshes(stage, place))
@@ -243,4 +244,4 @@ def judge_seam(output, inputs, evidence):
 
 CONTRACT = contracts.Contract("ground-join", 1, join_faults, {"length": "metre", "up axis": "Y"})
 CHECKS = (checks.Check("seam", judge_seam),)
-AFTER = {"terrain": ("grounds", 1), **made.ENDS, "surfaces-paint": ("surfaces-paint", 1)}
+AFTER = {"terrain": ("grounds", 2), **made.ENDS, "surfaces-paint": ("surfaces-paint", 1)}

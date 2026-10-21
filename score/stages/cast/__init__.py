@@ -75,7 +75,7 @@ def plan_views(inputs):
     if unaimed:
         raise ValueError(f"plan of {plan.get('place')}: standing spots look at {unaimed}, which are no plan items")
     eye = read_json(inputs["places"])["shared"]["scale"]["eye_height"]
-    return writer.views(plan if plan["inside"] else dict(plan, doors=[]), eye)
+    return writer.views(plan if plan["inside"] else dict(plan, doorways=[]), eye)
 
 
 def read_json(path):

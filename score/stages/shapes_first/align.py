@@ -178,7 +178,7 @@ def judge_registered(output, inputs, evidence):
 CHECKS = (guarded("registered", judge_registered),)
 AFTER = {"rough-model": ("rough-model", 1), "plan": ("place-plan", 2)}
 # The layers whose rows lie round the place's floor, not on it: a terrain detail area reaches out into the ground
-# round the place (terrain/areas.py), split from the ground plan within the place's fine patch.
+# round the place (its scene inventory's terrain rows: a crater, a track).
 ROUND = ("terrain",)
 
 

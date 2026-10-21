@@ -3,7 +3,7 @@ model's or a sound's bytes.
 
 A record names a file of the library by a library reference, `<kind>/<id>@<version>/<file in the entry>`
 (`sound/habitat@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`), and a file
-kept in git by its path from the repository's root (`data/ground/moon_plan_relief.png`). A name that is neither, or a
+kept in git by its path from the repository's root (`data/library/lamps.json`). A name that is neither, or a
 reference to an entry or file the library does not hold, is a gap: `resolve` gives None and the caller leaves the
 thing out (the remake fills it, #19), never a crash.
 

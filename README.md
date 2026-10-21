@@ -232,9 +232,8 @@ Rendering takes a few minutes on the processor (the wreck: about eight); `--no-r
 renders already in the out folder, and `--plain` draws the scene in one grey as a debug view. Needs `ffmpeg` for the
 walk's video.
 
-The stage comes from `tools/usd/export.py <place> --models <run>/made --work <run> --out <folder>`; a place outside
-with a record in `data/ground/` stands on the planned ground as the game stands it (`tools/usd/ground.py level
-<place>` holds the ground under a place's pieces at one height, its yard). When the resting check finds loose objects
+The stage comes from `tools/usd/export.py <place> --models <run>/made --work <run> --out <folder>`; the ground a
+place stands on is the terrain stage's layer, made from the design (`score/stages/terrain`). When the resting check finds loose objects
 that float, tip or are sunk, `tools/usd/settle.py <stage>` drops them in headless Blender onto the real ground with
 their own triangles (buildings and other rows marked `"fixed": true` stay static) and writes where each came to rest
 into the place's layout, with its turn as a `rotation`, as long as that is a small correction (at most 15° and

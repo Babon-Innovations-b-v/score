@@ -361,34 +361,21 @@ is meant to fix, where it is marked, and what proves it.
   The assembly takes the bake, each laid object carrying the baked file's hash (`score:model_sha256`) and the
   seed's as the model it repainted (`score:repaint_of`, which the pick lock reads). Proven when a place's line ends accepted at its checks and the owner
   reviews the baked models.
-- **The scene-record stage** (`score/stages/scene_record`, its overlay; the kept plan `{home}/design/plans/<place>.json`,
-  `data/definitions/sky.json`). For the 18 scene records that are the game transcribed (every `from` a game line)
-  and for doors that lead nowhere. `plan@<place>` brings the dimensioned plan into the store (`place-plan` v1),
-  gated on `mapped` (every plan item names inventory rows, every concept element rows, a door or a drop, every door
-  says where it leads and why); `scene-record@<place>` writes the record (`scene-record` v1, today's schema) from the
-  plan, the inventory, the made ground's seats and the sky record's air (never its sky: the light layer's, from the
-  environment concept's physics), gated on `game-free`, `plan-matched`, `openings`
-  (the record composed over the made ground: every doorway onto a floor, no view into nothing, every door's place
-  standing in it) and `seed-matched` (the old record an unverified seed: each entry matched or left out with a
-  written reason). Only places whose plan has `leads` have the rows; the assembly writes the accepted record over its
-  seed's record prims (the final assembly, below). Two shell
-  writers: domed rooms, and kit shells (`kit_shell.py`, 2026-10-12: the Earth's flat, stairwell, street, square and
-  launch view, whose kits hold their walls; the record adds the block round a room, the lamps of its glowing
-  rows (row kind) where the kit lays them, numbered by the library's lamp, the Earth's night air, glow and harbour, the plan's released models and the
-  far city it shows; `plan-matched` holds the plan's doors to the kit's doorways), and outdoor places (`outdoor.py`,
-  2026-10-12: the wreck, the old station, the camp grounds and the camp, whose kit holds its domes and whose
-  furniture is the released camp models as plan objects; no walls of the record's; the body's outdoor air in `sky.json` with
-  its ways in the body's own frame, and the plan's lamps, decals and beams on their rows over the made ground). The
-  wreck's supply rocket, cargo lift and landing dust are out, as its concept C2 shows none. A domed plan's `shape` adds the faceted hub and the walkway tube, a
-  glass dome, the airlock's ramp and the greenhouse's plot (2026-10-12: the Moon base's airlock, workshop, lab,
-  habitat, greenhouse, hub and tube; the lab and the habitat stand beside the hub in `data/definitions/base.json`).
-  A domed plan's `shape: flat` is the hangar's flat roof (2026-10-12): four slabs on the walls' top round its door
-  opening, its two roof leaves (the hangar's own objects, row `roof_leaf`, slid by the motion layer) shut over it; the hangar has its own seat on the Moon ground plan,
-  north of the greenhouse, its tube joined to the greenhouse's north hatch, its yard held on its seat's flat plane
-  (a level `on_seat`). An inventory row naming a model of the environment's release (`release_model`: the airlock's suit) stands as
-  an object at its spots. The sky record's numbers are the
-  old records' shared ones, unverified. Proven when the garage's record passes its gates and the owner has seen it
-  built; then each domed room, and a shell writer for each other kind of place.
+- **The scene-record stage** (`score/stages/scene_record`, its overlay; 2026-10-21: from the design alone). For a
+  place's record written by SCORE from its design, never transcribed from the game or an old record, for every scene,
+  the ones added in the app and the top scenes too. `plan@<place>` brings his kept plan into the store (`place-plan`
+  v2, its doorways and person spots in the place's frame), gated on `mapped`; `scene-record@<place>` writes the record
+  (`scene-record` v1, today's schema) from the kept plan (outline, walls, openings, levels, stairs, roofs, items and
+  their shapes, holds), the scene inventory's row kinds, the library's lamp and the scene's sky inputs (the
+  environment concept's physics at its site and scene time, `score/review/overhead.py`): an inside place's room shell
+  (`earth_seed/design_shell.pieces`, as the builders' `slab` and `gable`) where its base does not lay it, the plan's
+  stairs, a lamp at each item of a glowing row, the sky the physics sees (the light layer draws it), views from each
+  doorway and person spot inside the outline, and the neighbours its doors lead to where its holder's plan holds
+  them. Gated on `game-free`, `plan-matched` (walls, openings cut, stairs, lamps over their items) and `openings`
+  (every doorway leads to a place of the design, outside, sealed, a row or its holder; a neighbour it leads to
+  stood). The filed sky and base definitions (`data/definitions/sky.json`, `base.json`), the per-shell writers
+  (`kit_shell.py`, `outdoor.py`, `seen.py`) and `seed-matched` were retired. Proven when every designed place's record
+  passes its gates in a batch and the owner has seen one built.
 - **The final assembly** (`score/stages/assembly`: `make_from_seed`, `sounds.py`, the `layers` gate; 2026-10-12). For
   assemblies that copied the round-three seed's own record, sound and layers: each place is assembled once, from every
   layer stage's accepted output (`assembly.READS`: scene record, sound, effects, motion, light, machines, crops), each
@@ -407,11 +394,13 @@ is meant to fix, where it is marked, and what proves it.
   physics stage's (the paper's named gap). Proven when every place's assembly passes `layers` and complete passes on
   it.
 - **The made ground in each place's stage** (`score/stages/assembly` `take_ground`, `score/stages/terrain`, its
-  overlay). For Earth's flat 320 m disc and the grounds the game laid: the terrain stage makes every ground from its
-  plan; the assembly stage now sublayers the place's made ground over its seed, and `ground-fit`'s free `openings`
-  gate fails a view onto nothing (the paid `terrain-look` and its `horizon` gate were retired for it, owner,
-  2026-10-20, #27). Proven when the launch and the street pass `ground-fit`; then the other Earth places, and the Moon's and Mars's plans (still the game's plans in `data/ground/plan/`, made by
-  the game's builders moved here) drawn again from their concepts.
+  overlay; 2026-10-21: from the design alone). For grounds made from the creator's design, never the game's: the
+  terrain stage makes one ground a body or plot of the environment concept's setting, each top scene at its site and
+  each scene its plan holds where it holds it, on the body's true sphere raised by the plans' terrain spots, and a
+  layer of it in every such scene's frame; the assembly sublayers the place's layer over its base, and `ground-fit`
+  judges the place standing on it (objects on level ground, none floating, no hole, its doorways onto a floor and no
+  view onto nothing). The game's ground plans and copied grounds (`data/ground`) were retired. Proven when every place
+  standing on a ground passes `ground-fit` in a batch.
 - **The settle stage** (`score/stages/settling`, its overlay; `tools/usd/settle.py`'s drop_job and rest_poses, the
   stage's held.py). For the resting faults no other track covered (2026-10-12): desks, shelves and chairs an old
   settle had left tipped onto uneven feet, a crate stacked on a crate that fell through it in the drop, monitors and

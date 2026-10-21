@@ -64,8 +64,7 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "resting rules": "{data}/checks/resting.json",
          "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
          "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
-         "row kinds": "{data}/checks/row-kinds.json",
-         "grounds": "{data}/ground"}
+         "row kinds": "{data}/checks/row-kinds.json"}
 
 
 def files(place):

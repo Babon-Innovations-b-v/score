@@ -6,8 +6,8 @@ outputs, in place of the round-three folders (`usd-r3/<place>`, the ship's `usd-
 
 - **Every designed scene's base is its own design's** (the owner, 2026-10-21). The rows run for every place with a
   kit laid or a locked plan (`{home}/design/plans`) and a style (`styled`), the ship's rooms and a scene added in the
-  app too (`stages.earth_place`); a top scene place.json does not name (the base's outside) has no base row, its seed
-  a named lost input, until it has a style. A kit is the base's only when no design is locked for the place (`kit_is_base`; a kit laid by a
+  app too (`stages.earth_place`); a top scene place.json does not name (the Base) takes the environment concept's
+  style, its library entries its own name's (`style_of`). A kit is the base's only when no design is locked for the place (`kit_is_base`; a kit laid by a
   per-place script from a filed plan is the old concept's room, whatever its size); then earth-kit bakes it as before
   (`stages.kit_based`).
   Otherwise the base lays no kit piece: `kit.json` in the output says why, the inventory is the design's, the style

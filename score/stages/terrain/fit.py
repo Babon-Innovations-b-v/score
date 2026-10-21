@@ -1,19 +1,20 @@
 """ground-fit@<place>: the place's own stage judged standing on its made ground (free, local, pxr and ray casts). It
 reads the place's neighbours output where it has one (its shown places stand there), else its assembly, which takes
-the terrain output's places/<place>.usdc over its old ground, so it needs no seed of its own and no work folder.
+the terrain output's places/<place>.usdc over its old ground, and its scene record (its box, doorways and views), so
+it needs no seed, kit or old record of its own.
 
     make     measures.json: under, floating, continuous and openings, measured on that stage
-    gates    under       every object that stood on the old ground has the made ground under its whole footprint, at
-                         its feet (a flat world) or no rougher than before (a ball), and none over water
-                         (gates.measure_under)
-             floating    no object standing on the ground hangs over it: its lowest point more than gates.FEET over
-                         the highest ground under its footprint, but within gates.STANDING_BAND of it
+    gates    under       every object standing on the ground has it under its whole footprint, no rougher there than
+                         ROUGHER (the ground's height under its nine footprint spots)
+             floating    no object standing on the ground hangs over it: its lowest point more than FEET over the
+                         highest ground under its footprint, but within STANDING_BAND of it
              continuous  no hole in the ground: a ray straight down from over the place hits a surface at every
                          CONTINUOUS_STEP metres over its own box grown by CONTINUOUS_REACH
-             openings    no doorway onto nothing and no view from inside running out below the horizon into nothing,
-                         the doors open (gates.measure_openings, sight.py)
+             openings    no doorway onto nothing and no view from inside running out below the horizon into nothing
+                         (gates.measure_openings, sight.py)
 
-A row of every place a ground plan seats (data/ground/plan/*.json `seats`), in any environment.
+A row of every place the design stands on a ground (terrain design.on_ground: a top scene at its site, or a scene its
+plan holds), in any environment.
 """
 import json
 import pathlib
@@ -21,38 +22,26 @@ import pathlib
 import numpy as np
 
 from score import checks, contracts
-from score.stages.terrain import gates, outside, record, sight
+from score.stages.terrain import design, gates, sight
 
-REPO = pathlib.Path(__file__).resolve().parents[3]
-PLANS = REPO / "data/ground/plan"
 MEASURES = "measures.json"
-# The ground is judged continuous out to this many metres past the place's own box, a ray every this many metres
-# (the near ground is laid out to outside.NEAR_MARGIN past it, finer than a step).
+# The ground is judged continuous out to this many metres past the place's own box, a ray every this many metres.
 CONTINUOUS_REACH = 20.0
 CONTINUOUS_STEP = 2.0
-
-
-def seated(place):
-    """The ground plan's name that seats the place, or None."""
-    for path in sorted(PLANS.glob("*.json")):
-        if place in json.loads(path.read_text()).get("seats", {}):
-            return path.stem
-    return None
+# An object stands on the ground when its lowest point is within this of the highest ground under its footprint; it
+# floats when more than FEET over it; the ground under a standing one varies at most ROUGHER (metres).
+STANDING_BAND = 0.3
+FEET = 0.05
+ROUGHER = 0.10
 
 
 def applies(place):
-    return place is not None and seated(place) is not None
+    return place is not None and design.on_ground(place)
 
 
 def files(place):
-    """The ground plans and copied grounds (the old ground `under` reads), and the place's own records: its scene
-    record and its kit (its door leaves)."""
-    return {"grounds": "{data}/ground", "scene": "{data}/scene/{place}.json", "kit": "{data}/kit/{place}.json"}
-
-
-def read_optional(path):
-    path = pathlib.Path(path)
-    return json.loads(path.read_text()) if path.is_file() else None
+    """Nothing beyond its reads: the made ground, its scene record and its stage are other rows' outputs."""
+    return {}
 
 
 def judged_stage(inputs, place):
@@ -62,26 +51,42 @@ def judged_stage(inputs, place):
     return Usd.Stage.Open(str(folder / f"{place}.usda"))
 
 
-def measure_floating(boxes, ground_under):
-    """Every object standing on the ground (its lowest point within gates.STANDING_BAND of the highest ground under
-    its footprint, `ground_under(low, high)` the heights there) that hangs more than gates.FEET over it:
-    {"standing": count, "faults": [...]}."""
-    faults, standing = [], 0
+def record_of(inputs):
+    """(place, its scene record) from the scene-record output."""
+    path = next(pathlib.Path(inputs["scene-record"]).glob("record/*.json"))
+    return path.stem, json.loads(path.read_text())
+
+
+def ground_of(inputs, place):
+    """The made ground the place stands on, from the terrain output."""
+    for path in sorted(pathlib.Path(inputs["terrain"]).glob("*/ground.json")):
+        ground = json.loads(path.read_text())
+        if place in ground["places"]:
+            return ground
+    raise ValueError(f"{place}: the terrain row made no ground it stands on")
+
+
+def measure_standing(boxes, ground_under):
+    """Every object standing on the ground (its lowest point within STANDING_BAND of the highest ground under its
+    footprint, `ground_under(low, high)` the heights there): {"standing", "floating": [...], "rough": [...]}."""
+    floating, rough, standing = [], [], 0
     for name, (low, high) in boxes.items():
-        ground = float(np.max(ground_under(low, high)))
-        gap = float(low[1]) - ground
-        if gap > gates.STANDING_BAND or gap < -gates.STANDING_BAND:
+        under = ground_under(low, high)
+        gap = float(low[1]) - float(np.max(under))
+        if abs(gap) > STANDING_BAND:
             continue
         standing += 1
-        if gap > gates.FEET:
-            faults.append(f"{name}: hangs {gap:.2f} m over the ground under it")
-    return {"standing": standing, "faults": faults}
+        if gap > FEET:
+            floating.append(f"{name}: hangs {gap:.2f} m over the ground under it")
+        if np.ptp(under) > ROUGHER:
+            rough.append(f"{name}: the ground under it varies {np.ptp(under):.2f} m")
+    return {"standing": standing, "floating": floating, "rough": rough}
 
 
-def measure_continuous(rays, scene, kit, top, up=(0.0, 1.0, 0.0)):
+def measure_continuous(rays, record, top, up=(0.0, 1.0, 0.0)):
     """Rays straight down from `top` over the place's own box grown by CONTINUOUS_REACH, one every CONTINUOUS_STEP:
     {"rays", "holes", "first": the first few spots that hit nothing}."""
-    low, high = gates.footprint(scene, kit)
+    low, high = gates.footprint(record)
     across = np.arange(low[0] - CONTINUOUS_REACH, high[0] + CONTINUOUS_REACH + 1e-9, CONTINUOUS_STEP)
     along = np.arange(low[1] - CONTINUOUS_REACH, high[1] + CONTINUOUS_REACH + 1e-9, CONTINUOUS_STEP)
     spots = np.array([[x, top, z] for x in across for z in along])
@@ -92,25 +97,19 @@ def measure_continuous(rays, scene, kit, top, up=(0.0, 1.0, 0.0)):
 
 def make(inputs, out, seed, params):
     """The place's stage measured standing on its made ground: measures.json."""
-    place = pathlib.Path(inputs["scene"]).stem
-    ground = seated(place)
-    plan_record = json.loads((pathlib.Path(inputs["grounds"]) / "plan" / f"{ground}.json").read_text())
-    made = record.read(pathlib.Path(inputs["terrain"]) / ground)
-    scene, kit = (read_optional(inputs[name]) if name in inputs else None for name in ("scene", "kit"))
-    scene = scene or {}
-    on_seat = (kit or {}).get("on_seat", [0.0, 0.0])
-    laid = outside.placed_ground(made, made["places"][place], on_seat)
+    place, record = record_of(inputs)
+    ground = ground_of(inputs, place)
+    shaped = design.reliefs(ground)
     stage = judged_stage(inputs, place)
     boxes = gates.object_boxes(stage, place)
-    water = made["water"]["level"] - laid.drop if made.get("water") else None
-    seen = sight.gathered(stage, gates.leaves(stage, place, kit))
-    found = {"place": place, "ground": ground,
-             "under": gates.measure_under(boxes, gates.old_ground(inputs["grounds"], plan_record, place, on_seat),
-                                          laid, water),
-             "floating": measure_floating(boxes, lambda low, high: gates.heights_under(
-                 laid, gates.footprint_spots(low, high))),
-             "continuous": measure_continuous(gates.caster(seen), scene, kit, float(seen.bounds[1][1]) + 1.0),
-             "openings": gates.measure_openings(stage, place, (scene, kit), gates.ball_of(laid))}
+    standing = measure_standing(boxes, lambda low, high: design.ground_points(
+        ground, place, gates.footprint_spots(low, high), shaped)[:, 1])
+    seen = sight.gathered(stage)
+    found = {"place": place, "ground": ground["on"],
+             "under": {"standing": standing["standing"], "faults": standing["rough"]},
+             "floating": {"standing": standing["standing"], "faults": standing["floating"]},
+             "continuous": measure_continuous(gates.caster(seen), record, float(seen.bounds[1][1]) + 1.0),
+             "openings": gates.measure_openings(stage, place, record, design.ball_of(ground, place))}
     (out / MEASURES).write_text(json.dumps(found, indent=1))
 
 
@@ -128,8 +127,9 @@ def faults_verdict(check, found, sentence):
 
 
 def judge_under(output, inputs, evidence):
-    """Fail on any object that stood on the old ground and has no made ground under its whole footprint."""
-    return faults_verdict("under", measured(output)["under"], "ground under all {standing} objects that stand on it")
+    """Fail on any object standing on the ground whose footprint the ground under it does not hold level."""
+    return faults_verdict("under", measured(output)["under"],
+                          "ground under all {standing} objects that stand on it, level enough for each")
 
 
 def judge_floating(output, inputs, evidence):

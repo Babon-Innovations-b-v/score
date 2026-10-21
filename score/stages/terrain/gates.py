@@ -1,31 +1,29 @@
-"""The terrain stage's gates, measured on the made grounds:
+"""The terrain stage's gates, measured on the grounds it drew:
 
-    scale      every named landform as big as its plan says (a crater's depth and rim diameter, a hill range's
-               crest), the waterfront at its level, and no height clipped by the record's sixteen bits
-    slope      the held flats under every seat level (their steepest slope) and the paths walkable
+    spots      the ground drawn (each source place's fine patch) passes within SPOT_WITHIN of every terrain spot of the
+               plans standing on it
+    curve      at the far edge of every place's coarse ground the ground has fallen by the body's true curve (its
+               radius's sagitta) within CURVE_WITHIN of it, or stays level on a plot
 
-and the measures ground-fit@<place> (fit.py) takes on a place's own stage standing on its made ground: the ground
-under its objects (`measure_under`) and its openings (`measure_openings`). The `measure_*` functions take any place
-stage.
+and the measures ground-fit@<place> (fit.py) takes on a place's own stage standing on its made ground: rays down
+(`drops`), what stands on it (`object_boxes`) and its openings (`measure_openings`, from its scene record's doorways
+and views). The `measure_*` functions take any place stage.
 """
 import json
+import math
 import pathlib
 
 import numpy as np
 from pxr import Usd, UsdGeom
 
 from score import checks
-from score.stages.terrain import measures, outside, record, sight
+from score.stages.terrain import design, sight
 
-# An object stood on the old ground when its lowest point was within this of the old ground under its middle.
-STANDING_BAND = 0.3
-# A flat world's object has the made ground within this of its feet; a ball's object no rougher footprint than
-# before by more than this (metres).
-FEET = 0.05
-ROUGHER = 0.10
-# A spot lies under water when the ground there is this far under the water's level (the waterfront's ground lies a
-# few centimetres under it, behind the quay).
-WATER_DEPTH = 0.5
+# A spot's ground within this of its planned height (metres): the fine patch's step bends the spline no more.
+SPOT_WITHIN = 0.05
+# The far edge's fall within this share of the body's sagitta there, or this many metres, whichever is more.
+CURVE_SHARE = 0.01
+CURVE_WITHIN = 0.05
 # A doorway opens onto a floor when one lies within this below its sill, this far out from the doorway each side.
 DOOR_DROP = 0.6
 DOOR_OUT = 0.6
@@ -33,68 +31,10 @@ DOOR_OUT = 0.6
 PROBE_FLOOR = 2.0
 PROBE_HEIGHT = 1.6
 PROBE_GRID = 5
+HIGH = 1000.0  # a ray down starts this far over a spot
 
 
-# --- the places -------------------------------------------------------------------------------------------------
-
-def footprint(scene, kit):
-    """The place's own box (across, along): its scene record's floor, else its kit's pieces."""
-    if scene.get("floor"):
-        return np.asarray(scene["floor"][0], dtype=float), np.asarray(scene["floor"][1], dtype=float)
-    spots = np.array([[piece["at"][0], piece["at"][2]] for piece in kit["pieces"]]) if kit else np.zeros((1, 2))
-    return spots.min(axis=0), spots.max(axis=0)
-
-
-def place_files(inputs, place):
-    """A place's scene record and kit (or None)."""
-    def read(folder):
-        path = pathlib.Path(inputs[folder]) / f"{place}.json" if folder in inputs else None
-        return json.loads(path.read_text()) if path and path.exists() else None
-    return read("scenes") or {}, read("kits")
-
-
-def leaves(stage, place, kit):
-    """The prims of the place's moving door leaves: its kit's `_leaf` pieces' objects."""
-    found = []
-    stems = {piece["model"].rsplit("_", 1)[0] for piece in (kit or {}).get("pieces", [])
-             if piece["kind"].endswith("_leaf") and piece.get("model")}
-    objects = stage.GetPrimAtPath(f"/{place}/Objects")
-    if objects.IsValid():
-        found += [str(child.GetPath()) for child in objects.GetChildren() if child.GetName().rsplit("_", 1)[0] in stems]
-    return found
-
-
-# --- doors and views --------------------------------------------------------------------------------------------
-
-def kit_doors(kit):
-    """Every doorway in the kit's walls (an opening from the floor at least 1.9 m tall): its middle on the sill and
-    the wall's normal."""
-    found = []
-    for piece in (kit or {}).get("pieces", []):
-        for low_u, low_v, high_u, high_v in piece.get("openings") or []:
-            if low_v > 0.05 or high_v - low_v < 1.9 or "wall" not in piece["kind"]:
-                continue
-            across, up, normal = (np.asarray(piece[axis], dtype=float) for axis in ("x", "y", "z"))
-            middle = np.asarray(piece["at"], dtype=float) + across * (low_u + high_u) / 2 + up * low_v
-            found.append({"door": f"{piece.get('model', piece['kind'])} at {np.round(middle, 2).tolist()}",
-                          "middle": middle, "normal": normal})
-    return found
-
-
-def shell_doors(scene):
-    """Every doorway in the scene record's room walls: its middle on the deck and the wall's normal."""
-    found = []
-    sides = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}
-    for entry in scene.get("structure", []):
-        if entry.get("builder") != "room_walls":
-            continue
-        for door in entry.get("doors", []):
-            across, along = sides[door["side"]]
-            middle = np.array([across * entry["wide"] / 2, 0.0, along * entry["deep"] / 2])
-            found.append({"door": f"{entry['name']} {door['side']} door ({door['wide']} x {door['tall']} m)",
-                          "middle": middle, "normal": np.array([across, 0.0, along], dtype=float)})
-    return found
-
+# --- rays ---------------------------------------------------------------------------------------------------------
 
 def caster(mesh):
     """A ray caster over a trimesh (Embree when it is there)."""
@@ -112,6 +52,26 @@ def drops(rays, origins, down):
     return found
 
 
+def heights(rays, spots):
+    """The surface's height straight under each spot [[x, z]] (nan where none)."""
+    spots = np.atleast_2d(spots)
+    origins = np.column_stack([spots[:, 0], np.full(len(spots), HIGH), spots[:, 1]])
+    return HIGH - drops(rays, origins, [0.0, -1.0, 0.0])
+
+
+# --- the place's doorways and views ----------------------------------------------------------------------------------
+
+def footprint(record):
+    """The place's own box (across, along): its scene record's floor."""
+    return np.asarray(record["floor"][0], dtype=float), np.asarray(record["floor"][1], dtype=float)
+
+
+def record_doors(record):
+    """Every doorway of the scene record (its plan's doorways): its middle on its sill and its way out."""
+    return [{"door": door["name"], "middle": np.asarray(door["middle"], dtype=float),
+             "normal": -np.asarray(door["inward"], dtype=float)} for door in record.get("doorways", [])]
+
+
 def door_floors(rays, doors, up):
     """Each doorway's floor on both sides: how far under its sill the first surface lies DOOR_OUT out, and whether
     both are within DOOR_DROP."""
@@ -126,32 +86,30 @@ def door_floors(rays, doors, up):
     return found
 
 
-def probes(rays, scene, kit, up):
+def probes(rays, record, up):
     """Where a viewer stands: the scene record's view eyes and a grid over the place's own box at eye height, each
     kept only over a floor within PROBE_FLOOR."""
-    low, high = footprint(scene, kit)
+    low, high = footprint(record)
     grid = [[across, PROBE_HEIGHT, along] for across in np.linspace(low[0] + 0.4, high[0] - 0.4, PROBE_GRID)
             for along in np.linspace(low[1] + 0.4, high[1] - 0.4, PROBE_GRID)]
-    spots = np.array([view["eye"] for view in scene.get("views", [])] + grid, dtype=float)
+    spots = np.array([view["eye"] for view in record.get("views", [])] + grid, dtype=float)
     floor = drops(rays, spots, -np.asarray(up, dtype=float))
     return spots[floor <= PROBE_FLOOR]
 
 
-def measure_openings(stage, place, records, ball=None, up=(0.0, 1.0, 0.0)):
-    """A place stage's openings: every doorway's floors and the void rays from inside, the doors open; `records` its
-    (scene record, kit or None); `ball` the world's middle and radius in the place's frame on
-    a small world (its horizon dips)."""
-    scene, kit = records
-    seen = sight.gathered(stage, leaves(stage, place, kit))
+def measure_openings(stage, place, record, ball=None, up=(0.0, 1.0, 0.0)):
+    """A place stage's openings: every doorway's floors and the void rays from inside, from its scene record's
+    doorways and views; `ball` the world's middle and radius in the place's frame on a body (its horizon dips)."""
+    seen = sight.gathered(stage)
     rays = caster(seen)
-    doors = door_floors(rays, kit_doors(kit) + shell_doors(scene), up)
-    viewed = sight.voids(seen, probes(rays, scene, kit, up), up, ball=ball)
+    doors = door_floors(rays, record_doors(record), up)
+    viewed = sight.voids(seen, probes(rays, record, up), up, ball=ball)
     return {"doors": doors, "doors_onto_nothing": sum(door["open_onto_nothing"] for door in doors),
             "void_rays": viewed["void"], "rays": viewed["rays"], "void_share": round(viewed["share"], 6),
             "probes": len(viewed["probes"]), "worst_probe": viewed["worst"]}
 
 
-# --- objects on the ground --------------------------------------------------------------------------------------
+# --- objects on the ground ---------------------------------------------------------------------------------------------
 
 def object_boxes(stage, place):
     """Each laid object's box in the place's frame: {name: (low, high)}."""
@@ -165,105 +123,94 @@ def object_boxes(stage, place):
     return found
 
 
-def heights_under(laid, spots):
-    """The ground's height in the place's frame under each (across, along)."""
-    spots = np.atleast_2d(spots)
-    flat = laid.origin + spots[:, [0]] * laid.frame[0] + spots[:, [1]] * laid.frame[2]
-    directions = flat / np.linalg.norm(flat, axis=1, keepdims=True)
-    height, _ = laid.height(directions)
-    return laid.in_place_frame(directions * (laid.radius + height)[:, None])[:, 1]
-
-
 def footprint_spots(low, high):
     """Nine spots over an object's footprint (its corners, edges' middles and middle)."""
     return np.array([[across, along] for across in np.linspace(low[0], high[0], 3)
                      for along in np.linspace(low[2], high[2], 3)])
 
 
-def measure_under(boxes, old_ground, laid, water_level=None):
-    """Every object that stood on the old ground, judged on the made one against how it stood on the old one:
-    {"standing": count, "faults": [...]}. A fault: water under it now; on a flat world (where an object keeps its
-    height) the ground further from its feet than before by more than FEET; on a ball (where the export stands each
-    piece on the ground under it) the ground under its footprint rougher than before by more than ROUGHER.
-    `old_ground(spots)` gives the old ground's height under spots, `laid` the made Ground."""
-    flat_world = laid.radius > 1e5
-    faults, standing = [], 0
-    for name, (low, high) in boxes.items():
-        spots = footprint_spots(low, high)
-        middle = spots[4:5]
-        if abs(low[1] - old_ground(middle)[0]) > STANDING_BAND:
-            continue
-        standing += 1
-        made = heights_under(laid, spots)
-        before = old_ground(spots)
-        if water_level is not None and np.any(made < water_level - WATER_DEPTH):
-            faults.append(f"{name}: over water, the ground {float(made.min()):.2f} m under its footprint")
-        elif flat_world and abs(low[1] - made[4]) > abs(low[1] - before[4]) + FEET:
-            faults.append(f"{name}: its feet at {low[1]:.2f} m, the ground under it at {made[4]:.2f} m "
-                          f"(before {before[4]:.2f} m)")
-        elif not flat_world and np.ptp(made) > np.ptp(before) + ROUGHER:
-            faults.append(f"{name}: the ground under it varies {np.ptp(made):.2f} m, before {np.ptp(before):.2f} m")
-    return {"standing": standing, "faults": faults}
-
-
 # --- the gates ----------------------------------------------------------------------------------------------------
 
+def mesh_caster(points, triangles):
+    import trimesh
+    return caster(trimesh.Trimesh(points, triangles, process=False))
+
+
+def spot_faults(ground, laid):
+    """Each source's spots against the ground drawn in its own place's fine patch: (measured, faults)."""
+    measured, faults = [], []
+    for source in ground["sources"]:
+        place, entry = source["place"], ground["places"][source["place"]]
+        rays = mesh_caster(*laid[place]["near"])
+        for x, y, height in source["spots"]:
+            spot = spot_in_frame(ground, place, x, y)
+            found = float(heights(rays, [spot])[0])
+            off = abs(found - (entry["floor"] + height))
+            measured.append({"place": place, "spot": [x, y, height], "ground": round(found - entry["floor"], 3)})
+            if not math.isfinite(found) or off > SPOT_WITHIN:
+                faults.append(f"{place}: the ground at its spot ({x:g}, {y:g}) stands {found - entry['floor']:.2f} m, "
+                              f"its plan says {height:g} m")
+    return measured, faults
+
+
+def spot_in_frame(ground, place, x, y):
+    """A plan point of a place as [x, z] of its frame."""
+    entry = ground["places"][place]
+    origin, axes = np.asarray(entry["origin"], dtype=float), np.asarray(entry["axes"], dtype=float)
+    top = ground["tops"][entry["top"]]
+    hold = next((source["offset"] for source in ground["sources"] if source["place"] == place), [0.0, 0.0])
+    world = design.tangent(top, [[x + hold[0], y + hold[1]]])[0]
+    return ((world - origin) @ axes)[[0, 2]]
+
+
+def curve_faults(ground, laid):
+    """Each place's coarse ground at its far edge against the body's true fall there, from its top scene's site
+    (where its floor touches the sphere): (measured, faults)."""
+    measured, faults = [], []
+    for place, found in laid.items():
+        points, triangles = found["far"]
+        entry = ground["places"][place]
+        site = np.asarray(ground["tops"][entry["top"]]["middle"], dtype=float)
+        middle = ((site - np.asarray(entry["origin"])) @ np.asarray(entry["axes"]))[[0, 2]]
+        corner = int(np.argmax(np.hypot(points[:, 0] - middle[0], points[:, 2] - middle[1])))
+        fall = entry["floor"] - float(points[corner, 1])
+        distance = float(np.hypot(*(points[corner, [0, 2]] - middle)))
+        wanted = ground["radius"] - math.sqrt(ground["radius"] ** 2 - distance ** 2) if ground["kind"] == "body" else 0.0
+        measured.append({"place": place, "distance": round(distance, 1), "fall": round(fall, 3),
+                         "true fall": round(wanted, 3)})
+        if abs(fall - wanted) > max(CURVE_WITHIN, CURVE_SHARE * wanted):
+            faults.append(f"{place}: the ground {distance:.0f} m out has fallen {fall:.2f} m, the body's curve "
+                          f"{wanted:.2f} m")
+    return measured, faults
+
+
+def measured(ground, laid):
+    """The ground's measures: {"spots": {measured, faults}, "curve": {measured, faults}}."""
+    spots, spot_faults_found = spot_faults(ground, laid)
+    curve, curve_faults_found = curve_faults(ground, laid)
+    return {"spots": {"measured": spots, "faults": spot_faults_found},
+            "curve": {"measured": curve, "faults": curve_faults_found}}
+
+
 def grounds_of(output):
-    """Every made ground in the output: {name: record}."""
-    return {folder.name: record.read(folder) for folder in sorted(pathlib.Path(output).iterdir())
-            if (folder / "ground.json").exists()}
+    """Every made ground's measures in the output: {name: measures}."""
+    return {folder.name: json.loads((folder / "measures.json").read_text())
+            for folder in sorted(pathlib.Path(output).iterdir()) if (folder / "ground.json").exists()}
 
 
-def plans_of(inputs):
-    """Every ground's plan: {name: plan}."""
-    return {path.stem: json.loads(path.read_text()) for path in sorted((pathlib.Path(inputs["grounds"]) / "plan")
-                                                                         .glob("*.json"))}
+def judge(name, sentence):
+    """A gate on one measure of every ground: fail on any fault, else pass with `sentence`."""
+    def judged(output, inputs, evidence):
+        found = {ground: measures[name] for ground, measures in grounds_of(output).items()}
+        faults = [fault for measures in found.values() for fault in measures["faults"]]
+        count = sum(len(measures["measured"]) for measures in found.values())
+        return checks.Verdict(name, checks.FAIL if faults else checks.PASS,
+                              "; ".join(faults[:3]) if faults else sentence.format(count=count),
+                              {"faults": len(faults), "measured": count}, {"faults": "lower"}, tuple(faults))
+    judged.__name__ = f"judge_{name}"
+    return judged
 
 
-def judge_scale(output, inputs, evidence):
-    """Fail on a named landform off its planned size, a waterfront off its level, or a height clipped."""
-    plans = plans_of(inputs)
-    findings = [f"{name}: {fault}" for name, made in grounds_of(output).items()
-                for fault in measures.scale(made, plans[name])["faults"]]
-    reason = f"{len(findings)} landforms or levels off their plan" if findings else \
-        "every named landform within its planned size, every level held"
-    return checks.Verdict("scale", checks.FAIL if findings else checks.PASS, reason,
-                          {"faults": len(findings)}, {"faults": "lower"}, tuple(findings))
-
-
-def judge_slope(output, inputs, evidence):
-    """Fail on a held flat, a path or a level seat steeper than its limit (measures.py)."""
-    plans = plans_of(inputs)
-    findings, steepest = [], {}
-    for name, made in grounds_of(output).items():
-        found = measures.slope(made, plans[name], inputs)
-        steepest[f"{name} flats max"] = found["flats_max"]
-        findings += [f"{name}: {fault}" for fault in found["faults"]]
-    reason = "; ".join(findings) if findings else "every flat and seat level, every path walkable"
-    return checks.Verdict("slope", checks.FAIL if findings else checks.PASS, reason,
-                          {"faults": len(findings), **steepest}, {"faults": "lower"}, tuple(findings))
-
-
-def old_ground(grounds, plan_record, place, on_seat):
-    """The old ground's height under spots of the place: the copied ground record's (in the `grounds` folder) on a
-    ball, the old disc's level on the Earth."""
-    copied = plan_record["copied"]
-    if "disc" in copied:
-        level = copied["disc"]["levels"][place]
-        return lambda spots: np.full(len(np.atleast_2d(spots)), level)
-    folder = pathlib.Path(grounds)
-    old = {**json.loads((folder / copied["record"]).read_text()), "folder": str(folder)}
-    if place not in old["places"]:
-        return lambda spots: np.full(len(np.atleast_2d(spots)), -np.inf)  # it stood on no ground before
-    laid = outside.placed_ground(old, old["places"][place], on_seat)
-    return lambda spots: heights_under(laid, spots)
-
-
-def ball_of(laid):
-    """The world's middle and radius in a place's frame, for a small world; None for the Earth."""
-    if laid.radius > outside.HORIZON:
-        return None
-    return laid.in_place_frame(np.zeros(3))[0], laid.radius - outside.BALL_BELOW
-
-
-CHECKS = (checks.Check("scale", judge_scale), checks.Check("slope", judge_slope))
+CHECKS = (checks.Check("spots", judge("spots", "the ground passes through all {count} terrain spots of the plans")),
+          checks.Check("curve", judge("curve", "every place's ground falls with its body's true curve ({count} "
+                                               "places)")))

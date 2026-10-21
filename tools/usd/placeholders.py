@@ -43,7 +43,7 @@ KITS = REPO / "data/kit"
 # The scene record's builders that draw the place's own shell and nothing else (scene.BUILDERS, and the sky's beams):
 # every other builder, a primitive or one that puts a thing together, must say which plain thing it drew.
 SHELL_BUILDERS = frozenset(("room_walls", "room_deck", "dome_roof", "walls", "wall_strip", "pyramid_roof", "stairs",
-                            "tube_arc", "heightfield", "stars", "specks", "haze_volume", "beam"))
+                            "tube_arc", "heightfield", "stars", "specks", "haze_volume", "beam", "slab", "gable"))
 # What a primitive may be (the owner's sorter rule, 2026-10-07: plain plates, pipes and trims; and what is not a thing
 # at all: a room's shell, the ground, a field's soil, water and the sky).
 PLAIN_KINDS = frozenset(("plate", "pipe", "trim", "shell", "ground", "soil", "water", "sky"))

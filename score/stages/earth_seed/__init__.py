@@ -10,8 +10,8 @@ only its kit. A designed scene's base is always its design's (data/kit was laid 
 plans, the old concepts' rooms, whatever their size; the hangar's matched its locked plan's 32 x 64 m and was still
 the old room, 2026-10-21): no kit piece, its room shell
 from its locked plan (design_shell.py), its inventory the design's, its style its own place.json entry's, else that
-of the scene holding it (style_of); nothing here bakes or lays a kit laid for another room. A place with no style
-(styled: a top scene place.json does not name) has no base row until it has one.
+of the scene holding it, else its top scene's own (the Base: the environment concept's style; style_of); nothing here
+bakes or lays a kit laid for another room. Plans that hold each other round in a ring give no style (styled).
 
     earth-kit@<place>   paid   (a place whose kit is its base's) the kit's named code fallbacks only (#41: the shared
                                loop makes every kit piece, code only where a record names why): of the place's
@@ -227,9 +227,9 @@ def known_as(place, surfaces=None):
 
 def holders(place):
     """{scene: its locked plan's path pattern} of the scenes up from the place to the first one
-    data/definitions/place.json knows (known_as), nearest first, each the one whose plan holds the one under it; none
-    for a place place.json knows; None for one with no such scene above it (no style: a top scene place.json does not
-    name, the base's outside, has no base row until it has one)."""
+    data/definitions/place.json knows (known_as), else to its top scene (the one no plan holds, whose style is the
+    environment concept's: the Base), nearest first, each the one whose plan holds the one under it; none for a place
+    place.json knows or a top scene itself; None for plans that hold each other round in a ring."""
     surfaces = surface_data.path(place)
     named, found = read(REPO / "data/definitions/place.json"), {}
     if known_as(place, surfaces if surfaces.is_file() else None) in named:
@@ -237,7 +237,9 @@ def holders(place):
     plans, name = {path.stem: read(path) for path in sorted((DESIGN / "plans").glob("*.json"))}, place
     while True:
         holder = holder_of(name, plans)
-        if holder is None or holder in found or holder == place:
+        if holder is None:
+            return found
+        if holder in found or holder == place:
             return None
         found[holder] = "{home}/design/plans/" + f"{holder}.json"
         if holder in named:
@@ -252,16 +254,20 @@ def styled(place):
 
 def style_of(place, inputs):
     """The place.json entry whose style the place takes: its own (known_as, its `surfaces` input where declared), else
-    the nearest scene holding it that place.json names (its holders' plans declared as `holder <scene>`)."""
+    the nearest scene holding it that place.json names (its holders' plans declared as `holder <scene>`), else its top
+    scene's own name (a top scene place.json does not name, the Base: its style is the environment concept's, its
+    library entries its own)."""
     named, own = read(inputs["places"]), known_as(place, inputs.get("surfaces"))
     if own in named:
         return own
     plans, name = {key.split(" ", 1)[1]: read(path) for key, path in inputs.items() if key.startswith("holder ")}, place
     while name not in named or name == place:
         held = holder_of(name, plans)
-        if held is None or held == place:
-            raise ValueError(f"{place}: no scene holding it in its declared holder plans is in place.json "
-                             f"(stopped at {name}): it has no style")
+        if held is None:
+            return own if name == place else name
+        if held == place:
+            raise ValueError(f"{place}: the plans holding it hold each other round in a ring (stopped at {name}): it "
+                             "has no style")
         name = held
     return name
 
@@ -270,12 +276,13 @@ def style_of(place, inputs):
 
 def seed_files(place):
     """What the export reads: the kit (where it is not the base's, the design's files instead: design_files), the
-    inventories, the grounds (no stored take: data/parts retired with the old takes, 2026-10-21), the library and
+    inventories (no stored take: data/parts retired with the old takes, 2026-10-21; no ground: data/ground retired
+    with the game's grounds, the made ground is the terrain row's), the library and
     sounds, the place definitions and composites, the place's surface data (surface_data.pattern: its design's where
     designed, which its finish route paints) and, for a base that lays its kit, the old scene record where it has one
     (a design base's room shell is its locked plan's)."""
     found = {"kit": "{data}/kit/" + f"{place}.json", "inventories": "{data}/inventory",
-             "grounds": "{data}/ground", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
+             "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
              "places": "{data}/definitions/place.json", "export": "{repo}/tools/usd/export.py"}
     if not kit_is_base(place):
         found = {**{name: path for name, path in found.items() if name != "kit"}, **design_files(place)}

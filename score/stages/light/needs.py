@@ -31,15 +31,6 @@ def outdoor(record, plan):
     return plan is not None and (plan.get("shell") == "outdoor" or plan.get("inside") is False)
 
 
-def body_of(place, data):
-    """The ground (a world body) whose plan seats the place, or None."""
-    for path in sorted((pathlib.Path(data) / "ground/plan").glob("*.json")):
-        plan = json.loads(path.read_text())
-        if place in plan.get("seats", {}):
-            return plan.get("ground", path.stem)
-    return None
-
-
 def sky_known(place, skies):
     """Whether the scene's kept sky (in `skies`) gives a sky overhead.py can work out."""
     kept = read(pathlib.Path(skies) / f"{place}.json")

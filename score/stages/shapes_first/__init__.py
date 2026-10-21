@@ -46,8 +46,8 @@ class Adapter:
 
 # The object layer: the place's objects as inventory rows; nothing after the model (the reference user, #41).
 OBJECTS = Adapter("objects")
-# The terrain layer: an outdoor place's detail areas (terrain/areas.py hands them in), joined into its ground with
-# collision and library finishes after the model (terrain/join.py, #27); the plan's code ground is the named fallback.
+# The terrain layer: an outdoor place's detail areas (its scene inventory's terrain rows), joined into its ground with
+# collision and library finishes after the model (terrain/join.py, #27); the design's code ground is the named fallback.
 TERRAIN = Adapter(ground_join.LAYER, after=(graph.Stage("ground-join", "place", ground_join.make, ground_join.CONTRACT,
                                                 ground_join.CHECKS, files=ground_join.files, after=ground_join.AFTER),))
 # The Earth kit's layer: its pieces, shell and fittings, as inventory rows; after the model, the shell laid by the
