@@ -14,7 +14,7 @@ about EUR 60 of re-buys).
 import json
 import pathlib
 
-from score.store import file_hash
+from score.store import PROPS_HOME, file_hash
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
@@ -77,12 +77,14 @@ def entries_part(names):
 
 
 def declared_record(wide, name):
-    """The record a row declares as `name` under {data} (the repository's data, as the table reads it); {} when it
-    declares none or it is not there."""
+    """The record a row declares as `name` under {data} (the repository's data, as the table reads it) or {home} (the
+    store, where a scene's design is kept); {} when it declares none or it is not there."""
     pattern = wide.get(name)
-    if not isinstance(pattern, str) or not pattern.startswith("{data}/"):
+    roots = {"{data}/": REPO / "data", "{home}/": PROPS_HOME}
+    root = next((prefix for prefix in roots if isinstance(pattern, str) and pattern.startswith(prefix)), None)
+    if root is None:
         return {}
-    path = REPO / "data" / pattern[len("{data}/"):]
+    path = roots[root] / pattern[len(root):]
     return json.loads(path.read_text()) if path.is_file() else {}
 
 

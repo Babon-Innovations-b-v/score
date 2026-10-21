@@ -27,7 +27,6 @@ from score.stages.assembly.neighbours import reference_faults
 from score.stages.scene_record.plan import frame_of, placed
 from score.store import PROPS_HOME
 
-REPO = pathlib.Path(__file__).resolve().parents[3]
 KEPT = PROPS_HOME / "design" / "plans"  # the creator's kept plans (score/review/plans.KEPT)
 SCENES = "Scenes"  # /<scene>/Scenes/<child>
 FOLDER = "scenes"  # scenes/<child>/: each child's tree, copied whole
@@ -38,19 +37,16 @@ SIZED = 0.05  # metres a child's plan may differ from its hold in width or depth
 
 
 def plan_path(place):
-    """The plan the place's plan stage reads: the creator's kept plan, else data/plans; None with neither."""
-    for path in (KEPT / f"{place}.json", REPO / "data/plans" / f"{place}.json"):
-        if path.is_file():
-            return path
-    return None
+    """The plan the place's plan stage reads: the creator's kept plan (the old data/plans were retired, owner,
+    2026-10-21); None without one."""
+    path = KEPT / f"{place}.json"
+    return path if path.is_file() else None
 
 
 def plan_pattern(place):
     """`plan_path` as a declared file's pattern, None with no plan."""
     path = plan_path(place)
-    if path is None:
-        return None
-    return "{home}/design/plans/" + path.name if path.parent == KEPT else "{data}/plans/" + path.name
+    return None if path is None else "{home}/design/plans/" + path.name
 
 
 def holds(plan):

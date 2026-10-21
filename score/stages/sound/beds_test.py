@@ -40,8 +40,8 @@ ROWS = {"farm": ["planter", "lamp"], "bay": ["rover", "workbench"], "plaza": ["c
 
 @pytest.fixture(scope="module")
 def toy():
-    """A data folder (the environment's sounds, bodies and row kinds; the toy setting, holders and plans) and a
-    design folder holding the toy scenes' inventories."""
+    """A data folder (the environment's sounds, bodies and row kinds; the toy setting and holders) and a
+    design folder holding the toy scenes' plans and inventories."""
     folder = pathlib.Path(tempfile.mkdtemp())
     data, design = folder / "data", folder / "design"
     for name in ("sound/sounds.json", "physics/bodies.json", "checks/row-kinds.json"):
@@ -50,9 +50,9 @@ def toy():
     (data / "physics/setting.json").write_text(json.dumps(SETTING))
     (data / "places").mkdir()
     (data / "places/within.json").write_text(json.dumps(HOLDERS))
-    (data / "plans").mkdir()
+    (design / "plans").mkdir(parents=True)
     for place, plan in PLANS.items():
-        (data / "plans" / f"{place}.json").write_text(json.dumps(plan))
+        (design / "plans" / f"{place}.json").write_text(json.dumps(plan))
     (design / "inventory").mkdir(parents=True)
     for place, nouns in ROWS.items():
         rows = [{"id": f"{noun.split()[-1]}_{at}", "noun": noun} for at, noun in enumerate(nouns)]
@@ -94,7 +94,7 @@ def test_what_the_design_lacks_is_named_never_guessed(toy):
     gaps = {gap["id"]: gap for gap in needs.gaps("cave", data, design)}
     assert "rock has no surface pressure" in gaps["sound:bed:room"]["work"], gaps
     room = {gap["id"]: gap for gap in needs.gaps("room", data, design)}  # decided: a bed still to make, no old pick
-    assert "cave" in beds.places(data, design) and "still to make" in room["sound:bed:room"]["sentence"], room
+    assert "cave" in beds.places(design) and "still to make" in room["sound:bed:room"]["sentence"], room
 
 
 def test_the_bed_gate_fails_a_scene_whose_design_leaves_its_bed_undecided(toy):

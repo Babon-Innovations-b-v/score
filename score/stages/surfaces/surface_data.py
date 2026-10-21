@@ -79,12 +79,12 @@ def line_files(place):
 
 
 def parts_files(place):
-    """The parts row's world files: line_files, the place's kit (where it has one) and the code its kit surfaces are
-    read from (kit_surfaces.py and the builders' modules), so a finish takes the room's own kit surface."""
-    kit = {"kit": "{data}/kit/" + place + ".json"} if (REPO / "data/kit" / f"{place}.json").exists() else {}
+    """The parts row's world files: line_files and the code its kit surfaces are read from (kit_surfaces.py and the
+    builders' modules), so a finish takes the room's own kit surface. The old kits (data/kit) were retired (owner,
+    2026-10-21): no kit is read."""
     builders = {f"kit builders {name}": "{repo}/tools/props/library/inside/" + name
                 for name in ("pieces.py", "pieces_earth.py", "pieces_ship.py", "shapes.py")}
-    return {**line_files(place), **kit, **builders, "kit surfaces": "{repo}/tools/props/library/kit_surfaces.py"}
+    return {**line_files(place), **builders, "kit surfaces": "{repo}/tools/props/library/kit_surfaces.py"}
 
 
 # What bake_job.py writes a place's bake job from besides its own code (which the bake's code version hashes, the
@@ -95,16 +95,19 @@ BAKE_JOB_FILES = {"details": "{data}/library/details.json", "composites": "{data
 
 
 def job_files(place, bake):
-    """The world files a place's bake job is written from (BAKE_JOB_FILES, the place's kit and inventory where it has
-    them); a place whose data has no bake blocks here, before anything is cleared: a path that is never there, naming
-    it. A model no entry can be written for blocks the same way, declared in the table (library_reads.narrowed)."""
+    """The world files a place's bake job is written from (BAKE_JOB_FILES and the place's scene inventory where it
+    has one: its design's, else data/inventory's, the people line's; the old kits and per-place inventories were
+    retired, owner, 2026-10-21); a place whose data has no bake blocks here, before anything is cleared: a path that
+    is never there, naming it. A model no entry can be written for blocks the same way, declared in the table
+    (library_reads.narrowed)."""
     if not bake:
         return {"bake job": pattern(place) + " names no bake"}
     found = {name: path for name, path in BAKE_JOB_FILES.items()
              if (REPO / "data" / path[len("{data}/"):]).is_file()}
-    for folder in ("kit", "inventory"):
-        if (REPO / "data" / folder / f"{place}.json").exists():
-            found[folder] = "{data}/" + f"{folder}/{place}.json"
+    if (DESIGN.parent / "inventory" / f"{place}.json").exists():
+        found["inventory"] = "{home}/design/inventory/" + f"{place}.json"
+    elif (REPO / "data/inventory" / f"{place}.json").exists():
+        found["inventory"] = "{data}/inventory/" + f"{place}.json"
     return found
 
 

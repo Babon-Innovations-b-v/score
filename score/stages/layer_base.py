@@ -14,14 +14,15 @@ from score.store import PROPS_HOME
 # Where a place's stage is built for a make and each gate: on disk beside the work folder's stages (/tmp on this
 # machine is a tmpfs in memory, filled to its 22 GB by leftover builds on 2026-10-12), removed when the call ends.
 SCRATCH = PROPS_HOME / "work/motion-scratch"
-REPO = pathlib.Path(__file__).resolve().parents[2]
 # The seed's own parts copied beside its root (as the assembly's SEED_PARTS).
 SEED_PARTS = ("layers", "assets", "inputs.json")
 
 
 def files(place):
-    """The place's kit where it has one: the record is written over it (take_record lays the kit first)."""
-    return {"kit": "{data}/kit/{place}.json"} if (REPO / f"data/kit/{place}.json").is_file() else {}
+    """The place's kit: the record is written over it (take_record lays the kit first). The old kits (data/kit) were
+    retired (owner, 2026-10-21) and the design lays none yet, so a layer over a scene record names it missing rather
+    than failing in its make."""
+    return {"kit": "{data}/kit/{place}.json"}
 
 
 @contextlib.contextmanager

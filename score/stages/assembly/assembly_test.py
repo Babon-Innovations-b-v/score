@@ -541,6 +541,22 @@ def test_a_light_the_motion_layer_animates_plays_its_keyframes():
         assert held.index("./layers/motion_keys.usda") + 1 == held.index("./layers/light.usda"), held
 
 
+
+def test_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data():
+    """claiming_places reads the scene's design surface data (`elsewhere`), never a retired data/surfaces record."""
+    from score.stages.assembly import baked
+    root = pathlib.Path(tempfile.mkdtemp())
+    kept = baked.DESIGN_SURFACES
+    try:
+        baked.DESIGN_SURFACES = root
+        (root / "yard.json").write_text(json.dumps({"elsewhere": {"rack_1": {"place": "shed", "take": "rack"},
+                                                                   "lamp_1": {"place": "barn", "take": "lamp"}}}))
+        assert baked.claiming_places("yard") == ["barn", "shed"]
+        assert baked.claiming_places("nook") == []
+    finally:
+        baked.DESIGN_SURFACES = kept
+        shutil.rmtree(root)
+
 if __name__ == "__main__":
     import pathlib
     import runpy

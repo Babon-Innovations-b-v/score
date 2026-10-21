@@ -44,32 +44,27 @@ FILES = {"setting": "{data}/physics/setting.json", "bodies": "{data}/physics/bod
          "sounds": "{data}/sound/sounds.json"}
 
 
-def files(place, data=REPO / "data", design=DESIGN):
-    """The bed's inputs as the stage table's patterns: the place's plan (his kept one, else data/plans'), its kept
-    scene inventory, and the setting, reference bodies, holders, row kinds and library briefs."""
+def files(place, design=DESIGN):
+    """The bed's inputs as the stage table's patterns: the place's kept plan and scene inventory (the old data/plans
+    and data/inventory records were retired, owner, 2026-10-21), and the setting, reference bodies, holders, row
+    kinds and library briefs."""
     found = dict(FILES)
     if (design / "plans" / f"{place}.json").is_file():
         found["plan"] = "{home}/design/plans/{place}.json"
-    elif (pathlib.Path(data) / "plans" / f"{place}.json").is_file():
-        found["plan"] = "{data}/plans/{place}.json"
     if (design / "inventory" / f"{place}.json").is_file():
         found["scene inventory"] = "{home}/design/inventory/{place}.json"
-    elif (pathlib.Path(data) / "inventory" / f"{place}.json").is_file():
-        found["scene inventory"] = "{data}/inventory/{place}.json"
     return found
 
 
 def paths(place, data=REPO / "data", design=DESIGN):
     """The bed's inputs as paths (files)."""
     return {name: pathlib.Path(pattern.format(place=place, data=data, home=design.parent))
-            for name, pattern in files(place, data, design).items()}
+            for name, pattern in files(place, design).items()}
 
 
-def places(data=REPO / "data", design=DESIGN):
-    """Every scene with a plan (his kept ones, then data/plans'), each once: the scenes a bed is worked out for."""
-    found = [path.stem for folder in (design / "plans", pathlib.Path(data) / "plans")
-             for path in sorted(folder.glob("*.json"))]
-    return list(dict.fromkeys(found))
+def places(design=DESIGN):
+    """Every scene with a kept plan: the scenes a bed is worked out for."""
+    return [path.stem for path in sorted((design / "plans").glob("*.json"))]
 
 
 def read(path):
