@@ -1,8 +1,138 @@
 {
- "about": "The worlds of environment 1 as the environment concept shows them (score/review/environment_concept.py physics_now): each one's name, its gravity at the surface in m/s² and what it orbits. Earth's and the Moon's gravity are the game 2099's (tools/usd/orbits.py PULL; environment_concept_test holds them equal); Mars's is the owner's (2026-10-21: \"Mars 3.71 m/s²\"). The Moon orbits Earth and the pair orbits the Sun, Mars the Sun on its own (orbits.py). Which places stand on a world is its ground plan's seats (data/ground/plan/<world>.json), never listed here.",
+ "about": "The worlds of environment 1 as the environment concept shows them (score/review/environment_concept.py physics_now): each one's name, its gravity at the surface in m/s² and what it orbits. Earth's and the Moon's gravity are the game 2099's (tools/usd/orbits.py PULL; environment_concept_test holds them equal); Mars's is the owner's (2026-10-21: \"Mars 3.71 m/s²\"). The Moon orbits Earth and the pair orbits the Sun, Mars the Sun on its own (orbits.py). Which places stand on a world is its ground plan's seats (data/ground/plan/<world>.json), never listed here. Each world's and the Sun's motion is physics state, not a picture (the owner, 2026-10-21: the worlds and the sun are moving objects driven by the environment's physics): `radius_km` its true mean radius; `orbit` its Kepler elements round what it orbits (`around`), each [value at day 0, change a day], day 0 = 2000 Jan 0.0 UT, angles in degrees on the ecliptic and equinox, `a` in `unit` (Paul Schlyter, How to compute planetary positions, stjarnhimlen.se/comp/ppcomp.html, read 2026-10-21: the Sun's orbit there turned round to Earth's, w + 180); `spin` its turning: `pole` [right ascension, declination] on the J2000 equator, its prime meridian `w` [at J2000.0, degrees a day] from its equator's ascending node (IAU WGCCRE; Earth's the sidereal time), or `locked` to the body it orbits (the Moon: its prime meridian toward Earth, its pole its orbit's). `obliquity` the ecliptic's tilt [day 0, a day]. score/review/sky.py runs them to any moment.",
  "worlds": {
-  "earth": {"name": "Earth", "gravity": 9.81, "orbits": "the Sun"},
-  "moon": {"name": "Moon", "gravity": 1.62, "orbits": "Earth"},
-  "mars": {"name": "Mars", "gravity": 3.71, "orbits": "the Sun"}
+  "earth": {
+   "name": "Earth",
+   "gravity": 9.81,
+   "orbits": "the Sun",
+   "radius_km": 6371.0,
+   "orbit": {
+    "around": "sun",
+    "unit": "au",
+    "N": [
+     0.0,
+     0.0
+    ],
+    "i": [
+     0.0,
+     0.0
+    ],
+    "w": [
+     102.9404,
+     4.70935e-05
+    ],
+    "a": [
+     1.0,
+     0.0
+    ],
+    "e": [
+     0.016709,
+     -1.151e-09
+    ],
+    "M": [
+     356.047,
+     0.9856002585
+    ]
+   },
+   "spin": {
+    "pole": [
+     0.0,
+     90.0
+    ],
+    "w": [
+     190.46061837,
+     360.98564736629
+    ]
+   }
+  },
+  "moon": {
+   "name": "Moon",
+   "gravity": 1.62,
+   "orbits": "Earth",
+   "radius_km": 1737.4,
+   "orbit": {
+    "around": "earth",
+    "unit": "earth_radii",
+    "N": [
+     125.1228,
+     -0.0529538083
+    ],
+    "i": [
+     5.1454,
+     0.0
+    ],
+    "w": [
+     318.0634,
+     0.1643573223
+    ],
+    "a": [
+     60.2666,
+     0.0
+    ],
+    "e": [
+     0.0549,
+     0.0
+    ],
+    "M": [
+     115.3654,
+     13.0649929509
+    ]
+   },
+   "spin": {
+    "locked": "earth"
+   }
+  },
+  "mars": {
+   "name": "Mars",
+   "gravity": 3.71,
+   "orbits": "the Sun",
+   "radius_km": 3389.5,
+   "orbit": {
+    "around": "sun",
+    "unit": "au",
+    "N": [
+     49.5574,
+     2.11081e-05
+    ],
+    "i": [
+     1.8497,
+     -1.78e-08
+    ],
+    "w": [
+     286.5016,
+     2.92961e-05
+    ],
+    "a": [
+     1.523688,
+     0.0
+    ],
+    "e": [
+     0.093405,
+     2.516e-09
+    ],
+    "M": [
+     18.6021,
+     0.5240207766
+    ]
+   },
+   "spin": {
+    "pole": [
+     317.68143,
+     52.8865
+    ],
+    "w": [
+     176.63,
+     350.89198226
+    ]
+   }
+  }
+ },
+ "obliquity": [
+  23.4393,
+  -3.563e-07
+ ],
+ "sun": {
+  "name": "Sun",
+  "radius_km": 695700.0
  }
 }

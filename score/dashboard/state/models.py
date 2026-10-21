@@ -230,6 +230,11 @@ class WorldState(BaseModel):
     plan_write_euros: float | None = None
     plan_automatic: bool = False
     plan_spend: float | None = None
+    # The environment's plan (score/review/environment_plan.py): {plan {environment, time, bodies, maps [{world, name,
+    # ground, sites, distances}], gaps}, how (derived, written, edited), at, by, without_blockout [place]}, and
+    # {place or shell: FileRef} of each blockout picture (score/review/blockout.py) the store's machine rendered.
+    environment_plan: dict | None = None
+    blockouts: dict[str, FileRef] = {}
 
 
 class PlanReview(BaseModel):

@@ -189,10 +189,13 @@ def current_draw(store, place, wording):
     """Whether `place` has a draw made from `wording`, its current wording (wording_now: the creator's own when set,
     a Redraw with notes' corrected prompt among them), on the picks it is sent now (the layer above's and its joined
     places'); a draw from an older wording or pick (its data, the draw rules, his wording or one of those picks
-    changed since) does not count, so Draw all draws it again."""
+    changed since), or made without a blockout while one can be built now (the owner, 2026-10-21), does not count,
+    so Draw all draws it again."""
     sent, version = sent_picks(store, place), environment().version(store)
+    structured = bool(structure_pictures(store, place))
     return any(str(draw.get("wording", "")).startswith(wording) and (draw.get("picks") or {}) == sent
-               and draw.get("environment") == version for draw in draws(store, place))
+               and draw.get("environment") == version and (draw.get("blockout") or not structured)
+               for draw in draws(store, place))
 
 
 def placed(store):
@@ -532,10 +535,17 @@ def holding_box(store, place):
     return boxes[0] if boxes else None
 
 
+def outlined(store, place):
+    """Whether the layer above's plan lays out `place`'s own outline, held by an inventory row or by its own walls
+    (the owner, 2026-10-21: the blockout is drawn from it; the flat and the camp stand on their holder's walls)."""
+    from score.review import plans
+    return plans.holder_of(store, place) is not None
+
+
 def step_refusal(store, place, step):
     """Why `place` may not take its design `step` now ("draw", "pick", "read" its scene inventory, "plan"), in words,
-    or None. Draw and pick: the layer above picked, its inventory read, its plan made and the row holding this place
-    outlined (a draw also needs its references here); read: its own pick; plan: its own reading."""
+    or None. Draw and pick: the layer above picked, its inventory read, its plan made and this place's outline on it
+    (`outlined`; a draw also needs its references here); read: its own pick; plan: its own reading."""
     from score.review import reading
     holder = above(place, store)
     if place in tree()["parts"]:
@@ -552,8 +562,8 @@ def step_refusal(store, place, step):
         return f"waits for {holder}'s scene inventory to be read"
     if holder and not plan_made(store, holder):
         return f"waits for {holder}'s plan to be made"
-    if holder and holding_box(store, place) is None:
-        return f"waits for {holder}'s plan to outline what holds it"
+    if holder and not outlined(store, place):
+        return f"waits for {holder}'s plan to lay it out"
     missing = [ref["picture"] for ref in references_of(store, place)
                if not resolved(ref["picture"]).is_file()] if step == "draw" else []
     if missing:
@@ -591,21 +601,83 @@ def view_box(box, size):
             min(size[1], middle[1] + tall))
 
 
+STRUCTURE = ("the structure: a rough grey model of it at real sizes from {parent}'s plan, seen from the fixed view{rest}; "
+             "keep this layout, shapes and proportions exactly, add the look")
+SKY_PICTURE = "its sky over its site: keep each world's place, size and phase, add the look"
+
+
+def structure_pictures(store, place):
+    """[(what it is, its source)] of `place`'s blockout (score/review/blockout.py: ("blockout", place)) and, for a top
+    place whose sky holds a world the fixed view does not show, its sky picture (("sky", place)); [] while the plan
+    it is built from is not there."""
+    from score.review import blockout, environment_plan, plans
+    holder = above(place, store)
+    if holder:  # its blockout stands once the holder's plan lays out its outline (blockout.scene_of)
+        return [(STRUCTURE.format(parent=short_name(holder), rest=", its own shell lighter, the places beside it "
+                                  "darker"), ("blockout", place))] if plans.holder_of(store, place) else []
+    site = environment_plan.site_of(store, place)
+    if site is None:
+        return []
+    found = [(STRUCTURE.format(parent="the environment", rest=", the ground round it at its heights"),
+              ("blockout", place))]
+    worlds = (site.get("sky") or {}).get("worlds", [])
+    return found + ([(SKY_PICTURE, ("sky", place))] if blockout.unseen(blockout.site_parts(site), worlds) else [])
+
+
 def sent_pictures(store, place):
-    """[(what it is, its source)] a first draw of `place` sends, in order: a crop of the layer above's picked concept
+    """[(what it is, its source)] a first draw of `place` sends, in order: its blockout and sky picture
+    (`structure_pictures`), a crop of the layer above's picked concept
     showing only what holds it (source: ("crop", the place above, its box)), for a place that looks out (looks_out) the
     surroundings of that around it (("view", the place above, the same box)), each joined place's picked concept
     (source: that place's name), then the creator's references (their paths)."""
     holder = above(place, store)
     box = holding_box(store, place) if holder else None
-    found = [(f"a crop of {short_name(holder)}'s picked concept: draw the inside of what this crop shows",
-              ("crop", holder, box))] if box else []
+    found = structure_pictures(store, place)
+    found += [(f"a crop of {short_name(holder)}'s picked concept: draw the inside of what this crop shows",
+               ("crop", holder, box))] if box else []
     found += [(f"{short_name(holder)}'s picked concept around it: through its windows, this view",
                ("view", holder, box))] if box and looks_out(place) else []
     found += [(f"{short_name(other)}, picked: match the door they share", other)
               for other in joined(store, place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
                     for ref in references_of(store, place)]
+
+
+COMPASS = ("north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west")
+
+
+def phase_words(world):
+    """A world's face as seen from here in a few words: a bright point when too small for a disc, else its phase and
+    the side the Sun lights it from."""
+    if world["across"] < 0.05:
+        return "a bright point"
+    lit = world["lit"]
+    phase = ("dark, new" if lit < 0.03 else "a thin crescent" if lit < 0.25 else "a crescent" if lit < 0.45 else
+             "half lit" if lit < 0.55 else "gibbous" if lit < 0.97 else "full")
+    east, north, _ = world["lit_from"]
+    side = COMPASS[round(math.degrees(math.atan2(east, north)) % 360 / 45) % 8]
+    return f"{phase}, lit from the {side}" if 0.03 <= lit < 0.97 else phase
+
+
+def sky_words(store, place):
+    """What the sky of a top place holds at its scene time (its site on the environment's plan), one sentence: each
+    world above the horizon where it stands, how big and its phase; the Sun's height. "" for a place within another
+    or before its sky is known."""
+    from score.review import environment_plan
+    if above(place, store):
+        return ""
+    site = environment_plan.site_of(store, place)
+    found = (site or {}).get("sky")
+    if not found:
+        return ""
+    shown = [f"{world['name']} {world['altitude']:.0f} degrees up to the "
+             f"{COMPASS[round(world['azimuth'] / 45) % 8]}, {world['across']:.1f} degrees across, {phase_words(world)}"
+             if world["across"] >= 0.05 else
+             f"{world['name']} {world['altitude']:.0f} degrees up to the {COMPASS[round(world['azimuth'] / 45) % 8]}, "
+             "a bright point" for world in found["worlds"] if world["altitude"] > 0]
+    sun = found["sun"]["altitude"]
+    light = "the Sun below the horizon" if sun < -6 else "the Sun low" if sun < 15 else f"the Sun {sun:.0f} degrees up"
+    return f"Sky: {'; '.join(shown + [light])}."
 
 
 def has_people(place):
@@ -640,11 +712,13 @@ def generated(store, place):
     look = short_look(place)
     pictures = sent_pictures(store, place)
     listed = "Pictures: " + "; ".join(f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "."
+    crop = next((number for number, (_, source) in enumerate(pictures, 1)
+                 if isinstance(source, tuple) and source[0] == "crop"), None)
     return " ".join(part for part in (
-        f"Concept painting of {short_name(place)}" + (": the inside of what picture 1 shows." if pictures
-                                                       and isinstance(pictures[0][1], tuple) else "."),
+        f"Concept painting of {short_name(place)}" + (f": the inside of what picture {crop} shows." if crop else "."),
         floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
-        holds_and_doors(store, place), size_words(store, place), listed if pictures else "", view_words(store, place),
+        holds_and_doors(store, place), size_words(store, place), sky_words(store, place), listed if pictures else "",
+        view_words(store, place),
         style(store)) if part)
 
 
@@ -791,6 +865,9 @@ def sent_picture(store, source):
     """The PIL picture of one of sent_pictures' sources: a crop of a place's picked concept to its box, a place's
     picked concept, or a file."""
     from PIL import Image
+    if isinstance(source, tuple) and source[0] in ("blockout", "sky"):
+        from score.review import blockout
+        return (blockout.picture if source[0] == "blockout" else blockout.sky_picture)(store, source[1])
     if isinstance(source, tuple):
         kind, holder, box = source
         picture = blob_picture(store, picked(store, holder))
@@ -833,7 +910,8 @@ def redrawn(store, place, request, by, reviser):
         worded(store, place, corrected, by)  # before the draw: a refused draw still keeps the paid correction
     calls = [{"model": PROMPT_MODEL, "asked": question, "answered": corrected}]
     return redraw_wording(corrected, marks, context, note), pictures, {
-        "corrected": corrected, "calls": calls, "context_marks": context, "picks": found[-1].get("picks")}
+        "corrected": corrected, "calls": calls, "context_marks": context, "picks": found[-1].get("picks"),
+        "blockout": found[-1].get("blockout")}
 
 
 def redraw_preview():
@@ -878,6 +956,23 @@ def call(wording, pictures):
     buffer = io.BytesIO()
     Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB").save(buffer, "PNG")
     return buffer.getvalue()
+
+
+def blockout_kept(store, place, pictures):
+    """The sha of the blockout a first draw of `place` sends (its first picture when structure_pictures gives one),
+    kept in the store's blobs; None when it sends none."""
+    if not structure_pictures(store, place):
+        return None
+    buffer = io.BytesIO()
+    pictures[0].convert("RGB").save(buffer, "PNG")
+    return kept(store, buffer.getvalue())
+
+
+def without_blockout(store, nodes):
+    """[node] of `nodes` whose picked draw was drawn without a blockout (the owner, 2026-10-21: picked top places keep
+    their picks; this names them)."""
+    return [node for node in nodes if (sha := picked(store, node))
+            and not next((draw for draw in draws(store, node) if draw["sha"] == sha), {}).get("blockout")]
 
 
 def kept(store, png):
@@ -929,7 +1024,7 @@ def draw(store, place, request, by, caller=call, offsite=None, reviser=revise):
     else:
         wording, pictures = first_parts(store, place, request)
         kept_as_own(store, place, request, by)  # before the call: a refused call still keeps his edit
-        fields = {"picks": sent_picks(store, place), "calls": []}
+        fields = {"picks": sent_picks(store, place), "calls": [], "blockout": blockout_kept(store, place, pictures)}
     png = caller(wording, pictures)
     sha = kept(store, png)
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,

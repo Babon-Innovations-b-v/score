@@ -259,7 +259,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   A place's page names the places listed inside it that its draw is asked to hold (`asked_to_hold`). Under the
   picture the page shows, editable, word for word what Draw fresh or Draw concept sends (`WorldState.concept_wordings`,
   `ConceptWording`: the wording `score/review/concepts.py` `generated` makes by its one rule for every place, or the
-  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: a crop of the picked concept of
+  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: its blockout and, for a top place with a world out of view, its sky picture first, then a crop of the picked concept of
   the place it sits within to what holds it, then the picked concept of each place beside it that it opens into, then its references), why it waits
   (`refused`: Draw disabled with it as hover text; `unpickable`: Pick the same; both refused on the store's machine
   by `concepts.step_refusal`, the design steps' one rule), a part of another place's outside (within.json `parts`, the
@@ -307,6 +307,17 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   gets a design-only tile opening its concept page (`cockpit.designed`, `local.design_nodes`). The sync pass writes every place's plan
   where the plan stage reads it and makes the plan row again, detached, for those that changed (`client.plans_kept`,
   before prepare).
+- **The environment's plan** (CONTEXT.md "environment plan", "blockout", owner 2026-10-21; `pages/environment_plan.py`,
+  `environment_plan.html`, `static/pages/environment_plan.js`, the store side `score/review/environment_plan.py`):
+  `/environments/<world>/plan/`, the Plan button beside Places on the environment concept page. A map a world (an SVG:
+  each top place's site with its blocks, the metres between sites) and a row a site: its size, scene time, latitude
+  and longitude (fields for the owner), the Sun's height and every other world above its horizon (where, its true
+  size, how much lit, worked out from the environment's physics, never typed) and its blockout, the structure picture
+  its next draw is drawn on; the places picked before blockouts are named. Keep (SyncRequest `env-plan-edit`) keeps
+  his times, places and sizes as his own; Write (`env-plan-write`) has the plan writer write it again under the
+  owner's standing allowance; both `applying.PLAN_KINDS`, so the listener answers them hosted. The store's machine
+  renders every blockout once into this home's `blockouts/` by the hash of what it is built from
+  (`local.blockout_ref`, `WorldState.blockouts`), and the export carries them beside the concepts.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the

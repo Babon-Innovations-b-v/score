@@ -122,6 +122,20 @@ stage as each stage is built; nothing moves before.
   `plan_checks.py`'s free checks, each failure a plain gap with where it is; run on its own after a reading
   (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
   on his Make plan click as his spend yes (`web.plan_write`).
+  `blockout.py` builds a place's blockout (CONTEXT.md "blockout", owner 2026-10-21) from its parent's plan: a top
+  place's site on the environment's plan, else its own shell at full detail in its box on the holder's plan shown
+  with its siblings' shells and the holder's shell round it; rendered free (a numpy z-buffer, no card, no Blender) from
+  the fixed concept view, and, when a world in its sky falls outside that view, a sky picture from the site at eye
+  height. `concepts.structure_pictures` sends both first with every first draw, the draw record keeps the blockout's
+  sha (`blockout`), and a draw without one that can be built now is out of date (`current_draw`); `without_blockout`
+  names the picked places drawn before. `concepts.step_refusal` waits only for the place's outline on the layer
+  above's plan (`outlined`: held by a row or by the holder's own walls). `environment_plan.py` is the environment's
+  plan (CONTEXT.md "environment plan"): a map a world, each top place's site from the ground plans' seats, its
+  latitude and longitude where the game's frames give them, written by the plan writer's call (`plan_writing.asked`,
+  cleared like a plan writing), the fixed facts kept over the answer, the distances and each site's sky worked out
+  (`settled`); kept under `environment-plans/<world>/` (writings; his edits in his process only). `sky.py` runs the
+  environment's physics state (`data/physics/worlds.json`: true radii, Kepler elements, spins) to a moment: every
+  other world's direction, true angular size and phase over a site, the data a later sky layer runs live.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
