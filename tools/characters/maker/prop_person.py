@@ -200,47 +200,11 @@ def closeup(spec, outfit, who, held, dry_run):
     return picture_checks(out)
 
 
-# The picture check before any Pixal3D spend: between the armpits and the wrists (ARM_ROWS of the figure's height from
-# its top), a row counts where open background at least ARM_GAP of the figure's height wide lies between each arm and
-# the body; at least ARMS_APART of the rows must. The figure is every pixel off its row's background (the median of
-# the row's two edges, as the backdrop shades from top to floor) by BACKGROUND_STEP, closed, its largest piece with its
-# holes filled (a white suit on a light grey backdrop reads as holes). The player's close-ups had 0.67 of their rows
-# so; Nev's two fused takes none, her four drawn after the pose picture 0.35 to 0.51 (2026-10-11).
-ARM_ROWS = (0.25, 0.47)
-ARM_GAP = 0.01
-ARMS_APART = 0.3
-BACKGROUND_STEP = 18
-
-
-def figure_of(path):
-    """A close-up's figure as a mask (figure_of's rules above)."""
-    import numpy as np
-    from PIL import Image
-    from scipy import ndimage
-    colours = np.asarray(Image.open(path).convert("RGB")).astype(float)
-    backdrop = np.median(np.concatenate([colours[:, :8], colours[:, -8:]], 1), 1)
-    figure = ndimage.binary_closing(np.linalg.norm(colours - backdrop[:, None], axis=2) > BACKGROUND_STEP,
-                                    np.ones((3, 3)))
-    label, _ = ndimage.label(figure)
-    return ndimage.binary_fill_holes(label == np.bincount(label.ravel())[1:].argmax() + 1)
-
-
-def arm_gap_share(path):
-    """The share of the arm rows (ARM_ROWS) of a close-up with an ARM_GAP gap between each arm and the body."""
-    import numpy as np
-    figure = figure_of(path)
-    rows = np.flatnonzero(figure.any(1))
-    top, height = rows[0], rows[-1] - rows[0]
-    apart = []
-    for row in range(int(top + ARM_ROWS[0] * height), int(top + ARM_ROWS[1] * height)):
-        edges = np.flatnonzero(np.diff(np.concatenate([[0], figure[row].astype(int), [0]])))
-        runs = [(start, end) for start, end in zip(edges[::2], edges[1::2]) if end - start >= 3]
-        apart.append(len(runs) >= 3 and min(runs[1][0] - runs[0][1], runs[-1][0] - runs[-2][1]) >= ARM_GAP * height)
-    return float(np.mean(apart))
-
-
 def picture_checks(out):
-    """Every close-up of the folder measured by arm_gap_share, into <out>/checks.json: {take: (share, pass)}."""
+    """Every close-up of the folder measured by the close-up check's arm_gap_share (tools/props/closeup/check.py, the
+    shared loop's people close-ups use it too), into <out>/checks.json: {take: (share, pass)}."""
+    sys.path.insert(0, str(REPO / "tools/props/closeup"))
+    from check import ARMS_APART, arm_gap_share
     found = {path.stem: {"arm_rows_apart": round(arm_gap_share(path), 3)} for path in sorted(out.glob("pp-*.png"))}
     for entry in found.values():
         entry["pass"] = entry["arm_rows_apart"] >= ARMS_APART

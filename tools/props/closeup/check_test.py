@@ -62,6 +62,32 @@ def test_a_wrong_proportion_is_faulted():
     assert "proportions off the row's box" in check.measured_faults(check.measure(path, (0.4, 0.4, 1.2)))
 
 
+def a_person(arms_out, side=512):
+    """A dark figure on the grey: head, torso and legs apart, its arms angled down `arms_out` pixels clear of the
+    torso at the hands (0: hanging against it); its path."""
+    picture = Image.new("RGB", (side, side), GREY)
+    draw = ImageDraw.Draw(picture)
+    dark = (60, 70, 80)
+    draw.ellipse((236, 60, 276, 100), fill=dark)  # head
+    draw.rectangle((226, 100, 286, 260), fill=dark)  # torso
+    draw.polygon([(226, 260), (256, 260), (236, 450), (206, 450)], fill=dark)  # legs, apart
+    draw.polygon([(256, 260), (286, 260), (306, 450), (276, 450)], fill=dark)
+    for side_sign, shoulder in ((-1, 226), (1, 286)):
+        hand = shoulder + side_sign * arms_out
+        draw.line([(shoulder, 108), (hand, 240)], fill=dark, width=14)
+    path = pathlib.Path(tempfile.mkdtemp()) / "person.png"
+    picture.save(path)
+    return path
+
+
+def test_a_persons_close_up_needs_its_arms_clear_of_the_body_not_a_box_s_proportions():
+    """The people layer's close-up (stage.PERSON): drawn in the rig's A-pose, so no box's outline holds it; arms
+    hanging against the torso (Pixal3D fuses them, Nev 2026-10-10) fail it."""
+    assert check.person_faults(a_person(arms_out=70)) == []
+    assert any(fault.startswith("arms not clear of the body") for fault in check.person_faults(a_person(arms_out=0)))
+    assert check.measure(a_person(arms_out=70), None)["proportion_error"] is None
+
+
 def test_the_answer_is_the_last_json_object_in_the_reply():
     reply = 'thinking about {"a": 1} ... done.\n{"one_object": true, "verdict": "fail"}'
     assert check.answer_of(reply) == {"one_object": True, "verdict": "fail"}

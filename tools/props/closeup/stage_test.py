@@ -103,6 +103,17 @@ def test_pro_draws_one_take_a_row_worded_before_it_is_drawn():
     assert stage.with_pro_wordings([dict(row, pro_wording="crop")])[0]["pro_wording"] == "crop"  # chosen once
 
 
+def test_a_person_is_drawn_alone_front_on_in_the_rigs_a_pose_never_the_concepts_pose():
+    """The people layer's own close-up wording (CONTEXT.md "layer adapter"): one member of a crowd row, front on,
+    arms and legs apart, whatever the crop shows; it needs no size (the rig sizes the body)."""
+    row, _ = a_place()
+    person = dict(row, words="crowd", layer="people", size=None)
+    assert stage.pro_wording(person) == "person"
+    words = stage.wording(person, stage.PRO_WORDINGS["person"])
+    assert "The person: crowd." in words and "A-pose" in words and "never their pose" in words
+    assert "Image 2" not in words and "three quarters" not in words
+
+
 def test_pro_asks_again_only_for_a_free_refusal_and_an_empty_answer_is_a_gap():
     import urllib.error
     asked, waits = [], []

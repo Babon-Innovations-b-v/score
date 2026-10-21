@@ -103,11 +103,14 @@ def taken_as_drawn(row, out):
 
 
 def measured(path, row):
-    """The shape check's measured faults of one close-up at its row's size; a row with no measured size (the people
-    line's looks, #41) is named, never measured against a made-up box."""
+    """The shape check's measured faults of one close-up at its row's size; a person's (a row of the people layer:
+    drawn in the rig's A-pose, no box's outline) by its framing and its arms clear of the body (check.person_faults);
+    any other row with no measured size is named, never measured against a made-up box."""
+    _, check = closeup_tools()
+    if row.get("layer") == "people":
+        return check.person_faults(path)
     if row["size"] is None:
         return ["no measured size: its proportions held to none"]
-    _, check = closeup_tools()
     return check.measured_faults(check.measure(path, row["size"]))
 
 
@@ -145,7 +148,7 @@ def make_closeups(inputs, out, seed, params):
         passed = next((take for take, faults in tried.items() if not faults), None)
         if passed:
             shutil.copy(out / passed / f"{row['id']}.png", out / "closeups" / f"{row['id']}.png")
-        record[row["id"]] = {"size": row["size"], "drawn_by": "given" if row["drawn"] else passed,
+        record[row["id"]] = {"size": row["size"], "layer": row.get("layer"), "drawn_by": "given" if row["drawn"] else passed,
                              "takes": tried, "pro_pictures": sum((out / take / f"{row['id']}.png").exists()
                                                                  for take in tried)}
     batch_gaps.write(out, [batch_gaps.gap(f"{row['id']}: no close-up passed", "closeup", "close-up",
