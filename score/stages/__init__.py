@@ -9,14 +9,14 @@ Step 0 holds the worked example: assembly (P5) on environment 1's round-three st
 (P11). Terrain (the paper's Methods, "Terrain") makes every ground of the environment from its plan, one environment node,
 free (the code fallback under its prop-pipeline adapter, ground-join), and ground-fit judges each seated place on it. The surface stage (step 1, its overlay) is each place's
 own line of rows, split to checked bake, beside the environment's seed of the finish registry. Effects (experimental) makes
-each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
-after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
+each designed place's effects layer from its design, which its assembly takes; effects-look (no place since the old
+launch records were retired) renders it before and after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
 own accepted assembly. The shared loop (shapes_first, #41: rough model, its registration to the plan, the parts split,
 close-up, Pixal3D, the finish route, the likeness gate, then each layer adapter's after-steps) is every model layer's
 one way to a model; its prop rows run only for a place with prop data. Plan and scene-record (experimental) write a
 place's scene record from its plan and concept. Cast (experimental) places each place's people and measures them against its concept's count
-(concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its game motions
-and its rigid moves. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+(concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its design's
+moving rows. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
 import functools
@@ -136,7 +136,8 @@ COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PL
                        files=complete.files,
                        after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1),
                               "surfaces-check": ("surfaces-check", 1), "likeness": ("props-likeness", 1),
-                              "characters-layer": ("characters-layer", 1), "complete-boxes": ("complete-boxes", 1)})
+                              "characters-layer": ("characters-layer", 1), "complete-boxes": ("complete-boxes", 1),
+                              "motion": ("motion-layer", 2)})
 # The box gate's measure of the boxes no other row measures (complete/boxes.py), so complete's boxes check has a
 # verdict for every boxed row: a ship place's code rows and the rows it takes from another place's take
 # (2026-10-15). The old places' partitions were measured whole by hand; a ship place only, so none of theirs moves.
@@ -148,19 +149,13 @@ EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_l
                            euros=effects_look.EUROS,
                            applies=lambda place: place in effects_look.LOOKED and designed("effects")(place))
 def crops_waiting(files):
-    """A crops row's files: its own (crop_data) once the place's crop data is written for its locked concept
-    (crop_data.applies); until then the data it waits on, so the row blocks by name and never reads another picture:
-    the crop data where it is written while there is none, and for one written for an old concept view, that view's
-    picture, which went with the old disk (crop_data.concept_picture)."""
+    """A crops row's files: its own (crop_data) once the place's crop data is written from its locked design
+    (crop_data.applies); until then the crop data it waits on, so the row blocks by name."""
     import score.stages.crops.crop_data as crop_data
 
     @functools.wraps(files)
     def declared(place):
-        if crop_data.applies(place):
-            return files(place)
-        if not (crop_data.FOLDER / f"{place}.json").exists():
-            return {"crops": crop_data.pattern(place)}
-        return {"crops": crop_data.pattern(place), "concept": crop_data.concept_picture(place)}
+        return files(place) if crop_data.applies(place) else {"crops": crop_data.pattern(place)}
     return declared
 
 
@@ -360,11 +355,10 @@ def bake_checked(row):
 
 def check_files(place):
     """The check's environment files: the paint's (its line's, the inventories, the resting rules), the stance rules, and
-    the place's kit, scene record and motion models record (each model's spots and the views, its view distance)."""
+    the place's kit and scene record (each model's spots and the views, its view distance)."""
     # A place the game never had (the ship's rooms) has no old scene record, and no kit until its shell is laid: the
     # check reads none then (bake_check.seen_degrees does without), as scene-record's seed (78243df1).
-    views = {"kit": REPO / "data/kit" / f"{place}.json", "scene record": REPO / "data/scene" / f"{place}.json",
-             "models": REPO / "data/motion/models" / f"{place}.json"}
+    views = {"kit": REPO / "data/kit" / f"{place}.json", "scene record": REPO / "data/scene" / f"{place}.json"}
     return {**paint_files(place),
             "stance rules": "{data}/checks/stance.json",
             **{name: "{data}/" + path.relative_to(REPO / "data").as_posix() for name, path in views.items()
@@ -492,8 +486,8 @@ DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, d
                               demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
                               euros=demo_turntable.euros())
 # Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, or
-# fails it only on its accepted gaps (gapped: the overseer, 2026-10-15), only for the places with a film record in
-# data/definitions/demo_films/, paid.
+# fails it only on its accepted gaps (gapped: the overseer, 2026-10-15), only for the places a locked film script
+# shows (demo_film.films), paid.
 DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT, demo_film.CHECKS,
                         files=demo_film.files, after={"assembly": ("openusd-stage", 1),
                                                       "neighbours": ("openusd-stage", 1),

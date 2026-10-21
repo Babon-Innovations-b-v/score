@@ -35,7 +35,7 @@ def world_data(folder, place=PLACE, people=NOBODY, design=(), scene=None):
     module's (contents.DATA, contents.DESIGN, contents.BODIES). Its plan and setting give the place a room's bed in a
     base on the Moon (score/stages/sound/beds.py over the environment's library briefs and reference bodies)."""
     data = folder / "data"
-    for kind in ("people", "scene", "sound", "checks", "effects", "motion", "plans", "physics", "places"):
+    for kind in ("people", "scene", "sound", "checks", "plans", "physics", "places"):
         (data / kind).mkdir(parents=True, exist_ok=True)
     for name in ("sound/sounds.json", "physics/bodies.json"):
         (data / name).write_text((REPO / "data" / name).read_text())
@@ -155,59 +155,40 @@ def people_both_ways():
 
 
 def effects_and_motion_both_ways():
+    """The design's emitting row met only by an effect standing on its object; its moving row only by the accepted
+    motion output's moves moving on the stage, or written down as still with why."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        data = world_data(folder, design=[row("kettle", "kettle"), row("door", "door")])
+        world_data(folder, design=[row("kettle", "kettle"), row("door", "door")])
         path = bare_stage(folder)
-        cases = [("an effect needed with no record", judged("effects", path), contents.FAIL),
-                 ("a motion needed with no record", judged("motion", path), contents.FAIL)]
-        (data / "motion/rigid").mkdir(parents=True)
-        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": [], "still": {"door": " "}}))
-        cases.append(("a still entry with no reason", judged("motion", path), contents.FAIL))
-        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": [], "still": {"door": "parked"}}))
-        cases.append(("a need written down as still, with why", judged("motion", path), contents.PASS))
-        (data / "motion" / f"{PLACE}.json").write_text(json.dumps({"motions": [{"name": "door",
-                                                                                 "prim": f"/{PLACE}/game_door"}]}))
-        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": [], "renamed": {
-            f"/{PLACE}/game_door": f"/{PLACE}/door_leaf_1"}}))
+        motion = folder / "motion"
+        motion.mkdir()
+        made = {**NONE, "motion": motion}
+
+        def moves(record):
+            (motion / "moves.json").write_text(json.dumps(record))
+            return judged("motion", path, outputs=made)
+        cases = [("an effect needed with none standing", judged("effects", path), contents.FAIL),
+                 ("a motion needed with no motion output", judged("motion", path), contents.UNKNOWN),
+                 ("a still entry with no reason", moves({"moves": [], "still": {f"/{PLACE}/door_1": " "}}),
+                  contents.FAIL),
+                 ("a need written down as still, with why", moves({"moves": [], "still": {f"/{PLACE}/door_1": "parked"}}),
+                  contents.PASS)]
         stage = Usd.Stage.Open(str(path))
-        leaf = UsdGeom.Xform.Define(stage, f"/{PLACE}/door_leaf_1").AddTranslateOp()
-        leaf.Set(Gf.Vec3d(0, 0, 0), 0)
-        leaf.Set(Gf.Vec3d(1, 0, 0), 24)
+        door = UsdGeom.Xform.Define(stage, f"/{PLACE}/door_1")
         stage.GetRootLayer().Save()
-        cases.append(("a game motion's prim moving under the name the rigid record renames it to",
-                      judged("motion", path), contents.PASS))
-        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": []}))
-        cases.append(("the same motion without the rename", judged("motion", path), contents.FAIL))
-        stage.RemovePrim(f"/{PLACE}/door_leaf_1")
-        stage.GetRootLayer().Save()
-        (data / "motion/rigid" / f"{PLACE}.json").unlink()
-        (data / "effects" / f"{PLACE}.json").write_text(json.dumps({"effects": [{"name": "kettle_steam"}]}))
-        (data / "motion" / f"{PLACE}.json").write_text(json.dumps({"motions": [{"name": "door",
-                                                                                 "prim": f"/{PLACE}/door"}]}))
-        stage = Usd.Stage.Open(str(path))
-        door = UsdGeom.Xform.Define(stage, f"/{PLACE}/door")
-        stage.GetRootLayer().Save()
-        cases += [("a recorded effect not on the stage", judged("effects", path), contents.FAIL),
-                  ("a recorded motion standing still", judged("motion", path), contents.FAIL)]
-        UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam")
+        cases.append(("a move standing still on the stage",
+                      moves({"moves": [{"name": "door_1", "prim": f"/{PLACE}/door_1"}]}), contents.FAIL))
         translate = door.AddTranslateOp()
         translate.Set(Gf.Vec3d(0, 0, 0), 0)
         translate.Set(Gf.Vec3d(1, 0, 0), 24)
+        UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam")
         stage.GetRootLayer().Save()
         cases += [("the effect standing", judged("effects", path), contents.PASS),
-                  ("the motion moving", judged("motion", path), contents.PASS),
+                  ("the motion moving", judged("motion", path, outputs=made), contents.PASS),
                   ("a place with no design", judged("effects", path, place="elsewhere"), contents.UNKNOWN),
                   ("a place with no design", judged("motion", path, place="elsewhere"), contents.UNKNOWN)]
         stage.RemovePrim(f"/{PLACE}/Effects/kettle_steam")
-        UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam_0_1")
-        stage.GetRootLayer().Save()
-        cases.append(("the effect standing as its cells", judged("effects", path), contents.PASS))
-        stage.RemovePrim(f"/{PLACE}/Effects/kettle_steam_0_1")
-        UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam_big")
-        stage.GetRootLayer().Save()
-        cases.append(("only another entry's name beginning with it", judged("effects", path), contents.FAIL))
-        stage.RemovePrim(f"/{PLACE}/Effects/kettle_steam_big")
         steam = stage.DefinePrim(f"/{PLACE}/Objects/kettle_1/jet")
         steam.CreateAttribute(contents.EFFECT_KIND, Sdf.ValueTypeNames.String).Set("steam_jet")
         stage.GetRootLayer().Save()

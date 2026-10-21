@@ -14,9 +14,9 @@ design; `look.py` the paid look.
   fails an emitter on no inventory row's object and a row that emits with no object on the stage. A new effect is a
   new kind in `data/checks/effects.json` measured on footage and named by a row kind, never an entry for one scene. A
   per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never typed by hand.
-- **The old records** (`data/effects/<place>.json`, written for the old concepts) are no input of this stage; the
-  completion gate's contents check, the review's renders and the launch's look still read them until their own
-  owners move.
+- **The old records are retired** (`data/effects/<place>.json`, written for the old concepts; owner, 2026-10-21: all
+  old stuff is retired). The completion gate's contents check reads the emitters on the stage; the review's renders
+  read no effects views; the look waits (below).
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
@@ -38,7 +38,8 @@ design; `look.py` the paid look.
   flame gives the pad against the place's own lamps, and the look's `lit` measures it in the pictures. A record whose
   effects light nothing (steam, fog, ice) says so in `no_light`, or `light` is unknown.
 - **Only scenes whose design shows a row that emits have the row** (the table's `designed("effects")`), and `look.LOOKED` the paid
-  look (the launch only, and only while its effects row applies) until the owner has seen the launch's stills.
+  look: none since its launch records were retired and the launch became part of the square's outside (2026-10-21);
+  the look is made again only over a design's own effects record, which names no rocket yet.
   Today's measured kinds are steam off a kettle and a hob and a humidifier's mist; the old records' pump-down fog,
   vacuum vents, Mars drift, dust devils, cigarette smoke and the launch's flame were tied to the game's cycles and
   places and wait to become kinds of their own.

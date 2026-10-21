@@ -1,6 +1,0 @@
-{
- "place": "wreck",
- "about": "The wreck's particle effects. It held one, the dust a supply rocket's engine throws off the base's landing pad as it comes down (the game 2099's SupplyRocketView: 40,000 fine grains racing out along the ground, checked against the Apollo landing films); the owner rejected the landing pad for the scene on 2026-10-04, and the coordinator removed the dust thrown across it with it on 2026-10-10 (the scene record's owner_rejected and coordinator_removed, data/scene/wreck.json). The record stays so the rejection reads here too; the emitter is in git history (before 2026-10-10). Brought back on 2026-10-12 from the Apollo landing footage and taken out again the same evening on the captain's decision: the wreck's concept (C2) shows no landing, and the concept decides what a place shows; the footage-measured veil is in git history (e9e8cc8).",
- "effects": [],
- "views": []
-}

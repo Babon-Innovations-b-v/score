@@ -30,17 +30,14 @@ READS = ("assembly", "neighbours", "surfaces-check", "likeness")
 GATE = tuple(check for check in complete.CHECKS if check != "resting")
 # The world folders the checks read (complete.py and contents.py read them from the repository's data, the same
 # folders for world 1), declared so a change to any reruns the gate.
-FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit",
-         "effects": "{data}/effects", "motions": "{data}/motion", "scenes": "{data}/scene",
+FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit", "scenes": "{data}/scene",
          "row kinds": "{data}/checks/row-kinds.json",
          "designed people": "{data}/people/rows.json"}
 
 
 def files(place):
-    """The world folders, the place's design (its locked concept's scene inventory) and rigid record where it has
-    them, the built body's report of every body the cast its design gives draws, and its bed's design (the sound
+    """The world folders, the place's design (its locked concept's scene inventory) where it has one, the built body's report of every body the cast its design gives draws, and its bed's design (the sound
     check's)."""
-    moves = {"moves": "{data}/motion/rigid/{place}.json"} if contents.record("motion/rigid", place) else {}
     design = {"design": "{home}/design/inventory/{place}.json"} if contents.design(place) is not None else {}
     cast = contents.cast_of(place) or {}
     bodies = {person["character"] for person in cast.get("people", [])}
@@ -50,7 +47,7 @@ def files(place):
                if (contents.BODIES / f"{body}.json").exists()}  # a missing one the people check fails by name
     from score.stages.sound import beds  # the sound check's bed, worked out from the scene's design
     bed = {f"bed {name}": pattern for name, pattern in beds.files(place).items()}
-    return {**FILES, **moves, **design, **reports, **bed}
+    return {**FILES, **design, **reports, **bed}
 
 
 def make_manifest(inputs, out, seed, params):

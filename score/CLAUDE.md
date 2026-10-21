@@ -266,7 +266,8 @@ stage as each stage is built; nothing moves before.
   and measures them on the seed's geometry (counted, standing, clear, made);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
   body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `motion-models` (experimental, `stages/motion/models`, its overlay) lays each place's
-  rigid moving models (`data/motion/models/<place>.json`: the garage's rover) on what holds them up, gated on outline,
+  rigid moving models (`data/motion/models/<place>.json`: none since the garage's, the old concept's, was retired
+  2026-10-21) on what holds them up, gated on outline,
   parts present and resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
   overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place whose design shows a loose row,
   the trial made from its design (`stages/physics/design.py`: its loose objects dropped where they stand, its body's

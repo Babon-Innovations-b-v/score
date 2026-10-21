@@ -354,8 +354,8 @@ def close_up_colours(labelled):
 
 def seen_degrees(inputs, baked_sizes=None):
     """Each kit model's middle size in degrees of visual angle from the place's nearest view (its scene record's
-    eyes) to its nearest spot (the kit's pieces, the scene record's objects and the motion models record's models, in
-    the record's frame): {model: degrees}; {} with no kit or view. `baked_sizes`: {model: its bake entry's size}."""
+    eyes) to its nearest spot (the kit's pieces and the scene record's objects, in the record's frame): {model:
+    degrees}; {} with no kit or view. `baked_sizes`: {model: its bake entry's size}."""
     kit, scene = inputs.get("kit"), inputs.get("scene record")
     if kit is None or scene is None or not kit.exists() or not scene.exists():
         return {}
@@ -364,10 +364,6 @@ def seen_degrees(inputs, baked_sizes=None):
     found = json.loads(kit.read_text())
     spots = [(piece["model"], piece["at"], piece["size"]) for piece in found.get("pieces", [])]
     spots += list(object_spots(record.get("objects", []), found.get("models", {})))
-    models = inputs.get("models")
-    if models is not None and models.exists():
-        spots += list(model_spots(json.loads(models.read_text())["models"], found.get("pieces", []),
-                                  baked_sizes or {}))
     nearest = {}
     for model, spot, size in spots if eyes else []:
         near = min(math.dist(spot, eye) for eye in eyes)
@@ -390,24 +386,6 @@ def object_spots(objects, sizes, origin=(0.0, 0.0, 0.0), yaw=0.0):
         if "size" in sizes.get(model, {}):
             yield model, spot, sizes[model]["size"]
         yield from object_spots(entry.get("children", []), sizes, spot, yaw + entry.get("yaw", 0.0))
-
-
-def model_spots(models, pieces, sizes):
-    """(model, spot, size) of each model of the place's motion models record (data/motion/models) the bake sizes: one
-    standing on a kit piece at that piece's spot (the motion models step centres it on its support), one mounted on another at its host's spot.
-    shortcut: a mounted piece is seen at its host's middle, not its mount point (that needs the host's `nose`, which
-    the record may not have yet), so a long host's far-end piece reads nearer than it is; upgrade with
-    motion.models.mount_point once every host names its nose."""
-    at = {piece["model"]: piece["at"] for piece in pieces}
-
-    def spot_of(name):
-        entry = models[name]
-        return spot_of(entry["mounted"]["on"]) if "mounted" in entry else at.get(entry["on"])
-
-    for name, entry in models.items():
-        model, spot = entry.get("model", name), spot_of(name)
-        if spot is not None and model in sizes:
-            yield model, spot, sizes[model]
 
 
 def make_check(inputs, out, seed, params):

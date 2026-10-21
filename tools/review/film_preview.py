@@ -3,7 +3,8 @@ beside the same moments of the film the store holds, as one picture and one shor
 
     .venv/bin/python tools/review/film_preview.py <place> <out folder> [--film <film>] [--line "<words>" ...]
 
-The plan is score/stages/demo_film's own (its film record's cameras and leave_out, demo.py's plan, from its start),
+The plan is score/stages/demo_film's own (its film's cameras and leave_out from the film script segment that shows it:
+the starters in data/films and the locked scripts, the locked first; demo.py's plan, from its start),
 run over the place's accepted final stage (the neighbours output, else its assembly) with nothing rendered on the
 cloud: the stage's big folders are linked, only its root layer and scene record are copied, so the store is never
 written. The new frames are drawn from the place's assembly alone (drawn_stage) by one local Blender job (tools/blender/session.py batch, under the machine's
@@ -90,8 +91,14 @@ def work_stage(stage_folder, place, under):
 
 
 def film_record(film):
-    """This checkout's record of the film (data/definitions/demo_films/<film>.json)."""
-    return json.loads((demo_film.FILMS / f"{film}.json").read_text())
+    """The film as a film script shows it (demo_film.films_of): a locked script's first, else a starter's in
+    data/films, so a film is looked at free before it is locked."""
+    from score.stages.demo_film import final
+    starters = {path.stem: json.loads(path.read_text()) for path in sorted((REPO / "data/films").glob("*.json"))}
+    found = demo_film.films_of({**starters, **final.scripts()})
+    if film not in found:
+        raise SystemExit(f"no film script shows the film {film} (data/films, or a locked one)")
+    return found[film]
 
 
 def planned(stage_folder, place, film, work):
@@ -101,8 +108,7 @@ def planned(stage_folder, place, film, work):
     copy = work_stage(stage_folder, place, work / "stages")
     cameras = demo_film.own_cameras(copy / "scene.json", record)
     demo_film.leave_out(copy / f"{place}.usda", record)
-    motion = REPO / "data/motion" / f"{place}.json"
-    start = demo_film.film_start(record, {"motion": str(motion)} if motion.exists() else {})
+    start = demo_film.film_start(record)
     given = f"{place}={','.join(cameras)}" if film == place else f"{film}@{place}={','.join(cameras)}"
     demo.plan(work, work / "stages", [given], jobs_each=1, size=SIZE, ink=False, shots=len(cameras),
               seconds=demo_film.SECONDS, start=start)

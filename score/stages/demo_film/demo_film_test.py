@@ -68,93 +68,91 @@ def folder():
     return pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
 
 
-def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
-    """#21: a film is a batch the creator said yes to (its record's `final`); one without it keeps its node (the
-    basket takes it) and its row is Blocked before anything is bought."""
-    own = [name for name, film in demo_film.films().items() if film["place"] == name]
-    assert all(demo_film.applies(place) for place in own)
-    assert not demo_film.applies("no such place")
-    root = folder()
-    real = demo_film.FILMS
+def scripted(*shows):
+    """A locked film script whose walk-throughs show each of `shows` (a segment's `shows`)."""
+    return {"segments": [{"cut": "walk-through", "shows": dict(each), "seconds": 4.0} for each in shows]}
+
+
+def with_scripts(scripts, check):
+    """Run `check()` with the creator's locked film scripts `scripts` ({name: script}), the real ones put back after."""
+    from score.stages.demo_film import final
+    real = final.scripts
+    final.scripts = lambda: scripts
     try:
-        for name, film in (("hall", {"place": "hall", "camera": "door"}),
-                           ("yard", {"place": "yard", "camera": "gate", "final": True})):
-            (root / f"{name}.json").write_text(json.dumps(film))
-        demo_film.FILMS = root
-        assert demo_film.applies("hall") and demo_film.applies("yard")
-        made = []
+        check()
+    finally:
+        final.scripts = real
+
+
+def test_only_the_places_a_locked_script_shows_have_the_row_and_it_declares_its_tools():
+    """A place's films are its locked film scripts' (the lock his yes), never a record written per place: a place
+    a locked script shows has the row, keyed on that script, and makes its own film from it; any other has none."""
+    root = folder()
+    script = scripted({"place": "yard", "camera": "gate"})
+    (root / "k9.json").write_text(json.dumps(script))
+    made = []
+
+    def check():
+        assert demo_film.applies("yard") and not demo_film.applies("hall")
+        found = demo_film.files("yard")
+        assert found["script k9"] == "{dashboard}/films/locked/k9.json", found
+        assert found["people"][0] == "{data}/people/rows.json", "the people its design stands (seen_faults)"
+        assert not any(name.startswith("film ") for name in found), "no per-place film record"
+        assert all((REPO / path).exists() for path in demo_film.TOOLS)
+        assert found["tool tools/review/demo.py"] == "{repo}/tools/review/demo.py"
         real_one = demo_film.film_one
-        demo_film.film_one = lambda stage, name, film, out, log, start: made.append(name)
+        demo_film.film_one = lambda stage, name, film, out, log, start: made.append((name, film["camera"], start))
         try:
             (root / "stage").mkdir()
-            (root / "stage/hall.usda").write_text("#usda 1.0\n")
-            try:
-                demo_film.make({"assembly": root / "stage", "film hall": root / "hall.json"}, root / "out", 0, {})
-                raise AssertionError("a film with no yes was made")
-            except graph.Blocked as blocked:
-                assert "no yes yet for hall" in str(blocked), blocked
-            shutil.rmtree(root / "stage")
-            (root / "stage").mkdir()
             (root / "stage/yard.usda").write_text("#usda 1.0\n")
-            demo_film.make({"assembly": root / "stage", "film yard": root / "yard.json"}, root / "out", 0, {})
+            demo_film.make({"assembly": root / "stage", "script k9": root / "k9.json"}, root / "out", 0, {})
         finally:
             demo_film.film_one = real_one
-        assert made == ["yard"], made
+    try:
+        with_scripts({"k9": script}, check)
     finally:
-        demo_film.FILMS = real
         shutil.rmtree(root)
-    found = demo_film.files("hub")
-    assert found["scene"] == "{data}/scene/hub.json"
+    assert made == [("yard", "gate", 0.0)], made
     assert "scene" not in demo_film.files("cockpit"), "a ship room has no seed record; its assembly's record is read"
-    assert found["film hub"] == "{data}/definitions/demo_films/hub.json"
-    assert not any(name.startswith("film ") and name != "film hub" for name in found)
-    assert all((REPO / path).exists() for path in demo_film.TOOLS)
-    assert found["tool tools/review/demo.py"] == "{repo}/tools/review/demo.py"
 
 
-def test_every_film_names_a_camera_its_place_s_scene_record_holds():
-    """The path starts at that camera, so a place's own film's first frame is the still beside the concept (K8)."""
-    from score.stages import scene_record
-    for name, film in demo_film.films().items():
-        if scene_record.written(film["place"]):
-            continue  # a planned place's cameras are its assembled record's, made by the run, not in data/scene
-        record = json.loads((REPO / "data/scene" / f"{film['place']}.json").read_text())
-        assert film["camera"] in [view["name"] for view in record["views"]], (name, film)
+def test_a_film_with_no_camera_starts_at_its_scene_record_s_first():
+    record = folder() / "scene.json"
+    record.write_text(json.dumps({"views": [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
+                                            {"name": "spot-2", "eye": [3, 1.6, 2], "aim": [0, 1, 0], "fov": 75}]}))
+    assert demo_film.own_cameras(record, {"place": "yard"}) == ["spot-1", "spot-2"]
+    record.write_text(json.dumps({"views": []}))
+    try:
+        demo_film.own_cameras(record, {"place": "yard"})
+        raise AssertionError("a film started with no camera to start at")
+    except ValueError as refused:
+        assert "no camera" in str(refused), refused
 
 
 def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alone():
     root = folder()
-    real = demo_film.FILMS
-    try:
-        for name, place, camera in (("hangar", "hangar", "across"), ("hull", "hangar", "ship")):
-            (root / f"{name}.json").write_text(json.dumps({"place": place, "camera": camera, "final": True}))
-        (root / "nose.json").write_text(json.dumps({"place": "hangar", "camera": "ship"}))  # no yes: Blocked
-        demo_film.FILMS = root
-        assert demo_film.extras("hangar") == ["hull", "nose"] and demo_film.applies_extra("hangar")
+    script = scripted({"place": "hangar", "camera": "across"}, {"place": "hangar", "film": "hull", "camera": "ship"})
+    (root / "k9.json").write_text(json.dumps(script))
+    made = []
+
+    def check():
+        assert demo_film.extras("hangar") == ["hull"] and demo_film.applies_extra("hangar")
         assert not demo_film.applies_extra("hub") and not demo_film.applies("hull")
-        assert "film hull" not in demo_film.files("hangar")
-        assert demo_film.extra_files("hangar")["film hull"] == "{data}/definitions/demo_films/hull.json"
-        assert "film hangar" not in demo_film.extra_files("hangar")
-        made = []
+        assert demo_film.extra_files("hangar")["script k9"] == "{dashboard}/films/locked/k9.json"
         real_one = demo_film.film_one
         demo_film.film_one = lambda stage, name, film, out, log, start: made.append((name, film["camera"], out.name))
         try:
             (root / "stage").mkdir()
             (root / "stage/hangar.usda").write_text("#usda 1.0\n")
-            demo_film.make_extra({"assembly": root / "stage", "film hull": root / "hull.json"}, root / "out", 0, {})
-            try:
-                demo_film.make_extra({"assembly": root / "stage", "film hull": root / "hull.json",
-                                      "film nose": root / "nose.json"}, root / "out", 0, {})
-                raise AssertionError("a row holding a film with no yes was made")
-            except graph.Blocked as blocked:
-                assert "no yes yet for nose" in str(blocked), blocked
+            demo_film.make_extra({"assembly": root / "stage", "script k9": root / "k9.json"}, root / "out", 0, {})
         finally:
             demo_film.film_one = real_one
-        assert made == [("hull", "ship", "hull")], made
         assert demo_film.extra_faults(root / "stage") == ["no film"]
+    try:
+        with_scripts({"k9": script}, check)
     finally:
-        demo_film.FILMS = real
         shutil.rmtree(root)
+    assert made == [("hull", "ship", "hull")], made
 
 
 def test_the_plan_asks_look_only_frames_at_its_size():
@@ -356,15 +354,6 @@ def test_the_gate_fails_a_silent_still_film_by_name():
         shutil.rmtree(root)
 
 
-def test_a_film_starts_a_second_before_its_places_first_one_off_moment():
-    """The overseer, 2026-10-15: the launch's 4 s shot ended as the rocket lifted off (start 1 s + lift 5 s, the
-    engines' build to release since a7a513b3)."""
-    assert demo_film.motion_start({"motion": str(demo_film.REPO / "data/motion/launch.json")}) == 5.0
-    assert demo_film.motion_start({"motion": str(demo_film.REPO / "data/motion/garage.json")}) == 0.0  # loops only
-    assert demo_film.motion_start({}) == 0.0
-    assert "motion" in demo_film.files("launch")
-
-
 if __name__ == "__main__":
     import pathlib
     import runpy
@@ -413,8 +402,8 @@ def test_a_film_record_leaves_out_the_prims_it_names_in_its_copy_only():
 
 
 def test_a_film_record_may_name_its_own_start():
-    assert demo_film.film_start({"camera": "spot-1", "start": 6}, {}) == 6.0
-    assert demo_film.film_start({"camera": "spot-1"}, {}) == 0.0, "no motion record: the stage's start"
+    assert demo_film.film_start({"camera": "spot-1", "start": 6}) == 6.0
+    assert demo_film.film_start({"camera": "spot-1"}) == 0.0, "none named: the stage's start"
 
 
 def test_a_frame_blurs_by_how_fast_its_picture_moves_towards_the_next_frame_of_its_shot():

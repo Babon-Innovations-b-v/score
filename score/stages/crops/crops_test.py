@@ -15,7 +15,16 @@ import score.stages.crops.crop_data as crop_data  # noqa: E402
 import score.stages.crops.layer as layer  # noqa: E402
 import score.stages.crops.look as look  # noqa: E402
 
-RECORD = crop_data.record("greenhouse")
+# A crop data as the stage reads it, written here: the old greenhouse's kinds and beds (its file, written for the old
+# concept, was retired 2026-10-21), so the measures and gates are checked on known kinds.
+RECORD = {"place": "greenhouse", "concept": {"view": crop_data.DESIGN_VIEW, "plot": {
+    "nouns": ["raised garden bed", "vegetable garden bed"], "plan_item": "HOME PLOT 12 x 12 m (beds 0.6 m)"}},
+          "beds": "bed_",
+          "kinds": {"lettuce": {"row": "crop_lettuce", "nouns": ["lettuce"]},
+                    "potato": {"row": "crop_potato", "nouns": ["potato"]},
+                    "herb": {"row": "crop_herb", "nouns": ["rosemary", "small shrub"]},
+                    "greens": {"row": "crop_greens", "nouns": ["leafy bush"],
+                               "canopy": "bushes whose leaves meet: laid one bush width apart"}}}
 SQUARE_PLOT = {"plot:raised garden bed": [{"box": [0, 0, 2000, 2000], "score": 0.9, "inside": 1.0, "fills": 1.0}]}
 
 

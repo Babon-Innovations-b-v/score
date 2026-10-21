@@ -58,29 +58,32 @@ def test_a_place_with_people_fails_where_no_frame_shows_one():
     assert shots.people_seen(a_stage(person_at=(0, 0.5, 6)), views()) == {"shot0": 0}
 
 
-def test_a_cast_that_stands_people_fails_a_stage_that_holds_none():
-    """The motion layer's bodies (#26): the cast record says who stands in the place; a film whose stage got none of
-    them fails, one whose cast stands nobody does not."""
+def test_a_design_that_stands_people_fails_a_stage_that_holds_none():
+    """The motion layer's bodies (#26): the design says who stands in the place; a film whose stage got none of
+    them fails, one whose design stands nobody does not."""
     from score.stages import demo_film
     film = views(frames=range(round(demo_film.SECONDS * 24)))
-    assert "the place's cast stands 2 people and the film's stage holds none" in \
+    assert "the place's design stands 2 people and the film's stage holds none" in \
         demo_film.seen_faults(a_stage(door_sound=True), film, people=2)
-    assert not any("cast" in fault for fault in demo_film.seen_faults(a_stage(door_sound=True), film, people=0))
+    assert not any("design stands" in fault for fault in demo_film.seen_faults(a_stage(door_sound=True), film,
+                                                                               people=0))
 
 
-def test_a_cast_of_groups_and_a_crowd_counts_its_people():
-    """A cast that stands only a group and a crowd stands people too (the square: one speaker, a front row of 24 and a
-    far crowd): the film gate counts every member and copy, not the named people alone."""
+def test_a_design_s_people_and_crowd_count_its_people():
+    """A design that stands a person and a crowd stands people too (the square: one speaker and a far crowd): the
+    film gate counts the crowd's every member, and a crowd SAM 3 could not part as one at least."""
     import json
     from score.stages import demo_film
     with tempfile.TemporaryDirectory() as folder:
-        cast = pathlib.Path(folder) / "square.json"
-        cast.write_text(json.dumps({"people": [{"name": "leader"}], "groups": [{"name": "front_row", "count": 24}],
-                                    "crowd": {"name": "crowd", "count": 10000}}))
-        assert demo_film.cast_people(cast) == 10025
-        cast.write_text(json.dumps({"groups": [{"name": "front_row", "count": 3}]}))
-        assert demo_film.cast_people(cast) == 3
-    assert demo_film.cast_people(None) == 0
+        rows = pathlib.Path(folder) / "rows.json"
+        square = {"rows": {"leader": {"looks": ["leader-drawn"]}, "crowd": {"crowd": "far-coat", "count": 10000}}}
+        rows.write_text(json.dumps({"places": {"square": square}}))
+        assert demo_film.cast_people("square", rows) == 10001
+        square["rows"]["crowd"]["count"] = None
+        rows.write_text(json.dumps({"places": {"square": square}}))
+        assert demo_film.cast_people("square", rows) == 2
+        assert demo_film.cast_people("hub", rows) == 0
+    assert demo_film.cast_people("square", None) == 0
 
 
 def test_a_thing_seen_moving_needs_a_sound_of_its_own():

@@ -12,7 +12,10 @@ measured. Stills, not films: films wait for the owner's go.
              lit       up to two seconds after lift-off, the pad round the rocket's foot (a window round its spot in
                        the picture, where the camera sees it) is at least LIT_OVER times as bright after as before
 
-Only the places in LOOKED have the row: the proof place, until the owner has seen it.
+Only the places in LOOKED have the row: none since 2026-10-21. Its proof place was the launch, whose rocket, motion and
+effects records were the old concepts' (data/scene, data/motion, data/effects, retired: owner, 2026-10-21, all old
+stuff is retired), and the launch is now part of the square's outside, no place of the build. The look is made again
+only over a design's own effects record (the effects-layer row's record.json), which names no rocket yet.
 """
 import json
 import math
@@ -22,10 +25,10 @@ import shutil
 import numpy as np
 from PIL import Image
 
-from score import checks, contracts
+from score import checks, contracts, graph
 from score.stages.terrain import look as terrain_look
 
-LOOKED = ("launch",)
+LOOKED = ()
 VIEWS = terrain_look.VIEWS
 FRAME = terrain_look.FRAME
 # Seconds from lift-off: the engines lit on the pad, just off the pad, climbing clear, the cloud left behind.
@@ -46,24 +49,17 @@ WINDOW = 0.03
 
 
 def files(place):
-    """What the look reads besides the assembly's output: its views, the place's records, its neighbours' seeds, the
-    renderer."""
-    found = {"views": f"{{seeds}}/{VIEWS}/{place}.json", "scene": "{data}/scene/{place}.json",
-             "motion": "{data}/motion/{place}.json", "record": "{data}/effects/{place}.json",
-             "renderer": "{data}/../tools/blender/inside"}
+    """What the look reads besides the assembly's output: its views, its neighbours' seeds, the renderer."""
+    found = {"views": f"{{seeds}}/{VIEWS}/{place}.json", "renderer": "{data}/../tools/blender/inside"}
     found.update({f"neighbour {name}": f"{{seeds}}/usd-r3/{name}" for name in terrain_look.neighbours(place)})
     return found
 
 
 def rocket(inputs):
-    """The record's rocket: its height, its rest spot and its motion (the footage block names them)."""
-    record = json.loads(pathlib.Path(inputs["record"]).read_text())
-    named = record["footage"]["rocket"]
-    scene = json.loads(pathlib.Path(inputs["scene"]).read_text())
-    found = next(item for item in scene["objects"] if item["name"] == named["object"])
-    motion = next(motion for motion in json.loads(pathlib.Path(inputs["motion"]).read_text())["motions"]
-                  if motion["name"] == named["motion"])
-    return float(found["height"]), np.asarray(found["at"], dtype=float), motion
+    """The record's rocket: its height, its rest spot and its motion. None is read: they were the old launch's
+    records, retired (module docstring), and a design's effects record names no rocket yet."""
+    raise graph.Blocked("the effects look's rocket came from the old launch's records (data/scene, data/motion, "
+                        "data/effects), retired 2026-10-21: no look until it reads a design's effects record")
 
 
 def lift_second(motion):

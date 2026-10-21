@@ -4,8 +4,8 @@ files), in tools/usd/sound.py's layout and with its prim writer (audio_prim), in
     room     each room tone (role room): /<place>/Sound/Room/<name>, non-spatial, looping from the stage's start
     object   each object sound (role object, `on` a row id or a record entry's name): <prim>/Sound on every prim of
              that row (score:row) or of that name, spatial, looping
-    motion   each motion's sound (role motion, `on` the moving prim): <prim>/Sound_<n>, from its start time code in
-             every round of its motion (data/motion/<place>.json, sound.rounds_of)
+    motion   each motion's sound (role motion, `on` the moving prim): <prim>/Sound_<n>, from its start time code (the
+             sound record gives one use a round of its moving thing, in the stage's seconds: sound/moving.py)
     bank     each surface's footstep, impact and scrape (role bank): /<place>/Sound/Bank/<name>, every library surface
              of the stage pointing at its own (score:sound:<happening>)
 
@@ -69,7 +69,7 @@ def take(made, root, inputs):
     uses = {role: [use for use in record["uses"] if use["role"] == role] for role in ("room", "object", "motion", "bank")}
     unplaced = room_tones(stage, place, uses["room"], entries, root.parent)
     unplaced += object_sounds(stage, place, uses["object"], entries, root.parent)
-    unplaced += motion_sounds(stage, uses["motion"], entries, root.parent, pathlib.Path(inputs["motions"]) / f"{place}.json")
+    unplaced += motion_sounds(stage, uses["motion"], entries, root.parent)
     unplaced += bank_sounds(stage, place, {use["sound"] for use in uses["bank"]}, entries, root.parent, inputs["sounds"])
     layer.Save()
     return unplaced
@@ -104,13 +104,11 @@ def object_sounds(stage, place, uses, entries, out):
     return unplaced
 
 
-def motion_sounds(stage, uses, entries, out, motions):
-    """Each motion's sound, spatial at the moving prim from its start in every round of its motion; a looping one
-    plays until its end."""
+def motion_sounds(stage, uses, entries, out):
+    """Each motion's sound, spatial at the moving prim from its start (each use one round's, in the stage's
+    seconds); a looping one plays until its end."""
     import sound as tool
     from pxr import UsdMedia
-    record = {motion.get("prim"): motion for motion in
-              (json.loads(motions.read_text()).get("motions", []) if motions.exists() else [])}
     rate = stage.GetTimeCodesPerSecond()
     unplaced, counted = [], {}
     for use in uses:
@@ -119,16 +117,14 @@ def motion_sounds(stage, uses, entries, out, motions):
             unplaced.append(f"{use['sound']} (motion): no moving prim {use['on']} on the stage")
             continue
         number = counted[use["on"]] = counted.get(use["on"], -1) + 1
-        for round_start in tool.rounds_of(record.get(use["on"], {})):
-            until = use.get("loops_until")
-            end = None if until is None else (round_start + float(until)) * rate
-            name = f"Sound_{number}" + (f"_{round(round_start * 1000)}" if round_start else "")
-            if not tool.audio_prim(stage, target.GetPath().AppendChild(name), use["sound"], entries[use["sound"]], out,
-                                   aural=UsdMedia.Tokens.spatial, start=(round_start + float(use["at"])) * rate,
-                                   end=end, source=use["from"],
-                                   playback=UsdMedia.Tokens.loopFromStartToEnd if end is not None
-                                   else UsdMedia.Tokens.onceFromStart):
-                unplaced.append(f"{use['sound']} (motion): no file")
+        until = use.get("loops_until")
+        end = None if until is None else float(until) * rate
+        if not tool.audio_prim(stage, target.GetPath().AppendChild(f"Sound_{number}"), use["sound"],
+                               entries[use["sound"]], out, aural=UsdMedia.Tokens.spatial, start=float(use["at"]) * rate,
+                               end=end, source=use["from"],
+                               playback=UsdMedia.Tokens.loopFromStartToEnd if end is not None
+                               else UsdMedia.Tokens.onceFromStart):
+            unplaced.append(f"{use['sound']} (motion): no file")
     return unplaced
 
 

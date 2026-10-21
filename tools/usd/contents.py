@@ -16,12 +16,11 @@ blocks like fail.
                 A design that shows nobody (no row that acts, score/stages/design_layers.py): nobody may stand
                 there. One that shows people while none are mapped for it: unknown
     effects     every row of the place's design that emits (its row kind, score/stages/row_kinds.py) has an effect
-                standing: an entry of its effects record that stands under /<place>/Effects (in any variant), under
-                its name or as its cells (`<name>_<row>_<column>`), or an emitter laid on one of the row's objects,
-                with the row's id in its name or its holder's
-    motion      every motion of its records (data/motion, and data/motion/rigid: what SCORE moves that the game left
-                standing) moves on the stage (time samples), and every row of its design that moves is one of them
-                or written down as still with why
+                standing: an emitter the effects layer laid on one of the row's objects, with the row's id in its
+                name or its holder's
+    motion      every moving thing of its accepted motion output (motion@<place>'s moves.json, made from its design)
+                moves on the stage (time samples), and every row of its design that moves is one of them or written
+                down as still with why; a design that moves with no motion output read is unknown
     crops       where its design shows crops (score/stages/design_layers.py): the share of soil tiles (meshes said
                 `soil`) with a plant of the crops layer (/<place>/Crops, a point instancer a kind) over them, at
                 least PLANTED_SHARE
@@ -42,7 +41,7 @@ blocks like fail.
     neighbours  every place the scene record shows stands under /<place>/Places, its references resolve to files,
                 and it has children
     game        no record the place is made from (its scene records: the one beside the stage, data/scene's and the
-                accepted scene-record output's; its cast, effects, motions, moving things) cites the game 2099
+                accepted scene-record output's; its cast) cites the game 2099
                 as where its numbers come from (a `from` or `source`: the game, 2099, a .gd or .tscn file); each
                 fault counts the citing fields and the positions (at, centre, position, placed_at) so taken
     waiting     no entry of the scene record waits on its model (the assembly lays nothing for one and names it on
@@ -86,7 +85,7 @@ HEIGHT = 1.7
 ASPECT = 16 / 9
 DESIGNED_PEOPLE = "people/rows.json"
 # The stage outputs a check reads: {name: the accepted output's folder, or None when there is none}.
-OUTPUTS = ("likeness", "surfaces-check", "characters-layer", "scene-record")
+OUTPUTS = ("likeness", "surfaces-check", "characters-layer", "scene-record", "motion")
 
 
 # --- the place's records --------------------------------------------------------------------------------------------
@@ -333,13 +332,6 @@ def effects_standing(stage, place):
     return names
 
 
-def stands(entry, standing):
-    """Whether a record entry stands: under its own name, or as the cells a drift is laid on (effects.py names each
-    `<entry>_<row>_<column>`: the camp's drift_0_0 to drift_4_4)."""
-    cell = re.compile(rf"{re.escape(entry)}_\d+_\d+")
-    return entry in standing or any(cell.fullmatch(name) for name in standing)
-
-
 def unmet(needs, names):
     """The needs no name has in it."""
     return [need for need in needs if not any(need in name for name in names)]
@@ -357,19 +349,16 @@ NO_DESIGN = "{place} has no design ({folder}/{place}.json): what it must show is
 
 
 def judge_effects(stage, place, inventory, outputs):
-    """Every row of the place's design that emits has an effect standing on the stage: an entry of its effects record
-    with the row's id in its name, or an emitter laid on one of the row's objects."""
+    """Every row of the place's design that emits has an effect standing on the stage: an emitter the effects layer
+    laid on one of the row's objects (its name or its holder's holding the row's id)."""
     found = design(place)
     if found is None:
         return UNKNOWN, [], NO_DESIGN.format(place=place, folder=DESIGN)
     needs = rows_doing(found, "emits")
-    effects = record("effects", place) or {}
     standing = effects_standing(stage, place)
-    made = {entry["name"] for entry in effects.get("effects", []) if stands(entry["name"], standing)}
-    faults = [f"{need}: the design's row emits, and no effect of the record stands on the stage with it in its name "
-              "or on its object" + ("" if effects else f" (no effects record, data/effects/{place}.json)")
-              for need in unmet(needs, made | effect_holders(stage, place))]
-    return outcome(faults, f"{len(made)} effects stand; rows that emit met: {', '.join(needs) or 'none'}")
+    faults = [f"{need}: the design's row emits, and no effect stands on the stage on its object"
+              for need in unmet(needs, standing | effect_holders(stage, place))]
+    return outcome(faults, f"{len(standing)} effects stand; rows that emit met: {', '.join(needs) or 'none'}")
 
 
 def moving(prim):
@@ -378,24 +367,26 @@ def moving(prim):
 
 
 def judge_motion(stage, place, inventory, outputs):
-    """Every motion and moving thing of the place's records moving on the stage, and every row of its design that moves
-    one of them (its name or its prim's holding the row's id) or covered: a thing its rigid record writes down as
-    rightly still, with why (`still`)."""
+    """Every moving thing of the place's motion output (the accepted motion row's moves.json, made from its design)
+    moving on the stage, and every row of its design that moves one of them (its name or its prim's holding the row's
+    id) or covered: a thing the output writes down as rightly still, with why (`still`). A design that moves with no
+    motion output read is unknown."""
     found = design(place)
     if found is None:
         return UNKNOWN, [], NO_DESIGN.format(place=place, folder=DESIGN)
     needs = rows_doing(found, "moves")
-    moves = record("motion/rigid", place) or {}
-    names = moves.get("renamed", {})  # the game's prims as the scene record names them, as the motion layer writes them
-    motions = [dict(motion, prim=names.get(motion["prim"], motion["prim"]))
-               for motion in (record("motion", place) or {}).get("motions", [])] + moves.get("moves", [])
+    folder = outputs.get("motion")
+    if needs and not folder:
+        return UNKNOWN, [], f"{place}'s design moves {', '.join(needs)} and no accepted motion output is read"
+    moves = json.loads((pathlib.Path(folder) / "moves.json").read_text()) if folder else {}
+    motions = moves.get("moves", [])
     made = {motion["name"] for motion in motions
             if stage.GetPrimAtPath(motion["prim"]) and moving(stage.GetPrimAtPath(motion["prim"]))}
     covered = {name.rsplit("/", 1)[-1] for name, why in moves.get("still", {}).items() if str(why).strip()}
     still = [f"{motion['name']}: {motion['prim']} does not move on the stage" for motion in motions
              if motion["name"] not in made]
     moved = {motion["prim"].rsplit("/", 1)[-1] for motion in motions if motion["name"] in made}
-    faults = still + [f"{need}: the design's row moves, and no motion of the records moves it or keeps it still"
+    faults = still + [f"{need}: the design's row moves, and no motion of the output moves it or keeps it still"
                       for need in unmet(needs, made | moved | covered)]
     return outcome(faults, f"{len(made)} motions move, {len(covered)} written down as still; rows that move met: "
                            f"{', '.join(needs) or 'none'}")
@@ -639,7 +630,6 @@ def game_records(stage, place, outputs):
     records = {str(beside): json.loads(beside.read_text()) if beside.exists() else None,
                f"data/scene/{place}.json": record("scene", place),
                f"scene-record output {made}": json.loads(made.read_text()) if made and made.exists() else None}
-    records.update({f"data/{kind}/{place}.json": record(kind, place) for kind in ("effects", "motion", "moves")})
     records[f"its cast ({DESIGNED_PEOPLE})"] = cast_of(place)
     return records
 

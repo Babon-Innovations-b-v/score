@@ -12,7 +12,8 @@ its beds as the concept grows them, as a layer of point instancers the assembly 
     crops-look      paid  the beds and crops rendered at the concept's slant and counted with SAM 3 again: the
                           concept-density check on the render (look.py)
 
-Each row applies only to a place with crop data (data/crops/<place>.json, crop_data.py): the greenhouse. Import this
+Each row applies only to a place with crop data written from its design (data/crops/<place>.json, crop_data.py):
+none since the old concepts' was retired (2026-10-21). Import this
 package's modules by their full name, never `from score.stages.crops import ...` (that hashes this file into their
 code version, so a table edit would re-buy the paid rows).
 """

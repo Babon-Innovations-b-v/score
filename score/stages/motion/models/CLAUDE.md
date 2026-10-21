@@ -1,8 +1,9 @@
 # score/stages/motion/models/
 
 The motion layer's models step (experimental, PRD #6; the layer adapter of the motion layer, CONTEXT.md "motion",
-for rigid moving things): `motion-models@<place>` lays each model of `data/motion/models/<place>.json` (the garage's
-rover today), made by the prop pipeline, in the place as `layers/motion-models.usda` plus its asset, which the
+for rigid moving things): `motion-models@<place>` lays each model of `data/motion/models/<place>.json` (none
+today: the old records, the garage's rover, were retired on 2026-10-21 and no rule writes one from a design yet),
+made by the prop pipeline, in the place as `layers/motion-models.usda` plus its asset, which the
 assembly takes (`assembly.take_layer`). `__init__.py`'s docstring has the make and the gates.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
@@ -26,7 +27,6 @@ assembly takes (`assembly.take_layer`). `__init__.py`'s docstring has the make a
   box gate reads them; a box SAM 3 does not ground, and a row flagged `"ground_box": "judge"`, goes to the box judge
   on Gemini (cents an ask: two seeds, one round; a split is a gap, never a third ask). The workshop robot's eight part rows were dropped (captain, 2026-10-12): concept K10
   shows no robot, and the concept decides.
-- **A designed place's record names its design's takes.** One naming an old take (the garage's kit5-rover-3) has
-  no row and is a motion-layer gap (`old_takes`, `../needs.py`); `motion-models-boxes` never applies to a designed
-  place, whose boxes are its reading's.
+- **A record is written from the design or not at all** (owner, 2026-10-21: all old stuff is retired). With no
+  record a place has no row; `motion-models-boxes` never applies to a designed place, whose boxes are its reading's.
 - `models_test.py` lays a stand-in rover on the garage's seed and breaks each gate once.

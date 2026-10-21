@@ -152,7 +152,7 @@ def slope(made, plan_record, inputs):
     for place, seat in plan_record["seats"].items():
         if seat.get("outdoor"):
             continue
-        scene, kit, _ = gates.place_files(inputs, place)
+        scene, kit = gates.place_files(inputs, place)
         if not scene:
             continue
         highest, lowest = under_floor(made, seat, (kit or {}).get("on_seat", [0.0, 0.0]), gates.footprint(scene, kit))
