@@ -108,7 +108,7 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   is a gap that `plan.json` lists (`gaps`), never a code build and never a stop. The record (retired with the old models) held the failures measured on their own object; a kind joins it only with
   a failure measured on its own object.
   Big objects keep their code body (below). Purely code-built pieces look generated and copied shell pieces look like
-  tiles; shell pieces come as a few pipeline-made variants per kit, laid by shell section (CONTEXT.md).
+  tiles; shell pieces come as a few pipeline-made variants per kit.
   `place_route.py plan` routes an outdoor place's rows the same way.
 - **Method B's parts check holds a code fallback, never routes one** (the owner's pick 2026-10-07, demoted by #19):
   `data/library/fittings.json` lists a fitting's close-up parts and how much of each its last code build shows

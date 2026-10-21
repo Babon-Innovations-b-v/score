@@ -94,7 +94,7 @@ SPECS = {
                                       f"(#21); the two-take chain the ship's close-ups measured ({CLOSEUPS_15} line "
                                       "37: 25 for 21 pieces, 2026-10-14) is gone"}},
     "light-passes": {"unit": "render job of the light stage", "cloud": {"kind": "blender", "who": "score light stage"},
-                     "per_line": "jobs", "count": {"files": "passes/*.views.json"}, "also": ["light-haze"],
+                     "per_line": "jobs", "count": {"files": "passes/*.views.json"},
                      "forecast": "light_jobs"},
     "settle": {"unit": "drop run", "cloud": {"kind": "blender", "who": "settle"}, "per_line": "one",
                "count": {"one": True}, "forecast": "one"},
@@ -110,7 +110,6 @@ SPECS = {
 # made written down in git when they ran: per stage, its unit, its forecast rule and each run (euros, units, where it
 # is written). No count rule: the runner prices them before a make only. A ledger line of the stage, when one is read,
 # replaces them.
-STAGE_EUROS_13 = "paper/evidence/cloud/stage-euros-2026-10-13.txt"
 SHIP_ROOMS = f"{CLOSEUPS_15} line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14)"
 RECORDED = {
     "surfaces-paint": {"unit": "take painted", "forecast": "models",
@@ -131,10 +130,6 @@ RECORDED = {
                                "slots_from": "one job at a time on its one card", "holds": "machines", "lines": 1,
                                "from": ["ledger batch blender-20261021-005907-4020565 (its machine's unit_seconds "
                                         "over the 6 clips of its clips.json)"]}},
-    "concept_people": {"unit": "make of the environment's people concept", "forecast": "one",
-                       "runs": [{"euros": 2.41, "units": 1,
-                                 "source": f"{STAGE_EUROS_13} line 12 (world 1's ticketed run, 16 rows), its re-buy "
-                                           f"priced at it in {CLOSEUPS_15} line 55"}]},
     # The benchmark batch of 2026-10-21 (grant 20261021T182203, one score run at commit 99106427): one node a kind,
     # each its node's whole make (forecast "one"); one run, so likely and high alike.
     "finish-route-palette": {"unit": "scene palette of a place (one Gemini 3.1 Pro answer)", "forecast": "one",
@@ -157,16 +152,6 @@ RECORDED = {
                                "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
                                "slots_from": "its 16 calls one after another", "holds": "calls", "lines": 16,
                                "from": ["google ledger, caller pro, 20:33:25 to 20:39:33 +02:00 on 2026-10-21"]}},
-    "surface-tiles": {"unit": "tile job of a place's shell surfaces (library_bake.py, one card)", "forecast": "one",
-                      "runs": [{"euros": 0.07875, "units": 1,
-                                "source": "ledger batch library-20261021-203323-3894491 (surface-tiles@greenhouse, "
-                                          "2026-10-21, benchmark grant 20261021T182203): one L4, 5.1 machine "
-                                          "minutes, its card parked after"}],
-                      "time": {"unit_seconds": {"likely": 187.8, "high": 187.8},
-                               "setup_minutes": {"likely": 1.9, "high": 1.9}, "slots": 1,
-                               "slots_from": "one job on its one card", "holds": "machines", "lines": 1,
-                               "from": ["ledger batch library-20261021-203323-3894491 (its machine's unit_seconds; "
-                                        "start wait 0.37 and set-up 1.53 min)"]}},
     "people-clips-made": {"unit": "make of the people's Kimodo clips and mean rig (one characters machine)",
                           "forecast": "one",
                           "runs": [{"euros": 0.249375, "units": 1,
@@ -193,7 +178,7 @@ OVERHEAD = 0.10  # the owner's target share (2026-10-20): replace it with the me
 WARM = {
     "pixal": {"kind": "pixal", "type": "L4-1-24G", "class": "gpu-24gb"},
     "surfaces-bake": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
-    # A light-passes (and light-haze) job is one Blender render job of up to VIEWS_A_JOB views on one L4
+    # A light-passes job is one Blender render job of up to VIEWS_A_JOB views on one L4
     # (passes.CARDS); priced at every timed Blender job on L4 (116 s median in the capacity report), not at light
     # jobs' own seconds: the ledger copy names no job's stage. Its own runs' timings replace it once recorded.
     "light-passes": {"kind": "blender", "type": "L4-1-24G", "class": "gpu-24gb"},

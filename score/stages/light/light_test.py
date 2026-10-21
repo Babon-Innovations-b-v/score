@@ -325,8 +325,7 @@ def check_design_rows():
 
 def check_haze_from_the_kit():
     """The shafted rows are a place's glowing rows (row kind) its kept plan aims, the floodlights the kit lays of them
-    (none for a plan that aims nothing, or aims a row that does not glow); light-haze applies nowhere while a design
-    lays no kit piece (haze.design_kit, earth_seed's kit.json)."""
+    (none for a plan that aims nothing, or aims a row that does not glow, or a kit that lays none of them)."""
     import tempfile
     from score.stages.light import haze, passes
     rows = [{"id": "mast_lamp", "name": "mast lamp"}, {"id": "desk", "name": "desk"}]
@@ -345,8 +344,7 @@ def check_haze_from_the_kit():
             assert haze.shafted_rows("yard") == {"mast_lamp"}
             assert haze.shafted_kinds("yard", laid["yard"]) == {"yard_mast_lamp"}
             assert not haze.shafted_kinds("hall", laid["hall"]) and not haze.shafted_kinds("shed", laid["shed"])
-            assert not haze.shafted_kinds("yard", haze.design_kit("yard"))
-            assert not any(haze.applies(place) for place in (*aims, "nowhere"))
+            assert not haze.shafted_kinds("yard", {"room": "yard", "pieces": []})
         finally:
             passes.KEPT = kept
 

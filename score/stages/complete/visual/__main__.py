@@ -3,7 +3,7 @@
     .venv/bin/python -m score.stages.complete.visual [--place P ...] [--out FOLDER] [--judge-only]
 
 For each place, <out>/<place>/: evidence.json and pictures/ (measure.py), findings.json ({"place", "answer",
-"reason", "outputs": {node: the film or still output judged}, "pictures", "findings": [{"rule", "prim", "share",
+"reason", "outputs": {node: the film output judged}, "pictures", "findings": [{"rule", "prim", "share",
 "name", "sentence", "picture"}]}) and marks/<place>-<rule>-<n>.png, a picture a
 finding; then <out>/summary.json and <out>/contact_sheet.png. `--judge-only` judges evidence measured before. The
 default out is WORK/checks/visual, where the cockpit reads it. Prints one line a place and one summary line.
@@ -24,9 +24,9 @@ FINDINGS = "findings.json"
 def reason(answer, found):
     """The place's answer in words."""
     if answer == "unknown":
-        return "no film frame or still with its stage to judge"
+        return "no film frame with its stage to judge"
     if answer == "pass":
-        return "no blocking plane, untextured surface or one-object picture in its film frames and stills"
+        return "no blocking plane, untextured surface or one-object picture in its film frames"
     return "; ".join(f"{item['rule']}: {item['prim']}" for item in found[:4]) + (
         f" and {len(found) - 4} more" if len(found) > 4 else "")
 

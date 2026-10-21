@@ -4,8 +4,8 @@ The light stage (experimental, PRD #6; paper-vs-world-1 items 9 and 17) as three
 `light-layer@<place>` (free: `layers/light.usda` over the round-three seed from today's scene record, `layer.py`),
 `light-passes@<place>` (paid: the seed with that layer rendered on its own scene record's views, every own lamp in a
 Cycles light group of its own, `inside/light_passes.py`) and `light@<place>` (free: the sweep on the passes, `mix.py`;
-the strengths written into the layer; the gates), and `light-haze@<place>` (paid, `haze.py`: the same render with
-the shafts off). A row of every designed place (the table's `designed("light")`, `stages/design_layers.py`), ship
+the strengths written into the layer; the gates). The paid `light-haze` row (the same render with the shafts off)
+was retired on 2026-10-22: it applied nowhere, since a design lays no kit piece. A row of every designed place (the table's `designed("light")`, `stages/design_layers.py`), ship
 places too, its record the scene-record row's (a place that row writes none for is refused by name,
 `passes.place_of`); `needs.py` gives the gaps check what a place needs lit and its sky (#27), from its plan;
 `sky.py` its sky from the environment concept's physics. Run with
@@ -17,12 +17,10 @@ gates.
   game-transcribed records, which only scene-record's `seed-matched` reads); the places rendered with it are the ones
   its accepted record shows (`passes.neighbours`: its doors' places and what its views see over the made ground),
   each lit by its own record read beside (`scene-record@<name>`) on its earth seed (`stages.SHOWN_SEEDED`);
-  light-haze applies where the kit lays a lamp with a shaft (`haze.shafted_kinds`: the glowing rows, by row kind,
-  its plan aims, the library's aimed lamp with its shaft; a floodlight's shaft is its row's, never a hand-kept lamp of
-  one place), and the floodlight heads are those
-  kinds' glow parts, the place's and its shown places', read from each one's design kit (earth-seed's kit.json, the
-  rows' `kit` and `kit <place>`), never data/kit (retired, 2026-10-21); a design lays no kit piece, so light-haze
-  applies nowhere until one does (`haze.design_kit`). Never add a place name, a kind name or a picture's pixels to decide what a row does.
+  the floodlight heads are the glow parts of the kinds whose lamps light a shaft (`haze.shafted_kinds`: the glowing
+  rows, by row kind, its plan aims, the library's aimed lamp with its shaft; a floodlight's shaft is its row's, never
+  a hand-kept lamp of one place), the place's and its shown places', read from each one's design kit (earth-seed's
+  kit.json, the rows' `kit` and `kit <place>`), never data/kit (retired, 2026-10-21). Never add a place name, a kind name or a picture's pixels to decide what a row does.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in

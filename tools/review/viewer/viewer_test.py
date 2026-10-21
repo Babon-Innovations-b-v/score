@@ -135,25 +135,6 @@ def check_web_picture(folder):
     assert export.web_picture(str(see_through), folder / "b") == "b.png", "a see-through picture keeps its alpha"
 
 
-def check_tile_repeat(folder):
-    """A room shell's library tile (tools/usd/shaders.py tile_look) reaches glTF with its repeat on every picture, as
-    KHR_texture_transform."""
-    import shaders
-    tiles = folder / "tiles"
-    tiles.mkdir()
-    for role in shaders.TILE_ROLES:
-        Image.new("RGB", (8, 8), (90, 90, 90)).save(tiles / f"deck_{role}.png")
-    (tiles / "tiles.json").write_text(json.dumps({"deck": {"metres": 2.0, "side": 8}}))
-    stage = Usd.Stage.CreateInMemory()
-    material = shaders.tile_look(stage, PLACE, "deck", folder / "stage", tiles)
-    gltf = export.Gltf(folder)
-    entry = export.material_entry(gltf, "deck", export.surface_inputs(material), True)
-    for reference in (entry["pbrMetallicRoughness"]["baseColorTexture"],
-                      entry["pbrMetallicRoughness"]["metallicRoughnessTexture"], entry["normalTexture"]):
-        assert reference["extensions"][export.TRANSFORM]["scale"] == [0.5, 0.5], reference
-    assert gltf.document["extensionsUsed"] == [export.TRANSFORM]
-
-
 def check_viewpoints(root):
     view = {"eye": [1, 1.6, 2], "aim": [0, 1.2, -3], "fov": 80}
     assert viewpoints.read(PLACE, root) == []
@@ -219,7 +200,6 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         check_web_picture(folder)
-        check_tile_repeat(folder)
         check_export(test_stage(folder), folder / "web")
         check_viewpoints(folder / "picks")
         check_server(folder / "web", folder / "served-picks")

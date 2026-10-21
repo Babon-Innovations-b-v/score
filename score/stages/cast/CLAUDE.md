@@ -3,7 +3,7 @@
 The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for the places whose locked design shows
 people, read from `data/people/rows.json` (`score/stages/people_rows.py`, #26: its scene inventory's people rows,
 each person a look of the shared people line, a crowd one far look in palettes), never the old game records
-(`data/characters/`) or `concept_people`'s lost concept pictures. `__init__.py`'s docstring has the make and
+(`data/characters/`). `__init__.py`'s docstring has the make and
 the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are stood on the place.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,

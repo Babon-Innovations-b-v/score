@@ -264,18 +264,14 @@ def test_lost_inputs_are_place_gaps_and_a_designed_seed_is_none():
     assert found and gaps_faults({"findings": found}) == [] and all(gap["rule"] == "place" for gap in found)
 
 
-def test_a_take_a_pixal_row_makes_is_that_row_s_gap_and_one_none_makes_has_its_work():
+def test_a_take_a_pixal_row_makes_is_that_row_s_gap():
     """The cockpit's pilot seat take (its design row's, named by its locked concept) is made by pixal@cockpit, so its
-    gap is that node's, priced through it, never code work; a world row's lost take no pixal row makes
-    (demo-turntables' pliers) is a gap of the world."""
+    gap is that node's, priced through it, never code work."""
     from score.stages.complete.gaps import inputs
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
     seats = [gap for gap in inputs.lost(runner, "cockpit") if gap["id"].startswith("lost:pixal:cockpit_pilot_seat_")]
     assert len(seats) == 1, seats
     assert seats[0]["node"] == "pixal@cockpit" and seats[0]["work"] is None, seats[0]
-    world = {gap["id"]: gap for gap in inputs.lost(runner, None)}
-    pliers = world["lost:pixal:pliers-pf"]
-    assert pliers["node"] is None and pliers["work"] and "demo-turntables" in pliers["sentence"], pliers
 
 
 def test_a_lost_input_many_places_read_counts_once():

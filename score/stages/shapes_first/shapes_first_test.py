@@ -192,12 +192,11 @@ READS_THE_LOOP = {
 }
 # Every paid row outside the loop and what it makes: none a model, but the named exceptions MADE_OUTSIDE holds.
 MAKES_NO_MODEL = {
-    "demo-turntables": "renders",
-    "settle": "rest poses of the made models", "sound": "sounds", "demo-film*": "films", "demo-stills": "stills",
-    "physics-trial": "a physics trial", "concept_people": "people's concept pictures",
-    "light-passes": "renders", "light-haze": "renders",
+    "settle": "rest poses of the made models", "sound": "sounds", "demo-film*": "films",
+    "physics-trial": "a physics trial",
+    "light-passes": "renders",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
-    "surface-tiles": "surface tiles", "library-clips*": "preview clips (renders)",
+    "library-clips*": "preview clips (renders)",
     "people-clips-made": "Kimodo clips and the mean rig", "people-look": "renders of the made bodies (its review page)",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.

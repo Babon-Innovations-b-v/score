@@ -1,7 +1,7 @@
 """crops-concept@<place>: how each crop kind grows on the concept (its patches and its spacing in plant widths),
 measured with SAM 3 on one rented card.
 
-SAM 3 (tools/props/scene/box_masks.py through tools/props/cloud/box_masks_cloud.py, the concept-people stage's way)
+SAM 3 (tools/props/scene/box_masks.py through tools/props/cloud/box_masks_cloud.py)
 is asked for the plot on the whole concept view, and for every noun of every kind on TILES tiles of it, each tile
 OVERLAP wider than its share and drawn UPSCALE times larger (small plants and plants that touch are found on the
 close tiles; on the whole picture SAM 3 merged the bushes into a few boxes), each row keeping up to KEEP_PLANTS

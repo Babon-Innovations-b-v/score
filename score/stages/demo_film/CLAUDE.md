@@ -56,9 +56,8 @@ own sound; paid and cleared by the runner like any paid row.
   matched in exposure, the whole graded as the preview is (`GRADE`), cards and takes over the script's bed. The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
   (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps
   check's film gaps: a film a script shows that no locked script shows waits on his lock.
-- **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts at its
-  segment's `start`, else the stage's start); `stills.py` (the demo-stills row,
-  `data/definitions/demo_stills/<place>.json`, none written today, so no node) renders a still only for a view no film
-  shows (K3's tool board).
+- **Stills come from the films.** K5, K6 and K8 take frames of the places' films (a film starts at its
+  segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
+  on 2026-10-22 (it had no definitions and so no node).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film the creator said yes to starts by
   itself once its place passes complete, or fails it only on its accepted gaps, in any environment run). Test: `demo_film_test.py`, `shots_test.py` and `final_test.py` (no Blender, no spend; one small local ffmpeg cut).

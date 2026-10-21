@@ -1,8 +1,8 @@
 """The resting triage: every resting fault of a place's OpenUSD stage judged by what holds the object up, real faults
 kept apart from false alarms, and the real ones grouped by cause with one close-up each.
 
-    .venv/bin/python tools/usd/triage.py <stage.usda> [--settled <settle/settled.json>] [--out <triage.json>]
-                                         [--closeups <folder> [--cloud]]
+    .venv/bin/python tools/usd/triage.py <stage.usda> [--kit <the place's kit.json>] [--settled <settle/settled.json>]
+                                         [--out <triage.json>] [--closeups <folder> [--cloud]]
 
 The resting check (resting.py) asks one question of every object: does it stand on what is under it. On a big place
 most of what it flags is not wrong (the hangar: 865 of 1,686 objects): a wall panel of a kit stands where the kit's
@@ -187,10 +187,10 @@ def object_sizes(stage_path):
             for path, prim in resting.objects_of(stage, place).items()}
 
 
-def kit_groups(place, path=None):
-    """{kit kind: its group} of the place's kit (data/kit/<place>.json, or the file given), empty when it has none."""
-    path = pathlib.Path(path) if path else REPO / "data/kit" / f"{place}.json"
-    kinds = json.loads(path.read_text()).get("kinds", {}) if path.exists() else {}
+def kit_groups(path=None):
+    """{kit kind: its group} of the kit file given (a place's design kit.json), empty with none (the old kits under
+    data/kit were retired with the old concepts, 2026-10-21)."""
+    kinds = json.loads(pathlib.Path(path).read_text()).get("kinds", {}) if path else {}
     return {kind: entry.get("group") for kind, entry in kinds.items()}
 
 
@@ -600,14 +600,14 @@ def groups(faults):
 
 
 def triage(stage_path, settled=None, rules_file=RULES, kit_file=None, inventory_file=None):
-    """The triage of one stage: every fault, real or false, and the real ones grouped by cause. The rules, the kit
-    and the inventory are the files given, else the repository's for the stage's place (a stage that declares its
-    inputs gives all three)."""
+    """The triage of one stage: every fault, real or false, and the real ones grouped by cause. The rules and the
+    inventory are the files given, else the repository's for the stage's place; the kit is the file given, else none
+    (a stage that declares its inputs gives all three)."""
     stage = Usd.Stage.Open(str(stage_path))
     place = stage.GetDefaultPrim().GetName()
     data = rules(rules_file)
     rows = inventory_rows(place, stage_path, inventory_file)
-    groups_of = kit_groups(place, kit_file)
+    groups_of = kit_groups(kit_file)
     entries = {path: object_entry(path, prim, rows, data, groups_of)
                for path, prim in resting.objects_of(stage, place).items()}
     statics = static_meshes(stage, place)
@@ -641,12 +641,14 @@ def triage(stage_path, settled=None, rules_file=RULES, kit_file=None, inventory_
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("stage", type=pathlib.Path)
+    parser.add_argument("--kit", type=pathlib.Path, help="the place's kit (its design's kit.json); none: no kit groups")
     parser.add_argument("--settled", type=pathlib.Path, help="a settle run's settled.json (settle.py --dry-run)")
     parser.add_argument("--out", type=pathlib.Path)
     parser.add_argument("--closeups", type=pathlib.Path, help="render one close-up a group into this folder")
     parser.add_argument("--cloud", action="store_true", help="render the close-ups on a rented machine")
     options = parser.parse_args()
-    found = triage(options.stage, json.loads(options.settled.read_text()) if options.settled else None)
+    found = triage(options.stage, json.loads(options.settled.read_text()) if options.settled else None,
+                   kit_file=options.kit)
     if options.closeups:
         import annotate
         annotate.fault_closeups(options.stage, found["groups"], options.closeups, options.cloud)

@@ -455,12 +455,11 @@ class LocalSource:
         return self.store.accepted(node)
 
     def hero(self, place):
-        """The concept the film was made against, else a still, else the first accepted image of the place."""
-        for stage, names in (("demo-film", ("concept.png",)), ("demo-stills", ())):
-            output = self.accepted_output(f"{stage}@{place}")
-            picture = output and self.first_image(output, names)
-            if picture:
-                return picture
+        """The concept the film was made against, else the first accepted image of the place."""
+        output = self.accepted_output(f"demo-film@{place}")
+        picture = output and self.first_image(output, ("concept.png",))
+        if picture:
+            return picture
         for row in self.place_rows(place):
             output = self.accepted_output(self.node_of(row.name, place))
             picture = output and self.first_image(output)

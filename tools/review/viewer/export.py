@@ -48,7 +48,6 @@ OUT = pathlib.Path.home() / ".farm-factory-props/work/web"
 CANDELA_PER_INTENSITY = math.pi / (4 * math.pi)
 LUX_PER_INTENSITY = 4.0
 GLTF_FLOAT, GLTF_UINT = 5126, 5125
-TRANSFORM = "KHR_texture_transform"
 ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER = 34962, 34963
 
 
@@ -189,9 +188,8 @@ def texcoords(prim, indices, corner_faces, time):
 
 
 def channel_source(shader, name):
-    """A UsdPreviewSurface input: ["texture", file, channel] when a picture drives it (with its repeat scale on the
-    end when a UsdTransform2d scales its coordinates: a library tile, tools/usd/shaders.py), else ["value", value];
-    None when unauthored."""
+    """A UsdPreviewSurface input: ["texture", file, channel] when a picture drives it, else ["value", value]; None
+    when unauthored."""
     from pxr import UsdShade
     found = shader.GetInput(name)
     if not found:
@@ -201,25 +199,11 @@ def channel_source(shader, name):
         picture = UsdShade.Shader(sources[0].source.GetPrim())
         asset = picture.GetInput("file").Get()
         path = asset.resolvedPath or asset.path if asset else ""
-        scale = repeat_scale(picture)
-        return (["texture", path, str(sources[0].sourceName)] + ([scale] if scale else [])) if path else None
+        return ["texture", path, str(sources[0].sourceName)] if path else None
     value = found.Get()
     if value is None:
         return None
     return ["value", [float(part) for part in value] if hasattr(value, "__len__") else float(value)]
-
-
-def repeat_scale(picture):
-    """The [u, v] scale a UsdTransform2d feeding a picture's coordinates sets, or None when none does."""
-    from pxr import UsdShade
-    coordinates = picture.GetInput("st")
-    sources = coordinates.GetConnectedSources()[0] if coordinates else []
-    if not sources:
-        return None
-    upstream = UsdShade.Shader(sources[0].source.GetPrim())
-    if upstream.GetIdAttr().Get() != "UsdTransform2d" or not upstream.GetInput("scale"):
-        return None
-    return [float(part) for part in upstream.GetInput("scale").Get()]
 
 
 def surface_inputs(material):
@@ -282,24 +266,19 @@ class Gltf:
         self.document["accessors"].append(entry)
         return len(self.document["accessors"]) - 1
 
-    def texture(self, path, scale=None):
-        """A texture of the picture at `path`, each picture once (its web-size copy is made at write); repeated by
-        `scale` ([u, v], KHR_texture_transform) when given."""
+    def texture(self, path):
+        """A texture of the picture at `path`, each picture once (its web-size copy is made at write)."""
         if path not in self.images:
             self.document["images"].append({"uri": path})
             self.document["textures"].append({"source": len(self.document["images"]) - 1})
             self.images[path] = len(self.document["textures"]) - 1
-        if scale is None:
-            return {"index": self.images[path]}
-        if TRANSFORM not in self.document["extensionsUsed"]:
-            self.document["extensionsUsed"].append(TRANSFORM)
-        return {"index": self.images[path], "extensions": {TRANSFORM: {"scale": scale}}}
+        return {"index": self.images[path]}
 
     def roughness_metal(self, rough, metal):
         """The metal-rough texture glTF wants (roughness in green, metalness in blue): the stage's own picture when
         both come from one in those channels, else one put together from the two."""
         if rough[0] == metal[0] == "texture" and rough[1] == metal[1] and (rough[2], metal[2]) == ("g", "b"):
-            return self.texture(rough[1], *rough[3:])
+            return self.texture(rough[1])
         key = json.dumps([rough, metal])
         if key not in self.images:
             sizes = [Image.open(source[1]).size for source in (rough, metal) if source[0] == "texture"]
@@ -366,7 +345,7 @@ def material_entry(gltf, name, inputs, double_sided):
     diffuse = inputs.get("diffuseColor", ["value", [0.18, 0.18, 0.18]])
     opacity = inputs.get("opacity")
     if diffuse[0] == "texture":
-        pbr["baseColorTexture"] = gltf.texture(*diffuse[1:2], *diffuse[3:])
+        pbr["baseColorTexture"] = gltf.texture(diffuse[1])
     else:
         pbr["baseColorFactor"] = [*diffuse[1][:3], 1.0]
         if opacity and opacity[0] == "texture":
@@ -378,7 +357,7 @@ def material_entry(gltf, name, inputs, double_sided):
     else:
         pbr["roughnessFactor"], pbr["metallicFactor"] = float(rough[1]), float(metal[1])
     if inputs.get("normal", ["value"])[0] == "texture":
-        entry["normalTexture"] = gltf.texture(*inputs["normal"][1:2], *inputs["normal"][3:])
+        entry["normalTexture"] = gltf.texture(inputs["normal"][1])
     glowing(gltf, entry, inputs.get("emissiveColor"))
     see_through(entry, opacity, inputs.get("opacityThreshold"))
     return entry

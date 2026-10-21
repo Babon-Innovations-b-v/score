@@ -27,10 +27,10 @@ SPOT_STEP = 0.05
 NEAR_FACES = 20000
 
 
-def held_objects(stage, place, inventory):
-    """The stage's top-level objects held on another (the triage's support `held`: row anchor `on:<row>`), lowest
-    first, so one held on a held one comes after its holder."""
-    data, groups = triage.rules(), triage.kit_groups(place)
+def held_objects(stage, place, inventory, kit_path=None):
+    """The stage's top-level objects held on another (the triage's support `held`: row anchor `on:<row>`; the kit
+    given its kinds' groups), lowest first, so one held on a held one comes after its holder."""
+    data, groups = triage.rules(), triage.kit_groups(kit_path)
     rows = {row["id"]: row for row in inventory["rows"]}
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = []
@@ -42,7 +42,7 @@ def held_objects(stage, place, inventory):
     return [name for _, name in sorted(found)]
 
 
-def held_rests(stage_path, place, inventory, kit_path=None):
+def held_rests(stage_path, place, inventory, kit_path):
     """Where each held object rests on what holds it, its holders as the stage lays them (after their drop): {name:
     {"before", "after", "rested", "said"}}. A held object is not dropped (a convex hull of its holder, a shelf unit,
     spans the shelf it lies on): it is stood upright in its seat as a loose one is (upright_starts) and snapped
@@ -52,9 +52,9 @@ def held_rests(stage_path, place, inventory, kit_path=None):
     parts = data["parts"]
     rows = {row["id"]: row for row in inventory["rows"]}
     stage = Usd.Stage.Open(str(stage_path))
-    names = [name for name in held_objects(stage, place, inventory)
+    names = [name for name in held_objects(stage, place, inventory, kit_path)
              if not settle.lies_as_laid(rows.get(name.rsplit("_", 1)[0], {}), data)]
-    kit = json.loads(pathlib.Path(kit_path or settle.KITS / f"{place}.json").read_text())
+    kit = json.loads(pathlib.Path(kit_path).read_text())
     starts = settle.upright_starts(stage, place, inventory, names, settle.seat_ground(place, kit))
     laid = snap.read_place(stage_path)
     poses = {}

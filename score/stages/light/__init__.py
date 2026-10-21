@@ -41,9 +41,9 @@ live lights (UsdLux) at the measured strengths; no lamp's light is baked into th
 
 Every row reads the place's design only (2026-10-21): it applies at every designed place (the table's
 designed("light")), reads the place's record from the scene-record row's output only (passes.record_of), renders
-the places that record shows (passes.neighbours) each lit by its own record read beside, buys light-haze where the
-kit lays a lamp with a shaft (haze.shafted_kinds), and measures the floodlight heads of those kinds; no hand-kept
-record, place or kind list.
+the places that record shows (passes.neighbours) each lit by its own record read beside, and measures the
+floodlight heads of the kinds whose lamps light a shaft (haze.shafted_kinds); no hand-kept record, place or kind
+list.
 """
 import json
 import pathlib
@@ -309,7 +309,7 @@ def look_at(held, curve, look, scales):
     return Image.fromarray(np.clip(rgb * full[..., None], 0, 255).astype(np.uint8))
 
 
-def floodlight_sweep(place, passes_folder, scales, shafted, out, inputs, haze_folder=None):
+def floodlight_sweep(place, passes_folder, scales, shafted, out, inputs):
     """The floodlights' strength (their shafts' light with them): the least of FLOODLIGHT_SCALES at which the heads
     rule holds on the looks mixed at it, else the layer's own (1), set into `scales`; the looks at the final strengths
     are left in out/looks. The layer's own strength is tried first and kept when it meets the rule: a floodlight is
@@ -320,7 +320,7 @@ def floodlight_sweep(place, passes_folder, scales, shafted, out, inputs, haze_fo
     order = (1.0, *(scale for scale in FLOODLIGHT_SCALES if scale != 1.0))
     for scale in (order if heads else (1.0,)):
         scales.update(dict.fromkeys(shafted, scale))
-        mixed_looks(passes_folder, scales, shafted, out, haze_folder)
+        mixed_looks(passes_folder, scales, shafted, out)
         if not heads:
             break
         summary = heads_summary(head_measures(place, out, inputs))
@@ -329,11 +329,11 @@ def floodlight_sweep(place, passes_folder, scales, shafted, out, inputs, haze_fo
             return tried
     if tried:  # none met the rule: the floodlights stay at the layer's strength, the gate says what fails
         scales.update(dict.fromkeys(shafted, 1.0))
-        mixed_looks(passes_folder, scales, shafted, out, haze_folder)
+        mixed_looks(passes_folder, scales, shafted, out)
     return tried
 
 
-def mixed_looks(passes_folder, scales, shafted, out, haze_folder=None):
+def mixed_looks(passes_folder, scales, shafted, out):
     """Each view's look at the measured strengths (looks/<demo place>/<view>-look.png) and, where the place has
     floodlights with shafts, with those lamps off (<view>-unlit.png): the before their heads and beams are measured
     against, taken from the same render, never from an older one."""
@@ -345,9 +345,6 @@ def mixed_looks(passes_folder, scales, shafted, out, haze_folder=None):
             if shafted:
                 look_at(held, curve, look, dict(scales, **dict.fromkeys(shafted, 0.0))).save(
                     target / f"{view}-unlit.png")
-            if haze_folder is not None:  # the same view rendered with the shafts off, mixed at the same strengths
-                held_off, curve_off, look_off = view_passes(haze_folder, name)[view]
-                look_at(held_off, curve_off, look_off, scales).save(target / f"{view}-unhazed.png")
 
 
 def layer_copied(layer_folder, out):
@@ -365,7 +362,6 @@ def make_light(inputs, out, seed, params):
     place = place_of(inputs)
     layer_folder = pathlib.Path(inputs["light-layer"])
     passes_folder = pathlib.Path(inputs["light-passes"])
-    haze_folder = pathlib.Path(inputs["light-haze"]) if "light-haze" in inputs else None
     layer_copied(layer_folder, out)
     found = json.loads((layer_folder / "lamps.json").read_text())
     scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder)
@@ -375,7 +371,7 @@ def make_light(inputs, out, seed, params):
     shafted = [group for group, path in by_group.items()
                if next(lamp for lamp in found["lamps"] if lamp["path"] == path)["shaft"]]
     record = passes.record_of(place, inputs)
-    swept["floodlights"] = floodlight_sweep(place, passes_folder, scales, shafted, out, inputs, haze_folder)
+    swept["floodlights"] = floodlight_sweep(place, passes_folder, scales, shafted, out, inputs)
     for lamp in found["lamps"]:
         group = next((name for name, path in by_group.items() if path == lamp["path"]), None)
         lamp["scale"] = scales.get(group, 1.0)
@@ -419,16 +415,15 @@ def head_measures(place, out, inputs):
     """Every floodlight head on screen in every view, with its shafted lamps off (before) and on (after), and its
     beam's gain."""
     size, views = views_of(out)
-    after, unlit, unhazed = rendered(out, place), rendered(out, place, "unlit"), rendered(out, place, "unhazed")
+    after, unlit = rendered(out, place), rendered(out, place, "unlit")
     found, veils = [], {}
     for view in views:
         if view["name"] not in after or view["name"] not in unlit:
             continue
         before_rgb, after_rgb = measure.picture(unlit[view["name"]]), measure.picture(after[view["name"]])
-        # The veil is what the shafts' haze lays over the place: against the render with the shafts off where the
-        # node has one (light-haze), else against the floodlights off (their floor light in it too).
-        veiled = measure.picture(unhazed[view["name"]]) if view["name"] in unhazed else before_rgb
-        veils[view["name"]] = measure.veil(veiled, after_rgb)
+        # The veil is what the shafts' haze lays over the place: against the floodlights off (their floor light in it
+        # too).
+        veils[view["name"]] = measure.veil(before_rgb, after_rgb)
         for middle, half, light, front in lamp_heads(place, inputs):
             x, y, depth, focal = measure.where(view, size, middle)
             if x is None or not (0 <= x < size[0] and 0 <= y < size[1]):
@@ -792,19 +787,12 @@ PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.P
                             checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
                            after={"light-layer": ("light-layer", 1), **RECORD}, paid=True, euros=passes.EUROS,
                            beside=RECORD, neighbours=neighbours, applies=applies)
-HAZE_STAGE = graph.Stage("light-haze", "place", haze.make_haze, contracts.Contract("light-haze", 1,
-                                                                                   passes.passes_faults),
-                         (checks.Check("rendered", passes.judge_rendered),
-                          checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
-                         after={"light-layer": ("light-layer", 1), **RECORD}, paid=True, euros=haze.EUROS,
-                         beside=RECORD, neighbours=neighbours, applies=haze.applies)
 LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                           (checks.Check("brightness", judge_brightness), checks.Check("lamps", judge_lamps),
                            checks.Check("sky elements", judge_sky_elements), checks.Check("heads", judge_heads),
                            checks.Check("earth", judge_earth), checks.Check("sky", judge_sky),
                            checks.Check("exposure", judge_exposure), checks.Check("stage_no_worse", judge_stage)),
                           files=light_files, after={"light-layer": ("light-layer", 1),
-                                                    "light-passes": ("light-passes", 1),
-                                                    "light-haze": ("light-haze", 1), **RECORD},
+                                                    "light-passes": ("light-passes", 1), **RECORD},
                           beside=RECORD, neighbours=neighbours, applies=applies)
-ROWS = (LAYER_STAGE, PASSES_STAGE, HAZE_STAGE, LIGHT_STAGE)
+ROWS = (LAYER_STAGE, PASSES_STAGE, LIGHT_STAGE)
