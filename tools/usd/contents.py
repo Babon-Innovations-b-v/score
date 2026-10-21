@@ -36,8 +36,9 @@ blocks like fail.
                 its builder with the library's surfaces). The palette gate joins once it lands (#8)
     light       the light layer (layers/light.usda, the per-lamp baked layers of the owner's light plan) is held by
                 the stage's root, and every lamp of the scene record stands under /<place>/Lights
-    sound       the sound layer (layers/sound.usda) is held by the root and every room tone the place's sound table
-                (data/sound/places.json) names stands under /<place>/Sound/Room
+    sound       the sound layer (layers/sound.usda) is held by the root and every sound of the place's bed (its room
+                tone, or what the suit lets through outside: score/stages/sound/beds.py, from its design) stands
+                under /<place>/Sound/Room; a bed its design does not decide is unknown
     neighbours  every place the scene record shows stands under /<place>/Places, its references resolve to files,
                 and it has children
     game        no record the place is made from (its scene records: the one beside the stage, data/scene's and the
@@ -555,13 +556,18 @@ def judge_light(stage, place, inventory, outputs):
 
 
 def judge_sound(stage, place, inventory, outputs):
-    """The sound layer held by the root, and every room tone of the place's sound table standing."""
-    table = json.loads((DATA / "sound/places.json").read_text())["places"].get(place)
-    if table is None:
-        return UNKNOWN, [], f"the sound table (data/sound/places.json) has no entry for {place}"
+    """The sound layer held by the root, and every sound of the place's bed (score/stages/sound/beds.py, from its
+    design) standing."""
+    if str(REPO) not in sys.path:
+        sys.path.append(str(REPO))
+    from score.stages.sound import beds
+    bed = beds.of_place(place, beds.paths(place, DATA, DESIGN.parent))  # his design: plans, inventories
+    if not bed["sounds"]:
+        lacks = "; ".join(bed["facts"]["missing"]) or "no library bed's brief fits its design"
+        return UNKNOWN, [], f"the bed of {place} is undecided (score/stages/sound/beds.py): {lacks}"
     faults = [] if SOUND_LAYER in root_layers(stage) else [f"no sound layer ({SOUND_LAYER}) on this stage"]
-    names = [*table.get("loops", []), *table.get("heard_through", [])]
-    faults += [f"{name}: a room tone of the sound table, not on the stage" for name in names
+    names = bed["sounds"]
+    faults += [f"{name}: a sound of the place's bed, not on the stage" for name in names
                if not stage.GetPrimAtPath(f"/{place}/Sound/Room/{name}")]
     return outcome(faults, f"the sound layer and {len(names)} room tones")
 

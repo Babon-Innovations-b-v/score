@@ -16,7 +16,8 @@ gates; `takes.py` the paid part.
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **A scene's bed comes from its design, never a list per scene** (`beds.py`, the owner's agnostic rule): how it is
-  heard (a room by its plan; outside, through the suit where its body's surface pressure, `data/physics/bodies.json`
+  heard (a room by its plan, a top scene held by none outside unless its plan says `inside`: the Moon base round
+  its modules; outside, through the suit where its body's surface pressure, `data/physics/bodies.json`
   cited or the setting's own, is under the Armstrong limit, else the open air; its body the site's of the outside place
   holding it, `data/physics/setting.json` up `data/places/within.json`), then the library beds whose brief's `bed`
   (`data/sound/sounds.json`: heard, air, shell, ground, shape, nouns, row kinds) fits it: every fitting `layer` and one
