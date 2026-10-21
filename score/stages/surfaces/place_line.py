@@ -76,6 +76,9 @@ BASE_CELL, BASE_ON_PLANE = 1 / 16, 0.8
 PAINT_CLASSES = "cpu-32c-128gb,cpu-32c-64gb,cpu-32c-256gb,cpu-16c-64gb"
 PAINT_MINUTES, PAINT_EUROS = 2, 0.5
 TAKE, RECORDS, HOME, CODE = "paint take", "paint records", "props home", "paint repo"
+# A floor a scene reads as a row (on_floor) is a slab: its height at most this share of its narrower side (the
+# designed floors read 0.1 to 0.2 m on 3 to 14 m, a stage 1.3 m on 8 m; a table, bed or counter half or more).
+SLAB = 0.25
 CLAIMED = "paint claimed rows"  # {take: the rows other places stand it with}, worked out before the job (claimed_rows)
 PAINT_REPO = ("score", "tools/props", "data/library", "data/definitions", "design/tokens", "data/checks",
               "data/inventory")
@@ -162,31 +165,52 @@ def finished_frame(mesh, take):
     return matrix, gap, final.bounds
 
 
-def stands_on_feet(entry, inventory, rules_file):
+def stands_on_feet(entry, inventory, rules_file, take=None):
     """Whether a row of the take's own place stands its kind on the floor or ground, on feet the paint may level: its
-    anchor the floor or the ground (never mounted on another object), not fixed, not hung (its support, or the resting
+    anchor the floor or the ground, or a floor its scene reads as a row (on_floor), never mounted on another object;
+    not fixed, not part of the room's shell (a designed row's `route` "shell"), not hung (its support, or the resting
     rules' hanging words in its id or name), not laid tilted on purpose (`leans`), and not a pile of ground debris
     (the rules' ground debris words: a cairn of stones). Every other row's take is left as made: the cockpit's flight
     stick set in its console and the campgrounds' cairn read as standing and failed "feet in one plane" on their
     resting faces, the wreck's debris before them (2026-10-15). A word of a description is not a cable's or a cloth's
-    class: the garage's control cabinet, "cables running up from its top", stands and is levelled."""
-    return bool(standing_rows(entry, inventory, rules_file))
+    class: the garage's control cabinet, "cables running up from its top", stands and is levelled. The inventory is
+    the place's scene inventory: a designed place's hand-in, whose rows name their take (`prop:<take>`), else its
+    old inventory, whose rows name the kind (`prop:<kind>`)."""
+    return bool(standing_rows(entry, inventory, rules_file, take))
 
 
-def standing_rows(entry, inventory, rules_file):
-    """The rows of the take's own place that stand its kind on feet the paint may level (stands_on_feet)."""
+def standing_rows(entry, inventory, rules_file, take=None):
+    """The rows of the take's own place that stand its kind, or the take itself, on feet the paint may level
+    (stands_on_feet)."""
     rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory and pathlib.Path(inventory).exists() \
         else []
-    return [row for row in rows if row.get("thing") == f"prop:{entry['kind']}" and stands(row, rules_file)]
+    things = {f"prop:{entry['kind']}", *([f"prop:{take}"] if take else [])}
+    return [row for row in rows if row.get("thing") in things and stands(row, rules_file, rows)]
 
 
-def stands(row, rules_file):
-    """Whether a row stands on the floor or ground on feet the paint may level (stands_on_feet's terms)."""
+def stands(row, rules_file, rows=()):
+    """Whether a row stands on the floor or ground on feet the paint may level (stands_on_feet's terms); `rows`, its
+    inventory's, name what an `on:` anchor stands on."""
     rules = json.loads(pathlib.Path(rules_file).read_text())
     lying = set(rules["hanging"]) | {word for bedding in rules["may_bed"] if bedding["class"] == "ground debris"
                                      for word in bedding["words"]}
     return (not row.get("fixed") and not row.get("leans") and row.get("support") in (None, "floor")
-            and row.get("anchor", "") in ("floor", "ground", "") and not row_words(row) & lying)
+            and row.get("route") != "shell"
+            and (row.get("anchor", "") in ("floor", "ground", "") or on_floor(row, rows))
+            and not row_words(row) & lying)
+
+
+def on_floor(row, rows):
+    """Whether a row's `on:` anchor is a floor its scene reads as a row: ground the reading calls terrain, or a slab
+    laid on the floor or ground (its height, the third of its size in metres, at most SLAB of its narrower side). A
+    designed scene reads its floor as a row (the airlock's floor plates, the street's surface), so what stands on it
+    stands on the floor; a table, a shelf, a wall or a building holds what is on it, which is left as made."""
+    anchor = str(row.get("anchor", ""))
+    holder = {found.get("id"): found for found in rows}.get(anchor.removeprefix("on:"))
+    if not anchor.startswith("on:") or holder is None or holder.get("anchor") not in ("floor", "ground"):
+        return False
+    size = holder.get("size") or ()
+    return bool(holder.get("terrain")) or (len(size) == 3 and size[2] <= SLAB * min(size[0], size[1]))
 
 
 def claimants(place):
@@ -211,7 +235,8 @@ def claimed_rows(take, inputs):
         inventory = inputs.get(f"inventory {place}")
         rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory else []
         row = model.rsplit("_", 1)[0]
-        found += [found_row for found_row in rows if found_row["id"] == row and stands(found_row, inputs["resting rules"])]
+        found += [found_row for found_row in rows
+                  if found_row["id"] == row and stands(found_row, inputs["resting rules"], rows)]
     return found
 
 
@@ -427,7 +452,7 @@ def paint_take(inputs, out, take, record, records):
     moved = mesh.copy()
     moved.apply_transform(matrix)
     levelled = {"skipped": "no floor or held row of its place lays its kind"}
-    standing = standing_rows(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"])
+    standing = standing_rows(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"], take)
     standing += json.loads(inputs[CLAIMED].read_text()).get(take, []) if CLAIMED in inputs else []
     if standing:
         tall = max((row["size"][2] for row in standing if len(row.get("size") or ()) == 3), default=None)

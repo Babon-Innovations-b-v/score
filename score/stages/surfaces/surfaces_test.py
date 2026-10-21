@@ -466,6 +466,40 @@ def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fail
     assert paint.files("greenhouse")["inventory greenhouse"] == "{data}/inventory/greenhouse.json"
 
 
+def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_inventory():
+    """A designed place's rows are its hand-in's ({home}/design/props/<place>.json, read from its locked concept): the
+    paint declares and reads it to tell a take laid loose on the floor from one held, and keys on it, never on the old
+    concept's data/inventory file. Its rows name their take (`prop:<take>`) and stand on the floor the reading made a
+    row of (`on:<floor row>`)."""
+    from score.stages.surfaces import place_line
+    paint = {stage.name: stage for stage in stages.STAGES}["surfaces-paint"]
+    kept, prop_data.DESIGN = prop_data.DESIGN, pathlib.Path(tempfile.mkdtemp())  # the hand-ins apart from surfaces'
+    hand_in = prop_data.DESIGN / "greenhouse.json"
+    floor = {"id": "floor_plates", "anchor": "ground", "size": [4.0, 5.0, 0.1], "thing": "prop:gh_floor_ab12"}
+    rows = [floor,
+            {"id": "crate", "name": "crop crate", "anchor": "on:floor_plates", "thing": "prop:gh_crate_ab12"},
+            {"id": "jar", "name": "seed jar", "anchor": "on:table", "thing": "prop:gh_jar_ab12"},
+            {"id": "table", "name": "work table", "anchor": "floor", "size": [1.5, 0.8, 0.8], "thing": "prop:x"},
+            {"id": "wall", "name": "left wall", "anchor": "on:floor_plates", "route": "shell",
+             "thing": "prop:gh_wall_ab12"}]
+    hand_in.write_text(json.dumps({"place": "greenhouse", "rows": rows}))
+    try:
+        assert stages.paint_inventory("greenhouse") == "{home}/design/props/greenhouse.json"
+        assert paint.files("greenhouse")["inventory greenhouse"] == "{home}/design/props/greenhouse.json"
+        rules = REPO / "data/checks/resting.json"
+        entry = {"place": "greenhouse", "kind": "gh_crate"}  # a designed take's kind lacks its take's suffix
+        assert [row["id"] for row in place_line.standing_rows(entry, hand_in, rules, "gh_crate_ab12")] == ["crate"]
+        assert not place_line.stands_on_feet(entry, hand_in, rules)  # by kind alone no designed row names it
+        assert not place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_jar"}, hand_in, rules, "gh_jar_ab12")
+        assert not place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_wall"}, hand_in, rules,
+                                             "gh_wall_ab12")
+        assert place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_floor"}, hand_in, rules, "gh_floor_ab12")
+    finally:
+        shutil.rmtree(prop_data.DESIGN)
+        prop_data.DESIGN = kept
+    assert stages.paint_inventory("greenhouse") == "{data}/inventory/greenhouse.json"
+
+
 def test_the_bake_takes_every_spec_today_s_library_knows_and_stops_on_a_missing_picture():
     """camp's bake, 2026-10-12: a locker label's spec in the job named a picture in another checkout."""
     from score.stages.surfaces import place_line

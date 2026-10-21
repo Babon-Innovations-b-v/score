@@ -202,8 +202,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   picture-derived look (tried 2026-10-13, reverted). The one exception is the finish route's own wear: a library
   level the list gives a finish only with a cause the views show (owner, 2026-10-20).
 - **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):
-  a take a row stands on the floor or ground (`stands_on_feet`, from the inventory and the resting rules, declared
-  in the table: never mounted on another object, fixed, hung, laid tilted on purpose (`leans`) or a pile of ground
+  a take a row stands on the floor or ground (`stands_on_feet`, from the scene inventory and the resting rules,
+  declared in the table, `stages.paint_inventory`: a designed place's hand-in, its rows naming their take and standing
+  on the floor row its reading made (`on_floor`: terrain or a slab), else the old inventory; never mounted on another object, part of the room's shell, fixed, hung, laid tilted on purpose (`leans`) or a pile of ground
   debris; a word of a description, such as a cabinet's "cables", is no class) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot
   over a tenth of its size up is a missing leg and fails the gate "feet in one plane" by name. Never level by
   tipping the model: its own up is the reference (the water tank's top lay level within 0.25 degrees). The bake
