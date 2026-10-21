@@ -39,6 +39,26 @@ import scene  # noqa: E402
 PLACE = "hub"
 
 
+def stand_in_library(folder, names):
+    """Every old surface was retired on 2026-10-21, so the export's binding, subsets and sounds are checked on a
+    stand-in surface library holding `names` (painted metal in one grey token, sounding as steel plate) and an
+    environment record whose places name no materials of their own; the library's readers are pointed at both."""
+    import library
+    found = {**library.theme_library(), "tokens": {"stand-in": "#808080"}, "dirt": "stand-in",
+             "families": {"painted": {"surface": "steel_plate", "variants": {
+                 name: {"recipe": "painted_metal", "token": "stand-in", "bare": "stand-in"} for name in names}}}}
+    materials, places = folder / "materials.json", folder / "place.json"
+    materials.write_text(json.dumps(found))
+    places.write_text(json.dumps({name: {**entry, "materials": {}, "wear": {
+        key: value for key, value in entry.get("wear", {}).items() if key != "dirt_token"}}
+        if isinstance(entry, dict) else entry for name, entry in json.loads(library.PLACES.read_text()).items()}))
+    library.theme_library.__defaults__ = (materials,)
+    library.library_specs.__defaults__ = (materials, None)
+    for reader in (library.resolved, library.by_library, library.wear_of):
+        reader.__defaults__ = (places, materials)
+    library.dirt_token_of.__defaults__ = (places,)
+
+
 def check_builders():
     walls = builders.room_walls(6.0, 6.0, 1.6, 2.8, "x", [{"side": "south", "wide": 2.2, "tall": 2.6}])
     middles = walls["points"][walls["triangles"]].mean(axis=1)
@@ -502,15 +522,15 @@ def check_labels_and_glow(folder):
 
 
 def check_records():
-    """Every record names builders that exist with their own arguments, library surfaces that exist, and views
-    with an eye, an aim and a field of view."""
-    surfaces = set(library.variants(library.theme_library()))
+    """Every record names builders that exist with their own arguments, a library surface for each (the library
+    answers whether it holds it: every old surface was retired on 2026-10-21, and bind_surface names a missing one),
+    and views with an eye, an aim and a field of view."""
     for path in sorted(scene.SCENES.glob("*.json")):
         record = json.loads(path.read_text())
         for key in ("structure", "ground", "water"):
             for entry in record.get(key, []):
                 assert entry["builder"] in scene.BUILDERS, (path.name, entry["builder"])
-                assert entry["surface"] in surfaces, (path.name, entry["surface"])
+                assert isinstance(entry["surface"], str) and entry["surface"], (path.name, entry["name"])
                 assert entry.get("plain", "plate") in placeholders.PLAIN_KINDS, (path.name, entry["name"])
                 scene.built_meshes(entry)
         assert "backdrop" not in record, path.name  # no picture of a place on a ring: the far city is built in 3D
@@ -599,6 +619,8 @@ def check_shafts_and_dome(folder):
 
 
 def main():
+    stand_ins = tempfile.TemporaryDirectory()
+    stand_in_library(pathlib.Path(stand_ins.name), ("roof_steel_paint", "deck", "harbour_water"))
     check_builders()
     check_sky_builders()
     with tempfile.TemporaryDirectory() as folder:

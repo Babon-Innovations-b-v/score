@@ -17,23 +17,21 @@ UNKNOWN = (150, 150, 150)
 LIGHT = np.array([-0.45, 0.6, 0.66]) / np.linalg.norm([-0.45, 0.6, 0.66])
 
 
-def token_colours(tokens_file):
-    """{token name: (r, g, b)} of the design tokens' colours (a themed token's own value)."""
-    found = {}
-    for entry in json.loads(pathlib.Path(tokens_file).read_text())["color"]["tokens"]:
-        value = entry["value"]["ops"] if isinstance(entry["value"], dict) else entry["value"]
-        found[entry["name"]] = tuple(int(value.lstrip("#")[at:at + 2], 16) for at in (0, 2, 4))
-    return found
+def token_colours(materials):
+    """{token name: (r, g, b)} of a surface library's own palette tokens ({name: "#rrggbb"})."""
+    return {name: tuple(int(value.lstrip("#")[at:at + 2], 16) for at in (0, 2, 4))
+            for name, value in (materials.get("tokens") or {}).items()}
 
 
-def library(materials_file, tokens_file):
-    """{surface name: (rgb, roughness, metallic)} of every variant in the material library; empty for an environment
-    with no library."""
-    if not (pathlib.Path(materials_file).is_file() and pathlib.Path(tokens_file).is_file()):
+def library(materials_file):
+    """{surface name: (rgb, roughness, metallic)} of every variant in a surface library, in its own tokens; empty for
+    a library with none (the method's, since every old material was retired on 2026-10-21)."""
+    if not pathlib.Path(materials_file).is_file():
         return {}
-    colours = token_colours(tokens_file)
+    materials = json.loads(pathlib.Path(materials_file).read_text())
+    colours = token_colours(materials)
     found = {}
-    for family in json.loads(pathlib.Path(materials_file).read_text())["families"].values():
+    for family in materials["families"].values():
         for name, variant in (family.get("variants") or {}).items():
             rgb = colours.get(variant.get("token"), UNKNOWN)
             found[name] = (rgb, float(variant.get("roughness", 0.5)), 0.8 if "metal" in variant.get("recipe", "") else 0.0)

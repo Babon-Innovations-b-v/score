@@ -22,46 +22,65 @@ sys.path.insert(0, str(library.REPO / "tools/library"))
 import library_files  # noqa: E402
 
 
-def test_every_variant_resolves_to_a_known_recipe_in_token_colours():
-    found = library.library_specs()
-    recipes = library.theme_library()["recipes"]
-    assert len(found) >= 60
-    for name, spec in found.items():
-        assert spec["recipe"] in recipes, name
-        assert len(spec["colour"]) == 3 and all(0.0 <= value <= 1.0 for value in spec["colour"]), name
-        assert all(setting in spec for setting in recipes[spec["recipe"]]), name
+def scene_library(folder, families):
+    """A scene's surface library as the surface-library row writes it (the method's recipes, its own tokens), with
+    `families` ({family: {variant: entry}}), at `folder`/materials.json."""
+    method = library.theme_library()
+    found = {**method, "tokens": {"panel-grey": "#8c96a0", "bolt-steel": "#9ba2a9", "dust": "#8b8883"},
+             "dirt": "dust", "families": {family: {"variants": variants} for family, variants in families.items()}}
+    path = pathlib.Path(folder) / "materials.json"
+    path.write_text(json.dumps(found))
+    return path
 
 
-def test_every_picture_variant_has_its_picture_drawn():
-    for name, spec in library.library_specs().items():
-        if spec["recipe"] in ("screen", "printed"):
-            assert pathlib.Path(spec["image"]).exists(), name
+def test_the_method_library_holds_no_old_material():
+    """Every old material retired (owner, 2026-10-21): the repository's library is the method alone, its recipes'
+    defaults naming no token; a scene's surfaces are made fresh by the surface-library row."""
+    method = library.theme_library()
+    assert method["families"] == {} and method["tokens"] == {} and method["pictures"] == {}
+    assert not list(library.PICTURES.glob("*.png"))
+    assert not [name for defaults in method["recipes"].values() for name, value in defaults.items()
+                if isinstance(value, str)]
+    assert set(method["colour_settings"]) <= set(method["recipes"])
+
+
+def test_every_variant_resolves_to_a_known_recipe_in_its_library_s_token_colours():
+    with tempfile.TemporaryDirectory() as folder:
+        path = scene_library(folder, {"paint": {"panel": {"recipe": "painted_metal", "token": "panel-grey",
+                                                          "bare": "bolt-steel", "roughness": 0.4}},
+                                      "steel": {"bolt": {"recipe": "bare_metal", "token": "bolt-steel"}}})
+        found = library.library_specs(path)
+        recipes = library.theme_library(path)["recipes"]
+        assert set(found) == {"panel", "bolt"}
+        for name, spec in found.items():
+            assert spec["recipe"] in recipes, name
+            assert len(spec["colour"]) == 3 and all(0.0 <= value <= 1.0 for value in spec["colour"]), name
+            assert all(setting in spec for setting in recipes[spec["recipe"]]), name
+        assert found["panel"]["bare"] == library.linear("#9ba2a9") and found["panel"]["roughness"] == 0.4
+        assert found["bolt"]["dirt_colour"] == library.linear("#8b8883")  # the library's dirt token
 
 
 def test_a_variant_is_named_once_across_the_families():
-    library_data = library.theme_library()
-    names = [name for family in library_data["families"].values() for name in family["variants"]]
-    assert len(names) == len(set(names)) == len(library.variants(library_data))
+    with tempfile.TemporaryDirectory() as folder:
+        path = scene_library(folder, {"paint": {"panel": {"recipe": "painted_metal", "token": "panel-grey"}},
+                                      "steel": {"panel": {"recipe": "bare_metal", "token": "bolt-steel"}}})
+        with pytest.raises(SystemExit, match="names 'panel' twice"):
+            library.variants(library.theme_library(path))
 
 
-def test_the_hub_and_the_habitat_take_the_same_library_in_their_own_tokens():
-    hub = library.resolved("hub")
-    habitat = library.resolved("habitat")
-    assert hub["painted_panel"]["recipe"] == habitat["painted_hull_panel"]["recipe"] == "painted_metal"
-    assert hub["painted_panel"]["token"] == "hull-trim" and habitat["painted_hull_panel"]["token"] == "hull"
-    assert habitat["orange_rib"]["library"] == "painted_panel" and habitat["orange_rib"]["token"] == "machine"
+def test_the_empty_library_names_the_missing_input():
+    assert library.library_specs() == {} and library.variants(library.theme_library()) == {}  # a lookup finds none
+    with pytest.raises(library.LibraryEmpty, match="surface panel .*run surface-library first"):
+        library.spec(library.theme_library(), "panel", "grey", {})
+    with tempfile.TemporaryDirectory() as folder:
+        path = scene_library(folder, {"paint": {"panel": {"recipe": "painted_metal", "token": "panel-grey"}}})
+        with pytest.raises(library.LibraryEmpty, match="surface rubber_mat"):
+            library.spec(library.theme_library(path), "rubber_mat", "panel-grey", {"panel-grey": [0, 0, 0]})
 
 
-def test_a_code_piece_slot_finds_its_place_colour_by_library_name():
-    assert library.by_library("habitat")["painted_panel"]["token"] == "hull-trim"  # its worn grey walls (style v2)
-    assert library.by_library("hub")["painted_panel"]["token"] == "hull-trim"
-    assert library.by_library("hub")["quilted_white"]["token"] == "hull"
-
-
-def test_the_wear_levels_rise_and_the_hub_is_worked():
+def test_the_wear_levels_rise():
     levels = library.theme_library()["wear_levels"]
     assert levels["new"] == 0.0 < levels["worked"] < levels["worn"] <= 1.0
-    assert library.wear_of("hub")[0] == levels["worked"]
 
 
 def test_a_token_colour_is_linear():
@@ -70,9 +89,9 @@ def test_a_token_colour_is_linear():
 
 
 def test_every_generated_kind_has_a_turn_and_its_screens_and_cuts_are_sound():
-    """details.json: a proper turn (a rotation), screens naming a library variant, cuts as boxes or circles."""
+    """details.json: a proper turn (a rotation), cuts as boxes or circles. A screen's variant names a surface of
+    the retired library (2026-10-21) until the kinds are made again; its surface is the scene library's."""
     details = json.loads((library.REPO / "data/library/details.json").read_text())
-    names = library.variants(library.theme_library())
     for kind, entry in details.items():
         if kind == "is":
             continue
@@ -81,7 +100,6 @@ def test_every_generated_kind_has_a_turn_and_its_screens_and_cuts_are_sound():
                        - turn[0][1] * (turn[1][0] * turn[2][2] - turn[1][2] * turn[2][0])
                        + turn[0][2] * (turn[1][0] * turn[2][1] - turn[1][1] * turn[2][0]))
         assert abs(determinant - 1.0) < 1e-3, kind
-        assert all(screen["variant"] in names for screen in entry["screens"]), kind
         assert all(len(cut.get("box", cut.get("circle", []))) in (3, 4) for cut in entry["cuts"]), kind
 
 
@@ -274,25 +292,25 @@ def command_output(arguments, folder):
 
 def test_the_list_prints_one_line_and_writes_every_family():
     with tempfile.TemporaryDirectory() as folder:
-        printed = command_output(["--list"], folder)
-        path = pathlib.Path(folder) / "library-list.txt"
-        families = len(library.theme_library()["families"])
-        assert printed == f"library: {families} families, {len(library.variants(library.theme_library()))} " \
-                          f"variants; list: {path}\n", printed
-        assert path.read_text() == library.list_text(library.theme_library())
-        assert len(path.read_text().splitlines()) == families + 1
-        assert command_output(["--list", "--verbose"], folder) == path.read_text()
+        library_path = scene_library(folder, {"paint": {"panel": {"recipe": "painted_metal", "token": "panel-grey"}},
+                                              "steel": {"bolt": {"recipe": "bare_metal", "token": "bolt-steel"}}})
+        saved = library.LIBRARY
+        library.theme_library.__defaults__ = (library_path,)
+        try:
+            printed = command_output(["--list"], folder)
+            path = pathlib.Path(folder) / "library-list.txt"
+            assert printed == f"library: 2 families, 2 variants; list: {path}\n", printed
+            assert path.read_text() == "paint: panel\nsteel: bolt\n2 variants\n"
+            assert command_output(["--list", "--verbose"], folder) == path.read_text()
+        finally:
+            library.theme_library.__defaults__ = (saved,)
 
 
-def test_a_place_prints_one_line_and_writes_its_materials_as_json():
+def test_the_command_line_says_the_empty_library():
     with tempfile.TemporaryDirectory() as folder:
-        printed = command_output(["hub"], folder)
-        path = pathlib.Path(folder) / "library-hub.json"
-        found = json.loads(path.read_text())
-        assert found["materials"] == json.loads(json.dumps(library.resolved("hub")))
-        assert printed.startswith(f"library hub: {len(found['materials'])} materials on ") and \
-            printed.endswith(f"; JSON: {path}\n") and printed.count("\n") == 1, printed
-        assert command_output(["--verbose", "hub"], folder) == path.read_text()
+        listed = pathlib.Path(folder) / "library-list.txt"
+        assert command_output(["--list"], folder) == f"library: 0 families, 0 variants; list: {listed}\n"
+        assert command_output(["hub"], folder).startswith("library hub: 0 materials on 0 library variants")
 
 
 def main():

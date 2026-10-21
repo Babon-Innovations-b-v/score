@@ -1,16 +1,20 @@
-"""The library as a scene's palette offers it (owner, 2026-10-21: every scene made from its design alone): the finish
-route's rows read a scene's palette tokens and wear from its scene palette (scene_palette.py, `palette.json`: read from
-its locked concept), never from a hand-kept list in data/definitions/place.json.
+"""The library as a scene's palette offers it (owner, 2026-10-21: every scene made from its design alone; every old
+material retired, the library starts empty). A scene's surfaces are its own surface library, made fresh from its
+design by the `surface-library` row (scene_library.py: materials.json in its output, in its scene palette's tokens),
+never a hand-kept list in data/definitions/place.json and never the retired base theme. The finish route's rows read
+the scene palette (scene_palette.py, `palette.json`: read from its locked concept) and that library together.
 
-    palette = {"tokens": [token, ...], "wear": {"level": <a library wear level>, "dirt": 0..1, "dirt_token": token}}
+    palette = {"tokens": {token: "#rrggbb", ...}, "wear": {"level": <a wear level>, "dirt": 0..1, "dirt_token": token},
+               "library": <the scene library's materials.json, when the row reads one>}
 
-    offered(palette)              the surfaces a scene's models may take: every variant whose own token is one of its
-    take_surfaces(entry, palette) a take's: offered, less what an object never is, its kind's own list on top
+    read(inputs)                  the scene palette of a row's inputs, with its scene library's path
+    scene_library(palette)        the scene library (LibraryEmpty, named, when the row reads none or it is empty)
+    library_tokens(palette)       {token: linear RGB} of the scene library's tokens
     specs(palette)                every variant in its own token, dirtied in the scene's dirt token (the bake's, the
                                   check's)
+    offered(palette)              the surfaces a scene's models may take: every variant in one of its palette tokens
+    take_surfaces(entry, palette) a take's: offered, less what an object never is, its kind's own list on top
     wear(palette)                 (wear, dirt) as numbers
-    library_tokens()              {token: linear RGB} of every token the library's variants are drawn in
-    read(inputs)                  the scene palette of a row's inputs
 
 Standard library only: the prop environment and the framework both read it.
 """
@@ -25,21 +29,40 @@ if str(LIBRARY_TOOLS) not in sys.path:
 
 import library  # noqa: E402
 
-DETAILS = library.REPO / "data/library/details.json"
+ROW = "surface-library"  # the row whose output is a scene's surface library (scene_library.py)
 # What an object is never painted as (labels.NOT_ON_OBJECTS): the floor's deck plates.
 NOT_ON_OBJECTS = ("deck",)
 
 
-def library_tokens():
-    """{token: linear RGB} of the palette tokens the library's variants are drawn in, sorted by name."""
-    every = library.token_colours()
-    used = {variant["token"] for variant in library.variants(library.theme_library()).values()}
-    return {token: every[token] for token in sorted(used) if token in every}
+def read(inputs):
+    """The scene palette of a row's inputs (palette.json of its `finish-route-palette` input), with the path of its
+    scene library (`library`: materials.json of its `surface-library` input) when the row reads one."""
+    palette = json.loads((pathlib.Path(inputs["finish-route-palette"]) / "palette.json").read_text())
+    if ROW in inputs:
+        palette["library"] = str(pathlib.Path(inputs[ROW]) / "materials.json")
+    return palette
+
+
+def scene_library(palette):
+    """The scene's surface library; LibraryEmpty when the row reads none or it holds no variant."""
+    if "library" not in palette:
+        raise library.LibraryEmpty(library.EMPTY)
+    found = library.theme_library(palette["library"])
+    if not library.variants(found):
+        raise library.LibraryEmpty(f"{palette['library']} holds no surface: {library.EMPTY}")
+    return found
+
+
+def library_tokens(palette):
+    """{token: linear RGB} of the scene library's palette tokens, sorted by name."""
+    every = library.token_colours(scene_library(palette))
+    return {token: every[token] for token in sorted(every)}
 
 
 def specs(palette):
     """Every variant in its own token, dirtied in the scene's dirt token (else the library's)."""
-    return library.library_specs(dirt=palette["wear"].get("dirt_token"))
+    scene_library(palette)
+    return library.library_specs(palette["library"], dirt=palette["wear"].get("dirt_token"))
 
 
 def offered(palette):
@@ -48,10 +71,9 @@ def offered(palette):
     return {name: spec for name, spec in specs(palette).items() if spec["token"] in tokens}
 
 
-def kind_list(kind):
-    """The library variants a kind names as its own (details.json `materials`), [] when it names none."""
-    found = json.loads(DETAILS.read_text()).get(kind, {}) if kind else {}
-    return list(found.get("materials") or []) if isinstance(found, dict) else []
+def kind_list(kind, palette):
+    """The variants the scene library made for a kind as its own (its `kinds`), [] when it names none."""
+    return list((scene_library(palette).get("kinds") or {}).get(kind) or []) if kind else []
 
 
 def take_surfaces(entry, palette):
@@ -59,15 +81,11 @@ def take_surfaces(entry, palette):
     variants on top (in their own token: a kind's list names what such an object is made of)."""
     every = specs(palette)
     found = {name: spec for name, spec in offered(palette).items() if name not in NOT_ON_OBJECTS}
-    found.update({name: every[name] for name in kind_list(entry.get("kind")) if name in every})
+    found.update({name: every[name] for name in kind_list(entry.get("kind"), palette) if name in every})
     return found
 
 
 def wear(palette):
     """The scene's (wear, dirt) as numbers: its level by the library's wear levels, its dirt as read."""
-    return float(library.theme_library()["wear_levels"][palette["wear"]["level"]]), float(palette["wear"]["dirt"])
-
-
-def read(inputs):
-    """The scene palette of a row's inputs: palette.json of its `finish-route-palette` input."""
-    return json.loads((pathlib.Path(inputs["finish-route-palette"]) / "palette.json").read_text())
+    levels = library.theme_library(palette.get("library", library.LIBRARY))["wear_levels"]
+    return float(levels[palette["wear"]["level"]]), float(palette["wear"]["dirt"])

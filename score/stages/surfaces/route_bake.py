@@ -55,9 +55,8 @@ def baked_specs(palette, specs, records):
     scene palette gives it (palette_library.specs: each variant in its own token, dirtied in its dirt token), a
     surface with settings as its variant's spec with them (route_settings.set_spec). A surface in no library, or a
     spec naming a picture not there, stops the bake here."""
-    import library
     every = palette_library.specs(palette)
-    colours = library.token_colours()
+    colours = palette_library.library_tokens(palette)
     found = {**specs, **{name: every[name] for name in specs if name in every}}
     unknown = []
     for record in (record for take in records.values() for record in take if record.get("surface")):

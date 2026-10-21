@@ -355,7 +355,12 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
         assert "people-body" in person and "motion" not in person, person  # its body after the model, not rigid motion
         assert price.design_takes("pixal@wreck") == models and price.design_takes("sound@wreck") is None
         assert sorted(surface_data.takes("wreck")) == models  # a shell piece's too: the bake bakes what is listed
+        for stage in estimate.SCENE_ROWS:  # once a scene, priced from the measured Gemini answer until measured
+            assert record["layers"][stage]["units"] == 1, record["layers"][stage]
+            assert record["layers"][stage]["price"]["estimated_from"] == estimate.ASK_PRICED_AS
         for stage, layer in record["layers"].items():  # every layer prepare priced, the runner's node priced the same
+            if stage in estimate.SCENE_ROWS:
+                continue
             units = price.forecast_units(f"{stage}@wreck", [], REPO / "data")
             assert units == layer["units"], (stage, units, layer["units"])
             if layer["price"]["likely_euros"] is not None:

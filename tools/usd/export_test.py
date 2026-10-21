@@ -20,8 +20,28 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import export  # noqa: E402
 
-PLACE = "wreck"  # a place the library knows; its layout and inventory here are the test's own
+PLACE = "wreck"  # a place the environment knows; its layout and inventory here are the test's own
 TOP, BOTTOM, EDITED = "hull_white_scorched", "bare_steel", "cast_iron_dark"
+
+
+def stand_in_library(folder, names):
+    """Every old surface was retired on 2026-10-21, so the export's binding, subsets and sounds are checked on a
+    stand-in surface library holding `names` (painted metal in one grey token, sounding as steel plate) and an
+    environment record whose places name no materials of their own; the library's readers are pointed at both."""
+    import library
+    found = {**library.theme_library(), "tokens": {"stand-in": "#808080"}, "dirt": "stand-in",
+             "families": {"painted": {"surface": "steel_plate", "variants": {
+                 name: {"recipe": "painted_metal", "token": "stand-in", "bare": "stand-in"} for name in names}}}}
+    materials, places = folder / "materials.json", folder / "place.json"
+    materials.write_text(json.dumps(found))
+    places.write_text(json.dumps({name: {**entry, "materials": {}, "wear": {
+        key: value for key, value in entry.get("wear", {}).items() if key != "dirt_token"}}
+        if isinstance(entry, dict) else entry for name, entry in json.loads(library.PLACES.read_text()).items()}))
+    library.theme_library.__defaults__ = (materials,)
+    library.library_specs.__defaults__ = (materials, None)
+    for reader in (library.resolved, library.by_library, library.wear_of):
+        reader.__defaults__ = (places, materials)
+    library.dirt_token_of.__defaults__ = (places,)
 
 
 def box_gltf(folder, name="box", shape=None):
@@ -439,6 +459,8 @@ if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
+    stand_ins = tempfile.TemporaryDirectory()
+    stand_in_library(pathlib.Path(stand_ins.name), (TOP, BOTTOM, EDITED))
     failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
     for failure in failures:
         print(failure)

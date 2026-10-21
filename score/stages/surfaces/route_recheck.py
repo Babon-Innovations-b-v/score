@@ -97,22 +97,22 @@ def colour_faults(finishes):
             if entry.get("by") == "off its colour"]
 
 
-def token_colour(token):
-    """A palette token's colour, sRGB 0-255 (finish_parts.surface_colours' way)."""
+def token_colour(token, tokens):
+    """A palette token's colour (`tokens`: {token: linear RGB}, the scene library's), sRGB 0-255
+    (finish_parts.surface_colours' way)."""
     import labels
-    import library
-    return np.clip(labels.srgb(np.array(library.token_colours()[token], dtype=float)) * 255, 0, 255).astype(np.uint8)
+    return np.clip(labels.srgb(np.array(tokens[token], dtype=float)) * 255, 0, 255).astype(np.uint8)
 
 
-def drawn(folders, every, record):
+def drawn(folders, every, record, tokens):
     """Each view of the take drawn flat in its parts' library surface colours (a part with the list's settings in
     its token's: the colour the bake gives it, route_settings) into folders["out"]
-    (checked-<view>.png); the pictures by view."""
+    (checked-<view>.png; `tokens` the scene library's, palette_library.library_tokens); the pictures by view."""
     from PIL import Image
     mesh = route_split.model_of(folders["views"])
     part_of = np.load(folders["parts"] / "parts.npy").astype(int)
     colours = finish_parts.surface_colours(every, {row["judge"] for row in record["parts"]})
-    by_face = np.array([token_colour(row["settings"]["token"]) if row.get("settings") else colours[row["judge"]]
+    by_face = np.array([token_colour(row["settings"]["token"], tokens) if row.get("settings") else colours[row["judge"]]
                         for row in record["parts"]], dtype=np.uint8)[part_of]
     angles = json.loads((folders["views"].parent / "views.json").read_text())[folders["views"].name]["views"]
     faces = np.load(folders["views"] / "faces.npz")
@@ -160,7 +160,8 @@ def make_recheck(inputs, out, seed, params):
     views, parts = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["surfaces-parts"])
     _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = json.loads((views / "views.json").read_text())
-    tokens, palette = palette_library.library_tokens(), palette_library.read(inputs)
+    palette = palette_library.read(inputs)
+    tokens = palette_library.library_tokens(palette)
     found, bodies = {}, {}
     records = json.loads((parts / "parts.json").read_text())["takes"]
     for take, record in records.items():
@@ -170,7 +171,7 @@ def make_recheck(inputs, out, seed, params):
                            "fault": "the free colour check, not asked: " + "; ".join(faults)}
             continue
         every = palette_library.take_surfaces(takes[take], palette)
-        pictures = drawn({"views": views / take, "parts": parts / take, "out": out / take}, every, record)
+        pictures = drawn({"views": views / take, "parts": parts / take, "out": out / take}, every, record, tokens)
         context = {"surfaces": every, "tokens": tokens,
                    "stand_in": cast_takes[take].get("close_up") == route_data.STAND_IN}
         bodies[take] = recheck_body(pictures, takes[take], record["finishes"], context)

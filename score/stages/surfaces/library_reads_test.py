@@ -48,7 +48,8 @@ def test_a_surface_added_anywhere_moves_no_paint_key_and_every_bake_key():
         before = {row: keys(row, "hub", data) for row in ("surfaces-paint", "surfaces-bake")}
         added = {"recipe": "painted_metal", "token": "hull-trim", "bare": "hull"}
         edit(data / "library/materials.json",
-             lambda library: library["families"]["painted"]["variants"].update(brand_new_panel=added))
+             lambda library: library["families"].setdefault("painted", {"variants": {}})["variants"].update(
+                 brand_new_panel=added))
         assert keys("surfaces-paint", "hub", data) == before["surfaces-paint"]
         assert keys("surfaces-bake", "hub", data) != before["surfaces-bake"]
     finally:

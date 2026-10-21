@@ -49,7 +49,7 @@ def palette(place):
     specs = dict(library.resolved(place))
     specs.update({name: spec for name, spec in every.items() if spec.get("family") in SHARED_FAMILIES})
     pictures = library.theme_library()["pictures"]
-    tokens = library.token_colours()
+    tokens = library.token_colours(library.theme_library())
     colours = []
     for spec in specs.values():
         dirt = np.array(spec["dirt_colour"])

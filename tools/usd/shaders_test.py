@@ -64,15 +64,6 @@ def check_the_earth_look(folder):
         Sdf.Path(f"/{PLACE}/Library/earth_face")
 
 
-def check_the_missing_materials_are_library_surfaces():
-    families = json.loads((REPO / "data/library/materials.json").read_text())["families"]
-    variants = {name: about for family in families.values() for name, about in family["variants"].items()}
-    for name in ("warning_lamp", "grow_light", "indicator_amber", "screen_teal", "sun_disc", "earth_face"):
-        assert name in variants, name
-    games = {about.get("game") for about in variants.values()}
-    assert {"hull_trim", "roof"} <= games
-
-
 def tiles_folder(folder, surface="deck", metres=2.0):
     """A surface-tiles output as make_tiles.py writes it: one surface's three pictures and tiles.json."""
     from PIL import Image
@@ -113,7 +104,6 @@ def main():
         check_the_earth_look(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_the_tile_look(pathlib.Path(folder))
-    check_the_missing_materials_are_library_surfaces()
     print("shaders_test: ok")
 
 

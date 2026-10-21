@@ -13,7 +13,8 @@ import bmesh  # noqa: E402
 import pieces  # noqa: E402
 
 LIBRARY = json.load(open(f"{ROOT}/data/library/materials.json"))
-GLOWING = {name for family in ("screen", "light") for name in LIBRARY["families"][family]["variants"]}
+GLOWING = {name for family in ("screen", "light")
+           for name in LIBRARY["families"].get(family, {}).get("variants", {})}
 
 pathlib.Path(OUT).mkdir(parents=True, exist_ok=True)
 models = json.load(open(PLAN))["models"]

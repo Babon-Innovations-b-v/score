@@ -87,20 +87,25 @@ def test_each_take_is_painted_by_one_place_and_every_claim_is_baked_by_its_place
 
 def test_every_place_s_surface_line_is_rows_of_world_one():
     names = [stage.name for stage in stages.STAGES]
-    assert {"finish-route-palette", "finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts",
-            "surfaces-paint", "surfaces-bake", "finish-route-recheck", "surfaces-check"} <= set(names)
+    assert {"finish-route-palette", "surface-library", "finish-route-views", "finish-route-list", "finish-route-split",
+            "surfaces-parts", "surfaces-paint", "surfaces-bake", "finish-route-recheck", "surfaces-check"} <= set(names)
     rows = {stage.name: stage for stage in surfaces.ROWS}
     assert all(stage.grain == "place" for stage in surfaces.ROWS)
+    # the scene's surfaces made fresh from its palette before anything is listed (owner, 2026-10-21)
+    assert set(rows["surface-library"].after) == {"finish-route-palette"}
+    for row in ("finish-route-list", "surfaces-parts", "finish-route-recheck", "surfaces-check"):
+        assert "surface-library" in rows[row].after, row
     # the method's interface, painted in the bake at the scene palette's wear and dirt (read from its design)
-    assert set(rows["surfaces-bake"].after) == {"finish-route-palette", "surfaces-parts"}
+    assert set(rows["surfaces-bake"].after) == {"finish-route-palette", "surface-library", "surfaces-parts"}
     assert set(rows["surfaces-paint"].after) == {"surfaces-bake"}  # the bake's painted takes, the paint's gates
     assert all(stage.euros for stage in surfaces.ROWS if stage.paid)
 
 
-def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
-    """The finish route's list, parts, paint, bake, recheck and check read the library; its views and split never do,
-    so a new surface re-asks the list and leaves the renders and their regions where they stood (the split reads the
-    list's answers: identical answers keep its key, the graph's own test)."""
+def test_a_method_change_moves_only_the_rows_that_read_the_library():
+    """The surface-library row and the finish route's list, parts, paint, bake, recheck and check read the method's
+    library (its recipes); its views and split never do, so a recipe's new default makes the scene's surfaces again
+    and re-asks the list, and leaves the renders and their regions where they stood (the split reads the list's
+    answers: identical answers keep its key, the graph's own test). The palette row reads its wear levels alone."""
     data, home = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
     for folder in ("library", "definitions"):
         shutil.copytree(REPO / "data" / folder, data / folder)
@@ -116,13 +121,12 @@ def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
                 path.write_text(name)
     before = {stage.name: runner.file_keys(stage, "greenhouse") for stage in surfaces.ROWS}
     library = json.loads((data / "library" / "materials.json").read_text())
-    library["families"]["plastic"]["variants"]["test_surface"] = {"recipe": "rubber", "token": "danger"}
+    library["recipes"]["rubber"]["roughness"] = 0.8
     (data / "library" / "materials.json").write_text(json.dumps(library))
     moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
-    # the palette row reads the library's tokens and wear levels only: a surface in a token it has asks no scene again
-    assert moved == {"finish-route-list", "surfaces-parts", "surfaces-paint", "surfaces-bake", "finish-route-recheck",
-                     "surfaces-check"}, moved
-    library["families"]["plastic"]["variants"]["test_surface_two"] = {"recipe": "rubber", "token": "no-such-token"}
+    assert moved == {"surface-library", "finish-route-list", "surfaces-parts", "surfaces-paint", "surfaces-bake",
+                     "finish-route-recheck", "surfaces-check"}, moved
+    library["wear_levels"]["scarred"] = 1.0
     (data / "library" / "materials.json").write_text(json.dumps(library))
     palette = next(stage for stage in surfaces.ROWS if stage.name == "finish-route-palette")
     assert runner.file_keys(palette, "greenhouse") != before["finish-route-palette"]
@@ -319,13 +323,9 @@ def baked_record(surfaces, close_up, degrees=None):
             "close_up": close_up, "seen_degrees": degrees}
 
 
-def greenhouse_lab(surface):
-    """A greenhouse surface's colour in today's library, L*a*b*."""
-    import numpy as np
-    import labels
-    import library
-    spec = {**library.by_library("greenhouse"), **library.resolved("greenhouse")}[surface]
-    return [round(float(value), 1) for value in labels.lab(labels.srgb(np.array(spec["colour"]))[None])[0]]
+# The water tank's surfaces as the greenhouse's library gave them when it was fixed (2026-10-12), L*a*b*: the
+# check's measured case, kept as numbers since every old material was retired (2026-10-21).
+TANK_SURFACES = {"bare_steel": [66.3, -1.1, -4.5], "tank_water": [41.5, -3.2, -6.9], "cream_paint": [79.2, -0.7, 7.6]}
 
 
 def test_the_water_tank_s_reversed_greys_fail_and_its_cream_paint_passes():
@@ -337,17 +337,16 @@ def test_the_water_tank_s_reversed_greys_fail_and_its_cream_paint_passes():
     # its water bakes 8.9 b* off its paint, 1.9 noticeable differences at that size: told apart, not one look
     assert len(faults) == 1 and "painted_panel is 13.0 L* lighter than bare_steel" in faults[0], faults
     grey_body = baked_record({"painted_panel": (0.7253, [61.6, -1.5, -6.5]),
-                              "bare_steel": (0.1536, greenhouse_lab("bare_steel")),
-                              "tank_water": (0.1212, greenhouse_lab("tank_water"))}, WATER_TANK_CLOSE_UP, 23.83)
+                              "bare_steel": (0.1536, TANK_SURFACES["bare_steel"]),
+                              "tank_water": (0.1212, TANK_SURFACES["tank_water"])}, WATER_TANK_CLOSE_UP, 23.83)
     faults = bake_check.surface_faults("water_tank_1", grey_body)  # the water fixed, the body still grey
     assert len(faults) == 1 and "lighter than bare_steel" in faults[0], faults
-    after = baked_record({"cream_paint": (0.7253, greenhouse_lab("cream_paint")),
-                          "bare_steel": (0.1536, greenhouse_lab("bare_steel")),
-                          "tank_water": (0.1212, greenhouse_lab("tank_water"))},
+    after = baked_record({"cream_paint": (0.7253, TANK_SURFACES["cream_paint"]),
+                          "bare_steel": (0.1536, TANK_SURFACES["bare_steel"]),
+                          "tank_water": (0.1212, TANK_SURFACES["tank_water"])},
                          {"cream_paint": WATER_TANK_CLOSE_UP["painted_panel"],
                           **{name: WATER_TANK_CLOSE_UP[name] for name in ("bare_steel", "tank_water")}}, 23.83)
     assert bake_check.surface_faults("water_tank_1", after) == [], bake_check.surface_faults("water_tank_1", after)
-    assert greenhouse_lab("tank_water") != greenhouse_lab("deck"), "the tank's water still takes the deck's colour"
     one = baked_record({"painted_panel": (1.0, [61.6, -1.5, -6.5])}, {"painted_panel": [80.3, -0.2, 6.0]})
     assert bake_check.surface_faults("panel_1", one) == [], "one surface is one look by design"
     dark = baked_record({"painted_panel": (0.9, [61.6, -1.5, -6.5]), "rubber": (0.1, [9.3, 0.5, -1.4])},
@@ -520,24 +519,20 @@ def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_
     assert stages.paint_inventory("greenhouse") == "{data}/inventory/greenhouse.json"
 
 
-def test_the_bake_takes_every_spec_today_s_library_knows_and_stops_on_a_missing_picture():
-    """camp's bake, 2026-10-12: a locker label's spec in the job named a picture in another checkout."""
+def test_the_kit_route_s_bake_answers_the_empty_library_by_name():
+    """Every old material retired (owner, 2026-10-21): the kit route's bake, which takes the repository's library by
+    place, names each painted surface no library holds before anything is rented, never a KeyError."""
     from score.stages.surfaces import place_line
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary) / "take"
         folder.mkdir()
         (folder / "dark_panel.ply").write_text("")
-        stale = {"label_crew_lockers": {"recipe": "printed", "image": "/gone/label_crew_lockers.png"},
-                 "dark_panel": {"recipe": "painted_metal", "colour": [0, 0, 0]}}
-        found = place_line.baking_specs("hangar", stale, [folder])
-        assert pathlib.Path(found["label_crew_lockers"]["image"]).exists(), found["label_crew_lockers"]
-        assert found["dark_panel"]["library"] == "dark_panel", found["dark_panel"]
         try:
-            place_line.baking_specs("hangar", {**stale, "own_decal": {"image": "/gone/own.png"}}, [folder])
+            place_line.baking_specs("hangar", {}, [folder])
         except RuntimeError as refused:
-            assert "own_decal" in str(refused), refused
+            assert "surfaces in no library: ['dark_panel']" in str(refused), refused
         else:
-            raise AssertionError("a spec naming a missing picture was baked")
+            raise AssertionError("a bake was specced from an empty library")
 
 
 def test_a_killed_paint_on_the_machine_says_its_signal_and_peak():

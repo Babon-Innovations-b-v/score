@@ -165,13 +165,17 @@ def mesh_prim(stage, path, built):
 def bind_surface(stage, prim, place, surface, out=None, tiles=None):
     """Paint a built mesh with a library surface of the place (/<place>/Library/<surface>), or with its framework
     shader when it has one and the stage's folder is given (shaders.py: its own, or its library tile from `tiles`, a
-    surface-tiles output), and say which."""
+    surface-tiles output), and say which; a surface the library does not hold (every old one retired, 2026-10-21,
+    until the scene's surface-library row makes it) is named as missing on the mesh (`score:surface:missing`, as
+    the sky's ball says it, score/stages/light/sky.py) and left unbound, never painted another way."""
     material = shaders.look(stage, place, surface, out, tiles) or \
         UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Library/{surface}"))
-    if not material:
-        raise ValueError(f"{place}: the library has no surface {surface}")
-    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
     prim.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(surface)
+    if not material:
+        prim.GetPrim().CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
+            f"{place}: the library has no surface {surface} yet (surface library empty: run surface-library first)")
+        return
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
 
 
 def built_meshes(entry):

@@ -27,10 +27,11 @@ SIZES = {"status": (1024, 640), "readout": (1024, 512), "label": (1024, 256), "k
 
 
 def srgb(token):
-    """A token's colour as 8-bit sRGB with full alpha."""
-    hex_colour = next(entry["value"] for entry in json.loads(library.TOKENS.read_text())["color"]["tokens"]
-                      if entry["name"] == token)
-    hex_colour = hex_colour["ops"] if isinstance(hex_colour, dict) else hex_colour
+    """A token's colour (the library's own palette tokens) as 8-bit sRGB with full alpha."""
+    tokens = library.theme_library().get("tokens") or {}
+    if token not in tokens:
+        raise library.LibraryEmpty(f"token {token} is not in the surface library ({library.EMPTY})")
+    hex_colour = tokens[token]
     return tuple(int(hex_colour.lstrip("#")[at:at + 2], 16) for at in (0, 2, 4)) + (255,)
 
 

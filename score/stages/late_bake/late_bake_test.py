@@ -24,13 +24,21 @@ def test_gates():
         made = late_bake.judge_made(root, {}, None)
         assert made.answer == checks.FAIL and made.findings == ("lamp_1",)
         surfaces = late_bake.judge_surfaces(root, {}, None)
-        assert surfaces.answer == checks.FAIL and surfaces.findings == ("tube_1: made_up_paint",)
-        (root / "made" / "report-late.json").write_text(json.dumps(
-            {"pieces": {"tube_1": {"triangles": 10, "slots": ["painted_panel"]},
-                        "lamp_1": {"triangles": 4, "slots": ["painted_panel"]}}}))
-        (root / "made" / "lamp_1.gltf").write_text("{}")
-        assert late_bake.judge_made(root, {}, None).answer == checks.PASS
-        assert late_bake.judge_surfaces(root, {}, None).answer == checks.PASS
+        # the library holds no surface since every old one was retired (2026-10-21): each slot is named
+        assert surfaces.answer == checks.FAIL
+        assert surfaces.findings == ("tube_1: made_up_paint", "tube_1: painted_panel"), surfaces.findings
+        kept = late_bake.library_names
+        late_bake.library_names = lambda: {"painted_panel"}  # a library that holds the panel's surface
+        try:
+            assert late_bake.judge_surfaces(root, {}, None).findings == ("tube_1: made_up_paint",)
+            (root / "made" / "report-late.json").write_text(json.dumps(
+                {"pieces": {"tube_1": {"triangles": 10, "slots": ["painted_panel"]},
+                            "lamp_1": {"triangles": 4, "slots": ["painted_panel"]}}}))
+            (root / "made" / "lamp_1.gltf").write_text("{}")
+            assert late_bake.judge_made(root, {}, None).answer == checks.PASS
+            assert late_bake.judge_surfaces(root, {}, None).answer == checks.PASS
+        finally:
+            late_bake.library_names = kept
 
 
 if __name__ == "__main__":
