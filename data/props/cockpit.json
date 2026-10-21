@@ -42,6 +42,14 @@
   "corner_lamp": {
    "route": "prop",
    "take": "corner_lamp-s1"
+  },
+  "hatch_door_frame": {
+   "route": "prop",
+   "take": "hatch_door_frame-s1"
+  },
+  "wall_screen": {
+   "route": "prop",
+   "take": "wall_screen-s1"
   }
  },
  "fallback": {},

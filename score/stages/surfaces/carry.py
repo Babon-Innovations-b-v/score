@@ -263,7 +263,7 @@ def main(argv=None):
     options = parser.parse_args(argv)
     write = options.write
     runner = stages.runner(world=stages.WORLDS["world1"]())
-    places = stages.places(runner.world)
+    places = stages.places(runner.world, runner.store)
     if options.no_op:
         reasons = dict(entry.split("=", 1) for entry in options.no_op)
         since = codes_at(options.since) if options.since else None

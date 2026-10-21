@@ -29,6 +29,10 @@
    {
     "id": "v6",
     "picture": "WORK/scene/cockpit/views/flight-stick.png"
+   },
+   {
+    "id": "v7",
+    "picture": "WORK/scene/navigation/views/navigation.png"
    }
   ],
   "dimensioned": [
@@ -475,6 +479,42 @@
    ]
   },
   {
+   "id": "wall_screen",
+   "name": "wall screen: a flat screen in a dark grey bezel, amber readouts and a cyan frame line",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.9,
+    0.08,
+    0.6
+   ],
+   "group": "kit: wall",
+   "at": [],
+   "thing": "prop:cockpit_wall_screen",
+   "count": 2,
+   "view": "v7",
+   "box": [
+    806,
+    149,
+    1070,
+    343
+   ],
+   "made": "kit piece",
+   "ground_box": true,
+   "box_from": [
+    "v7.6",
+    "v7.123",
+    "v7.135",
+    "v7.136",
+    "v7.151",
+    "v7.155",
+    "v7.229",
+    "v7.239",
+    "v7.242"
+   ],
+   "share": "owned here since navigation merged into the cockpit (the owner, 2026-10-21); reused by storage, quarters, galley, shiplock, engineroom"
+  },
+  {
    "id": "hatch_door_frame",
    "view": "v3",
    "box": [
@@ -492,7 +532,7 @@
     2.2
    ],
    "count": 1,
-   "thing": "prop:navigation_hatch_door_frame",
+   "thing": "prop:cockpit_hatch_door_frame",
    "made": "kit piece",
    "group": "kit: door",
    "at": [
@@ -507,8 +547,7 @@
     "hatch_door_frame",
     "door_leaf"
    ],
-   "reuse": "navigation:hatch_door_frame",
-   "share": "shared with navigation",
+   "share": "owned here since navigation merged into the cockpit (the owner, 2026-10-21); reused by storage, quarters, galley, shiplock, engineroom",
    "box_from": [
     "v3.5",
     "v3.9",

@@ -3,7 +3,7 @@
     from score import stages
     runner = stages.runner()        # environment 1, the framework's store on this machine
     runner.status(["hangar", "garage"])
-    runner.drive(stages.places(runner.world))   # every line of the environment to its end (python -m score run world1)
+    runner.drive(stages.places(runner.world, runner.store))   # every line of the environment to its end (python -m score run world1)
 
 Step 0 holds the worked example: assembly (P5) on environment 1's round-three stages as unverified seeds, and complete
 (P11). Terrain (the paper's Methods, "Terrain") makes every ground of the environment from its plan, one environment node,
@@ -45,6 +45,7 @@ import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
 from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs
+from score.review import plans
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -965,16 +966,26 @@ def world1():
                                  home=str(PROPS_HOME), repo=str(REPO))
 
 
-def places(world):
+def places(world, store=None):
     """An environment's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
-    none for an environment without data, the images environment), less the scenes places/within.json names `merged`
-    into another (no stage line of their own: the owner, 2026-10-21, navigation into the cockpit)."""
+    none for an environment without data, the images environment), less every scene the creator took out: those
+    places/within.json names `merged` into another (navigation into the cockpit, the owner 2026-10-21), and those his
+    kept plans in `store` (the framework's by default) no longer lay out, removed or merged into a shared room on the
+    plan above (plans.removed, the cockpit's own reading), so the build follows the app without a hand edit."""
     if "data" not in world.roots:
         return []
     data = pathlib.Path(world.roots["data"])
-    within = data / "places/within.json"
-    merged = json.loads(within.read_text()).get("merged", {}) if within.exists() else {}
-    return sorted({path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")} - set(merged))
+    path = data / "places/within.json"
+    found = json.loads(path.read_text()) if path.exists() else {}
+    within = {name: entry["within"] for name, entry in found.get("within", {}).items()}
+    gone = {*found.get("merged", {}), *(removed_by_him(store or Store.default(), within) if within else ())}
+    return sorted({path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")} - gone)
+
+
+def removed_by_him(store, within):
+    """The places of `within` his kept plans removed (plans.removed), asked once a moment (a cockpit page lists the
+    places many times; plans.one_moment)."""
+    return plans.once("removed", store, tuple(sorted(within.items())), lambda: plans.removed(store, within))
 
 
 WORLDS = {"world1": world1, "images": images.image_world}

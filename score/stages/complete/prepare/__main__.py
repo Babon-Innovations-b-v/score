@@ -126,7 +126,7 @@ def fixed_machines(route, stock):
 def moved_rows(runner):
     """`score moved`'s dry run of this tree: [{node, euros, why, again}]."""
     from score.stages import moved
-    found = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world), True))
+    found = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world, runner.store), True))
     return [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again} for buy in found]
 
 
@@ -167,7 +167,7 @@ def inventoried_places(world_places):
 
 def remake(runner, data, root, work, stock=None, moved=None):
     """The remake's prepare record (this package's docstring)."""
-    inventories, waiting = groups.current(runner.store, inventoried_places(stages.places(runner.world)))
+    inventories, waiting = groups.current(runner.store, inventoried_places(stages.places(runner.world, runner.store)))
     by_place = {place: groups.place_groups(place, record) for place, record in inventories.items()}
     index, library_entry = read_library(root, groups.inventories(data))
     rates = predict.hub_rates(data)
@@ -190,7 +190,7 @@ def remake(runner, data, root, work, stock=None, moved=None):
               "across_places": across_places(route, takes, fixed),
               "moved": {"rows": moved} if moved is not None else {"not_run": "--moved not given"},
               "benchmarks": {"listed": benchmarks.listed(), "guard": benchmarks.guard()},
-              "design": design.designs(runner.store, pathlib.Path(data), stages.places(runner.world)),
+              "design": design.designs(runner.store, pathlib.Path(data), stages.places(runner.world, runner.store)),
               "not_in_figure": list(NOT_IN_FIGURE)}
     return {**record, "line": estimate.line(record)}
 
