@@ -280,12 +280,34 @@ def verdict(name, failing, passed_reason, measures=None):
                    {"failing": len(failing), **(measures or {})}, {"failing": "lower"}, tuple(failing[:40]))
 
 
+# A join's inner side by joins.py's names: the hand a sleeve covers, the boot a trouser leg covers.
+INNER = {"wrist": "HANDS", "ankle": "BOOTS"}
+
+
+def joinless(output, kind):
+    """Whether the body draws no piece of a join's inner side (joins.py's hands for the wrist, boots for the ankle):
+    the sleeve or trouser leg runs on as that piece (an astronaut's gloves are its suit's cloth), so there is no such
+    join to open and joins.py measured none."""
+    sys.path.insert(0, str(REPO / "tools/characters/people"))
+    import joins
+    document, _ = joins.read_glb(output / "body.glb")
+    drawn = {document["materials"][primitive["material"]]["name"] for node in document["nodes"]
+             if "mesh" in node and "skin" in node and node.get("name") != "far"
+             for primitive in document["meshes"][node["mesh"]]["primitives"] if "material" in primitive}
+    return not drawn & set(getattr(joins, INNER[kind]))
+
+
 def judge_joins(output, inputs, evidence):
-    """Wrist and ankle overlaps and the standing stance, as joins.py judged them over every clip."""
+    """Wrist and ankle overlaps and the standing stance, as joins.py judged them over every clip. A wrist or ankle
+    joins.py measured none of passes only when the body draws no piece of its inner side (`joinless`)."""
     found = record(output, "joins.json")["verdict"]
+    open_ended = [kind for kind in INNER if found.get(kind) is None and joinless(output, kind)]
     failing = [f"{kind}: {'not measured' if found.get(kind) is None else 'fails'}"
-               for kind in ("wrist", "ankle", "stance") if found.get(kind) is None or not found[kind]["pass"]]
-    return verdict("joins", failing, "wrist, ankle and stance pass")
+               for kind in ("wrist", "ankle", "stance")
+               if kind not in open_ended and (found.get(kind) is None or not found[kind]["pass"])]
+    return verdict("joins", failing, "wrist, ankle and stance pass" + "".join(
+        f"; no {kind} join: the body draws no {INNER[kind].lower()} apart from its cloth" for kind in open_ended),
+        {"joinless": len(open_ended)})
 
 
 def judge_outline(output, inputs, evidence):
