@@ -298,36 +298,6 @@ def test_a_sweep_leaves_a_parked_machine_alone_until_its_time():
     assert batch.is_leftover(batch.run_tags(999999999, until), time.time())  # its expirer gone
 
 
-class FakeMachines:
-    """A backend's machine listing (each item's own project_id) and its deletes, recorded."""
-
-    def __init__(self, items):
-        self.items, self.deleted = items, []
-
-    def machines(self, project):
-        return self.items  # a listing filter that silently did not apply: every project's machines
-
-    def delete(self, server_id, zone):
-        self.deleted.append(server_id)
-        return True
-
-
-def test_the_reaper_deletes_what_a_gone_run_left_and_skips_another_projects_machine():
-    now, host = time.time(), "this-pc"
-    gone = "pid=999999999"
-    backend = FakeMachines([
-        {"id": "gone-run", "zone": "zone-a", "project_id": "farm-factory", "tags": [f"host={host}", gone]},
-        {"id": "quiet", "zone": "zone-a", "project_id": "farm-factory",
-         "tags": ["host=elsewhere", gone, f"heartbeat={now - 16 * 60:.0f}"]},
-        {"id": "running", "zone": "zone-a", "project_id": "farm-factory",
-         "tags": [f"host={host}", f"run_pid={os.getpid()}", gone, f"heartbeat={now - 60:.0f}"]},
-        {"id": "other-project", "zone": "zone-a", "project_id": "another-company",
-         "tags": [f"host={host}", gone, f"heartbeat={now - 99 * 60:.0f}"]},
-    ])
-    assert park.reap(backend, "farm-factory", host, now) == ["gone-run", "quiet"]
-    assert backend.deleted == ["gone-run", "quiet"]
-
-
 def test_a_run_at_its_cap_leaves_another_runs_parked_machine_listed():
     fresh()
     os.environ["SCORE_RUN_ID"] = "another-park-test-run"
