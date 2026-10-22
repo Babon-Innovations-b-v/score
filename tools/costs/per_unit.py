@@ -171,24 +171,48 @@ RECORDED = {
                         "runs": [{"euros": 0.08087, "units": 1,
                                   "source": "google ledger call 507bf0dfcea54d6b9723bcfe9d29a167 "
                                             "(surface-library@greenhouse, 2026-10-22, benchmark grant "
-                                            "20261022T072047), standard tier"}],
-                        "time": {"unit_seconds": {"likely": 249.0, "high": 249.0},
+                                            "20261022T072047), standard tier"},
+                                 {"euros": 0.076496, "units": 1,
+                                  "source": "google ledger call 3561ae0918c647579b76a704f83cc884 "
+                                            "(surface-library@greenhouse, 2026-10-22, benchmark grant "
+                                            "20261022T072047 restored, commit d8d8f17e), standard tier"}],
+                        "time": {"unit_seconds": {"likely": 218.5, "high": 242.9},
                                  "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
-                                 "slots_from": "one call a place", "holds": "calls", "lines": 1,
+                                 "slots_from": "one call a place", "holds": "calls", "lines": 2,
                                  "from": ["google ledger call 507bf0dfcea54d6b9723bcfe9d29a167 (started 09:30:13, "
-                                          "finished 09:34:22 +02:00 on 2026-10-22)"]}},
+                                          "finished 09:34:22 +02:00 on 2026-10-22)",
+                                          "google ledger call 3561ae0918c647579b76a704f83cc884 (started 11:15:49, "
+                                          "finished 11:18:57 +02:00 on 2026-10-22)"]}},
     "crops-concept": {"unit": "make of a place's crop masks on its concept (one card, 7 pictures at greenhouse)",
                       "forecast": "one",
                       "runs": [{"euros": 0.06125, "units": 1,
                                 "source": "ledger batch masks-20261022-092631-813070 (crops-concept@greenhouse, "
                                           "2026-10-22, benchmark grant 20261022T072047): one L4, 1.66 machine "
-                                          "minutes EUR 0.02625, and its 7 disk-and-address lines EUR 0.035"}],
-                      "time": {"unit_seconds": {"likely": 77.7, "high": 77.7},
-                               "setup_minutes": {"likely": 0.82, "high": 0.82}, "slots": 1,
-                               "slots_from": "one job on its one card", "holds": "machines", "lines": 1,
+                                          "minutes EUR 0.02625, and its 7 disk-and-address lines EUR 0.035"},
+                               {"euros": 0.0625, "units": 1,
+                                "source": "ledger batch masks-20261022-102451-988273 (crops-concept@greenhouse, "
+                                          "2026-10-22, benchmark grant 20261022T072047 restored, commit 3caaa3be): "
+                                          "one L4, 3.56 machine minutes EUR 0.0525, and its 2 disk-and-address "
+                                          "lines EUR 0.01"}],
+                      "time": {"unit_seconds": {"likely": 78.2, "high": 78.5},
+                               "setup_minutes": {"likely": 1.78, "high": 2.54}, "slots": 1,
+                               "slots_from": "one job on its one card", "holds": "machines", "lines": 2,
                                "from": ["ledger batch masks-20261022-092631-813070 (its machine's work 1.30 min; "
                                         "start wait 0.36 and set-up 0.46 min; the batch waited 5.69 min in all "
-                                        "for a card, 9 starts out of stock or refused)"]}},
+                                        "for a card, 9 starts out of stock or refused)",
+                                        "ledger batch masks-20261022-102451-988273 (its machine's work 1.31 min; "
+                                        "start wait 2.25 and set-up 0.49 min; 3.83 min wall)"]}},
+    # The benchmark runs of 2026-10-22 under the restored grant 20261022T072047 (commit a8ebe414): the one body face
+    # that ran, its node's whole make (forecast "one"). Moon's and Mars's faces stay unmeasured.
+    "body-face-earth": {"unit": "face of a body of the setting (one Gemini 3.1 Pro answer)", "forecast": "one",
+                        "runs": [{"euros": 0.026236, "units": 1,
+                                  "source": "google ledger call 3a0c4c5ae9544eedae3b824e57112b78 (body-face-earth, "
+                                            "2026-10-22, benchmark grant 20261022T072047 restored), standard tier"}],
+                        "time": {"unit_seconds": {"likely": 187.0, "high": 187.0},
+                                 "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
+                                 "slots_from": "one call a body", "holds": "calls", "lines": 1,
+                                 "from": ["google ledger call 3a0c4c5ae9544eedae3b824e57112b78 (started 10:11:10, "
+                                          "finished 10:14:17 +02:00 on 2026-10-22)"]}},
 }
 
 
