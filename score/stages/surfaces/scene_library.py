@@ -42,6 +42,10 @@ ROW = palette_library.ROW
 CALLER = ROW
 LIBRARY_EUROS = 0.05  # a guess for the row's run (one ask on a scene's concept at half price); never a price
 SETTINGS = ("roughness", "metal")
+# The recipes that paint a picture (tools/props/library/recipes.py, `picture_on`): a scene library makes no picture
+# (its `pictures` are empty), so none is offered or kept (surface-library@people, 2026-10-22: suit_patches as `printed`
+# with no picture stopped the bake, recipes.arguments wanting its `image`).
+PICTURED = ("screen", "printed")
 QUESTION = """You make the surface library of one 3D scene: every surface its objects and structure are painted
 with, each a variant of one procedural recipe, in the scene's own palette tokens. {pictures}
 The scene's palette (token: colour, what wears it):
@@ -140,12 +144,17 @@ def schema(recipes, tokens, kinds, sounds):
             "required": ["surfaces"]}
 
 
+def offered(method):
+    """{recipe: default settings} of the method's recipes a scene library may use: all but the PICTURED."""
+    return {name: defaults for name, defaults in method["recipes"].items() if name not in PICTURED}
+
+
 def recipe_lines(method):
-    """Each recipe as a line: its default settings and the colour settings it needs."""
+    """Each offered recipe as a line: its default settings and the colour settings it needs."""
     needs = method.get("colour_settings", {})
     return "\n".join(f"- {name}: {json.dumps(defaults, sort_keys=True)}"
                      + (f"; colours: {', '.join(needs[name])}" if needs.get(name) else "")
-                     for name, defaults in method["recipes"].items())
+                     for name, defaults in offered(method).items())
 
 
 def library_body(pictures, palette, kinds, method, sounds, grounds=None):
@@ -164,7 +173,7 @@ def library_body(pictures, palette, kinds, method, sounds, grounds=None):
     parts = [finish_ask.picture_part(picture, longest) for picture, longest in pictures]
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                                 "responseSchema": schema(method["recipes"], palette["tokens"], kinds, sounds)}}
+                                 "responseSchema": schema(offered(method), palette["tokens"], kinds, sounds)}}
 
 
 def seed_of(place, name):
@@ -244,6 +253,8 @@ def library_findings(found, kinds, sounds, grounds=None):
     for name, variant in variants.items():
         failing += [f"{name}: recipe {variant['recipe']} is not the method's"] * (
             variant["recipe"] not in found["recipes"])
+        failing += [f"{name}: recipe {variant['recipe']} paints a picture, and the library has none"] * (
+            variant["recipe"] in PICTURED)
         failing += [f"{name}: token {variant.get(key)} ({key}) is not the palette's"
                     for key in ("token", *needs.get(variant["recipe"], [])) if variant.get(key) not in tokens]
         failing += [f"{name}: {key} {variant[key]} outside 0 to 1" for key in SETTINGS if not 0 <= variant[key] <= 1]
