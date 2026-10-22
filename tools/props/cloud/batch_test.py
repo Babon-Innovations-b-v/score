@@ -251,6 +251,63 @@ def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
     assert rounds == [2, 2, 2] and fleet.offers == found
 
 
+def test_nothing_is_ordered_while_the_backend_says_there_is_no_stock():
+    """pixal@people, 2026-10-22: the fleet ordered at Scaleway's shortage every round for over an hour, each order a
+    machine that never started and billed its disk and address (EUR 2.19 in all)."""
+    import time
+    import types
+    import provider
+
+    ordered = []
+    kept = batch.cloud.create
+    batch.cloud.create = lambda *arguments: ordered.append(arguments) or (None, "refused")
+    fleet = types.SimpleNamespace(folder=pathlib.Path(tempfile.mkdtemp()), deadline=time.time() + 60, attempts=[])
+    try:
+        for word in batch.NO_STOCK:
+            offer = provider.Offer(0.01, 2, "L4", "zone-a", 0.01, "gpu-24gb", 0, word)
+            assert batch.rent(fleet, "account", offer, 1) is None
+    finally:
+        batch.cloud.create = kept
+    assert ordered == [] and fleet.attempts == []
+
+
+def test_the_wait_for_stock_doubles_up_to_half_an_hour_and_never_past_the_deadline():
+    import time
+    import types
+
+    assert [batch.stock_wait_minutes(rounds) for rounds in range(6)] == [3, 6, 12, 24, 30, 30]
+    waits, rounds = [], []
+    run = types.SimpleNamespace(deadline=time.time() + 20 * 60)
+    kept = batch.park_taken, batch.claim_round, batch.parked_within, batch.fresh_offers
+    batch.park_taken = lambda *arguments: None
+    batch.claim_round = lambda *arguments: rounds.append(1) or (None if len(rounds) < 5 else {"machine": 1})
+    batch.parked_within = lambda run, offers, number, kind, disk_gb, seconds: waits.append(seconds)
+    batch.fresh_offers = lambda run, offers: offers
+    try:
+        assert batch.claim_rounds(run, "account", [], 1, "pixal", 60, None) == {"machine": 1}
+    finally:
+        batch.park_taken, batch.claim_round, batch.parked_within, batch.fresh_offers = kept
+    assert [round(wait / 60) for wait in waits[:3]] == [3, 6, 12], waits
+    assert 19 * 60 < waits[3] <= 20 * 60 and len(waits) == 4  # the fourth (24 min) cut to the 20 min left
+
+
+def test_a_runs_rent_fees_are_its_machines_disk_and_address_lines_failed_rents_included():
+    import provider
+
+    kept = ledger.LEDGER
+    ledger.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"
+    try:
+        for name, euros in (("batch-1-1", 0.005), ("batch-1-1", 0.005), ("batch-1-2", 0.005), ("batch-2-1", 1.0)):
+            ledger.record({"started": "2026-10-22T10:00:00Z", "batch": f"disk-and-address-{euros}", "name": name,
+                           "kind": "disk-and-address", "euros": euros})
+        offer = provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")
+        attempts = [batch.refused_row(offer, "out of stock", "batch-1-1"), batch.refused_row(offer, "refused")]
+        record = ledger.machines_record([], attempts, 0.0)
+    finally:
+        ledger.LEDGER = kept
+    assert round(record["rent_fees"], 6) == 0.01 and record["euros"] == 0.0, record
+
+
 def one_shot_fleet(names):
     import types
     models = [types.SimpleNamespace(name=name, picture="/pics/p.png", seed=1) for name in names]

@@ -75,6 +75,9 @@ ADDRESS_EUROS_AN_HOUR = 0.005
 STOPPING_TRIES = 12
 # How many times, 10 s apart, a failed delete reads the machine again to see whether another run deleted it.
 GONE_TRIES = 3
+# Seconds a refused order's new loose address or disk must stay loose before it is deleted: another order's own
+# address is loose for a moment between the CLI making it and its machine taking it.
+LOOSE_SETTLE_SECONDS = 15
 # A failed read of the API (scw's verbs below) is asked again this many times in all, waiting 5, 10, 20, 40 s between.
 READS = {"list", "get", "access-by-path"}
 READ_TRIES = 5
@@ -251,6 +254,7 @@ def create(project, offer, name, tags, disk_gb):
     deadline = next((float(tag.split("=", 1)[1]) for tag in tags if tag.startswith("deadline=")), None)
     ledger.rent_started(name.rsplit("-", 1)[0], name, {"type": machine_type, "zone": zone,
                                                        "class": offer.machine_class, "price": offer.price}, deadline)
+    before = loose(project, zone)
     done = subprocess.run(
         ["scw", "instance", "server", "create", f"project-id={project}", f"zone={zone}",
          f"type={machine_type}", f"image={image}", f"name={name}", "ip=ipv4",
@@ -260,6 +264,7 @@ def create(project, offer, name, tags, disk_gb):
     if done.returncode != 0:
         ledger.rent_refused(name, done.stderr.strip()[:300])
         delete_left_by_refusal(project, zone, name)
+        delete_loose_left_by_refusal(project, zone, name, before, disk_gb)
         return None, done.stderr.strip()[:300]
     server = json.loads(done.stdout)
     server_id = server["id"]
@@ -279,6 +284,32 @@ def delete_left_by_refusal(project, zone, name):
     for server in servers:
         if server.get("name") == name and server.get("project") == project and TAG in (server.get("tags") or []):
             delete(server["id"], zone)
+
+
+def loose(project, zone):
+    """{(kind, id)} of the project's addresses and disks in `zone` attached to nothing."""
+    return ({("address", found[0]) for found in leftover_addresses(project, (zone,))}
+            | {("disk", found[0]) for found in leftover_disks(project, (zone,))})
+
+
+def delete_loose_left_by_refusal(project, zone, name, before, gb):
+    """Delete the address and disk a refused order made and no machine took (loose now, not `before` the order, and
+    still loose LOOSE_SETTLE_SECONDS later), each billed by the started hour until deleted; their euros go to the
+    ledger as the order's disk-and-address line, so the run counts them."""
+    left = loose(project, zone) - before
+    if left:
+        time.sleep(LOOSE_SETTLE_SECONDS)
+        left &= loose(project, zone)
+    for kind, item_id in sorted(left):
+        (delete_address if kind == "address" else delete_disk)(item_id, zone)
+    if left:
+        import ledger
+        addresses = sum(kind == "address" for kind, _ in left)
+        euros = addresses * ADDRESS_EUROS_AN_HOUR + (gb * DISK_EUROS_A_GB_HOUR if len(left) > addresses else 0.0)
+        ledger.record({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                       "batch": f"disk-and-address-{name}-refused", "kind": "disk-and-address",
+                       "who": "scaleway.create", "name": name, "machines": [], "attempts": [],
+                       "machine_minutes": 0.0, "euros": euros})
 
 
 def quarantine_bad_address(project, server, zone):
@@ -347,13 +378,13 @@ def ours(project):
     return found
 
 
-def leftover_addresses(project):
-    """The project's public addresses attached to no machine, in every zone: (id, zone, address).
+def leftover_addresses(project, zones=None):
+    """The project's public addresses attached to no machine, in `zones` (every zone by default): (id, zone, address).
 
     A machine that deleted itself (self_delete.py) leaves its address behind.
     """
     found = []
-    for zone in ZONES:
+    for zone in zones or ZONES:
         for address in scw("instance", "ip", "list", f"project-id={project}", f"zone={zone}") or []:
             if (address.get("project") == project and not address.get("server")
                     and QUARANTINED not in (address.get("tags") or [])):  # held so it is never given to us again
@@ -361,13 +392,13 @@ def leftover_addresses(project):
     return found
 
 
-def leftover_disks(project):
-    """The project's block disks attached to nothing, in every zone: (id, zone, name).
+def leftover_disks(project, zones=None):
+    """The project's block disks attached to nothing, in `zones` (every zone by default): (id, zone, name).
 
     A machine that deleted itself leaves its disk behind.
     """
     found = []
-    for zone in ZONES:
+    for zone in zones or ZONES:
         for disk in scw("block", "volume", "list", f"project-id={project}", f"zone={zone}") or []:
             if disk.get("project_id") == project and not disk.get("references"):
                 found.append((disk["id"], zone, disk["name"]))

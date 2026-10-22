@@ -263,13 +263,25 @@ def machine_row(machine):
 def machines_record(machines, attempts, started):
     """The part of a run's ledger entry about its machines: a row each, the starts that failed before them
     (offers refused or out of stock, machines that never answered), the run's wait for its first machine,
-    and the minutes and euros of all of them."""
+    and the minutes and euros of all of them; and `rent_fees`, its machines' and failed rents' disks and addresses."""
     rows = [machine_row(machine) for machine in machines]
     ready = [machine["ready"] for machine in machines if machine.get("ready")]
+    names = {machine["folder"].name for machine in machines if machine.get("folder")}
+    names |= {row["name"] for row in attempts if row.get("name")}
     return {"machines": rows, "attempts": list(attempts),
             "start_wait_minutes": (min(ready) - started) / 60 if ready else None,
             "machine_minutes": sum(row["minutes"] for row in rows + list(attempts)),
-            "euros": sum(row["euros"] for row in rows + list(attempts))}
+            "euros": sum(row["euros"] for row in rows + list(attempts)), "rent_fees": rent_fees(names)}
+
+
+def rent_fees(names):
+    """The euros of the disk-and-address lines of the machines named `names` (a run's `<run>-<number>`): billed by the
+    provider whether a machine ran or not, each on its own line (so in month_total already, never in a run's
+    `euros`), a failed rent's included (pixal@people, 2026-10-22: EUR 1.89 of them beside EUR 1.35 of cards)."""
+    if not names:
+        return 0.0
+    return sum(line["euros"] for line in entries()
+               if line.get("kind") == "disk-and-address" and line.get("name") in names)
 
 
 def minutes_allowed(euros_per_minute):

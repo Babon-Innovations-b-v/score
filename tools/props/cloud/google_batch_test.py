@@ -19,7 +19,8 @@ import google_batch  # noqa: E402
 import google_spend  # noqa: E402
 
 MODEL = "gemini-3.1-pro-preview"
-USAGE = {"promptTokenCount": 1000, "candidatesTokenCount": 100, "thoughtsTokenCount": 900}
+# A batch answer names serviceTier "standard" in its usageMetadata (the real finish-route-list answer, 2026-10-22).
+USAGE = {"promptTokenCount": 1000, "candidatesTokenCount": 100, "thoughtsTokenCount": 900, "serviceTier": "standard"}
 
 
 class FakeGoogle:

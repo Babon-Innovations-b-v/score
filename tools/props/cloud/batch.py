@@ -111,9 +111,16 @@ POLL_SECONDS = 15
 # nothing rented in its place; only an out-of-stock refusal (nothing billed) moves on to the next offer (24 GB cards
 # answered in about 2 min, 2026-09-29; on 2026-10-08 machines in one zone never started at all).
 START_MINUTES = 5
-# How often a claim or a fleet short of machines asks every class and zone again when none was in stock (owner,
-# 2026-10-09: keep retrying every few minutes, never settle for one card).
+# How long a claim or a fleet short of machines first waits to ask every class and zone again when none was in stock
+# (owner, 2026-10-09: keep retrying, never settle for one card); each round with nothing rented doubles it, up to
+# STOCK_RETRY_MOST_MINUTES (2026-10-22: pixal@people asked every 3 min for over an hour while Scaleway had no cards).
 STOCK_RETRY_MINUTES = 3
+STOCK_RETRY_MOST_MINUTES = 30
+# The backend's stock words (provider.Offer.stock_word) at which nothing is ordered: Scaleway's shortage, and park.py's
+# `parked` (a shortage where one of our runs parked a machine, taken through park.adopt, never ordered anew). Every
+# order at a shortage made a machine that never started and billed its disk and address (438 of them, EUR 2.19 on
+# 2026-10-22); blender_cloud already rented nothing at one (one_class_in_stock).
+NO_STOCK = ("shortage", "parked")
 # Set when the runner is stopped by a signal: claims still asking in other threads stop, and a machine one of them
 # rents after the main thread's last delete is deleted at once (a builder outlived its runner's SIGTERM, 2026-10-09).
 STOPPING = threading.Event()
@@ -420,7 +427,7 @@ def boot(machine):
 def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None):
     """One machine that answers, for a job of `kind`, with a root disk of `disk_gb`; None when the run no longer wants
     one, or when a machine it rented was billed and did not answer (BootFailed: the slot is a gap, nothing is
-    rented in its place). A round that finds no stock anywhere is tried again every STOCK_RETRY_MINUTES with the
+    rented in its place). A round that finds no stock anywhere is tried again after stock_wait_minutes with the
     backend's offers read afresh, across every class the offers named and every zone, for as long as `still_wanted`
     (the run's deadline and the caller's `wanted`) says: a slot never gives up on its first
     round (six of seven spread slots did on 2026-10-09 and one L4 did all the work). While it waits the claim is on
@@ -436,19 +443,28 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
 
 
 def claim_rounds(run, account, offers, number, kind, disk_gb, wanted):
-    """claim's rounds: a parked machine first, else one round of offers, asked again every STOCK_RETRY_MINUTES while
-    the run still wants one; BootFailed passes through."""
+    """claim's rounds: a parked machine first, else one round of offers, asked again after stock_wait_minutes (longer
+    each round, never past the run's deadline) while the run still wants one; BootFailed passes through."""
     machine = (park_taken(run, offers, number, kind, disk_gb)
                or claim_round(run, account, offers, number, kind, disk_gb))
+    rounds = 0
     while machine is None and still_wanted(run, wanted):
+        wait = min(stock_wait_minutes(rounds) * 60, max(0.0, run.deadline - time.time()))
+        rounds += 1
         say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again "
-            f"in {STOCK_RETRY_MINUTES} min")
-        machine = parked_within(run, offers, number, kind, disk_gb, STOCK_RETRY_MINUTES * 60)
+            f"in {wait / 60:.0f} min")
+        machine = parked_within(run, offers, number, kind, disk_gb, wait)
         if machine is not None or not still_wanted(run, wanted):
             break
         offers = fresh_offers(run, offers)
         machine = claim_round(run, account, offers, number, kind, disk_gb)
     return machine
+
+
+def stock_wait_minutes(rounds):
+    """The wait before asking for stock again after `rounds` rounds that rented nothing: STOCK_RETRY_MINUTES doubled
+    each round, at most STOCK_RETRY_MOST_MINUTES."""
+    return min(STOCK_RETRY_MINUTES * 2 ** rounds, STOCK_RETRY_MOST_MINUTES)
 
 
 def parked_within(run, offers, number, kind, disk_gb, seconds):
@@ -557,7 +573,7 @@ def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
         except (TimeoutError, PermissionError) as error:
             delete_machine(machine)
             run.machines.remove(machine)
-            run.attempts.append(ledger.machine_row(machine))
+            run.attempts.append({**ledger.machine_row(machine), "name": machine["folder"].name})
             if not isinstance(error, OutOfStock):
                 raise BootFailed(f"{machine['folder'].name}: {machine['type']} in {machine['zone']} was rented and "
                                  f"did not start ({error})") from error
@@ -777,8 +793,13 @@ def queue(fleet, models):
 def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     """Rent one machine from `offer` with its watchdog and a root disk of `disk_gb`; its record, or None when
     refused. Nothing is rented outside a cleared run (compute.require_cleared raises Refused, also while the month's
-    books are unknown) or without the runner's ssh and self-delete keys (Refused before any provider call)."""
+    books are unknown) or without the runner's ssh and self-delete keys (Refused before any provider call); nothing
+    is ordered from an offer the backend's stock read says has none (NO_STOCK), since every such order billed a disk
+    and an address for a machine that never started."""
     machine_type, zone = offer.type, offer.zone
+    if offer.stock_word in NO_STOCK:
+        say(f"{machine_type} in {zone}: {offer.stock_word} at {cloud.NAME}'s stock read; nothing ordered")
+        return None
     compute.require_cleared(f"a {machine_type} in {zone}")
     if missing_keys():
         raise compute.Refused(f"a {machine_type} in {zone}: missing {', '.join(missing_keys())}; {OWNER_MAKES_KEYS}")
@@ -788,7 +809,7 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     if server_id is None:
         why = refused.splitlines()[-1] if refused else "?"
         say(f"{machine_type} in {zone} refused: {why}")
-        fleet.attempts.append(refused_row(offer, why))
+        fleet.attempts.append(refused_row(offer, why, name))
         return None
     # A zone out of cards still takes the order and leaves the machine stopped; its start then
     # says so. Give that machine back at once, so the fleet moves on to the next zone instead of
@@ -798,7 +819,7 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     if refused and "out of stock" in refused.lower():
         cloud.delete(server_id, zone)
         say(f"{machine_type} in {zone} is out of stock; trying the next offer")
-        fleet.attempts.append(refused_row(offer, "out of stock"))
+        fleet.attempts.append(refused_row(offer, "out of stock", name))
         return None
     folder = fleet.folder / name
     folder.mkdir(parents=True, exist_ok=True)  # a claim retried under the same number after a machine that never started
@@ -843,9 +864,10 @@ def month_spent(account):
     return max(cloud.month_spend(account), ledger.month_total(ledger.this_month(), ledger.entries()))
 
 
-def refused_row(offer, why):
-    """The ledger's row for an offer that gave no machine: nothing ran and nothing was billed."""
-    return {"type": offer.type, "class": offer.machine_class, "zone": offer.zone,
+def refused_row(offer, why, name=None):
+    """The ledger's row for an offer that gave no machine: no card ran. A machine the order made anyway billed its
+    disk and address on its own ledger line, which ledger.machines_record counts as the run's rent fees by `name`."""
+    return {"type": offer.type, "class": offer.machine_class, "zone": offer.zone, "name": name,
             "cards": provider.cards(offer.machine_class), "started": False, "why": why, "minutes": 0.0, "euros": 0.0}
 
 
@@ -875,10 +897,12 @@ def rent_fleet(fleet, cards):
 
 def keep_the_fleet(fleet, found, cards):
     """Wait while the fleet works, and while it runs fewer than `cards` cards with work left, ask the backend again
-    every STOCK_RETRY_MINUTES for the machine types of `found` (the affordable ones) in every zone and rent what has
-    come into stock; returns when the work is done and every machine is deleted, or at the deadline."""
+    after stock_wait_minutes (longer each round that rents nothing) for the machine types of `found` (the affordable
+    ones) in every zone and rent what has come into stock; returns when the work is done and every machine is
+    deleted, or at the deadline."""
     types = {offer.type for offer in found}
     asked = looked = time.time()
+    rounds = 0
     while not fleet.stop.is_set() and time.time() < fleet.deadline:
         if fleet.woke(looked):  # no machine is rented on waking: every one has deleted itself
             return
@@ -891,11 +915,12 @@ def keep_the_fleet(fleet, found, cards):
             left = fleet.unsent_gaps("not sent: no machine left (their cards were billed and failed)")
             say(f"no machine left (its cards were billed and failed); gaps: {', '.join(left)}")
             return
-        if short > 0 and not fleet.no_more_work() and time.time() - asked >= STOCK_RETRY_MINUTES * 60:
+        if short > 0 and not fleet.no_more_work() and time.time() - asked >= stock_wait_minutes(rounds) * 60:
             asked = time.time()
             with fleet.renting:
                 fleet.offers = [offer for offer in fresh_offers(None, found) if offer.type in types]
             added = rent_fleet(fleet, short)
+            rounds = 0 if added else rounds + 1
             say(f"{short} card{'s' if short != 1 else ''} short; {added} more rented as stock came up")
         time.sleep(5)
 
@@ -1105,7 +1130,7 @@ def report(entry):
     done = entry["models_done"]
     say(f"{done} of {entry['models']} models in {entry['wall_minutes']:.0f} min on "
         f"{len(entry['machines'])} machines, {entry['machine_minutes']:.0f} machine minutes, "
-        f"€{entry['euros']:.2f}")
+        f"€{entry['euros']:.2f}, and €{entry['rent_fees']:.2f} of disks and addresses (failed rents included)")
     if done and entry["card_minutes"]:
         say(f"{done / (entry['card_minutes'] / 60):.1f} models an hour a card, "
             f"€{entry['euros'] / done:.3f} a model with setup")

@@ -181,7 +181,10 @@ def settled(model, caller, job, operation, chunk):
             found.update(failed(model, caller, {key: job["calls"][key]},
                                 f"the batch answered with an error: {json.dumps(entry.get('error'))}"))
             continue
-        response = {"serviceTier": TIER, **entry["response"]}
+        # A batch answer's usageMetadata names serviceTier "standard" (finish-route-list, 2026-10-22: priced EUR 0.18,
+        # twice its batch price), and google_spend reads that before the top level: the batch tier goes in both.
+        usage = {**entry["response"].get("usageMetadata", {}), "serviceTier": TIER}
+        response = {**entry["response"], "serviceTier": TIER, "usageMetadata": usage}
         google_spend.record(model, caller, response, job["calls"][key])
         google_spend.keep(google_spend.cache_path(model, chunk[key]), entry["response"])
         found[key] = entry["response"]

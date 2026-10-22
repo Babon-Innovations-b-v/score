@@ -188,7 +188,8 @@ def created_with(address, failing=(), owner=OURS):
     calls, deleted = [], []
 
     def fake_scw(*arguments):
-        calls.append(arguments)
+        if arguments[2] != "list":  # the loose addresses and disks read before the order
+            calls.append(arguments)
         if arguments[:2] == ("instance", "ip") and arguments[2] in failing:
             raise RuntimeError(f"scw ip {arguments[2]} failed")
         return {"ip": {"id": arguments[3], "project": owner}} if arguments[:3] == ("instance", "ip", "get") else {}
@@ -261,6 +262,45 @@ def test_a_machine_a_refused_order_made_anyway_is_deleted_at_once():
     assert answer[0] is None and "500" in answer[1], answer
     assert deleted == [("srv-made", "fr-par-1")], deleted
     assert refused_create([])[1] == []
+
+
+def test_the_address_and_disk_a_refused_order_left_loose_are_deleted_and_counted():
+    """Only what the order made: loose after it and not before, and still loose after the settle (another order's
+    address is loose for a moment before its machine takes it). Their euros are the order's disk-and-address line."""
+    import subprocess
+    import tempfile
+    import types
+    import ledger
+    reads, deleted = [], []
+    old_ip = {"id": "ip-old", "address": "1.1.1.1", "project": OURS, "server": None, "tags": []}
+    new_ip = {"id": "ip-new", "address": "2.2.2.2", "project": OURS, "server": None, "tags": []}
+    racing_ip = {"id": "ip-racing", "address": "3.3.3.3", "project": OURS, "server": None, "tags": []}
+    new_disk = {"id": "disk-new", "name": "masks-1", "project_id": OURS, "references": []}
+
+    def scw(*arguments):
+        if arguments[:3] == ("instance", "ip", "list"):
+            reads.append(1)
+            return [old_ip] if len(reads) == 1 else ([old_ip, new_ip, racing_ip] if len(reads) == 2
+                                                      else [old_ip, new_ip, {**racing_ip, "server": {"id": "x"}}])
+        if arguments[:3] == ("block", "volume", "list"):
+            return [] if len(reads) == 1 else [new_disk]
+        if arguments[2] == "delete":
+            deleted.append(arguments[3])
+        return []
+    kept = scaleway.scw, subprocess.run, ledger.LEDGER, scaleway.time.sleep
+    scaleway.scw, scaleway.time.sleep = scw, lambda seconds: None
+    ledger.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"
+    subprocess.run = lambda *arguments, **options: types.SimpleNamespace(returncode=1, stdout="", stderr="out of stock")
+    offer = types.SimpleNamespace(type="L4-1-24G", zone="fr-par-1", machine_class="gpu-24gb", price=0.013)
+    try:
+        answer = scaleway.create(OURS, offer, "masks-1", [], 60)
+        lines = [json.loads(line) for line in ledger.LEDGER.read_text().splitlines()]
+    finally:
+        scaleway.scw, subprocess.run, ledger.LEDGER, scaleway.time.sleep = kept
+    assert answer[0] is None and sorted(deleted) == ["disk-new", "ip-new"], (answer, deleted)
+    fees = [line for line in lines if line["kind"] == "disk-and-address"]
+    assert len(fees) == 1 and fees[0]["name"] == "masks-1", fees
+    assert abs(fees[0]["euros"] - (scaleway.ADDRESS_EUROS_AN_HOUR + 60 * scaleway.DISK_EUROS_A_GB_HOUR)) < 1e-9
 
 
 def test_a_quarantined_address_is_never_a_leftover_to_delete():
