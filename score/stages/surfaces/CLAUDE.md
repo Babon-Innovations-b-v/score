@@ -66,8 +66,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   view. Split (free): first the colour check, before any paid bake or recheck (owner, 2026-10-20): each region of
   every view from every angle against the finish labelled there, its token's colour against the region's median
   texture colour in that view (`colour_faults`; glass, glow, light, print and see-through left out), after a finish
-  whose token lies over `VIEW_DELTA_E` from all its regions took the scene palette's nearest token, its surface kept
-  (`recoloured`, written to `<take>/finishes.json`, which the parts row reads; owner, 2026-10-22); one still over
+  whose token lies over `VIEW_DELTA_E` from all its regions took, of the scene palette's tokens within it, the one
+  nearest the listed token, its surface kept (`recoloured`, written to `<take>/finishes.json`, which the parts row reads; owner, 2026-10-22); one still over
   `VIEW_DELTA_E` (32, UNMEASURED on the views) makes the take a gap, so nothing of it is baked. Then the labels voted
   across views (`finish_parts.voted`, the front counting double); a seen face no
   label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
