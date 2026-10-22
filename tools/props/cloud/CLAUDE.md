@@ -92,9 +92,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **A stopped run keeps its finished jobs under its key** (`kept.py`, owner 2026-10-18): `kept.keep(job)` after a job
   ends well copies its outputs to `kept/<node>/<key>/` beside the store (the runner names the make's folder,
   SCORE_MAKING, and drops the folder once the node's output is stored), and `kept.missing(jobs)` puts every kept job
-  of the same key back in place and returns the rest, so a rerun pays only for those. Not yet called by
-  `blender_cloud.py`: the turntable and crop rows declare that file, so the two calls wait for the narrowing carry
-  (C4) to keep their outputs.
+  of the same key back in place and returns the rest, so a rerun pays only for those. `blender_cloud.py` calls both
+  (audit, 2026-10-22): `still_to_run` before pricing a call's jobs, `keep` after each job ends well on a machine or
+  the cluster; a held machine's chain (`--serve`) keeps nothing.
 - **The cheapest card that fits** (owner, 2026-10-12): `capacity.next_offer` takes the kind's cheapest card per job
   first (`KIND_ORDER`, measured from the ledger; an offer out of stock last, a scarce one still first): an L4 for
   Pixal3D and the mesh splitting (EUR 0.14 a job against 0.73 on an H100), an L40S for the judge (0.33 against 0.78),

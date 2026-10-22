@@ -58,6 +58,7 @@ import batch  # noqa: E402
 import capacity  # noqa: E402
 import detached  # noqa: E402
 import inputs  # noqa: E402
+import kept  # noqa: E402
 import ledger  # noqa: E402
 import park  # noqa: E402
 import provider  # noqa: E402
@@ -232,6 +233,17 @@ def one_job(machine, share, card):
         machine.setdefault("unit_seconds", []).append(run_job(log_folder, host, number, job, card is not None))
     except subprocess.CalledProcessError as failed:
         spread.raise_for(failed.returncode, f"job {number} ({job['script']}, {log_folder / f'job{number}.log'})")
+    kept.keep(job)
+
+
+def still_to_run(jobs):
+    """The jobs a run of this key cut off before did not finish; each it finished is put back in place (kept.py) and
+    not bought again."""
+    waiting = kept.missing(jobs)
+    if len(waiting) < len(jobs):
+        batch.say(f"{len(jobs) - len(waiting)} of {len(jobs)} Blender jobs finished by an earlier run of this key: put "
+                  "back, not bought again")
+    return waiting
 
 
 def run_spread(run, account, found, count, jobs):
@@ -374,6 +386,9 @@ def main_on_cluster(options, jobs, classes):
         serve_on_cluster(options.serve, classes, options.who, IDLE_MINUTES)
         return
     left = run_on_cluster(jobs, classes, options.who)
+    for number, job in enumerate(jobs):
+        if number not in left:
+            kept.keep(job)
     if left:
         raise SystemExit(f"Blender jobs {', '.join(map(str, left))} failed on the cluster")
 
@@ -392,6 +407,10 @@ def main():
     jobs = [json.loads(path.read_text()) for path in options.jobs] or [{"minutes": options.minutes}]
     if options.detach:
         detached.relaunch(sys.argv, "blender-cloud", [output for job in jobs for output in job.get("outputs", [])])
+    if options.jobs:
+        jobs = still_to_run(jobs)
+        if not jobs:
+            return
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
     if provider.on_cluster():
         main_on_cluster(options, jobs, classes)

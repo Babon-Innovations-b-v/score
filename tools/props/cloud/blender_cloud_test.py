@@ -160,9 +160,47 @@ def one_class_is_fixed_at_price_time_and_no_stock_is_a_gap():
     return problems
 
 
+def a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks():
+    """Audit (2026-10-22): kept.py was never called here, so a Blender cloud run cut off part way paid again for every
+    job it had finished when it was run again."""
+    with tempfile.TemporaryDirectory() as temporary:
+        making = pathlib.Path(temporary) / "making"
+        making.mkdir()
+        jobs = [{"script": "tools/blender/inside/usd_views.py", "args": [str(number)], "inputs": [],
+                 "outputs": [str(making / f"shot{number}.png")], "minutes": 1} for number in range(2)]
+        variables = {kept.TICKET: "turntable@hub 0123abcd", kept.STORE: str(pathlib.Path(temporary) / "store"),
+                     kept.MAKING: str(making)}
+        saved_variables = {name: os.environ.get(name) for name in variables}
+        saved_run_job = blender_cloud.run_job
+        os.environ.update(variables)
+        machine = {"folder": pathlib.Path(temporary), "host": "host"}
+
+        def run_job(log_folder, host, number, job, card):
+            pathlib.Path(job["outputs"][0]).write_text(f"shot {number}")
+            return 1.0
+        blender_cloud.run_job = run_job
+        try:
+            blender_cloud.one_job(machine, (0, jobs[0]), None)  # the run is cut off before job 1
+            (making / "shot0.png").unlink()  # the next attempt's folder starts empty
+            waiting = blender_cloud.still_to_run(jobs)
+        finally:
+            blender_cloud.run_job = saved_run_job
+            for name, value in saved_variables.items():
+                os.environ.pop(name, None)
+                if value is not None:
+                    os.environ[name] = value
+        problems = []
+        if waiting != [jobs[1]]:
+            problems.append(f"the rerun would buy {len(waiting)} jobs, not only the one it lacks")
+        if not (making / "shot0.png").exists() or (making / "shot0.png").read_text() != "shot 0":
+            problems.append("the finished job's output was not put back")
+        return problems
+
+
+kept = blender_cloud.kept
 CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain,
           a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home,
-          one_class_is_fixed_at_price_time_and_no_stock_is_a_gap)
+          one_class_is_fixed_at_price_time_and_no_stock_is_a_gap, a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks)
 
 
 if __name__ == "__main__":
