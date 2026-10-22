@@ -28,7 +28,7 @@ import score.stages.crops.look as look
 CONCEPT = graph.Stage("crops-concept", "place", concept.make_concept,
                       contracts.Contract("crops-concept", 1, concept.concept_faults), concept.CHECKS,
                       files=crop_data.concept_files, paid=True, euros=concept.EUROS, applies=crop_data.applies)
-BOXES = graph.Stage("crops-boxes", "place", boxes.make_boxes, contracts.Contract("crops-boxes", 1, boxes.boxes_faults),
+BOXES = graph.Stage("crops-boxes", "place", boxes.make_boxes, contracts.Contract("crops-boxes", 2, boxes.boxes_faults),
                     boxes.CHECKS, files=crop_data.boxes_files, paid=True, euros=boxes.EUROS, applies=crop_data.applies)
 LAYER = graph.Stage("crops-layer", "place", layer.make_layer, contracts.Contract("crops-layer", 1, layer.layer_faults),
                     layer.CHECKS, files=crop_data.layer_files,
