@@ -83,6 +83,16 @@ def dense(joints, weights, count):
     return found
 
 
+def body_node(document):
+    """The name of a built body's own skinned mesh node, its outfit's (prop_build.py names it for the outfit:
+    `made` since one body a look, 2026-10-22; `work` before), not its far body's."""
+    found = [node["name"] for node in document["nodes"] if "mesh" in node and "skin" in node
+             and node.get("name") != "far"]
+    if len(found) != 1:
+        raise SystemExit(f"the body has {len(found)} skinned outfit nodes ({found}), not one")
+    return found[0]
+
+
 def surfaces_of(document, blob, node_name):
     """The node's surfaces in its mesh's order."""
     node = next(found for found in document["nodes"] if found.get("name") == node_name)
@@ -228,7 +238,7 @@ def old_surfaces(old_document, old_blob, names, new_bind):
     order = [old_names.index(name) for name in names]
     old_bind = bind_of(old_document, old_blob)[order]
     found = {}
-    for surface in surfaces_of(old_document, old_blob, NODE):
+    for surface in surfaces_of(old_document, old_blob, body_node(old_document)):
         name = name_of(old_document, surface)
         if name in OLD_HEAD and name not in found:
             surface.weights = surface.weights[:, order]
@@ -452,7 +462,8 @@ def written(path, document, blob, old_document, old_blob, old_head, surfaces, sh
     materials, textures = copied_materials(contents, document, blob, old_document, old_blob, old_head)
     if old_head:  # the drawn face's neck is a tuck; the made face keeps its own record
         materials[old_head["skin_head"].material]["extras"]["tuck_from"] = old_head["skin_head"].tuck_from
-    work_node = next(number for number, node in enumerate(document["nodes"]) if node.get("name") == NODE)
+    made = body_node(document)
+    work_node = next(number for number, node in enumerate(document["nodes"]) if node.get("name") == made)
     far = next(node for node in document["nodes"] if node.get("name") == "far")
     meshes = [copied_mesh(contents, document, blob, document["meshes"][far["mesh"]])]
     work = {"name": NODE, "primitives": [primitive_of(contents, surface, None if shapes is None else
@@ -465,7 +476,8 @@ def written(path, document, blob, old_document, old_blob, old_head, surfaces, sh
     nodes = [dict(node) for node in document["nodes"]]
     for node in nodes:
         if "mesh" in node:
-            node["mesh"] = 1 if node.get("name") == NODE else 0
+            node["mesh"] = 1 if node.get("name") == made else 0
+    nodes[work_node]["name"] = NODE  # the routed body's node, as skel_usd's worn names and the route's shots read it
     skin = dict(document["skins"][0], inverseBindMatrices=contents.copied(
         document, blob, document["skins"][0]["inverseBindMatrices"]))
     out = {"asset": document["asset"], "scene": 0, "scenes": document["scenes"], "nodes": nodes, "meshes": meshes,
@@ -540,7 +552,7 @@ def build(options):
     rig, base = np.load(options.rig), np.load(options.base)
     names = skin_names(document)
     bind = bind_of(document, blob)
-    surfaces = surfaces_of(document, blob, NODE)
+    surfaces = surfaces_of(document, blob, body_node(document))
     base_points = base[f"{options.base_body}_points"]
     garments = [surface for surface in surfaces if role_of(document, surface) == pokes.GARMENT]
     welded = garment_bind(garments, base[f"{options.labels}_points"], base_points, base["faces"], base["weights"],
