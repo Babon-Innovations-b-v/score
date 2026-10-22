@@ -18,8 +18,9 @@ own close-up, else the stand-in: the front view unshaded, route_data.STAND_IN). 
 views' angles, its faces and how many the paint's loading finds, the share of its area seen, its regions (CIELAB,
 sRGB, share of the seen pixels) and its close-up's source.
 Gate "views cast": every take has its raw model, loaded with the faces the paint loads, every view sees it and the
-views together see SEEN_LEAST of its area. A take a batch gap names (score/stages/batch_gaps.py: its close-up or its
-Pixal3D job failed in the batch) is left out, and its gap carried on in this output's batch-gaps.json.
+views together see SEEN_LEAST of the area any angle sees (both measured at MEASURE_SIDE). A take a batch gap names
+(score/stages/batch_gaps.py: its close-up or its Pixal3D job failed in the batch) is left out, and its gap carried on
+in this output's batch-gaps.json.
 """
 import json
 import pathlib
@@ -41,6 +42,13 @@ from score import checks  # noqa: E402
 
 SEEN_LEAST = 0.5  # a take whose views together see under this share of its area fails: the cast missed the model
 MOST_VIEWS = 16  # the base views and the coverage check's extras together
+# The most side the seen shares are measured at (measure_side), the angles cast finer: at cast.SIDE a raw Pixal3D
+# person (1.8 m tall, a million faces of about 1.4 mm) has several faces under each 4.7 mm pixel and most are never
+# hit, so the share read 29% for astronaut-made-s1 (2026-10-22); at this side a pixel is about a face.
+MEASURE_SIDE = 1536
+# Measured there, every angle (BASE and CANDIDATES) together saw 49.5% of that take: the rest lies inside the raw
+# model, out of every view, so the gate holds the views to SEEN_LEAST of the area any angle sees (`reachable_share`),
+# never of area no cast can reach.
 REGIONS = len(finish_ask.LABELS)  # one label colour a region in the list's pictures
 SAMPLE = 60000  # the pixels k-means is fitted on, drawn with the node's seed
 
@@ -132,12 +140,26 @@ def paint_faces(model_file):
     return len(trimesh.load(str(model_file), force="mesh", process=False).faces)
 
 
+def measure_side(mesh):
+    """The side the seen shares are measured at: a pixel a third of the model's median face across, at least
+    cast.SIDE, at most MEASURE_SIDE (cast.rays frames the bounding sphere)."""
+    reach = float(np.linalg.norm(mesh.vertices, axis=1).max()) * cast.MARGIN
+    edge = float(np.sqrt(2 * np.median(mesh.area_faces)))
+    return int(min(MEASURE_SIDE, max(cast.SIDE, np.ceil(6 * reach / edge))))
+
+
+def seen_share(mesh, faces):
+    """The share of the model's area under some pixel of `faces` (views' faces per pixel)."""
+    seen = np.unique(np.concatenate([found[found >= 0] for found in faces]))
+    return float(mesh.area_faces[seen].sum() / mesh.area_faces.sum())
+
+
 def view_record(model, faces, angles, close_up):
     """A take's record: its views' angles, its faces, the share of its area some view sees, its unseen faces, its
     empty views, its close-up's source."""
     seen = np.unique(np.concatenate([found[found >= 0] for found in faces.values()]))
     area = model.mesh.area_faces
-    return {"views": angles, "faces": len(model.mesh.faces), "seen_share": round(float(area[seen].sum() / area.sum()), 3),
+    return {"views": angles, "faces": len(model.mesh.faces), "seen_share": round(seen_share(model.mesh, faces.values()), 3),
             "unseen_faces": len(model.mesh.faces) - len(seen),
             "unseen_share": round(float(1 - area[seen].sum() / area.sum()), 4),
             "views_empty": [view for view, found in faces.items() if not (found >= 0).any()],
@@ -153,7 +175,11 @@ def view_take(model_file, close_up, folder, seed):
     centres, regions = colour_regions(colours, faces, seed)
     views_saved(folder, model, (angles, faces, colours), regions)
     close_up_written(folder, close_up, faces, colours)
-    return {**view_record(model, faces, angles, close_up), "paint_faces": paint_faces(model_file),
+    side = measure_side(model.mesh)
+    measured = {view: cast.cast(model.mesh, turn, side)[0] for view, turn in {**cast.BASE, **cast.CANDIDATES}.items()}
+    return {**view_record(model, {view: measured[view] for view in angles}, angles, close_up),
+            "reachable_share": round(seen_share(model.mesh, measured.values()), 3),
+            "paint_faces": paint_faces(model_file),
             "regions": region_records(centres, colours, regions)}
 
 
@@ -188,8 +214,9 @@ def take_faults(take, record):
                 "land on its faces"]
     if record["views_empty"]:
         return [f"{take}: views seeing nothing: {', '.join(record['views_empty'])}"]
-    if record["seen_share"] < SEEN_LEAST:
-        return [f"{take}: the views see {record['seen_share']:.0%} of its area"]
+    reachable = record.get("reachable_share", 1.0)
+    if record["seen_share"] < SEEN_LEAST * reachable:
+        return [f"{take}: the views see {record['seen_share']:.0%} of its area, of {reachable:.0%} any angle sees"]
     return []
 
 
@@ -206,7 +233,7 @@ def all_gapped(output):
 
 def judge_views(output, inputs, evidence):
     """Every take has its raw model with the paint's faces, every view sees it and the views together see SEEN_LEAST of
-    its area; the views a take needed and its unseen faces as measures."""
+    the area any angle sees; the views a take needed and its unseen faces as measures."""
     found = json.loads((output / "views.json").read_text())
     failing = [fault for take, record in found.items() for fault in take_faults(take, record)]
     gapped = all_gapped(output)
