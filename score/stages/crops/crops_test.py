@@ -12,10 +12,12 @@ import tempfile
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+import score.stages.crops.boxes as boxes  # noqa: E402
 import score.stages.crops.concept as concept  # noqa: E402
 import score.stages.crops.crop_data as crop_data  # noqa: E402
 import score.stages.crops.layer as layer  # noqa: E402
 import score.stages.crops.look as look  # noqa: E402
+from score import checks  # noqa: E402
 from score.stages import row_kinds  # noqa: E402
 
 KINDS = row_kinds.table()
@@ -235,6 +237,45 @@ def test_look_counts_a_plant_the_kind_of_its_bed():
     spots_record = {"spots": [], "widths": {kind: 0.2 for kind in RECORD["kinds"]}}
     seen = look.seen_on_beds(RECORD, view, instances, beds, shared, spots_record)
     assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen
+
+
+def boxed_inputs(folder, gemini=()):
+    """The design's files with every crop row boxed by the reading: SAM 3's box, Gemini's region for `gemini`."""
+    inputs = design_inputs(folder)
+    rows = [dict(row, box=[10, 10, 40, 40], **({"boxed_by": "gemini"} if row["id"] in gemini else {}))
+            for row in INVENTORY["rows"]]
+    (folder / "inventory.json").write_text(json.dumps(dict(INVENTORY, rows=rows)))
+    return {**inputs, "concept": folder / "concept.png"}
+
+
+def test_crop_boxes_the_reading_placed_pass_and_rent_nothing():
+    """2026-10-22 benchmark: crops-boxes read the retired page-A inventory, found nothing to mask and still rented a
+    card. Off the design, a crop row SAM 3 boxed in the reading passes as it stands, with no mask job and no rent."""
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="crops-boxes-"))
+    inputs = boxed_inputs(folder)
+    assert boxes.to_mask(inputs) == []
+    out = folder / "out"
+    out.mkdir()
+    boxes.make_boxes(inputs, out, 1, {})  # a rent here would need a cleared run and fail
+    assert not (out / "mask-jobs.json").exists()
+    verdict = boxes.judge_boxed(out, inputs, None)
+    assert verdict.answer == checks.PASS, verdict
+
+
+def test_only_a_crop_row_the_reading_framed_by_gemini_is_masked():
+    """A crop row whose reading box is Gemini's region is SAM 3's job again, on the locked concept; until decided the
+    gate is unknown, never a pass."""
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="crops-boxes-"))
+    inputs = boxed_inputs(folder, gemini=("potato",))
+    [job] = boxes.to_mask(inputs)
+    assert job["picture"] == str(folder / "concept.png") and [row["key"] for row in job["rows"]] == ["potato"]
+    assert job["rows"][0]["keep"] == boxes.KEEP and job["rows"][0]["nouns"] == ["potato"]
+    out = folder / "out"
+    out.mkdir()
+    (out / "decided.json").write_text(json.dumps({"decided": {row: boxes.IN_READING for row in RECORD["kinds"]
+                                                              if row != "potato"}}))
+    verdict = boxes.judge_boxed(out, inputs, None)
+    assert verdict.answer == checks.UNKNOWN and verdict.findings[0].startswith("potato"), verdict
 
 
 def test_look_rents_one_card_class():

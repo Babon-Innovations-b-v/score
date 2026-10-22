@@ -134,8 +134,10 @@ def concept_files(place):
 
 
 def boxes_files(place):
-    """crops-boxes' files: the design, the box check and the SAM 3 runner."""
-    return {**design_files(place), "box check": "{repo}/tools/props/scene/box_check.py", **MASKS_TOOLS}
+    """crops-boxes' files: the design (its reading's boxes in the kept inventory), the locked concept those boxes are
+    on, the box check and the SAM 3 runner."""
+    return {**design_files(place), "concept": concept_picture(place),
+            "box check": "{repo}/tools/props/scene/box_check.py", **MASKS_TOOLS}
 
 
 def layer_files(place):

@@ -35,8 +35,10 @@ prop and grown on its plan's beds as its concept grows them, as a layer of point
   crop rows' boxes, `crops-boxes`) and its own steps after the model (laid on the beds, `crops-layer`; seen again on a
   render, `crops-look`). Until 2026-10-20 the crops had a line of their own on the finish-map method (`line.py`,
   `renamed.py`), deleted with it.
-- **The box gate first.** `crops-boxes` runs box_check's own SAM 3 measure on the crop rows' boxes inside the runner
-  (box_check.py --masks rents outside it and is refused); each crop row's box is its partition proposal's.
+- **The box gate first, off the design.** `crops-boxes` reads each crop row's box from the locked concept's reading
+  (the kept inventory's `box`): a box SAM 3 placed there passes as it stands; only a row the reading framed by
+  Gemini's region is masked again by box_check's own SAM 3 measure inside the runner (box_check.py --masks rents
+  outside it and is refused). Nothing to mask rents nothing (2026-10-22: the old page-A read rented a card for none).
 - **The concept decides how the beds look**: the crops grow on every bed the plan lays, as its locked concept
   draws them (its kinds' patches and spacing).
 - Tests: `crops_test.py` (kinds and beds read off a design, tiles, measures, the gates, the look's camera round
