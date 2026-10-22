@@ -1,5 +1,5 @@
 {
- "name": "base_astronaut_left_1",
+ "name": "astronaut_suit",
  "kind": "person",
  "route": "prop",
  "approved": "the creator's pick of the base concept (a89ee5cf): its scene inventory's people row astronaut_left (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
@@ -7,10 +7,10 @@
  "references": [],
  "description": "astronaut in white suit, an average build, as drawn in the base concept",
  "outfit_words": {
-  "drawn": "the clothes as drawn in the base concept"
+  "made": "the clothes as drawn in the base concept"
  },
  "outfits": [
-  "drawn"
+  "made"
  ],
  "hair": "the hair as drawn in the base concept",
  "face": "the face as drawn in the base concept"

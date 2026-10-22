@@ -1,5 +1,5 @@
 {
- "name": "cockpit_officer_1",
+ "name": "officer",
  "kind": "person",
  "route": "prop",
  "approved": "the creator's pick of the cockpit concept (a984a44e): its scene inventory's people row officer (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
@@ -7,10 +7,10 @@
  "references": [],
  "description": "officer, an average build, as drawn in the cockpit concept",
  "outfit_words": {
-  "drawn": "the clothes as drawn in the cockpit concept"
+  "made": "the clothes as drawn in the cockpit concept"
  },
  "outfits": [
-  "drawn"
+  "made"
  ],
  "hair": "the hair as drawn in the cockpit concept",
  "face": "the face as drawn in the cockpit concept"

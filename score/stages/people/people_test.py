@@ -332,7 +332,7 @@ def test_todays_design_makes_the_tube_player_full_and_the_crowd_far():
     from score.stages.cast import spread
     from score.stages.people_bodies import full
     looks = bodies.looks()
-    assert not looks["tube_person_right_1-drawn"].get("far_only") and looks["square_crowd-drawn"]["far_only"], looks
+    assert not looks["person_uniform-made"].get("far_only") and looks["crowd-made"]["far_only"], looks
     assert full.FAR_SHARE == spread.FAR_SHARE == contents.FAR_SHARE
 
 
@@ -341,18 +341,18 @@ def test_the_body_rows_follow_the_design_s_share():
     makes its look far, and the same rows with the crowd's look given to a near person make it full."""
     design = json.loads(bodies.DESIGN.read_text())
     tube = design["places"]["tube"]["rows"]["person_right"]
-    assert tube["looks"] == ["tube_person_right_1-drawn"], tube
+    assert tube["looks"] == ["person_uniform-made"], tube
     held = bodies.DESIGN
     with tempfile.TemporaryDirectory() as folder:
         bodies.DESIGN = pathlib.Path(folder) / "rows.json"
         try:
             bodies.DESIGN.write_text(json.dumps({**design, "places": {**design["places"], "tube": {
                 **design["places"]["tube"], "rows": {"person_right": {**tube, "share": 0.05}}}}}))
-            assert bodies.looks()["tube_person_right_1-drawn"].get("far_only"), "a far person kept a full body"
+            assert bodies.looks()["person_uniform-made"].get("far_only"), "a far person kept a full body"
             bodies.DESIGN.write_text(json.dumps({"places": {"p": {"rows": {
-                "near": {"looks": ["square_crowd-drawn"], "share": 0.3}}}}}))
+                "near": {"looks": ["crowd-made"], "share": 0.3}}}}}))
             made = bodies.looks()
-            assert not made["square_crowd-drawn"].get("far_only") and made["tube_person_right_1-drawn"].get("far_only"), made
+            assert not made["crowd-made"].get("far_only") and made["person_uniform-made"].get("far_only"), made
         finally:
             bodies.DESIGN = held
 
