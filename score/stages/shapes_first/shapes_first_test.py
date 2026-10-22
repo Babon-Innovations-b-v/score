@@ -187,6 +187,7 @@ READS_THE_LOOP = {
     "assembly": "the object layer laid (OBJECTS: nothing after the model), its baked models and their paint",
     "earth-seed": "the scene's base: its shell from its locked plan painted from its surface library, lays no model",
     "scene-record": "the scene's record: its shell and stairs named with surfaces from its surface library, lays no model",
+    "surface-tiles": "tile pictures of the scene's library surfaces for its shell, lays no model",
     "settle": "the motion layer's physics: not on an adapter yet (#41's motion track)",
     "crops-layer": "the motion layer's growth: not on an adapter yet (#41's motion track)",
 }
