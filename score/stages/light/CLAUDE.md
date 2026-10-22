@@ -85,7 +85,7 @@ gates.
   kept sky inputs (`{home}/design/sky/<scene>.json`, `score/review/scene_sky.py`, kept by `python -m
   score.review.plans keep`; a room takes its top scene's site), and turns the seed's and the record's old sky off. The
   light-layer gate `sky bodies` holds the layer's geometry to overhead.py; unknown while the scene has no site or
-  scene time on the environment's plan. A ball's finish is its library surface (`<body>_face`, `<body>_disc`) or named
+  scene time on the environment's plan. A ball's finish is a framework look (the Earth's NASA picture), else its face as its `body-face-<body>` row made it (the layer reads each accepted one, optional, `sky.faces_of`; never by a library name), else its library surface (`<body>_disc`), or named
   missing, never grey.
 - `light_test.py` checks the measures, the sweep and the layer on pictures, passes and a stage made in the test;
   `sky_test.py` the sky against skies worked out by hand.

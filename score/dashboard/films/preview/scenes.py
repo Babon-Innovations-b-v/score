@@ -1,11 +1,13 @@
 """What scene.js draws for a setting animation and a scale zoom, worked out from what exists: the setting's bodies on
 their orbits (score/review/overhead.py, frame by frame), the environment plan's sites, blocks and skies, the picked
-concepts, and each body's and ground's colour from its library surface (the score_lib cache). Read from the export
+concepts, and each body's and ground's colour from its face (the `body-face-<body>` rows' outputs, in the state's
+`body_faces`; a plain colour of its own, said waiting, while its row has not run). Read from the export
 the preview's cockpit serves (state.json), so the scenes and the takes show the same state."""
+import colorsys
 import datetime
+import hashlib
 import math
 import pathlib
-import re
 
 from django.conf import settings
 
@@ -14,7 +16,7 @@ from score.dashboard.pages.setting_picture import REACH, disc_size
 from score.review import overhead
 
 UNITS = 100.0  # the farthest orbit round the root, in scene units
-DIFFUSE = re.compile(r"diffuseColor = \(([^)]*)\)")
+WAITING = "waiting on the body's surface"
 
 
 def withdrawn(kind, entry):
@@ -38,13 +40,23 @@ def library_folder(kind, entry):
     return versions[-1] if versions else None
 
 
-def surface_colour(entry):
-    """A library surface's diffuse colour (its material.usda constants), linear RGB; refused when it is not cached."""
-    folder = library_folder("surface", entry)
-    found = DIFFUSE.search((folder / "material.usda").read_text()) if folder else None
-    if not found:
-        raise ValueError(f"no library surface {entry!r}: not in the score_lib cache, or withdrawn from the library")
-    return [round(float(value) ** (1 / 2.2), 4) for value in found.group(1).split(",")]  # shown as sRGB
+def face_colour(state, body):
+    """A body's face colour, sRGB 0 to 1: its face as its `body-face-<body>` row made it (the state's `body_faces`,
+    score/stages/surfaces/body_faces.py; never a library name), else a plain colour of its own while that row has
+    not run (its leg's tag says WAITING)."""
+    face = (state.get("body_faces") or {}).get(body)
+    if face:
+        return [round(int(face["hex"][at:at + 2], 16) / 255, 4) for at in (1, 3, 5)]
+    hue = int(hashlib.sha256(body.encode()).hexdigest()[:4], 16) / 0xFFFF
+    return [round(value, 4) for value in colorsys.hls_to_rgb(hue, 0.55, 0.25)]
+
+
+def tagged(state, leg):
+    """The leg with the bodies it draws (its `waits`, taken off) whose face waits on its row named in its tag
+    (WAITING), after its own."""
+    waits = [body for body in dict.fromkeys(leg.pop("waits", [])) if body not in (state.get("body_faces") or {})]
+    said = f"{', '.join(body.capitalize() for body in waits)}: {WAITING}" if waits else None
+    return {**leg, "tag": " · ".join(filter(None, (leg.get("tag"), said))) or None}
 
 
 def kelvin_colour(kelvin):
@@ -98,17 +110,18 @@ def orbit_line(body, day, scale, points=128):
             for step in range(points)]
 
 
-def system(setting, surfaces, end_day, days_per_second, seconds, rate):
-    """The setting's bodies, their positions each frame (the clock ending at `end_day`) and their orbits."""
+def system(state, setting, end_day, days_per_second, seconds, rate):
+    """The setting's bodies, their positions each frame (the clock ending at `end_day`) and their orbits, and the
+    bodies drawn by their face (`waits`, for `tagged`)."""
     bodies = setting["bodies"]
     scale = scales(bodies)
     start = end_day - days_per_second * seconds
     frames = max(1, round(seconds * rate))
     shown = [{"key": body["body"], "name": body["name"], "shines": body.get("lux") is not None,
               "size": round(disc_size(body) * UNITS / REACH * 0.55, 3),
-              "color": kelvin_colour(body["kelvin"]) if body.get("kelvin") else surface_colour(surfaces[body["body"]])}
+              "color": kelvin_colour(body["kelvin"]) if body.get("kelvin") else face_colour(state, body["body"])}
              for body in bodies]
-    return {"bodies": shown,
+    return {"bodies": shown, "waits": [body["body"] for body in bodies if not body.get("kelvin")],
             "track": [placed(bodies, start + days_per_second * frame / rate, scale) for frame in range(frames + 1)],
             "orbits": [{"around": body["around"] if body["around"] != shown_root(bodies) else None,
                         "points": orbit_line(body, start, scale[body["body"]])} for body in bodies if body.get("around")]}
@@ -151,23 +164,25 @@ def site_centre(site):
     return [site["at"][0] + middle[0], 2.0, site["at"][1] + middle[1]]
 
 
-def ground(state, place, surfaces, into, sky, near_m=400.0):
+def ground(state, place, into, sky, near_m=400.0):
     """The site and the place from outside under `sky` (its arrival's): every site of its map within `near_m`, its
-    sun and the worlds in its sky, the ground's colour, and the block the camera goes into at the end."""
+    sun and the worlds in its sky, the ground's colour (its body's face), and the block the camera goes into at the
+    end."""
     world, site = site_of(state, place)
     near = [other for other in world["sites"] if math.dist(other["at"], site["at"]) <= near_m]
-    return {"place": place, "into": into, "sun": sun_way(sky), "ground_color": surface_colour(surfaces["ground"]),
-            "centre": site_centre(site),
-            "sky": [{**shown, "color": surface_colour(surfaces[shown["world"]])} for shown in sky["worlds"]
-                    if shown["altitude"] > 0],
+    risen = [shown for shown in sky["worlds"] if shown["altitude"] > 0]
+    return {"place": place, "into": into, "sun": sun_way(sky), "ground_color": face_colour(state, world["on"]),
+            "centre": site_centre(site), "waits": [world["on"], *(shown["world"] for shown in risen)],
+            "sky": [{**shown, "color": face_colour(state, shown["world"])} for shown in risen],
             "sites": [{"place": other["place"], "name": other["name"], "at": other["at"], "blocks": other["blocks"]}
                       for other in near]}
 
 
-def globe(state, place, surfaces, sky):
+def globe(state, place, sky):
     """The world the place's site stands on, the site, and its sun under `sky` in the site's east, north and up."""
     world, site = site_of(state, place)
-    return {"name": world["name"], "color": surface_colour(surfaces[world["on"]]), "sun": sun_way(sky),
+    return {"name": world["name"], "color": face_colour(state, world["on"]), "sun": sun_way(sky),
+            "waits": [world["on"]],
             "site": {"name": site["name"], "latitude": site["latitude"], "longitude": site["longitude"]},
             "on": world["on"]}
 
@@ -194,7 +209,7 @@ def setting_camera(leg, drawn, on):
             "end_tilt_deg": 10.0, "rise_tilt_deg": 28.0}
 
 
-def zoom_legs(state, segment, setting, surfaces, rate):
+def zoom_legs(state, segment, setting, rate):
     """A scale zoom's legs as scene.js draws them, top down (a journey's out and across to the next body first), each
     place at its arrival (`arrival`: the script's `time` for the segment's place, else when its site is lit)."""
     place = segment["shows"]["place"]
@@ -211,14 +226,14 @@ def zoom_legs(state, segment, setting, surfaces, rate):
         shown = {"layer": layer, "seconds": seconds, "tag": leg.get("tag")}
         if layer == "setting":
             days = leg.get("days_per_second", 1.0)
-            drawn = system(setting, surfaces, end_day + days * seconds, days, seconds + 1.0, rate)
+            drawn = system(state, setting, end_day + days * seconds, days, seconds + 1.0, rate)
             shown.update(drawn, camera=setting_camera(leg, drawn, site_of(state, place)[0]["on"]))
         elif layer == "world":
-            shown.update(globe(state, leg.get("place", place), surfaces, arrived(leg.get("place", place))[1]),
+            shown.update(globe(state, leg.get("place", place), arrived(leg.get("place", place))[1]),
                          from_height=leg.get("from", 4.2),
                          to_height=leg.get("to", 1.05))
         elif layer in ("site", "place"):
-            shown.update(ground(state, place, surfaces, leg.get("into"), arrived(place)[1]), view="ground",
+            shown.update(ground(state, place, leg.get("into"), arrived(place)[1]), view="ground",
                          camera=leg.get("camera") or GROUND_PATHS[layer])
             if leg.get("from_place"):
                 shown["from_centre"] = site_centre(site_of(state, leg["from_place"])[1])
@@ -226,7 +241,7 @@ def zoom_legs(state, segment, setting, surfaces, rate):
             rooms = leg.get("rooms", [])
             shown["pictures"] = [{"url": picked_url(state, room), "name": room.replace("_", " ").capitalize()}
                                  for room in rooms if picked_url(state, room)]
-        made.append(shown)
+        made.append(tagged(state, shown))
     return made
 
 
@@ -285,16 +300,16 @@ def setting_of(state):
 
 def scene_for(state, segment, rate):
     """{legs, rate} of a setting animation or a scale zoom segment."""
-    setting, surfaces, end_day = setting_of(state), segment.get("surfaces") or {}, scene_time(state)
+    setting, end_day = setting_of(state), scene_time(state)
     if segment["cut"] == "setting-animation":
         seconds = float(segment["seconds"])
         days = float(segment.get("days_per_second", 30.0))
         camera = {"distance": 245.0, "start_deg": 200.0, "turn_deg_per_s": 4.0, "tilt_deg": 38.0,
                   **(segment.get("camera") or {})}
         leg = {"layer": "setting", "seconds": seconds, "camera": camera, "note": segment.get("note"),
-               **system(setting, surfaces, end_day, days, seconds, rate)}
-        return {"legs": [leg], "rate": rate}
-    return {"legs": zoom_legs(state, segment, setting, surfaces, rate), "rate": rate}
+               **system(state, setting, end_day, days, seconds, rate)}
+        return {"legs": [tagged(state, leg)], "rate": rate}
+    return {"legs": zoom_legs(state, segment, setting, rate), "rate": rate}
 
 
 SCENE_JS = pathlib.Path(__file__).with_name("scene.js")

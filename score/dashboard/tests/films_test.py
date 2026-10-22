@@ -430,3 +430,21 @@ def test_a_scale_zoom_arrives_where_its_site_is_lit_unless_the_script_names_a_ti
     day, sky = scenes.arrival(state, "square")
     assert sky["sun"]["altitude"] >= scenes.LIT_DEGREES and 0 < day - dark < 1
     assert scenes.arrival(state, "square", night) == (dark, scenes.sky_at(state, "square", dark))
+
+
+def test_a_body_is_drawn_in_the_face_its_row_made_else_a_plain_colour_said_waiting():
+    """A body's face is its body-face row's (the state's body_faces), never a library name; while that row has not
+    run the body is a plain colour of its own and the leg's tag says it waits."""
+    from score.dashboard.films.preview import scenes
+    from score.review import setting
+    site = {"place": "square", "name": "Square", "latitude": 22.28, "longitude": 114.16}
+    state = {"environment_concept": {"concept": {"setting": setting.now()}}, "body_faces": {"earth": {"hex": "#336699"}},
+             "environment_plan": {"plan": {"time": "2099-10-01T14:00:00Z",
+                                           "maps": [{"on": "earth", "name": "Earth", "sites": [site]}]}}}
+    assert scenes.face_colour(state, "earth") == [0.2, 0.4, 0.6]
+    assert scenes.face_colour(state, "moon") == scenes.face_colour({}, "moon") != scenes.face_colour({}, "mars")
+    zoom = {"cut": "scale-zoom", "shows": {"place": "square"}, "seconds": 8,
+            "legs": [{"layer": "setting", "seconds": 4}, {"layer": "world", "seconds": 4, "tag": "Blockout"}]}
+    setting_leg, world_leg = scenes.scene_for(state, zoom, 2)["legs"]
+    assert setting_leg["tag"] == f"Moon, Mars: {scenes.WAITING}" and "waits" not in setting_leg
+    assert world_leg["tag"] == "Blockout" and world_leg["color"] == [0.2, 0.4, 0.6]

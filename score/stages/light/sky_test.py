@@ -3,6 +3,7 @@ against skies worked out by hand: a house on a plot under a far sun at its sprin
 less the latitude up, due south), and environment 1's base on the Moon (the Earth about 1.9 degrees across, the Sun
 about half a degree); the gate holds the layer to overhead.py and names what moved or is missing; the old sky is
 turned off and the physics' sky left on."""
+import json
 import math
 
 import numpy as np
@@ -67,6 +68,24 @@ def test_the_earth_over_the_moon_base_is_a_ball_about_two_degrees_across_and_the
     assert earth.GetAttribute("score:surface").Get() == "earth_face"
     assert earth.GetAttribute("score:surface:missing").Get()  # no library in this stage: named, never painted grey
     assert sky.faults(seen, sky.held(stage, "base")) == []
+
+
+def test_a_body_is_painted_with_the_face_its_row_made(tmp_path):
+    from pxr import UsdShade
+    face = {"body": "earth", "surface": "earth_face", "family": "paint", "recipe": "painted_plaster",
+            "token": "ocean-blue", "hex": "#1f4f8f", "colour": [0.0137, 0.0782, 0.2747], "roughness": 0.7, "metal": 0.0}
+    (tmp_path / "body-face-earth").mkdir()
+    (tmp_path / "body-face-earth/face.json").write_text(json.dumps(face))
+    faces = sky.faces_of({"body-face-earth": str(tmp_path / "body-face-earth"), "sky": str(tmp_path / "none.json")})
+    assert faces == {"earth": face}
+    stage = stage_of("base")
+    sky.write(stage, "base", overhead.seen(ENVIRONMENT_1, BASE, WHEN), faces=faces)
+    earth = stage.GetPrimAtPath("/base/Sky/Bodies/earth")
+    material = UsdShade.MaterialBindingAPI(earth).ComputeBoundMaterial()[0]
+    assert material.GetPath() == "/base/Looks/earth_face" and not earth.HasAttribute("score:surface:missing")
+    assert material.GetPrim().GetAttribute("score:from").Get() == "body-face-earth"
+    shader = UsdShade.Shader(stage.GetPrimAtPath("/base/Looks/earth_face/surface"))
+    assert tuple(shader.GetInput("diffuseColor").Get()) == pytest.approx(face["colour"], abs=1e-6)
 
 
 def test_the_gate_names_a_world_moved_a_light_turned_and_a_backdrop_missing():

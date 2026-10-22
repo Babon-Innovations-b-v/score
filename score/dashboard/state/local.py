@@ -523,7 +523,18 @@ class LocalSource:
                               gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
                               remake=self.remake(), concepts=self.concepts(review), **review,
                               **self.environment_concept(), **self.plan_review(), **self.hierarchy(),
-                              **self.environment_plan())
+                              **self.environment_plan(), body_faces=self.body_faces())
+
+    def body_faces(self):
+        """{body: its face.json} of every body face row standing accepted (score/stages/surfaces/body_faces.py)."""
+        from score.stages.surfaces import body_faces
+        found = {}
+        for row in self.world_rows():
+            sha = self.listing(self.accepted_output(row.name)).get("face.json") \
+                if row.name.startswith(body_faces.PREFIX) else None
+            if sha:
+                found[row.name.removeprefix(body_faces.PREFIX)] = json.loads(self.blob_path(sha).read_text())
+        return found
 
     def environment_plan(self):
         """{environment_plan, blockouts} (score/review/environment_plan.py, blockout.py): the environment's plan as its

@@ -242,6 +242,10 @@ class WorldState(BaseModel):
     # {place or shell: FileRef} of each blockout picture (score/review/blockout.py) the store's machine rendered.
     environment_plan: dict | None = None
     blockouts: dict[str, FileRef] = {}
+    # Each body's face as its accepted `body-face-<body>` row made it (score/stages/surfaces/body_faces.py, face.json:
+    # {body, surface, family, recipe, token, hex, colour, roughness, metal, palette}), which the films draw; a body
+    # whose row stands nowhere yet is absent.
+    body_faces: dict[str, dict] = {}
 
 
 class PlanReview(BaseModel):

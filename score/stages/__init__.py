@@ -28,7 +28,7 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           gaps, images, library, light, motion, people, physics, scene_record, settling,
                           shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain, video_clips)
-from score.stages.surfaces import bake_check, carry, library_reads, route_check
+from score.stages.surfaces import bake_check, body_faces, carry, library_reads, route_check
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -715,6 +715,12 @@ def joined_ground(row):
 
 STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) if row.name in EARTH_SEEDED else row
             for row in STAGES), EARTH_SEED)
+# Each body's face (score/stages/surfaces/body_faces.py): an environment row a body of the environment concept's
+# setting, paid, which the light layer reads while it stands (optional: a body still waiting is named missing on its ball).
+BODY_FACES = body_faces.rows(Store.default())
+FACE_READS = {row.name: (row.contract.schema, row.contract.version) for row in BODY_FACES}
+STAGES = (*(dataclasses.replace(row, after={**row.after, **FACE_READS}, optional=(*row.optional, *FACE_READS))
+            if row.name == "light-layer" else row for row in STAGES), *BODY_FACES)
 # The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).
