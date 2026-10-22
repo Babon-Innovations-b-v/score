@@ -144,6 +144,36 @@ def test_a_send_cut_off_is_not_sent_again_a_refusal_is_and_a_set_up_fault_stops(
     assert [line["state"] for line in ledger()] == ["started", "failed"]
 
 
+def test_a_500_or_504_at_the_send_is_sent_again_after_a_longer_wait():
+    """Audit (2026-10-22): a 500 or 504 at the send was a set-up fault that stopped the caller."""
+    waits = []
+    for code in (500, 504):
+        temporary_home()
+        google = FakeGoogle(send_error=urllib.error.HTTPError("url", code, "failing", {}, io.BytesIO()))
+        google_batch.time.sleep = waits.append
+        found = google_batch.generate(MODEL, {"a": {"ask": "a"}}, "key", "test")
+        assert "asked" in found["a"] and len(google.sent) == 1, (code, found)
+    assert waits[0] == google_batch.REFUSED_WAIT, waits
+
+
+def test_a_job_gone_at_a_poll_is_failed_at_once_and_never_polled_again():
+    """Audit (2026-10-22): a job that answered 404 was polled POLL_FAULTS_MOST times, then raised, and its kept name
+    made every later run wait on it again."""
+    temporary_home()
+    google = FakeGoogle()
+    gone = []
+
+    def missing(name, api_key):
+        gone.append(name)
+        raise urllib.error.HTTPError("url", 404, "not found", {}, io.BytesIO())
+    google_batch.status = missing
+    found = google_batch.generate(MODEL, {"a": {"ask": "a"}, "b": {"ask": "b"}}, "key", "test")
+    assert len(gone) == 1 and len(google.sent) == 1, gone
+    assert all(isinstance(answer, google_batch.Unanswered) and "404" in str(answer) for answer in found.values()), found
+    assert [line["state"] for line in ledger()].count("failed") == 2
+    assert not list(google_spend.CACHE.glob("batch-*.json"))  # the dead job's name is dropped
+
+
 def test_requests_past_the_inline_limit_go_into_more_jobs():
     kept = google_batch.INLINE_MOST
     google_batch.INLINE_MOST = 30

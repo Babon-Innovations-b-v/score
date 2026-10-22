@@ -105,8 +105,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   name kept so a run cut off mid-wait picks up the same job, never sends it again; a failed, cancelled or expired
   job, an error answer or a send cut off is its takes' gaps). A list ask (`finish_ask.finish_list`, the prop batch's finish pick) is made once, no ask again
   after a timeout or a dropped connection (`finish_ask.generated`): Google may bill a call cut off mid-way, and
-  `google_spend` counts it at its estimate. Only a refusal that did no work (HTTP 429 or 503) is asked again, at most
-  `REFUSED_ASKS` times. An ask with no usable answer
+  `google_spend` counts it at its estimate. Only a refusal that did no work (HTTP 429, 500, 503 or 504) is asked again, the
+  wait doubling, at most `REFUSED_ASKS` times; a Batch API job that answers a poll with 404 is gone: its takes are
+  gaps at once, never polled again. An ask with no usable answer
   (`finish_ask.UNANSWERED`: a timeout, a lost connection, refused every time, a reply that does not parse) makes its
   take a gap, named in its row's gate (`judge_list`, `judge_recheck`); the takes
   after it are still asked once, and new spend on it is a new batch and a new ask. Any other HTTP status (400, 401,
