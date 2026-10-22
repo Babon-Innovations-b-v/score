@@ -7,7 +7,9 @@ dry_run)`, called by `../maker/make.py`; its docstring lists the steps.
 
 **Experimental: not run on any environment** (#1's own done-when, a fish swimming in an underwater place and a school as an
 instancer, is not met). `make.py` runs this route only with `--experimental` (`route.make` refuses
-without `experimental=True`); it is proven when an animal it made
+without `experimental=True`). The animal rows (`score/stages/animals`, #52) call its steps one by one: `mesh` and
+`unirig` in the body row, `blender_steps` and `usd` in the clips row. They exist only where a design shows an animal
+row, and none does yet. It is proven when an animal it made
 moves in a place's stage and the owner has seen it there.
 
 - **Nothing runs here but plain Python.** The mesh (Pixal3D, `../../props/cloud/batch.py
