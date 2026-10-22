@@ -12,6 +12,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
@@ -336,7 +337,7 @@ def test_a_grant_is_a_quoted_benchmark_of_at_most_20_euros():
     store = Store.in_folder(tempfile.mkdtemp())
     grant = compute.grant_benchmark("Yes", QUESTION, 20, store=store)
     assert store.read(f"grants/benchmark/{grant['id']}.json") == grant
-    assert grant["single_use"] and grant["answer"] == "Yes" and grant["question"] == QUESTION and grant["euros"] == 20.0
+    assert grant["answer"] == "Yes" and grant["question"] == QUESTION and grant["euros"] == 20.0
     assert grant["expires"] > grant["at"] and grant["google_month"] is None
 
 
@@ -354,8 +355,18 @@ def test_a_grant_may_carry_the_owners_google_month():
         BOOKS.BOOKS = kept
 
 
-def test_a_benchmark_batch_spends_under_its_grant_once_within_its_amount():
-    """The grant stands in for the stop line, for one score run, up to its euros."""
+def billed(ticket, euros):
+    """Add a cloud ledger line of `euros` under a cleared run's ticket, started as it was cleared, to the fake ledger;
+    a second later, so the next clearance of the same node starts after it (the ledger counts in seconds)."""
+    lines = BOOKS.entries()
+    BOOKS.entries = lambda: [*lines, {"started": ticket["clearance"]["at"][:19] + "Z", "euros": euros,
+                                      "ticket": f"{ticket['node']} {ticket['key']}"}]
+    time.sleep(1.05)
+
+
+def test_a_grant_holds_its_balance_across_runs_and_each_run_draws_its_real_spend():
+    """The owner, 2026-10-22: a grant is not used up by a run that fails after spending cents; it holds its euros until
+    they are spent. Each run holds its high plus 10% while it goes and draws its real spend when it ends, failed too."""
     runner = compute_test.a_runner("a hall")
     ledger({"euros": 90.0})
     BILL["euros"] = 100.0  # nothing spent since the line
@@ -363,13 +374,33 @@ def test_a_benchmark_batch_spends_under_its_grant_once_within_its_amount():
     grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
     clear = lambda euros: lambda: compute.clearance(runner, "render@hangar", euros)  # noqa: E731
     assert "pass the EUR 1.00 stop" in compute_test.refused(clear(6.0))  # not tagged: the stop line as ever
-    ticket = as_benchmark(grant, "run-a", clear(6.0))
-    assert ticket["clearance"]["grant"] == grant and runner.store.read(f"grants/used/{grant}.json")["run"] == "run-a"
-    assert as_benchmark(grant, "run-a", clear(4.0))  # the same run, 10 of 10
-    assert "would pass its EUR 10.00" in compute_test.refused(lambda: as_benchmark(grant, "run-a", clear(0.5)))
-    assert "single use" in compute_test.refused(lambda: as_benchmark(grant, "run-b", clear(0.5)))
+    first = as_benchmark(grant, "run-a", clear(6.0))  # holds 6.60 of 10
+    assert first["clearance"]["grant"] == grant
+    assert "EUR 3.40 left" in compute_test.refused(lambda: as_benchmark(grant, "run-a", clear(4.0)))
+    billed(first, 0.25)
+    compute.release(first)  # the first run fails after spending 0.25: it draws that, never its hold
+    draws = runner.store.objects.keys(f"grants/draws/{grant}/")
+    assert len(draws) == 1 and runner.store.read(draws[0])["euros"] == 0.25
+    assert runner.store.read(draws[0])["balance"] == 9.75
+    second = as_benchmark(grant, "run-b", clear(8.0))  # another run under the same grant: 8.80 fits in 9.75
+    assert "EUR 0.95 left" in compute_test.refused(lambda: as_benchmark(grant, "run-b", clear(1.0)))
+    billed(second, 1.5)
+    compute.release(second)
+    assert compute.grant_balance(runner.store, grant, {}) == 8.25
     assert "one score run" in compute_test.refused(lambda: as_benchmark(grant, None, clear(0.5)))
     assert "no benchmark grant" in compute_test.refused(lambda: as_benchmark("20991231T000000", "run-c", clear(0.5)))
+
+
+def test_a_run_whose_high_does_not_fit_the_balance_left_is_refused():
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 0.0})
+    grant = compute.grant_benchmark("Yes", QUESTION, 2.0, store=runner.store)["id"]
+    clear = lambda euros: lambda: compute.clearance(runner, "render@hangar", euros)  # noqa: E731
+    spent = as_benchmark(grant, "run-a", clear(1.0))
+    billed(spent, 1.2)  # ran over its high: it draws what it spent
+    compute.release(spent)
+    assert "EUR 0.80 left" in compute_test.refused(lambda: as_benchmark(grant, "run-b", clear(0.75)))
+    assert as_benchmark(grant, "run-b", clear(0.7))  # 0.77 fits
 
 
 def test_a_scene_inventory_reading_is_cleared_under_the_owners_allowance_alone():
@@ -391,7 +422,7 @@ def test_a_scene_inventory_reading_is_cleared_under_the_owners_allowance_alone()
     grant = compute.grant_benchmark("Yes", QUESTION, 1.0, store=runner.store)["id"]
     clear = lambda euros: lambda: compute.reading_clearance(runner.store, ["a", "b"], euros)  # noqa: E731
     assert as_benchmark(grant, "reading-1", clear(0.6))["clearance"]["grant"] == grant
-    assert "would pass its EUR 1.00" in compute_test.refused(lambda: as_benchmark(grant, "reading-1", clear(0.6)))
+    assert "EUR 0.34 left" in compute_test.refused(lambda: as_benchmark(grant, "reading-1", clear(0.6)))
 
 
 def test_an_expired_or_unquoted_grant_clears_nothing():
@@ -412,6 +443,27 @@ def test_an_expired_or_unquoted_grant_clears_nothing():
     runner.store.write_once("grants/benchmark/dear.json", {**forged, "id": "dear", "answer": "Yes", "euros": 50.0})
     assert "not a quoted benchmark grant" in compute_test.refused(lambda: as_benchmark("dear", "run-a", clear))
     assert runner.store.objects.keys("clearances/") == []
+
+
+def test_a_grant_used_up_under_the_single_use_rule_holds_its_balance_once_restored():
+    """Before 2026-10-22 a grant's first run took it whole; the owner's yes of that day, applied to one, makes each of
+    its old clearances draw what it really spent and leaves the rest to spend."""
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 0.0})
+    grant = compute.grant_benchmark("Yes", QUESTION, 20.0, store=runner.store)["id"]
+    old = compute.clearance(runner, "render@hangar", 1.5)  # a test store has no stop line
+    compute.release(old)
+    billed(old, 0.16)
+    # as the single-use rule left it: a used mark and its clearance counted
+    runner.store.write_once(f"grants/used/{grant}.json", {"run": "run-a", "at": old["clearance"]["at"]})
+    runner.store.write_once(f"grants/spent/{grant}/1.json",
+                            {field: old["clearance"][field] for field in ("node", "key", "euros", "at")})
+    clear = lambda: compute.clearance(runner, "render@hangar", 1.0)  # noqa: E731
+    assert "single-use rule" in compute_test.refused(lambda: as_benchmark(grant, "run-b", clear))
+    assert "quotes" in compute_test.refused(lambda: compute.restore_grant(grant, "", QUESTION, runner.store))
+    restored = compute.restore_grant(grant, "yes", "hold the EUR 20 until it is spent?", runner.store)
+    assert restored["balance"] == 19.84 and runner.store.read(f"grants/restored/{grant}.json") == restored
+    assert as_benchmark(grant, "run-b", clear)
 
 
 if __name__ == "__main__":

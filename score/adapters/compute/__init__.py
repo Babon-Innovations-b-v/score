@@ -42,11 +42,13 @@ reservation; the ledger's own batch limits still apply there. A barrier, not a l
 clearance given earlier, and every clearance names its node, key, estimate and time.
 
 A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) is his yes, in a Claude Code session, to
-one benchmark batch of at most GRANT_EUROS: the session asks him, and on his yes writes it with `grant_benchmark`
-(his answer and the question quoted, the time, single use, 24 h). The batch is one `score run` tagged with the grant
+benchmark batches of at most GRANT_EUROS in all: the session asks him, and on his yes writes it with
+`grant_benchmark` (his answer and the question quoted, the time, 24 h). A batch is a `score run` tagged with the grant
 (SCORE_BENCHMARK_GRANT=<grant id>); its paid nodes are cleared by the runner as any other, their inputs passed and
-the books asked as ever, with the grant standing in for the world's stop line: the run that clears
-first takes the grant, and its clearances together stay within the grant's euros. Nothing else spends through a grant.
+the books asked as ever, with the grant's balance standing in for the world's stop line (owner, 2026-10-22: it holds
+its euros until they are spent): each clearance holds its high plus 10% of the balance (`grants/holds/`), and when
+its run ends, finished or failed, draws its real spend instead (`grants/draws/`, each with the balance after it). The
+grant is done when its balance runs out or it expires, never because a run ended. Nothing else spends through a grant.
 """
 import contextlib
 import datetime
@@ -86,7 +88,8 @@ BENCHMARK = "benchmark"
 GRANT = "SCORE_BENCHMARK_GRANT"
 GRANT_EUROS = 20.0  # the most one benchmark grant allows (owner, 2026-10-20); more needs his cockpit click
 GRANT_HOURS = 24
-GRANTS = "grants"  # grants/benchmark/<id>.json, grants/used/<id>.json, grants/spent/<id>/<time>.json
+GRANTS = "grants"  # grants/benchmark/<id>.json, grants/holds/<id>/<time>.json, grants/draws/<id>/<time>.json
+GRANT_BUFFER = 1.10  # a job under a grant holds its high plus 10% of the balance (owner, 2026-10-22)
 # A scene inventory reading (score/review/reading.py) is cleared under the owner's standing allowance, no yes asked.
 READING = "inventory-read"
 READING_RULE = "scene inventory readings run without asking (owner, 2026-10-21, root CLAUDE.md)"
@@ -442,8 +445,7 @@ def write_google_month(figure, by):
 
 def grant_benchmark(answer, question, euros, purpose=BENCHMARK, google_month=None, store=None):
     """Record the owner's yes, given in a Claude Code session, to one benchmark batch of at most GRANT_EUROS (his
-    standing rule of 2026-10-20): the grant {id, purpose, euros, answer, question, at, expires, single_use,
-    google_month}, kept once in the store (`grants/benchmark/<id>.json`). Refused for any purpose but a benchmark, a
+    standing rule of 2026-10-20): the grant {id, purpose, euros, answer, question, at, expires, google_month}, kept once in the store (`grants/benchmark/<id>.json`). Refused for any purpose but a benchmark, a
     figure over GRANT_EUROS or not above 0, or the answer or the question not quoted. A Google month figure he gave in
     the same answer goes into the books as his own (owners_google_month's books)."""
     if purpose != BENCHMARK:
@@ -459,22 +461,38 @@ def grant_benchmark(answer, question, euros, purpose=BENCHMARK, google_month=Non
     expires = datetime.datetime.fromisoformat(at) + datetime.timedelta(hours=GRANT_HOURS)
     grant = {"id": stamp_key(at), "purpose": BENCHMARK, "euros": figure, "answer": str(answer),
              "question": str(question), "at": at, "expires": expires.isoformat(timespec="microseconds"),
-             "single_use": True, "google_month": google}
+             "google_month": google}
     covering_store(store or Store.default()).write_once(f"{GRANTS}/{BENCHMARK}/{grant['id']}.json", grant)
     if google is not None:
         write_google_month(google, f"the owner's answer, benchmark grant {grant['id']}")
     return grant
 
 
-def grant_spent(store, grant_id):
-    """The euros the runner has cleared under a grant so far."""
-    return sum(store.read(key)["euros"] for key in store.objects.keys(f"{GRANTS}/spent/{grant_id}/"))
+def grant_balance(store, grant_id, held):
+    """What grant `grant_id` has left: its euros less every draw written and every hold whose run is still open in
+    `held` (the open reservations) and drew nothing yet."""
+    grant = store.read(f"{GRANTS}/{BENCHMARK}/{grant_id}.json")
+    drawn = grant_draws(store, grant_id)
+    holding = sum(hold["reserved"] for hold in grant_holds(store, grant_id)
+                  if hold["at"] in held and not any(draw["at"] == hold["at"] for draw in drawn))
+    return round(grant["euros"] - sum(draw["euros"] for draw in drawn) - holding, 6)
 
 
-def grant_refusal(store, grant_id, forecast):
-    """Why a benchmark batch's paid job at `forecast` euros may not spend under grant `grant_id`, or None: the grant
-    must be a benchmark's, quoted, at most GRANT_EUROS, not expired, unused or used by this same `score run`, and
-    have room for the job over what it already cleared."""
+def grant_holds(store, grant_id):
+    """The holds clearances took on grant `grant_id`, oldest first."""
+    return [store.read(key) for key in sorted(store.objects.keys(f"{GRANTS}/holds/{grant_id}/"))]
+
+
+def grant_draws(store, grant_id):
+    """The draws written on grant `grant_id` (each a run's real spend, or a late part of it), oldest first."""
+    return [store.read(key) for key in sorted(store.objects.keys(f"{GRANTS}/draws/{grant_id}/"))]
+
+
+def grant_refusal(store, grant_id, forecast, held):
+    """Why a benchmark batch's paid job at a high `forecast` of euros may not spend under grant `grant_id`, or None:
+    the grant must be a benchmark's, quoted, at most GRANT_EUROS, not expired, spent by a `score run`, not used up under
+    the single-use rule of before 2026-10-22 unless the owner had it restored (restore_grant), and its high plus
+    GRANT_BUFFER must fit in its balance (grant_balance, once the runs that ended drew: settle_grant)."""
     grant = store.read(f"{GRANTS}/{BENCHMARK}/{grant_id}.json")
     if grant is None:
         return f"{GRANT} names {grant_id}, which is no benchmark grant"
@@ -483,25 +501,104 @@ def grant_refusal(store, grant_id, forecast):
         return f"grant {grant_id} is not a quoted benchmark grant of at most EUR {GRANT_EUROS:.0f}"
     if datetime.datetime.now(datetime.timezone.utc) >= datetime.datetime.fromisoformat(grant["expires"]):
         return f"grant {grant_id} expired at {grant['expires'][:16]}; the owner is asked again"
-    run = os.environ.get(RUN_ID)
-    if not run:
+    if not os.environ.get(RUN_ID):
         return f"grant {grant_id}: a benchmark batch spends as one score run"
-    used = store.read(f"{GRANTS}/used/{grant_id}.json")
-    if used and used["run"] != run:
-        return f"grant {grant_id} was used by run {used['run']} at {used['at'][:16]}; it is single use"
-    spent = grant_spent(store, grant_id)
-    if spent + forecast > grant["euros"]:
-        return (f"grant {grant_id}: EUR {spent:.2f} cleared under it and this job's EUR {forecast:.2f} would pass its "
-                f"EUR {grant['euros']:.2f}")
+    if store.read(f"{GRANTS}/used/{grant_id}.json") and not store.read(f"{GRANTS}/restored/{grant_id}.json"):
+        return f"grant {grant_id} was used up under the single-use rule of before 2026-10-22"
+    settle_grant(store, grant_id, held)
+    balance = grant_balance(store, grant_id, held)
+    if forecast * GRANT_BUFFER > balance:
+        return (f"grant {grant_id}: EUR {balance:.2f} left, and this job's high of EUR {forecast:.2f} plus 10% "
+                "would pass it")
     return None
 
 
-def spend_grant(store, grant_id, cleared):
-    """Take the grant for this run (single use) and count a clearance against it."""
-    if store.read(f"{GRANTS}/used/{grant_id}.json") is None:
-        store.write_once(f"{GRANTS}/used/{grant_id}.json", {"run": os.environ[RUN_ID], "at": cleared["at"]})
-    store.write_once(f"{GRANTS}/spent/{grant_id}/{stamp_key(cleared['at'])}.json",
-                     {"node": cleared["node"], "key": cleared["key"], "euros": cleared["euros"], "at": cleared["at"]})
+def hold_grant(store, grant_id, cleared, held):
+    """Hold a clearance's high plus GRANT_BUFFER on its grant until its run ends and draws its real spend."""
+    reserved = round(cleared["euros"] * GRANT_BUFFER, 6)
+    store.write_once(f"{GRANTS}/holds/{grant_id}/{stamp_key(cleared['at'])}.json",
+                     {"node": cleared["node"], "key": cleared["key"], "run": os.environ.get(RUN_ID),
+                      "high": cleared["euros"], "reserved": reserved, "at": cleared["at"],
+                      "balance": round(grant_balance(store, grant_id, held) - reserved, 6)})
+
+
+def settle_grant(store, grant_id, held):
+    """Write a draw for each hold on grant `grant_id` whose run has ended (not in `held`, the open reservations): its
+    real spend (run_spend) less what it drew already, so a batch line ledgered after its run (a parked card, a disk)
+    draws later. A run that failed draws what it spent, never the rest of its hold."""
+    drawn = grant_draws(store, grant_id)
+    for hold in grant_holds(store, grant_id):
+        if hold["at"] in held:
+            continue
+        before = [draw for draw in drawn if draw["at"] == hold["at"]]
+        until = before[0]["until"] if before else graph.now()
+        spend = run_spend(store, hold, until)
+        due = round(spend["euros"] - sum(draw["euros"] for draw in before), 6)
+        if before and due <= 0.00005:
+            continue
+        draw = {"node": hold["node"], "key": hold["key"], "run": hold.get("run"), "at": hold["at"], "until": until,
+                "spend": spend, "euros": due, "balance": round(grant_balance(store, grant_id, held) - due, 6)}
+        store.write_once(f"{GRANTS}/draws/{grant_id}/{stamp_key(graph.now())}-{stamp_key(hold['at'])}.json", draw)
+        drawn.append(draw)
+
+
+# The Gemini callers of a stage whose ledger lines carry another name than the stage's (google_spend's `caller`).
+GOOGLE_CALLERS = {"closeup": ("pro",), READING: ("inventory-reading",), PLAN_WRITING: ("plan-writing", "plan-drawing")}
+
+
+def run_spend(store, hold, until):
+    """A cleared run's real spend ({euros, cloud, google}): its cloud ledger lines by its ticket started from its
+    clearance until the node and key's next clearance (a later run of it), and the Gemini calls its stage made from
+    its clearance to `until` at google_spend's own count (a call never finished at its estimate). Google's ledger
+    names no ticket, so its stage's calls in that time count as its own: two places of one stage under one grant at
+    once each count the other's too (over, never under)."""
+    books = ledger()
+    import google_spend  # beside ledger.py
+    later = [cleared["at"] for cleared in store.clearances(hold["node"], hold["key"]) if cleared["at"] > hold["at"]]
+    ticket, since, before = f"{hold['node']} {hold['key']}", hold["at"][:19], min(later, default="9")[:19]
+    cloud = sum(entry.get("euros", 0.0) for entry in books.entries()
+                if entry.get("ticket") == ticket and since <= entry.get("started", "")[:19] < before)
+    stage = hold["node"].partition("@")[0]
+    callers = GOOGLE_CALLERS.get(stage, (stage,))
+    start, end = (datetime.datetime.fromisoformat(moment) for moment in (hold["at"], until))
+    lines = ([json.loads(line) for line in google_spend.LEDGER.read_text().splitlines() if line.strip()]
+             if google_spend.LEDGER.exists() else [])
+    lines = [line for line in lines if line.get("caller") in callers
+             and start <= datetime.datetime.fromisoformat(line["time"]) <= end]
+    finished = {line.get("call") for line in lines if line.get("state", "finished") == "finished"}
+    google = (sum(google_spend.estimate(line["model"]) if line.get("euros") is None else line["euros"]
+                  for line in lines if line.get("state", "finished") == "finished")
+              + sum(line.get("estimate", 0.0) for line in lines
+                    if line.get("state") == "started" and line.get("call") not in finished))
+    return {"euros": round(cloud + google, 6), "cloud": round(cloud, 6), "google": round(google, 6)}
+
+
+def restore_grant(grant_id, answer, question, store=None):
+    """Apply the owner's yes of 2026-10-22 (a grant holds its euros until they are spent) to a grant used up under the
+    single-use rule before it: each clearance it made then draws its real spend (run_spend, to now), and the restore
+    {id, answer, question, at, balance} is kept beside the grant (`grants/restored/<id>.json`). Refused for no grant
+    still standing, one not used up, or the answer or the question not quoted."""
+    store = covering_store(store or Store.default())
+    grant = store.read(f"{GRANTS}/{BENCHMARK}/{grant_id}.json")
+    if grant is None or datetime.datetime.now(datetime.timezone.utc) >= datetime.datetime.fromisoformat(
+            grant["expires"]):
+        raise Refused(f"{grant_id} is no benchmark grant still standing")
+    used = store.read(f"{GRANTS}/used/{grant_id}.json")
+    if used is None:
+        raise Refused(f"grant {grant_id} was not used up under the single-use rule: it holds its balance already")
+    if not str(answer or "").strip() or not str(question or "").strip():
+        raise Refused("a restore quotes the owner's answer and the question he answered, both")
+    with clearing(store.cache.parent / "reservations.json"):
+        for key in sorted(store.objects.keys(f"{GRANTS}/spent/{grant_id}/")):
+            cleared = store.read(key)
+            store.write_once(f"{GRANTS}/holds/{grant_id}/{stamp_key(cleared['at'])}.json",
+                             {**cleared, "run": used["run"], "high": cleared["euros"], "reserved": cleared["euros"],
+                              "balance": None})
+        settle_grant(store, grant_id, {})
+        restored = {"id": grant_id, "answer": str(answer), "question": str(question), "at": graph.now(),
+                    "balance": grant_balance(store, grant_id, {})}
+        store.write_once(f"{GRANTS}/restored/{grant_id}.json", restored)
+    return restored
 
 
 def months_since(baseline, now):
@@ -602,7 +699,7 @@ def clearance(runner, node, euros):
     with clearing(reservations):
         held = open_reservations(reservations)
         over = (books_refusal()
-                or (grant_refusal(covering_store(runner.store), grant_id, forecast["euros"]) if grant_id else
+                or (grant_refusal(covering_store(runner.store), grant_id, forecast["euros"], held) if grant_id else
                     stop_refusal(runner, node, forecast["euros"], held)))
         if over:
             raise Refused(f"{node}: {over}")
@@ -610,7 +707,7 @@ def clearance(runner, node, euros):
                    "high_minutes": forecast["high_minutes"], "measured": forecast["measured"], "estimate": euros,
                    "by": RUNNER, "at": graph.now(), **({"grant": grant_id} if grant_id else {})}
         if grant_id:
-            spend_grant(covering_store(runner.store), grant_id, cleared)
+            hold_grant(covering_store(runner.store), grant_id, cleared, held)
         runner.store.write_clearance(node, ticket["key"], cleared)
         keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": os.environ.get(RUN_ID)}})
     return {**ticket, "clearance": cleared, "reservations": str(reservations),
@@ -634,7 +731,7 @@ def reading_clearance(store, places, euros, node=READING):
     reservations = covering.cache.parent / "reservations.json"
     with clearing(reservations):
         held = open_reservations(reservations)
-        over = books_refusal() or (grant_refusal(covering, grant_id, euros) if grant_id else None)
+        over = books_refusal() or (grant_refusal(covering, grant_id, euros, held) if grant_id else None)
         if over:
             raise Refused(f"{node}: {over}")
         at = graph.now()
@@ -642,7 +739,7 @@ def reading_clearance(store, places, euros, node=READING):
                    "high_minutes": READING_MINUTES, "measured": False, "estimate": euros, "places": list(places),
                    "by": f"allowance: {ALLOWANCES[node]}", "at": at, **({"grant": grant_id} if grant_id else {})}
         if grant_id:
-            spend_grant(covering, grant_id, cleared)
+            hold_grant(covering, grant_id, cleared, held)
         store.write_clearance(node, cleared["key"], cleared)
         keep_reservations(reservations, {**held, at: {**cleared, "run": os.environ.get(RUN_ID)}})
     return {"node": node, "key": cleared["key"], "clearance": cleared, "reservations": str(reservations),
@@ -660,12 +757,15 @@ def hold(ticket):
 
 
 def release(ticket):
-    """End a cleared run's reservation: its cost is in the ledger now, or it never rented."""
+    """End a cleared run's reservation: its cost is in the ledger now, or it never rented. A run under a benchmark
+    grant draws its real spend from the grant (settle_grant)."""
     reservations = pathlib.Path(ticket["reservations"])
     with clearing(reservations):
         held = open_reservations(reservations)
         held.pop(ticket["clearance"]["at"], None)
         keep_reservations(reservations, held)
+        if ticket["clearance"].get("grant"):
+            settle_grant(Store.in_folder(reservations.parent), ticket["clearance"]["grant"], held)
 
 
 def release_run(reservations, run_id):
