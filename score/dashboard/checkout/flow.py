@@ -9,7 +9,9 @@ again. A checkout refused or failed after its line, and a batch that ended, take
 plus what is in flight (`closed`); a checkout left launching by a process that is gone is failed (`abandoned`).
 Nothing here stops a run once started.
 """
+import contextlib
 import datetime
+import fcntl
 import os
 import pathlib
 import threading
@@ -158,7 +160,7 @@ def start(user, key, confirmed, seen, at_once=False):
     """(Checkout or None, words): the same checkout again for a key already used; else every refusal checked, then
     the checkout recorded and run in the background, or in this thread when `at_once` (a sync pass applying the
     owner's hosted checkout, whose process ends with the pass). `seen` [{id, version}] the items he bought."""
-    with _checking_out:
+    with checking_out():
         found = Checkout.objects.filter(key=key).first()
         if found is not None:
             return found, f"checkout {found.pk} was already made with this key: {found.state}"
@@ -183,6 +185,16 @@ def start(user, key, confirmed, seen, at_once=False):
         return record, f"checkout {record.pk}: {record.state}: {record.detail}"
     run_soon(record)
     return record, f"checkout {record.pk}: planning {len(bought)} item{'s' if len(bought) != 1 else ''}"
+
+
+@contextlib.contextmanager
+def checking_out():
+    """One checkout's refusals and record at a time across this home's processes (the local cockpit and the sync pass
+    applying a hosted Buy): two presses with different keys in two processes could otherwise both pass "another
+    checkout is still launching" and both write a stop line and launch."""
+    with _checking_out, (settings.SCORE_HOME / "checkout.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
 
 
 def run_soon(record):

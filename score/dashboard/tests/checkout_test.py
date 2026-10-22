@@ -165,6 +165,27 @@ def test_the_same_key_is_the_same_checkout(shop):
     assert Checkout.objects.count() == 1 and len(launches()) == 1
 
 
+def test_a_checkout_waits_while_another_process_of_this_home_is_checking_out(shop, settings):
+    """Audit (2026-10-22): the checkout's lock was this process's alone, so the local cockpit and a sync pass applying
+    a hosted Buy could both pass "another checkout is still launching" and both launch. The other process here holds
+    the home's checkout lock for 1.5 s."""
+    import subprocess
+    import sys
+    import time
+    holder = subprocess.Popen([sys.executable, "-c", "import fcntl, sys, time; held = open(sys.argv[1], 'a'); "
+                               "fcntl.flock(held, fcntl.LOCK_EX); print('held', flush=True); time.sleep(1.5)",
+                               str(settings.SCORE_HOME / "checkout.lock")], stdout=subprocess.PIPE, text=True)
+    try:
+        assert holder.stdout.readline().strip() == "held"
+        client, began = api(), time.monotonic()
+        bought(shop, "alpha-pieces")
+        checked_out(client, "w")
+        assert time.monotonic() - began >= 1.0
+        assert Checkout.objects.count() == 1 and len(launches()) == 1
+    finally:
+        holder.wait(timeout=10)
+
+
 def test_a_run_that_would_buy_more_than_was_priced_is_refused_before_the_line(shop):
     client = api()
     bought(shop, "alpha-pieces")
