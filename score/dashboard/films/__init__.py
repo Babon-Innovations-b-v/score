@@ -23,8 +23,7 @@ in `$SCORE_DASHBOARD_HOME/films/locked/<film>.json`, which the environment-film 
         # screen-take: "shows": {"page": "/concept/hub/"}, "take": [steps] (takes.py), "view": page width in CSS px
         # setting-animation: "days_per_second", "surfaces": {body: library surface}, "camera", "note"
         # scale-zoom: "shows": {"place"}, "legs": [{"layer": setting|world|site|place|room, "seconds", ...}]
-     }],
-     "bed": "sound/base_hum"}                      # the free preview's sound bed, a library sound
+     }]}                                           # the preview's sound bed: the sound stage's, never named here
 
 The render hook (for tools/review/showcase.py and the demo-film rows, which read the file as plain JSON and never
 import this package): each segment in order, its length `seconds` (else `defaults`, else CUTS), joined with

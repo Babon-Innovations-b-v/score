@@ -10,7 +10,8 @@ takes recorded in headless Chromium on a hosted-mode cockpit of its own over a s
 the proxy header (`recorder.mjs`), the setting animation and scale zoom drawn by `scene.js` from `scenes.py` (the
 setting's physics through `score/review/overhead.py`, the environment plan's sites and blocks, the locked concepts,
 each body's colour from its `body-face-<body>` row's face), the other cuts through the FILM page's own player, joined by ffmpeg on the script's
-clock with its library sound bed; out to `$SCORE_DASHBOARD_HOME/films/previews/<film>.mp4|.json`, which the FILM page
+clock over the bed the sound stage made from the design for the first place it shows (`make.bed_sound`, the state's
+`sound_beds`; silent, "waiting on the sound bed", while none is made, never a library name); out to `$SCORE_DASHBOARD_HOME/films/previews/<film>.mp4|.json`, which the FILM page
 plays (`/film-preview/<film>.mp4`, api/routes.py, with ranges) and the export carries (`films/`).
 
 Rules:

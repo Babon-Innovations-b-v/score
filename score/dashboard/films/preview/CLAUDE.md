@@ -19,7 +19,9 @@ film script's rules are `../CLAUDE.md`'s).
   spends (`../takes.py`); the cockpit it records is a loopback one over a state export, never the hosted site.
 - **What a scene shows comes from data**: the setting's bodies through `overhead.orbit_position` (sizes and moons'
   orbits enlarged as `pages/setting_picture.py` draws them), sites, blocks and skies from the environment plan, colours
-  of the bodies and grounds from each body's face as its `body-face-<body>` row made it (the state's `body_faces`, never a library name; a plain colour of its own while the row has not run, the leg's tag saying `WAITING`), rooms from their locked concepts. A missing bed refuses.
+  of the bodies and grounds from each body's face as its `body-face-<body>` row made it (the state's `body_faces`, never a library name; a plain colour of its own while the row has not run, the leg's tag saying `WAITING`), rooms from their locked concepts. The bed is the sound stage's (the state's `sound_beds`: the first place the film
+  shows with an accepted `sound@<place>` bed, else the first with one), never a library name; while none is made the
+  film joins with silence and its record says `waiting on the sound bed`.
   A scale zoom arrives at each place in daylight (#51, `scenes.arrival`): the first hour from its site's scene time
   when its sun stands `LIT_DEGREES` up, its sky worked out again there through `overhead.seen`; a segment's `time`
   (ISO) overrides it for its own place.
