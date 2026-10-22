@@ -193,6 +193,12 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
     assert found[0]["surface"] == "grey_plastic" and found[0]["by"] == "nearest of its family by colour"
     assert found[1]["surface"] == "dark_panel" and found[1]["by"] == "off its colour" and not found[1]["fits"]
     assert found[1]["new_surface"]["lab"] == [round(float(value), 1) for value in light_grey]
+    # a finish in its own token's colour (the finish route's settings) is held to that colour, not its surface's
+    tinted = finish_parts.checked_finishes(
+        {"kind": "lab_chair", "object": "desk chair"},
+        [{"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True, "colour": grey}],
+        [light_grey], library)
+    assert tinted[0]["surface"] == "dark_panel" and tinted[0]["by"] == "the list", tinted[0]
 
 
 def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_colour():
