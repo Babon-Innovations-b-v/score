@@ -142,10 +142,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `capacity.RESERVE_SECONDS` a process's written count of machines it is renting (`capacity.reserve_run_slot`, a count
   per process in `cloud/runs/<run>/` under a lock), so a slot whose offer gave no machine frees itself; `park.adopt`
   counts a taken machine the same way. Left open: a run's orphan process (its node gone) that had the group's stop is
-  sent a second one when no node shows the stop within 1 s. Not yet done, because `batch.py` and `blender_cloud.py` are declared inputs of the pixal
-  and turntable rows and an edit there re-keys them: run-id tags on fresh machines and a getppid check inside those
-  two tools. So a node that dies while its runner lives (killed alone, out of memory) leaves its batch running with
-  nothing to stop it; `batch_test`'s acceptance case covers only the runner dying. `park.reap` (a gone run's pid or a heartbeat over 15 min, each item's own project checked) is checked
+  sent a second one when no node shows the stop within 1 s. A node that dies while its runner lives (killed alone, out
+  of memory) no longer leaves its batch renting (audit, 2026-10-22): under SCORE_RUN_ID, `batch.stop_on_signals` (every
+  runner calls it) watches the parent and, once it is gone, sends itself SIGTERM, so every machine is deleted at once;
+  `batch.say` moves to `cloud/orphaned-batches.log` on a broken pipe, so the delete loop survives the gone reader. Not
+  done: run-id tags on fresh machines. `park.reap` (a gone run's pid or a heartbeat over 15 min, each item's own project checked) is checked
   against a fake backend only; no backend lists machines with their project yet.
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It

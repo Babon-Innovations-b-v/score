@@ -531,6 +531,48 @@ def test_a_node_of_a_runner_that_leads_no_group_outlives_it_so_its_batch_deletes
     assert deletes.read_text().split() == ["machine-0", "machine-1", "machine-2"], deletes.read_text()
 
 
+# A run (SCORE_RUN_ID set) whose one node runs the batch, its output piped to the node; the node's pid in node.pid.
+RUN_WITH_A_NODE = """
+import os, pathlib, subprocess, sys, time
+folder = pathlib.Path(sys.argv[4])
+if os.fork() == 0:
+    (folder / "node.pid").write_text(str(os.getpid()))
+    subprocess.run([sys.executable, "-c", sys.argv[1], *sys.argv[2:]], capture_output=True)
+    os._exit(0)
+time.sleep(120)
+"""
+
+
+def test_a_node_killed_alone_while_its_run_lives_has_its_batch_delete_every_machine_at_once():
+    """Audit (2026-10-22): a node killed alone (out of memory) while its run lived got no stop, so its batch rented on
+    until its deadline or the machines' 15-minute self-delete; and once it stopped, the broken pipe to the gone node
+    ended its delete loop after one machine."""
+    import signal
+    import subprocess
+    import time
+
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="killed-node-"))
+    deletes = folder / "deletes.txt"
+    environment = {**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work"),
+                   "SCORE_RUN_ID": "killed-node-test"}
+    run = subprocess.Popen([sys.executable, "-c", RUN_WITH_A_NODE, WORKING_BATCH,
+                            str(pathlib.Path(__file__).resolve().parent), str(deletes), str(folder), "90"],
+                           env=environment, start_new_session=True)
+    try:
+        deadline = time.time() + 30
+        while not (folder / "ready").exists() and time.time() < deadline:
+            time.sleep(0.1)
+        assert (folder / "ready").exists(), "the fake batch never started"
+        os.kill(int((folder / "node.pid").read_text()), signal.SIGKILL)  # the run lives on
+        while len(deletes.read_text().split() if deletes.exists() else []) < 3 and time.time() < deadline:
+            time.sleep(0.1)
+        assert deletes.exists() and deletes.read_text().split() == ["machine-0", "machine-1", "machine-2"]
+        assert run.poll() is None, "the run itself ended"
+    finally:
+        os.killpg(run.pid, signal.SIGKILL)
+        run.wait(timeout=10)
+
+
 # A runner leading its process group, with four node processes (score.graph's watch_runner, each its own poll) that
 # take SIGTERM without ending, and a process that writes a line for every SIGTERM it gets; "ready" once all are in.
 COUNTED_RUNNER = """
