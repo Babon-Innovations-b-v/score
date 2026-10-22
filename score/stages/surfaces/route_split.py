@@ -11,10 +11,10 @@ merged_islands), each island one part.
 The colour check comes first, free, the moment the list's one answer is back and before any paid bake or recheck
 (owner, 2026-10-20): each region of every view, from every angle the views row cast, against the finish labelled
 there, its chosen surface's token colour (the list's settings) against the region's median texture colour in that
-view (`colour_faults`). First a finish whose token lies over VIEW_DELTA_E from what all its regions show takes the
-scene palette's token nearest that colour, its surface kept (`recoloured`, owner 2026-10-22: the list put the
-astronaut's mid-grey jacket in hull-white); then a region over VIEW_DELTA_E makes its take a gap, named, so nothing of
-it is baked.
+view (`colour_faults`). First a finish whose token lies over VIEW_DELTA_E from what all its regions show takes, of
+the scene palette's tokens within it of that colour, the one nearest the listed token, its surface kept
+(`recoloured`, owner 2026-10-22: the list put the astronaut's mid-grey jacket in hull-white); then a region over
+VIEW_DELTA_E makes its take a gap, named, so nothing of it is baked.
 
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
@@ -157,24 +157,32 @@ def finish_colours(folder, listed):
 
 
 def recoloured(folder, listed, tokens):
-    """The list's answer with each finish whose token colour lies over VIEW_DELTA_E from what its regions show given
-    the scene palette's token nearest that colour (`tokens`: {token: linear RGB}) when it is nearer: its surface, and
-    so its family, kept, as the parts row takes the nearest surface of a finish's family (finish_parts.
-    checked_finishes). Finishes judged by their own colour, or with no settings, are kept as listed."""
+    """The list's answer with each finish whose token colour lies over VIEW_DELTA_E from what its regions show given,
+    of the scene palette's tokens (`tokens`: {token: linear RGB}) within VIEW_DELTA_E of that colour, the one nearest
+    the listed token, so the list's hue is kept where the views allow (astronaut-made-s1, 2026-10-22: its brown
+    trousers, listed maroon, took the nearer grey by the views alone, and the recheck failed them as grey); its
+    surface, and so its family, kept, as the parts row takes the nearest surface of a finish's family (finish_parts.
+    checked_finishes). One no token fits, or judged by its own colour, or with no settings, is kept as listed."""
     finishes = []
     for finish, seen in zip(listed["finishes"], finish_colours(folder, listed)):
         if seen is None or own_colour(finish) or finish.get("colour") is None or not finish.get("settings"):
             finishes.append(finish)
             continue
-        apart = float(np.linalg.norm(seen - finish_parts.library_lab(finish)))
-        nearest = min(((float(np.linalg.norm(seen - finish_parts.library_lab({"colour": colour}))), token)
-                       for token, colour in tokens.items()), default=(float("inf"), None))
-        if apart <= VIEW_DELTA_E or nearest[0] >= apart:
+        listed_lab = finish_parts.library_lab(finish)
+        if float(np.linalg.norm(seen - listed_lab)) <= VIEW_DELTA_E:
             finishes.append(finish)
             continue
-        finishes.append(dict(finish, settings=dict(finish["settings"], token=nearest[1]),
-                             colour=[round(float(value), 5) for value in tokens[nearest[1]]],
-                             listed_token=finish["settings"]["token"], by="the palette token nearest the views"))
+        labs = {token: finish_parts.library_lab({"colour": colour}) for token, colour in tokens.items()}
+        fitting = [(float(np.linalg.norm(lab - listed_lab)), token) for token, lab in labs.items()
+                   if float(np.linalg.norm(seen - lab)) <= VIEW_DELTA_E]
+        if not fitting:
+            finishes.append(finish)
+            continue
+        token = min(fitting)[1]
+        finishes.append(dict(finish, settings=dict(finish["settings"], token=token),
+                             colour=[round(float(value), 5) for value in tokens[token]],
+                             listed_token=finish["settings"]["token"],
+                             by="the palette token the views allow nearest the list's"))
     return dict(listed, finishes=finishes)
 
 
