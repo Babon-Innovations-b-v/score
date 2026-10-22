@@ -1,0 +1,11 @@
+# Every 30 minutes, and once at boot for a slot missed while the machine was off (Persistent).
+[Unit]
+Description=SCORE store backup every 30 minutes
+
+[Timer]
+OnCalendar=*:00/30
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

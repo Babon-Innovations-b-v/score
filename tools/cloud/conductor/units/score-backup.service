@@ -1,0 +1,17 @@
+# The store's half-hourly backup on the conductor (score/store/backup, its overlay): one restic snapshot of
+# $PROPS_HOME into SCORE_BACKUP_REPO, the cockpit's SQLite databases as consistent copies. Installed with the
+# conductor's other units, its <slots> filled in like the deploy templates'. The password is read by name inside the
+# process (SCORE_SECRET_READER, score-backup-restic-password), never in this file. Refused, and logged as such, until
+# the move wrote $PROPS_HOME/machine.json. Its record: $PROPS_HOME/logs/backup-<stamp>.json.
+[Unit]
+Description=SCORE store backup: one restic snapshot of PROPS_HOME
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=<path to the score repository>
+EnvironmentFile=<path to the env file kept outside the repo>
+ExecStart=<path to the score repository>/.venv/bin/python -m score.store.backup backup
+Nice=10
+IOSchedulingClass=idle

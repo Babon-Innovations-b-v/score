@@ -1,0 +1,11 @@
+# Daily, at a quiet hour; Persistent runs a missed day at the next boot.
+[Unit]
+Description=SCORE store backup repository check, daily
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
