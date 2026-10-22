@@ -65,11 +65,20 @@ def claim_refusal(caller):
     return None
 
 
+def moment(made):
+    """An export's made_at as an aware time (a time without a zone read as UTC), or None when it is no time."""
+    try:
+        found = datetime.datetime.fromisoformat(str(made).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return found if found.tzinfo else found.replace(tzinfo=datetime.timezone.utc)
+
+
 def second(at=None):
     """The other machine (not the store's) whose export came last, within SECOND_HOURS of `at` (now), else None."""
     since = ((at or datetime.datetime.now(datetime.timezone.utc)) - datetime.timedelta(hours=SECOND_HOURS))
-    others = {name: made for name, made in (record().get("others") or {}).items()
-              if made and datetime.datetime.fromisoformat(made) >= since}
+    others = {name: moment(made) for name, made in (record().get("others") or {}).items() if made}
+    others = {name: made for name, made in others.items() if made and made >= since}
     return max(others, key=others.get) if others else None
 
 

@@ -106,6 +106,7 @@ class Remote:
             if answer.code != 404:
                 raise
             self.report(request_id, "picked_up")
+        self.not_the_store = None  # the owner made this the store's machine since: no longer said
         return True
 
     def put_request_file(self, name, data):
