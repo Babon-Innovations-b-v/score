@@ -24,6 +24,8 @@ stage as each stage is built; nothing moves before.
   when changed; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout. `store/restore/`
   (its overlay) rebuilds a lost store by today's keys and gates with a runner that spends nothing (#13).
+  `store/backup/` (its overlay) backs the home up with restic every 30 minutes on the store's machine and makes the
+  one-time move of the store from the PC to the conductor, checked by manifest.
 - **`python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]`** and **`python -m score
   status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place, an environment stage named with `--place` kept with the place nodes it reads, so `--place people --stage people-look-<look>` is the people line and that look's body in one run (with `--object <look>-s1` the line narrowed to its take: the prop route, finish route, bake and likeness select); `--object <name>` (repeat it) narrows a stage that selects (`Stage.selects`) to those objects of its place, the names in its params as `objects`, so a filtered output has its own key, and `graph.selected()` gives them to its files function, so another object's files neither key nor block it; any other stage runs whole): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at

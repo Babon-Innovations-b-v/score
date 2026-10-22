@@ -67,6 +67,16 @@ check_project_json() {
   fi
 }
 
+# The store's backups (score/store/backup) run restic; its tests skip without it.
+check_restic() {
+  if ! command -v restic >/dev/null 2>&1; then
+    say "restic: NOT INSTALLED. The store's backups and the move need it (the conductor's boot installs it pinned)."
+    say "    https://restic.readthedocs.io/en/stable/020_installation.html"
+    return
+  fi
+  say "restic: $(restic version | cut -d' ' -f2)"
+}
+
 # --- 3. Use the repo's own git hooks ---------------------------------------
 # .githooks/pre-commit refuses a commit that leaves the paper's PDF and LaTeX older than
 # its Markdown draft.
@@ -115,6 +125,7 @@ seed_gltfpack
 # The agent tools: code graph, Bun for claude-mem, their settings.
 bash "$REPO/.claude/scripts/install-agent-tools.sh"
 check_gh
+check_restic
 check_project_json
 say ""
 say "Next: fill the placeholders in CLAUDE.md, then start a session and describe the first task."

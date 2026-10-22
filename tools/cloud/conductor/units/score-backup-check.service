@@ -1,0 +1,16 @@
+# The backup repository's daily care (score/store/backup): drop snapshots past the policy (48 last, 30 daily,
+# 12 weekly; pc-final always kept) and prune, then restic check, reading a 5% subset of the data when no data read
+# passed in the last 7 days. Each step leaves its record in $PROPS_HOME/logs/backup-<stamp>.json.
+[Unit]
+Description=SCORE store backup: forget, prune and check the repository
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=<path to the score repository>
+EnvironmentFile=<path to the env file kept outside the repo>
+ExecStart=<path to the score repository>/.venv/bin/python -m score.store.backup forget
+ExecStart=<path to the score repository>/.venv/bin/python -m score.store.backup check
+Nice=10
+IOSchedulingClass=idle

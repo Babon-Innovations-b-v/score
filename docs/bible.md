@@ -407,6 +407,27 @@ Recovery, in order:
 3. Never put back by hand: records, judgements, evidence, accepts, rejects, waivers, clearances, spend yeses, the
    registry or stop lines.
 
+**The store's backups** (`score/store/backup`, its overlay). On the store's machine (the conductor) restic writes an
+encrypted, deduplicated snapshot of `$PROPS_HOME` every 30 minutes (`score-backup.timer`) into the repository
+`SCORE_BACKUP_REPO` names: an Object Storage bucket in nl-ams (another region than the machine, Multi-AZ, versioning
+on). It holds everything but what can be rebuilt (cache, store/cache, tmp, downloads, frozen, env, store-tests,
+blender-mcp, partial writes); the cockpit's SQLite databases go in as consistent online-backup copies. Daily:
+forget (48 last, 30 daily, 12 weekly; `pc-final` kept) and `restic check`, a 5% data read when none passed in 7 days.
+So a lost disk now loses at most 30 minutes: restore the newest snapshot into an empty home (`python -m
+score.store.backup restore --to <dir>` is the drill, compared to the snapshot's manifest when it carries one), then
+step 1 above still holds (paid work shut until the books are known), and the restore of step 2 is needed only for
+what the snapshot missed. The password is the secret `score-backup-restic-password`, read by name; lose it and the
+repository is unreadable.
+
+**The move of the store from the PC** (one time, the owner's; refused in an agent's process): stop the PC's
+score-sync, score-listen and score-resume units; `python -m score.store.backup migrate --from-pc` (refused while one is
+active or a run is alive) writes the PC home's manifest (the store's listing hash over `store/objects`, sha256 and
+size of every file in design, cloud, runs, dashboard and work) and backs the home up tagged `pc-final` with the
+manifest inside; on the conductor `migrate --onto-conductor` (refused into a home not empty) restores it, compares
+the two manifests and stops on any difference, listing every file, then writes `$PROPS_HOME/machine.json` (name,
+since, from), the store's machine identity. The PC's home is then renamed read-only by the owner, and `migrate
+--pc-test-home` puts back only work/ and design/, read-only, for the PC's test sandbox (env/ is bootstrap's).
+
 ## build/release
 
 Nothing is deployed. A push to `main` publishes the source, the paper's PDF and its arXiv tree. There is no CI and no
@@ -534,7 +555,8 @@ The people line needs nothing installed here: every environment it runs is set u
 (`tools/props/cloud/characters_setup.sh`); it reads the secret `hf-read-token` (an account that accepted Meta's terms
 for `meta-llama/Meta-Llama-3-8B-Instruct`, Kimodo's text encoder's base).
 
-**What survives a wipe:** everything in git, the bucket and score_lib. **What does not:** Claude's memory, `gh` auth,
+**What survives a wipe:** everything in git, the bucket, score_lib and, once the store lives on the conductor, the
+restic backup repository (`architecture/failure`: `PROPS_HOME` to within 30 minutes). **What does not:** Claude's memory, `gh` auth,
 local toolchains, `PROPS_HOME` (`architecture/failure`) and anything left uncommitted.
 
 ## Identifiers
@@ -547,4 +569,5 @@ Names and numbers a session cannot derive. Secrets live in a secret store; only 
 | Project board | `9` (org project) |
 | Environment ids | `world1` (environment 1), `images` (the job images). Stored ids and the runner's whole-environment grain `world` keep the old word: both are hashed into every node's key, and renaming them would make every accepted node again |
 | Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; Google's bill read from the billing export table named by `SCORE_GOOGLE_BILLING_TABLE`, else `$PROPS_HOME/cloud/google-billing-table` |
-| Secrets | read by name with `secret_store.secret(name)`: the environment variable `SCORE_SECRET_<NAME>`, else the backend's store (Scaleway Secret Manager): `gemini-api-key`, `worldlabs-api-key`, `hf-read-token`, `freesound-api-key` (optional) |
+| Secrets | read by name with `secret_store.secret(name)`: the environment variable `SCORE_SECRET_<NAME>`, else the backend's store (Scaleway Secret Manager): `gemini-api-key`, `worldlabs-api-key`, `hf-read-token`, `freesound-api-key` (optional); read through `SCORE_SECRET_READER` (an executable outside the repo printing the secret its argument names): `score-cockpit-sync-token`, `score-backup-restic-password` (the store's backup repository, `score/store/backup`) |
+| Store backups | restic repository named by `SCORE_BACKUP_REPO` (in the env file outside the repo); snapshots of the move tagged `pc-final`; the store's machine identity `$PROPS_HOME/machine.json` |
