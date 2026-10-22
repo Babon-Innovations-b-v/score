@@ -166,12 +166,54 @@ RECORDED = {
                           "runs": [{"euros": 0.249375, "units": 1,
                                     "source": "ledger batch characters-20261021-203329-3895203 (people-clips-made, "
                                               "2026-10-21, benchmark grant 20261021T182203): one L4, 18.7 machine "
-                                              "minutes"}],
-                          "time": {"unit_seconds": {"likely": 245.6, "high": 245.6},
-                                   "setup_minutes": {"likely": 14.5, "high": 14.5}, "slots": 1,
-                                   "slots_from": "one chain on its one card", "holds": "machines", "lines": 1,
+                                              "minutes"},
+                                   {"euros": 0.24125, "units": 1,
+                                    "source": "ledger batch characters-20261022-193515-1675031 (people-clips-made, "
+                                              "2026-10-22, benchmark grant 20261022T072047, commit 3c16bfcd): one "
+                                              "L4, 17.68 machine minutes EUR 0.23625, and its disk-and-address line "
+                                              "EUR 0.005"}],
+                          "time": {"unit_seconds": {"likely": 245.4, "high": 245.6},
+                                   "setup_minutes": {"likely": 13.9, "high": 14.5}, "slots": 1,
+                                   "slots_from": "one chain on its one card", "holds": "machines", "lines": 2,
                                    "from": ["ledger batch characters-20261021-203329-3895203 (its machine's "
-                                            "unit_seconds; start wait 0.37 and set-up 14.15 min)"]}},
+                                            "unit_seconds; start wait 0.37 and set-up 14.15 min)",
+                                            "ledger batch characters-20261022-193515-1675031 (its machine's "
+                                            "unit_seconds 245.2; start wait 0.36 and set-up 12.9 min)"]}},
+    # The people line's one look under grant 20261022T072047 (2026-10-22, #26): astronaut-made's body (its characters
+    # machine for the build and route, then its checks on a processor machine, billed by the started hour unless a
+    # parked one is adopted) and its look renders, each node's whole make (forecast "one").
+    "people-body-astronaut-made": {
+        "unit": "make of a look's full body (build, people route and checks: one characters machine, one processor "
+                "machine)", "forecast": "one",
+        "runs": [{"euros": 0.83125, "units": 1,
+                  "source": "ledger batches characters-20261022-202308-1721308 (one L4, 17.14 machine minutes EUR "
+                            "0.23625, disk-and-address EUR 0.005) and blender-20261022-204039-1740832 (body_checks, "
+                            "one POP2-16C-64G, 2.57 machine minutes billed EUR 0.59 for its started hour), "
+                            "people-body-astronaut-made at commit b2f4de96, benchmark grant 20261022T072047"},
+                 {"euros": 0.228125, "units": 1,
+                  "source": "ledger batches characters-20261022-210500-1764621 (one L4, 16.69 machine minutes EUR "
+                            "0.223125, disk-and-address EUR 0.005) and blender-20261022-212203-1778270 (body_checks "
+                            "on the parked processor machine adopted, EUR 0), people-body-astronaut-made at commit "
+                            "81f03563, benchmark grant 20261022T072047"}],
+        "time": {"unit_seconds": {"likely": 251.0, "high": 254.4},
+                 "setup_minutes": {"likely": 13.6, "high": 13.9}, "slots": 1,
+                 "slots_from": "one body on its one card, then its checks on one processor machine",
+                 "holds": "machines", "lines": 2,
+                 "from": ["ledger batch characters-20261022-202308-1721308 (work 16.77 min less set-up 13.5 min) and "
+                          "blender-20261022-204039-1740832 (unit_seconds 58.3)",
+                          "ledger batch characters-20261022-210500-1764621 (work 16.33 min less set-up 13.0 min) and "
+                          "blender-20261022-212203-1778270 (unit_seconds 48.0)"]}},
+    "people-look-astronaut-made": {
+        "unit": "render of a look's A-pose views and clip frames (blender_shots.py, one card)", "forecast": "one",
+        "runs": [{"euros": 0.044375, "units": 1,
+                  "source": "ledger batch blender-20261022-212654-1785095 (people-look-astronaut-made, 2026-10-22, "
+                            "commit 81f03563, benchmark grant 20261022T072047): one L4, 2.19 machine minutes EUR "
+                            "0.039375, and its disk-and-address line EUR 0.005"}],
+        "time": {"unit_seconds": {"likely": 42.8, "high": 42.8},
+                 "setup_minutes": {"likely": 1.33, "high": 1.33}, "slots": 1,
+                 "slots_from": "one look's renders on its one card", "holds": "machines", "lines": 1,
+                 "from": ["ledger batch blender-20261022-212654-1785095 (its machine's unit_seconds; start wait 0.36 "
+                          "and set-up 0.96 min)"]}},
     # The benchmark batch of 2026-10-22 (grant 20261022T072047, one score run at commit aac2fac2): the two guessed
     # kinds that ran, one node each, its whole make (forecast "one").
     "surface-library": {"unit": "scene surface library of a place (one Gemini 3.1 Pro answer)", "forecast": "one",
