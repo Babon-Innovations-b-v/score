@@ -232,6 +232,10 @@ install_units() {
     render_unit "$unit" > "$folder/$name"
     if grep -q '^\[Install\]' "$unit"; then enabled+=("$name"); fi
   done
+  # score-resume.service is every machine's template; on the conductor it waits for the move (machine.json), since
+  # a resume writes runs/ and the move restores only into an empty home.
+  mkdir -p "$folder/score-resume.service.d"
+  printf '[Unit]\nConditionPathExists=%%h/.farm-factory-props/machine.json\n' > "$folder/score-resume.service.d/conductor.conf"
   systemctl --user daemon-reload
   if [ "${#enabled[@]}" -gt 0 ]; then systemctl --user enable "${enabled[@]}"; fi
   for name in "${enabled[@]}"; do

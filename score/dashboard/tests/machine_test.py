@@ -6,6 +6,7 @@ the card and /machine/ render. score.conductor is stood in for here: the real on
 import datetime
 import hashlib
 import json
+import os
 import shutil
 import sys
 import types
@@ -200,3 +201,19 @@ def test_the_card_and_the_machine_page_render(world, conductor):
     assert "Allow paid work again" in home  # the latch is set
     page = pages.get("/machine/").content.decode()
     assert "run.log" in page and "one fault" in page and "score-sync.timer" in page
+
+
+def test_the_sync_and_the_listener_follow_the_kill_switch_latch(monkeypatch):
+    from score import conductor
+    from score.dashboard.sync import client
+    monkeypatch.delenv(conductor.FREE_ONLY, raising=False)
+    monkeypatch.setitem(client.LATCHED, "set", False)
+    conductor.FREE_ONLY_LATCH.parent.mkdir(parents=True, exist_ok=True)
+    conductor.FREE_ONLY_LATCH.write_text(f"{conductor.FREE_ONLY}=1\n")
+    try:
+        assert client.free_only_followed() and os.environ[conductor.FREE_ONLY] == "1"
+    finally:
+        conductor.FREE_ONLY_LATCH.unlink()
+    assert not client.free_only_followed() and conductor.FREE_ONLY not in os.environ
+    monkeypatch.setenv(conductor.FREE_ONLY, "1")  # set by whoever started it (a restore): never taken off here
+    assert not client.free_only_followed() and os.environ[conductor.FREE_ONLY] == "1"

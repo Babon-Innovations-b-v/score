@@ -5,17 +5,23 @@ named and tagged `score-conductor`) that holds the store, the design, the ledger
 runner, with sync, the listener, resume and every free step. `machine.py`'s docstring is the contract: what `up`
 makes, the rights of the two keys, and what is still unchecked until the first `up`.
 
-- **`machine.py`** `up | status | grow | shrink | stop | down | price | dry`. `up` costs money and is the owner's
+- **`machine.py`** `up | move | status | grow | shrink | stop | down | price | dry`. `up` costs money and is the owner's
   command alone: it refuses in an agent's process (the store's agent markers, imported from `score.store`), puts no
   key in user-data or the repo, and pipes the conductor's one credential over ssh. `up --dry` and `dry` are
-  free and open to agents: they print every scw call and make none. Every scw call names its zone or region, every
+  free and open to agents: they print every scw call and make none. `up` also pipes the sizes record
+  (`SIZES`, to `~/.config/score/conductor.json`, `SCORE_CONDUCTOR_RECORD`) and writes `SCORE_CONDUCTOR_SIZE_URL`
+  into the env file; `move` (the owner's, once, after `up`) backs this PC's home up tagged pc-final, then over ssh
+  restores it (`migrate --onto-conductor` merges the sizes into `machine.json`, which makes it a conductor) and only
+  then installs the sync and listener (`install-sync --no-pull`). score-resume (a drop-in boot.sh writes) and
+  score-health wait for that machine.json: both write into the home the restore needs empty. Every scw call names its zone or region, every
   list and create the project; a record's own project id is checked before it is used or deleted.
 - **Never tag the conductor `farm-factory-batch`**: the runner's leftover sweeps delete by that tag. The conductor
   lives in its own project so its hourly bill never enters the batch project's spend or a batch's 10% buffer.
 - **`size_function/`** (standard library only; deployed as `handler.py` and `s3.py` alone): grow or shrink between
   exactly the two sizes, for the one server id in its own env. Either way it powers the server off, so it refuses
   both, while the server runs, when the health record (`health/conductor.json` in the backup bucket, written every
-  minute by `health_push.py`) shows a live run claim, a parked paid machine or a frozen worktree, or is over 10
+  minute by `health_push.py`) shows a live run claim, a parked paid machine or a frozen worktree a process works in
+  (a waiting-for-size run's own copy left out: it waits for that grow), or is over 10
   minutes old (a power cycle mid-run cuts the run and orphans its rented machines); a refused type change still
   powers the server back on. `health_push.py` pushes nothing when the claims file does not parse, so the record
   goes stale rather than idle.

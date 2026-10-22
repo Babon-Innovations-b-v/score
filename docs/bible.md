@@ -419,8 +419,8 @@ behind until `git worktree remove`. A run cut off by a reboot comes back with `p
   never the listener or the sync. The drive's own memory hold (`graph.memory_room`) takes its floor per node from
   `SCORE_MIN_FREE_GB` there, when the env file sets it.
 - *Kill switch.* The owner's cockpit button (`kill.stop_all`, refused in an agent's process): the free-only latch
-  first (`conductor/free-only`, `SCORE_FREE_ONLY=1`, read by every `score` command; the sync and listener units
-  read it only once they name it as an `EnvironmentFile`), then SIGTERM to every live run (each registers `stopped`, never resumed unasked), every waiting run stopped, every parked machine
+  first (`conductor/free-only`, `SCORE_FREE_ONLY=1`, read by every `score` command; the sync pass and the listener mirror it into their
+  own environment before each pass and each request, `client.free_only_followed`, and take it off once he clears it), then SIGTERM to every live run (each registers `stopped`, never resumed unasked), every waiting run stopped, every parked machine
   deleted through `park.release`. Only his second click clears the latch. The hard stop is `machine.py stop` from
   his PC.
 - *Money.* The conductor bills in its own project (`score-conductor`); the stop line reads the batch project's bill
@@ -461,7 +461,11 @@ active or a run is alive) writes the PC home's manifest (the store's listing has
 size of every file in design, cloud, runs, dashboard and work) and backs the home up tagged `pc-final` with the
 manifest inside; on the conductor `migrate --onto-conductor` (refused into a home not empty) restores it, compares
 the two manifests and stops on any difference, listing every file, then writes `$PROPS_HOME/machine.json` (name,
-since, from), the store's machine identity. The PC's home is then renamed read-only by the owner, and `migrate
+since, from, over the sizes record `machine.py up` piped to `SCORE_CONDUCTOR_RECORD`), the store's machine identity,
+which makes it a conductor. The owner's one command for both sides is `python3 tools/cloud/conductor/machine.py move`
+(from his PC after `up`, the PC's units stopped): the PC's backup, then over ssh the restore and `install-sync
+--no-pull`; score-resume and score-health wait for machine.json there (`ConditionPathExists`), since both write into
+the home the restore needs empty. The PC's home is then renamed read-only by the owner, and `migrate
 --pc-test-home` puts back only work/ and design/, read-only, for the PC's test sandbox (env/ is bootstrap's).
 
 ## build/release

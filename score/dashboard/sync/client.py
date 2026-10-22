@@ -18,6 +18,7 @@ import datetime
 import gzip
 import hashlib
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -225,11 +226,34 @@ def keep_tracked(found):
     path.write_text(json.dumps(found, indent=1))
 
 
+LATCHED = {"set": False}  # whether free_only_followed set SCORE_FREE_ONLY here (only then does it take it off)
+
+
+def free_only_followed():
+    """Mirror the owner's kill switch latch (score.conductor's free-only file) into this process's environment, so
+    the sync pass, the listener and every process they start spend nothing while it holds, and again once he
+    allows paid work; whether it holds. Off a conductor's code nothing changes."""
+    try:
+        from score import conductor
+    except ModuleNotFoundError:
+        return False
+    if conductor.free_only():
+        if os.environ.get(conductor.FREE_ONLY) != "1":
+            os.environ[conductor.FREE_ONLY] = "1"
+            LATCHED["set"] = True
+        return True
+    if LATCHED["set"]:
+        os.environ.pop(conductor.FREE_ONLY, None)
+        LATCHED["set"] = False
+    return False
+
+
 def answered(remote, item, source, chosen=None):
     """Claim one waiting request, apply it, send back the pictures it brought and report it; the Applied, or None
     when another caller (the listener, sync/listen.py, or a pass) took it first."""
     if not remote.claim(item["id"]):
         return None
+    free_only_followed()
     applied = applying.apply(item, source, chosen)
     for name, path in applied.files.items():
         remote.put_request_file(name, pathlib.Path(path).read_bytes())
@@ -419,6 +443,7 @@ def sync_pass(remote, source, chosen=None):
     price fails; the export is pushed even when the checkout moved to another commit during the pass, so his locks and
     designs reach the cockpit while agents push (owner 2026-10-21, "my concepts still not back"): prepare's and the
     price's records name the commit they were made on, so the cockpit shows those figures stale and Buy waits."""
+    free_only_followed()
     refused = tree_refusal(settings.SCORE_REPO)
     if refused:
         return refused_words(refused)
