@@ -210,7 +210,8 @@ def test_a_raw_take_is_finished_on_a_rented_machine_never_here():
     script, arguments, sent, outputs, classes = calls[0][:5]
     raw, final, _ = pixal_row.take_files("crate-t1")
     assert script == REPO / "tools/props/finish_elsewhere.py" and arguments[3:] == ["crate-t1", "--faces=12000"]
-    assert raw in sent and pathlib.Path("/close/crate.png") in sent and outputs == [final], calls
+    assert raw in sent and pathlib.Path("/close/crate.png") in sent, calls
+    assert outputs == [final, final.with_name("crate-t1-12000.glb")], outputs  # the paint replays its turn from it
     assert classes == pixal_row.FINISH_CLASSES
 
 
