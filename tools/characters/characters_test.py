@@ -329,7 +329,18 @@ def test_cast_check():
     assert len(looks) == len(members) == 40
 
 
+def test_dense_morph_target():
+    """The people route writes its correctives as dense morph targets (route_build.py): skel_usd keeps the points one
+    moves, as it does a sparse one's."""
+    values = np.array([[0, 0, 0], [0.1, 0, 0], [0, 0, 0], [0, -0.2, 0]], np.float32)
+    document = {"bufferViews": [{"buffer": 0, "byteLength": values.nbytes}],
+                "accessors": [{"bufferView": 0, "componentType": 5126, "count": 4, "type": "VEC3"}]}
+    indices, offsets = skel_usd.sparse_values(document, values.tobytes(), 0)
+    assert indices.tolist() == [1, 3] and np.allclose(offsets, values[[1, 3]]), (indices, offsets)
+
+
 def main():
+    test_dense_morph_target()
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         (folder / "bodies").mkdir()

@@ -328,10 +328,15 @@ def write_part(stage, path, document, blob, primitive, skeleton, look, shape_nam
 
 
 def sparse_values(document, blob, index):
-    """A sparse morph target accessor's moved points and their offsets ((n,), (n, 3)); none where it holds no data."""
+    """A morph target accessor's moved points and their offsets ((n,), (n, 3)); none where it holds no data. A dense
+    one (the people route's correctives, route_build.py) gives the points it moves."""
     found = document["accessors"][index]
     if "bufferView" in found:
-        raise ValueError(f"accessor {index}: only sparse morph targets on zeros are read")
+        if "sparse" in found:
+            raise ValueError(f"accessor {index}: sparse morph targets over dense values are not read")
+        values = accessor(document, blob, index)
+        moved = np.flatnonzero(np.abs(values).max(axis=1) > 0)
+        return moved.astype(np.int64), values[moved].astype(np.float32)
     if "sparse" not in found:
         return np.zeros(0, np.int64), np.zeros((0, 3), np.float32)
     sparse = found["sparse"]

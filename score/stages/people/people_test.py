@@ -227,6 +227,26 @@ def test_dress_finds_the_routed_body_whatever_its_outfit_is_named():
     assert dress.outfit_node(document)["name"] == "work"
 
 
+def test_a_wrist_with_no_hand_piece_is_no_join_and_one_with_a_hand_not_measured_fails():
+    """An astronaut's gloves are its suit's cloth (2026-10-22): joins.py measures no wrist, and the body draws no hand
+    piece, so there is no wrist join to open; a body that draws a hand but has no wrist measured still fails."""
+    import struct
+    with tempfile.TemporaryDirectory() as held:
+        output = pathlib.Path(held)
+        (output / "checks").mkdir()
+        (output / "checks" / "joins.json").write_text(json.dumps({"verdict": {
+            "wrist": None, "ankle": {"pass": True}, "stance": {"pass": True}}}))
+        for hand, answer in (("cloth", "pass"), ("skin_hands", "fail")):
+            document = {"nodes": [{"name": "work", "mesh": 0, "skin": 0}], "materials": [{"name": "cloth"},
+                        {"name": hand}], "meshes": [{"primitives": [{"material": 0}, {"material": 1}]}]}
+            text = json.dumps(document).encode()
+            text += b" " * (-len(text) % 4)
+            (output / "body.glb").write_bytes(b"glTF" + struct.pack("<II", 2, 28 + len(text)) + struct.pack(
+                "<I", len(text)) + b"JSON" + text + struct.pack("<I", 0) + b"BIN\x00")
+            judged = bodies.judge_joins(output, {}, {})
+            assert judged.answer == answer, (hand, judged)
+
+
 def test_clearance_eases_out_and_back():
     angles = np.zeros(20)
     angles[10] = 0.3
