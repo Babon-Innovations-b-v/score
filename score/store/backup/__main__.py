@@ -61,10 +61,23 @@ def main(argv):
     except (backups.Refused, backups.Mismatch, backups.ResticFailed) as failure:
         outcome = {"detail": {"differences": failure.differences}} if isinstance(failure, backups.Mismatch) else {}
         error = str(failure)
+    except Exception as failure:  # an unforeseen failure still leaves its record, so health sees it, then propagates
+        log_failure(kind, start, failure)
+        raise
+    return report(kind, outcome, start, error)
+
+
+def report(kind, outcome, start, error):
+    """Write one command's record and print its line; the exit status (0 when it went through)."""
     record = _core.log_record(kind, outcome, time.monotonic() - start, error)
     path = _core.write_log(PROPS_HOME, record)
     print(summary(kind, record, path))
     return 0 if record["ok"] else 1
+
+
+def log_failure(kind, start, failure):
+    """Record an unforeseen failure (its type and message) as the command's failed outcome."""
+    report(kind, {}, start, f"{type(failure).__name__}: {failure}")
 
 
 if __name__ == "__main__":

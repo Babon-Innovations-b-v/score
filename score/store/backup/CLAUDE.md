@@ -17,7 +17,7 @@ nl-ams, made by `tools/cloud/conductor/machine.py up`); its units are `tools/clo
   names objects), and sha256 and size of every file in design, cloud, runs, dashboard (databases as copies) and work.
   It reads the store only through its public `tree_listing` and `listing_hash`; never edit `score/store/__init__.py` or
   `durable.py` from here (every stage's key holds them).
-- **Every command leaves one record**, `$PROPS_HOME/logs/backup-<UTC stamp>.json`: `{at, kind, ok, snapshot, files,
+- **Every command leaves one record**, an unforeseen failure's too (then it propagates), `$PROPS_HOME/logs/backup-<UTC stamp>.json`: `{at, kind, ok, snapshot, files,
   bytes, seconds, error, detail}`. `score.conductor health` reads the newest of kind `backup` for the last backup's
   age and result: keep those keys. Kinds: backup, forget, check, check-data, restore, manifest, migrate-<mode>.
 - **A plain backup is refused until `machine.json` exists** (the move writes it), so a fresh conductor's timer never
