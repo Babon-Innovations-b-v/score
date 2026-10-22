@@ -50,6 +50,18 @@ def test_record_of_an_empty_home_is_idle():
         assert (record["active_runs"], record["parked"], record["frozen"], record["health"]) == (0, 0, 0, None)
 
 
+def test_an_unreadable_claims_file_is_never_read_as_idle():
+    with tempfile.TemporaryDirectory() as folder:
+        home = pathlib.Path(folder)
+        (home / "runs").mkdir()
+        (home / "runs" / "active.json").write_text('{"123": ')
+        try:
+            health_push.record(home, datetime.datetime.now(datetime.timezone.utc))
+            raise AssertionError("a claims file that does not parse was pushed as a record")
+        except ValueError:
+            pass
+
+
 SCW_SHIM = """#!/bin/sh
 echo "$*" >> "{log}"
 case "$1 $2" in

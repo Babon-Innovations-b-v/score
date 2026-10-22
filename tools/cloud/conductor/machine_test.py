@@ -172,7 +172,7 @@ esac
 exit 0
 """
 SHIMMED = ("apt-get", "id", "useradd", "loginctl", "blkid", "mkfs.ext4", "mountpoint", "mount", "chown", "systemctl",
-           "runuser", "git", "curl")
+           "runuser", "git", "curl", "chattr")
 
 
 def boot_root(folder, installed=True):
@@ -222,6 +222,9 @@ def test_boot_runs_against_a_temp_root_and_again():
         assert not any(call.startswith("curl") for call in calls), "a pinned tool already there was downloaded again"
         fstab = (root / "etc" / "fstab").read_text()
         assert "UUID=1111-uuid /home/score/.farm-factory-props ext4" in fstab
+        mountpoint = root / "home" / "score" / ".farm-factory-props"
+        assert calls.index(f"chattr +i {mountpoint}") < calls.index(f"mount {mountpoint}"), \
+            "the bare mountpoint is not made immutable before the data volume is mounted on it"
         for name in ("score-secret-reader", "score-agent-door"):
             assert os.access(root / "usr" / "local" / "bin" / name, os.X_OK), name
         sshd = (root / "etc" / "ssh" / "sshd_config.d" / "50-score-conductor.conf").read_text()

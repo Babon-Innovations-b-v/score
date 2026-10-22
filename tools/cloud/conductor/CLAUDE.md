@@ -13,9 +13,14 @@ makes, the rights of the two keys, and what is still unchecked until the first `
 - **Never tag the conductor `farm-factory-batch`**: the runner's leftover sweeps delete by that tag. The conductor
   lives in its own project so its hourly bill never enters the batch project's spend or a batch's 10% buffer.
 - **`size_function/`** (standard library only; deployed as `handler.py` and `s3.py` alone): grow or shrink between
-  exactly the two sizes, for the one server id in its own env; it refuses to shrink while the health record
-  (`health/conductor.json` in the backup bucket, written every minute by `health_push.py`) shows a live run claim,
-  a parked paid machine or a frozen worktree, or is over 10 minutes old while the server runs.
+  exactly the two sizes, for the one server id in its own env. Either way it powers the server off, so it refuses
+  both, while the server runs, when the health record (`health/conductor.json` in the backup bucket, written every
+  minute by `health_push.py`) shows a live run claim, a parked paid machine or a frozen worktree, or is over 10
+  minutes old (a power cycle mid-run cuts the run and orphans its rented machines); a refused type change still
+  powers the server back on. `health_push.py` pushes nothing when the claims file does not parse, so the record
+  goes stale rather than idle.
+- **The data volume's bare mountpoint is immutable** (`chattr +i`, boot.sh): with `nofail`, a boot where the volume
+  does not attach fails every writer there instead of starting an empty store on the root disk.
 - **`cloud-init.yaml` + `boot.sh`**: user score (uid 1100) with linger, the data volume formatted only when blank
   and mounted at `/home/score/.farm-factory-props` by UUID, restic, uv, scw and the Google Cloud CLI pinned by
   version and SHA-256 (a new pin: a version at least two weeks old, its checksum from the release's own sums file),

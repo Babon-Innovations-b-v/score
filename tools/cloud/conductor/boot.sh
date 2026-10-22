@@ -97,7 +97,12 @@ mount_data() {
     echo "UUID=$uuid $mountpoint ext4 defaults,nofail,x-systemd.device-timeout=60 0 2" >> "$ROOT/etc/fstab"
   fi
   mkdir -p "$ROOT$mountpoint"
-  mountpoint -q "$ROOT$mountpoint" || mount "$ROOT$mountpoint"
+  if ! mountpoint -q "$ROOT$mountpoint"; then
+    # The bare folder under the mount is made immutable: when the volume does not attach at a boot (nofail), the
+    # runner, sync and resume fail on it instead of starting an empty store on the root disk.
+    chattr +i "$ROOT$mountpoint"
+    mount "$ROOT$mountpoint"
+  fi
   chown "$SCORE_USER:$SCORE_USER" "$ROOT$mountpoint"
   say "data volume $uuid at $mountpoint"
 }

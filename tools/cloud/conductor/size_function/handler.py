@@ -5,10 +5,12 @@
 - allows exactly two commercial types, the idle one (SCORE_IDLE_TYPE) and the batch one (SCORE_BATCH_TYPE), and the
   one server SCORE_SERVER_ID in SCORE_ZONE, all set in its own environment at deploy time (never in the repository);
   a server not named and tagged score-conductor is refused;
-- refuses to shrink while the conductor's health record (health/conductor.json in SCORE_HEALTH_BUCKET, written every
-  minute by tools/cloud/conductor/health_push.py) says a run is active, a paid machine is parked or a frozen worktree
-  is in use, or is older than HEALTH_STALE_SECONDS while the server runs (an unknown is never an idle);
-- powers the server off, waits until it is stopped, sets its commercial type, powers it on and returns the new state.
+- refuses to grow or shrink a running server while the conductor's health record (health/conductor.json in
+  SCORE_HEALTH_BUCKET, written every minute by tools/cloud/conductor/health_push.py) says a run is active, a paid
+  machine is parked or a frozen worktree is in use, or is older than HEALTH_STALE_SECONDS (an unknown is never an
+  idle): either way the server is powered off, which would cut the run and orphan its rented machines;
+- powers the server off, waits until it is stopped, sets its commercial type, powers it on (also when the type change
+  was refused, so the conductor is never left off) and returns the new state.
 
 Its own Scaleway key (secret environment variables SCW_ACCESS_KEY, SCW_SECRET_KEY: the secret score-conductor-size-key)
 may change Instances in the conductor's project and read that one bucket.
@@ -92,7 +94,7 @@ def request_action(event, token):
 
 
 def health_refusal(record, server_state, now):
-    """Why the conductor may not shrink now by its health record, or None."""
+    """Why the conductor may not be powered off for a resize now by its health record, or None."""
     if server_state == "stopped":
         return None
     if not record:
@@ -137,15 +139,16 @@ def resize(action, config, api, read_health, sleep=time.sleep, clock=time.monoto
     was = server["commercial_type"]
     if was == target:
         return {"action": action, "from": was, "to": target, "state": server["state"], "changed": False}
-    if action == "shrink":
-        refused = health_refusal(read_health(), server["state"], datetime.datetime.now(datetime.timezone.utc))
-        if refused:
-            raise Refused(f"shrink refused: {refused}")
+    refused = health_refusal(read_health(), server["state"], datetime.datetime.now(datetime.timezone.utc))
+    if refused:
+        raise Refused(f"{action} refused: {refused}; a resize powers the conductor off")
     if server["state"] != "stopped":
         api("POST", f"{path}/action", {"action": "poweroff"})
         wait_stopped(api, path, sleep, clock)
-    api("PATCH", path, {"commercial_type": target})
-    api("POST", f"{path}/action", {"action": "poweron"})
+    try:
+        api("PATCH", path, {"commercial_type": target})
+    finally:
+        api("POST", f"{path}/action", {"action": "poweron"})
     state = api("GET", path)["server"]
     return {"action": action, "from": was, "to": state["commercial_type"], "state": state["state"], "changed": True}
 

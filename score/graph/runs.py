@@ -17,7 +17,8 @@ registered it: its worktree still there, at the entry's commit, with nothing unc
 before this boot: a driving run touches its entry every HEARTBEAT seconds, and one silent for over RESUME_WINDOW
 before this boot began died some other way (an OOM kill, a SIGKILL) and is never started again unasked. A run's
 worktree is its frozen copy (graph/frozen.py), which it starts again in and owns again. The systemd
-user unit `.claude/scripts/score-resume.service` runs `score resume` at boot; installing it is the owner's step.
+user unit `tools/cloud/conductor/units/score-resume.service` runs `score resume` at boot (the conductor's boot
+installs it; on the PC, installing it is the owner's step).
 
 One commit per store (C10), in the same folder: every `score run` claims the store (`claim`), recording its commit,
 worktree, pid, the pid's start time and the nodes it would make in runs/active.json (which `entries` leaves out),
