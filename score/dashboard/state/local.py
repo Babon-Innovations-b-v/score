@@ -231,6 +231,16 @@ class LocalSource:
     def read_at(self):
         return stamp(self.index.built_at)
 
+    def machine(self, read_at=None):
+        """The store's machine now: who it is, its health and its logs' tails (state/machine.py), read live;
+        `read_at` the ISO time it is stamped with (an export's made_at), else now."""
+        from score.dashboard.state import machine
+        return machine.gathered(self.props_home, read_at)
+
+    def export_made_at(self):
+        """None: a local cockpit reads the store live, no export stands between."""
+        return None
+
     def refresh(self):
         """Read the store again now, and which stages apply to each place."""
         self.fresh.rebuild()

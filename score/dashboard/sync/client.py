@@ -30,9 +30,11 @@ from django.conf import settings
 
 from score.dashboard.launch import guard
 from score.dashboard.pages.models import Launch
+from score.dashboard.state import machine
 from score.dashboard.sync import applying, building
 
 TIMEOUT = 120
+MACHINE_HEADER = "X-Score-Machine"  # this machine's name on every sync call (sync/endpoints.MACHINE_HEADER)
 CHUNK = 2 * 1024 * 1024
 PASS_SECONDS = 200.0
 STILL = "still uploading"
@@ -43,16 +45,19 @@ class Refused(Exception):
 
 
 class Remote:
-    """The hosted dashboard's sync endpoints, called with the token."""
+    """The hosted dashboard's sync endpoints, called with the token and this machine's name (the hosted side applies
+    requests for the store's machine only, sync/one_store.py)."""
 
-    def __init__(self, url, token, opener=urllib.request.urlopen):
+    def __init__(self, url, token, opener=urllib.request.urlopen, machine_name=None):
         self.url = url.rstrip("/")
         self.token = token
         self.opener = opener
+        self.machine_name = machine_name or machine.identity(settings.SCORE_PROPS_HOME)["name"]
+        self.not_the_store = None  # the hosted side's words when it refused a claim: not the store's machine
 
     def call(self, method, path, body=None, kind="application/json"):
         request = urllib.request.Request(f"{self.url}/api/sync{path}", data=body, method=method, headers={
-            "Authorization": f"Bearer {self.token}", "Content-Type": kind})
+            "Authorization": f"Bearer {self.token}", "Content-Type": kind, MACHINE_HEADER: self.machine_name})
         with self.opener(request, timeout=TIMEOUT) as answer:
             return json.loads(answer.read() or b"null")
 
@@ -87,12 +92,16 @@ class Remote:
         return self.call("GET", f"/requests?state=waiting{query}")
 
     def claim(self, request_id):
-        """True when this caller took the waiting request, False when another took it first; a hosted side from
-        before the claim (404) is told picked_up instead."""
+        """True when this caller took the waiting request, False when another took it first or this machine is not
+        the store's (423: its words kept in `not_the_store`); a hosted side from before the claim (404) is told
+        picked_up instead."""
         try:
             self.call("POST", f"/requests/{request_id}/claim")
         except urllib.error.HTTPError as answer:
             if answer.code == 409:
+                return False
+            if answer.code == 423:
+                self.not_the_store = json.loads(answer.read() or b"{}").get("detail", "not the store's machine")
                 return False
             if answer.code != 404:
                 raise
@@ -430,5 +439,6 @@ def sync_pass(remote, source, chosen=None):
     tidy = checkouts_tidied(chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {tidy}; {swept}; {gaps}; "
-            f"{priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}")
+    refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
+    return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {swept}; "
+            f"{gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}")

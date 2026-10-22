@@ -18,7 +18,10 @@ COPY design/tokens/colours.css design/tokens/scale.css design/tokens/
 COPY design/fonts design/fonts
 COPY tools/review/viewer/viewer.html tools/review/viewer/viewer.html
 COPY data/films data/films
-ENV SCORE_DASHBOARD_MODE=hosted SCORE_STORE_WRITABLE=0
+# The commit this image is built at, told by /healthz (the pin the conductor's checkout follows): --build-arg
+# SCORE_COMMIT=<sha>; a hosting repository that pins it as an ARG sets this ENV from it the same way.
+ARG SCORE_COMMIT=""
+ENV SCORE_DASHBOARD_MODE=hosted SCORE_STORE_WRITABLE=0 SCORE_COMMIT=${SCORE_COMMIT}
 USER score
 VOLUME /data
 EXPOSE 8780

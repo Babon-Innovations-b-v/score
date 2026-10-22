@@ -297,9 +297,23 @@ reads the runner and the review tools and judges nothing itself. Words a person 
 
 **Two sides.**
 
-- **His PC, the store's machine**: the store, the runner, `score.review.web` (every draw, reading, plan writing and
-  their spend), the previews, the sync pass (`python -m score.dashboard sync`) and the listener (`python -m
-  score.dashboard listen`). It always calls out to the hosted side, never the other way.
+- **The store's machine, the conductor**: one always-on cloud machine of our own (until the move, his PC) holding the
+  store, the runner, `score.review.web` (every draw, reading, plan writing and their spend), the previews, the sync
+  pass (`python -m score.dashboard sync`) and the listener (`python -m score.dashboard listen`), as user `score`'s
+  units, rendered by the same `install-sync` (without `--host`: the cockpit's `/healthz` names the commit it runs;
+  `--no-pull`: its score-update timer follows that commit). It always calls out to the hosted side, never the other
+  way, and names itself on every sync call.
+- **His PC** keeps only a browser, the Claude Code sessions and the release (`score.dashboard release --host ...`,
+  the coordinating session's job, from his checkout of the hosting repository).
+- **One store's machine**: the hosted side records the machine of the first export that names one
+  (`sync/one_store.py`). An export from another machine is shown, but none of its claims is granted, so it applies
+  nothing, until the owner clicks 'This is the store's machine now' on the Machine card (owner only, asked twice).
+  So during the move the PC and the conductor never both act as the store.
+- **The Machine card** on Home and `/machine/`: its name, size and state, the last backup's age (red past 2 h), the
+  last export's age (red past 15 min: the store's machine is not reaching the cockpit), its own month's bill (its
+  own cloud project, so never in a batch's spend or stop), its health and log tails (`machine.json` in the export),
+  and the owner's kill switch: Stop everything (every run stopped, parked machines deleted, paid work latched off)
+  and Allow paid work again, each asked twice and applied by the listener through `score.conductor.kill`.
 - **Hosted**: the same app as one ASGI process (`score/dashboard/site/asgi.py`: Django pages, FastAPI `/api`) reading
   the last pushed export (`state/exported.py`). It never imports the store, the stages, numpy or usd-core.
 - **A hosted click** becomes a SyncRequest. The listener (`score-listen.service`, one long call held open) answers
@@ -315,7 +329,7 @@ content-addressed and swapped whole once every file is up.
 
 **The walk.**
 
-- **Home** `/`: the environments, the month's spend, Stats, Library, Buy.
+- **Home** `/`: the environments, the month's spend, Stats, Library, Buy, the Machine card (`/machine/`).
 - **Environment concept** `/environments/<world>/`: Style, Physics, Reference pictures and Scenes cards, Lock and
   Unlock (asked twice), a short set interview while unlocked; its Plan opens the environment plan.
 - **Scenes** `/places/`: a tile per top scene, `?in=` steps into child scenes; Draw all with its price.
@@ -330,8 +344,8 @@ content-addressed and swapped whole once every file is up.
   buttons (read the bills back, enter the model calls' month) show only while needed.
 - The top bar's back and forward move up a layer and down again to the one last opened, not through browser history.
 
-**Owner-only.** Accept, reject, advance, waivers, the books figure and the read-back are applied only when the request's
-user is the machine's `SCORE_OWNER`; Buy answers 403 to anyone else. A draw, Discuss or plan writing is his yes at the
+**Owner-only.** Accept, reject, advance, waivers, the books figure, the read-back and the kill switch are applied only
+when the request's user is the machine's `SCORE_OWNER`; Buy answers 403 to anyone else. A draw, Discuss or plan writing is his yes at the
 price shown, refused if the price moved. Agents are kept from these by a barrier, not a lock: the store refuses its
 owner areas (accepts, rejects, waivers, spend yeses, clearances, stops, grants) to any process Claude Code started,
 the runner's own automatic accept and clearance excepted; `python -m score.review` wants a terminal; and
@@ -448,7 +462,10 @@ GitHub Actions; every command runs locally.
 - **The hosted cockpit** runs the dashboard at the commit its host repository pins (`SCORE_COMMIT` in the host's
   Dockerfile). After pushes that change `score/dashboard`, the coordinating session releases once for the group:
   `.venv/bin/python -m score.dashboard release --host <host repository> --dockerfile <its Dockerfile> --subject
-  "<host commit subject>"`, then checks the live pages. Agents never release.
+  "<host commit subject>"`, then checks the live pages. Agents never release. The release stays on the owner's PC
+  once the store's machine is the conductor. The image tells its commit at `/healthz` (`commit`, from `SCORE_COMMIT`
+  set as ENV after the ARG; the host's Dockerfile needs `ENV SCORE_COMMIT=${SCORE_COMMIT}` in its final stage), the
+  one pin the conductor's checkout follows, so one release moves both.
 
 Render checks run Blender headless on a rented machine, never here; nothing here runs Godot.
 

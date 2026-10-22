@@ -76,6 +76,9 @@ SCORE_EXPORT_MAX_MB = float(os.environ.get("SCORE_EXPORT_MAX_MB", "1000"))
 SCORE_SYNC_MAX_EUROS = float(os.environ.get("SCORE_SYNC_MAX_EUROS", "0"))
 SCORE_PROPS_HOME = PROPS_HOME
 SCORE_REPO = REPO
+# The score commit this process was built at: the hosted image's SCORE_COMMIT (its Dockerfile's ARG, set as ENV), told
+# by /healthz so the conductor's score-update timer follows the one pin a release moves. Unset (None) outside an image.
+SCORE_COMMIT = os.environ.get("SCORE_COMMIT", "").strip() or None
 
 SECRET_KEY = secret_key(SCORE_HOME)
 DEBUG = False

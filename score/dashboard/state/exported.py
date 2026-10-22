@@ -72,6 +72,14 @@ class ExportedSource:
     def refresh(self):
         self.cache = {}
 
+    def machine(self):
+        """The store's machine as the export carries it (machine.json, state/machine.py), or None before one."""
+        return self.loaded("machine.json", lambda path: json.loads(path.read_text()))
+
+    def export_made_at(self):
+        """When the store's machine made the export shown, or None before one arrived."""
+        return (self.manifest() or {}).get("made_at")
+
     def world_state(self, spend=None):
         found = self.loaded("state.json", lambda path: WorldState.model_validate(self.read_json(path)))
         return found or WorldState(made_at="", source="no export", world="world1", engines=[])

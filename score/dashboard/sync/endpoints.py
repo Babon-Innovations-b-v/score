@@ -10,7 +10,8 @@ the export as a list of {path: sha256}; the hosted side builds it from hard link
     POST /api/sync/commit           {name: <made_at, no colons>, files: {path: sha256}}: swapped in whole, or 409
                                     when its manifest's format is not one this side reads (state/versions.py)
     GET  /api/sync/requests?state=waiting[&kind=a,b][&wait=S]   held open up to S seconds until one is there
-    POST /api/sync/requests/{id}/claim   the waiting request taken by its first caller, else 409
+    POST /api/sync/requests/{id}/claim   the waiting request taken by its first caller, else 409; 423 for a caller
+                                    that is not the store's machine (its X-Score-Machine name, sync/one_store.py)
     POST /api/sync/requests/{id}    {state: picked_up|running|done|refused, detail, log_tail}
     PUT  /api/sync/request-files/<sha>-<360|1280>.jpg   a picture a request brought back (a concept draw)
 """
@@ -31,6 +32,7 @@ from pydantic import BaseModel
 
 from score.dashboard.pages.models import SyncRequest
 from score.dashboard.state import versions
+from score.dashboard.sync import one_store
 
 sync = APIRouter()
 STATES = ("picked_up", "running", "done", "refused")
@@ -41,6 +43,7 @@ SHA = re.compile(r"[0-9a-f]{64}")
 PART_DAYS = 1.0
 LONGEST_WAIT = 30.0
 POLL_SECONDS = 0.5
+MACHINE_HEADER = "x-score-machine"  # the store's machine's name on its sync calls (client.Remote)
 REQUEST_FILE = re.compile(r"[0-9a-f]{64}-(360|1280)\.jpg")
 
 
@@ -139,7 +142,7 @@ def finished(part, sha):
 
 
 def readable(manifest_sha):
-    """Refuse (409) a manifest whose format this side cannot read; one with no format is the first, 1."""
+    """The manifest; refused (409) when its format is not one this side reads (one with no format is the first, 1)."""
     try:
         manifest = json.loads((blobs() / manifest_sha).read_text())
     except ValueError as refused:
@@ -149,6 +152,7 @@ def readable(manifest_sha):
         raise HTTPException(409, f"export format {found} cannot be read here (this side reads "
                                  f"{', '.join(map(str, versions.READABLE))}): the last export stays current until "
                                  f"the store's machine and the hosted side run matching code")
+    return manifest
 
 
 def linked(name, files):
@@ -242,8 +246,9 @@ def commit(body: Commit, allowed=Depends(token_ok)):
     absent = sorted({sha for sha in body.files.values() if not (blobs() / sha).is_file()})
     if absent:
         raise HTTPException(409, f"{len(absent)} files are not here yet: {', '.join(absent[:3])}")
-    readable(body.files["manifest.json"])
+    manifest = readable(body.files["manifest.json"])
     swapped(linked(name, body.files), name)
+    one_store.exported_by(manifest.get("machine"), manifest.get("made_at"))
     gone = swept()
     from score.dashboard import state
     state.source().refresh()
@@ -271,9 +276,12 @@ def requests(state: str = "waiting", kind: str = "", wait: float = 0.0, allowed=
 
 
 @sync.post("/requests/{request_id}/claim")
-def claim(request_id: int, allowed=Depends(token_ok)):
+def claim(request_id: int, request: Request, allowed=Depends(token_ok)):
     """Take a waiting request for the one caller that asks first (the listener or the sync pass); 409 when it was
-    taken already."""
+    taken already, 423 when the caller is not the store's machine (sync/one_store.py: nothing is applied there)."""
+    refused = one_store.claim_refusal(request.headers.get(MACHINE_HEADER, "").strip())
+    if refused:
+        raise HTTPException(423, refused)
     if not SyncRequest.objects.filter(pk=request_id, state="waiting").update(state="picked_up"):
         raise HTTPException(409, "taken already")
     return request_out(SyncRequest.objects.get(pk=request_id))

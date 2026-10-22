@@ -3,6 +3,8 @@ host's Dockerfile to a pushed score commit in one commit of the host's style (su
 old pin, the trailers) pushed to the host's main from a worktree of its own, and refuses a commit not pushed or a
 checkout with changes; the install refuses an env file without its URL or reader and a cockpit that runs another
 dashboard, and otherwise writes both units with every slot filled and enables the timer."""
+import io
+import json
 import subprocess
 
 import pytest
@@ -144,3 +146,47 @@ def test_a_quoted_reader_is_read_as_systemd_reads_it_and_a_failed_user_manager_i
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     with pytest.raises(release.Refused, match="systemctl --user daemon-reload failed: no user manager"):
         timer.install(score, env, host, DOCKERFILE, systemctl=lambda *args: "no user manager")
+
+
+def test_the_units_render_for_the_conductors_user_and_no_pull_leaves_the_pull_out():
+    """On the conductor the same templates fill in for user score; --no-pull drops the sync unit's pull before each
+    pass (the score-update timer moves the checkout there) and nothing else."""
+    repo, env = "/home/score/projects/score", "/home/score/.config/score/dashboard.env"
+    pulled = timer.unit_text("score-sync.service", repo, env, timer.SECRET).splitlines()
+    unpulled = timer.unit_text("score-sync.service", repo, env, timer.SECRET, pull=False).splitlines()
+    assert f"ExecStartPre=/usr/bin/git -C {repo} pull -q --ff-only" in pulled
+    assert [line for line in pulled if not line.startswith("ExecStartPre=")] == unpulled
+    lines = [line for line in unpulled if not line.startswith("#")]
+    assert not any("<" in line for line in lines) and not any("/home/dupe" in line for line in unpulled)
+    assert f"WorkingDirectory={repo}" in lines and f"EnvironmentFile={env}" in lines
+    assert any(line.startswith("ExecStart=") and f'"{repo}/.venv/bin/python" -m score.dashboard sync' in line
+               for line in lines)
+    listener = timer.unit_text("score-listen.service", repo, env, timer.SECRET, pull=False)
+    assert f"WorkingDirectory={repo}" in listener and "WSL" not in listener
+
+
+class Healthz:
+    """A urlopen stand-in for the cockpit's /healthz."""
+
+    def __init__(self, commit):
+        self.body = json.dumps({"ok": True, "mode": "hosted", "commit": commit}).encode()
+        self.asked = []
+
+    def __call__(self, url, timeout):
+        self.asked.append(url)
+        return io.BytesIO(self.body)
+
+
+def test_without_a_host_the_install_checks_the_commit_the_cockpits_healthz_reports(repositories, tmp_path,
+                                                                                  monkeypatch):
+    score, _, first = repositories
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    for commit, why in ((None, "reports no commit"), (first, "whose dashboard is not this checkout's")):
+        with pytest.raises(release.Refused, match=why):
+            timer.install(score, an_env_file(tmp_path), systemctl=lambda *args: None, opener=Healthz(commit))
+    assert not (tmp_path / "config").exists()  # nothing written
+    cockpit = Healthz(run(score, "git", "rev-parse", "HEAD"))
+    said = timer.install(score, an_env_file(tmp_path), systemctl=lambda *args: None, pull=False, opener=cockpit)
+    assert cockpit.asked == ["https://cockpit.test/healthz"] and "no pull before a pass" in said
+    service = (tmp_path / "config/systemd/user/score-sync.service").read_text()
+    assert "\nExecStartPre=" not in service and f"WorkingDirectory={score}" in service

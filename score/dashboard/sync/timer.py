@@ -1,7 +1,15 @@
 """Install the sync's systemd user timer from the deploy templates, in one command the owner runs himself:
 
     .venv/bin/python -m score.dashboard install-sync --env-file <his env file, outside the repo>
-        --host <the repository that hosts the cockpit> --dockerfile <its Dockerfile, in it> [--secret <name>]
+        [--host <the repository that hosts the cockpit> --dockerfile <its Dockerfile, in it>] [--secret <name>]
+        [--no-pull]
+
+The same command installs the units on the owner's PC and on the conductor (the store's machine in the cloud, user
+`score`): the templates' slots take this checkout's path, the env file's and the secret's name, so nothing in them
+names a machine. With --host the cockpit's commit is read from the hosting repository's pinned Dockerfile; without
+it, from the cockpit's own /healthz (its `commit`, the SCORE_COMMIT it was built at), which is how the conductor,
+holding no hosting repository, checks it. --no-pull leaves out the sync unit's pull before each pass: on the conductor
+the score-update timer moves the checkout to the commit the cockpit runs instead.
 
 Every pass of the timer (deploy/score-sync.service.example) reads the sync token from the owner's secret manager by
 name, inline, into that one process's environment, never into a file: the env file names the reader
@@ -10,14 +18,16 @@ names). The unit runs as the owner, with his HOME, so the reader finds his own c
 (his CLI's configuration under ~/.config); systemd gives it a short PATH, so the reader names its tools by full path.
 
 It refuses before writing anything: an env file without SCORE_SYNC_URL or an executable SCORE_SECRET_READER, and a
-cockpit that cannot read this checkout's export (the host's pinned SCORE_COMMIT on its origin/main runs another
-score/dashboard than this checkout's: release first). Then it writes both units under ~/.config/systemd/user, reloads
-the user manager, enables the timer and starts the listener (score-listen.service, sync/listen.py: the owner's
-quick requests answered as they come); it prints what it did.
+cockpit that cannot read this checkout's export (the commit it runs has another score/dashboard than this checkout's:
+release first). Then it writes both units under ~/.config/systemd/user, reloads the user manager, enables the timer
+and starts the listener (score-listen.service, sync/listen.py: the owner's quick requests answered as they come); it
+prints what it did.
 """
+import json
 import os
 import pathlib
 import subprocess
+import urllib.request
 
 from score.dashboard.sync.client import git
 from score.dashboard.sync.release import Refused, inside, pinned, ran
@@ -26,6 +36,7 @@ DEPLOY = pathlib.Path(__file__).resolve().parents[1] / "deploy"
 UNITS = ("score-sync.service", "score-sync.timer", "score-listen.service")
 STARTED = ("score-sync.timer", "score-listen.service")  # the timer, and the listener (sync/listen.py)
 SECRET = "score-cockpit-sync-token"  # the token's name in the owner's secret manager
+PULL = "ExecStartPre=/usr/bin/git -C "  # the sync unit's pull before each pass, left out by --no-pull
 REPO_SLOT, ENV_SLOT, SECRET_SLOT = ("<path to the score repository>", "<path to the env file kept outside the repo>",
                                     "<the sync token's name in your secret manager>")
 
@@ -58,11 +69,27 @@ def env_refusal(path):
     return None
 
 
-def pin_refusal(repo, host, dockerfile):
-    """Why the hosted cockpit cannot read this checkout's export yet, or None: the host's main pins a commit whose
-    score/dashboard is not this checkout's."""
+def host_pin(host, dockerfile):
+    """The commit the hosting repository's origin/main pins in its Dockerfile."""
     ran(host, "fetch", "-q", "origin", "main")
-    pin = pinned(ran(host, "show", f"FETCH_HEAD:{inside(dockerfile)}"))
+    return pinned(ran(host, "show", f"FETCH_HEAD:{inside(dockerfile)}"))
+
+
+def healthz_pin(url, opener=urllib.request.urlopen):
+    """The commit the cockpit at `url` says it runs (its /healthz `commit`); Refused when it says none."""
+    try:
+        with opener(f"{url.rstrip('/')}/healthz", timeout=30) as answer:
+            found = json.loads(answer.read() or b"{}").get("commit")
+    except (OSError, ValueError) as unread:
+        raise Refused(f"the cockpit's /healthz at {url} could not be read: {unread}") from unread
+    if not found:
+        raise Refused(f"the cockpit at {url} reports no commit: release a commit whose /healthz says it, then install")
+    return found
+
+
+def dashboard_refusal(repo, pin):
+    """Why a cockpit running score `pin` cannot read this checkout's export, or None: its score/dashboard is not
+    this checkout's."""
     if git(repo, "cat-file", "-e", f"{pin}^{{commit}}").returncode != 0:
         ran(repo, "fetch", "-q", "origin", "main")
     if git(repo, "cat-file", "-e", f"{pin}^{{commit}}").returncode != 0:
@@ -73,9 +100,12 @@ def pin_refusal(repo, host, dockerfile):
     return None
 
 
-def unit_text(name, repo, env_file, secret):
-    """A unit's text: its template with the repository, the env file and the secret's name filled in."""
+def unit_text(name, repo, env_file, secret, pull=True):
+    """A unit's text: its template with the repository, the env file and the secret's name filled in; without
+    `pull`, the sync unit's pull before each pass left out."""
     text = (DEPLOY / f"{name}.example").read_text()
+    if not pull:
+        text = "".join(line for line in text.splitlines(keepends=True) if not line.startswith(PULL))
     return text.replace(REPO_SLOT, str(repo)).replace(ENV_SLOT, str(env_file)).replace(SECRET_SLOT, secret)
 
 
@@ -90,24 +120,37 @@ def user_manager(*args):
     return None if done.returncode == 0 else (done.stderr.strip().splitlines() or [f"exit {done.returncode}"])[-1]
 
 
-def install(repo, env_file, host, dockerfile, secret=SECRET, systemctl=None):
+def install_refusal(repo, env_file, host, dockerfile, opener):
+    """Why the units may not be installed, or None: env_refusal, else a cockpit on another dashboard (the commit the
+    host pins with `host`, else the one the cockpit's /healthz reports)."""
+    refused = env_refusal(env_file)
+    if refused:
+        return refused
+    pin = host_pin(host, dockerfile) if host else healthz_pin(env_values(env_file)["SCORE_SYNC_URL"], opener)
+    return dashboard_refusal(repo, pin)
+
+
+def install(repo, env_file, host=None, dockerfile=None, secret=SECRET, systemctl=None, pull=True,
+            opener=urllib.request.urlopen):
     """Write the units, reload the user manager and enable the timer; what it did, in words. Refused (nothing
-    written) on env_refusal or pin_refusal."""
-    refused = env_refusal(env_file) or pin_refusal(repo, host, dockerfile)
+    written) on install_refusal."""
+    refused = install_refusal(repo, env_file, host, dockerfile, opener)
     if refused:
         raise Refused(refused)
     folder = unit_folder()
     folder.mkdir(parents=True, exist_ok=True)
     for name in UNITS:
         (folder / name).write_text(unit_text(name, pathlib.Path(repo).resolve(), pathlib.Path(env_file).resolve(),
-                                              secret))
+                                              secret, pull))
     run = systemctl or user_manager
     for args in (("daemon-reload",), ("enable", "--now", *STARTED), ("restart", STARTED[1])):
         failed = run(*args)
         if failed:
             raise Refused(f"the units are written to {folder}, but systemctl --user {' '.join(args)} failed: {failed}; "
-                          f"on WSL turn systemd on and run `loginctl enable-linger`, then install again")
-    return (f"install-sync: {', '.join(UNITS)} written to {folder}; the timer is enabled and the listener runs "
-            f"(journalctl --user -u score-listen.service); (systemctl --user list-timers "
+                          f"the user manager needs systemd and `loginctl enable-linger` for this user: install again "
+                          f"once it runs")
+    return (f"install-sync: {', '.join(UNITS)} written to {folder}"
+            f"{'' if pull else ' (no pull before a pass: the score-update timer moves the checkout)'}; the timer is "
+            f"enabled and the listener runs (journalctl --user -u score-listen.service); (systemctl --user list-timers "
             f"score-sync.timer); each pass reads the token {secret} by name and logs to journalctl --user -u "
             f"score-sync.service")

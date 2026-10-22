@@ -8,8 +8,12 @@
 # environment, never into a file: SCORE_SECRET_READER (set in the env file, outside the repo) is an executable that
 # prints the value of the secret its one argument names. The unit runs as the owner with his HOME, so the reader
 # finds his own credentials where his shell does (his CLI's configuration under ~/.config); systemd's PATH is short,
-# so the reader names its tools by full path. On WSL the user manager needs systemd on and
-# `loginctl enable-linger <you>` for the timer to run with no shell open.
+# so the reader names its tools by full path. The user manager needs `loginctl enable-linger <you>` for the timer to
+# run with no shell open.
+#
+# Before each pass the checkout is pulled to origin's main (ExecStartPre). On the conductor (the store's machine in
+# the cloud) the score-update timer moves the checkout to the commit the hosted cockpit runs instead, so there the
+# units are installed with `install-sync --no-pull`, which leaves that line out.
 #
 # The pass refuses to sync, and says why in the journal, from a checkout with changes not committed or a commit
 # origin's main does not hold, and when the runner's price (`score price <environment> --gaps`) fails.
@@ -20,4 +24,5 @@ Description=SCORE dashboard sync: price, push the state export, pull and apply t
 Type=oneshot
 WorkingDirectory=<path to the score repository>
 EnvironmentFile=<path to the env file kept outside the repo>
+ExecStartPre=/usr/bin/git -C <path to the score repository> pull -q --ff-only
 ExecStart=/bin/sh -c 'SCORE_SYNC_TOKEN="$$("$$SCORE_SECRET_READER" "<the sync token's name in your secret manager>")" && [ -n "$$SCORE_SYNC_TOKEN" ] && export SCORE_SYNC_TOKEN && exec "<path to the score repository>/.venv/bin/python" -m score.dashboard sync'

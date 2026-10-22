@@ -1,0 +1,17 @@
+{% extends "pages/base.html" %}
+{% block title %}Machine{% endblock %}
+{% block content %}
+{% include "pages/machine_card.html" %}
+<section class="stats-group" aria-label="its health">
+  <h2 class="eyebrow">Health</h2>
+  <div class="nums">
+    {% for label, value in machine.card.numbers %}{% include "pages/c/number.html" with label=label value=value unit=None of=None bar=None tone=None tip=None unknown_tip=None %}{% endfor %}
+    {% include "pages/c/number.html" with label="Last sync" value=machine.card.sync_minutes unit="min ago" of=None bar=None tone=None tip="the store's machine's last sync pass" unknown_tip=machine.card.missing|default:"not said" %}
+  </div>
+  {% if machine.card.units %}<ul class="machine-units">{% for unit, said in machine.card.units %}<li>{% if said == "failed" %}{% include "pages/c/dot.html" with tone="bad" tip=said %}{% elif said == "active" %}{% include "pages/c/dot.html" with tone="done" tip=said %}{% else %}{% include "pages/c/dot.html" with tone="idle" tip=said %}{% endif %}<span data-v>{{ unit }}</span> <span class="soft small" data-v>{{ said }}</span></li>{% endfor %}</ul>{% endif %}
+</section>
+<section class="stats-group" aria-label="the tails of its logs">
+  <h2 class="eyebrow">Logs</h2>
+  {% for tail in tails %}<details class="machine-tail"><summary><span data-v>{{ tail.name }}</span> <span class="soft small" data-v>{{ tail.count }}</span></summary><pre>{{ tail.lines }}</pre></details>{% empty %}<p class="soft" data-v>{{ machine.card.missing|default:"no logs" }}</p>{% endfor %}
+</section>
+{% endblock %}

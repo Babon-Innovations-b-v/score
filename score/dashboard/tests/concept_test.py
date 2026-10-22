@@ -214,6 +214,8 @@ def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(world):
     assert len(said) == 2 and "did not answer" in said[0] and paused == [listen.RETRY_SECONDS] * 2
 
     class Old:  # a hosted side that answers at once, not holding the call
+        not_the_store = None
+
         def waiting(self, kinds, wait):
             return []
     paused.clear()

@@ -2,7 +2,9 @@
 second of his click, not at the next sync pass. It holds one call open to the hosted side (GET /api/sync/requests
 with `wait`, signed in by the sync token, the store's machine calling out as ever), and claims, applies and answers
 each request of LISTENED the moment one is there (client.answered: the pictures a draw brought back first, then its
-report). The sync pass answers the same kinds when the listener is not running; a claim keeps each request to one.
+report): the concept, environment and plan reviews' clicks and the Machine card's Stop everything and Allow paid work
+again. On a machine that is not the store's (sync/one_store.py) every claim is refused, said once in its log. The
+sync pass answers the same kinds when the listener is not running; a claim keeps each request to one.
 
 It runs as the owner's own long-lived systemd user service (deploy/score-listen.service.example, installed beside the
 timer by `install-sync`), its token read by name from his secret manager like the timer's, so every request is
@@ -14,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from score.dashboard.sync import applying, client
 
-LISTENED = (*applying.CONCEPT_KINDS, *applying.ENVIRONMENT_KINDS, *applying.PLAN_KINDS)
+LISTENED = (*applying.CONCEPT_KINDS, *applying.ENVIRONMENT_KINDS, *applying.PLAN_KINDS, *applying.MACHINE_KINDS)
 WAIT_SECONDS = 25  # how long one call is held open; under the hosted side's LONGEST_WAIT and client.TIMEOUT
 RETRY_SECONDS = 5.0  # after the hosted side could not be reached
 SHORTEST_ROUND = 2.0  # an empty answer sooner than this waits this long before the next call
@@ -32,7 +34,7 @@ def round_once(remote, source):
 def listen(remote, source, rounds=None, log=print, pause=time.sleep):
     """Answer the owner's quick requests until stopped (`rounds` held calls when given); an unreachable hosted side
     is said in one line and asked again after RETRY_SECONDS."""
-    count = 0
+    count, said = 0, None
     while rounds is None or count < rounds:
         count += 1
         started = time.monotonic()
@@ -44,5 +46,8 @@ def listen(remote, source, rounds=None, log=print, pause=time.sleep):
             continue
         for request_id, state in answered:
             log(f"request {request_id}: {state}")
+        if remote.not_the_store and remote.not_the_store != said:
+            said = remote.not_the_store
+            log(f"no request applied here: {said}")
         if not answered and time.monotonic() - started < SHORTEST_ROUND:
             pause(SHORTEST_ROUND)  # a hosted side that does not hold the call open is not asked in a tight loop

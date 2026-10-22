@@ -5,8 +5,8 @@ marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through
 owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
 owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, Discusses, picks and back to the generated wording (CONCEPT_KINDS), his
 environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS), his plan review's clicks (PLAN_KINDS) and
-his film script's Lock and Unlock (film-lock),
-each through the local cockpit's own owner-only function."""
+his film script's Lock and Unlock (film-lock) and the Machine card's Stop everything and Allow paid work again
+(MACHINE_KINDS), each through the local cockpit's own owner-only function."""
 import dataclasses
 import json
 
@@ -26,6 +26,9 @@ PLAN_KINDS = {"plan-edit": actions.plan_edit, "plan-named": actions.plan_named, 
               "plan-write": actions.plan_write,
               "env-plan-edit": actions.environment_plan_edit,
               "env-plan-write": actions.environment_plan_write}
+# The Machine card's two owner buttons (the kill switch): every run stopped, parked machines deleted and paid work
+# latched off, then that latch cleared; applied by the listener at once (sync/listen.py).
+MACHINE_KINDS = {"stop-everything": actions.stop_everything, "allow-paid": actions.allow_paid}
 DRAWN = ("sha", "name", "at", "by", "euros", "base", "marks", "note")  # a draw's fields its answer carries
 DISCUSSED = ("place", "base", "question", "answer", "at", "by", "euros")  # a discussion entry's its answer carries
 
@@ -292,4 +295,6 @@ def apply(item, source, chosen=None):
         return apply_concept_said(item, films.film_locked)
     if kind in OWNER_FIGURES:
         return apply_owner_figure(item)
+    if kind in MACHINE_KINDS:
+        return apply_concept_said(item, MACHINE_KINDS[kind])
     return Applied("refused", f"unknown request kind {kind!r}")

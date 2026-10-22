@@ -185,6 +185,46 @@ def read_back(user=Depends(owner_only)):
     return said_or_refused(actions.read_books_back(user.username))
 
 
+class SureIn(BaseModel):
+    sure: bool = False  # the page's second ask answered: without it nothing is done
+    words: str = ""
+
+
+class MachineIn(SureIn):
+    machine: str
+
+
+def asked_twice(body):
+    if not body.sure:
+        raise HTTPException(400, "asked twice: send sure once the second ask is answered")
+
+
+@api.post("/machine/stop", response_model=Said)
+def machine_stop(body: SureIn, user=Depends(owner_only)):
+    """The owner's Stop everything (the kill switch): every run stopped, parked machines deleted, paid work latched
+    off; hosted queued for the listener."""
+    asked_twice(body)
+    return said_or_refused(actions.stop_everything(user.username, {"words": body.words}))
+
+
+@api.post("/machine/allow-paid", response_model=Said)
+def machine_allow_paid(body: SureIn, user=Depends(owner_only)):
+    """The owner's Allow paid work again: the kill switch's free-only latch cleared."""
+    asked_twice(body)
+    return said_or_refused(actions.allow_paid(user.username, {"words": body.words}))
+
+
+@api.post("/machine/confirm", response_model=Said)
+def machine_confirm(body: MachineIn, user=Depends(owner_only)):
+    """The owner's 'This is the store's machine now' (hosted only, sync/one_store.py): requests are applied for the
+    machine named from now on, one an export came from."""
+    asked_twice(body)
+    if not actions.hosted():
+        raise HTTPException(409, "refused: only the hosted cockpit records the store's machine")
+    from score.dashboard.sync import one_store
+    return said_or_refused(one_store.confirmed(body.machine, user.username))
+
+
 @api.post("/waivers", response_model=Said)
 def waiver(body: WaiverIn, user=Depends(owner_only)):
     """The owner's waiver of one check of an output he saw."""
@@ -312,7 +352,9 @@ def basket_details(place: str, user=Depends(signed_in)):
 
 @files.get("/healthz")
 def healthz():
-    return {"ok": True, "mode": settings.SCORE_MODE}
+    """Alive, its mode, and the score commit it was built at (None outside an image): the pin the conductor's
+    checkout follows."""
+    return {"ok": True, "mode": settings.SCORE_MODE, "commit": settings.SCORE_COMMIT}
 
 
 # Drawn in place of a picture a hosted page lists before the sync has brought it up: a page never shows a broken
