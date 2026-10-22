@@ -683,6 +683,19 @@ def test_a_scene_library_missing_a_kind_or_unanswered_fails_by_name():
         assert "none for it" in verdict.findings[0], verdict
 
 
+def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
+    """surface-library@people (2026-10-22): suit_patches as `printed`, with no picture, stopped the bake."""
+    from score.stages.surfaces import scene_library
+    answer = {"surfaces": [{"name": "patches", "family": "fabric", "recipe": "printed", "token": "hull-trim",
+                            "roughness": 0.4, "metal": 0.0, "kinds": ["two_boxes"]}]}
+    with tempfile.TemporaryDirectory() as temporary:
+        out, verdict, asked = library_made(pathlib.Path(temporary), answer)
+        body = asked[0]["cockpit"]
+        enum = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]["recipe"]
+        assert not set(scene_library.PICTURED) & set(enum["enum"]), enum
+        assert "patches: recipe printed paints a picture, and the library has none" in verdict.findings, verdict
+
+
 def test_a_scene_s_ground_rows_take_their_natural_ground_by_rule():
     """Each terrain row of the kept inventory is a kind the library covers with the recipe its words name, else its
     body's physics (the Moon's: airless, regolith); one covered with another recipe fails by name."""
