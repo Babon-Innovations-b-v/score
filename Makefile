@@ -27,7 +27,7 @@ test=$$1; log=$$(mktemp); runner="$(PYTHON)";
 if grep -q '^def test_' $$test && ! grep -q '^if __name__' $$test; then runner="$(PYTHON) -m pytest -q -p no:cacheprovider"; fi;
 start=$$(date +%s);
 if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) timeout $(TEST_SECONDS) $$runner $$test > $$log 2>&1; then echo "ok    $$test ($$(( $$(date +%s) - start )) s)";
-else { echo "FAIL  $$test ($$(( $$(date +%s) - start )) s; over $(TEST_SECONDS) s is a failure: the module standard's time budget)"; tail -n 15 $$log; } > $$log.fail; cat $$log.fail; rm -f $$log.fail; echo $$test >> $$FAILED; fi;
+else code=$$?; { if [ $$code = 124 ]; then echo "FAIL  $$test (over $(TEST_SECONDS) s: the module standard's time budget)"; else echo "FAIL  $$test ($$(( $$(date +%s) - start )) s)"; fi; tail -n 15 $$log; } > $$log.fail; cat $$log.fail; rm -f $$log.fail; echo $$test >> $$FAILED; fi;
 rm -f $$log
 endef
 export ONE_TEST
