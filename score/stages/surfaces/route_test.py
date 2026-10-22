@@ -471,6 +471,17 @@ def rechecked(folder, answer, wide=True):
         finish_parts.COLOUR_DELTA_E = kept
 
 
+def test_the_recheck_words_a_finish_in_the_token_it_is_drawn_and_baked_in():
+    """astronaut-made-s1 (2026-10-22): glass-brown patches on suit_patches (red by default) were worded red."""
+    surfaces = {"suit_patches": {"family": "fabric", "colour": [1.0, 0.0, 0.0]}}
+    tokens = {"glass-brown": [0.31855, 0.13287, 0.0331]}
+    finish = {"finish": "brown fabric", "parts": "patches", "surface": "suit_patches",
+              "settings": {"token": "glass-brown", "roughness": 0.9, "metal": 0.0}}
+    line = route_recheck.finish_lines([finish], surfaces, tokens)
+    assert "roughness 0.90" in line and "drawn red" not in line, line
+    assert "drawn red" in route_recheck.finish_lines([dict(finish, settings=None)], surfaces, tokens)
+
+
 def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_its_suggestion_unapplied():
     with tempfile.TemporaryDirectory() as temporary:
         record, verdict, asked = rechecked(pathlib.Path(temporary),
