@@ -22,8 +22,10 @@ MODEL = "gemini-3-pro-image"
 KEY_SECRET = "gemini-api-key"
 # The price of one 2K picture (Google's price list, as the close-ups were billed on 2026-10-08).
 DOLLARS_A_PICTURE = 0.134
-# A request refused for the rate or the quota (429) or by an overloaded or failing service (500, 503, 504) is asked
-# again after a wait, up to this many times: a refusal bills nothing. Nothing else is asked again: a batch runs every call once (CONTEXT.md, owner 2026-10-20).
+# A request refused for the rate or the quota (429) or by an overloaded or failing service (500, 503, 504), or one that
+# never reached Google (no connection, or a timeout while it was being sent), is asked again after a wait, up to this
+# many times: it billed nothing. A request sent whose answer timed out may have been billed: a gap, never asked again
+# (a batch runs every call once, CONTEXT.md, owner 2026-10-20).
 ATTEMPTS = 4
 WAIT_SECONDS = 60
 
@@ -62,7 +64,8 @@ def quota_refusal(error):
 def draw(key, wording, crop, concept, path):
     """One close-up into `path`; True when a picture came back, False for a gap: an answer with no picture, any other
     refusal, or a free refusal (quota_refusal: the rate, the quota or an overloaded service, asked again after a
-    wait) every attempt. The call runs once
+    wait) every attempt, or a request sent whose answer timed out or was cut off (it may be billed; one that never
+    reached Google is asked again like a free refusal). The call runs once
     (a batch): a gap is not asked again here, it goes to the basket and a new batch. Refused outside a cleared run
     (compute.require_cleared). Each call's cost goes on the Google ledger (google_spend). The same request (same
     wording, crop and concept) is asked once: its answer is kept in google_spend's cache, so a re-keyed node re-draws
@@ -80,6 +83,13 @@ def draw(key, wording, crop, concept, path):
                   flush=True)
             time.sleep(WAIT_SECONDS * (attempt + 1))
             continue
+        except urllib.error.URLError as error:  # urllib raises this while sending: the request never reached Google
+            print(f"Nano Banana Pro not reached ({error.reason!r}); asking again after a wait", flush=True)
+            time.sleep(WAIT_SECONDS * (attempt + 1))
+            continue
+        except (TimeoutError, ConnectionError) as error:  # sent, no answer: it may be billed (google_spend counts it)
+            print(f"Nano Banana Pro sent no answer in time ({error!r}); a gap, not asked again", flush=True)
+            return False
         if not found:
             google_spend.cache_path(MODEL, body).unlink(missing_ok=True)
             print("Nano Banana Pro answered with no picture; a gap", flush=True)

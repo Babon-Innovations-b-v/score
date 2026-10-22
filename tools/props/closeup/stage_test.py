@@ -142,6 +142,39 @@ def test_pro_asks_again_only_for_a_free_refusal_and_an_empty_answer_is_a_gap():
         stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep = kept
 
 
+def test_pro_asks_again_after_a_timeout_only_when_the_request_never_reached_google():
+    """Audit (2026-10-22): a timeout escaped pro.draw and stopped the close-up step. A request not sent (urllib's
+    URLError) billed nothing and is asked again; a sent one whose answer timed out may be billed and is a gap."""
+    import base64
+    import io
+    import urllib.error
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(buffer, "PNG")
+    picture = {"candidates": [{"content": {"parts": [{"inlineData": {"data": base64.b64encode(buffer.getvalue())
+                                                                      .decode()}}]}}]}
+    asked, waits = [], []
+    answers = [urllib.error.URLError(TimeoutError("timed out")), picture]
+
+    def generate(*arguments, **options):
+        asked.append(options.get("cache"))
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    kept = stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep
+    stage.pro.compute.require_cleared = lambda what: None
+    stage.pro.google_spend.generate, stage.pro.time.sleep = generate, waits.append
+    try:
+        path = pathlib.Path(tempfile.mkdtemp()) / "a.png"
+        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is True and path.exists()
+        assert asked == [True, True] and len(waits) == 1  # cached: an answer once back is never bought again
+        answers[:] = [TimeoutError("The read operation timed out"), picture]
+        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
+        assert len(asked) == 3 and len(waits) == 1  # sent, maybe billed: a gap, not asked again
+    finally:
+        stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep = kept
+
+
 def test_a_step_s_cost_is_kept_for_a_run_that_is_run_again():
     path = pathlib.Path(tempfile.mkdtemp()) / "batch.json"
     assert stage.kept_entry(None, path) is None
