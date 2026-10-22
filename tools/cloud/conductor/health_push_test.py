@@ -1,0 +1,116 @@
+"""The conductor's small pieces with no cloud: the health record's shrink-guard counts, the secret reader finding its
+project by name, and score-secrets writing the file-shaped secrets whole, at mode 600, to the runtime folder only."""
+import base64
+import datetime
+import json
+import os
+import pathlib
+import stat
+import subprocess
+import sys
+import tempfile
+
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+import health_push  # noqa: E402
+
+
+def executable(path, text):
+    path.write_text(text)
+    path.chmod(0o755)
+    return path
+
+
+def test_record_counts_live_claims_parked_and_frozen():
+    with tempfile.TemporaryDirectory() as folder:
+        home = pathlib.Path(folder)
+        (home / "runs").mkdir()
+        dead = subprocess.Popen(["true"])
+        dead.wait()
+        claims = {str(os.getpid()): {"commit": "c"}, str(dead.pid): {"commit": "c"}}
+        (home / "runs" / "active.json").write_text(json.dumps(claims))
+        (home / "cloud" / "parked").mkdir(parents=True)
+        (home / "cloud" / "parked" / "machine-1.json").write_text("{}")
+        (home / "frozen" / "run-a").mkdir(parents=True)
+        (home / "conductor").mkdir()
+        (home / "conductor" / "health.json").write_text(json.dumps({"disk": 12}))
+        os.environ["SCORE_HEALTH_FILE"] = str(home / "conductor" / "health.json")
+        try:
+            record = health_push.record(home, datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc))
+        finally:
+            del os.environ["SCORE_HEALTH_FILE"]
+        assert record["active_runs"] == 1 and record["parked"] == 1 and record["frozen"] == 1
+        assert record["health"] == {"disk": 12} and record["written_at"].startswith("2026-10-22T00:00:00")
+
+
+def test_record_of_an_empty_home_is_idle():
+    with tempfile.TemporaryDirectory() as folder:
+        record = health_push.record(pathlib.Path(folder), datetime.datetime.now(datetime.timezone.utc))
+        assert (record["active_runs"], record["parked"], record["frozen"], record["health"]) == (0, 0, 0, None)
+
+
+SCW_SHIM = """#!/bin/sh
+echo "$*" >> "{log}"
+case "$1 $2" in
+  "account project")
+    echo '[{{"name": "other", "id": "p-0"}}, {{"name": "secrets-here", "id": "p-1"}}]' ;;
+  "secret version")
+    echo '{{"data": "{data}"}}' ;;
+esac
+"""
+
+
+def test_reader_finds_the_project_by_name():
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        log = folder / "scw.log"
+        data = base64.b64encode(b"the value").decode()
+        scw = executable(folder / "scw", SCW_SHIM.format(log=log, data=data))
+        env = {**os.environ, "SCORE_SCW": str(scw), "SCORE_SECRETS_PROJECT": "secrets-here",
+               "SCORE_READER_PYTHON": sys.executable}
+        done = subprocess.run(["sh", str(HERE / "secret_reader.sh"), "gemini-api-key"], env=env, capture_output=True,
+                              text=True, timeout=30)
+        assert done.returncode == 0 and done.stdout == "the value", done.stderr
+        calls = log.read_text().splitlines()
+        assert calls[0].startswith("account project list name=secrets-here")
+        assert "secret-name=gemini-api-key project-id=p-1 revision=latest region=fr-par" in calls[1]
+        env["SCORE_SECRETS_PROJECT"] = "missing"
+        refused = subprocess.run(["sh", str(HERE / "secret_reader.sh"), "x"], env=env, capture_output=True, text=True,
+                                 timeout=30)
+        assert refused.returncode != 0 and "found 0" in refused.stderr
+
+
+def test_secrets_go_to_the_runtime_folder_whole_and_private():
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        runtime = folder / "run"
+        runtime.mkdir()
+        reader = executable(folder / "reader", "#!/bin/sh\nprintf 'value of %s' \"$1\"\n")
+        gcloud = executable(folder / "gcloud", f"#!/bin/sh\necho \"$CLOUDSDK_CONFIG $*\" > {folder}/gcloud.log\n")
+        env = {**os.environ, "XDG_RUNTIME_DIR": str(runtime), "SCORE_SECRET_READER": str(reader),
+               "SCORE_GCLOUD": str(gcloud)}
+        done = subprocess.run(["sh", str(HERE / "secrets.sh")], env=env, capture_output=True, text=True, timeout=30)
+        assert done.returncode == 0, done.stderr
+        secrets = runtime / "score"
+        assert stat.S_IMODE(secrets.stat().st_mode) == 0o700
+        key = secrets / "score-lib-deploy-key"
+        assert key.read_text() == "value of score-lib-deploy-key\n"
+        assert stat.S_IMODE(key.stat().st_mode) == 0o600
+        assert (secrets / "google-billing-reader.json").read_text() == "value of google-billing-reader\n"
+        assert sorted(path.name for path in secrets.iterdir()) == ["google-billing-reader.json",
+                                                                  "score-lib-deploy-key"]
+        gcloud_call = (folder / "gcloud.log").read_text()
+        assert gcloud_call.startswith(f"{secrets}/gcloud auth activate-service-account")
+        empty = executable(folder / "empty", "#!/bin/sh\n")
+        env["SCORE_SECRET_READER"] = str(empty)
+        refused = subprocess.run(["sh", str(HERE / "secrets.sh")], env=env, capture_output=True, text=True, timeout=30)
+        assert refused.returncode != 0 and "empty" in refused.stderr
+        assert key.read_text() == "value of score-lib-deploy-key\n", "an empty read replaced a good key"
+
+
+if __name__ == "__main__":
+    for name, test in list(globals().items()):
+        if name.startswith("test_"):
+            test()
+            print(f"ok {name}")

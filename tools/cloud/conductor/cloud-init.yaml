@@ -1,0 +1,28 @@
+#cloud-config
+# The conductor's first boot (tools/cloud/conductor/machine.py renders this template into the server's user-data; its
+# slots are filled there, never in the repository): user score (uid 1100) with the owner's ssh key and the agents'
+# key held to the door, sshd keys-only, the packages boot.sh needs first, this repository cloned over https at the
+# commit `up` was run from, then boot.sh's system part. No secret is in here: the one credential arrives over ssh.
+users:
+  - name: score
+    uid: 1100
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+@AUTHORIZED_KEYS@
+disable_root: true
+ssh_pwauth: false
+package_update: true
+packages:
+  - git
+  - ca-certificates
+  - curl
+write_files:
+  - path: /etc/score-conductor.env
+    permissions: "0644"
+    content: |
+      SCORE_DATA_DEVICE=@DATA_DEVICE@
+runcmd:
+  - [runuser, -u, score, --, git, clone, -q, "https://github.com/Babon-Innovations-b-v/score", /home/score/projects/score]
+  - [runuser, -u, score, --, git, -C, /home/score/projects/score, checkout, -q, --detach, "@COMMIT@"]
+  - [bash, -c, "set -a && . /etc/score-conductor.env && set +a && exec bash /home/score/projects/score/tools/cloud/conductor/boot.sh system"]

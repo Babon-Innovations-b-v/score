@@ -1,0 +1,12 @@
+# The conductor's checkout follows the hosted cockpit's pinned commit (its /healthz `commit`), else origin/main moved
+# forward only; never while a run or sync pass is starting from the checkout; .venv re-synced when uv.lock changed
+# (tools/cloud/conductor/update.py). The system interpreter runs it: .venv may be what it re-syncs.
+[Unit]
+Description=SCORE conductor: move the checkout to the cockpit's pinned commit
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-%h/.config/score/dashboard.env
+ExecStart=/usr/bin/python3 -I %h/projects/score/tools/cloud/conductor/update.py --repo %h/projects/score

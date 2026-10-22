@@ -1,0 +1,18 @@
+# Starts again, at boot, every `score run` a reboot, a resize or a maintenance cut off (score/graph/runs.py: each from
+# its own frozen worktree, by the boot_id and heartbeat rules). Installed for user score by boot.sh on the conductor
+# (tools/cloud/conductor), which has linger on, so it runs at every boot with no login. On another machine: copy it to
+# ~/.config/systemd/user/, `systemctl --user daemon-reload && systemctl --user enable score-resume.service` and
+# `loginctl enable-linger "$USER"`.
+[Unit]
+Description=SCORE: resume the runs a reboot cut off
+Wants=network-online.target
+After=network-online.target score-secrets.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/projects/score
+EnvironmentFile=-%h/.config/score/dashboard.env
+ExecStart=%h/projects/score/.venv/bin/python -m score resume
+
+[Install]
+WantedBy=default.target
