@@ -18,6 +18,9 @@ STARTED = re.compile(r"^detached: started pid=(\d+) log=(.+)$", re.MULTILINE)  #
 RESULT = re.compile(r"^detached: (ok|failed|stopped|refused)\b")
 RESULT_STATES = {"ok": "done", "failed": "failed", "stopped": "stopped", "refused": "refused"}
 SECRETS = ("SCORE_DASHBOARD_SECRET_KEY", "SCORE_SYNC_TOKEN")
+# One run's own tags, never inherited by a launch: a benchmark grant would clear the owner's batch against the grant
+# instead of his stop line, a machine cap would shrink it, a run id would fold it into another run's machine count.
+RUN_TAGS = ("SCORE_BENCHMARK_GRANT", "SCORE_MAX_MACHINES", "SCORE_RUN_ID", "SCORE_RUN_PID")
 TAIL_LINES = 40
 BENCHMARKS = "score.stages.complete.prepare.benchmarks"  # the Benchmarks item's batch, a subprocess like `score`
 
@@ -45,8 +48,8 @@ def plan_command(group):
 
 
 def run_env():
-    """The runner's environment: the dashboard's secrets left out."""
-    return {name: value for name, value in os.environ.items() if name not in SECRETS}
+    """The runner's environment: the dashboard's secrets and any run's own tags left out."""
+    return {name: value for name, value in os.environ.items() if name not in SECRETS + RUN_TAGS}
 
 
 def last_json(text):
