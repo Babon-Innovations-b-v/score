@@ -466,12 +466,16 @@ CHECK_MINUTES = 90
 COUNT_SHARES = 6
 
 
-def counts_by_clips(body, outfit, checked):
+def counts_by_clips(body, checked):
     """The two body-through-cloth counts (with the corrective shapes and without), each over COUNT_SHARES shares of
-    the body's clips side by side (a whole count took about an hour on one core): {name: command}."""
+    the body's clips side by side (a whole count took about an hour on one core): {name: command}. The outfit counted
+    is the body's own skinned node, not its far body: the route names it `work` whatever the look's outfit
+    (route_build.py NODE)."""
     sys.path.insert(0, str(HERE.parent / "people"))
     import joins
     document, _ = joins.read_glb(body)
+    outfit, = [node["name"] for node in document["nodes"] if "mesh" in node and "skin" in node
+               and node.get("name") != "far"]
     clips = [animation["name"] for animation in document.get("animations", [])]
     found = {}
     for share in range(COUNT_SHARES):
@@ -521,7 +525,7 @@ def checks_cloud(spec, outfit, who, held, dry_run):
     listing = {"repo": str(REPO), "props home": str(PIXAL.parents[1]), "first": first, "checks": {
         "pokes": python("pokes.py", body, "--out", checked / "pokes.json", *against),
         "outline": python("outline.py", take, folder / "fit" / "rig.npz", body, "--out", checked / "outline.json"),
-        **counts_by_clips(body, outfit, checked)}, "then": {
+        **counts_by_clips(body, checked)}, "then": {
         name: python("bodycloth.py", "merge", checked / f"{name}.json",
                      *(checked / f"{name}.{share}.json" for share in range(COUNT_SHARES)))
         for name in ("bodycloth", "bodycloth_plain")}}
