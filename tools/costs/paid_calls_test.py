@@ -41,6 +41,11 @@ ALLOWED = {
     "tools/cloud/k8s/clusters/scaleway.py": ("the cluster set-up: ledger.order_started before each cluster and pool "
                                              "order; the nodes come to the ledger as the submitter's run rows",
                                              {"create_cluster", "ensure_pools"}),
+    "tools/cloud/conductor/machine.py": ("the conductor's own set-up, run only by the owner: ledger.order_started "
+                                         "before each billed order (address, data volume, server)",
+                                         {"address", "data_volume", "make_server"}),
+    "score/conductor/logs.py": ("the log scrubber names the Google key header to blank it, calls nothing",
+                                {"SECRET_WORDS"}),
     "tools/costs/paid_calls_test.py": ("this lint's pattern and its fixtures",
                                        {"PAID_TEXT", "test_a_module_calling_gemini_directly_fails",
                                         "test_a_module_ordering_a_scaleway_machine_or_disk_fails",

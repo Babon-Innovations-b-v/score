@@ -108,7 +108,8 @@ def test_no_module_calls_google_another_way():
                         r"google\.generativeai|google\.cloud\.aiplatform|vertexai")
     allowed = {"tools/props/cloud/google_spend.py", "tools/props/cloud/google_batch.py",  # the batch client on its ledger
                "tools/props/cloud/google_spend_test.py",
-               "tools/costs/paid_calls_test.py"}  # the paid-calls lint's fixtures name Google's hosts; that lint
+               "tools/costs/paid_calls_test.py",
+               "score/conductor/logs.py"}  # the log scrubber names the key header to blank it, calls nothing  # the paid-calls lint's fixtures name Google's hosts; that lint
     # checks its own file outside its named pattern and fixtures (its ALLOWED)
     found = [path for path in tracked if not path.startswith("vendor/") and path not in allowed
              and (repo / path).is_file() and direct.search((repo / path).read_text(errors="replace"))]

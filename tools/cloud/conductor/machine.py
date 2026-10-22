@@ -57,7 +57,10 @@ REPO = HERE.parents[2]
 CLOUD = REPO / "tools" / "props" / "cloud"
 sys.path.insert(0, str(HERE / "size_function"))
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(CLOUD.parent))  # tools/props: the ledger reads paths
+sys.path.insert(0, str(CLOUD))
 
+import ledger  # noqa: E402
 import s3  # noqa: E402
 from score.store import AGENT_MARKERS  # noqa: E402
 
@@ -187,6 +190,8 @@ def address(scw, project):
                 "flexible IPs tagged score-conductor")
     if found:
         return found
+    if not scw.dry:  # the order's ledger line first: the address is billed by the hour from the order on
+        ledger.order_started("conductor-ip", NAME, {"zone": ZONE})
     made = scw("instance", "ip", "create", "type=routed_ipv4", f"project-id={project}", f"tags.0={TAG}",
                f"zone={ZONE}")
     return {"id": placeholder(scw, "flexible IPv4", made and made["ip"]),
@@ -199,6 +204,8 @@ def data_volume(scw, project):
                      project, DATA_NAME), "volumes named score-conductor-data")
     if found:
         return found["id"]
+    if not scw.dry:
+        ledger.order_started("conductor-volume", DATA_NAME, {"zone": ZONE, "size_gb": DATA_GB})
     made = scw("block", "volume", "create", f"name={DATA_NAME}", f"perf-iops={IOPS}", f"from-empty.size={DATA_GB}GB",
                f"project-id={project}", f"tags.0={TAG}", f"zone={ZONE}")
     return placeholder(scw, "data volume", made)
@@ -215,6 +222,8 @@ def server(scw, project):
 
 def make_server(scw, project, group, ip, volume, user_data):
     """Create the server at the idle size with its root and data volumes, IP, group and cloud-init; protect it."""
+    if not scw.dry:
+        ledger.order_started("conductor-server", NAME, {"type": IDLE_TYPE, "zone": ZONE})
     made = scw("instance", "server", "create", f"image={IMAGE}", f"type={IDLE_TYPE}", f"name={NAME}",
                f"root-volume=sbs:{ROOT_GB}GB:{IOPS}", f"additional-volumes.0={volume}", f"ip={ip}",
                f"security-group-id={group}", f"tags.0={TAG}", f"cloud-init=@{user_data}", f"project-id={project}",
