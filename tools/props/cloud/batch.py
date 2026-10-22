@@ -649,6 +649,7 @@ class Fleet:
         self.stop = threading.Event()
         self.machines = []
         self.done, self.failed, self.finish_failed = [], [], []
+        self.why = {}
         self.lost_cards = 0
         self.unsent = []
         self.job_deadline = job_deadline_seconds()
@@ -663,24 +664,29 @@ class Fleet:
         with self.lock:
             return not self.queueing and not self.ready
 
-    def gaps(self, names):
+    def gaps(self, names, why):
         """Jobs that ran and did not make a model (failed, out of memory, past their deadline, or on a machine that
-        was lost): gaps, never sent again; new spend on them is a new batch."""
+        was lost), or that no machine took: gaps, never sent again, each with the first reason given (`why`); new
+        spend on them is a new batch."""
         with self.lock:
-            self.failed.extend(name for name in names if name not in self.failed)
+            for name in names:
+                if name not in self.failed:
+                    self.failed.append(name)
+                self.why.setdefault(name, why)
 
     def lose(self, machine):
         """A machine billed that failed (did not start, or broke): its cards are not rented again inside the batch."""
         with self.lock:
             self.lost_cards += machine["cards"]
 
-    def unsent_gaps(self):
-        """The jobs no machine took, once no machine is left to take them: gaps, for a new batch and a new ask."""
+    def unsent_gaps(self, why):
+        """The jobs no machine took, once none will (no machine left, or the batch's deadline): gaps, for a new batch
+        and a new ask."""
         with self.lock:
             names = [job["name"] for job in self.ready]
             self.ready.clear()
             self.unsent.extend(names)
-        self.gaps(names)
+        self.gaps(names, why)
         return names
 
     def arrived(self, machine_folder, name):
@@ -859,7 +865,8 @@ def keep_the_fleet(fleet, found, cards):
             return
         short = cards - fleet.lost_cards - sum(machine["cards"] for machine in alive)
         if not alive and short <= 0:
-            say(f"no machine left (its cards were billed and failed); gaps: {', '.join(fleet.unsent_gaps())}")
+            left = fleet.unsent_gaps("not sent: no machine left (their cards were billed and failed)")
+            say(f"no machine left (its cards were billed and failed); gaps: {', '.join(left)}")
             return
         if short > 0 and not fleet.no_more_work() and time.time() - asked >= STOCK_RETRY_MINUTES * 60:
             asked = time.time()
@@ -906,6 +913,7 @@ def tend(fleet, machine):
             f"{machine['per_card']} runs a card")
         room = machine["cards"] * (machine["per_card"] + 1)
         closed = False
+        ended = "unfinished when its machine ended"
         while not fleet.stop.is_set() and time.time() < fleet.deadline:
             while len(sent) - len(finished) < room:
                 job = fleet.next_job()
@@ -925,15 +933,19 @@ def tend(fleet, machine):
                 machine["healthy"] = True  # its worker ended well: the card may be parked for the next run (park.py)
                 break
             time.sleep(POLL_SECONDS)
+        else:
+            ended = ("still running at the batch's deadline" if time.time() >= fleet.deadline
+                     else "unfinished when the batch stopped")
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the fleet
         say(f"{folder.name} failed: {error}; no machine rented in its place")
         fleet.lose(machine)
+        ended = f"its machine {folder.name} broke ({error})"
     finally:
         lost = sorted(set(sent) - finished)
         if lost:
             say(f"{folder.name} ended with {len(lost)} job{'s' if len(lost) != 1 else ''} unfinished, gaps: "
-                f"{', '.join(lost)}")
-        fleet.gaps(lost)
+                f"{', '.join(lost)} ({ended})")
+        fleet.gaps(lost, ended)
         delete_machine(machine)
 
 
@@ -950,7 +962,7 @@ def collect(fleet, folder, host, status, finished):
     failed = sorted(new - set(made))
     for name in failed:
         say(f"{name} failed on {folder.name}; a gap")
-    fleet.gaps(failed)
+    fleet.gaps(failed, f"failed on {folder.name} (its log under {folder / 'logs'})")
     return new
 
 
@@ -966,6 +978,8 @@ def stop_overdue(fleet, folder, host, status, stopped):
     that runs pkill), the machine reports it failed, and collect makes it a gap at the next look."""
     for name in overdue(status, stopped, fleet.job_deadline, time.time()):
         stopped.add(name)
+        with fleet.lock:  # the reason its gap gets when collect sees it failed
+            fleet.why.setdefault(name, f"passed its {fleet.job_deadline:.0f} s deadline; stopped")
         say(f"{name} passed its {fleet.job_deadline:.0f} s deadline on {folder.name}; stopped, a gap")
         remote(folder, host, f"pkill -f -- {shlex.quote(own_pattern(f'/root/batch/out/{name}.glb'))}")
 
@@ -1048,6 +1062,7 @@ def ledger_entry(fleet, models, started):
             "per_card": {machine["folder"].name: machine.get("per_card") for machine in fleet.machines},
             **ledger.machines_record(fleet.machines, fleet.attempts, started), "models": len(models),
             "models_done": len(fleet.done), "gaps": sorted(fleet.failed),
+            "gap_reasons": {name: fleet.why.get(name) for name in sorted(fleet.failed)},
             "unsent": sorted(fleet.unsent), "card_minutes": card_minutes,
             "wall_minutes": (time.time() - started) / 60, "job_seconds": job_seconds}
 
@@ -1119,6 +1134,8 @@ def run(models, options, account, found, cards, allowed_minutes):
         fleet.stop.set()
         for machine in fleet.machines:
             delete_machine(machine)
+        if time.time() >= fleet.deadline:
+            fleet.unsent_gaps("not sent before the batch's deadline")
         entry = ledger_entry(fleet, models, started)
         ledger.record(entry)
         report(entry)
@@ -1130,7 +1147,8 @@ def say_what_failed(fleet, folder):
     """Name the models a batch did not make or could not finish, and where their logs are."""
     missing = sorted(set(fleet.models) - set(fleet.done))
     if fleet.failed:
-        say(f"gaps (ran once, no model; a new batch and a new ask to try again): {', '.join(sorted(fleet.failed))}")
+        say("gaps (ran once or never sent, no model; a new batch and a new ask to try again): "
+            + "; ".join(f"{name}: {fleet.why.get(name)}" for name in sorted(fleet.failed)))
     if missing:
         say(f"not made: {', '.join(missing)} (logs under {folder})")
     if fleet.finish_failed:
