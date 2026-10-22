@@ -193,3 +193,12 @@ def test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth():
     assert layer.offsets["walking"].shape == (4, len(layer.points), 3)
     assert route_build.under_layer([sleeve, torso], {**welded, "web": set()}, base_points, base_faces, base_weights,
                                    correctives, ["walking"]) is None
+
+
+def test_the_route_reads_the_body_node_its_outfit_named():
+    """2026-10-22: one body a look, its outfit `made`; the route looked for a node named `work` and found none."""
+    document = {"nodes": [{"name": "Person"}, {"name": "far", "mesh": 0, "skin": 0},
+                          {"name": "made", "mesh": 1, "skin": 0}]}
+    assert route_build.body_node(document) == "made"
+    with pytest.raises(SystemExit):
+        route_build.body_node({"nodes": [{"name": "far", "mesh": 0, "skin": 0}]})
