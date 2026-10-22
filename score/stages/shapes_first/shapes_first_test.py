@@ -197,7 +197,7 @@ MAKES_NO_MODEL = {
     "physics-trial": "a physics trial",
     "light-passes": "renders", "surface-tiles": "surface tile pictures",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
-    "people-clips-made": "Kimodo clips and the mean rig", "people-look": "renders of the made bodies (its review page)",
+    "body-face-*": "a body's face palette and recipe variant", "people-clips-made": "Kimodo clips and the mean rig", "people-look-*": "renders of a made body (its review page)",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
 MADE_OUTSIDE = {
@@ -232,9 +232,9 @@ def test_a_paid_row_outside_the_loop_makes_no_model_but_a_named_exception():
              for row in re.findall(r"people-[a-z0-9_-]*[a-z0-9]", text)}
     unsaid, unnamed = [], []
     for row in stages.STAGES:
-        if not row.paid or row.name in loop or matched(row.name, MAKES_NO_MODEL):
+        exception = matched(row.name, MADE_OUTSIDE)  # first: people-look-parts-* is no people-look-* page
+        if not row.paid or row.name in loop or (exception is None and matched(row.name, MAKES_NO_MODEL)):
             continue
-        exception = matched(row.name, MADE_OUTSIDE)
         if exception is None:
             unsaid.append(row.name)
         elif exception.startswith("people-") and row.name not in named:

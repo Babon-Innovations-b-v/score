@@ -97,6 +97,15 @@ def prop_objects(record):
     return {row: entry for row, entry in record["objects"].items() if entry["route"] == "prop"}
 
 
+def kept(objects, params):
+    """{row: entry} of `objects` the runner's object filter keeps (the params' `objects` of a row that selects,
+    graph.Stage.selects: a row's id or its take named), every one without a filter."""
+    names = params.get("objects")
+    if names is None:
+        return objects
+    return {row: entry for row, entry in objects.items() if row in names or entry.get("take") in names}
+
+
 def prop_part(path):
     """The part of a place's file the Pixal3D row reads: its prop objects' takes, so a change to the code objects or
     the fallback moves no paid row's key."""

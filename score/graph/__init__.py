@@ -596,11 +596,19 @@ class Runner:
         """{name: path pattern} of the environment files the node reads."""
         if not callable(stage.files):
             return stage.files
-        if not (self.objects and stage.selects):
+        with self.selection(stage):
             return stage.files(place)
+
+    @contextlib.contextmanager
+    def selection(self, stage):
+        """The object filter's names as `selected()` while the block runs, for a stage that selects (its files, and
+        the units its forecast counts: gaps price.rule_units); no filter for any other."""
+        if not (self.objects and stage.selects):
+            yield
+            return
         token = SELECTED.set(frozenset(self.objects))
         try:
-            return stage.files(place)
+            yield
         finally:
             SELECTED.reset(token)
 
@@ -1121,7 +1129,7 @@ class Runner:
         the nodes they read, place by place: a stage one place reads (the garage's motion its motion models layer, and so
         its surface line) is not run for a place that does not read it. A node name in `only` (`demo-film@hub`) keeps
         that one node, so one run can hold a benchmark batch of different stages at different places. An environment
-        stage named in `only` with places given is kept too, with what it reads: `--place people --stage people-look`
+        stage named in `only` with places given is kept too, with what it reads: `--place people --stage people-look-<look>`
         is the people line and the bodies that read it beside, in one run (#26)."""
         found = list(self.nodes(places))
         named = set()

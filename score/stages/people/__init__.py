@@ -10,9 +10,10 @@ data/surfaces/people.json; after the loop:
     people-dress-<look>              the loop's library surfaces laid on the body (dress.py)
     people-dress-<look>-in-<surface> the same worn in a fabric a design's person row reads (people_clothes.py)
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
-    people-look                      the review page of every full look the designs name (look.py)
+    people-look-<look>               a full look's review page, one a look the designs name (look.py)
 
-    .venv/bin/python -m score run world1 --place people --stage people-look --stage people-clips --detach
+    .venv/bin/python -m score run world1 --place people --stage people-look-<look> --object <look>-s1 --detach
+    (one look: the loop's rows narrowed to its take, its body, dress and page; a --stage for every look for all)
 """
 from score import contracts, graph
 from score.stages import people_rows
@@ -48,16 +49,23 @@ CLIPS = graph.Stage("people-clips", "world", clips.make_usable, contracts.Contra
                     (guarded("casts use passing clips", clips.judge_casts),),
                     files={"casts": "{data}/people/rows.json"},
                     after={f"{bodies.BODY}-{look}": (bodies.BODY, 1) for look in FULL})
-# The review page of every full body the designs name (FULL): each look's dress and body, rendered. Its two looks of
-# the people benchmark (#26, the tube's player and the square's crowd) were made from the retired makes and went with
-# them (owner, 2026-10-21: all old stuff is retired).
-LOOK = graph.Stage("people-look", "world", look.make_look, contracts.Contract("people-look", 1, look.look_faults),
-                   (guarded("rendered", look.judge_rendered),),
-                   files={"shots": "{repo}/tools/characters/maker/blender_shots.py",
-                          "review": "{repo}/tools/characters/maker/blender_review.py"},
-                   after={**{f"people-dress-{name}": ("people-dress", 1) for name in FULL},
-                          **{f"{bodies.BODY}-{name}": (bodies.BODY, 1) for name in FULL}},
-                   paid=True, euros=look.EUROS * len(FULL))
+
+
+def look_row(name):
+    """A full look's review page, `people-look-<look>` (paid): its dress and body rendered, a node of its own so one
+    look runs, and is bought, without the others (#26)."""
+    return graph.Stage(f"{look.ROW}-{name}", "world", look.make_look,
+                       contracts.Contract(look.ROW, 1, look.look_faults), (guarded("rendered", look.judge_rendered),),
+                       files={"shots": "{repo}/tools/characters/maker/blender_shots.py",
+                              "review": "{repo}/tools/characters/maker/blender_review.py"},
+                       after={f"people-dress-{name}": ("people-dress", 1), f"{bodies.BODY}-{name}": (bodies.BODY, 1)},
+                       paid=True, euros=look.EUROS)
+
+
+# The review page of each full body the designs name (FULL), one row a look. The two looks of the people benchmark
+# (#26, the tube's player and the square's crowd) were made from the retired makes and went with them (owner,
+# 2026-10-21: all old stuff is retired).
+LOOKS = tuple(map(look_row, FULL))
 
 
 def worn_rows():
@@ -67,4 +75,4 @@ def worn_rows():
             if look in bodies.looks()]
 
 
-ROWS = (made_clips.ROW_STAGE, *bodies.rows(), *map(dress_row, bodies.looks()), *worn_rows(), CLIPS, LOOK)
+ROWS = (made_clips.ROW_STAGE, *bodies.rows(), *map(dress_row, bodies.looks()), *worn_rows(), CLIPS, *LOOKS)

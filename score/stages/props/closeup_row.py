@@ -54,17 +54,18 @@ def inventory_rows(inventory, wanted):
 
 
 def make_inputs(inputs, out, seed, params):
-    """rows.json: every object of the place's prop data as a close-up row, its drawn close-up where named."""
-    record = prop_data.record_at(inputs["props"])
-    rows = inventory_rows(json.loads(inputs["inventory"].read_text()), record["objects"])
+    """rows.json: every object of the place's prop data (those the runner's object filter keeps, prop_data.kept) as a
+    close-up row, its drawn close-up where named; the rows after it work on these rows alone."""
+    objects = prop_data.kept(prop_data.record_at(inputs["props"])["objects"], params)
+    rows = inventory_rows(json.loads(inputs["inventory"].read_text()), objects)
     for row in rows:
         row["concept"] = str(inputs[f"view {row['view']}"]) if row["view"] else None
         named = inputs.get(f"close-up {row['id']}")
         row["drawn"] = str(named) if named else None
-        entry = record["objects"][row["id"]]
+        entry = objects[row["id"]]
         row.update(route=entry["route"], take=entry.get("take"), layer=layer_of(entry),
                    failures=entry.get("failures", {}))
-    missing = sorted(set(record["objects"]) - {row["id"] for row in rows})
+    missing = sorted(set(objects) - {row["id"] for row in rows})
     (out / "rows.json").write_text(json.dumps({"rows": rows, "not_in_inventory": missing}, indent=1))
 
 

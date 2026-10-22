@@ -146,15 +146,48 @@ def test_the_takes_gate_judges_the_prop_objects_takes_only():
             path.name: pixal_row.file_hash(path) for path in pixal_row.take_files("cairn-p1")}}}))
         objects = {"cairn": {"route": "prop", "take": "cairn-p1"}, "boulder": {"route": "prop", "take": "boulder-p1"}}
         (folder / "props.json").write_text(json.dumps({"objects": objects}))
-        inputs = {"props": folder / "props.json", "surfaces": folder / "surfaces.json"}
+        inputs = {"props": folder / "props.json", "surfaces": folder / "surfaces.json", "closeup": folder}
+        (folder / "closeups.json").write_text(json.dumps({"objects": {"cairn": {}, "boulder": {}}}))
         (folder / "surfaces.json").write_text(json.dumps({"takes": {"cairn-p1": {}, "drift-r1": {}}}))
         assert pixal_row.judge_takes(folder, inputs, {}).answer == "pass"
         (folder / "surfaces.json").write_text(json.dumps({"takes": {"cairn-p1": {}, "boulder-p1": {}}}))
         verdict = pixal_row.judge_takes(folder, inputs, {})
         assert verdict.answer == "fail" and "boulder-p1" in " ".join(verdict.findings), verdict
+        # narrowed to the cairn (score run --object): the boulder the line was not asked for is not failed
+        (folder / "closeups.json").write_text(json.dumps({"objects": {"cairn": {}}}))
+        assert pixal_row.judge_takes(folder, inputs, {}).answer == "pass"
     finally:
         pixal_row.take_files = made_files
         shutil.rmtree(folder)
+
+
+def test_an_object_filter_narrows_the_loop_rows_and_their_forecast():
+    """#26: `score run --object <take>` narrows the prop route to that object: the inputs row writes its row alone
+    (the close-up, Pixal3D and the finish route work on those rows), and its paid rows are priced for it alone."""
+    from score.stages.complete.gaps import price
+    import score.stages.props.closeup_row as closeup_row
+    assert all(row.selects for row in (props.INPUTS, props.CLOSEUP, props.PIXAL, props.LIKENESS))
+    with tempfile.TemporaryDirectory() as held:
+        data = pathlib.Path(held)
+        (data / "props").mkdir()
+        objects = {"cairn": {"route": "prop", "take": "cairn-p1"}, "boulder": {"route": "prop", "take": "boulder-p1"}}
+        (data / "props/rocks.json").write_text(json.dumps({"place": "rocks", "objects": objects}))
+        (data / "inventory.json").write_text(json.dumps({"scene": "rocks", "rows": [
+            {"id": row, "name": row, "size": [1, 1, 1]} for row in objects]}))
+        inputs = {"props": data / "props/rocks.json", "inventory": data / "inventory.json"}
+        for params, wanted in (({}, ["boulder", "cairn"]), ({"objects": ["boulder-p1"]}, ["boulder"]),
+                               ({"objects": ["cairn"]}, ["cairn"])):
+            out = data / "out"
+            out.mkdir()
+            closeup_row.make_inputs(inputs, out, 7, params)
+            assert sorted(row["id"] for row in json.loads((out / "rows.json").read_text())["rows"]) == wanted
+            shutil.rmtree(out)
+        assert price.selected_takes({"cairn-p1", "boulder-p1"}, data, "rocks") == {"cairn-p1", "boulder-p1"}
+        token = graph.SELECTED.set(frozenset({"cairn"}))
+        try:
+            assert price.selected_takes({"cairn-p1", "boulder-p1"}, data, "rocks") == {"cairn-p1"}
+        finally:
+            graph.SELECTED.reset(token)
 
 
 def test_no_object_is_code_built():

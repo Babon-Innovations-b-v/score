@@ -690,7 +690,7 @@ def test_the_object_filter_keys_only_a_selecting_row():
         assert runner.params_of(views) == {}
         runner.objects = frozenset({"b", "a"})
         assert runner.params_of(views) == {"objects": ["a", "b"]}
-        assert runner.params_of(runner.stages["surfaces-bake"]) == {}
+        assert runner.params_of(runner.stages["surfaces-paint"]) == {}
         assert not any(name.startswith("model ") for name in runner.files_of(views, "old_station"))
 
 

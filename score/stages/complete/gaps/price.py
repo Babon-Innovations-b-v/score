@@ -94,6 +94,16 @@ def pixal_models(found, data, place):
     return unmade | {take_of(objects, gap) for gap in found if gap["rule"] == MISSING and gap.get("node") == node}
 
 
+def selected_takes(takes, data, place):
+    """The `takes` the runner's object filter keeps (graph.selected, set while a selecting stage is priced: a take
+    named, or the prop object whose take it is), all of them without one."""
+    names = graph.selected()
+    if names is None:
+        return takes
+    named = names | {entry["take"] for row, entry in prop_objects(data, place).items() if row in names}
+    return {take for take in takes if take in named}
+
+
 def surface_takes(data, place):
     """The takes the place's surface data lists (its design's, surface_data.DESIGN, else `data`'s), by name."""
     from score.stages.surfaces import surface_data
@@ -140,9 +150,9 @@ def rule_units(rule, found, data, place):
     if not place:
         return None  # the other rules count a place's own models or views
     if rule == "prop_takes":
-        return len(pixal_models(found, data, place))
+        return len(selected_takes(pixal_models(found, data, place), data, place))
     if rule == "models":
-        return len(surface_takes(data, place) | pixal_models(found, data, place))
+        return len(selected_takes(surface_takes(data, place) | pixal_models(found, data, place), data, place))
     if rule == "light_jobs":
         return light_jobs(data, place)
     if rule == "sound_takes":

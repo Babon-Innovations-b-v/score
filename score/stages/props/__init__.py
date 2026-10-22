@@ -28,17 +28,17 @@ def contract(schema, faults):
 INPUTS = graph.Stage("props-inputs", "place", closeup_row.make_inputs,
                      contract("props-inputs", closeup_row.inputs_faults),
                      (guarded("boxed or drawn", closeup_row.judge_inputs),), files=prop_data.inputs_files,
-                     applies=prop_data.applies)
+                     applies=prop_data.applies, selects=True)
 CLOSEUP = graph.Stage("closeup", "place", closeup_row.make_closeups, contract("props-closeups",
                                                                              closeup_row.closeups_faults),
                       (guarded("close-up", closeup_row.judge_closeups),),
                       files=prop_data.closeup_row_files, after={"props-inputs": ("props-inputs", 1)}, paid=True,
                       euros=closeup_row.EUROS,
-                      applies=prop_data.applies)
+                      applies=prop_data.applies, selects=True)
 PIXAL = graph.Stage("pixal", "place", pixal_row.make_pixal, contract("props-pixal", pixal_row.pixal_faults),
                     (guarded("takes", pixal_row.judge_takes),), files=prop_data.pixal_files,
                     after={"closeup": ("props-closeups", 1)}, paid=True, euros=pixal_row.EUROS,
-                    applies=prop_data.applies)
+                    applies=prop_data.applies, selects=True)
 CALIBRATION = graph.Stage("likeness-calibration", "place", calibration_row.make_calibration,
                           contract("likeness-calibration", calibration_row.calibration_faults),
                           (guarded("calibrated", calibration_row.judge_calibration),),
@@ -53,6 +53,6 @@ LIKENESS = graph.Stage("likeness", "place", likeness_row.make_likeness,
                               # the rows whose batch gaps it carries to complete (score/stages/batch_gaps.py)
                               "pixal": ("props-pixal", 1), "finish-route-split": ("finish-route-split", 1),
                               "finish-route-recheck": ("finish-route-recheck", 1)},
-                       applies=prop_data.applies)
+                       applies=prop_data.applies, selects=True)
 # What the surface line's first row reads of the prop route (score/stages/__init__.py adds it to its `after`).
 FEEDS = {"pixal": ("props-pixal", 1)}
