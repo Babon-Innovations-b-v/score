@@ -259,6 +259,7 @@ def create(project, offer, name, tags, disk_gb):
         capture_output=True, text=True)
     if done.returncode != 0:
         ledger.rent_refused(name, done.stderr.strip()[:300])
+        delete_left_by_refusal(project, zone, name)
         return None, done.stderr.strip()[:300]
     server = json.loads(done.stdout)
     server_id = server["id"]
@@ -268,6 +269,16 @@ def create(project, offer, name, tags, disk_gb):
         delete(server_id, zone)  # its disk-and-address row closes the started line
         return None, f"its address could not be swapped off a quarantined one ({error}); deleted"[:300]
     return server_id, None
+
+
+def delete_left_by_refusal(project, zone, name):
+    """Delete the machine a refused order made anyway: an order answered with HTTP 500 had still made it (masks-...-1 in fr-par-1, 2026-10-22: refused at 07:27:31, there since 07:27:04, stopped, never watched). Only
+    a machine of the project's own, with the runner's tag and this exact name, in this zone; the names a run's slot
+    takes are its own, and a slot whose order was refused holds no machine."""
+    servers = scw("instance", "server", "list", f"project-id={project}", f"zone={zone}", f"name={name}") or []
+    for server in servers:
+        if server.get("name") == name and server.get("project") == project and TAG in (server.get("tags") or []):
+            delete(server["id"], zone)
 
 
 def quarantine_bad_address(project, server, zone):
