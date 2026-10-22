@@ -20,5 +20,8 @@ film script's rules are `../CLAUDE.md`'s).
 - **What a scene shows comes from data**: the setting's bodies through `overhead.orbit_position` (sizes and moons'
   orbits enlarged as `pages/setting_picture.py` draws them), sites, blocks and skies from the environment plan, colours
   from library surfaces in the score_lib cache, rooms from their locked concepts. A missing surface or bed refuses.
+  A scale zoom arrives at each place in daylight (#51, `scenes.arrival`): the first hour from its site's scene time
+  when its sun stands `LIT_DEGREES` up, its sky worked out again there through `overhead.seen`; a segment's `time`
+  (ISO) overrides it for its own place.
 - Chromium: `npx -p playwright@1.62.1` (viewer_look.py's pin), its libraries on `LD_LIBRARY_PATH` where the machine
   lacks them. Tests: `../../tests/films_test.py` (the join's clock, the setting's scale; no browser).
