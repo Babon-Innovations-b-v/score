@@ -1068,10 +1068,11 @@ def stop_on_signals():
 def stop_when_orphaned(parent):
     """Under a run: once this process's `parent` (its node) is gone, a SIGTERM to itself, so every machine is deleted at
     once by the stop's own path rather than left to its self-delete or the batch's deadline."""
-    while os.getppid() == parent:
+    while os.getppid() == parent and not STOPPING.is_set():
         time.sleep(PARENT_POLL_SECONDS)
-    say(f"its node (pid {parent}) is gone while the run lives; stopping and deleting every machine")
-    os.kill(os.getpid(), signal.SIGTERM)
+    if not STOPPING.is_set():  # a batch already stopping is deleting: a second signal would end its delete loop
+        say(f"its node (pid {parent}) is gone while the run lives; stopping and deleting every machine")
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 # The record.
