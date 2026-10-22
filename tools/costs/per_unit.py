@@ -126,14 +126,21 @@ RECORDED = {
                                       {"euros": 0.019218, "units": 1,
                                        "source": "google ledger call 7759147ddd48417e8a1582e304ac85c7 "
                                                  "(finish-route-palette@greenhouse, 2026-10-22, benchmark grant "
-                                                 "20261022T072047), standard tier"}],
-                             "time": {"unit_seconds": {"likely": 218.5, "high": 242.1},
+                                                 "20261022T072047), standard tier"},
+                                      {"euros": 0.070798, "units": 1,
+                                       "source": "google ledger call d532125d3e3b4978a237795b558bb51c "
+                                                 "(finish-route-palette@people, over every locked concept, "
+                                                 "2026-10-22, benchmark grant 20261022T072047, commit a8ebe414), "
+                                                 "standard tier"}],
+                             "time": {"unit_seconds": {"likely": 194.0, "high": 237.2},
                                       "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
-                                      "slots_from": "one call a place", "holds": "calls", "lines": 2,
+                                      "slots_from": "one call a place", "holds": "calls", "lines": 3,
                                       "from": ["google ledger call 80322def0eb2437e8ac358dcfccf3e67 (started "
                                                "20:33:26, finished 20:36:35 +02:00)",
                                                "google ledger call 7759147ddd48417e8a1582e304ac85c7 (started "
-                                               "09:26:01, finished 09:30:09 +02:00 on 2026-10-22)"]}},
+                                               "09:26:01, finished 09:30:09 +02:00 on 2026-10-22)",
+                                               "google ledger call d532125d3e3b4978a237795b558bb51c (started "
+                                               "10:10:01, finished 10:13:15 +02:00 on 2026-10-22)"]}},
     "concept-views": {"unit": "make of the environment's concept views (16 Pro pictures, "
                               "data/definitions/concept_views.json)", "forecast": "one",
                       "runs": [{"euros": 2.254, "units": 1,
@@ -175,14 +182,26 @@ RECORDED = {
                                  {"euros": 0.076496, "units": 1,
                                   "source": "google ledger call 3561ae0918c647579b76a704f83cc884 "
                                             "(surface-library@greenhouse, 2026-10-22, benchmark grant "
+                                            "20261022T072047 restored, commit d8d8f17e), standard tier"},
+                                 {"euros": 0.093524, "units": 1,
+                                  "source": "google ledger call b1650443f6a646a9b007b7918cbc570b "
+                                            "(surface-library@people, 2026-10-22, benchmark grant "
+                                            "20261022T072047, commit a8ebe414), standard tier"},
+                                 {"euros": 0.104018, "units": 1,
+                                  "source": "google ledger call f744898b77a241ed9c2cefe5645eadb2 "
+                                            "(surface-library@people, 2026-10-22, benchmark grant "
                                             "20261022T072047 restored, commit d8d8f17e), standard tier"}],
-                        "time": {"unit_seconds": {"likely": 218.5, "high": 242.9},
+                        "time": {"unit_seconds": {"likely": 221.0, "high": 251.8},
                                  "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
-                                 "slots_from": "one call a place", "holds": "calls", "lines": 2,
+                                 "slots_from": "one call a place", "holds": "calls", "lines": 4,
                                  "from": ["google ledger call 507bf0dfcea54d6b9723bcfe9d29a167 (started 09:30:13, "
                                           "finished 09:34:22 +02:00 on 2026-10-22)",
                                           "google ledger call 3561ae0918c647579b76a704f83cc884 (started 11:15:49, "
-                                          "finished 11:18:57 +02:00 on 2026-10-22)"]}},
+                                          "finished 11:18:57 +02:00 on 2026-10-22)",
+                                          "google ledger call b1650443f6a646a9b007b7918cbc570b (started 10:13:24, "
+                                          "finished 10:17:37 +02:00 on 2026-10-22)",
+                                          "google ledger call f744898b77a241ed9c2cefe5645eadb2 (started 11:42:24, "
+                                          "finished 11:45:37 +02:00 on 2026-10-22)"]}},
     "crops-concept": {"unit": "make of a place's crop masks on its concept (one card, 7 pictures at greenhouse)",
                       "forecast": "one",
                       "runs": [{"euros": 0.06125, "units": 1,
