@@ -78,16 +78,29 @@ def faces_of(surfaces, take):
     return entry["faces"]
 
 
+def slimmed(take, faces):
+    """The finish's own model before it is stood and padded (pixal.py: <take>-<faces>.glb), which the paint replays
+    the finish's turn from (tools/props/library/labels.py finish_turn)."""
+    return take_files(take)[0].with_name(f"{take}-{faces}.glb")
+
+
+def finished(take, faces):
+    """Whether the take's finish is here whole: its final model and the slimmed one the paint reads."""
+    return made(take) and slimmed(take, faces).exists()
+
+
 def finish_here(take, closeup, faces):
     """A take the cloud brought back raw, finished as the batch finishes every take (pixal.py --finish-only) on a
     rented machine (tools/props/finish_elsewhere.py through blender_cloud.run_elsewhere, under this node's clearance):
     no Blender or bake runs on the owner's PC. The raw take, its camera folder, its close-up, the prop tools and the
-    lab's copy go up at their own paths; the finished model comes back into WORK/pixal. Raises when the run fails."""
+    lab's copy go up at their own paths; the final and the slimmed model come back into WORK/pixal. Raises when the run
+    fails."""
     from score.adapters import engines
     raw, final, views = take_files(take)
     sent = [raw, *([views] if views.exists() else []), closeup, REPO / "tools/props", REPO / "vendor/image-to-3dlab"]
     engines.machine_runner().run_elsewhere(REPO / "tools/props/finish_elsewhere.py",
-                                           [REPO, raw.parents[1], closeup, take, f"--faces={faces}"], sent, [final],
+                                           [REPO, raw.parents[1], closeup, take, f"--faces={faces}"], sent,
+                                           [final, slimmed(take, faces)],
                                            FINISH_CLASSES, f"score pixal {take}", FINISH_MINUTES)
 
 
@@ -124,8 +137,9 @@ def make_pixal(inputs, out, seed, params):
         if done.returncode:
             raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
     for row, entry in sorted(objects.items()):
-        if raw_made(entry["take"]) and not made(entry["take"]):
-            finish_here(entry["take"], closeups / f"{row}.png", faces_of(inputs["surfaces"], entry["take"]))
+        faces = faces_of(inputs["surfaces"], entry["take"])
+        if raw_made(entry["take"]) and not finished(entry["take"], faces):
+            finish_here(entry["take"], closeups / f"{row}.png", faces)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in objects.items()}
