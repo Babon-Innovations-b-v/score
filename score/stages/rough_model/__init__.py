@@ -14,8 +14,8 @@ row. A row of every place with a plan (scene_record.written, as plan@<place>), o
 
 
 The take is named for the place and its concept's hash (take_name), so a new concept is a new take, and a take the
-batch already brought back is not made again (the batch refuses to overwrite one); one brought back raw whose finish
-failed is finished here, as the batch finishes every take (pixal.py --finish-only).
+batch already brought back is not made again (the batch refuses to overwrite one); the raw take is finished on a rented
+machine (_finish.py: pixal.py --finish-only, as the batch finishes every take), never on this PC.
 """
 import hashlib
 import json
@@ -25,16 +25,22 @@ import struct
 import subprocess
 
 from score import contracts
+from score.adapters import engines
 import score.stages.props.prop_data as prop_data  # the module, not the package: the table stays out of the code
 import score.stages.scene_record.plan as plan_row
-from score.stages.rough_model import _cloud
 from score.stages.surfaces.prop_env import PROPS_PYTHON
 from score.stages.surfaces.surface_gates import guarded, verdict
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 CLOUD = pathlib.Path(__file__).resolve().parent / "_cloud.py"
+FINISH = pathlib.Path(__file__).resolve().parent / "_finish.py"
 TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
-         "rough cloud": "{repo}/score/stages/rough_model/_cloud.py"}
+         "rough cloud": "{repo}/score/stages/rough_model/_cloud.py",
+         "rough finish": "{repo}/score/stages/rough_model/_finish.py"}
+# The finish's machine (blender_cloud.py): a card by the minute first, a processor machine (by the hour) when no card
+# is in stock; about its set-up (Blender, the finish's Python) and one finish, a minute or two.
+FINISH_CLASSES = ("gpu-24gb", "gpu-48gb", "cpu-16c-64gb", "cpu-32c-128gb")
+FINISH_MINUTES = 15
 # The row's estimate, for its clearance only and never shown as a price (compute.run_price keeps it as guess_euros):
 # no rough-model run is measured. The four one-model Pixal3D batches in paper/evidence/cloud/ledger.jsonl
 # (2026-10-09) cost EUR 0.26 to 1.42 each, rounded up. Pixal's measured per-model unit (data/costs/per-unit.json) is
@@ -80,27 +86,32 @@ def take_files(take):
     return WORK / "pixal" / f"{take}.glb", WORK / "pixal" / f"{take}-final.glb"
 
 
+def blender_cloud():
+    """tools/props/cloud/blender_cloud.py, the rented Blender machines' runner."""
+    return engines.machine_runner()
+
+
 def dispatch(take, picture, place, inventory, out):
-    """The take made by the cloud batch (_cloud.py), its log in the output folder."""
+    """The raw take made by the cloud batch (_cloud.py), its log in the output folder; not finished there (--no-finish:
+    the batch finishes on this PC, finish below runs it on a rented machine)."""
     (out / "list.txt").write_text(f"{take} {picture}\n")
     done = subprocess.run([str(PROPS_PYTHON), str(CLOUD), str(out / "list.txt"), "--who", f"score rough-model {place}",
-                           "--inventory", str(inventory)], cwd=REPO, capture_output=True, text=True)
+                           "--inventory", str(inventory), "--no-finish"], cwd=REPO, capture_output=True, text=True)
     (out / "batch.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
     if done.returncode:
         raise RuntimeError(f"the rough model's Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
 
 
-def finish(take, picture, out):
-    """A take brought back raw whose finish never ran or failed, finished here as the batch finishes every take:
-    pixal.py --finish-only (Blender and the processor, no model) in the batch's interpreter, under one of the PC's
-    finish slots the batches share (batch.finish_slot), its log in the output folder."""
-    batch = _cloud.load_batch()
-    with batch.finish_slot(), (out / "finish.log").open("a") as log:
-        done = subprocess.run([str(batch.VENV_PYTHON), str(REPO / "tools/props/pixal.py"), str(picture), take,
-                               "--who", "score rough-model", "--finish-only"], cwd=REPO, stdout=log,
-                              stderr=subprocess.STDOUT)
-    if done.returncode:
-        raise RuntimeError(f"the finish of {take} failed (exit {done.returncode}); its log is finish.log")
+def finish(take, picture):
+    """A raw take finished on a rented machine (_finish.py through blender_cloud.run_elsewhere, under this node's
+    clearance) as pixal.py --finish-only finishes every take: the PC has no Blender or lab environment for it, and no
+    Blender runs here. The raw take and its camera folder, the prop tools and the lab's copy go up at their own paths;
+    the finished model comes back into WORK/pixal. Raises when the run fails."""
+    raw, final = take_files(take)
+    views = raw.with_suffix(".svviews")
+    sent = [raw, *([views] if views.exists() else []), picture, REPO / "tools/props", REPO / "vendor/image-to-3dlab"]
+    blender_cloud().run_elsewhere(FINISH, [REPO, raw.parents[1], picture, take], sent, [final], FINISH_CLASSES,
+                                  f"score rough-model {take}", FINISH_MINUTES)
 
 
 def make(inputs, out, seed, params):
@@ -114,7 +125,7 @@ def make(inputs, out, seed, params):
     if not raw.exists():
         dispatch(take, picture, place, inputs["inventory"], out)
     if not final.exists():
-        finish(take, picture, out)
+        finish(take, picture)
     shutil.copyfile(final, out / MODEL)
     (out / RECORD).write_text(json.dumps({"place": place, "take": take, "concept": picture.name,
                                           "concept_sha256": concept_hash, "model_sha256": sha256(out / MODEL)},

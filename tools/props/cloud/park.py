@@ -14,10 +14,11 @@ the next hour:
 - the machine's tags name the --expire process and that time, so any run's sweep leaves it alone until then and
   deletes it after (or as soon as that process is gone).
 
-A card (billed by the minute) stays parked, its set-up and weights on its disk, for idle_minutes of its kind: the
-median minutes a fresh card of that kind took from its order to its first job (answering and set-up) over its last
-IDLE_SAMPLE runs, at most IDLE_CAP_MINUTES. Idle that long it costs what one cold start of that kind costs, so a card
-nobody takes loses at most one cold start and one that is taken saves one. A claim that is waiting for a machine of
+A card (billed by the minute) is parked only while a claim waits for a machine (queued: work for it; 2026-10-22, an
+H100 sat parked unused after a one-model batch), and stays parked, its set-up and weights on its disk, for idle_minutes
+of its kind: the median minutes a fresh card of that kind took from its order to its first job (answering and set-up)
+over its last IDLE_SAMPLE runs, at most IDLE_CAP_MINUTES. Idle that long it costs what one cold start of that kind
+costs, so a card nobody takes loses at most one cold start and one that is taken saves one. A claim that is waiting for a machine of
 its kind (`wanting`, the queue of WANTED per kind that every claim of a cleared run joins while it waits) takes it
 within PARKED_POLL_SECONDS; a card parked while a claim waits stays at least LEAST_MINUTES. A card nobody took is
 deleted at its time by the same three means (--expire, self_delete.py, its tags), and --expire writes its idle
@@ -149,12 +150,20 @@ def leaves_at(machine, now):
     return now + (max(idle, LEAST_MINUTES) if waiting(machine.get("kind")) else idle) * 60
 
 
+def queued():
+    """Whether a claim of any kind that cleans up waits for a machine now (take lets one take another kind's)."""
+    return any(waiting(kind) for kind in CLEANUPS)
+
+
 def parkable(machine, now):
-    """Whether the machine is worth parking: its run ended well, its kind cleans up, and it has LEAST_MINUTES (a card
-    CARD_LEAST_MINUTES) or more before it must go."""
-    least = LEAST_MINUTES if machine.get("unit_minutes", 1) > 1 else CARD_LEAST_MINUTES
+    """Whether the machine is worth parking: its run ended well, its kind cleans up, it has LEAST_MINUTES (a card
+    CARD_LEAST_MINUTES) or more before it must go, and, for a card, a claim waits for it (queued): a card billed by
+    the minute with no queued work is released (2026-10-22: an H100 sat parked unused after a one-model batch)."""
+    card = machine.get("unit_minutes", 1) == 1
+    least = CARD_LEAST_MINUTES if card else LEAST_MINUTES
     return (bool(machine.get("healthy")) and machine.get("kind") in CLEANUPS and machine.get("host") is not None
-            and not batch.STOPPING.is_set() and leaves_at(machine, now) - now >= least * 60)
+            and not batch.STOPPING.is_set() and (not card or queued())
+            and leaves_at(machine, now) - now >= least * 60)
 
 
 @contextlib.contextmanager

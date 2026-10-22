@@ -2,7 +2,6 @@
 through a stand-in batch and finish (no spend, no model made); its gates on a one-triangle binary glTF; its batch check
 without rows; and the gaps it fills. Run: .venv/bin/python -m pytest score/stages/rough_model
 """
-import contextlib
 import hashlib
 import json
 import pathlib
@@ -175,15 +174,15 @@ def test_a_place_with_no_concept_is_refused_before_any_batch(tmp_path, monkeypat
         rough_model.make({"plan": plan_output(tmp_path / "plan", "airlock")}, tmp_path, 1, {})
 
 
-def test_a_take_brought_back_raw_is_finished_here_not_sent_again(tmp_path, monkeypatch):
-    """A batch that brought the raw model back but whose finish failed: the next make finishes it here, as the batch
-    finishes every take, and never sends it again (the batch refuses to overwrite a raw take)."""
+def test_a_take_brought_back_raw_is_finished_not_sent_again(tmp_path, monkeypatch):
+    """A raw model already brought back (kept in WORK/pixal) is finished, never sent to Pixal3D again (the batch
+    refuses to overwrite a raw take)."""
     work, finished = tmp_path / "pixal", []
     work.mkdir()
     monkeypatch.setattr(rough_model, "take_files", lambda take: (work / f"{take}.glb", work / f"{take}-final.glb"))
     monkeypatch.setattr(rough_model, "dispatch", lambda *arguments: pytest.fail("the take was sent again"))
 
-    def finish(take, picture, out):
+    def finish(take, picture):
         finished.append((take, pathlib.Path(picture).name))
         glb(work / f"{take}-final.glb")
     monkeypatch.setattr(rough_model, "finish", finish)
@@ -197,25 +196,35 @@ def test_a_take_brought_back_raw_is_finished_here_not_sent_again(tmp_path, monke
     assert finished == [(take, "K02.png")] and (out / "rough.glb").exists()
 
 
-def test_the_finish_here_holds_one_of_the_pcs_finish_slots_in_the_batchs_interpreter(tmp_path, monkeypatch):
-    """The finish runs Blender as a batch's does: under batch.finish_slot (the PC's cap across every batch) and in
-    batch.VENV_PYTHON; a stand-in batch and a stand-in run, no Blender."""
-    held, ran = [], []
+def test_the_finish_runs_on_a_rented_machine_with_the_raw_take_sent_up(tmp_path, monkeypatch):
+    """The finish is never run on this PC (2026-10-22 benchmark: no Blender or lab environment here): _finish.py
+    through blender_cloud.run_elsewhere, the raw take, its camera folder, the prop tools and the lab's copy sent up
+    at their own paths, the finished model brought back where take_files reads it; a stand-in runner, no spend."""
+    work = tmp_path / "work" / "pixal"
+    (work / "airlock-rough-0.svviews").mkdir(parents=True)
+    monkeypatch.setattr(rough_model, "take_files",
+                        lambda take: (work / f"{take}.glb", work / f"{take}-final.glb"))
+    asked = []
+    runner = types.SimpleNamespace(run_elsewhere=lambda *arguments: asked.append(arguments))
+    monkeypatch.setattr(rough_model, "blender_cloud", lambda: runner)
+    monkeypatch.setattr(rough_model.subprocess, "run", lambda *_, **__: pytest.fail("a finish ran on this PC"))
+    rough_model.finish("airlock-rough-0", tmp_path / "K02.png")
+    [(script, arguments, sent, outputs, classes, _who, _minutes)] = asked
+    assert script == rough_model.FINISH and script.exists()
+    assert arguments == [rough_model.REPO, tmp_path / "work", tmp_path / "K02.png", "airlock-rough-0"]
+    assert sent[:3] == [work / "airlock-rough-0.glb", work / "airlock-rough-0.svviews", tmp_path / "K02.png"]
+    assert {rough_model.REPO / "tools/props", rough_model.REPO / "vendor/image-to-3dlab"} <= set(sent)
+    assert outputs == [work / "airlock-rough-0-final.glb"] and "gpu-80gb" not in classes
 
-    @contextlib.contextmanager
-    def finish_slot():
-        held.append("in")
-        yield
-        held.append("out")
-    batch = types.SimpleNamespace(finish_slot=finish_slot, VENV_PYTHON=pathlib.Path("/props/env/bin/python"))
-    monkeypatch.setattr(cloud, "load_batch", lambda: batch)
 
-    def run(command, **options):
-        ran.append((command[0], list(held)))
-        return types.SimpleNamespace(returncode=0)
-    monkeypatch.setattr(rough_model.subprocess, "run", run)
-    rough_model.finish("airlock-rough-0", tmp_path / "K02.png", tmp_path)
-    assert ran == [("/props/env/bin/python", ["in"])] and held == ["in", "out"]
+def test_the_batch_brings_the_raw_take_back_unfinished(tmp_path, monkeypatch):
+    """dispatch asks the batch for the raw take alone (--no-finish): the batch's finish runs on this PC."""
+    ran = []
+    monkeypatch.setattr(rough_model.subprocess, "run",
+                        lambda command, **_: ran.append(command) or types.SimpleNamespace(returncode=0, stdout="",
+                                                                                         stderr=""))
+    rough_model.dispatch("airlock-rough-0", tmp_path / "K02.png", "airlock", tmp_path / "airlock.json", tmp_path)
+    assert ran[0][-1] == "--no-finish" and str(rough_model.CLOUD) in ran[0]
 
 
 def test_its_cloud_command_loads_the_batch_as_the_stage_runs_it():
