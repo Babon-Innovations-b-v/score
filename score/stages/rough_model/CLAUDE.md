@@ -19,9 +19,12 @@ the output and the gates. Bible: `architecture/components`.
 - **Measures, no made-up thresholds.** `made` measures the model's triangles and extent (its mesh frame, Pixal3D's
   own size: the contract claims no metres); no proportion threshold against the plan exists until one is measured on
   accepted rough models.
-- **A take is never stuck.** One the cloud brought back raw whose finish failed is finished here with `pixal.py
-  --finish-only`, as the batch finishes every take, under the batch's own `finish_slot` (the PC's cap on Blender
-  finishes across every batch) and in its interpreter (`paths.VENV_PYTHON`); the batch refuses to make a raw take again.
+- **The finish runs on a rented machine, never on the PC** (2026-10-22 benchmark: the PC has no image-to-3dlab
+  environment or Blender for it). The batch brings the raw take back unfinished (`--no-finish`); `_finish.py` runs
+  `pixal.py --finish-only` inside Blender on a `blender_cloud.run_elsewhere` machine (a card by the minute first),
+  with the lab's pinned Python built there, the raw take, its camera folder, `tools/props` and the lab's copy sent up
+  at their own paths. A raw take already in WORK/pixal is only finished, never made again (the batch refuses to
+  overwrite one); a finished one is only copied.
 - Gaps: a place whose `rough-model@<place>` does not stand accepted has the route gap `place:rough-model` with that
   node (`score/stages/complete/gaps`: `fill.py`, `route.py`).
 - Run: `python -m score run <world> --stage rough-model --detach` (it spends). Test: `rough_model_test.py` (a stand-in

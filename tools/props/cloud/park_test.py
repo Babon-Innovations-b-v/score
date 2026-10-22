@@ -28,6 +28,7 @@ import provider  # noqa: E402
 from provider import cloud  # noqa: E402
 
 KIND = "park-test"
+OTHER = "park-test-other"  # a kind whose claim waits, so cards of KIND park
 HOUR_PRICE = 1.2 / 60  # euros a minute of a machine billed by the hour
 CARD_PRICE = 0.8 / 60  # euros a minute of a card, billed by the minute
 
@@ -70,6 +71,18 @@ OFFERS = [provider.Offer(HOUR_PRICE, 0, "cpu-type", "zone-a", HOUR_PRICE, "cpu-3
 CARD_OFFERS = [provider.Offer(CARD_PRICE, 1, "card-type", "zone-a", CARD_PRICE, "gpu-24gb", 0, "available")]
 
 
+def queued():
+    """A claim of another cleaned kind waiting for a machine, so a card parks (park.queued)."""
+    park.CLEANUPS[OTHER] = lambda _machine: "rm -rf /root/lib/out"
+    return park.wanting(OTHER)
+
+
+def parked(card):
+    """A card's run ended while a claim waits (queued), so it is parked rather than deleted."""
+    with queued():
+        batch.delete_machine(card)
+
+
 def fresh():
     calls = Calls()
     calls.install()
@@ -92,7 +105,9 @@ def test_only_a_healthy_machine_of_a_cleaned_kind_with_time_left_is_parked():
     fresh()
     now = time.time()
     assert park.parkable(machine(20), now)
-    assert park.parkable(machine(20, unit_minutes=1), now)  # a card is parked for its kind's idle time
+    assert not park.parkable(machine(20, unit_minutes=1), now)  # a card with no claim waiting is released
+    with park.wanting(KIND):
+        assert park.parkable(machine(20, unit_minutes=1), now)  # a card is parked for its kind's idle time
     assert not park.parkable(machine(20, healthy=False), now)
     assert not park.parkable(machine(20, kind="unregistered"), now)
     assert not park.parkable(machine(53), now)  # 2 min before it must go
@@ -204,14 +219,26 @@ def test_a_card_waits_its_kinds_measured_cold_start_at_most_the_cap():
     assert abs(park.leaves_at(card, now) - (now + park.IDLE_CAP_MINUTES * 60)) < 1e-6
     fresh()
     cold_card_runs(0.6, 0.7, 0.8)
-    assert not park.parkable(machine(20, unit_minutes=1), time.time())  # a cold start too short to be worth it
+    with park.wanting(KIND):  # a claim waits: a short cold start still parks the card LEAST_MINUTES for it
+        now = time.time()
+        assert park.parkable(machine(20, unit_minutes=1), now)
+        assert abs(park.leaves_at(machine(20, unit_minutes=1), now) - (now + park.LEAST_MINUTES * 60)) < 1e-6
+
+
+def test_a_card_with_no_claim_waiting_is_released_not_parked():
+    """2026-10-22: an H100 sat parked for the next Pixal3D run after a one-model batch, and none came."""
+    calls = fresh()
+    cold_card_runs(4.0)
+    card = machine(20, unit_minutes=1, server_id="c-idle")
+    batch.delete_machine(card)
+    assert not card.get("parked") and calls.deleted == ["c-idle"] and not (park.PARKED / "c-idle.json").exists()
 
 
 def test_a_card_nobody_took_is_deleted_at_its_time_and_its_idle_minutes_charged():
     calls = fresh()
     cold_card_runs(4.0)
     card = machine(20, unit_minutes=1, server_id="c1")
-    batch.delete_machine(card)
+    parked(card)
     assert card["parked"] and not calls.deleted
     assert abs(calls.armed[-1] - (time.time() + 4 * 60)) < 5  # its own self-delete armed for its idle time
     record = park.json.loads((park.PARKED / "c1.json").read_text())
@@ -231,9 +258,9 @@ def test_an_ended_run_releases_its_parked_machines_at_their_time_when_their_expi
     os.environ["SCORE_RUN_ID"] = "ended-run"
     try:
         for server_id in ("e1", "e2"):
-            batch.delete_machine(machine(20, unit_minutes=1, server_id=server_id))
+            parked(machine(20, unit_minutes=1, server_id=server_id))
         os.environ["SCORE_RUN_ID"] = "another-run"
-        batch.delete_machine(machine(20, unit_minutes=1, server_id="o1"))
+        parked(machine(20, unit_minutes=1, server_id="o1"))
     finally:
         os.environ.pop("SCORE_RUN_ID")
     for server_id, seconds in (("e1", 0.2), ("e2", 0.4)):
@@ -252,7 +279,7 @@ def test_an_ended_run_releases_its_parked_machines_at_their_time_when_their_expi
 def test_a_taken_card_skips_its_cold_start_and_pays_its_idle_and_work():
     fresh()
     card = machine(20, unit_minutes=1, server_id="c2")
-    batch.delete_machine(card)
+    parked(card)
     assert abs(ledger.machine_row(card)["euros"] - 21 * CARD_PRICE) < 1e-9  # the first run pays its started minutes
     taken = batch.park_taken(run_of("next-card"), CARD_OFFERS, 1, KIND, 60)
     assert taken["id"] == "c2" and taken["ready"] == taken["adopted"]  # no wait to answer, no set-up again
@@ -277,7 +304,7 @@ def test_a_claim_waiting_on_its_kinds_queue_takes_a_card_parked_meanwhile():
 
 def test_taking_a_parked_machine_needs_a_cleared_run():
     fresh()
-    batch.delete_machine(machine(20, unit_minutes=1, server_id="c4"))
+    parked(machine(20, unit_minutes=1, server_id="c4"))
 
     def refuse(what, store=None):
         raise batch.compute.Refused(what)
@@ -303,7 +330,7 @@ def test_a_run_at_its_cap_leaves_another_runs_parked_machine_listed():
     os.environ["SCORE_RUN_ID"] = "another-park-test-run"
     os.environ["SCORE_MAX_MACHINES"] = "all=1"
     try:
-        batch.delete_machine(machine(20, unit_minutes=1, server_id="c9"))  # parked by another run
+        parked(machine(20, unit_minutes=1, server_id="c9"))  # parked by another run
         assert park.json.loads((park.PARKED / "c9.json").read_text())["run"] == "another-park-test-run"
         os.environ["SCORE_RUN_ID"] = "park-test-run"
         held = run_of("at-cap")
@@ -353,14 +380,14 @@ def test_a_taken_machine_keeps_only_its_newest_set_up_mark():
     clear(empty)  # no mark at all: no failure
 
     calls = fresh()
-    batch.delete_machine(machine(20, unit_minutes=1, server_id="c-marks"))
+    parked(machine(20, unit_minutes=1, server_id="c-marks"))
     assert park.adopt(run_of("marks"), CARD_OFFERS, 1, KIND, 60)["id"] == "c-marks"
     assert calls.remote[-1] == park.STALE_MARKS  # run on the taken machine, which also proves it answers
 
 
 def test_a_pixal_fleet_takes_a_parked_card_before_it_orders_one():
     calls = fresh()
-    batch.delete_machine(machine(20, unit_minutes=1, kind="pixal", server_id="c-pixal"))
+    parked(machine(20, unit_minutes=1, kind="pixal", server_id="c-pixal"))
     assert "[m]achine_run" in calls.remote[-1]  # parked with Pixal3D's own clean-up
     ordered, tended = [], []
     real_rent, real_tend = batch.rent, batch.tend

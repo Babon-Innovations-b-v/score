@@ -115,7 +115,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   It is gone 5 min before its paid hour ends, never idle into the next: its `--expire` process deletes it, its own
   `self_delete.py` is re-armed to that time, and its tags hold that time for any run's sweep. Failed machines and runs
   stopped by a signal are deleted as before.
-- **A card is parked for its kind's measured cold start, at most 10 min** (`park.idle_minutes`, 2026-10-11): every
+- **A card is parked for its kind's measured cold start, at most 10 min, and only while a claim waits for one**
+  (`park.idle_minutes`, 2026-10-11; `park.queued`, 2026-10-22, after an H100 sat parked unused after a one-model
+  Pixal3D batch: a card with no queued work is released at once): every
   cloud job waited for a fresh card to answer and set up (blender on cards: median 5.4 min outside its jobs, 40% of
   what its cards cost, October 2026). A healthy card of a kind in `park.CLEANUPS` (`blender`, `library`, `depth`,
   `judge`, and since #20 `pixal`, `finish-masks`, `segment` and `meshparts`, so one card takes many jobs across a
@@ -186,7 +188,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   feed each other.
 - **The cut-out and the raw Pixal3D step run up there;** the raw model comes back with its camera
   folder (`<name>.svviews`), and finishing stays here with `pixal.py --finish-only` (no model).
-  Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
+  Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first. The one
+  exception is the rough model (never shipped, `score/stages/rough_model/_finish.py`): finished on a rented
+  machine through `blender_cloud.run_elsewhere`, since the PC has no lab environment or Blender for it.
 - The generator's arguments come from `pixal.generator_arguments`, so both routes build the same.
 - **Any Blender script runs on a rented machine** (`blender_cloud.py`, 2026-10-08, BLENDER IN THE CLOUD): a job
   names a repo script, its arguments, its input and output paths (at the same absolute paths up there, so neither
