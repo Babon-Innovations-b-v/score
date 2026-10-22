@@ -6,6 +6,7 @@ twice its forecast minutes; and an environment with no line in the framework's s
 Run: .venv/bin/python score/adapters/compute/guard_test.py   (make tests runs it in a sandbox home)
 """
 import datetime
+import json
 import multiprocessing
 import os
 import pathlib
@@ -389,6 +390,27 @@ def test_a_grant_holds_its_balance_across_runs_and_each_run_draws_its_real_spend
     assert compute.grant_balance(runner.store, grant, {}) == 8.25
     assert "one score run" in compute_test.refused(lambda: as_benchmark(grant, None, clear(0.5)))
     assert "no benchmark grant" in compute_test.refused(lambda: as_benchmark("20991231T000000", "run-c", clear(0.5)))
+
+
+def test_a_run_draws_its_stages_gemini_calls_in_its_time_under_the_callers_they_carry():
+    """A body face's call is ledgered as caller body-face, a close-up's as pro; a call started and never finished
+    counts at its estimate; another stage's call, or one outside the run's time, is not its own."""
+    import google_spend
+    kept, google_spend.LEDGER = google_spend.LEDGER, pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"
+    try:
+        ledger({"euros": 0.0})
+        lines = [("10:00:30+02:00", "finished", "body-face", 0.03), ("10:00:40+02:00", "finished", "pro", 0.14),
+                 ("10:00:50+02:00", "started", "body-face", None), ("10:05:00+02:00", "finished", "body-face", 9.0)]
+        google_spend.LEDGER.write_text("".join(json.dumps(
+            {"time": f"2026-10-22T{at}", "call": f"c{index}", "state": state, "caller": caller, "euros": euros,
+             "model": "gemini-3.1-pro-preview", "estimate": 0.05}) + "\n" for index, (at, state, caller, euros)
+            in enumerate(lines)))
+        hold = {"node": "body-face-earth", "key": "k", "at": "2026-10-22T08:00:00+00:00"}
+        store = Store.in_folder(tempfile.mkdtemp())
+        assert compute.run_spend(store, hold, "2026-10-22T08:01:00+00:00")["google"] == 0.08
+        assert compute.run_spend(store, {**hold, "node": "closeup@hall"}, "2026-10-22T08:01:00+00:00")["google"] == 0.14
+    finally:
+        google_spend.LEDGER = kept
 
 
 def test_a_run_whose_high_does_not_fit_the_balance_left_is_refused():

@@ -542,8 +542,10 @@ def settle_grant(store, grant_id, held):
         drawn.append(draw)
 
 
-# The Gemini callers of a stage whose ledger lines carry another name than the stage's (google_spend's `caller`).
-GOOGLE_CALLERS = {"closeup": ("pro",), READING: ("inventory-reading",), PLAN_WRITING: ("plan-writing", "plan-drawing")}
+# The Gemini callers of a stage whose ledger lines carry another name than the stage's (google_spend's `caller`); a
+# name ending in "-" is a family of stages (body-face-<body>).
+GOOGLE_CALLERS = {"closeup": ("pro",), READING: ("inventory-reading",), PLAN_WRITING: ("plan-writing", "plan-drawing"),
+                  "body-face-": ("body-face",)}
 
 
 def run_spend(store, hold, until):
@@ -559,7 +561,8 @@ def run_spend(store, hold, until):
     cloud = sum(entry.get("euros", 0.0) for entry in books.entries()
                 if entry.get("ticket") == ticket and since <= entry.get("started", "")[:19] < before)
     stage = hold["node"].partition("@")[0]
-    callers = GOOGLE_CALLERS.get(stage, (stage,))
+    callers = next((names for name, names in GOOGLE_CALLERS.items()
+                    if stage == name or (name.endswith("-") and stage.startswith(name))), (stage,))
     start, end = (datetime.datetime.fromisoformat(moment) for moment in (hold["at"], until))
     lines = ([json.loads(line) for line in google_spend.LEDGER.read_text().splitlines() if line.strip()]
              if google_spend.LEDGER.exists() else [])
