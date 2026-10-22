@@ -9,35 +9,11 @@ import hashlib
 import math
 import pathlib
 
-from django.conf import settings
-
-from score import library
 from score.dashboard.pages.setting_picture import REACH, disc_size
 from score.review import overhead
 
 UNITS = 100.0  # the farthest orbit round the root, in scene units
 WAITING = "waiting on the body's surface"
-
-
-def withdrawn(kind, entry):
-    """Whether the library (SCORE_LIB_ROOT) lists `<kind>/<entry>` only as withdrawn (owner, 2026-10-21: every old
-    library sound and surface withdrawn; their cached bytes stay); False where no library or index is there."""
-    root = settings.SCORE_LIB_ROOT
-    if not root or not (pathlib.Path(root) / "index" / f"{kind}.json").exists():
-        return False
-    states = [row.get("state") for row in library.index(root, kind)["entries"]
-              if row["address"].partition("@")[0] == f"{kind}/{entry}"]
-    return bool(states) and all(state == "withdrawn" for state in states)
-
-
-def library_folder(kind, entry):
-    """The newest version folder of a library entry in the score_lib cache the sync pass fills; None when none is
-    cached or the library withdrew the entry."""
-    if withdrawn(kind, entry):
-        return None
-    root = settings.PROPS_HOME / "cache" / "library" / "score_lib" / kind / entry
-    versions = sorted((path for path in root.glob("*") if path.name.isdigit()), key=lambda path: int(path.name))
-    return versions[-1] if versions else None
 
 
 def face_colour(state, body):

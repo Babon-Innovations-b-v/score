@@ -18,6 +18,7 @@
                      # (sync/timer.py); on the conductor without --host (the cockpit's /healthz) and with --no-pull
 """
 import argparse
+import json
 import os
 import pathlib
 import sys
@@ -242,7 +243,8 @@ def film_preview(options):
         out, record = make.make(options.film, options.export, options.user, options.keep)
     except make.Refused as refused:
         raise SystemExit(f"film-preview {options.film}: refused: {refused}")
-    print(f"film-preview {options.film}: {out} ({record})")
+    bed = json.loads(record.read_text())["bed"]
+    print(f"film-preview {options.film}: {out} ({record}; sound bed: {bed})")
 
 
 def main(argv=None):

@@ -37,6 +37,9 @@ GAP_FIELDS = ("id", "row", "gates", "source", "node", "work", "placed", "low", "
 GAPS_PRICE = "gaps-price"  # every gap's chain priced: checks/gaps-price/<world>.json (score price --gaps)
 PER_UNIT = "data/costs/per-unit.json"  # the measured per-unit prices a gaps price record is made on
 TIMED = ("accepts/", "rejects/")  # store areas whose keys carry their time: an accept or reject moves what stands
+# A bed its scene's design decided, as the sound stage's uses_of words it (score/stages/sound/__init__.py; not imported:
+# it puts tools on sys.path); a sound.json made before (a retired hand list's bed) says otherwise and is no bed.
+DESIGNED_BED = "the scene's design (score/stages/sound/beds.py)"
 REMAKE = "prepare/remake.json"  # prepare's one-shot figure of the remake (score/stages/complete/prepare)
 DISCUSSED = ("base", "question", "answer", "at", "by", "euros")  # a discussion entry's fields the pages show
 GAPS_WORLD = "world"  # the gaps check's pseudo-place of the environment's own nodes' lost inputs (gaps/__main__)
@@ -533,7 +536,8 @@ class LocalSource:
                               gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
                               remake=self.remake(), concepts=self.concepts(review), **review,
                               **self.environment_concept(), **self.plan_review(), **self.hierarchy(),
-                              **self.environment_plan(), body_faces=self.body_faces())
+                              **self.environment_plan(), body_faces=self.body_faces(),
+                              sound_beds=self.sound_beds())
 
     def body_faces(self):
         """{body: its face.json} of every body face row standing accepted (score/stages/surfaces/body_faces.py)."""
@@ -544,6 +548,24 @@ class LocalSource:
                 if row.name.startswith(body_faces.PREFIX) else None
             if sha:
                 found[row.name.removeprefix(body_faces.PREFIX)] = json.loads(self.blob_path(sha).read_text())
+        return found
+
+    def sound_beds(self):
+        """{place: FileRefs of its bed's files, its tone first} of every place whose sound row's output stands
+        accepted: the bed the sound stage made from its design (score/stages/sound, sound.json's uses of role room
+        its design decided, DESIGNED_BED; an older output's bed, a retired hand list's, is none)."""
+        found = {}
+        for place in self.places():
+            output = self.accepted_output(self.node_of("sound", place))
+            sha = self.listing(output).get("sound.json")  # gates.RECORD, not imported: it puts tools on sys.path
+            if not sha:
+                continue
+            record = json.loads(self.blob_path(sha).read_text())
+            refs = {ref.name: ref for ref in self.refs(output)}
+            files = [refs[path] for use in record["uses"] if use["role"] == "room" and use["from"] == DESIGNED_BED
+                     for path in record["sounds"].get(use["sound"], {}).get("files", []) if path in refs]
+            if files:
+                found[place] = files
         return found
 
     def environment_plan(self):

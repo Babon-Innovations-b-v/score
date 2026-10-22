@@ -213,7 +213,7 @@ def built(film, facts):
              "text": "SCORE", "line": facts["title"], "seconds": 4.0}
     made = {"format": script.FORMAT, "version": script.VERSION, "film": film, "title": f"SCORE: {facts['title']}",
             "world": facts["world"], "default": True, "size": [1280, 720], "rate": 24,
-            "bed": "sound/base_hum", "defaults": {},
+            "defaults": {},
             "why": "The default film: the app's own steps in its own windows, then one unbroken shot from the "
                    "setting down into the top scene's rooms and a walk through each, then on to every other top "
                    "scene, body by body (the owner's script for environment 1, filled in from this environment's "

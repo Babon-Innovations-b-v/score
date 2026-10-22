@@ -246,6 +246,9 @@ class WorldState(BaseModel):
     # {body, surface, family, recipe, token, hex, colour, roughness, metal, palette}), which the films draw; a body
     # whose row stands nowhere yet is absent.
     body_faces: dict[str, dict] = {}
+    # Each place's sound bed as its accepted `sound@<place>` output made it from the design (score/stages/sound,
+    # sound.json's room uses): its files, the tone first; the film preview plays it. A place with none is absent.
+    sound_beds: dict[str, list[FileRef]] = {}
 
 
 class PlanReview(BaseModel):

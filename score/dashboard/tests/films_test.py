@@ -225,24 +225,23 @@ def test_the_preview_joins_on_the_scripts_own_clock():
     assert "concat=n=2" in joined and "fade=t=out:st=3.750" in joined
 
 
-def test_a_withdrawn_library_sound_is_no_bed_though_its_bytes_stay_cached(tmp_path, monkeypatch):
-    """The owner, 2026-10-21: every old library sound withdrawn; the preview never plays one from the cache."""
-    from score.dashboard.films.preview import make, scenes
-    cached = tmp_path / "props/cache/library/score_lib/sound/base_hum/1/audio/made"
-    cached.mkdir(parents=True)
-    (cached / "take.wav").write_bytes(b"RIFF")
-    (tmp_path / "lib/index").mkdir(parents=True)
-    index = {"schema": "score-lib-index/1", "kind": "sound",
-             "entries": [{"address": "sound/base_hum@1", "state": "withdrawn"}]}
-    (tmp_path / "lib/index/sound.json").write_text(json.dumps(index))
-    monkeypatch.setattr(settings, "PROPS_HOME", tmp_path / "props")
-    monkeypatch.setattr(settings, "SCORE_LIB_ROOT", str(tmp_path / "lib"))
-    with pytest.raises(make.Refused, match="withdrawn"):
-        make.bed_sound({"bed": "sound/base_hum"})
-    index["entries"][0]["state"] = "draft"
-    (tmp_path / "lib/index/sound.json").write_text(json.dumps(index))
-    assert make.bed_sound({"bed": "sound/base_hum"}) == cached / "take.wav"
-    assert scenes.library_folder("sound", "base_hum") == cached.parents[1]
+def test_the_bed_is_the_sound_stages_of_the_first_place_shown_and_silence_while_none_is_made(monkeypatch):
+    """The bed comes from the sound stage's output (the state's sound_beds), never a library name; none made, none."""
+    from score.dashboard.films.preview import make
+    from score.dashboard import state as dashboard_state
+
+    class Blobs:
+        @staticmethod
+        def blob_path(sha):
+            return f"blobs/{sha}"
+
+    monkeypatch.setattr(dashboard_state, "source", lambda: Blobs)
+    film = {"segments": [{"shows": {"world": "w"}}, {"shows": {"place": "hub"}}, {"shows": {"place": "base"}}]}
+    beds = {"base": [{"sha": "b1"}], "hub": [], "lab": [{"sha": "l1"}]}
+    assert make.bed_sound(film, {"sound_beds": beds}) == ("base", "blobs/b1")
+    assert make.bed_sound({"segments": []}, {"sound_beds": beds}) == ("base", "blobs/b1")  # else the first with one
+    assert make.bed_sound(film, {"sound_beds": {}}) == (None, None)
+    assert make.record_of({"film": "f", "segments": []}, 1.0, None, 0.0)["bed"] == make.WAITING_BED
 
 
 def test_the_setting_is_drawn_from_its_own_physics_to_the_pictures_scale():
@@ -448,3 +447,9 @@ def test_a_body_is_drawn_in_the_face_its_row_made_else_a_plain_colour_said_waiti
     setting_leg, world_leg = scenes.scene_for(state, zoom, 2)["legs"]
     assert setting_leg["tag"] == f"Moon, Mars: {scenes.WAITING}" and "waits" not in setting_leg
     assert world_leg["tag"] == "Blockout" and world_leg["color"] == [0.2, 0.4, 0.6]
+
+
+def test_the_state_knows_a_designed_bed_by_the_sound_stages_own_words():
+    """local.DESIGNED_BED is the word the sound stage writes on a bed its design decided (an older bed is none)."""
+    from score.dashboard.state import local
+    assert f'"from": "{local.DESIGNED_BED}"' in (settings.SCORE_REPO / "score/stages/sound/__init__.py").read_text()
