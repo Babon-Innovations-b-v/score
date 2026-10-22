@@ -58,7 +58,7 @@ import os
 import pathlib
 import sys
 
-from score import graph
+from score import conductor, graph
 from score.adapters.compute import guard
 from score.store import PROPS_HOME, RUNNER, Store, locked, running_under_agent, stamp_key
 
@@ -165,6 +165,9 @@ def books_refusal():
     (read_back_books). There is no month's ceiling (owner, 2026-10-20)."""
     books = ledger()
     books.refuse_free_only("a paid run")
+    clash = conductor.project_refusal()  # every clearance: the stop line's, a benchmark grant's and a reading's
+    if clash:
+        return clash
     if google_bill_set():
         read_back_books()
     return books.books_refusal()
@@ -837,6 +840,9 @@ def require_books(what):
     tools/cloud/runtime/submit.py: the first is in the surface rows' code version and the second in every job
     image's tag, so an edit there would buy those again."""
     books = ledger()
+    clash = conductor.project_refusal()  # every rent point, the owner's override included
+    if clash:
+        raise Refused(f"{what}: {clash}")
     try:
         books.require_books(what)
     except books.BooksUnknown as unknown:

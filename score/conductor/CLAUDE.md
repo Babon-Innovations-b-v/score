@@ -15,8 +15,9 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   parked machine and no frozen copy a process uses. The ask: POST `{"action": "grow"|"shrink"}` to
   `SCORE_CONDUCTOR_SIZE_URL`, the token `score-conductor-size-token` in `X-Score-Size-Token` (the handler in
   `tools/cloud/conductor/size_function`), read by name through `SCORE_SECRET_READER` at the call. Before it asks,
-  it writes `conductor/resizing.json`: a SIGTERM within `RESIZE_WINDOW` is the resize's, so the run stays as it was
-  for resume (`runs.stopped_by`). The function itself refuses a shrink by its own health record (`health_push.py`).
+  it writes `conductor/resizing.json`: a SIGTERM within `RESIZE_WINDOW` to a run registered before the ask is the
+  resize's, so the run stays as it was for resume (`runs.stopped_by`); one registered after it is the owner's stop.
+  The function itself refuses a shrink by its own health record (`health_push.py`).
 - **`slices.py`** and **`bin/systemd-run`**: a detached run starts as its own scope in `score-runs.slice`, its cap the
   machine's memory less 6 GB set at each detach; inside the slice the shim adds `--slice-inherit` to a step's own
   `systemd-run --user --scope`, so its 14-16 GB scope stays under the cap. An OOM then ends a run, never the listener
@@ -24,12 +25,14 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   env file gives the conductor its own floor (the idle size has 16 GB).
 - **`health.py`**: `$PROPS_HOME/health.json` for the Machine card (`python -m score.conductor health --write`, AREA 1's
   minute timer). **`logs.py`**: `tails(limit_lines)`, newest run logs, fault reports and unit journals; a line naming
-  or holding a secret is left out whole.
+  or holding a secret, or showing a secret's own shape, is left out whole. A running entry counts as live only
+  while its own process is (`size.entry_alive`: a reused pid is not the run).
 - **`kill.py`**: `stop_all(asked_by, words)` and `allow_paid(asked_by, words)`, the cockpit's owner-only kill
   switch, refused in an agent's process; the latch is `conductor/free-only` (`SCORE_FREE_ONLY=1`, an env file), read
   by every `score` command at its start (`conductor.apply_free_only`).
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
-  the batch project's bill alone, and `guard.refusal` refuses every paid run if the two names are ever the same.
+  the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
+  `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.
 - **`dry.py`**: `python -m score.conductor dry`, free, in a temp home under `SCORE_FREE_ONLY=1`, with a local
   stand-in for the size function: plan, waiting for size, resume at another boot id, the memory guard, health and
   logs, the shrink, the kill switch; one line, the detail in `$PROPS_HOME/logs/conductor-dry-<time>.json`. It never

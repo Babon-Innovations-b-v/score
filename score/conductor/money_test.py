@@ -3,9 +3,12 @@ every paid run is refused if the batch project is ever the conductor's.
 
 Run: .venv/bin/python score/conductor/money_test.py
 """
+import json
 import os
 import pathlib
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -55,6 +58,34 @@ def test_every_paid_run_is_refused_while_the_batch_project_is_the_conductors():
         os.environ.pop("SCORE_SCALEWAY_PROJECT", None)
         if kept is not None:
             os.environ["SCORE_SCALEWAY_PROJECT"] = kept
+
+
+def test_every_clearance_and_rent_point_refuses_while_the_batch_project_is_the_conductors():
+    """Not the stop line alone: a benchmark grant's and a reading's clearance (books_refusal) and every rent point,
+    the owner's override included (require_books), refuse too; and the machine's record names its project even when
+    the env file lost SCORE_CONDUCTOR_SIZE_URL."""
+    kept = {name: os.environ.get(name) for name in ("SCORE_SCALEWAY_PROJECT", conductor.FREE_ONLY, conductor.SIZE_URL)}
+    record = pathlib.Path(tempfile.mkdtemp()) / "machine.json"
+    try:
+        for name in kept:
+            os.environ.pop(name, None)
+        os.environ["SCORE_SCALEWAY_PROJECT"] = conductor.CONDUCTOR_PROJECT
+        assert "the conductor's own project" in compute.books_refusal()
+        try:
+            compute.require_books("a card")
+            raise AssertionError("a rent point cleared in the conductor's project")
+        except compute.Refused as refused:
+            assert "the conductor's own project" in str(refused), refused
+        os.environ["SCORE_SCALEWAY_PROJECT"] = "batch-of-another-name"
+        record.write_text(json.dumps({"project": "batch-of-another-name"}))
+        assert conductor.machine(record) is None  # not a conductor by the size function's name...
+        assert "the conductor's own project" in conductor.project_refusal(record)  # ...yet its own project
+        record.write_text(json.dumps({"project": "score-conductor-elsewhere"}))
+        assert conductor.project_refusal(record) is None
+    finally:
+        for name, value in kept.items():
+            os.environ.pop(name, None) if value is None else os.environ.update({name: value})
+        shutil.rmtree(record.parent)
 
 
 if __name__ == "__main__":

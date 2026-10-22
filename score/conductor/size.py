@@ -19,6 +19,7 @@ The shrink comes after IDLE_MINUTES with no live claim (runs/active.json), no ru
 machine and no frozen copy a process still uses (a run's releaser waits out its parked machines from it); the idle
 time counts from the last pass that saw the machine busy, or from the boot.
 """
+import datetime
 import json
 import os
 import pathlib
@@ -66,6 +67,19 @@ def alive(pid):
         return False
 
 
+def entry_alive(entry):
+    """Whether a registered run's process is still there: its pid alive and started no later than its entry was
+    registered (a pid the kernel gave to another process since, the listener say, after an out-of-memory kill left
+    the entry `running`, is not the run)."""
+    pid = entry.get("pid", 0)
+    started = runs.start_time(pid)
+    registered = entry.get("started")
+    if not alive(pid) or started is None or not registered:
+        return False
+    began = runs.boot_time() + int(started) / os.sysconf("SC_CLK_TCK")
+    return began <= datetime.datetime.fromisoformat(registered).timestamp() + 2
+
+
 def processes_in(folder):
     """The pids whose working folder is under `folder`."""
     found = []
@@ -87,7 +101,7 @@ def busy(runs_folder=None, parked=None, frozen_folder=None):
     with runs.claims_locked(runs_folder) as claims:
         live_claims = len(claims)
     entries = runs.entries(runs_folder).values()
-    running = [entry for entry in entries if entry.get("state") == runs.RUNNING and alive(entry.get("pid", 0))]
+    running = [entry for entry in entries if entry.get("state") == runs.RUNNING and entry_alive(entry)]
     waiting = [entry for entry in entries if entry.get("state") == runs.WAITING]
     parked_folder = pathlib.Path(parked or PARKED)
     frozen_folder = pathlib.Path(frozen_folder or frozen.FOLDER)
@@ -239,6 +253,6 @@ def stop_waiting(path, say=print):
     """Mark a waiting run stopped and end its waiting process (the kill switch's)."""
     entry = json.loads(pathlib.Path(path).read_text())
     runs.mark(path, runs.STOPPED)
-    if alive(entry.get("pid", 0)):
+    if entry_alive(entry):
         os.kill(entry["pid"], signal.SIGTERM)
     say(f"stopped waiting run {entry['id']}")

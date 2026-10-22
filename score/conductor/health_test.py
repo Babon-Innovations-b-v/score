@@ -63,7 +63,9 @@ def test_the_log_tails_leave_out_every_line_naming_or_holding_a_secret():
         (folder / "faults").mkdir()
         (folder / "logs" / "score-run-1.log").write_text(
             "brief@north: made\nreading gemini-api-key by name\nsent s3cr3t-sync-value along\n"
-            "header X-Auth-Token: abc\nexit: ok\n")
+            "header X-Auth-Token: abc\nGET /v1beta/models?key=AIzaSyA0123456789abcdefghijklmnopqrstuv\n"
+            "token hf_abcdefghijklmnopqrstuvwxyz0123456789\n-----BEGIN OPENSSH PRIVATE KEY-----\n"
+            "asked with X-Score-Size-Token set\nexit: ok\n")
         (folder / "faults" / "brief@south.txt").write_text("cause: the brief is empty\n")
         found = logs.tails(10, logs=folder / "logs", faults=folder / "faults",
                            read_journal=lambda unit, limit: [f"{unit}: fine"])
