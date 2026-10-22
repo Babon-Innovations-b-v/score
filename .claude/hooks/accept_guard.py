@@ -28,7 +28,7 @@ gate passed and nothing got worse, or the inputs passed and the stop has room. R
 
 A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) passes: the session that asked him writes
 his yes with ``score.adapters.compute.grant_benchmark(answer, question, euros)`` (benchmark only, at most EUR 20,
-single use, 24 h), and runs the batch as ``SCORE_BENCHMARK_GRANT=<grant id> .venv/bin/python -m score run ...``; the
+24 h, a balance each run draws its real spend from), and runs a batch as ``SCORE_BENCHMARK_GRANT=<grant id> .venv/bin/python -m score run ...``; the
 runner checks the grant at clearance. The grant's records are written by that code only, never by hand (rule 4).
 
 Why (the layered framework's design, 2026-10-11, amended the same day): agent verdicts stood in for the owner's (a

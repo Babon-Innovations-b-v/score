@@ -198,10 +198,13 @@ stage as each stage is built; nothing moves before.
   money figure, refuses a paid job before it starts when its forecast with the environment's spend since its first line and
   every run in flight would pass it (one outbox line, free work goes on; in the framework's store an environment with no
   line is refused), and never stops a started job except a runaway past twice its forecast minutes;
-  `grant_benchmark(answer, question, euros)`: the owner's yes in a Claude Code session to one benchmark batch of at
-  most EUR 20 (his standing rule of 2026-10-20; benchmark only, both quoted, single use, 24 h, `grants/` in the store),
+  `grant_benchmark(answer, question, euros)`: the owner's yes in a Claude Code session to benchmark batches of at
+  most EUR 20 in all (his standing rule of 2026-10-20; benchmark only, both quoted, 24 h, `grants/` in the store),
   written by the session that asked him and never by hand; a `score run` tagged `SCORE_BENCHMARK_GRANT=<grant id>` is
-  cleared against the grant instead of the stop line, one run per grant, within its euros; `reading_clearance`: a
+  cleared against the grant's balance instead of the stop line (owner, 2026-10-22): each clearance holds its high
+  plus 10% (`grants/holds/`) and, when its run ends, finished or failed, draws what it really spent from it
+  (`grants/draws/`, the balance after each), so runs share one grant until its balance or its 24 h run out;
+  `restore_grant` applies that yes to a grant used up under the old single-use rule; `reading_clearance`: a
   scene inventory reading run (`review/reading.py`, node `inventory-read`) cleared under the owner's standing
   allowance of 2026-10-21, no yes and no stop line, the books asked, at most `READING_EUROS` a place, against a grant
   when tagged), `engines`
