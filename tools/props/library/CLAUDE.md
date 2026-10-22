@@ -61,6 +61,10 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   `rusted_metal` and `wet_asphalt` (their families and variants retired with every old material, 2026-10-21), each
   wearing from a cause: chips on edges, scuffs where feet kick, worn floor paint where feet go, rust where rain gets
   in. Scenery seen only from afar takes a `far_` own name and `route.DISTANT` texels a metre.
+- **Natural grounds** (2026-10-22): `regolith`, `rock`, `sand`, `ocean` and `ice`, each from what made it (impacts,
+  strata and cracks, wind ripples, waves and foam, pressure cracks and frost), `second` their one colour setting.
+  Which one a body's face or a ground row takes is a rule, never asked and never a name
+  (`score/stages/natural_grounds.py`: the row's words, else the body's physics against water's phases).
 - **Screens and lamp lenses glow as plates of their own** (`data/library/details.json` `screens`; their printed
   pictures in `data/library/pictures` were retired, 2026-10-21, and a scene library gives none yet), laid by
   `route.py` on a generated piece's front.

@@ -37,12 +37,13 @@ def design_folder(root):
         (root / folder).mkdir(parents=True)
     for name, plan in (("site", SITE), ("shed", SHED), ("room", ROOM)):
         (root / "plans" / f"{name}.json").write_text(json.dumps(plan))
-    sky = {"time": "2099-10-01T14:00:00Z", "setting": setting.now(),
+    sky = {"time": "2099-10-01T14:00:00Z", "setting": setting.checked(setting.now()),  # as scene_sky keeps it
            "site": {"on": "moon", "latitude": 55.0, "longitude": 0.0, "height_m": 0.0}}
     for name in ("site", "shed"):
         (root / "sky" / f"{name}.json").write_text(json.dumps({**sky, "place": name, "top": "site"}))
     (root / "inventory/site.json").write_text(json.dumps({"rows": [{"id": "regolith", "terrain": True}]}))
-    return {"plans": root / "plans", "skies": root / "sky", "inventories": root / "inventory"}
+    return {"plans": root / "plans", "skies": root / "sky", "inventories": root / "inventory",
+            "reference": REPO / "data/physics/bodies.json"}
 
 
 def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots():
@@ -62,7 +63,8 @@ def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots():
         terrain.make({key: str(value) for key, value in inputs.items()}, out, 0, {})
         assert terrain.grounds_faults(out) == [] and sorted(path.name for path in (out / "moon/places").iterdir()) == \
             ["shed.usdc", "site.usdc"]
-        assert json.loads((out / "moon/ground.json").read_text())["row"] == "regolith"
+        made = json.loads((out / "moon/ground.json").read_text())
+        assert made["row"] == "regolith" and made["recipe"] == "regolith" and "airless" in made["recipe_by"]
         for check in terrain.CHECKS:
             verdict = check.judge(out, inputs, {})
             assert verdict.answer == "pass", (verdict.check, verdict.reason)
@@ -70,6 +72,7 @@ def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots():
         layer = Usd.Stage.Open(str(out / "moon/places/shed.usdc"))  # held: a prim of a stage nobody holds is gone
         near = layer.GetPrimAtPath("/shed/Outside/near")
         assert near.GetAttribute("score:row").Get() == "regolith" and near.GetAttribute("score:surface:missing").Get()
+        assert near.GetAttribute("score:ground:recipe").Get() == "regolith"  # the Moon's physics: airless
     finally:
         shutil.rmtree(root)
 

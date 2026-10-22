@@ -5,17 +5,20 @@ the environment concept's setting that does not shine (a shining one is drawn by
 fresh, by the material method the scene surfaces are made with (scene_library.py: one ProcFunc recipe variant in
 palette tokens, data/library/materials.json), from the environment concept alone: its style line and the body's own
 physics (a real body's values from the cited reference table, data/physics/bodies.json, through setting.checked).
+Its recipe is not asked: the body's physics pick its natural ground by rule (natural_grounds.of_body: ocean, rock,
+ice, sand or regolith, the `ground` param with why), and the ask answers that recipe's palette, token and settings.
 
 The body list and each row's inputs are the locked environment concept's (`concept`: the version in force, else
 today's data while none is kept), so a body added to the setting is a row of its own and a changed style line or body
 re-asks only its rows (`params`, worked out from the runner's store when the node is keyed).
 
 Output: face.json {body, surface (`<body>_face`), family, recipe, token, hex, colour (linear RGB), roughness, metal,
-palette}, what the sky (score/stages/light/sky.py, the light layer reading each accepted face) and the films (the
-cockpit state's `body_faces`, score/dashboard/films/preview/scenes.py) draw, never a library name; and
-materials.json, the face as a surface library in the loader's form (tools/props/library/library.py). Or
-unanswered.json with why. Gate "face from the design": a face named `<body>_face`, its recipe the method's, every
-token its palette's, every setting 0 to 1, every colour setting its recipe needs given.
+palette, recipe_by: why its physics call for its recipe}, what the sky (score/stages/light/sky.py, the light layer
+reading each accepted face) and the films (the cockpit state's `body_faces`, score/dashboard/films/preview/scenes.py)
+draw, never a library name; and materials.json, the face as a surface library in the loader's form
+(tools/props/library/library.py). Or unanswered.json with why. Gate "face from the design": a face named
+`<body>_face`, its recipe the method's and a natural ground, every token its palette's, every setting 0 to 1, every
+colour setting its recipe needs given.
 """
 import json
 import pathlib
@@ -26,6 +29,7 @@ if str(HERE) not in sys.path:
     sys.path.append(str(HERE))
 
 from score import contracts, graph  # noqa: E402
+from score.stages import natural_grounds  # noqa: E402
 from score.review import environment_concept, setting as settings  # noqa: E402
 
 import finish_ask  # noqa: E402
@@ -45,10 +49,11 @@ with where it hangs in a sky or turns in a film, drawn by the environment's own 
 style: {style}
 The body: {name}, {facts}.
 First its palette: the colours its face shows from afar, as the body truly looks in that style, each a short token in
-lower case and hyphens with its colour as #rrggbb. Then its face: one surface, a variant of one recipe below, in one
-token of its palette, its family (one word for what the face is made of), its roughness and metal from 0 to 1, and a
-token of the palette for each colour setting its recipe needs.
-The recipes (name: default settings; colour settings it needs):
+lower case and hyphens with its colour as #rrggbb. Then its face: one surface, a variant of the recipe below (its
+natural ground, which its physics call for: {why}), in one token of its palette, its family (one word for what the
+face is made of), its roughness and metal from 0 to 1, and a token of the palette for each colour setting its recipe
+needs.
+The recipe (name: default settings; colour settings it needs):
 {recipes}"""
 FACTS = (("radius_km", "radius {:,.0f} km"), ("gravity", "surface gravity {:.2f} m/s2"),
          ("surface_pressure_kpa", "surface pressure {:.3g} kPa"), ("around", "orbiting {}"),
@@ -74,6 +79,16 @@ def body_param(key):
     return worked_out
 
 
+def ground_param(key):
+    """The `ground` param of a row: [the natural ground recipe the body's physics call for, why]
+    (natural_grounds.of_body; the recipe None when the setting lacks what it needs)."""
+    def worked_out(runner):
+        bodies = settings.checked(concept(runner.store)["setting"])["bodies"]
+        body = next((body for body in bodies if body["body"] == key), None)
+        return list(natural_grounds.of_body(body, bodies, settings.reference())) if body else None
+    return worked_out
+
+
 def style_param(runner):
     return concept(runner.store)["style"]
 
@@ -83,16 +98,19 @@ def facts_of(body):
     return ", ".join(said.format(body[key]) for key, said in FACTS if body.get(key) is not None) or "no facts known"
 
 
-def face_body(body, style, method):
-    """The request: the question and its schema (the face is scene_library's surface schema, one of it)."""
-    text = QUESTION.format(style=style or "(no style line)", name=body["name"], facts=facts_of(body),
-                           recipes=scene_library.recipe_lines(method))
+def face_body(body, style, method, ground):
+    """The request: the question and its schema (the face is scene_library's surface schema, one of it, its recipe
+    the natural ground `ground` names)."""
+    recipe, why = ground
+    own = {**method, "recipes": {recipe: method["recipes"][recipe]}}
+    text = QUESTION.format(style=style or "(no style line)", name=body["name"], facts=facts_of(body), why=why,
+                           recipes=scene_library.recipe_lines(own))
     colour = {"type": "OBJECT", "properties": {"setting": {"type": "STRING"}, "token": {"type": "STRING"}},
               "required": ["setting", "token"]}
     token = {"type": "OBJECT", "properties": {"token": {"type": "STRING"}, "colour": {"type": "STRING"}},
              "required": ["token", "colour"], "propertyOrdering": ["token", "colour"]}
     face = {"type": "OBJECT",
-            "properties": {"family": {"type": "STRING"}, "recipe": {"type": "STRING", "enum": list(method["recipes"])},
+            "properties": {"family": {"type": "STRING"}, "recipe": {"type": "STRING", "enum": [recipe]},
                            "token": {"type": "STRING"}, "roughness": {"type": "NUMBER"}, "metal": {"type": "NUMBER"},
                            "colours": {"type": "ARRAY", "items": colour}},
             "required": ["family", "recipe", "token", "roughness", "metal"],
@@ -123,8 +141,9 @@ def library_of(key, answer, method):
             "pictures": {}}
 
 
-def face_of(key, library):
-    """face.json's content: the face's variant with its token's colour, as #rrggbb and linear RGB."""
+def face_of(key, library, why):
+    """face.json's content: the face's variant with its token's colour, as #rrggbb and linear RGB, and why its physics
+    call for its recipe."""
     family, entry = next(iter(library["families"].items()))
     variant = entry["variants"][f"{key}_face"]
     hex_colour = library["tokens"][variant["token"]]
@@ -133,7 +152,8 @@ def face_of(key, library):
             "token": variant["token"], "hex": hex_colour,
             "colour": [round(value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4, 5)
                        for value in channels],
-            "roughness": variant["roughness"], "metal": variant["metal"], "palette": library["tokens"]}
+            "roughness": variant["roughness"], "metal": variant["metal"], "palette": library["tokens"],
+            "recipe_by": why}
 
 
 def make_face(inputs, out, seed, params):
@@ -141,9 +161,12 @@ def make_face(inputs, out, seed, params):
     body = params["body"]
     if body is None:
         raise ValueError("the environment concept's setting no longer holds this body")
+    recipe, why = params["ground"]
+    if recipe is None:
+        raise ValueError(f"no natural ground for its face: {why}")
     method = json.loads(pathlib.Path(inputs["library"]).read_text())
     key = body["body"]
-    answer = route_ask.asked({key: face_body(body, params["style"], method)}, CALLER).get(
+    answer = route_ask.asked({key: face_body(body, params["style"], method, params["ground"])}, CALLER).get(
         key, finish_ask.NoAnswer("the batch gave none"))
     try:
         if isinstance(answer, Exception):
@@ -153,7 +176,7 @@ def make_face(inputs, out, seed, params):
         (out / "unanswered.json").write_text(json.dumps({"body": key, "why": f"{error!r}"[:300]}, indent=1))
         return
     (out / "materials.json").write_text(json.dumps(library, indent=1))
-    (out / "face.json").write_text(json.dumps(face_of(key, library), indent=1))
+    (out / "face.json").write_text(json.dumps(face_of(key, library, why), indent=1))
 
 
 def face_faults(folder):
@@ -169,6 +192,7 @@ def face_findings(key, library):
         return [f"faces {sorted(variants)}, not one {key}_face"]
     variant, needs = variants[f"{key}_face"], library.get("colour_settings", {}).get(variants[f"{key}_face"]["recipe"], [])
     failing = [f"recipe {variant['recipe']} is not the method's"] * (variant["recipe"] not in library["recipes"])
+    failing += [f"recipe {variant['recipe']} is no natural ground"] * (variant["recipe"] not in natural_grounds.RECIPES)
     failing += [f"{setting} not given" for setting in needs if setting not in variant]
     failing += [f"token {variant.get(setting)} ({setting}) is not its palette's" for setting in ("token", *needs)
                 if setting in variant and variant[setting] not in library["tokens"]]
@@ -193,7 +217,9 @@ def rows(store):
     """One environment row a body that needs a face, by the concept in force in `store`."""
     return tuple(graph.Stage(f"{PREFIX}{body['body']}", "world", make_face, FACE,
                              (gates.guarded("face from the design", judge_face),),
-                             files={"library": "{data}/library/materials.json"},
-                             params={"body": body_param(body["body"]), "style": style_param}, paid=True,
+                             files={"library": "{data}/library/materials.json",
+                                    "reference": "{data}/physics/bodies.json"},
+                             params={"body": body_param(body["body"]), "style": style_param,
+                                     "ground": ground_param(body["body"])}, paid=True,
                              euros=FACE_EUROS)
                  for body in faced(store))

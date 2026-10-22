@@ -563,9 +563,10 @@ def test_a_line_no_scene_owns_is_asked_over_every_concept():
         assert found["concept"] == "{home}/design/concepts/" + f"{scene}.png" and "concepts" not in found, found
 
 
-def library_made(folder, answer, kinds=("two_boxes",)):
+def library_made(folder, answer, kinds=("two_boxes",), grounds=None):
     """The surface-library row made on the scene palette and its takes' kinds, its one ask faked to answer `answer`
-    (a dict, or an exception the batch holds): its output, its verdict and the batches asked."""
+    (a dict, or an exception the batch holds): its output, its verdict and the batches asked. `grounds` (terrain
+    rows) gives it a kept inventory and a kept sky on the Moon."""
     from score.stages.surfaces import scene_library
     concept = folder / "cockpit.png"
     Image.new("RGB", (64, 36), (90, 90, 100)).save(concept)
@@ -574,6 +575,12 @@ def library_made(folder, answer, kinds=("two_boxes",)):
         f"{kind}-t1": {"kind": kind, "object": kind.replace("_", " ")} for kind in kinds}}))
     inputs = {"surfaces": surfaces_data, "library": REPO / "data/library/materials.json", "concept": concept,
               "sounds": REPO / "data/sound/surfaces.json", "finish-route-palette": paletted(folder)}
+    if grounds:
+        from score.review import setting
+        (folder / "inventory.json").write_text(json.dumps({"rows": grounds}))
+        (folder / "sky.json").write_text(json.dumps({"setting": setting.checked(setting.now()), "site": {"on": "moon"}}))
+        inputs.update(inventory=folder / "inventory.json", sky=folder / "sky.json",
+                      reference=REPO / "data/physics/bodies.json")
     asked = []
     original = scene_library.ask
     scene_library.ask = lambda bodies: asked.append(bodies) or {
@@ -632,6 +639,27 @@ def test_a_scene_library_missing_a_kind_or_unanswered_fails_by_name():
         out, verdict, _ = library_made(pathlib.Path(temporary), route_ask.google_batch.Unanswered("none for it"))
         assert not (out / "materials.json").exists() and verdict.answer == "fail", verdict
         assert "none for it" in verdict.findings[0], verdict
+
+
+def test_a_scene_s_ground_rows_take_their_natural_ground_by_rule():
+    """Each terrain row of the kept inventory is a kind the library covers with the recipe its words name, else its
+    body's physics (the Moon's: airless, regolith); one covered with another recipe fails by name."""
+    rows = [{"id": "crater_1", "noun": "crater", "name": "large crater", "terrain": True},
+            {"id": "drift", "noun": "drift", "name": "sand drift", "terrain": True},
+            {"id": "hut", "noun": "hut", "name": "hut"}]
+    answer = {"surfaces": [
+        {"name": "moon_dust", "family": "regolith", "recipe": "regolith", "token": "hull-trim", "roughness": 0.9,
+         "metal": 0.0, "colours": [{"setting": "second", "token": "steel"}], "sound": "stone",
+         "kinds": ["two_boxes", "crater"]},
+        {"name": "drift_paint", "family": "paint", "recipe": "cast_metal", "token": "steel", "roughness": 0.5,
+         "metal": 0.0, "sound": "stone", "kinds": ["drift"]}]}
+    with tempfile.TemporaryDirectory() as temporary:
+        out, verdict, asked = library_made(pathlib.Path(temporary), answer, grounds=rows)
+        text = asked[0]["cockpit"]["contents"][0]["parts"][-1]["text"]
+        assert "- crater: regolith (Moon:" in text and "- drift: sand (the row drift says sand)" in text, text
+        assert "crater: large crater" in text and "hut" not in text  # a ground row is a kind; another row is not
+        assert verdict.answer == "fail" and verdict.findings == ("ground drift has no surface of its recipe sand",), \
+            verdict.findings
 
 
 def test_the_empty_library_is_a_named_missing_input():

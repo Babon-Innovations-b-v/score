@@ -5,7 +5,7 @@ the ground's row (its top scene's inventory row the ground is) and its finish as
 it: never painted another way.
 
     meshes = outside.meshes(ground, place, shaped)     # {"near": (points, triangles), "far": ...} in the place's frame
-    outside.write(stage, place, meshes, row)
+    outside.write(stage, place, meshes, row, recipe)
 """
 import math
 import pathlib
@@ -73,8 +73,9 @@ def meshes(ground, place, shaped=None):
     return found
 
 
-def write_mesh(stage, path, points, triangles, row):
-    """One ground mesh, a static collider, naming its row and its finish missing until the surface line makes it."""
+def write_mesh(stage, path, points, triangles, row, recipe):
+    """One ground mesh, a static collider, naming its row, the natural ground recipe its finish is made with by rule
+    (`recipe`: [recipe, why], natural_grounds) and its finish missing until the surface line makes it."""
     mesh = UsdGeom.Mesh.Define(stage, path)
     mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points.astype(np.float32)))
     mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(triangles), 3, dtype=np.int32)))
@@ -85,18 +86,21 @@ def write_mesh(stage, path, points, triangles, row):
     prim = mesh.GetPrim()
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
     prim.CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
-        f"the ground's finish ({row or 'no ground row in its top scene inventory'}) is not in the library yet: the "
-        "surface line makes it")
+        f"the ground's finish ({row or 'no ground row in its top scene inventory'}, {recipe[0] or 'no'} recipe: "
+        f"{recipe[1]}) is not in the library yet: the surface line makes it")
+    if recipe[0]:
+        prim.CreateAttribute("score:ground:recipe", Sdf.ValueTypeNames.String).Set(recipe[0])
     if row:
         prim.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(row)
     colliders.solid(prim, points, triangles)
     return mesh
 
 
-def write(stage, place, found, row):
-    """The made ground into the stage (its edit target) under /<place>/Outside, over the place's old ground."""
+def write(stage, place, found, row, recipe):
+    """The made ground into the stage (its edit target) under /<place>/Outside, over the place's old ground; its
+    natural ground recipe `recipe` ([recipe, why]) on each mesh."""
     for old in OLD_GROUND:
         stage.OverridePrim(f"/{place}/{old}").SetActive(False)
     UsdGeom.Scope.Define(stage, f"/{place}/Outside")
     for name, (points, triangles) in found.items():
-        write_mesh(stage, f"/{place}/Outside/{name}", points, triangles, row)
+        write_mesh(stage, f"/{place}/Outside/{name}", points, triangles, row, recipe)

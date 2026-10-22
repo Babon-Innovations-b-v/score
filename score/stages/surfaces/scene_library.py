@@ -30,6 +30,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.append(str(HERE))
 
+from score.stages import natural_grounds  # noqa: E402
+
 import finish_ask  # noqa: E402
 import palette_library  # noqa: E402
 import route_ask  # noqa: E402
@@ -47,7 +49,7 @@ The scene's palette (token: colour, what wears it):
 Its wear is {wear} ({cause}); its dirt {dirt} in {dirt_token}.
 The kinds of object in it, each with what it is:
 {kinds}
-The recipes (name: default settings; colour settings it needs in a token of the palette):
+{grounds}The recipes (name: default settings; colour settings it needs in a token of the palette):
 {recipes}
 The surfaces a thing can sound like (a boot on it, a thing dropped on it): {sounds}.
 Answer every surface the scene needs, enough that each kind above is made of surfaces you list (a kind made of
@@ -59,10 +61,49 @@ made, its token by its colour in the picture."""
 
 
 def files(place):
-    """The row's files: the scene palette row's (its surface data, its locked concept or every locked concept) and
-    the whole method's library (recipes, their colour settings, wear levels)."""
+    """The row's files: the scene palette row's (its surface data, its locked concept or every locked concept), the
+    whole method's library (recipes, their colour settings, wear levels) and what its ground rows' recipes are ruled
+    from (ground_files)."""
     return {**scene_palette.files(place), "library": "{data}/library/materials.json",
-            "sounds": "{data}/sound/surfaces.json"}
+            "sounds": "{data}/sound/surfaces.json", **ground_files(place)}
+
+
+def ground_files(place):
+    """The scene's kept inventory and kept sky where it has them, with the physics' reference table: what its ground
+    rows' natural ground recipes are ruled from (grounds_of); none for a line no scene owns."""
+    from score.review import scene_sky
+    found = {name: f"{{home}}/design/{folder}/{place}.json" for name, folder in (("inventory", "inventory"),
+                                                                                 ("sky", "sky"))
+             if (scene_sky.KEPT.parent / folder / f"{place}.json").is_file()}
+    return {**found, "reference": "{data}/physics/bodies.json"} if "inventory" in found else {}
+
+
+def grounds_of(inputs):
+    """{a ground row's kind (its noun): {"words", "recipe", "why"}} of the scene inventory's terrain rows, each the
+    natural ground its words name, else its body's physics at the scene's kept site (natural_grounds.of_row); a row
+    neither gives a recipe is left to the ask. {} with no inventory."""
+    if "inventory" not in inputs:
+        return {}
+    rows = [row for row in json.loads(pathlib.Path(inputs["inventory"]).read_text())["rows"] if row.get("terrain")]
+    sky = json.loads(pathlib.Path(inputs["sky"]).read_text()) if "sky" in inputs else None
+    bodies = (sky["setting"].get("bodies") or []) if sky else []
+    body = next((body for body in bodies if body["body"] == sky["site"]["on"]), None) if sky else None
+    table = json.loads(pathlib.Path(inputs["reference"]).read_text())
+    found = {}
+    for row in rows:
+        recipe, why = natural_grounds.of_row(row, body, bodies, table)
+        if recipe and row.get("noun"):
+            found.setdefault(row["noun"], {"words": row.get("name") or row["noun"], "recipe": recipe, "why": why})
+    return found
+
+
+def ground_lines(grounds):
+    """The question's lines naming each ground kind's recipe, or none."""
+    if not grounds:
+        return ""
+    return ("The ground kinds, each made with the natural ground recipe its row's words or its body's physics call "
+            "for (a surface for it uses that recipe):\n"
+            + "\n".join(f"- {kind}: {ground['recipe']} ({ground['why']})" for kind, ground in grounds.items()) + "\n")
 
 
 def sound_surfaces(inputs):
@@ -71,8 +112,9 @@ def sound_surfaces(inputs):
 
 
 def kinds_of(inputs):
-    """{kind: the words for it} of every take in the scene's surface data (first words kept)."""
-    found = {}
+    """{kind: the words for it} of every take in the scene's surface data and every ground row (grounds_of) of its
+    inventory (first words kept)."""
+    found = {kind: ground["words"] for kind, ground in grounds_of(inputs).items()}
     for take in json.loads(pathlib.Path(inputs["surfaces"]).read_text()).get("takes", {}).values():
         if take.get("kind"):
             found.setdefault(take["kind"], take.get("object") or take["kind"])
@@ -106,14 +148,16 @@ def recipe_lines(method):
                      for name, defaults in method["recipes"].items())
 
 
-def library_body(pictures, palette, kinds, method, sounds):
-    """The request: the concept pictures, the question and its schema (`sounds`: the sound surfaces' names)."""
+def library_body(pictures, palette, kinds, method, sounds, grounds=None):
+    """The request: the concept pictures, the question and its schema (`sounds`: the sound surfaces' names; `grounds`:
+    the ground kinds' ruled recipes, grounds_of)."""
     said = ("The picture is the scene's locked concept." if len(pictures) == 1 else
             f"The {len(pictures)} pictures are the locked concepts of every scene this line's objects stand in.")
     wear, said_of = palette["wear"], palette.get("said", {})
     text = QUESTION.format(
         pictures=said, wear=wear["level"], cause=wear.get("cause", ""), dirt=wear["dirt"],
         dirt_token=wear["dirt_token"], recipes=recipe_lines(method), sounds=", ".join(sounds),
+        grounds=ground_lines(grounds),
         tokens="\n".join(f"- {token}: {colour}, {said_of.get(token, '')}"
                          for token, colour in palette["tokens"].items()),
         kinds="\n".join(f"- {kind}: {words}" for kind, words in kinds.items()) or "- (none listed)")
@@ -168,7 +212,7 @@ def make_library(inputs, out, seed, params):
     method = json.loads(pathlib.Path(inputs["library"]).read_text())
     kinds, sounds = kinds_of(inputs), sound_surfaces(inputs)
     pictures = scene_palette.pictures_of(inputs)
-    answer = ask({place: library_body(pictures, palette, kinds, method, sounds)}).get(
+    answer = ask({place: library_body(pictures, palette, kinds, method, sounds, grounds_of(inputs))}).get(
         place, finish_ask.NoAnswer("the batch gave none"))
     try:
         if isinstance(answer, Exception):
@@ -185,14 +229,18 @@ def library_faults(folder):
         ["no materials.json or unanswered.json"]
 
 
-def library_findings(found, kinds, sounds):
-    """What is off in a scene library: no surface, a kind no surface is for, a recipe not the method's, a token or
-    colour setting off the palette, a setting outside 0 to 1, a colour setting its recipe needs left out, a sound
-    surface not known."""
+def library_findings(found, kinds, sounds, grounds=None):
+    """What is off in a scene library: no surface, a kind no surface is for, a ground kind no surface of its ruled
+    recipe is for (`grounds`, grounds_of), a recipe not the method's, a token or colour setting off the palette, a
+    setting outside 0 to 1, a colour setting its recipe needs left out, a sound surface not known."""
     variants = {name: variant for family in found["families"].values() for name, variant in family["variants"].items()}
     tokens, needs = set(found["tokens"]), found.get("colour_settings", {})
     failing = ["no surface"] * (not variants)
     failing += [f"kind {kind} has no surface" for kind in kinds if not found.get("kinds", {}).get(kind)]
+    failing += [f"ground {kind} has no surface of its recipe {ground['recipe']}"
+                for kind, ground in (grounds or {}).items()
+                if not any(variants.get(name, {}).get("recipe") == ground["recipe"]
+                           for name in found.get("kinds", {}).get(kind, []))]
     for name, variant in variants.items():
         failing += [f"{name}: recipe {variant['recipe']} is not the method's"] * (
             variant["recipe"] not in found["recipes"])
@@ -211,7 +259,7 @@ def judge_library(output, inputs, evidence):
         return gates.verdict("surfaces from the design", [f"no usable answer: {why}"], 1, "scene libraries")
     found = json.loads((output / "materials.json").read_text())
     kinds = kinds_of(inputs)
-    failing = library_findings(found, kinds, sound_surfaces(inputs))
+    failing = library_findings(found, kinds, sound_surfaces(inputs), grounds_of(inputs))
     return gates.verdict("surfaces from the design", failing, max(len(kinds), 1), "kinds and surfaces",
                          {"surfaces": sum(len(family["variants"]) for family in found["families"].values()),
                           "kinds": len(kinds)})

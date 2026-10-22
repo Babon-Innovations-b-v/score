@@ -445,12 +445,101 @@ def wet_asphalt(colour, second, dirt_colour, roughness, wet_roughness, chip_size
     return Channels(base, rough, 0.0, BLACK, relief)
 
 
+# Natural grounds (2026-10-22: the bodies' faces and the outdoor grounds took the nearest man-made recipe): regolith,
+# rock, sand, ocean and ice, each from what made it. Which one a body or a ground row gets is a rule
+# (score/stages/natural_grounds.py: the row's words, else the body's physics), never a picture's colour.
+
+
+def ridges(vector, scale, width, seed):
+    """Thin lines where a noise field crosses its middle (a crack's or a crest's path): 1 on a line `width` wide in
+    the field's own units, 0 off it."""
+    field = pf.nodes.texture.noise(vector=vector, scale=scale, detail=3.0, noise_dimensions="4D", w=seed)
+    return pf.nodes.math.map_range(value=pf.nodes.math.absolute(field.fac - 0.5), from_min=width, from_max=0.0,
+                                   interpolation_type="SMOOTHSTEP")
+
+
+def regolith(colour, second, roughness, grain_size, contrast, crater_scale, crater_share, bump, seed):
+    """An airless body's ground: fine dust over rubble, ground by impacts for ages, pitted with small craters whose
+    rims are fresher and lighter (`second`); matt, nothing wears it but the impacts."""
+    vector = coordinates()
+    rubble = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / grain_size, voronoi_dimensions="4D", w=seed)
+    base = pf.nodes.color.mix_rgb(factor=pf.nodes.color.rgb_to_bw(rubble.color) * contrast, a=colour, b=second)
+    pits = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / crater_scale, voronoi_dimensions="4D", w=seed + 11.0)
+    inside = pf.nodes.math.less_than(pits.distance, crater_share)
+    bowl = pf.nodes.math.map_range(value=pits.distance, from_min=0.0, from_max=crater_share,
+                                   interpolation_type="SMOOTHSTEP")
+    rim = inside * pf.nodes.math.map_range(value=pits.distance, from_min=crater_share * 0.7, from_max=crater_share)
+    base = pf.nodes.color.mix_rgb(factor=rim * 0.5, a=base, b=second)
+    height = (bowl - 1.0) * inside * bump + rubble.distance * bump * 0.15
+    return Channels(base, roughness, 0.0, BLACK, pf.nodes.shader.displacement(height=height, midlevel=0.0))
+
+
+def rock(colour, second, roughness, strata_pitch, contrast, crack_scale, crack_width, bump, bump_size, seed):
+    """Bare bedrock: bands of strata laid one over another across the face (`second` the other layer's shade), split
+    by cracks, lumpy where it weathered; matt."""
+    vector = coordinates()
+    _, upward = face_plane(vector)
+    warp = pf.nodes.texture.noise(vector=vector, scale=0.5 / strata_pitch, detail=2.0, noise_dimensions="4D",
+                                  w=seed + 3.0)
+    layer = pf.nodes.math.absolute(pf.nodes.math.fraction(upward / strata_pitch + warp.fac) - 0.5) * 2.0
+    cracks = ridges(vector, crack_scale, crack_width, seed + 13.0)
+    base = pf.nodes.color.mix_rgb(factor=layer * contrast, a=colour, b=second)
+    base = pf.nodes.color.mix_rgb(factor=cracks * 0.6, a=base, b=pf.Color(BLACK))
+    lumps = pf.nodes.texture.noise(vector=vector, scale=1.0 / bump_size, detail=4.0, noise_dimensions="4D", w=seed)
+    height = (lumps.fac - 0.5) * bump - cracks * bump * 0.5
+    return Channels(base, roughness, 0.0, BLACK, pf.nodes.shader.displacement(height=height, midlevel=0.0))
+
+
+def sand(colour, second, roughness, ripple_pitch, ripple_height, grain_size, contrast, seed):
+    """Wind-laid sand: ripples across the ground `ripple_pitch` apart, bent by the wind's eddies, their crests a
+    lighter sand (`second`), fine grains over all; matt."""
+    vector = coordinates()
+    across, _ = face_plane(vector)
+    eddies = pf.nodes.texture.noise(vector=vector, scale=0.25 / ripple_pitch, detail=2.0, noise_dimensions="4D",
+                                    w=seed + 5.0)
+    crest = 1.0 - pf.nodes.math.absolute(pf.nodes.math.fraction(across / ripple_pitch + eddies.fac * 2.0) - 0.5) * 2.0
+    grains = pf.nodes.texture.noise(vector=vector, scale=1.0 / grain_size, detail=1.0, noise_dimensions="4D", w=seed)
+    base = pf.nodes.color.mix_rgb(factor=crest * contrast + (grains.fac - 0.5) * contrast * 0.5, a=colour, b=second)
+    return Channels(base, roughness, 0.0, BLACK, pf.nodes.shader.displacement(height=crest * ripple_height,
+                                                                               midlevel=0.0))
+
+
+def ocean(colour, second, roughness, wave_scale, wave_height, foam_share, seed):
+    """Open water: a deep colour heaving in waves, foam (`second`) on the highest crests, glossy where it is not
+    foam."""
+    vector = coordinates()
+    waves = pf.nodes.texture.noise(vector=vector, scale=1.0 / wave_scale, detail=4.0, noise_dimensions="4D", w=seed)
+    foam = pf.nodes.math.map_range(value=waves.fac, from_min=1.0 - foam_share - 0.03, from_max=1.0 - foam_share + 0.03,
+                                   interpolation_type="SMOOTHSTEP")
+    base = pf.nodes.color.mix_rgb(factor=foam, a=colour, b=second)
+    rough = pf.nodes.math.mix(a=roughness, b=0.9, factor=foam)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=(waves.fac - 0.5) * wave_height,
+                                                                          midlevel=0.0))
+
+
+def ice(colour, second, roughness, crack_scale, crack_width, frost_share, bump, bump_size, seed):
+    """An ice sheet: smooth and glossy, split by pressure cracks in a deeper shade (`second`), frost lying rough in
+    patches."""
+    vector = coordinates()
+    cracks = ridges(vector, crack_scale, crack_width, seed + 19.0)
+    patches = pf.nodes.texture.noise(vector=vector, scale=0.5 / crack_scale, detail=3.0, noise_dimensions="4D",
+                                     w=seed + 7.0)
+    frost = pf.nodes.math.map_range(value=patches.fac, from_min=1.0 - frost_share - 0.05,
+                                    from_max=1.0 - frost_share + 0.05, interpolation_type="SMOOTHSTEP")
+    base = pf.nodes.color.mix_rgb(factor=cracks, a=colour, b=second)
+    rough = pf.nodes.math.mix(a=roughness, b=0.85, factor=frost)
+    swells = pf.nodes.texture.noise(vector=vector, scale=1.0 / bump_size, detail=2.0, noise_dimensions="4D", w=seed)
+    height = (swells.fac - 0.5) * bump - cracks * bump
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=height, midlevel=0.0))
+
+
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
            "anodized": anodized, "rubber": rubber, "quilted": quilted, "composite": composite, "glass": glass,
            "glowing": glowing, "screen": screen, "printed": printed, "wood": wood,
            "painted_plaster": painted_plaster, "weathered_render": weathered_render, "tiles": tiles,
-           "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt}
+           "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt,
+           "regolith": regolith, "rock": rock, "sand": sand, "ocean": ocean, "ice": ice}
 # Where each recipe starts from, for the page and the paper (the coordinator, 2026-10-06).
 SOURCES = {
     "painted_metal": "infinigen2 paint.py (relief, BSD-3) + edgewear.py's bevel test (ported, new threshold band)"
@@ -477,6 +566,11 @@ SOURCES = {
     "boards": "written new (board gaps, foot-worn patches stretched along the boards) + the library's layering",
     "rusted_metal": "painted_metal's edge and kick wear + new rust blooms and pits",
     "wet_asphalt": "written new (voronoi aggregate, puddle noise) + the library's dirt",
+    "regolith": "written new (voronoi rubble, voronoi impact pits with lighter rims)",
+    "rock": "written new (warped strata bands on the surface's plane, ridged-noise cracks, lumpy relief)",
+    "sand": "written new (eddy-bent wind ripples on the surface's plane, fine grain noise)",
+    "ocean": "written new (wave noise relief, foam on the crests as wet_asphalt's puddles)",
+    "ice": "written new (ridged-noise pressure cracks, rough frost patches)",
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
@@ -503,6 +597,11 @@ PARTS = {
     "boards": (boards, coordinates, face_plane, dirt_mask, layered),
     "rusted_metal": (rusted_metal, coordinates, edge_wear_mask, kick_mask, dirt_mask, layered),
     "wet_asphalt": (wet_asphalt, coordinates, dirty_flat, dirt_mask),
+    "regolith": (regolith, coordinates),
+    "rock": (rock, coordinates, face_plane, ridges),
+    "sand": (sand, coordinates, face_plane),
+    "ocean": (ocean, coordinates),
+    "ice": (ice, coordinates, ridges),
 }
 COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 
