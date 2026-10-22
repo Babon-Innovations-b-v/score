@@ -38,10 +38,6 @@ run-wide cap (capacity.reserve_run_slot) until it is taken or gone, and taking o
 A `score run` that ends with machines it parked still listed outlives them (`outlive`, from its releaser process): each
 one still listed at its time is released then, so a dead or late --expire process never leaves it to the machine's own
 self-delete (#45: three L4s of an ended run stayed parked until removed by hand, 2026-10-20).
-
-`reap` deletes the machines a run left behind: its run's process gone on this PC, or its heartbeat older than
-batch.QUIET_MINUTES, each machine's own project checked first. It is built and checked against a fake backend only
-(2026-10-17): no backend lists machines with their project yet, so no run calls it.
 """
 import contextlib
 import fcntl
@@ -288,29 +284,6 @@ def put_back(record):
     """List a taken record as parked again."""
     with locked():
         (PARKED / f"{record['id']}.json").write_text(json.dumps(record))
-
-
-def reapable(tags, now, host):
-    """Whether a machine's tags say its run is over: its run's process (run_pid, else pid) gone on this PC `host`, or
-    its heartbeat (epoch seconds) older than batch.QUIET_MINUTES."""
-    pid = batch.tag_value(tags, "run_pid") or batch.tag_value(tags, "pid")
-    if batch.tag_value(tags, "host") == host and pid and not batch.process_alive(int(pid)):
-        return True
-    beat = batch.tag_value(tags, "heartbeat")
-    return beat is not None and now - float(beat) > batch.QUIET_MINUTES * 60
-
-
-def reap(backend, project, host, now):
-    """Delete every machine of `project` its run left behind (reapable), each one's own project_id compared first,
-    never trusted from the listing's filter; the ids deleted. `backend.machines(project)` lists dicts with id, zone,
-    project_id and tags."""
-    deleted = []
-    for item in backend.machines(project):
-        if item.get("project_id") != project or not reapable(item.get("tags") or [], now, host):
-            continue
-        if backend.delete(item["id"], item["zone"]):
-            deleted.append(item["id"])
-    return deleted
 
 
 def expire(server_id, zone, token, until):

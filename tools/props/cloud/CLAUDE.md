@@ -146,8 +146,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   of memory) no longer leaves its batch renting (audit, 2026-10-22): under SCORE_RUN_ID, `batch.stop_on_signals` (every
   runner calls it) watches the parent and, once it is gone, sends itself SIGTERM, so every machine is deleted at once;
   `batch.say` moves to `cloud/orphaned-batches.log` on a broken pipe, so the delete loop survives the gone reader. Not
-  done: run-id tags on fresh machines. `park.reap` (a gone run's pid or a heartbeat over 15 min, each item's own project checked) is checked
-  against a fake backend only; no backend lists machines with their project yet.
+  done: run-id tags on fresh machines. A machine whose run's process is gone is deleted by the next run's sweep
+  (`batch.is_leftover`); `park.reap`, never called, was deleted (2026-10-22).
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks
