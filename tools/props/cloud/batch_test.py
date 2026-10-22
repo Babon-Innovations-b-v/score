@@ -227,6 +227,9 @@ def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
 
         def no_more_work(self):
             return not self.work
+
+        def woke(self, since):
+            return False
     fleet, rounds = Fleet(), []
     found = [provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")]
 
@@ -353,6 +356,20 @@ def test_a_fleets_leftover_jobs_at_its_deadline_are_gaps_with_a_reason():
                                     "lamp": "not sent before the batch's deadline"}
     broken, _ = tended(["crate", "barrel"], [{"crate": "running", "barrel": "running"}, None], 1, 600)
     assert broken.failed == ["barrel", "crate"] and broken.why["crate"].startswith("its machine m-1 broke")
+
+
+def test_jobs_lost_while_this_pc_slept_are_not_gaps_and_the_batch_stops():
+    """Audit (2026-10-22): the owner's PC slept over 15 min, the machines deleted themselves, and on waking their
+    jobs were recorded as gaps, never asked again. They are lost to sleep now, for a rerun; the model already back is
+    not among them."""
+    looks = [{"crate": "done", "barrel": "running", "lamp": "running"}]
+    fleet, _ = tended(["crate", "barrel", "lamp"], looks, (batch.QUIET_MINUTES + 5) * 60, 4 * 3600)
+    assert fleet.done == ["crate"] and fleet.failed == [] and fleet.asleep == ["barrel", "lamp"]
+    assert fleet.slept.is_set() and fleet.stop.is_set()
+    entry = batch.ledger_entry(fleet, list(fleet.models), 0.0)
+    assert entry["lost_to_sleep"] == ["barrel", "lamp"] and entry["gaps"] == []
+    awake, _ = tended(["crate", "barrel"], [{"crate": "done", "barrel": "running"}, None], 60, 4 * 3600)
+    assert awake.asleep == [] and awake.failed == ["barrel"] and not awake.slept.is_set()
 
 
 def test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on():
