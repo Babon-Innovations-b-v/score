@@ -41,7 +41,8 @@ FOLDER = REPO / "data/props"
 DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "design" / "props"
 INPUTS_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "box check": "{repo}/tools/props/scene/box_check.py"}
 CLOSEUP_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "google spend": "{repo}/tools/props/cloud/google_spend.py"}
-PIXAL_TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py"}
+PIXAL_TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
+               "machine setup": "{repo}/tools/props/cloud/machine_setup.sh"}
 LIKENESS_TOOLS = {"compare": "{repo}/tools/usd/compare.py", "glb file": "{repo}/tools/props/glb_file.py",
                   "model gate": "{repo}/tools/props/gates/model.py",
                   "straight": "{repo}/tools/props/library/straight.py",

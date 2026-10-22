@@ -24,5 +24,5 @@ curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/de
   numpy rembg==2.0.69 onnxruntime
 
 cd "$LAB"
-/root/venv/bin/python scripts/bootstrap_pixal3d.py --yes --prebuilt
+/root/venv/bin/python scripts/bootstrap_pixal3d.py --yes  # the prebuilt is its default on an NVIDIA card since 0.4.6
 touch "$done_mark"
