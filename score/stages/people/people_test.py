@@ -253,19 +253,38 @@ def test_a_wrist_with_no_hand_piece_is_no_join_and_one_with_a_hand_not_measured_
             assert judged.answer == answer, (hand, judged)
 
 
-def test_a_material_drawn_by_two_primitives_is_one_surface():
-    """The route draws its under layer in its garment's material (2026-10-22): dress chooses that material's surface
-    from all its points together, not from whichever primitive came last."""
-    blob = np.arange(12, dtype=np.float32).tobytes()
+def test_a_point_reads_the_take_s_outer_surface_not_a_face_inside_it():
+    """The take keeps faces Pixal3D grew inside (2026-10-22): the nearest sample read the boots' insides as the suit's
+    grey. The outermost samples along the point's normal vote."""
+    painted = np.array([[0.0, 0, 0.0], [0.001, 0, 0.0], [0.0, 0, -0.006], [0.001, 0, -0.006], [0.0, 0.001, -0.006]])
+    names = np.array(["boot", "boot", "suit", "suit", "suit"])
+    point, up = np.array([[0.0, 0, -0.002]]), np.array([[0.0, 0, 1.0]])
+    assert dress.outer_labels(point, up, painted, names, 0.015, 0.004).tolist() == ["boot"]
+    assert dress.outer_labels(np.array([[5.0, 0, 0]]), up, painted, names, 0.015, 0.004).tolist() == ["boot"]
+
+
+def test_a_garment_splits_where_its_paint_changes_and_a_hard_part_takes_one_surface():
+    """The astronaut's overalls and jacket were one material: it took the brown most of its points carried and its grey
+    bib showed as patches (2026-10-22). A lone point's label follows its neighbours first."""
+    faces = np.array([[0, 1, 2], [1, 3, 2], [2, 3, 4], [3, 5, 4], [4, 5, 6], [5, 7, 6]])
+    labels = np.array(["brown", "brown", "brown", "brown", "grey", "grey", "grey", "grey"])
+    assert dress.surfaces_of(labels, faces, "garment").tolist() == ["brown"] * 3 + ["grey"] * 3
+    lone = np.array(["brown", "brown", "brown", "grey", "brown", "brown", "brown", "brown"])
+    assert set(dress.surfaces_of(lone, faces, "garment")) == {"brown"}
+    assert set(dress.surfaces_of(np.array(["boot"] * 5 + ["suit"] * 3), faces, "hard")) == {"boot"}
+
+
+def test_dress_appends_index_lists_to_the_binary_chunk():
+    blob = np.arange(9, dtype=np.float32).tobytes()
     rest = len(blob).to_bytes(4, "little") + b"BIN\x00" + blob
-    document = {"bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 24},
-                                {"buffer": 0, "byteOffset": 24, "byteLength": 24}],
-                "accessors": [{"bufferView": 0, "componentType": 5126, "count": 2, "type": "VEC3"},
-                              {"bufferView": 1, "componentType": 5126, "count": 2, "type": "VEC3"}],
-                "meshes": [{"primitives": [{"material": 3, "attributes": {"POSITION": 0}},
-                                           {"material": 3, "attributes": {"POSITION": 1}}]}]}
-    found = dress.material_points(document, rest, {"mesh": 0})
-    assert list(found) == [3] and found[3].shape == (4, 3), found
+    document = {"buffers": [{"byteLength": len(blob)}], "bufferViews": [{"buffer": 0, "byteLength": len(blob)}],
+                "accessors": [{"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3"}]}
+    binary = dress.Binary(document, rest)
+    number = binary.indices(np.array([[0, 1, 2]]))
+    kept = binary.rest()
+    assert np.allclose(dress.positions(document, kept, 0).ravel(), np.arange(9))
+    assert dress.accessor(document, kept, number).ravel().tolist() == [0, 1, 2]
+    assert document["buffers"][0]["byteLength"] == len(kept) - 8
 
 
 def test_clearance_eases_out_and_back():

@@ -178,21 +178,53 @@ def test_the_longest_edge_of_each_triangle():
 def test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth():
     base_points, base_faces = grid(20, 3)
     base_weights = np.tile(np.eye(len(NAMES))[2], (len(base_points), 1))
-    sleeve = route_build.Surface(7, np.zeros((2, 3)), None, None, np.zeros((0, 3), int))
-    torso = route_build.Surface(3, np.zeros((3, 3)), None, None, np.zeros((0, 3), int))
+    sleeve = route_build.Surface(7, np.full((2, 3), 5.0), None, None, np.zeros((0, 3), int))
+    torso = route_build.Surface(3, np.full((3, 3), 5.0), None, None, np.zeros((0, 3), int))
     bound = route_bind.Bound(np.zeros((5, 3), int), np.tile([1.0, 0.0, 0.0], (5, 1)), base_points)
     welded = {"numbers": np.array([0, 1, 2, 3, 4]), "starts": [0, 2], "web": {(2, 3)}, "bound": bound}
     correctives = {"clip_walking": np.ones((4, len(base_points), 3), np.float32)}
-    layer = route_build.under_layer([sleeve, torso], welded, base_points, base_faces, base_weights, correctives,
-                                    ["walking"])
+    over = route_build.Surface(9, base_points + [0.0, 0.0, 0.01], None, None, base_faces)  # the cloth 1 cm out
+    layer = route_build.under_layer([sleeve, torso, over], welded, base_points, base_faces, base_weights,
+                                    correctives, ["walking"])
     assert layer.material == 3
     inside = int(np.sum(base_points[::3, 0] < route_build.UNDER_REACH))  # grid columns (1 cm apart) under the reach
     assert len(layer.faces) == (inside - 1) * 2 * 2
     assert np.allclose(layer.points[:, 2], -route_build.UNDER_INSET)
     assert layer.points[:, 0].max() <= route_build.UNDER_REACH + 1e-9
     assert layer.offsets["walking"].shape == (4, len(layer.points), 3)
-    assert route_build.under_layer([sleeve, torso], {**welded, "web": set()}, base_points, base_faces, base_weights,
-                                   correctives, ["walking"]) is None
+    assert route_build.under_layer([sleeve, torso, over], {**welded, "web": set()}, base_points, base_faces,
+                                   base_weights, correctives, ["walking"]) is None
+
+
+def test_cloth_next_to_a_skin_part_rides_its_weights_and_takes_no_correctives():
+    """2026-10-22: the astronaut's made face went 10 mm through the helmet bent with the neck, and the base's
+    correctives moved the trouser hem riding the boot into the boot."""
+    parents = np.array([-1, 0, 1, 2, 1, 4, 5, 6])  # NAMES: Root, Hips, Chest, Neck1, LeftShoulder, LeftArm, ...
+    face = np.zeros((1, len(NAMES)))
+    face[0, [2, 3]] = [0.2, 0.8]
+    neck, arm = (np.eye(len(NAMES))[number] for number in (3, 5))
+    places = np.array([[0.0, 0, 0.02], [0.0, 0, 0.5], [0.0, 0, 0.03]])
+    target, share = route_build.skin_share(places, np.stack([neck, neck, arm]), (np.zeros((1, 3)), face), parents)
+    assert share[:, 0].tolist() == [1.0, 0.0, 0.0]  # held; out of reach; on an arm, not the face's family
+    assert np.allclose(target[0], face[0])
+    bound = route_bind.Bound(np.zeros((3, 3), int), np.tile([1.0, 0.0, 0.0], (3, 1)), np.zeros((1, 3)))
+    moves = route_build.clip_offsets({"clip_walking": np.ones((2, 1, 3), np.float32)}, ["walking"],
+                                     {"bound": bound, "eased": share[:, 0]})["walking"]
+    assert np.allclose(moves[:, 0], 0.0) and np.allclose(moves[:, 1:], 1.0)
+    _, none = route_build.skin_share(places, np.stack([neck] * 3), (np.zeros((0, 3)), np.zeros((0, len(NAMES)))),
+                                     parents)
+    assert not none.any()
+
+
+def test_the_body_under_a_cut_web_is_not_drawn_where_it_would_show_through_the_cloth():
+    """2026-10-22: the base stood out of the astronaut's slim suit and its under layer showed as white patches."""
+    base_points, base_faces = grid(20, 3)
+    base_weights = np.tile(np.eye(len(NAMES))[2], (len(base_points), 1))
+    torso = route_build.Surface(3, np.zeros((2, 3)), None, None, np.zeros((0, 3), int))
+    bound = route_bind.Bound(np.zeros((2, 3), int), np.tile([1.0, 0.0, 0.0], (2, 1)), base_points)
+    welded = {"numbers": np.array([0, 1]), "starts": [0], "web": {(0, 1)}, "bound": bound}
+    tight = route_build.Surface(9, base_points - [0.0, 0.0, 0.002], None, None, base_faces)  # 2 mm inside the base
+    assert route_build.under_layer([torso, tight], welded, base_points, base_faces, base_weights, None, []) is None
 
 
 def test_the_route_reads_the_body_node_its_outfit_named():
