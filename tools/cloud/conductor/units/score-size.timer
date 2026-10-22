@@ -1,0 +1,11 @@
+# TEMPLATE: the conductor's size timer, every 5 minutes (score-size.service says what a pass does). Enabled with the
+# conductor's other units.
+[Unit]
+Description=SCORE conductor: the size timer every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,27 @@
+#!/bin/sh
+# systemd-run for the processes of a run in score-runs.slice (score/conductor/slices.py): a user unit asked without
+# a slice of its own gets --slice-inherit, so a step's own memory-capped scope stays under the runs' cap instead of
+# landing in app.slice beside the listener and the sync. Everything else passes through unchanged.
+here=$(dirname "$(readlink -f "$0")")
+real=""
+old_ifs=$IFS
+IFS=:
+for folder in $PATH; do
+    [ "$(readlink -f "$folder")" = "$here" ] && continue
+    if [ -x "$folder/systemd-run" ]; then real="$folder/systemd-run"; break; fi
+done
+IFS=$old_ifs
+[ -n "$real" ] || { echo "systemd-run: not found past $here" >&2; exit 127; }
+user=0
+sliced=0
+for word in "$@"; do
+    case "$word" in
+        --) break ;;
+        --user) user=1 ;;
+        --slice|--slice=*|--slice-inherit) sliced=1 ;;
+    esac
+done
+if [ "$user" = 1 ] && [ "$sliced" = 0 ]; then
+    exec "$real" --slice-inherit "$@"
+fi
+exec "$real" "$@"

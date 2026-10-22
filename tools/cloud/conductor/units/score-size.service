@@ -1,0 +1,14 @@
+# TEMPLATE: the conductor's size timer's pass (score/conductor/size.py): grow the machine for a run waiting for size,
+# shrink it after 30 idle minutes, or nothing, said in one line (journalctl --user -u score-size.service). Rendered
+# for user score like the sync's units (its two <slots>) and started by score-size.timer every 5 minutes, and at once
+# by a run that starts waiting. The size function's token is read by name through SCORE_SECRET_READER (named in the
+# env file) into this process only, never into a file. The kill switch's latch, read as an env file too, stops a grow.
+[Unit]
+Description=SCORE conductor: grow for a waiting run, shrink when idle
+
+[Service]
+Type=oneshot
+WorkingDirectory=<path to the score repository>
+EnvironmentFile=<path to the env file kept outside the repo>
+EnvironmentFile=-%h/.farm-factory-props/conductor/free-only
+ExecStart=<path to the score repository>/.venv/bin/python -m score.conductor size

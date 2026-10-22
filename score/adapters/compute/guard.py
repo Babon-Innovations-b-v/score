@@ -36,6 +36,7 @@ import signal
 import threading
 import time
 
+from score import conductor
 from score.store import locked, running_under_agent, stamp_key
 
 AREA = "stops"
@@ -105,7 +106,11 @@ def in_flight(held, entries):
 
 def refusal(line, spent, flight, forecast):
     """Why a job at `forecast` euros would pass the environment's stop with `spent` and `flight` ({node: euros}) counted,
-    naming every part, or None when it fits."""
+    naming every part, or None when it fits. Refused outright while the batch project is the conductor's own: `spent`
+    would then hold the conductor's hourly bill (score.conductor.project_refusal)."""
+    clash = conductor.project_refusal()
+    if clash:
+        return clash
     if spent + sum(flight.values()) + forecast <= line["euros"]:
         return None
     return (f"world {line['world']}: EUR {spent:.2f} spent since its first stop line and EUR "

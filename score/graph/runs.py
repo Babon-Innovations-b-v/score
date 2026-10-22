@@ -20,6 +20,12 @@ worktree is its frozen copy (graph/frozen.py), which it starts again in and owns
 user unit `tools/cloud/conductor/units/score-resume.service` runs `score resume` at boot (the conductor's boot
 installs it; on the PC, installing it is the owner's step).
 
+On a conductor (score/conductor), a run asking for more jobs than the machine has cores registers as `waiting-for-size`
+(register_waiting: its jobs with it) and waits, touching its entry, while the size function grows the machine; the
+grow's shutdown leaves it waiting, and `score resume` at the boot on the batch size starts it like a cut-off run
+(same commit, worktree and heartbeat rules), or leaves it waiting while the machine still has too few cores. Its
+owner's stop marks it `stopped`, and a wait past score.conductor.size.GROW_WAIT marks it `unresumable`.
+
 One commit per store (C10), in the same folder: every `score run` claims the store (`claim`), recording its commit,
 worktree, pid, the pid's start time and the nodes it would make in runs/active.json (which `entries` leaves out),
 under a lock on runs/active.lock, and is refused while a live run from another commit holds a claim (the refusal names
@@ -48,6 +54,7 @@ import sys
 import threading
 import time
 
+from score import conductor
 from score.graph import frozen, node_name
 from score.store import PROPS_HOME, Store, locked
 from score.store.durable import write_whole
@@ -57,6 +64,7 @@ RUNS = PROPS_HOME / "runs"
 LOGS = PROPS_HOME / "logs"
 RUNNING, ENDED, CRASHED, STOPPED, RESUMED = "running", "ended", "crashed", "stopped", "resumed"
 UNRESUMABLE = "unresumable"
+WAITING = "waiting-for-size"  # a conductor's run asking for more cores than the machine has (score/conductor/size.py)
 HEARTBEAT = 60  # seconds between a driving run's touches of its entry
 RESUME_WINDOW = 12 * 3600  # a run silent longer than this before the boot began is not a reboot's
 DETACH = "--detach"
@@ -121,6 +129,12 @@ def register(argv, folder=None, worktree=REPO):
     return written(entry_path(entry, folder), entry)
 
 
+def register_waiting(argv, jobs, folder=None, worktree=REPO):
+    """Record this process's run as waiting for a machine with `jobs` cores; its entry's path."""
+    entry = {**new_entry(argv, worktree), "state": WAITING, "jobs": jobs}
+    return written(entry_path(entry, folder), entry)
+
+
 def mark(path, state, why=None):
     """Set a registered run's state (and why, for an unresumable one)."""
     entry = json.loads(pathlib.Path(path).read_text())
@@ -157,9 +171,11 @@ def shutting_down():
 
 
 def stopped_by(path, number):
-    """Mark a run a stopping signal ended: `stopped` unless it is a shutdown's SIGTERM (then it stays `running`, for
-    resume after the reboot). Unsure counts as the owner's stop: a run is never bought again on a guess."""
-    if number == signal.SIGTERM and shutting_down():
+    """Mark a run a stopping signal ended: `stopped` unless it is a shutdown's SIGTERM, or one during a resize the
+    conductor's size timer asked for (score.conductor.resizing): then it stays as it was (`running` or
+    `waiting-for-size`), for resume after the reboot. Unsure counts as the owner's stop: a run is never bought again on
+    a guess."""
+    if number == signal.SIGTERM and (shutting_down() or conductor.resizing()):
         return
     mark(path, STOPPED)
 
@@ -191,10 +207,18 @@ def node_times(store):
 
 
 def stranded(folder=RUNS):
-    """{path: entry} of every run an earlier boot cut off: still `running` and registered under another boot id."""
+    """{path: entry} of every run an earlier boot cut off: still `running` or `waiting-for-size` and registered under
+    another boot id."""
     this_boot = boot_id()
     return {path: entry for path, entry in entries(folder).items()
-            if entry.get("state") == RUNNING and entry.get("boot") not in (None, this_boot)}
+            if entry.get("state") in (RUNNING, WAITING) and entry.get("boot") not in (None, this_boot)}
+
+
+def still_waiting(entry):
+    """Why a waiting run stays waiting at this boot (the machine has fewer cores than it asks for), or None."""
+    if entry.get("state") == WAITING and entry.get("jobs", 0) > (os.cpu_count() or 1):
+        return f"still waiting for size: it asks for {entry['jobs']} jobs, this machine has {os.cpu_count()} cores"
+    return None
 
 
 def restart_command(entry):
@@ -251,6 +275,11 @@ def unresumable(folder=RUNS):
             if entry.get("state") == UNRESUMABLE]
 
 
+def waiting(folder=RUNS):
+    """{path: entry} of every run waiting for size."""
+    return {path: entry for path, entry in entries(folder).items() if entry.get("state") == WAITING}
+
+
 def stale_partials(roots, before):
     """Every .partial file or folder under `roots` last written before `before` (seconds since the epoch)."""
     return [path for root in roots if pathlib.Path(root).is_dir() for path in sorted(pathlib.Path(root).rglob(PARTIAL))
@@ -278,6 +307,9 @@ def resume(dry, say, folder=RUNS, swept=None):
     with locked(folder / ".resume.lock"):
         found = stranded(folder)
         for path, entry in found.items():
+            if still_waiting(entry):
+                say(f"left {describe(entry)}: {still_waiting(entry)}")
+                continue
             if not dry:
                 restart(path, entry, say)
                 continue
@@ -286,6 +318,8 @@ def resume(dry, say, folder=RUNS, swept=None):
         if not found:
             say("no run to resume")
         if not dry:
+            if conductor.RESIZING.is_file() and conductor.RESIZING.stat().st_mtime < boot_time():
+                conductor.RESIZING.unlink()  # the resize it marked was this boot's start
             for path in stale_partials((folder, *(store_roots() if swept is None else swept)), boot_time()):
                 removed(path)
                 say(f"removed {path}: an earlier boot's cut write")
