@@ -95,6 +95,10 @@ import time
 import traceback
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
+# Started as a script (the detached run: python score/__main__.py), score/ is first on the path and its packages
+# shadow the tools' modules of the same name: `import library` found score/library, not tools/props/library
+# (benchmark 2026-10-22: earth-seed and surface-tiles@greenhouse).
+sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != REPO / "score"]
 sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
