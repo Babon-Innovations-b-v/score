@@ -76,6 +76,15 @@ def painted_take(inputs, look):
     return handed / json.loads((handed / "made.json").read_text())[look]["labelled"]
 
 
+def outfit_node(document):
+    """The body's own skinned mesh node, not its far body's: the route names it `work` whatever the look's outfit
+    (tools/characters/maker/route_build.py NODE), a far-only build names it for its outfit."""
+    found = [node for node in document["nodes"] if "mesh" in node and "skin" in node and node.get("name") != "far"]
+    if len(found) != 1:
+        raise RuntimeError(f"the body has {len(found)} skinned outfit nodes, not one")
+    return found[0]
+
+
 def make_dress(inputs, out, seed, params):
     """The dressed body.glb, its usd/ and dress.json (each surface's library surface and its median distance). With
     `params["surface"]` (a worn row, `-in-<surface>`: score/stages/people_clothes.py) every fabric surface of the outfit but a
@@ -89,7 +98,7 @@ def make_dress(inputs, out, seed, params):
         painted_names = stored["names"][stored["surface"]]
     surfaces = library_surfaces()
     document, rest = read_glb(body / "body.glb")
-    outfit = next(node for node in document["nodes"] if node.get("name") == look["outfit"] and "mesh" in node)
+    outfit = outfit_node(document)
     record = {"take": look["take"], "outfit": look["outfit"], "surfaces": {}}
     for primitive in document["meshes"][outfit["mesh"]]["primitives"]:
         material = document["materials"][primitive["material"]]

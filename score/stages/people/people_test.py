@@ -219,6 +219,14 @@ def test_dress_keeps_the_binary_chunk():
         assert np.allclose(dress.positions(read, kept, 0).ravel(), np.arange(9))
 
 
+def test_dress_finds_the_routed_body_whatever_its_outfit_is_named():
+    """The route names the body's node work while the look's outfit is made (2026-10-22): dress takes the one skinned
+    node that is not the far body."""
+    document = {"nodes": [{"name": "far", "mesh": 0, "skin": 0}, {"name": "work", "mesh": 1, "skin": 0},
+                          {"name": "Hips"}]}
+    assert dress.outfit_node(document)["name"] == "work"
+
+
 def test_clearance_eases_out_and_back():
     angles = np.zeros(20)
     angles[10] = 0.3

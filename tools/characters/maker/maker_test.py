@@ -157,6 +157,21 @@ def test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs(tmp_path, 
     assert prop_person.predicted_tucks(PERSON, "work") is None, "a people tools fix left the old prediction"
 
 
+def test_the_cloth_count_reads_the_routed_bodys_own_node_whatever_its_outfit(tmp_path):
+    """The route names a body's node work while its look's outfit is made (2026-10-22): the body-through-cloth count
+    is asked for that node, not the outfit's name, so it is not refused on a node the routed body lacks."""
+    import struct
+    import prop_person
+    document = {"nodes": [{"name": "far", "mesh": 0, "skin": 0}, {"name": "work", "mesh": 1, "skin": 0},
+                          {"name": "Hips"}], "animations": [{"name": "walking"}]}
+    text = json.dumps(document).encode().ljust(-(-len(json.dumps(document)) // 4) * 4, b" ")
+    body = tmp_path / "body.glb"
+    body.write_bytes(b"glTF" + struct.pack("<II", 2, 28 + len(text)) + struct.pack("<I", len(text)) + b"JSON" + text
+                     + struct.pack("<I", 0) + b"BIN\x00")
+    commands = prop_person.counts_by_clips(body, tmp_path)
+    assert all(command[command.index("--outfit") + 1] == "work" for command in commands.values()), commands
+
+
 def test_the_identity_is_read_off_the_takes_close_up(tmp_path, monkeypatch):
     """#26: SAM 3D Body reads the body under the clothes off the kept take's close-up (the A-pose picture is lost):
     one characters make whose only step is `identity`, its one file that close-up."""
