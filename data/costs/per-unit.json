@@ -246,6 +246,60 @@
     ]
    }
   },
+  "rough-model": {
+   "stage": "rough-model",
+   "unit": "make of a place's rough model (one Pixal3D take on a card, finished on a rented Blender machine)",
+   "count": null,
+   "also": [],
+   "likely_euros": 1.22047,
+   "high_euros": 1.22047,
+   "runs": 1,
+   "sources": {
+    "recorded runs": [
+     "ledger batch batch-20261022-111450-1109759 (rough-model@greenhouse, 2026-10-22, benchmark grant 20261022T072047 restored, commit d8d8f17e): Pixal3D on an H100-SXM-2 after an L4 that did not start, EUR 1.04547, and its disk-and-address lines, EUR 1.09547 drawn; with ledger batch blender-20261022-124050-1222324 (commit 51e50648): the finish on one L4, EUR 0.105, and its 4 disk-and-address lines EUR 0.02, EUR 0.125 drawn"
+    ]
+   },
+   "forecast": {
+    "rule": "one",
+    "source": "one a place (one for an environment node)"
+   },
+   "time": {
+    "unit_seconds": {
+     "likely": 502.8,
+     "high": 502.8
+    },
+    "setup_minutes": {
+     "likely": 3.6,
+     "high": 3.6
+    },
+    "slots": 1,
+    "slots_from": "one take, then one finish job",
+    "holds": "machines",
+    "lines": 2,
+    "from": [
+     "ledger batch batch-20261022-111450-1109759 (the H100's take 427.9 s, its start wait 0.70 min; 12.3 min wall)",
+     "ledger batch blender-20261022-124050-1222324 (the finish job 74.9 s, start wait 0.36 and set-up 2.53 min; 11.0 min wall, 6.2 of it waiting for an L4 out of stock)"
+    ]
+   }
+  },
+  "crops-boxes": {
+   "stage": "crops-boxes",
+   "unit": "make of a place's crop boxes (a card only for a row its reading framed by Gemini)",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.0,
+   "high_euros": 0.0,
+   "runs": 1,
+   "sources": {
+    "recorded runs": [
+     "grant 20261022T072047 draw of crops-boxes@greenhouse (2026-10-22, commit 51e50648): EUR 0, no ledger line, no card rented"
+    ]
+   },
+   "forecast": {
+    "rule": "one",
+    "source": "one a place (one for an environment node)"
+   }
+  },
   "body-face-earth": {
    "stage": "body-face-earth",
    "unit": "face of a body of the setting (one Gemini 3.1 Pro answer)",

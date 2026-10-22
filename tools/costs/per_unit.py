@@ -202,6 +202,34 @@ RECORDED = {
                                         "for a card, 9 starts out of stock or refused)",
                                         "ledger batch masks-20261022-102451-988273 (its machine's work 1.31 min; "
                                         "start wait 2.25 and set-up 0.49 min; 3.83 min wall)"]}},
+    # The benchmark of 2026-10-22 under the restored grant 20261022T072047: greenhouse's rough model, its raw take made
+    # in the run at commit d8d8f17e (its finish then failed on the PC) and finished on a rented machine in the run at
+    # commit 51e50648; the two together are one make (forecast "one"). The H100's 3 parked minutes (EUR 0.45, park.py
+    # no longer parks a card with no claim waiting) are left out.
+    "rough-model": {"unit": "make of a place's rough model (one Pixal3D take on a card, finished on a rented Blender "
+                            "machine)", "forecast": "one",
+                    "runs": [{"euros": 1.22047, "units": 1,
+                              "source": "ledger batch batch-20261022-111450-1109759 (rough-model@greenhouse, "
+                                        "2026-10-22, benchmark grant 20261022T072047 restored, commit d8d8f17e): "
+                                        "Pixal3D on an H100-SXM-2 after an L4 that did not start, EUR 1.04547, and "
+                                        "its disk-and-address lines, EUR 1.09547 drawn; with ledger batch "
+                                        "blender-20261022-124050-1222324 (commit 51e50648): the finish on one L4, "
+                                        "EUR 0.105, and its 4 disk-and-address lines EUR 0.02, EUR 0.125 drawn"}],
+                    "time": {"unit_seconds": {"likely": 502.8, "high": 502.8},
+                             "setup_minutes": {"likely": 3.6, "high": 3.6}, "slots": 1,
+                             "slots_from": "one take, then one finish job", "holds": "machines", "lines": 2,
+                             "from": ["ledger batch batch-20261022-111450-1109759 (the H100's take 427.9 s, its "
+                                      "start wait 0.70 min; 12.3 min wall)",
+                                      "ledger batch blender-20261022-124050-1222324 (the finish job 74.9 s, start "
+                                      "wait 0.36 and set-up 2.53 min; 11.0 min wall, 6.2 of it waiting for an L4 "
+                                      "out of stock)"]}},
+    # crops-boxes off the design (commit 51e50648): greenhouse's one crop row was boxed by SAM 3 in its reading, so
+    # nothing was masked and nothing rented.
+    "crops-boxes": {"unit": "make of a place's crop boxes (a card only for a row its reading framed by Gemini)",
+                    "forecast": "one",
+                    "runs": [{"euros": 0.0, "units": 1,
+                              "source": "grant 20261022T072047 draw of crops-boxes@greenhouse (2026-10-22, commit "
+                                        "51e50648): EUR 0, no ledger line, no card rented"}]},
     # The benchmark runs of 2026-10-22 under the restored grant 20261022T072047 (commit a8ebe414): the one body face
     # that ran, its node's whole make (forecast "one"). Moon's and Mars's faces stay unmeasured.
     "body-face-earth": {"unit": "face of a body of the setting (one Gemini 3.1 Pro answer)", "forecast": "one",
