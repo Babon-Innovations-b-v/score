@@ -136,6 +136,30 @@ def test_env_file_carries_no_secret_and_names_the_backup_repository():
     assert values["SCORE_OWNER"] == "owner" and values["CLOUDSDK_CONFIG"] == "/run/user/1100/score/gcloud"
 
 
+def test_move_dry_backs_this_pc_up_then_restores_before_the_sync_is_installed():
+    printed = []
+    with tempfile.TemporaryDirectory() as folder:
+        owner_env = pathlib.Path(folder) / "dashboard.env"
+        owner_env.write_text("SCORE_OWNER=owner\nSCORE_SECRET_READER=/home/someone/.local/bin/reader\n")
+        options = types.SimpleNamespace(env_file=str(owner_env), owner_key="~/.ssh/id_ed25519")
+        scw = machine.Scw(dry=True, say=printed.append)
+        machine.move(options, scw, printed.append)
+        (local, environment), remote = machine.move_steps(owner_env)
+        owner_env.write_text("SCORE_OWNER=owner\n")
+        try:
+            machine.move_steps(owner_env)
+            raise AssertionError("a move with no secret reader was not refused")
+        except SystemExit as refused:
+            assert "SCORE_SECRET_READER" in str(refused)
+    assert local[-3:] == ["score.store.backup", "migrate", "--from-pc"]
+    assert environment["SCORE_BACKUP_REPO"] == machine.BACKUP_REPO
+    assert environment["SCORE_SECRET_READER"] == "/home/someone/.local/bin/reader"
+    assert remote.index("--onto-conductor") < remote.index("install-sync") and "--no-pull" in remote
+    assert any("--from-pc" in line for line in printed) and any("--onto-conductor" in line for line in printed)
+    assert all(call.startswith("account project list") or call.startswith("instance server list")
+               for call in scw.calls), scw.calls
+
+
 def test_down_refused_unless_confirmed():
     options = types.SimpleNamespace(with_data=False)
     scw = machine.Scw(dry=True, say=lambda line: None)
@@ -238,6 +262,10 @@ def test_boot_runs_against_a_temp_root_and_again():
             installed = (units / unit.name).read_text()
             assert installed == machine.rendered_unit(unit), unit.name
             assert not any(slot in installed for slot in machine.UNIT_SLOTS), unit.name
+        # resume and health write into the home, so on the conductor they wait for the move's machine.json
+        waits = "ConditionPathExists=%h/.farm-factory-props/machine.json"
+        assert waits in (units / "score-resume.service.d" / "conductor.conf").read_text().splitlines()
+        assert waits in (units / "score-health.service").read_text().splitlines()
         assert "systemctl --user start score-secrets.service" in calls
         assert any(call.startswith("git -C") and "core.sshCommand" in call for call in calls)
 

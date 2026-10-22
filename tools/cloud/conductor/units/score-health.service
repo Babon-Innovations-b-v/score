@@ -1,8 +1,11 @@
 # The conductor's health, every minute (score-health.timer): score.conductor's own record (`health --write`, its
 # failure ignored so the push below still runs), then the shrink guard's record pushed to the backup bucket
-# (tools/cloud/conductor/health_push.py), which the size function reads before it shrinks the machine.
+# (tools/cloud/conductor/health_push.py), which the size function reads before it shrinks the machine. Only once the
+# move wrote machine.json: before it the home must stay empty for `migrate --onto-conductor`, and with no record in
+# the bucket the size function refuses every resize.
 [Unit]
 Description=SCORE conductor: write and push the health record
+ConditionPathExists=%h/.farm-factory-props/machine.json
 
 [Service]
 Type=oneshot

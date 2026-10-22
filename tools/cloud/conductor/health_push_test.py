@@ -32,7 +32,11 @@ def test_record_counts_live_claims_parked_and_frozen():
         (home / "runs" / "active.json").write_text(json.dumps(claims))
         (home / "cloud" / "parked").mkdir(parents=True)
         (home / "cloud" / "parked" / "machine-1.json").write_text("{}")
-        (home / "frozen" / "run-a").mkdir(parents=True)
+        for copy in ("run-a", "run-waiting", "run-left-behind"):
+            (home / "frozen" / copy).mkdir(parents=True)
+        (home / "runs" / "waiting.json").write_text(json.dumps({"state": "waiting-for-size",
+                                                                 "worktree": str(home / "frozen" / "run-waiting")}))
+        working = [subprocess.Popen(["sleep", "30"], cwd=home / "frozen" / copy) for copy in ("run-a", "run-waiting")]
         (home / "conductor").mkdir()
         (home / "conductor" / "health.json").write_text(json.dumps({"disk": 12}))
         os.environ["SCORE_HEALTH_FILE"] = str(home / "conductor" / "health.json")
@@ -40,6 +44,10 @@ def test_record_counts_live_claims_parked_and_frozen():
             record = health_push.record(home, datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc))
         finally:
             del os.environ["SCORE_HEALTH_FILE"]
+            for process in working:
+                process.kill()
+                process.wait()
+        # run-a has a process in it; the waiting run's copy waits for the grow itself; the left-behind one is idle
         assert record["active_runs"] == 1 and record["parked"] == 1 and record["frozen"] == 1
         assert record["health"] == {"disk": 12} and record["written_at"].startswith("2026-10-22T00:00:00")
 

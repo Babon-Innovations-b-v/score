@@ -98,6 +98,9 @@ def from_pc(restic, home):
 
 def onto_refusal(home):
     """Why the move may not land in `home`, or None."""
+    record = os.environ.get("SCORE_CONDUCTOR_RECORD")
+    if record and not pathlib.Path(record).is_file():
+        return f"no conductor sizes record at {record} (machine.py up pipes it): the move would make no conductor"
     return agent_refusal() or _core.emptiness_refusal(home)
 
 
@@ -110,8 +113,12 @@ def save_manifest(home, name, record):
 
 
 def write_identity(home, snapshot_id):
-    """Write $PROPS_HOME/machine.json, the store's machine identity: {name, since, from}."""
-    identity = {"name": socket.gethostname(), "since": _core.utc_now().isoformat(timespec="seconds"),
+    """Write $PROPS_HOME/machine.json, the store's machine identity: {name, since, from}, over the conductor's sizes
+    record (SCORE_CONDUCTOR_RECORD, piped by tools/cloud/conductor/machine.py up: zone, its two types and cores, its
+    project), which makes it a conductor for score.conductor."""
+    record = os.environ.get("SCORE_CONDUCTOR_RECORD")
+    sizes = json.loads(pathlib.Path(record).read_text()) if record else {}
+    identity = {**sizes, "name": socket.gethostname(), "since": _core.utc_now().isoformat(timespec="seconds"),
                 "from": f"{PC_FINAL} {snapshot_id}"}
     path = pathlib.Path(home) / _core.MACHINE
     whole_file(path, json.dumps(identity, indent=1).encode()).replace(path)

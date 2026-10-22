@@ -87,8 +87,10 @@ def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
     exported(world, tmp_path / "one")
     exported(world, tmp_path / "two")
     for path in sorted((tmp_path / "one").rglob("*")):
-        if path.is_file():
+        if path.is_file() and path.name != "machine.json":  # the machine's health is a live read: load, memory
             assert path.read_bytes() == (tmp_path / "two" / path.relative_to(tmp_path / "one")).read_bytes(), path
+    machines = [json.loads((tmp_path / name / "machine.json").read_text())["machine"] for name in ("one", "two")]
+    assert machines[0] == machines[1]
     small = exported(world, tmp_path / "small", cap_mb=0.02)
     assert small["left_out"] and all(entry["why"] == "over the export's cap" for entry in small["left_out"])
 

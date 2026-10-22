@@ -6,7 +6,8 @@ it, since neither can reach the machine (it takes ssh only).
 
 The record: written_at, boot_id, host, commercial_type (from the instance's metadata), the shrink guard's counts read
 from PROPS_HOME (active_runs: live claims in runs/active.json; parked: paid machines in cloud/parked; frozen: frozen
-worktrees under frozen/), and `health`, the record score.conductor's `health --write` keeps at SCORE_HEALTH_FILE
+worktrees under frozen/ a process works in, a waiting-for-size run's own copy left out: it waits for this very grow,
+and a copy left behind by a killed run holds nothing up), and `health`, the record score.conductor's `health --write` keeps at SCORE_HEALTH_FILE
 (default $PROPS_HOME/conductor/health.json) when there is one. The counts err on the side of busy: a claim whose pid
 lives counts, whoever holds the pid now. It writes with user score's one credential (`scw config get`), to the bucket
 SCORE_CONDUCTOR_BUCKET in SCORE_CONDUCTOR_BUCKET_REGION (the env file's, written by `machine.py up`).
@@ -61,6 +62,50 @@ def entries(folder):
         return 0
 
 
+WAITING = "waiting-for-size"  # score/graph/runs.py WAITING
+
+
+def processes_in(folder):
+    """The pids whose working folder is under `folder` (score/conductor/size.py processes_in)."""
+    found = []
+    for entry in pathlib.Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            cwd = pathlib.Path(os.readlink(entry / "cwd"))
+        except OSError:
+            continue
+        if cwd == folder or folder in cwd.parents:
+            found.append(int(entry.name))
+    return found
+
+
+def waiting_copies(home):
+    """The frozen copies of the runs registered waiting for size (runs/<id>.json, state waiting-for-size): the grow
+    is what they wait for, so their own copies never refuse it."""
+    found = set()
+    for path in (home / "runs").glob("*.json"):
+        if path.name == "active.json":
+            continue
+        try:
+            entry = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if entry.get("state") == WAITING and entry.get("worktree"):
+            found.add(pathlib.Path(entry["worktree"]))
+    return found
+
+
+def frozen_in_use(home, find=processes_in):
+    """How many frozen copies under frozen/ a process works in, a waiting run's own copy left out."""
+    folder = home / "frozen"
+    if not folder.is_dir():
+        return 0
+    waiting = waiting_copies(home)
+    return sum(1 for copy in folder.iterdir() if not copy.name.startswith(".") and copy not in waiting
+               and find(copy))
+
+
 def commercial_type():
     """The instance's commercial type from Scaleway's metadata service, or None off Scaleway."""
     try:
@@ -90,7 +135,7 @@ def record(home, now):
     """The health record as of `now`."""
     return {"written_at": now.isoformat(timespec="seconds"), "boot_id": boot_id(), "host": socket.gethostname(),
             "commercial_type": commercial_type(), "active_runs": active_runs(home),
-            "parked": entries(home / "cloud" / "parked"), "frozen": entries(home / "frozen"),
+            "parked": entries(home / "cloud" / "parked"), "frozen": frozen_in_use(home),
             "health": conductor_health(home)}
 
 

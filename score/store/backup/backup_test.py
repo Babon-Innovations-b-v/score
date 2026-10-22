@@ -118,15 +118,20 @@ def test_a_plain_backup_is_refused_before_the_move_wrote_the_machine_identity(se
 
 
 @needs_restic
-def test_the_move_lands_the_pc_home_whole_and_names_the_machine(setting):
+def test_the_move_lands_the_pc_home_whole_and_names_the_machine(setting, monkeypatch):
     pc, conductor = setting / "pc", setting / "conductor"
     make_home(pc).close()
     (conductor / "lost+found").mkdir(parents=True)  # a fresh volume's own folder
+    sizes = {"zone": "fr-par-2", "idle_type": "POP2-HM-2C-16G", "batch_type": "POP2-HM-16C-128G", "idle_cores": 2,
+             "batch_cores": 16, "project": "score-conductor"}
+    write(setting / "conductor.json", json.dumps(sizes))
+    monkeypatch.setenv("SCORE_CONDUCTOR_RECORD", str(setting / "conductor.json"))
     moved = backups.migrate("from-pc", pc)
     landed = backups.migrate("onto-conductor", conductor)
     assert landed["snapshot"] == moved["snapshot"]
     identity = json.loads((conductor / "machine.json").read_text())
     assert identity["from"] == f"pc-final {moved['snapshot']}"
+    assert {name: identity[name] for name in sizes} == sizes  # what makes it a conductor (score.conductor.machine)
     assert backups.compare(backups.read_manifest(pc), backups.read_manifest(conductor)) == []
     assert rows(conductor / "dashboard" / "dashboard.sqlite3") == COMMITTED_ROWS
 
@@ -179,6 +184,13 @@ def test_the_move_from_the_pc_is_refused_while_a_run_is_alive(setting):
     write(pc / "runs" / "active.json", json.dumps({str(os.getpid()): claim}))
     with pytest.raises(backups.Refused, match=f"pid {os.getpid()}"):
         backups.migrate("from-pc", pc)
+
+
+def test_the_move_onto_the_conductor_is_refused_without_its_sizes_record(setting, monkeypatch):
+    monkeypatch.setenv("SCORE_CONDUCTOR_RECORD", str(setting / "missing.json"))
+    with pytest.raises(backups.Refused, match="sizes record"):
+        backups.migrate("onto-conductor", setting / "conductor")
+    assert not (setting / "conductor" / "machine.json").exists()
 
 
 def test_the_move_onto_the_conductor_is_refused_into_a_home_not_empty(setting):

@@ -7,8 +7,9 @@ here answers "not a conductor" and the runner behaves exactly as on the PC.
     python -m score.conductor size             # grow for a waiting run, shrink when idle (size.py, score-size.timer)
     python -m score.conductor dry              # the free end-to-end check, one line, detail in a file (dry.py)
 
-A machine is a conductor when $PROPS_HOME/machine.json is there (written by tools/cloud/conductor/machine.py at its
-boot: its name, zone, its two sizes and their cores, its project) and SCORE_CONDUCTOR_SIZE_URL names its size
+A machine is a conductor when $PROPS_HOME/machine.json is there (written by the store's move, score/store/backup
+migrate --onto-conductor, over the sizes record tools/cloud/conductor/machine.py up piped: its name, zone, its two
+sizes and their cores, its project) and SCORE_CONDUCTOR_SIZE_URL names its size
 function. Its idle size runs sync, the listener and price passes; a run asking for more jobs than the machine has
 cores registers as waiting for size (graph/runs.py WAITING), the size function grows the same machine (off, type
 changed, on), and `score resume` starts the run at the boot on the batch size (size.py).

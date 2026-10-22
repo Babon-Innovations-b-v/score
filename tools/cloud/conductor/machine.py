@@ -6,6 +6,7 @@ browser). This module is the machine as code, driving the scw CLI as tools/cloud
     python3 tools/cloud/conductor/machine.py status         # the server, its size, its IP, volumes, last health
     python3 tools/cloud/conductor/machine.py grow|shrink    # the size function: batch size, or idle size
     python3 tools/cloud/conductor/machine.py stop           # power off: the owner's hard stop, from his PC
+    python3 tools/cloud/conductor/machine.py move [--dry]   # the store's one-time move from this PC (the owner's)
     python3 tools/cloud/conductor/machine.py down [--with-data]   # delete all but the data volume and backup bucket
     python3 tools/cloud/conductor/machine.py price          # per month, from Scaleway's product catalog
     python3 tools/cloud/conductor/machine.py dry            # free: cloud-init schema, the units, `up --dry`
@@ -84,6 +85,12 @@ FUNCTION_RUNTIME = "python312"
 SIZE_TOKEN_SECRET, SIZE_KEY_SECRET = "score-conductor-size-token", "score-conductor-size-key"
 SCORE_UID = 1100
 SCORE_HOME = "/home/score"
+# The conductor's sizes as score/conductor reads them (score.conductor.machine): piped by `up` to RECORD_PATH, merged
+# into $PROPS_HOME/machine.json by the move (score/store/backup migrate --onto-conductor), which makes it a conductor.
+SIZES = {"zone": ZONE, "idle_type": IDLE_TYPE, "batch_type": BATCH_TYPE, "idle_cores": 2, "batch_cores": 16,
+         "project": PROJECT_NAME}
+RECORD_PATH = f"{SCORE_HOME}/.config/score/conductor.json"
+SIZE_URL_NAME = "SCORE_CONDUCTOR_SIZE_URL"  # score/conductor SIZE_URL
 HOURS_A_MONTH = 730
 ADDRESS_EUROS_AN_HOUR = 0.005  # a flexible IPv4: the backend's figure (backends/scaleway.py), not in the catalog
 # The owner's env file values the conductor's env file carries over (none is a secret; the token is read by name).
@@ -361,7 +368,8 @@ def env_text(owner_env):
     values.update({"SCORE_SECRET_READER": "/usr/local/bin/score-secret-reader",
                    "SCORE_SECRETS_PROJECT": SECRETS_PROJECT_NAME, "SCORE_SCALEWAY_PROJECT": BATCH_PROJECT_NAME,
                    "SCORE_CONDUCTOR_BUCKET": BUCKET, "SCORE_CONDUCTOR_BUCKET_REGION": BUCKET_REGION,
-                   "SCORE_BACKUP_REPO": BACKUP_REPO,
+                   "SCORE_BACKUP_REPO": BACKUP_REPO, "SCORE_CONDUCTOR_PROJECT": PROJECT_NAME,
+                   "SCORE_CONDUCTOR_RECORD": RECORD_PATH,
                    "CLOUDSDK_CONFIG": f"/run/user/{SCORE_UID}/score/gcloud",
                    "PATH": f"{SCORE_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin"})
     return "".join(f"{name}={value}\n" for name, value in values.items())
@@ -392,10 +400,12 @@ def piped(path):
 
 
 def hand_over(host, key, credential, environment):
-    """After cloud-init: the credential and env file piped over ssh, then boot.sh's user part."""
+    """After cloud-init: the credential, the env file and the sizes record piped over ssh, then boot.sh's user
+    part."""
     ssh(host, key, "cloud-init status --wait > /dev/null")
     ssh(host, key, piped("~/.config/scw/config.yaml"), credential)
     ssh(host, key, piped("~/.config/score/dashboard.env"), environment)
+    ssh(host, key, piped(RECORD_PATH.replace(SCORE_HOME, "~", 1)), json.dumps(SIZES, indent=1) + "\n")
     ssh(host, key, "bash ~/projects/score/tools/cloud/conductor/boot.sh user")
 
 
@@ -417,6 +427,9 @@ def up(options, scw, say=print):
         server_id = found["id"] if found else make_server(scw, project, group, ip["id"], volume, user_data)
         bucket(scw, project)
         size_function(scw, project, server_id, folder)
+    size_url = "https://<the size function's domain>" if scw.dry else function_url(scw, project)
+    if environment is not None:
+        environment += f"{SIZE_URL_NAME}={size_url}\n"
     if scw.dry:
         say(f"then: ssh score@{ip['address']}: the scoped key to {SCORE_HOME}/.config/scw/config.yaml (mode 600), "
             "the env file, boot.sh user")
@@ -480,6 +493,54 @@ def stop(scw, say=print):
         raise SystemExit("no conductor server")
     scw("instance", "server", "stop", f"server-id={found['id']}", f"zone={ZONE}", "--wait")
     say("stop: the conductor is powered off; `machine.py up` or the console powers it on")
+
+
+# On the conductor: the restore into the empty home, then the sync's units (score/dashboard install-sync, no pull:
+# score-update moves the checkout). Never before: a sync or listener on the empty home makes dashboard/ and the move
+# refuses it. score-health and score-resume wait for the machine.json the restore writes (ConditionPathExists).
+LANDED = ("set -a && . ~/.config/score/dashboard.env && set +a && cd ~/projects/score && "
+          ".venv/bin/python -m score.store.backup migrate --onto-conductor && "
+          ".venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env --no-pull")
+
+
+def move_steps(owner_env):
+    """The move's two commands: (this PC's migrate --from-pc as an argument list with its environment, the ssh
+    command for the conductor)."""
+    values = {}
+    for line in pathlib.Path(owner_env).expanduser().read_text().splitlines():
+        name, equals, value = line.partition("=")
+        if equals and name.strip() == "SCORE_SECRET_READER":
+            values[name.strip()] = value.strip()
+    if not values:
+        raise SystemExit(f"{owner_env} names no SCORE_SECRET_READER: the backup's password is read through it")
+    environment = {**os.environ, **values, "SCORE_BACKUP_REPO": BACKUP_REPO}
+    local = [str(REPO / ".venv" / "bin" / "python"), "-m", "score.store.backup", "migrate", "--from-pc"]
+    return (local, environment), LANDED
+
+
+def move(options, scw, say=print):
+    """The store's one-time move from this PC to the conductor (the owner's, after `up`, with the PC's score-sync,
+    score-listen and score-resume units stopped): this PC's home backed up tagged pc-final with its manifest, then on
+    the conductor the restore, the manifests compared (any difference stops it), machine.json written, the sync and
+    listener installed and the waiting units started. Dry: both steps printed, nothing run."""
+    refused = None if scw.dry else agent_refusal()
+    if refused:
+        raise SystemExit(refused)
+    found = server(scw, project_id(scw, PROJECT_NAME))
+    host = ((found or {}).get("public_ip") or {}).get("address") or "<its address>"
+    if not found and not scw.dry:
+        raise SystemExit("no conductor server: run `machine.py up` first")
+    (local, environment), remote = move_steps(options.env_file)
+    if scw.dry:
+        say(f"then: SCORE_BACKUP_REPO={BACKUP_REPO} {' '.join(local)}")
+        say(f"then: ssh score@{host} {shlex.quote(remote)}")
+        return
+    done = subprocess.run(local, env=environment)
+    if done.returncode != 0:
+        raise SystemExit(f"move: this PC's backup failed (exit {done.returncode}); nothing moved")
+    ssh(host, options.owner_key, remote)
+    say(f"move: the store is on the conductor at {host}; the hosted cockpit asks you to confirm it as the store's "
+        "machine once its first export arrives. Rename this PC's home read-only (your step).")
 
 
 def confirmed(question, answer=input):
@@ -626,6 +687,10 @@ def parser():
                              help="the owner's dashboard env file; its non-secret values are carried over")
         if name == "up":
             command.add_argument("--dry", action="store_true", help="print every scw call, make none")
+    move = commands.add_parser("move")
+    move.add_argument("--owner-key", default="~/.ssh/id_ed25519", help="the owner's private ssh key")
+    move.add_argument("--env-file", default="~/.config/score/dashboard.env", help="the owner's dashboard env file")
+    move.add_argument("--dry", action="store_true", help="print both steps, run none")
     for name in ("status", "grow", "shrink", "stop", "price"):
         commands.add_parser(name)
     commands.add_parser("down").add_argument("--with-data", action="store_true")
@@ -646,6 +711,8 @@ def main(argv):
         status(options, scw)
     elif options.command in ("grow", "shrink"):
         resize(options.command, scw)
+    elif options.command == "move":
+        move(options, scw)
     elif options.command == "stop":
         stop(scw)
     elif options.command == "down":
