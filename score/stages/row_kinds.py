@@ -3,11 +3,12 @@ worked out free from the reading's own words by the rules of data/checks/row-kin
 row's reading noun; its name's last word only for a row read with no noun), never from a model call or a record
 written per scene. The effects, motion and physics stages read their work from it, and the layers a scene needs follow
 from it (design_layers.py, the stage table's and the assembly's one answer): a scene needs effects when a row emits,
-motion when a row moves, physics when a row is loose, crops when a row grows on a bed, people when a row acts.
+motion when a row moves, physics when a row is loose, crops when a row grows on a bed, people when a row acts. A row
+that roams (an animal) gets its own body and clips rows (score/stages/animals).
 
     kind_of(row, table)          the row's kind, or None
     does(kind, table)            what a kind's objects do: {"emits", "moves", "loose", "glows", "shows", "grows",
-                                 "acts"}
+                                 "acts", "roams"}
     rows_that(inventory, what, table)   the inventory's rows whose kind does `what`
     objects_of(stage, place, row)       the prims of a row's objects on a composed stage (`<row>` or `<row>_<n>`)
     strangers(names, inventory)         the names no row's object has (the layers' `designed` gate)

@@ -24,7 +24,7 @@ import pathlib
 
 from score import checks, contracts, graph
 from score.checks import grain
-from score.stages import (assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
+from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, physics, scene_record, settling,
                           shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
@@ -389,7 +389,9 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
               boxed_split, map(designed_rough, shapes_first.rows())))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, MOTION,
           *light.ROWS, *crops.ROWS,
-          surface_tiles.STAGE)
+          surface_tiles.STAGE,
+          # Experimental (#52): each animal row a design shows, its body and its clips (score/stages/animals).
+          *animals.rows())
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
 # patterns) that make each. Every model comes from the prop pipeline; each module only adds what moves it.
