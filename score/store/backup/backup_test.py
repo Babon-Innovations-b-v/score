@@ -230,3 +230,35 @@ def test_a_data_read_runs_when_none_passed_this_week_and_its_log_keeps_the_healt
                for record in logged)
     assert command.main(["forget"]) == 0  # the pc-final snapshot is kept whatever the policy drops
     assert backups.Restic().snapshots("pc-final")
+
+
+def test_an_unforeseen_failure_still_leaves_a_failed_record_and_propagates(setting, monkeypatch):
+    home = setting / "logs-home"
+    monkeypatch.setattr(command, "PROPS_HOME", home)
+
+    def locked_database(_home):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(backups, "backup", locked_database)
+    with pytest.raises(sqlite3.OperationalError):
+        command.main(["backup"])
+    record = json.loads(sorted((home / "logs").glob("backup-*.json"))[-1].read_text())
+    assert (record["kind"], record["ok"]) == ("backup", False)
+    assert record["error"] == "OperationalError: database is locked"
+
+
+@needs_restic
+def test_the_password_comes_from_the_reader_only_and_lands_in_no_file(setting, monkeypatch):
+    home = setting / "home"
+    make_home(home).close()
+    write(home / "machine.json", "{}")
+    wrong = write(setting / "elsewhere" / "password", "a-file-password\n")
+    monkeypatch.setenv("RESTIC_PASSWORD_FILE", str(wrong))  # dropped: the reader is the only way in
+    monkeypatch.setenv("RESTIC_PASSWORD_COMMAND", f"cat {wrong}")
+    backups.backup(home)
+    written = [path for path in setting.rglob("*") if path.is_file() and "tools" not in path.relative_to(setting).parts]
+    assert written and not [path for path in written if b"fixture-pass" in path.read_bytes()]
+    reader = write(setting / "tools" / "reader", "#!/bin/sh\necho a-file-password\n")
+    reader.chmod(0o755)
+    with pytest.raises(backups.ResticFailed):
+        backups.Restic().snapshots()  # the repository opens with the reader's password, no other
