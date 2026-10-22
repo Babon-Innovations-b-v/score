@@ -65,8 +65,8 @@ stage as each stage is built; nothing moves before.
   checkout to "pick up" a fix mid-run: start a new run.
 - **`python -m score resume [--dry]`** starts again, each from its own worktree and detached, every `score run` in
   the run registry (`graph/runs.py`, `$PROPS_HOME/runs/<id>.json`) an earlier boot cut off (one the owner stopped is marked `stopped` and never resumed), one resume at a time, and clears an earlier boot's `.partial` files. It starts a run only at the commit that registered it with nothing uncommitted, and only one alive (its entry touched every minute while it drives) within 12 h before the boot; any other, or one whose restart fails, is marked `unresumable` with why and listed by `score status`; a
-  detached run's log is under `$PROPS_HOME/logs`. `.claude/scripts/score-resume.service` runs it at boot once the
-  owner installs it (needs systemd in WSL).
+  detached run's log is under `$PROPS_HOME/logs`. `tools/cloud/conductor/units/score-resume.service` runs it at boot
+  (the conductor's boot installs it; on the PC the owner installs it, which needs systemd in WSL).
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
   leaves out the places its environment data says it has nothing to do for; `upward`: its beside reads go up to the
   outside shell holding this place, an inside place's plan reading its outside shell's split, so the table's loop check leaves

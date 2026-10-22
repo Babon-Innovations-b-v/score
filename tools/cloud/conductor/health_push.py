@@ -43,11 +43,12 @@ def pid_alive(pid):
 
 
 def active_runs(home):
-    """The claims in runs/active.json whose pid is alive."""
+    """The claims in runs/active.json whose pid is alive; 0 with no file. A file that cannot be read or parsed raises,
+    so no record is pushed and the one in the bucket goes stale: an unknown is never an idle."""
     path = home / "runs" / "active.json"
     try:
         claims = json.loads(path.read_text())
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return 0
     return sum(1 for pid in claims if pid_alive(pid))
 

@@ -63,17 +63,36 @@ def test_already_at_size_changes_nothing():
     assert all(call[0] == "GET" for call in api.calls)
 
 
-def test_shrink_refused_while_busy_stale_or_unknown():
-    for health, words in ((fresh(active_runs=1), "run(s) active"), (fresh(parked=2), "parked"),
-                          (fresh(frozen=1), "frozen"), (lambda: None, "no health record"),
-                          (lambda: {"written_at": "2026-01-01T00:00:00+00:00"}, "too old")):
-        api = FakeApi(kind="POP2-HM-16C-128G")
-        try:
-            resize("shrink", api, health)
-            raise AssertionError(f"shrank with {words}")
-        except handler.Refused as refused:
-            assert words in str(refused), (words, str(refused))
-        assert all(call[0] == "GET" for call in api.calls)
+def test_grow_and_shrink_refused_while_busy_stale_or_unknown():
+    """Either resize powers the server off, so neither runs while a run, a parked machine or a frozen worktree is
+    live on it, or while that is unknown."""
+    for action, kind in (("shrink", "POP2-HM-16C-128G"), ("grow", "POP2-HM-2C-16G")):
+        for health, words in ((fresh(active_runs=1), "run(s) active"), (fresh(parked=2), "parked"),
+                              (fresh(frozen=1), "frozen"), (lambda: None, "no health record"),
+                              (lambda: {"written_at": "2026-01-01T00:00:00+00:00"}, "too old")):
+            api = FakeApi(kind=kind)
+            try:
+                resize(action, api, health)
+                raise AssertionError(f"{action} went on with {words}")
+            except handler.Refused as refused:
+                assert words in str(refused), (action, words, str(refused))
+            assert all(call[0] == "GET" for call in api.calls)
+
+
+def test_a_refused_type_change_still_powers_the_conductor_on():
+    class Refusing(FakeApi):
+        def __call__(self, method, path, body=None):
+            if method == "PATCH":
+                self.calls.append((method, path, body))
+                raise OSError("the type change was refused")
+            return super().__call__(method, path, body)
+    api = Refusing()
+    try:
+        resize("grow", api)
+        raise AssertionError("a refused type change was taken as done")
+    except OSError:
+        pass
+    assert [call[2] for call in api.calls if call[0] == "POST"] == [{"action": "poweroff"}, {"action": "poweron"}]
 
 
 def test_shrink_of_a_stopped_server_needs_no_record():
