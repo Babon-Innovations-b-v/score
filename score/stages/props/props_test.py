@@ -190,6 +190,30 @@ def test_an_object_filter_narrows_the_loop_rows_and_their_forecast():
             graph.SELECTED.reset(token)
 
 
+def test_a_raw_take_is_finished_on_a_rented_machine_never_here():
+    """2026-10-22: no Blender or bake on the owner's PC. The batch brings takes back raw (--no-finish) and the row
+    finishes each through blender_cloud.run_elsewhere (tools/props/finish_elsewhere.py), the raw take, its camera
+    folder and close-up sent up."""
+    import types
+    import score.stages.props.pixal_row as pixal_row
+    from score.adapters import engines
+    assert '"--no-finish"' in (REPO / "score/stages/props/pixal_row.py").read_text()
+    assert "finish elsewhere" in prop_data.PIXAL_TOOLS
+    calls = []
+    runner = types.SimpleNamespace(run_elsewhere=lambda *args: calls.append(args))
+    kept = engines.machine_runner
+    engines.machine_runner = lambda: runner
+    try:
+        pixal_row.finish_here("crate-t1", pathlib.Path("/close/crate.png"), 12000)
+    finally:
+        engines.machine_runner = kept
+    script, arguments, sent, outputs, classes = calls[0][:5]
+    raw, final, _ = pixal_row.take_files("crate-t1")
+    assert script == REPO / "tools/props/finish_elsewhere.py" and arguments[3:] == ["crate-t1", "--faces=12000"]
+    assert raw in sent and pathlib.Path("/close/crate.png") in sent and outputs == [final], calls
+    assert classes == pixal_row.FINISH_CLASSES
+
+
 def test_no_object_is_code_built():
     """#19, #41: no object of a place's prop data is on the code route (a code object, or a prop object moved to the
     fallback): the code fallback was removed on 2026-10-22, so every object is the shared loop's."""

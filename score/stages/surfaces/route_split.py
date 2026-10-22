@@ -11,7 +11,10 @@ merged_islands), each island one part.
 The colour check comes first, free, the moment the list's one answer is back and before any paid bake or recheck
 (owner, 2026-10-20): each region of every view, from every angle the views row cast, against the finish labelled
 there, its chosen surface's token colour (the list's settings) against the region's median texture colour in that
-view (`colour_faults`). A region over VIEW_DELTA_E makes its take a gap, named, so nothing of it is baked.
+view (`colour_faults`). First a finish whose token lies over VIEW_DELTA_E from what all its regions show takes the
+scene palette's token nearest that colour, its surface kept (`recoloured`, owner 2026-10-22: the list put the
+astronaut's mid-grey jacket in hull-white); then a region over VIEW_DELTA_E makes its take a gap, named, so nothing of
+it is baked.
 
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
@@ -32,7 +35,9 @@ import numpy as np  # noqa: E402
 
 import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
+import palette_library  # noqa: E402
 import route_cast as cast  # noqa: E402
+import route_list  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
@@ -44,6 +49,7 @@ DISAGREE_MOST = 0.01
 # COLOUR_DELTA_E, which round 4's six close-ups measured (right surfaces up to 29.7, wrong from 33.2), not these
 # texture views; the same benchmark on #18 would measure it.
 VIEW_DELTA_E = 32.0
+FINISHES = "finishes.json"  # a split take's finishes as judged (recoloured), the parts row's
 
 
 def model_of(folder):
@@ -138,6 +144,40 @@ def colour_faults(folder, listed):
     return faults, round(worst, 1)
 
 
+def finish_colours(folder, listed):
+    """Each finish's median CIELAB over every region labelled with it in every view, None where none is."""
+    colours, regions = np.load(folder / "colours.npz"), np.load(folder / "regions.npz")
+    found = []
+    for number in range(len(listed["finishes"])):
+        pixels = np.concatenate([colours[view][np.isin(regions[view], [int(region) for region, label in labels.items()
+                                                                       if label == number])]
+                                 for view, labels in listed["labels"].items()])
+        found.append(np.median(cast.lab_of(pixels), axis=0) if len(pixels) else None)
+    return found
+
+
+def recoloured(folder, listed, tokens):
+    """The list's answer with each finish whose token colour lies over VIEW_DELTA_E from what its regions show given
+    the scene palette's token nearest that colour (`tokens`: {token: linear RGB}) when it is nearer: its surface, and
+    so its family, kept, as the parts row takes the nearest surface of a finish's family (finish_parts.
+    checked_finishes). Finishes judged by their own colour, or with no settings, are kept as listed."""
+    finishes = []
+    for finish, seen in zip(listed["finishes"], finish_colours(folder, listed)):
+        if seen is None or own_colour(finish) or finish.get("colour") is None or not finish.get("settings"):
+            finishes.append(finish)
+            continue
+        apart = float(np.linalg.norm(seen - finish_parts.library_lab(finish)))
+        nearest = min(((float(np.linalg.norm(seen - finish_parts.library_lab({"colour": colour}))), token)
+                       for token, colour in tokens.items()), default=(float("inf"), None))
+        if apart <= VIEW_DELTA_E or nearest[0] >= apart:
+            finishes.append(finish)
+            continue
+        finishes.append(dict(finish, settings=dict(finish["settings"], token=nearest[1]),
+                             colour=[round(float(value), 5) for value in tokens[nearest[1]]],
+                             listed_token=finish["settings"]["token"], by="the palette token nearest the views"))
+    return dict(listed, finishes=finishes)
+
+
 def colour_fault(faults):
     """The gap a take's colour faults make, None without one."""
     if not faults:
@@ -167,9 +207,12 @@ def split_saved(out, mesh, folder, angles, found):
                      cast.shading(mesh, faces[view], angles[view])).save(out / f"finish-{view}.png")
 
 
-def split_take(folders, listed, record):
-    """One take split into folders["out"] unless it is a gap; its split.json record. `record` is its views record."""
+def split_take(folders, listed, record, tokens):
+    """One take split into folders["out"] unless it is a gap; its split.json record. `record` is its views record,
+    `tokens` the scene palette's (recoloured); the finishes as judged go into folders["out"]/finishes.json, which the
+    parts row takes over the list's."""
     mesh = model_of(folders["views"])
+    listed = recoloured(folders["views"], listed, tokens)
     count = len(listed["finishes"])
     labelled = per_view(folders["views"], listed["labels"], len(record["regions"]), len(mesh.faces))
     per_map = finishes_only(labelled)
@@ -181,6 +224,7 @@ def split_take(folders, listed, record):
         return {"fault": fault, **found}
     part_of, finish_of = voted_finishes(mesh, votes, count)
     split_saved(folders["out"], mesh, folders["views"], record["views"], (finish_of, part_of))
+    (folders["out"] / FINISHES).write_text(json.dumps(listed["finishes"], indent=1))
     return {"fault": None, **found, "parts": int(part_of.max()) + 1,
             "agreement": finish_parts.agreement(mesh, finish_of, per_map)}
 
@@ -189,8 +233,9 @@ def make_split(inputs, out, seed, params):
     """Every listed take split by finish, or named a gap; split.json."""
     views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
     carried = batch_gaps.of(inputs)
+    tokens = route_list.palette_tokens(palette_library.read(inputs))
     found = {take: split_take({"views": views / take, "out": out / take},
-                              json.loads((listed / f"{take}.json").read_text()), record)
+                              json.loads((listed / f"{take}.json").read_text()), record, tokens)
              for take, record in json.loads((views / "views.json").read_text()).items()
              if (listed / f"{take}.json").exists() and take not in batch_gaps.objects(carried)}
     (out / "split.json").write_text(json.dumps(found, indent=1))

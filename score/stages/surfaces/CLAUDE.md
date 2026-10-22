@@ -65,7 +65,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   2026-10-20), level and cause both or neither, listed in `questions.json`; and a label for each region in each
   view. Split (free): first the colour check, before any paid bake or recheck (owner, 2026-10-20): each region of
   every view from every angle against the finish labelled there, its token's colour against the region's median
-  texture colour in that view (`colour_faults`; glass, glow, light, print and see-through left out); one over
+  texture colour in that view (`colour_faults`; glass, glow, light, print and see-through left out), after a finish
+  whose token lies over `VIEW_DELTA_E` from all its regions took the scene palette's nearest token, its surface kept
+  (`recoloured`, written to `<take>/finishes.json`, which the parts row reads; owner, 2026-10-22); one still over
   `VIEW_DELTA_E` (32, UNMEASURED on the views) makes the take a gap, so nothing of it is baked. Then the labels voted
   across views (`finish_parts.voted`, the front counting double); a seen face no
   label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
@@ -128,8 +130,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   those takes' faults from each row's gate (`stages.BATCH_GATES`). The rows after the views declare a take's raw
   files only where they are there (`surface_data.take_files`), so a gap's missing take stops none of them; the
   cockpit still finds a lost take through `take_patterns`.
-- **A library change re-keys only the rows that read the library** (the route's list, parts, paint, bake, recheck and
-  check: `route_data.library_files`, `surface_data.line_files`); its views and split declare none
+- **A library change re-keys only the rows that read the library** (the route's list, split (its palette
+  tokens), parts, paint, bake, recheck and check: `route_data.library_files`, `surface_data.line_files`); its views declare none
   (`route_data.shape_files`), so a new surface re-asks the list and leaves the renders where they stood. On 2026-10-12 the making folder in `job.json` and card renders that differed run to run made one library change
   re-render every place and re-draw every view map (about EUR 50).
   Before pushing a change, list the rows it moves with `python -m score.stages.moved <base> [<head>]` (code versions
