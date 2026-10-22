@@ -3,8 +3,9 @@ route_split.py, route_views.py, route_recheck.py: the labels, the reply, the key
 (tools/props/cloud; priced on the Google ledger, each request cached by its input's hash).
 
 Each is asked once (the batch rule, #21): no second draw, no second naming, no ask again after a timeout. A call cut
-off mid-way is not free: google_spend counts it at its estimate. Only a refusal (HTTP 429 or 503: the API took no
-work, the flex tier full) is asked again, at most REFUSED_ASKS times. An ask with no usable answer (UNANSWERED: a
+off mid-way is not free: google_spend counts it at its estimate. Only a refusal (HTTP 429, 500, 503 or 504: the
+rate or quota, a failing or overloaded service, the flex tier full) is asked again, at most REFUSED_ASKS times, the
+wait doubling each time. An ask with no usable answer (UNANSWERED: a
 timeout, a lost connection, refused every time, a reply that does not parse) makes its take a gap; any other HTTP
 status (400 a body the API rejects, 401 or 403 a bad key, 404 a wrong model) is a set-up fault, not an output's, and
 stops the row once instead of making every take a gap. A refused send is written to the Google ledger as started
@@ -42,9 +43,10 @@ KEY_SECRET = "gemini-api-key"
 # google_spend, which is in many rows' code versions (closeup, crops, boxes). The flex tier answers slower: Google's
 # flex page asks for client timeouts of 10 minutes or more (read 2026-10-20).
 LIST_TIER, FLEX_TIMEOUT = "flex", 900
-# A refused call (429: rate or quota, 503: no room, the flex tier full) did no work; it is asked again after
-# REFUSED_WAIT seconds, doubling, at most REFUSED_ASKS times in all.
-REFUSED, REFUSED_ASKS, REFUSED_WAIT = (429, 503), 3, 30
+# A refused call (429: rate or quota, 500: an internal fault, 503: no room, the flex tier full, 504: the service's own
+# deadline passed) did no work; it is asked again after REFUSED_WAIT seconds, doubling, at most REFUSED_ASKS times in
+# all (audit, 2026-10-22: a 500 or 504 was a set-up fault that stopped the row).
+REFUSED, REFUSED_ASKS, REFUSED_WAIT = (429, 500, 503, 504), 3, 30
 # The label colours a finish map paints with, in order (finish 1 the first): saturated, far apart, none near the
 # white background or black.
 LABELS = ((230, 25, 25), (20, 170, 40), (30, 70, 235), (245, 215, 0), (215, 0, 215), (0, 200, 215), (255, 125, 0),
@@ -81,7 +83,7 @@ UNANSWERED = (NoAnswer, TimeoutError, ConnectionError, ValueError, KeyError)
 
 
 def generated(model, body, key, timeout, caller, cache, room=None):
-    """google_spend.generate, asked once. A refusal (HTTP REFUSED: rate, quota or a full flex tier) did no work and is
+    """google_spend.generate, asked once. A refusal (HTTP REFUSED: rate, quota, a failing or full service) did no work and is
     asked again after a wait, at most REFUSED_ASKS times in all, `room` (a cap's check, when given) called before
     every send; refused every time, or a connection lost before any status, raises NoAnswer. A timeout reaches the
     caller as it is (the row makes its take a gap): Google may bill a call cut off mid-way, and google_spend counts

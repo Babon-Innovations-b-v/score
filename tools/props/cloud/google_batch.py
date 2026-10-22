@@ -17,11 +17,14 @@ mid-wait picks up the same job and never sends it again. Each answer is priced a
 error, or every request of a job that fails, is cancelled or expires, gets a failed line and is Unanswered for its
 caller: never asked again here; new spend on it is a new batch.
 
-At the send, a refusal that did no work (HTTP 429, 503) is sent again after a wait, at most REFUSED_SENDS times; any
+At the send, a refusal that did no work (HTTP 429, 500, 503, 504) is sent again after a wait that doubles, at most
+REFUSED_SENDS times; any
 other HTTP status is a set-up fault and reaches the caller as it is, its requests failed on the ledger. A send cut
 off (a timeout, a lost connection) leaves every request in it Unanswered: the job may have been made, so it is not
 sent again. A poll that fails costs nothing and is tried again, up to POLL_FAULTS_MOST in a row; past them the error
-reaches the caller, and the next run waits on the same job.
+reaches the caller, and the next run waits on the same job. A poll answered 404 means the job is gone: it is not
+polled again, its requests are failed lines and Unanswered as a failed job's are, and its kept name is dropped (audit,
+2026-10-22: a dead job was polled POLL_FAULTS_MOST times a run, every run).
 """
 import hashlib
 import json
@@ -36,7 +39,8 @@ import google_spend  # noqa: E402
 
 API = "https://generativelanguage.googleapis.com/v1beta"
 INLINE_MOST = 19_000_000  # bytes of requests a job: Google's inline limit is 20 MB
-REFUSED, REFUSED_SENDS, REFUSED_WAIT = (429, 503), 3, 30
+REFUSED, REFUSED_SENDS, REFUSED_WAIT = (429, 500, 503, 504), 3, 30
+GONE = "GONE (the job answered HTTP 404)"
 SEND_TIMEOUT, POLL_TIMEOUT = 300, 60
 POLL_SECONDS = 60
 POLL_FAULTS_MOST = 30
@@ -129,12 +133,19 @@ def started_job(model, chunk, api_key, caller):
 
 def waited(name, api_key):
     """The job's operation once it is done, polled every POLL_SECONDS; a failing poll is tried again, up to
-    POLL_FAULTS_MOST in a row."""
+    POLL_FAULTS_MOST in a row. A job gone (404) is done, in state GONE."""
     faults = 0
     while True:
         try:
             operation = status(name, api_key)
             faults = 0
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return {"name": name, "done": True, "state": GONE}
+            faults += 1
+            if faults >= POLL_FAULTS_MOST:
+                raise
+            operation = {}
         except (urllib.error.URLError, TimeoutError, ConnectionError):
             faults += 1
             if faults >= POLL_FAULTS_MOST:

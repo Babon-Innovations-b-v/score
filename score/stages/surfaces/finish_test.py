@@ -139,6 +139,10 @@ def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_ask
         assert finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False) == "answered"
         assert len(asked) == 3, asked
         asked.clear()
+        google_spend.generate = answering(refusal(500), refusal(504))  # audit, 2026-10-22: these stopped the row
+        assert finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False) == "answered"
+        assert len(asked) == 3, asked
+        asked.clear()
         google_spend.generate = answering(refusal(400))
         try:
             finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False)
