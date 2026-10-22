@@ -27,8 +27,10 @@ stage as each stage is built; nothing moves before.
 - **`python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]`** and **`python -m score
   status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place, an environment stage named with `--place` kept with the place nodes it reads, so `--place people --stage people-look` is the people line and its bodies in one run; `--object <name>` (repeat it) narrows a stage that selects (`Stage.selects`) to those objects of its place, the names in its params as `objects`, so a filtered output has its own key, and `graph.selected()` gives them to its files function, so another object's files neither key nor block it; any other stage runs whole): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
-  most `--jobs` at once (default 8), so a line waiting on a cloud step holds up no other, and an environment node every line
-  reads is made once. Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and
+  most `--jobs` at once (default 8; the cockpit's Buy launches 16, `checkout/pricing.DEFAULT_JOBS`), so a line waiting on a cloud step holds up no other, and an environment node every line
+  reads is made once. It starts no node while this PC's available memory (`/proc/meminfo`), less `MEMORY_FLOOR`
+  (6 GB) for each node started in the last `RAMP_SECONDS`, is under `MEMORY_FLOOR`; it says so once and reads again
+  every `MEMORY_POLL` seconds (the PC has run out of memory before; local nodes measured 0.2-0.3 GB, 2026-10-22). Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and
   `NUMBA_NUM_THREADS` to this PC's cores divided by `--jobs` (at least 1; a smaller value already set stands, an empty one counts as unset, and
   one that is not a whole number above 0 is refused before the run) before its make starts, inside its log (a failed cap
   shows in its fault report), so its children inherit them, and resizes the OpenBLAS pools the drive loaded before it forked; a

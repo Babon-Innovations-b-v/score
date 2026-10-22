@@ -79,6 +79,14 @@ RUNNER_POLL_SECONDS = 2
 # A drive says a heartbeat line (rows done, running and queued, and the run's gauges) every HEARTBEAT seconds, so a run
 # that is alive says so and a quiet log means a dead run (2026-10-16: runs failed or sat idle for hours unseen).
 HEARTBEAT = 120
+# The drive starts no node while this PC's available memory, less MEMORY_FLOOR for each node started in the last
+# RAMP_SECONDS (its memory not taken yet), is under MEMORY_FLOOR; it reads again every MEMORY_POLL seconds. This PC
+# (43 GB) has run out of memory before. Measured 2026-10-22 (peak RSS of the make, imports included): plan@hub 0.21 GB,
+# earth-seed@greenhouse 0.22 GB, the assembly, completion, earth-seed, scene-record and terrain test makes 0.22-0.28
+# GB (a node waiting on a rented machine not measured). 6 GB is far over those, for the nodes not measured yet.
+MEMORY_FLOOR = 6 * 2**30
+RAMP_SECONDS = 60
+MEMORY_POLL = 30
 # The thread-pool variables every node's process sets before its make starts (lowered only: a smaller value the owner
 # set stands), so the libraries first loaded in the node and every child it starts share this PC's cores among the
 # nodes running at once: six nodes each sizing a pool to every core overloaded the PC for hours (C11, 2026-10-17).
@@ -355,6 +363,25 @@ def logged(path):
             for descriptor, copy in zip((1, 2), saved):
                 os.dup2(copy, descriptor)
                 os.close(copy)
+
+
+def available_memory():
+    """This PC's available memory in bytes (MemAvailable of /proc/meminfo)."""
+    with open("/proc/meminfo") as meminfo:
+        for line in meminfo:
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) * 1024
+    raise RuntimeError("/proc/meminfo has no MemAvailable line")
+
+
+AVAILABLE = available_memory  # the tests give a fake reading
+
+
+def memory_room(starts):
+    """True when this PC's available memory, less MEMORY_FLOOR for each node started (`starts`: monotonic times) in
+    the last RAMP_SECONDS, still holds MEMORY_FLOOR for one more node."""
+    ramping = sum(1 for started in starts if time.monotonic() - started < RAMP_SECONDS)
+    return AVAILABLE() - ramping * MEMORY_FLOOR >= MEMORY_FLOOR
 
 
 def node_threads(jobs):
@@ -1312,8 +1339,8 @@ class Runner:
 
     def drive(self, places, say=print, jobs=JOBS, whole=True, only=None, gauges=None):
         """Run every line to its end with no one in the loop, the lines side by side: each node starts in a process of
-        its own the moment every node it reads stands accepted, at most `jobs` at once, so a line waiting on a cloud
-        step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
+        its own the moment every node it reads stands accepted, at most `jobs` at once and only while this PC has
+        memory for one more (memory_room), so a line waiting on a cloud step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report: every node that reads it, directly or through another, is not run, and a node
         on that line that reads nothing of it still runs; {node: what it did}, in table order. `whole` False drives the places'
@@ -1326,7 +1353,9 @@ class Runner:
         on_gaps = set()  # stopped nodes that fail only on their accepted gaps: a stage's `gapped` reads them
         beat_at = time.monotonic() + HEARTBEAT
         threads = node_threads(jobs)
+        starts, told = [], False  # starts: when each node started (memory_room); told: the memory wait was said
         while waiting or running:
+            held = False  # a node ready to start waits for memory
             for stage, place in list(waiting):
                 node, earlier = node_name(stage, place), self.earlier(stage, place)
                 passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}
@@ -1337,14 +1366,27 @@ class Runner:
                     done[node] = f"not run: its line stopped at {waits[0]}"
                     say(f"{node}: {done[node]}")
                 elif stood.union(passes).issuperset(earlier) and len(running) < jobs:
+                    held = held or not memory_room(starts)
+                    if held:
+                        continue
                     waiting.remove((stage, place))
                     running.update(self.start(stage, place, threads))
+                    starts.append(time.monotonic())
+            if held and not told:
+                say(f"memory: {AVAILABLE() / 2**30:.1f} GB available, {len(running)} running; ready nodes wait for "
+                    f"{MEMORY_FLOOR / 2**30:.0f} GB free per node starting")
+            told = held
             if not running:
-                break
+                if not held:
+                    break
+                time.sleep(MEMORY_POLL)  # nothing runs and no room: wait for this PC's memory
+                continue
             if gauges and time.monotonic() >= beat_at:
                 say(heartbeat_line(len(done), len(running), len(waiting), gauges))
                 beat_at = time.monotonic() + HEARTBEAT
             beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None  # no beats: wait for a node alone
+            if held:  # read the memory again within MEMORY_POLL
+                beat_in = MEMORY_POLL if beat_in is None else min(beat_in, MEMORY_POLL)
             for finished in FORK_WAIT(list(running), timeout=beat_in):
                 stage, place, process = running.pop(finished)
                 node = node_name(stage, place)
