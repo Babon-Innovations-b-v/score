@@ -11,13 +11,17 @@ the pixal row declares it, so an edit there would move that paid row's key.
 """
 import importlib.util
 import pathlib
+import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 BATCH = REPO / "tools/props/cloud/batch.py"
 
 
 def load_batch():
-    """batch.py as a module from its file (its own folders go on the path as it imports)."""
+    """batch.py as a module from its file, its own folder on the path first (it imports its siblings, capacity and
+    provider, as a script run there would; its other folders it adds itself)."""
+    if str(BATCH.parent) not in sys.path:
+        sys.path.insert(0, str(BATCH.parent))
     spec = importlib.util.spec_from_file_location("batch", BATCH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

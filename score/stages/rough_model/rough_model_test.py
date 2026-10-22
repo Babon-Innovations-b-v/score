@@ -7,6 +7,8 @@ import hashlib
 import json
 import pathlib
 import struct
+import subprocess
+import sys
 import tempfile
 import types
 
@@ -214,6 +216,15 @@ def test_the_finish_here_holds_one_of_the_pcs_finish_slots_in_the_batchs_interpr
     monkeypatch.setattr(rough_model.subprocess, "run", run)
     rough_model.finish("airlock-rough-0", tmp_path / "K02.png", tmp_path)
     assert ran == [("/props/env/bin/python", ["in"])] and held == ["in", "out"]
+
+
+def test_its_cloud_command_loads_the_batch_as_the_stage_runs_it():
+    """_cloud.py run as its own command (as dispatch runs it) loads batch.py with its sibling modules found; the
+    2026-10-22 benchmark's rough model failed on `No module named 'capacity'` before renting anything. --help rents
+    nothing."""
+    done = subprocess.run([sys.executable, str(cloud.__file__), "--help"], cwd=REPO, capture_output=True, text=True,
+                          timeout=60)
+    assert done.returncode == 0, done.stderr[-2000:]
 
 
 def test_the_batch_check_keeps_the_owner_s_approval_without_the_rows():
