@@ -151,23 +151,23 @@ def site_centre(site):
     return [site["at"][0] + middle[0], 2.0, site["at"][1] + middle[1]]
 
 
-def ground(state, place, surfaces, into, near_m=400.0):
-    """The site and the place from outside: every site of its map within `near_m`, its sun and the worlds in its
-    sky, the ground's colour, and the block the camera goes into at the end."""
+def ground(state, place, surfaces, into, sky, near_m=400.0):
+    """The site and the place from outside under `sky` (its arrival's): every site of its map within `near_m`, its
+    sun and the worlds in its sky, the ground's colour, and the block the camera goes into at the end."""
     world, site = site_of(state, place)
     near = [other for other in world["sites"] if math.dist(other["at"], site["at"]) <= near_m]
-    return {"place": place, "into": into, "sun": sun_way(site["sky"]), "ground_color": surface_colour(surfaces["ground"]),
+    return {"place": place, "into": into, "sun": sun_way(sky), "ground_color": surface_colour(surfaces["ground"]),
             "centre": site_centre(site),
-            "sky": [{**sky, "color": surface_colour(surfaces[sky["world"]])} for sky in site["sky"]["worlds"]
-                    if sky["altitude"] > 0],
+            "sky": [{**shown, "color": surface_colour(surfaces[shown["world"]])} for shown in sky["worlds"]
+                    if shown["altitude"] > 0],
             "sites": [{"place": other["place"], "name": other["name"], "at": other["at"], "blocks": other["blocks"]}
                       for other in near]}
 
 
-def globe(state, place, surfaces):
-    """The world the place's site stands on, the site, and its sun in the site's east, north and up."""
+def globe(state, place, surfaces, sky):
+    """The world the place's site stands on, the site, and its sun under `sky` in the site's east, north and up."""
     world, site = site_of(state, place)
-    return {"name": world["name"], "color": surface_colour(surfaces[world["on"]]), "sun": sun_way(site["sky"]),
+    return {"name": world["name"], "color": surface_colour(surfaces[world["on"]]), "sun": sun_way(sky),
             "site": {"name": site["name"], "latitude": site["latitude"], "longitude": site["longitude"]},
             "on": world["on"]}
 
@@ -194,9 +194,17 @@ def setting_camera(leg, drawn, on):
             "end_tilt_deg": 10.0, "rise_tilt_deg": 28.0}
 
 
-def zoom_legs(state, segment, setting, surfaces, end_day, rate):
-    """A scale zoom's legs as scene.js draws them, top down (a journey's out and across to the next body first)."""
+def zoom_legs(state, segment, setting, surfaces, rate):
+    """A scale zoom's legs as scene.js draws them, top down (a journey's out and across to the next body first), each
+    place at its arrival (`arrival`: the script's `time` for the segment's place, else when its site is lit)."""
     place = segment["shows"]["place"]
+    arrivals = {}
+
+    def arrived(shown):
+        if shown not in arrivals:
+            arrivals[shown] = arrival(state, shown, segment.get("time") if shown == place else None)
+        return arrivals[shown]
+    end_day = arrived(place)[0]
     made = []
     for leg in segment["legs"]:
         layer, seconds = leg["layer"], float(leg["seconds"])
@@ -206,10 +214,11 @@ def zoom_legs(state, segment, setting, surfaces, end_day, rate):
             drawn = system(setting, surfaces, end_day + days * seconds, days, seconds + 1.0, rate)
             shown.update(drawn, camera=setting_camera(leg, drawn, site_of(state, place)[0]["on"]))
         elif layer == "world":
-            shown.update(globe(state, leg.get("place", place), surfaces), from_height=leg.get("from", 4.2),
+            shown.update(globe(state, leg.get("place", place), surfaces, arrived(leg.get("place", place))[1]),
+                         from_height=leg.get("from", 4.2),
                          to_height=leg.get("to", 1.05))
         elif layer in ("site", "place"):
-            shown.update(ground(state, place, surfaces, leg.get("into")), view="ground",
+            shown.update(ground(state, place, surfaces, leg.get("into"), arrived(place)[1]), view="ground",
                          camera=leg.get("camera") or GROUND_PATHS[layer])
             if leg.get("from_place"):
                 shown["from_centre"] = site_centre(site_of(state, leg["from_place"])[1])
@@ -234,6 +243,41 @@ def scene_time(state):
     return day_of(when)
 
 
+# A scale zoom lands where its site is lit (owner, 2026-10-22, #51): its light at least this high over the horizon,
+# looked for hour by hour from the site's scene time over at most this many days (a lunar day is 29.5).
+LIT_DEGREES = 20.0
+LIT_SEARCH_DAYS = 60
+
+
+def sky_at(state, place, day):
+    """The place's site's sky on `day` from the setting (overhead.seen): its brightest light as `sun` (None when it
+    has none) and the other bodies as `worlds`, the shape the environment plan's skies have."""
+    world, site = site_of(state, place)
+    when = (overhead.DAY_ZERO + datetime.timedelta(days=day)).isoformat()
+    seen = overhead.seen(setting_of(state), {**site, "on": world["on"]}, when)
+    if seen is None:
+        raise ValueError(f"no sky at {place!r}: its site has no place on its ground")
+    light = seen["lights"][0] if seen["lights"] else None
+    return {"sun": light and {"azimuth": light["azimuth"], "altitude": light["altitude"]},
+            "worlds": [{"world": body["body"], **{key: value for key, value in body.items() if key != "body"}}
+                       for body in seen["bodies"]]}
+
+
+def arrival(state, place, named=None):
+    """(day, sky) a scale zoom arrives at the place: at `named` (the script's ISO time) when given, else at the first
+    hour from its site's scene time (the plan's, else now) when its sun stands LIT_DEGREES up; refused when there is
+    none within LIT_SEARCH_DAYS."""
+    if named:
+        day = day_of(named)
+        return day, sky_at(state, place, day)
+    start = day_of(site_of(state, place)[1].get("time")) if site_of(state, place)[1].get("time") else scene_time(state)
+    for hour in range(24 * LIT_SEARCH_DAYS):
+        sky = sky_at(state, place, start + hour / 24.0)
+        if sky["sun"] and sky["sun"]["altitude"] >= LIT_DEGREES:
+            return start + hour / 24.0, sky
+    raise ValueError(f"{place!r}: its site is not lit within {LIT_SEARCH_DAYS} days of its scene time; name a time")
+
+
 def setting_of(state):
     """The setting the environment concept holds (its bodies filled from the reference table)."""
     return state["environment_concept"]["concept"]["setting"]
@@ -250,7 +294,7 @@ def scene_for(state, segment, rate):
         leg = {"layer": "setting", "seconds": seconds, "camera": camera, "note": segment.get("note"),
                **system(setting, surfaces, end_day, days, seconds, rate)}
         return {"legs": [leg], "rate": rate}
-    return {"legs": zoom_legs(state, segment, setting, surfaces, end_day, rate), "rate": rate}
+    return {"legs": zoom_legs(state, segment, setting, surfaces, rate), "rate": rate}
 
 
 SCENE_JS = pathlib.Path(__file__).with_name("scene.js")

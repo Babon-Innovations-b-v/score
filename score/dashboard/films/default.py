@@ -8,7 +8,9 @@ from the one before over the ground or out to orbit and in again (the environmen
 distances its skies give), its concept in the corner, round it from outside and into its first rooms. The top scene
 is the site holding the most scenes; its rooms, like every scene's, the first three it holds. Every segment long enough to read what it shows (owner, 2026-10-21: the physics animation
 long enough for a body to go a clear way round its orbit), the target the film's own length. The FILM page opens on
-it until he saves his own; plain Python, the hosted process reads it too.
+it until he saves his own; plain Python, the hosted process reads it too. Its scale zooms name no `time`, so each
+lands where its site is lit (#51: the preview picks the hour through overhead.py, `preview/scenes.arrival`, which
+the hosted process cannot import); a `time` the owner gives a zoom is kept as he named it.
 
     facts  {"world", "title" (the environment's name), "bodies" [body] (the setting's, in its order), "shining"
             [body] (those that shine: drawn by their light, no surface),

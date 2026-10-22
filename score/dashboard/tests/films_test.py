@@ -415,3 +415,18 @@ def test_the_bed_starts_where_its_beats_fall_on_the_cuts_and_a_hum_at_its_start(
                      {"cut": "text", "transition": "cross-fade", "seconds": 3},
                      {"cut": "text", "transition": "fade-through-black", "seconds": 3}])
     assert make.cut_moments(film) == [3.75, 6.5]
+
+
+def test_a_scale_zoom_arrives_where_its_site_is_lit_unless_the_script_names_a_time():
+    """#51: the Square's site at its scene time is on Earth's night side; the zoom lands at the first lit hour."""
+    from score.dashboard.films.preview import scenes
+    from score.review import setting
+    night = "2099-10-01T14:00:00Z"
+    site = {"place": "square", "name": "Square", "latitude": 22.28, "longitude": 114.16, "time": night}
+    state = {"environment_concept": {"concept": {"setting": setting.now()}},
+             "environment_plan": {"plan": {"time": night, "maps": [{"on": "earth", "sites": [site]}]}}}
+    dark = scenes.day_of(night)
+    assert scenes.sky_at(state, "square", dark)["sun"]["altitude"] < 0
+    day, sky = scenes.arrival(state, "square")
+    assert sky["sun"]["altitude"] >= scenes.LIT_DEGREES and 0 < day - dark < 1
+    assert scenes.arrival(state, "square", night) == (dark, scenes.sky_at(state, "square", dark))
