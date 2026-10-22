@@ -650,6 +650,7 @@ class Fleet:
         self.machines = []
         self.done, self.failed, self.finish_failed = [], [], []
         self.why = {}
+        self.slept, self.asleep = threading.Event(), []
         self.lost_cards = 0
         self.unsent = []
         self.job_deadline = job_deadline_seconds()
@@ -679,15 +680,34 @@ class Fleet:
         with self.lock:
             self.lost_cards += machine["cards"]
 
-    def unsent_gaps(self, why):
-        """The jobs no machine took, once none will (no machine left, or the batch's deadline): gaps, for a new batch
-        and a new ask."""
+    def take_unsent(self):
+        """The jobs no machine took, off the queue for good."""
         with self.lock:
             names = [job["name"] for job in self.ready]
             self.ready.clear()
             self.unsent.extend(names)
+        return names
+
+    def unsent_gaps(self, why):
+        """The jobs no machine took, once none will (no machine left, or the batch's deadline): gaps, for a new batch
+        and a new ask."""
+        names = self.take_unsent()
         self.gaps(names, why)
         return names
+
+    def woke(self, since):
+        """Whether this PC was quiet longer than a machine waits for it (QUIET_MINUTES) since `since`: it slept, and
+        every machine deleted itself. Once seen the batch stops, and what it had not made is lost to sleep."""
+        if time.time() - since > QUIET_MINUTES * 60:
+            self.slept.set()
+            self.stop.set()
+        return self.slept.is_set()
+
+    def lose_to_sleep(self, names):
+        """Jobs lost while this PC slept: not gaps (nothing about them failed), so a rerun buys them again; the models
+        already back are kept here and are not made again."""
+        with self.lock:
+            self.asleep.extend(name for name in names if name not in self.asleep)
 
     def arrived(self, machine_folder, name):
         """A raw model is here: move it where pixal.py looks, and finish it while others work."""
@@ -858,8 +878,11 @@ def keep_the_fleet(fleet, found, cards):
     every STOCK_RETRY_MINUTES for the machine types of `found` (the affordable ones) in every zone and rent what has
     come into stock; returns when the work is done and every machine is deleted, or at the deadline."""
     types = {offer.type for offer in found}
-    asked = time.time()
+    asked = looked = time.time()
     while not fleet.stop.is_set() and time.time() < fleet.deadline:
+        if fleet.woke(looked):  # no machine is rented on waking: every one has deleted itself
+            return
+        looked = time.time()
         alive = [machine for machine in list(fleet.machines) if not machine["deleted"]]
         if not alive and fleet.no_more_work():
             return
@@ -893,6 +916,7 @@ def tend(fleet, machine):
     """Run one machine from boot to delete: prepare it, keep its queue topped up, bring its models
     back as they finish, make what it took and never finished gaps, and delete it."""
     folder, sent, finished, stopped = machine["folder"], {}, set(), set()
+    ended = "unfinished when its machine ended"
     try:
         try:
             host = machine["host"] if machine.get("adopted") else boot(machine)  # a parked card answered when taken
@@ -906,6 +930,7 @@ def tend(fleet, machine):
             fleet.lose(machine)
             return
         arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
+        machine["heard"] = time.time()  # its watcher's clock starts here (self_delete.py)
         machine["per_card"] = fleet.per_card or capacity.runs_at_once("pixal", machine["class"])
         prepare(folder, host, machine["per_card"])
         machine["generating_began"] = time.time()
@@ -913,8 +938,9 @@ def tend(fleet, machine):
             f"{machine['per_card']} runs a card")
         room = machine["cards"] * (machine["per_card"] + 1)
         closed = False
-        ended = "unfinished when its machine ended"
         while not fleet.stop.is_set() and time.time() < fleet.deadline:
+            if fleet.woke(machine["heard"]):
+                break
             while len(sent) - len(finished) < room:
                 job = fleet.next_job()
                 if job is None:
@@ -925,6 +951,7 @@ def tend(fleet, machine):
                 remote(folder, host, "touch /root/batch/closed", check=True)
                 closed = True
             heartbeat(folder, host)
+            machine["heard"] = time.time()
             status = machine_status(folder, host)
             machine["status"] = status
             finished |= collect(fleet, folder, host, status, finished)
@@ -942,10 +969,14 @@ def tend(fleet, machine):
         ended = f"its machine {folder.name} broke ({error})"
     finally:
         lost = sorted(set(sent) - finished)
-        if lost:
-            say(f"{folder.name} ended with {len(lost)} job{'s' if len(lost) != 1 else ''} unfinished, gaps: "
-                f"{', '.join(lost)} ({ended})")
-        fleet.gaps(lost, ended)
+        if fleet.woke(machine.get("heard") or time.time()):
+            say(f"{folder.name}: this PC slept past its self-delete; lost to sleep, for a rerun: {', '.join(lost)}")
+            fleet.lose_to_sleep(lost)
+        else:
+            if lost:
+                say(f"{folder.name} ended with {len(lost)} job{'s' if len(lost) != 1 else ''} unfinished, gaps: "
+                    f"{', '.join(lost)} ({ended})")
+            fleet.gaps(lost, ended)
         delete_machine(machine)
 
 
@@ -1063,6 +1094,7 @@ def ledger_entry(fleet, models, started):
             **ledger.machines_record(fleet.machines, fleet.attempts, started), "models": len(models),
             "models_done": len(fleet.done), "gaps": sorted(fleet.failed),
             "gap_reasons": {name: fleet.why.get(name) for name in sorted(fleet.failed)},
+            "lost_to_sleep": sorted(fleet.asleep),
             "unsent": sorted(fleet.unsent), "card_minutes": card_minutes,
             "wall_minutes": (time.time() - started) / 60, "job_seconds": job_seconds}
 
@@ -1134,13 +1166,19 @@ def run(models, options, account, found, cards, allowed_minutes):
         fleet.stop.set()
         for machine in fleet.machines:
             delete_machine(machine)
-        if time.time() >= fleet.deadline:
+        if fleet.slept.is_set():
+            fleet.lose_to_sleep(fleet.take_unsent())
+        elif time.time() >= fleet.deadline:
             fleet.unsent_gaps("not sent before the batch's deadline")
         entry = ledger_entry(fleet, models, started)
         ledger.record(entry)
         report(entry)
         fleet.finishers.shutdown(wait=True)
     say_what_failed(fleet, folder)
+    if fleet.slept.is_set():
+        raise SystemExit(f"{len(fleet.asleep)} job{'s' if len(fleet.asleep) != 1 else ''} lost while this PC slept "
+                         f"past the machines' {QUIET_MINUTES} min self-delete ({', '.join(sorted(fleet.asleep))}): "
+                         "not gaps; run the batch again for them, the models already here are not made again")
 
 
 def say_what_failed(fleet, folder):

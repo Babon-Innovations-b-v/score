@@ -152,7 +152,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks
   (`~/.farm-factory-props/cloud/self_delete_key.json`, never in the repo). Tested 2026-09-29 by
-  killing a runner: the machine was gone 2.5 min after its last heartbeat at a 2 min limit.
+  killing a runner: the machine was gone 2.5 min after its last heartbeat at a 2 min limit. When this PC sleeps past
+  that limit, the Pixal3D fleet sees it on waking (`Fleet.woke`: a machine's last heartbeat older than QUIET_MINUTES),
+  stops, records the jobs it had not made as `lost_to_sleep` (never gaps: nothing about them failed) and exits non-zero,
+  so the row runs again and buys only those; the models already back are not made again (audit, 2026-10-22).
 - **Delete only what is checked as ours:** every server, address and disk is compared by its own
   account field, never trusted from a list filter; the provider account may hold other projects'
   machines. Loose addresses and disks are swept only while no batch runs.
