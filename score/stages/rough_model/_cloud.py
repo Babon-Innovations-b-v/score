@@ -29,10 +29,12 @@ def load_batch():
 
 
 def concept_check(batch):
-    """batch.from_the_inventory without its rows: each inventory approved."""
+    """batch.from_the_inventory without its rows: each inventory approved (batch.built_from: a designed place's
+    hand-in by the creator's lock, else page A's approval). Fault (2026-10-22 benchmark): the page A check alone
+    refused the greenhouse's hand-in for page A's row shape."""
     def approved(models, paths):
         for path in paths:
-            batch.inventories.approved_inventory(path)
+            batch.built_from(path)
     return approved
 
 

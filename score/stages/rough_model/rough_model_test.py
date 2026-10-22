@@ -231,10 +231,15 @@ def test_the_batch_check_keeps_the_owner_s_approval_without_the_rows():
     """The rough model is on no inventory row; the batch's own check is replaced by its approval half alone, and the
     batch's command still looks that check up by name, so the replacement takes."""
     asked = []
-    batch = types.SimpleNamespace(
-        inventories=types.SimpleNamespace(approved_inventory=lambda path: asked.append(path) or {"place": "lab"}))
+    batch = types.SimpleNamespace(built_from=lambda path: asked.append(path) or {"place": "lab"})
     cloud.concept_check(batch)([object()], ["data/inventory/lab.json"])
     assert asked == ["data/inventory/lab.json"]
+    loaded = cloud.load_batch()
+    with tempfile.TemporaryDirectory() as folder:  # a hand-in: page A's row shape is never asked of it
+        hand_in = pathlib.Path(folder) / "greenhouse.json"
+        hand_in.write_text(json.dumps({"scene": "greenhouse", "approved": {"by": loaded.DESIGNED},
+                                       "rows": [{"id": "moon", "anchor": "sky"}]}))
+        cloud.concept_check(loaded)([object()], [str(hand_in)])
     assert "        from_the_inventory(models, options.inventory)\n" in cloud.BATCH.read_text()
 
 
