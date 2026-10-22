@@ -1,0 +1,12 @@
+# The conductor's health, every minute (score-health.timer): score.conductor's own record (`health --write`, its
+# failure ignored so the push below still runs), then the shrink guard's record pushed to the backup bucket
+# (tools/cloud/conductor/health_push.py), which the size function reads before it shrinks the machine.
+[Unit]
+Description=SCORE conductor: write and push the health record
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/projects/score
+EnvironmentFile=-%h/.config/score/dashboard.env
+ExecStart=-%h/projects/score/.venv/bin/python -m score.conductor health --write
+ExecStart=/usr/bin/python3 -I %h/projects/score/tools/cloud/conductor/health_push.py

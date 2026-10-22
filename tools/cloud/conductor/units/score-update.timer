@@ -1,0 +1,10 @@
+# Runs score-update.service every 5 minutes.
+[Unit]
+Description=SCORE conductor: follow the cockpit's pin every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

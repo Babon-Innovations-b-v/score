@@ -572,6 +572,17 @@ The people line needs nothing installed here: every environment it runs is set u
 (`tools/props/cloud/characters_setup.sh`); it reads the secret `hf-read-token` (an account that accepted Meta's terms
 for `meta-llama/Meta-Llama-3-8B-Instruct`, Kimodo's text encoder's base).
 
+**The conductor** (`tools/cloud/conductor`, its overlay) is the store's machine as one Scaleway CPU machine of our
+own instead of this PC: the owner runs `python3 tools/cloud/conductor/machine.py up` once from his terminal (it
+costs money; `machine.py price` gives the month, `machine.py dry` checks it all for free). Cloud-init and `boot.sh`
+make user `score` with linger, mount the data volume at `/home/score/.farm-factory-props` (so `PROPS_HOME` keeps its
+default), install restic, uv, scw and the Google Cloud CLI pinned by SHA-256, clone this repository over https,
+`uv sync`, and install the units in `tools/cloud/conductor/units/` (`score-resume`, `score-secrets`,
+`score-update`, `score-health`, and the other areas' own). Its one credential on disk is
+`/home/score/.config/scw/config.yaml` (mode 600, a scoped IAM key `up` pipes over ssh); every other secret is read by
+name, the file-shaped ones to tmpfs only. Agents reach it only through the door (`agent_door.py`), never a shell.
+`score-resume.service` is the one template for the PC too (`tools/cloud/conductor/units/`).
+
 **What survives a wipe:** everything in git, the bucket, score_lib and, once the store lives on the conductor, the
 restic backup repository (`architecture/failure`: `PROPS_HOME` to within 30 minutes). **What does not:** Claude's memory, `gh` auth,
 local toolchains, `PROPS_HOME` (`architecture/failure`) and anything left uncommitted.
@@ -588,3 +599,4 @@ Names and numbers a session cannot derive. Secrets live in a secret store; only 
 | Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; Google's bill read from the billing export table named by `SCORE_GOOGLE_BILLING_TABLE`, else `$PROPS_HOME/cloud/google-billing-table` |
 | Secrets | read by name with `secret_store.secret(name)`: the environment variable `SCORE_SECRET_<NAME>`, else the backend's store (Scaleway Secret Manager): `gemini-api-key`, `worldlabs-api-key`, `hf-read-token`, `freesound-api-key` (optional); read through `SCORE_SECRET_READER` (an executable outside the repo printing the secret its argument names): `score-cockpit-sync-token`, `score-backup-restic-password` (the store's backup repository, `score/store/backup`) |
 | Store backups | restic repository named by `SCORE_BACKUP_REPO` (in the env file outside the repo); snapshots of the move tagged `pc-final`; the store's machine identity `$PROPS_HOME/machine.json` |
+| Conductor | the store's machine in the cloud (`tools/cloud/conductor`): Scaleway project named by `SCORE_CONDUCTOR_PROJECT` (default `score-conductor`), zone fr-par-2, server, volumes, IP and security group named or tagged `score-conductor` (never `farm-factory-batch`), data volume `score-conductor-data`, backup bucket `SCORE_CONDUCTOR_BUCKET` (default `score-conductor-backup`, nl-ams), size function `score-conductor-size`, user `score` (uid 1100); its secrets by name in the project named `SCORE_SECRETS_PROJECT`: `score-conductor-size-token` (the size function's caller token), `score-conductor-size-key` (the size function's own Scaleway key, JSON), `score-lib-deploy-key` and `google-billing-reader` (written only to tmpfs, `/run/user/1100/score`) |

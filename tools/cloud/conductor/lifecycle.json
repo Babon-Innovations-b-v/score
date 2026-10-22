@@ -1,0 +1,10 @@
+{
+  "Rules": [
+    {
+      "ID": "noncurrent-30-days",
+      "Status": "Enabled",
+      "Filter": {"Prefix": ""},
+      "NoncurrentVersionExpiration": {"NoncurrentDays": 30}
+    }
+  ]
+}
