@@ -41,7 +41,10 @@ def loop_ends(folder):
         row["id"]: {"route": "prop"} for row in rows}}))
     (ends["surfaces-bake"] / "baked.json").write_text(json.dumps({"player-work": {"parts": "pp-player"}}))
     (ends["surfaces-bake"] / "labelled" / "pp-player").mkdir(parents=True)
-    np.savez(ends["surfaces-bake"] / "labelled" / "pp-player" / "pp-player.npz", points=np.zeros((1, 3)))
+    np.savez(ends["surfaces-bake"] / "labelled" / "pp-player" / "pp-player.npz", points=np.zeros((1, 3)),
+             names=np.array(["navy_twill__navy_r080_m000_s7"]), surface=np.zeros(1, int))
+    (ends["surfaces-bake"] / "specs.json").write_text(json.dumps({
+        "navy_twill__navy_r080_m000_s7": {"library": "navy_twill", "metal": 0.0}, "steel": {"library": "steel"}}))
     (ends["surfaces-parts"] / "parts.json").write_text(json.dumps({"takes": {
         "pp-player": {"parts": [{"part": 0, "surface": "navy_twill"}]}}}))
     return ends
@@ -61,6 +64,9 @@ def test_the_loop_hands_each_look_on_and_names_its_gap():
         assert (out / found["player-work"]["labelled"]).exists() and "no baked model" in found["nev-space"]["gap"]
         assert found["player-work"]["failures"] == {"take": "made before the loop"}, found  # named, never silent
         assert found["player-work"]["model"].endswith("made/player-work.gltf"), found
+        # the surfaces with the list's settings the bake painted, resolved from its specs.json for the dress
+        assert found["player-work"]["specs"] == {"navy_twill__navy_r080_m000_s7": {"library": "navy_twill",
+                                                                                   "metal": 0.0}}, found
         stored = out / found["player-work"]["files"]  # the take's files kept in the store (#26)
         assert (stored / "pp-player.svviews" / "input.png").read_bytes() == b"the close-up", found
         laid = pathlib.Path(held) / "laid"
@@ -245,6 +251,21 @@ def test_a_wrist_with_no_hand_piece_is_no_join_and_one_with_a_hand_not_measured_
                 "<I", len(text)) + b"JSON" + text + struct.pack("<I", 0) + b"BIN\x00")
             judged = bodies.judge_joins(output, {}, {})
             assert judged.answer == answer, (hand, judged)
+
+
+def test_a_material_drawn_by_two_primitives_is_one_surface():
+    """The route draws its under layer in its garment's material (2026-10-22): dress chooses that material's surface
+    from all its points together, not from whichever primitive came last."""
+    blob = np.arange(12, dtype=np.float32).tobytes()
+    rest = len(blob).to_bytes(4, "little") + b"BIN\x00" + blob
+    document = {"bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 24},
+                                {"buffer": 0, "byteOffset": 24, "byteLength": 24}],
+                "accessors": [{"bufferView": 0, "componentType": 5126, "count": 2, "type": "VEC3"},
+                              {"bufferView": 1, "componentType": 5126, "count": 2, "type": "VEC3"}],
+                "meshes": [{"primitives": [{"material": 3, "attributes": {"POSITION": 0}},
+                                           {"material": 3, "attributes": {"POSITION": 1}}]}]}
+    found = dress.material_points(document, rest, {"mesh": 0})
+    assert list(found) == [3] and found[3].shape == (4, 3), found
 
 
 def test_clearance_eases_out_and_back():

@@ -68,12 +68,18 @@ def surface_of_points(points, painted_points, painted_names):
     return str(names[counts.argmax()]), float(np.median(distance))
 
 
-def painted_take(inputs, look):
-    """The look's labelled take the loop's bake painted, as people-made@people handed it on; Blocked with the loop's
-    gap when it made the look none."""
+def handed_on(inputs, look):
+    """The look's folder and entry as people-made@people handed it on; Blocked with the loop's gap when it made the
+    look none."""
     handed = pathlib.Path(inputs[f"{bodies.MADE}@{bodies.LINE}"])
     bodies.refused_on_gap(handed, look)
-    return handed / json.loads((handed / "made.json").read_text())[look]["labelled"]
+    return handed, json.loads((handed / "made.json").read_text())[look]
+
+
+def painted_take(inputs, look):
+    """The look's labelled take the loop's bake painted."""
+    handed, entry = handed_on(inputs, look)
+    return handed / entry["labelled"]
 
 
 def outfit_node(document):
@@ -83,6 +89,17 @@ def outfit_node(document):
     if len(found) != 1:
         raise RuntimeError(f"the body has {len(found)} skinned outfit nodes, not one")
     return found[0]
+
+
+def material_points(document, rest, outfit):
+    """{material: the bind points of every primitive of the outfit drawn in it}: a material is one surface, so its
+    points together choose it (the route's under layer is drawn in its garment's material, under that garment)."""
+    found = {}
+    for primitive in document["meshes"][outfit["mesh"]]["primitives"]:
+        points = positions(document, rest, primitive["attributes"]["POSITION"])
+        number = primitive["material"]
+        found[number] = np.concatenate([found[number], points]) if number in found else points
+    return found
 
 
 def make_dress(inputs, out, seed, params):
@@ -96,27 +113,27 @@ def make_dress(inputs, out, seed, params):
     with np.load(painted_take(inputs, name.removeprefix("people-body-"))) as stored:
         painted = stored["low"] + stored["points"].astype(np.float64) / 65535 * (stored["high"] - stored["low"])
         painted_names = stored["names"][stored["surface"]]
-    surfaces = library_surfaces()
+    surfaces = {**library_surfaces(), **handed_on(inputs, name.removeprefix("people-body-"))[1]["specs"]}
     document, rest = read_glb(body / "body.glb")
     outfit = outfit_node(document)
     record = {"take": look["take"], "outfit": look["outfit"], "surfaces": {}}
-    for primitive in document["meshes"][outfit["mesh"]]["primitives"]:
-        material = document["materials"][primitive["material"]]
-        points = positions(document, rest, primitive["attributes"]["POSITION"])
+    for number, points in material_points(document, rest, outfit).items():
+        material = document["materials"][number]
         finished = ((points - shift) / scale) @ turn
         name, apart = surface_of_points(finished, painted, painted_names)
         role = material.get("extras", {}).get("role")
+        key = f"{material['name']}#{number}"
         if role == "hair":  # hair stays on its own route (owner, 2026-10-11): the build's colour, no library paint
-            record["surfaces"][material["name"]] = {"library": None, "route": "hair", "role": role, "known": True,
-                                                    "median_m": round(apart * scale, 4)}
+            record["surfaces"][key] = {"library": None, "route": "hair", "role": role, "known": True,
+                                       "median_m": round(apart * scale, 4)}
             continue
         painted_name = name
         if params.get("surface") and surfaces.get(name, {}).get("family") == "fabric" and \
                 not material.get("extras", {}).get("print"):
             name = params["surface"]
         spec = surfaces.get(name)
-        record["surfaces"][material["name"]] = {"library": name, "median_m": round(apart * scale, 4), "role": role,
-                                                "known": spec is not None, "painted": painted_name}
+        record["surfaces"][key] = {"library": name, "median_m": round(apart * scale, 4), "role": role,
+                                   "known": spec is not None, "painted": painted_name}
         if spec is None:
             continue
         material.setdefault("extras", {})["library"] = name
@@ -124,7 +141,7 @@ def make_dress(inputs, out, seed, params):
         if not material["extras"].get("print"):
             shading["baseColorFactor"] = [float(value) for value in spec["colour"][:3]] + [1.0]
         shading["roughnessFactor"] = float(spec.get("roughness", 0.85))
-        shading["metallicFactor"] = float(spec.get("metallic", 0.0))
+        shading["metallicFactor"] = float(spec.get("metal", 0.0))
     write_glb(out / "body.glb", document, rest)
     done = subprocess.run([sys.executable, str(REPO / "tools/characters/skel_usd.py"), str(out / "body.glb"), "--out",
                            str(out / "usd")], capture_output=True, text=True)

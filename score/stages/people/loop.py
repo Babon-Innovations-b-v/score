@@ -4,7 +4,8 @@ line `people`, which no place owns (shapes_first/align.NO_PLACE). Every look is 
 likeness gate; a step made outside the loop is a named failure in the row's record (`failures`), handed on with it.
 This row reads the loop's ends (made.ENDS) and pixal@people, and hands each look on: made.json, {look: {"take",
 "model" (the loop's baked model), "finishes" (its surfaces-parts part rows), "labelled" (its painted samples,
-labelled/<take>.npz), "files" (takes/<take>/: its raw and finished Pixal3D model and its close-up, the bytes
+labelled/<take>.npz), "specs" (each library surface the bake painted on it, with its settings, as the bake's
+specs.json holds it), "files" (takes/<take>/: its raw and finished Pixal3D model and its close-up, the bytes
 pixal@people's takes.json names), "failures"} or {"gap": <why>}}, and each labelled take the bake painted, so the dress
 rows (dress.py) lay its library surfaces on the look's body and the body rows build from the take the store keeps,
 never the work folder (#26: it was lost on 2026-10-19).
@@ -16,6 +17,8 @@ never the others'.
 import json
 import pathlib
 import shutil
+
+import numpy as np
 
 import score.stages.props.pixal_row as pixal_row
 import score.stages.shapes_first.made as made
@@ -50,7 +53,15 @@ def handed(found, bake, made_takes, out):
     for path in pixal_row.take_files(take):
         (shutil.copytree if path.is_dir() else shutil.copyfile)(path, files / path.name)
     return {"take": take, "model": found["model"], "finishes": found["finishes"], "labelled": f"labelled/{take}.npz",
-            "files": f"{TAKES}/{take}", "failures": found["failures"]}
+            "specs": painted_specs(bake, labelled), "files": f"{TAKES}/{take}", "failures": found["failures"]}
+
+
+def painted_specs(bake, labelled):
+    """{library surface: its spec} of every surface the bake painted on the labelled take: a surface with the list's
+    settings is named for them (route_settings.settings_name), so only the bake's specs.json resolves it."""
+    specs = json.loads((pathlib.Path(bake) / "specs.json").read_text())
+    with np.load(labelled) as stored:
+        return {str(name): specs[str(name)] for name in stored["names"]}
 
 
 def take_faults(take, made_takes):
