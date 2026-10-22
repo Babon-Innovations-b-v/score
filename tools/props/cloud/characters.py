@@ -43,7 +43,7 @@ from provider import cloud  # noqa: E402
 KIND = "characters"
 REMOTE = pathlib.PurePosixPath("/root/make")
 # What of the repository the chain needs up there.
-SHIPPED = ("tools", "vendor/kimodo", "vendor/sam3dbody-cpp", "data/characters")
+SHIPPED = ("tools", "vendor/kimodo", "vendor/sam3dbody-cpp")  # data/characters retired (37b54b3b): rsync failed on it
 # Measured (paper/evidence/cloud/ledger.jsonl, the characters runs of 2026-10-09 on L4s): a machine's set-up took 14.1
 # min at the median of 36 (24.8 at the longest); one person's chain 33 min at the median of 38 chains and 43.3 at the
 # longest, so 43 a person (the chain's high) sizes the fleet and the estimate. The run's deadline is not these: it is
