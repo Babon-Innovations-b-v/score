@@ -11,9 +11,10 @@ scene time (score/review/overhead.py on the inputs score/review/scene_sky.py kee
     backdrops  a dome a dome light of its lux and kelvin, a skyline its record (its look is a library item to come),
                /<scene>/Sky/Backdrops/<key>
 
-A ball is painted with its library surface (`<body>_disc` for a shining body, `<body>_face` for another) where the
-library holds it; one it does not is named on the ball (`score:surface:missing`) for the library check, never
-painted grey. The scene's frame is the plan's: x east, y up, z south, its middle at the site.
+A ball is painted with its surface (`<body>_disc` for a shining body, `<body>_face` for another): a framework look
+(shaders.LOOKS: the Earth's NASA surface) first, else a body's face as its `body-face-<body>` row made it (`faces`,
+score/stages/surfaces/body_faces.py; never read by a library name), else the library's where the library holds it;
+one with none is named on the ball (`score:surface:missing`) for the library check, never painted grey. The scene's frame is the plan's: x east, y up, z south, its middle at the site.
 
 The old sky the seed or the record drew (its suns, its sun discs, the Moon's pictures, the star field, a world hung
 as structure) is turned off in the layer (`retired`), so the physics' sky is the only one.
@@ -24,7 +25,8 @@ site: the light layer's gate "sky bodies".
     kept_input(place) -> {name: path pattern}      the scene's kept sky, declared when it exists
     seen_of(kept) -> overhead.seen(...) | None
     risen(seen) -> seen with only the lights over the horizon
-    write(stage, place, seen, out=None) -> {lights, bodies, backdrops}
+    faces_of(inputs) -> {body: its face.json}      the accepted body faces among a node's inputs
+    write(stage, place, seen, out=None, faces=None) -> {lights, bodies, backdrops}
     held(stage, place) -> {lights, bodies, backdrops}
     faults(seen, held) -> [str]
 """
@@ -44,6 +46,7 @@ import scene  # noqa: E402
 import shaders  # noqa: E402
 
 KEPT = "{home}/design/sky/{place}.json"
+FACE_ROW = "body-face-"  # a body's face row (score/stages/surfaces/body_faces.py PREFIX), which the light layer reads
 # How far out a ball of the sky hangs, metres: past every scene's ground and inside every view's far clip (the old
 # Moon squares and star field hung 1800 to 1900 m out).
 SKY_DISTANCE = 1800.0
@@ -108,10 +111,36 @@ def tagged(prim, values):
             prim.CreateAttribute(f"score:{key}", types[type(value)]).Set(value)
 
 
-def painted(stage, prim, place, surface, out):
-    """The ball painted with its library surface where the library holds it, else that surface named as missing."""
+def faces_of(inputs):
+    """{body: its face (face.json)} of every body face row among a node's inputs."""
+    return {name[len(FACE_ROW):]: json.loads((pathlib.Path(path) / "face.json").read_text())
+            for name, path in inputs.items()
+            if name.startswith(FACE_ROW) and (pathlib.Path(path) / "face.json").is_file()}
+
+
+def face_material(stage, place, face):
+    """A body's face as its row made it: a flat UsdPreviewSurface under /<place>/Looks (its token's colour, roughness
+    and metal; its recipe, token, family and row ride along)."""
+    from pxr import Gf, Sdf, UsdShade
+    path = f"/{place}/Looks/{face['surface']}"
+    material = UsdShade.Material.Define(stage, path)
+    shader = UsdShade.Shader.Define(stage, f"{path}/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*face["colour"]))
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(face["roughness"]))
+    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(face["metal"]))
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    for key, value in (("recipe", face["recipe"]), ("token", face["token"]), ("family", face["family"]),
+                       ("from", f"{FACE_ROW}{face['body']}")):
+        material.GetPrim().CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(str(value))
+    return material
+
+
+def painted(stage, prim, place, surface, out, face=None):
+    """The ball painted with its surface: a framework look, else the body's face (`face`, its row's), else the
+    library's where the library holds it, else that surface named as missing."""
     from pxr import UsdShade
-    material = shaders.look(stage, place, surface, out) or \
+    material = shaders.look(stage, place, surface, out) or (face and face_material(stage, place, face)) or \
         UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Library/{surface}"))
     tagged(prim, {"surface": surface})
     if material:
@@ -152,10 +181,11 @@ def write_light(stage, place, light, out):
     return found
 
 
-def write_body(stage, place, body, out):
-    """Another body overhead as a ball at its true direction and size, its phase lit by the scene's own lights."""
+def write_body(stage, place, body, out, face=None):
+    """Another body overhead as a ball at its true direction and size, its phase lit by the scene's own lights,
+    painted with its face (`face`: its body face row's, None while that waits)."""
     prim = ball(stage, f"/{place}/Sky/Bodies/{body['body']}", body["azimuth"], body["altitude"], body["across"])
-    painted(stage, prim, place, f"{body['body']}_face", out)
+    painted(stage, prim, place, f"{body['body']}_face", out, face)
     tagged(prim, {"kind": "sky body", "sky:body": body["body"], "sky:lit": float(body["lit"]), "from": FROM})
     return {"body": body["body"], "path": str(prim.GetPath()), "surface": f"{body['body']}_face"}
 
@@ -178,16 +208,17 @@ def write_backdrop(stage, place, backdrop):
     return {"name": backdrop["name"], "path": path, "shape": backdrop["shape"]}
 
 
-def write(stage, place, seen, out=None):
+def write(stage, place, seen, out=None, faces=None):
     """The scene's sky from what is overhead (overhead.seen's answer; its lights the risen ones) into the stage's edit
-    target; what was written."""
+    target, each body painted with its face (`faces`: faces_of's); what was written."""
     from pxr import UsdGeom
     seen = risen(seen)
     UsdGeom.Scope.Define(stage, f"/{place}/Sky")
     for group in ("Bodies", "Backdrops"):
         UsdGeom.Scope.Define(stage, f"/{place}/Sky/{group}")
     return {"lights": [write_light(stage, place, light, out) for light in seen["lights"]],
-            "bodies": [write_body(stage, place, body, out) for body in seen["bodies"]],
+            "bodies": [write_body(stage, place, body, out, (faces or {}).get(body["body"]))
+                       for body in seen["bodies"]],
             "backdrops": [write_backdrop(stage, place, backdrop) for backdrop in seen["backdrops"]]}
 
 

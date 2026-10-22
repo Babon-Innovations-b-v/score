@@ -108,12 +108,13 @@ def applies(place):
 
 def make_layer(inputs, out, seed, params):
     """The place's light layer over its stage as the assembly lays it before its layers (passes.source: the seed with
-    its accepted scene record), its sky from the physics over its site (its kept sky, `sky` input), and lamps.json
-    (each lamp, its strength there, whether it has a shaft)."""
+    its accepted scene record), its sky from the physics over its site (its kept sky, `sky` input) with each body's
+    face its `body-face-<body>` row made (read while it stands), and lamps.json (each lamp, its strength there,
+    whether it has a shaft)."""
     place = place_of(inputs)
     stage = passes.source(place, inputs, out / "source")
     found = layer.write(place, passes.record_of(place, inputs), stage, out, sky.read(inputs["sky"]) if "sky" in inputs
-                        else None)
+                        else None, sky.faces_of(inputs))
     record = passes.record_of(place, inputs)
     if not found["lamps"] or not (record.get("environment") or {}).get("inside"):
         found["lamps"] += sun_lamps(place, out, stage)

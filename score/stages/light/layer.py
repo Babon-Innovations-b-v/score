@@ -239,15 +239,15 @@ def planned_ground(place):
     return grounds.place_ground(place, [0.0, 0.0])
 
 
-def write_sky(stage, place, record, out, kept=None):
+def write_sky(stage, place, record, out, kept=None, faces=None):
     """The scene's sky from the environment concept's physics (sky.py: what is overhead at its site at its scene time,
-    from its kept sky inputs; the old sky turned off first), and the air the record holds where the seed lacks it: the
+    from its kept sky inputs, each body painted with its face, `faces`; the old sky turned off first), and the air the record holds where the seed lacks it: the
     environment and its haze when the seed has none, the day dome scattered from the physics' brightest light, the
     floodlights' shafts. What was written, by name; `physics` None while the scene's sky is not known."""
     from pxr import UsdGeom
     environment = {key: value for key, value in (record.get("environment") or {}).items() if key != "stars"}
     seen = sky.seen_of(kept)
-    done = {"retired": sky.retired(stage, place), "physics": sky.write(stage, place, seen, out) if seen else None}
+    done = {"retired": sky.retired(stage, place), "physics": sky.write(stage, place, seen, out, faces) if seen else None}
     done["earth"] = earth_face_baked(stage, place, done["physics"], out)
     if environment and not stage.GetPrimAtPath(f"/{place}/Environment"):
         scene.write_environment(stage, place, environment)
@@ -278,8 +278,8 @@ def pictures_moved(out, layer):
     layer.ImportFromString(text)
 
 
-def write(place, record, seed_folder, out, kept=None):
-    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lamps, its sky from the physics (`kept`: its kept sky inputs, scene_sky.py), and the glow of the
+def write(place, record, seed_folder, out, kept=None, faces=None):
+    """The place's light layer over its seed, and what it holds (lamps.json's content): the record's lamps, its sky from the physics (`kept`: its kept sky inputs, scene_sky.py; `faces`: the bodies' faces, sky.faces_of), and the glow of the
     record's environment (its body's night air, the sky record's) on the place's sky."""
     from pxr import Sdf, Usd
     out = pathlib.Path(out)
@@ -292,7 +292,7 @@ def write(place, record, seed_folder, out, kept=None):
     stage.SetEditTarget(Usd.EditTarget(layer))
     placed = placed_lamps(stage, place, record)
     fixtures = lamps_through_fixtures(stage, place)
-    sky_written = write_sky(stage, place, record, out, kept)
+    sky_written = write_sky(stage, place, record, out, kept, faces)
     glow = (record.get("environment") or {}).get("glow")
     if glow and stage.GetPrimAtPath(f"/{place}/Environment"):
         scene.write_glow(stage.GetPrimAtPath(f"/{place}/Environment"), glow)

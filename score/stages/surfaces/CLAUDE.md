@@ -92,6 +92,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   library surface fits" names it (`gate:finish-route-recheck/library surface fits:<take>`), Gemini's token,
   roughness and metal kept as the gap's `suggested`, never applied. The list's settings never edit
   materials.json.
+- **The bodies' faces are environment rows, one a body** (`body_faces.py`, `body-face-<body>`, paid, 2026-10-22: score_lib
+  withdrew every old surface, so nothing made `earth_face` and the like): each body of the environment concept's
+  setting that does not shine gets one Gemini 3.1 Pro ask in the Batch API, from the concept in force alone (its style
+  line, the body's physics filled from `data/physics/bodies.json`), answered as its own palette and one recipe variant
+  `<body>_face` of the method (face.json, materials.json). The light layer's sky (`light/sky.py faces_of`) and the
+  films (`body_faces` in the cockpit state) read that output, never a library name. Guess-priced from surface-library's
+  one measured ask until a face run is measured. Wired in `score/stages/__init__.py` (`BODY_FACES`), so no surface row's
+  code version moves.
 - **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). The finish
   route's asks go as one Batch API job a row run (`google_batch.py`: a started line each before the send, the job's
   name kept so a run cut off mid-wait picks up the same job, never sends it again; a failed, cancelled or expired
