@@ -97,6 +97,54 @@ def set_books_figure(user, euros):
     return f"books known for {books['month']}: EUR {amount:.2f} entered by {user}"
 
 
+LAST_STOP = "last-stop.json"  # in SCORE_HOME: the local cockpit's last Stop everything, what it stopped
+
+
+def conductor_kill():
+    """score.conductor.kill (the conductor's kill switch), or None on a machine without it."""
+    from score.dashboard.state import machine
+    return machine.conductor_part("kill")
+
+
+def stop_everything(user, payload):
+    """The owner's Stop everything (the Machine card, asked twice): every active run stopped and never resumed
+    unasked, the parked machines deleted and paid work latched off, by score.conductor.kill.stop_all; in words, with
+    its report as JSON after "stopped everything: ". Local here, hosted queued; refused for anyone else, in an
+    agent's process and on a machine that is not a conductor."""
+    words = str(payload.get("words") or "")[:500]
+    if hosted():
+        return queued_for_store("stop-everything", user, {"words": words}, "stops every run and paid machine")
+    refused = owner_figure_off_why(user)
+    if refused:
+        return refused
+    kill = conductor_kill()
+    if kill is None:
+        from score.dashboard.state.machine import NOT_ON_CONDUCTOR
+        return f"refused: {NOT_ON_CONDUCTOR}"
+    report = kill.stop_all(user, words)
+    said = f"stopped everything: {json.dumps(report, default=str, sort_keys=True)}"[:3900]
+    (settings.SCORE_HOME / LAST_STOP).write_text(json.dumps({
+        "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), "by": user, "said": said}))
+    return said
+
+
+def allow_paid(user, payload):
+    """The owner's Allow paid work again (the Machine card, asked twice): the free-only latch Stop everything wrote
+    cleared by score.conductor.kill.allow_paid, in words. Local here, hosted queued; refused for anyone else, in an
+    agent's process and on a machine that is not a conductor."""
+    words = str(payload.get("words") or "")[:500]
+    if hosted():
+        return queued_for_store("allow-paid", user, {"words": words}, "allows paid work again")
+    refused = owner_figure_off_why(user)
+    if refused:
+        return refused
+    kill = conductor_kill()
+    if kill is None or not hasattr(kill, "allow_paid"):
+        from score.dashboard.state.machine import NOT_ON_CONDUCTOR
+        return f"refused: {NOT_ON_CONDUCTOR}"
+    return f"paid work allowed again: {json.dumps(kill.allow_paid(user, words), default=str, sort_keys=True)}"[:3900]
+
+
 def read_books_back(user):
     """Read the month's bills back into the books (`score spend --read-back`, read-only, free), in words: local run
     here, hosted queued."""

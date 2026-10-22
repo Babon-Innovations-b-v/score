@@ -1,8 +1,10 @@
 """The state export a hosted dashboard reads, built on the store's machine from the local source.
 
-    <out>/manifest.json        {made_at, world, source_commit, format, code_version, bytes, left_out: [{what, why}],
-                               cap_mb, written}
+    <out>/manifest.json        {made_at, world, source_commit, machine (the store's machine's name), format,
+                               code_version, bytes, left_out: [{what, why}], cap_mb, written}
     <out>/state.json           WorldState
+    <out>/machine.json         the store's machine, its health and its logs' tails (state/machine.py), written right
+                               after the state
     <out>/places/<place>.json  {"detail": PlaceDetail, "steps": {stage: StepDetail}, format, code_version};
                                _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero and concept pictures; <sha>-360.jpg thumbnails (the concepts' first, newest 8 a
@@ -33,7 +35,7 @@ import shutil
 import subprocess
 
 from score.dashboard.proposals import exporting as proposals
-from score.dashboard.state import library, sliders, versions
+from score.dashboard.state import library, machine, sliders, versions
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 from score.dashboard.state.models import PlaceDetail, StepDetail
 
@@ -120,6 +122,22 @@ def place_bundle(details):
     return {"detail": details[0].model_dump(by_alias=True) if details[0] else None,
             "steps": {stage: step.model_dump(by_alias=True) for stage, step in details[1].items()},
             "format": versions.FORMAT, "code_version": versions.exporting()}
+
+
+def machine_file(source, out, filler, made_at):
+    """machine.json (state/machine.py: the store's machine, its health and its logs' tails, read at the export's
+    time) into the export right after the state; over the cap, written without its tails, named as left out. Its
+    content."""
+    found = source.machine(made_at)
+    path = out / machine.MACHINE_FILE
+    text = json.dumps(found, sort_keys=True)
+    if filler.used + len(text.encode()) > filler.cap:
+        filler.left_out.append({"what": "the store's machine's log tails", "why": "over the export's cap"})
+        found = {**found, "tails": {}}
+        text = json.dumps(found, sort_keys=True)
+    path.write_text(text)
+    filler.wrote(path, path.stat().st_size)
+    return found
 
 
 def pictures_folder(home):
@@ -209,7 +227,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
     world = source.world_state(spend)
     world.made_at, world.source = made_at, f"export {made_at}"
     filler.wrote(out / "state.json", write_json(out / "state.json", world))
-    bundles = [place_bundle((None, step_details(source, None, source.world_rows())))]
+    found_machine = machine_file(source, out, filler, made_at)
+    bundles =[place_bundle((None, step_details(source, None, source.world_rows())))]
     world_file = out / "places" / f"{WORLD_FILE}.json"
     filler.wrote(world_file, write_json(world_file, bundles[0]))
     for place in source.places():
@@ -267,7 +286,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
     proposals.in_export(source.home / "proposals", filler, wholes=True)
     library.export_pictures(shelf, shelved, filler, HERO_SIDE)
     library.export_three_d(shelf, shelved, filler)
-    manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "format": versions.FORMAT,
+    manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo),
+                "machine": machine.name_of(found_machine), "format": versions.FORMAT,
                 "code_version": versions.exporting(), "bytes": filler.used,
                 "left_out": filler.left_out, "cap_mb": cap_mb, "written": filler.written}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))

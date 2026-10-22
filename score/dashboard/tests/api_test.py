@@ -36,7 +36,15 @@ def test_reads_answer_their_schemas(world):
     assert client.get("/api/places/nowhere").status_code == 404
     assert client.get("/api/places/alpha/steps/nothing").status_code == 404
     assert client.get("/api/launches").json() == []
-    assert client.get("/healthz").json() == {"ok": True, "mode": "local"}
+    assert client.get("/healthz").json() == {"ok": True, "mode": "local", "commit": None}
+
+
+def test_healthz_reports_the_commit_the_image_was_built_at(settings):
+    """The hosted image's SCORE_COMMIT, the pin the conductor's score-update timer follows; open to anyone."""
+    from score.dashboard.site.asgi import app
+    settings.SCORE_COMMIT = "a" * 40
+    answer = TestClient(app, base_url="http://127.0.0.1:8780", client=("127.0.0.1", 50000)).get("/healthz")
+    assert answer.status_code == 200 and answer.json()["commit"] == "a" * 40
 
 
 def test_without_a_session_401():

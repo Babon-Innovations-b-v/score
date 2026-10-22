@@ -387,6 +387,7 @@ def test_a_change_request_is_applied_into_the_inbox(world, settings):
 class Hosted:
     """A stand-in for the hosted dashboard's endpoints, in memory."""
 
+    not_the_store = None  # this machine is the store's: no claim is refused for being another
     def __init__(self, waiting):
         self.waiting_items, self.reports, self.chunks, self.commits = waiting, [], [], []
 

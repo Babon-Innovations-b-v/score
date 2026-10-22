@@ -398,7 +398,31 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   deploy templates) reads the token by name from his secret manager each pass, inline, through the reader his env
   file names; it installs only once the cockpit runs this checkout's dashboard. `release.py` (`release`) moves the
   hosting repository's pinned `SCORE_COMMIT` to a pushed commit, from a worktree of its own, in the host's commit
-  style; never run by a test against a real host (`tests/release_test.py` makes its repositories).
+  style; never run by a test against a real host (`tests/release_test.py` makes its repositories). The release stays
+  the coordinating session's job on the owner's PC, even once the store's machine is the conductor (the always-on
+  cloud machine of our own; the PC then runs only a browser, the sessions and the release). `/healthz` reports the
+  `commit` the image was built at (`SCORE_COMMIT`, the Dockerfile's ARG set as ENV; the hosting repository's
+  Dockerfile must set it the same way), the one pin the conductor's score-update timer follows. `install-sync`
+  renders the same templates for user `score` on the conductor: without `--host` it checks the commit `/healthz`
+  reports, and `--no-pull` leaves out the sync unit's `git pull` (ExecStartPre), which the score-update timer
+  replaces there.
+- **The store's machine** (`state/machine.py`, `sync/one_store.py`, `pages/machine.py`): the export carries
+  `machine.json` right after the state: the machine's own record (`$PROPS_HOME/machine.json`, else its host name),
+  `score.conductor.health.read()` and `score.conductor.logs.tails(TAIL_LINES)` cut to `TAIL_BYTES` (the largest
+  tail's oldest lines first; the tails left out over the export's cap), each import guarded: off a conductor the
+  health is `{missing: "not on a conductor"}`. The manifest names the machine and every sync call carries its name
+  (`X-Score-Machine`). The hosted side records the machine of the first export naming one (`store-machine.json`);
+  another machine's export is shown but each of its claims is refused (423), so it applies nothing, until the owner's
+  'This is the store's machine now' (`/api/machine/confirm`, owner only, CSRF, `sure` from the page's second ask, only
+  for a machine an export came from); no request kind and no sync token moves the record. The Machine card
+  on Home (`machine_card.html`) and `/machine/` (its health in numbers, the units, the tails as folds) show the name,
+  size and state, the backup's age (red past `BACKUP_LATE_MINUTES`), the export's age (hosted, red past
+  `EXPORT_LATE_MINUTES`: "the store's machine is not reaching the cockpit") and the conductor's own month's bill
+  (`health.bill`, its own project: never a batch's spend or stop). The kill switch (`applying.MACHINE_KINDS`, owner
+  only, asked twice, `/api/machine/stop` and `/api/machine/allow-paid`): Stop everything is a SyncRequest
+  `stop-everything` the listener applies at once through `score.conductor.kill.stop_all(asked_by, words)`, its report
+  as the answer the card counts; Allow paid work again (`allow-paid`, shown while `health.free_only`) through
+  `kill.allow_paid(asked_by, words)`; both refused for anyone else, in an agent's process and off a conductor.
 - **`proposals/`** the basket's details (its own overlay): what a run on main would buy (the runner's plan), grouped
   into items by place and by what changes (a department's declared item may span places), each place's free after
   assembled over the store's accepted outputs as a 3D web copy, what changes read from the two stages, each paid
@@ -430,7 +454,7 @@ Rules:
   test's own `PROPS_HOME`, so `localrun.STARTED` and the runner's line cannot drift apart); a launch
   needs the owner signed in, room under the stop his last checkout's yes wrote and every refusal of
   `guard.refusals` clear; there is no stop he sets (no month's stop, no stop button: owner, 2026-10-20); the dashboard
-  never stops a run.
+  never stops a run itself: the owner's kill switch (Stop everything) hands it to `score.conductor.kill`.
 - **No module on sys.path, no stage imports this package.** Import dotted from `score.dashboard`; never a bare
   `views`, `models`, `urls`, `settings`, `apps` or `admin` (they would be hashed into stage keys). Do not edit
   `tools/review/*` (the viewer is served as a file) or add web tokens to `design/tokens/tokens.json`.

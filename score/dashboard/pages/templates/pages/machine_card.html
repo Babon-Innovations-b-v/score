@@ -1,0 +1,30 @@
+{% comment %}The Machine card (pages/machine.py `shown`, as `machine`): the store's machine, its state, the last backup's and export's ages, its own month's bill, and the owner's Stop everything, Allow paid work again and, hosted, 'This is the store's machine now' for a second machine, each asked twice.{% endcomment %}{% with c=machine.card %}<section class="stats-group machine-card" aria-label="the store's machine">
+  <h2 class="eyebrow">Machine</h2>
+  {% if machine.second %}<div class="machine-alert" title="its exports are shown, but no click is applied there until you confirm it">{% include "pages/c/dot.html" with tone="bad" tip=None %}<span data-v>{{ machine.second }}</span> <span>exports too; clicks go to</span> <span data-v>{{ machine.store }}</span></div>{% endif %}
+  <div class="nums">
+    <a class="num-card num-link" href="/machine/" title="{% if c.booted %}booted {{ c.booted }}; {% endif %}its health and the tails of its logs">
+      <div class="num-label">{% include "pages/c/dot.html" with tone=c.failed|yesno:"bad,done" tip=c.failed %}Machine</div>
+      <div class="num-value" data-v>{{ c.name|default:"unknown" }}{% if c.size %} <small>{{ c.size }}</small>{% endif %}</div>
+    </a>
+    {% include "pages/c/number.html" with label="State" value=c.state unit=None of=None bar=None tone=None tip="idle, growing, running a batch or shrinking" unknown_tip=c.missing|default:"its health does not say" %}
+    {% include "pages/c/number.html" with label="Backup" value=c.backup_minutes unit="min ago" of=None bar=None tone=c.backup_late|yesno:"bad,done" tip="the store's last backup; red past two hours or when it failed" unknown_tip=c.missing|default:"no backup is known" %}
+    {% if machine.hosted %}{% include "pages/c/number.html" with label="Export" value=c.export_minutes unit="min ago" of=None bar=None tone=c.export_late|yesno:"bad,done" tip="the last state the store's machine sent; red past 15 minutes" unknown_tip="no export has arrived" %}{% endif %}
+    {% include "pages/c/number.html" with label="Machine bill" value=c.bill unit="EUR" of=None bar=None tone=None tip="this month, its own project: never in a batch's spend or stop" unknown_tip=c.missing|default:"its bill was not read" %}
+  </div>
+  {% if c.export_late %}<p class="bad-words" data-v>the store's machine is not reaching the cockpit</p>{% endif %}
+  {% if machine.last %}<p class="soft small" title="{{ machine.last.said }}"><span data-v>{{ machine.last.label }}</span> <span data-v>{{ machine.last.state }}</span> <span data-v>{{ machine.last.at|slice:":16" }}</span>{% for name, count in machine.last.counts %} <span data-v>{{ name }} {{ count }}</span>{% endfor %}</p>{% endif %}
+  {% if machine.owner %}<div class="machine-actions">
+    <details class="ec-unlock"><summary class="button bad" title="every run stopped (never resumed unasked), the parked paid machines deleted, only free work until you allow paid work again">Stop everything</summary>
+      <div class="ec-confirm ec-left"><p data-v>Stop every run and paid machine?</p>
+        <form data-yes data-reload data-url="/api/machine/stop" data-body='{"sure": true}'><button type="submit" class="button bad" data-slot="post-label" data-v>Stop everything</button><i class="dot" data-slot="said" hidden></i></form></div>
+    </details>
+    {% if c.free_only %}<details class="ec-unlock"><summary class="button" title="paid work is latched off since Stop everything">Allow paid work again</summary>
+      <div class="ec-confirm ec-left"><p data-v>Allow paid work again?</p>
+        <form data-yes data-reload data-url="/api/machine/allow-paid" data-body='{"sure": true}'><button type="submit" class="button primary" data-slot="post-label" data-v>Allow paid work</button><i class="dot" data-slot="said" hidden></i></form></div>
+    </details>{% endif %}
+    {% if machine.second %}<details class="ec-unlock"><summary class="button" title="from now on only {{ machine.second }}'s requests are applied, never {{ machine.store }}'s">This is the store's machine now</summary>
+      <div class="ec-confirm ec-left"><p data-v>{{ machine.second }} becomes the store's machine.</p>
+        <form data-yes data-reload data-url="/api/machine/confirm" data-body="{{ machine.confirm_body }}"><button type="submit" class="button primary" data-slot="post-label" data-v>Confirm</button><i class="dot" data-slot="said" hidden></i></form></div>
+    </details>{% endif %}
+  </div>{% endif %}
+</section>{% endwith %}
