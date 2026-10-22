@@ -3,189 +3,7 @@
  "library": "people",
  "why": "The people line's surface data (score/stages/people, #5; on the shared loop since 2026-10-20, #41): each look's Pixal3D take, painted and baked by the loop's finish route as a place's takes are, on the line `people`, which no place owns; its body rows read `spec` and `outfit` beside each take. Only the looks the picked designs map are kept (data/people/rows.json); a look a design's row reads anew has its spec written from that row (data/people/specs, score/stages/people_rows.designed_specs), no hand-written character file (#26).",
  "takes": {
-  "airlock_astronaut_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the airlock concept",
-   "spec": "data/people/specs/airlock_astronaut_1.json",
-   "outfit": "drawn"
-  },
-  "camp_astronaut_1_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the camp concept",
-   "spec": "data/people/specs/camp_astronaut_1_1.json",
-   "outfit": "drawn"
-  },
-  "camp_astronaut_2_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the camp concept",
-   "spec": "data/people/specs/camp_astronaut_2_1.json",
-   "outfit": "drawn"
-  },
-  "camp_astronaut_2_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the camp concept",
-   "spec": "data/people/specs/camp_astronaut_2_2.json",
-   "outfit": "drawn"
-  },
-  "camp_astronaut_5_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the camp concept",
-   "spec": "data/people/specs/camp_astronaut_5_1.json",
-   "outfit": "drawn"
-  },
-  "camp_astronaut_6_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the camp concept",
-   "spec": "data/people/specs/camp_astronaut_6_1.json",
-   "outfit": "drawn"
-  },
-  "camp_astronaut_6_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the camp concept",
-   "spec": "data/people/specs/camp_astronaut_6_2.json",
-   "outfit": "drawn"
-  },
-  "campgrounds_astronaut_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the campgrounds concept",
-   "spec": "data/people/specs/campgrounds_astronaut_1.json",
-   "outfit": "drawn"
-  },
-  "campgrounds_astronaut_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the campgrounds concept",
-   "spec": "data/people/specs/campgrounds_astronaut_2.json",
-   "outfit": "drawn"
-  },
-  "campgrounds_astronaut_3-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the campgrounds concept",
-   "spec": "data/people/specs/campgrounds_astronaut_3.json",
-   "outfit": "drawn"
-  },
-  "campgrounds_astronaut_4-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the campgrounds concept",
-   "spec": "data/people/specs/campgrounds_astronaut_4.json",
-   "outfit": "drawn"
-  },
-  "campgrounds_astronaut_5-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the campgrounds concept",
-   "spec": "data/people/specs/campgrounds_astronaut_5.json",
-   "outfit": "drawn"
-  },
-  "campgrounds_astronaut_6-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the campgrounds concept",
-   "spec": "data/people/specs/campgrounds_astronaut_6.json",
-   "outfit": "drawn"
-  },
-  "campgrounds_astronaut_7-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the campgrounds concept",
-   "spec": "data/people/specs/campgrounds_astronaut_7.json",
-   "outfit": "drawn"
-  },
-  "garage_astronaut_1-drawn-s1": {
+  "astronaut-made-s1": {
    "places": [
     "people"
    ],
@@ -195,62 +13,10 @@
    "place": "people",
    "kind": "person",
    "object": "the clothes as drawn in the garage concept",
-   "spec": "data/people/specs/garage_astronaut_1.json",
-   "outfit": "drawn"
+   "spec": "data/people/specs/astronaut.json",
+   "outfit": "made"
   },
-  "garage_astronaut_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the garage concept",
-   "spec": "data/people/specs/garage_astronaut_2.json",
-   "outfit": "drawn"
-  },
-  "garage_astronaut_3-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the garage concept",
-   "spec": "data/people/specs/garage_astronaut_3.json",
-   "outfit": "drawn"
-  },
-  "garage_astronaut_4-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the garage concept",
-   "spec": "data/people/specs/garage_astronaut_4.json",
-   "outfit": "drawn"
-  },
-  "garage_astronaut_5-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the garage concept",
-   "spec": "data/people/specs/garage_astronaut_5.json",
-   "outfit": "drawn"
-  },
-  "greenhouse_astronaut_1-drawn-s1": {
+  "astronaut_spacesuit-made-s1": {
    "places": [
     "people"
    ],
@@ -260,426 +26,10 @@
    "place": "people",
    "kind": "person",
    "object": "the clothes as drawn in the greenhouse concept",
-   "spec": "data/people/specs/greenhouse_astronaut_1.json",
-   "outfit": "drawn"
+   "spec": "data/people/specs/astronaut_spacesuit.json",
+   "outfit": "made"
   },
-  "greenhouse_astronaut_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the greenhouse concept",
-   "spec": "data/people/specs/greenhouse_astronaut_2.json",
-   "outfit": "drawn"
-  },
-  "greenhouse_astronaut_3-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the greenhouse concept",
-   "spec": "data/people/specs/greenhouse_astronaut_3.json",
-   "outfit": "drawn"
-  },
-  "greenhouse_astronaut_4-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the greenhouse concept",
-   "spec": "data/people/specs/greenhouse_astronaut_4.json",
-   "outfit": "drawn"
-  },
-  "greenhouse_astronaut_5-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the greenhouse concept",
-   "spec": "data/people/specs/greenhouse_astronaut_5.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_1.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_2.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_3-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_3.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_4-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_4.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_5-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_5.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_6-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_6.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_7-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_7.json",
-   "outfit": "drawn"
-  },
-  "hangar_worker_blue_8-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the hangar concept",
-   "spec": "data/people/specs/hangar_worker_blue_8.json",
-   "outfit": "drawn"
-  },
-  "lab_person_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the lab concept",
-   "spec": "data/people/specs/lab_person_1.json",
-   "outfit": "drawn"
-  },
-  "lab_person_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the lab concept",
-   "spec": "data/people/specs/lab_person_2.json",
-   "outfit": "drawn"
-  },
-  "lab_person_3-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the lab concept",
-   "spec": "data/people/specs/lab_person_3.json",
-   "outfit": "drawn"
-  },
-  "old_station_astronaut_1_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the old_station concept",
-   "spec": "data/people/specs/old_station_astronaut_1_1.json",
-   "outfit": "drawn"
-  },
-  "old_station_astronaut_1_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the old_station concept",
-   "spec": "data/people/specs/old_station_astronaut_1_2.json",
-   "outfit": "drawn"
-  },
-  "street_diner_seated_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_diner_seated_1.json",
-   "outfit": "drawn"
-  },
-  "street_pedestrian_umbrella_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_pedestrian_umbrella_1.json",
-   "outfit": "drawn"
-  },
-  "street_pedestrian_umbrella_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_pedestrian_umbrella_2.json",
-   "outfit": "drawn"
-  },
-  "street_pedestrian_umbrella_3-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_pedestrian_umbrella_3.json",
-   "outfit": "drawn"
-  },
-  "street_pedestrian_umbrella_4-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_pedestrian_umbrella_4.json",
-   "outfit": "drawn"
-  },
-  "street_pedestrian_umbrella_5-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_pedestrian_umbrella_5.json",
-   "outfit": "drawn"
-  },
-  "street_pedestrian_umbrella_6-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_pedestrian_umbrella_6.json",
-   "outfit": "drawn"
-  },
-  "street_pedestrian_umbrella_7-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_pedestrian_umbrella_7.json",
-   "outfit": "drawn"
-  },
-  "tube_person_mid_left_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the tube concept",
-   "spec": "data/people/specs/tube_person_mid_left_1.json",
-   "outfit": "drawn"
-  },
-  "tube_person_mid_left_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the tube concept",
-   "spec": "data/people/specs/tube_person_mid_left_2.json",
-   "outfit": "drawn"
-  },
-  "workshop_person_centre_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the workshop concept",
-   "spec": "data/people/specs/workshop_person_centre_1.json",
-   "outfit": "drawn"
-  },
-  "workshop_person_right_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the workshop concept",
-   "spec": "data/people/specs/workshop_person_right_1.json",
-   "outfit": "drawn"
-  },
-  "wreck_astronaut_1_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the wreck concept",
-   "spec": "data/people/specs/wreck_astronaut_1_1.json",
-   "outfit": "drawn"
-  },
-  "wreck_astronaut_2_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the wreck concept",
-   "spec": "data/people/specs/wreck_astronaut_2_1.json",
-   "outfit": "drawn"
-  },
-  "wreck_astronaut_3_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the wreck concept",
-   "spec": "data/people/specs/wreck_astronaut_3_1.json",
-   "outfit": "drawn"
-  },
-  "base_astronaut_left_1-drawn-s1": {
+  "astronaut_suit-made-s1": {
    "places": [
     "people"
    ],
@@ -689,23 +39,10 @@
    "place": "people",
    "kind": "person",
    "object": "the clothes as drawn in the base concept",
-   "spec": "data/people/specs/base_astronaut_left_1.json",
-   "outfit": "drawn"
+   "spec": "data/people/specs/astronaut_suit.json",
+   "outfit": "made"
   },
-  "base_astronaut_right_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the base concept",
-   "spec": "data/people/specs/base_astronaut_right_1.json",
-   "outfit": "drawn"
-  },
-  "cockpit_officer_1-drawn-s1": {
+  "officer-made-s1": {
    "places": [
     "people"
    ],
@@ -715,10 +52,10 @@
    "place": "people",
    "kind": "person",
    "object": "the clothes as drawn in the cockpit concept",
-   "spec": "data/people/specs/cockpit_officer_1.json",
-   "outfit": "drawn"
+   "spec": "data/people/specs/officer.json",
+   "outfit": "made"
   },
-  "cockpit_pilot_1-drawn-s1": {
+  "person-made-s1": {
    "places": [
     "people"
    ],
@@ -727,11 +64,11 @@
    ],
    "place": "people",
    "kind": "person",
-   "object": "the clothes as drawn in the cockpit concept",
-   "spec": "data/people/specs/cockpit_pilot_1.json",
-   "outfit": "drawn"
+   "object": "the clothes as drawn in the workshop concept",
+   "spec": "data/people/specs/person.json",
+   "outfit": "made"
   },
-  "quarters_person_bed_1-drawn-s1": {
+  "person_spacesuit-made-s1": {
    "places": [
     "people"
    ],
@@ -740,128 +77,11 @@
    ],
    "place": "people",
    "kind": "person",
-   "object": "the clothes as drawn in the quarters concept",
-   "spec": "data/people/specs/quarters_person_bed_1.json",
-   "outfit": "drawn"
+   "object": "the clothes as drawn in the lab concept",
+   "spec": "data/people/specs/person_spacesuit.json",
+   "outfit": "made"
   },
-  "quarters_person_desk_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the quarters concept",
-   "spec": "data/people/specs/quarters_person_desk_1.json",
-   "outfit": "drawn"
-  },
-  "square_crowd-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the square concept",
-   "spec": "data/people/specs/square_crowd.json",
-   "outfit": "drawn"
-  },
-  "stairwell_crowd-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the stairwell concept",
-   "spec": "data/people/specs/stairwell_crowd.json",
-   "outfit": "drawn"
-  },
-  "stairwell_walkway_crowd_1-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the stairwell concept",
-   "spec": "data/people/specs/stairwell_walkway_crowd_1.json",
-   "outfit": "drawn"
-  },
-  "stairwell_walkway_crowd_2-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the stairwell concept",
-   "spec": "data/people/specs/stairwell_walkway_crowd_2.json",
-   "outfit": "drawn"
-  },
-  "stairwell_walkway_crowd_3-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the stairwell concept",
-   "spec": "data/people/specs/stairwell_walkway_crowd_3.json",
-   "outfit": "drawn"
-  },
-  "stairwell_walkway_crowd_4-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the stairwell concept",
-   "spec": "data/people/specs/stairwell_walkway_crowd_4.json",
-   "outfit": "drawn"
-  },
-  "stairwell_walkway_crowd_5-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the stairwell concept",
-   "spec": "data/people/specs/stairwell_walkway_crowd_5.json",
-   "outfit": "drawn"
-  },
-  "street_distant_crowd-drawn-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the street concept",
-   "spec": "data/people/specs/street_distant_crowd.json",
-   "outfit": "drawn"
-  },
-  "tube_person_right_1-drawn-s1": {
+  "person_uniform-made-s1": {
    "places": [
     "people"
    ],
@@ -871,96 +91,65 @@
    "place": "people",
    "kind": "person",
    "object": "the clothes as drawn in the tube concept",
-   "spec": "data/people/specs/tube_person_right_1.json",
-   "outfit": "drawn"
+   "spec": "data/people/specs/person_uniform.json",
+   "outfit": "made"
+  },
+  "pilot-made-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the cockpit concept",
+   "spec": "data/people/specs/pilot.json",
+   "outfit": "made"
+  },
+  "worker_jumpsuit-made-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the hangar concept",
+   "spec": "data/people/specs/worker_jumpsuit.json",
+   "outfit": "made"
+  },
+  "crowd-made-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "the clothes as drawn in the stairwell concept",
+   "spec": "data/people/specs/crowd.json",
+   "outfit": "made"
   }
  },
  "bake": {
   "why": "Each look's model, baked from its take by the loop's bake, its entry at the size of the person row that maps it (data/people/rows.json, score/stages/people_rows.size_of: the picked design's metres, #26). Only the looks a design maps are on the line; the rest left it with the old library models (2026-10-21).",
   "models": {
-   "airlock_astronaut_1-drawn": "airlock_astronaut_1-drawn-s1",
-   "camp_astronaut_1_1-drawn": "camp_astronaut_1_1-drawn-s1",
-   "camp_astronaut_2_1-drawn": "camp_astronaut_2_1-drawn-s1",
-   "camp_astronaut_2_2-drawn": "camp_astronaut_2_2-drawn-s1",
-   "camp_astronaut_5_1-drawn": "camp_astronaut_5_1-drawn-s1",
-   "camp_astronaut_6_1-drawn": "camp_astronaut_6_1-drawn-s1",
-   "camp_astronaut_6_2-drawn": "camp_astronaut_6_2-drawn-s1",
-   "campgrounds_astronaut_1-drawn": "campgrounds_astronaut_1-drawn-s1",
-   "campgrounds_astronaut_2-drawn": "campgrounds_astronaut_2-drawn-s1",
-   "campgrounds_astronaut_3-drawn": "campgrounds_astronaut_3-drawn-s1",
-   "campgrounds_astronaut_4-drawn": "campgrounds_astronaut_4-drawn-s1",
-   "campgrounds_astronaut_5-drawn": "campgrounds_astronaut_5-drawn-s1",
-   "campgrounds_astronaut_6-drawn": "campgrounds_astronaut_6-drawn-s1",
-   "campgrounds_astronaut_7-drawn": "campgrounds_astronaut_7-drawn-s1",
-   "garage_astronaut_1-drawn": "garage_astronaut_1-drawn-s1",
-   "garage_astronaut_2-drawn": "garage_astronaut_2-drawn-s1",
-   "garage_astronaut_3-drawn": "garage_astronaut_3-drawn-s1",
-   "garage_astronaut_4-drawn": "garage_astronaut_4-drawn-s1",
-   "garage_astronaut_5-drawn": "garage_astronaut_5-drawn-s1",
-   "greenhouse_astronaut_1-drawn": "greenhouse_astronaut_1-drawn-s1",
-   "greenhouse_astronaut_2-drawn": "greenhouse_astronaut_2-drawn-s1",
-   "greenhouse_astronaut_3-drawn": "greenhouse_astronaut_3-drawn-s1",
-   "greenhouse_astronaut_4-drawn": "greenhouse_astronaut_4-drawn-s1",
-   "greenhouse_astronaut_5-drawn": "greenhouse_astronaut_5-drawn-s1",
-   "hangar_worker_blue_1-drawn": "hangar_worker_blue_1-drawn-s1",
-   "hangar_worker_blue_2-drawn": "hangar_worker_blue_2-drawn-s1",
-   "hangar_worker_blue_3-drawn": "hangar_worker_blue_3-drawn-s1",
-   "hangar_worker_blue_4-drawn": "hangar_worker_blue_4-drawn-s1",
-   "hangar_worker_blue_5-drawn": "hangar_worker_blue_5-drawn-s1",
-   "hangar_worker_blue_6-drawn": "hangar_worker_blue_6-drawn-s1",
-   "hangar_worker_blue_7-drawn": "hangar_worker_blue_7-drawn-s1",
-   "hangar_worker_blue_8-drawn": "hangar_worker_blue_8-drawn-s1",
-   "lab_person_1-drawn": "lab_person_1-drawn-s1",
-   "lab_person_2-drawn": "lab_person_2-drawn-s1",
-   "lab_person_3-drawn": "lab_person_3-drawn-s1",
-   "old_station_astronaut_1_1-drawn": "old_station_astronaut_1_1-drawn-s1",
-   "old_station_astronaut_1_2-drawn": "old_station_astronaut_1_2-drawn-s1",
-   "street_diner_seated_1-drawn": "street_diner_seated_1-drawn-s1",
-   "street_pedestrian_umbrella_1-drawn": "street_pedestrian_umbrella_1-drawn-s1",
-   "street_pedestrian_umbrella_2-drawn": "street_pedestrian_umbrella_2-drawn-s1",
-   "street_pedestrian_umbrella_3-drawn": "street_pedestrian_umbrella_3-drawn-s1",
-   "street_pedestrian_umbrella_4-drawn": "street_pedestrian_umbrella_4-drawn-s1",
-   "street_pedestrian_umbrella_5-drawn": "street_pedestrian_umbrella_5-drawn-s1",
-   "street_pedestrian_umbrella_6-drawn": "street_pedestrian_umbrella_6-drawn-s1",
-   "street_pedestrian_umbrella_7-drawn": "street_pedestrian_umbrella_7-drawn-s1",
-   "tube_person_mid_left_1-drawn": "tube_person_mid_left_1-drawn-s1",
-   "tube_person_mid_left_2-drawn": "tube_person_mid_left_2-drawn-s1",
-   "workshop_person_centre_1-drawn": "workshop_person_centre_1-drawn-s1",
-   "workshop_person_right_1-drawn": "workshop_person_right_1-drawn-s1",
-   "wreck_astronaut_1_1-drawn": "wreck_astronaut_1_1-drawn-s1",
-   "wreck_astronaut_2_1-drawn": "wreck_astronaut_2_1-drawn-s1",
-   "wreck_astronaut_3_1-drawn": "wreck_astronaut_3_1-drawn-s1",
-   "base_astronaut_left_1-drawn": "base_astronaut_left_1-drawn-s1",
-   "base_astronaut_right_1-drawn": "base_astronaut_right_1-drawn-s1",
-   "cockpit_officer_1-drawn": "cockpit_officer_1-drawn-s1",
-   "cockpit_pilot_1-drawn": "cockpit_pilot_1-drawn-s1",
-   "quarters_person_bed_1-drawn": "quarters_person_bed_1-drawn-s1",
-   "quarters_person_desk_1-drawn": "quarters_person_desk_1-drawn-s1",
-   "square_crowd-drawn": "square_crowd-drawn-s1",
-   "stairwell_crowd-drawn": "stairwell_crowd-drawn-s1",
-   "stairwell_walkway_crowd_1-drawn": "stairwell_walkway_crowd_1-drawn-s1",
-   "stairwell_walkway_crowd_2-drawn": "stairwell_walkway_crowd_2-drawn-s1",
-   "stairwell_walkway_crowd_3-drawn": "stairwell_walkway_crowd_3-drawn-s1",
-   "stairwell_walkway_crowd_4-drawn": "stairwell_walkway_crowd_4-drawn-s1",
-   "stairwell_walkway_crowd_5-drawn": "stairwell_walkway_crowd_5-drawn-s1",
-   "street_distant_crowd-drawn": "street_distant_crowd-drawn-s1",
-   "tube_person_right_1-drawn": "tube_person_right_1-drawn-s1"
+   "astronaut-made": "astronaut-made-s1",
+   "astronaut_spacesuit-made": "astronaut_spacesuit-made-s1",
+   "astronaut_suit-made": "astronaut_suit-made-s1",
+   "officer-made": "officer-made-s1",
+   "person-made": "person-made-s1",
+   "person_spacesuit-made": "person_spacesuit-made-s1",
+   "person_uniform-made": "person_uniform-made-s1",
+   "pilot-made": "pilot-made-s1",
+   "worker_jumpsuit-made": "worker_jumpsuit-made-s1",
+   "crowd-made": "crowd-made-s1"
   },
   "entries": {
-   "airlock_astronaut_1-drawn": {
-    "size": [
-     0.6,
-     1.4,
-     0.6
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "camp_astronaut_1_1-drawn": {
+   "astronaut-made": {
     "size": [
      0.6,
      1.8,
@@ -973,7 +162,7 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "camp_astronaut_2_1-drawn": {
+   "astronaut_spacesuit-made": {
     "size": [
      0.6,
      1.8,
@@ -986,7 +175,7 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "camp_astronaut_2_2-drawn": {
+   "astronaut_suit-made": {
     "size": [
      0.6,
      1.8,
@@ -999,267 +188,7 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "camp_astronaut_5_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "camp_astronaut_6_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "camp_astronaut_6_2-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "campgrounds_astronaut_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "campgrounds_astronaut_2-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "campgrounds_astronaut_3-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "campgrounds_astronaut_4-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "campgrounds_astronaut_5-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "campgrounds_astronaut_6-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "campgrounds_astronaut_7-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "garage_astronaut_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "garage_astronaut_2-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "garage_astronaut_3-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "garage_astronaut_4-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "garage_astronaut_5-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "greenhouse_astronaut_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "greenhouse_astronaut_2-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "greenhouse_astronaut_3-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "greenhouse_astronaut_4-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "greenhouse_astronaut_5-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "hangar_worker_blue_1-drawn": {
+   "officer-made": {
     "size": [
      0.5,
      1.8,
@@ -1272,11 +201,11 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "hangar_worker_blue_2-drawn": {
+   "person-made": {
     "size": [
-     0.5,
+     0.6,
      1.8,
-     0.3
+     0.4
     ],
     "screens": [],
     "cuts": [],
@@ -1285,85 +214,7 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "hangar_worker_blue_3-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "hangar_worker_blue_4-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "hangar_worker_blue_5-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "hangar_worker_blue_6-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "hangar_worker_blue_7-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "hangar_worker_blue_8-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "lab_person_1-drawn": {
+   "person_spacesuit-made": {
     "size": [
      0.5,
      1.8,
@@ -1376,163 +227,7 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "lab_person_2-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.5
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "lab_person_3-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.5
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "old_station_astronaut_1_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "old_station_astronaut_1_2-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_diner_seated_1-drawn": {
-    "size": [
-     0.5,
-     1.3,
-     0.5
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_pedestrian_umbrella_1-drawn": {
-    "size": [
-     0.8,
-     1.8,
-     0.8
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_pedestrian_umbrella_2-drawn": {
-    "size": [
-     0.8,
-     1.8,
-     0.8
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_pedestrian_umbrella_3-drawn": {
-    "size": [
-     0.8,
-     1.8,
-     0.8
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_pedestrian_umbrella_4-drawn": {
-    "size": [
-     0.8,
-     1.8,
-     0.8
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_pedestrian_umbrella_5-drawn": {
-    "size": [
-     0.8,
-     1.8,
-     0.8
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_pedestrian_umbrella_6-drawn": {
-    "size": [
-     0.8,
-     1.8,
-     0.8
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_pedestrian_umbrella_7-drawn": {
-    "size": [
-     0.8,
-     1.8,
-     0.8
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "tube_person_mid_left_1-drawn": {
+   "person_uniform-made": {
     "size": [
      0.5,
      1.8,
@@ -1545,7 +240,7 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "tube_person_mid_left_2-drawn": {
+   "pilot-made": {
     "size": [
      0.5,
      1.8,
@@ -1558,98 +253,7 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "workshop_person_centre_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "workshop_person_right_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "wreck_astronaut_1_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "wreck_astronaut_2_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "wreck_astronaut_3_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "base_astronaut_left_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "base_astronaut_right_1-drawn": {
-    "size": [
-     0.6,
-     1.8,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "cockpit_officer_1-drawn": {
+   "worker_jumpsuit-made": {
     "size": [
      0.5,
      1.8,
@@ -1662,154 +266,11 @@
     "foot": 0.0,
     "faces": 19000
    },
-   "cockpit_pilot_1-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "quarters_person_bed_1-drawn": {
-    "size": [
-     0.5,
-     1.3,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "quarters_person_desk_1-drawn": {
-    "size": [
-     0.5,
-     1.3,
-     0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "square_crowd-drawn": {
+   "crowd-made": {
     "size": [
      0.55,
      1.8,
      0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "stairwell_crowd-drawn": {
-    "size": [
-     0.55,
-     1.8,
-     0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "stairwell_walkway_crowd_1-drawn": {
-    "size": [
-     0.55,
-     1.8,
-     0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "stairwell_walkway_crowd_2-drawn": {
-    "size": [
-     0.55,
-     1.8,
-     0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "stairwell_walkway_crowd_3-drawn": {
-    "size": [
-     0.55,
-     1.8,
-     0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "stairwell_walkway_crowd_4-drawn": {
-    "size": [
-     0.55,
-     1.8,
-     0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "stairwell_walkway_crowd_5-drawn": {
-    "size": [
-     0.55,
-     1.8,
-     0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "street_distant_crowd-drawn": {
-    "size": [
-     0.55,
-     1.8,
-     0.55
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "tube_person_right_1-drawn": {
-    "size": [
-     0.5,
-     1.8,
-     0.3
     ],
     "screens": [],
     "cuts": [],

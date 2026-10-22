@@ -205,7 +205,7 @@ def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
     name a fabric near its torso (people_clothes.py), the plain row where the look wears its own paint; no
     hand-kept list of coloured places (captain, 2026-10-13: the concept decides the clothes)."""
     table = {stage.name: stage for stage in stages.STAGES}
-    plain = table["people-dress-tube_person_right_1-drawn"]
+    plain = table["people-dress-person_uniform-made"]
     assert plain.applies("tube") and not plain.applies("square")  # the tube's "person in uniform" names no fabric
     worn =[stage for stage in stages.STAGES if stage.name.startswith("people-dress-") and "-in-" in stage.name]
     for stage in worn:
@@ -218,9 +218,9 @@ def test_a_worn_dress_row_applies_only_where_its_look_wears_that_fabric():
     from unittest import mock
 
     from score.stages import people
-    worn_row, plain_row = (stages.worn(people.dress_row("tube_person_right_1-drawn", surface))
+    worn_row, plain_row = (stages.worn(people.dress_row("person_uniform-made", surface))
                            for surface in ("jacket_blue", None))
-    dressed = {"deck": {("tube_person_right_1-drawn", "jacket_blue")}, "hold": {("tube_person_right_1-drawn", None)}}
+    dressed = {"deck": {("person_uniform-made", "jacket_blue")}, "hold": {("person_uniform-made", None)}}
     with mock.patch.object(stages.characters_layer, "dressed_looks", lambda place: dressed.get(place, set())):
         assert worn_row.applies("deck") and not worn_row.applies("hold") and not worn_row.applies("nowhere")
         assert plain_row.applies("hold") and not plain_row.applies("deck")

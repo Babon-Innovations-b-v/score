@@ -1,6 +1,6 @@
 """The picked designs' people (data/people/rows.json, #26): every people row maps to looks of the shared line, the
-crowd to one far look read off its words, its palettes library surfaces or undecided with why; a look a row reads
-anew is written from the row alone (its spec and take); a crowd stands on the plan items its row makes; the tube's
+crowd to one far look read off its words, its palettes library surfaces or undecided with why; one look (one body)
+for the people the rows say are and wear the same, written from its largest standing row alone (its spec and take); a crowd stands on the plan items its row makes; the tube's
 cast names the player and the square's the crowd look; the line's data holds exactly the mapped looks, each baked at
 its person row's size; a refresh keeps the hand-made choices of a row read from the same concept."""
 import json
@@ -30,11 +30,27 @@ def test_every_people_row_maps_to_a_look():
                 assert fields["palettes"] is not None or fields["palettes_from"].startswith("not decided"), (place, row)
                 assert all(len(palette) == 3 and set(palette) <= set(surfaces) for palette in fields["palettes"] or [])
             else:
-                assert len(fields["looks"]) == fields["count"], (place, row)  # one look a person
+                assert len(fields["looks"]) == fields["count"], (place, row)  # a look for each person
                 assert all(look in line for look in fields["looks"]), (place, row)  # every person can be made
-    every = [look for entry in found["places"].values() for fields in entry["rows"].values()
-             for look in fields.get("looks", [])]
-    assert len(every) == len(set(every)), "a look worn by two people"
+    # one body a look (owner, 2026-10-22): the camp's, the garage's and the airlock's astronauts are one look
+    assert people_rows.mapping_rows(found)["astronaut-made"]
+    assert {fields["looks"][0] for place in ("camp", "garage", "airlock") for fields in
+            found["places"][place]["rows"].values()} == {"astronaut-made"}
+    assert all(look.endswith(f"-{people_rows.OUTFIT}") for look in line), "a row asks for the drawn face"
+
+
+def test_people_rows_are_grouped_into_looks_by_what_they_are_and_wear():
+    """One body a look (owner, 2026-10-22): a row's words before where it stands or what it holds, its pose and
+    colour words left out (its clip and its dress vary it); a named person or the player is a look of its own."""
+    def look(name, crowd=False, row="row"):
+        return people_rows.look_of("deck", {"id": row, "name": name, "noun": "person"}, crowd)
+    assert look("seated astronaut") == look("astronaut standing") == look("astronauts") == "astronaut-made"
+    assert look("person sitting at a table") == look("people on walkway") == look("person holding an umbrella") \
+        == look("person") == "person-made"
+    assert look("worker in blue jumpsuit") == look("worker in grey jumpsuit") == "worker_jumpsuit-made"
+    assert look("person in uniform") == "person_uniform-made" != look("person in spacesuit")
+    assert look("crowd of people", crowd=True) == "crowd-made" and look("crowd of aliens", crowd=True) == "alien-made"
+    assert look("the player in a work suit", row="hero") == look("Nev at the console", row="hero") == "deck_hero-made"
 
 
 def test_a_person_row_s_look_is_written_from_the_row_alone():
@@ -44,26 +60,29 @@ def test_a_person_row_s_look_is_written_from_the_row_alone():
     import spec as specs
     found = {"places": {"deck": {"concept": "abcdef0123", "rows": {
         "pilot": {"name": "pilot in a red suit", "noun": "person", "count": 2, "size": [0.3, 0.4, 1.7],
-                  "where": "standing at the console", "looks": ["deck_pilot_1-drawn", "deck_pilot_2-drawn"]},
+                  "where": "standing at the console", "share": 0.2, "looks": ["pilot_suit-made"] * 2},
         "guest": {"name": "seated guest", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
-                  "where": "sitting on a sofa", "looks": ["deck_guest_1-drawn"]},
+                  "where": "sitting on a sofa", "looks": ["guest-made"]},
+        "copilot": {"name": "seated pilot in a suit", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
+                    "where": "sitting at the console", "share": 0.5, "looks": ["pilot_suit-made"]},
         "crowd": {"name": "crowd of people", "noun": "crowd", "count": 1, "size": [8.0, 9.0, 1.8],
-                  "crowd": "deck_crowd-drawn", "palettes": None}}}}}
+                  "crowd": "crowd-made", "palettes": None}}}}}
     surfaces = json.loads(people_rows.LINE_FILES["surfaces"].read_text())
     made = people_rows.designed_specs(found, surfaces)
-    assert set(made) == {"deck_pilot_1-drawn", "deck_pilot_2-drawn", "deck_guest_1-drawn", "deck_crowd-drawn"}
-    pilot = made["deck_pilot_1-drawn"]
-    assert pilot["name"] == "deck_pilot_1" and pilot["outfits"] == ["drawn"] and "abcdef01" in pilot["approved"]
+    assert set(made) == {"pilot_suit-made", "guest-made", "crowd-made"}
+    pilot = made["pilot_suit-made"]  # drawn from its largest standing person, never the bigger seated one
+    assert pilot["name"] == "pilot_suit" and pilot["outfits"] == ["made"] and "abcdef01" in pilot["approved"]
     assert pilot["description"] == "pilot in a red suit, a slim build, as drawn in the deck concept", pilot
-    assert "a broad build" in made["deck_guest_1-drawn"]["description"]  # seated: its narrower side, 0.7 m
-    assert made["deck_crowd-drawn"]["description"].startswith("one person of the crowd of people, an average build")
+    assert people_rows.size_of("pilot_suit-made", found) == ([0.3, 0.4, 1.7], "deck/pilot")
+    assert "a broad build" in made["guest-made"]["description"]  # seated: its narrower side, 0.7 m
+    assert made["crowd-made"]["description"].startswith("one person of the crowd of people, an average build")
     assert all(not specs.problems_of(spec) for spec in made.values()), [specs.problems_of(s) for s in made.values()]
-    assert people_rows.member_size("deck_crowd-drawn", found) == ([0.55, 0.55, 1.8], "deck/crowd")
+    assert people_rows.member_size("crowd-made", found) == ([0.55, 0.55, 1.8], "deck/crowd")
     props, inventory, lined = people_rows.with_designed(made, {"objects": {}}, {"rows": []}, surfaces)
-    take = lined["bake"]["models"]["deck_pilot_1-drawn"]
-    assert take == "deck_pilot_1-drawn-s1" and props["objects"]["deck_pilot_1-drawn"]["take"] == take
-    assert lined["takes"][take]["spec"] == "data/people/specs/deck_pilot_1.json"
-    assert lined["takes"][take]["outfit"] == "drawn" and {row["id"] for row in inventory["rows"]} == set(made)
+    take = lined["bake"]["models"]["pilot_suit-made"]
+    assert take == "pilot_suit-made-s1" and props["objects"]["pilot_suit-made"]["take"] == take
+    assert lined["takes"][take]["spec"] == "data/people/specs/pilot_suit.json"
+    assert lined["takes"][take]["outfit"] == "made" and {row["id"] for row in inventory["rows"]} == set(made)
     assert all(entry["spec"].startswith("data/people/specs/") for entry in surfaces["takes"].values()), \
         "every look on the line is written from a design's row (the hand-made makes were retired, 2026-10-21)"
 
@@ -96,11 +115,12 @@ def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
 def test_the_tube_casts_its_people_and_the_square_its_crowd():
     tube = people_rows.cast_record("tube")
     person = next(person for person in tube["people"] if person["name"] == "person_right")
-    assert (person["character"], person["look"]) == ("tube_person_right_1", "tube_person_right_1_drawn"), person
+    assert (person["character"], person["look"]) == ("person_uniform", "person_uniform_made"), person
+    assert {person["look"] for person in tube["people"]} == {"person_uniform_made"}  # its three people, one look
     assert all(person["at"] in people_rows.place_entry("tube")["spots"] for person in tube["people"])
     assert "concept 3059819b" in tube["from"] and "crowd" not in tube
     square = people_rows.cast_record("square")
-    assert square["crowd"]["look"] == "square_crowd_drawn" and square["crowd"]["count"] is None
+    assert square["crowd"]["look"] == "crowd_made" and square["crowd"]["count"] is None
     assert square["crowd"]["palettes"] == [] and square["crowd"]["palettes_from"] == people_rows.UNDECIDED_PALETTES
 
 
@@ -112,10 +132,11 @@ def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
         "the line's data is not written from rows.json: run python -m score.stages.people_rows"
     assert set(props["objects"]) == people_rows.every_look()  # every look the designs map, each on the line
     assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"]) == set(props["objects"])
-    assert people_rows.size_of("tube_person_right_1-drawn")[1] == "tube/person_right"
-    size, origin = people_rows.size_of("square_crowd-drawn")
-    assert people_rows.person_sized(size) and origin == "square/crowd"  # one member, never the crowd's extent
-    size, origin = people_rows.size_of("stairwell_walkway_crowd_1-drawn")  # five people standing apart on 10 x 30 m
+    assert people_rows.size_of("person_uniform-made")[1] == "tube/person_right"  # the larger of the tube's two rows
+    size, origin = people_rows.size_of("crowd-made")
+    assert people_rows.person_sized(size) and origin == "stairwell/crowd"  # one member, never the crowd's extent
+    found = {"places": {"stairwell": people_rows.place_entry("stairwell")}}  # five people standing apart on 10 x 30 m
+    size, origin = people_rows.size_of("person-made", found)
     assert people_rows.person_sized(size) and origin == "stairwell/walkway_crowd", (size, origin)
 
 
@@ -128,23 +149,23 @@ def test_each_line_row_is_drawn_from_the_person_that_maps_it():
     with tempfile.TemporaryDirectory() as held:
         kept = pathlib.Path(held)
         (kept / "tube.json").write_text(json.dumps({"rows": [{"id": "person_right", "box": [1, 2, 3, 4]}]}))
-        boxes = [[number, 0, number + 1, 2] for number in range(7)]
-        (kept / "campgrounds.json").write_text(json.dumps({"rows": [{"id": "astronaut", "box": boxes[0],
-                                                                      "boxes": boxes}]}))
+        boxes = [[number, 0, number + 1, 2 + number % 3] for number in range(5)]
+        (kept / "garage.json").write_text(json.dumps({"rows": [{"id": "astronaut", "box": boxes[0],
+                                                                 "boxes": boxes}]}))
         props, inventory, _ = people_rows.line_rows(people_rows.read(), records["props"], records["inventory"],
                                                     records["surfaces"], kept)
     rows = {row["id"]: row for row in inventory["rows"]}
-    right = rows["tube_person_right_1-drawn"]
+    right = rows["person_uniform-made"]
     assert right["view"] == "tube" and right["box"] == [1, 2, 3, 4]
-    assert right["grounded"] and right["prop"] == "tube_person_right_1-drawn"
-    assert rows["square_crowd-drawn"]["view"] is None, "the square keeps no inventory here"
+    assert right["grounded"] and right["prop"] == "person_uniform-made"
+    assert rows["crowd-made"]["view"] is None, "the stairwell keeps no inventory here"
     assert inventory["plan"]["views"] == [{"id": place, "picture": f"{{home}}/design/concepts/{place}.png"}
-                                          for place in ("campgrounds", "tube")]
+                                          for place in ("garage", "tube")]
     assert inventory["approved"]["by"] == "the creator's pick"
-    assert inventory["approved"]["places"] == ["campgrounds", "tube"]
-    assert "closeup" not in props["objects"]["tube_person_right_1-drawn"]
-    # each of a row's people drawn from its own SAM 3 instance, never seven close-ups of the first one
-    assert [rows[f"campgrounds_astronaut_{number}-drawn"]["box"] for number in range(1, 8)] == boxes
+    assert inventory["approved"]["places"] == ["garage", "tube"]
+    assert "closeup" not in props["objects"]["person_uniform-made"]
+    # a look drawn from the tallest of its row's SAM 3 instances: its largest person
+    assert rows["astronaut-made"]["view"] == "garage" and rows["astronaut-made"]["box"] == boxes[2]
 
 
 def test_each_line_rows_close_up_words_say_who_the_look_is():
@@ -154,7 +175,7 @@ def test_each_line_rows_close_up_words_say_who_the_look_is():
     inventory = json.loads(people_rows.LINE_FILES["inventory"].read_text())
     rows = {row["id"]: row for row in inventory["rows"]}
     words = {row["id"]: row["words"] for row in closeup_row.inventory_rows(inventory, people_rows.every_look())}
-    assert words["tube_person_right_1-drawn"].startswith("person in uniform, an average build")
+    assert words["person_uniform-made"].startswith("person in uniform, an average build")
     for look, said in words.items():
         assert said == f"{people_rows.description_of(look)}; {rows[look]['clothes']}"
 
@@ -165,17 +186,17 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
         {"id": "crowd", "name": "crowd of people", "noun": "people", "count": 1, "route": "people"},
         {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop"}]}
     fresh = people_rows.refreshed_place("deck", inventory, None, None)
-    assert fresh["rows"]["pilot"]["looks"] == ["deck_pilot_1-drawn", "deck_pilot_2-drawn"] and "chair" not in fresh["rows"]
-    assert fresh["rows"]["crowd"]["crowd"] == "deck_crowd-drawn" and fresh["rows"]["crowd"]["palettes"] is None, \
+    assert fresh["rows"]["pilot"]["looks"] == ["person-made", "person-made"] and "chair" not in fresh["rows"]
+    assert fresh["rows"]["crowd"]["crowd"] == "crowd-made" and fresh["rows"]["crowd"]["palettes"] is None, \
         "a crowd takes no look drawn from another scene's row"
-    fresh["rows"]["pilot"]["looks"] = ["tube_person_right_1-drawn", "deck_pilot_2-drawn"]
+    fresh["rows"]["pilot"]["looks"] = ["deck_pilot-made", "person-made"]
     assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
-        "deck_pilot_1-drawn", "a pick with no why is no hand-made choice: read again from the design"
-    fresh["rows"]["pilot"]["why"] = "the owner's pick"
+        "person-made", "a pick with no why is no hand-made choice: read again from the design"
+    fresh["rows"]["pilot"]["why"] = "the owner's pick: the player"
     assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
-        "tube_person_right_1-drawn"
+        "deck_pilot-made"
     redrawn = {**inventory, "concept_pick": {"sha256": "two"}}
-    assert people_rows.refreshed_place("deck", redrawn, None, fresh)["rows"]["pilot"]["looks"][0] == "deck_pilot_1-drawn"
+    assert people_rows.refreshed_place("deck", redrawn, None, fresh)["rows"]["pilot"]["looks"][0] == "person-made"
 
 
 def test_a_crowds_look_is_read_off_its_words():
@@ -194,17 +215,20 @@ def test_a_crowds_look_is_read_off_its_words():
             return people_rows.crowd_look("moon", {"id": "crowd", "name": name, "noun": noun}, line)
         assert look("crowd of people", "people") == "citizen-coat"  # "an ordinary citizen in the crowd"
         assert look("crowd of astronauts", "crowd") == "astronaut-work"  # "an astronaut of a Moon base"
-        assert look("flock of penguins", "penguin") == "moon_crowd-drawn"  # drawn from its row (designed_specs)
+        assert look("flock of penguins", "penguin") == "flock_penguin-made"  # its own words' (designed_specs)
         # who the row names decides, never its crowd word alone: a city crowd's look is no one else's crowd
-        assert look("crowd of aliens", "crowd") == look("crowd of martian colonists", "crowd") == "moon_crowd-drawn"
+        assert look("crowd of aliens", "crowd") == "alien-made"
+        assert look("crowd of martian colonists", "crowd") == "martian_colonist-made"
         assert look("crowd of shoppers in grey coats", "crowd") == "citizen-coat"
         # a look drawn from another scene's crowd row is that row's own, however its words match
-        drawn = pathlib.Path(held) / "square_crowd.json"
+        drawn = pathlib.Path(held) / "crowd.json"
         drawn.write_text(json.dumps({"description": "one person of the crowd of people, as drawn in the square concept"}))
         square = {"square_crowd-drawn": {"object": "one person of the crowd of people", "far_only": True,
-                                         "spec": str(drawn)}}
+                                         "spec": str(people_rows.SPECS / "square_crowd.json")},
+                  "people-made": {"object": "one person of the crowd of people", "far_only": True,
+                                  "spec": str(drawn)}}
         row = {"id": "crowd", "name": "crowd of people", "noun": "crowd"}
-        assert people_rows.crowd_look("moon", row, square) == "moon_crowd-drawn"
+        assert people_rows.crowd_look("moon", row, square) == "crowd-made"
         assert people_rows.crowd_look("moon", row, {**line, **square}) == "citizen-coat"
 
 
@@ -249,9 +273,9 @@ def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
     unseen = people_rows.refreshed_place("deck", inventory, None, None, None, fabrics)["rows"]["worker"]["dress"]
     assert unseen["surface"] is None and unseen["torso_lab"] is None, unseen
     found = {"places": {"deck": {**entry, "concept": "one"}}}
-    assert people_rows.dressed_looks("deck", found) == {("deck_worker_1-drawn", "jacket_blue"),
-                                                        ("deck_pilot_1-drawn", None)}
-    assert people_rows.every_dressed(found) == {("deck_worker_1-drawn", "jacket_blue")}
+    assert people_rows.dressed_looks("deck", found) == {("worker_jumpsuit-made", "jacket_blue"),
+                                                        ("person-made", None)}
+    assert people_rows.every_dressed(found) == {("worker_jumpsuit-made", "jacket_blue")}
     assert {person["name"]: person["surface"] for person in people_rows.cast_record("deck", found)["people"]} == {
         "worker": "jacket_blue", "pilot": None}
 

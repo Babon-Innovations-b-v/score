@@ -48,7 +48,7 @@
      "where": "sitting on bench",
      "share": 0.2038,
      "looks": [
-      "airlock_astronaut_1-drawn"
+      "astronaut-made"
      ],
      "dress": {
       "words": "seated astronaut",
@@ -108,7 +108,7 @@
      "where": "bottom left",
      "share": 0.0384,
      "looks": [
-      "base_astronaut_left_1-drawn"
+      "astronaut_suit-made"
      ],
      "dress": {
       "words": "astronaut in white suit",
@@ -136,7 +136,7 @@
      "where": "bottom right",
      "share": 0.0378,
      "looks": [
-      "base_astronaut_right_1-drawn"
+      "astronaut_suit-made"
      ],
      "dress": {
       "words": "astronaut in white suit",
@@ -216,7 +216,7 @@
      "where": "centre of left dome, walking",
      "share": 0.125,
      "looks": [
-      "camp_astronaut_1_1-drawn"
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -244,8 +244,8 @@
      "where": "sitting at dining table",
      "share": 0.1348,
      "looks": [
-      "camp_astronaut_2_1-drawn",
-      "camp_astronaut_2_2-drawn"
+      "astronaut-made",
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -273,7 +273,7 @@
      "where": "sitting at computer desk",
      "share": 0.0905,
      "looks": [
-      "camp_astronaut_5_1-drawn"
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -301,8 +301,8 @@
      "where": "right side of right dome, standing",
      "share": 0.11,
      "looks": [
-      "camp_astronaut_6_1-drawn",
-      "camp_astronaut_6_2-drawn"
+      "astronaut-made",
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -392,13 +392,13 @@
      "where": "scattered",
      "share": 0.0625,
      "looks": [
-      "campgrounds_astronaut_1-drawn",
-      "campgrounds_astronaut_2-drawn",
-      "campgrounds_astronaut_3-drawn",
-      "campgrounds_astronaut_4-drawn",
-      "campgrounds_astronaut_5-drawn",
-      "campgrounds_astronaut_6-drawn",
-      "campgrounds_astronaut_7-drawn"
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -458,7 +458,7 @@
      "where": "sitting in the front seat",
      "share": 0.1426,
      "looks": [
-      "cockpit_pilot_1-drawn"
+      "pilot-made"
      ],
      "dress": {
       "words": "pilot",
@@ -486,7 +486,7 @@
      "where": "standing at the centre table",
      "share": 0.1771,
      "looks": [
-      "cockpit_officer_1-drawn"
+      "officer-made"
      ],
      "dress": {
       "words": "officer",
@@ -670,11 +670,11 @@
      "where": "around the room",
      "share": 0.1432,
      "looks": [
-      "garage_astronaut_1-drawn",
-      "garage_astronaut_2-drawn",
-      "garage_astronaut_3-drawn",
-      "garage_astronaut_4-drawn",
-      "garage_astronaut_5-drawn"
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -754,11 +754,11 @@
      "where": "scattered around both floors",
      "share": 0.1315,
      "looks": [
-      "greenhouse_astronaut_1-drawn",
-      "greenhouse_astronaut_2-drawn",
-      "greenhouse_astronaut_3-drawn",
-      "greenhouse_astronaut_4-drawn",
-      "greenhouse_astronaut_5-drawn"
+      "astronaut_spacesuit-made",
+      "astronaut_spacesuit-made",
+      "astronaut_spacesuit-made",
+      "astronaut_spacesuit-made",
+      "astronaut_spacesuit-made"
      ],
      "dress": {
       "words": "astronaut in spacesuit",
@@ -844,14 +844,14 @@
      "where": "scattered around the room",
      "share": 0.0898,
      "looks": [
-      "hangar_worker_blue_1-drawn",
-      "hangar_worker_blue_2-drawn",
-      "hangar_worker_blue_3-drawn",
-      "hangar_worker_blue_4-drawn",
-      "hangar_worker_blue_5-drawn",
-      "hangar_worker_blue_6-drawn",
-      "hangar_worker_blue_7-drawn",
-      "hangar_worker_blue_8-drawn"
+      "worker_jumpsuit-made",
+      "worker_jumpsuit-made",
+      "worker_jumpsuit-made",
+      "worker_jumpsuit-made",
+      "worker_jumpsuit-made",
+      "worker_jumpsuit-made",
+      "worker_jumpsuit-made",
+      "worker_jumpsuit-made"
      ],
      "dress": {
       "words": "worker in blue jumpsuit",
@@ -957,9 +957,9 @@
      "where": "at desks and bottom right",
      "share": 0.2155,
      "looks": [
-      "lab_person_1-drawn",
-      "lab_person_2-drawn",
-      "lab_person_3-drawn"
+      "person_spacesuit-made",
+      "person_spacesuit-made",
+      "person_spacesuit-made"
      ],
      "dress": {
       "words": "person in spacesuit",
@@ -1019,8 +1019,8 @@
      "where": "near ladder",
      "share": 0.0859,
      "looks": [
-      "old_station_astronaut_1_1-drawn",
-      "old_station_astronaut_1_2-drawn"
+      "astronaut-made",
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut standing",
@@ -1080,7 +1080,7 @@
      "where": "bottom bunk",
      "share": 0.1562,
      "looks": [
-      "quarters_person_bed_1-drawn"
+      "person-made"
      ],
      "dress": {
       "words": "person sitting on bed",
@@ -1108,7 +1108,7 @@
      "where": "at desk",
      "share": 0.1172,
      "looks": [
-      "quarters_person_desk_1-drawn"
+      "person-made"
      ],
      "dress": {
       "words": "person sitting at desk",
@@ -1178,7 +1178,7 @@
      ],
      "where": "everywhere",
      "share": 0.1836,
-     "crowd": "square_crowd-drawn",
+     "crowd": "crowd-made",
      "palettes": null,
      "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
      "dress": {
@@ -1236,7 +1236,7 @@
      ],
      "where": "right side, background square",
      "share": 0.2565,
-     "crowd": "stairwell_crowd-drawn",
+     "crowd": "crowd-made",
      "palettes": null,
      "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
      "dress": {
@@ -1266,11 +1266,11 @@
      "where": "bottom right, walkway",
      "share": 0.0586,
      "looks": [
-      "stairwell_walkway_crowd_1-drawn",
-      "stairwell_walkway_crowd_2-drawn",
-      "stairwell_walkway_crowd_3-drawn",
-      "stairwell_walkway_crowd_4-drawn",
-      "stairwell_walkway_crowd_5-drawn"
+      "person-made",
+      "person-made",
+      "person-made",
+      "person-made",
+      "person-made"
      ],
      "dress": {
       "words": "people on walkway",
@@ -1421,13 +1421,13 @@
      "where": "walking on both pavements",
      "share": 0.1576,
      "looks": [
-      "street_pedestrian_umbrella_1-drawn",
-      "street_pedestrian_umbrella_2-drawn",
-      "street_pedestrian_umbrella_3-drawn",
-      "street_pedestrian_umbrella_4-drawn",
-      "street_pedestrian_umbrella_5-drawn",
-      "street_pedestrian_umbrella_6-drawn",
-      "street_pedestrian_umbrella_7-drawn"
+      "person-made",
+      "person-made",
+      "person-made",
+      "person-made",
+      "person-made",
+      "person-made",
+      "person-made"
      ],
      "dress": {
       "words": "person holding an umbrella",
@@ -1455,7 +1455,7 @@
      "where": "inside the restaurant",
      "share": 0.0345,
      "looks": [
-      "street_diner_seated_1-drawn"
+      "person-made"
      ],
      "dress": {
       "words": "person sitting at a table",
@@ -1482,7 +1482,7 @@
      ],
      "where": "in the background square",
      "share": 0.0475,
-     "crowd": "street_distant_crowd-drawn",
+     "crowd": "crowd-made",
      "palettes": null,
      "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
      "dress": {
@@ -1549,8 +1549,8 @@
      "where": "left midground, at console",
      "share": 0.1667,
      "looks": [
-      "tube_person_mid_left_1-drawn",
-      "tube_person_mid_left_2-drawn"
+      "person_uniform-made",
+      "person_uniform-made"
      ],
      "dress": {
       "words": "person in uniform",
@@ -1578,7 +1578,7 @@
      "where": "right midground, at console",
      "share": 0.25,
      "looks": [
-      "tube_person_right_1-drawn"
+      "person_uniform-made"
      ],
      "dress": {
       "words": "person in uniform",
@@ -1664,7 +1664,7 @@
      "where": "centre",
      "share": 0.2012,
      "looks": [
-      "workshop_person_centre_1-drawn"
+      "person-made"
      ],
      "dress": {
       "words": "person",
@@ -1692,7 +1692,7 @@
      "where": "right",
      "share": 0.1699,
      "looks": [
-      "workshop_person_right_1-drawn"
+      "person-made"
      ],
      "dress": {
       "words": "person",
@@ -1762,7 +1762,7 @@
      "where": "standing near centre light",
      "share": 0.0697,
      "looks": [
-      "wreck_astronaut_1_1-drawn"
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -1790,7 +1790,7 @@
      "where": "standing lower right of centre",
      "share": 0.0625,
      "looks": [
-      "wreck_astronaut_2_1-drawn"
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",
@@ -1818,7 +1818,7 @@
      "where": "standing far left background",
      "share": 0.0521,
      "looks": [
-      "wreck_astronaut_3_1-drawn"
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut",

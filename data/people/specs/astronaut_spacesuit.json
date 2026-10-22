@@ -1,5 +1,5 @@
 {
- "name": "greenhouse_astronaut_1",
+ "name": "astronaut_spacesuit",
  "kind": "person",
  "route": "prop",
  "approved": "the creator's pick of the greenhouse concept (a9585cc6): its scene inventory's people row astronaut (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
@@ -7,10 +7,10 @@
  "references": [],
  "description": "astronaut in spacesuit, an average build, as drawn in the greenhouse concept",
  "outfit_words": {
-  "drawn": "the clothes as drawn in the greenhouse concept"
+  "made": "the clothes as drawn in the greenhouse concept"
  },
  "outfits": [
-  "drawn"
+  "made"
  ],
  "hair": "the hair as drawn in the greenhouse concept",
  "face": "the face as drawn in the greenhouse concept"

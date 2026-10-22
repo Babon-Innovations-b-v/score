@@ -1,5 +1,5 @@
 {
- "name": "lab_person_1",
+ "name": "person_spacesuit",
  "kind": "person",
  "route": "prop",
  "approved": "the creator's pick of the lab concept (71416d39): its scene inventory's people row person (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
@@ -7,10 +7,10 @@
  "references": [],
  "description": "person in spacesuit, an average build, as drawn in the lab concept",
  "outfit_words": {
-  "drawn": "the clothes as drawn in the lab concept"
+  "made": "the clothes as drawn in the lab concept"
  },
  "outfits": [
-  "drawn"
+  "made"
  ],
  "hair": "the hair as drawn in the lab concept",
  "face": "the face as drawn in the lab concept"
