@@ -1,8 +1,9 @@
 """pixal@<place>: the prop objects' raw models from their close-ups, by Pixal3D through the existing cloud batch.
 
-tools/props/cloud/batch.py makes every take on rented cards (the close-up cut out on the machine, Pixal3D, the
-finish here with pixal.py --finish-only) and brings each back into WORK/pixal/ as <take>.glb, <take>.svviews (the
-close-up and its camera) and <take>-final.glb: the files the surface stage's line reads for every take its data lists
+tools/props/cloud/batch.py makes every take on rented cards (the close-up cut out on the machine, Pixal3D) and brings
+each back raw (--no-finish) into WORK/pixal/ as <take>.glb and <take>.svviews (the close-up and its camera); each is
+finished on another rented machine (finish_here: pixal.py --finish-only, never on the owner's PC) into
+<take>-final.glb: the files the surface stage's line reads for every take its data lists
 (score/stages/surfaces, surface_data.take_files), so the surface line (split, library paint, made solid in the bake)
 takes the prop route's models from here, and its first row waits on this one. A take already made is not made again
 (the batch refuses to overwrite one).
@@ -29,6 +30,10 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 # objects at about EUR 0.2 each, and the cards' cold start, rounded up.
 EUROS = 20.0
 SUFFIXES = (".glb", "-final.glb", ".svviews")
+# The finish's machine (blender_cloud.py), as the rough model's (score/stages/rough_model): a card by the minute first,
+# a processor machine (by the hour) when no card is in stock; its set-up and one finish, a minute or two.
+FINISH_CLASSES = ("gpu-24gb", "gpu-48gb", "cpu-16c-64gb", "cpu-32c-128gb")
+FINISH_MINUTES = 15
 
 
 def take_files(take):
@@ -73,15 +78,17 @@ def faces_of(surfaces, take):
     return entry["faces"]
 
 
-def finish_here(take, closeup, faces, out):
-    """A take the cloud brought back but whose finish never ran or failed, finished here as the batch finishes every
-    take: pixal.py --finish-only (Blender and the processor, no model)."""
-    with (out / "finish.log").open("a") as log:
-        done = subprocess.run([str(REPO / ".venv/bin/python"), str(REPO / "tools/props/pixal.py"), str(closeup), take,
-                               "--who", "score pixal", "--finish-only", f"--faces={faces}"], cwd=REPO, stdout=log,
-                              stderr=subprocess.STDOUT)
-    if done.returncode:
-        raise RuntimeError(f"the finish of {take} failed (exit {done.returncode}); its log is finish.log")
+def finish_here(take, closeup, faces):
+    """A take the cloud brought back raw, finished as the batch finishes every take (pixal.py --finish-only) on a
+    rented machine (tools/props/finish_elsewhere.py through blender_cloud.run_elsewhere, under this node's clearance):
+    no Blender or bake runs on the owner's PC. The raw take, its camera folder, its close-up, the prop tools and the
+    lab's copy go up at their own paths; the finished model comes back into WORK/pixal. Raises when the run fails."""
+    from score.adapters import engines
+    raw, final, views = take_files(take)
+    sent = [raw, *([views] if views.exists() else []), closeup, REPO / "tools/props", REPO / "vendor/image-to-3dlab"]
+    engines.machine_runner().run_elsewhere(REPO / "tools/props/finish_elsewhere.py",
+                                           [REPO, raw.parents[1], closeup, take, f"--faces={faces}"], sent, [final],
+                                           FINISH_CLASSES, f"score pixal {take}", FINISH_MINUTES)
 
 
 def seed_of(take):
@@ -112,13 +119,13 @@ def make_pixal(inputs, out, seed, params):
     if listing:
         done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/batch.py"), str(listing), "--who",
                                f"score pixal {prop_data.record_at(inputs['props'])['place']}", "--inventory",
-                               str(inputs["inventory"])], cwd=REPO, capture_output=True, text=True)
+                               str(inputs["inventory"]), "--no-finish"], cwd=REPO, capture_output=True, text=True)
         (out / "batch.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
         if done.returncode:
             raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
     for row, entry in sorted(objects.items()):
         if raw_made(entry["take"]) and not made(entry["take"]):
-            finish_here(entry["take"], closeups / f"{row}.png", faces_of(inputs["surfaces"], entry["take"]), out)
+            finish_here(entry["take"], closeups / f"{row}.png", faces_of(inputs["surfaces"], entry["take"]))
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in objects.items()}

@@ -26,7 +26,7 @@ REAL_HOME = pathlib.Path(os.environ.get("SCORE_REAL_HOME", pathlib.Path.home() /
 STATE = ("cloud", "store", "store-tests", "locks", "logs", "tmp", "replays", "runs", "frozen")
 # Environment data folders made real folders in the sandbox, each entry in them linked, so a test can add an entry of its own
 # beside the real ones (a work folder, a commit's files under work/carry-commits) while the real ones stay read-only.
-MIRRORED = ("work", "work/carry-commits")
+MIRRORED = ("work", "work/carry-commits", "work/pixal")  # work/pixal: a test lays a take beside the real ones
 
 
 def linked(entry):

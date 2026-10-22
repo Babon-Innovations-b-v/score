@@ -2,7 +2,8 @@
 __init__.py) written from the route's split, so the framework's rows (paint, bake, check) and every reader of the
 parts (the likeness, the machines) take it as they took the finish-map method's.
 
-Each finish's surface is checked against its colour before the bake, free (finish_parts.checked_finishes, the same
+Its finishes are the split's (route_split.FINISHES: the list's, each off what the views show given the palette token
+nearest them). Each finish's surface is checked against its colour before the bake, free (finish_parts.checked_finishes, the same
 check the finish-map method ran): its colour here is the median CIELAB of the model's own texture over its faces'
 pixels in every view (route_views), never painted, only measured. A finish off its listed surface takes the nearest
 surface of its family that fits, or one of the scene's own shell surfaces (palette_library.shell_surfaces: the variants
@@ -92,7 +93,9 @@ def make_parts(inputs, out, seed, params):
         if record is None or record["fault"]:
             left[take] = record["fault"] if record else named.get(take, "not split: no finish list")
             continue
-        finishes = json.loads((listed / f"{take}.json").read_text())["finishes"]
+        judged = split / take / route_split.FINISHES  # the split's, recoloured; the list's for one split before it
+        finishes = (json.loads(judged.read_text()) if judged.exists()
+                    else json.loads((listed / f"{take}.json").read_text())["finishes"])
         found[take] = parts_take({"views": views / take, "split": split / take, "out": out / take}, takes[take],
                                  finishes, (palette_library.take_surfaces(takes[take], palette), kit))
     (out / "parts.json").write_text(json.dumps({"takes": found, "left_out": left}, indent=1))

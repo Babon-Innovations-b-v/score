@@ -16,6 +16,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import types
 
 import numpy as np
 import trimesh
@@ -274,12 +275,36 @@ def test_an_unassigned_face_or_views_that_disagree_make_a_gap():
     assert "disagree" in route_split.split_fault(found)
 
 
-def test_a_chosen_surface_off_what_any_view_shows_is_a_gap_before_the_bake():
+def test_a_finish_off_what_the_views_show_takes_the_nearest_palette_token_before_it_is_judged():
+    """Owner, 2026-10-22: the list put the astronaut's mid-grey jacket in hull-white. A finish whose token lies over
+    VIEW_DELTA_E from what its regions show takes the palette's nearest token, its surface kept, and the parts row
+    paints it so; only a region still over the limit is a gap."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         far = lambda views, take: dict(two_finish_answer(views), finishes=[
             finish_entry("red paint"), finish_entry("blue paint", token="sign-red")])  # the blue box in red
         rows = parted(folder, split(folder, listed(folder, far)[0]))
+        record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
+        assert record["fault"] is None, record
+        judged = json.loads((rows["finish-route-split"] / TAKE / route_split.FINISHES).read_text())
+        assert judged[1]["listed_token"] == "sign-red" and judged[1]["settings"]["token"] == "bay-three", judged[1]
+        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]
+        assert {finish["settings"]["token"] for finish in found["finishes"]} == {"sign-red", "bay-three"}, found
+
+
+def test_a_chosen_surface_off_what_any_view_shows_is_a_gap_before_the_bake():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        far = lambda views, take: dict(two_finish_answer(views), finishes=[
+            finish_entry("red paint"), finish_entry("blue paint", token="sign-red")])  # the blue box in red
+        rows = listed(folder, far)[0]
+        tokens = route_split.route_list.palette_tokens(route_split.palette_library.read(rows))
+        kept = route_split.route_list
+        route_split.route_list = types.SimpleNamespace(palette_tokens=lambda palette: {"sign-red": tokens["sign-red"]})
+        try:  # a palette with no token near the blue box: it stays off its colour
+            rows = parted(folder, split(folder, rows))
+        finally:
+            route_split.route_list = kept
         record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
         assert "blue paint (" in record["fault"] and "sign-red) lies dE" in record["fault"], record
         assert record["colour_worst"] > route_split.VIEW_DELTA_E, record
