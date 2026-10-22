@@ -47,13 +47,29 @@ def check_heads():
 
 
 def check_discs():
-    rng = np.random.default_rng(1)
-    flat = np.zeros((SIZE, SIZE, 3))
-    flat[:, :100] = [40, 90, 160]
-    flat[:, 100:] = [60, 140, 60]
-    noisy = np.clip(flat + rng.normal(0, 30, flat.shape), 0, 255)
-    assert measure.disc(flat, 100, 100, 80)["flat_share"] > 0.9
-    assert measure.disc(noisy, 100, 100, 80)["flat_share"] < 0.2
+    """A body's disc lit on its right half over a black sky shows and is lighter toward the sun on the right; the
+    gate's rules fail the same disc judged with its sun on the left, and a disc lost in the sky."""
+    from score.stages import light
+    rows, columns = np.mgrid[0:SIZE, 0:SIZE]
+    lit = np.zeros((SIZE, SIZE, 3))
+    disc = np.hypot(columns - 100, rows - 100) < 40
+    lit[disc & (columns >= 100)] = [150, 150, 160]
+    lit[disc & (columns < 100)] = [12, 12, 14]
+    usable = np.ones((SIZE, SIZE), dtype=bool)
+    right = measure.body(lit, 100, 100, 40, (1.0, 0.0), usable)
+    assert right["shown"] > 0.45 and right["sunward"] > right["away"] + 50, right
+    left = measure.body(lit, 100, 100, 40, (-1.0, 0.0), usable)
+    lost = measure.body(np.zeros((SIZE, SIZE, 3)), 100, 100, 40, (1.0, 0.0), usable)
+    assert lost["shown"] == 0.0 and measure.body(lit, 100, 100, 40, (1.0, 0.0), ~usable) is None
+
+    def entry(after, sun_seen=True, lit_share=0.5):
+        return {"body": "a", "view": "v", "lit": lit_share, "sun_seen": sun_seen, "after": after}
+    assert light.body_faults([entry(right)]) == []
+    assert any("not lit from its sun" in fault for fault in light.body_faults([entry(left)]))
+    assert light.body_faults([entry(left, sun_seen=False)]) == []  # its sun along the view: not judged
+    assert light.body_faults([entry(left, lit_share=0.98)]) == []  # nearly full: no dark side to judge
+    assert any("shown in none" in fault for fault in light.body_faults([entry(lost)]))
+    assert light.body_faults([entry(lost), entry(right)]) == []  # shown in one of the views framing it
 
 
 def check_sky():

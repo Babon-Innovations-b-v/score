@@ -66,7 +66,7 @@ def test_the_earth_over_the_moon_base_is_a_ball_about_two_degrees_across_and_the
     # the Sun's 695700 km radius at 0.983 to 1.017 AU: 31.5 to 32.6 arc minutes
     assert 1800 * math.sin(math.radians(31.4 / 120)) < half_height(sun) < 1800 * math.sin(math.radians(32.7 / 120))
     assert earth.GetAttribute("score:surface").Get() == "earth_face"
-    assert earth.GetAttribute("score:surface:missing").Get()  # no library in this stage: named, never painted grey
+    assert "body-face-earth" in earth.GetAttribute("score:surface:missing").Get()  # its face waits: named, never grey
     assert sky.faults(seen, sky.held(stage, "base")) == []
 
 
@@ -86,6 +86,9 @@ def test_a_body_is_painted_with_the_face_its_row_made(tmp_path):
     assert material.GetPrim().GetAttribute("score:from").Get() == "body-face-earth"
     shader = UsdShade.Shader(stage.GetPrimAtPath("/base/Looks/earth_face/surface"))
     assert tuple(shader.GetInput("diffuseColor").Get()) == pytest.approx(face["colour"], abs=1e-6)
+    from score.stages import light
+    assert earth.GetAttribute("score:face").Get() == "body-face-earth" and light.face_drawn(earth)
+    assert not light.face_drawn(stage.GetPrimAtPath("/base/Sky/Bodies/mars"))  # its row has not run
 
 
 def test_the_gate_names_a_world_moved_a_light_turned_and_a_backdrop_missing():
@@ -106,8 +109,7 @@ def test_a_world_overhead_left_out_and_one_not_overhead_are_faults():
     seen = overhead.seen(ENVIRONMENT_1, BASE, WHEN)
     stage = stage_of("base")
     sky.write(stage, "base", {**seen, "bodies": [body for body in seen["bodies"] if body["body"] != "mars"]})
-    sky.write_body(stage, "base", {"body": "phobos", "azimuth": 10.0, "altitude": 20.0, "across": 0.1, "lit": 1.0},
-                   None)
+    sky.write_body(stage, "base", {"body": "phobos", "azimuth": 10.0, "altitude": 20.0, "across": 0.1, "lit": 1.0})
     found = sky.faults(seen, sky.held(stage, "base"))
     assert any(fault.startswith("Mars: overhead") for fault in found), found
     assert "the body phobos: in the sky, but not overhead" in found, found
@@ -144,7 +146,7 @@ def test_a_sun_under_the_horizon_lights_nothing_and_its_light_held_anyway_is_a_f
     assert written["lights"] == [] and not stage.GetPrimAtPath("/house/Lights/sky_sun")
     assert sky.sun_entries(seen) == []  # no day dome scattered from under the ground
     assert sky.faults(seen, sky.held(stage, "house")) == []
-    sky.write_light(stage, "house", seen["lights"][0], None)  # a sky that shines it up through the ground anyway
+    sky.write_light(stage, "house", seen["lights"][0])  # a sky that shines it up through the ground anyway
     assert "the light sun: in the sky, but not overhead" in sky.faults(seen, sky.held(stage, "house"))
 
 

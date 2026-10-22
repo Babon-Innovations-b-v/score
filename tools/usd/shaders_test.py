@@ -1,9 +1,5 @@
-"""Check the framework's own shaders (tools/usd/shaders.py, earth.py) without Blender: the Earth's picture is the real
-planet (ocean, land and cloud, no flat palette) and the same every bake; a ball painted earth_face
-is bound to the baked look with its picture in the stage; without a folder it keeps the library's flat surface; a
-shell surface with a library tile is drawn with it, repeated along its metres; the
-sun's disc hangs along the sky's sun as wide as the game draws it and not along a named light; and the game's
-missing materials are library surfaces.
+"""Check the framework's own shaders (tools/usd/shaders.py) without Blender: a shell surface with a library tile is
+drawn with it, repeated along its metres; one the tiles lack keeps the library's flat surface.
 
 Run: .venv/bin/python tools/usd/shaders_test.py   (make tests runs it with the framework's environment)
 """
@@ -12,56 +8,22 @@ import pathlib
 import sys
 import tempfile
 
-import numpy as np
 from pxr import Sdf, Usd, UsdGeom, UsdShade
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import builders  # noqa: E402
-import earth  # noqa: E402
 import scene  # noqa: E402
 import shaders  # noqa: E402
 
 PLACE = "wreck"
 
 
-def check_the_picture():
-    first = earth.picture(512)
-    assert first.shape == (256, 512, 3) and np.array_equal(first, earth.picture(512))
-    red, green, blue = (first[..., index].astype(int) for index in range(3))
-    cloud = np.minimum(np.minimum(red, green), blue) > 170
-    sea = (blue >= red) & (blue >= green) & ~cloud
-    land = (red > blue + 10) & ~cloud
-    codes = (first.astype(np.int64) // 8) @ np.array([1024, 32, 1])
-    flat = np.sort(np.bincount(codes.ravel()))[::-1][:8].sum() / codes.size
-    # The ink_earth cartoon's eight commonest colours covered 0.88 of it (measured 2026-10-11); the planet's 0.41, most
-    # of that its dark open ocean.
-    assert 0.2 < cloud.mean() < 0.7 and sea.mean() > 0.2 and land.mean() > 0.05 and flat < 0.5, \
-        (cloud.mean(), sea.mean(), land.mean(), flat)
-
-
 def stage_with_library():
     stage = Usd.Stage.CreateInMemory()
     UsdGeom.Xform.Define(stage, f"/{PLACE}")
-    for name in ("earth_face", "sun_disc"):
-        UsdShade.Material.Define(stage, f"/{PLACE}/Library/{name}")
     return stage
-
-
-def check_the_earth_look(folder):
-    stage = stage_with_library()
-    ball = scene.mesh_prim(stage, f"/{PLACE}/Structure/earth", builders.sphere([0.0, 0.0, 0.0], 220.0, "earth_face"))
-    shaders.EARTH_WIDTH = 64
-    scene.bind_surface(stage, ball, PLACE, "earth_face", folder)
-    bound = UsdShade.MaterialBindingAPI(ball.GetPrim()).GetDirectBinding().GetMaterialPath()
-    assert bound == Sdf.Path(f"/{PLACE}/Looks/earth_face"), bound
-    assert (folder / "assets/textures" / shaders.EARTH_PICTURE).exists()
-    assert ball.GetPrim().GetAttribute("score:surface").Get() == "earth_face"
-    flat = scene.mesh_prim(stage, f"/{PLACE}/Structure/flat", builders.sphere([0.0, 0.0, 0.0], 1.0, "earth_face"))
-    scene.bind_surface(stage, flat, PLACE, "earth_face")
-    assert UsdShade.MaterialBindingAPI(flat.GetPrim()).GetDirectBinding().GetMaterialPath() == \
-        Sdf.Path(f"/{PLACE}/Library/earth_face")
 
 
 def tiles_folder(folder, surface="deck", metres=2.0):
@@ -99,9 +61,6 @@ def check_the_tile_look(folder):
 
 
 def main():
-    check_the_picture()
-    with tempfile.TemporaryDirectory() as folder:
-        check_the_earth_look(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_the_tile_look(pathlib.Path(folder))
     print("shaders_test: ok")

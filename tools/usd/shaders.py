@@ -1,10 +1,6 @@
 """The framework's own shaders: surfaces the library's flat UsdPreviewSurface cannot carry, each written as a
 UsdPreviewSurface over a picture the framework bakes, so every USD reader (Blender's importer included) draws it.
 
-    earth_face   the Earth seen in a place's sky: the real planet, NASA's Blue Marble with NASA's cloud cover over
-                 it, baked by earth.py into a longitude-latitude picture on the ball's own uvs, lit by the place's
-                 sun so its night side falls dark (score:shader "earth")
-
     <surface>    a room shell's library surface (score/stages/surface_tiles: make_tiles.py bakes its recipe flat as a
                  repeating tile), drawn with the tile's colour, roughness, metal and normal pictures, repeated every
                  tile's side along the mesh's own uvs in metres (score:shader "library tile")
@@ -17,56 +13,15 @@ import pathlib
 
 from pxr import Sdf, UsdShade
 
-import earth
-
-EARTH_PICTURE = "earth_surface.png"
-EARTH_WIDTH = 4096
-
-
-def earth_look(stage, place, out):
-    """The Earth's surface material under /<place>/Looks, its picture baked once into the stage's textures."""
-    path = f"/{place}/Looks/earth_face"
-    material = UsdShade.Material(stage.GetPrimAtPath(path))
-    if material:
-        return material
-    earth.write(pathlib.Path(out) / "assets/textures" / EARTH_PICTURE, EARTH_WIDTH)
-    material = UsdShade.Material.Define(stage, path)
-    shader = UsdShade.Shader.Define(stage, f"{path}/surface")
-    shader.CreateIdAttr("UsdPreviewSurface")
-    reader = UsdShade.Shader.Define(stage, f"{path}/uv")
-    reader.CreateIdAttr("UsdPrimvarReader_float2")
-    reader.CreateInput("varname", Sdf.ValueTypeNames.String).Set("st")
-    texture = UsdShade.Shader.Define(stage, f"{path}/picture")
-    texture.CreateIdAttr("UsdUVTexture")
-    texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(f"../assets/textures/{EARTH_PICTURE}")
-    texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
-        reader.CreateOutput("result", Sdf.ValueTypeNames.Float2))
-    texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set("sRGB")
-    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
-        texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
-    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(1.0)
-    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(0.0)
-    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
-    for key, value in (("score:shader", "earth"),
-                       ("score:from", "NASA Visible Earth: Blue Marble Next Generation (July 2004) and its cloud cover, "
-                                     "baked by tools/usd/earth.py")):
-        material.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
-    return material
-
-
-# Surface -> the function writing its framework shader.
-LOOKS = {"earth_face": earth_look}
 # A library tile's pictures by role, as make_tiles.py writes them (<surface>_<role>.png).
 TILE_ROLES = ("base_color", "metal_roughness", "normal")
 
 
 def look(stage, place, surface, out, tiles=None):
-    """The framework shader for a surface: its own (LOOKS), else its library tile where `tiles` (a surface-tiles
+    """The framework shader for a surface: its library tile where `tiles` (a surface-tiles
     output, make_tiles.py's pictures and tiles.json) holds one; None when the library's flat surface is its look."""
     if out is None:
         return None
-    if surface in LOOKS:
-        return LOOKS[surface](stage, place, out)
     if tiles is not None and surface in tile_record(tiles):
         return tile_look(stage, place, surface, out, tiles)
     return None

@@ -11,10 +11,11 @@ scene time (score/review/overhead.py on the inputs score/review/scene_sky.py kee
     backdrops  a dome a dome light of its lux and kelvin, a skyline its record (its look is a library item to come),
                /<scene>/Sky/Backdrops/<key>
 
-A ball is painted with its surface (`<body>_disc` for a shining body, `<body>_face` for another): a framework look
-(shaders.LOOKS: the Earth's NASA surface) first, else a body's face as its `body-face-<body>` row made it (`faces`,
-score/stages/surfaces/body_faces.py; never read by a library name), else the library's where the library holds it;
-one with none is named on the ball (`score:surface:missing`) for the library check, never painted grey. The scene's frame is the plan's: x east, y up, z south, its middle at the site.
+Every body's ball is painted with its face as its `body-face-<body>` row made it (`faces`,
+score/stages/surfaces/body_faces.py; tagged `score:face` with the row), never a picture of its own or a library name;
+a shining body's disc with its library surface (`<body>_disc`) where the library holds it. One with none is named on
+the ball (`score:surface:missing`) for the library check, never painted grey. The scene's frame is the plan's: x east,
+y up, z south, its middle at the site.
 
 The old sky the seed or the record drew (its suns, its sun discs, the Moon's pictures, the star field, a world hung
 as structure) is turned off in the layer (`retired`), so the physics' sky is the only one.
@@ -26,7 +27,7 @@ site: the light layer's gate "sky bodies".
     seen_of(kept) -> overhead.seen(...) | None
     risen(seen) -> seen with only the lights over the horizon
     faces_of(inputs) -> {body: its face.json}      the accepted body faces among a node's inputs
-    write(stage, place, seen, out=None, faces=None) -> {lights, bodies, backdrops}
+    write(stage, place, seen, faces=None) -> {lights, bodies, backdrops}
     held(stage, place) -> {lights, bodies, backdrops}
     faults(seen, held) -> [str]
 """
@@ -43,7 +44,6 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import builders  # noqa: E402
 import scene  # noqa: E402
-import shaders  # noqa: E402
 
 KEPT = "{home}/design/sky/{place}.json"
 FACE_ROW = "body-face-"  # a body's face row (score/stages/surfaces/body_faces.py PREFIX), which the light layer reads
@@ -136,17 +136,28 @@ def face_material(stage, place, face):
     return material
 
 
-def painted(stage, prim, place, surface, out, face=None):
-    """The ball painted with its surface: a framework look, else the body's face (`face`, its row's), else the
-    library's where the library holds it, else that surface named as missing."""
+def painted(stage, prim, place, surface):
+    """A shining body's disc painted with its library surface where the library holds it, else that surface named as
+    missing."""
     from pxr import UsdShade
-    material = shaders.look(stage, place, surface, out) or (face and face_material(stage, place, face)) or \
-        UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Library/{surface}"))
+    material = UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Library/{surface}"))
     tagged(prim, {"surface": surface})
     if material:
         UsdShade.MaterialBindingAPI.Apply(prim).Bind(material)
     else:
         tagged(prim, {"surface:missing": f"the library has no surface {surface} yet"})
+
+
+def faced(stage, prim, place, body, face):
+    """A body's ball painted with its face as its `body-face-<body>` row made it (`face`, tagged `score:face` with the
+    row), else named missing while that row has not run; never a library name or a picture of its own."""
+    from pxr import UsdShade
+    tagged(prim, {"surface": f"{body}_face"})
+    if face is None:
+        tagged(prim, {"surface:missing": f"waiting on its face row {FACE_ROW}{body}"})
+        return
+    UsdShade.MaterialBindingAPI.Apply(prim).Bind(face_material(stage, place, face))
+    tagged(prim, {"face": f"{FACE_ROW}{body}"})
 
 
 def ball(stage, path, azimuth, altitude, across):
@@ -157,7 +168,7 @@ def ball(stage, path, azimuth, altitude, across):
                                                         BALL_SEGMENTS)).GetPrim()
 
 
-def write_light(stage, place, light, out):
+def write_light(stage, place, light):
     """A light overhead as a distant light shining from its direction, and a shining body's disc."""
     from pxr import Gf, UsdGeom, UsdLux
     path = f"/{place}/Lights/sky_{settings.key_of(light['name'])}"
@@ -175,17 +186,17 @@ def write_light(stage, place, light, out):
     if light.get("of") and light.get("across"):
         UsdGeom.Scope.Define(stage, f"/{place}/Sky/Discs")
         disc = ball(stage, f"/{place}/Sky/Discs/{light['of']}", light["azimuth"], light["altitude"], light["across"])
-        painted(stage, disc, place, f"{light['of']}_disc", out)
+        painted(stage, disc, place, f"{light['of']}_disc")
         tagged(disc, {"kind": "sky disc", "sky:body": light["of"], "from": FROM})
         found["disc"] = str(disc.GetPath())
     return found
 
 
-def write_body(stage, place, body, out, face=None):
+def write_body(stage, place, body, face=None):
     """Another body overhead as a ball at its true direction and size, its phase lit by the scene's own lights,
     painted with its face (`face`: its body face row's, None while that waits)."""
     prim = ball(stage, f"/{place}/Sky/Bodies/{body['body']}", body["azimuth"], body["altitude"], body["across"])
-    painted(stage, prim, place, f"{body['body']}_face", out, face)
+    faced(stage, prim, place, body["body"], face)
     tagged(prim, {"kind": "sky body", "sky:body": body["body"], "sky:lit": float(body["lit"]), "from": FROM})
     return {"body": body["body"], "path": str(prim.GetPath()), "surface": f"{body['body']}_face"}
 
@@ -208,7 +219,7 @@ def write_backdrop(stage, place, backdrop):
     return {"name": backdrop["name"], "path": path, "shape": backdrop["shape"]}
 
 
-def write(stage, place, seen, out=None, faces=None):
+def write(stage, place, seen, faces=None):
     """The scene's sky from what is overhead (overhead.seen's answer; its lights the risen ones) into the stage's edit
     target, each body painted with its face (`faces`: faces_of's); what was written."""
     from pxr import UsdGeom
@@ -216,8 +227,8 @@ def write(stage, place, seen, out=None, faces=None):
     UsdGeom.Scope.Define(stage, f"/{place}/Sky")
     for group in ("Bodies", "Backdrops"):
         UsdGeom.Scope.Define(stage, f"/{place}/Sky/{group}")
-    return {"lights": [write_light(stage, place, light, out) for light in seen["lights"]],
-            "bodies": [write_body(stage, place, body, out, (faces or {}).get(body["body"]))
+    return {"lights": [write_light(stage, place, light) for light in seen["lights"]],
+            "bodies": [write_body(stage, place, body, (faces or {}).get(body["body"]))
                        for body in seen["bodies"]],
             "backdrops": [write_backdrop(stage, place, backdrop) for backdrop in seen["backdrops"]]}
 
