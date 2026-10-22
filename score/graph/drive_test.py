@@ -582,6 +582,17 @@ def test_detach_returns_at_once_with_the_log_its_result_line_last():
     assert lines[0] == "the run went on" and lines[-1].startswith("detached: ok exit=0 "), lines
 
 
+def test_a_run_started_as_a_script_imports_the_tools_library():
+    """Fault (benchmark 2026-10-22): the detached run starts `python score/__main__.py`, which put score/ first on the
+    path, so `import library` found score/library and earth-seed and surface-tiles@greenhouse failed on it."""
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    probe = ("import runpy, sys; runpy.run_path(sys.argv[1], run_name='probe'); import library; "
+             "print(library.__file__)")
+    done = subprocess.run([sys.executable, "-c", probe, str(repo / "score/__main__.py")], cwd=repo / "score",
+                          capture_output=True, text=True, timeout=110)
+    assert done.stdout.strip().endswith("tools/props/library/library.py"), done.stdout + done.stderr[-2000:]
+
+
 def test_a_detached_run_stopped_by_a_signal_still_ends_with_its_line():
     """Fault (2026-10-12): a run whose process group was sent SIGTERM ended its log with no line."""
     import signal
