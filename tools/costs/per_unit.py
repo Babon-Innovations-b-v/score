@@ -122,12 +122,18 @@ RECORDED = {
                              "runs": [{"euros": 0.022318, "units": 1,
                                        "source": "google ledger call 80322def0eb2437e8ac358dcfccf3e67 "
                                                  "(finish-route-palette@greenhouse, 2026-10-21, benchmark grant "
-                                                 "20261021T182203), standard tier"}],
-                             "time": {"unit_seconds": {"likely": 189.0, "high": 189.0},
+                                                 "20261021T182203), standard tier"},
+                                      {"euros": 0.019218, "units": 1,
+                                       "source": "google ledger call 7759147ddd48417e8a1582e304ac85c7 "
+                                                 "(finish-route-palette@greenhouse, 2026-10-22, benchmark grant "
+                                                 "20261022T072047), standard tier"}],
+                             "time": {"unit_seconds": {"likely": 218.5, "high": 242.1},
                                       "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
-                                      "slots_from": "one call a place", "holds": "calls", "lines": 1,
+                                      "slots_from": "one call a place", "holds": "calls", "lines": 2,
                                       "from": ["google ledger call 80322def0eb2437e8ac358dcfccf3e67 (started "
-                                               "20:33:26, finished 20:36:35 +02:00)"]}},
+                                               "20:33:26, finished 20:36:35 +02:00)",
+                                               "google ledger call 7759147ddd48417e8a1582e304ac85c7 (started "
+                                               "09:26:01, finished 09:30:09 +02:00 on 2026-10-22)"]}},
     "concept-views": {"unit": "make of the environment's concept views (16 Pro pictures, "
                               "data/definitions/concept_views.json)", "forecast": "one",
                       "runs": [{"euros": 2.254, "units": 1,
@@ -159,6 +165,30 @@ RECORDED = {
                                    "slots_from": "one chain on its one card", "holds": "machines", "lines": 1,
                                    "from": ["ledger batch characters-20261021-203329-3895203 (its machine's "
                                             "unit_seconds; start wait 0.37 and set-up 14.15 min)"]}},
+    # The benchmark batch of 2026-10-22 (grant 20261022T072047, one score run at commit aac2fac2): the two guessed
+    # kinds that ran, one node each, its whole make (forecast "one").
+    "surface-library": {"unit": "scene surface library of a place (one Gemini 3.1 Pro answer)", "forecast": "one",
+                        "runs": [{"euros": 0.08087, "units": 1,
+                                  "source": "google ledger call 507bf0dfcea54d6b9723bcfe9d29a167 "
+                                            "(surface-library@greenhouse, 2026-10-22, benchmark grant "
+                                            "20261022T072047), standard tier"}],
+                        "time": {"unit_seconds": {"likely": 249.0, "high": 249.0},
+                                 "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 1,
+                                 "slots_from": "one call a place", "holds": "calls", "lines": 1,
+                                 "from": ["google ledger call 507bf0dfcea54d6b9723bcfe9d29a167 (started 09:30:13, "
+                                          "finished 09:34:22 +02:00 on 2026-10-22)"]}},
+    "crops-concept": {"unit": "make of a place's crop masks on its concept (one card, 7 pictures at greenhouse)",
+                      "forecast": "one",
+                      "runs": [{"euros": 0.06125, "units": 1,
+                                "source": "ledger batch masks-20261022-092631-813070 (crops-concept@greenhouse, "
+                                          "2026-10-22, benchmark grant 20261022T072047): one L4, 1.66 machine "
+                                          "minutes EUR 0.02625, and its 7 disk-and-address lines EUR 0.035"}],
+                      "time": {"unit_seconds": {"likely": 77.7, "high": 77.7},
+                               "setup_minutes": {"likely": 0.82, "high": 0.82}, "slots": 1,
+                               "slots_from": "one job on its one card", "holds": "machines", "lines": 1,
+                               "from": ["ledger batch masks-20261022-092631-813070 (its machine's work 1.30 min; "
+                                        "start wait 0.36 and set-up 0.46 min; the batch waited 5.69 min in all "
+                                        "for a card, 9 starts out of stock or refused)"]}},
 }
 
 
