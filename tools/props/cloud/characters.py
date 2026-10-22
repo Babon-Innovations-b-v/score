@@ -54,8 +54,9 @@ PERSON_MINUTES = 43
 # Room for the environments, CUDA and the Llama 3 encoder (sized when it held six, Hi3DGen's and klein's among them).
 DISK_GB = 200
 POLL_SECONDS = 30
-# The programs of tools/characters/maker a make folder may run, by the name its spec gives.
-PROGRAMS = {"prop_chain.py": "prop_chain.py"}
+# The programs of tools/characters a make folder may run, by the name its spec gives: the maker's chain, and a body's
+# motion read off a video (score/stages/video_clips).
+PROGRAMS = {"prop_chain.py": "maker/prop_chain.py", "video_motion.py": "clips/video_motion.py"}
 
 
 def price(makes, account, classes, minutes=None):
@@ -102,7 +103,7 @@ def program_of(make):
 def chain_line(name, program=PROGRAMS["prop_chain.py"]):
     """The detached command that runs one make's program and leaves its exit code beside its log."""
     place = REMOTE / name
-    run = (f"cd {place} && /root/envs/motion/bin/python /root/score/tools/characters/maker/{program} {place} "
+    run = (f"cd {place} && /root/envs/motion/bin/python /root/score/tools/characters/{program} {place} "
            f"> {place}/chain.log 2>&1; echo $? > {place}/exit")
     return f"setsid -f bash -c {shlex.quote(run)} < /dev/null > /dev/null 2>&1"
 
