@@ -514,7 +514,7 @@ def plan_json(runner, places, whole, options):
     found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
     from score.stages.complete.gaps import price
     found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again,
-                      "price": buy_price(buy, counting_store(runner.store), runner.world.roots["data"]),
+                      "price": selected_price(runner, buy),
                       **({"takes": price.design_takes(buy.node)} if price.design_takes(buy.node) else {})}
                      for buy in found["buys"]]
     return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found,
@@ -529,6 +529,13 @@ def counting_store(store):
     if isinstance(store.objects, runtime_store.FolderStore):
         return Store(stored.NodeFolders(store.objects.root), store.cache)
     return store
+
+
+def selected_price(runner, buy):
+    """buy_price under the run's object filter where the buy's stage selects (Runner.selection), as its clearance
+    prices it."""
+    with runner.selection(runner.stages[buy.node.partition("@")[0]]):
+        return buy_price(buy, counting_store(runner.store), runner.world.roots["data"])
 
 
 def buy_price(buy, store, data):

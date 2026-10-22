@@ -94,5 +94,19 @@
    }
   }
  },
- "fallback": {}
+ "fallback": {},
+ "approved": {
+  "by": "the creator's pick",
+  "places": [
+   "base",
+   "cockpit",
+   "garage",
+   "greenhouse",
+   "hangar",
+   "lab",
+   "stairwell",
+   "tube",
+   "workshop"
+  ]
+ }
 }

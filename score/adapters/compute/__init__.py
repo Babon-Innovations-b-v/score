@@ -258,7 +258,7 @@ def run_forecast(node, euros, store=None, units=None):
         return {"euros": round(run["high_euros"], 4), "minutes": round(run["minutes"], 2),
                 "high_minutes": round(run["high_minutes"], 2), "measured": run["runs"]}
     unit = unit_price(node, store)
-    if unit:
+    if unit and unit["units"]:  # an accepted make that counted none (pixal@people, 2026-10-22) is no forecast
         return {"euros": unit["high_euros"], "minutes": None, "high_minutes": None, "measured": unit["runs"]}
     planned = forecast_price(node, units)
     if planned:
@@ -688,8 +688,9 @@ def clearance(runner, node, euros):
     forecast reserved, under the clearing lock. A benchmark batch (GRANT set) is checked against its grant instead of
     the world's stop line (grant_refusal), and its clearance counted against the grant. Else Refused."""
     from score.stages.complete.gaps import price  # the units the run's plan prices it by
-    forecast = run_forecast(node, euros, runner.store,
-                            price.planned_units(node, runner.world.roots.get("data"), runner.store))
+    with runner.selection(runner.stages[node.partition("@")[0]]):  # a selecting stage's units: its objects only
+        units = price.planned_units(node, runner.world.roots.get("data"), runner.store)
+    forecast = run_forecast(node, euros, runner.store, units)
     grant_id = os.environ.get(GRANT)
     try:
         ticket = runner.ticket(node)

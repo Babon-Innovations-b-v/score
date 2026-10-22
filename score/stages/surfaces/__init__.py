@@ -85,7 +85,8 @@ ROUTE = (
                 applies=data.paints, selects=True))
 LINE = (
     row("surfaces-bake", route_bake.make_bake, route_bake.bake_faults, "baked", route_bake.judge_baked,
-        data.bake_files, ("finish-route-palette", scene_library.ROW, "surfaces-parts"), paid=True, euros=place_line.BAKE_EUROS),
+        data.bake_files, ("finish-route-palette", scene_library.ROW, "surfaces-parts"), paid=True, euros=place_line.BAKE_EUROS,
+        selects=True),  # it bakes the parts row's takes, the filter's alone; selecting prices it for those
     graph.Stage("surfaces-paint", "place", route_paint.make_paint, contract("surfaces-paint", place_line.paint_faults),
                 (guarded("one surface a part", place_line.judge_one_surface),
                  guarded("colour against the close-up", place_line.judge_concept_colour)),

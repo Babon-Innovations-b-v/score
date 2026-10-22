@@ -226,6 +226,19 @@ def test_clearance_eases_out_and_back():
     assert eased[10] >= 0.3 and eased[8] > 0 and eased[0] == 0 and eased[19] == 0, eased
 
 
+def test_each_full_look_has_its_own_page_row_reading_its_body_and_dress_alone():
+    """#26: one look runs without the others: its page `people-look-<look>` reads its own body and dress only, at one
+    look's estimate; and the line's hand-in is approved by its picks, so its likeness is measured, not blocked."""
+    import score.stages.people as people
+    from score.stages.people import look
+    pages = {row.name: row for row in people.LOOKS}
+    assert set(pages) == {f"{look.ROW}-{name}" for name in people.FULL}
+    for name in people.FULL:
+        page = pages[f"{look.ROW}-{name}"]
+        assert set(page.after) == {f"people-dress-{name}", f"{bodies.BODY}-{name}"} and page.euros == look.EUROS
+    assert json.loads((REPO / "data/props/people.json").read_text()).get("approved")
+
+
 def test_a_looks_parts_are_their_own_priced_row_the_body_reads():
     """#21: the parts are never bought inside the body row: each look has a `people-look-parts-<look>` row, priced on
     its own and keyed on its take and outfit (not the clips), and its body row reads it."""

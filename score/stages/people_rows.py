@@ -578,10 +578,12 @@ def line_rows(found, props, inventory, surfaces, kept=None):
     entries = {look: compare.bake_entry({"id": look, "size": next(row["size"] for row in rows if row["id"] == look)})
                for look in models}
     drawn = {row["id"] for row in rows if row["view"]}  # the loop's close-up draws these: no close-up named
-    return ({**props, "objects": {look: {key: value for key, value in entry.items()
-                                         if not (key == "closeup" and look in drawn)}
-                                  for look, entry in props["objects"].items() if look in wanted}},
-            line_inventory(inventory, rows),
+    inventory = line_inventory(inventory, rows)
+    # approved by the same picks as its inventory, so its likeness is measured as a designed place's (no calibration)
+    return ({**props, "approved": inventory["approved"],
+             "objects": {look: {key: value for key, value in entry.items() if not (key == "closeup" and look in drawn)}
+                         for look, entry in props["objects"].items() if look in wanted}},
+            inventory,
             {**surfaces, "takes": {take: entry for take, entry in surfaces["takes"].items() if take in takes},
              "bake": {**surfaces["bake"], "models": models, "entries": entries}})
 

@@ -1,6 +1,7 @@
-"""The people's look row: `people-look` (paid, environment) renders every dressed look (blender_shots.py on a rented card
-through blender_cloud.py: the bind pose from the front, side and back, and a strip of clip frames) and writes the
-review page, page.html, each look with its body gates' table (the body row's checks.txt) and its dress.
+"""The people's look rows: `people-look-<look>` (paid, environment, one a full look) render the dressed look it reads
+(blender_shots.py on a rented card through blender_cloud.py: the bind pose from the front, side and back, and a strip
+of clip frames) and write its review page, page.html, with its body gates' table (the body row's checks.txt) and its
+dress.
 
 Gate: `rendered` (every look came back with every view).
 """
@@ -20,6 +21,7 @@ VIEWS = ("apose_front", "apose_side", "apose_back", "walk_a", "walk_b", "sit", "
 # 2026-10-10 took about 3 minutes for five).
 MINUTES = 12
 EUROS = 1.5
+ROW = "people-look"  # each look's row is `people-look-<look>`, its output's contract this schema
 
 
 def dressed(inputs):

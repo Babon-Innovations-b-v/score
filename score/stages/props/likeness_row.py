@@ -175,7 +175,7 @@ def make_likeness(inputs, out, seed, params):
     baked = baked_models(inputs["surfaces-bake"]) if prop else {}
     parts = json.loads((inputs["surfaces-parts"] / "parts.json").read_text()) if prop else {"takes": {}}
     found = {row: object_record(row, record, inputs, baked, parts, sizes, square, out / "cut")
-             for row in sorted(record["objects"])}
+             for row in sorted(prop_data.kept(record["objects"], params))}
     pairs = {row: likeness.write_pair(entry["model"], entry["closeup"], entry["way"], out / "pairs", row)
              for row, entry in found.items() if "way" in entry}
     (out / "likeness.json").write_text(json.dumps({"objects": found}, indent=1))

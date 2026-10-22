@@ -11,7 +11,7 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
-- **Run rows by name only**: `.venv/bin/python -m score run world1 --place people --stage people-look --stage people-clips --detach` (it drives the
+- **Run rows by name only**: `.venv/bin/python -m score run world1 --place people --stage people-look-<look> --object <look>-s1 --detach` (one look: the loop narrowed to its take, then its body, dress and page; name every look's page and leave out `--object` for all, and add `--stage people-clips`; it drives the
   line, every full body the designs name and their dress). Check `ps` first that no other run is on the same rows.
 - **People are made by the shared loop** (`../shapes_first`, #41; the owner, 2026-10-20: people are models like any
   other): every look is a row of the people layer in the hand-in record `data/props/people.json` (its rows

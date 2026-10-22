@@ -147,7 +147,9 @@ def judge_takes(output, inputs, evidence):
     takes = json.loads((output / "takes.json").read_text())
     listed = json.loads(inputs["surfaces"].read_text()).get("takes", {})
     made_takes = {entry["take"] for entry in takes.values()}
-    prop_takes = {entry["take"] for entry in prop_data.prop_objects(prop_data.record_at(inputs["props"])).values()}
+    asked = json.loads((inputs["closeup"] / "closeups.json").read_text())["objects"]  # the rows the line works on
+    prop_takes = {entry["take"] for row, entry in prop_data.prop_objects(prop_data.record_at(inputs["props"])).items()
+                  if row in asked}
     failing = [f"{take}: in the place's surface data but not made (its object has no close-up)"
                for take in sorted(listed) if take in prop_takes and take not in made_takes]
     for row, entry in sorted(takes.items()):
