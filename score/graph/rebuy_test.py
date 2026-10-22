@@ -109,6 +109,24 @@ def test_a_google_row_asking_the_same_is_cached_and_moves_nothing_after_it():
         rebuy.asks_google, rebuy.builders_changed = original, builders
 
 
+def test_every_file_that_words_a_google_request_is_a_request_builder():
+    """Audit (2026-10-22): the finish route's list, recheck, palette and library wordings were left out, so an edit
+    there was priced as a cached ask at EUR 0 while the run asked and paid again, under a stop line written too low.
+    A file that builds a request body (`def ..._body(`) and reaches Google through google_spend, google_batch or
+    finish_ask is one, and so is the batch client itself."""
+    import re
+    reaches = re.compile(r"^\s*(import|from)\s+(\S+\.)?(google_spend|google_batch|finish_ask)\b", re.MULTILINE)
+    wording = re.compile(r"^\s*def \w+_body\(", re.MULTILINE)
+    found = set()
+    for path in [*(_code.REPO / "score/stages").rglob("*.py"), *(_code.REPO / "tools/props").rglob("*.py")]:
+        text = path.read_text(errors="replace")
+        if not path.name.endswith("_test.py") and wording.search(text) and reaches.search(text):
+            found.add(str(path.relative_to(_code.REPO)))
+    assert found and found <= set(rebuy.REQUEST_BUILDERS), sorted(found - set(rebuy.REQUEST_BUILDERS))
+    assert "tools/props/cloud/google_batch.py" in rebuy.REQUEST_BUILDERS
+    assert all((_code.REPO / builder).is_file() for builder in rebuy.REQUEST_BUILDERS)
+
+
 def test_score_run_refuses_before_it_starts_and_records_a_given_reason():
     import argparse
     import contextlib
