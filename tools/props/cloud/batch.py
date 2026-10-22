@@ -128,10 +128,22 @@ FINISHERS = 2
 # How many finishes may run at once on this PC, across every batch: Blender at 100,000 triangles
 # takes several GB each; kept at 2 while the PC is unstable (four blue screens, 2026-09-29 and 30).
 FINISH_SLOTS = 2
+# Under a `score run` (SCORE_RUN_ID) a batch whose node is killed alone (out of memory) while the run lives gets no
+# stop from the run: it looks for its parent this often and, once it is gone, stops as on a signal (audit, 2026-10-22).
+PARENT_POLL_SECONDS = 1
+ORPHANED_LOG = CLOUD / "orphaned-batches.log"
 
 
 def say(line):
-    print(f"[cloud] {time.strftime('%H:%M:%S')} {line}", file=sys.stderr, flush=True)
+    """One line of the batch's progress; once its reader is gone (its node killed) the rest goes to ORPHANED_LOG, so a
+    broken pipe never ends the delete loop that follows (one machine of three deleted, review of C7, 2026-10-17)."""
+    text = f"[cloud] {time.strftime('%H:%M:%S')} {line}"
+    try:
+        print(text, file=sys.stderr, flush=True)
+    except BrokenPipeError:
+        CLOUD.mkdir(parents=True, exist_ok=True)
+        sys.stderr = ORPHANED_LOG.open("a")
+        print(text, file=sys.stderr, flush=True)
 
 
 # The list and the plan.
@@ -1004,6 +1016,17 @@ def stop_on_signals():
         raise SystemExit(f"stopped by signal {number}")
     for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(number, leave)
+    if os.environ.get("SCORE_RUN_ID"):
+        threading.Thread(target=stop_when_orphaned, args=(os.getppid(),), daemon=True).start()
+
+
+def stop_when_orphaned(parent):
+    """Under a run: once this process's `parent` (its node) is gone, a SIGTERM to itself, so every machine is deleted at
+    once by the stop's own path rather than left to its self-delete or the batch's deadline."""
+    while os.getppid() == parent:
+        time.sleep(PARENT_POLL_SECONDS)
+    say(f"its node (pid {parent}) is gone while the run lives; stopping and deleting every machine")
+    os.kill(os.getpid(), signal.SIGTERM)
 
 
 # The record.
