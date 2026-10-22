@@ -228,6 +228,41 @@ def test_a_failed_detach_or_another_projects_address_deletes_the_machine_for_the
         assert not any(call[2] == "update" for call in calls), calls  # nothing tagged or touched past the check
 
 
+def refused_create(listed):
+    """create() on a mocked Scaleway whose order fails with HTTP 500 and whose server list in the zone answers
+    `listed`; (its answer, the machines deleted)."""
+    import subprocess
+    import tempfile
+    import types
+    import ledger
+    deleted = []
+    kept = scaleway.scw, scaleway.delete, subprocess.run, ledger.LEDGER
+    scaleway.scw = lambda *arguments: listed if arguments[:3] == ("instance", "server", "list") else {}
+    scaleway.delete = lambda server_id, zone: deleted.append((server_id, zone)) or True
+    ledger.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"  # never the real ledger
+    subprocess.run = lambda *arguments, **options: types.SimpleNamespace(
+        returncode=1, stdout="", stderr='{"error":"cannot create the server: http error 500 Internal Server Error"}')
+    offer = types.SimpleNamespace(type="L4-1-24G", zone="fr-par-1", machine_class="gpu-24gb", price=0.013)
+    try:
+        answer = scaleway.create(OURS, offer, "masks-1", [], 60)
+    finally:
+        scaleway.scw, scaleway.delete, subprocess.run, ledger.LEDGER = kept
+    return answer, deleted
+
+
+def test_a_machine_a_refused_order_made_anyway_is_deleted_at_once():
+    """2026-10-22: an order refused with HTTP 500 had made its machine (stopped, billed, unwatched until a later
+    sweep). Only the project's own machine of that name with the runner's tag is deleted."""
+    listed = [{"id": "srv-made", "name": "masks-1", "project": OURS, "tags": [scaleway.TAG]},
+              {"id": "srv-other", "name": "masks-1", "project": OTHER, "tags": [scaleway.TAG]},
+              {"id": "srv-untagged", "name": "masks-1", "project": OURS, "tags": []},
+              {"id": "srv-near", "name": "masks-10", "project": OURS, "tags": [scaleway.TAG]}]
+    answer, deleted = refused_create(listed)
+    assert answer[0] is None and "500" in answer[1], answer
+    assert deleted == [("srv-made", "fr-par-1")], deleted
+    assert refused_create([])[1] == []
+
+
 def test_a_quarantined_address_is_never_a_leftover_to_delete():
     addresses = [{"id": "ip-q", "address": "151.115.78.211", "project": OURS, "server": None,
                   "tags": [scaleway.QUARANTINED, "reason=ssh"]},
