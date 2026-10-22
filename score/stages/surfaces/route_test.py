@@ -183,6 +183,12 @@ def test_the_views_cover_every_side_and_find_both_colours():
         assert (views / TAKE / "regions-bottom.png").exists() and (views / TAKE / "right.png").exists()
         verdict = route_views.judge_views(views, inputs, {})
         assert verdict.answer == "pass" and verdict.measures["views_most"] == len(record[TAKE]["views"]), verdict
+        assert record[TAKE]["reachable_share"] == 1.0, record[TAKE]
+    # area inside the model, out of every angle, is no miss (astronaut-made-s1: 49.5% reachable, all of it seen);
+    # views seeing under SEEN_LEAST of what any angle sees still are
+    inside = {**record[TAKE], "seen_share": 0.495, "reachable_share": 0.495}
+    assert not route_views.take_faults(TAKE, inside)
+    assert route_views.take_faults(TAKE, {**inside, "seen_share": 0.2})
 
 
 def test_the_coverage_check_adds_a_view_for_faces_the_base_views_miss():
