@@ -183,7 +183,9 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
         if colour is None or finish["surface"] not in every:
             found.append(record)
             continue
-        listed = every[finish["surface"]]
+        # in its own colour where the finish names one (the finish route's: its settings' token, which the bake
+        # paints), not its surface's default token (astronaut-made-s1, 2026-10-22: suit_patches red under glass-brown)
+        listed = dict(every[finish["surface"]], **({"colour": finish["colour"]} if finish.get("colour") else {}))
         apart = float(np.linalg.norm(library_lab(listed) - colour))
         record.update(measured_lab=[round(float(value), 1) for value in colour], delta_e=round(apart, 1))
         if apart > COLOUR_DELTA_E and coloured_cover(finish, every):
