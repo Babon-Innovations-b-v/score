@@ -43,9 +43,7 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   own measured per unit, else at the measured Gemini 3.1 Pro batch answer (`estimate.ASK_PRICED_AS`, the finish
   list's), marked `estimated_from` and counted in `totals.estimated`.
 - **Unmeasured stays unknown.** A layer with no per unit is unpriced and named; one with no measured minutes is
-  untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`). The preview clips' layer
-  (`estimate.clip_layer`, one clip a bought take) is priced and timed from library-clips' measured run, its minutes
-  the places' clips spread over warm cards as the row spreads them (`clips.shares`, `estimate.clip_minutes`).
+  untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`).
 - **One class and zone a layer** (`machines.py`): the runner's first class in its kind's order, the zone with the
   best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as gaps.
 - **Library reuse only under today's route** (owner, 2026-10-20, #21/#41: "wouldn't lock anything"): a matching

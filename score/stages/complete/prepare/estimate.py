@@ -43,11 +43,10 @@ def takes_a_layer(route, groups_bought):
 
 def take_stages(route, take):
     """The paid layers one bought take runs once each, as the figure counts them: its model's route layers (none off
-    the prop pipeline), its own route's past or in place of the model (OWN_ROUTES), then its preview clip. The runner
-    counts a designed place's units from these (prepare/handin.py)."""
-    from score.stages.library import clips
+    the prop pipeline), its own route's past or in place of the model (OWN_ROUTES). The runner counts a designed
+    place's units from these (prepare/handin.py)."""
     model = list(route) if take["route"] in groups.MODEL_ROUTES else []
-    return [*model, *([OWN_ROUTES[take["route"]]] if take["route"] in OWN_ROUTES else []), clips.ROW]
+    return [*model, *([OWN_ROUTES[take["route"]]] if take["route"] in OWN_ROUTES else [])]
 
 
 def layer_units(stage, takes, rules):
@@ -132,35 +131,6 @@ def own_route_layers(groups_bought):
             found[stage] = {"takes": takes, **layer_cost(stage, takes, {}), "settings": settings(stage, {}, None),
                             "runs": {"routes": [route], "shell": True}}
     return found
-
-
-def clip_layer(places, cap, fixed_machine=None):
-    """The preview clips' layer (score/stages/library/clips): one clip a bought take, each a new item the handover
-    makes; `places` {place: bought takes}, at its measured per unit, its minutes `clip_minutes`."""
-    from score.stages.library import clips
-    items = sum(places.values())
-    found = {**layers([clips.ROW], [{"shell": False}] * items, {}, {clips.ROW: fixed_machine})[clips.ROW],
-             "runs": {"routes": ["prop", *groups.ROUTES], "shell": True}}
-    if items and found["units"] is not None:
-        found["minutes"] = clip_minutes(places, cap)
-    return found
-
-
-def clip_minutes(places, cap):
-    """{likely_minutes, high_minutes, cards} of the places' clips spread over warm cards (clips.shares: CLIPS_A_CARD
-    a card, so a card works about as long as the batch's longest layer), the places' nodes side by side within the
-    run's `cap` cards, on library-clips' measured seconds a clip and set-up; {minutes_why} where unmeasured."""
-    from score.stages.library import clips
-    time = (compute.per_unit(clips.ROW) or {}).get("time") or {}
-    setup = time.get("setup_minutes") or {}
-    if "unit_seconds" not in time or "likely" not in setup:
-        return {"minutes_why": time.get("why") or setup.get("why") or f"{clips.ROW}: no measured time"}
-    counts = [count for count in places.values() if count]
-    cards = sum(len(clips.shares(range(count))) for count in counts)
-    busiest = max(len(share) for count in counts for share in clips.shares(range(count)))
-    rounds = math.ceil(cards / cap)
-    return {which: round(setup[key] + rounds * busiest * time["unit_seconds"][key] / 60, 1)
-            for which, key in (("likely_minutes", "likely"), ("high_minutes", "high"))} | {"cards": min(cards, cap)}
 
 
 def route_edges(table, route):

@@ -28,7 +28,7 @@ in the test.
   ran at once) and the failed-start share; a Google stage's from its calls' started and finished times. `node_minutes` holds
   every stage's makes as the store's finish records time them (`--store`, `score/graph/runs.py` `node_times`). A stage
   with no timed lines keeps `time` null with its `why`, never a figure from elsewhere; a `RECORDED` stage may carry
-  its run's own `time`, read from that run's ledger line (library-clips: its machine's `unit_seconds` over its clips). `--times-only` writes only
+  its run's own `time`, read from that run's ledger line. `--times-only` writes only
   these into the file, every euro byte-identical (`per_unit_test.py` checks it on the repository's own file); the
   runner turns them into a row's minutes (`compute.unit_minutes`) and a plan's ETA (`gaps/schedule.py`).
 - **The remake is priced warm** (owner, 2026-10-20, #21): `WARM` stages (Pixal3D, the bake) at their jobs' measured

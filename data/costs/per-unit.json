@@ -30,41 +30,6 @@
     "why": "priced from runs written down when they ran, euros and units but no time; their ledger lines went with the old disk (2026-10-19)"
    }
   },
-  "library-clips": {
-   "stage": "library-clips",
-   "unit": "preview clip of a new item",
-   "count": null,
-   "also": [],
-   "likely_euros": 0.15969,
-   "high_euros": 0.15969,
-   "runs": 1,
-   "sources": {
-    "recorded runs": [
-     "ledger batch blender-20261021-005907-4020565 (library-clips-sample, 2026-10-21, benchmark grant 20261020T224639): 6 clips (4 models, a surface, an effect) of 96 frames at 1280x720 on one L4, 72.2 min, its output fdfb21959984's clips.json"
-    ]
-   },
-   "forecast": {
-    "rule": "models",
-    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
-   },
-   "time": {
-    "unit_seconds": {
-     "likely": 703.95,
-     "high": 703.95
-    },
-    "setup_minutes": {
-     "likely": 1.45,
-     "high": 1.45
-    },
-    "slots": 1,
-    "slots_from": "one job at a time on its one card",
-    "holds": "machines",
-    "lines": 1,
-    "from": [
-     "ledger batch blender-20261021-005907-4020565 (its machine's unit_seconds over the 6 clips of its clips.json)"
-    ]
-   }
-  },
   "finish-route-palette": {
    "stage": "finish-route-palette",
    "unit": "scene palette of a place (one Gemini 3.1 Pro answer)",

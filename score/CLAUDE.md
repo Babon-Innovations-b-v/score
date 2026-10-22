@@ -288,10 +288,9 @@ stage as each stage is built; nothing moves before.
   `library@<place>` and `library-world` (free, the table's last rows, `stages/library`, its overlay) hand every
   accepted output of the place's line and of the environment to the creator's library through its own command
   (`SCORE_LIB_*`, else the score_lib checkout beside score and the cloud's object store, its key from the secret store, in the command's environment only) and gate on the report it writes (`handover.json`): a place is
-  complete when its library node stands accepted, the environment when every one does (`status` prints it).
-  `library-clips` (paid, after `library@<place>`, `stages/library/clips`, its overlay) renders a preview clip of
-  each item the handover made new, a place's spread over warm cards (7 a card) in cloud Blender with the films' renderer, and puts
-  each into its entry through the library's own command (CONTEXT.md "preview clip").
+  complete when its library node stands accepted, the environment when every one does (`status` prints it). No row
+  renders a library item: the cockpit shows each live and free (CONTEXT.md "item preview"; `library-clips` retired,
+  owner 2026-10-22).
 
 Rules:
 

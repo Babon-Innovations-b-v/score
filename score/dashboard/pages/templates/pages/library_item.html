@@ -8,11 +8,8 @@
 </script>{% endif %}{% endblock %}
 {% block content %}
 <p class="small"><a href="/library/">Library</a> / <span data-v>{{ kind_label }}</span>{% if made_by_code %} / <span data-v title="code that makes what this shelf holds">made by code</span>{% endif %} / <span data-v{% if entry.about %} title="{{ entry.about }}"{% endif %}>{{ entry.title }}</span></p>
-{% if clip %}<nav class="item-tabs"><a class="button{% if view == "clip" %} primary{% endif %}" href="?tab=clip" title="rendered as the films render it">clip</a><a class="button{% if view != "clip" %} primary{% endif %}" href="?tab=3d" title="the 3D viewer in this browser">3D</a></nav>{% endif %}
 <div class="item-stage">
-  {% if view == "clip" %}
-  <div class="item-view"><video src="{{ clip }}" autoplay loop muted playsinline controls aria-label="{{ entry.title }}"{% if picture %} poster="{{ picture }}"{% endif %}></video></div>
-  {% elif view == "3d" %}
+  {% if view == "3d" %}
   <div class="item-view" id="item3d" data-kind="{{ entry.kind }}" title="drag to turn, wheel to zoom">
     {% if picture %}<img class="item-still" src="{{ picture }}" alt="">{% endif %}
     {% if viewer.mode == "surface" %}<form class="item-controls" id="surface-controls">

@@ -338,15 +338,12 @@ def test_real_table():
     rows = {row.name: row for row in stages.STAGES}
     place, world = rows[library.PLACE_ROW], rows[library.WORLD_ROW]
     assert not place.paid and not world.paid
-    from score.stages.library import clips
-    assert set(place.after) == {row.name for row in stages.STAGES if row.grain == "place"} - {library.PLACE_ROW,
-                                                                                              clips.ROW}
+    assert set(place.after) == {row.name for row in stages.STAGES if row.grain == "place"} - {library.PLACE_ROW}
     assert set(world.after) == {row.name for row in stages.STAGES if row.grain == "world"} - {library.WORLD_ROW}
     assert set(place.optional) | set(world.optional) == set(library.SHOWCASE), (place.optional, world.optional)
     assert world.optional == ("environment-film",), world.optional  # the environment's film never holds it up
-    # Only the clips row reads a library node: its make renders only what the handover made new without a clip.
-    assert [row.name for row in stages.STAGES if library.PLACE_ROW in row.after or library.WORLD_ROW in row.after] \
-        == [clips.ROW]
+    # No row reads a library node (library-clips retired 2026-10-22: no paid preview of a library item).
+    assert not [row.name for row in stages.STAGES if library.PLACE_ROW in row.after or library.WORLD_ROW in row.after]
 
 
 def test_a_lost_picture_never_stops_the_others():

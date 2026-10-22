@@ -269,9 +269,13 @@ async function openSurface() {
   const form = document.getElementById("surface-controls");
   form.shine.value = String(1 - (finish.roughness ?? 0.5));
   form.metal.value = String(finish.metallic ?? 0);
+  const itsOwn = given.token || "its own";  // a token the palette lacks still opens on the surface's own colour
+  if (own && ![...form.token.options].some((option) => option.value === itsOwn)) {
+    form.token.prepend(new Option(itsOwn, itsOwn, true, true));
+  }
   const update = () => {
     const chosen = form.token.value;
-    material.color = chosen === given.token && own ? own.clone() : new THREE.Color(given.palette[chosen] || token("--color-view-light"));
+    material.color = chosen === itsOwn && own ? own.clone() : new THREE.Color(given.palette[chosen] || token("--color-view-light"));
     const pictures = wornPictures(print, Number(form.wear.value), Number(form.seed.value), 1 - Number(form.shine.value));
     material.metalness = Number(form.metal.value);
     material.map?.dispose();

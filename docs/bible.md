@@ -82,8 +82,10 @@ route (the hash of the route stages' code and contracts, stamped into each entry
 
 **The library handover** (`score/stages/library`, its overlay): `library@<scene>` and `library-world`, the table's
 last free rows, hand every accepted output to score_lib through its own command and gate on its report
-(`handover.json`). A scene is complete when its library node stands accepted. `library-clips@<scene>` (paid) then
-renders each new entry's preview clip with the films' renderer.
+(`handover.json`). A scene is complete when its library node stands accepted. Library items are never rendered as
+paid preview videos (owner, 2026-10-22: the retired `library-clips` row, a Cycles clip per new item on a rented card,
+was "waste"): the cockpit's Library page shows each item live and free from its web copy (CONTEXT.md "item
+preview").
 
 **Gaps** (`score/stages/complete/gaps`, its overlay). A free standalone check (no row, so no key moves) reads the store,
 the design and other checks' findings and writes each scene's gaps: an OpenUSD overlay (a guide box for every row with
@@ -226,7 +228,7 @@ lock, reading and plan, parent before child, then the film.
    Gemini batch list, a free split by labels, paint and bake in one job, one recheck), the likeness gate, then each
    layer adapter's after-steps.
 3. The base and layers (`architecture/layers`), the assembly, `neighbours`, `scene-tree`.
-4. `complete`, then the library handover and the preview clips.
+4. `complete`, then the library handover.
 
 Environment rows: the ground (`terrain`), the people line, and `environment-film`, which films the locked script.
 

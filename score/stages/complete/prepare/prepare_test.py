@@ -137,21 +137,6 @@ def test_layers_run_each_take_once_a_shell_piece_through_the_whole_route_and_car
     assert estimate.totals(found)["unpriced"] == ["likeness-calibration"]
 
 
-def test_the_clips_layer_is_priced_from_its_measured_per_unit_once_it_has_one():
-    from score.stages.library import clips
-    found = estimate.clip_layer({"hub": 9, "lab": 1, "flat": 0}, 50)
-    measured = compute.per_unit(clips.ROW)
-    assert measured is not None  # library-clips-sample, 2026-10-21 (tools/costs/per_unit.py RECORDED)
-    assert found["units"] == 10 and "estimated_from" not in found["price"]
-    assert found["price"]["likely_euros"] == round(measured["likely_euros"] * 10 * price.BILL_SHARE, 2)
-    # the hub's 9 clips on two cards (7 and 2), the lab's on one: the minutes are a card's 7 clips and one set-up
-    time = measured["time"]
-    one_card = round(time["setup_minutes"]["likely"] + 7 * time["unit_seconds"]["likely"] / 60, 1)
-    assert found["minutes"] == {"likely_minutes": one_card, "high_minutes": one_card, "cards": 3}, found["minutes"]
-    squeezed = estimate.clip_minutes({"hub": 9, "lab": 1}, 2)  # three cards' shares on two: a second round
-    assert squeezed["cards"] == 2 and squeezed["likely_minutes"] > one_card + 80, squeezed
-
-
 def test_the_eta_walks_the_layers_in_the_routes_order_and_a_layer_of_no_units_takes_no_time():
     runner = stages.runner(world=stages.WORLDS["world1"]())
     route = price.route_stages(runner)

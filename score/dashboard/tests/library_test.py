@@ -313,18 +313,13 @@ def test_a_model_turns_in_3d_from_its_light_copy_with_its_size_parts_and_score(w
     assert client.get("/library/model/nothing/1/").status_code == 404
 
 
-def test_an_item_with_a_preview_clip_plays_it_first_and_its_viewer_is_the_second_tab(world, shelf):
+def test_an_item_is_shown_live_in_its_viewer_and_an_old_preview_clip_is_never_played(world, shelf):
     client = signed_in()
-    wrench = an_item_page(client, "/library/model/wrench/1/")
-    found = lib.library().entry("model/wrench@1")
-    assert f'<video src="/library-files/files/{found.clip.sha}"' in wrench and 'href="?tab=3d"' in wrench
-    assert 'id="item3d"' not in wrench and "item3d.js" not in wrench
-    served = api("ann").get(f"/library-files/files/{found.clip.sha}")
-    assert served.status_code == 200 and served.headers["content-type"] == "video/mp4"
-    second = an_item_page(client, "/library/model/wrench/1/?tab=3d")
-    assert "<video" not in second and 'href="?tab=clip"' in second
+    wrench = an_item_page(client, "/library/model/wrench/1/")  # its record still names a clip (retired 2026-10-22)
+    assert "<video" not in wrench and "?tab=" not in wrench
+    assert not any(each.name.endswith(".mp4") for each in lib.shown_files(lib.library().entry("model/wrench@1")))
     lamp = an_item_page(client, "/library/model/lamp_post.alpha/1/")
-    assert "<video" not in lamp and "?tab=" not in lamp  # no clip: its viewer alone, no tabs
+    assert "<video" not in lamp and 'id="item3d"' in lamp and "item3d.js" in lamp
 
 
 def test_a_kit_is_laid_as_its_place_lays_it_and_a_character_plays_its_clips(world, shelf):
@@ -493,9 +488,9 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
     assert first["written"] == again["written"] and "library/entries.json" in first["written"]
     pictures = {entry.picture for entry in lib.library().entries()}
     assert all(f"files/{sha}-360.jpg" in first["written"] for sha in pictures)
-    # the two takes, the wrench's clip, the light copies of the lamp post and the kit, the surface's print; never a
-    # whole copy
-    assert sum(path.startswith("library/files/") for path in first["written"]) == 6
+    # the two takes, the light copies of the lamp post and the kit, the surface's print; never a whole copy, never an
+    # old record's clip
+    assert sum(path.startswith("library/files/") for path in first["written"]) == 5
     assert "library/palette.json" in first["written"]
     (tmp_path / "home/export/current").symlink_to("one")
     with override_settings(SCORE_MODE="hosted", SCORE_HOME=tmp_path / "home", SCORE_LIB_ROOT=None):
@@ -517,7 +512,7 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
         assert item_data(pages.get("/library/effect/devil.alpha/1/").content.decode())["settings"]["count"] == 15000
         assert "/3d/" not in pages.get("/library/character/walker/1/").content.decode()  # its raw GLB is not sent
         wrench = pages.get("/library/model/wrench/1/").content.decode()
-        assert f'<video src="/library-files/files/{hosted.entry("model/wrench@1").clip.sha}"' in wrench
+        assert "<video" not in wrench  # an old record's clip is never sent or played
 
 
 HOSTED_CHILD = """

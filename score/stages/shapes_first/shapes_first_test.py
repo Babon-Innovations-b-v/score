@@ -196,7 +196,6 @@ MAKES_NO_MODEL = {
     "physics-trial": "a physics trial",
     "light-passes": "renders",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
-    "library-clips*": "preview clips (renders)",
     "people-clips-made": "Kimodo clips and the mean rig", "people-look": "renders of the made bodies (its review page)",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
