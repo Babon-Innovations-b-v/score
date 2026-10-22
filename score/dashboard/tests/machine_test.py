@@ -6,6 +6,7 @@ the card and /machine/ render. score.conductor is stood in for here: the real on
 import datetime
 import hashlib
 import json
+import shutil
 import sys
 import types
 
@@ -57,11 +58,17 @@ def conductor(monkeypatch):
 
 
 @pytest.fixture
-def no_record():
-    """No store's machine recorded on the hosted side, before and after."""
-    one_store.path().unlink(missing_ok=True)
+def no_record(settings):
+    """No store's machine recorded and no export swapped in on the hosted side, before and after (the dashboard home
+    is the session's: an export left here would be current for the next file's tests)."""
+    cleared(settings)
     yield
+    cleared(settings)
+
+
+def cleared(settings):
     one_store.path().unlink(missing_ok=True)
+    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
 
 
 def named(world, name):
@@ -132,7 +139,7 @@ def test_a_second_machine_is_shown_but_applies_nothing_until_the_owner_confirms_
     answer = owner.post("/api/machine/confirm", json={"machine": "conductor", "sure": True})
     assert answer.status_code == 200 and "conductor is the store's machine now" in answer.json()["said"]
     assert one_store.record()["by"] == "joey" and one_store.second(THEN) is None
-    assert pc.claim(item.pk) is False and conductor.claim(item.pk) is True
+    assert pc.claim(item.pk) is False and conductor.claim(item.pk) is True and conductor.not_the_store is None
 
 
 def test_stop_everything_and_allow_paid_are_the_owners_asked_twice_and_applied_once(world, settings, conductor,
@@ -168,8 +175,19 @@ def test_the_kill_switch_refuses_in_an_agents_process_and_off_a_conductor(world,
     monkeypatch.setitem(sys.modules, "score.conductor", None)
     applied = applying.apply({"kind": "stop-everything", "user": "joey", "payload": {}}, world.source)
     assert applied.state == "refused" and machine.NOT_ON_CONDUCTOR in applied.detail
+
+def test_the_kill_switch_refuses_in_an_agents_process_on_a_conductor(world, monkeypatch, conductor):
+    from score.dashboard.pages import actions
     monkeypatch.setattr(actions, "agent_started", lambda: True)
-    assert applying.apply({"kind": "allow-paid", "user": "joey", "payload": {}}, world.source).state == "refused"
+    for kind in ("stop-everything", "allow-paid"):
+        applied = applying.apply({"kind": kind, "user": "joey", "payload": {}}, world.source)
+        assert applied.state == "refused" and "agent's shell" in applied.detail
+    assert conductor.calls == []  # the conductor's kill switch was never reached
+
+
+def test_a_second_machine_with_a_time_of_no_zone_or_none_breaks_no_page(settings, no_record):
+    one_store.kept({"name": "pc", "others": {"naive": "2026-10-18T13:00:00", "broken": "not a time"}})
+    assert one_store.second(THEN) == "naive"
 
 
 def test_the_card_and_the_machine_page_render(world, conductor):
