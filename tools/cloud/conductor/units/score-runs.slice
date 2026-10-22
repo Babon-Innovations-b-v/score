@@ -1,0 +1,15 @@
+# The runs' slice on the conductor (score/conductor/slices.py): every detached `score run` starts in it as a scope of
+# its own (systemd-run --user --scope --slice=score-runs.slice), and inside it a step's own memory-capped scope stays
+# in it too (score/conductor/bin/systemd-run adds --slice-inherit). An out-of-memory kill then ends a run, never the
+# listener, the sync or the size timer, which run outside it. Installed as a user unit of user score
+# (~/.config/systemd/user/score-runs.slice); a slice needs no enabling.
+#
+# The cap is the machine's memory less 6 GB; the machine runs at two sizes (16 GB and 128 GB), so each detach sets it
+# exactly for this boot (`systemctl --user set-property --runtime score-runs.slice MemoryMax=<bytes>`, slices.ensure_cap).
+# The value here holds until then: 62% is 10 GB of 16 GB, the idle size's exact cap, and under the cap at 128 GB.
+[Unit]
+Description=SCORE: the runs, capped so an out-of-memory kill never reaches the listener or the sync
+
+[Slice]
+MemoryAccounting=yes
+MemoryMax=62%

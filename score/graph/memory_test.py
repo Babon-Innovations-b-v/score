@@ -38,6 +38,20 @@ def test_each_node_started_lately_holds_a_floor_until_it_has_ramped():
     assert graph.memory_room([now, now - graph.RAMP_SECONDS - 1])  # the older one's memory is in the reading
 
 
+def test_a_machine_names_its_own_floor_in_gigabytes():
+    """The conductor's idle size has 16 GB: SCORE_MIN_FREE_GB gives the floor there; unset, it is MEMORY_FLOOR."""
+    import os
+    faked([5 * 2**30])
+    try:
+        os.environ[graph.FLOOR_VARIABLE] = "4"
+        assert graph.memory_floor() == 4 * 2**30 and graph.memory_room([])
+        assert not graph.memory_room([time.monotonic()])  # 5 GB less one 4 GB ramp
+        os.environ[graph.FLOOR_VARIABLE] = ""
+        assert graph.memory_floor() == FLOOR and not graph.memory_room([])
+    finally:
+        os.environ.pop(graph.FLOOR_VARIABLE, None)
+
+
 def test_the_drive_waits_while_memory_is_short_then_runs_every_node():
     runner = a_runner({"hangar": "a ship", "station": "a hub"})
     taken = faked([FLOOR - 1] * 3 + [100 * FLOOR])

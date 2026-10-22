@@ -87,6 +87,8 @@ HEARTBEAT = 120
 MEMORY_FLOOR = 6 * 2**30
 RAMP_SECONDS = 60
 MEMORY_POLL = 30
+# A machine whose memory wants another floor names it in GB (score/conductor: SCORE_MIN_FREE_GB on the conductor).
+FLOOR_VARIABLE = "SCORE_MIN_FREE_GB"
 # The thread-pool variables every node's process sets before its make starts (lowered only: a smaller value the owner
 # set stands), so the libraries first loaded in the node and every child it starts share this PC's cores among the
 # nodes running at once: six nodes each sizing a pool to every core overloaded the PC for hours (C11, 2026-10-17).
@@ -377,11 +379,17 @@ def available_memory():
 AVAILABLE = available_memory  # the tests give a fake reading
 
 
+def memory_floor():
+    """The memory one node is given room for, in bytes: SCORE_MIN_FREE_GB when set, else MEMORY_FLOOR."""
+    named = os.environ.get(FLOOR_VARIABLE)
+    return int(float(named) * 2**30) if named else MEMORY_FLOOR
+
+
 def memory_room(starts):
-    """True when this PC's available memory, less MEMORY_FLOOR for each node started (`starts`: monotonic times) in
-    the last RAMP_SECONDS, still holds MEMORY_FLOOR for one more node."""
+    """True when this PC's available memory, less the floor (memory_floor) for each node started (`starts`: monotonic
+    times) in the last RAMP_SECONDS, still holds the floor for one more node."""
     ramping = sum(1 for started in starts if time.monotonic() - started < RAMP_SECONDS)
-    return AVAILABLE() - ramping * MEMORY_FLOOR >= MEMORY_FLOOR
+    return AVAILABLE() - ramping * memory_floor() >= memory_floor()
 
 
 def node_threads(jobs):
@@ -1382,7 +1390,7 @@ class Runner:
                     starts.append(time.monotonic())
             if held and not told:
                 say(f"memory: {AVAILABLE() / 2**30:.1f} GB available, {len(running)} running; ready nodes wait for "
-                    f"{MEMORY_FLOOR / 2**30:.0f} GB free per node starting")
+                    f"{memory_floor() / 2**30:.0f} GB free per node starting")
             told = held
             if not running:
                 if not held:

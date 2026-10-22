@@ -77,6 +77,12 @@ accepted: environment nodes already made do not count, so one run per place goes
 worktree with tracked changes not committed that would buy a paid row unless given --uncommitted. A detached run
 registers itself: a run registering between its check and that is refused, `detached: refused: ...` its result line.
 
+On a conductor (score/conductor: the cloud machine that holds the store), --jobs defaults to its cores, a detached run
+starts as its own scope in score-runs.slice (an out-of-memory kill ends a run, never the listener or the sync), and a
+run asking for more jobs than the machine has cores (up to its batch size's, outside an agent's process) registers as
+waiting for size instead of being refused: the size function grows the machine and `score resume` starts it at the
+boot on the batch size. Every command runs free only (SCORE_FREE_ONLY=1) while the owner's kill switch latch holds.
+
 Every `run` drives from a frozen copy of the code (score/graph/frozen.py, #45): it makes a git worktree of the
 working tree as it is under $PROPS_HOME/frozen and starts itself again inside it, so a pull or push in this checkout
 never changes a run's inputs mid-run; the copy goes once the run, and every machine it parked, has ended.
@@ -101,7 +107,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != REPO / "score"]
 sys.path.insert(0, str(REPO))
 
-from score import graph, stages  # noqa: E402
+from score import conductor, graph, stages  # noqa: E402
 from score.graph import _code, frozen, rebuy, runs, stopped  # noqa: E402
 from score.stages import moved  # noqa: E402
 from score.store import Store  # noqa: E402
@@ -133,7 +139,7 @@ def parse(argv):
     run = commands.add_parser("run")
     run.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
-    run.add_argument("--jobs", type=jobs_count, default=graph.JOBS, help="nodes at once (default %(default)s)")
+    run.add_argument("--jobs", type=jobs_count, help=f"nodes at once (default {graph.JOBS}; a conductor's cores)")
     run.add_argument("--oversubscribe", action="store_true", help="allow more jobs than this PC has cores")
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     run.add_argument("--uncommitted", action="store_true", help="run this worktree's changes not committed")
@@ -144,7 +150,7 @@ def parse(argv):
     plan = commands.add_parser("plan")
     plan.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     plan.add_argument("--rebuy-reason", help="the reason a run would be given")
-    plan.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once, as for run (default %(default)s)")
+    plan.add_argument("--jobs", type=int, help=f"nodes at once, as for run (default {graph.JOBS}; a conductor's cores)")
     plan.add_argument("--json", action="store_true", help="the plan as one JSON object (the only form)")
     spend = commands.add_parser("spend")
     spend.add_argument("--json", action="store_true", help="the month's spend as one JSON object (the only form)")
@@ -170,7 +176,10 @@ def parse(argv):
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
         command.add_argument("--object", action="append",
                              help="only this object of a place, in the stages that select (repeat it)")
-    return parser.parse_args(argv)
+    options = parser.parse_args(argv)
+    if getattr(options, "jobs", 0) is None:
+        options.jobs = conductor.default_jobs(graph.JOBS)
+    return options
 
 
 def jobs_count(text):
@@ -186,7 +195,7 @@ def detach(argv):
     its result line into a fresh log (graph/stopped.py: on a stopping signal too); print the log's path and return
     at once."""
     log = runs.log_path("score-run")
-    command = [sys.executable, stopped.__file__, "--log", str(log), "--outputs",
+    command = [*run_scope(log), sys.executable, stopped.__file__, "--log", str(log), "--outputs",
                str(Store.default().cache.parent / "faults"), "--", sys.executable,
                *[word for word in argv if word != DETACH]]
     owned = frozen.OWNED["path"] is not None
@@ -197,6 +206,37 @@ def detach(argv):
         frozen.hand_on()
     print("score run: detached; it registers on the store itself and may still be refused: its result line says")
     print(f"detached: started pid={process.pid} log={log}", flush=True)  # the cockpit reads it: launch/localrun
+
+
+def run_scope(log):
+    """On a conductor, the words that start a detached run as its own scope in the runs' slice, the slice's memory cap
+    set for this machine's size first (score/conductor/slices.py); elsewhere none."""
+    from score.conductor import slices
+    if not slices.usable():
+        return []
+    slices.ensure_cap()
+    return slices.scope_prefix(f"score-run-{log.stem}")
+
+
+def waited_for_size(runner, places, whole, options, argv):
+    """On a conductor, a run asking for more jobs than the machine has cores (score/conductor/size.py waits): its free
+    refusals first (missing inputs, re-buys without a reason, changes not committed: a refused run never grows the
+    machine), detached when asked, then registered as waiting for size, waiting for the grow; False elsewhere."""
+    from score.conductor import size
+    if not size.waits(options.jobs, options.oversubscribe):
+        return False
+    nodes = runner.line_nodes(places, whole, options.stage)
+    run_commit(runner, nodes, options)
+    missing = runner.missing_inputs(nodes)
+    refused = (("refused: these inputs are missing:\n  " + "\n  ".join(missing)) if missing
+               else rebuy.refusal(rebuy.buys(runner, nodes), options.rebuy_reason))
+    if refused:
+        sys.exit(refused)
+    if options.detach:
+        detach(sys.argv)
+        return True
+    size.wait_for_grow(argv, options.jobs, say=lambda line: print(line, flush=True))
+    return True
 
 
 def publish(kind):
@@ -892,6 +932,7 @@ def claim(runner, places, whole, options):
 
 
 def main(argv=None):
+    conductor.apply_free_only()  # the owner's kill switch latch (score/conductor/kill.py): free only while it holds
     options = parse(argv)
     if options.command == "images":
         publish(options.kind)
@@ -918,6 +959,9 @@ def main(argv=None):
         frozen.enter(sys.argv[1:] if argv is None else argv, REPO)
     if options.command == "run" and frozen.claim():
         atexit.register(frozen.remove_owned)  # a run refused or raising before its drive ends here
+    if options.command == "run":
+        from score.conductor import slices
+        slices.apply_shim()  # in the runs' slice, a step's own systemd-run scope stays in it
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
     places, whole = options.place or stages.places(runner.world, runner.store), not options.place
@@ -926,6 +970,8 @@ def main(argv=None):
         return
     if options.command == "run":
         checked_thread_variables()
+        if waited_for_size(runner, places, whole, options, sys.argv[1:] if argv is None else argv):
+            return
         checked_threads(options)
         claim(runner, places, whole, options)
         checked_buys(runner, places, whole, options)
@@ -942,6 +988,8 @@ def main(argv=None):
                                                  stages.library.world_completion(runner, places)))
         for line in runs.unresumable():
             print(f"unresumable run {line}")
+        for entry in runs.waiting().values():
+            print(f"waiting for size {runs.describe(entry)}: {entry.get('jobs')} jobs")
         return
     lines = run_with_exit_line(runner, places, whole, options, sys.argv[1:] if argv is None else argv)
     if any(state != "done" for state, _ in lines.values()):

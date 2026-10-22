@@ -66,7 +66,14 @@ stage as each stage is built; nothing moves before.
 - **`python -m score resume [--dry]`** starts again, each from its own worktree and detached, every `score run` in
   the run registry (`graph/runs.py`, `$PROPS_HOME/runs/<id>.json`) an earlier boot cut off (one the owner stopped is marked `stopped` and never resumed), one resume at a time, and clears an earlier boot's `.partial` files. It starts a run only at the commit that registered it with nothing uncommitted, and only one alive (its entry touched every minute while it drives) within 12 h before the boot; any other, or one whose restart fails, is marked `unresumable` with why and listed by `score status`; a
   detached run's log is under `$PROPS_HOME/logs`. `tools/cloud/conductor/units/score-resume.service` runs it at boot
-  (the conductor's boot installs it; on the PC the owner installs it, which needs systemd in WSL).
+  (the conductor's boot installs it; on the PC the owner installs it, which needs systemd in WSL). It also starts a
+  `waiting-for-size` run once the machine has its cores.
+- **`conductor/`** (its overlay) the conductor's operations, on the always-on cloud machine that holds the store (off
+  one, nothing changes): `--jobs` defaults to its cores; a run with more jobs than cores registers `waiting-for-size`
+  and the size function grows the machine (`size.py`, score-size.timer, which shrinks it after 30 idle minutes); a
+  detached run is its own scope in `score-runs.slice` (memory less 6 GB), the drive's memory floor per node
+  `SCORE_MIN_FREE_GB` when set; `health.json`, the log tails and the owner's kill switch (`kill.stop_all`, its
+  free-only latch read by every `score` command); `python -m score.conductor dry` is its free end-to-end check.
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
   leaves out the places its environment data says it has nothing to do for; `upward`: its beside reads go up to the
   outside shell holding this place, an inside place's plan reading its outside shell's split, so the table's loop check leaves

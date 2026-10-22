@@ -193,6 +193,57 @@ def test_resume_starts_a_run_again_detached_from_its_own_worktree_and_marks_it()
         shutil.rmtree(worktree)
 
 
+def test_a_run_waiting_for_size_is_left_on_too_few_cores_and_resumed_on_the_batch_size():
+    """The conductor: a run asking for more cores than the machine has waits for the grow, and the boot on the batch
+    size starts it like a cut-off run; a boot on the idle size (a maintenance reboot) leaves it waiting."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    worktree, commit = a_worktree('#!/bin/sh\necho "detached: started with $*"\n')
+    cores = os.cpu_count
+    try:
+        an_entry(folder, "waiting", worktree=str(worktree), commit=commit, state=runs.WAITING, jobs=16,
+                 argv=["run", "world1", "--jobs", "16"])
+        an_entry(folder, "waiting-this-boot", state=runs.WAITING, jobs=16, boot=runs.boot_id())
+        assert list(runs.stranded(folder)) == [folder / "waiting.json"]
+        said = []
+        os.cpu_count = lambda: 2
+        assert runs.resume(False, said.append, folder=folder, swept=()) == 1
+        assert said[0].startswith("left waiting") and "still waiting for size: it asks for 16 jobs" in said[0], said
+        assert runs.entries(folder)[folder / "waiting.json"]["state"] == runs.WAITING
+        os.cpu_count = lambda: 16
+        said.clear()
+        runs.resume(False, said.append, folder=folder, swept=())
+        assert said[0].startswith("resumed waiting") and "--jobs 16 --detach" in said[0], said
+        assert runs.entries(folder)[folder / "waiting.json"]["state"] == runs.RESUMED
+        assert [entry["id"] for entry in runs.waiting(folder).values()] == ["waiting-this-boot"]
+    finally:
+        os.cpu_count = cores
+        shutil.rmtree(folder)
+        shutil.rmtree(worktree)
+
+
+def test_a_sigterm_during_a_resize_the_size_timer_asked_for_leaves_the_run_as_it_was():
+    """The conductor's grow or shrink powers the machine off: its SIGTERM is a shutdown's even when systemd cannot
+    say so yet, and the owner's own SIGTERM outside a resize still stops the run."""
+    from score import conductor
+    folder = pathlib.Path(tempfile.mkdtemp())
+    kept = runs.shutting_down, conductor.RESIZING
+    runs.shutting_down = lambda: False
+    conductor.RESIZING = folder / "resizing.json"
+    try:
+        for marked, state in ((time.time(), runs.WAITING), (time.time() - conductor.RESIZE_WINDOW - 60, runs.STOPPED),
+                              (None, runs.STOPPED)):
+            if marked is not None:
+                conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": marked}))
+            path = runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=folder)
+            runs.stopped_by(path, signal.SIGTERM)
+            assert runs.entries(folder)[path]["state"] == state, (marked, state)
+            path.unlink()
+            conductor.RESIZING.unlink(missing_ok=True)
+    finally:
+        runs.shutting_down, conductor.RESIZING = kept
+        shutil.rmtree(folder)
+
+
 def test_a_run_whose_worktree_is_gone_is_skipped_and_marked_unresumable():
     """C9 review: a skipped run stayed `running`, so every boot tried it again and only a journal line said so."""
     folder = pathlib.Path(tempfile.mkdtemp())
