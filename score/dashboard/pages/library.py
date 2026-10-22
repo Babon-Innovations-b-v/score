@@ -321,17 +321,16 @@ def demo_numbers(demo):
 
 
 def item_page(request, kind, entry_id, version):
-    """An item's page: its preview clip first where it has one (rendered as the films render, so what it shows is what
-    ships; owner, 2026-10-20), its kind's viewer the second tab (?tab=3d), else that viewer alone; a few numbers of
-    its kind and its score, its versions, a link to its full-screen 3D view; the owner's lock, withdraw and refine."""
+    """An item's page: its kind's viewer, live and free (CONTEXT.md "item preview": never a paid render; owner,
+    2026-10-22); a few numbers of its kind and its score, its versions, a link to its full-screen 3D view; the owner's
+    lock, withdraw and refine."""
     shown, entry = found_entry(kind, entry_id, version)
-    missing, clip = shown.missing(entry), file_url(shown, entry.clip)
-    view = "clip" if clip and request.GET.get("tab") != "3d" else view_of(shown, entry)
+    missing, view = shown.missing(entry), view_of(shown, entry)
     return render(request, "pages/library_item.html", {
         "entry": entry, "kind_label": lib.kind_label(shelf(entry)), "made_by_code": lib.made_by_code(entry),
         "tone": TONES.get(entry.state, "idle"),
         "picture": picture_url(shown, entry), "picture_absent": absent(missing, [entry.picture_file]),
-        "closeup": closeup_url(shown, entry), "clip": clip,
+        "closeup": closeup_url(shown, entry),
         "absent": absent(missing, viewer_names(entry)),
         "score": lib.percent(entry.score) if lib.score_meaning(entry) else None,
         "score_tip": score_tip(entry), "versions": versions_of(shown, entry),

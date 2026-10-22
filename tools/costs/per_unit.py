@@ -116,20 +116,6 @@ RECORDED = {
                        "runs": [{"euros": 5.83, "units": 12, "source": "commit b11c282f (2026-10-12): the campgrounds' "
                                                                        "cloud paint, twelve takes, EUR 5.83"},
                                 {"euros": 0.6, "units": 12, "source": f"{SHIP_ROOMS}, paint EUR 0.6"}]},
-    # A clip line names one Blender job of many items, not its clips: the clips come from the node's clips.json.
-    "library-clips": {"unit": "preview clip of a new item", "forecast": "models",
-                      "runs": [{"euros": 0.958125, "units": 6,
-                                "source": "ledger batch blender-20261021-005907-4020565 (library-clips-sample, "
-                                          "2026-10-21, benchmark grant 20261020T224639): 6 clips (4 models, a "
-                                          "surface, an effect) of 96 frames at 1280x720 on one L4, 72.2 min, its "
-                                          "output fdfb21959984's clips.json"}],
-                      # its line's own times: 4223.7 s of work for the 6 clips, a fresh L4's start wait 0.37 min
-                      # and set-up 1.08 min; one run, so likely and high alike
-                      "time": {"unit_seconds": {"likely": 703.95, "high": 703.95},
-                               "setup_minutes": {"likely": 1.45, "high": 1.45}, "slots": 1,
-                               "slots_from": "one job at a time on its one card", "holds": "machines", "lines": 1,
-                               "from": ["ledger batch blender-20261021-005907-4020565 (its machine's unit_seconds "
-                                        "over the 6 clips of its clips.json)"]}},
     # The benchmark batch of 2026-10-21 (grant 20261021T182203, one score run at commit 99106427): one node a kind,
     # each its node's whole make (forecast "one"); one run, so likely and high alike.
     "finish-route-palette": {"unit": "scene palette of a place (one Gemini 3.1 Pro answer)", "forecast": "one",
