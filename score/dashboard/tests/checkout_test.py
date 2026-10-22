@@ -156,6 +156,31 @@ def test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run(
     assert basket.last_batch()["state"] == "running"  # the Buy screen follows the launched run, not the checkout
 
 
+def test_a_press_while_a_batch_runs_is_refused_and_launches_nothing(shop, monkeypatch):
+    """Audit (2026-10-22): no test pressed Buy again while the first checkout's batch still ran."""
+    monkeypatch.setattr(FakeBackend, "log_folder", None)  # its run writes no result line: still running
+    client = api()
+    bought(shop, "alpha-pieces")
+    assert checked_out(client, "r")["checkout"]["state"] == "launched"
+    said = checked_out(client, "s")["said"]
+    assert "a launch from this cockpit is still running" in said, said
+    assert Checkout.objects.count() == 1 and len(launches()) == 1
+
+
+def test_a_checkout_whose_run_the_runner_refused_shows_refused_not_launched(shop, tmp_path, monkeypatch):
+    """Audit (2026-10-22): the Basket's last checkout line read "launched" after its run's result line said refused."""
+    import pathlib
+    monkeypatch.setattr(FakeBackend, "log_folder", tmp_path)
+    client = api()
+    bought(shop, "alpha-pieces")
+    record = Checkout.objects.get(pk=checked_out(client, "u")["checkout"]["id"])
+    assert record.state == "launched"
+    pathlib.Path(record.launch.handles[0]["log"]).write_text(
+        "score run: started\ndetached: refused: the month's books are unknown\n")
+    line = basket.last_checkout()
+    assert line.startswith(f"Checkout {record.pk}: refused.") and "books are unknown" in line, line
+
+
 def test_the_same_key_is_the_same_checkout(shop):
     client = api()
     bought(shop, "alpha-pieces")

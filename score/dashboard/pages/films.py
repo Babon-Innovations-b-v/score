@@ -78,8 +78,10 @@ def bought_since(film):
     if actions.hosted():
         sent = SyncRequest.objects.filter(kind="checkout", created__gte=since).exclude(state="refused").exists()
         return "a batch was bought on this lock" if sent else ""
+    from score.dashboard.pages.basket import batch_state
     bought = [record for record in Checkout.objects.filter(at__gte=since).exclude(state__in=ENDED)
-              if any(script.films_node(node) for item in record.items for node in item.get("nodes", {}))]
+              if batch_state(record)[0] != "refused"  # launched, then its run refused: it bought nothing
+              and any(script.films_node(node) for item in record.items for node in item.get("nodes", {}))]
     return f"checkout {bought[0].pk} bought its film rows on this lock" if bought else ""
 
 

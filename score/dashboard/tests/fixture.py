@@ -11,6 +11,7 @@ import pathlib
 
 from score import graph, review, stages
 from score.dashboard.launch.backend import GroupPlan, LaunchHandle, LaunchState
+from score.dashboard.launch.localrun import RESULT, RESULT_STATES
 from score.dashboard.state.local import LocalSource
 from score.dashboard.state.models import Spend
 from score.store import Store, file_hash
@@ -270,7 +271,8 @@ class FakeBackend:
             return LaunchState("refused", handle.refused)
         path = pathlib.Path(handle.log)
         last = path.read_text().splitlines()[-1] if path.is_file() else ""
-        return LaunchState("done" if last.startswith("detached: ok") else "running", last, last)
+        ended = RESULT.match(last)  # the run's result line, read as localrun reads it
+        return LaunchState(RESULT_STATES[ended.group(1)] if ended else "running", last, last)
 
     def price(self, world, nodes):
         FakeBackend.calls.append(("price", world, tuple(nodes)))

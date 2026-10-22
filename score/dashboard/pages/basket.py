@@ -331,7 +331,10 @@ def last_checkout():
         return f"Your checkout: {queued.state}. {queued.detail}"
     from score.dashboard.pages.models import Checkout
     found = Checkout.objects.order_by("-pk").first()
-    return f"Checkout {found.pk}: {found.state}. {found.detail}" if found else ""
+    if found is None:
+        return ""
+    state, tip = batch_state(found)  # once launched, its run's own state: a run the runner refused says so
+    return f"Checkout {found.pk}: {state}. {tip}"
 
 
 BATCH_TONES = {"launching": "review", "waiting": "review", "picked_up": "review", "running": "review",
