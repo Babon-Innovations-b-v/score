@@ -305,6 +305,56 @@ def test_a_fleet_whose_billed_machines_failed_rents_none_in_their_place():
     assert rented == [] and sorted(fleet.failed) == ["barrel", "crate"] and fleet.next_job() is None
 
 
+def tended(names, looks, poll_seconds, deadline_in, per_card=3):
+    """batch.tend on one fake machine over a fake clock that each poll's sleep moves on by `poll_seconds`: the
+    machine's status at each look is the next of `looks` (the last one kept; None: the machine is gone); the fleet and
+    the clock."""
+    import time
+    fleet, models = one_shot_fleet(names)
+    clock = [1000.0]
+    fleet.deadline, fleet.per_card = clock[0] + deadline_in, per_card
+    batch.queue(fleet, models)
+    machine = {"adopted": True, "host": "host", "folder": fleet.folder / "m-1", "cards": 1, "class": "gpu-24gb",
+               "created": clock[0], "deleted": None}
+    machine["folder"].mkdir()
+    looks = list(looks)
+
+    def status(folder, host):
+        look = looks.pop(0) if len(looks) > 1 else looks[0]
+        if look is None:
+            raise ConnectionError("the machine is gone")
+        return {"finished": False, "jobs": {name: {"state": state, "began": clock[0]} for name, state in look.items()}}
+    nothing = lambda *arguments, **keywords: None  # noqa: E731
+    fakes = {"arm_self_delete": nothing, "prepare": nothing, "send": nothing, "remote": nothing, "heartbeat": nothing,
+             "bring_back": nothing, "delete_machine": nothing, "machine_status": status, "POLL_SECONDS": poll_seconds}
+    kept = {name: getattr(batch, name) for name in fakes}
+    kept_clock = time.time, time.sleep
+    for name, fake in fakes.items():
+        setattr(batch, name, fake)
+    time.time, time.sleep = (lambda: clock[0]), (lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    try:
+        batch.tend(fleet, machine)
+    finally:
+        time.time, time.sleep = kept_clock
+        for name, value in kept.items():
+            setattr(batch, name, value)
+    return fleet, clock
+
+
+def test_a_fleets_leftover_jobs_at_its_deadline_are_gaps_with_a_reason():
+    """Audit (2026-10-22): the jobs still running or never sent when a Pixal3D batch reached its deadline were left
+    out of its gaps, or listed with no reason."""
+    fleet, _ = tended(["crate", "barrel", "lamp"], [{"crate": "done", "barrel": "running"}], 60, 30, per_card=1)
+    assert fleet.done == ["crate"] and fleet.failed == ["barrel"]
+    assert fleet.why["barrel"] == "still running at the batch's deadline"
+    assert fleet.unsent_gaps("not sent before the batch's deadline") == ["lamp"]
+    entry = batch.ledger_entry(fleet, list(fleet.models), 0.0)
+    assert entry["gap_reasons"] == {"barrel": "still running at the batch's deadline",
+                                    "lamp": "not sent before the batch's deadline"}
+    broken, _ = tended(["crate", "barrel"], [{"crate": "running", "barrel": "running"}, None], 1, 600)
+    assert broken.failed == ["barrel", "crate"] and broken.why["crate"].startswith("its machine m-1 broke")
+
+
 def test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on():
     """claim_from moved to the next offer after a machine it rented (and was billed for) did not answer, renting a
     second; only an out-of-stock refusal, where no card ran, may move on."""
@@ -378,7 +428,10 @@ def test_a_rent_writes_its_started_line_before_the_order_is_sent():
     seen = []
 
     def fake_scw(command, **options):
-        """The backend's scw call: what the ledger held when the order went, then a refusal."""
+        """The backend's scw call: what the ledger held when the order went, then a refusal; the look for a machine
+        the refused order made anyway (scaleway.delete_left_by_refusal) finds none."""
+        if command[:4] != ["scw", "instance", "server", "create"]:
+            return types.SimpleNamespace(returncode=0, stdout="[]", stderr="")
         seen.append((command, ledger.entries()))
         return types.SimpleNamespace(returncode=1, stdout="", stderr="out of quota")
     kept = (batch.cloud.subprocess, batch.month_spent, batch.compute.require_cleared, ledger.LEDGER,
