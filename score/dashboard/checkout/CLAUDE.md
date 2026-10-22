@@ -4,7 +4,8 @@ The owner's one checkout of the basket: the items he chose to buy (what a run on
 his money yes for them. Read the package's `CLAUDE.md` one level up first; its rules hold here.
 
 - **The checkout is the owner's money yes, nobody else's.** Owner only, signed in, CSRF (api/deps.py), one key per
-  checkout (a second press with the same key is the same checkout), refused if any item's version moved since he
+  checkout (a second press with the same key is the same checkout; `flow.checking_out` holds the home's
+  `checkout.lock`, so the local cockpit and a sync pass never both pass the checks), refused if any item's version moved since he
   chose it (`flow.bought_items`). The stop line is written only through `score.review.web.stop`, which refuses in any
   process an agent started; never write it any other way, never from a test against the real store.
 - **The basket must be this checkout's and current** (`flow.stale_basket`): refused when made in another checkout
