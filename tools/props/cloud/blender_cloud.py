@@ -404,6 +404,11 @@ def main():
                         "stock at price time is the one rented")
     parser.add_argument(detached.FLAG, action="store_true", help="progress to a log, one result line at the end")
     options = parser.parse_args()
+    if not options.jobs and not options.serve and not options.dry_run:
+        # a caller with nothing left to send (surfaces-bake@people, every take a gap, 2026-10-22) rented a card
+        # that failed its set-up on the held machine's job, which has no script
+        batch.say("no jobs: nothing rented")
+        return
     jobs = [json.loads(path.read_text()) for path in options.jobs] or [{"minutes": options.minutes}]
     if options.detach:
         detached.relaunch(sys.argv, "blender-cloud", [output for job in jobs for output in job.get("outputs", [])])
