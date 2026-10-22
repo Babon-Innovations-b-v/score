@@ -45,7 +45,8 @@ gates.
   module's constants the old faults' rules); a rule changed later says why where it is set.
 - **Every fault is measured on the looks mixed from the node's own passes**, never on an older render (the demo's
   frames are not inputs): a floodlight's head, beam and veil with its lamps off and on, against the rules set on
-  K04; the Earth's smooth share against the rule set on C4; an outdoor place's sky colour against its own concepts' sky; every view's black and blown
+  K04; each face-drawn sky body present where a view frames it and lit from its sun (the rules set 2026-10-22,
+  before any was rendered); an outdoor place's sky colour against its own concepts' sky; every view's black and blown
   shares against its concepts' (`exposure`, the owner's "no black or blown areas").
 - **A mixed look is clean** (owner, 2026-10-20: the Library's Camp picture full of specks): only the render's
   combined light is denoised, never a lamp group, so a look's mix ratio is smoothed on the rendered look
@@ -85,7 +86,7 @@ gates.
   kept sky inputs (`{home}/design/sky/<scene>.json`, `score/review/scene_sky.py`, kept by `python -m
   score.review.plans keep`; a room takes its top scene's site), and turns the seed's and the record's old sky off. The
   light-layer gate `sky bodies` holds the layer's geometry to overhead.py; unknown while the scene has no site or
-  scene time on the environment's plan. A ball's finish is a framework look (the Earth's NASA picture), else its face as its `body-face-<body>` row made it (the layer reads each accepted one, optional, `sky.faces_of`; never by a library name), else its library surface (`<body>_disc`), or named
+  scene time on the environment's plan. Every body's ball is drawn from its face as its `body-face-<body>` row made it (the layer reads each accepted one, optional, `sky.faces_of`; never by a library name or a picture of its own: the Earth's NASA picture was retired 2026-10-22), a shining body's disc its library surface (`<body>_disc`), or named
   missing, never grey.
 - `light_test.py` checks the measures, the sweep and the layer on pictures, passes and a stage made in the test;
   `sky_test.py` the sky against skies worked out by hand.

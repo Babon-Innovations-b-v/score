@@ -5,8 +5,7 @@ judged by eye.
     where(view, size, point) -> (x, y, depth, focal)   usd_views.py's camera: eye, aim, up, fov across the picture
     head(picture, x, y, radius)    a floodlight's head: its halo and how far the gaps between its lamps fill
     beam(before, after, points)    how much a lamp's beam brightens the air along its axis, after against before
-    disc(picture, x, y, radius)    the Earth's disc: how flat its colours are (a cartoon's few) and its cloud
-    smooth_share(picture, mask)    the Earth's disc: how much of it is flat paint
+    body(picture, x, y, radius, toward, usable)   a sky body's disc: how much of it shows, its sunward and far halves
     sky_of(picture, sky_pixels(picture))   a day sky's colour and its rise toward the horizon
     veil(before, after)            how much lighter the picture's lower part got: lamps' haze laid over the whole place
 """
@@ -93,36 +92,28 @@ def beam(before, after, points, radius):
     return round(float(np.mean(gains)), 4) if gains else None
 
 
-def disc(rgb, x, y, radius):
-    """The lit part of a disc of `radius` pixels at (x, y), within the picture: the share its eight commonest colours
-    cover (steps of 8 a channel; a flat-palette cartoon is high, a photograph low), its cloud's share (every channel
-    over 170), its ocean's (blue over red by 15) and its mean colour."""
+# A sky body's pixel shows it when it stands this many levels (0 to 255) off the sky just round its disc.
+SHOWN_LEVELS = 8.0
+
+
+def body(rgb, x, y, radius, toward, usable):
+    """A sky body's disc of `radius` pixels at (x, y), on its `usable` pixels (a mask: those the place's lamps do not
+    light): `shown`, the share standing SHOWN_LEVELS off the median of the ring just outside it, and the mean
+    lightness of the half its sun lights (`sunward`, the side `toward` points to in the picture) and the other
+    (`away`), each None where that half has no pixel; None when the disc has under 9 usable pixels."""
     rows, columns = np.mgrid[0:rgb.shape[0], 0:rgb.shape[1]]
-    inside = np.hypot(columns - x, rows - y) < radius * 0.92
-    pixels = rgb[inside]
-    lit = pixels[pixels.mean(axis=1) > 30].astype(np.int64)
-    if len(lit) < 200:
+    distance = np.hypot(columns - x, rows - y)
+    inside = (distance < radius * 0.92) & usable
+    if inside.sum() < 9:
         return None
-    red, green, blue = lit[:, 0], lit[:, 1], lit[:, 2]
-    cloud = np.minimum(np.minimum(red, green), blue) > 170
-    codes = (lit // 8) @ np.array([1024, 32, 1])
-    counts = np.sort(np.bincount(codes))[::-1]
-    return {"lit_px": int(len(lit)), "flat_share": round(float(counts[:8].sum() / len(lit)), 4),
-            "cloud_share": round(float(cloud.mean()), 4), "ocean_share": round(float(((blue > red + 15) & ~cloud).mean()), 4),
-            "mean_rgb": [round(float(value), 1) for value in lit.mean(axis=0)]}
-
-
-SMOOTH_LEVELS = 2.0
-
-
-def smooth_share(rgb, mask):
-    """The share of the masked pixels whose 5 x 5 neighbourhood varies by under SMOOTH_LEVELS (its lightness's
-    standard deviation): a flat-painted cartoon is mostly smooth, a photograph of the planet hardly at all."""
-    from scipy.ndimage import uniform_filter
     light = lightness(rgb)
-    mean = uniform_filter(light, 5)
-    spread = np.sqrt(np.maximum(uniform_filter(light * light, 5) - mean * mean, 0.0))
-    return round(float((spread[mask] < SMOOTH_LEVELS).mean()), 4) if mask.any() else None
+    around = (distance >= radius * 1.1) & (distance < radius * 1.6)
+    background = float(np.median(light[around])) if around.any() else 0.0
+    side = (columns - x) * toward[0] + (rows - y) * toward[1]
+    halves = {name: inside & part for name, part in (("sunward", side > 0), ("away", side < 0))}
+    shown = float((np.abs(light[inside] - background) > SHOWN_LEVELS).mean())
+    return {"px": int(inside.sum()), "shown": round(shown, 4),
+            **{name: round(float(light[mask].mean()), 2) if mask.any() else None for name, mask in halves.items()}}
 
 
 def sky_pixels(before):

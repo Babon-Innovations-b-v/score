@@ -253,11 +253,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   slide), written into the
   same `layers/motion.usda` with the game's motions over a stage folder's own layers. Every number has a source (its
   `from`; the kind's speed range in `data/checks/motion.json`); the motion stage (`score/stages/motion`) gates it.
-- **Framework shaders** (`shaders.py`): a surface the library's flat colour cannot carry gets a UsdPreviewSurface
-  over a picture the framework bakes (`earth_face`: `earth.py`, NASA's Blue Marble and cloud cover, the real
-  planet; a record's Earth turned by `placed_turn` so its equator and Africa face the place, as photographs from the
-  Moon show it), bound under `/<place>/Looks/` when the stage's folder is known (in the ground group too).
-  Add a shader to `LOOKS`, never a picture by hand.
+- **Framework shaders** (`shaders.py`): a room shell's library surface drawn with its baked tile, bound under
+  `/<place>/Looks/` when the stage's folder is known (in the ground group too). The Earth's NASA picture
+  (`earth_face`, `earth.py`) was retired on 2026-10-22: every body in a sky is drawn from its face as its
+  `body-face-<body>` row made it (`score/stages/light/sky.py`). Never a picture by hand.
 - **Lamps' shafts and the day sky** (2026-10-11, experimental until `score/stages/light` passes): a spot light with a
   `shaft` fills its own cone, its `length` out from the lamp, with haze only the lamps light (`write_shafts`,
   `/<place>/Shafts`, kept when another place shows this one); a record's environment `sky_dome` is the air past the

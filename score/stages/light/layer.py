@@ -30,7 +30,6 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import ground as grounds  # noqa: E402
 import scene  # noqa: E402
-import shaders  # noqa: E402
 
 from score.stages.light import sky  # noqa: E402
 
@@ -213,26 +212,6 @@ def lamps_through_fixtures(stage, place):
     return found
 
 
-def earth_face_baked(stage, place, written, out):
-    """NASA's surface (shaders.earth_look's picture) on every body of the physics' sky painted earth_face, baked into
-    the layer's pictures and pointed at, the seed's own earth_face picture, when it has one, left unread; how many."""
-    from pxr import Sdf, UsdShade
-    faced = [body for body in (written or {}).get("bodies", []) if body["surface"] == "earth_face"]
-    material = stage.GetPrimAtPath(f"/{place}/Looks/earth_face")
-    if not faced or not material:
-        return 0
-    if (out / "assets/textures" / shaders.EARTH_PICTURE).exists():
-        return len(faced)  # earth_look made the look in this layer and baked it there (pictures_moved moves it)
-    shaders.earth.write(out / ASSETS / shaders.EARTH_PICTURE, shaders.EARTH_WIDTH)
-    picture = UsdShade.Shader(stage.GetPrimAtPath(f"/{place}/Looks/earth_face/picture"))
-    picture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(f"../{ASSETS}/{shaders.EARTH_PICTURE}")
-    for key, value in (("score:shader", "earth"),
-                       ("score:from", "NASA Visible Earth: Blue Marble Next Generation (July 2004) and its cloud "
-                                      "cover, baked by tools/usd/earth.py (the light stage's layer)")):
-        material.CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
-    return len(faced)
-
-
 def planned_ground(place):
     """The place's planned ground (tools/usd/ground.py), the place on its seat by its middle (its design kit names no
     seat offset: the old kits' `on_seat` were retired with them, 2026-10-21), or None for a flat place."""
@@ -247,8 +226,7 @@ def write_sky(stage, place, record, out, kept=None, faces=None):
     from pxr import UsdGeom
     environment = {key: value for key, value in (record.get("environment") or {}).items() if key != "stars"}
     seen = sky.seen_of(kept)
-    done = {"retired": sky.retired(stage, place), "physics": sky.write(stage, place, seen, out, faces) if seen else None}
-    done["earth"] = earth_face_baked(stage, place, done["physics"], out)
+    done = {"retired": sky.retired(stage, place), "physics": sky.write(stage, place, seen, faces) if seen else None}
     if environment and not stage.GetPrimAtPath(f"/{place}/Environment"):
         scene.write_environment(stage, place, environment)
         scene.write_sky(stage, place, environment, out, planned_ground(place))
