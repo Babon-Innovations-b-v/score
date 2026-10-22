@@ -51,10 +51,10 @@ TOOLS = {
     "sam3dbody-cpp": {
         "use": WIRED, "image": "characters-motion", "names": ("sam3dbody-cpp",),
         "callers": ("tools/characters/maker/body_picture.py", "tools/props/cloud/characters.py",
-                    "tools/cloud/images/characters-motion/Dockerfile"),
-        "stages": (),
-        "why": "the character maker's body read off its A-pose picture (make.py, on rented cards); no stage keys on "
-               "it: the people stages take the prop route's Pixal3D bodies (tools/characters/maker overlay)"},
+                    "tools/characters/clips/video_motion.py", "tools/cloud/images/characters-motion/Dockerfile"),
+        "stages": ("video_clips",),
+        "why": "SAM 3D Body: the body read off a person's close-up (body_picture.py, on rented cards) and a body's "
+               "motion read off the creator's video, the video clip rows (score/stages/video_clips, #52)"},
     "sam-3d-body": {
         "use": LEFT_OUT, "image": None, "names": (), "callers": (), "stages": (),
         "why": "Meta's original Python release, kept for its licence and as the reference of sam3dbody-cpp, which "

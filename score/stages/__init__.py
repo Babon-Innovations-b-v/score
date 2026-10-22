@@ -27,7 +27,7 @@ from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, physics, scene_record, settling,
                           shapes_first, shell_split, sound,
-                          surface_tiles, surfaces, terrain)
+                          surface_tiles, surfaces, terrain, video_clips)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
@@ -391,7 +391,9 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,
           # Experimental (#52): each animal row a design shows, its body and its clips (score/stages/animals).
-          *animals.rows())
+          *animals.rows(),
+          # Experimental (#52): a body's motion read off each video the creator uploaded (score/stages/video_clips).
+          *video_clips.rows())
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
 # patterns) that make each. Every model comes from the prop pipeline; each module only adds what moves it.
