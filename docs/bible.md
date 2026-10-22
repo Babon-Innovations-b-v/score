@@ -409,8 +409,9 @@ behind until `git worktree remove`. A run cut off by a reboot comes back with `p
 
 - *A reboot, a resize or a maintenance.* `score resume` at boot starts every run cut off from its frozen copy, by
   the boot id and heartbeat rules above. A resize is a reboot the size timer asked for: it writes
-  `conductor/resizing.json` before it asks, so a SIGTERM within 15 minutes leaves a run `running` (or
-  `waiting-for-size`) even when systemd cannot yet say it is stopping. The grow waits for every live run to end; it
+  `conductor/resizing.json` before it asks, so a SIGTERM within 15 minutes leaves a run registered before the ask
+  `running` (or `waiting-for-size`) even when systemd cannot yet say it is stopping; a run registered after it is
+  stopped as the owner's. The grow waits for every live run to end; it
   is asked only for a run waiting for size, which only a run the owner started can be (an agent's run never grows the
   machine); the shrink comes after 30 idle minutes.
 - *Memory.* Each detached run is its own scope in `score-runs.slice`, capped at the machine's memory less 6 GB, and a
@@ -418,12 +419,13 @@ behind until `git worktree remove`. A run cut off by a reboot comes back with `p
   never the listener or the sync. The drive's own memory hold (`graph.memory_room`) takes its floor per node from
   `SCORE_MIN_FREE_GB` there, when the env file sets it.
 - *Kill switch.* The owner's cockpit button (`kill.stop_all`, refused in an agent's process): the free-only latch
-  first (`conductor/free-only`, `SCORE_FREE_ONLY=1`, read by every `score` command and the units), then SIGTERM to
-  every live run (each registers `stopped`, never resumed unasked), every waiting run stopped, every parked machine
+  first (`conductor/free-only`, `SCORE_FREE_ONLY=1`, read by every `score` command; the sync and listener units
+  read it only once they name it as an `EnvironmentFile`), then SIGTERM to every live run (each registers `stopped`, never resumed unasked), every waiting run stopped, every parked machine
   deleted through `park.release`. Only his second click clears the latch. The hard stop is `machine.py stop` from
   his PC.
 - *Money.* The conductor bills in its own project (`score-conductor`); the stop line reads the batch project's bill
-  alone, and every paid run is refused if the two are ever the same project.
+  alone, and every clearance and rent point (stop line, benchmark grant, reading, override) is refused if the two
+  are ever the same project (`conductor.project_refusal`, from `machine.json` even without the size function).
 
 **Losing `$PROPS_HOME`.** Git, the bucket (`score_lib/`, `runs/`, `inputs/`, `weights/`, `code/`, `kernels/`) and
 score_lib's entries survive; the store, the spend ledgers, the runner's keys and the cockpit's records do not.

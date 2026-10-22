@@ -151,6 +151,18 @@ def test_a_failed_ask_takes_its_resize_mark_back():
         shutil.rmtree(folder)
 
 
+def test_a_running_entry_is_live_only_while_its_own_process_is():
+    """An out-of-memory kill leaves an entry `running`; a later process given its pid (the listener, say) is not the
+    run: the kill switch never sends it SIGTERM and the size timer never counts it as busy."""
+    import datetime
+    late = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=5)
+    early = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=400)
+    entry = {"pid": os.getpid(), "state": runs.RUNNING}
+    assert size.entry_alive({**entry, "started": late.isoformat(timespec="seconds")})
+    assert not size.entry_alive({**entry, "started": early.isoformat(timespec="seconds")})  # its pid, not its run
+    assert not size.entry_alive(entry)  # registered when, unknown: not counted as its run
+
+
 def test_busy_counts_claims_waiting_runs_parked_machines_and_frozen_copies_in_use():
     home = pathlib.Path(tempfile.mkdtemp())
     try:

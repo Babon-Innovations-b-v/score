@@ -84,12 +84,16 @@ RESIZING = HOME / "resizing.json"  # written by the size timer just before it as
 RESIZE_WINDOW = 15 * 60  # seconds a resize's power-off may take to reach a run after the ask
 
 
-def resizing(now=None):
+def resizing(now=None, registered=None):
     """Whether the size timer asked for a resize within RESIZE_WINDOW: a SIGTERM now is the resize's shutdown, never
-    the owner's stop (graph/runs.py stopped_by), even when systemd cannot say it is stopping."""
+    the owner's stop (graph/runs.py stopped_by), even when systemd cannot say it is stopping. A run `registered`
+    (seconds since the epoch) after the ask is not the resize's: the timer asks only while no run is live, so one
+    started since (his Buy after a resize the function then refused) is stopped by its owner, never resumed unasked."""
     if not RESIZING.is_file():
         return False
     asked = json.loads(RESIZING.read_text()).get("at", 0)
+    if registered is not None and registered > asked + 1:  # entries keep whole seconds
+        return False
     return 0 <= (now if now is not None else time.time()) - asked <= RESIZE_WINDOW
 
 
@@ -98,10 +102,12 @@ def batch_project():
     return os.environ.get("SCORE_SCALEWAY_PROJECT", BATCH_PROJECT_DEFAULT)
 
 
-def project_refusal():
+def project_refusal(path=None):
     """Why no paid run may clear while the batch project is the conductor's own (its hourly bill would count as
-    batch spend and eat the stop line's buffer), or None."""
-    record = machine() or {}
+    batch spend and eat the stop line's buffer), or None. The machine's record is read whether or not the size
+    function is named: a conductor whose env file lost SCORE_CONDUCTOR_SIZE_URL still bills in its own project."""
+    path = pathlib.Path(path or MACHINE)
+    record = json.loads(path.read_text()) if path.is_file() else {}
     if batch_project() in {CONDUCTOR_PROJECT, record.get("project")}:
         return (f"refused: SCORE_SCALEWAY_PROJECT is {batch_project()}, the conductor's own project; the batch "
                 "project must be another, so the conductor's bill never counts as batch spend")

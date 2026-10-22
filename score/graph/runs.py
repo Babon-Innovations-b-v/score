@@ -170,12 +170,19 @@ def shutting_down():
     return done.stdout.strip() == "stopping"
 
 
+def registered_at(path):
+    """When a run's entry was registered, in seconds since the epoch, or None when it does not say."""
+    started = json.loads(pathlib.Path(path).read_text()).get("started")
+    return datetime.datetime.fromisoformat(started).timestamp() if started else None
+
+
 def stopped_by(path, number):
     """Mark a run a stopping signal ended: `stopped` unless it is a shutdown's SIGTERM, or one during a resize the
     conductor's size timer asked for (score.conductor.resizing): then it stays as it was (`running` or
-    `waiting-for-size`), for resume after the reboot. Unsure counts as the owner's stop: a run is never bought again on
-    a guess."""
-    if number == signal.SIGTERM and (shutting_down() or conductor.resizing()):
+    `waiting-for-size`), for resume after the reboot; a run registered after that ask is not the resize's (the timer
+    asks only while no run is live), so its SIGTERM is the owner's. Unsure counts as the owner's stop: a run is never
+    bought again on a guess."""
+    if number == signal.SIGTERM and (shutting_down() or conductor.resizing(registered=registered_at(path))):
         return
     mark(path, STOPPED)
 

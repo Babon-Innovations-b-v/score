@@ -223,18 +223,21 @@ def test_a_run_waiting_for_size_is_left_on_too_few_cores_and_resumed_on_the_batc
 
 def test_a_sigterm_during_a_resize_the_size_timer_asked_for_leaves_the_run_as_it_was():
     """The conductor's grow or shrink powers the machine off: its SIGTERM is a shutdown's even when systemd cannot
-    say so yet, and the owner's own SIGTERM outside a resize still stops the run."""
+    say so yet, and the owner's own SIGTERM outside a resize, or to a run registered after the ask, still stops it."""
     from score import conductor
     folder = pathlib.Path(tempfile.mkdtemp())
     kept = runs.shutting_down, conductor.RESIZING
     runs.shutting_down = lambda: False
     conductor.RESIZING = folder / "resizing.json"
     try:
-        for marked, state in ((time.time(), runs.WAITING), (time.time() - conductor.RESIZE_WINDOW - 60, runs.STOPPED),
-                              (None, runs.STOPPED)):
-            if marked is not None:
-                conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": marked}))
+        # the last: a run registered a minute after the ask (his Buy after a resize the function refused)
+        for marked, state in ((0, runs.WAITING), (-conductor.RESIZE_WINDOW - 60, runs.STOPPED), (None, runs.STOPPED),
+                              (60, runs.STOPPED)):
             path = runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=folder)
+            if marked is not None:
+                registered = runs.registered_at(path)
+                asked = registered - 60 if marked == 60 else time.time() + marked
+                conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": asked}))
             runs.stopped_by(path, signal.SIGTERM)
             assert runs.entries(folder)[path]["state"] == state, (marked, state)
             path.unlink()

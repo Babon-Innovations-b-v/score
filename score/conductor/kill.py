@@ -60,7 +60,7 @@ def live_runs(folder):
         pids = {int(pid) for pid in claims}
     pids |= {entry["pid"] for entry in runs.entries(folder).values()
              if entry.get("state") == runs.RUNNING and entry.get("boot") == runs.boot_id()
-             and size.alive(entry.get("pid", 0))}
+             and size.entry_alive(entry)}
     return sorted(pids - {os.getpid()})
 
 
