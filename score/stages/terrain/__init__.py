@@ -26,9 +26,11 @@ import pathlib
 from pxr import Sdf, Usd, UsdGeom
 
 from score import contracts
+from score.stages import natural_grounds
 from score.stages.terrain import design, gates, outside
 
-FILES = {"plans": "{home}/design/plans", "skies": "{home}/design/sky", "inventories": "{home}/design/inventory"}
+FILES = {"plans": "{home}/design/plans", "skies": "{home}/design/sky", "inventories": "{home}/design/inventory",
+         "reference": "{data}/physics/bodies.json"}
 CHECKS = gates.CHECKS
 # What made every ground here (#27): the code fallback, named; the terrain adapter's pieces join over it.
 MADE_BY = {"made_by": "code fallback: the design's ground (design.py: the body's true sphere or the plot's plane, "
@@ -52,7 +54,29 @@ def ground_row(ground, inventories, plans):
     return None
 
 
-def write_layer(folder, place, found, row):
+def row_of(ground, row, inventories):
+    """The ground row's entry in its top scenes' inventories ({"id"} alone when none holds it)."""
+    for top in sorted(ground["tops"]):
+        path = pathlib.Path(inventories) / f"{top}.json"
+        found = [entry for entry in json.loads(path.read_text())["rows"] if entry["id"] == row] \
+            if path.is_file() else []
+        if found:
+            return found[0]
+    return {"id": row}
+
+
+def recipe_of(ground, row, inventories, skies, table):
+    """[the natural ground recipe the ground is made with, why] by rule (natural_grounds.of_row: its row's words,
+    else its body's physics, the setting of its first top scene's kept sky with the reference `table`; a plot's
+    none)."""
+    bodies = skies[sorted(ground["tops"])[0]]["setting"].get("bodies") or []
+    body = next((body for body in bodies if body["body"] == ground["on"]), None) \
+        if ground["kind"] == "body" else None
+    entry = row_of(ground, row, inventories) if row else {"id": None}
+    return list(natural_grounds.of_row(entry, body, bodies, table))
+
+
+def write_layer(folder, place, found, row, recipe):
     """The layer that draws the ground in the place's frame: places/<place>.usdc."""
     path = folder / "places" / f"{place}.usdc"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -61,27 +85,31 @@ def write_layer(folder, place, found, row):
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     stage.DefinePrim(f"/{place}")
-    outside.write(stage, place, found, row)
+    outside.write(stage, place, found, row, recipe)
     layer.Save()
 
 
-def make_ground(name, ground, row, out):
-    """One ground's place layers, record and measures into out/<name>."""
+def make_ground(name, ground, row, recipe, out):
+    """One ground's place layers, record and measures into out/<name>, its natural ground recipe (`recipe`,
+    [recipe, why]) on its record and meshes."""
     folder = out / name
     folder.mkdir(parents=True)
     shaped = design.reliefs(ground)
     laid = {place: outside.meshes(ground, place, shaped) for place in ground["places"]}
     for place, found in laid.items():
-        write_layer(folder, place, found, row)
-    (folder / "ground.json").write_text(json.dumps({**ground, "ground": name, "row": row}, indent=1))
+        write_layer(folder, place, found, row, recipe)
+    (folder / "ground.json").write_text(json.dumps({**ground, "ground": name, "row": row, "recipe": recipe[0],
+                                                    "recipe_by": recipe[1]}, indent=1))
     (folder / "measures.json").write_text(json.dumps({**MADE_BY, **gates.measured(ground, laid)}, indent=1))
 
 
 def make(inputs, out, seed, params):
     """Make every ground of the design."""
     plans, skies = design.kept(inputs["plans"]), design.kept(inputs["skies"])
+    table = json.loads(pathlib.Path(inputs["reference"]).read_text())
     for name, ground in design.layout(plans, skies).items():
-        make_ground(name, ground, ground_row(ground, inputs["inventories"], plans), out)
+        row = ground_row(ground, inputs["inventories"], plans)
+        make_ground(name, ground, row, recipe_of(ground, row, inputs["inventories"], skies, table), out)
 
 
 def grounds_faults(folder):

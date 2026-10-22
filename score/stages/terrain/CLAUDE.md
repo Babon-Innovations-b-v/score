@@ -11,7 +11,9 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`. The code ground
-  names its row (its top scene's terrain row) and its finish as missing (`score:surface:missing`) until the surface
+  names its row (its top scene's terrain row), the natural ground its finish is made with by rule
+  (`score/stages/natural_grounds.py`: the row's words, else its body's physics; `recipe` in ground.json,
+  `score:ground:recipe` on its meshes) and its finish as missing (`score:surface:missing`) until the surface
   line makes it: never painted another way.
 - **The design is the only input** (the owner, 2026-10-21: everything old is retired; the game's ground plans, copied
   grounds, seats, landforms and rocks, `data/ground`, went with it). A ground is one body or plot of the environment
