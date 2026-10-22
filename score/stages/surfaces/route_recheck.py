@@ -33,6 +33,7 @@ import route_ask  # noqa: E402
 import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
 import route_list  # noqa: E402
+import route_settings  # noqa: E402
 import route_split  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
@@ -49,16 +50,22 @@ why, and give the palette token, roughness and metal that would match; the palet
 {tokens}"""
 
 
-def finish_lines(finishes, surfaces):
-    """Each finish as a line: its number, words, parts, library surface and family, colour in words and shine."""
+def finish_lines(finishes, surfaces, tokens):
+    """Each finish as a line: its number, words, parts, library surface and family, colour in words and shine; in its
+    list settings' token, roughness and metal where it keeps them (route_settings.applied: as the views are drawn and
+    the bake paints it; `tokens` {token: linear RGB}), else its surface's own (astronaut-made-s1, 2026-10-22: its
+    glass-brown patches were worded as suit_patches' red, and the answer failed them)."""
     import part_judge
     lines = []
     for number, entry in enumerate(finishes):
         spec = surfaces.get(entry["surface"], {})
-        colour = part_judge.colour_words(spec["colour"]) if "colour" in spec else "its own colour"
+        settings = route_settings.applied(entry) or {}
+        shown = {**spec, **({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),
+                 **{name: settings[name] for name in ("roughness", "metal") if name in settings}}
+        colour = part_judge.colour_words(shown["colour"]) if "colour" in shown else "its own colour"
         lines.append(f"- finish {number + 1}: {entry['finish']}, on {entry['parts']}; surface {entry['surface']} "
-                     f"({spec.get('family')}), drawn {colour}, roughness {spec.get('roughness', 0.5):.2f}, metal "
-                     f"{spec.get('metal', 0.0):.2f}")
+                     f"({spec.get('family')}), drawn {colour}, roughness {shown.get('roughness', 0.5):.2f}, metal "
+                     f"{shown.get('metal', 0.0):.2f}")
     return "\n".join(lines)
 
 
@@ -67,7 +74,7 @@ def recheck_body(pictures, entry, finishes, context):
     text = QUESTION.format(object=entry["object"], close_up=(f"a {route_data.STAND_IN}" if context["stand_in"]
                                                              else "the object's close-up"),
                            count=len(pictures["views"]), views=", ".join(pictures["views"]),
-                           finishes=finish_lines(finishes, context["surfaces"]),
+                           finishes=finish_lines(finishes, context["surfaces"], context["tokens"]),
                            tokens=route_list.token_lines(context["tokens"]))
     answer = {"type": "OBJECT",
               "properties": {"finish": {"type": "INTEGER"}, "matches": {"type": "BOOLEAN"}, "why": {"type": "STRING"},
