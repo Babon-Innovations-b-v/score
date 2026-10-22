@@ -194,7 +194,7 @@ READS_THE_LOOP = {
 MAKES_NO_MODEL = {
     "settle": "rest poses of the made models", "sound": "sounds", "demo-film*": "films",
     "physics-trial": "a physics trial",
-    "light-passes": "renders",
+    "light-passes": "renders", "surface-tiles": "surface tile pictures",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
     "people-clips-made": "Kimodo clips and the mean rig", "people-look": "renders of the made bodies (its review page)",
 }
