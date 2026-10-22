@@ -52,7 +52,9 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   body, `score/stages/props/likeness.py`), triangles (the route's body as drawn). Never loosen one to pass; fix the
   method (the clips' clearance, the route) and measure again.
 - **The dress is the loop's library surfaces, nothing else** (`dress.py`): colour, roughness and metalness from the
-  library surface the loop's bake painted; the face print keeps its picture. Tests: `people_test.py`.
+  library surface the loop's bake painted on the take's outer surface (never a face Pixal3D grew inside it), a
+  garment split where its paint changes, a hard part one surface; the face print and the hair keep the build's own
+  finish. Tests: `people_test.py`.
 - **The concept decides the clothes** (owner, 2026-10-13), per person row and from the design alone
   (`../people_clothes.py`, each row's `dress` in `data/people/rows.json`, written by the people rows' refresh): of the
   people place's library fabrics, those whose name shares a word with the row's name as read, the nearest by dE to

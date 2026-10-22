@@ -147,13 +147,19 @@ def rigid_joint(name, points, weights, names):
 
 
 def eased_to_hard(points, weights, hard_points, hard_joints, names, parents):
-    """A garment's weights eased towards the joint of the hard part next to it: a point within EASE_HOLD of a hard
-    point rides that point's joint, and on to the reach (EASE_REACH, a foot's EASE_REACH_FOOT) less and less, so a
-    trouser leg goes with the boot it covers and the cloth by the belt with the belt. Only a hard part on the point's
+    """A garment's weights eased towards the joint of the hard part next to it (hard_share)."""
+    target, share = hard_share(points, weights, hard_points, hard_joints, names, parents)
+    return weights * (1 - share) + target * share
+
+
+def hard_share(points, weights, hard_points, hard_joints, names, parents):
+    """(each point's hard joint as weights, how far it rides it, points x 1): a point within EASE_HOLD of a hard
+    point rides that point's joint wholly, and on to the reach (EASE_REACH, a foot's EASE_REACH_FOOT) less and less, so
+    a trouser leg goes with the boot it covers and the cloth by the belt with the belt. Only a hard part on the point's
     own limb counts (its strongest joint's family: the hard joint, its parent, grandparent or child): between Nev's
     knees the left trouser leg's inside took the right boot's foot and opened over the left boot's tuck."""
     if not len(hard_points):
-        return weights
+        return np.zeros_like(weights), np.zeros((len(points), 1))
     strongest = weights.argmax(1)
     distance, target = np.full(len(points), np.inf), np.zeros_like(weights)
     for joint in np.unique(hard_joints):
@@ -173,8 +179,7 @@ def eased_to_hard(points, weights, hard_points, hard_joints, names, parents):
     waist = target[:, [names.index(name) for name in WAIST if name in names]].any(1)
     reach = np.where(feet, EASE_REACH_FOOT, np.where(waist, WAIST_REACH, EASE_REACH))
     hold = np.where(waist, WAIST_HOLD, EASE_HOLD)
-    share = np.clip(1.0 - (distance - hold) / (reach - hold), 0.0, 1.0)[:, None]
-    return weights * (1 - share) + target * share
+    return target, np.clip(1.0 - (distance - hold) / (reach - hold), 0.0, 1.0)[:, None]
 
 
 def cleared_of_body(points, body_points, body_normals):

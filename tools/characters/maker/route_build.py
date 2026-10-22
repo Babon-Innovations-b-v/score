@@ -6,7 +6,8 @@ body's look and clips rebuilt on the SOMA-X base with the route's four changes, 
         [--face made|drawn] [--old <old body.glb>] [--correctives <correctives.npz>] [--base under|shell]
         [--labels under|shell] [--no-cut] [--no-under] [--shapes 24]
 
-- the garments bound by limb on the base, the arm and leg webs cut and closed (route_bind.py);
+- the garments bound by limb on the base, the arm and leg webs cut and closed (route_bind.py), then eased onto the
+  hard and skin parts next to them, which take no correctives there (`garment_bind`, `clip_offsets`);
 - the head by `--face` (route_head.FACE, the owner's one setting): `made` keeps the made head whole, the face
   Pixal3D made with its face print from the close-up; `drawn` splits it, keeps the made hair, drops the made face and
   lays the old SOMA-X head with its drawn face and eyes (`--old`) on the made skeleton, run down the neck to 2 cm
@@ -16,7 +17,7 @@ body's look and clips rebuilt on the SOMA-X base with the route's four changes, 
 - SOMA-X's pose correctives (route_base.py correctives) carried onto the garments by their bind places and baked as
   `--shapes` shared morph targets (the main directions of every clip's offsets), keyed per frame in every clip;
 - the base body drawn in the suit's cloth under the cut webs (`under_layer`), so the gap where an arm lifts off the
-  side shows cloth, not the inside of the suit (`--no-under` leaves it out).
+  side shows cloth, not the inside of the suit, only where it lies under the cloth (`--no-under` leaves it out).
 
 Hard parts, hands and hair keep their made weights (one joint each). The far body is copied as it is.
 """
@@ -147,10 +148,38 @@ def hard_points(document, surfaces, names):
     return np.concatenate(points), np.concatenate(joints)
 
 
-def garment_bind(garments, label_points, base_points, base_faces, base_weights, names, bind, cut, hard, parents):
+def skin_points(document, surfaces):
+    """The skin parts' own points (their tucks left out) and their weights: the made face, bare hands."""
+    own = [(surface, surface.tuck_from or len(surface.points)) for surface in surfaces
+           if role_of(document, surface) == "skin"]
+    count = surfaces[0].weights.shape[1] if surfaces else 0
+    return (np.concatenate([np.zeros((0, 3))] + [surface.points[:end] for surface, end in own]),
+            np.concatenate([np.zeros((0, count))] + [surface.weights[:end] for surface, end in own]))
+
+
+def skin_share(points, weights, skin, parents):
+    """(the nearest skin point's weights, how far each garment point rides them, points x 1), by prop_build's
+    EASE_HOLD and EASE_REACH, only where the point's strongest joint is the skin point's own, its parent or
+    grandparent: the made face rides the head while the helmet round it bent with the neck, and went 10 mm through
+    it on the bench (astronaut, 2026-10-22)."""
+    skin_points, skin_weights = skin
+    if not len(skin_points):
+        return np.zeros_like(weights), np.zeros((len(points), 1))
+    from scipy.spatial import cKDTree
+    distance, nearest = cKDTree(skin_points).query(points)
+    own = skin_weights[nearest].argmax(1)
+    family = np.stack([own, parents[own], np.where(parents[own] >= 0, parents[parents[own]], -1)], 1)
+    mine = (family == weights.argmax(1)[:, None]).any(1)
+    share = np.clip(1.0 - (distance - prop_build.EASE_HOLD) / (prop_build.EASE_REACH - prop_build.EASE_HOLD), 0, 1)
+    return skin_weights[nearest], np.where(mine, share, 0.0)[:, None]
+
+
+def garment_bind(garments, label_points, base_points, base_faces, base_weights, names, bind, cut, hard, skin,
+                 parents):
     """The welded garments' regions (by the nearest of `label_points`), bind, weights and web edges
-    (route_bind.py); the weights then eased onto the hard parts next to them (prop_build.eased_to_hard: a trouser
-    leg goes with the boot it covers, or the boot's tuck shows through it, 19 mm on the player standing)."""
+    (route_bind.py); the weights then eased onto the hard parts next to them (prop_build.hard_share: a trouser
+    leg goes with the boot it covers, or the boot's tuck shows through it, 19 mm on the player standing) and onto the
+    skin parts next to them (skin_share); `eased`, how far each point rides a hard or skin part."""
     numbers, places, edges, starts = welding(garments)
     regions = route_bind.point_regions(places, edges, label_points, route_bind.base_regions(base_weights, names))
     bound = route_bind.bound_by_region(places, regions, base_points, base_faces, base_weights, names)
@@ -160,8 +189,12 @@ def garment_bind(garments, label_points, base_points, base_faces, base_weights, 
         web |= route_bind.underarm_edges(places, edges, regions, shoulder_heights(bind, names))
     weights = route_bind.smoothed(bound.carried(base_weights), edges[~web])
     weights = route_bind.kept_to_limb(weights, regions, names)
-    weights = prop_build.eased_to_hard(places, weights, *hard, list(names), parents)
+    target, hard_eased = prop_build.hard_share(places, weights, *hard, list(names), parents)
+    weights = weights * (1 - hard_eased) + target * hard_eased
+    target, skin_eased = skin_share(places, weights, skin, parents)
+    weights = weights * (1 - skin_eased) + target * skin_eased
     return {"numbers": numbers, "starts": starts, "regions": regions, "bound": bound, "weights": weights,
+            "eased": np.maximum(hard_eased, skin_eased)[:, 0],
             "web": {tuple(pair) for pair in edges[web].tolist()}, "web_edges": int(web.sum())}
 
 
@@ -519,9 +552,12 @@ def corrective_shapes(surfaces, clips, count):
     return per_surface, clip_weights, kept
 
 
-def clip_offsets(correctives, clips, bound):
-    """Each clip's corrective offsets on the welded garment points."""
-    return {clip: welded_offsets(correctives, clip, bound) for clip in clips}
+def clip_offsets(correctives, clips, welded):
+    """Each clip's corrective offsets on the welded garment points, none where a point rides a hard or skin part
+    (`eased`): the base's correctives moved the trouser hem riding the boot into the boot, 4.5 to 5 mm deep walking
+    and sitting (astronaut, 2026-10-22)."""
+    kept = (1.0 - welded["eased"])[None, :, None]
+    return {clip: welded_offsets(correctives, clip, welded["bound"]) * kept for clip in clips}
 
 
 def kept_surfaces(document, surfaces, face):
@@ -557,10 +593,10 @@ def build(options):
     garments = [surface for surface in surfaces if role_of(document, surface) == pokes.GARMENT]
     welded = garment_bind(garments, base[f"{options.labels}_points"], base_points, base["faces"], base["weights"],
                           names, bind, not options.no_cut, hard_points(document, surfaces, names),
-                          np.asarray(rig["parents"]))
+                          skin_points(document, surfaces), np.asarray(rig["parents"]))
     correctives = np.load(options.correctives) if options.correctives else None
     clips = [animation["name"] for animation in document["animations"]]
-    welded_moves = clip_offsets(correctives, clips, welded["bound"]) if correctives is not None else None
+    welded_moves = clip_offsets(correctives, clips, welded) if correctives is not None else None
     out, cut_faces, closings = [], 0, 0
     for surface, start in zip(garments, welded["starts"]):
         new, removed, middles = rebound(surface, welded, start)
@@ -594,22 +630,39 @@ def under_layer(garments, welded, base_points, base_faces, base_weights, correct
     """The body under the cut webs, drawn in the cloth of the garment that lost the most there: the base's triangles
     within UNDER_REACH of where a web point binds, UNDER_INSET inside the base, on the base's weights and pose
     correctives. Where the arm lifts off the side the cut leaves a gap; through it the inside of the suit's far side
-    showed black (sitting, reaching, lifting on the player, 2026-10-18); this closes it with cloth colour. None when
-    nothing was cut."""
+    showed black (sitting, reaching, lifting on the player, 2026-10-18); this closes it with cloth colour. Only
+    triangles lying at least UNDER_INSET under the cloth are drawn: where the base stood out of a slim suit it showed
+    through it at rest, white patches on the astronaut's brown chest and hips (2026-10-22). None when nothing was
+    cut."""
     web_points = np.unique(np.array(sorted(welded["web"]), int).ravel()) if welded["web"] else np.zeros(0, int)
     if not len(web_points):
         return None
     from scipy.spatial import cKDTree
     near = cKDTree(welded["bound"].places[web_points]).query(base_points, distance_upper_bound=UNDER_REACH)[0]
-    faces = base_faces[np.isfinite(near)[base_faces].all(1)]
+    inset = base_points - UNDER_INSET * normals_of(base_points, base_faces)
+    drawn = np.isfinite(near) & (under_cloth(inset, garments) >= UNDER_INSET)
+    faces = base_faces[drawn[base_faces].all(1)]
+    if not len(faces):
+        return None
     used = np.unique(faces)
     renumber = np.full(len(base_points), -1)
     renumber[used] = np.arange(len(used))
-    points = base_points[used] - UNDER_INSET * normals_of(base_points, base_faces)[used]
+    points = inset[used]
     layer = Surface(cloth_of_web(garments, welded), points, None, base_weights[used], renumber[faces])
     if correctives is not None:
         layer.offsets = {clip: correctives[f"clip_{clip}"].astype(np.float64)[:, used] for clip in clips}
     return layer
+
+
+def under_cloth(points, garments):
+    """How far each point lies under the garments (negative: outside them), along its nearest garment point's
+    normal."""
+    from scipy.spatial import cKDTree
+    starts = np.cumsum([0] + [len(surface.points) for surface in garments])
+    cloth = np.concatenate([surface.points for surface in garments])
+    normals = normals_of(cloth, np.concatenate([surface.faces + start for surface, start in zip(garments, starts)]))
+    _, nearest = cKDTree(cloth).query(points)
+    return np.einsum("ij,ij->i", cloth[nearest] - points, normals[nearest])
 
 
 def cloth_of_web(garments, welded):
