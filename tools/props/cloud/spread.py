@@ -12,7 +12,9 @@ it, `card` being the card it runs on (None on a processor machine), and raises J
 fails. Every share runs once, on one machine (a batch, CONTEXT.md, owner 2026-10-20): a share whose command failed,
 or whose machine broke under it (ssh, a copy), is a gap in `shares.failed`, never handed to another machine, and a
 broken machine takes no more; a machine that fails while setting up ends with no machine rented in its place, its
-shares left to the others or in `shares.waiting` as gaps. A machine runs capacity.runs_at_once shares on
+shares left to the others or in `shares.waiting` as gaps. Under a run's card pool (pool.py, owner 2026-10-23) a share
+whose pool card died goes back on the queue once (`Shares.again`) and the slot takes the pool's next card while shares
+wait; a second death makes it a gap. A machine runs capacity.runs_at_once shares on
 each card at once. Every machine is armed to delete itself if this PC goes quiet, hears this PC's heartbeat each
 minute, and is deleted when it has no more work; the run's ledger rows are the runner's (run.machines and
 run.attempts, as for one machine).
@@ -56,6 +58,7 @@ class Shares:
         self.changed = threading.Condition()
         self.failed, self.done = [], []
         self.takers = 0
+        self.put_back = []
 
     def take(self):
         """The next share, or None when there is no more (or the deadline has passed)."""
@@ -75,6 +78,16 @@ class Shares:
         with self.changed:
             self.waiting.append(item)
             self.changed.notify()
+
+    def again(self, item):
+        """Put a share whose pool card died back on the queue, once; False when it was put back before."""
+        with self.changed:
+            if any(earlier is item for earlier in self.put_back):
+                return False
+            self.put_back.append(item)
+            self.waiting.append(item)
+            self.changed.notify()
+            return True
 
     def close(self):
         with self.changed:
@@ -116,8 +129,11 @@ def work_slot(machine, shares, do, card, broken):
         except JobFailed as error:
             batch.say(f"{machine['folder'].name}: a job failed ({error})")
             shares.failed_job(share)
-        except Exception as error:  # noqa: BLE001 - the share is a gap, this machine stops
+        except Exception as error:  # noqa: BLE001 - the share is a gap (a pool card's goes back once), this machine stops
             broken.set()
+            if machine.get("pool") and shares.again(share):
+                batch.say(f"{machine['folder'].name} failed ({error}); its share goes back on the queue")
+                continue
             shares.failed_job(share)
             batch.say(f"{machine['folder'].name} failed ({error}); its share is a gap")
 
@@ -170,12 +186,18 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
 
 def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb, at_once=None):
     """Claim one machine and tend it, once: none in its place when it fails; nothing when no offer gives one that
-    answers or the work is gone."""
+    answers or the work is gone. A pool card is followed by the pool's next while shares wait (one put back from a
+    card that died)."""
     if shares.queued() <= 0 and not shares.open:
         return
-    machine = batch.claim(run, account, found, number, kind, disk_gb, wanted=lambda: shares.queued() > 0 or shares.open)
-    if machine is not None:
+    while True:
+        machine = batch.claim(run, account, found, number, kind, disk_gb,
+                              wanted=lambda: shares.queued() > 0 or shares.open)
+        if machine is None:
+            return
         tend(run, machine, kind, shares, prepare, do, at_once)
+        if not machine.get("pool") or shares.queued() <= 0:
+            return
 
 
 def start_machine(run, account, found, number, kind, shares, prepare, do, disk_gb=batch.DISK_GB, at_once=None):

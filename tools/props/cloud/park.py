@@ -36,6 +36,12 @@ the one that parked a card its minutes until then. Taking one is renting: it nee
 Under a `score run` (SCORE_RUN_ID) a parked machine's record names its run, so it stays in the run's count for the
 run-wide cap (capacity.reserve_run_slot) until it is taken or gone, and taking one counts it for the taker's run first.
 
+A run's pool card (pool.py, owner 2026-10-23) parks the same way with the pool's own rules: a healthy one goes back
+to its pool whatever its kind (a kind with no clean-up only when it never ran one), listed until the pool's end, its
+self-delete keeping its 15-minute quiet limit (the pool's collector beats it); it is taken only by a claim of its own
+run, by class, whatever its type and zone; taking one charges its spell parked to the pool (idle_entry) and the taker
+from then on. One that cannot go back is deleted and struck off the pool, which collects another.
+
 A `score run` that ends with machines it parked still listed outlives them (`outlive`, from its releaser process): each
 one still listed at its time is released then, so a dead or late --expire process never leaves it to the machine's own
 self-delete (#45: three L4s of an ended run stayed parked until removed by hand, 2026-10-20).
@@ -142,8 +148,11 @@ def paid_until(machine, now):
 
 
 def leaves_at(machine, now):
-    """When a machine parked now must be gone: MARGIN_MINUTES before its paid hour ends; a card after its kind's idle
-    time (at least LEAST_MINUTES while a claim of its kind waits)."""
+    """When a machine parked now must be gone: a pool card at its pool's end; else MARGIN_MINUTES before its paid hour
+    ends; a card after its kind's idle time (at least LEAST_MINUTES while a claim of its kind waits)."""
+    if machine.get("pool"):
+        import pool
+        return (pool.current(machine["pool"]) or {"deadline": now})["deadline"]
     if machine.get("unit_minutes", 1) > 1:
         return paid_until(machine, now) - MARGIN_MINUTES * 60
     idle = idle_minutes(machine.get("kind"))
@@ -159,11 +168,28 @@ def parkable(machine, now):
     """Whether the machine is worth parking: its run ended well, its kind cleans up, it has LEAST_MINUTES (a card
     CARD_LEAST_MINUTES) or more before it must go, and, for a card, a claim waits for it (queued): a card billed by
     the minute with no queued work is released (2026-10-22: an H100 sat parked unused after a one-model batch)."""
+    if machine.get("pool"):
+        return pool_parkable(machine, now)
     card = machine.get("unit_minutes", 1) == 1
     least = CARD_LEAST_MINUTES if card else LEAST_MINUTES
     return (bool(machine.get("healthy")) and machine.get("kind") in CLEANUPS and machine.get("host") is not None
             and not batch.STOPPING.is_set() and (not card or queued())
             and leaves_at(machine, now) - now >= least * 60)
+
+
+def pool_parkable(machine, now):
+    """Whether a pool card goes back to its pool: healthy, answering, its kind's run files removable (a fresh card's
+    kind has none), not stopping, its pool open with CARD_LEAST_MINUTES or more before its end."""
+    import pool
+    return (bool(machine.get("healthy")) and machine.get("host") is not None and not batch.STOPPING.is_set()
+            and (machine.get("kind") in CLEANUPS or machine.get("kind") == pool.KIND)
+            and pool.current(machine["pool"]) is not None
+            and leaves_at(machine, now) - now >= CARD_LEAST_MINUTES * 60)
+
+
+def cleanup_of(machine):
+    """The shell command that removes the machine's run files: its kind's, none for a fresh pool card."""
+    return CLEANUPS[machine["kind"]](machine) if machine["kind"] in CLEANUPS else "true"
 
 
 @contextlib.contextmanager
@@ -181,22 +207,43 @@ def locked():
 def record_of(machine, until, token, now):
     """What the next run needs to take the machine: who it is, what it costs and has been paid, when it must go."""
     keys = ("id", "zone", "type", "class", "cards", "price", "unit_minutes", "created", "host", "kind", "disk_gb")
-    return {**{key: machine.get(key) for key in keys}, "token": token, "until": until, "parked_at": now,
-            "paid_minutes": (paid_until(machine, now) - machine["created"]) / 60,
-            "run": os.environ.get(capacity.RUN_ID)}
+    record = {**{key: machine.get(key) for key in keys}, "token": token, "until": until, "parked_at": now,
+              "paid_minutes": (paid_until(machine, now) - machine["created"]) / 60,
+              "run": os.environ.get(capacity.RUN_ID)}
+    if machine.get("pool"):  # the pool's run, and the folder its collector beats the card's heartbeat through
+        record.update({"pool": machine["pool"], "run": machine["pool"], "folder": str(machine["folder"])})
+    return record
 
 
 def park(machine):
     """Park the machine instead of deleting it, when it is worth it; True if parked. Anything that goes wrong on the
-    way leaves it to the caller's delete."""
+    way leaves it to the caller's delete. A pool card parked is back in its pool (no process holds it); one not
+    parked is struck off its pool, which collects another."""
+    parked = park_here(machine)
+    if machine.get("pool"):
+        import pool
+        if parked:
+            pool.held_by(machine["pool"], machine["id"], None)
+            if pool.current(machine["pool"]) is None:  # released while it was being parked: it goes now
+                release(machine["id"], machine["zone"], machine["parked_token"])
+                return False
+        else:
+            pool.left(machine["pool"], machine["id"])
+    return parked
+
+
+def park_here(machine):
+    """park's own work: the machine cleaned, armed, given its --expire process, tagged and listed; True if parked."""
     now = time.time()
     if not parkable(machine, now):
         return False
     until, token = leaves_at(machine, now), uuid.uuid4().hex
     folder, host = machine["folder"], machine["host"]
     try:
-        batch.remote(folder, host, CLEANUPS[machine["kind"]](machine), check=True, capture_output=True, timeout=120)
-        batch.arm_self_delete(folder, host, until, quiet_minutes=(until - now) / 60 + batch.QUIET_MINUTES)
+        batch.remote(folder, host, cleanup_of(machine), check=True, capture_output=True, timeout=120)
+        # A pool card's collector beats it, so it keeps the usual quiet limit; any other parked machine hears no one.
+        quiet = batch.QUIET_MINUTES if machine.get("pool") else (until - now) / 60 + batch.QUIET_MINUTES
+        batch.arm_self_delete(folder, host, until, quiet_minutes=quiet)
         with (folder / "park.log").open("a") as log:
             expirer = subprocess.Popen([sys.executable, __file__, "--expire", machine["id"], machine["zone"], token,
                                         f"{until:.0f}"], start_new_session=True, stdout=log,
@@ -208,19 +255,21 @@ def park(machine):
     except Exception as error:  # noqa: BLE001 - a machine that cannot be parked is deleted as before
         batch.say(f"{folder.name} could not be parked ({error}); deleting it")
         return False
-    machine["parked"] = True
+    machine["parked"], machine["parked_token"] = True, token
     leaving = time.strftime("%H:%M", time.localtime(until))
-    why = "its paid hour" if machine["unit_minutes"] > 1 else "its kind's cold start"
+    why = ("its pool's end" if machine.get("pool") else
+           "its paid hour" if machine["unit_minutes"] > 1 else "its kind's cold start")
     batch.say(f"{folder.name} parked for the next {machine['kind']} run until {leaving} ({why})")
     return True
 
 
-def take(kind, places, disk_gb, now):
+def take(kind, places, disk_gb, now, pool_of=None, classes=()):
     """The parked machine in one of `places` ((type, zone)) with a disk of at least `disk_gb`, struck off the list:
     one of `kind` first, else one another kind parked (the owner, 2026-10-12: no new machine while one is idle), the
     most time left first; None when there is none. Records past their time are struck off on the way. Another kind's
     machine fits: a type the claim's offers name runs the same system image whatever the kind, its run's files were
-    removed when it was parked, and the claiming kind's set-up then runs on it as on a fresh one."""
+    removed when it was parked, and the claiming kind's set-up then runs on it as on a fresh one. A pool card is taken
+    only by a claim of its pool's run (`pool_of`), by its class (one of `classes`) in whatever type and zone."""
     with locked():
         found = []
         for path in PARKED.glob("*.json"):
@@ -229,7 +278,9 @@ def take(kind, places, disk_gb, now):
                 if now - record["until"] > STALE_MINUTES * 60:  # its --expire process is long gone
                     path.unlink()
                 continue  # left to its --expire process, which deletes the machine with the record
-            if (record["type"], record["zone"]) in places and (record.get("disk_gb") or 0) >= disk_gb:
+            fits = (record["pool"] == pool_of and record["class"] in classes if record.get("pool")
+                    else (record["type"], record["zone"]) in places)
+            if fits and (record.get("disk_gb") or 0) >= disk_gb:
                 found.append(((record["kind"] == kind, record["until"]), path, record))
         if not found:
             return None
@@ -246,6 +297,9 @@ def taken_machine(run, record, number, now):
                                             "created", "host", "kind", "disk_gb", "paid_minutes")}
     machine.update({"folder": folder, "deleted": None, "ready": now, "adopted": now, "generating_began": None,
                     "status": {}})
+    if record.get("pool"):  # its spell parked is the pool's (idle_entry); the taker pays from now on
+        ledger.record(idle_entry(record, now))
+        machine["pool"], machine["paid_minutes"] = record["pool"], (paid_until(record, now) - record["created"]) / 60
     machine["watchdog"] = batch.start_watchdog(machine["id"], machine["zone"],
                                                run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60, folder)
     return machine
@@ -254,13 +308,16 @@ def taken_machine(run, record, number, now):
 def adopt(run, offers, number, kind, disk_gb):
     """A parked machine of `kind` for `run`, of a type and zone `offers` name, answering and tagged as the run's; None
     when there is none. One that does not answer is deleted and the next tried."""
-    if kind not in CLEANUPS or not getattr(run, "deadline", None):
+    import pool
+    pool_of = os.environ.get(capacity.RUN_ID) if pool.current() else None
+    if (kind not in CLEANUPS and not pool_of) or not getattr(run, "deadline", None):
         return None
     batch.compute.require_cleared(f"a parked machine of {kind}")
     places = {(offer.type, offer.zone) for offer in offers}
+    classes = {offer.machine_class for offer in offers}
     while True:
         now = time.time()
-        record = take(kind, places, disk_gb, now)
+        record = take(kind, places, disk_gb, now, pool_of, classes)
         if record is None:
             return None
         if not capacity.reserve_run_slot(len(live_of(run))):  # the run holds its cap: the record goes back
@@ -268,6 +325,8 @@ def adopt(run, offers, number, kind, disk_gb):
             return None
         machine = taken_machine(run, record, number, now)
         machine["kind"] = kind  # another kind's machine is this run's kind now: its clean-up and parking are this kind's
+        if machine.get("pool"):
+            pool.held_by(machine["pool"], machine["id"], os.getpid())
         try:
             deadline = run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60
             cloud.retag(machine["id"], machine["zone"], batch.run_tags(os.getpid(), deadline))
@@ -299,6 +358,13 @@ def expire(server_id, zone, token, until):
     """Sleep until `until`, then release the machine if it is still parked under `token`."""
     time.sleep(max(0.0, until - time.time()))
     release(server_id, zone, token)
+
+
+def pool_records(run_id):
+    """The records of `run_id`'s pool cards parked now (idle in the pool)."""
+    with locked():
+        records = [json.loads(path.read_text()) for path in PARKED.glob("*.json")]
+    return [record for record in records if record.get("pool") == run_id]
 
 
 def parked_by(run_id):
@@ -340,6 +406,9 @@ def release(server_id, zone, token):
         print(f"{time.strftime('%H:%M:%S')} deleted parked {server_id} at the end of its time", flush=True)
     if record["unit_minutes"] == 1:  # its idle minutes were billed even if its self-delete was first
         ledger.record(idle_entry(record, time.time()))
+    if record.get("pool"):
+        import pool
+        pool.left(record["pool"], server_id)
 
 
 def idle_entry(record, deleted):
@@ -350,9 +419,15 @@ def idle_entry(record, deleted):
                 * record["price"])
     row = {"type": record["type"], "zone": record["zone"], "cards": record["cards"], "started": True,
            "start_wait_minutes": 0.0, "work_minutes": 0.0, "minutes": minutes, "euros": euros, "parked_idle": True}
-    return {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(record["parked_at"])),
-            "batch": f"parked-{record['id']}", "kind": record["kind"], "who": "park.py: a parked card nobody took",
-            "machines": [row], "attempts": [], "machine_minutes": minutes, "euros": euros, "wall_minutes": minutes}
+    entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(record["parked_at"])),
+             "batch": f"parked-{record['id']}", "kind": record["kind"], "who": "park.py: a parked card nobody took",
+             "machines": [row], "attempts": [], "machine_minutes": minutes, "euros": euros, "wall_minutes": minutes}
+    if record.get("pool"):  # the pool's idle time, charged to its run under the pool's ticket
+        import pool
+        entry.update({"batch": f"pool-idle-{record['id']}-{record['parked_at']:.0f}", "kind": pool.KIND,
+                      "run": record["pool"], "who": "pool.py: a pool card's time idle",
+                      **pool.ticket_of(record["pool"])})
+    return entry
 
 
 if __name__ == "__main__" and sys.argv[1:2] == ["--expire"]:
