@@ -21,7 +21,9 @@ A look the loop made no model for is blocked with its gap.
 Gates: `dressed` (every material of the body names a known library surface and reads the baked maps: a flat factor
 fails), `aligned` (the body's points lie on the painted take: the median distance to the nearest painted sample
 within ALIGNED_MOST; the far body, a coarse stand-in, is not measured) and `baked` (bake_check's faults of the
-bake: off its library surface, off the close-up, blotches, one grey look, an order reversed).
+bake: off its library surface, off the close-up, blotches, one grey look, an order reversed) and `strays` (the
+outfit's area in surface islands too small to be paint, patchy.py's stray, within its STRAY_LIMIT: the jagged
+blotches the take's unseen paint left, 2026-10-23).
 """
 import json
 import pathlib
@@ -49,12 +51,17 @@ COMPONENTS = {5121: np.uint8, 5123: np.uint16, 5125: np.uint32, 5126: np.float32
 WIDTHS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
 
 
-def library_surfaces():
-    """{library surface: its spec}, every variant in its own token (the people place's own list of materials in
-    place.json was retired, 2026-10-21)."""
+def on_library_path():
+    """The props library's tools (tools/props/library) importable."""
     folder = str(REPO / "tools/props/library")
     if folder not in sys.path:
         sys.path.append(folder)
+
+
+def library_surfaces():
+    """{library surface: its spec}, every variant in its own token (the people place's own list of materials in
+    place.json was retired, 2026-10-21)."""
+    on_library_path()
     import library
     return library.by_library(LINE)
 
@@ -135,6 +142,57 @@ def surfaces_of(labels, faces, role, points):
         names, numbers = np.unique(per_triangle, return_inverse=True)
         return np.full(len(faces), names[np.bincount(numbers, weights=areas).argmax()])
     return triangle_labels(smoothed_labels(labels, faces), faces)
+
+
+def islands_of(points, faces, labels):
+    """(each triangle's island: the triangles of one surface joined across shared edges, a point lying twice one
+    point; the triangle pairs sharing an edge; each triangle's share of the area)."""
+    import trimesh
+    on_library_path()
+    import patchy
+    mesh = trimesh.Trimesh(points, faces, process=False)
+    mesh.merge_vertices()
+    numbers = np.unique(labels, return_inverse=True)[1]
+    return patchy.islands(numbers, mesh.face_adjacency), mesh.face_adjacency, mesh.area_faces / mesh.area
+
+
+def strays(points, faces, labels, kept):
+    """Per triangle, whether it lies in a stray: an island of one surface under the props' STRAY_ISLAND of the area
+    (patchy.py: a detail that small is a decal or a part of its own, never a patch of paint) with no `kept` triangle
+    (a one-surface part's) and sharing an edge with a triangle neither kept nor in it; (that, its islands, the pairs)."""
+    on_library_path()
+    import patchy
+    island, pairs, share = islands_of(points, faces, labels)
+    small = np.bincount(island, weights=share) < patchy.STRAY_ISLAND
+    small[np.unique(island[kept])] = False
+    border = pairs[(island[pairs[:, 0]] != island[pairs[:, 1]]) & ~kept[pairs[:, 0]] & ~kept[pairs[:, 1]]]
+    joined = np.zeros(len(small), dtype=bool)
+    joined[island[border.ravel()]] = True
+    return small[island] & joined[island], island, pairs
+
+
+def without_strays(points, faces, labels, kept, rounds=10):
+    """Each triangle's surface with every stray (strays) given the surface it shares the most edges with among the
+    triangles neither kept nor in it, until none is left. The take's paint has them where no view saw it (each unseen
+    face painted from its nearest seen one): the astronaut's collar, wrists, lower back and inner thighs in jagged dark
+    blotches of the joints' surface, 2026-10-23."""
+    kinds, numbers = np.unique(labels, return_inverse=True)
+    for _ in range(rounds):
+        stray, island, pairs = strays(points, faces, kinds[numbers], kept)
+        if not stray.any():
+            break
+        across = np.r_[pairs, pairs[:, ::-1]]
+        across = across[stray[across[:, 0]] & ~kept[across[:, 1]] & (island[across[:, 0]] != island[across[:, 1]])]
+        votes = np.zeros((island.max() + 1, len(kinds)))
+        np.add.at(votes, (island[across[:, 0]], numbers[across[:, 1]]), 1.0)
+        numbers = np.where(stray, votes.argmax(1)[island], numbers)
+    return kinds[numbers]
+
+
+def stray_share(points, faces, labels, kept):
+    """The share of the area in strays (strays)."""
+    stray, _, _ = strays(points, faces, labels, kept)
+    return float(islands_of(points, faces, labels)[2][stray].sum())
 
 
 class Binary:
@@ -234,20 +292,36 @@ def named(material, name, spec):
     extras["library"], extras["surface"] = name, spec.get("library", name)
 
 
+def painted_primitives(document, rest, primitives, painted, roles):
+    """Per primitive (its faces, each triangle's painted surface, each point's distance to the take): surfaces_of on
+    each, then the mesh's strays merged over all of them (without_strays), a one-surface part kept as it is."""
+    found, corners, kept, labels = [], [], [], []
+    for primitive, role in zip(primitives, roles):
+        attributes = primitive["attributes"]
+        points = positions(document, rest, attributes["POSITION"])
+        normals = positions(document, rest, attributes["NORMAL"]) if "NORMAL" in attributes else np.zeros_like(points)
+        laid, apart = painted.labels(points, normals)
+        faces = accessor(document, rest, primitive["indices"]).reshape(-1, 3).astype(np.int64)
+        found.append((faces, apart))
+        corners.append(points[faces].reshape(-1, 3))
+        kept.append(np.full(len(faces), role in ONE_SURFACE))
+        labels.append(surfaces_of(laid, faces, role, points))
+    sizes = np.cumsum([0] + [len(faces) for faces, _ in found])
+    merged = without_strays(np.vstack(corners), np.arange(sizes[-1] * 3).reshape(-1, 3), np.concatenate(labels),
+                            np.concatenate(kept))
+    return [(faces, merged[start:end], apart) for (faces, apart), start, end in zip(found, sizes, sizes[1:])]
+
+
 def dressed_primitives(document, rest, primitives, painted, surfaces, params):
     """(the mesh's primitives split by the surface painted on their triangles, each on a material naming its library
     surface, the binary chunk with their index lists, {material key: its record entry})."""
     binary, originals = Binary(document, rest), [json.loads(json.dumps(found)) for found in document["materials"]]
     # a material's points are measured together: the route's under layer lies under its garment, off the take
     chosen, record, out, distances = {}, {}, [], {}
-    for primitive in primitives:
+    roles = [originals[primitive["material"]].get("extras", {}).get("role") for primitive in primitives]
+    for primitive, role, (faces, per_triangle, apart) in zip(
+            primitives, roles, painted_primitives(document, rest, primitives, painted, roles)):
         number = primitive["material"]
-        role, attributes = originals[number].get("extras", {}).get("role"), primitive["attributes"]
-        points = positions(document, rest, attributes["POSITION"])
-        normals = positions(document, rest, attributes["NORMAL"]) if "NORMAL" in attributes else np.zeros_like(points)
-        labels, apart = painted.labels(points, normals)
-        faces = accessor(document, rest, primitive["indices"]).reshape(-1, 3).astype(np.int64)
-        per_triangle = surfaces_of(labels, faces, role, points)
         kinds = np.unique(per_triangle)
         for painted_name in kinds:
             mine = faces[per_triangle == painted_name]
@@ -356,6 +430,35 @@ def judge_baked(output, inputs, evidence):
                    f"{len(checked['surfaces'])} surfaces baked on their library colour, worst dE {worst}",
                    {"failing": len(checked["faults"]), "worst_delta_e": worst}, {"failing": "lower"},
                    tuple(checked["faults"]))
+
+
+def body_strays(document, rest):
+    """The share of the outfit's area in strays (strays) as the dressed body draws it: each triangle the library
+    surface its material names, a one-surface part's kept."""
+    corners, labels, kept = [], [], []
+    for primitive in document["meshes"][outfit_node(document)["mesh"]]["primitives"]:
+        extras = document["materials"][primitive["material"]].get("extras", {})
+        points = positions(document, rest, primitive["attributes"]["POSITION"])
+        faces = accessor(document, rest, primitive["indices"]).reshape(-1, 3).astype(np.int64)
+        corners.append(points[faces].reshape(-1, 3))
+        labels.append(np.full(len(faces), str(extras.get("library"))))
+        kept.append(np.full(len(faces), extras.get("role") in ONE_SURFACE))
+    count = sum(len(found) for found in labels)
+    return stray_share(np.vstack(corners), np.arange(count * 3).reshape(-1, 3), np.concatenate(labels),
+                       np.concatenate(kept))
+
+
+def judge_strays(output, inputs, evidence):
+    """No surface laid in strays on the dressed body (body_strays) past the props' STRAY_LIMIT (patchy.py)."""
+    from score.checks import FAIL, PASS, Verdict
+    on_library_path()
+    import patchy
+    share = round(body_strays(*read_glb(output / "body.glb")), 4)
+    failing = share > patchy.STRAY_LIMIT
+    return Verdict("strays", FAIL if failing else PASS,
+                   f"{share:.1%} of the outfit in surface islands under {patchy.STRAY_ISLAND:.0%} of it",
+                   {"stray": share}, {"stray": "lower"},
+                   (f"stray {share} > {patchy.STRAY_LIMIT}",) if failing else ())
 
 
 def judge_aligned(output, inputs, evidence):

@@ -33,7 +33,7 @@ def dress_row(name, surface=None):
     return graph.Stage(f"people-dress-{name}" + (f"-in-{surface}" if surface else ""), "world", dress.make_dress,
                        contracts.Contract("people-dress", 1, dress.dress_faults),
                        (guarded("dressed", dress.judge_dressed), guarded("aligned", dress.judge_aligned),
-                        guarded("baked", dress.judge_baked)),
+                        guarded("baked", dress.judge_baked), guarded("strays", dress.judge_strays)),
                        files={"library": "{data}/library", "places": "{data}/definitions/place.json",
                               "tokens": "{repo}/design/tokens/tokens.json",
                               "skel_usd": "{repo}/tools/characters/skel_usd.py",
