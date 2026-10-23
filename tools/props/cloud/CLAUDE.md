@@ -150,6 +150,23 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `batch.say` moves to `cloud/orphaned-batches.log` on a broken pipe, so the delete loop survives the gone reader. Not
   done: run-id tags on fresh machines. A machine whose run's process is gone is deleted by the next run's sweep
   (`batch.is_leftover`); `park.reap`, never called, was deleted (2026-10-22).
+- **A run's card pool: its cards warm from its start to its end** (`pool.py`, CONTEXT.md "card pool", owner
+  2026-10-23): `pool.start(run, sizes, deadline)` (sizes by `pool.size_for` from the run's planned card work: each
+  step's `capacity.machines_for` on its kind's first class, at most `MOST_CARDS` 10 and each class's quota) opens it
+  and starts its collector (`pool.py --collect`, a process of its own under the pool's ticket), which rents beside the
+  run until the pool holds its size, backing off for stock as a claim does, and parks each warm card for the pool at
+  once, so the run's card work starts on the first card. Once a run opened a pool its steps never rent:
+  `batch.claim` (every spread runner) and `batch.rent_fleet` (Pixal3D) take a pool card (`park.adopt`, by class in
+  any zone, another kind's cleaned and set up again) or wait for one, a class the pool lacks added to it
+  (`pool.want`); `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
+  the usual 15-minute quiet limit, the collector beating it) and deletes a broken one, which the collector replaces;
+  a card whose taker died is deleted by the collector. A dead card's unfinished share (`spread.Shares.again`) or
+  Pixal3D jobs (`Fleet.again`) go back on the queue once, never a third run. Every card minute is charged once:
+  rent to first parking (`pool-<run>-<id>`), each spell idle (`pool-idle-...`, at its take or release), the taker's
+  use; each line carries the run and the pool's ticket. `pool.release(run)` (from `score run`'s release, first thing;
+  the collector's own end when the pool's end passes or the run's process is gone) closes it: idle cards deleted at
+  once, held ones by their takers. Not yet wired: who opens the pool at a Buy's start with the run's planned rows,
+  the pool's own clearance (its high counted in the stop line or grant), and the cockpit's cards-warm figure.
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks
@@ -222,8 +239,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   Blender 5.0.1 from blender.org, Cycles on OptiX, ProcFunc and infinigen2 from the repo's vendored copies; jobs are
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core
   and WSL crashed the same day: no bake runs on the PC. A whole hub slice (28 pieces), the swatch sheet and three
-  habitat pieces took 7 minutes, €0.09. One class is fixed for the whole call by a stock read at
-  price time; none in stock makes its jobs gaps, never a processor machine in a card's place inside the batch. A
+  habitat pieces took 7 minutes, €0.09. One class is fixed for the whole call at price time
+  (`batch.one_class_in_stock`): the first asked that the run's card pool holds, else the first in stock, else the
+  first sold, its claims then waiting for stock (no stock never makes a gap: owner, 2026-10-23, removing the rule of
+  2026-10-20), never a processor machine in a card's place inside the batch. A
   processor class asked for by `--classes` is its own estimate, priced at `PROCESSOR_SLOWER` (three times).
 - **Close-ups: Qwen-Image-Edit first, Nano Banana Pro for the failures** (owner, 2026-10-08): the close-up stage
   (`../closeup/stage.py`) draws every close-up with `pictures.py --model qwen-edit` (Qwen-Image-Edit-2511, 20B, an
@@ -284,8 +303,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   parts-test, 2026-10-09): SegviGen (MIT, on TRELLIS.2's published wheels; nvdiffrast never installed, RMBG-2.0 never
   loaded, DINOv3 from an open copy checked by sha256) and GeoSAM2 (Apache-2.0, Blender 4.0.2 under xvfb, the model cut
   to 150,000 faces: its label completion is a Python loop) on the spread runner, every pin in `PINS`. About 1 min
-  (SegviGen) and 4 min (GeoSAM2, mostly processor) an object on an L4. The spread runner does not keep asking for stock
-  during a batch: a slot whose claim finds nothing in stock gives up (six of seven did, 2026-10-09).
+  (SegviGen) and 4 min (GeoSAM2, mostly processor) an object on an L4.
 - **The game's sound is generated on a card** (`moss_sound.py`, `moss_setup.sh`, `moss_generate.py`; job soundtool,
   2026-10-06): every sound briefed in `data/sound/sounds.json` through MOSS-SoundEffect v2.0 (Apache-2.0, code and
   weights pinned), each take scored against its prompt with CLAP up there, the takes back to the picker's cache.

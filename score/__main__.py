@@ -447,7 +447,9 @@ def release_once_ended(runner, run_id, mark):
     its own once they have all ended: their machines bill until then, and a release before them freed the run's
     reservations and machine counts early (review of C7, 2026-10-17). That process then waits out every machine the
     run parked, releasing one still listed at its time (park.outlive: 2026-10-20, three L4s parked past their time
-    until removed by hand), and only then removes the run's frozen copy, which their --expire processes run from."""
+    until removed by hand), and only then removes the run's frozen copy, which their --expire processes run from.
+    The run's card pool (pool.py) is released first, so no idle card waits on the tools still ending."""
+    cloud_tool("pool").release(run_id)
     ending = [pid for pid in STILL_ENDING if alive(pid)]
     if not ending and not cloud_tool("park").parked_by(run_id):
         release_run(runner, run_id, mark)

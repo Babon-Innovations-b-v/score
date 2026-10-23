@@ -136,10 +136,11 @@ class Offer:
         self.machine_class, self.stock_word = machine_class, stock_word
 
 
-def one_class_is_fixed_at_price_time_and_no_stock_is_a_gap():
+def one_class_is_fixed_at_price_time_and_no_stock_waits():
     """A batch runs every job once on the class fixed before it (CONTEXT.md, owner 2026-10-20): card classes all short
     rented a 32-core processor machine instead, and the call's claims moved between classes as stock moved. Now the
-    first class asked in stock is the only one rented, and none in stock rents nothing (the stock is stubbed)."""
+    first class asked in stock is the only one rented, and with none in stock the first class asked is kept, its
+    claims waiting for stock: no stock never makes a gap (owner, 2026-10-23; the stock is stubbed)."""
     stock = {}
     saved = blender_cloud.batch.offers
     blender_cloud.batch.offers = lambda classes: [Offer(name, stock.get(name, "shortage")) for name in classes]
@@ -147,8 +148,9 @@ def one_class_is_fixed_at_price_time_and_no_stock_is_a_gap():
     try:
         cards = ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
         stock.update({"cpu-32c-128gb": "available"})
-        if blender_cloud.batch.one_class_in_stock(cards):
-            problems.append("with no card in stock it rents a processor machine")
+        found = blender_cloud.batch.one_class_in_stock(cards)
+        if [offer.machine_class for offer in found] != ["gpu-24gb"]:
+            problems.append(f"with no card in stock it did not keep the first card: {[o.machine_class for o in found]}")
         stock.update({"gpu-48gb": "available", "gpu-80gb": "available"})
         found = blender_cloud.batch.one_class_in_stock(cards)
         if [offer.machine_class for offer in found] != ["gpu-48gb"]:
@@ -200,7 +202,7 @@ def a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks():
 kept = blender_cloud.kept
 CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain,
           a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home,
-          one_class_is_fixed_at_price_time_and_no_stock_is_a_gap, a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks)
+          one_class_is_fixed_at_price_time_and_no_stock_waits, a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks)
 
 
 if __name__ == "__main__":

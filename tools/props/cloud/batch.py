@@ -431,10 +431,15 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
     backend's offers read afresh, across every class the offers named and every zone, for as long as `still_wanted`
     (the run's deadline and the caller's `wanted`) says: a slot never gives up on its first
     round (six of seven spread slots did on 2026-10-09 and one L4 did all the work). While it waits the claim is on
-    its kind's queue (park.wanting), and a machine of its kind parked meanwhile is taken at once (park.py)."""
+    its kind's queue (park.wanting), and a machine of its kind parked meanwhile is taken at once (park.py). Under a run
+    that opened a card pool (pool.py) it rents nothing: it takes the next warm pool card, waiting for one while the
+    run still wants it and the pool is open."""
     import park
+    import pool
 
     with park.wanting(kind):
+        if pool.opened():
+            return pool.claim(run, offers, number, kind, disk_gb, wanted)
         try:
             return claim_rounds(run, account, offers, number, kind, disk_gb, wanted)
         except BootFailed as error:
@@ -669,6 +674,7 @@ class Fleet:
         self.slept, self.asleep = threading.Event(), []
         self.lost_cards = 0
         self.unsent = []
+        self.again_names = set()
         self.job_deadline = job_deadline_seconds()
         self.finishers = concurrent.futures.ThreadPoolExecutor(FINISHERS)
 
@@ -690,6 +696,15 @@ class Fleet:
                 if name not in self.failed:
                     self.failed.append(name)
                 self.why.setdefault(name, why)
+
+    def again(self, jobs):
+        """Put back on the queue the jobs a dead pool card took and never finished, each once (a pool card that dies is
+        replaced, owner 2026-10-23); the names of those already put back once, which are gaps."""
+        with self.lock:
+            fresh = [job for job in jobs if job["name"] not in self.again_names]
+            self.again_names.update(job["name"] for job in fresh)
+            self.ready.extend(fresh)
+        return sorted({job["name"] for job in jobs} - {job["name"] for job in fresh})
 
     def lose(self, machine):
         """A machine billed that failed (did not start, or broke): its cards are not rented again inside the batch."""
@@ -834,11 +849,18 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
 
 
 def one_class_in_stock(classes):
-    """The offers to rent: those in stock now of the first of `classes` (in the order given) that has any, one class
-    for the whole call, read once at price time; none when no class given is in stock (its jobs are then gaps, never
-    sent to another class or a processor machine: a batch, CONTEXT.md, owner 2026-10-20)."""
-    found = [offer for offer in offers(list(classes)) if offer.stock_word != "shortage"]
-    chosen = next((name for name in classes if any(offer.machine_class == name for offer in found)), None)
+    """The offers to rent, one class for the whole call: under an open card pool the first of `classes` (in the order
+    given) the pool holds; else the first with a zone in stock now, read once at price time; else the first the
+    backend sells, its claims waiting for stock (no stock never makes a gap: owner, 2026-10-23); none only when the
+    backend sells no class given."""
+    import pool
+
+    found = offers(list(classes))
+    held = (pool.current() or {}).get("sizes", {})
+    sold = [name for name in classes if any(offer.machine_class == name for offer in found)]
+    stocked = [name for name in sold
+               if any(offer.machine_class == name and offer.stock_word != "shortage" for offer in found)]
+    chosen = next((name for name in sold if held.get(name)), None) or next(iter(stocked + sold), None)
     return [offer for offer in found if offer.machine_class == chosen]
 
 
@@ -882,6 +904,9 @@ def rent_fleet(fleet, cards):
             if offer is None:  # every class at its cap (capacity.max_machines, run_cap)
                 break
             machine = park_taken(fleet, fleet.offers, len(fleet.machines) + 1, "pixal", DISK_GB)  # on fleet.machines
+            if machine is None and pool_open():  # a pool card comes from its collector, never from a rent here
+                pool_want(fleet.offers)
+                break
             if machine is None:
                 machine = rent(fleet, fleet.account, offer, len(fleet.machines) + 1)
                 if machine is None:
@@ -893,6 +918,25 @@ def rent_fleet(fleet, cards):
             added += machine["cards"]
             threading.Thread(target=tend, args=(fleet, machine), daemon=True).start()
         return added
+
+
+def pool_open():
+    """Whether this process's run opened a card pool (pool.py): its cards come from the pool alone."""
+    import pool
+    return pool.opened()
+
+
+def pool_want(found):
+    """Make sure the run's pool collects a card Pixal3D can take from the offers `found`."""
+    import pool
+    pool.want(os.environ.get(capacity.RUN_ID), found, "pixal", DISK_GB)
+
+
+def ask_every(rounds):
+    """Seconds between the fleet's asks for more cards: a pool card is looked for each pool.POLL_SECONDS, stock asked
+    for after stock_wait_minutes."""
+    import pool
+    return pool.POLL_SECONDS if pool.current() is not None else stock_wait_minutes(rounds) * 60
 
 
 def keep_the_fleet(fleet, found, cards):
@@ -915,7 +959,7 @@ def keep_the_fleet(fleet, found, cards):
             left = fleet.unsent_gaps("not sent: no machine left (their cards were billed and failed)")
             say(f"no machine left (its cards were billed and failed); gaps: {', '.join(left)}")
             return
-        if short > 0 and not fleet.no_more_work() and time.time() - asked >= stock_wait_minutes(rounds) * 60:
+        if short > 0 and not fleet.no_more_work() and time.time() - asked >= ask_every(rounds):
             asked = time.time()
             with fleet.renting:
                 fleet.offers = [offer for offer in fresh_offers(None, found) if offer.type in types]
@@ -941,7 +985,7 @@ def tend(fleet, machine):
     """Run one machine from boot to delete: prepare it, keep its queue topped up, bring its models
     back as they finish, make what it took and never finished gaps, and delete it."""
     folder, sent, finished, stopped = machine["folder"], {}, set(), set()
-    ended = "unfinished when its machine ended"
+    ended, dead = "unfinished when its machine ended", False
     try:
         try:
             host = machine["host"] if machine.get("adopted") else boot(machine)  # a parked card answered when taken
@@ -989,11 +1033,17 @@ def tend(fleet, machine):
             ended = ("still running at the batch's deadline" if time.time() >= fleet.deadline
                      else "unfinished when the batch stopped")
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the fleet
-        say(f"{folder.name} failed: {error}; no machine rented in its place")
-        fleet.lose(machine)
         ended = f"its machine {folder.name} broke ({error})"
+        if machine.get("pool"):
+            say(f"{folder.name} failed: {error}; its unfinished jobs go back on the queue for the pool's next card")
+            dead = True
+        else:
+            say(f"{folder.name} failed: {error}; no machine rented in its place")
+            fleet.lose(machine)
     finally:
         lost = sorted(set(sent) - finished)
+        if dead and not fleet.woke(machine.get("heard") or time.time()):
+            lost = fleet.again([sent[name] for name in lost])
         if fleet.woke(machine.get("heard") or time.time()):
             say(f"{folder.name}: this PC slept past its self-delete; lost to sleep, for a rerun: {', '.join(lost)}")
             fleet.lose_to_sleep(lost)
