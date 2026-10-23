@@ -716,10 +716,12 @@ def joined_ground(row):
 STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) if row.name in EARTH_SEEDED else row
             for row in STAGES), EARTH_SEED)
 # Each body's face (score/stages/surfaces/body_faces.py): an environment row a body of the environment concept's
-# setting, paid, which the light layer reads while it stands (optional: a body still waiting is named missing on its ball).
+# setting, paid, which the light layer reads and waits on: its sky-elements gate fails a ball drawn without its face,
+# so an optional read only left the face rows out of every place's line and failed the layer (light-layer@hub,
+# 2026-10-23: "faces: the record holds 2, the layer 0").
 BODY_FACES = body_faces.rows(Store.default())
 FACE_READS = {row.name: (row.contract.schema, row.contract.version) for row in BODY_FACES}
-STAGES = (*(dataclasses.replace(row, after={**row.after, **FACE_READS}, optional=(*row.optional, *FACE_READS))
+STAGES = (*(dataclasses.replace(row, after={**row.after, **FACE_READS})
             if row.name == "light-layer" else row for row in STAGES), *BODY_FACES)
 # The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place

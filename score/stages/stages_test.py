@@ -217,6 +217,14 @@ def test_the_completion_gate_s_code_moves_only_complete_and_settle():
     assert moved == {"complete", "settle"}, moved
 
 
+def test_the_light_layer_reads_and_waits_on_every_body_face_row():
+    """light-layer@hub, 2026-10-23: read as optional, the face rows were in no place's line and the layer failed its
+    sky-elements gate with no face drawn."""
+    layer = next(row for row in stages.STAGES if row.name == "light-layer")
+    faces = {row.name for row in stages.BODY_FACES}
+    assert faces and faces <= set(layer.after) and not faces & set(layer.optional)
+
+
 def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
     """A dress row is read where a place's design dresses its look so: `-in-<surface>` where a person row's words
     name a fabric near its torso (people_clothes.py), the plain row where the look wears its own paint; no
