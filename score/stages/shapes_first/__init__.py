@@ -97,10 +97,10 @@ def after_step(adapter, step):
 
 
 def finish_route():
-    """The finish route's rows, its first waiting on the Pixal3D row whose takes it paints (props.FEEDS; a place with
-    no prop data reads without it, Runner.reads)."""
-    return tuple(dataclasses.replace(row, after={**row.after, **props.FEEDS}) if row.name == "finish-route-views"
-                 else row for row in surfaces.ROWS)
+    """The finish route's rows, its views and its scene palette (which sees every take's close-up) waiting on the
+    Pixal3D row whose takes it paints (props.FEEDS; a place with no prop data reads without it, Runner.reads)."""
+    return tuple(dataclasses.replace(row, after={**row.after, **props.FEEDS})
+                 if row.name in ("finish-route-views", "finish-route-palette") else row for row in surfaces.ROWS)
 
 
 def rows(adapters=ADAPTERS):

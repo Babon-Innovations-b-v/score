@@ -37,7 +37,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   First the **scene palette** (CONTEXT.md; owner, 2026-10-21: every scene from its design alone):
   `finish-route-palette` (paid, `scene_palette.py`, one Gemini 3.1 Pro ask a scene in the Batch API) reads the
   scene's palette tokens (each a name and a `#rrggbb` colour it coins from the concept, never an old game token),
-  wear level, dirt and dirt token off its locked concept (`{home}/design/concepts/<place>.png`; a line no scene owns,
+  wear level, dirt and dirt token off its locked concept and every take's close-up (`palette_files`, every take of
+  the place whatever the object filter keeps, the row waiting on the Pixal3D row: asked over the concepts alone at
+  768 px, the people's palette had no brown and astronaut-made's brown trousers, close-up L* 39, took moon-dust,
+  L* 59, 2026-10-23; with no close-up the ask reads as before) (`{home}/design/concepts/<place>.png`; a line no scene owns,
   the people's, over every locked concept, asked for what its own objects wear and not the scenes', its people
   included; its dirt token the dust's or grime's own colour, added to the palette when no token is it: asked for
   the scenes with their people left out, the people's palette had no dark grey and its dirt was the hull's white,
@@ -77,8 +80,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `VIEW_DELTA_E` (32, UNMEASURED on the views) makes the take a gap, so nothing of it is baked. Then the labels voted
   across views (`finish_parts.voted`, the front counting double); a seen face no
   label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
-  the area are views that disagree: either is a gap, named in "one finish a face"; the rest smoothed and crumbs
-  joined (`cleaned`, `merged_islands`), each island a part. Parts (free): each finish checked against the median of
+  the area are views that disagree: either is a gap, named in "one finish a face"; the rest smoothed, strays given
+  the finish round them (`without_strays`: an island under patchy.py's `STRAY_ISLAND` of a finish that has a larger
+  one, not a whole piece; voted by larger islands only) and crumbs joined (`cleaned`, `merged_islands`), each island
+  a part. A face no view sees is no gap (a raw take's inner shell: 71% of astronaut-made-s1), but its walked paint
+  left jagged islands of the dark joints (stray 0.054, 2026-10-23), so a take still patchy (`patchiness`, patchy.py
+  with each part its own region, as the paint measures it) is a gap in "one finish a face" before any bake. Parts (free): each finish checked against the median of
   its faces' texture colour (`finish_parts.checked_finishes`: the nearest surface of its family or the room's kit
   surface that fits, else off its colour with a proposal, which the paint's gate fails by name), then each part its
   finish's surface (`part_rows`), with the list's settings where its finish kept the listed surface

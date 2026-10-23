@@ -13,9 +13,13 @@ the scene's surfaces are painted in (structure, objects and their accents, glass
 short token name and its colour as it would be painted, unlit; its wear level of the method's levels
 (data/library/materials.json `wear_levels`), its dirt from 0 to 1, the token its dirt is drawn in, and the cause it
 sees for its wear. A line no scene owns (the people's, seen in every scene) has no concept of its own: it is asked
-over every locked concept.
+over every locked concept. Every take's close-up (the picture its model is made from, route_data.close_up_path) is
+sent with them, so each colour a close-up shows has its token: asked over the concepts alone, each sent at 768 px with
+the people a few pixels tall, the people's palette had no brown and astronaut-made's brown trousers (close-up L* 39)
+took moon-dust #a1887f (L* 59, dE 20.5), 2026-10-23. The row waits on the Pixal3D row (shapes_first.finish_route), so
+the close-ups are there; it declares every take's, whatever the object filter keeps, so a filtered run asks the same.
 
-Output: palette.json ({tokens: {token: "#rrggbb"}, wear: {level, dirt, dirt_token, cause}, pictures}), or
+Output: palette.json ({tokens: {token: "#rrggbb"}, wear: {level, dirt, dirt_token, cause}, pictures, close_ups when any}), or
 unanswered.json with why. Gate "palette from the design": at least MIN_TOKENS tokens, each a #rrggbb colour, its level
 one of the method's, its dirt within 0 to 1 and its dirt token one of its tokens; no usable answer fails by name. The
 surface-library row (scene_library.py) makes the scene's surfaces in these tokens; the rows after it read both through
@@ -32,6 +36,7 @@ if str(HERE) not in sys.path:
 
 import finish_ask  # noqa: E402
 import route_ask  # noqa: E402
+import route_data  # noqa: E402
 import surface_data as data  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
@@ -42,7 +47,7 @@ OWN_LONGEST, SHARED_LONGEST = 1536, 768  # a concept's longer side sent: the sce
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 TOKEN = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
 QUESTION = """You choose the palette of a 3D scene whose every surface is painted from a library made for it, each
-surface drawn in one palette token. {pictures}
+surface drawn in one palette token. {pictures}{close_ups}
 First, the scene's palette: every colour its own surfaces are painted in, as the picture shows them: {surfaces}. Light
 and shadow are not surfaces: give each colour as it would be painted, unlit. {left_out}Name each one with a short token
 in lower case and hyphens (such as "hull-white" or "hazard-yellow") and give its colour as #rrggbb, and say in "what"
@@ -57,6 +62,9 @@ paint; if none of your tokens is that colour, add one for it to the palette."""
 # with no grime colour its dirt was the hull's white, which lifted them to L* 65.5).
 SCENE_SURFACES = ("its structure (walls, floor, ceiling, ground), its objects and machines, their accents (hazard "
                   "stripes, status lights, trim, labels), glass and glowing screens and lamps")
+CLOSE_UPS = (" The last {count} pictures are close-ups, each one of its objects drawn up close: the picture that object's "
+             "model is made from. Every colour a close-up shows on its object (each garment, part, accent and trim) is "
+             "one its surfaces are painted in, so give each its own token near it.")
 LINE_SURFACES = ("everything this line's objects wear, each garment, part, accent and trim, skin and hair, glass and "
                  "glowing parts, and not the scenes round them")
 
@@ -77,12 +85,26 @@ def files(place):
             "library": ("{data}/library/materials.json", method_read)}
 
 
+def palette_files(place):
+    """The palette row's files: files, and every take's close-up that is here (all the place's takes, whatever the
+    object filter keeps: the palette is the scene's)."""
+    found = {f"close-up {take}": str(route_data.close_up_path(take)) for take in data.takes(place)
+             if route_data.close_up_path(take) is not None}
+    return {**files(place), **found}
+
+
 def pictures_of(inputs):
     """The concept pictures the ask sees, with the longest side each is sent at."""
     from PIL import Image
     if "concept" in inputs:
         return [(Image.open(inputs["concept"]), OWN_LONGEST)]
     return [(Image.open(path), SHARED_LONGEST) for path in sorted(pathlib.Path(inputs["concepts"]).glob("*.png"))]
+
+
+def close_ups_of(inputs):
+    """The takes' close-ups the ask sees (palette_files), each with the longest side it is sent at."""
+    from PIL import Image
+    return [(Image.open(inputs[name]), SHARED_LONGEST) for name in sorted(inputs) if name.startswith("close-up ")]
 
 
 def schema(levels):
@@ -97,16 +119,18 @@ def schema(levels):
             "propertyOrdering": ["palette", "wear", "cause", "dirt", "dirt_token"]}
 
 
-def palette_body(pictures, levels):
-    """The request: the concept pictures, the question and its schema."""
+def palette_body(pictures, levels, close_ups=()):
+    """The request: the concept pictures, the takes' close-ups after them, the question and its schema."""
     own = len(pictures) == 1
-    said = ("The picture is the scene's locked concept." if own else
-            f"The {len(pictures)} pictures are the locked concepts of every scene this line's objects stand in; "
+    first = "first " if close_ups else ""  # with no close-up the question reads as before, so its ask is cached
+    said = (f"The {first}picture is the scene's locked concept." if own else
+            f"The {first}{len(pictures)} pictures are the locked concepts of every scene this line's objects stand in; "
             "choose for the objects themselves.")
-    text = QUESTION.format(pictures=said, surfaces=SCENE_SURFACES if own else LINE_SURFACES,
+    text = QUESTION.format(pictures=said, close_ups=CLOSE_UPS.format(count=len(close_ups)) if close_ups else "",
+                           surfaces=SCENE_SURFACES if own else LINE_SURFACES,
                            left_out="Leave out colours only the people in it wear. " if own else "",
                            least=MIN_TOKENS, levels=", ".join(levels))
-    parts = [finish_ask.picture_part(picture, longest) for picture, longest in pictures]
+    parts = [finish_ask.picture_part(picture, longest) for picture, longest in (*pictures, *close_ups)]
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
                                  "responseSchema": schema(levels)}}
@@ -139,8 +163,9 @@ def make_palette(inputs, out, seed, params):
     none."""
     place = json.loads(pathlib.Path(inputs["surfaces"]).read_text())["place"]
     levels = json.loads(pathlib.Path(inputs["library"]).read_text())["wear_levels"]
-    pictures = pictures_of(inputs)
-    answer = ask({place: palette_body(pictures, levels)}).get(place, finish_ask.NoAnswer("the batch gave none"))
+    pictures, close_ups = pictures_of(inputs), close_ups_of(inputs)
+    answer = ask({place: palette_body(pictures, levels, close_ups)}).get(place,
+                                                                        finish_ask.NoAnswer("the batch gave none"))
     try:
         if isinstance(answer, Exception):
             raise answer
@@ -148,7 +173,8 @@ def make_palette(inputs, out, seed, params):
     except route_ask.UNANSWERED as error:
         (out / "unanswered.json").write_text(json.dumps({"place": place, "why": f"{error!r}"[:300]}, indent=1))
         return
-    (out / "palette.json").write_text(json.dumps({**palette, "pictures": len(pictures)}, indent=1))
+    seen = {"pictures": len(pictures), **({"close_ups": len(close_ups)} if close_ups else {})}  # as before without
+    (out / "palette.json").write_text(json.dumps({**palette, **seen}, indent=1))
 
 
 def palette_faults(folder):

@@ -510,9 +510,10 @@ def test_the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_it
         assert verdict.answer == "fail" and "the free colour check, not asked" in verdict.findings[0], verdict
 
 
-def palette_asked(folder, answer, place="cockpit", concept=True):
-    """The palette row made on a locked concept (or, `concept` False, on a folder of every scene's), its one ask faked to
-    answer `answer` (a dict, or an exception the batch holds): its output, its verdict and the batches asked."""
+def palette_asked(folder, answer, place="cockpit", concept=True, close_ups=()):
+    """The palette row made on a locked concept (or, `concept` False, on a folder of every scene's) and the takes'
+    close-ups named, its one ask faked to answer `answer` (a dict, or an exception the batch holds): its output, its
+    verdict and the batches asked."""
     from score.stages.surfaces import scene_palette
     concepts = folder / "concepts"
     concepts.mkdir()
@@ -522,6 +523,9 @@ def palette_asked(folder, answer, place="cockpit", concept=True):
     surfaces_data.write_text(json.dumps({"place": place, "takes": {}}))
     inputs = {"surfaces": surfaces_data, "library": REPO / "data/library/materials.json",
               **({"concept": concepts / "cockpit.png"} if concept else {"concepts": concepts})}
+    for take in close_ups:
+        Image.new("RGB", (32, 64), (110, 80, 60)).save(folder / f"{take}.png")
+        inputs[f"close-up {take}"] = folder / f"{take}.png"
     asked = []
     original = scene_palette.ask
     scene_palette.ask = lambda bodies: asked.append(bodies) or {
@@ -606,6 +610,43 @@ def test_a_line_no_scene_owns_is_asked_over_every_concept():
     for scene in ("cockpit", "no-such-scene"):
         found = scene_palette.files(scene)
         assert found["concept"] == "{home}/design/concepts/" + f"{scene}.png" and "concepts" not in found, found
+
+
+def test_the_palette_sees_every_take_s_close_up_after_the_concepts():
+    """astronaut-made, 2026-10-23: asked over the concepts alone the people's palette had no brown, and the brown
+    trousers its close-up shows took moon-dust, 20 L* lighter. The close-ups go with the concepts, every take's whatever
+    the object filter keeps, and the row waits on the Pixal3D row that leaves them; with none the ask reads as before."""
+    from score.stages.surfaces import scene_palette
+    from score.stages import shapes_first
+    answer = {"palette": coined(*((token, TOKENS[token]) for token in ("steel", "glass", "sign-red", "regolith"))),
+              "wear": "new", "cause": "fresh", "dirt": 0.0, "dirt_token": "regolith"}
+    with tempfile.TemporaryDirectory() as temporary:
+        out, verdict, asked = palette_asked(pathlib.Path(temporary), answer, place="people", concept=False,
+                                            close_ups=("worker-t1", "pilot-t1"))
+        parts = asked[0]["people"]["contents"][0]["parts"]
+        assert sum("inline_data" in part for part in parts) == 4, parts
+        assert "The last 2 pictures are close-ups" in parts[-1]["text"] and "first 2 pictures" in parts[-1]["text"]
+        assert verdict.answer == "pass" and json.loads((out / "palette.json").read_text())["close_ups"] == 2
+    with tempfile.TemporaryDirectory() as temporary:
+        out, _, asked = palette_asked(pathlib.Path(temporary), answer)
+        text = asked[0]["cockpit"]["contents"][0]["parts"][-1]["text"]
+        assert "The picture is the scene's locked concept." in text and "close-up" not in text, text
+        assert "close_ups" not in json.loads((out / "palette.json").read_text())
+    with tempfile.TemporaryDirectory() as temporary:
+        home = pathlib.Path(temporary)
+        original = route_data.pixal_folder
+        route_data.pixal_folder = lambda: home
+        try:
+            for take in ("astronaut-made-s1", "pilot-made-s1"):
+                (home / f"{take}.svviews").mkdir()
+                Image.new("RGB", (8, 8)).save(home / f"{take}.svviews" / "input.png")
+            found = scene_palette.palette_files("people")
+        finally:
+            route_data.pixal_folder = original
+        assert sorted(name for name in found if name.startswith("close-up ")) == [
+            "close-up astronaut-made-s1", "close-up pilot-made-s1"], found
+    palette = next(row for row in shapes_first.finish_route() if row.name == "finish-route-palette")
+    assert "pixal" in palette.after and not palette.selects, palette.after
 
 
 def library_made(folder, answer, kinds=("two_boxes",), grounds=None):
