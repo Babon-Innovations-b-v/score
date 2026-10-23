@@ -144,8 +144,9 @@ def run_costs(entries):
 
 
 def processor_margin(kinds):
-    """How many times longer a batch of `kinds` may run under this process's warm pool: capacity.PROCESSOR_SLOWER for
-    renders and bakes (capacity.PROCESSOR_KINDS) while the pool holds a processor machine they may land on, else 1. Its
+    """How many times longer a batch of `kinds` may run under this process's warm pool: for renders and bakes
+    (capacity.PROCESSOR_KINDS) the slowest of the pool's processor classes they may land on (capacity.processor_times,
+    measured or the unmeasured three times), never under the card's 1; else 1. Its
     high minutes, at twice which the runaway watch stops a run, so hold whichever machine a job takes. Its euros need
     none: a pool machine's every minute is in the pool's own clearance at its class's dearest price (holding_euros)."""
     import capacity
@@ -155,8 +156,8 @@ def processor_margin(kinds):
     plan = pool.current()
     if not plan or not kinds or not set(kinds) <= set(capacity.PROCESSOR_KINDS):
         return 1
-    held = any(count and not provider.cards(name) for name, count in plan["sizes"].items())
-    return capacity.PROCESSOR_SLOWER if held else 1
+    held = [name for name, count in plan["sizes"].items() if count and not provider.cards(name)]
+    return max([1] + [capacity.processor_times(name) for name in held])
 
 
 def node_run(entries, stage):

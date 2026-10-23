@@ -509,8 +509,9 @@ def ledger_line(stage, kind, number):
 
 
 def test_a_render_stages_high_minutes_hold_on_a_processor_machine_under_the_pool():
-    """A render measured on cards may land on the pool's processor machine (capacity.PROCESSOR_SLOWER times longer):
-    the runaway watch, at twice its high minutes, never stops it for that."""
+    """A render measured on cards may land on the pool's processor machine: the runaway watch, at twice its high
+    minutes, never stops it for that. A measured class (the 48-core, faster than an L4: capacity.PROCESSOR_TIMES) keeps
+    the card's minutes; an unmeasured one is held at capacity.PROCESSOR_SLOWER, an upper bound."""
     import preflight
     entries = [ledger_line(stage, kind, n) for stage, kind in (("look", "blender"), ("model", "pixal")) for n in range(3)]
     assert pool.processor_able("look", entries) and not pool.processor_able("model", entries)
@@ -519,8 +520,33 @@ def test_a_render_stages_high_minutes_hold_on_a_processor_machine_under_the_pool
     card_only = preflight.node_run(entries, "look")["high_minutes"]
     pool.release(run_id)
     calls, run_id = processor_pool()
+    assert pool.capacity.processor_times(PROCESSOR) < 1
+    assert preflight.node_run(entries, "look")["high_minutes"] == card_only  # the card is the slower one
+    pool.release(run_id)
+    calls, run_id = fresh(stock=10, sizes={"cpu-32c-64gb": 1, "gpu-24gb": 1})
     assert preflight.node_run(entries, "look")["high_minutes"] == card_only * pool.capacity.PROCESSOR_SLOWER
     assert preflight.node_run(entries, "model")["high_minutes"] == card_only  # a card kind keeps its own
+    pool.release(run_id)
+
+
+def test_a_render_takes_the_pools_processor_machine_before_its_card_and_a_card_when_none_is_free():
+    """Measured 2026-10-23 (#26): the pool's 48-core machine beat its L4 on every Blender job, so renders and bakes
+    take a free processor machine first and a card only when none is; a model kind takes the card."""
+    import blender_cloud  # noqa: F401 - their clean-ups, so their machines go back to the pool
+    import library_bake  # noqa: F401
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1, PROCESSOR: 1})
+    cloud.offers = lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS if offer.machine_class in classes]
+    assert grow(run_id) == 2
+    first = claimed(a_run("render-1"), "blender")
+    assert first["class"] == PROCESSOR
+    second = claimed(a_run("render-2"), "library")  # the processor is busy: the card
+    assert second["class"] == "gpu-24gb"
+    for machine in (first, second):
+        machine["healthy"] = True
+        batch.delete_machine(machine)
+    assert claimed(a_run("model"), "pixal")["class"] == "gpu-24gb"
+    assert claimed(a_run("render-3"), "blender")["class"] == PROCESSOR
+    assert len(calls.rented) == 2
     pool.release(run_id)
 
 

@@ -253,7 +253,8 @@ def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB):
 
 def want(run_id, offers, kind, disk_gb):
     """Make sure the pool collects a card a claim of `kind` from `offers` can take: the kind's first class among them
-    added at one card when the pool holds none of their classes, and the disk of that one class (the class the claim
+    added at one card when the pool holds none of the classes the claim takes (`takes`: a render or bake on the pool's
+    processor machines too), and the disk of that one class (the class the claim
     takes, never every class) raised to `disk_gb`. Asked by a claim before it looks for a warm card (it unmarks once it
     has one) and by Pixal3D's fleet each round it finds none, so the run is marked waiting (preflight.mark_waiting)."""
     preflight.mark_waiting()
@@ -262,7 +263,7 @@ def want(run_id, offers, kind, disk_gb):
         plan = plan_of(run_id)
         if plan is None:
             return
-        held = {name for name in offered | no_smaller(offered) if plan["sizes"].get(name)}
+        held = {name for name in takes(kind, offers) if plan["sizes"].get(name)}
         machine_class = first_class(kind, held or offered) or sorted(held or offered)[0]
         if held and disk_gb <= disk_of(plan, machine_class):
             return
