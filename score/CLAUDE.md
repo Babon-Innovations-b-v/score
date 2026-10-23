@@ -160,17 +160,9 @@ stage as each stage is built; nothing moves before.
   run on its own after a reading
   (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
   on his Make plan click as his spend yes (`web.plan_write`).
-  `blockout.py` builds a place's blockout (CONTEXT.md "blockout", owner 2026-10-21) from its parent's plan: a top
-  place's site on the environment's plan (each part with a plan of its own, else its own plan, at full detail: walls
-  with thickness and openings, domes, vaults, tubes, levels, stairs, items by shape; on ground at its body's true
-  curve), else its own room shell alone at full detail in its box on the holder's plan shown (no hull, no rooms
-  beside it), each thing the holder's plan keeps in that room a labelled box at its spot and size (`thing_parts`); rendered free (a numpy z-buffer at twice the size, a shadow map from the site's sun, no
-  card, no Blender) from the fixed concept view, framed so the place fills it, a person for scale, and, when a world
-  in its sky falls outside that view, a overhead view from the site at eye height. `scene_key` keys each render by what
-  it is built from and the module's code, so the cockpit never serves an older code's render.
-  `concepts.structure_pictures` sends both first with every first draw, the draw record keeps the blockout's
-  sha (`blockout`), and a draw without one that can be built now is out of date (`current_draw`); `without_blockout`
-  names the locked places drawn before. `concepts.step_refusal` waits only for the place's outline on the layer
+  No grey model is built before a concept (the blockout, retired by the owner 2026-10-23: a scene's rough
+  shapes are its rough model); `plan_drawing.from_south_east` reads the old locks' `blockout` field for their view.
+  `concepts.step_refusal` waits only for the place's outline on the layer
   above's plan (`outlined`: held by a row or by the holder's own walls). `setting.py` is an environment's setting
   (CONTEXT.md "setting", owner 2026-10-21), part of its environment concept: its bodies (a real one takes the cited
   reference table's values, `data/physics/bodies.json`; an invented one is given by its own: radius, mass and so
@@ -180,10 +172,12 @@ stage as each stage is built; nothing moves before.
   height on a body, metres on a plot); no fixed sky (owner 2026-10-21); environment 1's starts from
   `data/physics/setting.json` (the Sun, Earth, Moon and Mars as bodies, the stars a backdrop).
   No branch names a world. `environment_plan.py` is the environment's plan (CONTEXT.md "environment plan"): a map a
-  ground of the concept's setting, each top place's site where the setting puts it at true size (the ground's fall
-  from its true radius; the game's ground plans read only for the layout of a site's parts in metres), written by the
+  ground of the concept's setting, each top place's site where the setting puts it (the ground's fall from its true
+  radius), its footprint, size and blocks its top scene's own plan (`plans.current`, read again on every settle,
+  `from_plan`: never written or edited apart, owner 2026-10-23), its scene times and terrain spots written by the
   plan writer's call (`plan_writing.asked`, cleared like a plan writing), the fixed facts kept over the answer, the
-  true distances and what each site sees overhead worked out (`settled`, again on every read); kept under
+  true distances, overlapping sites as gaps and what each site sees overhead worked out (`settled`, again on every
+  read); kept under
   `environment-plans/<world>/` (writings; his edits in his process only), each with the concept version it was made
   under, one under another out of date. `overhead.py` runs the setting to a moment at a site (`seen`): every other
   body's direction, true angular size and phase, every light (a shining body's by its distance, a far light's from its

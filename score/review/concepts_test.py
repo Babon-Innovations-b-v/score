@@ -82,8 +82,7 @@ def test_a_first_draw_is_worded_from_the_places_data_and_kept(store, monkeypatch
     assert concepts.draws(store, "campgrounds") == [record] and concepts.placed(store) == ["campgrounds"]
     wording, sizes = asked[0]
     assert "campgrounds" in wording and "The creator's note: more dust" in wording
-    assert sizes == [(1280, 720)]  # an outside place with no reference: its site's blockout only
-    assert record["blockout"] and store.objects.exists(f"blobs/{record['blockout']}")
+    assert sizes == []  # a top place with no reference: its wording alone
 
 
 def test_a_redraw_sends_the_base_boxed_and_clean_with_each_marks_note(store, monkeypatch):
@@ -312,12 +311,10 @@ def test_people_are_drawn_only_where_the_places_data_has_them(store, monkeypatch
 
 def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monkeypatch):
     store = Store.in_folder(tmp_path)
-    older = [{"base": None, "wording": "an older wording", "blockout": "b"}]
+    older = [{"base": None, "wording": "an older wording"}]
     monkeypatch.setattr(concepts, "draws", lambda _store, _place: older)
     assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]
     older.append({"base": None, "wording": concepts.generated(store, "old_station")})
-    assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]  # drawn without its blockout: out of date
-    older.append({"base": None, "wording": concepts.generated(store, "old_station"), "blockout": "b"})
     assert concepts.undrawn(store, ["old_station"])[0] == []
     concepts.worded(store, "old_station", "One concept painting of the old station at night.", "joey")
     assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]  # its draw is from the generated wording

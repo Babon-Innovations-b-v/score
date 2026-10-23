@@ -1,7 +1,8 @@
 """The environment's plan (score/review/environment_plan.py): its grounds and sites from the environment concept's
-setting at true sizes, the written answer kept under the fixed facts, what each site sees overhead worked out from
-it, his edit kept, and a plan made under another version of the concept out of date. Two settings: environment 1's
-(the Sun, Earth, the Moon and Mars) and a single house on a flat plot (its sun a light)."""
+setting, each site's footprint, size and blocks its top scene's own plan (never written here), the written answer kept
+under the fixed facts, what each site sees overhead worked out from it, his edit kept, and a plan made under another
+version of the concept out of date. Two settings: environment 1's (the Sun, Earth, the Moon and Mars) and a single
+house on a flat plot (its sun a light)."""
 import json
 
 import pytest
@@ -10,25 +11,38 @@ from score.review import environment_concept, environment_plan, plans
 from score.review.setting_test import HOUSE
 from score.store import Store
 
+# the Base's plan laying out two of its modules in its rows' items, the hangar's the tallest
+BASE = {"w": 60.0, "d": 50.0, "items": [["CENTRAL HUB", 20.0, 20.0, 18.0, 18.0, "", "item"],
+                                        ["LARGE HANGAR", 0.0, 0.0, 16.0, 12.0, "", "item"],
+                                        ["RADIO MAST", 50.0, 40.0, 1.0, 1.0, "", "item"],
+                                        ["TYRE TRACKS", 0.0, 45.0, 30.0, 2.0, "", "item"]],
+        "rows": {"CENTRAL HUB": ["central_hub"], "LARGE HANGAR": ["large_hangar"]},
+        "shapes": {"CENTRAL HUB": {"shape": "circle", "tall": 6.0}, "LARGE HANGAR": {"tall": 15.0},
+                   "RADIO MAST": {"tall": 12.0}, "TYRE TRACKS": {"tall": 0.0}},
+        "holds": [{"place": "hub", "row": "central_hub", "x": 20.0, "y": 20.0, "w": 18.0, "d": 18.0},
+                  {"place": "hangar", "row": "large_hangar", "x": 0.0, "y": 0.0, "w": 16.0, "d": 12.0}]}
+
 
 @pytest.fixture()
 def store(tmp_path):
     return Store.in_folder(tmp_path)
 
 
-def kept_base(monkeypatch, folder):
-    """The Base's kept plan laying out two of its modules, and their own kept plans (the creator's design)."""
-    monkeypatch.setattr(plans, "KEPT", folder / "kept-plans")
-    plans.KEPT.mkdir()
-    holds = [{"place": "hub", "row": "central_hub", "x": 40.0, "y": 50.0, "w": 18.0, "d": 18.0},
-             {"place": "hangar", "row": "large_hangar", "x": 50.0, "y": 0.0, "w": 56.0, "d": 58.0}]
-    (plans.KEPT / "base.json").write_text(json.dumps({"w": 110.0, "d": 110.0, "holds": holds}))
-    (plans.KEPT / "hub.json").write_text(json.dumps({"w": 18.0, "d": 18.0, "height": "walls 4 m"}))
-    (plans.KEPT / "hangar.json").write_text(json.dumps({"w": 56.0, "d": 58.0, "height": "walls 15 m to a flat roof"}))
+@pytest.fixture()
+def scene_plans(monkeypatch):
+    """Each top scene's plan as its plan page shows it (plans.current): the Base's above, the others 20 m squares."""
+    shown = {place: {"w": 20.0, "d": 20.0} for place in ("square", "wreck", "old_station", "campgrounds")}
+    shown["base"] = BASE
+    monkeypatch.setattr(plans, "current", lambda store, place: {"plan": shown[place]} if place in shown else None)
+    return shown
 
 
 def sites_of(plan):
     return {world["on"]: [site["place"] for site in world["sites"]] for world in plan["maps"]}
+
+
+def site_in(plan, place):
+    return next(site for world in plan["maps"] for site in world["sites"] if site["place"] == place)
 
 
 def kept_setting(store, setting, locked=True):
@@ -37,23 +51,35 @@ def kept_setting(store, setting, locked=True):
                                      "joey")
 
 
-def test_each_top_place_stands_where_the_setting_puts_it_at_true_size(store, monkeypatch, tmp_path):
-    kept_base(monkeypatch, tmp_path)
+def test_each_top_scene_stands_where_the_setting_puts_it_shaped_by_its_own_plan(store, scene_plans):
     plan = environment_plan.derived(store)
     assert sites_of(plan) == {"earth": ["square"], "moon": ["wreck", "old_station", "base"], "mars": ["campgrounds"]}
     moon = next(world for world in plan["maps"] if world["on"] == "moon")
     assert moon["radius_m"] == 1737400.0  # the Moon's true radius, never the game's 220 m ball
     apart = {(found["from"], found["to"]): found["metres"] for found in moon["distances"]}
     assert apart[("old_station", "base")] == pytest.approx(62.5, abs=0.5) and len(apart) == 3
-    base = next(site for site in moon["sites"] if site["place"] == "base")
-    assert len(base["blocks"]) == 2 and base["size"][2] == pytest.approx(15.0)  # its kept plan's holds; the hangar's
+    base = site_in(plan, "base")
+    assert base["size"] == [60.0, 50.0, 15.0]  # its plan's wide and deep, its tallest thing
+    assert base["footprint"] == [[-30.0, -25.0], [30.0, -25.0], [30.0, 25.0], [-30.0, 25.0]]  # about its middle
+    blocks = {block["name"]: block for block in base["blocks"]}
+    assert set(blocks) == {"hub", "hangar", "RADIO MAST"}  # its child scenes by place, a standing thing; no tracks
+    assert blocks["hangar"]["tall"] == 15.0 and blocks["hub"]["roof"] == "dome"
+    assert blocks["hub"]["points"][0] == [-10.0, -5.0]  # at its hold, in site metres
     assert (base["latitude"], base["longitude"]) == (55.0, 0.0) and base["overhead"] is None  # no scene time yet: a gap
     assert min(spot[2] for spot in base["terrain"]["spots"]) > -0.02  # 100 m on the Moon: all but flat
     assert "Base: no scene time" in plan["gaps"] and not any("place on its ground" in gap for gap in plan["gaps"])
     assert {body["body"] for body in plan["setting"]["bodies"]} == {"sun", "earth", "moon", "mars"}
 
 
-def test_sites_kilometres_apart_on_the_moon_are_that_far_on_its_map(store):
+def test_a_site_without_a_plan_is_a_gap_and_sites_that_overlap_are_named(store, scene_plans):
+    del scene_plans["wreck"]
+    scene_plans["base"] = {"w": 110.0, "d": 110.0}  # its true plan: wider than the 57 m to the wreck
+    plan = environment_plan.derived(store)
+    assert site_in(plan, "wreck")["size"] is None and "Wreck: no plan yet" in plan["gaps"]
+    assert "Old station and Base overlap on Moon: move one in the physics" in plan["gaps"]
+
+
+def test_sites_kilometres_apart_on_the_moon_are_that_far_on_its_map(store, scene_plans):
     setting = environment_concept.setting_of(store)
     moved = [{**site, "latitude": 55.0, "longitude": 0.1} if site["place"] == "old_station" else site
              for site in setting["sites"]]
@@ -67,44 +93,51 @@ def test_sites_kilometres_apart_on_the_moon_are_that_far_on_its_map(store):
 
 
 def answer_of(plan):
-    """A written answer: a time for every site, a latitude it may not take, a block the base must not take."""
+    """A written answer: a time for every site, and a latitude, size, outline and block it may not take."""
     return {"time": "2099-06-01T12:00:00Z", "maps": [
         {"on": world["on"], "ground": "grey dust", "sites": [
             {"place": site["place"], "time": "2099-06-01T13:00:00Z", "latitude": 10.0, "longitude": 10.0,
+             "size": [120.0, 110.0, 18.0], "footprint": [[0, 0], [120, 0], [120, 110]],
              "blocks": [{"name": "a tower", "points": [[0, 0], [5, 0], [5, 5]], "tall": 30}],
              "terrain": {"spots": [[50, 0, -3.5]]}} for site in world["sites"]]} for world in plan["maps"]]}
 
 
-def test_a_written_plan_keeps_the_fixed_facts_and_works_out_what_each_site_sees_overhead(store, monkeypatch, tmp_path):
-    kept_base(monkeypatch, tmp_path)
+def test_a_written_plan_keeps_the_fixed_facts_and_works_out_what_each_site_sees_overhead(store, scene_plans):
     free = environment_plan.derived(store)
     plan = environment_plan.plan_from(answer_of(free), free, store)
     assert plan["gaps"] == [] and plan["time"] == "2099-06-01T12:00:00Z"
-    sites = {site["place"]: site for world in plan["maps"] for site in world["sites"]}
-    base, square, wreck = sites["base"], sites["square"], sites["wreck"]
-    assert len(base["blocks"]) == 2 and base["latitude"] == 55.0  # its parts and the setting's place stand
-    assert square["latitude"] == 22.28 and square["blocks"][0]["name"] == "a tower"  # written where data says nothing
+    base, square, wreck = site_in(plan, "base"), site_in(plan, "square"), site_in(plan, "wreck")
+    assert base["size"] == [60.0, 50.0, 15.0] and base["latitude"] == 55.0  # its plan's shape, the setting's place
+    assert square["size"] == [20.0, 20.0, 0.0] and square["blocks"] == []  # a written size or block never stands
     earth = next(body for body in base["overhead"]["bodies"] if body["body"] == "earth")
     assert 1.75 < earth["across"] < 2.05 and earth["altitude"] > 0  # seen from the Moon's near side: about 1.9 degrees
     assert [50.0, 0.0, -3.5] in wreck["terrain"]["spots"]
 
 
-def test_his_edit_is_kept_and_settled_again(store):
+def test_a_sites_shape_follows_its_scenes_plan_after_the_writing(store, scene_plans):
+    free = environment_plan.derived(store)
+    environment_plan.edited(store, environment_plan.plan_from(answer_of(free), free, store), "joey")
+    scene_plans["square"] = {"w": 29.0, "d": 29.0, "shapes": {"FLOODLIGHT TOWER": {"tall": 18.0}}}
+    assert environment_plan.site_of(store, "square")["size"] == [29.0, 29.0, 18.0]  # read again, never kept apart
+
+
+def test_his_edit_is_kept_and_settled_again(store, scene_plans):
     plan = environment_plan.current(store)["plan"]
     for world in plan["maps"]:
         for site in world["sites"]:
-            site.update({"time": "2099-06-01T20:00:00Z", "latitude": 1.0})
+            site.update({"time": "2099-06-01T20:00:00Z", "latitude": 1.0, "size": [1.0, 1.0, 1.0]})
     record = environment_plan.edited(store, plan, "joey")
     shown = environment_plan.current(store)
     assert shown["how"] == "edited" and shown["plan"] == record["plan"] and shown["plan"]["gaps"] == []
     square = environment_plan.site_of(store, "square")
     assert square["on"] == "earth" and square["latitude"] == 22.28  # where it stands is the setting's
+    assert square["size"] == [20.0, 20.0, 0.0]  # its size its plan's
     assert square["overhead"]["lights"][0]["altitude"] < 0  # 4 in the morning in Hong Kong
     with pytest.raises(environment_plan.Refused):
         environment_plan.edited(store, {"maps": "none"}, "joey")
 
 
-def test_a_plan_made_under_another_concept_is_out_of_date(store):
+def test_a_plan_made_under_another_concept_is_out_of_date(store, scene_plans):
     plan = environment_plan.current(store)["plan"]
     for world in plan["maps"]:
         for site in world["sites"]:
@@ -115,7 +148,8 @@ def test_a_plan_made_under_another_concept_is_out_of_date(store):
     assert environment_plan.current(store)["how"] == "derived"
 
 
-def test_a_house_on_a_plot_stands_on_flat_ground_under_its_sun_light(store):
+def test_a_house_on_a_plot_stands_on_flat_ground_under_its_sun_light(store, monkeypatch):
+    monkeypatch.setattr(plans, "current", lambda store, place: {"plan": {"w": 12.0, "d": 9.0}})
     kept_setting(store, HOUSE)
     plan = environment_plan.derived(store)
     assert sites_of(plan) == {"meadow": ["house"]} and plan["maps"][0]["radius_m"] is None
@@ -127,7 +161,7 @@ def test_a_house_on_a_plot_stands_on_flat_ground_under_its_sun_light(store):
     assert seen["bodies"] == [] and seen["lights"][0]["altitude"] == pytest.approx(38.0, abs=0.01)
 
 
-def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_no_plan(store, monkeypatch):
+def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_no_plan(store, monkeypatch, scene_plans):
     from score.adapters import compute
     from score.review import plan_writing
     monkeypatch.setattr(plan_writing, "call_euros", lambda found: 0.07)
@@ -151,7 +185,7 @@ def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_n
     assert bad["refused"] and environment_plan.current(store)["how"] == "written"
 
 
-def test_no_two_sites_on_one_body_share_a_spot_unless_the_setting_puts_them_there(store):
+def test_no_two_sites_on_one_body_share_a_spot_unless_the_setting_puts_them_there(store, scene_plans):
     plan = environment_plan.derived(store)
     for world in plan["maps"]:
         assert all(found["metres"] >= environment_plan.SAME_SPOT for found in world["distances"]), world["on"]

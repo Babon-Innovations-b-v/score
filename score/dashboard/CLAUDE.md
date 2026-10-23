@@ -278,7 +278,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   A place's page names the places listed inside it that its draw is asked to hold (`asked_to_hold`). Under the
   picture the page shows, editable, word for word what Draw fresh or Draw concept sends (`WorldState.concept_wordings`,
   `ConceptWording`: the wording `score/review/concepts.py` `generated` makes by its one rule for every place, or the
-  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: its blockout and, for a top place with a world out of view, its overhead view first, then a crop of the locked concept of
+  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: a crop of the locked concept of
   the place it sits within to what holds it, then the locked concept of each place beside it that it opens into, then its references), why it waits
   (`refused`: Draw disabled with it as hover text; `unpickable`: Lock the same; both refused on the store's machine
   by `concepts.step_refusal`, the design steps' one rule), a part of another place's outside (within.json `parts`, the
@@ -352,17 +352,19 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   through the boxes stacked there; every other box dims ("one at a time" hides them), the kind buttons keep the
   objects, structure (`local.inventory_readings` `structural`, `reading.structural`) or terrain rows, "skipped" draws
   what the agreement left out; each row's number sits in a corner of its first box, moved where it would cover another.
-- **The environment's plan** (CONTEXT.md "environment plan", "blockout", owner 2026-10-21; `pages/environment_plan.py`,
+- **The environment's plan** (CONTEXT.md "environment plan", owner 2026-10-21; `pages/environment_plan.py`,
   `environment_plan.html`, `static/pages/environment_plan.js`, the store side `score/review/environment_plan.py`):
-  `/environments/<world>/plan/`, the Plan button beside Places on the environment concept page. A map a ground of
-  the setting (an SVG: each top place's site with its blocks, the true metres between sites) and a row a site: its
-  size and scene time (fields for the owner), where it stands (the setting's, set on the concept page), the Sun's
-  height and every other body above its horizon (where, its true size, how much lit, worked out from the setting,
-  never typed) and its blockout, the structure picture its next draw is drawn on; the places locked before blockouts
-  are named. Keep (SyncRequest `env-plan-edit`) keeps his times and sizes as his own; Write (`env-plan-write`) has the plan writer write it again under the
-  owner's standing allowance; both `applying.PLAN_KINDS`, so the listener answers them hosted. The store's machine
-  renders every blockout once into this home's `blockouts/` by the hash of what it is built from
-  (`local.blockout_ref`, `WorldState.blockouts`), and the export carries them beside the concepts.
+  `/environments/<world>/plan/`, the Plan button beside Places on the environment concept page, laid out as the design
+  cockpit (design.js: panels, enlarge, zoom; owner 2026-10-23: "these blockouts and plans look shit"): a panel a
+  ground of the setting, the one with most sites the big one, its map in true metres (`environment_plan.js`): each
+  top scene's own plan drawn at its site by plan.js's own sheet (`window.planSheet`, read-only; the plan its plan page
+  shows, `plans.review_of`), largest first so a site standing on another shows, every name over them linked to its
+  plan, the true metres between sites, a north arrow and a scale bar. The rail: Write and Keep, the gaps (an overlap of
+  two sites among them), and a row a site: its size (its plan's, never a field), where it stands (the setting's, set
+  on the concept page), its scene time (a field for the owner) with the Sun's height and every other body above its
+  horizon as hover text (worked out from the setting, never typed). Keep (SyncRequest `env-plan-edit`) keeps his times
+  as his own; Write (`env-plan-write`) has the plan writer write it again under the owner's standing allowance; both
+  `applying.PLAN_KINDS`, so the listener answers them hosted.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the

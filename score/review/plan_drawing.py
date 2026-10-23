@@ -65,13 +65,20 @@ def parts_of(store, place):
 
 def wording_of(store, place):
     """What the drawing is asked with: the place's name and parts, how it is seen from above (indoors its floor plan,
-    else its roofs), the way the plan is turned against the painting (north up from the south-east view a blockout
-    fixed, else the painting's near side at the bottom) and its outline when sent."""
+    else its roofs), the way the plan is turned against the painting (north up from the fixed south-east view its
+    locked draw was drawn to, else the painting's near side at the bottom) and its outline when sent."""
     inside, held = concepts.indoors(store, place), plans.holder_of(store, place)
     return WORDING.format(name=concepts.name_of(place), kind="floor plan" if inside else "roof plan",
                           seen=INSIDE if inside else OUTSIDE, parts=parts_of(store, place),
-                          orientation=NEAR_BOTTOM if concepts.without_blockout(store, [place]) else FROM_SOUTH_EAST,
+                          orientation=FROM_SOUTH_EAST if from_south_east(store, place) else NEAR_BOTTOM,
                           outline=OUTLINE.format(wide=held["outline"][2], deep=held["outline"][3]) if held else "")
+
+
+def from_south_east(store, place):
+    """Whether the place's locked draw was drawn to the fixed south-east view: its draw record names the grey
+    structure picture locks were drawn on until 2026-10-23 (`blockout`, the ship's rooms), retired since."""
+    sha = concepts.picked(store, place)
+    return bool(next((draw for draw in concepts.draws(store, place) if draw["sha"] == sha), {}).get("blockout"))
 
 
 def frame_of(store, place):

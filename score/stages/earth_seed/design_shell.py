@@ -16,12 +16,11 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
            (a door, window, gate or opening: a written plan's `openings`, else a data plan's `doors`) cut from its
            sill to its head
     roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; one rising
-           (shed, pitched, dome, vault) a closed gable along its box's longer side, as the blockout draws it
-           (score/review/blockout.py `pitched`: the structure picture the concept was drawn to); no written roof, a
-           flat one on the walls' height
+           (shed, pitched, dome, vault) a closed gable along its box's longer side; no written roof, a flat one on
+           the walls' height
     level  (an open place: no room, and a plan that encloses nothing, `encloses`) each level standing off the ground by
-           more than LEVEL_OFF: one up to STOREY high stands solid from the ground, as the blockout draws it (a raised
-           deck, a stage); a higher one a slab SLAB thick under its height (a balcony)
+           more than LEVEL_OFF: one up to STOREY high stands solid from the ground (a raised deck, a
+           stage); a higher one a slab SLAB thick under its height (a balcony)
 
 Points are plan metres (x east, y south from the plan's north-west corner) stood in the plan's own frame
 (scene_record.plan.frame_of: its `frame` anchor, else the room's middle on its floor), as plan@<place> and the scene
@@ -52,11 +51,11 @@ import score.stages.surfaces.palette_library as palette_library  # the module al
 BACKING = 0.15
 DECK_BELOW = 0.042
 SLAB = 0.2  # metres of a deck, level or roof slab
-THICK = 0.3  # metres of a wall the plan gives no thickness (the blockout's)
-STOREY = 3.0  # metres of a wall neither the plan nor its words give a height (the blockout's)
-DOOR_HEAD = 2.1  # metres of a door's head the plan gives none (the blockout's)
+THICK = 0.3  # metres of a wall the plan gives no thickness
+STOREY = 3.0  # metres of a wall neither the plan nor its words give a height
+DOOR_HEAD = 2.1  # metres of a door's head the plan gives none
 ON_WALL = 0.3  # metres an opening may stand off its wall's line past the wall's thickness and still be cut in it
-LEVEL_OFF = 0.05  # metres a level stands off the ground before it is drawn as a level of its own (the blockout's)
+LEVEL_OFF = 0.05  # metres a level stands off the ground before it is drawn as a level of its own
 CEILING = re.compile(r"\bceiling[^0-9;,]*?(\d+(?:\.\d+)?) ?m\b")
 DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a data door's words "(0.9 x 2.0 m)": its height
 ROOT = "Shell"
@@ -141,7 +140,7 @@ def prism(points, low, high):
 
 
 def gable(points, eave, top):
-    """A gable roof over an outline's box, its ridge along the longer side (the blockout's `pitched`): a closed solid,
+    """A gable roof over an outline's box, its ridge along the longer side: a closed solid,
     its slopes, its gable ends and its underside on the eave, every face turned outward."""
     xs, ys = [point[0] for point in points], [point[1] for point in points]
     west, east, north, south = min(xs), max(xs), min(ys), max(ys)
@@ -337,7 +336,7 @@ def roofs(plan, outline, high):
             if rising else slab_piece(points, eave, eave + SLAB)
         found.append((f"roof_{number}", [piece],
                       f"the plan's {entry.get('kind', 'flat')} roof, eave {eave:g} m" +
-                      (f", top {top:g} m: a gable along its box's longer side (the blockout's)" if rising else
+                      (f", top {top:g} m: a gable along its box's longer side" if rising else
                        f": a slab {SLAB:g} m thick on it")))
     return found
 
@@ -396,7 +395,7 @@ def levels(plan):
         standing = 0.0 < height <= STOREY
         found.append((f"level_{number}", prism(points, 0.0 if standing else height - SLAB, height),
                       f"the plan's level {level.get('name', number)!r} at {height:g} m: " +
-                      ("solid from the ground (a raised deck, the blockout's)" if standing else
+                      ("solid from the ground (a raised deck)" if standing else
                        f"a slab {SLAB:g} m thick under it")))
     return found
 

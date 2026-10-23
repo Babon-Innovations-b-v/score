@@ -3,8 +3,8 @@ design; the game's ground plans and copied grounds were retired): each top scene
 plot its environment concept's setting puts it (`{home}/design/sky/<scene>.json`, scene_sky.keep's), and every scene
 its plan holds stands where that plan holds it. A ground is one body or plot: the body's true sphere (its radius from
 the setting's bodies) or the plot's plane, raised by the relief of each kept plan's terrain spots standing on it
-(`terrain.spots`: [x, y, height] in plan metres over the scene's floor), interpolated as the blockout draws it
-(score/review/blockout.py `ground`: a thin-plate spline through the spots, faded out past the farthest spot).
+(`terrain.spots`: [x, y, height] in plan metres over the scene's floor), interpolated by a thin-plate spline
+through the spots, faded out past the farthest spot.
 
     found = design.layout(plans, skies)         # {ground: {on, kind, radius, tops, places, sources}}
     design.ground_points(ground, place, xz)     # the ground under (x, z) spots of a place's frame, as [x, y, z]
@@ -26,8 +26,7 @@ from score.store import PROPS_HOME
 
 KEPT_PLANS = PROPS_HOME / "design" / "plans"
 KEPT_SKIES = PROPS_HOME / "design" / "sky"
-# A source's relief is faded out between its farthest spot's distance from its plan's middle and this many times it
-# (the blockout's rule).
+# A source's relief is faded out between its farthest spot's distance from its plan's middle and this many times it.
 FADE_PAST = 1.3
 
 

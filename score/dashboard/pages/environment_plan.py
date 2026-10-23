@@ -1,64 +1,51 @@
 """The environment's plan page (CONTEXT.md "environment plan", owner 2026-10-21; score/review/environment_plan.py):
-`/environments/<world>/plan/`, the plan page pattern for the environment, the first parent. One map a ground of its
-setting (a body or a plot), drawn top down (each top place's site with its blocks, the true distances between sites),
-and a row a site: its size and scene time (fields for the owner), where it stands (the environment concept's setting,
-shown here, set there) and its blockout, the structure picture its next draw is drawn on. Its sky is no column: it
-follows from the setting's bodies at its place and scene time (the owner, 2026-10-21), shown on hover over its time. Keep (SyncRequest `env-plan-edit`)
-keeps his times and sizes as his own; Write (`env-plan-write`)
-has the plan writer write it again under the owner's standing allowance for plan writing. The places picked before
-blockouts existed are named (`without_blockout`)."""
-import html
+`/environments/<world>/plan/`, laid out as the design page's cockpit (design.js: panels, enlarge, zoom). A panel a
+ground of its setting (a body or a plot), its map in true metres (`static/pages/environment_plan.js`): each top
+scene's own plan drawn at its site as its plan page draws it (plan.js `planSheet`; the owner, 2026-10-23: its sites
+agree with the scenes, the plan shown being the scene's, `plans.review_of`), the true distances between sites, a north
+arrow and a scale bar. The rail: Write and Keep, the gaps, and a row a site: its name (to its plan), its size (its
+plan's), its scene time (a field for the owner) and where it stands (the environment concept's setting, shown here,
+set there). Its sky is no column: it follows from the setting's bodies at its place and scene time (the owner,
+2026-10-21), shown on hover over its time. Keep (SyncRequest `env-plan-edit`) keeps his times as his own; Write
+(`env-plan-write`) has the plan writer write it again under the owner's standing allowance for plan writing."""
 import json
 
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from score.dashboard import state
-from score.dashboard.pages import actions, concepts, environment
+from score.dashboard.pages import actions, concepts, environment, plans
 from score.dashboard.pages.models import SyncRequest, is_owner
 from score.dashboard.state import groups
 
 EDIT, WRITE = "env-plan-edit", "env-plan-write"
-MAP_WIDE, MAP_TALL, MAP_EDGE = 640, 400, 24  # the map's drawing in pixels, its margin
 COMPASS = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 
 
-def site_points(site):
-    """Every corner of a site's blocks (else its footprint) on its world's map, metres."""
-    shapes = [block["points"] for block in site.get("blocks") or []] or [site.get("footprint") or [[0, 0]]]
-    return [[site["at"][0] + x, site["at"][1] + y] for shape in shapes for x, y in shape]
+def drawn_data(found, names):
+    """What environment_plan.js draws of one ground's map: its sites where they stand with their footprints, and the
+    distances between them."""
+    return {"on": found["on"], "name": found["name"], "distances": found.get("distances", []),
+            "sites": [{"place": site["place"], "name": names.get(site["place"], site["name"]), "at": site["at"],
+                       "size": site.get("size"), "footprint": site.get("footprint")} for site in found["sites"]]}
 
 
-def map_svg(world, names):
-    """One world's map as an SVG: each site's blocks at their place, its name, and a line with its metres between
-    every two sites."""
-    points = [point for site in world["sites"] for point in site_points(site)] or [[0, 0]]
-    left, top = min(x for x, _ in points), min(y for _, y in points)
-    wide, deep = max(max(x for x, _ in points) - left, 1.0), max(max(y for _, y in points) - top, 1.0)
-    scale = min((MAP_WIDE - 2 * MAP_EDGE) / wide, (MAP_TALL - 2 * MAP_EDGE) / deep)
+def site_plans(world_state, sites):
+    """{place: its plan as its plan page shows it} of each site's top scene with one (plans.review_of)."""
+    return {site["place"]: review["plan"] for site in sites
+            if (review := plans.review_of(world_state, site["place"]))}
 
-    def at(x, y):
-        return MAP_EDGE + (x - left) * scale, MAP_EDGE + (y - top) * scale
-    middles = {site["place"]: at(*site["at"]) for site in world["sites"]}
-    shapes = []
-    for found in world.get("distances", []):
-        (x1, y1), (x2, y2) = middles[found["from"]], middles[found["to"]]
-        shapes.append(f'<line class="ep-apart" x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}"/>'
-                      f'<text class="ep-metres" x="{(x1 + x2) / 2:.1f}" y="{(y1 + y2) / 2:.1f}">'
-                      f'{found["metres"]:.0f} m</text>')
-    for site in world["sites"]:
-        for block in site.get("blocks") or []:
-            corners = " ".join("{:.1f},{:.1f}".format(*at(site["at"][0] + x, site["at"][1] + y))
-                               for x, y in block["points"])
-            shapes.append(f'<polygon class="ep-block" points="{corners}"><title>{html.escape(block["name"])}'
-                          f'</title></polygon>')
-        x, y = middles[site["place"]]
-        shapes.append(f'<text class="ep-name" x="{x:.1f}" y="{y:.1f}">'
-                      f'{html.escape(names.get(site["place"], site["name"]))}</text>')
-    return mark_safe(f'<svg class="ep-map" viewBox="0 0 {MAP_WIDE} {MAP_TALL}" role="img" '
-                     f'aria-label="{html.escape(world["name"])} map">{"".join(shapes)}</svg>')
+
+def held_names(world_state, plans_of, names):
+    """{place: its short name} of every child scene the sites' plans lay out (as the plan page names them)."""
+    return {hold["place"]: world_state.shells.get(hold["place"]) or names.get(hold["place"], hold["place"])
+            for plan in plans_of.values() for hold in plan.get("holds") or []}
+
+
+def size_of(site):
+    """A site's size in words, its plan's: "109.15 x 109.15 x 15 m", "no plan yet" without one."""
+    return " x ".join(f"{value:g}" for value in site["size"]) + " m" if site.get("size") else "no plan yet"
 
 
 def where_of(site):
@@ -91,14 +78,18 @@ def plan_page(request, world):
     shown = world_state.environment_plan or {}
     plan = shown.get("plan") or {"maps": [], "gaps": []}
     names = {**groups.short_names(world_state), **world_state.shells}
-    maps = [{**found, "svg": map_svg(found, names), "rows": [{
+    maps = sorted(plan["maps"], key=lambda found: -len(found["sites"]))  # the ground with most sites the big panel
+    sites = [site for found in maps for site in found["sites"]]
+    plans_of = site_plans(world_state, sites)
+    drawn = {"maps": [drawn_data(found, names) for found in maps], "plans": plans_of,
+             "names": {**held_names(world_state, plans_of, names), **names}}
+    rows = [{**found, "rows": [{
         **site, "title": names.get(site["place"], site["name"]), "overhead_tip": overhead_tip(site.get("overhead")),
-        "where": where_of(site), "blockout": world_state.blockouts.get(site["place"])}
-        for site in found["sites"]]} for found in plan["maps"]]
+        "where": where_of(site), "size_words": size_of(site)} for site in found["sites"]]} for found in maps]
     can = is_owner(request.user) and actions.decisions_on()
     return render(request, "pages/environment_plan.html", {
-        "world": world, "title": environment.title_of(world), "shown": shown, "plan": plan, "maps": maps,
-        "without": [names.get(place, place) for place in shown.get("without_blockout", [])],
+        "world": world, "title": environment.title_of(world), "shown": shown, "plan": plan, "maps": rows,
+        "others": max(1, len(maps) - 1), "drawn": json.dumps(drawn).replace("</", "<\\/"),
         "can": can, "pending": pending(world), "edit_body": json.dumps({}), "write_body": json.dumps({})})
 
 
@@ -123,7 +114,7 @@ def asked(request, world, kind, payload):
 
 @require_POST
 def plan_edit(request, world):
-    """POST {plan}: his times and sizes, kept as his own."""
+    """POST {plan}: his scene times, kept as his own."""
     body = concepts.body_of(request)
     if body is None or not isinstance(body.get("plan"), dict):
         return JsonResponse({"detail": "refused: not a plan"}, status=422)

@@ -26,27 +26,17 @@ from django.conf import settings  # noqa: E402
 settings.SCORE_LIB_ROOT = None  # its default is the real score_lib beside score: a test brings its own (library_test)
 
 
-@pytest.fixture(scope="session")
-def blockouts():
-    """One folder of blockout renders every test run shares (each written whole, local.blockout_ref): each is named by
-    the hash of what it is built from and the blockout code (blockout.scene_key), so a test reads the render an
-    earlier test or run made of the same scene, never another's (2.7 s a render, five a page)."""
-    folder = pathlib.Path(tempfile.gettempdir()) / "score-test-blockouts"
-    folder.mkdir(exist_ok=True)
-    return folder
-
-
 @pytest.fixture
-def world(tmp_path, monkeypatch, blockouts):
+def world(tmp_path, monkeypatch):
     """The fixture environment (tests/fixture.py) served as this process's source, decisions on, both places
     designed."""
-    return served(fixture_built(tmp_path, True), monkeypatch, blockouts)
+    return served(fixture_built(tmp_path, True), monkeypatch)
 
 
 @pytest.fixture
-def drafting(tmp_path, monkeypatch, blockouts):
+def drafting(tmp_path, monkeypatch):
     """The fixture environment still in design (alpha drawn, beta not, nothing locked) served the same way."""
-    return served(fixture_built(tmp_path, False), monkeypatch, blockouts)
+    return served(fixture_built(tmp_path, False), monkeypatch)
 
 
 def fixture_built(tmp_path, design):
@@ -54,13 +44,12 @@ def fixture_built(tmp_path, design):
     return fixture.build(tmp_path, design)
 
 
-def served(built, monkeypatch, blockouts):
+def served(built, monkeypatch):
     """`built` served as this process's source, decisions on."""
     from score.dashboard import state
     from score.dashboard.pages import actions
     from score.dashboard.tests import fixture
     built.source.home.mkdir(parents=True, exist_ok=True)
-    (built.source.home / "blockouts").symlink_to(blockouts)
     monkeypatch.setattr(state, "source", lambda: built.source)
     monkeypatch.setattr(actions, "agent_started", lambda: False)
     fixture.FakeBackend.calls.clear()

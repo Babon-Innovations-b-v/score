@@ -443,10 +443,10 @@ def test_a_body_is_drawn_in_the_face_its_row_made_else_a_plain_colour_said_waiti
     assert scenes.face_colour(state, "earth") == [0.2, 0.4, 0.6]
     assert scenes.face_colour(state, "moon") == scenes.face_colour({}, "moon") != scenes.face_colour({}, "mars")
     zoom = {"cut": "scale-zoom", "shows": {"place": "square"}, "seconds": 8,
-            "legs": [{"layer": "setting", "seconds": 4}, {"layer": "world", "seconds": 4, "tag": "Blockout"}]}
+            "legs": [{"layer": "setting", "seconds": 4}, {"layer": "world", "seconds": 4, "tag": "Plan"}]}
     setting_leg, world_leg = scenes.scene_for(state, zoom, 2)["legs"]
     assert setting_leg["tag"] == f"Moon, Mars: {scenes.WAITING}" and "waits" not in setting_leg
-    assert world_leg["tag"] == "Blockout" and world_leg["color"] == [0.2, 0.4, 0.6]
+    assert world_leg["tag"] == "Plan" and world_leg["color"] == [0.2, 0.4, 0.6]
 
 
 def test_the_state_knows_a_designed_bed_by_the_sound_stages_own_words():

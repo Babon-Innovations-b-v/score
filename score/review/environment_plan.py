@@ -1,20 +1,22 @@
 """The environment's plan (CONTEXT.md "environment plan"; the owner, 2026-10-21): the environment is the first parent,
-so its concept gets a plan of its own, as every place's does, and each top place's concept is drawn on the blockout
-of its site there (score/review/blockout.py). One map a ground of its setting (score/review/setting.py, the
-environment concept's: a body, at its true radius, or a plot), each top place's site on it where the setting puts it
-(its latitude, longitude and height on a body, metres on a plot), its footprint and rough size, its blocks, the ground
-and terrain heights round it and its scene time; the true distances between sites on the same ground; and the
-setting, from which what is seen overhead at each site at its scene time is worked out (score/review/overhead.py),
-never written by hand: every other body at its true direction, size and phase, every light and backdrop. The engine
-runs the same setting live. A site's parts are laid where its own kept plan holds them (the creator's design: the
-Base's modules), never from the game's ground plans (retired, 2026-10-21).
+so its concept gets a plan of its own, as every scene's does. One map a ground of its setting (score/review/setting.py,
+the environment concept's: a body, at its true radius, or a plot), each top scene's site on it where the setting puts
+it (its latitude, longitude and height on a body, metres on a plot), the ground and terrain heights round it and its
+scene time; the true distances between sites on the same ground; and the setting, from which what is seen overhead at
+each site at its scene time is worked out (score/review/overhead.py), never written by hand: every other body at its
+true direction, size and phase, every light and backdrop. The engine runs the same setting live.
 
-It is made like a place's plan: what data already says is worked out free (`facts_of`: each site's place and parts,
+A site's footprint, size and blocks are its top scene's own plan, the one its plan page shows (score/review/plans.py
+`current`; the owner, 2026-10-23: "why are they diff from the scene anyway"): read again on every settle
+(`from_plan`), so neither the plan writer nor an edit here can make them differ from the scene. Its rough model, where
+one exists, is registered to that plan (stages/rough_model, rough-align), so the plan stays the one source.
+
+It is made like a place's plan: what data already says is worked out free (`facts_of`: each site's place and its plan's shape,
 the fall of its ground's curve round it); Gemini 3.1 Pro writes the rest (`write`: one direct call through the plan
 writer's own call, score/review/plan_writing.py, run without asking under the owner's standing allowance of
 2026-10-21 for plan writing); the code then checks it, keeps the fixed facts over the answer, and works out the
 distances and what each site sees overhead (`settled`). Until it is written the plan shown is the free one
-(`derived`). He fixes it on its plan page (a site's time and size), his edit kept as his own and settled again;
+(`derived`). He fixes it on its plan page (a site's scene time), his edit kept as his own and settled again;
 where a site stands is the environment concept's. A writing or edit records the environment concept's version it
 was made under, and one made under another is out of date: the plan shown is then the free one again (`current`).
 
@@ -31,8 +33,6 @@ import json
 import math
 import sys
 
-import numpy as np
-
 from score.review import concepts, overhead, setting as settings
 from score.store import stamp_key
 
@@ -42,11 +42,11 @@ NOTE_MOST = 300  # characters of a written ground's words
 LOOK_MOST = 400  # characters of a site's look the writing is told
 ITEMS_MOST = 30  # a site's plan items the writing is told
 DROP_RINGS = (0.5, 1.0, 2.0)  # of a site's reach: the rings its ball-fall spots stand on
-ROOFS = ("flat", "dome", "pitched", "vault")
 SAME_SPOT = 1.0  # metres: two sites closer than this stand on one spot
+WALLS_ITEM = "ON THE WALLS AND CEILING"  # a plan's item that is no thing standing (plan.js's WALLS)
 ASKED = """You are an architect drawing the site plan of a game environment's worlds: one map a world, each top place's
 site on it, in metres. The facts below are fixed: where each site stands on its ground (a world at its true radius,
-or a flat plot), the parts of a site with their sizes and headings, the fall of the ground round each site on its
+or a flat plot), each site's size and outline from its own plan, the fall of the ground round each site on its
 world's curve. Write what they leave open.
 
 The facts (JSON):
@@ -56,13 +56,9 @@ Write one JSON object: {{"time": the environment's moment in UTC (ISO 8601), "ma
 "ground": a short line on its ground, "sites": [{{"place": the site's place,
   "time": the place's scene time in UTC (ISO 8601): when its look happens at its own longitude (night, dusk, day as
   its look says), on or near the environment's moment,
-  "size": [wide, deep, tall] in metres of the whole site,
-  "footprint": [[x, y], ...] the site's outline in site metres (x east, y south, its middle at 0, 0),
-  "blocks": [{{"name": words, "points": [[x, y], ...] in site metres, "base": m, "tall": m, "roof": "flat"|"dome"|
-  "pitched"|"vault", "rise": m}}] its main masses (a site with parts: one block a part, at its place and size; an
-  outdoor site: its biggest things from its plan's items and height words),
-  "terrain": {{"spots": [[x, y, height], ...]}} spot heights in site metres round the site, the facts' ball-fall
-  spots kept, craters, flats, ridges and water near it added at their heights}}]}}]}}
+  "terrain": {{"spots": [[x, y, height], ...]}} spot heights in site metres (x east, y south, its middle at 0, 0)
+  round the site, the facts' ball-fall spots kept, craters, flats, ridges and water near it added at their
+  heights}}]}}]}}
 No text besides the JSON."""
 
 
@@ -70,41 +66,66 @@ class Refused(ValueError):
     pass
 
 
-# --- the grounds and their sites, from the setting -----------------------------------------------------------------
+# --- the grounds and their sites, from the setting and each top scene's own plan -----------------------------------
 
 def world_name():
     return json.loads((concepts.DATA / "definitions/world.json").read_text())["name"]
 
 
-def parts_of(place):
-    """[{place, at, heading}] of the child scenes the site's own kept plan lays out (its `holds`, the creator's design:
-    {home}/design/plans/<place>.json), each at its hold's middle in the plan's metres (x east, y south); [] while it
-    has no kept plan."""
+def site_plan(store, place):
+    """The top scene's own plan as its plan page shows it (plans.current), None while it has none."""
     from score.review import plans
-    path = plans.KEPT / f"{place}.json"
-    if not path.is_file():
-        return []
-    return [{"place": hold["place"], "at": [hold["x"] + hold["w"] / 2, hold["y"] + hold["d"] / 2], "heading": 0.0}
-            for hold in json.loads(path.read_text()).get("holds", [])]
+    shown = plans.current(store, place) if store is not None else None
+    return shown["plan"] if shown else None
 
 
-def sizes_of(place):
-    """(wide, deep, walls, rise, roof) of a place's plan (blockout.heights_of): its kept plan, the creator's design,
-    else its data plan; None with neither."""
-    from score.review import blockout, plans
-    kept = plans.KEPT / f"{place}.json"
-    plan = json.loads(kept.read_text()) if kept.is_file() else concepts.plan_of(place)
-    if not plan.get("w"):
-        return None
-    walls, rise, roof = blockout.heights_of(plan)
-    return float(plan["w"]), float(plan["d"]), (0.0 if blockout.outdoor(plan) else walls), rise, roof
+def tall_of(plan):
+    """The plan's tallest top in metres: its things' shapes, walls and roofs."""
+    tops = [float(form.get("base") or 0) + float(form.get("tall") or 0) for form in (plan.get("shapes") or {}).values()]
+    tops += [float(wall.get("tall") or 0) for wall in plan.get("walls") or []]
+    tops += [float(roof.get("top") or 0) for roof in plan.get("roofs") or []]
+    return round(max(tops, default=0.0), 2)
 
 
-def turned_box(middle, wide, deep, heading):
-    """The corners of a wide by deep box about `middle`, turned `heading` radians (the game's: about up)."""
-    cos, sin = math.cos(heading), math.sin(heading)
-    return [[round(middle[0] + x * cos + y * sin, 3), round(middle[1] - x * sin + y * cos, 3)]
-            for x, y in ((-wide / 2, -deep / 2), (wide / 2, -deep / 2), (wide / 2, deep / 2), (-wide / 2, deep / 2))]
+def holding_item(plan, hold):
+    """The plan's item holding a child scene's box (its row among the item's rows), None with none."""
+    rows = plan.get("rows") or {}
+    return next((item for item in plan.get("items") or [] if hold.get("row") in rows.get(item[0], [])), None)
+
+
+def block_of_box(name, box, form, middle):
+    """One mass in site metres about `middle`: a box (x, y, wide, deep in plan metres) at its shape's base and tall."""
+    left, top, wide, deep = box[0] - middle[0], box[1] - middle[1], box[2], box[3]
+    corners = [[left, top], [left + wide, top], [left + wide, top + deep], [left, top + deep]]
+    return {"name": name, "points": [[round(x, 3), round(y, 3)] for x, y in corners],
+            "base": float(form.get("base") or 0), "tall": float(form.get("tall") or 0),
+            "roof": "dome" if form.get("shape") == "circle" else "flat", "rise": 0.0}
+
+
+def plan_blocks(plan, middle):
+    """The plan's masses in site metres about `middle`: each child scene's box named by its place, at its holding
+    item's height, and each other thing standing up, at its own."""
+    shapes = plan.get("shapes") or {}
+    holds = plan.get("holds") or []
+    holding = [holding_item(plan, hold) for hold in holds]
+    found = [block_of_box(hold["place"], (hold["x"], hold["y"], hold["w"], hold["d"]),
+                          shapes.get(item[0], {}) if item else {}, middle) for hold, item in zip(holds, holding)]
+    return found + [block_of_box(item[0], item[1:5], shapes[item[0]], middle) for item in plan.get("items") or []
+                    if item not in holding and item[0] != WALLS_ITEM and item[6:7] != ["zone"]
+                    and float((shapes.get(item[0]) or {}).get("tall") or 0) > 0]
+
+
+def from_plan(plan):
+    """{size, footprint, blocks} of a site from its top scene's own plan (`site_plan`): its wide, deep and tallest,
+    its outline and its masses in site metres (x east, y south, its middle at 0, 0); None sizes with no plan."""
+    if not plan or not plan.get("w"):
+        return {"size": None, "footprint": None, "blocks": []}
+    wide, deep = float(plan["w"]), float(plan["d"])
+    middle = (wide / 2, deep / 2)
+    outline = plan["outline"] if len(plan.get("outline") or []) >= 3 else [[0, 0], [wide, 0], [wide, deep], [0, deep]]
+    return {"size": [round(wide, 2), round(deep, 2), tall_of(plan)],
+            "footprint": [[round(x - middle[0], 3), round(y - middle[1], 3)] for x, y in outline],
+            "blocks": plan_blocks(plan, middle)}
 
 
 def radius_m(ground):
@@ -112,26 +133,17 @@ def radius_m(ground):
     return ground["radius_km"] * 1000.0 if "radius_km" in ground else None
 
 
-def site_facts(site, parts, tree):
-    """What data says of one site: its name and look, where the setting puts it, its parts in site metres with their
-    sizes (its kept plan's holds), its own plan's items and height words."""
+def site_facts(store, site, tree):
+    """What data says of one site: its name and look, where the setting puts it, its size and outline from its own
+    plan (`from_plan`) and that plan's things."""
     from score.review import environment_concept
     node = site["place"]
-    middle = np.mean([part["at"] for part in parts], axis=0) if parts else np.zeros(2)
-    shown = []
-    for part in parts:
-        size = sizes_of(part["place"])
-        local = [round(float(part["at"][0] - middle[0]), 2), round(float(part["at"][1] - middle[1]), 2)]
-        shown.append({"place": part["place"], "at": local, "heading": round(part["heading"], 4),
-                      "size": None if size is None else [size[0], size[1], size[2]],
-                      "roof": None if size is None else {"kind": size[4], "rise": size[3]}})
-    plan = concepts.plan_of(node)
+    plan = site_plan(store, node)
+    shape = from_plan(plan)
     where = {name: site.get(name) for name in ("latitude", "longitude", "x", "y", "height_m") if name in site}
     return {"place": node, "name": environment_concept.name_in(node, tree), **where,
-            "look": concepts.look_text(node)[:LOOK_MOST],
-            "parts": shown if len({tuple(part["at"]) for part in shown}) > 1 or node in tree["shells"] else [],
-            "plan": {"w": plan.get("w"), "d": plan.get("d"), "height": plan.get("height"),
-                     "items": [item[0] for item in plan.get("items", [])][:ITEMS_MOST]} if plan else None}
+            "look": concepts.look_text(node)[:LOOK_MOST], "size": shape["size"], "footprint": shape["footprint"],
+            "things": [item[0] for item in (plan or {}).get("items", [])][:ITEMS_MOST]}
 
 
 def grounds_of(setting):
@@ -151,8 +163,7 @@ def facts_of(store, world_id=None):
     found = []
     for ground, kind in grounds_of(setting):
         key = ground[kind]
-        sites = [site_facts(site, parts_of(site["place"]), tree)
-                 for site in setting["sites"] if site["on"] == key]
+        sites = [site_facts(store, site, tree) for site in setting["sites"] if site["on"] == key]
         for site in sites:
             site["ball fall spots"] = fall_spots(site, radius_m(ground))
         around = next((body["name"] for body in setting["bodies"] if body["body"] == ground.get("around")), None)
@@ -162,16 +173,8 @@ def facts_of(store, world_id=None):
 
 
 def reach_of(site):
-    """Half the site's span in metres: its parts' extent, else its plan's, else 10 m."""
-    if site["parts"]:
-        points = [corner for part in site["parts"] if part["size"]
-                  for corner in turned_box(part["at"], part["size"][0], part["size"][1], part["heading"])]
-        if points:
-            spread = np.ptp(np.asarray(points), axis=0)
-            return float(max(spread)) / 2
-    if site.get("plan") and site["plan"].get("w"):
-        return max(float(site["plan"]["w"]), float(site["plan"]["d"])) / 2
-    return 10.0
+    """Half the site's span in metres: its plan's, else 10 m."""
+    return max(site["size"][0], site["size"][1]) / 2 if site.get("size") else 10.0
 
 
 def fall_spots(site, radius):
@@ -216,25 +219,11 @@ def great_angle(one, two):
 # --- the plan: derived, written, settled -----------------------------------------------------------------------
 
 def derived_site(site):
-    """A site of the free plan: its parts as blocks (an outdoor site: its plan's box, no walls), its footprint the box
-    round them, its ground the ball's fall, no scene time yet."""
-    blocks = [{"name": part["place"], "points": turned_box(part["at"], part["size"][0], part["size"][1],
-                                                           part["heading"]),
-               "base": 0.0, "tall": part["size"][2], "roof": part["roof"]["kind"], "rise": part["roof"]["rise"]}
-              for part in site["parts"] if part["size"]]
-    if not blocks and site.get("plan") and site["plan"].get("w"):
-        wide, deep = float(site["plan"]["w"]), float(site["plan"]["d"])
-        blocks = [{"name": site["place"], "points": turned_box([0, 0], wide, deep, 0.0), "base": 0.0, "tall": 0.0,
-                   "roof": "flat", "rise": 0.0}]
-    points = np.asarray([corner for block in blocks for corner in block["points"]] or [[-10, -10], [10, 10]])
-    low, high = points.min(axis=0), points.max(axis=0)
-    tall = max([block["tall"] + block["rise"] for block in blocks] or [0.0])
+    """A site of the free plan: where it stands, its ground the ball's fall, no scene time yet (its shape is its
+    plan's, laid on it by `settled`)."""
     where = {name: site[name] for name in ("latitude", "longitude", "x", "y", "height_m") if name in site}
     return {"place": site["place"], "name": site["name"], **where, "time": None,
-            "size": [round(float(high[0] - low[0]), 2), round(float(high[1] - low[1]), 2), round(tall, 2)],
-            "footprint": [[float(low[0]), float(low[1])], [float(high[0]), float(low[1])],
-                          [float(high[0]), float(high[1])], [float(low[0]), float(high[1])]],
-            "blocks": blocks, "terrain": {"spots": site["ball fall spots"]}}
+            "terrain": {"spots": site["ball fall spots"]}}
 
 
 def derived(store, world_id=None):
@@ -254,12 +243,6 @@ def number(value, low=-1e6, high=1e6):
     return float(value) if low <= value <= high else None
 
 
-def points_of(value, least=3):
-    found = [[number(point[0]), number(point[1])] for point in value
-             if isinstance(point, list) and len(point) == 2] if isinstance(value, list) else []
-    return found if len(found) >= least and all(None not in point for point in found) else None
-
-
 def moment(value):
     """An ISO time in UTC as written, None when it is none."""
     try:
@@ -269,27 +252,11 @@ def moment(value):
     return str(value)
 
 
-def block_of(block):
-    points = points_of(block.get("points")) if isinstance(block, dict) else None
-    if not points or number(block.get("tall"), 0, 2000) is None:
-        return None
-    return {"name": str(block.get("name") or "")[:60], "points": points, "base": number(block.get("base")) or 0.0,
-            "tall": number(block["tall"], 0, 2000), "roof": block.get("roof") if block.get("roof") in ROOFS else "flat",
-            "rise": number(block.get("rise"), 0, 500) or 0.0}
-
-
 def site_from(answer, fixed):
-    """One written site over its free one: the fixed facts kept (where it stands, its parts' blocks), the rest as
-    written where it is in shape."""
+    """One written site over its free one: the fixed facts kept (where it stands; its shape is its plan's), its scene
+    time and terrain spots as written where they are in shape."""
     found = dict(fixed)
     found["time"] = moment(answer.get("time")) or None
-    size = answer.get("size")
-    if isinstance(size, list) and len(size) == 3 and all(number(value, 0, 1e5) is not None for value in size):
-        found["size"] = [number(value) for value in size]
-    found["footprint"] = points_of(answer.get("footprint")) or fixed["footprint"]
-    written = [block for block in map(block_of, answer.get("blocks") or []) if block]
-    if written and not any(block["tall"] for block in fixed["blocks"]):  # a site with parts keeps its parts
-        found["blocks"] = written
     spots = [[number(spot[0]), number(spot[1]), number(spot[2], -1e4, 1e4)] for spot in
              (answer.get("terrain") or {}).get("spots") or [] if isinstance(spot, list) and len(spot) == 3]
     spots = [spot for spot in spots if None not in spot]
@@ -321,16 +288,36 @@ def distances(sites, radius):
             if not radius or None not in (one.get("latitude"), two.get("latitude"))]
 
 
+def box_on_map(site):
+    """(least x, least y, most x, most y) of a site's footprint where it stands on its map, None with no plan."""
+    if not site.get("footprint"):
+        return None
+    xs, ys = [site["at"][0] + x for x, _ in site["footprint"]], [site["at"][1] + y for _, y in site["footprint"]]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def overlapping(world):
+    """[(one, two)] of the sites of one map whose footprints overlap where the setting stands them."""
+    boxes = [(site, box_on_map(site)) for site in world["sites"]]
+    boxes = [(site, box) for site, box in boxes if box]
+    return [(one, two) for order, (one, first) in enumerate(boxes) for two, second in boxes[order + 1:]
+            if first[0] < second[2] and second[0] < first[2] and first[1] < second[3] and second[1] < first[3]]
+
+
 def gaps_of(plan):
-    """What the plan does not know yet, each in words: a site's scene time or its place on its ground, and two sites
-    standing on one spot of a ground (under a metre apart: each site has its own place in the setting)."""
+    """What the plan does not know yet, each in words: a site's scene time, its place on its ground or its plan (its
+    shape), two sites standing on one spot of a ground (under a metre apart: each site has its own place in the
+    setting), and two whose footprints overlap where the setting stands them."""
     names = {site["place"]: site["name"] for world in plan["maps"] for site in world["sites"]}
     return [f"{site['name']}: no {what}" for world in plan["maps"] for site in world["sites"]
             for what, missing in (("scene time", site.get("time") is None),
-                                  ("place on its ground", "x" not in site and site.get("latitude") is None))
+                                  ("place on its ground", "x" not in site and site.get("latitude") is None),
+                                  ("plan yet", "size" in site and site["size"] is None))
             if missing] + \
         [f"{names[found['from']]} and {names[found['to']]} stand on one spot of {world['name']}"
-         for world in plan["maps"] for found in world.get("distances", []) if found["metres"] < SAME_SPOT]
+         for world in plan["maps"] for found in world.get("distances", []) if found["metres"] < SAME_SPOT] + \
+        [f"{one['name']} and {two['name']} overlap on {world['name']}: move one in the physics"
+         for world in plan["maps"] for one, two in overlapping(world)]
 
 
 def settled(plan, store=None):
@@ -352,7 +339,8 @@ def settled(plan, store=None):
                 continue  # moved off this ground in the setting
             where = {name: placed[site["place"]].get(name) for name in ("latitude", "longitude", "x", "y", "height_m")
                      if name in placed[site["place"]]}
-            sites.append({**site, **where})
+            shape = from_plan(site_plan(store, site["place"])) if store is not None else {}
+            sites.append({**site, **where, **shape})
         origin = sites[0] if sites else {}
         sites = [{**site, "at": map_at(site, origin, radius),
                   "overhead": overhead.seen(setting, {**site, "on": world["on"]}, site["time"]) if site.get("time")
@@ -413,8 +401,8 @@ def site_of(store, place, world=None):
 
 
 def checked_edit(plan, base, store=None):
-    """His plan as he left it: each site's time and size where in shape, the rest from `base` (where a site stands is
-    the environment concept's setting)."""
+    """His plan as he left it: each site's scene time where in shape, the rest from `base` (where a site stands is the
+    environment concept's setting, its shape its own plan's)."""
     if not isinstance(plan, dict) or not isinstance(plan.get("maps"), list):
         raise Refused("an environment plan has maps")
     sent = {(world.get("on"), site.get("place")): site for world in plan["maps"] if isinstance(world, dict)
@@ -424,10 +412,7 @@ def checked_edit(plan, base, store=None):
         sites = []
         for site in world["sites"]:
             his = sent.get((world["on"], site["place"]), {})
-            size = his.get("size")
-            sites.append({**site, "time": moment(his["time"]) if his.get("time") else site.get("time"),
-                          "size": [number(value, 0, 1e5) for value in size] if isinstance(size, list) and len(size) == 3
-                          and all(number(value, 0, 1e5) is not None for value in size) else site["size"]})
+            sites.append({**site, "time": moment(his["time"]) if his.get("time") else site.get("time")})
         maps.append({**world, "sites": sites})
     return settled({**base, "time": moment(plan.get("time")) or base.get("time"), "maps": maps}, store)
 

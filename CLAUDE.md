@@ -24,7 +24,7 @@ Topic → bible chapter ID. Pick the ones the prompt touches and read them befor
 |---|---|
 | Big picture / system diagram | `architecture/system-context` |
 | Component map (what runs where), the library rule, gaps | `architecture/components` |
-| The design: EC, concepts and locks, the concept review, inventory reading, the plan method and plan editing, blockouts, the film | `architecture/design` |
+| The design: EC, concepts and locks, the concept review, inventory reading, the plan method and plan editing, the film | `architecture/design` |
 | Buy and the one-shot batch, a scene's line, which scenes are build places, accepts | `architecture/lifecycles` |
 | A scene's layers: which it has, base, effects, motion, physics, light and sky, sound, people, assembly, scene tree | `architecture/layers` |
 | The creator cockpit: his PC and the hosted side, the sync, the pages, owner-only actions | `architecture/cockpit` |

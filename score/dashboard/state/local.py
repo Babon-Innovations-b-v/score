@@ -8,11 +8,9 @@ Writes nothing to the store: owner decisions go through score.review.web.decide,
 import datetime
 import hashlib
 import json
-import os
 import pathlib
 import re
 import subprocess
-import threading
 from collections import Counter
 
 from score import review, stages
@@ -569,37 +567,10 @@ class LocalSource:
         return found
 
     def environment_plan(self):
-        """{environment_plan, blockouts} (score/review/environment_plan.py, blockout.py): the environment's plan as its
-        page shows it, with the places whose picked draw was drawn without a blockout, and the blockout picture of
-        every top place's site and every place or shell one can be built for (rendered once each into this
-        dashboard's home, by what it is built from)."""
-        from score.review import concepts, environment_plan
-        shown = environment_plan.current(self.store, self.world.name)
-        nodes = self.design_nodes()
-        pictures = {node: found for node in dict.fromkeys(
-            [*[site["place"] for world in shown["plan"]["maps"] for site in world["sites"]], *nodes])
-            if (found := self.remembered(("blockout-ref", node), lambda node=node: self.blockout_ref(node)))}
-        return {"environment_plan": {**shown, "without_blockout": concepts.without_blockout(self.store, nodes)},
-                "blockouts": pictures}
-
-    def blockout_ref(self, node):
-        """The FileRef of `node`'s blockout (score/review/blockout.py) rendered into this home's blockouts/ under the
-        hash of what it is built from and the blockout code (blockout.scene_key: a render of older code is never
-        served), None while its parent's plan is not there."""
-        from score.review import blockout
-        try:
-            scene = blockout.scene_of(self.store, node)
-        except blockout.Missing:
-            return None
-        path = self.home / "blockouts" / f"{blockout.scene_key(scene)}.png"
-        if not path.is_file():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            partial = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.partial")
-            blockout.drawn(scene).save(partial, format="PNG")
-            partial.replace(path)  # whole or absent: pages, and test runs sharing renders, read it side by side
-        sha = self.remembered(("blockout", str(path)), lambda: hashlib.sha256(path.read_bytes()).hexdigest())
-        self.known.add(sha, f"{node}-blockout.png", path)
-        return file_ref(sha, f"{node}-blockout.png", path.stat().st_size)
+        """{environment_plan} (score/review/environment_plan.py): the environment's plan as its page shows it, each
+        site's shape its top scene's own plan."""
+        from score.review import environment_plan
+        return {"environment_plan": environment_plan.current(self.store, self.world.name)}
 
     def environment_concept(self):
         """{environment_concept, environment_ask_euros, environment_pictures} (score/review/environment_concept.py):
