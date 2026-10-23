@@ -53,7 +53,8 @@ machine that deletes itself. No model runs on the coordinating machine (`tools/p
 - `score/library`: the one reader of score_lib's entries (ADR-0007); `tools/library/library_files.py` fetches its files.
 - `tools/props`: the prop pipeline (close-up, Pixal3D in a cloud batch, finish), the cloud runners
   (`tools/props/cloud/`, through the provider interface `provider.py`), the surface library's recipes
-  (`tools/props/library/`).
+  (`tools/props/library/`). A Buy's cloud steps share one warm pool (`tools/props/cloud/pool.py`, CONTEXT.md "warm
+  pool"): its cards are rented once for the run by a collector of their own, and no step rents a card itself.
 - `tools/usd`: the OpenUSD writers and checks (export, colliders, physics, motion, sound, complete).
 - `tools/characters`: rigging, clips and the characters layer; `tools/sound`: the sound picker and loudness rule;
   `tools/review`: review pages, films' checks and the viewer; `tools/blender`: headless Blender, never a window.
@@ -221,10 +222,20 @@ lock, reading and plan, parent before child, then the film.
 3. His Buy is the one money yes. It writes the batch's stop: the high estimate plus 10%, on top of what is already spent
    and in flight. The checkout plans once and launches one runner command holding every bought node, so no two runs clash on a
    shared node. Buy buys what the runner plans now, nothing else.
-4. The runner drives every scene's line side by side. A paid node runs once under its clearance; its failure is a
+4. The run rents its warm pool once, start to finish (CONTEXT.md "warm pool"; owner, 2026-10-23: "i would use like 10
+   gpus but warm for the entire batch"): a collector beside the run rents cards, backing off for stock, until the
+   pool holds its size (about 10, mostly L4, an L40S or H100 only when the run's rows need that class), and the run's
+   card work starts on the first warm card ("the buy run can just start as soon as one is warm, in the background u
+   just try collecting more till 10, so its sepperate"). Every cloud step queues its jobs on the pool and each warm
+   card takes the next, of any kind; no step rents or waits on stock itself. A card that dies is replaced and its
+   unfinished job goes back on the queue. The pool's idle time is the run's own cost, in its high estimate, its stop
+   line and a grant's balance; the pool is released when the run has no card work left, ends, fails or is stopped.
+   Wiring the pool into the Buy's start, its clearance and the cockpit's cards-warm figure is still to do
+   (`tools/props/cloud/CLAUDE.md`).
+5. The runner drives every scene's line side by side. A paid node runs once under its clearance; its failure is a
    batch gap, carried down the line and listed by the completion gate, never a retry (`architecture/failure`). A node
    that stops stops only its readers.
-5. The run's outcome reaches the cockpit; the stop is written back at what was spent.
+6. The run's outcome reaches the cockpit; the stop is written back at what was spent.
 
 **One scene's line** (stage rows in `score/stages`, each with its overlay):
 
@@ -401,7 +412,8 @@ The one boundary in use is the owner's: see `architecture/cockpit`, "Owner-only"
 
 **Inside a batch.** A paid step runs once. Its failure is a batch gap (`score/stages/batch_gaps.py`): the take is
 named with its failed check, left out of the rest of its scene's line and listed by the completion gate; it is never
-retried, waited out or sent to a bigger card class, and fixing it is a new batch (ADR-0005). A free node that fails on
+retried, waited out or sent to a bigger card class, and fixing it is a new batch (ADR-0005). A warm pool card that
+dies is not the step's failure: its unfinished job goes back on the pool's queue once for the next card. A free node that fails on
 a transient fault (HTTP 5xx, a timeout, a dropped connection) runs again a few times. A node that does not end
 accepted stops only the nodes that read it, directly or through another; the rest of its line runs. It leaves
 `faults/<node>.txt` beside the store with the cause, every blocking check and its log's tail.
