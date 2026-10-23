@@ -186,13 +186,19 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   card before it raises, `score run`'s release going on past it. Every card minute is charged once:
   rent to first parking (`pool-<run>-<id>`), each spell idle (`pool-idle-...`, at its take or release), the taker's
   use; each line carries the run and the pool's ticket. The pool's idle time is the run's own cost, to be counted in
-  its high estimate, its stop line and a benchmark grant's balance (see not yet wired below), never cut by a smaller pool or a cheaper class
-  (quality is never a cost lever). `pool.release(run)` (from `score run`'s release, first thing, so
+  its high estimate, its stop line and a benchmark grant's balance, never cut by a smaller pool or a cheaper class
+  (quality is never a cost lever). Every `score run` with card rows opens its pool before it drives
+  (`score/__main__.py` `opened_pool`): sized by `pool_sizes` (the most cards one row of a line is priced on, summed
+  over the lines, at most `MOST_CARDS`, all L4; another class is added by its claim), held until a batch's longest
+  run (the ledger's `BATCH_HOURS`), its holding cost (`holding_euros`: every card every hour at its class's dearest
+  offer) cleared first as its own node (`compute.pool_clearance`, node `gpu-pool`, key the run's id: the stop line
+  or the benchmark grant, reserved for the whole run) and its collector started under that ticket alone; on the
+  cluster no pool. `pool.release(run)` (from `score run`'s release, first thing, so
   also on a failed run, its stop line and Stop everything; the collector's own end when the pool's end passes or the run's
   process is gone) closes it and ends the collector: idle cards deleted at
-  once, held ones by their takers. Not yet wired: who opens the pool at a Buy's start with the run's planned rows,
-  releasing it once the run has no card work left (before its last free rows),
-  the pool's own clearance (its high counted in the stop line or grant), and the cockpit's cards-warm figure.
+  once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. Not yet
+  wired: releasing the pool once the run has no card work left (before its last free rows), and the cockpit's
+  cards-warm figure.
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks

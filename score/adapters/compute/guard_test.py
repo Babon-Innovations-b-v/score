@@ -392,6 +392,31 @@ def test_a_grant_holds_its_balance_across_runs_and_each_run_draws_its_real_spend
     assert "no benchmark grant" in compute_test.refused(lambda: as_benchmark("20991231T000000", "run-c", clear(0.5)))
 
 
+def test_a_runs_warm_pool_holds_its_cost_on_the_grant_and_draws_what_its_cards_billed():
+    """The owner, 2026-10-23: the pool's idle time is the run's own cost, counted in its grant's balance."""
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 90.0})
+    BILL["euros"] = 100.0
+    stop_at(runner, 1.0)
+    assert "pass the EUR 1.00 stop" in compute_test.refused(lambda: compute.pool_clearance(runner, "run-p", 6.0, 4))
+    grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
+    opened = as_benchmark(grant, "run-p", lambda: compute.pool_clearance(runner, "run-p", 6.0, 4))
+    assert opened["node"] == compute.POOL and opened["key"] == "run-p" and opened["clearance"]["grant"] == grant
+    assert "EUR 3.40 left" in compute_test.refused(lambda: as_benchmark(grant, "run-p", clear_render(runner, 4.0)))
+    os.environ[compute.TICKET], os.environ[compute.STORE] = f"{compute.POOL} run-p", str(runner.store.cache.parent)
+    try:
+        assert compute.require_cleared("a pool card", runner.store)["node"] == compute.POOL
+    finally:
+        os.environ.pop(compute.TICKET), os.environ.pop(compute.STORE)
+    billed(opened, 1.25)
+    compute.release(opened)
+    assert compute.grant_balance(runner.store, grant, {}) == 8.75
+
+
+def clear_render(runner, euros):
+    return lambda: compute.clearance(runner, "render@hangar", euros)
+
+
 def test_a_run_draws_its_stages_gemini_calls_in_its_time_under_the_callers_they_carry():
     """A body face's call is ledgered as caller body-face, a close-up's as pro; a call started and never finished
     counts at its estimate; another stage's call, or one outside the run's time, is not its own."""

@@ -282,6 +282,17 @@ def test_a_pool_is_sized_from_the_runs_planned_card_work():
     assert pool.size_for([("pixal", 2, 2.0, 3.0)]) == {"gpu-24gb": 1}
 
 
+def test_a_pools_holding_cost_is_every_card_warm_every_hour_at_its_dearest_offer():
+    Cloud(0).install()
+    assert pool.holding_euros({"gpu-24gb": 4}, 4) == round(4 * CARD_PRICE * 60 * 4, 4)
+    try:
+        pool.holding_euros({"gpu-80gb": 1}, 1)
+    except RuntimeError as error:
+        assert "sells no gpu-80gb" in str(error)
+    else:
+        raise AssertionError("a class with no offer was priced")
+
+
 BIG = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "available")]
 
 

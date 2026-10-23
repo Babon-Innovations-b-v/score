@@ -100,6 +100,8 @@ READING_MINUTES = 30.0  # its high minutes (a cold SAM 3 card's set-up and the a
 PLAN_WRITING = "plan-write"
 PLAN_RULE = "plan writing runs without asking (owner, 2026-10-21, root CLAUDE.md)"
 ALLOWANCES = {READING: READING_RULE, PLAN_WRITING: PLAN_RULE}
+# A run's warm card pool's own clearance (pool_clearance), its key the run's id: the cards' rent and idle time.
+POOL = "gpu-pool"
 
 
 def judge_timeout():
@@ -746,6 +748,34 @@ def reading_clearance(store, places, euros, node=READING):
         keep_reservations(reservations, {**held, at: {**cleared, "run": os.environ.get(RUN_ID)}})
     return {"node": node, "key": cleared["key"], "clearance": cleared, "reservations": str(reservations),
             "store": str(store.cache.parent)}
+
+
+def pool_clearance(runner, run_id, euros, hours):
+    """Clear run `run_id`'s warm card pool (tools/props/cloud/pool.py): its holding cost, every card of it warm for
+    `hours` at `euros` in all (its cards times their price times its hours: the most its own lines, the cards' rent
+    and idle time, can bill), checked as a node's run is (the month's books, then a benchmark grant's balance when
+    GRANT names one, else the world's stop line with every open reservation) and kept and reserved the same way under
+    node POOL, key the run's id, so the pool's high counts in flight for the whole run. The ticket, as clearance's.
+    The owner, 2026-10-23: the pool's idle time is the run's own cost. Refused with no room."""
+    grant_id = os.environ.get(GRANT)
+    covering = covering_store(runner.store)
+    reservations = covering.cache.parent / "reservations.json"
+    with clearing(reservations):
+        held = open_reservations(reservations)
+        over = (books_refusal()
+                or (grant_refusal(covering, grant_id, euros, held) if grant_id else
+                    stop_refusal(runner, POOL, euros, held)))
+        if over:
+            raise Refused(f"{POOL} of run {run_id}: {over}")
+        cleared = {"node": POOL, "key": run_id, "euros": round(euros, 4), "minutes": hours * 60,
+                   "high_minutes": hours * 60, "measured": False, "estimate": round(euros, 4), "by": RUNNER,
+                   "at": graph.now(), **({"grant": grant_id} if grant_id else {})}
+        if grant_id:
+            hold_grant(covering, grant_id, cleared, held)
+        runner.store.write_clearance(POOL, run_id, cleared)
+        keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": run_id}})
+    return {"node": POOL, "key": run_id, "clearance": cleared, "reservations": str(reservations),
+            "store": str(runner.store.cache.parent)}
 
 
 def hold(ticket):
