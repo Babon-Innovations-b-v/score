@@ -162,20 +162,72 @@ def test_a_type_short_in_a_zone_where_we_parked_one_is_offered_as_parked():
     parked, and blender_cloud refused the call for no stock instead of taking one."""
     import tempfile
     import time
-    kept = scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES
     folder = pathlib.Path(tempfile.mkdtemp())
     (folder / "a.json").write_text(json.dumps({"type": "POP2-32C-128G", "zone": "fr-par-2",
                                                "until": time.time() + 600}))
     (folder / "b.json").write_text(json.dumps({"type": "POP2-32C-128G", "zone": "pl-waw-2", "until": time.time() - 60}))
     (folder / "c.json").write_text("{\"type\": ")  # one being written as it is read
-    scaleway.scw = lambda *arguments: [{"name": "POP2-32C-128G", "availability": "shortage"}]
-    scaleway.price, scaleway.PARKED = (lambda machine_type, zone: (0.02, 60)), folder
-    scaleway.ZONES = ("fr-par-2", "pl-waw-2")
-    try:
-        found = {offer.zone: offer.stock_word for offer in scaleway.offers(["cpu-32c-128gb"])}
-    finally:
-        scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES = kept
+    listed = [{"name": "POP2-32C-128G", "availability": "shortage"}]
+    quotas = {("POP2-32C-128G", "fr-par-2"): 2, ("POP2-32C-128G", "pl-waw-2"): 2}
+    found = {offer.zone: offer.stock_word
+             for offer in offered(["cpu-32c-128gb"], ("fr-par-2", "pl-waw-2"), (), listed, quotas, folder)}
     assert found == {"fr-par-2": "parked", "pl-waw-2": "shortage"}, found
+
+
+def offered(classes, zones, processor_zones, listed, quotas, parked=None):
+    """scaleway.offers on stubbed zones, type lists (`listed` in every zone), quotas and parked folder; the zones it
+    read the type lists of, as `offered.read`."""
+    import tempfile
+    kept = (scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES, scaleway.PROCESSOR_ZONES,
+            scaleway.zone_quotas)
+    offered.read = []
+    scaleway.scw = lambda *arguments: offered.read.append(arguments[-1]) or listed
+    scaleway.price = lambda machine_type, zone: (0.02, 60)
+    scaleway.PARKED = parked or pathlib.Path(tempfile.mkdtemp())
+    scaleway.ZONES, scaleway.PROCESSOR_ZONES, scaleway.zone_quotas = zones, processor_zones, lambda: quotas
+    try:
+        return scaleway.offers(classes)
+    finally:
+        (scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES, scaleway.PROCESSOR_ZONES,
+         scaleway.zone_quotas) = kept
+
+
+def test_a_processor_class_is_offered_in_every_zone_with_quota_and_a_card_class_in_the_card_zones():
+    """The owner, 2026-10-23 ("cant u just get a faster cpu"): the big POP2 types were short in the card zones and in
+    stock elsewhere, and a type with no quota (POP2-HC-64C-128G) is never ordered."""
+    listed = [{"name": "POP2-HC-64C-128G", "availability": "available"},
+              {"name": "POP2-HC-48C-96G", "availability": "available"},
+              {"name": "L4-1-24G", "availability": "available"}]
+    quotas = {("POP2-HC-48C-96G", "fr-par-1"): 1, ("POP2-HC-48C-96G", "nl-ams-2"): 1, ("L4-1-24G", "fr-par-1"): 50,
+              ("L4-1-24G", "nl-ams-2"): 50}
+    found = offered(["cpu-64c-128gb", "cpu-48c-96gb", "gpu-24gb"], ("fr-par-1",), ("nl-ams-2", "fr-par-1"), listed,
+                    quotas)
+    places = sorted((offer.machine_class, offer.zone) for offer in found)
+    assert places == [("cpu-48c-96gb", "fr-par-1"), ("cpu-48c-96gb", "nl-ams-2"), ("gpu-24gb", "fr-par-1")], places
+    assert offered.read == ["zone=fr-par-1", "zone=nl-ams-2"], offered.read  # each zone read once
+    offered(["gpu-24gb"], ("fr-par-1",), ("nl-ams-2",), listed, quotas)
+    assert offered.read == ["zone=fr-par-1"], offered.read  # a card-only ask reads no processor zone
+
+
+def test_the_quota_list_is_read_by_type_and_zone():
+    pages = [{"name": "cp_servers_type_POP2_HC_48C_96G", "limits": [{"zone": "nl-ams-2", "limit": 1},
+                                                                    {"zone": "pl-waw-1", "limit": 0}]},
+             {"name": "cp_servers_type_L4_1_24G", "limits": [{"zone": "fr-par-1", "unlimited": True}]},
+             {"name": "adt_beta", "limits": [{"zone": "fr-par-1", "limit": 1}]}]
+    answers = {("account", "project", "get"): {"organization_id": "org"}, ("config", "get", "secret-key"): "key"}
+    kept = scaleway.quota_pages
+    scaleway.quota_pages = lambda organization, key: pages if (organization, key) == ("org", "key") else []
+    scaleway.zone_quotas.cache_clear()
+
+    def check(fake):
+        found = scaleway.zone_quotas()
+        assert found == {("POP2-HC-48C-96G", "nl-ams-2"): 1, ("POP2-HC-48C-96G", "pl-waw-1"): 0,
+                         ("L4-1-24G", "fr-par-1"): float("inf")}, found
+    try:
+        with_fake(answers, check)
+    finally:
+        scaleway.quota_pages = kept
+        scaleway.zone_quotas.cache_clear()
 
 
 def created_with(address, failing=(), owner=OURS):
@@ -308,12 +360,12 @@ def test_a_quarantined_address_is_never_a_leftover_to_delete():
                   "tags": [scaleway.QUARANTINED, "reason=ssh"]},
                  {"id": "ip-l", "address": "151.115.1.1", "project": OURS, "server": None, "tags": []},
                  {"id": "ip-x", "address": "151.115.2.2", "project": OTHER, "server": None, "tags": []}]
-    kept = scaleway.scw, scaleway.ZONES
-    scaleway.scw, scaleway.ZONES = (lambda *arguments: addresses), ("pl-waw-2",)
+    kept = scaleway.scw, scaleway.ZONES, scaleway.PROCESSOR_ZONES
+    scaleway.scw, scaleway.ZONES, scaleway.PROCESSOR_ZONES = (lambda *arguments: addresses), ("pl-waw-2",), ()
     try:
         found = scaleway.leftover_addresses(OURS)
     finally:
-        scaleway.scw, scaleway.ZONES = kept
+        scaleway.scw, scaleway.ZONES, scaleway.PROCESSOR_ZONES = kept
     assert found == [("ip-l", "pl-waw-2", "151.115.1.1")], found
 
 

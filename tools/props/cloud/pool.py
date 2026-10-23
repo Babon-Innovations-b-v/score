@@ -45,6 +45,9 @@ from provider import cloud
 POOLS = batch.CLOUD / "pools"
 # The most cards a pool holds (owner, 2026-10-23: "like 10 gpus"), each class also held to its quota.
 MOST_CARDS = 10
+# The most processor machines a pool holds beside its cards, for the run's renders and bakes (owner, 2026-10-23: "the
+# warm pool holds a few processor machines beside the cards"); capacity.PROCESSOR_KINDS take them as well as cards.
+MOST_PROCESSORS = 3
 # What a fresh pool card's kind is until a claim of a real kind takes it: no set-up of any kind on it.
 KIND = "pool"
 # How often a waiting claim looks for a warm card, and the collector for work.
@@ -131,6 +134,45 @@ def size_for(planned):
     return sizes
 
 
+def processor_able(stage, entries):
+    """Whether `stage`'s measured batches (ledger `entries` under its tickets) were all of a kind a processor machine
+    runs as well as a card (capacity.PROCESSOR_KINDS); False for a stage with none."""
+    import preflight
+    kinds = preflight.batch_kinds(preflight.stage_entries(entries, stage))
+    return bool(kinds) and kinds <= set(capacity.PROCESSOR_KINDS)
+
+
+def processor_class(found=None):
+    """The pool's processor class: the first of capacity.PROCESSORS with an offer in stock (the backend offers only
+    a type and zone with quota), else the first offered at all; None when the backend offers none. `found`: the
+    backend's offers, read here when not given (a free read)."""
+    found = cloud.offers(list(capacity.PROCESSORS)) if found is None else found
+    offered = [name for name in capacity.PROCESSORS if any(offer.machine_class == name for offer in found)]
+    stocked = [name for name in offered
+               if any(offer.machine_class == name and offer.stock_word != "shortage" for offer in found)]
+    return next(iter(stocked + offered), None)
+
+
+def with_processors(sizes, processor_cards, found=None):
+    """`sizes` ({class: cards}) and the pool's processor machines: `processor_cards` (the cards the run's renders and
+    bakes are planned on), at most MOST_PROCESSORS, of processor_class; `sizes` alone when there are none to plan or
+    none offered."""
+    machine_class = processor_class(found) if processor_cards else None
+    if machine_class is None:
+        return dict(sizes)
+    return {**sizes, machine_class: min(MOST_PROCESSORS, processor_cards, capacity.max_machines(machine_class))}
+
+
+def takes(kind, offers):
+    """The classes a claim of `kind` from `offers` takes from the pool: the offers' own, and, for a render or bake
+    (capacity.PROCESSOR_KINDS) asked on a card, every processor class too, so it takes whichever machine frees first.
+    A call asked on processor machines alone (settling, the paint) keeps them: they were sized for its memory."""
+    classes = {offer.machine_class for offer in offers}
+    if kind in capacity.PROCESSOR_KINDS and any(provider.cards(name) for name in classes):
+        classes |= set(capacity.PROCESSORS)
+    return classes
+
+
 def holding_euros(sizes, hours):
     """The most a pool of `sizes` ({class: cards}) can bill held warm for `hours`: every card for every minute at its
     class's dearest offer (cloud.offers, a free price read), what its run's pool clearance reserves. Raises for a
@@ -201,14 +243,16 @@ def disk_of(plan, machine_class):
 
 def claim(run, offers, number, kind, disk_gb, wanted=None):
     """A warm pool card for `run`'s claim of `kind` (park.adopt: another kind's card is cleaned and set up for this
-    one), waited for while the run still wants one and the pool is open; None otherwise. Never rents."""
+    one; a render or bake takes a processor machine as well as a card, whichever frees first: `takes`), waited for
+    while the run still wants one and the pool is open; None otherwise. Never rents."""
     import park
 
     run_id = os.environ.get(capacity.RUN_ID)
     want(run_id, offers, kind, disk_gb)
+    classes = takes(kind, offers)
     told = False
     while not batch.STOPPING.is_set():
-        machine = park.adopt(run, offers, number, kind, disk_gb)
+        machine = park.adopt(run, offers, number, kind, disk_gb, classes)
         if machine is not None:
             return machine
         if current(run_id) is None or not batch.still_wanted(run, wanted):

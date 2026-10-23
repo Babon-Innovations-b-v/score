@@ -54,7 +54,11 @@ machine that deletes itself. No model runs on the coordinating machine (`tools/p
 - `tools/props`: the prop pipeline (close-up, Pixal3D in a cloud batch, finish), the cloud runners
   (`tools/props/cloud/`, through the provider interface `provider.py`), the surface library's recipes
   (`tools/props/library/`). A Buy's cloud steps share one warm pool (`tools/props/cloud/pool.py`, CONTEXT.md "warm
-  pool"): its cards are rented once for the run by a collector of their own, and no step rents a card itself.
+  pool"): its cards are rented once for the run by a collector of their own, and no step rents a card itself. It
+  holds a few processor machines beside the cards (owner, 2026-10-23: "why isnt rendering on cpu better?", then
+  "yeah" to bakes and small renders taking whichever machine is free first, and "cant u just get a faster cpu"): a
+  Blender job or library bake takes either, Cycles on what it lands on at the same settings, the most cores first;
+  anything that runs a model takes a card only.
 - `tools/usd`: the OpenUSD writers and checks (export, colliders, physics, motion, sound, complete).
 - `tools/characters`: rigging, clips and the characters layer; `tools/sound`: the sound picker and loudness rule;
   `tools/review`: review pages, films' checks and the viewer; `tools/blender`: headless Blender, never a window.

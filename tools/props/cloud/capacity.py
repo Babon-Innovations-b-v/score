@@ -110,6 +110,24 @@ KIND_ORDER = {
 # next_offer leaves them out. The runners themselves are not edited for this: blender_cloud.py, library_bake.py and
 # meshparts.py are declared inputs of the surfaces rows (an edit re-buys every place's turntables and maps).
 NEVER = {"blender": ("gpu-80gb", "gpu-80gb-x2"), "library": ("gpu-80gb", "gpu-80gb-x2")}
+# Kinds a processor machine runs as well as a card (owner, 2026-10-23, "why isnt rendering on cpu better?", then "yeah"
+# to: Blender renders the same picture on processor and card, processor machines are almost never out of stock, so
+# bakes and small renders take whichever machine is free first, and the warm pool holds a few processor machines
+# beside the cards): every Blender job (blender_cloud.py: renders, look and view renders, review renders, the people
+# dress bake, the finish route's paint and bake, light passes, settling) and every library bake (library_bake.py).
+# Each sets Cycles by the machine it lands on (spread.slots: FARM_CYCLES_GPU on a card, the processor otherwise) at
+# the same samples, size and denoising. Every other kind runs a model on a card and takes a card only.
+PROCESSOR_KINDS = ("blender", "library")
+# The processor classes a render or bake takes from a warm pool, the most cores first (owner, 2026-10-23: "cant u
+# just get a faster cpu": Cycles scales about with cores, and so does the price), POP2-HC's 2 GB a core first at each
+# size (the cheapest a core, and more memory than an L4 machine's 48 GB); the smaller ones are stock fallbacks. A
+# class whose type has no quota in a zone is never offered (the backend's zone_quotas; the 64-core ones, 2026-10-23).
+PROCESSORS = ("cpu-64c-128gb", "cpu-64c-256gb", "cpu-48c-96gb", "cpu-48c-192gb", "cpu-32c-64gb", "cpu-32c-128gb")
+# How much longer a processor machine takes than a card for the same Blender job: the library bake's three times
+# (a 32-core machine against an L4, 2026-10-06; library_bake.py keeps its own copy, a declared input of the surfaces
+# rows). Not measured on the bigger machines yet: the ledger's machine rows carry their class and unit_seconds, so
+# `capacity.py report` gives each kind's processor time per class to replace it with.
+PROCESSOR_SLOWER = 3
 # Classes a kind takes only after LATE_MINUTES with nothing else to be had (none since bakes left the H100s; the
 # cluster submitter shares the rule).
 LATE = {}
