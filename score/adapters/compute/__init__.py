@@ -43,12 +43,13 @@ clearance given earlier, and every clearance names its node, key, estimate and t
 
 A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) is his yes, in a Claude Code session, to
 benchmark batches of at most GRANT_EUROS in all: the session asks him, and on his yes writes it with
-`grant_benchmark` (his answer and the question quoted, the time, 24 h). A batch is a `score run` tagged with the grant
+`grant_benchmark` (his answer and the question quoted, the time). A batch is a `score run` tagged with the grant
 (SCORE_BENCHMARK_GRANT=<grant id>); its paid nodes are cleared by the runner as any other, their inputs passed and
 the books asked as ever, with the grant's balance standing in for the world's stop line (owner, 2026-10-22: it holds
 its euros until they are spent): each clearance holds its high plus 10% of the balance (`grants/holds/`), and when
 its run ends, finished or failed, draws its real spend instead (`grants/draws/`, each with the balance after it). The
-grant is done when its balance runs out or it expires, never because a run ended. Nothing else spends through a grant.
+grant is done when its balance runs out, never because a run ended or time passed (owner, 2026-10-23: "remove the expirey
+date, it wasted a bunch of time now"). Nothing else spends through a grant.
 """
 import contextlib
 import datetime
@@ -87,7 +88,6 @@ BENCHMARK = "benchmark"
 # A benchmark batch's tag, on its `score run`: the id of the owner's grant it spends under (grant_benchmark).
 GRANT = "SCORE_BENCHMARK_GRANT"
 GRANT_EUROS = 20.0  # the most one benchmark grant allows (owner, 2026-10-20); more needs his cockpit click
-GRANT_HOURS = 24
 GRANTS = "grants"  # grants/benchmark/<id>.json, grants/holds/<id>/<time>.json, grants/draws/<id>/<time>.json
 GRANT_BUFFER = 1.10  # a job under a grant holds its high plus 10% of the balance (owner, 2026-10-22)
 # A scene inventory reading (score/review/reading.py) is cleared under the owner's standing allowance, no yes asked.
@@ -448,7 +448,7 @@ def write_google_month(figure, by):
 
 def grant_benchmark(answer, question, euros, purpose=BENCHMARK, google_month=None, store=None):
     """Record the owner's yes, given in a Claude Code session, to one benchmark batch of at most GRANT_EUROS (his
-    standing rule of 2026-10-20): the grant {id, purpose, euros, answer, question, at, expires, google_month}, kept once in the store (`grants/benchmark/<id>.json`). Refused for any purpose but a benchmark, a
+    standing rule of 2026-10-20): the grant {id, purpose, euros, answer, question, at, google_month}, kept once in the store (`grants/benchmark/<id>.json`). Refused for any purpose but a benchmark, a
     figure over GRANT_EUROS or not above 0, or the answer or the question not quoted. A Google month figure he gave in
     the same answer goes into the books as his own (owners_google_month's books)."""
     if purpose != BENCHMARK:
@@ -461,10 +461,8 @@ def grant_benchmark(answer, question, euros, purpose=BENCHMARK, google_month=Non
         raise Refused("a benchmark grant quotes the owner's answer and the question he answered, both")
     google = None if google_month is None else google_figure(google_month)
     at = graph.now()
-    expires = datetime.datetime.fromisoformat(at) + datetime.timedelta(hours=GRANT_HOURS)
     grant = {"id": stamp_key(at), "purpose": BENCHMARK, "euros": figure, "answer": str(answer),
-             "question": str(question), "at": at, "expires": expires.isoformat(timespec="microseconds"),
-             "google_month": google}
+             "question": str(question), "at": at, "google_month": google}
     covering_store(store or Store.default()).write_once(f"{GRANTS}/{BENCHMARK}/{grant['id']}.json", grant)
     if google is not None:
         write_google_month(google, f"the owner's answer, benchmark grant {grant['id']}")
@@ -493,7 +491,7 @@ def grant_draws(store, grant_id):
 
 def grant_refusal(store, grant_id, forecast, held):
     """Why a benchmark batch's paid job at a high `forecast` of euros may not spend under grant `grant_id`, or None:
-    the grant must be a benchmark's, quoted, at most GRANT_EUROS, not expired, spent by a `score run`, not used up under
+    the grant must be a benchmark's, quoted, at most GRANT_EUROS, spent by a `score run`, not used up under
     the single-use rule of before 2026-10-22 unless the owner had it restored (restore_grant), and its high plus
     GRANT_BUFFER must fit in its balance (grant_balance, once the runs that ended drew: settle_grant)."""
     grant = store.read(f"{GRANTS}/{BENCHMARK}/{grant_id}.json")
@@ -502,8 +500,6 @@ def grant_refusal(store, grant_id, forecast, held):
     if (grant.get("purpose") != BENCHMARK or not grant.get("answer") or not grant.get("question")
             or not 0 < grant.get("euros", 0) <= GRANT_EUROS):
         return f"grant {grant_id} is not a quoted benchmark grant of at most EUR {GRANT_EUROS:.0f}"
-    if datetime.datetime.now(datetime.timezone.utc) >= datetime.datetime.fromisoformat(grant["expires"]):
-        return f"grant {grant_id} expired at {grant['expires'][:16]}; the owner is asked again"
     if not os.environ.get(RUN_ID):
         return f"grant {grant_id}: a benchmark batch spends as one score run"
     if store.read(f"{GRANTS}/used/{grant_id}.json") and not store.read(f"{GRANTS}/restored/{grant_id}.json"):
@@ -586,9 +582,8 @@ def restore_grant(grant_id, answer, question, store=None):
     still standing, one not used up, or the answer or the question not quoted."""
     store = covering_store(store or Store.default())
     grant = store.read(f"{GRANTS}/{BENCHMARK}/{grant_id}.json")
-    if grant is None or datetime.datetime.now(datetime.timezone.utc) >= datetime.datetime.fromisoformat(
-            grant["expires"]):
-        raise Refused(f"{grant_id} is no benchmark grant still standing")
+    if grant is None:
+        raise Refused(f"{grant_id} is no benchmark grant")
     used = store.read(f"{GRANTS}/used/{grant_id}.json")
     if used is None:
         raise Refused(f"grant {grant_id} was not used up under the single-use rule: it holds its balance already")
