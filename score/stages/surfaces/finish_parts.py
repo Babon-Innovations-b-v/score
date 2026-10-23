@@ -241,13 +241,22 @@ def opaque_lightness(every):
             if "colour" in spec and spec.get("family") not in OWN_COLOUR}
 
 
-def out_of_order(lighter, darker, lightness, slack=ORDER_LIBRARY):
-    """True when the close-up shows `lighter` over ORDER_L lighter than `darker` while its surface lies over `slack`
-    darker in the library (`lightness`: opaque_lightness)."""
+def finish_lab(finish, every):
+    """A finish's colour as it paints (L*a*b*): its own where it names one and keeps its listed surface (the finish
+    route's: its settings' token, which the bake paints), else its surface's library colour. The order check read the
+    library's alone (astronaut-made, 2026-10-23: its white shell in suit-white over its grey fabric in base-grey was
+    held out of order by the variants' own tokens, base-grey under suit-white, and made the take a gap)."""
+    own = finish.get("colour") and finish["surface"] == finish.get("listed_surface", finish["surface"])
+    return library_lab(dict(every[finish["surface"]], **({"colour": finish["colour"]} if own else {})))
+
+
+def out_of_order(lighter, darker, every, lightness, slack=ORDER_LIBRARY):
+    """True when the close-up shows `lighter` over ORDER_L lighter than `darker` while it paints over `slack` darker
+    (finish_lab; `lightness`: opaque_lightness, the surfaces judged by order)."""
     return (lighter.get("measured_lab") is not None and darker.get("measured_lab") is not None
             and lighter["surface"] in lightness and darker["surface"] in lightness
             and lighter["measured_lab"][0] - darker["measured_lab"][0] > ORDER_L
-            and lightness[lighter["surface"]] < lightness[darker["surface"]] - slack)
+            and finish_lab(lighter, every)[0] < finish_lab(darker, every)[0] - slack)
 
 
 def nearest_in_order(finish, every, lightness, keeps):
@@ -273,9 +282,9 @@ def in_close_up_order(entry, found, every):
     for lighter in found:
         for darker in found:
             if (lighter.get("by") == "off its colour" or "its own colour" in (lighter.get("by"), darker.get("by"))
-                    or not out_of_order(lighter, darker, lightness, ORDER_KEPT)):
+                    or not out_of_order(lighter, darker, every, lightness, ORDER_KEPT)):
                 continue
-            wide = out_of_order(lighter, darker, lightness)
+            wide = out_of_order(lighter, darker, every, lightness)
             if not reordered(lighter, darker, every, lightness, wide) and wide:
                 lighter.update(by="off its colour", fits=False, new_surface=order_proposal(entry, lighter, darker))
     return found
@@ -286,8 +295,8 @@ def reordered(lighter, darker, every, lightness, wide):
     the close-up's order (ORDER_KEPT): the lighter finish first, else the darker (the hangar's parts shelving: its
     steel seen at L* 42 takes cast_steel under its light grey plastic bins). Unless the pair is `wide` apart, only a
     surface nearer the finish's close-up colour than its own is taken."""
-    floor = lightness[darker["surface"]] - ORDER_KEPT
-    ceiling = lightness[lighter["surface"]] + ORDER_KEPT
+    floor = finish_lab(darker, every)[0] - ORDER_KEPT
+    ceiling = finish_lab(lighter, every)[0] + ORDER_KEPT
     for finish, keeps in ((lighter, lambda level: level >= floor), (darker, lambda level: level <= ceiling)):
         fit = nearest_in_order(finish, every, lightness, keeps)
         if fit and (wide or fit[0] < close_up_apart(finish, every)):
@@ -297,9 +306,9 @@ def reordered(lighter, darker, every, lightness, wide):
 
 
 def close_up_apart(finish, every):
-    """CIE76 distance between a finish's library surface and its colour in the close-up."""
+    """CIE76 distance between a finish's colour as it paints (finish_lab) and its colour in the close-up."""
     import numpy as np
-    return float(np.linalg.norm(library_lab(every[finish["surface"]]) - np.array(finish["measured_lab"])))
+    return float(np.linalg.norm(finish_lab(finish, every) - np.array(finish["measured_lab"])))
 
 
 def order_proposal(entry, lighter, darker):
