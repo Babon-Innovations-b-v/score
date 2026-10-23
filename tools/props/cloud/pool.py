@@ -280,15 +280,18 @@ def disk_of(plan, machine_class):
 def claim(run, offers, number, kind, disk_gb, wanted=None):
     """A warm pool card for `run`'s claim of `kind` (park.adopt: another kind's card is cleaned and set up for this
     one; a render or bake takes a processor machine as well as a card, whichever frees first: `takes`), waited for
-    while the run still wants one and the pool is open; None otherwise. Never rents."""
+    while the run still wants one and the pool is open; None otherwise. Never rents. The run's own time limit runs only
+    once it has a card (`paused`): waiting on the pool never makes a gap of its work (owner, 2026-10-23)."""
     import park
 
     run_id = os.environ.get(capacity.RUN_ID)
     want(run_id, offers, kind, disk_gb)
     classes = takes(kind, offers)
     told = False
+    left = run.deadline - time.time() if getattr(run, "deadline", None) else None
     try:
         while not batch.STOPPING.is_set():
+            paused(run, left)
             machine = park.adopt(run, offers, number, kind, disk_gb, classes)
             if machine is not None:
                 return machine
@@ -302,6 +305,14 @@ def claim(run, offers, number, kind, disk_gb, wanted=None):
         return None
     finally:
         preflight.unmark_waiting()
+
+
+def paused(run, left):
+    """Hold `run`'s deadline `left` seconds ahead while it waits on the pool (several claims of one run: the latest
+    wins), so its time limit counts only its work. Fault, 2026-10-23: sound@hub's takes became gaps after 15 min
+    waiting for a pool card in a card shortage."""
+    if left is not None:
+        run.deadline = max(run.deadline, time.time() + left)
 
 
 def members(run_id):

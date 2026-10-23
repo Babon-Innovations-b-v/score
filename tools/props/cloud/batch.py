@@ -973,11 +973,16 @@ def keep_the_fleet(fleet, found, cards):
     types = {offer.type for offer in found}
     asked = looked = time.time()
     rounds = 0
+    left = fleet.deadline - time.time()
     while not fleet.stop.is_set() and time.time() < fleet.deadline:
         if fleet.woke(looked):  # no machine is rented on waking: every one has deleted itself
             return
         looked = time.time()
         alive = [machine for machine in list(fleet.machines) if not machine["deleted"]]
+        if alive or not pool_open():
+            left = fleet.deadline - time.time()
+        else:  # waiting on the run's pool with no card is not the batch's time (pool.paused)
+            fleet.deadline = max(fleet.deadline, time.time() + left)
         if not alive and fleet.no_more_work():
             return
         short = cards - fleet.lost_cards - sum(machine["cards"] for machine in alive)
