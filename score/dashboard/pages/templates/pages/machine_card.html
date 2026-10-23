@@ -7,9 +7,9 @@
       <div class="num-value" data-v>{{ c.name|default:"unknown" }}{% if c.size %} <small>{{ c.size }}</small>{% endif %}</div>
     </a>
     {% include "pages/c/number.html" with label="State" value=c.state unit=None of=None bar=None tone=None tip="idle, growing, running a batch or shrinking" unknown_tip=c.missing|default:"its health does not say" %}
-    {% include "pages/c/number.html" with label="Backup" value=c.backup_minutes unit="min ago" of=None bar=None tone=c.backup_late|yesno:"bad,done" tip="the store's last backup; red past two hours or when it failed" unknown_tip=c.missing|default:"no backup is known" %}
+    {% if c.on_pc %}{% include "pages/c/number.html" with label="Backup" value="none on this PC" unit=None of=None bar=None tone=None tip="the store's backup comes with the cloud machine" %}{% else %}{% include "pages/c/number.html" with label="Backup" value=c.backup_minutes unit="min ago" of=None bar=None tone=c.backup_late|yesno:"bad,done" tip="the store's last backup; red past two hours or when it failed" unknown_tip=c.missing|default:"no backup is known" %}{% endif %}
     {% if machine.hosted %}{% include "pages/c/number.html" with label="Export" value=c.export_minutes unit="min ago" of=None bar=None tone=c.export_late|yesno:"bad,done" tip="the last state the store's machine sent; red past 15 minutes" unknown_tip="no export has arrived" %}{% endif %}
-    {% include "pages/c/number.html" with label="Machine bill" value=c.bill unit="EUR" of=None bar=None tone=None tip="this month, its own project: never in a batch's spend or stop" unknown_tip=c.missing|default:"its bill was not read" %}
+    {% if not c.on_pc %}{% include "pages/c/number.html" with label="Machine bill" value=c.bill unit="EUR" of=None bar=None tone=None tip="this month, its own project: never in a batch's spend or stop" unknown_tip=c.missing|default:"its bill was not read" %}{% endif %}
   </div>
   {% if c.export_late %}<p class="bad-words" data-v>the store's machine is not reaching the cockpit</p>{% endif %}
   {% if machine.last %}<p class="soft small" title="{{ machine.last.said }}"><span data-v>{{ machine.last.label }}</span> <span data-v>{{ machine.last.state }}</span> <span data-v>{{ machine.last.at|slice:":16" }}</span>{% for name, count in machine.last.counts %} <span data-v>{{ name }} {{ count }}</span>{% endfor %}</p>{% endif %}

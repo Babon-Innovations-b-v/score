@@ -217,3 +217,11 @@ def test_the_sync_and_the_listener_follow_the_kill_switch_latch(monkeypatch):
     assert not client.free_only_followed() and conductor.FREE_ONLY not in os.environ
     monkeypatch.setenv(conductor.FREE_ONLY, "1")  # set by whoever started it (a restore): never taken off here
     assert not client.free_only_followed() and os.environ[conductor.FREE_ONLY] == "1"
+
+
+def test_on_the_owners_pc_the_card_says_its_runs_and_no_backup_or_bill():
+    found = {"machine": {"name": "dupe"}, "health": {"machine": None, "state": None, "runs_active": 1, "backup": None}}
+    card = machine.card(found)
+    assert card["on_pc"] and card["state"] == "running 1 run"
+    assert machine.card({**found, "health": {**found["health"], "runs_active": 0}})["state"] == "idle"
+    assert not machine.card({"machine": {"name": "conductor", "size": "POP2"}, "health": {"state": "idle"}})["on_pc"]
