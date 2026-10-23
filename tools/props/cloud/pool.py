@@ -166,11 +166,28 @@ def with_processors(sizes, processor_cards, found=None):
 def takes(kind, offers):
     """The classes a claim of `kind` from `offers` takes from the pool: the offers' own, and, for a render or bake
     (capacity.PROCESSOR_KINDS) asked on a card, every processor class too, so it takes whichever machine frees first.
-    A call asked on processor machines alone (settling, the paint) keeps them: they were sized for its memory."""
+    A call asked on processor machines alone (settling, the paint, a body's checks) takes those and every pool
+    processor class with at least the cores and memory of one of them (`no_smaller`): sized for its memory, never
+    a smaller machine."""
     classes = {offer.machine_class for offer in offers}
     if kind in capacity.PROCESSOR_KINDS and any(provider.cards(name) for name in classes):
         classes |= set(capacity.PROCESSORS)
-    return classes
+    return classes | no_smaller(classes)
+
+
+def no_smaller(classes):
+    """The processor classes (capacity.PROCESSORS) with at least the cores and memory of one of `classes`'
+    processor classes (fault, 2026-10-23: a body's checks asked on 16 or 32 cores rented a 16-core machine beside
+    the pool's idle 48-core one)."""
+    asked = [cores_and_memory(name) for name in classes if provider.CPU.match(name)]
+    return {name for name in capacity.PROCESSORS
+            if any(cores <= cores_and_memory(name)[0] and memory <= cores_and_memory(name)[1]
+                   for cores, memory in asked)}
+
+
+def cores_and_memory(machine_class):
+    """(cores, GB) of a processor class."""
+    return tuple(map(int, provider.CPU.match(machine_class).groups()))
 
 
 def holding_euros(sizes, hours, found=None):
@@ -245,7 +262,7 @@ def want(run_id, offers, kind, disk_gb):
         plan = plan_of(run_id)
         if plan is None:
             return
-        held = {name for name in offered if plan["sizes"].get(name)}
+        held = {name for name in offered | no_smaller(offered) if plan["sizes"].get(name)}
         machine_class = first_class(kind, held or offered) or sorted(held or offered)[0]
         if held and disk_gb <= disk_of(plan, machine_class):
             return

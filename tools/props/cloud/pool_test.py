@@ -450,9 +450,23 @@ def test_a_render_takes_the_pools_processor_machine_a_model_kind_never_does():
     assert machine["class"] == PROCESSOR and machine["pool"] == run_id
     assert spread.slots("blender", machine) == [None]  # so Cycles runs on its processor (FARM_CYCLES_CPU)
     settle = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-32c-128gb", 0, "available")]
-    assert pool.takes("blender", settle) == {"cpu-32c-128gb"}  # asked on processors alone: kept to its own class
+    # asked on processors alone: its own class and the pool's processors no smaller in cores and memory
+    assert pool.takes("blender", settle) == {"cpu-32c-128gb", "cpu-48c-192gb", "cpu-64c-128gb", "cpu-64c-256gb"}
+    checks = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-16c-64gb", 0, "available")]
+    assert PROCESSOR in pool.takes("blender", checks) and "cpu-16c-64gb" in pool.takes("blender", checks)
     assert pool.takes("library", OFFERS) == {"gpu-24gb", *pool.capacity.PROCESSORS}
     assert pool.takes("judge", OFFERS) == {"gpu-24gb"}
+    pool.release(run_id)
+
+
+def test_a_call_asked_on_smaller_processors_takes_the_pools_bigger_one_and_adds_none():
+    """Fault, 2026-10-23: a body's checks asked on 16 or 32 cores rented a 16-core machine beside the idle 48-core."""
+    calls, run_id = processor_pool()
+    checks = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-16c-64gb", 0, "available")]
+    run = a_run("checks")
+    machine = batch.claim(run, "account", checks, 1, "blender", wanted=lambda: False)
+    assert machine["class"] == PROCESSOR and pool.current(run_id)["sizes"] == {PROCESSOR: 1}
+    assert len(calls.rented) == 1
     pool.release(run_id)
 
 
