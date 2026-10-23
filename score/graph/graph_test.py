@@ -24,6 +24,9 @@ from score.adapters import compute  # noqa: E402
 compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
 compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
 from score.graph import _code, rebuy  # noqa: E402
+# The toy nodes take no memory, and memory_test.py proves the gate: read as always room, so a drive never sits out
+# MEMORY_POLL behind this PC's real memory (the file took 375 s, owner's budget 120 s, 2026-10-23).
+graph.AVAILABLE = lambda: 2**50
 from score.store import Store, tree_hash  # noqa: E402
 
 MADE = []
