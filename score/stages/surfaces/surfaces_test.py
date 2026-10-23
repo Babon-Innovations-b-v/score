@@ -331,6 +331,26 @@ WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, 
                        "tank_water": [53.2, -3.2, -2.3]}  # the finish-map method's measures, greenhouse, 2026-10-12
 
 
+def test_a_surface_with_the_list_s_settings_is_compared_with_its_close_up():
+    """astronaut-made (2026-10-23): the bake names a part with the list's settings by them (route_settings), so the
+    close-up keyed by the variant alone compared nothing; keyed as the part bakes, boots baked L* 65.5 against their
+    close-up's 33 fail. A finish the colour check moved to another surface bakes under that surface's own name."""
+    from score.stages.surfaces import bake_check, route_settings
+    settings = {"token": "glass-grey", "roughness": 0.85, "metal": 0.0, "seed": 7}
+    boots = {"finish": "boots", "surface": "suit_boots", "listed_surface": "suit_boots", "settings": settings,
+             "measured_lab": [33.1, 0.9, 7.6]}
+    moved = {"finish": "belt", "surface": "rubber_dark", "listed_surface": "suit_boots", "settings": settings,
+             "measured_lab": [20.0, 0.0, 0.0]}
+    named = route_settings.settings_name("suit_boots", settings)
+    with tempfile.TemporaryDirectory() as scratch:
+        folder = pathlib.Path(scratch)
+        (folder / "labels.json").write_text(json.dumps({"finishes": [boots, moved]}))
+        close_up = bake_check.close_up_colours(folder)
+    assert close_up == {named: [33.1, 0.9, 7.6], "rubber_dark": [20.0, 0.0, 0.0]}, close_up
+    faults = bake_check.close_up_faults("body", baked_record({named: (1.0, [65.5, 0.0, 0.0])}, close_up))
+    assert len(faults) == 1 and named in faults[0] and "33.3" in faults[0], faults
+
+
 def baked_record(surfaces, close_up, degrees=None):
     """A checks.json record of a model baked exactly on its surfaces ({surface: (share, L*a*b*)})."""
     return {"surfaces": {name: {"share": share, "baked_lab": list(colour), "surface_lab": list(colour),
