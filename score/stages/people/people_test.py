@@ -268,10 +268,20 @@ def test_a_garment_splits_where_its_paint_changes_and_a_hard_part_takes_one_surf
     bib showed as patches (2026-10-22). A lone point's label follows its neighbours first."""
     faces = np.array([[0, 1, 2], [1, 3, 2], [2, 3, 4], [3, 5, 4], [4, 5, 6], [5, 7, 6]])
     labels = np.array(["brown", "brown", "brown", "brown", "grey", "grey", "grey", "grey"])
-    assert dress.surfaces_of(labels, faces, "garment").tolist() == ["brown"] * 3 + ["grey"] * 3
+    strip = np.array([[number // 2, number % 2, 0.0] for number in range(8)])
+    assert dress.surfaces_of(labels, faces, "garment", strip).tolist() == ["brown"] * 3 + ["grey"] * 3
     lone = np.array(["brown", "brown", "brown", "grey", "brown", "brown", "brown", "brown"])
-    assert set(dress.surfaces_of(lone, faces, "garment")) == {"brown"}
-    assert set(dress.surfaces_of(np.array(["boot"] * 5 + ["suit"] * 3), faces, "hard")) == {"boot"}
+    assert set(dress.surfaces_of(lone, faces, "garment", strip)) == {"brown"}
+    assert set(dress.surfaces_of(np.array(["boot"] * 5 + ["suit"] * 3), faces, "hard", strip)) == {"boot"}
+
+
+def test_a_one_surface_part_wears_what_most_of_its_area_wears_not_most_of_its_points():
+    """The astronaut's helmet front: the visor on 53% of its area, the grey on more of its points (the rim's dense
+    ring), so by points the visor was lost (0.02% of the body, 2026-10-23)."""
+    points = np.array([[0.0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [1.1, 1, 0], [1.2, 1, 0], [1.1, 1.1, 0]])
+    faces = np.array([[0, 1, 2], [1, 3, 2], [3, 4, 6], [4, 5, 6]])
+    labels = np.array(["visor", "visor", "visor", "rim", "rim", "rim", "rim"])
+    assert set(dress.surfaces_of(labels, faces, "skin", points)) == {"visor"}
 
 
 def test_dress_appends_index_lists_to_the_binary_chunk():
@@ -292,7 +302,8 @@ def test_the_face_and_hair_wear_the_paint_and_lose_the_print():
     paint, like a hard part, and the material forgets its print."""
     faces = np.array([[0, 1, 2], [1, 3, 2]])
     for role in ("skin", "hair"):
-        assert set(dress.surfaces_of(np.array(["visor", "visor", "visor", "shell"]), faces, role)) == {"visor"}
+        assert set(dress.surfaces_of(np.array(["visor", "visor", "visor", "shell"]), faces, role,
+                                     np.array([[0.0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]))) == {"visor"}
     material = {"extras": {"role": "skin", "print": True}}
     dress.named(material, "visor__black_r005", {"library": "helmet_visor"})
     assert material["extras"] == {"role": "skin", "library": "visor__black_r005", "surface": "helmet_visor"}

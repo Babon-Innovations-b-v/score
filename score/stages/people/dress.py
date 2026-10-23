@@ -7,9 +7,11 @@ the painted samples within OUTER_REACH_M, those within OUTER_BAND_M of the outer
 from its nearest seen face), and the nearest sample alone read the boots' insides as the grey suit, 2026-10-22. A
 garment is split where its triangles' surfaces change, its labels smoothed over its edges first (a material drawn in
 two surfaces took the one most of its points carried, and the brown overalls' chest and hips showed the grey:
-astronaut, 2026-10-22); a hard part, the skin, the hair and each far-body part take one surface, its points' most: the
-face and hair wear the library surface the finish route gave the take there, never a picture (the close-up's face
-print is gone, owner 2026-10-23: "this didnt use our prop pipeline and materials"). Each glTF material names its
+astronaut, 2026-10-22); a hard part, the skin, the hair and each far-body part take one surface, the one most of its
+area wears (counted by points, the astronaut's helmet front, 53% of its area the visor, took the grey its dense rim
+carried and the visor was 0.02% of the body, 2026-10-23): the face and hair wear the library surface the finish route
+gave the take there, never a picture (the close-up's face print is gone, owner 2026-10-23: "this didnt use our prop
+pipeline and materials"). Each glTF material names its
 surface in `extras.library` (the bake's name, its settings in it) and `extras.surface` (the library variant). Then
 the body is baked (baked_body.py: the library recipes with the people palette's wear and dirt on the bake's rented
 card, their maps laid into body.glb, the build's own pictures dropped) and the bake checked as the surface stage
@@ -124,11 +126,14 @@ def triangle_labels(labels, faces):
     return kinds[votes.argmax(1)]
 
 
-def surfaces_of(labels, faces, role):
-    """Each triangle's painted surface: one for a hard or skin part (its points' most), else its own."""
+def surfaces_of(labels, faces, role, points):
+    """Each triangle's painted surface: one for a hard or skin part (the one most of its area wears), else its own."""
     if role in ONE_SURFACE:
-        names, counts = np.unique(labels[np.unique(faces)], return_counts=True)
-        return np.full(len(faces), names[counts.argmax()])
+        per_triangle = triangle_labels(labels, faces)
+        corners = points[faces]
+        areas = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
+        names, numbers = np.unique(per_triangle, return_inverse=True)
+        return np.full(len(faces), names[np.bincount(numbers, weights=areas).argmax()])
     return triangle_labels(smoothed_labels(labels, faces), faces)
 
 
@@ -242,7 +247,7 @@ def dressed_primitives(document, rest, primitives, painted, surfaces, params):
         normals = positions(document, rest, attributes["NORMAL"]) if "NORMAL" in attributes else np.zeros_like(points)
         labels, apart = painted.labels(points, normals)
         faces = accessor(document, rest, primitive["indices"]).reshape(-1, 3).astype(np.int64)
-        per_triangle = surfaces_of(labels, faces, role)
+        per_triangle = surfaces_of(labels, faces, role, points)
         kinds = np.unique(per_triangle)
         for painted_name in kinds:
             mine = faces[per_triangle == painted_name]
