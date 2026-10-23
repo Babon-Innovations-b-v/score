@@ -208,7 +208,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   machines are almost never out of stock, so bakes and small renders take whichever machine is free first; and "cant
   u just get a faster cpu"). `capacity.PROCESSOR_KINDS` (`blender`, `library`: every Blender job and library bake) take
   a pool machine of their own classes or any `capacity.PROCESSORS` class, whichever frees first (`pool.takes`), a call
-  asked on processor machines alone (settling, the paint) keeping its own classes; every other kind takes a card only.
+  asked on processor machines alone (settling, the paint, a body's checks) taking its own classes or a pool processor
+  no smaller in cores and memory (`pool.no_smaller`; fault of 2026-10-23: the checks rented a 16-core machine beside
+  the pool's idle 48-core one); every other kind takes a card only.
   Cycles follows the machine (`spread.slots`: FARM_CYCLES_GPU on a card, the processor otherwise) at the same samples,
   size and denoising, so `blender_cloud.py` and `library_bake.py` are unchanged and no surfaces row moves.
   `score run`'s `pool_sizes` adds `pool.with_processors`: as many as the most cards a line's render or bake rows
