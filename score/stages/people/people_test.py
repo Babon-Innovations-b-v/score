@@ -284,6 +284,34 @@ def test_a_one_surface_part_wears_what_most_of_its_area_wears_not_most_of_its_po
     assert set(dress.surfaces_of(labels, faces, "skin", points)) == {"visor"}
 
 
+def grid_cloth(size=20):
+    """A flat square of cloth, size by size cells of two triangles: (corners per triangle, faces over them)."""
+    cells = [(column, row) for row in range(size) for column in range(size)]
+    triangles = []
+    for column, row in cells:
+        low, right, up, both = (column, row), (column + 1, row), (column, row + 1), (column + 1, row + 1)
+        triangles += [[low, right, up], [right, both, up]]
+    corners = np.array(triangles, dtype=float).reshape(-1, 2)
+    return np.column_stack([corners, np.zeros(len(corners))]), np.arange(len(corners)).reshape(-1, 3)
+
+
+def test_a_stray_blotch_takes_the_surface_round_it_and_a_one_surface_part_is_kept():
+    """The take's unseen paint left the astronaut's collar, wrists and lower back in jagged blotches of the joints'
+    dark (2026-10-23): an island under the props' STRAY_ISLAND joins the surface round it; a large one and a
+    one-surface part stay, and the strays gate's measure sees the blotch before and none after."""
+    points, faces = grid_cloth()
+    labels = np.array(["grey"] * len(faces), dtype=object)
+    labels[:400] = "brown"  # half the cloth: a panel, kept
+    labels[[500, 501]] = "dark"  # one cell, 0.25%: a stray
+    kept = np.zeros(len(faces), dtype=bool)
+    kept[[700, 701]] = True
+    labels[[700, 701]] = "visor"  # a one-surface part's, as small: kept
+    assert round(dress.stray_share(points, faces, labels, kept), 6) == 0.0025
+    merged = dress.without_strays(points, faces, labels, kept)
+    assert merged[500] == merged[501] == "grey" and set(merged[:400]) == {"brown"} and merged[700] == "visor"
+    assert dress.stray_share(points, faces, merged, kept) == 0.0
+
+
 def test_dress_appends_index_lists_to_the_binary_chunk():
     blob = np.arange(9, dtype=np.float32).tobytes()
     rest = len(blob).to_bytes(4, "little") + b"BIN\x00" + blob

@@ -54,7 +54,10 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
 - **The dress is the loop's library surfaces, baked, nothing else** (`dress.py`, paid; owner 2026-10-23: "this didnt
   use our prop pipeline and materials"): each part takes the library surface the loop's bake painted on the take's
   outer surface (never a face Pixal3D grew inside it), a garment split where its paint changes, a hard part, the skin,
-  the hair and each far-body part one surface; no picture's finish, the close-up's face print included. Then
+  the hair and each far-body part one surface; no picture's finish, the close-up's face print included. An island of
+  one surface under the props' `patchy.STRAY_ISLAND` of the outfit joins the surface round it (`without_strays`: the
+  take's unseen paint left the astronaut's collar, wrists and lower back in jagged dark blotches, 2026-10-23), and the
+  `strays` gate holds the dressed body's stray area within `patchy.STRAY_LIMIT`. Then
   `baked_body.py` bakes those surfaces onto the body itself with the library's own bake (`inside/bake_body.py`,
   `Atlas.bake_self`, on the bake's L4 through `blender_cloud.py`, the people palette's wear and dirt) and checks it
   with `bake_check.py`'s measures; `dressed` fails a material in flat factors with no baked maps, `baked` the
