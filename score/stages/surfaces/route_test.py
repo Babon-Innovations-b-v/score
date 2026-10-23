@@ -551,6 +551,7 @@ def test_the_palette_is_read_from_the_locked_concept_by_one_ask():
         assert len(asked) == 1 and list(asked[0]) == ["cockpit"], asked  # one ask a scene, in one batch
         parts = asked[0]["cockpit"]["contents"][0]["parts"]
         assert len(parts) == 2 and "inline_data" in parts[0] and "locked concept" in parts[1]["text"], parts
+        assert "people in it wear" in parts[1]["text"] and "grime itself" in parts[1]["text"], parts
         palette = json.loads((out / "palette.json").read_text())
         # its own tokens in the answer's order, a token named twice keeping its first colour; no old token offered
         assert palette["tokens"] == {"steel": "#9ba2a9", "hazard": "#f2c21a", "glass": "#24313a",
@@ -596,6 +597,8 @@ def test_a_line_no_scene_owns_is_asked_over_every_concept():
         out, verdict, asked = palette_asked(pathlib.Path(temporary), answer, place="people", concept=False)
         parts = asked[0]["people"]["contents"][0]["parts"]
         assert sum("inline_data" in part for part in parts) == 2 and "every scene" in parts[-1]["text"], parts
+        # the line's own objects, its people, are what its palette covers (astronaut-made, 2026-10-23)
+        assert "skin and hair" in parts[-1]["text"] and "people in it wear" not in parts[-1]["text"], parts
         assert verdict.answer == "pass" and json.loads((out / "palette.json").read_text())["pictures"] == 2
     # only a line no scene owns reads every locked concept; a scene declares its own, locked yet or not, so a scene
     # with none (environment 1's launch) blocks on it by name instead of being asked over every other scene's

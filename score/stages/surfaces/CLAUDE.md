@@ -38,8 +38,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `finish-route-palette` (paid, `scene_palette.py`, one Gemini 3.1 Pro ask a scene in the Batch API) reads the
   scene's palette tokens (each a name and a `#rrggbb` colour it coins from the concept, never an old game token),
   wear level, dirt and dirt token off its locked concept (`{home}/design/concepts/<place>.png`; a line no scene owns,
-  the people's, over every locked concept); no rule could (the concept's pixels named shadows and the people's skin
-  and missed the accents, measured 2026-10-21). Then the **material step**, `surface-library` (paid,
+  the people's, over every locked concept, asked for what its own objects wear and not the scenes', its people
+  included; its dirt token the dust's or grime's own colour, added to the palette when no token is it: asked for
+  the scenes with their people left out, the people's palette had no dark grey and its dirt was the hull's white,
+  so astronaut-made's boots took glass-grey and baked L* 65.5 against their close-up's 33, 2026-10-23); no rule could
+  (the concept's pixels named shadows and the people's skin and missed the accents, measured 2026-10-21). Then the
+  **material step**, `surface-library` (paid,
   `scene_library.py`, one Gemini 3.1 Pro ask a scene in the Batch API; owner, 2026-10-21: every old material
   retired, the library starts empty): the scene's surfaces made fresh from its concept, palette and its takes' kinds
   by today's method (each a `recipes.py` recipe with token, roughness, metal, colour settings, seed and sound
@@ -200,7 +204,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   whose inventory row names a lying class (`data/checks/stance.json`: torn wreckage) is left out. Glass, glow, lamp
   light and print skip the close-up comparison (#8), and so does a coloured see-through cover the paint judged by its
   own colour (`cover`: the garage beacon's red_plastic dome), left out of `close_up_colours`; other finishes judged
-  by their own colour stay in it for the order and one-look checks.
+  by their own colour stay in it for the order and one-look checks. `close_up_colours` keys each colour by the name
+  the surface bakes as (`route_settings.settings_name` where the finish keeps the list's settings, as
+  `route_bake.named_records` names the parts): keyed by the variant alone, every surface with settings was compared
+  with nothing in the close-up, order and one-look checks (found 2026-10-23 on astronaut-made).
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
   `score/stages/__init__.py` until the 2026-10-12 fan-out ends). Each baked triangle is named by the bake's own ray (`bake_check.ray_surfaces`:
   from its middle make_chunky's reach out along its normal, inward, the first labelled face hit), never the nearest

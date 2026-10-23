@@ -43,15 +43,22 @@ HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 TOKEN = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
 QUESTION = """You choose the palette of a 3D scene whose every surface is painted from a library made for it, each
 surface drawn in one palette token. {pictures}
-First, the scene's palette: every colour its own surfaces are painted in, as the picture shows them: its structure
-(walls, floor, ceiling, ground), its objects and machines, their accents (hazard stripes, status lights, trim,
-labels), glass and glowing screens and lamps. Light and shadow are not surfaces: give each colour as it would be
-painted, unlit. Leave out colours only the people in it wear. Name each one with a short token in lower case and
-hyphens (such as "hull-white" or "hazard-yellow") and give its colour as #rrggbb, and say in "what" which surfaces
-wear it. Choose generously enough that every surface the scene shows has its token, at least {least}.
+First, the scene's palette: every colour its own surfaces are painted in, as the picture shows them: {surfaces}. Light
+and shadow are not surfaces: give each colour as it would be painted, unlit. {left_out}Name each one with a short token
+in lower case and hyphens (such as "hull-white" or "hazard-yellow") and give its colour as #rrggbb, and say in "what"
+which surfaces wear it. Choose generously enough that every surface the scene shows has its token, at least {least}.
 Then its wear, one of the levels {levels}: how worn its surfaces are, as the picture shows (chipped edges, scuffed
 floors, faded paint, patches), and say the cause you see in "cause". Then its dirt, from 0 (clean) to 1 (caked), and
-the token its dirt is drawn in (one of your tokens): the dust or grime the picture shows."""
+the token its dirt is drawn in: the colour of the dust or grime itself as the picture shows it, never a surface's
+paint; if none of your tokens is that colour, add one for it to the palette."""
+# What the palette covers: a scene's own surfaces, its people left out; a line no scene owns (the people's) the
+# objects of that line, whatever scenes they stand in (astronaut-made, 2026-10-23: asked for the scenes with its
+# people left out, the people's palette had no dark grey, so the boots took glass-grey 20 L* over their close-up, and
+# with no grime colour its dirt was the hull's white, which lifted them to L* 65.5).
+SCENE_SURFACES = ("its structure (walls, floor, ceiling, ground), its objects and machines, their accents (hazard "
+                  "stripes, status lights, trim, labels), glass and glowing screens and lamps")
+LINE_SURFACES = ("everything this line's objects wear, each garment, part, accent and trim, skin and hair, glass and "
+                 "glowing parts, and not the scenes round them")
 
 
 def method_read(path):
@@ -92,10 +99,13 @@ def schema(levels):
 
 def palette_body(pictures, levels):
     """The request: the concept pictures, the question and its schema."""
-    said = ("The picture is the scene's locked concept." if len(pictures) == 1 else
+    own = len(pictures) == 1
+    said = ("The picture is the scene's locked concept." if own else
             f"The {len(pictures)} pictures are the locked concepts of every scene this line's objects stand in; "
             "choose for the objects themselves.")
-    text = QUESTION.format(pictures=said, least=MIN_TOKENS, levels=", ".join(levels))
+    text = QUESTION.format(pictures=said, surfaces=SCENE_SURFACES if own else LINE_SURFACES,
+                           left_out="Leave out colours only the people in it wear. " if own else "",
+                           least=MIN_TOKENS, levels=", ".join(levels))
     parts = [finish_ask.picture_part(picture, longest) for picture, longest in pictures]
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
