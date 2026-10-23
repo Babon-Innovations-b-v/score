@@ -414,9 +414,12 @@ def test_a_runs_warm_pool_holds_its_cost_on_the_grant_and_draws_what_its_cards_b
     ledger({"euros": 90.0})
     BILL["euros"] = 100.0
     stop_at(runner, 1.0)
-    assert "pass the EUR 1.00 stop" in compute_test.refused(lambda: compute.pool_clearance(runner, "run-p", 6.0, 4))
+    alone = [({"gpu-24gb": 1}, 6.0)]
+    assert "pass the EUR 1.00 stop" in compute_test.refused(lambda: compute.pool_clearance(runner, "run-p", alone, 4))
     grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
-    opened = as_benchmark(grant, "run-p", lambda: compute.pool_clearance(runner, "run-p", 6.0, 4))
+    choices = [({"gpu-24gb": 2, "cpu-64c": 3}, 23.0), ({"gpu-24gb": 2}, 6.0), ({"gpu-24gb": 1}, 3.0)]
+    opened = as_benchmark(grant, "run-p", lambda: compute.pool_clearance(runner, "run-p", choices, 4, beside=2.0))
+    assert opened["sizes"] == {"gpu-24gb": 2}  # 23 + 2 passes the EUR 10 grant; 6 + 2 fits, never failing the run
     assert opened["node"] == compute.POOL and opened["key"] == "run-p" and opened["clearance"]["grant"] == grant
     assert "EUR 3.40 left" in compute_test.refused(lambda: as_benchmark(grant, "run-p", clear_render(runner, 4.0)))
     os.environ[compute.TICKET], os.environ[compute.STORE] = f"{compute.POOL} run-p", str(runner.store.cache.parent)

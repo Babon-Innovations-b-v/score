@@ -282,6 +282,16 @@ def test_a_pool_is_sized_from_the_runs_planned_card_work():
     assert pool.size_for([("pixal", 2, 2.0, 3.0)]) == {"gpu-24gb": 1}
 
 
+def test_a_pool_shrinks_one_machine_at_a_time_from_the_class_holding_the_most_euros():
+    dear = [provider.Offer(CARD_PRICE * 3, 0, "cpu-type", "zone-c", CARD_PRICE * 3, PROCESSOR, 0, "available")]
+    cloud.offers = lambda classes: [offer for offer in OFFERS + dear if offer.machine_class in classes]
+    choices = pool.shrinking({"gpu-24gb": 2, PROCESSOR: 2}, 1)
+    assert [sizes for sizes, _ in choices] == [{"gpu-24gb": 2, PROCESSOR: 2}, {"gpu-24gb": 2, PROCESSOR: 1},
+                                               {"gpu-24gb": 2}, {"gpu-24gb": 1}]
+    assert [euros for _, euros in choices] == sorted((euros for _, euros in choices), reverse=True)
+    assert choices[-1][1] == pool.holding_euros({"gpu-24gb": 1}, 1)
+
+
 def test_a_pools_holding_cost_is_every_card_warm_every_hour_at_its_dearest_offer():
     Cloud(0).install()
     assert pool.holding_euros({"gpu-24gb": 4}, 4) == round(4 * CARD_PRICE * 60 * 4, 4)
