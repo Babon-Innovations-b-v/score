@@ -47,7 +47,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `scene_library.py`, one Gemini 3.1 Pro ask a scene in the Batch API; owner, 2026-10-21: every old material
   retired, the library starts empty): the scene's surfaces made fresh from its concept, palette and its takes' kinds
   by today's method (each a `recipes.py` recipe with token, roughness, metal, colour settings, seed and sound
-  surface), written as `materials.json` in the loader's form, gated on every kind covered and everything the method's
+  surface; a patterned recipe, a quilt, tiles, a grid or boards, only where the picture shows that pattern: asked
+  with no such word, the people's library made its one fabric `quilted` twice and the astronaut's plain overalls took
+  a light grid, 2026-10-23), written as `materials.json` in the loader's form, gated on every kind covered and everything the method's
   and the palette's. Every row after it (list, parts, bake, recheck, check) reads both through `palette_library.py`
   (`read` adds the scene library's path): that library filtered by the palette, the kind's own list (`kinds`) on
   top, the scene's wear and dirt in the list's question, the bake's job and the check. With no scene library a reader

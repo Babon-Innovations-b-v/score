@@ -61,7 +61,8 @@ several materials names each of them). For each give a short name in lower case 
 word for what it is made of: steel, paint, rubber, glass, wood, fabric, plastic, concrete...), its recipe, its token
 from the palette, its roughness and metal from 0 to 1, a token of the palette for each colour setting its recipe
 needs, the surface it sounds like, and the kinds it is for. Choose each recipe by what the surface is and how it is
-made, its token by its colour in the picture."""
+made, its token by its colour in the picture. A recipe that draws a pattern of its own (a quilt, tiles, a grid,
+boards) is only for a surface the picture shows with that pattern; a plain surface takes a plain recipe."""
 
 
 def files(place):
