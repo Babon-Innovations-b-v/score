@@ -276,6 +276,27 @@ def test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned():
     pool.release(run_id)
 
 
+def test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_with_its_time_left():
+    """Fault, 2026-10-23: sound@hub's takes became gaps after its 15 min waiting for a pool card in a shortage. The
+    run's time limit counts only its work: the wait keeps its deadline ahead, the card comes, nothing is a gap."""
+    calls, run_id = fresh(stock=0, sizes={"gpu-24gb": 1})
+    run = a_run("waits")
+    run.deadline = time.time() + 0.3
+    pool.POLL_SECONDS = 0.05
+    got = []
+    waiting = threading.Thread(target=lambda: got.append(
+        batch.claim(run, "account", OFFERS, 1, KINDS[0], wanted=lambda: True)))
+    waiting.start()
+    time.sleep(0.8)  # past the run's own deadline, no card yet
+    assert waiting.is_alive() and not got
+    calls.stock = 1
+    assert grow(run_id) == 1
+    waiting.join(5)
+    assert got and got[0] is not None and got[0]["pool"] == run_id
+    assert run.deadline - time.time() > 0.15  # its time left when it began waiting, counted from the card
+    pool.release(run_id)
+
+
 def test_a_pool_is_sized_from_the_runs_planned_card_work():
     sizes = pool.size_for([("pixal", 400, 2.0, 3.0), ("library", 200, 2.0, 1.0), ("judge", 30, 1.0, 1.0)])
     assert sum(sizes.values()) == pool.MOST_CARDS and sizes["gpu-48gb"] >= 1 and sizes["gpu-24gb"] >= 1

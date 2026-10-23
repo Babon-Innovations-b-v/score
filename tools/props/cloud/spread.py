@@ -208,6 +208,8 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
                               wanted=lambda: shares.queued() > 0 or shares.open)
         if machine is None:
             return
+        if shares.deadline and machine.get("pool"):  # the time waited on the pool is not the work's (pool.paused)
+            shares.deadline = max(shares.deadline, run.deadline)
         if not tend(run, machine, kind, shares, prepare, do, at_once):
             setup_deaths += 1
             if machine.get("answered") or setup_deaths > 1:

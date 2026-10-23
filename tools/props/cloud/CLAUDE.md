@@ -170,7 +170,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   run until the pool holds its size, backing off for stock as a claim does and never giving up before the pool's end, and parks each warm card for the pool at
   once, so the run's card work starts on the first card. Once a run opened a pool its steps never rent:
   `batch.claim` (every spread runner) and `batch.rent_fleet` (Pixal3D) take a pool card (`park.adopt`, by class in
-  any zone, another kind's cleaned and set up again) or wait for one, a class the pool lacks added to it
+  any zone, another kind's cleaned and set up again) or wait for one, the wait outside the step's own time limit
+  (`pool.paused`, `spread.one_machine`, the Pixal3D fleet's `keep_the_fleet`: fault of 2026-10-23, sound@hub's takes
+  made gaps by 15 min of shortage), a class the pool lacks added to it
   (`pool.want`, which also raises that one class's disk, never every class's: the collector rents one card of it at
   the bigger disk and `pool.trim` lets an idle smaller one of that class go, so the pool keeps its size);
   `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
