@@ -194,7 +194,14 @@ RECORDED = {
                   "source": "ledger batches characters-20261022-210500-1764621 (one L4, 16.69 machine minutes EUR "
                             "0.223125, disk-and-address EUR 0.005) and blender-20261022-212203-1778270 (body_checks "
                             "on the parked processor machine adopted, EUR 0), people-body-astronaut-made at commit "
-                            "81f03563, benchmark grant 20261022T072047"}],
+                            "81f03563, benchmark grant 20261022T072047"},
+                 {"euros": 0.88375, "units": 1,
+                  "source": "ledger batches characters-20261023-153049-2974795 (one L4 of the run's warm pool, "
+                            "22.46 machine minutes with its 19.1 min characters set-up, EUR 0.28875) and "
+                            "blender-20261023-155459-3244165 (body_checks, 2.3 machine minutes on a POP2-16C-64G "
+                            "the pool rented for it, line pool-dupe-2921861-1792761537-add59b57-029f-4f2e-82b3-"
+                            "cc7dc21b0bc8 billed EUR 0.59 for its started hour, disk-and-address EUR 0.005), "
+                            "people-body-astronaut-made at commit 01101173, benchmark grant 20261023T110601"}],
         "time": {"unit_seconds": {"likely": 251.0, "high": 254.4},
                  "setup_minutes": {"likely": 13.6, "high": 13.9}, "slots": 1,
                  "slots_from": "one body on its one card, then its checks on one processor machine",
@@ -208,12 +215,43 @@ RECORDED = {
         "runs": [{"euros": 0.044375, "units": 1,
                   "source": "ledger batch blender-20261022-212654-1785095 (people-look-astronaut-made, 2026-10-22, "
                             "commit 81f03563, benchmark grant 20261022T072047): one L4, 2.19 machine minutes EUR "
-                            "0.039375, and its disk-and-address line EUR 0.005"}],
-        "time": {"unit_seconds": {"likely": 42.8, "high": 42.8},
+                            "0.039375, and its disk-and-address line EUR 0.005"},
+                 {"euros": 0.019055, "units": 1,
+                  "source": "ledger batch blender-20261023-160513-3422881 (people-look-astronaut-made, 2026-10-23, "
+                            "commit 01101173, benchmark grant 20261023T110601): 0.9 machine minutes on the run's "
+                            "warm pool POP2-HC-48C-96G, whose started hour line pool-dupe-2921861-1792761537-"
+                            "068b0833-c270-4699-a948-96e1925a42c2 billed EUR 1.27; its minutes at that hour's EUR "
+                            "0.021167 a minute"}],
+        "time": {"unit_seconds": {"likely": 36.2, "high": 42.8},
                  "setup_minutes": {"likely": 1.33, "high": 1.33}, "slots": 1,
-                 "slots_from": "one look's renders on its one card", "holds": "machines", "lines": 1,
+                 "slots_from": "one look's renders on its one machine", "holds": "machines", "lines": 2,
                  "from": ["ledger batch blender-20261022-212654-1785095 (its machine's unit_seconds; start wait 0.36 "
-                          "and set-up 0.96 min)"]}},
+                          "and set-up 0.96 min)",
+                          "ledger batch blender-20261023-160513-3422881 (unit_seconds 29.5 on a 48-core processor "
+                          "machine, set-up 0.13 min on the pool machine already set up)"]}},
+    "people-dress-astronaut-made": {
+        "unit": "bake of a look's library surfaces onto its body (blender_cloud.py, one machine)", "forecast": "one",
+        "runs": [{"euros": 0.070625, "units": 1,
+                  "source": "ledger batch blender-20261023-050754-2206591 (people-dress-astronaut-made, 2026-10-23, "
+                            "benchmark grant 20261022T072047): one L4, 4.68 machine minutes EUR 0.065625, and its "
+                            "disk-and-address line EUR 0.005"},
+                 {"euros": 0.070625, "units": 1,
+                  "source": "ledger batch blender-20261023-071549-2325948 (people-dress-astronaut-made, 2026-10-23, "
+                            "benchmark grant 20261022T072047): one L4, 4.76 machine minutes EUR 0.065625, and its "
+                            "disk-and-address line EUR 0.005"},
+                 {"euros": 0.0381, "units": 1,
+                  "source": "ledger batch blender-20261023-160006-3325123 (people-dress-astronaut-made, 2026-10-23, "
+                            "commit 01101173, benchmark grant 20261023T110601): 1.8 machine minutes on the run's "
+                            "warm pool POP2-HC-48C-96G, whose started hour line pool-dupe-2921861-1792761537-"
+                            "068b0833-c270-4699-a948-96e1925a42c2 billed EUR 1.27; its minutes at that hour's EUR "
+                            "0.021167 a minute"}],
+        "time": {"unit_seconds": {"likely": 188.9, "high": 192.2},
+                 "setup_minutes": {"likely": 0.97, "high": 0.97}, "slots": 1,
+                 "slots_from": "one look's bake on its one machine", "holds": "machines", "lines": 3,
+                 "from": ["ledger batch blender-20261023-050754-2206591 (unit_seconds 188.9 on an L4, set-up 0.95 "
+                          "min)", "ledger batch blender-20261023-071549-2325948 (unit_seconds 192.2 on an L4, set-up "
+                          "0.97 min)", "ledger batch blender-20261023-160006-3325123 (unit_seconds 89.2 on a 48-core "
+                          "processor machine, set-up 0.13 min on the pool machine already set up)"]}},
     # The benchmark batch of 2026-10-22 (grant 20261022T072047, one score run at commit aac2fac2): the two guessed
     # kinds that ran, one node each, its whole make (forecast "one").
     "surface-library": {"unit": "scene surface library of a place (one Gemini 3.1 Pro answer)", "forecast": "one",
