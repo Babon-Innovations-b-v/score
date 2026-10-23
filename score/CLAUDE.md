@@ -83,7 +83,7 @@ stage as each stage is built; nothing moves before.
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
   since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too (read from the files, in the folders the path held at the process's first code version, so a folder a make adds later moves nothing); never the framework's own runner, review, clearance,
-  stage table and renting code (`batch`, `capacity`, `park`, `blender_cloud`), `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes), parameters, seed,
+  stage table and run machinery (code that only decides where and how a job runs: renting, the warm pool, spreading, provider and backends, ledgers, forecasts, money guards, the cockpit; files or whole folders in `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes; a maker, its scripts sent up and their images stay in), parameters, seed,
   pinned models and every input, a declared folder's bytecode left out (`graph.source_hash`: each checkout writes its
   own __pycache__, #67; an accepted output whose key moved only by it is kept under the new key when its record is
   of a committed tree and the folder's sources at that commit, from git, hash as now: `Runner.kept_over_bytecode`,

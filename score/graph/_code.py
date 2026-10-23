@@ -14,15 +14,25 @@ OUTSIDE = (REPO / ".venv", REPO / ".git")
 # What runs a stage, not what a stage runs: the runner, the review pages, the clearance and the stage table. A stage
 # reaches them through imports (batch -> compute -> graph), and every builder edits them, so hashing them moved every
 # stage's key on each other's edits (terrain re-made under the effects line, 2026-10-12). Their imports are not
-# followed either. The store stays in: stages call it (PROPS_HOME, Store). The renting code is left out too (the
-# coordinator, 2026-10-12): which card, zone and machine a job gets, parking and the ledger change what a run costs,
-# never what it makes, and the cost fixes of that day would otherwise have re-made terrain and every assembly.
+# followed either. The store stays in: stages call it (PROPS_HOME, Store). The run machinery is left out too (the
+# coordinator, 2026-10-12; the owner, 2026-10-23, after a body was made again for EUR 0.30 by warm-pool edits: "oh
+# yeah u can fix that"): code that only decides where and how a job runs (renting, pools, zones, classes, parking,
+# the ledger and books, money guards, forecasts, kept jobs, secrets, detaching, the cockpit) changes what a run costs,
+# never what it makes. What shapes an output stays in: a maker and the scripts it sends up (each runner's own module,
+# its set-up and worker, tools/cloud/runtime and the job images), its pinned models, parameters, recipes and the
+# libraries it reads. An entry is a file, or a folder whose every file is left out.
 FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__.py", "score/graph/_code.py",
                                       "score/review/__init__.py", "score/review/__main__.py",
-                                      "score/adapters/compute/__init__.py", "score/stages/__init__.py",
+                                      "score/adapters/compute", "score/dashboard", "score/stages/__init__.py",
                                       "score/stages/__main__.py", "tools/props/cloud/batch.py",
                                       "tools/props/cloud/capacity.py", "tools/props/cloud/park.py",
-                                      "tools/props/cloud/blender_cloud.py", "tools/props/cloud/ledger.py")}
+                                      "tools/props/cloud/pool.py", "tools/props/cloud/spread.py",
+                                      "tools/props/cloud/provider.py", "tools/props/cloud/backends",
+                                      "tools/props/cloud/preflight.py", "tools/props/cloud/kept.py",
+                                      "tools/props/cloud/self_delete.py", "tools/props/cloud/secret_store.py",
+                                      "tools/props/cloud/detached.py", "tools/props/cloud/google_spend.py",
+                                      "tools/props/cloud/google_bill.py", "tools/props/cloud/blender_cloud.py",
+                                      "tools/props/cloud/ledger.py")}
 # Where FRAMEWORK is declared, read at an older commit to rebuild the code version a record was made under.
 DECLARED_IN = "score/graph/_code.py"
 
@@ -92,13 +102,18 @@ def imports_of(path, is_file, read_text):
             for module in module_files(name, is_file)}
 
 
+def in_framework(path, framework):
+    """True for a file `framework` names, or one inside a folder it names."""
+    return any(path.is_relative_to(entry) for entry in framework)
+
+
 def followed(starts, framework, imports):
     """Every repository file of a tree the start files are or import, followed through each import, the files in
-    `framework` left out; `imports` gives a file's imported files in that tree (imports_of)."""
+    `framework` (in_framework) left out; `imports` gives a file's imported files in that tree (imports_of)."""
     pending, found = list(starts), set()
     while pending:
         path = pending.pop()
-        if path in found or path in framework or not in_repo(path):
+        if path in found or in_framework(path, framework) or not in_repo(path):
             continue
         found.add(path)
         pending += [module for module in imports(path) if module not in found]
@@ -195,7 +210,7 @@ def rebuilt_at(commit, starts):
     git does not know the commit, its FRAMEWORK cannot be read or a start file was not in it."""
     blobs, framework = blobs_at(commit), framework_at(commit)
     if blobs is None or framework is None or any(relative(path) not in blobs for path in starts
-                                                 if in_repo(path) and path not in framework):
+                                                 if in_repo(path) and not in_framework(path, framework)):
         return None
 
     def is_file(path):

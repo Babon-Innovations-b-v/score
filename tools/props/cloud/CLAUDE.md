@@ -59,8 +59,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   --google-month EUR` (refused in an agent's process; the owner gives it with the cockpit's money card button,
   applied by his sync) stays an override. `compute.books_refusal`, `compute.require_cleared` (so
   `batch.rent`, `park`, the cluster and every Google and World Labs caller) and `compute.submit` ask it before anything
-  is ordered; `google_spend.py` and `tools/cloud/runtime/submit.py` are left alone, as one is in the surface rows' code
-  version and the other in every job image's tag. Under SCORE_FREE_ONLY=1 the same points raise `ledger.FreeOnly`.
+  is ordered; `tools/cloud/runtime/submit.py` is left alone, as it is in every job image's tag (`google_spend.py`
+  is not, run machinery outside every code version since 2026-10-23). Under SCORE_FREE_ONLY=1 the same points raise `ledger.FreeOnly`.
   `batch.rent` refuses before any provider call without `ssh_key` and `self_delete_key.json`, and `batch.ssh_key`
   never makes a key: the owner makes the runner's key and deletes the stale IAM key `farm-factory-batch`.
 - **The month's spend is the provider's own bill when that is higher** (2026-10-12: Scaleway billed EUR 1,554 for
@@ -102,9 +102,13 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (`capacity.NEVER`). The rule lives in capacity.py, not the runners: `blender_cloud.py`, `library_bake.py` and
   `meshparts.py` are declared inputs of the surfaces rows (`Stage.files`), so an edit to them re-buys every place's
   turntables and maps. A parked machine is taken by a claim of another kind that cleans up when its own kind has none
-  (`park.take`): the same system image, its run's files gone, the claiming kind's set-up run on it. The renting code
-  (`batch.py`, `capacity.py`, `park.py`, `blender_cloud.py`) is outside the stages' code keys (`score/graph/_code.py`
-  FRAMEWORK): it changes what a run costs, never what it makes.
+  (`park.take`): the same system image, its run's files gone, the claiming kind's set-up run on it. The run machinery
+  (`batch.py`, `capacity.py`, `park.py`, `pool.py`, `spread.py`, `provider.py`, `backends/`, `ledger.py`,
+  `preflight.py`, `kept.py`, `self_delete.py`, `secret_store.py`, `detached.py`, `google_spend.py`, `google_bill.py`,
+  `blender_cloud.py`) is outside the stages' code keys (`score/graph/_code.py` FRAMEWORK): it changes what a run costs,
+  never what it makes. A runner module that sends a maker's scripts up (`pictures.py`, `similar.py`, `scene.py`, ...)
+  stays in, so a clean-up registered there (`park.CLEANUPS`) still moves the rows that import it; register new ones in
+  `park.py`.
 - **The machine is always deleted:** at the end, on an error or a signal, by the watchdog at the
   time limit, and by the next run's sweep. Anything new that rents goes through `rent`, which starts its watchdog.
 - **A processor machine is parked, not deleted, while its paid hour has time left** (`park.py`, job hours,
