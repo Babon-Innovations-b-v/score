@@ -213,9 +213,13 @@ runs without a further yes.
 \textbf{Keys.} A node is made only when its key has no finish record.
 The key hashes the stage and scene, its code version, contracts,
 parameters and seed, the pinned model images, every file it reads and
-the accepted output of every node it reads. A fault fixed in one stage
-moves only its key and those after it. Outputs are kept by content hash,
-never overwritten.
+the accepted output of every node it reads. The code version counts the
+code that can shape the output: the stage's maker, the scripts it sends
+to a machine and every module they import; code that only decides where
+and how a job runs (renting, the pool of warm machines, the ledger,
+money guards, the cockpit) changes what a run costs, never what it
+makes, and is in no key. A fault fixed in one stage moves only its key
+and those after it. Outputs are kept by content hash, never overwritten.
 
 \textbf{Gates and accepts.} Each gate answers pass, fail or unknown,
 with measures and a reason; missing evidence is unknown, and unknown
