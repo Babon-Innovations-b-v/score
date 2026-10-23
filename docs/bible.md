@@ -119,7 +119,8 @@ only the scene times and terrain spots. A site's footprint, size and blocks are 
 one its plan page shows, `plans.current`) on every settle, never written or edited apart, so the two cannot differ (the
 owner, 2026-10-23); two sites whose footprints would stand closer than 10 m are parted on every settle
 (`environment_plan.cleared`: the smaller moved out along its own bearing from the larger, on its ground's curve; the
-locked concept's text untouched), never a site the creator placed himself, so only two of his own that overlap are
+locked concept's text untouched), never a site the creator placed himself (moved from where his first kept concept had it), in any environment and on
+one ground at a time; a site with no plan yet stands where the physics puts it until its plan lands. So only two of his own that overlap are
 a gap (the owner, 2026-10-21: "gaps should only show things that cant be fixed auto"). Its page draws each
 site's plan with plan.js's own sheet at its true footprint and distance. What
 each site sees overhead at its scene time is worked out from the physics (`overhead.seen`: every light, every other

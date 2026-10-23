@@ -309,15 +309,16 @@ def cleared(sites, radius, pinned=frozenset()):
     return sites
 
 
-def creator_placed(store, setting):
-    """Places whose spot the creator's kept environment concept gives other than its data proposes (settings.now):
-    his own placing, which no clearing moves."""
+def creator_placed(store, world_id, setting):
+    """Places whose spot in `setting` differs from the one the environment's first kept concept gave it: his own
+    moves since, which no clearing undoes (the first version's spots are the physics' proposal, cleared like any)."""
     from score.review import environment_concept
-    if store is None or environment_concept.newest(store, world_name()) is None:
+    kept = environment_concept.versions(store, world_id or world_name()) if store is not None else []
+    if not kept:
         return frozenset()
-    proposed = {site["place"]: site for site in settings.now()["sites"]}
-    return frozenset(site["place"] for site in setting["sites"] if any(
-        site.get(name) != proposed.get(site["place"], {}).get(name) for name in WHERE))
+    first = {site["place"]: site for site in kept[0]["concept"]["setting"]["sites"]}
+    return frozenset(site["place"] for site in setting["sites"] if site["place"] in first and any(
+        site.get(name) != first[site["place"]].get(name) for name in WHERE))
 
 
 # --- the plan: derived, written, settled -----------------------------------------------------------------------
@@ -431,7 +432,7 @@ def settled(plan, store=None):
     from score.review import environment_concept
     setting = environment_concept.setting_of(store, plan.get("environment")) if store is not None else settings.now()
     placed = {site["place"]: site for site in setting["sites"]}
-    pinned = creator_placed(store, setting)
+    pinned = creator_placed(store, plan.get("environment"), setting)
     maps = []
     for world in plan["maps"]:
         ground, _ = settings.ground_of(setting, world["on"])
