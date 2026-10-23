@@ -163,20 +163,26 @@ def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB):
 
 def want(run_id, offers, kind, disk_gb):
     """Make sure the pool collects a card a claim of `kind` from `offers` can take: the kind's first class among them
-    added at one card when the pool holds none of their classes, and the pool's disk raised to `disk_gb`."""
+    added at one card when the pool holds none of their classes, and the disk of that one class (the class the claim
+    takes, never every class) raised to `disk_gb`."""
     offered = {offer.machine_class for offer in offers}
     with locked(run_id):
         plan = plan_of(run_id)
         if plan is None:
             return
-        changed = disk_gb > plan["disk_gb"]
-        plan["disk_gb"] = max(plan["disk_gb"], disk_gb)
-        if not any(plan["sizes"].get(name) for name in offered):
-            machine_class = first_class(kind, offered) or sorted(offered)[0]
-            plan["sizes"][machine_class] = 1
-            changed = True
-        if changed:
-            write_plan(run_id, plan)
+        held = {name for name in offered if plan["sizes"].get(name)}
+        machine_class = first_class(kind, held or offered) or sorted(held or offered)[0]
+        if held and disk_gb <= disk_of(plan, machine_class):
+            return
+        plan["sizes"][machine_class] = plan["sizes"].get(machine_class) or 1
+        plan.setdefault("disks", {})[machine_class] = max(disk_of(plan, machine_class), disk_gb)
+        write_plan(run_id, plan)
+
+
+def disk_of(plan, machine_class):
+    """The disk the pool asks of a card of `machine_class`: the pool's own, or the bigger one a claim of that class
+    asked for (want)."""
+    return plan.get("disks", {}).get(machine_class, plan["disk_gb"])
 
 
 def claim(run, offers, number, kind, disk_gb, wanted=None):
@@ -242,15 +248,36 @@ def left(run_id, server_id):
 
 def shortfall(plan, alive):
     """[(class, disk_gb)] of the cards the pool lacks: each class's size less its cards alive, and one more of a class
-    whose every card has a smaller disk than the pool asks now."""
+    whose every card has a smaller disk than that class asks now (disk_of; `trim` lets an idle smaller one go once the
+    bigger one is warm, so the pool keeps its size)."""
     short = []
     for machine_class, size in plan["sizes"].items():
+        disk_gb = disk_of(plan, machine_class)
         mine = [card for card in alive if card["class"] == machine_class]
         missing = size - len(mine)
-        if missing <= 0 and size and not any(card["disk_gb"] >= plan["disk_gb"] for card in mine):
+        if missing <= 0 and size and not any(card["disk_gb"] >= disk_gb for card in mine):
             missing = 1
-        short += [(machine_class, plan["disk_gb"])] * max(0, missing)
+        short += [(machine_class, disk_gb)] * max(0, missing)
     return short
+
+
+def trim(run_id, plan, alive):
+    """Release the idle cards a class holds above its size whose disk is smaller than that class asks (the ones a
+    bigger disk was rented beside); the cards still alive."""
+    import park
+
+    idle = {record["id"]: record for record in park.pool_records(run_id)}
+    for machine_class, size in plan["sizes"].items():
+        mine = [card for card in alive if card["class"] == machine_class]
+        small = sorted((card for card in mine if card["id"] in idle and card["disk_gb"] < disk_of(plan, machine_class)),
+                       key=lambda card: card["disk_gb"])
+        for card in small[:max(0, len(mine) - size)]:
+            batch.say(f"pool: {card['id']} ({card['disk_gb']} GB) goes; a {machine_class} with a bigger disk is in its "
+                      "place")
+            record = idle[card["id"]]
+            park.release(record["id"], record["zone"], record["token"])
+            alive = [kept for kept in alive if kept["id"] != card["id"]]
+    return alive
 
 
 def warm(run_id, machine):
@@ -347,28 +374,55 @@ def run_gone(plan):
 def collect(run_id):
     """The collector: each POLL_SECONDS strike off the cards whose taker died and rent what the pool lacks, asked
     again after stock_wait_minutes while no stock comes; each BEAT_SECONDS beat the idle cards; until the pool is
-    released, its end passes or its run's process is gone; then release it."""
+    released, its end passes or its run's process is gone; then release it. A round that fails (the provider's API, a
+    delete) is said and tried again, its next ask backing off as for stock: one error never ends the pool."""
     try:
-        account = cloud.account()
-        cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
-        rounds, next_ask, next_beat = 0, 0.0, 0.0
+        collecting = Collecting()
         while not batch.STOPPING.is_set():
             plan = current(run_id)
             if plan is None or run_gone(plan):
                 break
-            short = shortfall(plan, tidy(run_id))
-            if short and time.time() >= next_ask:
-                rounds = 0 if fill(run_id, plan, short, account) else rounds + 1
-                next_ask = time.time() + (batch.stock_wait_minutes(rounds - 1) * 60 if rounds else 0)
-                if rounds:
-                    batch.say(f"pool: {len(short)} card(s) short, none in stock; asking again in "
-                              f"{(next_ask - time.time()) / 60:.0f} min")
-            if time.time() >= next_beat:
-                beat(run_id)
-                next_beat = time.time() + BEAT_SECONDS
+            try:
+                collect_round(run_id, plan, collecting)
+            except Exception as error:  # noqa: BLE001 - the pool stays open; the next round tries again
+                collecting.wait_more()
+                batch.say(f"pool: a round failed ({type(error).__name__}: {error}); asking again in "
+                          f"{(collecting.next_ask - time.time()) / 60:.0f} min")
             batch.STOPPING.wait(POLL_SECONDS)
     finally:
         release(run_id)
+
+
+class Collecting:
+    """What the collector carries from round to round: its account, the rounds that gave no card, and when it next
+    asks for cards and beats the idle ones."""
+
+    def __init__(self):
+        self.account, self.rounds, self.next_ask, self.next_beat = None, 0, 0.0, 0.0
+
+    def wait_more(self):
+        """One more round that gave no card: the next ask after stock_wait_minutes (3, 6, 12, 24, then 30 min)."""
+        self.rounds += 1
+        self.next_ask = time.time() + batch.stock_wait_minutes(self.rounds - 1) * 60
+
+
+def collect_round(run_id, plan, collecting):
+    """One round of the collector: the cards whose taker died struck off, the idle ones a bigger disk replaced let go,
+    what the pool lacks rented when its ask is due, the idle cards beaten when their beat is due."""
+    if collecting.account is None:
+        collecting.account = cloud.account()
+        cloud.allow_key(collecting.account, "farm-factory-batch", batch.ssh_key())
+    short = shortfall(plan, trim(run_id, plan, tidy(run_id)))
+    if short and time.time() >= collecting.next_ask:
+        if fill(run_id, plan, short, collecting.account):
+            collecting.rounds, collecting.next_ask = 0, 0.0
+        else:
+            collecting.wait_more()
+            batch.say(f"pool: {len(short)} card(s) short, none in stock; asking again in "
+                      f"{(collecting.next_ask - time.time()) / 60:.0f} min")
+    if time.time() >= collecting.next_beat:
+        beat(run_id)
+        collecting.next_beat = time.time() + BEAT_SECONDS
 
 
 def stop_on_signals():
@@ -383,23 +437,54 @@ def stop_on_signals():
 def release(run_id):
     """Close the run's pool: no claim takes a card and no card goes back to it from now on; its collector is ended,
     every idle card deleted (its idle time charged, park.release) and every card whose taker is gone deleted. A card
-    a live runner holds is deleted by that runner's own delete, the pool being closed."""
+    a live runner holds is deleted by that runner's own delete, the pool being closed. Every card is tried; the first
+    error is raised once the last was tried."""
     import park
 
-    if plan_of(run_id) is None:  # a run that never opened a pool
+    if not close(run_id):
         return
+    errors = []
+    for record in park.pool_records(run_id):
+        with gathered(errors):
+            park.release(record["id"], record["zone"], record["token"])
+    for card in members(run_id):
+        if not card.get("holder") or not batch.process_alive(card["holder"]):
+            with gathered(errors):
+                cloud.delete(card["id"], card["zone"])
+                left(run_id, card["id"])
+    if errors:
+        raise errors[0]
+
+
+def close(run_id):
+    """Close the run's pool and end its collector, so nothing more is rented for it; False for a run without one."""
+    if plan_of(run_id) is None:  # a run that never opened a pool
+        return False
     with locked(run_id) as folder:
         (folder / "closed").touch()
         plan = plan_of(run_id)
     collector = plan.get("collector")
     if collector and collector != os.getpid() and batch.process_alive(collector):
         os.kill(collector, signal.SIGTERM)
-    for record in park.pool_records(run_id):
-        park.release(record["id"], record["zone"], record["token"])
-    for card in members(run_id):
-        if not card.get("holder") or not batch.process_alive(card["holder"]):
-            cloud.delete(card["id"], card["zone"])
-            left(run_id, card["id"])
+    return True
+
+
+def close_all():
+    """Close every pool still open (the kill switch, before it releases the parked cards, so no collector orders
+    their replacements); the runs whose pool it closed."""
+    plans = sorted(POOLS.glob("*/plan.json")) if POOLS.exists() else []
+    return [path.parent.name for path in plans
+            if not (path.parent / "closed").exists() and close(path.parent.name)]
+
+
+@contextlib.contextmanager
+def gathered(errors):
+    """Keep the block's error in `errors` (said) instead of raising it, so the next card is still tried."""
+    try:
+        yield
+    except Exception as error:  # noqa: BLE001 - release raises the first once every card was tried
+        batch.say(f"pool: releasing a card failed ({type(error).__name__}: {error})")
+        errors.append(error)
 
 
 if __name__ == "__main__" and sys.argv[1:2] == ["--collect"]:

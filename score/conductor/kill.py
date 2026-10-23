@@ -9,8 +9,9 @@ start, and a unit may read it as an EnvironmentFile), so nothing started meanwhi
 mark (so no run reads its SIGTERM as the resize's and waits to be resumed); then SIGTERM to every
 live run (each claim in runs/active.json, and every running entry whose process lives): with the machine up a run
 registers itself `stopped` and is never resumed unasked, and passes the stop to its group, so each batch deletes its
-own machines; then every waiting run is marked stopped and its process ended; then every parked machine is deleted
-through park.py's release (its ledger line with it). Its report is kept in $PROPS_HOME/conductor/kill-<time>.json and
+own machines; then every waiting run is marked stopped and its process ended; then every open warm pool is closed and
+its collector ended (pool.close_all), so none orders a card in place of the ones released next; then every parked
+machine, a pool's idle cards with them, is deleted through park.py's release (its ledger line with it). Its report is kept in $PROPS_HOME/conductor/kill-<time>.json and
 returned. Both are refused in an agent's process: the barrier the store's owner areas use.
 """
 import datetime
@@ -72,6 +73,20 @@ def park_release():
     return park.release
 
 
+def pools_closer():
+    """pool.py's close_all, imported from the cloud tools."""
+    if str(CLOUD_TOOLS) not in sys.path:
+        sys.path.insert(0, str(CLOUD_TOOLS))
+    import pool
+    return pool.close_all
+
+
+def open_pools(folder):
+    """Whether any run's warm pool is still open (a plan and no closed mark)."""
+    folder = pathlib.Path(folder)
+    return folder.is_dir() and any(not (plan.parent / "closed").exists() for plan in folder.glob("*/plan.json"))
+
+
 def parked_records(folder):
     """Every parked machine's record."""
     folder = pathlib.Path(folder)
@@ -84,13 +99,14 @@ def stop_all(asked_by, words):
     return stop_everything(asked_by, words)
 
 
-def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None):
+def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None, pools=None,
+                    close_pools=None):
     """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch, every live
-    run, every waiting run, every parked machine; its report."""
+    run, every waiting run, every open warm pool, every parked machine; its report."""
     folder = pathlib.Path(folder or runs.RUNS)
     at = now()
     report = {"at": at, "by": asked_by, "words": words, "free_only": str(latch(asked_by, words, at)),
-              "runs": [], "waiting": [], "parked": [], "errors": []}
+              "runs": [], "waiting": [], "pools": [], "parked": [], "errors": []}
     conductor.RESIZING.unlink(missing_ok=True)  # the SIGTERMs below are the owner's stop, never a resize's
     for pid in live_runs(folder):
         try:
@@ -101,6 +117,12 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
     for path, entry in runs.waiting(folder).items():
         size.stop_waiting(path, say=lambda line: None)
         report["waiting"].append(entry["id"])
+    close_pools = close_pools or (pools_closer() if open_pools(pools or size.POOLS) else None)
+    if close_pools:
+        try:
+            report["pools"] = close_pools()
+        except Exception as error:  # noqa: BLE001 - the parked machines are still released; the report names it
+            report["errors"].append(f"pools: {type(error).__name__}: {error}")
     records = parked_records(parked or size.PARKED)
     release = release or (park_release() if records else None)
     for record in records:

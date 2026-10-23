@@ -130,6 +130,8 @@ START_CHECK_SECONDS = 5
 # answering in about 2 min).
 REFUSED_MINUTES = 3
 WATCHDOG_GRACE_MINUTES = 5
+# How long a machine whose job or set-up failed has to answer before it counts as dead (batch.answers).
+ANSWER_SECONDS = 60
 # The processor's share: two finishes at once (Blender), within FINISH_SLOTS.
 FINISHERS = 2
 # How many finishes may run at once on this PC, across every batch: Blender at 100,000 triangles
@@ -372,6 +374,16 @@ def ssh_options(folder):
 def remote(folder, host, command, **keywords):
     """Run a shell command on the machine as root."""
     return subprocess.run(["ssh", *ssh_options(folder), f"root@{host}", command], **keywords)
+
+
+def answers(machine):
+    """Whether the machine still answers over ssh: a pool card that does not is dead and is replaced; one that does
+    failed for a reason of the job or its set-up, which another card would meet again."""
+    try:
+        remote(machine["folder"], machine["host"], "true", check=True, capture_output=True, timeout=ANSWER_SECONDS)
+        return True
+    except Exception:  # noqa: BLE001 - any failure to answer, or a machine with no host yet, is no answer
+        return False
 
 
 def copy(folder, sources, destination, *extra):
@@ -673,6 +685,7 @@ class Fleet:
         self.why = {}
         self.slept, self.asleep = threading.Event(), []
         self.lost_cards = 0
+        self.setup_deaths = 0
         self.unsent = []
         self.again_names = set()
         self.job_deadline = job_deadline_seconds()
@@ -705,6 +718,19 @@ class Fleet:
             self.again_names.update(job["name"] for job in fresh)
             self.ready.extend(fresh)
         return sorted({job["name"] for job in jobs} - {job["name"] for job in fresh})
+
+    def replaces(self, machine):
+        """Whether a pool card that failed is replaced from the pool, its unfinished jobs put back: only a dead card
+        (one that no longer answers; a fault of the job or its set-up would meet the next card too), and of the cards
+        that died before they were set up only the first, so a set-up that keeps failing never takes card after
+        card."""
+        if answers(machine):
+            return False
+        if machine.get("generating_began"):
+            return True
+        with self.lock:
+            self.setup_deaths += 1
+            return self.setup_deaths == 1
 
     def lose(self, machine):
         """A machine billed that failed (did not start, or broke): its cards are not rented again inside the batch."""
@@ -1034,7 +1060,7 @@ def tend(fleet, machine):
                      else "unfinished when the batch stopped")
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the fleet
         ended = f"its machine {folder.name} broke ({error})"
-        if machine.get("pool"):
+        if machine.get("pool") and fleet.replaces(machine):
             say(f"{folder.name} failed: {error}; its unfinished jobs go back on the queue for the pool's next card")
             dead = True
         else:

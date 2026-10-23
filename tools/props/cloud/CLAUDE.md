@@ -167,14 +167,23 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   once, so the run's card work starts on the first card. Once a run opened a pool its steps never rent:
   `batch.claim` (every spread runner) and `batch.rent_fleet` (Pixal3D) take a pool card (`park.adopt`, by class in
   any zone, another kind's cleaned and set up again) or wait for one, a class the pool lacks added to it
-  (`pool.want`); `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
+  (`pool.want`, which also raises that one class's disk, never every class's: the collector rents one card of it at
+  the bigger disk and `pool.trim` lets an idle smaller one of that class go, so the pool keeps its size);
+  `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
   the usual 15-minute quiet limit, the collector beating it) and deletes a broken one, which the collector replaces;
   a card whose taker died is deleted by the collector. A card goes back only from a kind with a clean-up in
   `park.CLEANUPS`: every Buy kind has one (blender, library, pixal, judge, segment, meshparts, finish-masks, and
   since the pool `characters`, `pictures`, `pictures-20b` and `scene`, its depth step's); a card of a kind with none
   (parts, unlit, similar, unirig, closeups, moss-sound, the image proofs the sound takes run through) is deleted
   after its job and replaced. A dead card's unfinished share (`spread.Shares.again`) or
-  Pixal3D jobs (`Fleet.again`) go back on the queue once (a finished job never runs again; a second death makes it a gap). Every card minute is charged once:
+  Pixal3D jobs (`Fleet.again`) go back on the queue once (a finished job never runs again; a second death makes it a gap).
+  Dead means it no longer answers (`batch.answers`, review of 2026-10-23): a share that failed on a card that still
+  answers (a copy-in, a local fault) is a gap and the card works on, and a card that failed in set-up is followed by
+  one more only when it died, never after a set-up that failed on a card that answers, so a broken set-up script
+  never takes card after card. The collector says a failed round (the provider's API, a delete) and tries again,
+  backing off as for stock; only the pool's end, its release or its run's end stop it. Stop everything closes every
+  open pool and ends its collector (`pool.close_all`) before it releases the parked cards, and a release tries every
+  card before it raises, `score run`'s release going on past it. Every card minute is charged once:
   rent to first parking (`pool-<run>-<id>`), each spell idle (`pool-idle-...`, at its take or release), the taker's
   use; each line carries the run and the pool's ticket. The pool's idle time is the run's own cost, to be counted in
   its high estimate, its stop line and a benchmark grant's balance (see not yet wired below), never cut by a smaller pool or a cheaper class

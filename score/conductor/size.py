@@ -43,6 +43,7 @@ TOKEN_SECRET = "score-conductor-size-token"
 HEADER = "X-Score-Size-Token"  # tools/cloud/conductor/size_function/handler.py checks it
 READER = "SCORE_SECRET_READER"
 PARKED = PROPS_HOME / "cloud" / "parked"  # tools/props/cloud/park.py PARKED
+POOLS = PROPS_HOME / "cloud" / "pools"  # tools/props/cloud/pool.py POOLS
 
 
 def waits(jobs, oversubscribe, agent=None):
