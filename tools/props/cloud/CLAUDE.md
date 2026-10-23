@@ -210,6 +210,15 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. Not yet
   wired: releasing the pool once the run has no card work left (before its last free rows), and the cockpit's
   cards-warm figure.
+- **With L4s sold out, the pool rents a bigger card in an L4's place** (owner, 2026-10-23, "yes" to: "when L4s are sold
+  out, should the pool take a bigger GPU (L40S or H100) instead? It costs more per hour but gives the same quality
+  ... within the run's money limit"): `pool.stand_in` takes the next larger single card in stock (L40S, then H100)
+  within its quota, only while the pool's cards, each at the class rented and its dearest offer for the pool's
+  hours, fit the euros its clearance reserved (`pool.fits`, `plan["euros"]` from `opened_pool`), so the high stays a
+  true upper bound and the pool may hold fewer, bigger cards; once a stand-in is in, every reserved place is held to
+  that sum (`pool.rents`). The card fills the L4's place (`for`), a claim on a 24 GB card takes it (`pool.takes`: the
+  larger single cards a kind allows, never its `capacity.NEVER`), it is never swapped while it works, and its place's
+  next card is asked as an L4 first. A pool opened without its euros rents none.
 - **The warm pool holds a few processor machines beside its cards, for renders and bakes** (owner, 2026-10-23: "why
   isnt rendering on cpu better?", then "yeah" to: Blender renders the same picture on processor and card, processor
   machines are almost never out of stock, so bakes and small renders take whichever machine is free first; and "cant
