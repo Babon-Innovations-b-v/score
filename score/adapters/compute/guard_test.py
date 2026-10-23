@@ -307,6 +307,22 @@ def test_a_watch_whose_preflights_cannot_be_read_falls_back_to_its_stages_foreca
     assert watch.check() and stopped == [1]
 
 
+def test_a_run_waiting_for_a_warm_pool_card_is_no_runaway():
+    """Benchmark of 2026-10-23: a rough model (12 measured minutes) waited on the pool's first card in a stock
+    trough; the wait is not the run's work, and its minutes count again once a card is taken."""
+    stopped, clock, waits = [], [0.0], [True]
+    watch = guard.Watch("rough-model@hub u", 12.0, pathlib.Path(tempfile.mkdtemp()), stop=lambda: stopped.append(1),
+                        clock=lambda: clock[0], waiting=lambda: waits[0])
+    for minute in range(1, 91):  # an hour and a half waiting
+        clock[0] = minute * 60
+        assert not watch.check()
+    waits[0] = False
+    clock[0] = 90 * 60 + 20 * 60
+    assert not watch.check()
+    clock[0] = 90 * 60 + 25 * 60
+    assert watch.check() and stopped == [1]
+
+
 QUESTION = "Approve one benchmark batch, P1, of at most EUR 10?"
 
 

@@ -115,6 +115,19 @@ def test_a_whole_run_is_sized_on_its_stages_median_jobs():
     assert preflight.run_cards(entries, "demo-film", cap=2) == 2
     assert preflight.run_cards(entries[:2], "demo-film", cap=20) is None
 
+
+def test_a_run_is_waiting_only_while_a_claims_mark_is_fresh():
+    os.environ[preflight.TICKET], os.environ[preflight.STORE] = "rough-model@hub key1", tempfile.mkdtemp()
+    try:
+        assert not preflight.is_waiting("rough-model@hub key1")
+        preflight.mark_waiting()
+        assert preflight.is_waiting("rough-model@hub key1") and not preflight.is_waiting("rough-model@hub key2")
+        assert not preflight.is_waiting("rough-model@hub key1", fresh_seconds=0)  # a mark left by a killed process
+        preflight.unmark_waiting()
+        assert not preflight.is_waiting("rough-model@hub key1")
+    finally:
+        os.environ.pop(preflight.TICKET), os.environ.pop(preflight.STORE)
+
 if __name__ == "__main__":
     import pathlib
     import runpy

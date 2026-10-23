@@ -183,13 +183,16 @@ def no_batches():
 class Watch:
     """A cleared run's runaway watch, beside its make: every `every` seconds it compares the run's minutes with its
     high forecast's (`batches()`: its batches' pre-flights, whose high minutes add up; else `forecast_minutes`), and
-    past RUNAWAY times them tells the owner once and calls `stop` (the make's children signalled)."""
+    past RUNAWAY times them tells the owner once and calls `stop` (the make's children signalled). The time between
+    two checks at which `waiting()` said the run waits for a warm pool card is left out of its minutes (benchmark of
+    2026-10-23: a rough model waiting on the pool's first card was a runaway at twice its 12 measured minutes)."""
 
     def __init__(self, ticket, forecast_minutes, folder, batches=no_batches, stop=stop_children, every=WATCH_SECONDS,
-                 clock=time.monotonic):
+                 clock=time.monotonic, waiting=lambda: False):
         self.ticket, self.forecast, self.folder, self.batches = ticket, forecast_minutes, folder, batches
-        self.stop, self.every, self.clock = stop, every, clock
+        self.stop, self.every, self.clock, self.waiting = stop, every, clock, waiting
         self.started, self.ended, self.ran_away = clock(), threading.Event(), False
+        self.looked, self.waited = self.started, 0.0
         self.thread = threading.Thread(target=self.watch, daemon=True)
 
     def __enter__(self):
@@ -208,9 +211,20 @@ class Watch:
         except (OSError, ValueError, KeyError, TypeError):
             return self.forecast
 
+    def waits(self):
+        """Whether the run waits for a warm pool card now (False when that cannot be read, so the watch never dies)."""
+        try:
+            return bool(self.waiting())
+        except (OSError, ValueError):
+            return False
+
     def check(self):
         """Stop the run once it is a runaway; True when it is one."""
-        minutes, forecast = (self.clock() - self.started) / 60, self.forecast_minutes()
+        now = self.clock()
+        if self.waits():
+            self.waited += now - self.looked
+        self.looked = now
+        minutes, forecast = (now - self.started - self.waited) / 60, self.forecast_minutes()
         if not self.ran_away and runaway(forecast, minutes):
             self.ran_away = True
             tell_owner(self.folder, f"runaway {self.ticket}", f"stopped after {minutes:.0f} min, over {RUNAWAY:g} "

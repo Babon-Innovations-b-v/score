@@ -827,6 +827,13 @@ def batch_preflights(ticket):
     return preflight.kept(ticket)
 
 
+def pool_waiting(ticket):
+    """Whether the run's processes wait for a warm pool card now (tools/props/cloud/preflight.py is_waiting)."""
+    ledger()  # puts tools/props/cloud on the path
+    import preflight
+    return preflight.is_waiting(ticket)
+
+
 @contextlib.contextmanager
 def spending(ticket):
     """Name a cleared ticket's run in this process and the processes it starts, for the rent points to find, its
@@ -839,7 +846,8 @@ def spending(ticket):
     folder = (pathlib.Path(ticket["reservations"]).parent if "reservations" in ticket else
               pathlib.Path(os.environ[STORE]) if os.environ.get(STORE) else Store.default().cache.parent)
     watch = guard.Watch(os.environ[TICKET], ticket.get("clearance", {}).get("high_minutes"), folder,
-                        batches=lambda: batch_preflights(os.environ[TICKET]))
+                        batches=lambda: batch_preflights(os.environ[TICKET]),
+                        waiting=lambda: pool_waiting(os.environ[TICKET]))
     try:
         with watch:
             yield
