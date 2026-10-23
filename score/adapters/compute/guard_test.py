@@ -339,7 +339,7 @@ def test_a_grant_is_a_quoted_benchmark_of_at_most_20_euros():
     grant = compute.grant_benchmark("Yes", QUESTION, 20, store=store)
     assert store.read(f"grants/benchmark/{grant['id']}.json") == grant
     assert grant["answer"] == "Yes" and grant["question"] == QUESTION and grant["euros"] == 20.0
-    assert grant["expires"] > grant["at"] and grant["google_month"] is None
+    assert "expires" not in grant and grant["google_month"] is None
 
 
 def test_a_grant_may_carry_the_owners_google_month():
@@ -447,19 +447,12 @@ def test_a_scene_inventory_reading_is_cleared_under_the_owners_allowance_alone()
     assert "EUR 0.34 left" in compute_test.refused(lambda: as_benchmark(grant, "reading-1", clear(0.6)))
 
 
-def test_an_expired_or_unquoted_grant_clears_nothing():
+def test_an_unquoted_or_too_dear_grant_clears_nothing():
     runner = compute_test.a_runner("a hall")
     ledger({"euros": 0.0})
-    kept = compute.GRANT_HOURS
-    compute.GRANT_HOURS = 0
-    try:
-        expired = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
-    finally:
-        compute.GRANT_HOURS = kept
     clear = lambda: compute.clearance(runner, "render@hangar", 1.0)  # noqa: E731
-    assert "expired" in compute_test.refused(lambda: as_benchmark(expired, "run-a", clear))
     forged = {"id": "forged", "purpose": "benchmark", "euros": 10.0, "answer": "", "question": QUESTION,
-              "at": graph.now(), "expires": "2999-01-01T00:00:00+00:00", "single_use": True}
+              "at": graph.now(), "single_use": True}
     runner.store.write_once("grants/benchmark/forged.json", forged)
     assert "not a quoted benchmark grant" in compute_test.refused(lambda: as_benchmark("forged", "run-a", clear))
     runner.store.write_once("grants/benchmark/dear.json", {**forged, "id": "dear", "answer": "Yes", "euros": 50.0})

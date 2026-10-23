@@ -239,7 +239,7 @@ not; the scene a part belongs to builds it. A scene added in the app joins once 
 **Accepts.** The runner accepts what passed and got no worse. The owner may reject an accepted output (it moves back to
 the one before, every later node that read it goes stale, the runner never takes it again), accept a worse one with
 his reason, waive one check for one key, or override with a yes for a run outside the runner. A benchmark grant is his
-yes in a Claude Code session to benchmark batches of at most EUR 20 in all (`compute.grant_benchmark`, 24 h): it holds
+yes in a Claude Code session to benchmark batches of at most EUR 20 in all (`compute.grant_benchmark`, no expiry): it holds
 its balance until spent, each run drawing its real spend, finished or failed (owner, 2026-10-22).
 
 ## architecture/layers
