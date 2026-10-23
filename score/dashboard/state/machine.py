@@ -113,6 +113,9 @@ def said(value):
 def state_of(machine, found_health):
     """The machine's state in words (idle, growing, running a batch, shrinking), or None when nothing says."""
     raw = machine.get("state") or found_health.get("state")
+    if raw is None and "runs_active" in found_health:  # the owner's PC: no conductor record, its runs say it
+        runs = found_health["runs_active"]
+        return f"running {runs} run{'s' if runs != 1 else ''}" if runs else "idle"
     return STATES.get(raw, raw)
 
 
@@ -129,6 +132,7 @@ def card(found, export_made_at=None, now=None):
     return {"name": machine.get("name"), "size": read.get("size") or machine.get("size"),
             "state": state_of(machine, read), "booted": machine.get("booted"),
             "missing": read.get("missing"), "failed": read.get("failed"),
+            "on_pc": not read.get("machine") and not machine.get("size"),  # no cloud machine: no backup, no bill
             "backup_minutes": backup_minutes, "backup_ok": backup.get("ok"),
             "backup_late": backup_minutes is None or backup_minutes > BACKUP_LATE_MINUTES or backup.get("ok") is False,
             "export_minutes": export_minutes,
