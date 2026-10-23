@@ -32,9 +32,10 @@ a long one, each set up once and taking the next job as it ends one. Every job r
 2026-10-20): one that fails, or whose machine is lost, is a gap (spread.py).
 Classes: a processor machine for physics (settling: cpu-32c-128gb first,
 the default), a card for renders (`--classes gpu-24gb`, Cycles on the card; on a processor machine Cycles renders on
-its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). One class is fixed for the whole call by a stock
-read at price time, the first of those asked in stock (batch.one_class_in_stock); none in stock means the jobs are
-gaps, never another class or a processor machine for a card job. Blender is 5.0.1 from blender.org, set up by
+its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). One class is fixed for the whole call at price
+time (batch.one_class_in_stock: the first asked that the run's warm pool holds, else the first in stock, else the
+first sold), never another class or a processor machine for a card job; no stock never makes a gap (owner,
+2026-10-23): under a run's warm pool every claim takes a pool card, else it waits for stock. Blender is 5.0.1 from blender.org, set up by
 library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
 are batch.py's.
 
@@ -99,12 +100,11 @@ def plan(jobs):
 
 
 def price(jobs, account, classes):
-    """Print the estimate and refuse what passes the owner's limits; the offers of the one class in stock
+    """Print the estimate and refuse what passes the owner's limits; the offers of the call's one class
     (batch.one_class_in_stock), the machines and the minutes allowed."""
     found = batch.one_class_in_stock(classes)
     if not found:
-        raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend: the jobs are "
-                         "gaps")
+        raise SystemExit(f"the {cloud.NAME} backend sells no machine of {', '.join(classes)}")
     count, minutes = plan(jobs)
     what = f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}"
     return found, count, batch.priced(found, minutes, count, what, account)
@@ -400,8 +400,8 @@ def main():
     parser.add_argument("--minutes", type=float, default=SERVE_MINUTES, help="--serve: the chain's expected minutes")
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
-    parser.add_argument("--classes", help="capability classes in order, comma separated: the first in "
-                        "stock at price time is the one rented")
+    parser.add_argument("--classes", help="capability classes in order, comma separated: the first the "
+                        "run's warm pool holds, else the first in stock, else the first sold")
     parser.add_argument(detached.FLAG, action="store_true", help="progress to a log, one result line at the end")
     options = parser.parse_args()
     if not options.jobs and not options.serve and not options.dry_run:

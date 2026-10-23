@@ -422,8 +422,9 @@ def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
     assert len(sound.candidates("pump", jobs, scored, "rev")) == 1
 
 
-def test_no_card_in_stock_is_a_gap_asked_once():
-    """#21: the card is asked for once; none in stock blocks the row at once (its takes gaps), never waited out."""
+def test_no_card_had_by_the_deadline_is_a_gap_asked_once():
+    """#21: the card is asked for once (its claim waits for a pool card or stock up to its deadline); none had blocks
+    the row (its takes gaps), never asked again."""
     import types
     from score import graph
     from score.stages.sound import takes
@@ -438,9 +439,9 @@ def test_no_card_in_stock_is_a_gap_asked_once():
         sys.modules["provider"] = types.SimpleNamespace(cloud=cloud)
         try:
             takes.on_card({"classes": ["L4-1-24G"]})
-            raise AssertionError("no card in stock was not a gap")
+            raise AssertionError("no card had was not a gap")
         except graph.Blocked as blocked:
-            assert "in stock" in str(blocked), blocked
+            assert "before the deadline" in str(blocked) and len(attempts) == 1, blocked
     finally:
         takes.prove_tool = real_tool
         if real_provider is None:

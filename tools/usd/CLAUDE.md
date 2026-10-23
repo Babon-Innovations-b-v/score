@@ -179,8 +179,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   drift more than 30 cm (small debris, no side over 1.4 m: any turn, 1 m) keeps its laid pose and is marked `unrested` (the check fails it as "would not rest as laid"),
   because the concept's composition is the owner's; put its layout right instead. Loose pieces collide with the
   ground and the static pieces only (convex hulls over hollows rested on debris). `--cloud` runs it on a rented
-  machine, a small processor one only (`DROP_CLASSES`, #20; #21: no chain to bigger classes, a drop that gets none
-  is a gap; parked for its billed hour, so the places' drops share one rental; that the solve uses one core is not
+  machine, a small processor one only (`DROP_CLASSES`, #20; #21: no chain to bigger classes; a drop waits for a
+  machine of the run's warm pool or for stock, never a gap for no stock, owner 2026-10-23; parked for its billed hour, so the places' drops share one rental; that the solve uses one core is not
   yet timed). `ground.py level <place>` levels a place's yard in the plan; `ground.py dent <place> <piece>` cuts a
   shallow bowl under a piece (a thrown sphere, a section's impact) so it rests where it was laid. A tip over 3 degrees
   onto feet that do not lie in one plane in the model's own frame (`uneven_feet`) is never written either: it is the

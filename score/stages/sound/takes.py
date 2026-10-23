@@ -91,8 +91,9 @@ def prove_tool():
 
 
 def on_card(plan):
-    """The plan on one rented card, asked for once (#21): no card in stock is a gap (Blocked), never waited out by
-    asking again; a card in stock later is a new batch."""
+    """The plan on one card (#21): a card of the run's warm pool, else one rented, the claim waiting for stock while
+    the card's deadline is ahead (no stock never makes a gap: owner, 2026-10-23); no card had by then is Blocked, a
+    new batch asks again."""
     prove = prove_tool()
     from provider import cloud  # prove.py put it on the path
     account = cloud.account()
@@ -101,8 +102,8 @@ def on_card(plan):
     registry, store_spec = cloud.registry(), cloud.object_store()
     results = {}
     if not prove.one_attempt(plan, account, registry, store_spec, WHO, results):
-        raise graph.Blocked(f"no card of {', '.join(plan['classes'])} in stock: the takes are gaps, a new batch "
-                            "asks again")
+        raise graph.Blocked(f"no card of {', '.join(plan['classes'])} was had before the deadline: the takes are "
+                            "gaps, a new batch asks again")
     failed = [job for numbers in results.get(KIND, []) for job in numbers["jobs"].values() if job.get("failed")]
     if failed:  # its takes are gaps (made says which), never asked again inside the batch
         print(f"the moss job failed on its card: {failed}", flush=True)

@@ -243,6 +243,29 @@ def test_a_class_the_pool_lacks_is_added_and_no_stock_never_empties_the_offers()
     assert batch.one_class_in_stock(["gpu-24gb"])  # none in stock: still offered, its claims wait for stock
 
 
+def test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned():
+    """The people chain, both picture models and the scene's steps (its depth) register their clean-up, so a pool card
+    they used goes back to the pool, its run's files removed, rather than being deleted and rented again."""
+    import characters
+    import pictures
+    import scene
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
+    grow(run_id)
+    commands = []
+    batch.remote = lambda folder, host, command, **_: commands.append(command)
+    kinds = [characters.KIND, *sorted({settings["kind"] for settings in pictures.MODELS.values()}), scene.KIND]
+    for kind in kinds:
+        card = claimed(a_run(f"buy-{kind}"), kind)
+        assert card is not None and card["pool"] == run_id, kind
+        card["healthy"] = True
+        batch.delete_machine(card)
+        assert len(park.pool_records(run_id)) == 1, kind  # back in the pool
+    assert len(kinds) == 4 and len(calls.rented) == 1 and not calls.deleted
+    for removed in ("/root/make/*", "/root/pics/out", "/root/props/work/scene"):
+        assert any(removed in command for command in commands), (removed, commands)
+    pool.release(run_id)
+
+
 def test_a_pool_is_sized_from_the_runs_planned_card_work():
     sizes = pool.size_for([("pixal", 400, 2.0, 3.0), ("library", 200, 2.0, 1.0), ("judge", 30, 1.0, 1.0)])
     assert sum(sizes.values()) == pool.MOST_CARDS and sizes["gpu-48gb"] >= 1 and sizes["gpu-24gb"] >= 1

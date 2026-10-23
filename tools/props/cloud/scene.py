@@ -51,6 +51,7 @@ import batch  # noqa: E402
 import capacity  # noqa: E402
 import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
+import park  # noqa: E402
 import place  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
@@ -58,6 +59,7 @@ from provider import cloud  # noqa: E402
 from local_models import ALLOW  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 
+KIND = "scene"
 REMOTE_REPO = pathlib.PurePosixPath("/root/repo")
 REMOTE_HOME = pathlib.PurePosixPath("/root/props")
 REMOTE_INPUTS = REMOTE_HOME / "inputs"
@@ -79,6 +81,15 @@ def local_room(room):
 
 def remote_room(room):
     return REMOTE_HOME / "work" / "scene" / room
+
+
+def cleanup(_machine):
+    """The command that removes a run's own files from its card before it is parked or goes back to its run's card
+    pool (park.py): every room's folder and the inputs; the scripts, weights and environment stay."""
+    return f"rm -rf {REMOTE_HOME / 'work' / 'scene'} {REMOTE_INPUTS}"
+
+
+park.CLEANUPS[KIND] = cleanup
 
 
 def inside_room(room, path):
@@ -368,7 +379,7 @@ def main():
     folder.mkdir(parents=True)
     run = pictures.Run(folder, started + allowed_minutes * 60)
     try:
-        machines = pictures.rent_machines(run, account, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
         if not machines:
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], plan)

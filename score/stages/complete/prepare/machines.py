@@ -1,7 +1,8 @@
 """One machine class and zone a layer, fixed before the batch (#21: no class chain inside it). The class is the
 first of the layer's runner's classes in its kind's own order (capacity.order_for: the cheapest card per job first,
 measured), leaving out a class the kind never takes (capacity.NEVER) and, when a free stock read is given, a class
-with no zone in stock. The zone is the one of that class with the best boot record in the cloud ledgers (machines
+with no zone in stock; with none in stock the first still, its jobs waiting for a card of the run's warm pool (no
+stock never makes a gap: owner, 2026-10-23). The zone is the one of that class with the best boot record in the cloud ledgers (machines
 that came up over every start tried, out-of-stock refusals apart; most starts breaking ties), in stock where the
 stock was read. A layer of Google calls rents nothing.
 
@@ -113,5 +114,9 @@ def fixed(stage, records, cap, stock=None):
         why = "first class in the kind's order" + (", in stock" if stocked is not None else ", stock not read")
         return {"kind": kind, "class": machine_class, "zone": zone, "boot": record,
                 "why": why if zone else why + "; no boot record of it in the ledgers, zone left to the claim"}
-    return {"kind": kind, "class": None, "zone": None, "boot": None,
-            "why": "no class of the layer in stock: its jobs are gaps unless stock comes back before the batch"}
+    if not classes:
+        return {"kind": kind, "class": None, "zone": None, "boot": None, "why": "the layer's kind takes no class"}
+    zone, record = best_zone(kind, classes[0], records, None)
+    return {"kind": kind, "class": classes[0], "zone": zone, "boot": record,
+            "why": "first class in the kind's order, none of the layer's in stock now: its jobs wait for a card of "
+                   "the run's warm pool, never gaps (owner, 2026-10-23)"}

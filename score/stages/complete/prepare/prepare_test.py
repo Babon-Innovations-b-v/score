@@ -116,7 +116,7 @@ def test_the_first_class_in_the_kinds_order_is_fixed_in_its_zone_with_the_best_b
     short = [Offer("gpu-24gb", "b", machines.SHORTAGE), Offer("gpu-24gb", "a", "available")]
     assert machines.fixed("pixal", records, cap, short)["zone"] == "a"
     none_stocked = machines.fixed("pixal", records, cap, [Offer("cpu-4c-32gb", "a", "available")])
-    assert none_stocked["class"] is None and "gaps" in none_stocked["why"]
+    assert none_stocked["class"] == "gpu-24gb" and "never gaps" in none_stocked["why"], none_stocked
     assert machines.fixed("closeup", records, cap) is None  # Google calls rent nothing
 
 

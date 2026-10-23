@@ -11,9 +11,9 @@ and its `out` folder; a make_chunky job's pieces name their `parts` folders (lab
 5.0.1 (the version this repo's tools pin, checked against blender.org's sha256) runs each job with `-b` and Cycles on
 the card (FARM_CYCLES_GPU), with ProcFunc and infinigen2's shaders from the repo's vendored copies; each job's `out`
 comes back to where it says. The jobs are spread over as many machines as finish them in about the setup and one
-job's time (spread.py), each taking the next job as it finishes one; one machine for a short list. One class, read
-from the stock at price time, for the whole call; every job runs once, and one that fails, or finds no machine in
-stock, is a gap (a batch, CONTEXT.md, owner 2026-10-20). The owner's
+job's time (spread.py), each taking the next job as it finishes one; one machine for a short list. One class, fixed at
+price time, for the whole call (batch.one_class_in_stock); every job runs once, and one that fails is a gap (a batch,
+CONTEXT.md, owner 2026-10-20); no stock never makes a gap (owner, 2026-10-23). The owner's
 limits, the self-delete, the watchdog and the delete are batch.py's. Under SCORE_CLOUD=k8s the same jobs run as
 Kubernetes Jobs of the blender image on the cluster (tools/cloud/k8s/cluster_jobs.py); the machines stay the default.
 """
@@ -55,14 +55,14 @@ def card_minutes(job):
 
 
 def price(jobs, account, classes):
-    """Print the estimate and refuse what passes the owner's limits; the offers of one class in stock (the first of
-    the `classes` asked, else of the cards that hold a bake in capacity.py's order: batch.one_class_in_stock), the
-    machines and the allowed minutes. None in stock means the jobs are gaps, never a processor machine in a card's
-    place (a batch, CONTEXT.md, owner 2026-10-20); a processor class asked for is priced at PROCESSOR_SLOWER."""
+    """Print the estimate and refuse what passes the owner's limits; the offers of the call's one class (of the
+    `classes` asked, else of the cards that hold a bake in capacity.py's order: batch.one_class_in_stock), the
+    machines and the allowed minutes. Never a processor machine in a card's place (a batch, CONTEXT.md, owner
+    2026-10-20); a processor class asked for is priced at PROCESSOR_SLOWER."""
     found = batch.one_class_in_stock(classes or list(capacity.classes_for("library")))
     if not found:
-        raise SystemExit(f"no machine of {', '.join(classes) if classes else 'a card that holds a bake'} is in stock at "
-                         f"the {cloud.NAME} backend: the jobs are gaps")
+        raise SystemExit(f"the {cloud.NAME} backend sells no machine of "
+                         f"{', '.join(classes) if classes else 'a card that holds a bake'}")
     slower = 1 if provider.cards(found[0].machine_class) else PROCESSOR_SLOWER
     each = [card_minutes(job) * slower for job in jobs]
     count = capacity.machines_for(len(jobs), sum(each) / len(each), SETUP_MINUTES)

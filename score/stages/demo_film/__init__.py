@@ -75,7 +75,8 @@ LENGTH_SLACK = 0.5
 ACROSS_EYE = 1.6
 ACROSS_AIM = 1.2
 # Workbench and Cycles on a 24 GB card only: the forecast prices that card, and a dearer class taken when it is out
-# of stock would be a fallback chain inside the batch (#21); none in stock is a gap and a new ask.
+# of stock would be a fallback chain inside the batch (#21); none in stock waits for a card of the run's warm pool
+# (no stock never makes a gap: owner, 2026-10-23).
 CLASSES = "gpu-24gb"
 # Two shots of 96 frames: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger 2026-10-18:
 # greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6 likely; the row's
