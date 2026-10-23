@@ -89,11 +89,19 @@ def test_agreement_counts_against_the_maps():
 
 
 def test_a_finish_out_of_order_is_found_and_a_see_through_finish_is_known():
-    lightness = {"anodized_natural": 60.0, "dust_coated_paint": 70.0}
+    greys = {"anodized_natural": {"colour": [0.2843] * 3}, "dust_coated_paint": {"colour": [0.4075] * 3}}  # L* 60, 70
+    lightness = finish_parts.opaque_lightness(greys)
     white = {"surface": "anodized_natural", "measured_lab": [80.6, 1.0, 2.0]}  # the campgrounds' power unit
     dusty = {"surface": "dust_coated_paint", "measured_lab": [69.7, 0, 0]}
-    assert finish_parts.out_of_order(white, dusty, lightness) and not finish_parts.out_of_order(dusty, white, lightness)
-    assert not finish_parts.out_of_order(white, dict(dusty, measured_lab=None), lightness)
+    assert finish_parts.out_of_order(white, dusty, greys, lightness)
+    assert not finish_parts.out_of_order(dusty, white, greys, lightness)
+    assert not finish_parts.out_of_order(white, dict(dusty, measured_lab=None), greys, lightness)
+    # a finish route's finish paints in its own colour (its settings' token) while it keeps its listed surface:
+    # astronaut-made (2026-10-23): its white shell in suit-white, its variant's own token base-grey
+    shell = dict(white, colour=[0.9131] * 3, listed_surface="anodized_natural")
+    fabric = dict(dusty, colour=[0.4075] * 3, listed_surface="dust_coated_paint")
+    assert not finish_parts.out_of_order(shell, fabric, greys, lightness)
+    assert finish_parts.out_of_order(dict(shell, listed_surface="other"), fabric, greys, lightness)  # moved: library's
     every = {"red_plastic": {"family": "plastic"}, "cast_steel": {"family": "steel"}, "glass": {"family": "glass"}}
     listed = [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
               {"finish": "Polished reflective metal", "parts": "internal reflector", "surface": "cast_steel"},
