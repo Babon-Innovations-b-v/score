@@ -24,7 +24,6 @@ for folder in (REPO / "score/stages/surfaces", REPO / "tools/props", REPO / "too
 
 import bake_check  # noqa: E402
 import glb_file  # noqa: E402
-import route_settings  # noqa: E402
 
 PROPS_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
 SCRIPT = "score/stages/people/inside/bake_body.py"
@@ -163,19 +162,6 @@ def laid_maps(document, views, maps):
         material["normalTexture"] = {"index": 2}
 
 
-def close_up(labelled):
-    """Each surface's colour in the close-up (L*a*b*), as bake_check.close_up_colours measures it, under the name
-    the surface bakes as (a finish with the list's settings as route_settings.settings_name names it)."""
-    measured = {}
-    for finish in json.loads((labelled / "labels.json").read_text()).get("finishes", []):
-        if finish.get("measured_lab") is not None and not finish.get("cover"):
-            name = route_settings.settings_name(finish["surface"], finish["settings"]) if finish.get("settings") \
-                else finish["surface"]
-            measured.setdefault(name, []).append(finish["measured_lab"])
-    return {name: [round(float(np.mean([colour[axis] for colour in colours])), 1) for axis in range(3)]
-            for name, colours in measured.items()}
-
-
 def checked(points, triangles, slots, names, uvs, base_colour, specs, close, wear_dirt):
     """The bake measured as bake_check.check_model measures a baked model, each triangle's surface its own slot:
     {"surfaces": {surface: share, baked and library L*a*b*, dE worn and dirtied, near-black share, family},
@@ -227,5 +213,6 @@ def bake(glb, specs, head, labelled, folder):
     laid_coordinates(document, views, lists, uvs)
     laid_maps(document, views, maps)
     glb_file.write(document, views, glb)
-    return checked(points, triangles, slots, names, uvs, maps / "base_color.png", specs, close_up(labelled),
+    return checked(points, triangles, slots, names, uvs, maps / "base_color.png", specs,
+                   bake_check.close_up_colours(labelled),
                    (head["wear"], head["dirt"]))

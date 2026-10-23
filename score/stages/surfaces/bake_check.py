@@ -20,6 +20,7 @@ if str(REPO) not in sys.path:
 
 import surface_gates as gates  # noqa: E402
 import prop_env  # noqa: E402
+import route_settings  # noqa: E402
 
 # A baked part lies on its surface when its median base colour is within BAKE_DELTA_E (CIE76) of the surface's
 # colour: the bake's wear and dirt (0.4 each) move a surface's colour, a wrong surface moves it far more. A part
@@ -340,14 +341,18 @@ def stands(name, labelled, inventory_rows, lying_words):
 
 def close_up_colours(labelled):
     """Each surface's colour in the close-up (L*a*b*, the mean of its finishes' measured colours) from the paint's
-    report of the take (labels.json `finishes`); {} when the method measured none. A coloured see-through cover
+    report of the take (labels.json `finishes`), under the name the surface bakes as (a finish with the list's settings
+    as route_settings.settings_name names it, as route_bake.named_records names its parts: keyed by the variant alone,
+    every surface with settings was compared with nothing, 2026-10-23); {} when the method measured none. A coloured see-through cover
     (`cover`, finish_parts.coloured_cover: the garage beacon's red_plastic dome, whose pixels are its highlights and
     what lies behind it) is left out, as glass is (owner, #8); any other finish judged by its own colour (an OWN_COLOUR
     family's, print off its listed colour) stays in, so the order and one-look checks still see it."""
     measured = {}
     for finish in json.loads((labelled / "labels.json").read_text()).get("finishes", []):
         if finish.get("measured_lab") is not None and not finish.get("cover"):
-            measured.setdefault(finish["surface"], []).append(finish["measured_lab"])
+            settings = route_settings.applied(finish)
+            name = route_settings.settings_name(finish["surface"], settings) if settings else finish["surface"]
+            measured.setdefault(name, []).append(finish["measured_lab"])
     return {surface: [round(sum(colour[axis] for colour in colours) / len(colours), 1) for axis in range(3)]
             for surface, colours in measured.items()}
 
