@@ -254,25 +254,26 @@ def test_a_class_the_pool_lacks_is_added_and_no_stock_never_empties_the_offers()
 
 
 def test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned():
-    """The people chain, both picture models and the scene's steps (its depth) register their clean-up, so a pool card
-    they used goes back to the pool, its run's files removed, rather than being deleted and rented again."""
+    """Every kind that runs on pool cards has its clean-up, so a card it used goes back to the pool, its run's files
+    removed, rather than being deleted and rented again (fault, 2026-10-23: the likeness threw its L4 away). A kind
+    whose set-up writes no mark also removes every set-up mark, so the next kind on the card sets up again."""
     import characters
-    import pictures
-    import scene
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
     grow(run_id)
     commands = []
     batch.remote = lambda folder, host, command, **_: commands.append(command)
-    kinds = [characters.KIND, *sorted({settings["kind"] for settings in pictures.MODELS.values()}), scene.KIND]
+    unmarked = ["similar", "unirig", "parts", "closeups", "moss-sound", "unlit"]
+    kinds = [characters.KIND, "pictures", "pictures-20b", "scene", *unmarked]
     for kind in kinds:
         card = claimed(a_run(f"buy-{kind}"), kind)
         assert card is not None and card["pool"] == run_id, kind
         card["healthy"] = True
         batch.delete_machine(card)
         assert len(park.pool_records(run_id)) == 1, kind  # back in the pool
-    assert len(kinds) == 4 and len(calls.rented) == 1 and not calls.deleted
-    for removed in ("/root/make/*", "/root/pics/out", "/root/props/work/scene"):
+    assert len(calls.rented) == 1 and not calls.deleted
+    for removed in ("/root/make/*", "/root/pics/out", "/root/props/work/scene", "/root/similar", "/root/UniRig"):
         assert any(removed in command for command in commands), (removed, commands)
+    assert all(park.ALL_MARKS in park.CLEANUPS[kind](card) for kind in unmarked)
     pool.release(run_id)
 
 

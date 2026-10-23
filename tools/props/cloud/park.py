@@ -74,13 +74,30 @@ CARD_LEAST_MINUTES = 1
 TAKE_MINUTES = 0.5
 # A record this long past its time lost its --expire process (the machine went by its self-delete and the sweeps).
 STALE_MINUTES = 10
-# kind -> function(machine) giving the shell command that removes the run's own files from the machine. Pixal3D's
-# (batch.py imports this file) and meshparts' (meshparts.py is a declared input of the segvigen rows, so an edit there
-# re-keys them) live here; the other runners register their own.
+# Every set-up mark on a machine (STALE_MARKS keeps the newest of these).
+ALL_MARKS = "rm -f /root/.*-setup-*"
+# kind -> function(machine) giving the shell command that removes the run's own files from the machine. They live here,
+# not in the runners: a runner that sends a maker's scripts up is in its rows' code keys (score/graph/_code.py), so a
+# registration there moves those rows (c3b60928). blender_cloud.py, library_bake.py, characters.py, judge.py,
+# segment.py and finish_masks.py still register their own.
 CLEANUPS = {
     "pixal": lambda _machine: ("pkill -f '[m]achine_run[.]py' || true; cd /root/batch && "
                                "rm -rf in out queue logs closed status.json run.log"),
     "meshparts": lambda _machine: "rm -rf /root/mp/in /root/mp/out",
+    # pictures.py, both picture models: the reference photos, lists and pictures; the model and environment stay.
+    "pictures": lambda _machine: "rm -rf /root/pics/refs /root/pics/out /root/pics/jobs-*.json",
+    "pictures-20b": lambda _machine: "rm -rf /root/pics/refs /root/pics/out /root/pics/jobs-*.json",
+    # scene.py: every room's folder and the inputs; the scripts, weights and environment stay.
+    "scene": lambda _machine: "rm -rf /root/props/work/scene /root/props/inputs",
+    # Kinds whose set-up writes no mark and so runs in full each time, rebuilding the shared /root/venv (fault,
+    # 2026-10-23: the likeness threw its warm pool L4 away and the collector rented another): their whole folder goes
+    # (a set-up that clones would fail on it) and every set-up mark, so the next kind on the card sets up again.
+    "similar": lambda _machine: f"rm -rf /root/similar; {ALL_MARKS}",
+    "unirig": lambda _machine: f"rm -rf /root/rig /root/UniRig; {ALL_MARKS}",
+    "parts": lambda _machine: f"rm -rf /root/parts; {ALL_MARKS}",
+    "closeups": lambda _machine: f"rm -rf /root/closeups; {ALL_MARKS}",
+    "moss-sound": lambda _machine: f"rm -rf /root/sfx; {ALL_MARKS}",
+    "unlit": lambda _machine: f"rm -rf /root/unlit; {ALL_MARKS}",
 }
 # Run on a taken machine: every set-up mark but the newest goes, so a kind whose environment a later set-up of another
 # kind replaced (most share /root/venv) sets up again, while the last set-up's own mark stays good.

@@ -36,7 +36,6 @@ sys.path.insert(0, str(HERE.parent / "scene"))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
-import park  # noqa: E402
 import picture  # noqa: E402
 import place  # noqa: E402
 import provider  # noqa: E402
@@ -164,16 +163,6 @@ def set_up(machine, model):
         batch.remote(folder, host, f"bash /root/pics/picture_setup.sh {MODELS[model]['repository']}",
                      check=True, stdout=log,
                      stderr=subprocess.STDOUT)
-
-
-def cleanup(_machine):
-    """The command that removes a run's own files from its card before it is parked or goes back to its run's card
-    pool (park.py): its reference photos, lists and pictures; the model and the environment stay."""
-    return "rm -rf /root/pics/refs /root/pics/out /root/pics/jobs-*.json"
-
-
-for _kind in {settings["kind"] for settings in MODELS.values()}:
-    park.CLEANUPS[_kind] = cleanup
 
 
 def keep_beating(folder, host, stop):

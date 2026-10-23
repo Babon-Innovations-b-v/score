@@ -51,7 +51,6 @@ import batch  # noqa: E402
 import capacity  # noqa: E402
 import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
-import park  # noqa: E402
 import place  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
@@ -81,15 +80,6 @@ def local_room(room):
 
 def remote_room(room):
     return REMOTE_HOME / "work" / "scene" / room
-
-
-def cleanup(_machine):
-    """The command that removes a run's own files from its card before it is parked or goes back to its run's card
-    pool (park.py): every room's folder and the inputs; the scripts, weights and environment stay."""
-    return f"rm -rf {REMOTE_HOME / 'work' / 'scene'} {REMOTE_INPUTS}"
-
-
-park.CLEANUPS[KIND] = cleanup
 
 
 def inside_room(room, path):
