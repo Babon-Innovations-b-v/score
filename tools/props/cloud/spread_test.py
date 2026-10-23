@@ -19,6 +19,10 @@ import pictures  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
 
+# The parts kind cleans up (park.CLEANUPS), so a claim first looks for a parked one, which asks for a cleared run;
+# renting is faked here, and the sandbox has none parked.
+batch.compute.require_cleared = lambda what, store=None: {"node": "test"}
+
 
 def offer(machine_class, zone, stock=0):
     return provider.Offer(0.01, stock, f"{machine_class}-type", zone, 0.01, machine_class, 0, "available")
