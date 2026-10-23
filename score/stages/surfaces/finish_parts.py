@@ -84,6 +84,47 @@ def cleaned(mesh, face_label, count):
         labels.PART_CRUMB = saved
 
 
+def without_strays(mesh, face_label):
+    """Each face's finish once every stray is given the finish it shares the most edges with, round by round until
+    none is left. A stray is an island of one finish (its faces joined by shared edges) under patchy.py's STRAY_ISLAND
+    of the area, not a whole piece of the shape, whose finish holds an island of at least that elsewhere: a detail
+    that small is a decal or a part of its own, never a patch of paint (patchy.py), and a finish with no such island
+    keeps its islands (the porthole glass, merged_islands). The walk paints each face no view sees from its nearest
+    seen face, and the views' labels follow a texture's shading: on astronaut-made-s1 (71% of its area seen by no
+    view) that left jagged islands of the dark joints at the collar, wrists, lower back and inner thighs, stray
+    0.054 against patchy's 0.03 (2026-10-23)."""
+    import numpy as np
+    import patchy
+    pairs = mesh.face_adjacency
+    areas = mesh.area_faces  # as patchy.score weighs them, so a whole piece is told as it tells one
+    piece = patchy.components(len(face_label), pairs)
+    piece_area = np.bincount(piece, weights=areas)
+    label = face_label.copy()
+    while True:  # each round joins at least one island into a larger one, so it ends
+        island = patchy.islands(label, pairs)
+        area = np.bincount(island, weights=areas)
+        face_of = np.zeros(len(area), dtype=int)
+        face_of[island] = np.arange(len(island))
+        finish = label[face_of]
+        small = area < patchy.STRAY_ISLAND * areas.sum()
+        stray = small & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish, finish[~small])
+        across = np.r_[pairs, pairs[:, ::-1]]
+        # voted by larger islands only: two strays never swap, and a small piece's strays join its largest island
+        across = across[stray[island[across[:, 0]]] & (area[island[across[:, 1]]] > area[island[across[:, 0]]])]
+        if not len(across):
+            return label
+        votes = np.zeros((len(area), int(label.max()) + 1))
+        np.add.at(votes, (island[across[:, 0]], label[across[:, 1]]), 1.0)
+        label = np.where((votes.sum(1) > 0)[island], votes.argmax(1)[island], label)
+
+
+def patchiness(mesh, face_label, part_of):
+    """patchy.py's numbers and pass of a split take, each part its own region as the paint judges its painted parts
+    (place_line.paint_take): a finish's edge along a part's is the paint the views show."""
+    import patchy
+    return patchy.score(mesh, face_label, part_of, part_of)
+
+
 def kept_finishes(before, after):
     """`after` with each finish it lost entirely given back its faces of `before`. Smoothing and crumbs see no
     finish: a finish of many small islands (the cargo rack's white label plates, 0.9% of its area in 483 islands; the

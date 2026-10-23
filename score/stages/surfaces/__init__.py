@@ -68,7 +68,7 @@ def row(name, make, faults, check, judge, files, after=(), applies=data.paints, 
 
 ROUTE = (
     row("finish-route-palette", scene_palette.make_palette, scene_palette.palette_faults, "palette from the design",
-        scene_palette.judge_palette, scene_palette.files, paid=True, euros=scene_palette.PALETTE_EUROS),
+        scene_palette.judge_palette, scene_palette.palette_files, paid=True, euros=scene_palette.PALETTE_EUROS),
     row(scene_library.ROW, scene_library.make_library, scene_library.library_faults, "surfaces from the design",
         scene_library.judge_library, scene_library.files, ("finish-route-palette",), paid=True,
         euros=scene_library.LIBRARY_EUROS),

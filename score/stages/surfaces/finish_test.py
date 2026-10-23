@@ -79,6 +79,43 @@ def test_cleaning_never_removes_a_finish_whole():
     assert kept.tolist() == [0, 1, 0, 2]  # a finish left with any face stays as the cleaning left it
 
 
+def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
+    """astronaut-made-s1, 2026-10-23: the walk left jagged islands of the dark joints over its fabric (stray 0.054).
+    A stray joins the finish it borders; a finish with no island of its own size keeps its islands, a whole piece
+    keeps its finish, and a small piece of mixed finishes joins its largest island."""
+    import patchy  # on the path finish_parts gives
+    sphere = trimesh.creation.icosphere(subdivisions=4)
+    loose = trimesh.creation.box(extents=(0.05, 0.05, 0.05))
+    loose.apply_translation((3, 0, 0))
+    mesh = trimesh.util.concatenate([sphere, loose])
+    middles = mesh.triangles_center
+    label = np.zeros(len(mesh.faces), dtype=int)
+    on_sphere = np.arange(len(mesh.faces)) < len(sphere.faces)
+    label[on_sphere & (middles[:, 2] < -0.5)] = 1  # finish 1's large island
+    patch = on_sphere & (np.linalg.norm(middles - (0, 0.99, 0.1), axis=1) < 0.08)  # a blotch of finish 1
+    label[patch] = 1
+    lone = on_sphere & (np.linalg.norm(middles - (0.99, 0, 0.1), axis=1) < 0.08)  # finish 2, nowhere larger
+    label[lone] = 2
+    label[~on_sphere] = 1  # a whole piece of the shape
+    assert 0 < mesh.area_faces[patch].sum() / mesh.area < patchy.STRAY_ISLAND
+    before = finish_parts.patchiness(mesh, label, label)
+    found = finish_parts.without_strays(mesh, label)
+    assert (found[patch] == 0).all() and (found[lone] == 2).all() and (found[~on_sphere] == 1).all()
+    assert (found[~patch] == label[~patch]).all()
+    after = finish_parts.patchiness(mesh, found, found)
+    assert after["stray"] < before["stray"] and after["pass"], (before, after)
+    piece = (np.arange(len(mesh.faces)) >= len(sphere.faces)) & (middles[:, 0] > 3.02)  # a small piece, two finishes
+    label[piece] = 0
+    assert (finish_parts.without_strays(mesh, label)[~on_sphere] == 1).all()
+    from score.stages.surfaces import route_split
+    blotched = np.where(np.linalg.norm(middles - (0, 0, 1), axis=1) < 0.18, 1, 0)
+    for spot in ((0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)):  # blotches of each finish over 3%
+        blotched[on_sphere & (np.linalg.norm(middles - spot, axis=1) < 0.18)] = 1
+    blotched[~on_sphere] = 0
+    gated = finish_parts.patchiness(mesh, np.where(on_sphere, blotched, 0), np.zeros(len(mesh.faces), dtype=int))
+    assert not gated["pass"] and route_split.patchy_fault(gated).startswith("patchy paint: stray"), gated
+
+
 def test_agreement_counts_against_the_maps():
     mesh = trimesh.creation.icosphere(subdivisions=2)
     top = mesh.triangles_center[:, 1] > 0

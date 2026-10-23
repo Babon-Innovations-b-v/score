@@ -4,9 +4,12 @@ region's label there (route_list); the views vote (finish_parts.voted, the close
 
 Every face gets exactly one finish, or its take is a gap, named (owner, 2026-10-20): a face some view sees whose
 regions no view labelled is unassigned, and faces whose views disagree (no finish holds over half their votes) over
-DISAGREE_MOST of the area are views that disagree. A face no view can see takes its nearest seen face's finish along
-the surface (finish_parts.walked); the finishes are then smoothed and crumbs joined (finish_parts.cleaned,
-merged_islands), each island one part.
+DISAGREE_MOST of the area are views that disagree. A face no view can see (the inside of a raw model's shell, out of
+every camera's reach, is no gap) takes its nearest seen face's finish along the surface (finish_parts.walked); the
+finishes are then smoothed, each stray (an island under patchy.py's STRAY_ISLAND of a finish that has a larger one)
+given the finish round it (finish_parts.without_strays) and crumbs joined (finish_parts.cleaned, merged_islands), each
+island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures
+its painted take) is a gap, named, before anything is baked.
 
 The colour check comes first, free, the moment the list's one answer is back and before any paid bake or recheck
 (owner, 2026-10-20): each region of every view, from every angle the views row cast, against the finish labelled
@@ -19,7 +22,8 @@ VIEW_DELTA_E makes its take a gap, named, so nothing of it is baked.
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
 area unassigned, disagreeing and unseen, its parts and each view's agreement with the vote.
-Gate "one finish a face": every listed take is split with no fault (the colour check's gaps included). Each faulted
+Gate "one finish a face": every listed take is split with no fault (the colour check's and patchy paint's gaps
+included). Each faulted
 take, and each the rows before named, is a batch gap (batch-gaps.json, score/stages/batch_gaps.py): left out here and
 after, its fault moved to complete by the table.
 """
@@ -195,10 +199,16 @@ def colour_fault(faults):
 
 
 def voted_finishes(mesh, votes, count):
-    """(part per face, finish per face): each face's most voted finish, unseen faces walked, smoothed and crumbs
-    joined."""
+    """(part per face, finish per face): each face's most voted finish, unseen faces walked, smoothed, strays
+    joined to the finish round them and crumbs joined."""
     own = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
-    return finish_parts.merged_islands(mesh, finish_parts.cleaned(mesh, finish_parts.walked(mesh, own), count))
+    smoothed = finish_parts.cleaned(mesh, finish_parts.walked(mesh, own), count)
+    return finish_parts.merged_islands(mesh, finish_parts.without_strays(mesh, smoothed))
+
+
+def patchy_fault(found):
+    """The gap patchy paint makes (finish_parts.patchiness failing), None when it passes."""
+    return None if found["pass"] else f"patchy paint: {'; '.join(found['faults'])}"
 
 
 def split_saved(out, mesh, folder, angles, found):
@@ -231,6 +241,9 @@ def split_take(folders, listed, record, tokens):
     if fault is not None:
         return {"fault": fault, **found}
     part_of, finish_of = voted_finishes(mesh, votes, count)
+    found["patchy"] = finish_parts.patchiness(mesh, finish_of, part_of)
+    if patchy_fault(found["patchy"]) is not None:
+        return {"fault": patchy_fault(found["patchy"]), **found}
     split_saved(folders["out"], mesh, folders["views"], record["views"], (finish_of, part_of))
     (folders["out"] / FINISHES).write_text(json.dumps(listed["finishes"], indent=1))
     return {"fault": None, **found, "parts": int(part_of.max()) + 1,
