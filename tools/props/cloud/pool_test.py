@@ -41,7 +41,7 @@ class Cloud:
 
     def rent(self, fleet, account, offer, number, disk_gb=batch.DISK_GB):
         with self.lock:
-            if self.stock <= 0:
+            if self.stock <= 0 or offer.stock_word in batch.NO_STOCK:
                 return None
             self.stock -= 1
             server_id = f"card-{len(self.rented) + 1}"
@@ -76,7 +76,7 @@ OFFERS = [provider.Offer(CARD_PRICE, 1, "card-type", zone, CARD_PRICE, "gpu-24gb
           for zone in ("zone-a", "zone-b")]
 
 
-def fresh(stock, sizes=None, run_id=None):
+def fresh(stock, sizes=None, run_id=None, euros=None):
     """A sandbox with no parked cards, an empty ledger and a pool opened for a run of this process."""
     calls = Cloud(stock)
     calls.install()
@@ -87,7 +87,7 @@ def fresh(stock, sizes=None, run_id=None):
     run_id = run_id or f"run-{time.time_ns()}"
     os.environ["SCORE_RUN_ID"] = run_id
     os.environ["SCORE_RUN_PID"] = str(os.getpid())
-    pool.start(run_id, sizes or {"gpu-24gb": 2}, time.time() + 3600)
+    pool.start(run_id, sizes or {"gpu-24gb": 2}, time.time() + 3600, euros=euros)
     return calls, run_id
 
 
@@ -347,6 +347,51 @@ def test_a_bigger_disk_rents_one_card_of_the_claims_class_and_lets_a_smaller_idl
     pool.release(run_id)
 
 
+L4_SHORT = [offer._replace(stock_word="shortage") for offer in OFFERS]
+HOUR_OF_L4 = CARD_PRICE * 60  # what the pool's clearance reserves for one L4 held its whole hour
+
+
+def offered(cards):
+    cloud.offers = lambda classes: [offer for offer in cards if offer.machine_class in classes]
+
+
+def test_with_l4s_sold_out_the_pool_rents_an_l40s_in_an_l4s_place_and_a_24gb_claim_takes_it():
+    """Owner, 2026-10-23: "yes" to a bigger card when the L4s are sold out, within the run's money."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2}, euros=2 * HOUR_OF_L4)
+    offered(L4_SHORT + BIG)
+    assert grow(run_id) == 1  # one L40S (two L4 hours) fits the two L4s' reservation; a second would not
+    [card] = pool.members(run_id)
+    assert card["class"] == "gpu-48gb" and card["for"] == "gpu-24gb"
+    assert pool.shortfall(pool.current(run_id), pool.members(run_id)) == [("gpu-24gb", batch.DISK_GB)]
+    assert claimed(a_run("on-l40s"), KINDS[0])["class"] == "gpu-48gb"  # asked on L4 offers alone
+    assert "gpu-80gb" not in pool.takes("blender", OFFERS)  # a kind's never-classes stay out
+    pool.release(run_id)
+
+
+def test_with_too_little_money_no_larger_card_is_rented():
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1}, euros=HOUR_OF_L4)
+    offered(L4_SHORT + BIG)
+    assert grow(run_id) == 0 and not calls.rented
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})  # a clearance unknown: none either
+    offered(L4_SHORT + BIG)
+    assert grow(run_id) == 0 and not calls.rented
+    pool.release(run_id)
+
+
+def test_once_l4s_are_back_the_pool_rents_l4s_and_keeps_its_working_l40s():
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2}, euros=3 * HOUR_OF_L4)
+    offered(L4_SHORT + BIG)
+    assert grow(run_id) == 1  # the L40S stands in; a second L40S would pass the money, and no L4 is in stock
+    offered(OFFERS + BIG)
+    assert grow(run_id) == 1
+    assert sorted(card["class"] for card in pool.members(run_id)) == ["gpu-24gb", "gpu-48gb"] and not calls.deleted
+    stand_in = next(card for card in pool.members(run_id) if card["class"] == "gpu-48gb")
+    pool.left(run_id, stand_in["id"])  # the L40S leaves: its place goes back to an L4
+    assert grow(run_id) == 1
+    assert [card["class"] for card in pool.members(run_id)] == ["gpu-24gb"] * 2
+    pool.release(run_id)
+
+
 def test_a_share_that_fails_on_a_card_that_answers_is_a_gap_and_the_card_works_on():
     """Review (2026-10-23): any error but JobFailed broke a pool card, so a local fault (a copy-in that fails) deleted
     and rented two cards a share."""
@@ -476,8 +521,8 @@ def test_a_render_takes_the_pools_processor_machine_a_model_kind_never_does():
     assert pool.takes("blender", settle) == {"cpu-32c-128gb", "cpu-48c-192gb", "cpu-64c-128gb", "cpu-64c-256gb"}
     checks = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-16c-64gb", 0, "available")]
     assert PROCESSOR in pool.takes("blender", checks) and "cpu-16c-64gb" in pool.takes("blender", checks)
-    assert pool.takes("library", OFFERS) == {"gpu-24gb", *pool.capacity.PROCESSORS}
-    assert pool.takes("judge", OFFERS) == {"gpu-24gb"}
+    assert pool.takes("library", OFFERS) == {"gpu-24gb", "gpu-48gb", *pool.capacity.PROCESSORS}  # never an H100
+    assert pool.takes("judge", OFFERS) == {"gpu-24gb", "gpu-48gb", "gpu-80gb"}  # a model kind: cards only
     pool.release(run_id)
 
 

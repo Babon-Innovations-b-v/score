@@ -581,7 +581,7 @@ def opened_pool(runner, places, whole, options):
     before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
     os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
     try:
-        pool.start(run_id, sizes, time.time() + hours * 3600)
+        pool.start(run_id, sizes, time.time() + hours * 3600, euros=ticket["clearance"]["euros"])
     finally:
         for name, value in before.items():
             if value is None:

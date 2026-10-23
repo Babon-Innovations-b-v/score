@@ -25,6 +25,7 @@ lines, written by the collector), each spell parked (`park.idle_entry`, written 
 what each taker used (the taker's own row, from when it took the card). A card is billed by the minute, so its idle
 time is the run's real cost of holding it warm.
 """
+import collections
 import contextlib
 import fcntl
 import json
@@ -172,7 +173,18 @@ def takes(kind, offers):
     classes = {offer.machine_class for offer in offers}
     if kind in capacity.PROCESSOR_KINDS and any(provider.cards(name) for name in classes):
         classes |= set(capacity.PROCESSORS)
-    return classes | no_smaller(classes)
+    never, allowed = capacity.NEVER.get(kind, ()), capacity.KINDS.get(kind, capacity.SPEED_ORDER)
+    bigger = {big for name in classes for big in larger(name) if big in allowed and big not in never}
+    return classes | bigger | no_smaller(classes)
+
+
+def larger(machine_class):
+    """The single-card classes (capacity.SINGLE_CARD) with more memory than `machine_class`'s card, smallest first:
+    what a claim of it also takes from the pool (same settings, same quality), and what the collector rents in its
+    place when none is in stock (stand_in); none for a class that is no single card."""
+    if machine_class not in capacity.SINGLE_CARD:
+        return []
+    return [name for name in capacity.SINGLE_CARD if provider.card_gb(name) > provider.card_gb(machine_class)]
 
 
 def no_smaller(classes):
@@ -230,14 +242,16 @@ def first_class(kind, offered=None):
                  and (offered is None or machine_class in offered)), None)
 
 
-def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB):
+def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB, euros=None):
     """Open the run's pool of `sizes` ({class: cards}) until `deadline` and start its collector in a process of its
     own; the plan. Renting is checked as for any rent (compute.require_cleared, here and in the collector): the
-    pool's cards are charged to the ticket this process holds."""
+    pool's cards are charged to the ticket this process holds. `euros`: what its clearance reserved for `sizes`
+    (compute.pool_clearance), what its stand-ins must fit in (stand_in); without it the pool rents no stand-in."""
     batch.compute.require_cleared(f"a pool of {sum(sizes.values())} cards")
     with locked(run_id) as folder:
         (folder / "closed").unlink(missing_ok=True)
-        plan = {"sizes": dict(sizes), "deadline": deadline, "disk_gb": disk_gb,
+        plan = {"sizes": dict(sizes), "deadline": deadline, "disk_gb": disk_gb, "reserved": dict(sizes),
+                **({"euros": euros} if euros is not None else {}),
                 "ticket": os.environ.get(SPEND_TICKET), "run_pid": int(os.environ.get(RUN_PID) or os.getpid()),
                 "started": time.time()}
         write_plan(run_id, plan)
@@ -339,7 +353,7 @@ def joined(run_id, machine):
         (folder / "cards").mkdir(exist_ok=True)
         keys = ("id", "zone", "type", "class", "disk_gb", "created", "price")
         (folder / "cards" / f"{machine['id']}.json").write_text(json.dumps(
-            {**{key: machine[key] for key in keys}, "holder": None}))
+            {**{key: machine[key] for key in keys}, "for": slot_of(machine), "holder": None}))
 
 
 def held_by(run_id, server_id, holder):
@@ -356,6 +370,11 @@ def left(run_id, server_id):
         (folder / "cards" / f"{server_id}.json").unlink(missing_ok=True)
 
 
+def slot_of(card):
+    """The class whose place in the pool a card fills: its own, or the smaller one it stands in for (stand_in)."""
+    return card.get("for") or card["class"]
+
+
 def shortfall(plan, alive):
     """[(class, disk_gb)] of the cards the pool lacks: each class's size less its cards alive, and one more of a class
     whose every card has a smaller disk than that class asks now (disk_of; `trim` lets an idle smaller one go once the
@@ -363,7 +382,7 @@ def shortfall(plan, alive):
     short = []
     for machine_class, size in plan["sizes"].items():
         disk_gb = disk_of(plan, machine_class)
-        mine = [card for card in alive if card["class"] == machine_class]
+        mine = [card for card in alive if slot_of(card) == machine_class]
         missing = size - len(mine)
         if missing <= 0 and size and not any(card["disk_gb"] >= disk_gb for card in mine):
             missing = 1
@@ -378,7 +397,7 @@ def trim(run_id, plan, alive):
 
     idle = {record["id"]: record for record in park.pool_records(run_id)}
     for machine_class, size in plan["sizes"].items():
-        mine = [card for card in alive if card["class"] == machine_class]
+        mine = [card for card in alive if slot_of(card) == machine_class]
         small = sorted((card for card in mine if card["id"] in idle and card["disk_gb"] < disk_of(plan, machine_class)),
                        key=lambda card: card["disk_gb"])
         for card in small[:max(0, len(mine) - size)]:
@@ -416,14 +435,18 @@ def ticket_of(run_id):
 
 
 def fill(run_id, plan, short, account):
-    """Rent the cards `short` names side by side (batch.claim_from, across every zone of each class); how many came
-    up warm. A start that failed or found no stock is in the ledger's line as an attempt and tried again next round."""
+    """Rent the cards `short` names side by side (batch.claim_from, across every zone of each class), a larger card in
+    the place of one out of stock (rents); how many came up warm. A start that failed or found no stock is in the
+    ledger's line as an attempt and tried again next round."""
     renting = Run(folder_of(run_id) / "machines", plan["deadline"] + batch.WATCHDOG_GRACE_MINUTES * 60)
     renting.folder.mkdir(parents=True, exist_ok=True)
-    found = cloud.offers(sorted({machine_class for machine_class, _ in short})) or []
+    alive = members(run_id)
+    asked = {machine_class for machine_class, _ in short}
+    found = cloud.offers(sorted(asked | {big for name in asked for big in larger(name)}
+                                | {card["class"] for card in alive})) or []
     came = []
 
-    def one(number, machine_class, disk_gb):
+    def one(number, machine_class, slot, disk_gb):
         offers = [offer for offer in found if offer.machine_class == machine_class]
         try:
             machine = batch.claim_from(renting, account, offers, f"{int(time.time())}-{number}", KIND, disk_gb)
@@ -431,12 +454,14 @@ def fill(run_id, plan, short, account):
             batch.say(f"pool: {error}; another is asked for next round")
             return
         if machine is not None and current(run_id) is not None:
+            machine["for"] = slot
             warm(run_id, machine)
             came.append(machine["id"])
         elif machine is not None:
             batch.delete_machine(machine)
 
-    threads = [threading.Thread(target=one, args=(number, *wanted)) for number, wanted in enumerate(short)]
+    threads = [threading.Thread(target=one, args=(number, *wanted))
+               for number, wanted in enumerate(rents(plan, short, alive, found))]
     for thread in threads:
         thread.start()
     for thread in threads:
@@ -446,6 +471,65 @@ def fill(run_id, plan, short, account):
                        "kind": KIND, "run": run_id, "who": "pool.py: starts that gave no card", "machines": [],
                        **ledger.machines_record([], renting.attempts, time.time()), **ticket_of(run_id)})
     return len(came)
+
+
+def rents(plan, short, alive, found):
+    """[(class rented, class whose place it fills, disk_gb)] for the cards `short` names: each of its own class, or,
+    for a reserved place (the pool's opening sizes) with none of its class in stock, the larger card that stands in
+    (stand_in). Once a stand-in is in the pool, a reserved place is filled only while the pool's cards fit the euros
+    its clearance reserved (fits), so the run's high stays an upper bound."""
+    reserved = plan.get("reserved", {})
+    chosen, wanted = [], []
+    standing = any(slot_of(card) != card["class"] for card in alive)
+    for machine_class, disk_gb in short:
+        rented = machine_class
+        if machine_class in reserved and not in_stock(found, machine_class):
+            rented = stand_in(plan, machine_class, alive, chosen, found) or machine_class
+        standing = standing or rented != machine_class
+        if machine_class in reserved:
+            if standing and not fits(plan, alive, chosen + [rented], found):
+                batch.say(f"pool: no {machine_class} rented; the pool's cards would pass the "
+                          f"EUR {plan.get('euros', 0):.2f} its clearance reserved")
+                continue
+            chosen.append(rented)
+        wanted.append((rented, machine_class, disk_gb))
+    return wanted
+
+
+def stand_in(plan, machine_class, alive, chosen, found):
+    """The larger card rented in the place of a `machine_class` card none of whose offers is in stock (owner,
+    2026-10-23, "yes" to: when L4s are sold out, the pool takes a bigger card, L40S or H100, same quality, within the
+    run's money limit): the first of `larger` in stock, within its quota (capacity.max_machines, counting the pool's
+    and `chosen`, what this round rents) and whose pool fits its clearance's euros at the class rented (fits); None
+    when none does or the clearance is unknown. A card that works is never swapped: a stand-in keeps its place until it
+    leaves, and the place's next card is asked of its own class first."""
+    if "euros" not in plan:
+        return None
+    for bigger in larger(machine_class):
+        held = sum(card["class"] == bigger for card in alive) + chosen.count(bigger)
+        if (in_stock(found, bigger) and held < capacity.max_machines(bigger)
+                and fits(plan, alive, chosen + [bigger], found)):
+            batch.say(f"pool: no {machine_class} in stock; a {bigger} stands in for it")
+            return bigger
+    return None
+
+
+def in_stock(found, machine_class):
+    """Whether an offer of `found` of `machine_class` is in stock at the backend's stock read (batch.NO_STOCK)."""
+    return any(offer.machine_class == machine_class and offer.stock_word not in batch.NO_STOCK for offer in found)
+
+
+def fits(plan, alive, chosen, found):
+    """Whether the pool's reserved cards (those `alive` filling a place of its opening sizes, and `chosen`, the classes
+    this round rents for such places), each at the class actually rented and its dearest offer for the pool's whole
+    hours (holding_euros, as its clearance priced it), fit the euros its clearance reserved; False when unknown."""
+    if "euros" not in plan:
+        return False
+    reserved = plan.get("reserved", {})
+    counts = collections.Counter(card["class"] for card in alive if slot_of(card) in reserved)
+    counts.update(chosen)
+    hours = (plan["deadline"] - plan["started"]) / 3600
+    return holding_euros(dict(counts), hours, found) <= plan["euros"] + 1e-6
 
 
 def tidy(run_id):
