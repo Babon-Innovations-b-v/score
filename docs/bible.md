@@ -230,7 +230,8 @@ lock, reading and plan, parent before child, then the film.
    card takes the next, of any kind; no step rents or waits on stock itself. A card that dies is replaced and its
    unfinished job goes back on the queue. The pool's idle time is the run's own cost, in its high estimate, its stop
    line and a grant's balance; the pool is released when the run has no card work left, ends, fails or is stopped.
-   Wiring the pool into the Buy's start, its clearance and the cockpit's cards-warm figure is still to do
+   `score run` opens it before it drives, its holding cost cleared first as a node of its own (`gpu-pool`); releasing
+   it once the run has no card work left and the cockpit's cards-warm figure are still to do
    (`tools/props/cloud/CLAUDE.md`).
 5. The runner drives every scene's line side by side. A paid node runs once under its clearance; its failure is a
    batch gap, carried down the line and listed by the completion gate, never a retry (`architecture/failure`). A node

@@ -131,6 +131,20 @@ def size_for(planned):
     return sizes
 
 
+def holding_euros(sizes, hours):
+    """The most a pool of `sizes` ({class: cards}) can bill held warm for `hours`: every card for every minute at its
+    class's dearest offer (cloud.offers, a free price read), what its run's pool clearance reserves. Raises for a
+    class the backend sells none of."""
+    found = cloud.offers(sorted(sizes)) or []
+    euros = 0.0
+    for machine_class, cards in sizes.items():
+        prices = [offer.price for offer in found if offer.machine_class == machine_class]
+        if not prices:
+            raise RuntimeError(f"pool: the backend sells no {machine_class}, so a pool of it cannot be priced")
+        euros += cards * max(prices) * 60 * hours
+    return round(euros, 4)
+
+
 def first_class(kind, offered=None):
     """The first card class `kind` takes in its own order, of `offered` when given; None when it takes none."""
     never = capacity.NEVER.get(kind, ())

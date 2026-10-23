@@ -442,18 +442,22 @@ def release_run(runner, run_id, mark):
     mark.unlink(missing_ok=True)
 
 
-def release_once_ended(runner, run_id, mark):
+def release_once_ended(runner, run_id, mark, pool_ticket=None):
     """release_run now, or, when a stop left cloud tools still deleting and parking (STILL_ENDING), from a process of
     its own once they have all ended: their machines bill until then, and a release before them freed the run's
     reservations and machine counts early (review of C7, 2026-10-17). That process then waits out every machine the
     run parked, releasing one still listed at its time (park.outlive: 2026-10-20, three L4s parked past their time
     until removed by hand), and only then removes the run's frozen copy, which their --expire processes run from.
     The run's card pool (pool.py) is released first, so no idle card waits on the tools still ending; a card its
-    release could not delete is said and left to its self-delete, never a reason to keep the run's reservations."""
+    release could not delete is said and left to its self-delete, never a reason to keep the run's reservations; then
+    the pool's own clearance (`pool_ticket`) ends, a benchmark grant drawing what its cards billed."""
     try:
         cloud_tool("pool").release(run_id)
     except Exception:  # noqa: BLE001 - said on the run's error output; the rest of the release must still run
         traceback.print_exc()
+    if pool_ticket:
+        from score.adapters import compute
+        compute.release(pool_ticket)
     ending = [pid for pid in STILL_ENDING if alive(pid)]
     if not ending and not cloud_tool("park").parked_by(run_id):
         release_run(runner, run_id, mark)
@@ -503,18 +507,63 @@ def stop_run(number):
     STILL_ENDING[:] = spared
 
 
-def as_run(runner, drive):
-    """Call `drive()` as a run (become_run; a stopping signal ends its group, stop_run); however the drive ends
-    (returned, raised or stopped) the terminal goes back to the group that held it and what the run held is released
-    (release_once_ended)."""
+def as_run(runner, drive, opening=None):
+    """Call `drive()` as a run (become_run; a stopping signal ends its group, stop_run), after `opening()` when given
+    (opened_pool: the run's warm card pool, its ticket); however the drive ends (returned, raised or stopped) the
+    terminal goes back to the group that held it and what the run held is released (release_once_ended)."""
     held_before = become_run()
     run_id, mark = os.environ[RUN_ID], stopped.stop_mark(os.getpid())
     stopped.stop_on_signals(stop_run)
+    pool_ticket = []
     try:
+        if opening:
+            pool_ticket.append(opening())
         drive()
     finally:
         give_terminal_back(held_before)
-        release_once_ended(runner, run_id, mark)
+        release_once_ended(runner, run_id, mark, pool_ticket[0] if pool_ticket else None)
+
+
+def pool_sizes(runner, places, whole, options):
+    """{class: cards} of the run's warm card pool from its planned paid rows (selected_price's `cards`, the cards each
+    row's run is sized on): the most cards one row of a line holds (a line's rows run one after another), summed over
+    the lines, at most pool.MOST_CARDS, all of the cheapest class every kind but the judge and the 20B picture model
+    holds (capacity.SPEED_ORDER's first); a row of another class adds one when it claims (pool.want). {} for a run
+    with no card row."""
+    pool = cloud_tool("pool")
+    most = {}
+    for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage)):
+        cards = selected_price(runner, buy).get("cards") or 0
+        line = buy.node.partition("@")[2] or buy.node
+        most[line] = max(most.get(line, 0), cards)
+    cards = min(pool.MOST_CARDS, sum(most.values()))
+    return {cloud_tool("capacity").SPEED_ORDER[0]: cards} if cards else {}
+
+
+def opened_pool(runner, places, whole, options):
+    """Open the run's warm card pool (pool.start, its collector renting beside the run; owner, 2026-10-23: "the buy run
+    can just start as soon as one is warm, in the background u just try collecting more till 10") of pool_sizes,
+    until a batch's longest run (the ledger's BATCH_HOURS), its holding cost cleared first
+    (compute.pool_clearance, against the stop line or the benchmark grant) and the collector started under that
+    ticket alone; the ticket, or None for a run with no card work or on the cluster."""
+    from score.adapters import compute
+    sizes = pool_sizes(runner, places, whole, options)
+    if not sizes or cloud_tool("provider").on_cluster():
+        return None
+    pool, hours, run_id = cloud_tool("pool"), compute.ledger().BATCH_HOURS, os.environ[RUN_ID]
+    ticket = compute.pool_clearance(runner, run_id, pool.holding_euros(sizes, hours), hours)
+    compute.hold(ticket)
+    before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
+    os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
+    try:
+        pool.start(run_id, sizes, time.time() + hours * 3600)
+    finally:
+        for name, value in before.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+    return ticket
 
 
 def checked_thread_variables():
@@ -874,7 +923,8 @@ def run_with_exit_line(runner, places, whole, options, argv):
         started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
         found = {}
         as_run(runner, lambda: found.update(driven(runner, places, whole, options, argv,
-                                                   gauges=run_gauges(runner, places, whole, options.stage, started))))
+                                                   gauges=run_gauges(runner, places, whole, options.stage, started))),
+               opening=lambda: opened_pool(runner, places, whole, options))
         lines = closing_lines(runner, places, whole, options)
         status = exit_status(found, lines)
         return lines
