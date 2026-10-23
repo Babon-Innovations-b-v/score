@@ -115,7 +115,7 @@ def test_people_are_made_by_the_loop_on_a_line_no_place_owns():
     assert loop.ROW == bodies.MADE and shapes_first.no_place(bodies.LINE)
     look = next(iter(bodies.looks()))
     for row in (table[f"people-dress-{look}"], table[f"{bodies.PARTS}-{look}"], table[f"{bodies.BODY}-{look}"]):
-        assert row.beside == {bodies.MADE: (bodies.MADE, 1)} and row.neighbours(None) == [bodies.LINE], row.name
+        assert bodies.MADE in row.beside and row.neighbours(None) == [bodies.LINE], row.name
     for row in (table[f"{bodies.PARTS}-{look}"], table[f"{bodies.BODY}-{look}"]):  # #26: the take is the store's
         found = row.files(None) if callable(row.files) else row.files
         assert not [path for path in found.values() if "work/pixal" in str(path)], found
@@ -285,6 +285,98 @@ def test_dress_appends_index_lists_to_the_binary_chunk():
     assert np.allclose(dress.positions(document, kept, 0).ravel(), np.arange(9))
     assert dress.accessor(document, kept, number).ravel().tolist() == [0, 1, 2]
     assert document["buffers"][0]["byteLength"] == len(kept) - 8
+
+
+def test_the_face_and_hair_wear_the_paint_and_lose_the_print():
+    """Owner, 2026-10-23: the face was a cutout of the close-up. Skin and hair take one library surface from the
+    paint, like a hard part, and the material forgets its print."""
+    faces = np.array([[0, 1, 2], [1, 3, 2]])
+    for role in ("skin", "hair"):
+        assert set(dress.surfaces_of(np.array(["visor", "visor", "visor", "shell"]), faces, role)) == {"visor"}
+    material = {"extras": {"role": "skin", "print": True}}
+    dress.named(material, "visor__black_r005", {"library": "helmet_visor"})
+    assert material["extras"] == {"role": "skin", "library": "visor__black_r005", "surface": "helmet_visor"}
+
+
+def baked_document():
+    """A two-triangle skinned primitive with a morph target, in glb_file's form (document, views)."""
+    from score.stages.people import baked_body  # noqa: F401  (puts tools/props on the path)
+    points = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]], dtype=np.float32)
+    arrays = [points, np.tile(np.array([[0, 0, 1]], np.float32), (4, 1)), np.arange(16, dtype=np.uint8).reshape(4, 4),
+              points * 0.5, np.array([0, 1, 2, 1, 3, 2], dtype=np.uint32)]
+    kinds = [(5126, "VEC3"), (5126, "VEC3"), (5121, "VEC4"), (5126, "VEC3"), (5125, "SCALAR")]
+    document = {"bufferViews": [{"buffer": 0, "byteLength": array.nbytes} for array in arrays],
+                "accessors": [{"bufferView": number, "componentType": kind, "count": len(array), "type": shape}
+                              for number, (array, (kind, shape)) in enumerate(zip(arrays, kinds))],
+                "materials": [{"name": "cloth", "extras": {"library": "suit"}}],
+                "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "JOINTS_0": 2},
+                                            "targets": [{"POSITION": 3}], "indices": 4, "material": 0}]}]}
+    return document, [array.tobytes() for array in arrays]
+
+
+def test_the_bake_s_coordinates_split_a_vertex_and_carry_its_weights_and_targets():
+    """A vertex whose corners the bake laid at two coordinates becomes two vertices, each carrying its joints and its
+    corrective's offset, and the triangles keep their corners."""
+    from score.stages.people import baked_body
+    import glb_file
+    document, views = baked_document()
+    lists, points, _, triangles, owners = baked_body.triangles_of(document, views)
+    assert owners == [(0, 0), (0, 0)] and triangles.tolist() == [[0, 1, 2], [1, 3, 2]]
+    uvs = np.array([[[0, 0], [0.5, 0], [0, 0.5]], [[0.9, 0.9], [0.6, 0.6], [0, 0.5]]])  # vertex 1 lies twice
+    baked_body.laid_coordinates(document, views, lists, uvs)
+    primitive = document["meshes"][0]["primitives"][0]
+    laid = glb_file.accessor_array(document, views, primitive["attributes"]["POSITION"])
+    assert len(laid) == 5
+    corners = glb_file.accessor_array(document, views, primitive["indices"]).reshape(-1, 3)
+    assert np.allclose(laid[corners], points[triangles])
+    coordinates = glb_file.accessor_array(document, views, primitive["attributes"]["TEXCOORD_0"])
+    assert np.allclose(coordinates[corners], uvs)
+    joints = glb_file.accessor_array(document, views, primitive["attributes"]["JOINTS_0"])
+    assert np.array_equal(joints[corners], np.arange(16).reshape(4, 4)[triangles])
+    target = glb_file.accessor_array(document, views, primitive["targets"][0]["POSITION"])
+    assert np.allclose(target[corners], points[triangles] * 0.5)
+
+
+def test_a_body_in_flat_factors_is_not_dressed():
+    """A material with the library's colour as a flat factor and no baked maps fails `dressed`; the baked one passes."""
+    document = {"materials": [{"name": "cloth", "extras": {"library": "suit"},
+                               "pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1.0]}}],
+                "meshes": [{"primitives": [{"material": 0}]}]}
+    assert dress.flat_materials(document) == ["cloth#0"]
+    document["materials"][0]["pbrMetallicRoughness"] = {"baseColorTexture": {"index": 0},
+                                                        "metallicRoughnessTexture": {"index": 1}}
+    document["materials"][0]["normalTexture"] = {"index": 2}
+    assert dress.flat_materials(document) == []
+    del document["materials"][0]["extras"]["library"]
+    assert dress.flat_materials(document) == ["cloth#0"]
+
+
+def test_a_bake_on_its_library_colour_passes_the_surface_stage_s_check_and_one_off_it_fails():
+    """The body's bake is checked by bake_check's own measures: a picture in the surface's colour lies on it, a
+    picture far off it is named."""
+    from PIL import Image
+    from score.stages.people import baked_body
+    import labels
+    points = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64)
+    spec = {"colour": [0.2, 0.3, 0.6], "family": "fabric"}
+    uvs = np.array([[[0.1, 0.1], [0.9, 0.1], [0.1, 0.9]]])
+    with tempfile.TemporaryDirectory() as held:
+        picture = pathlib.Path(held) / "base_color.png"
+        for colour, faults in ((labels.srgb(np.array(spec["colour"])), 0), (np.array([1.0, 1.0, 0.0]), 1)):
+            Image.new("RGB", (8, 8), tuple(int(round(value * 255)) for value in colour)).save(picture)
+            found = baked_body.checked(points, np.array([[0, 1, 2]]), np.array([0]), ["suit"], uvs, picture,
+                                       {"suit": spec}, {}, (0.0, 0.0))
+            assert len(found["faults"]) == faults, found
+    assert found["surfaces"]["suit"]["delta_e"] > 20
+
+
+def test_a_dress_row_bakes_on_a_card_and_reads_the_palette_and_the_bake():
+    import score.stages.people as people
+    for look in bodies.looks():
+        row = people.dress_row(look)
+        assert row.paid and row.euros == dress.EUROS
+        assert set(row.beside) == {bodies.MADE, "finish-route-palette", "surface-library", "surfaces-bake"}
+        assert "baked" in {check.name for check in row.checks}
 
 
 def test_clearance_eases_out_and_back():

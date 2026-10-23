@@ -1,13 +1,13 @@
 """The people stage (#5; experimental, docs/bible.md architecture/experimental): people made like every model (owner,
 2026-10-11 and 2026-10-20): each look a row of the shared loop (score/stages/shapes_first, #41) on the line `people`,
-which no place owns, its take finished by the loop's finish route; the face by its own step (prop_prints.py's print),
-the hair as the mesh carries it, SOMA-X only for the skeleton so Kimodo's clips play. Each look's data a take of
+which no place owns, its take finished by the loop's finish route and that finish baked onto its body, face and hair
+too (dress.py), SOMA-X only for the skeleton so Kimodo's clips play. Each look's data a take of
 data/surfaces/people.json; after the loop:
 
     people-made@people               the looks the loop made, handed on (loop.py, the people layer's after-step)
     people-clips-made                the Kimodo clips and the rig every body plays (people_bodies/made_clips.py)
     people-body-<look>               a look's body: build, the people route and every body gate (people_bodies/bodies.py)
-    people-dress-<look>              the loop's library surfaces laid on the body (dress.py)
+    people-dress-<look>              the loop's library surfaces laid on the body and baked there (dress.py, paid)
     people-dress-<look>-in-<surface> the same worn in a fabric a design's person row reads (people_clothes.py)
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
     people-look-<look>               a full look's review page, one a look the designs name (look.py)
@@ -22,18 +22,26 @@ from score.stages.people_bodies import bodies, clips, made_clips
 from score.stages.people_bodies.bodies import guarded
 
 
+# What a dress row reads of the people line besides the hand-on: the palette's wear and dirt with its surface
+# library (the bake's), and the bake's labelled takes (each finish's close-up colour, the bake's check).
+DRESS_READS = ("finish-route-palette", "surface-library", "surfaces-bake")
+
+
 def dress_row(name, surface=None):
     """A look's dress row; worn in a fabric a design's person row reads (people_rows.every_dressed)
     `people-dress-<look>-in-<surface>`, its fabrics that library surface."""
     return graph.Stage(f"people-dress-{name}" + (f"-in-{surface}" if surface else ""), "world", dress.make_dress,
                        contracts.Contract("people-dress", 1, dress.dress_faults),
-                       (guarded("dressed", dress.judge_dressed), guarded("aligned", dress.judge_aligned)),
+                       (guarded("dressed", dress.judge_dressed), guarded("aligned", dress.judge_aligned),
+                        guarded("baked", dress.judge_baked)),
                        files={"library": "{data}/library", "places": "{data}/definitions/place.json",
                               "tokens": "{repo}/design/tokens/tokens.json",
-                              "skel_usd": "{repo}/tools/characters/skel_usd.py"},
+                              "skel_usd": "{repo}/tools/characters/skel_usd.py",
+                              "bake": "{repo}/tools/props/library", "bake script": "{repo}/score/stages/people/inside"},
                        after={f"{bodies.BODY}-{name}": (bodies.BODY, 1)},
-                       beside={bodies.MADE: (bodies.MADE, 1)}, neighbours=bodies.the_line,
-                       params={"surface": surface} if surface else {})
+                       beside={bodies.MADE: (bodies.MADE, 1), **{row: (row, 1) for row in DRESS_READS}},
+                       neighbours=bodies.the_line, params={"surface": surface} if surface else {},
+                       paid=True, euros=dress.EUROS)
 
 
 def cast_looks():

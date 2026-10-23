@@ -1,21 +1,25 @@
-"""The people's dress rows: `people-dress-<look>` (free, world) lays the look's finish from the shared loop on its built
-body (#41). The body's points at the bind are laid back into the finished model's frame (the rig's stand undone) and
-each reads the library surface the loop's bake painted on the take's outer surface there (its labelled take, handed
-on by the people's after-step, people-made@people: loop.py): of the painted samples within OUTER_REACH_M, those within
-OUTER_BAND_M of the outermost along the point's normal vote (`outer_labels`). The take keeps the inside faces
-Pixal3D grew (71% of the astronaut's faces no view saw, each painted from its nearest seen face), and the nearest
-sample alone read the boots' insides as the grey suit, 2026-10-22. A garment is split where its triangles' surfaces
-change, its labels smoothed over its edges first (a material drawn in two surfaces took the one most of its points
-carried, and the brown overalls' chest and hips showed the grey: astronaut, 2026-10-22); a hard part or a skin part
-takes one surface, its points' most; the hair and a print (the face cut from the close-up) keep the build's own
-finish. Each glTF material takes its surface's colour, roughness and metalness from the library (data/library, the
-people place's tokens) and names it in `extras.library`. The UsdSkel asset is written again from the dressed glTF
-(tools/characters/skel_usd.py). The library recipe's own detail (bump, quilting) is not baked onto a person yet: the
-colour, roughness and metalness are the library surface's, nothing else is a picture's. A look the loop made no model
-for is blocked with its gap.
+"""The people's dress rows: `people-dress-<look>` (paid, world) lays the look's finish from the shared loop on its built
+body (#41) and bakes it there, as every model is finished. The body's points at the bind are laid back into the
+finished model's frame (the rig's stand undone) and each reads the library surface the loop's bake painted on the
+take's outer surface there (its labelled take, handed on by the people's after-step, people-made@people: loop.py): of
+the painted samples within OUTER_REACH_M, those within OUTER_BAND_M of the outermost along the point's normal vote
+(`outer_labels`). The take keeps the inside faces Pixal3D grew (71% of the astronaut's faces no view saw, each painted
+from its nearest seen face), and the nearest sample alone read the boots' insides as the grey suit, 2026-10-22. A
+garment is split where its triangles' surfaces change, its labels smoothed over its edges first (a material drawn in
+two surfaces took the one most of its points carried, and the brown overalls' chest and hips showed the grey:
+astronaut, 2026-10-22); a hard part, the skin, the hair and each far-body part take one surface, its points' most: the
+face and hair wear the library surface the finish route gave the take there, never a picture (the close-up's face
+print is gone, owner 2026-10-23: "this didnt use our prop pipeline and materials"). Each glTF material names its
+surface in `extras.library` (the bake's name, its settings in it) and `extras.surface` (the library variant). Then
+the body is baked (baked_body.py: the library recipes with the people palette's wear and dirt on the bake's rented
+card, their maps laid into body.glb, the build's own pictures dropped) and the bake checked as the surface stage
+checks one (bake_check.py). The UsdSkel asset is written again from the baked glTF (tools/characters/skel_usd.py).
+A look the loop made no model for is blocked with its gap.
 
-Gates: `dressed` (every surface of the outfit took a library surface) and `aligned` (the body's points lie on the
-painted take: the median distance to the nearest painted sample within ALIGNED_MOST).
+Gates: `dressed` (every material of the body names a known library surface and reads the baked maps: a flat factor
+fails), `aligned` (the body's points lie on the painted take: the median distance to the nearest painted sample
+within ALIGNED_MOST; the far body, a coarse stand-in, is not measured) and `baked` (bake_check's faults of the
+bake: off its library surface, off the close-up, blotches, one grey look, an order reversed).
 """
 import json
 import pathlib
@@ -36,7 +40,9 @@ LINE = "people"
 OUTER_REACH_M = 0.015
 OUTER_BAND_M = 0.004
 SMOOTH_ROUNDS = 3
-ONE_SURFACE = ("hard", "skin")  # roles drawn in one surface: a rigid part, bare skin
+ONE_SURFACE = ("hard", "skin", "hair", "far")  # roles drawn in one surface: a rigid part, skin, hair, a far part
+UNMEASURED = ("far",)  # roles the aligned gate leaves out: the far body is a coarse stand-in, never on the take
+EUROS = 0.5  # the bake's card job (baked_body.MINUTES on an L4 with its setup); no measured run yet
 COMPONENTS = {5121: np.uint8, 5123: np.uint16, 5125: np.uint32, 5126: np.float32}
 WIDTHS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
 
@@ -177,13 +183,10 @@ def outfit_node(document):
     return found[0]
 
 
-def shaded(material, spec):
-    """The material in the library surface's colour (a print keeps its picture), roughness and metalness."""
-    shading = material.setdefault("pbrMetallicRoughness", {})
-    if not material.get("extras", {}).get("print"):
-        shading["baseColorFactor"] = [float(value) for value in spec["colour"][:3]] + [1.0]
-    shading["roughnessFactor"] = float(spec.get("roughness", 0.85))
-    shading["metallicFactor"] = float(spec.get("metal", 0.0))
+def dressed_meshes(document):
+    """The body's meshes the dress lays: its outfit's (outfit_node) and its far body's, when it has one."""
+    far = [node["mesh"] for node in document["nodes"] if "mesh" in node and "skin" in node and node.get("name") == "far"]
+    return [outfit_node(document)["mesh"], *far]
 
 
 class Painted:
@@ -210,40 +213,40 @@ class Painted:
         return labels, cKDTree(self.points).query(finished)[0] * self.scale
 
 
-def worn_name(painted_name, material, surfaces, params):
+def worn_name(painted_name, surfaces, params):
     """The library surface a part painted `painted_name` wears: `params["surface"]` (a worn row, `-in-<surface>`:
-    score/stages/people_clothes.py) on every fabric but a print, else the paint's."""
-    if params.get("surface") and surfaces.get(painted_name, {}).get("family") == "fabric" and \
-            not material.get("extras", {}).get("print"):
+    score/stages/people_clothes.py) on every fabric, else the paint's."""
+    if params.get("surface") and surfaces.get(painted_name, {}).get("family") == "fabric":
         return params["surface"]
     return painted_name
 
 
+def named(material, name, spec):
+    """The material naming its library surface: `extras.library` the bake's name, `extras.surface` its variant; the
+    build's own picture flag (a face print) dropped."""
+    extras = material.setdefault("extras", {})
+    extras.pop("print", None)
+    extras["library"], extras["surface"] = name, spec.get("library", name)
+
+
 def dressed_primitives(document, rest, primitives, painted, surfaces, params):
-    """(the outfit's primitives split by the surface painted on their triangles, each on a material in its library
+    """(the mesh's primitives split by the surface painted on their triangles, each on a material naming its library
     surface, the binary chunk with their index lists, {material key: its record entry})."""
     binary, originals = Binary(document, rest), [json.loads(json.dumps(found)) for found in document["materials"]]
     # a material's points are measured together: the route's under layer lies under its garment, off the take
     chosen, record, out, distances = {}, {}, [], {}
     for primitive in primitives:
         number = primitive["material"]
-        extras = originals[number].get("extras", {})
-        role, attributes = extras.get("role"), primitive["attributes"]
+        role, attributes = originals[number].get("extras", {}).get("role"), primitive["attributes"]
         points = positions(document, rest, attributes["POSITION"])
         normals = positions(document, rest, attributes["NORMAL"]) if "NORMAL" in attributes else np.zeros_like(points)
         labels, apart = painted.labels(points, normals)
-        if role == "hair" or extras.get("print"):  # the hair's own route (owner, 2026-10-11); the face's picture
-            record[f"{originals[number]['name']}#{number}"] = {
-                "library": None, "route": "hair" if role == "hair" else "print", "role": role, "known": True,
-                "median_m": round(float(np.median(apart)), 4)}
-            out.append(primitive)
-            continue
         faces = accessor(document, rest, primitive["indices"]).reshape(-1, 3).astype(np.int64)
         per_triangle = surfaces_of(labels, faces, role)
         kinds = np.unique(per_triangle)
         for painted_name in kinds:
             mine = faces[per_triangle == painted_name]
-            name = worn_name(str(painted_name), originals[number], surfaces, params)
+            name = worn_name(str(painted_name), surfaces, params)
             if (number, name) not in chosen:
                 taken = any(material == number for material, _ in chosen)
                 if taken:
@@ -256,34 +259,54 @@ def dressed_primitives(document, rest, primitives, painted, surfaces, params):
             record[key] = {"library": name, "median_m": round(float(np.median(distances[key])), 4), "role": role,
                            "known": spec is not None, "painted": str(painted_name)}
             if spec is not None:
-                document["materials"][target].setdefault("extras", {})["library"] = name
-                shaded(document["materials"][target], spec)
+                named(document["materials"][target], name, spec)
             out.append(dict(primitive, material=target, **(
                 {"indices": binary.indices(mine)} if len(kinds) > 1 else {})))
     return out, binary.rest(), record
 
 
+def bake_head(inputs, specs):
+    """The bake job's head (surfaces/bake_job.job_head: the route's near density, its seed) at the people palette's
+    wear and dirt (finish-route-palette@people with its surface library, palette_library.wear)."""
+    from score.stages.people import baked_body  # noqa: F401  (puts the surface stage's modules on the path)
+    import bake_job
+    import palette_library
+    palette = palette_library.read({"finish-route-palette": inputs[f"finish-route-palette@{LINE}"],
+                                    palette_library.ROW: inputs[f"{palette_library.ROW}@{LINE}"]})
+    return bake_job.job_head(palette_library.wear(palette), specs)
+
+
 def make_dress(inputs, out, seed, params):
-    """The dressed body.glb, its usd/ and dress.json (each surface's library surface and its median distance). With
-    `params["surface"]` (a worn row, `-in-<surface>`: score/stages/people_clothes.py) every fabric surface of the outfit
-    but a print wears that library surface instead of the paint's."""
+    """The dressed and baked body.glb, its usd/, bake.log and dress.json (each surface's library surface and its
+    median distance, and the bake's check). With `params["surface"]` (a worn row, `-in-<surface>`:
+    score/stages/people_clothes.py) every fabric surface of the outfit wears that library surface instead of the
+    paint's."""
+    from score.stages.people import baked_body
     name, body = next((name, pathlib.Path(path)) for name, path in inputs.items() if name.startswith("people-body-"))
     look = json.loads((body / "look.json").read_text())
     look_name = name.removeprefix("people-body-")
     painted = Painted(painted_take(inputs, look_name), np.load(body / "rig.npz"))
     surfaces = {**library_surfaces(), **handed_on(inputs, look_name)[1]["specs"]}
     document, rest = read_glb(body / "body.glb")
-    mesh = document["meshes"][outfit_node(document)["mesh"]]
-    mesh["primitives"], rest, found = dressed_primitives(document, rest, mesh["primitives"], painted, surfaces,
-                                                         params)
+    found = {}
+    for number in dressed_meshes(document):
+        mesh = document["meshes"][number]
+        mesh["primitives"], rest, laid = dressed_primitives(document, rest, mesh["primitives"], painted, surfaces,
+                                                            params)
+        found.update(laid)
     write_glb(out / "body.glb", document, rest)
+    work = out / ".bake"
+    labelled = pathlib.Path(inputs[f"surfaces-bake@{LINE}"]) / "labelled" / look["take"]
+    checked = baked_body.bake(out / "body.glb", surfaces, bake_head(inputs, {}), labelled, work)
+    shutil.copy2(work / "bake.log", out / "bake.log")
+    shutil.rmtree(work)
     done = subprocess.run([sys.executable, str(REPO / "tools/characters/skel_usd.py"), str(out / "body.glb"), "--out",
                            str(out / "usd")], capture_output=True, text=True)
     if done.returncode:
         raise RuntimeError(f"skel_usd.py failed: {done.stderr[-2000:]}")
     shutil.copy2(body / "look.json", out / "look.json")
-    (out / "dress.json").write_text(json.dumps({"take": look["take"], "outfit": look["outfit"], "surfaces": found},
-                                               indent=1))
+    (out / "dress.json").write_text(json.dumps({"take": look["take"], "outfit": look["outfit"], "surfaces": found,
+                                                "bake": checked}, indent=1))
 
 
 def dress_faults(folder):
@@ -291,18 +314,49 @@ def dress_faults(folder):
     return [f"missing {', '.join(missing)}"] if missing else []
 
 
+def flat_materials(document):
+    """The materials the body's meshes are drawn in that read no baked maps (base colour, metal and roughness,
+    normal) or name no library surface, by name and number."""
+    used = sorted({primitive["material"] for mesh in document["meshes"] for primitive in mesh["primitives"]})
+    found = []
+    for number in used:
+        material = document["materials"][number]
+        shading = material.get("pbrMetallicRoughness", {})
+        maps = ("baseColorTexture" in shading, "metallicRoughnessTexture" in shading, "normalTexture" in material)
+        if not all(maps) or not material.get("extras", {}).get("library"):
+            found.append(f"{material.get('name')}#{number}")
+    return found
+
+
 def judge_dressed(output, inputs, evidence):
+    """Every surface of the body a known library surface, and every material it is drawn in reading the baked
+    library maps: a flat factor with no maps fails."""
     from score.checks import FAIL, PASS, Verdict
     found = json.loads((output / "dress.json").read_text())["surfaces"]
     failing = [f"{name}: {entry['library']} is no people library surface" for name, entry in found.items()
                if not entry["known"]]
-    return Verdict("dressed", FAIL if failing else PASS, "; ".join(failing) or f"all {len(found)} surfaces dressed",
-                   {"failing": len(failing)}, {"failing": "lower"}, tuple(failing))
+    failing += [f"{name}: flat factors, no baked library maps"
+                for name in flat_materials(read_glb(output / "body.glb")[0])]
+    return Verdict("dressed", FAIL if failing else PASS, "; ".join(failing) or
+                   f"all {len(found)} surfaces dressed and baked", {"failing": len(failing)}, {"failing": "lower"},
+                   tuple(failing))
+
+
+def judge_baked(output, inputs, evidence):
+    """The bake's faults as the surface stage's check finds them (baked_body.checked, bake_check.surface_faults)."""
+    from score.checks import FAIL, PASS, Verdict
+    checked = json.loads((output / "dress.json").read_text())["bake"]
+    worst = max(entry["delta_e"] for entry in checked["surfaces"].values())
+    return Verdict("baked", FAIL if checked["faults"] else PASS, "; ".join(checked["faults"]) or
+                   f"{len(checked['surfaces'])} surfaces baked on their library colour, worst dE {worst}",
+                   {"failing": len(checked["faults"]), "worst_delta_e": worst}, {"failing": "lower"},
+                   tuple(checked["faults"]))
 
 
 def judge_aligned(output, inputs, evidence):
     from score.checks import FAIL, PASS, Verdict
-    found = json.loads((output / "dress.json").read_text())["surfaces"]
+    found = {name: entry for name, entry in json.loads((output / "dress.json").read_text())["surfaces"].items()
+             if entry["role"] not in UNMEASURED}
     failing = [f"{name}: {entry['median_m']} m from the painted take" for name, entry in found.items()
                if entry["median_m"] > ALIGNED_MOST]
     worst = max(entry["median_m"] for entry in found.values())
