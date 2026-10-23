@@ -115,7 +115,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   It is gone 5 min before its paid hour ends, never idle into the next: its `--expire` process deletes it, its own
   `self_delete.py` is re-armed to that time, and its tags hold that time for any run's sweep. Failed machines and runs
   stopped by a signal are deleted as before.
-- **A card is parked for its kind's measured cold start, at most 10 min, and only while a claim waits for one**
+- **Outside a warm pool, a card is parked for its kind's measured cold start, at most 10 min, and only while a claim waits for one**
   (`park.idle_minutes`, 2026-10-11; `park.queued`, 2026-10-22, after an H100 sat parked unused after a one-model
   Pixal3D batch: a card with no queued work is released at once): every
   cloud job waited for a fresh card to answer and set up (blender on cards: median 5.4 min outside its jobs, 40% of
@@ -150,22 +150,35 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `batch.say` moves to `cloud/orphaned-batches.log` on a broken pipe, so the delete loop survives the gone reader. Not
   done: run-id tags on fresh machines. A machine whose run's process is gone is deleted by the next run's sweep
   (`batch.is_leftover`); `park.reap`, never called, was deleted (2026-10-22).
-- **A run's card pool: its cards warm from its start to its end** (`pool.py`, CONTEXT.md "card pool", owner
-  2026-10-23): `pool.start(run, sizes, deadline)` (sizes by `pool.size_for` from the run's planned card work: each
+- **A Buy's warm pool: its cards rented once and warm from its start to its end** (`pool.py`, CONTEXT.md "warm
+  pool"). The owner, 2026-10-23: "huh dont we keep them warm for the entire thing anyway? that sounds very
+  inefficient, i would use like 10 gpus but warm for the entire batch"; "this should be the same for all steps, and a
+  buy is just start to finish, so just make them keep retrying and cant u just do it in the same pool as 1, then they
+  would be warm anyway"; and, the pool grown beside the run rather than gating it: "i think the buy run can just start
+  as soon as one is warm, in the background u just try collecting more till 10, so its sepperate". So a Buy (one
+  detached `score run`, start to finish) holds about 10 cards, mostly L4, an L40S or H100 only when its rows need that
+  class; every cloud step (Pixal3D, Blender, library bakes, people, judge, segment, meshparts, finish masks, depth)
+  queues its jobs on the pool and each warm card takes the next, switching kinds (set-up scripts skip what is done);
+  no step rents, retries a rent or waits on stock itself, and nothing warns about or waits out an afternoon Buy.
+  `pool.start(run, sizes, deadline)` (sizes by `pool.size_for` from the run's planned card work: each
   step's `capacity.machines_for` on its kind's first class, at most `MOST_CARDS` 10 and each class's quota) opens it
   and starts its collector (`pool.py --collect`, a process of its own under the pool's ticket), which rents beside the
-  run until the pool holds its size, backing off for stock as a claim does, and parks each warm card for the pool at
+  run until the pool holds its size, backing off for stock as a claim does and never giving up before the pool's end, and parks each warm card for the pool at
   once, so the run's card work starts on the first card. Once a run opened a pool its steps never rent:
   `batch.claim` (every spread runner) and `batch.rent_fleet` (Pixal3D) take a pool card (`park.adopt`, by class in
   any zone, another kind's cleaned and set up again) or wait for one, a class the pool lacks added to it
   (`pool.want`); `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
   the usual 15-minute quiet limit, the collector beating it) and deletes a broken one, which the collector replaces;
   a card whose taker died is deleted by the collector. A dead card's unfinished share (`spread.Shares.again`) or
-  Pixal3D jobs (`Fleet.again`) go back on the queue once, never a third run. Every card minute is charged once:
+  Pixal3D jobs (`Fleet.again`) go back on the queue once (a finished job never runs again; a second death makes it a gap). Every card minute is charged once:
   rent to first parking (`pool-<run>-<id>`), each spell idle (`pool-idle-...`, at its take or release), the taker's
-  use; each line carries the run and the pool's ticket. `pool.release(run)` (from `score run`'s release, first thing;
-  the collector's own end when the pool's end passes or the run's process is gone) closes it: idle cards deleted at
+  use; each line carries the run and the pool's ticket. The pool's idle time is the run's own cost, to be counted in
+  its high estimate, its stop line and a benchmark grant's balance (see not yet wired below), never cut by a smaller pool or a cheaper class
+  (quality is never a cost lever). `pool.release(run)` (from `score run`'s release, first thing, so
+  also on a failed run, its stop line and Stop everything; the collector's own end when the pool's end passes or the run's
+  process is gone) closes it and ends the collector: idle cards deleted at
   once, held ones by their takers. Not yet wired: who opens the pool at a Buy's start with the run's planned rows,
+  releasing it once the run has no card work left (before its last free rows),
   the pool's own clearance (its high counted in the stop line or grant), and the cockpit's cards-warm figure.
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
@@ -181,7 +194,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **Spread over zones:** a zone out of cards takes the order and leaves the machine stopped, so
   `rent` starts it at once and gives it back on "out of stock", and the fleet moves on.
 - **No job is tied to one card or zone** (2026-10-08, after a day of 24 GB cards out of stock in one
-  zone): each runner takes its offers from `capacity.py`'s list for its job kind (every capability
+  zone; under a warm pool the collector is the one claimant that rents, the steps take its cards): each runner takes its offers from `capacity.py`'s list for its job kind (every capability
   class that holds the job), and gets its machine through `batch.claim` (a fleet through `rent_fleet`), which
   takes the best stocked offer in `SPEED_ORDER` (price barely matters: owner, 2026-10-08), drops an
   offer that is refused or out of stock for a minute (nothing billed), and spreads a run's machines over the zones. A dropped offer is dropped for one round only: a claim that finds
@@ -194,17 +207,18 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (`scaleway.delete_loose_left_by_refusal`), and a run's ledger row carries `rent_fees`, its machines' and failed
   rents' disk-and-address euros, which stay on their own lines and out of its `euros`. A signal (`STOPPING`) ends every claim and deletes a machine that answers after it. A big card runs as many jobs at once
   as `capacity.runs_at_once` says (measured kinds only). A machine rented that does not answer within
-  `START_MINUTES`, or refuses the runner's key, was billed: it is deleted and its slot is a gap
-  (`batch.BootFailed`), with no machine rented in its place inside the batch; the Pixal3D fleet counts its cards, and
-  those of a machine that broke, as lost and makes the jobs no machine took gaps (a batch, owner 2026-10-20). A new runner does the same and
+  `START_MINUTES`, or refuses the runner's key, was billed: it is deleted (`batch.BootFailed`); under a warm pool the
+  collector rents another and the jobs wait on the queue, outside one the slot is a gap with no machine rented in its
+  place and the Pixal3D fleet counts its cards, and those of a machine that broke, as lost. A new runner does the same and
   records its machines with `ledger.machines_record`, so `capacity.py report` can compare cards.
 - **Every kind spreads a batch over many machines** (`spread.py`, 2026-10-08, after the provider granted quotas
   for 20 H100, 50 L4 and 10 L40S machines; stock is still the real limit): `capacity.machines_for` rents enough
   that each machine works about as long as its setup takes (or one job, when a job is longer), so a small batch
   keeps one machine and a big one ends in about the setup and one job's time; machines are claimed side by side
   (each claim reserves its zone while it rents, an offer that gave nothing is dropped for the run), each takes the
-  next share from one queue as it finishes one, every share runs once: one whose machine failed or
-  whose own command failed (`spread.JobFailed`) is a gap, never handed to another machine. Caps: `max_machines` a class (the backend's
+  next share from one queue as it finishes one, every share runs once: one whose own command failed
+  (`spread.JobFailed`) is a gap, never handed to another machine; one whose warm pool card died goes back on the
+  queue once for the pool's next card (`Shares.again`), outside a pool it is a gap. Caps: `max_machines` a class (the backend's
   `QUOTAS`, else 5) and `run_cap` in all (the largest class quota, at least 20: 50 with the L4 quota since #20); `SCORE_MAX_MACHINES="gpu-80gb=20,all=30"` overrides. A new
   runner gives `spread.on_machines` a set-up and a per-share function. `scene.py` stays on one card: its steps
   feed each other.
@@ -240,9 +254,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core
   and WSL crashed the same day: no bake runs on the PC. A whole hub slice (28 pieces), the swatch sheet and three
   habitat pieces took 7 minutes, €0.09. One class is fixed for the whole call at price time
-  (`batch.one_class_in_stock`): the first asked that the run's card pool holds, else the first in stock, else the
-  first sold, its claims then waiting for stock (no stock never makes a gap: owner, 2026-10-23, removing the rule of
-  2026-10-20), never a processor machine in a card's place inside the batch. A
+  (`batch.one_class_in_stock`): the first asked that the run's warm pool holds, else the first in stock, else the
+  first sold, its claims then taking pool cards, never a processor machine in a card's place inside the batch. A
   processor class asked for by `--classes` is its own estimate, priced at `PROCESSOR_SLOWER` (three times).
 - **Close-ups: Qwen-Image-Edit first, Nano Banana Pro for the failures** (owner, 2026-10-08): the close-up stage
   (`../closeup/stage.py`) draws every close-up with `pictures.py --model qwen-edit` (Qwen-Image-Edit-2511, 20B, an

@@ -45,7 +45,7 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 - **Unmeasured stays unknown.** A layer with no per unit is unpriced and named; one with no measured minutes is
   untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`).
 - **One class and zone a layer** (`machines.py`): the runner's first class in its kind's order, the zone with the
-  best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as gaps.
+  best boot record in the ledgers, in stock when `--stock` read it.
 - **Library reuse only under today's route** (owner, 2026-10-20, #21/#41: "wouldn't lock anything"): a matching
   library model is reused only when the owner locked it, or when its provenance names today's route
   (`library.todays_route()`, the route stages' code and gates hashed as the library rows' key hashes them; their
