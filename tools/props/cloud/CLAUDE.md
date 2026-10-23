@@ -199,6 +199,24 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. Not yet
   wired: releasing the pool once the run has no card work left (before its last free rows), and the cockpit's
   cards-warm figure.
+- **The warm pool holds a few processor machines beside its cards, for renders and bakes** (owner, 2026-10-23: "why
+  isnt rendering on cpu better?", then "yeah" to: Blender renders the same picture on processor and card, processor
+  machines are almost never out of stock, so bakes and small renders take whichever machine is free first; and "cant
+  u just get a faster cpu"). `capacity.PROCESSOR_KINDS` (`blender`, `library`: every Blender job and library bake) take
+  a pool machine of their own classes or any `capacity.PROCESSORS` class, whichever frees first (`pool.takes`), a call
+  asked on processor machines alone (settling, the paint) keeping its own classes; every other kind takes a card only.
+  Cycles follows the machine (`spread.slots`: FARM_CYCLES_GPU on a card, the processor otherwise) at the same samples,
+  size and denoising, so `blender_cloud.py` and `library_bake.py` are unchanged and no surfaces row moves.
+  `score run`'s `pool_sizes` adds `pool.with_processors`: as many as the most cards a line's render or bake rows
+  (`pool.processor_able`: a stage the ledger knows as those kinds) are priced on, at most `MOST_PROCESSORS` 3, of the
+  first `PROCESSORS` class in stock (64, then 48, then 32 cores, POP2-HC first: EUR 0.027 a core-hour against 0.037).
+  The backend offers a processor class in every zone that sells it (`scaleway.rent_zones`; the cards' zones were short
+  of every big POP2 on 2026-10-23) and only a type and zone with quota (`zone_quotas`, read from Scaleway's IAM: no
+  64-core quota yet). Money: a pool machine's every minute is in the pool's clearance at its class's dearest price,
+  so the run's high holds whichever machine a job takes; time: under a pool with a processor machine a render or bake
+  stage's high minutes are `PROCESSOR_SLOWER` (3, a 32-core bake, unmeasured on the big ones) times its card ones
+  (`preflight.processor_margin`), so the runaway watch never stops one for landing there. Every ledger machine row
+  carries its `class`, so `capacity.py report` gives each kind's processor time per class to replace the 3 with.
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks
@@ -274,7 +292,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   and WSL crashed the same day: no bake runs on the PC. A whole hub slice (28 pieces), the swatch sheet and three
   habitat pieces took 7 minutes, €0.09. One class is fixed for the whole call at price time
   (`batch.one_class_in_stock`): the first asked that the run's warm pool holds, else the first in stock, else the
-  first sold, its claims then taking pool cards, never a processor machine in a card's place inside the batch. A
+  first sold, its claims then taking pool cards, or under a warm pool its processor machines too (above). A
   processor class asked for by `--classes` is its own estimate, priced at `PROCESSOR_SLOWER` (three times).
 - **Close-ups: Qwen-Image-Edit first, Nano Banana Pro for the failures** (owner, 2026-10-08): the close-up stage
   (`../closeup/stage.py`) draws every close-up with `pictures.py --model qwen-edit` (Qwen-Image-Edit-2511, 20B, an

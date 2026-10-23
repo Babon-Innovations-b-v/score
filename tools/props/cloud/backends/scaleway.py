@@ -38,6 +38,15 @@ CLASSES = {
     "gpu-80gb": ("H100-1-80G",),
     "gpu-24gb-x2": ("L4-2-24G",),
     "gpu-80gb-x2": ("H100-SXM-2-80G", "H100-2-80G"),
+    # The big processor machines a render or bake takes from a run's warm pool (owner, 2026-10-23: "cant u just get a
+    # faster cpu"): Cycles on a processor scales about with its cores and so does the price, so more cores render a
+    # job sooner at about the same euros. POP2-HC (2 GB a core) is the cheapest a core: EUR 0.027 a core-hour in
+    # nl-ams-2 against 0.037 for POP2 (2026-10-23). The same POP2 family and image as the 32-core types; the 48- and
+    # 64-core ones not yet seen running here.
+    "cpu-64c-128gb": ("POP2-HC-64C-128G",),
+    "cpu-64c-256gb": ("POP2-64C-256G",),
+    "cpu-48c-96gb": ("POP2-HC-48C-96G",),
+    "cpu-48c-192gb": ("POP2-48C-192G",),
     "cpu-32c-128gb": ("POP2-32C-128G",),
     "cpu-32c-64gb": ("POP2-HC-32C-64G",),
     "cpu-32c-256gb": ("POP2-HM-32C-256G",),
@@ -66,6 +75,14 @@ PARKED = HOME / "cloud" / "parked"
 TAG = "farm-factory-batch"
 # The zones that rent graphics cards (2026-09-29).
 ZONES = ("pl-waw-2", "fr-par-2", "fr-par-1")
+# The other zones that rent processor machines (2026-10-23: every big POP2 type short in fr-par-1, fr-par-2, fr-par-3
+# and nl-ams-1, in stock in nl-ams-2, nl-ams-3, pl-waw-1, pl-waw-3 and it-mil-1): a processor class is offered in
+# every zone of `rent_zones()`, a card class in ZONES only.
+PROCESSOR_ZONES = ("nl-ams-2", "nl-ams-3", "pl-waw-1", "pl-waw-3", "it-mil-1", "fr-par-3", "nl-ams-1")
+# A machine type's quota in a zone is named this and the type (POP2-HC-48C-96G: cp_servers_type_POP2_HC_48C_96G).
+QUOTA_PREFIX = "cp_servers_type_"
+QUOTA_URL = "https://api.scaleway.com/iam/v1alpha1/quota"
+QUOTA_PAGE = 100
 # What a machine's root disk (block storage, 5k IOPS) and public address cost, in euros a GB-hour and an
 # address-hour, each billed by the started hour from the machine's creation (the October 2026 bill: EUR 31.87 for
 # 245,140 GB-hours, EUR 15.80 for 3,160 address-hours).
@@ -148,18 +165,62 @@ def parked_places(now):
     return found
 
 
+def rent_zones():
+    """Every zone a machine is rented in: the card zones, then the processor zones."""
+    return (*ZONES, *(zone for zone in PROCESSOR_ZONES if zone not in ZONES))
+
+
+def quota_pages(organization, secret_key):
+    """Every quota of the organisation, read page by page from Scaleway's IAM API (the CLI has no quota command)."""
+    import urllib.parse
+    import urllib.request
+
+    found, page = [], 1
+    while True:
+        query = urllib.parse.urlencode({"organization_id": organization, "page_size": QUOTA_PAGE, "page": page})
+        request = urllib.request.Request(f"{QUOTA_URL}?{query}", headers={"X-Auth-Token": secret_key})
+        with urllib.request.urlopen(request, timeout=60) as answer:
+            body = json.load(answer)
+        found += body.get("quota") or []
+        if not body.get("quota") or len(found) >= body.get("total_count", 0):
+            return found
+        page += 1
+
+
+@functools.lru_cache(maxsize=None)
+def zone_quotas():
+    """{(machine type, zone): machines} the project's organisation may hold, read once a process (a free read). A
+    type and zone it lists no quota for holds none (POP2-HC-64C-128G and POP2-64C-256G, 2026-10-23, until the owner's
+    request for more is granted), so it is never ordered."""
+    organization = scw("account", "project", "get", f"project-id={account()}")["organization_id"]
+    found = {}
+    for quota in quota_pages(organization, scw("config", "get", "secret-key")):
+        if quota["name"].startswith(QUOTA_PREFIX):
+            machine_type = quota["name"][len(QUOTA_PREFIX):].replace("_", "-")
+            for limit in quota.get("limits") or []:
+                if "zone" in limit:
+                    found[(machine_type, limit["zone"])] = (math.inf if limit.get("unlimited")
+                                                            else limit.get("limit") or 0)
+    return found
+
+
 def offers(classes):
-    """Every place a machine of one of `classes` can be rented: an Offer for each type and zone that sells it. Where
-    Scaleway says shortage but one of our runs parked a machine of that type, the offer says `parked`: the claim takes
-    that machine first (2026-10-12: every POP2-32C-128G was ours, parked, and blender_cloud refused for no stock)."""
+    """Every place a machine of one of `classes` can be rented: an Offer for each type and zone that sells it and
+    whose quota there is above 0 (zone_quotas), a processor class in every zone of `rent_zones()`. Where Scaleway says
+    shortage but one of our runs parked a machine of that type, the offer says `parked`: the claim takes that machine
+    first (2026-10-12: every POP2-32C-128G was ours, parked, and blender_cloud refused for no stock)."""
     found = []
     parked = parked_places(time.time())
-    for zone in ZONES:
+    quotas = zone_quotas()
+    for zone in rent_zones():
+        here = [machine_class for machine_class in classes if zone in ZONES or not cards(machine_class)]
+        if not here:
+            continue
         listed = {server["name"]: server.get("availability") for server in scw("instance", "server-type", "list",
                                                                                  f"zone={zone}")}
-        for machine_class in classes:
+        for machine_class in here:
             for order, machine_type in enumerate(CLASSES.get(machine_class, ())):
-                if machine_type not in listed:
+                if machine_type not in listed or not quotas.get((machine_type, zone)):
                     continue
                 euros = price(machine_type, zone)[0]
                 stock = listed[machine_type]
@@ -366,7 +427,7 @@ def address(server_id, zone):
 def ours(project):
     """Every machine in the project the runner rented, in every zone: id, zone, name and tags."""
     found = []
-    for zone in ZONES:
+    for zone in rent_zones():
         servers = scw("instance", "server", "list", f"project-id={project}", f"zone={zone}",
                       f"tags.0={TAG}")
         # Each machine's own project is checked, not only the filter: a list filter that silently
@@ -384,7 +445,7 @@ def leftover_addresses(project, zones=None):
     A machine that deleted itself (self_delete.py) leaves its address behind.
     """
     found = []
-    for zone in zones or ZONES:
+    for zone in zones or rent_zones():
         for address in scw("instance", "ip", "list", f"project-id={project}", f"zone={zone}") or []:
             if (address.get("project") == project and not address.get("server")
                     and QUARANTINED not in (address.get("tags") or [])):  # held so it is never given to us again
@@ -398,7 +459,7 @@ def leftover_disks(project, zones=None):
     A machine that deleted itself leaves its disk behind.
     """
     found = []
-    for zone in zones or ZONES:
+    for zone in zones or rent_zones():
         for disk in scw("block", "volume", "list", f"project-id={project}", f"zone={zone}") or []:
             if disk.get("project_id") == project and not disk.get("references"):
                 found.append((disk["id"], zone, disk["name"]))

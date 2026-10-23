@@ -140,15 +140,33 @@ def run_costs(entries):
     return found
 
 
+def processor_margin(kinds):
+    """How many times longer a batch of `kinds` may run under this process's warm pool: capacity.PROCESSOR_SLOWER for
+    renders and bakes (capacity.PROCESSOR_KINDS) while the pool holds a processor machine they may land on, else 1. Its
+    high minutes, at twice which the runaway watch stops a run, so hold whichever machine a job takes. Its euros need
+    none: a pool machine's every minute is in the pool's own clearance at its class's dearest price (holding_euros)."""
+    import capacity
+    import pool
+    import provider
+
+    plan = pool.current()
+    if not plan or not kinds or not set(kinds) <= set(capacity.PROCESSOR_KINDS):
+        return 1
+    held = any(count and not provider.cards(name) for name, count in plan["sizes"].items())
+    return capacity.PROCESSOR_SLOWER if held else 1
+
+
 def node_run(entries, stage):
     """A paid node's whole run from its stage's measured runs ({euros, high_euros, minutes, high_minutes, runs}), or
-    None with fewer than MEASURED_RUNS of them."""
-    runs = list(run_costs(stage_entries(entries, stage)).values())
+    None with fewer than MEASURED_RUNS of them; its high minutes stretched by processor_margin."""
+    lines = stage_entries(entries, stage)
+    runs = list(run_costs(lines).values())
     if len(runs) < MEASURED_RUNS:
         return None
     euros, minutes = [euros for euros, _ in runs], [minutes for _, minutes in runs]
     return {"stage": stage, "runs": len(runs), "euros": statistics.median(euros), "high_euros": quantile(euros, HIGH),
-            "minutes": statistics.median(minutes), "high_minutes": quantile(minutes, HIGH)}
+            "minutes": statistics.median(minutes),
+            "high_minutes": quantile(minutes, HIGH) * processor_margin(batch_kinds(lines))}
 
 
 def run_jobs(entries, stage):
@@ -214,6 +232,7 @@ def for_ticket(jobs, entries, cap, slots=1):
     if numbers is None:
         return None
     flight = batch(jobs, numbers, cap, slots)
+    flight["high_minutes"] = round(flight["high_minutes"] * processor_margin([numbers["kind"]]), 2)
     keep(ticket, flight)
     print(said(flight), flush=True)
     return flight

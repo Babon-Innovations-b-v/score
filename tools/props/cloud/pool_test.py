@@ -417,6 +417,66 @@ def test_the_kill_switch_closes_every_open_pool_so_nothing_replaces_its_cards():
     assert not collector.is_alive() and len(calls.rented) == 2 and sorted(calls.deleted) == sorted(calls.rented)
 
 
+PROCESSOR = "cpu-48c-96gb"
+PROCESSOR_OFFERS = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, PROCESSOR, 0, "available")]
+
+
+def processor_pool():
+    """A pool of one processor machine, warm, and no card yet."""
+    calls, run_id = fresh(stock=10, sizes={PROCESSOR: 1})
+    cloud.offers = lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS if offer.machine_class in classes]
+    assert grow(run_id) == 1
+    return calls, run_id
+
+
+def test_a_render_takes_the_pools_processor_machine_a_model_kind_never_does():
+    """The owner, 2026-10-23: bakes and small renders take whichever machine is free first, processor or card;
+    anything that needs a card (Pixal3D and the other models) still takes a card."""
+    calls, run_id = processor_pool()
+    assert claimed(a_run("pixal-waits"), "pixal") is None  # a card only: none warm, and the pool is asked for one
+    assert pool.current(run_id)["sizes"] == {PROCESSOR: 1, "gpu-24gb": 1}
+    machine = claimed(a_run("render"), "blender")  # asked on a card, takes the processor machine that is free
+    assert machine["class"] == PROCESSOR and machine["pool"] == run_id
+    assert spread.slots("blender", machine) == [None]  # so Cycles runs on its processor (FARM_CYCLES_CPU)
+    settle = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-32c-128gb", 0, "available")]
+    assert pool.takes("blender", settle) == {"cpu-32c-128gb"}  # asked on processors alone: kept to its own class
+    assert pool.takes("library", OFFERS) == {"gpu-24gb", *pool.capacity.PROCESSORS}
+    assert pool.takes("judge", OFFERS) == {"gpu-24gb"}
+    pool.release(run_id)
+
+
+def test_the_pool_holds_a_few_processor_machines_of_the_biggest_class_offered():
+    found = [provider.Offer(1, 2, "t", "z", 1, "cpu-48c-96gb", 0, "shortage"),
+             provider.Offer(1, 0, "t", "z", 1, "cpu-32c-64gb", 0, "available")]
+    assert pool.processor_class(found) == "cpu-32c-64gb"  # the biggest in stock (no 64-core offer: no quota)
+    assert pool.processor_class(found[:1]) == "cpu-48c-96gb"  # none in stock: the biggest offered, waited for
+    assert pool.with_processors({"gpu-24gb": 4}, 5, found) == {"gpu-24gb": 4, "cpu-32c-64gb": pool.MOST_PROCESSORS}
+    assert pool.with_processors({"gpu-24gb": 4}, 1, found) == {"gpu-24gb": 4, "cpu-32c-64gb": 1}
+    assert pool.with_processors({"gpu-24gb": 4}, 0, found) == {"gpu-24gb": 4}
+    assert pool.with_processors({"gpu-24gb": 4}, 2, []) == {"gpu-24gb": 4}
+
+
+def ledger_line(stage, kind, number):
+    return {"ticket": f"{stage}@place key{number}", "kind": kind, "wall_minutes": 10.0, "euros": 1.0,
+            "machines": [{"unit_seconds": [60.0], "minutes": 10.0, "euros": 1.0, "cards": 1}]}
+
+
+def test_a_render_stages_high_minutes_hold_on_a_processor_machine_under_the_pool():
+    """A render measured on cards may land on the pool's processor machine (capacity.PROCESSOR_SLOWER times longer):
+    the runaway watch, at twice its high minutes, never stops it for that."""
+    import preflight
+    entries = [ledger_line(stage, kind, n) for stage, kind in (("look", "blender"), ("model", "pixal")) for n in range(3)]
+    assert pool.processor_able("look", entries) and not pool.processor_able("model", entries)
+    assert not pool.processor_able("unbought", entries)
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
+    card_only = preflight.node_run(entries, "look")["high_minutes"]
+    pool.release(run_id)
+    calls, run_id = processor_pool()
+    assert preflight.node_run(entries, "look")["high_minutes"] == card_only * pool.capacity.PROCESSOR_SLOWER
+    assert preflight.node_run(entries, "model")["high_minutes"] == card_only  # a card kind keeps its own
+    pool.release(run_id)
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()

@@ -305,16 +305,17 @@ def taken_machine(run, record, number, now):
     return machine
 
 
-def adopt(run, offers, number, kind, disk_gb):
-    """A parked machine of `kind` for `run`, of a type and zone `offers` name, answering and tagged as the run's; None
-    when there is none. One that does not answer is deleted and the next tried."""
+def adopt(run, offers, number, kind, disk_gb, classes=None):
+    """A parked machine of `kind` for `run`, of a type and zone `offers` name (a pool machine: of one of `classes`,
+    default the offers' own), answering and tagged as the run's; None when there is none. One that does not answer is
+    deleted and the next tried."""
     import pool
     pool_of = os.environ.get(capacity.RUN_ID) if pool.current() else None
     if (kind not in CLEANUPS and not pool_of) or not getattr(run, "deadline", None):
         return None
     batch.compute.require_cleared(f"a parked machine of {kind}")
     places = {(offer.type, offer.zone) for offer in offers}
-    classes = {offer.machine_class for offer in offers}
+    classes = set(classes or {offer.machine_class for offer in offers})
     while True:
         now = time.time()
         record = take(kind, places, disk_gb, now, pool_of, classes)
