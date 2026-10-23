@@ -528,22 +528,23 @@ def pool_sizes(runner, places, whole, options):
     """{class: cards} of the run's warm card pool from its planned paid rows (selected_price's `cards`, the cards each
     row's run is sized on): the most cards one row of a line holds (a line's rows run one after another), summed over
     the lines, at most pool.MOST_CARDS, all of the cheapest class every kind but the judge and the 20B picture model
-    holds (capacity.SPEED_ORDER's first); a row of another class adds one when it claims (pool.want). Beside them a
-    few processor machines (pool.with_processors) for the renders and bakes, sized the same way on the rows whose
-    stage the ledger knows as one (pool.processor_able). {} for a run with no card row."""
+    holds (capacity.SPEED_ORDER's first); a row of another class adds one when it claims (pool.want). The rows whose
+    stage the ledger knows as renders and bakes (pool.processor_able) are sized the same way on the pool's processor
+    machines instead (pool.with_processors), which they take before its cards (park.processor_first: faster for them,
+    2026-10-23). {} for a run with no card row."""
     pool = cloud_tool("pool")
     entries = cloud_tool("ledger").entries()
     most, processor = {}, {}
     for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage)):
         cards = selected_price(runner, buy).get("cards") or 0
         line = buy.node.partition("@")[2] or buy.node
-        most[line] = max(most.get(line, 0), cards)
-        if cards and pool.processor_able(buy.node.partition("@")[0], entries):
-            processor[line] = max(processor.get(line, 0), cards)
+        held = processor if cards and pool.processor_able(buy.node.partition("@")[0], entries) else most
+        held[line] = max(held.get(line, 0), cards)
     cards = min(pool.MOST_CARDS, sum(most.values()))
-    if not cards:
+    if not cards and not processor:
         return {}
-    return pool.with_processors({cloud_tool("capacity").SPEED_ORDER[0]: cards}, sum(processor.values()))
+    return pool.with_processors({cloud_tool("capacity").SPEED_ORDER[0]: cards} if cards else {},
+                                sum(processor.values()))
 
 
 def rows_high(runner, places, whole, options):

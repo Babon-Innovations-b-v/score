@@ -108,7 +108,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `blender_cloud.py`) is outside the stages' code keys (`score/graph/_code.py` FRAMEWORK): it changes what a run costs,
   never what it makes. A runner module that sends a maker's scripts up (`pictures.py`, `similar.py`, `scene.py`, ...)
   stays in, so a clean-up registered there (`park.CLEANUPS`) still moves the rows that import it; register new ones in
-  `park.py`.
+  `park.py` (pictures', scene's and every mark-less kind's live there since 2026-10-23).
 - **The machine is always deleted:** at the end, on an error or a signal, by the watchdog at the
   time limit, and by the next run's sweep. Anything new that rents goes through `rent`, which starts its watchdog.
 - **A processor machine is parked, not deleted, while its paid hour has time left** (`park.py`, job hours,
@@ -179,9 +179,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   the usual 15-minute quiet limit, the collector beating it) and deletes a broken one, which the collector replaces;
   a card whose taker died is deleted by the collector. A card goes back only from a kind with a clean-up in
   `park.CLEANUPS`: every Buy kind has one (blender, library, pixal, judge, segment, meshparts, finish-masks, and
-  since the pool `characters`, `pictures`, `pictures-20b` and `scene`, its depth step's); a card of a kind with none
-  (parts, unlit, similar, unirig, closeups, moss-sound, the image proofs the sound takes run through) is deleted
-  after its job and replaced. A dead card's unfinished share (`spread.Shares.again`) or
+  since the pool `characters`, `pictures`, `pictures-20b` and `scene`, its depth step's); the kinds whose set-up
+  writes no mark (parts, unlit, similar, unirig, closeups, moss-sound) remove their whole folder and every set-up mark
+  (`park.ALL_MARKS`: their set-up rebuilds `/root/venv`), so the next kind sets up again (fault of 2026-10-23: the
+  likeness threw its pool L4 away). A dead card's unfinished share (`spread.Shares.again`) or
   Pixal3D jobs (`Fleet.again`) go back on the queue once (a finished job never runs again; a second death makes it a gap).
   Dead means it no longer answers (`batch.answers`, review of 2026-10-23): a share that failed on a card that still
   answers (a copy-in, a local fault) is a gap and the card works on, and a card that failed in set-up is followed by
@@ -213,22 +214,25 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   isnt rendering on cpu better?", then "yeah" to: Blender renders the same picture on processor and card, processor
   machines are almost never out of stock, so bakes and small renders take whichever machine is free first; and "cant
   u just get a faster cpu"). `capacity.PROCESSOR_KINDS` (`blender`, `library`: every Blender job and library bake) take
-  a pool machine of their own classes or any `capacity.PROCESSORS` class, whichever frees first (`pool.takes`), a call
+  a pool machine of their own classes or any `capacity.PROCESSORS` class (`pool.takes`), a free processor machine
+  before a card (`park.processor_first`; measured 2026-10-23, #26: the 48-core beat the L4 on every Blender job), a call
   asked on processor machines alone (settling, the paint, a body's checks) taking its own classes or a pool processor
   no smaller in cores and memory (`pool.no_smaller`; fault of 2026-10-23: the checks rented a 16-core machine beside
   the pool's idle 48-core one); every other kind takes a card only.
   Cycles follows the machine (`spread.slots`: FARM_CYCLES_GPU on a card, the processor otherwise) at the same samples,
   size and denoising, so `blender_cloud.py` and `library_bake.py` are unchanged and no surfaces row moves.
-  `score run`'s `pool_sizes` adds `pool.with_processors`: as many as the most cards a line's render or bake rows
-  (`pool.processor_able`: a stage the ledger knows as those kinds) are priced on, at most `MOST_PROCESSORS` 3, of the
+  `score run`'s `pool_sizes` sizes the render and bake rows (`pool.processor_able`: a stage the ledger knows as those
+  kinds) on processor machines, not cards (`pool.with_processors`): as many as the most cards such a row of a line
+  is priced on, at most `MOST_PROCESSORS` 3, of the
   first `PROCESSORS` class in stock (64, then 48, then 32 cores, POP2-HC first: EUR 0.027 a core-hour against 0.037).
   The backend offers a processor class in every zone that sells it (`scaleway.rent_zones`; the cards' zones were short
   of every big POP2 on 2026-10-23) and only a type and zone with quota (`zone_quotas`, read from Scaleway's IAM: no
   64-core quota yet). Money: a pool machine's every minute is in the pool's clearance at its class's dearest price,
   so the run's high holds whichever machine a job takes; time: under a pool with a processor machine a render or bake
-  stage's high minutes are `PROCESSOR_SLOWER` (3, a 32-core bake, unmeasured on the big ones) times its card ones
-  (`preflight.processor_margin`), so the runaway watch never stops one for landing there. Every ledger machine row
-  carries its `class`, so `capacity.py report` gives each kind's processor time per class to replace the 3 with.
+  stage's high minutes are its card ones times the slowest held processor class's `capacity.processor_times`
+  (measured: `PROCESSOR_TIMES`, the 48-core 0.69 of an L4, so never under 1; else `PROCESSOR_SLOWER` 3, a 32-core
+  bake) (`preflight.processor_margin`), so the runaway watch never stops one for landing there. Every ledger machine
+  row carries its `class`, so `capacity.py report` gives each kind's processor time per class to add to the table.
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks

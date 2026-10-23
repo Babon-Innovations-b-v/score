@@ -123,10 +123,14 @@ PROCESSOR_KINDS = ("blender", "library")
 # size (the cheapest a core, and more memory than an L4 machine's 48 GB); the smaller ones are stock fallbacks. A
 # class whose type has no quota in a zone is never offered (the backend's zone_quotas; the 64-core ones, 2026-10-23).
 PROCESSORS = ("cpu-64c-128gb", "cpu-64c-256gb", "cpu-48c-96gb", "cpu-48c-192gb", "cpu-32c-64gb", "cpu-32c-128gb")
-# How much longer a processor machine takes than a card for the same Blender job: the library bake's three times
-# (a 32-core machine against an L4, 2026-10-06; library_bake.py keeps its own copy, a declared input of the surfaces
-# rows). Not measured on the bigger machines yet: the ledger's machine rows carry their class and unit_seconds, so
-# `capacity.py report` gives each kind's processor time per class to replace it with.
+# How many times a card's time a processor class takes for the same Blender job, where the ledger measured it: the
+# worst of its kinds against the same job on an L4, same samples, size and denoising (warm pool benchmark, 2026-10-23,
+# #26): the 48-core POP2-HC-48C-96G took 29.5 s for a look's renders (L4 42.8 s, ledger batch
+# blender-20261023-160513-3422881), 140.6 s for the people bake (L4 about 290 s) and 89.2 s for the people dress (L4
+# about 190 s), so 0.69. A class not listed is held at PROCESSOR_SLOWER, the library bake's three times (a 32-core
+# machine against an L4, 2026-10-06; library_bake.py keeps its own copy, a declared input of the surfaces rows), so a
+# high estimate stays an upper bound until the ledger's rows (`capacity.py report`, each row's class) measure it.
+PROCESSOR_TIMES = {"cpu-48c-96gb": 0.69}
 PROCESSOR_SLOWER = 3
 # Classes a kind takes only after LATE_MINUTES with nothing else to be had (none since bakes left the H100s; the
 # cluster submitter shares the rule).
@@ -151,6 +155,12 @@ AT_CAP = []
 OLD_KIND = "pixal"
 # Where `report` writes its table; the summary line it prints names this path.
 REPORT = ledger.LEDGER.parent / "capacity-report.txt"
+
+
+def processor_times(machine_class):
+    """How many times a card's time a Blender job takes on `machine_class`: measured (PROCESSOR_TIMES), else
+    PROCESSOR_SLOWER."""
+    return PROCESSOR_TIMES.get(machine_class, PROCESSOR_SLOWER)
 
 
 def classes_for(kind):

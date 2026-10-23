@@ -60,6 +60,7 @@ import uuid
 import batch
 import capacity
 import ledger
+import provider
 from provider import cloud
 
 PARKED = batch.CLOUD / "parked"
@@ -286,7 +287,8 @@ def take(kind, places, disk_gb, now, pool_of=None, classes=()):
     most time left first; None when there is none. Records past their time are struck off on the way. Another kind's
     machine fits: a type the claim's offers name runs the same system image whatever the kind, its run's files were
     removed when it was parked, and the claiming kind's set-up then runs on it as on a fresh one. A pool card is taken
-    only by a claim of its pool's run (`pool_of`), by its class (one of `classes`) in whatever type and zone."""
+    only by a claim of its pool's run (`pool_of`), by its class (one of `classes`) in whatever type and zone; a render
+    or bake takes the pool's processor machines before its cards (`processor_first`)."""
     with locked():
         found = []
         for path in PARKED.glob("*.json"):
@@ -298,12 +300,19 @@ def take(kind, places, disk_gb, now, pool_of=None, classes=()):
             fits = (record["pool"] == pool_of and record["class"] in classes if record.get("pool")
                     else (record["type"], record["zone"]) in places)
             if fits and (record.get("disk_gb") or 0) >= disk_gb:
-                found.append(((record["kind"] == kind, record["until"]), path, record))
+                found.append(((processor_first(kind, record), record["kind"] == kind, record["until"]), path, record))
         if not found:
             return None
         _, path, record = max(found, key=lambda entry: entry[0])
         path.unlink()
         return record
+
+
+def processor_first(kind, record):
+    """Whether a render or bake (capacity.PROCESSOR_KINDS) would take this pool record before a card: a pool's
+    processor machine is faster than its L4 for these (capacity.PROCESSOR_TIMES, 2026-10-23) and never out of stock,
+    so the cards are left for the kinds only a card runs."""
+    return bool(record.get("pool")) and kind in capacity.PROCESSOR_KINDS and not provider.cards(record["class"])
 
 
 def taken_machine(run, record, number, now):

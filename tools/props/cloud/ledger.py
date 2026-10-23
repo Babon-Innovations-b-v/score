@@ -250,7 +250,7 @@ def machine_row(machine):
     euros = (cost((ended - machine["created"]) / 60, machine["price"], unit_minutes)
              - machine.get("paid_minutes", 0.0) * machine["price"])
     # Its class beside its type, so `capacity.py report` gives each kind's time per class (a render or bake on a warm
-    # pool's processor machine: capacity.PROCESSOR_SLOWER is unmeasured on the big ones).
+    # pool's processor machine: capacity.PROCESSOR_TIMES, measured per class).
     row = {"type": machine["type"], "class": machine.get("class"), "zone": machine["zone"],
            "cards": machine.get("cards"),
            "started": ready is not None,
