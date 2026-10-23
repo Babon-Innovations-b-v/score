@@ -103,8 +103,10 @@ def test_sites_that_would_overlap_are_moved_clear_along_their_own_bearings(store
 def test_a_site_the_creator_placed_himself_stays_and_two_of_his_stay_a_gap(store, scene_plans):
     scene_plans["base"] = {"w": 110.0, "d": 110.0}
     setting = environment_concept.setting_of(store)
+    kept_setting(store, setting)  # his first: the physics' proposal, cleared like any
+    assert not any("overlap" in gap for gap in environment_plan.derived(store)["gaps"])
     his = [{**site, "longitude": 0.0005} if site["place"] == "old_station" else site for site in setting["sites"]]
-    kept_setting(store, {**setting, "sites": his})  # his own spot for the old station, 34 m south of the base
+    kept_setting(store, {**setting, "sites": his})  # his own move of the old station, 34 m south of the base
     plan = environment_plan.derived(store)
     old = site_in(plan, "old_station")
     assert (old["latitude"], old["longitude"]) == (54.999165, 0.0005)
@@ -112,6 +114,38 @@ def test_a_site_the_creator_placed_himself_stays_and_two_of_his_stay_a_gap(store
     both = [{**site, "latitude": 55.0, "longitude": 0.0005} if site["place"] == "base" else site for site in his]
     kept_setting(store, {**setting, "sites": both})
     assert "Old station and Base overlap on Moon: move one in the physics" in environment_plan.derived(store)["gaps"]
+
+
+NEW = "a-new-environment"  # no world of the repository's: any environment's setting and plans
+
+
+def test_a_new_environment_on_one_plot_places_by_physics_until_plans_land_then_clears(store, monkeypatch):
+    shown = {"house": {"w": 12.0, "d": 9.0}}
+    monkeypatch.setattr(plans, "current", lambda store, place: {"plan": shown[place]} if place in shown else None)
+    farm = {**HOUSE, "sites": [*HOUSE["sites"], {"place": "shed", "on": "meadow", "x": 8.0, "y": 0.0, "height_m": 0}]}
+    environment_concept.saved(store, NEW, {**environment_concept.prefilled([]), "setting": farm}, True, "joey")
+    plan = environment_plan.derived(store, NEW)
+    assert site_in(plan, "shed")["at"] == [8.0, 0.0] and "Shed: no plan yet" in plan["gaps"]  # the physics' spot
+    shown["shed"] = {"w": 4.0, "d": 4.0}  # its plan lands: 8 m from a 12 m house, so it would overlap
+    plan = environment_plan.derived(store, NEW)
+    assert site_in(plan, "house")["at"] == [0.0, 0.0]
+    assert site_in(plan, "shed")["at"] == [6.0 + 2.0 + environment_plan.CLEAR_M, 0.0] and plan["gaps"] == [
+        "House: no scene time", "Shed: no scene time"]
+    his = {**farm, "sites": [farm["sites"][0], {**farm["sites"][1], "x": 5.0}]}  # he moves the shed himself
+    environment_concept.saved(store, NEW, {**environment_concept.prefilled([]), "setting": his}, True, "joey")
+    plan = environment_plan.derived(store, NEW)
+    assert site_in(plan, "shed")["at"] == [5.0, 0.0]  # his spot wins; the house steps aside along its bearing
+    assert site_in(plan, "house")["at"] == [5.0 - 6.0 - 2.0 - environment_plan.CLEAR_M, 0.0]
+
+
+def test_sites_on_different_grounds_are_never_compared(store, monkeypatch):
+    monkeypatch.setattr(plans, "current", lambda store, place: {"plan": {"w": 30.0, "d": 30.0}})
+    two = {**HOUSE, "plots": [*HOUSE["plots"], {"name": "Yard", "gravity": 9.81}],
+           "sites": [*HOUSE["sites"], {"place": "barn", "on": "yard", "x": 0.0, "y": 0.0, "height_m": 0}]}
+    environment_concept.saved(store, NEW, {**environment_concept.prefilled([]), "setting": two}, True, "joey")
+    plan = environment_plan.derived(store, NEW)
+    assert site_in(plan, "house")["at"] == site_in(plan, "barn")["at"] == [0.0, 0.0]
+    assert not any("overlap" in gap or "one spot" in gap for gap in plan["gaps"])
 
 
 def test_sites_on_a_plot_are_moved_clear_across_it():
