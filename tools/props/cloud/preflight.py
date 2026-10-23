@@ -27,6 +27,7 @@ import math
 import os
 import pathlib
 import statistics
+import threading
 import time
 
 TICKET = "SCORE_SPEND_TICKET"
@@ -34,6 +35,8 @@ STORE = "SCORE_SPEND_STORE"
 MEASURED_MACHINES = 3  # machines that worked a stage's jobs before its numbers count as measured
 MEASURED_RUNS = 3  # paid runs of a stage before its run forecast counts as measured
 HIGH = 0.9  # the high forecast's quantile
+# How long a waiting mark counts after its last touch (a waiting claim touches it each pool.POLL_SECONDS).
+WAIT_FRESH_SECONDS = 120
 
 
 def stage_of(ticket):
@@ -204,6 +207,42 @@ def keep(ticket, flight):
     with path.open("a") as kept:
         kept.write(json.dumps({**flight, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}) + "\n")
     return path
+
+
+def waiting_mark():
+    """This thread's mark that the running ticket's run waits for a warm pool card (`forecasts/<node>/<key>.waiting/
+    <pid>-<thread>`); None outside a ticket."""
+    ticket = os.environ.get(TICKET, "")
+    if len(ticket.split()) != 2:
+        return None
+    node, key = ticket.split()
+    return forecasts_folder() / node / f"{key}.waiting" / f"{os.getpid()}-{threading.get_ident()}"
+
+
+def mark_waiting():
+    """Mark (again) that this thread's run waits for a warm pool card now, so its runaway watch does not count the
+    wait as the run's work (is_waiting; benchmark of 2026-10-23: a rough model waiting on the pool's first card would
+    have been stopped at twice its 12 measured minutes). A mark not touched for WAIT_FRESH_SECONDS no longer counts."""
+    mark = waiting_mark()
+    if mark is not None:
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        mark.touch()
+
+
+def unmark_waiting():
+    """This thread's run waits for a pool card no longer."""
+    mark = waiting_mark()
+    if mark is not None:
+        mark.unlink(missing_ok=True)
+
+
+def is_waiting(ticket, fresh_seconds=WAIT_FRESH_SECONDS):
+    """Whether a process of the ticket's run marked itself waiting for a pool card (waiting) within
+    `fresh_seconds`: a mark its process left behind on a kill goes stale and no longer counts."""
+    node, key = ticket.split()
+    folder = forecasts_folder() / node / f"{key}.waiting"
+    now = time.time()
+    return folder.exists() and any(now - mark.stat().st_mtime < fresh_seconds for mark in folder.iterdir())
 
 
 def kept(ticket):

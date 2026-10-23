@@ -39,6 +39,7 @@ import time
 import batch
 import capacity
 import ledger
+import preflight
 import provider
 from provider import cloud
 
@@ -137,7 +138,6 @@ def size_for(planned):
 def processor_able(stage, entries):
     """Whether `stage`'s measured batches (ledger `entries` under its tickets) were all of a kind a processor machine
     runs as well as a card (capacity.PROCESSOR_KINDS); False for a stage with none."""
-    import preflight
     kinds = preflight.batch_kinds(preflight.stage_entries(entries, stage))
     return bool(kinds) and kinds <= set(capacity.PROCESSOR_KINDS)
 
@@ -220,7 +220,9 @@ def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB):
 def want(run_id, offers, kind, disk_gb):
     """Make sure the pool collects a card a claim of `kind` from `offers` can take: the kind's first class among them
     added at one card when the pool holds none of their classes, and the disk of that one class (the class the claim
-    takes, never every class) raised to `disk_gb`."""
+    takes, never every class) raised to `disk_gb`. Asked by a claim before it looks for a warm card (it unmarks once it
+    has one) and by Pixal3D's fleet each round it finds none, so the run is marked waiting (preflight.mark_waiting)."""
+    preflight.mark_waiting()
     offered = {offer.machine_class for offer in offers}
     with locked(run_id):
         plan = plan_of(run_id)
@@ -251,17 +253,21 @@ def claim(run, offers, number, kind, disk_gb, wanted=None):
     want(run_id, offers, kind, disk_gb)
     classes = takes(kind, offers)
     told = False
-    while not batch.STOPPING.is_set():
-        machine = park.adopt(run, offers, number, kind, disk_gb, classes)
-        if machine is not None:
-            return machine
-        if current(run_id) is None or not batch.still_wanted(run, wanted):
-            return None
-        if not told:
-            batch.say(f"waiting for a warm pool card for {kind}")
-            told = True
-        batch.STOPPING.wait(POLL_SECONDS)
-    return None
+    try:
+        while not batch.STOPPING.is_set():
+            machine = park.adopt(run, offers, number, kind, disk_gb, classes)
+            if machine is not None:
+                return machine
+            if current(run_id) is None or not batch.still_wanted(run, wanted):
+                return None
+            if not told:
+                batch.say(f"waiting for a warm pool card for {kind}")
+                told = True
+            preflight.mark_waiting()  # the runaway watch leaves the wait out of the run's minutes
+            batch.STOPPING.wait(POLL_SECONDS)
+        return None
+    finally:
+        preflight.unmark_waiting()
 
 
 def members(run_id):
