@@ -1,7 +1,7 @@
 // The scenes films/preview draws in headless Chromium, frame by frame on the film's own clock (never the wall clock):
 // the setting animation (the setting's bodies on their orbits, positions worked out by score/review/overhead.py per
 // frame in setting.py) and the scale zoom (one camera path down through the layers: the setting, the world's globe,
-// the site's blockout on its ground, the place from outside, its rooms), each layer its own view, dissolved into
+// the site's plan masses on its ground, the place from outside, its rooms), each layer its own view, dissolved into
 // the next while both cameras keep moving, so the shot never cuts. window.filmScene.setup(data), then draw(seconds).
 import * as THREE from "three";
 
@@ -230,14 +230,14 @@ function worldView(data) {
   };
 }
 
-// --- the site and the place from outside: the blockout on its ground ---------------------------------------------------
+// --- the site and the place from outside: its plan's masses on its ground------------------------------------------------
 
 function footprint(points) {
   const shape = new THREE.Shape(points.map(([east, south]) => new THREE.Vector2(east, -south)));
   return shape;
 }
 
-// One block of the site's blockout: its walls to `tall`, then its roof (flat, dome, vault or pitched) rising `rise`.
+// One mass of the site's plan (the environment plan's block): its walls to `tall`, then its roof (flat, dome, vault or pitched) rising `rise`.
 function block(found, material) {
   const group = new THREE.Group();
   const walls = new THREE.Mesh(new THREE.ExtrudeGeometry(footprint(found.points), { depth: found.tall, bevelEnabled: false }), material);

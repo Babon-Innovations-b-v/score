@@ -12,18 +12,15 @@
 // plan. Every edit saves on its own a moment later (his plan-edit request: the plan as he left it); removing an inside
 // place right after renaming another merges them, said with an undo. Correct with notes and Make plan post at the
 // price shown (his spend yes); Correct with no note typed sends his edits as the note. A refusal shows in red.
-(() => {
-  const page = document.getElementById("plan");
-  if (!page) return;
+// window.planSheet(page, plan, names, svg, cut) draws one plan into `svg` (its section into `cut`, null for none):
+// the plan review's own, and read-only (no data-marking on `page`) each top scene's at its site on the environment
+// plan's map (environment_plan.js), so a scene's plan looks the same wherever it is shown.
+// an inside place is shown by its name (`names`, place.json `short`: "Cockpit and nav"); its id stays in the plan and
+// the words Correct sends
+window.planSheet = (page, plan, names, svg, cut = null) => {
   const place = page.dataset.place;
-  const plan = JSON.parse(document.getElementById("plan-data").textContent);
-  // an inside place is shown by its name (place.json `short`: "Cockpit and nav"); its id stays in the plan and the words
-  // Correct sends
-  const names = JSON.parse(document.getElementById("plan-names").textContent);
   const called = (id) => names[id] || id.replace(/_/g, " ");
   const title = (hold) => hold.name || called(hold.place);  // a shared room by the name made from both
-  const svg = document.getElementById("plan-drawing");
-  const cut = document.getElementById("plan-section");
   const editing = "marking" in page.dataset;
   const said = document.getElementById("plan-said");
   const notes = document.getElementById("plan-notes");
@@ -52,9 +49,12 @@
 
   // fitted to its panel, zoomed and panned by design.js: the marks' layer is exactly the drawing's box
   svg.setAttribute("viewBox", `${-margin} ${-margin} ${wide + 2 * margin} ${deep + 2 * margin}`);
-  page.closest(".dpanel").classList.toggle("wide", wide > 1.25 * deep);  // a long plan takes the cockpit's whole width
-  // the cockpit's plan column is as wide as the drawing at the height it gets (dash.css)
-  page.closest(".design").style.setProperty("--plan-aspect", String((wide + 2 * margin) / (deep + 2 * margin)));
+  const panel = page.closest("#plan-part");  // the plan review's own panel; none for a site on the environment plan
+  if (panel) {
+    panel.classList.toggle("wide", wide > 1.25 * deep);  // a long plan takes the cockpit's whole width
+    // the cockpit's plan column is as wide as the drawing at the height it gets (dash.css)
+    panel.closest(".design").style.setProperty("--plan-aspect", String((wide + 2 * margin) / (deep + 2 * margin)));
+  }
 
   // --- drawing helpers ----------------------------------------------------------------------------------------------
   const shape = (name, attributes, parent = svg) => {
@@ -443,7 +443,7 @@
     scale_bar();
     if (lit && lit.at) shape("circle", { cx: lit.at[0], cy: lit.at[1], r: longest / 30, class: "plan-ring" });
     const things = plan.items.filter(drawn).length;
-    numbers.textContent = `${round(wide)} x ${round(deep)} m, ${things} things`;
+    if (numbers) numbers.textContent = `${round(wide)} x ${round(deep)} m, ${things} things`;
     section();
   };
 
@@ -564,6 +564,7 @@
   // --- the inside places: their names beside the drawing --------------------------------------------------------
   const places = document.getElementById("plan-places");
   const listed = () => {
+    if (!places) return;
     places.replaceChildren();
     plan.holds.forEach((hold, index) => {
       const row = document.createElement("li");
@@ -924,4 +925,12 @@
   if (page.dataset.pending) waiting();
   listed();
   draw();
+};
+
+(() => {
+  const page = document.getElementById("plan");
+  if (!page) return;
+  window.planSheet(page, JSON.parse(document.getElementById("plan-data").textContent),
+                   JSON.parse(document.getElementById("plan-names").textContent),
+                   document.getElementById("plan-drawing"), document.getElementById("plan-section"));
 })();

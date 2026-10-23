@@ -1,6 +1,6 @@
 """The environment's plan page (pages/environment_plan.py) on the fixture environment: a map a ground with its sites,
-each site's sky once it has a scene time (on hover over its time, no column), the top places' blockouts, his Keep kept
-as his own and anyone but the owner refused. No model is called, nothing is spent."""
+each site's sky once it has a scene time (on hover over its time, no column), each site linked to its own plan, his
+Keep kept as his own and anyone but the owner refused. No model is called, nothing is spent."""
 import json
 
 import pytest
@@ -16,7 +16,7 @@ def test_the_plan_page_shows_each_world_and_keeps_his_scene_times(world):
     owner = signed_in()
     html = owner.get(f"/environments/{name}/plan/").content.decode()
     assert 'aria-label="Moon map"' in html and 'aria-label="Mars map"' in html and 'aria-label="Earth map"' in html
-    assert 'data-place="base"' in html and "base blockout" in html.lower()  # its site's blockout, rendered free
+    assert 'data-place="base"' in html and 'href="/concept/base/#plan-part"' in html  # drawn by its own plan
     assert "55.0000° N, 0.0000° E" in html  # where the setting puts it
     plan = {"maps": [{"on": "moon", "sites": [{"place": "base", "time": "2099-06-01T12:00:00Z"}]}]}
     answer = owner.post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),

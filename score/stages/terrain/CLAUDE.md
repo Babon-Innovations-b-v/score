@@ -19,7 +19,7 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   grounds, seats, landforms and rocks, `data/ground`, went with it). A ground is one body or plot of the environment
   concept's setting: each top scene stands at its site (its kept sky, `{home}/design/sky/<scene>.json`), each scene
   its plan holds where it holds it, unturned, its floor on the top's; the body's true sphere (its radius the
-  setting's) or the plot's plane, raised by each kept plan's terrain spots as the blockout draws them (a thin-plate
+  setting's) or the plot's plane, raised by each kept plan's terrain spots (a thin-plate
   spline faded past the farthest spot). A scene no ground stands is no row of ground-fit; an outdoor one is a seat
   gap (`needs.py`) until its top scene has a site.
 - **Terrain is a model layer (owner, 2026-10-20; CONTEXT.md "layer adapter").** Its detail (craters, tracks,

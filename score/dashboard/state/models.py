@@ -238,10 +238,9 @@ class WorldState(BaseModel):
     plan_automatic: bool = False
     plan_spend: float | None = None
     # The environment's plan (score/review/environment_plan.py): {plan {environment, time, setting, maps [{on, name,
-    # ground, radius_m, sites, distances}], gaps}, how (derived, written, edited), at, by, without_blockout [place]}, and
-    # {place or shell: FileRef} of each blockout picture (score/review/blockout.py) the store's machine rendered.
+    # ground, radius_m, sites, distances}], gaps}, how (derived, written, edited), at, by}: each site's size, footprint
+    # and blocks its top scene's own plan.
     environment_plan: dict | None = None
-    blockouts: dict[str, FileRef] = {}
     # Each body's face as its accepted `body-face-<body>` row made it (score/stages/surfaces/body_faces.py, face.json:
     # {body, surface, family, recipe, token, hex, colour, roughness, metal, palette}), which the films draw; a body
     # whose row stands nowhere yet is absent.

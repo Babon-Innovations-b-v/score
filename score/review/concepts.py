@@ -5,7 +5,7 @@ The store keeps them; in the framework's store an agent's process cannot write t
 barrier for its owner areas, applied here, so score/store, which most stages' keys read, stays as it is):
 
     concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording, picks,
-                                         blockout, room (its hold on the layer above's plan)}
+                                         room (its hold on the layer above's plan)}
     concepts/<place>/picks/<time>.json   {place, sha (None: unlocked again), by, at}
     concepts/<place>/wordings/<time>.json {place, wording (None: back to the generated), by, at}
     blobs/<sha>                          the drawn picture (PNG)
@@ -44,9 +44,8 @@ the pictures sent with it named in order, the fixed viewpoint, people only where
 the environment's style
 (its locked environment concept's, else data/definitions/concept_views.json `style`; its references the same way; a
 draw and a pick record the environment concept's version they were made under, one under another is out of date, and
-none is made while it is unlocked: score/review/environment_concept.py). A place within another is sent, after its
-blockout (its own room shell alone), a crop of that one's picked concept to the scene inventory row its plan says holds
-it (the ship for its rooms, the block for the flat), never the whole scene and never a view round it (the owner,
+none is made while it is unlocked: score/review/environment_concept.py). A place within another is sent a crop of
+that one's picked concept to the scene inventory row its plan says holds it (the ship for its rooms, the block for the flat), never the whole scene and never a view round it (the owner,
 2026-10-21); its wording opens with one block its siblings share word for word ("<the holding row> is divided into
 these compartments: 1. cockpit (flying the ship), 2. ..."; `compartment_words`), then "This concept is number x" and
 its inside alone (`INSIDE_ONLY`: cut away at its own walls, nothing beyond them, no hull; every door and hatch set in
@@ -194,15 +193,13 @@ def current_draw(store, place, wording):
     """Whether `place` has a draw made from `wording`, its current wording (wording_now: the creator's own when set,
     a Redraw with notes' corrected prompt among them), on the picks it is sent now (the layer above's and its joined
     places'); a draw from an older wording or pick (its data, the draw rules, his wording or one of those picks
-    changed since), or made without a blockout while one can be built now (the owner, 2026-10-21), does not count,
-    so Draw all draws it again; so does one drawn on another room than the layer above's plan gives it now
-    (plans.moved_draws)."""
+    changed since) does not count, so Draw all draws it again; so does one drawn on another room than the layer
+    above's plan gives it now (plans.moved_draws)."""
     from score.review import plans
     sent, version = sent_picks(store, place), environment().version(store)
-    structured = bool(structure_pictures(store, place))
     moved = plans.moved_draws(store, place)
     return any(str(draw.get("wording", "")).startswith(wording) and (draw.get("picks") or {}) == sent
-               and draw.get("environment") == version and (draw.get("blockout") or not structured)
+               and draw.get("environment") == version
                and draw.get("sha") not in moved for draw in draws(store, place))
 
 
@@ -586,7 +583,7 @@ def holding_box(store, place):
 
 def outlined(store, place):
     """Whether the layer above's plan lays out `place`'s own outline, held by an inventory row or by its own walls
-    (the owner, 2026-10-21: the blockout is drawn from it; the flat and the camp stand on their holder's walls)."""
+    (the owner, 2026-10-21: the flat and the camp stand on their holder's walls)."""
     from score.review import plans
     return plans.holder_of(store, place) is not None
 
@@ -626,40 +623,15 @@ def waits(store, place):
     return step_refusal(store, place, "draw")
 
 
-STRUCTURE = ("the structure: a grey model of it at real sizes from {parent}'s plan, the fixed view{rest}; "
-             "keep its layout, shapes and proportions exactly, add the look")
-OVERHEAD_VIEW = "what is seen overhead at its site: keep each body's place, size and phase, add the look"
-
-
-def structure_pictures(store, place):
-    """[(what it is, its source)] of `place`'s blockout (score/review/blockout.py: ("blockout", place)) and, for a top
-    place where a body the fixed view does not show is overhead, its overhead view (("overhead", place)); [] while
-    the plan it is built from is not there."""
-    from score.review import blockout, environment_plan, plans
-    holder = above(place, store)
-    if holder:  # its blockout stands once the holder's plan lays out its outline (blockout.scene_of)
-        return [(STRUCTURE.format(parent=short_name(holder), rest=", its own room alone"), ("blockout", place))
-                ] if plans.holder_of(store, place) else []
-    site = environment_plan.site_of(store, place)
-    if site is None:
-        return []
-    found = [(STRUCTURE.format(parent="the environment", rest=", the ground round it at its heights"),
-              ("blockout", place))]
-    worlds = (site.get("overhead") or {}).get("bodies", [])
-    parts = blockout.scene_of(store, place)[0]
-    return found + ([(OVERHEAD_VIEW, ("overhead", place))] if blockout.unseen(parts, worlds) else [])
-
-
 def sent_pictures(store, place):
-    """[(what it is, its source)] a first draw of `place` sends, in order: its blockout and overhead view
-    (`structure_pictures`), a crop of the layer above's picked concept showing only what holds it (source: ("crop",
-    the place above, its box)), never the whole scene and never what lies round it (the owner, 2026-10-21), each
-    joined place's picked concept (source: that place's name), then the creator's references (their paths)."""
+    """[(what it is, its source)] a first draw of `place` sends, in order: a crop of the layer above's picked concept
+    showing only what holds it (source: ("crop", the place above, its box)), never the whole scene and never what lies
+    round it (the owner, 2026-10-21), each joined place's picked concept (source: that place's name), then the
+    creator's references (their paths)."""
     holder = above(place, store)
     box = holding_box(store, place) if holder else None
-    found = structure_pictures(store, place)
-    found += [(f"a crop of {short_name(holder)}'s picked concept: {holder_words(store, place)}, which holds it",
-               ("crop", holder, box))] if box else []
+    found = [(f"a crop of {short_name(holder)}'s picked concept: {holder_words(store, place)}, which holds it",
+              ("crop", holder, box))] if box else []
     found += [(f"{short_name(other)}, picked: match the door they share", other)
               for other in joined(store, place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
@@ -970,9 +942,6 @@ def sent_picture(store, source):
     """The PIL picture of one of sent_pictures' sources: a crop of a place's picked concept to its box, a place's
     picked concept, or a file."""
     from PIL import Image
-    if isinstance(source, tuple) and source[0] in ("blockout", "overhead"):
-        from score.review import blockout
-        return (blockout.picture if source[0] == "blockout" else blockout.overhead_view)(store, source[1])
     if isinstance(source, tuple):
         _, holder, box = source
         return blob_picture(store, picked(store, holder)).crop(tuple(box))
@@ -1028,7 +997,7 @@ def redrawn(store, place, request, by, reviser):
     calls = [{"model": PROMPT_MODEL, "asked": question, "answered": corrected}]
     return redraw_wording(corrected, marks, context, note), pictures, {
         "corrected": corrected, "calls": calls, "context_marks": context, "picks": parts["record"].get("picks"),
-        "blockout": parts["record"].get("blockout"), "discussed": [entry["at"] for entry in thread]}
+        "discussed": [entry["at"] for entry in thread]}
 
 
 def redraw_preview():
@@ -1073,23 +1042,6 @@ def call(wording, pictures):
     buffer = io.BytesIO()
     Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB").save(buffer, "PNG")
     return buffer.getvalue()
-
-
-def blockout_kept(store, place, pictures):
-    """The sha of the blockout a first draw of `place` sends (its first picture when structure_pictures gives one),
-    kept in the store's blobs; None when it sends none."""
-    if not structure_pictures(store, place):
-        return None
-    buffer = io.BytesIO()
-    pictures[0].convert("RGB").save(buffer, "PNG")
-    return kept(store, buffer.getvalue())
-
-
-def without_blockout(store, nodes):
-    """[node] of `nodes` whose picked draw was drawn without a blockout (the owner, 2026-10-21: picked top places keep
-    their picks; this names them)."""
-    return [node for node in nodes if (sha := picked(store, node))
-            and not next((draw for draw in draws(store, node) if draw["sha"] == sha), {}).get("blockout")]
 
 
 def kept(store, png):
@@ -1142,8 +1094,7 @@ def draw(store, place, request, by, caller=call, offsite=None, reviser=revise):
         wording, pictures = first_parts(store, place, request)
         kept_as_own(store, place, request, by)  # before the call: a refused call still keeps his edit
         from score.review import plans
-        fields = {"picks": sent_picks(store, place), "calls": [], "blockout": blockout_kept(store, place, pictures),
-                  "room": plans.room_of(store, place)}
+        fields = {"picks": sent_picks(store, place), "calls": [], "room": plans.room_of(store, place)}
     png = caller(wording, pictures)
     sha = kept(store, png)
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,

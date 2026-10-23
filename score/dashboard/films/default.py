@@ -87,20 +87,22 @@ def review_take(facts):
 
 
 def plan_take(facts):
-    """4: the top scene's inventory, then the environment plan's map of its body with its blockout."""
+    """4: the top scene's inventory, then the environment plan's map of its body with the top scene's own plan drawn
+    at its site."""
     top, body = facts["top_name"], titled(facts["body"])
-    section, blockout = f"section[aria-label={body}]", f"img[alt='{top} blockout']"
+    section = f"section[aria-label={body}]"
+    site = f"{section} [data-site={facts['top']}]"
     return segment("screen-take", {"page": f"/concept/{facts['top']}/"}, 10.0, [
         caption(0.4, 3.6, "4 · Inventory and plan", f"Read from the locked concept: what {top} holds"),
-        caption(4.0, 9.8, "Environment plan", f"Every site on {body}, true metres apart, each with its blockout")],
+        caption(4.0, 9.8, "Environment plan", f"Every site on {body}, true metres apart, each its own plan")],
         take=[{"at": 0.6, "do": "move", "on": "#inventory-part", "over": 0.9},
               {"at": 0.8, "do": "box", "on": "#inventory-part", "for": 2.4, "words": "Scene inventory"},
               {"at": 3.4, "do": "goto", "page": f"/environments/{facts['world']}/plan/"},
               {"at": 3.6, "do": "scroll", "on": section, "over": 1.0},
               {"at": 4.8, "do": "box", "on": f"{section} svg", "for": 2.4, "words": f"{body}'s sites"},
               {"at": 5.0, "do": "move", "on": f"{section} svg", "to": [0.2, 0.6], "over": 0.9},
-              {"at": 7.3, "do": "move", "on": blockout, "over": 0.7},
-              {"at": 7.4, "do": "box", "on": blockout, "for": 2.4, "words": f"{top}'s blockout"}])
+              {"at": 7.3, "do": "move", "on": site, "over": 0.7},
+              {"at": 7.4, "do": "box", "on": site, "for": 2.4, "words": f"{top}'s plan"}])
 
 
 def surfaces_of(facts):
@@ -116,7 +118,7 @@ def zoom(facts):
     """5: one unbroken shot from the setting down into the top scene's rooms."""
     top, body, rooms = facts["top_name"], titled(facts["body"]), facts["rooms"]
     surfaces, bare = surfaces_of(facts)
-    waits = "Blockout · the finished scene waits on the batch"
+    waits = "Plan · the finished scene waits on the batch"
     found = segment("scale-zoom", {"place": facts["top"]}, 22.0, [
         caption(0.3, 3.3, "5 · One shot, every scale", "The physics"), caption(3.7, 7.3, "World", body),
         caption(7.7, 11.3, "Site", f"{top}'s site, from the environment plan"),
@@ -135,7 +137,7 @@ def zoom(facts):
 
 def waiting_words(name, bare, rooms=True):
     return (f"the finished {name}{' and its rooms' if rooms else ''} (the batch): until then the site and place legs "
-            "show the environment plan's blockout" + (" and the room leg the rooms' locked concepts" if rooms else "")
+            "show the masses of its plan" + (" and the room leg the rooms' locked concepts" if rooms else "")
             + (f"; no library surface drawn for {', '.join(bare)} yet" if bare else ""))
 
 
@@ -160,7 +162,7 @@ def stop_zoom(facts, before, stop):
     outside, its concept in the corner, and into a few of its rooms."""
     name, rooms = stop["name"], stop["rooms"]
     surfaces, bare = surfaces_of({**facts, "body": stop["body"]})
-    waits = "Blockout · the finished scene waits on the batch"
+    waits = "Plan · the finished scene waits on the batch"
     if stop["body"] == before["body"]:
         apart = f", {stop['metres']:g} m from {before['name']}" if stop.get("metres") else ""
         legs = [{"layer": "site", "seconds": SITE_SECONDS, "from_place": before["place"], "tag": waits}]

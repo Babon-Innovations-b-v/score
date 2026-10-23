@@ -2,7 +2,7 @@
 decided in its environment concept; the owner, 2026-10-21: no fixed sky, each thing in the form its scale calls for):
 every other body where its orbit and the site's body's spin put it, every light (a shining body's, falling off with
 the square of its distance; a far light's from its path) and every backdrop. The engine runs the same setting live; the
-concept's draw and its blockout take one moment of it, the place's scene time.
+concept's draw takes one moment of it, the place's scene time.
 
     seen(setting, site, when)
         -> {lights: [{name, of, azimuth, altitude, kelvin, lux, across?}],

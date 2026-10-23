@@ -58,6 +58,6 @@ Rules:
   price or carries a spend word (`takes.SPEND_WORDS`) refuses the whole preview; the script check refuses one named so
   before anything runs. A page that is not as the owner sees it (a locked place has no Redraw) is said in the
   segment's `why`, never staged.
-- **What waits is marked.** A segment showing a stand-in (a blockout for a finished place, a concept for a finished
+- **What waits is marked.** A segment showing a stand-in (a plan's masses for a finished place, a concept for a finished
   room, a waiting inventory) names what it waits on in `waiting`, and says so on screen (a scale zoom leg's `tag`).
 - Tests: `score/dashboard/tests/films_test.py` (the fixture environment, temp homes).

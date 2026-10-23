@@ -632,12 +632,33 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .sp-row label { display: flex; flex-direction: column; font-size: var(--fs-xs); color: var(--soft); flex: 1 1 110px; max-width: 190px; }
 .sp-row input { width: 100%; }
 /* the environment's plan (pages/environment_plan.py): a map a world, a row a site */
-.ep-map { width: 100%; max-width: 640px; height: auto; display: block; margin: 0 0 12px; background: var(--raised); border-radius: var(--radius-small); }
-.ep-block { fill: var(--line-strong); stroke: var(--ink); stroke-width: 0.6; }
-.ep-apart { stroke: var(--faint); stroke-dasharray: 4 4; }
-.ep-name { fill: var(--ink); font-size: 13px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: var(--raised); stroke-width: 3px; }
-.ep-metres { fill: var(--soft); font-size: 11px; text-anchor: middle; }
-.ep-blockout { width: 160px; aspect-ratio: 16 / 9; object-fit: cover; display: block; border-radius: var(--radius-small); }
+.ep-map { display: block; width: 100%; height: auto; }
+.ep-ground { fill: var(--raised); stroke: none; }
+.ep-grid line { stroke: var(--line); stroke-width: 1; }
+.ep-apart { stroke: var(--soft); stroke-width: 1; stroke-dasharray: 6 4; }
+.ep-metres { fill: var(--ink); paint-order: stroke; stroke: var(--raised); stroke-width: 3px; }
+.ep-name { fill: var(--ink); font-weight: 600; paint-order: stroke; stroke: var(--raised); stroke-width: 4px; }
+a:hover > .ep-name { fill: var(--accent); }
+.ep-unplanned { fill: var(--bad); }
+/* a site's own plan sheet on the map: its scale bar, north arrow and section cut are the map's own */
+.ep-site-plan .plan-north, .ep-site-plan .plan-scale, .ep-site-plan .plan-cut { display: none; }
+.ep-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.ep-panels .zoom-view { aspect-ratio: 4 / 3; }
+.ep-rail-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.ep-gaps { margin: 0; padding-left: 18px; font-size: var(--fs-sm); }
+.ep-sites { display: flex; flex-direction: column; gap: 10px; }
+.ep-sites h2 { margin: 6px 0 2px; }
+.ep-site { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-top: 1px solid var(--line); }
+.ep-site input { width: 100%; box-sizing: border-box; font: inherit; }
+@media (min-width: 1100px) and (min-height: 600px) {
+  .ep-panels { min-height: 0; gap: 12px; align-items: stretch; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+               grid-template-rows: repeat(var(--ep-others), minmax(0, 1fr)); }
+  .ep-panels > .ep-main { grid-row: 1 / -1; }
+  .ep-panels:not(:has(> .dpanel + .dpanel)) { grid-template-columns: minmax(0, 1fr); }
+  .ep-panels > .dpanel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 8px 10px 10px; }
+  .ep-panels > .dpanel > .dpanel-body { flex: 1 1 auto; min-height: 0; }
+  .ep-panels .zoom-view { height: 100%; max-height: none; aspect-ratio: auto; }
+}
 .ec-steps { display: flex; gap: 10px; align-items: center; } .ec-steps a { padding: 0 8px; font-size: var(--fs-h2); }
 .ec-question { margin: 0; font-weight: 600; }
 .ec-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; }

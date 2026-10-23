@@ -114,7 +114,11 @@ a body, metres on a plot). Exactly one root body; there is no fixed sky. Kept as
 plan made under another version is out of date. Unlock asks twice. References go to the private bucket, never the repo.
 
 **The environment plan** (`environment_plan.py`): the first parent's plan, one map a ground of the physics with each top
-scene's site at true size and the ground falling away with its body's radius, written by the plan writer's call. What
+scene's site where the physics puts it and the ground falling away with its body's radius; the plan writer's call writes
+only the scene times and terrain spots. A site's footprint, size and blocks are read from its top scene's own plan (the
+one its plan page shows, `plans.current`) on every settle, never written or edited apart, so the two cannot differ (the
+owner, 2026-10-23); two sites whose footprints overlap where the physics stands them are a gap. Its page draws each
+site's plan with plan.js's own sheet at its true footprint and distance. What
 each site sees overhead at its scene time is worked out from the physics (`overhead.seen`: every light, every other
 body at its true direction, size and phase, every backdrop) and kept per scene (`scene_sky.py`, a child scene using its
 top scene's site); no record, data file or constant holds a sky of its own.
@@ -126,8 +130,8 @@ scene he merged or removed has no card and no build.
 
 **The concept draw** (`concepts.py`). One Nano Banana Pro call, its wording built by one rule (`generated`): what the
 scene is, its look, its doors and what it holds, its size in relative words, the fixed view, the style line; his own
-edited wording, once sent, is the scene's wording. Pictures go in this order: the blockout first (keep this layout,
-add the look), the crop of the parent's locked concept showing what holds it, the locked concepts of scenes it opens
+edited wording, once sent, is the scene's wording. Pictures go in this order: the crop of the parent's locked
+concept showing what holds it, the locked concepts of scenes it opens
 into (so a shared door matches), his references.
 
 **The chain rule for child draws** (`concepts.step_refusal`, enforced on the page and on the store's machine). A scene
@@ -135,8 +139,7 @@ is drawn or locked only once the EC is locked, its parent is locked, read and pl
 it. Its draw is its inside alone (its walls, floor, ceiling, doors and furniture, windows glass on a plain dark
 backdrop, no hull, no text), sent the crop of what holds it, never the whole parent, and one compartment block its
 siblings share word for word ("<holder> is divided into these compartments: 1. ... This concept is number N"). A
-draw is current only under the current wording, the same parent locks, the same EC version, a blockout where one can
-be built, and an unmoved room; anything else is out of date, and a locked one is flagged, never unlocked.
+draw is current only under the current wording, the same parent locks, the same EC version and an unmoved room; anything else is out of date, and a locked one is flagged, never unlocked.
 
 **The concept review** (the design page's concept panel). He drags marks (boxes, each with a note) and writes notes.
 Redraw with notes is two calls under one yes: Gemini 3.1 Pro rewrites the prompt from the draw, the marks, the notes,
@@ -145,10 +148,9 @@ Gemini call answering his note about the draw shown; the thread goes into the ne
 picks a draw: the lock is the approval, hands the concept to score_lib and starts the reading. Every price comes from
 `data/costs/per-unit.json`, and a click whose shown price no longer matches is refused.
 
-**The blockout** (`blockout.py`): a rough grey massing model built in code from the parent's plan at real sizes (a top
-scene: its site on the environment plan; a child scene: its own room shell in its box, things in the room as labelled
-boxes), lit by its physics' sun, a person for scale, rendered free from the fixed concept view (a numpy z-buffer, no
-card, no Blender).
+No grey model is built in code before a concept (the blockout, retired 2026-10-23: "we have the prop pipeline to get
+the rough shapes first anyway"); a scene's rough shapes are its rough model (`stages/rough_model`). Locks drawn on a
+blockout keep their record's `blockout` field, which tells the plan drawing their fixed south-east view.
 
 **The scene inventory reading** (`reading.py`; runs on its own after a lock under the standing allowance, at most EUR 1
 a scene, cleared as `inventory-read`). Gemini 3.1 Pro names rows (name, noun, count, size in metres, anchor, region);
@@ -183,8 +185,8 @@ out of date; people are standing spots (`plan["people"]`, position, facing, row)
 
 **Plan editing in the app** (`plans.py`; the page's `plan.js`). He drags, resizes, moves doors and person spots, adds,
 renames or removes child scenes, marks the plan and asks for Correct with notes. Drop decides: a box in open space is a
-new child scene; a box fully inside a room is a thing in that room (no scene, no card; a labelled box in its blockout,
-named in its draw's wording); a room dropped on or resized over another is one shared room round both, named from
+new child scene; a box fully inside a room is a thing in that room (no scene, no card; named in
+its draw's wording); a room dropped on or resized over another is one shared room round both, named from
 both, keeping the id it landed on. Every one comes with an undo and saves itself as his edit (`plans/<place>/edits/`
 and `named/`). Once a scene's design is done (concept locked, read, plan written or edited), the sync keeps it under
 `{home}/design/` (`plans/`, `inventory/`, `concepts/`, `sky/`), which is all the build reads (`python -m

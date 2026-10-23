@@ -1,7 +1,7 @@
 """An environment's setting (CONTEXT.md "setting"; the owner, 2026-10-21: "an environment is an environment: it can be a
 planet, a system of planets, or just a house on some terrain"): what everything in it stands on and in, at the scale
-the creator sets, decided in its environment concept (step one) and read from there by the environment's plan and its
-blockouts, never from older game data. Each thing in it is present in the form its scale calls for, never a fixed sky
+the creator sets, decided in its environment concept (step one) and read from there by the environment's plan, never
+from older game data. Each thing in it is present in the form its scale calls for, never a fixed sky
 (the owner, 2026-10-21: "when the environment is just one house, the sun is just a big light"): a body moves under the
 physics, a light is a far source of light, a backdrop is too far to move. What is seen overhead at a site and a moment
 is worked out from these (score/review/overhead.py). No branch names a world.
