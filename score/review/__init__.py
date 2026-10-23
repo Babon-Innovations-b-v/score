@@ -72,6 +72,9 @@ DISC_SHARE_STEP = 0.05
 # A length in metres (a moving part's reach into another, a rider's drift, a loop's seam, a wall's thinnest):
 # 5 mm, too small to see from where a viewer stands.
 LENGTH_STEP = 0.005
+# A share of a model's surface in stray islands of a wrong finish: half a percent, half the smallest island that
+# counts as stray (patchy.STRAY_ISLAND), so a move no island could make reads the same.
+SURFACE_SHARE_STEP = 0.005
 # A score no viewer reads directly (a model's likeness to its reference, a fit's spread): any move counts.
 NO_STEP = 0.0
 # {measure name, or `*<end>` for a family: its step}; a fractional measure named nowhere here counts any move.
@@ -82,6 +85,7 @@ TOLERANCES = {
     "least changed": PICTURE_SHARE_STEP, "least changed share shown": PICTURE_SHARE_STEP,
     "worst after": PICTURE_SHARE_STEP,
     "smooth": DISC_SHARE_STEP, "flat_share": DISC_SHARE_STEP,
+    "stray": SURFACE_SHARE_STEP,
     "drift": LENGTH_STEP, "miss": LENGTH_STEP, "seam": LENGTH_STEP, "thinnest": LENGTH_STEP,
     "* reach": LENGTH_STEP, "* height drift": LENGTH_STEP,
     "lowest clap": NO_STEP, "lowest": NO_STEP, "best pure": NO_STEP, "spread": NO_STEP, "least edges kept": NO_STEP,

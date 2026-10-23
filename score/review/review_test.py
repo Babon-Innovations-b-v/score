@@ -212,3 +212,8 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             test()
             print("ok", name)
+
+
+def test_a_stray_share_moving_less_than_half_a_percent_is_no_worse():
+    assert not review.measure_worse("stray", "lower", 0.0001, 0.0)
+    assert review.measure_worse("stray", "lower", 0.006, 0.0)
