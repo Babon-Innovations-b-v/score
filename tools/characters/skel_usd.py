@@ -222,32 +222,63 @@ def write_picture(document, blob, image, textures, stem):
     return f"./textures/{target.name}"
 
 
-def write_look(stage, path, material, picture):
-    """A material as UsdPreviewSurface: its picture through the mesh's `st`, or its flat colour."""
+def texture_reader(stage, path, name, picture, colour_space):
+    """A UsdUVTexture of `picture` read through the mesh's `st`."""
+    reader = UsdShade.Shader.Define(stage, f"{path}/uv")
+    reader.CreateIdAttr("UsdPrimvarReader_float2")
+    reader.CreateInput("varname", Sdf.ValueTypeNames.String).Set("st")
+    texture = UsdShade.Shader.Define(stage, f"{path}/{name}")
+    texture.CreateIdAttr("UsdUVTexture")
+    texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(picture)
+    texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set(colour_space)
+    texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
+        reader.CreateOutput("result", Sdf.ValueTypeNames.Float2))
+    return texture
+
+
+def write_look(stage, path, material, pictures):
+    """A material as UsdPreviewSurface: its pictures (`pictures`: base_color, metal_roughness and normal, each when
+    the material reads one) through the mesh's `st`, else its flat colour, roughness and metalness; the library
+    surface it names (`extras.surface`) as `score:surface`, which the library check traces."""
     look = UsdShade.Material.Define(stage, path)
     shader = UsdShade.Shader.Define(stage, f"{path}/surface")
     shader.CreateIdAttr("UsdPreviewSurface")
     pbr = material.get("pbrMetallicRoughness", {})
-    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(pbr.get("metallicFactor", 0.0)))
-    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(pbr.get("roughnessFactor", 1.0)))
-    if picture is None:
+    if "metal_roughness" in pictures:  # glTF's packing: roughness in green, metal in blue
+        texture = texture_reader(stage, path, "metal_roughness", pictures["metal_roughness"], "raw")
+        shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+            texture.CreateOutput("g", Sdf.ValueTypeNames.Float))
+        shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).ConnectToSource(
+            texture.CreateOutput("b", Sdf.ValueTypeNames.Float))
+    else:
+        shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(pbr.get("metallicFactor", 0.0)))
+        shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(pbr.get("roughnessFactor", 1.0)))
+    if "base_color" in pictures:
+        texture = texture_reader(stage, path, "base_color", pictures["base_color"], "sRGB")
+        shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+            texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
+    else:
         colour = pbr.get("baseColorFactor", [0.8, 0.8, 0.8, 1.0])
         shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*colour[:3]))
-    else:
-        reader = UsdShade.Shader.Define(stage, f"{path}/uv")
-        reader.CreateIdAttr("UsdPrimvarReader_float2")
-        reader.CreateInput("varname", Sdf.ValueTypeNames.String).Set("st")
-        texture = UsdShade.Shader.Define(stage, f"{path}/base_color")
-        texture.CreateIdAttr("UsdUVTexture")
-        texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(picture)
-        texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set("sRGB")
-        texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
-            reader.CreateOutput("result", Sdf.ValueTypeNames.Float2))
-        shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+    if "normal" in pictures:  # tangent space, 0..1 stored as -1..1
+        texture = texture_reader(stage, path, "normal", pictures["normal"], "raw")
+        texture.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(2.0, 2.0, 2.0, 1.0))
+        texture.CreateInput("bias", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(-1.0, -1.0, -1.0, 0.0))
+        shader.CreateInput("normal", Sdf.ValueTypeNames.Normal3f).ConnectToSource(
             texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
     look.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     look.GetPrim().CreateAttribute("score:part", Sdf.ValueTypeNames.String).Set(material.get("name", ""))
+    if material.get("extras", {}).get("surface"):
+        look.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(material["extras"]["surface"])
     return look
+
+
+def material_pictures(material):
+    """{role: texture number} of the pictures a glTF material reads."""
+    pbr = material.get("pbrMetallicRoughness", {})
+    found = {"base_color": pbr.get("baseColorTexture"), "metal_roughness": pbr.get("metallicRoughnessTexture"),
+             "normal": material.get("normalTexture")}
+    return {role: texture["index"] for role, texture in found.items() if texture is not None}
 
 
 def write_looks(stage, document, blob, textures, stem):
@@ -256,15 +287,14 @@ def write_looks(stage, document, blob, textures, stem):
     pictures = {}
     looks = []
     for number, material in enumerate(document.get("materials", [])):
-        texture = material.get("pbrMetallicRoughness", {}).get("baseColorTexture")
-        picture = None
-        if texture is not None:
-            image = document["textures"][texture["index"]]["source"]
+        read = {}
+        for role, texture in material_pictures(material).items():
+            image = document["textures"][texture]["source"]
             if image not in pictures:
                 pictures[image] = write_picture(document, blob, image, textures, stem)
-            picture = pictures[image]
+            read[role] = pictures[image]
         looks.append(write_look(stage, f"/Character/Looks/m{number}_{prim_name(material.get('name', ''))}",
-                                material, picture))
+                                material, read))
     return looks
 
 

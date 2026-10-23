@@ -51,10 +51,14 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   the cloth's thickness, `bodycloth.MARGIN_MM`), outline (outline.py) and likeness (the props' gate on the
   body, `score/stages/props/likeness.py`), triangles (the route's body as drawn). Never loosen one to pass; fix the
   method (the clips' clearance, the route) and measure again.
-- **The dress is the loop's library surfaces, nothing else** (`dress.py`): colour, roughness and metalness from the
-  library surface the loop's bake painted on the take's outer surface (never a face Pixal3D grew inside it), a
-  garment split where its paint changes, a hard part one surface; the face print and the hair keep the build's own
-  finish. Tests: `people_test.py`.
+- **The dress is the loop's library surfaces, baked, nothing else** (`dress.py`, paid; owner 2026-10-23: "this didnt
+  use our prop pipeline and materials"): each part takes the library surface the loop's bake painted on the take's
+  outer surface (never a face Pixal3D grew inside it), a garment split where its paint changes, a hard part, the skin,
+  the hair and each far-body part one surface; no picture's finish, the close-up's face print included. Then
+  `baked_body.py` bakes those surfaces onto the body itself with the library's own bake (`inside/bake_body.py`,
+  `Atlas.bake_self`, on the bake's L4 through `blender_cloud.py`, the people palette's wear and dirt) and checks it
+  with `bake_check.py`'s measures; `dressed` fails a material in flat factors with no baked maps, `baked` the
+  check's faults. skel_usd carries the three maps and `score:surface` into the asset. Tests: `people_test.py`.
 - **The concept decides the clothes** (owner, 2026-10-13), per person row and from the design alone
   (`../people_clothes.py`, each row's `dress` in `data/people/rows.json`, written by the people rows' refresh): of the
   people place's library fabrics, those whose name shares a word with the row's name as read, the nearest by dE to
