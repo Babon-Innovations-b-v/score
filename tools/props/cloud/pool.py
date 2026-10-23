@@ -173,11 +173,11 @@ def takes(kind, offers):
     return classes
 
 
-def holding_euros(sizes, hours):
+def holding_euros(sizes, hours, found=None):
     """The most a pool of `sizes` ({class: cards}) can bill held warm for `hours`: every card for every minute at its
-    class's dearest offer (cloud.offers, a free price read), what its run's pool clearance reserves. Raises for a
-    class the backend sells none of."""
-    found = cloud.offers(sorted(sizes)) or []
+    class's dearest offer (`found`, else cloud.offers, a free price read), what its run's pool clearance reserves.
+    Raises for a class the backend sells none of."""
+    found = (cloud.offers(sorted(sizes)) or []) if found is None else found
     euros = 0.0
     for machine_class, cards in sizes.items():
         prices = [offer.price for offer in found if offer.machine_class == machine_class]
@@ -185,6 +185,21 @@ def holding_euros(sizes, hours):
             raise RuntimeError(f"pool: the backend sells no {machine_class}, so a pool of it cannot be priced")
         euros += cards * max(prices) * 60 * hours
     return round(euros, 4)
+
+
+def shrinking(sizes, hours):
+    """Every pool the run may hold from `sizes` down, largest first, as [(sizes, holding_euros)]: each one machine
+    fewer than the last, taken from the class whose machines hold the most euros, down to one machine; so
+    compute.pool_clearance opens the largest its run's money allows (fault, 2026-10-23: three 64-core processor
+    machines held 4 h passed a EUR 20 grant). One price read."""
+    found = cloud.offers(sorted(sizes)) or []
+    current, choices = {name: count for name, count in sizes.items() if count}, []
+    while current:
+        choices.append((dict(current), holding_euros(current, hours, found)))
+        dearest = max(sorted(current), key=lambda name: holding_euros({name: current[name]}, hours, found))
+        current[dearest] -= 1
+        current = {name: count for name, count in current.items() if count}
+    return choices
 
 
 def first_class(kind, offered=None):

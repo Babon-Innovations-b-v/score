@@ -546,18 +546,36 @@ def pool_sizes(runner, places, whole, options):
     return pool.with_processors({cloud_tool("capacity").SPEED_ORDER[0]: cards}, sum(processor.values()))
 
 
+def rows_high(runner, places, whole, options):
+    """The run's planned paid rows' high euros (a not-measured row at its estimate, as its clearance holds it), what
+    the pool leaves room for."""
+    prices = [selected_price(runner, buy)
+              for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))]
+    return sum(price.get("high_euros") or price.get("guess_euros") or 0.0 for price in prices)
+
+
 def opened_pool(runner, places, whole, options):
     """Open the run's warm card pool (pool.start, its collector renting beside the run; owner, 2026-10-23: "the buy run
     can just start as soon as one is warm, in the background u just try collecting more till 10") of pool_sizes,
     until a batch's longest run (the ledger's BATCH_HOURS), its holding cost cleared first
     (compute.pool_clearance, against the stop line or the benchmark grant) and the collector started under that
-    ticket alone; the ticket, or None for a run with no card work or on the cluster."""
+    ticket alone, at the largest size the run's money holds beside its rows (pool.shrinking); the ticket, or None for
+    a run with no card work, on the cluster, or with no room for even one machine (its rows then rent their own)."""
     from score.adapters import compute
     sizes = pool_sizes(runner, places, whole, options)
     if not sizes or cloud_tool("provider").on_cluster():
         return None
     pool, hours, run_id = cloud_tool("pool"), compute.ledger().BATCH_HOURS, os.environ[RUN_ID]
-    ticket = compute.pool_clearance(runner, run_id, pool.holding_euros(sizes, hours), hours)
+    try:
+        ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours,
+                                        rows_high(runner, places, whole, options))
+    except compute.Refused as refused:
+        print(f"score run: no warm pool, its rows rent their own machines: {refused}", flush=True)
+        return None
+    if ticket["sizes"] != sizes:
+        print(f"score run: warm pool of {ticket['sizes']} (planned {sizes}), what the run's money holds beside its "
+              "rows", flush=True)
+    sizes = ticket["sizes"]
     compute.hold(ticket)
     before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
     os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})

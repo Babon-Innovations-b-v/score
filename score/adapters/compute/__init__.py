@@ -750,21 +750,26 @@ def reading_clearance(store, places, euros, node=READING):
             "store": str(store.cache.parent)}
 
 
-def pool_clearance(runner, run_id, euros, hours):
-    """Clear run `run_id`'s warm card pool (tools/props/cloud/pool.py): its holding cost, every card of it warm for
-    `hours` at `euros` in all (its cards times their price times its hours: the most its own lines, the cards' rent
-    and idle time, can bill), checked as a node's run is (the month's books, then a benchmark grant's balance when
-    GRANT names one, else the world's stop line with every open reservation) and kept and reserved the same way under
-    node POOL, key the run's id, so the pool's high counts in flight for the whole run. The ticket, as clearance's.
-    The owner, 2026-10-23: the pool's idle time is the run's own cost. Refused with no room."""
+def pool_clearance(runner, run_id, choices, hours, beside=0.0):
+    """Clear run `run_id`'s warm pool (tools/props/cloud/pool.py) at the largest of `choices` ([(sizes, euros)],
+    largest first: pool.shrinking) whose holding cost, every machine warm for `hours` (the most its own lines, the
+    machines' rent and idle time, can bill), fits with `beside` (the high of the run's own rows, cleared later against
+    the same money), checked as a node's run is (the month's books, then a benchmark grant's balance when GRANT names
+    one, else the world's stop line with every open reservation); kept and reserved the same way under node POOL, key
+    the run's id, so the pool's high counts in flight for the whole run. The ticket, as clearance's, with the `sizes`
+    it cleared. The owner, 2026-10-23: the pool's idle time is the run's own cost. Refused when even the smallest
+    has no room (fault, 2026-10-23: three 64-core processor machines held 4 h passed a EUR 20 grant)."""
     grant_id = os.environ.get(GRANT)
     covering = covering_store(runner.store)
     reservations = covering.cache.parent / "reservations.json"
     with clearing(reservations):
         held = open_reservations(reservations)
-        over = (books_refusal()
-                or (grant_refusal(covering, grant_id, euros, held) if grant_id else
-                    stop_refusal(runner, POOL, euros, held)))
+        over = books_refusal() or ("" if choices else "no pool to clear")
+        for sizes, euros in ([] if over else choices):
+            over = (grant_refusal(covering, grant_id, euros + beside, held) if grant_id else
+                    stop_refusal(runner, POOL, euros + beside, held))
+            if not over:
+                break
         if over:
             raise Refused(f"{POOL} of run {run_id}: {over}")
         cleared = {"node": POOL, "key": run_id, "euros": round(euros, 4), "minutes": hours * 60,
@@ -775,7 +780,7 @@ def pool_clearance(runner, run_id, euros, hours):
         runner.store.write_clearance(POOL, run_id, cleared)
         keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": run_id}})
     return {"node": POOL, "key": run_id, "clearance": cleared, "reservations": str(reservations),
-            "store": str(runner.store.cache.parent)}
+            "store": str(runner.store.cache.parent), "sizes": sizes}
 
 
 def hold(ticket):
