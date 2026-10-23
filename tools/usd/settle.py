@@ -49,8 +49,8 @@ SESSION = REPO / "tools/blender/session.py"
 INSIDE = REPO / "tools/blender/inside/settle_stage.py"
 # A drop takes a small processor machine and nothing else (#20; POP2-HM-4C-32G at about a sixth of a 32-core's hourly
 # price; #21: one class decided before the batch, no chain to the 32-core classes): Blender's rigid-body solve is taken
-# to run on one core, not yet timed on one (the first drop on it is that timing). None in stock at price time: the
-# drop fails at once (blender_cloud.price), a gap; a later drop is a new batch. The machine is parked for its billed hour after its drop
+# to run on one core, not yet timed on one (the first drop on it is that timing). None in stock: the
+# drop waits for a machine of the run's warm pool, or for stock (no stock never makes a gap: owner, 2026-10-23). The machine is parked for its billed hour after its drop
 # (blender_cloud's kind is in park.CLEANUPS), so the places' drops after the free triage share one rental within it.
 DROP_CLASSES = ("cpu-4c-32gb",)
 # How far over the ground an object's lowest point starts its fall, in metres.

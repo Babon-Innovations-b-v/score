@@ -34,6 +34,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import park  # noqa: E402
 import pictures  # noqa: E402
 import secret_store  # noqa: E402
 import spread  # noqa: E402
@@ -90,6 +91,15 @@ def set_up(machine):
                      stderr=subprocess.STDOUT)
     machine["setup_minutes"] = round((time.time() - began) / 60, 1)
     batch.say(f"{folder.name} set up in {machine['setup_minutes']} min")
+
+
+def cleanup(_machine):
+    """The command that removes a run's own files from its card before it is parked or goes back to its run's card
+    pool (park.py): any chain still running and every make folder; the shipped tools and the environments stay."""
+    return f"pkill -f '[p]rop_chain[.]py|[v]ideo_motion[.]py' || true; rm -rf {REMOTE}/*"
+
+
+park.CLEANUPS[KIND] = cleanup
 
 
 def program_of(make):

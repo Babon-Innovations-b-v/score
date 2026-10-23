@@ -169,7 +169,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   any zone, another kind's cleaned and set up again) or wait for one, a class the pool lacks added to it
   (`pool.want`); `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
   the usual 15-minute quiet limit, the collector beating it) and deletes a broken one, which the collector replaces;
-  a card whose taker died is deleted by the collector. A dead card's unfinished share (`spread.Shares.again`) or
+  a card whose taker died is deleted by the collector. A card goes back only from a kind with a clean-up in
+  `park.CLEANUPS`: every Buy kind has one (blender, library, pixal, judge, segment, meshparts, finish-masks, and
+  since the pool `characters`, `pictures`, `pictures-20b` and `scene`, its depth step's); a card of a kind with none
+  (parts, unlit, similar, unirig, closeups, moss-sound, the image proofs the sound takes run through) is deleted
+  after its job and replaced. A dead card's unfinished share (`spread.Shares.again`) or
   Pixal3D jobs (`Fleet.again`) go back on the queue once (a finished job never runs again; a second death makes it a gap). Every card minute is charged once:
   rent to first parking (`pool-<run>-<id>`), each spell idle (`pool-idle-...`, at its take or release), the taker's
   use; each line carries the run and the pool's ticket. The pool's idle time is the run's own cost, to be counted in
