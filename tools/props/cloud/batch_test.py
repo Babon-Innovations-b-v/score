@@ -314,6 +314,22 @@ def one_shot_fleet(names):
     return batch.Fleet(models, pathlib.Path(tempfile.mkdtemp()), None, 0, "test", finish=False), models
 
 
+def test_a_pool_card_is_replaced_only_when_it_died_and_only_once_in_set_up():
+    """Review of the warm pool (2026-10-23): every failure of a pool card put its jobs back and took the pool's next
+    card, so a local fault or a set-up that always fails took card after card until the deadline."""
+    fleet, _ = one_shot_fleet(["crate"])
+    kept = batch.answers
+    try:
+        batch.answers = lambda machine: True
+        assert not fleet.replaces({"generating_began": 1.0})  # it answers: the fault is the job's, not the card's
+        batch.answers = lambda machine: False
+        assert fleet.replaces({"generating_began": 1.0})  # it died while working: replaced, its jobs put back
+        assert fleet.replaces({"generating_began": None})  # the first that died in set-up: replaced
+        assert not fleet.replaces({"generating_began": None})  # a second: its cards are lost, no more taken
+    finally:
+        batch.answers = kept
+
+
 def test_a_failed_job_is_a_gap_and_never_sent_again():
     """A batch runs every job once (CONTEXT.md, owner 2026-10-20): retry_once sent a failed or out-of-memory job back
     for a second paid run."""

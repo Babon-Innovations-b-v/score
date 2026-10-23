@@ -94,13 +94,20 @@ def fresh(stock, sizes=None, run_id=None):
 def grow(run_id):
     """One round of the collector: rent what the pool lacks; the cards that came up."""
     plan = pool.current(run_id)
-    return pool.fill(run_id, plan, pool.shortfall(plan, pool.tidy(run_id)), "account")
+    return pool.fill(run_id, plan, pool.shortfall(plan, pool.trim(run_id, plan, pool.tidy(run_id))), "account")
 
 
 def a_run(name):
     folder = _SANDBOX / "runs" / name
     folder.mkdir(parents=True, exist_ok=True)
     return pool.Run(folder, time.time() + 3600)
+
+
+def dead_check(dead, folder):
+    """A fake ssh call: a dead card's folder does not answer, once (the slot's next card has the same folder)."""
+    if folder in dead:
+        dead.discard(folder)
+        raise ConnectionError("no answer")
 
 
 def claimed(run, kind):
@@ -169,11 +176,13 @@ def test_a_card_whose_taker_died_is_deleted_and_replaced():
 def test_a_dead_cards_share_goes_back_on_the_queue_once():
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
     grow(run_id)
-    tries = []
+    tries, dead = [], set()
+    batch.remote = lambda folder, host, command, **_: dead_check(dead, folder)
 
     def do(machine, share, card):
         tries.append((share, machine["id"]))
         if share == "dies-always" or (share == "dies-once" and [name for name, _ in tries].count(share) == 1):
+            dead.add(machine["folder"])
             raise ConnectionError("the machine stopped answering")
 
     shares = spread.Shares(["ok", "dies-once", "dies-always"], deadline=time.time() + 60)
@@ -234,7 +243,8 @@ def test_a_class_the_pool_lacks_is_added_and_no_stock_never_empties_the_offers()
     big = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "shortage")]
     pool.want(run_id, big, "judge", 100)
     plan = pool.current(run_id)
-    assert plan["sizes"] == {"gpu-24gb": 1, "gpu-48gb": 1} and plan["disk_gb"] == 100
+    assert plan["sizes"] == {"gpu-24gb": 1, "gpu-48gb": 1} and pool.disk_of(plan, "gpu-48gb") == 100
+    assert pool.disk_of(plan, "gpu-24gb") == plan["disk_gb"] == batch.DISK_GB  # only the class the claim takes
     cloud.offers = lambda classes: [offer for offer in OFFERS + big if offer.machine_class in classes]
     assert {offer.machine_class for offer in batch.one_class_in_stock(["gpu-48gb", "gpu-24gb"])} == {"gpu-48gb"}
     pool.release(run_id)
@@ -270,6 +280,130 @@ def test_a_pool_is_sized_from_the_runs_planned_card_work():
     sizes = pool.size_for([("pixal", 400, 2.0, 3.0), ("library", 200, 2.0, 1.0), ("judge", 30, 1.0, 1.0)])
     assert sum(sizes.values()) == pool.MOST_CARDS and sizes["gpu-48gb"] >= 1 and sizes["gpu-24gb"] >= 1
     assert pool.size_for([("pixal", 2, 2.0, 3.0)]) == {"gpu-24gb": 1}
+
+
+BIG = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "available")]
+
+
+def test_a_bigger_disk_rents_one_card_of_the_claims_class_and_lets_a_smaller_idle_one_go():
+    """Review (2026-10-23): a claim's bigger disk was the whole pool's, so a card of every class was rented beside the
+    pool, never let go, every replacement at the bigger disk."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2, "gpu-48gb": 1})
+    cloud.offers = lambda classes: [offer for offer in OFFERS + BIG if offer.machine_class in classes]
+    assert grow(run_id) == 3
+    pool.want(run_id, OFFERS, KINDS[0], 200)
+    plan = pool.current(run_id)
+    assert pool.shortfall(plan, pool.members(run_id)) == [("gpu-24gb", 200)]  # one card, of the claim's class only
+    assert grow(run_id) == 1 and len(calls.rented) == 4
+    assert grow(run_id) == 0 and len(calls.deleted) == 1  # the next round lets one smaller idle card of it go
+    disks = sorted((card["class"], card["disk_gb"]) for card in pool.members(run_id))
+    assert disks == [("gpu-24gb", batch.DISK_GB), ("gpu-24gb", 200), ("gpu-48gb", batch.DISK_GB)]
+    card = batch.claim(a_run("big-disk"), "account", OFFERS, 1, KINDS[0], 200, wanted=lambda: False)
+    assert card["disk_gb"] == 200
+    pool.release(run_id)
+
+
+def test_a_share_that_fails_on_a_card_that_answers_is_a_gap_and_the_card_works_on():
+    """Review (2026-10-23): any error but JobFailed broke a pool card, so a local fault (a copy-in that fails) deleted
+    and rented two cards a share."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
+    grow(run_id)
+
+    def do(machine, share, card):
+        if share == "bad-input":
+            raise RuntimeError("rsync exited 23")
+
+    shares = spread.Shares(["bad-input", "ok", "bad-input-2"], deadline=time.time() + 60)
+    shares.waiting[2] = "bad-input"
+    spread.on_machines(a_run("local-fault"), "account", OFFERS, 1, KINDS[0], shares, lambda machine: None, do)
+    assert shares.done == ["ok"] and shares.failed == ["bad-input", "bad-input"]
+    assert not calls.deleted and len(calls.rented) == 1 and len(park.pool_records(run_id)) == 1  # back in the pool
+    pool.release(run_id)
+
+
+def test_a_set_up_that_keeps_failing_takes_no_card_after_card():
+    """Review (2026-10-23): a pool card that failed in set-up was deleted and the slot took the next, until the run's
+    deadline (105 cards in 3 s with the fakes). A set-up failing on a card that answers ends the slot; a card that died
+    in set-up is followed by one more, never a third."""
+    for answering, cards_taken in ((True, 1), (False, 2)):
+        calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
+        grow(run_id)
+        if not answering:
+            batch.remote = lambda folder, host, command, **_: dead_check({folder} if command == "true" else (), folder)
+
+        def prepare(machine):
+            raise RuntimeError("setup.sh: a pin that no longer resolves")
+
+        shares = spread.Shares(["one", "two"], deadline=time.time() + 60)
+        spread.on_machines(a_run(f"setup-{answering}"), "account", OFFERS, 1, KINDS[0], shares, prepare,
+                           lambda machine, share, card: None)
+        assert len(calls.deleted) == cards_taken and len(calls.rented) == 3, (answering, calls.deleted)
+        assert list(shares.waiting) == ["one", "two"]  # gaps, for the run to say
+        pool.release(run_id)
+
+
+def test_a_failed_round_never_ends_the_collector():
+    """Review (2026-10-23): one API error in a round (scw's server-type list, a delete) ended the collector, which
+    released the pool, and every later step of the run took no card."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
+    pool.POLL_SECONDS, waits = 0.02, batch.stock_wait_minutes
+    batch.stock_wait_minutes = lambda rounds: 0.001
+    asked = []
+
+    def offers(classes):
+        asked.append(classes)
+        if len(asked) == 1:
+            raise RuntimeError("scw: 503 Service Unavailable")
+        return [offer for offer in OFFERS if offer.machine_class in classes]
+    cloud.offers = offers
+    collector = threading.Thread(target=pool.collect, args=(run_id,))
+    collector.start()
+    try:
+        deadline = time.time() + 5
+        while len(pool.members(run_id)) < 2 and time.time() < deadline:
+            time.sleep(0.02)
+        assert len(pool.members(run_id)) == 2 and collector.is_alive() and pool.current(run_id) is not None
+    finally:
+        pool.release(run_id)
+        collector.join(5)
+        batch.stock_wait_minutes = waits
+    assert not collector.is_alive() and len(asked) >= 2
+
+
+def test_a_release_tries_every_card_and_then_says_what_failed():
+    """Review (2026-10-23): one failed delete stopped the release, so the other idle cards stayed and the run's own
+    release (its reservations) never ran."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
+    grow(run_id)
+    tried = []
+
+    def delete(server_id, zone):
+        tried.append(server_id)
+        if len(tried) == 1:
+            raise RuntimeError("Failed to detach block volume")
+        return True
+    cloud.delete = delete
+    try:
+        pool.release(run_id)
+        raise AssertionError("the failed delete was not raised")
+    except RuntimeError as error:
+        assert "detach" in str(error)
+    assert set(tried) == set(calls.rented) and pool.current(run_id) is None  # the failed one tried again as a member
+
+
+def test_the_kill_switch_closes_every_open_pool_so_nothing_replaces_its_cards():
+    """Review (2026-10-23): Stop everything released a pool's idle cards while its collector ran on and ordered their
+    replacements."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
+    pool.POLL_SECONDS = 0.02
+    grow(run_id)
+    collector = threading.Thread(target=pool.collect, args=(run_id,))
+    collector.start()
+    assert run_id in pool.close_all() and pool.close_all() == []
+    for record in park.pool_records(run_id):  # the switch's own release of the parked cards, after the close
+        park.release(record["id"], record["zone"], record["token"])
+    collector.join(5)
+    assert not collector.is_alive() and len(calls.rented) == 2 and sorted(calls.deleted) == sorted(calls.rented)
 
 
 if __name__ == "__main__":

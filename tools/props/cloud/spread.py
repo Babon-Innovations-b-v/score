@@ -13,8 +13,10 @@ fails. Every share runs once, on one machine (a batch, CONTEXT.md, owner 2026-10
 or whose machine broke under it (ssh, a copy), is a gap in `shares.failed`, never handed to another machine, and a
 broken machine takes no more; a machine that fails while setting up ends with no machine rented in its place, its
 shares left to the others or in `shares.waiting` as gaps. Under a run's card pool (pool.py, owner 2026-10-23) a share
-whose pool card died goes back on the queue once (`Shares.again`) and the slot takes the pool's next card while shares
-wait; a second death makes it a gap. A machine runs capacity.runs_at_once shares on
+whose pool card died (stopped answering, batch.answers) goes back on the queue once (`Shares.again`) and the slot takes
+the pool's next card while shares wait; a second death makes it a gap. A share that failed on a pool card that still
+answers is a gap and the card works on; a pool card that died in set-up is followed by one more, never by a card after
+a set-up that failed on a card that answers. A machine runs capacity.runs_at_once shares on
 each card at once. Every machine is armed to delete itself if this PC goes quiet, hears this PC's heartbeat each
 minute, and is deleted when it has no more work; the run's ledger rows are the runner's (run.machines and
 run.attempts, as for one machine).
@@ -129,7 +131,11 @@ def work_slot(machine, shares, do, card, broken):
         except JobFailed as error:
             batch.say(f"{machine['folder'].name}: a job failed ({error})")
             shares.failed_job(share)
-        except Exception as error:  # noqa: BLE001 - the share is a gap (a pool card's goes back once), this machine stops
+        except Exception as error:  # noqa: BLE001 - the share is a gap (a dead pool card's goes back once)
+            if machine.get("pool") and batch.answers(machine):  # the card is fine: the fault is the share's own
+                batch.say(f"{machine['folder'].name}: a job failed ({error}); the card answers, so it is a gap")
+                shares.failed_job(share)
+                continue
             broken.set()
             if machine.get("pool") and shares.again(share):
                 batch.say(f"{machine['folder'].name} failed ({error}); its share goes back on the queue")
@@ -157,17 +163,19 @@ def tended(run, machine):
 
 
 def tend(run, machine, kind, shares, prepare, do, at_once=None):
-    """One answered machine from set-up to delete: armed, beating, set up, its slots taking shares."""
+    """One answered machine from set-up to delete: armed, beating, set up, its slots taking shares. Whether it was
+    set up."""
     import pictures
 
     folder, stop, broken = machine["folder"], threading.Event(), threading.Event()
+    ready = False
     try:
         host = machine["host"]
         batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
         prepare(machine)
         machine["set_up"] = time.time()  # the ledger's setup_minutes, which park.idle_minutes measures
-        machine["taking"] = True
+        machine["taking"] = ready = True
         cards = slots(kind, machine, at_once)
         batch.say(f"{folder.name} ({machine['type']}, {machine['zone']}) ready after "
                   f"{(time.time() - (machine.get('adopted') or machine['created'])) / 60:.1f} min, {len(cards)} at once")
@@ -181,21 +189,31 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
         batch.say(f"{folder.name} failed while setting up: {error}")
     finally:
         stop.set()
+        if not ready and machine.get("pool"):  # read before the delete: a card that still answers is not dead
+            machine["answered"] = batch.answers(machine)
         batch.delete_machine(machine)
+    return ready
 
 
 def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb, at_once=None):
     """Claim one machine and tend it, once: none in its place when it fails; nothing when no offer gives one that
     answers or the work is gone. A pool card is followed by the pool's next while shares wait (one put back from a
-    card that died)."""
+    card that died); a pool card that failed in set-up is followed by another only when it died (stopped answering),
+    and once: a set-up that fails on a card that answers, or twice, would fail on every card."""
     if shares.queued() <= 0 and not shares.open:
         return
+    setup_deaths = 0
     while True:
         machine = batch.claim(run, account, found, number, kind, disk_gb,
                               wanted=lambda: shares.queued() > 0 or shares.open)
         if machine is None:
             return
-        tend(run, machine, kind, shares, prepare, do, at_once)
+        if not tend(run, machine, kind, shares, prepare, do, at_once):
+            setup_deaths += 1
+            if machine.get("answered") or setup_deaths > 1:
+                batch.say(f"{machine['folder'].name}: {kind}'s set-up failed on a card"
+                          f"{' that answers' if machine.get('answered') else ' twice'}; this slot takes no other")
+                return
         if not machine.get("pool") or shares.queued() <= 0:
             return
 

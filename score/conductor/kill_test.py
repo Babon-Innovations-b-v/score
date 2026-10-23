@@ -64,14 +64,16 @@ def test_the_switch_stops_every_run_releases_every_parked_machine_and_latches_fr
                                                                           "token": f"t{number}"}))
         conductor.RESIZING.parent.mkdir(parents=True)
         conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": time.time()}))
-        released = []
+        released, order = [], []
 
         def release(server, zone, token):
+            order.append("parked")
             if server == "m2":
                 raise RuntimeError("the provider said no")
             released.append((server, zone, token))
         report = kill.stop_everything("owner", "stop it\nall", folder=home / "runs", parked=home / "parked",
-                                      release=release)
+                                      release=release, close_pools=lambda: order.append("pools") or ["run-1"])
+        assert order[0] == "pools" and report["pools"] == ["run-1"]  # no collector replaces the cards released next
         live.wait(10)
         waiter.wait(10)
         assert report["runs"] == [live.pid] and report["waiting"] == [entry["id"]], report
