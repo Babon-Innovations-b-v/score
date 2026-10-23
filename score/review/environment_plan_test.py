@@ -71,12 +71,54 @@ def test_each_top_scene_stands_where_the_setting_puts_it_shaped_by_its_own_plan(
     assert {body["body"] for body in plan["setting"]["bodies"]} == {"sun", "earth", "moon", "mars"}
 
 
-def test_a_site_without_a_plan_is_a_gap_and_sites_that_overlap_are_named(store, scene_plans):
+def test_a_site_without_a_plan_is_a_gap(store, scene_plans):
     del scene_plans["wreck"]
-    scene_plans["base"] = {"w": 110.0, "d": 110.0}  # its true plan: wider than the 57 m to the wreck
     plan = environment_plan.derived(store)
     assert site_in(plan, "wreck")["size"] is None and "Wreck: no plan yet" in plan["gaps"]
-    assert "Old station and Base overlap on Moon: move one in the physics" in plan["gaps"]
+
+
+def bearing_from(plan, still, mover):
+    """(east, south) unit bearing of `mover` from `still` on the plan's map."""
+    one, two = site_in(plan, still)["at"], site_in(plan, mover)["at"]
+    east, south = two[0] - one[0], two[1] - one[1]
+    return east / (east ** 2 + south ** 2) ** 0.5, south / (east ** 2 + south ** 2) ** 0.5
+
+
+def test_sites_that_would_overlap_are_moved_clear_along_their_own_bearings(store, scene_plans):
+    before = environment_plan.derived(store)
+    scene_plans["base"] = {"w": 110.0, "d": 110.0}  # its true plan: wider than the 57 m to the wreck
+    plan = environment_plan.derived(store)
+    assert not any("overlap" in gap for gap in plan["gaps"])
+    base = site_in(plan, "base")
+    assert (base["latitude"], base["longitude"]) == (55.0, 0.0)  # the larger stands where the physics puts it
+    for mover in ("wreck", "old_station"):
+        assert bearing_from(plan, "base", mover) == pytest.approx(bearing_from(before, "base", mover), abs=1e-3)
+        apart = [abs(site_in(plan, mover)["at"][axis] - base["at"][axis]) for axis in (0, 1)]
+        assert max(apart) == pytest.approx(55.0 + 10.0 + environment_plan.CLEAR_M, abs=0.05)  # just clear, no more
+    moon = next(world for world in plan["maps"] if world["on"] == "moon")
+    found = {(found["from"], found["to"]): found["metres"] for found in moon["distances"]}
+    assert found[("wreck", "base")] > 75.0  # the page's distances follow
+
+
+def test_a_site_the_creator_placed_himself_stays_and_two_of_his_stay_a_gap(store, scene_plans):
+    scene_plans["base"] = {"w": 110.0, "d": 110.0}
+    setting = environment_concept.setting_of(store)
+    his = [{**site, "longitude": 0.0005} if site["place"] == "old_station" else site for site in setting["sites"]]
+    kept_setting(store, {**setting, "sites": his})  # his own spot for the old station, 34 m south of the base
+    plan = environment_plan.derived(store)
+    old = site_in(plan, "old_station")
+    assert (old["latitude"], old["longitude"]) == (54.999165, 0.0005)
+    assert site_in(plan, "base")["latitude"] != 55.0 and not any("overlap" in gap for gap in plan["gaps"])
+    both = [{**site, "latitude": 55.0, "longitude": 0.0005} if site["place"] == "base" else site for site in his]
+    kept_setting(store, {**setting, "sites": both})
+    assert "Old station and Base overlap on Moon: move one in the physics" in environment_plan.derived(store)["gaps"]
+
+
+def test_sites_on_a_plot_are_moved_clear_across_it():
+    sites = [{"place": "barn", "x": 0.0, "y": 0.0, "footprint": [[-20, -10], [20, -10], [20, 10], [-20, 10]]},
+             {"place": "shed", "x": 0.0, "y": 15.0, "footprint": [[-2, -2], [2, -2], [2, 2], [-2, 2]]}]
+    barn, shed = environment_plan.cleared(sites, None)
+    assert barn == sites[0] and shed["x"] == 0.0 and shed["y"] == 10.0 + 2.0 + environment_plan.CLEAR_M
 
 
 def test_sites_kilometres_apart_on_the_moon_are_that_far_on_its_map(store, scene_plans):

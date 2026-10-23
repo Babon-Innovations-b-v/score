@@ -16,7 +16,8 @@ the fall of its ground's curve round it); Gemini 3.1 Pro writes the rest (`write
 writer's own call, score/review/plan_writing.py, run without asking under the owner's standing allowance of
 2026-10-21 for plan writing); the code then checks it, keeps the fixed facts over the answer, and works out the
 distances and what each site sees overhead (`settled`). Until it is written the plan shown is the free one
-(`derived`). He fixes it on its plan page (a site's scene time), his edit kept as his own and settled again;
+(`derived`). Two sites whose footprints would stand closer than CLEAR_M are parted on every settle (`cleared`), the
+setting itself untouched; a spot the creator gave a site himself is never moved. He fixes it on its plan page (a site's scene time), his edit kept as his own and settled again;
 where a site stands is the environment concept's. A writing or edit records the environment concept's version it
 was made under, and one made under another is out of date: the plan shown is then the free one again (`current`).
 
@@ -43,6 +44,8 @@ LOOK_MOST = 400  # characters of a site's look the writing is told
 ITEMS_MOST = 30  # a site's plan items the writing is told
 DROP_RINGS = (0.5, 1.0, 2.0)  # of a site's reach: the rings its ball-fall spots stand on
 SAME_SPOT = 1.0  # metres: two sites closer than this stand on one spot
+CLEAR_M = 10.0  # metres kept between two sites' footprints on one ground: a lane round each
+WHERE = ("latitude", "longitude", "x", "y", "height_m")
 WALLS_ITEM = "ON THE WALLS AND CEILING"  # a plan's item that is no thing standing (plan.js's WALLS)
 ASKED = """You are an architect drawing the site plan of a game environment's worlds: one map a world, each top place's
 site on it, in metres. The facts below are fixed: where each site stands on its ground (a world at its true radius,
@@ -216,6 +219,107 @@ def great_angle(one, two):
     return 2 * math.asin(min(1.0, math.sqrt(half)))
 
 
+# --- sites kept clear of one another ---------------------------------------------------------------------------
+
+def offset(one, two, radius):
+    """[east, south] metres from site `one` to site `two` on their ground: along its curve on a body, across a plot."""
+    if radius is None:
+        return [float(two.get("x") or 0.0) - float(one.get("x") or 0.0),
+                float(two.get("y") or 0.0) - float(one.get("y") or 0.0)]
+    return map_at(two, one, radius)
+
+
+def bounds(footprint):
+    """(least x, least y, most x, most y) of a footprint about its site."""
+    return (min(x for x, _ in footprint), min(y for _, y in footprint),
+            max(x for x, _ in footprint), max(y for _, y in footprint))
+
+
+def clearance(still, mover, toward):
+    """The metres `mover` must stand from `still` along the unit bearing `toward` for their footprints' boxes to stand
+    CLEAR_M apart on at least one axis."""
+    fixed, moving = bounds(still["footprint"]), bounds(mover["footprint"])
+    return min(((fixed[axis + 2] - moving[axis] if step > 0 else moving[axis + 2] - fixed[axis]) + CLEAR_M)
+               / abs(step) for axis, step in enumerate(toward) if abs(step) > 1e-9)
+
+
+def moved_to(mover, still, metres, toward, radius):
+    """`mover` stood `metres` from `still` along the unit bearing `toward`: on a body along its great circle at its
+    true radius, on a plot straight across."""
+    if radius is None:
+        return {**mover, "x": round(float(still.get("x") or 0.0) + toward[0] * metres, 2),
+                "y": round(float(still.get("y") or 0.0) + toward[1] * metres, 2)}
+    bearing, angle = math.atan2(toward[0], -toward[1]), metres / radius  # clockwise from north; y is south
+    lat0, lon0 = math.radians(still["latitude"]), math.radians(still["longitude"])
+    lat = math.asin(math.sin(lat0) * math.cos(angle) + math.cos(lat0) * math.sin(angle) * math.cos(bearing))
+    lon = lon0 + math.atan2(math.sin(bearing) * math.sin(angle) * math.cos(lat0),
+                            math.cos(angle) - math.sin(lat0) * math.sin(lat))
+    return {**mover, "latitude": round(math.degrees(lat), 7),
+            "longitude": round((math.degrees(lon) + 540.0) % 360.0 - 180.0, 7)}
+
+
+def area_of(site):
+    box = bounds(site["footprint"])
+    return (box[2] - box[0]) * (box[3] - box[1])
+
+
+def mover_of(first, second, pinned):
+    """(still, mover) of two crowded sites: the smaller moves (the later on a tie), never one the creator placed
+    himself (`pinned`); None when he placed both."""
+    still, mover = (second, first) if area_of(first) < area_of(second) else (first, second)
+    if mover["place"] in pinned:
+        still, mover = mover, still
+    return None if mover["place"] in pinned else (still, mover)
+
+
+def parted(sites, first, second, radius, pinned):
+    """(index, site moved) of the pair's mover stood out along its own bearing from the other until their footprints
+    are CLEAR_M apart; None when they already are, or cannot be parted (no footprint or place, one spot, both his)."""
+    one, two = sites[first], sites[second]
+    if not (one.get("footprint") and two.get("footprint")):
+        return None
+    if radius is not None and None in (one.get("latitude"), two.get("latitude")):
+        return None
+    pair = mover_of(one, two, pinned)
+    if pair is None:
+        return None
+    still, mover = pair
+    east, south = offset(still, mover, radius)
+    apart = math.hypot(east, south)
+    if apart < SAME_SPOT:
+        return None  # no bearing to move along: a gap
+    toward = (east / apart, south / apart)
+    needed = clearance(still, mover, toward)
+    if needed <= apart + 1e-6:
+        return None
+    return (first if mover is one else second), moved_to(mover, still, needed, toward, radius)
+
+
+def cleared(sites, radius, pinned=frozenset()):
+    """The sites of one ground with each two whose footprints stand closer than CLEAR_M parted (`parted`; the owner,
+    2026-10-21: "gaps should only show things that cant be fixed auto"), again until none moves."""
+    sites = list(sites)
+    for _ in range(len(sites) ** 2):
+        moves = [found for first in range(len(sites)) for second in range(first + 1, len(sites))
+                 if (found := parted(sites, first, second, radius, pinned))]
+        if not moves:
+            break
+        index, site = moves[0]
+        sites[index] = site
+    return sites
+
+
+def creator_placed(store, setting):
+    """Places whose spot the creator's kept environment concept gives other than its data proposes (settings.now):
+    his own placing, which no clearing moves."""
+    from score.review import environment_concept
+    if store is None or environment_concept.newest(store, world_name()) is None:
+        return frozenset()
+    proposed = {site["place"]: site for site in settings.now()["sites"]}
+    return frozenset(site["place"] for site in setting["sites"] if any(
+        site.get(name) != proposed.get(site["place"], {}).get(name) for name in WHERE))
+
+
 # --- the plan: derived, written, settled -----------------------------------------------------------------------
 
 def derived_site(site):
@@ -307,7 +411,7 @@ def overlapping(world):
 def gaps_of(plan):
     """What the plan does not know yet, each in words: a site's scene time, its place on its ground or its plan (its
     shape), two sites standing on one spot of a ground (under a metre apart: each site has its own place in the
-    setting), and two whose footprints overlap where the setting stands them."""
+    setting), and two whose footprints still overlap once cleared (`cleared`: both placed by the creator himself)."""
     names = {site["place"]: site["name"] for world in plan["maps"] for site in world["sites"]}
     return [f"{site['name']}: no {what}" for world in plan["maps"] for site in world["sites"]
             for what, missing in (("scene time", site.get("time") is None),
@@ -327,6 +431,7 @@ def settled(plan, store=None):
     from score.review import environment_concept
     setting = environment_concept.setting_of(store, plan.get("environment")) if store is not None else settings.now()
     placed = {site["place"]: site for site in setting["sites"]}
+    pinned = creator_placed(store, setting)
     maps = []
     for world in plan["maps"]:
         ground, _ = settings.ground_of(setting, world["on"])
@@ -337,10 +442,10 @@ def settled(plan, store=None):
         for site in world["sites"]:
             if placed.get(site["place"], {}).get("on") != world["on"]:
                 continue  # moved off this ground in the setting
-            where = {name: placed[site["place"]].get(name) for name in ("latitude", "longitude", "x", "y", "height_m")
-                     if name in placed[site["place"]]}
+            where = {name: placed[site["place"]].get(name) for name in WHERE if name in placed[site["place"]]}
             shape = from_plan(site_plan(store, site["place"])) if store is not None else {}
             sites.append({**site, **where, **shape})
+        sites = cleared(sites, radius, pinned)
         origin = sites[0] if sites else {}
         sites = [{**site, "at": map_at(site, origin, radius),
                   "overhead": overhead.seen(setting, {**site, "on": world["on"]}, site["time"]) if site.get("time")

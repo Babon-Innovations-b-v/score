@@ -360,7 +360,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   top scene's own plan drawn at its site by plan.js's own sheet (`window.planSheet`, read-only; the plan its plan page
   shows, `plans.review_of`), largest first so a site standing on another shows, every name over them linked to its
   plan, the true metres between sites, a north arrow and a scale bar. The rail: Write and Keep, the gaps (an overlap of
-  two sites among them), and a row a site: its size (its plan's, never a field), where it stands (the setting's, set
+  two sites the creator placed himself among them; any other two are parted on settle), and a row a site: its size (its plan's, never a field), where it stands (the setting's, set
   on the concept page), its scene time (a field for the owner) with the Sun's height and every other body above its
   horizon as hover text (worked out from the setting, never typed). Keep (SyncRequest `env-plan-edit`) keeps his times
   as his own; Write (`env-plan-write`) has the plan writer write it again under the owner's standing allowance; both

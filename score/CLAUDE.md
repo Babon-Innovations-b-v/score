@@ -176,7 +176,8 @@ stage as each stage is built; nothing moves before.
   radius), its footprint, size and blocks its top scene's own plan (`plans.current`, read again on every settle,
   `from_plan`: never written or edited apart, owner 2026-10-23), its scene times and terrain spots written by the
   plan writer's call (`plan_writing.asked`, cleared like a plan writing), the fixed facts kept over the answer, the
-  true distances, overlapping sites as gaps and what each site sees overhead worked out (`settled`, again on every
+  true distances, sites that would overlap parted (`cleared`: the smaller out along its bearing to `CLEAR_M` apart;
+  one the creator placed himself never moves, two of his overlapping a gap) and what each site sees overhead worked out (`settled`, again on every
   read); kept under
   `environment-plans/<world>/` (writings; his edits in his process only), each with the concept version it was made
   under, one under another out of date. `overhead.py` runs the setting to a moment at a site (`seen`): every other
