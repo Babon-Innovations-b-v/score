@@ -83,6 +83,24 @@ def test_the_wear_levels_rise_and_a_place_s_own_wear_is_retired():
     assert library.resolved("hub") == {}
 
 
+def test_every_recipe_has_its_settings_in_the_method_and_plain_cloth_is_one():
+    """The method's defaults name each recipe's settings (recipes.py needs Blender, so its text is read). The people's
+    library had only `quilted` to make a fabric of, and the astronaut's plain overalls were drawn as a quilt
+    (2026-10-23): plain cloth is a recipe of its own."""
+    tree = ast.parse((HERE / "recipes.py").read_text())
+    arguments = {node.name: {arg.arg for arg in node.args.args} for node in tree.body
+                 if isinstance(node, ast.FunctionDef)}
+    table = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+                 and getattr(node.targets[0], "id", None) == "RECIPES")
+    recipes = {key.value: value.id for key, value in zip(table.keys, table.values)}
+    given = {"colour", "bare", "second", "dirt_colour", "wear", "dirt", "seed", "foot", "kicks", "image"}
+    method = library.theme_library()["recipes"]
+    assert set(recipes) == set(method)
+    assert {name: arguments[function] - given - set(method[name]) for name, function in recipes.items()
+            if arguments[function] - given - set(method[name])} == {}
+    assert arguments[recipes["cloth"]] - given == {"roughness", "thread", "bump", "dirt_reach"}
+
+
 def test_a_token_colour_is_linear():
     assert library.linear("#ffffff") == [1.0, 1.0, 1.0] and library.linear("#000000") == [0.0, 0.0, 0.0]
     assert abs(library.linear("#808080")[0] - 0.2159) < 1e-3

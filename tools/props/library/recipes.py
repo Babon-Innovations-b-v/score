@@ -10,7 +10,8 @@ material is a composition of small functions, each one thing:
     edge wear   a mask from the true geometry: infinigen2's edgewear test (the bevelled normal against the true
                 normal) with a low-frequency breakup and a narrow band, so wear sits on real edges and corners as
                 crisp chips, never as grit on flat faces; `wear` widens the band and lowers the threshold
-    dirt        a mask from cavities (ambient occlusion within the piece's own reach) with its own breakup
+    dirt        a mask from cavities (ambient occlusion within the piece's own reach, less what lies pressed on the
+                surface) with its own breakup
     layered     paint over bare metal through the wear mask, dirt over both through the dirt mask
 
 A recipe (`painted_metal`, `bare_metal`, `rubber`, `glass`, `glowing`) takes every setting as an argument and has no
@@ -23,6 +24,7 @@ import inspect
 from typing import NamedTuple
 
 import procfunc as pf
+from infinigen2.shaders.base_materials.fabric import fabric
 from infinigen2.shaders.base_materials.metal_brushed import metal_brushed
 from infinigen2.shaders.base_materials.paint import paint
 from infinigen2.shaders.base_materials.plastic import plastic_black_rubberized
@@ -82,10 +84,19 @@ def kick_mask(vector, foot, wear, kicks, breakup_scale, seed):
     return pf.nodes.math.clamp(band * patchy * wear * kicks * 1.6)
 
 
+# What occludes a surface within this share of the dirt's reach is a layer pressed on it, not a cavity: a garment over
+# a garment, the inner shell Pixal3D grows under a model's skin. On the astronaut (2026-10-23) every seen face with a
+# layer within 1.5 mm (median) along its normal read as a cavity (occlusion 0.94 against 0.13), so the moon dust lay
+# in hard-edged patches where the layers cross, not in the creases.
+PRESSED_SHARE = 0.2
+
+
 def dirt_mask(vector, dirt, reach, seed):
-    """Where dirt gathers: cavities and inside corners within `reach` metres, broken up at a large scale."""
-    occlusion = pf.nodes.shader.ambient_occlusion(distance=reach, only_local=True, samples=16)
-    cavity = pf.nodes.math.map_range(value=1.0 - occlusion.ao, from_min=0.1, from_max=0.45)
+    """Where dirt gathers: cavities and inside corners within `reach` metres, less what lies pressed on the surface
+    (PRESSED_SHARE), broken up at a large scale."""
+    within_reach = pf.nodes.shader.ambient_occlusion(distance=reach, only_local=True, samples=16)
+    pressed = pf.nodes.shader.ambient_occlusion(distance=reach * PRESSED_SHARE, only_local=True, samples=16)
+    cavity = pf.nodes.math.map_range(value=pressed.ao - within_reach.ao, from_min=0.1, from_max=0.45)
     breakup = pf.nodes.texture.noise(vector=vector, scale=1.5, detail=2.0, noise_dimensions="4D", w=seed + 17.0)
     patchy = pf.nodes.math.map_range(value=breakup.fac, from_min=0.3, from_max=0.6)
     return pf.nodes.math.clamp(cavity * patchy * dirt)
@@ -100,6 +111,14 @@ def paint_relief(vector, bump, bump_size):
 def brushed_relief(vector, bump, bump_size):
     """Bare steel's brushing streaks, from infinigen2's metal_brushed."""
     return metal_brushed(vector=vector, brush_size=bump_size, height_scale=bump).displacement
+
+
+def cloth_relief(vector, thread, bump):
+    """Woven cloth's threads `thread` metres apart, `bump` high, from infinigen2's fabric (its weave at 500 threads a
+    unit over `size`, its height 0.0002 a unit of size)."""
+    size = thread * 500.0
+    return fabric(vector=vector, size=size, size_variation=0.0, height_scale=bump / (size * 0.0002),
+                  gab=0.1).displacement
 
 
 def rubber_relief(vector, bump, bump_size):
@@ -145,6 +164,13 @@ def rubber(colour, dirt_colour, roughness, bump, bump_size, dirt_reach, dirt, se
     dirty = dirt_mask(vector, dirt, dirt_reach, seed)
     base = pf.nodes.color.mix_rgb(factor=dirty, a=colour, b=dirt_colour)
     return Channels(base, roughness, 0.0, BLACK, rubber_relief(vector, bump, bump_size))
+
+
+def cloth(colour, dirt_colour, roughness, thread, bump, dirt_reach, dirt, seed):
+    """Plain woven cloth (overalls, jackets, straps, upholstery): its flat colour, a fine weave, dirt in its creases."""
+    vector = coordinates()
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    return Channels(base, rough, 0.0, BLACK, cloth_relief(vector, thread, bump))
 
 
 def glass(colour, roughness):
@@ -535,7 +561,7 @@ def ice(colour, second, roughness, crack_scale, crack_width, frost_share, bump, 
 
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
-           "anodized": anodized, "rubber": rubber, "quilted": quilted, "composite": composite, "glass": glass,
+           "anodized": anodized, "rubber": rubber, "cloth": cloth, "quilted": quilted, "composite": composite, "glass": glass,
            "glowing": glowing, "screen": screen, "printed": printed, "wood": wood,
            "painted_plaster": painted_plaster, "weathered_render": weathered_render, "tiles": tiles,
            "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt,
@@ -551,6 +577,7 @@ SOURCES = {
     "galvanized": "written new (voronoi spangle) + the library's dirt",
     "anodized": "infinigen2 metal_brushed.py (relief, BSD-3), clean",
     "rubber": "infinigen2 plastic.py plastic_black_rubberized (relief, BSD-3) + new dirt",
+    "cloth": "infinigen2 fabric.py (weave relief, BSD-3) + the library's dirt",
     "quilted": "written new (stitched pillow grid) + the library's dirt",
     "composite": "written new (twill from two wave textures)",
     "glass": "written new (infinigen2 glass_colored needs transmission, which the ink look cannot draw)",
@@ -582,6 +609,7 @@ PARTS = {
     "galvanized": (galvanized, coordinates, dirty_flat, dirt_mask),
     "anodized": (anodized, coordinates, brushed_relief),
     "rubber": (rubber, coordinates, dirt_mask, rubber_relief),
+    "cloth": (cloth, coordinates, dirty_flat, dirt_mask, cloth_relief),
     "quilted": (quilted, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
     "composite": (composite, coordinates),
     "glass": (glass,),

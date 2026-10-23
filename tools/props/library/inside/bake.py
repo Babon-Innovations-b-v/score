@@ -65,7 +65,7 @@ FACE_MARGIN_PIXELS = 0.5
 # on the consoles, ragged wear). Only the finishes whose own surface is lumpy keep the model's normals (cast metal,
 # rubber, fabric); every other finish is shaded by the model's normals smoothed over SMOOTH_REACH, so it takes the
 # recipe's own relief over the model's shape, and its wear and dirt read that shape, not its lumps.
-OWN_LUMPS = ("cast_metal", "rubber", "quilted")
+OWN_LUMPS = ("cast_metal", "rubber", "cloth", "quilted")
 SMOOTH_REACH = 0.03
 # Neighbouring faces whose smoothed normals part by SMOOTH_CREASE or more do not smooth into each other: a real edge
 # stays sharp, so its wear stays on it.

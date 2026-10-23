@@ -64,6 +64,12 @@
    "dirt_reach": 0.05,
    "dirt_share": 0.5
   },
+  "cloth": {
+   "roughness": 0.85,
+   "thread": 0.003,
+   "bump": 0.0002,
+   "dirt_reach": 0.05
+  },
   "quilted": {
    "roughness": 0.9,
    "quilt_size": 0.12,
