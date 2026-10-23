@@ -189,15 +189,17 @@ def holding_euros(sizes, hours, found=None):
 
 def shrinking(sizes, hours):
     """Every pool the run may hold from `sizes` down, largest first, as [(sizes, holding_euros)]: each one machine
-    fewer than the last, taken from the class whose machines hold the most euros, down to one machine; so
-    compute.pool_clearance opens the largest its run's money allows (fault, 2026-10-23: three 64-core processor
-    machines held 4 h passed a EUR 20 grant). One price read."""
+    fewer than the last, taken from the class with the most machines (on a tie a processor class before a card, then
+    the dearest), down to one machine; so compute.pool_clearance opens the largest its run's money allows (fault,
+    2026-10-23: three 48-core processor machines held 4 h passed a EUR 20 grant) and a smaller pool keeps a processor
+    machine beside its cards while it can (processors are in stock when the cards are short). One price read."""
     found = cloud.offers(sorted(sizes)) or []
     current, choices = {name: count for name, count in sizes.items() if count}, []
     while current:
         choices.append((dict(current), holding_euros(current, hours, found)))
-        dearest = max(sorted(current), key=lambda name: holding_euros({name: current[name]}, hours, found))
-        current[dearest] -= 1
+        fewer = max(sorted(current), key=lambda name: (current[name], not provider.cards(name),
+                                                       holding_euros({name: 1}, hours, found)))
+        current[fewer] -= 1
         current = {name: count for name, count in current.items() if count}
     return choices
 

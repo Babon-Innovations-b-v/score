@@ -194,8 +194,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   offer) cleared first as its own node (`compute.pool_clearance`, node `gpu-pool`, key the run's id: the stop line
   or the benchmark grant, reserved for the whole run) and its collector started under that ticket alone; on the
   cluster no pool. The pool opens at the largest size whose holding cost fits beside the run's own rows' high
-  (`pool.shrinking`, one machine fewer at a time from the class holding the most euros; fault of 2026-10-23: three
-  64-core processor machines held 4 h passed a EUR 20 grant), and with no room for one machine opens none, its rows
+  (`pool.shrinking`, one machine fewer at a time from the class with the most, a processor class before a card on a
+  tie, so a small pool keeps one processor machine beside its cards; fault of 2026-10-23: three 48-core processor
+  machines held 4 h passed a EUR 20 grant), and with no room for one machine opens none, its rows
   renting their own: never a failed run. `pool.release(run)` (from `score run`'s release, first thing, so
   also on a failed run, its stop line and Stop everything; the collector's own end when the pool's end passes or the run's
   process is gone) closes it and ends the collector: idle cards deleted at

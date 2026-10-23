@@ -282,12 +282,13 @@ def test_a_pool_is_sized_from_the_runs_planned_card_work():
     assert pool.size_for([("pixal", 2, 2.0, 3.0)]) == {"gpu-24gb": 1}
 
 
-def test_a_pool_shrinks_one_machine_at_a_time_from_the_class_holding_the_most_euros():
+def test_a_pool_shrinks_one_machine_at_a_time_keeping_a_processor_beside_its_cards_while_it_can():
     dear = [provider.Offer(CARD_PRICE * 3, 0, "cpu-type", "zone-c", CARD_PRICE * 3, PROCESSOR, 0, "available")]
     cloud.offers = lambda classes: [offer for offer in OFFERS + dear if offer.machine_class in classes]
-    choices = pool.shrinking({"gpu-24gb": 2, PROCESSOR: 2}, 1)
-    assert [sizes for sizes, _ in choices] == [{"gpu-24gb": 2, PROCESSOR: 2}, {"gpu-24gb": 2, PROCESSOR: 1},
-                                               {"gpu-24gb": 2}, {"gpu-24gb": 1}]
+    choices = pool.shrinking({"gpu-24gb": 3, PROCESSOR: 2}, 1)
+    assert [sizes for sizes, _ in choices] == [{"gpu-24gb": 3, PROCESSOR: 2}, {"gpu-24gb": 2, PROCESSOR: 2},
+                                               {"gpu-24gb": 2, PROCESSOR: 1}, {"gpu-24gb": 1, PROCESSOR: 1},
+                                               {"gpu-24gb": 1}]
     assert [euros for _, euros in choices] == sorted((euros for _, euros in choices), reverse=True)
     assert choices[-1][1] == pool.holding_euros({"gpu-24gb": 1}, 1)
 
