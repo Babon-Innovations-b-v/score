@@ -117,7 +117,10 @@ plan made under another version is out of date. Unlock asks twice. References go
 scene's site where the physics puts it and the ground falling away with its body's radius; the plan writer's call writes
 only the scene times and terrain spots. A site's footprint, size and blocks are read from its top scene's own plan (the
 one its plan page shows, `plans.current`) on every settle, never written or edited apart, so the two cannot differ (the
-owner, 2026-10-23); two sites whose footprints overlap where the physics stands them are a gap. Its page draws each
+owner, 2026-10-23); two sites whose footprints would stand closer than 10 m are parted on every settle
+(`environment_plan.cleared`: the smaller moved out along its own bearing from the larger, on its ground's curve; the
+locked concept's text untouched), never a site the creator placed himself, so only two of his own that overlap are
+a gap (the owner, 2026-10-21: "gaps should only show things that cant be fixed auto"). Its page draws each
 site's plan with plan.js's own sheet at its true footprint and distance. What
 each site sees overhead at its scene time is worked out from the physics (`overhead.seen`: every light, every other
 body at its true direction, size and phase, every backdrop) and kept per scene (`scene_sky.py`, a child scene using its
