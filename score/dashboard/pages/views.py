@@ -92,7 +92,7 @@ def environment(request):
     tiles = [{**tile, "review": concepts.review_href(world, tile["place"]), **concepts.card_state(world, tile["place"])}
              for tile in tiles]
     return render(request, "pages/environment.html", {
-        "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
+        "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(batch_of(world)), "trail": trail,
         "kind": kind and {"kind": kind, "label": cockpit.KIND_WORDS[kind][0], "tone": cockpit.KIND_TONES[kind]},
         "head": head, "tiles": tiles, "draw_all": concepts.draw_all(world), "drawing": concepts.drawing(), "readings": world.inventory_spend,
         "plan_spend": world.plan_spend, "discuss_spend": world.discuss_spend,
@@ -122,6 +122,12 @@ def stats(request):
         "discuss_spend": world.discuss_spend})
 
 
+def batch_of(world):
+    """screens.batch of the basket this process reads: the Buy screen's batch, whose `now` every page's remake shows."""
+    root = basket_items.basket_root()
+    return screens.batch(world, records.items(root), records.index(root).get("made_at"))
+
+
 def buy(request):
     """Screen 3, design first (CONTEXT.md "design"): each place's concept and its plan, made on
     the place's card and never bought here (screens.design), its Approve once made; then the batch after design
@@ -131,16 +137,15 @@ def buy(request):
     source = state.source()
     found = overview_of(source)
     world = found["world"]
-    root = basket_items.basket_root()
-    items = records.items(root)
     names = groups.short_names(world)
     design = screens.design(source, world)
     for row in design["places"]:
         row["name"] = names.get(row["place"], present.place_title(row["place"]))
-    batch = screens.batch(world, items, records.index(root).get("made_at"))
+    batch = batch_of(world)
     return render(request, "pages/buy.html", {
         "design": design, "batch": batch, "estimate": cockpit.estimate(batch["estimate"]),
-        "hours": cockpit.eta_hours(batch["now"]["eta"]), "money": found["view"],
+        "hours": cockpit.eta_hours(batch["now"]["eta"]), "floor": cockpit.floor_hours(batch["now"]["eta"]),
+        "money": found["view"],
         "last": basket_items.last_batch(), "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex, "film_waits": screens.film_waits()})
 

@@ -144,7 +144,7 @@ def test_a_remake_priced_on_code_not_committed_says_it_is_stale(cockpit):
     from score.dashboard.tests.pages_test import signed_in
     html = signed_in().get("/buy/").content.decode()
     after = html[html.index(">Buy now<"):html.index('<ul class="buy-layers buy-design">')]
-    assert after.count(">unknown</span>") == 2 and "&ndash;" not in after  # Buy now and Waits: never 0.00 stale
+    assert after.count(">unknown</span>") == 1 and "&ndash;" not in after  # Buy now: never 0.00 stale
     assert 'data-url="/buy/yes/"' not in html and 'disabled title="it was made on code not committed' in after
     layers = html.split('<ul class="buy-layers buy-design">')[1].split('<ul class="buy-layers">')[1]
     assert layers.count('<span class="unknown">unknown</span>') == layers.count('class="node-row buy-item"') > 0
@@ -169,22 +169,23 @@ def test_the_buy_screen_totals_the_chosen_items_and_their_stop_is_the_high_plus_
     assert found["items"][0]["choice"] == "buy" and found["items"][0]["likely"] == 2.0
 
 
-def test_the_batch_splits_into_what_buy_buys_now_and_what_waits_and_its_lines_add_up(cockpit):
+def test_the_batch_is_what_buy_buys_and_what_waits_is_counted_with_no_euros(cockpit):
     """The basket buys closeup@alpha now, so alpha's two close-up takes are made now at the basket's price, not
-    prepare's; the predicted hole, settle and the sound wait; the calibration and the sound have no price."""
+    prepare's; settle and the sound wait, counted by why with no euros (owner, 2026-10-24: one figure, the Waits
+    box "is confusing so can go"), so the layers add up to exactly what Buy buys."""
     found = screens.batch(cockpit.source.world_state(), cockpit.items)
     models, motion, sound = found["layers"]
-    assert (models["make"], models["library"], models["waiting"], models["models"]) == (2, 0, 1, 3)
-    assert models["why"] == {"predicted to fail": 1} and models["no_price"] == {"likeness calibration": 2}
+    assert (models["make"], models["library"], models["waiting"], models["models"]) == (2, 0, 0, 2)
+    assert models["why"] == {} and models["no_price"] == {}
     assert (models["likely"], models["high"]) == (2.0, 3.0)  # the basket's close-up; prepare's share went with it
     assert (motion["waiting"], motion["why"], motion["likely"], motion["high"]) == (
-        1, {"an earlier step first": 1}, 2.0, 3.0)
-    assert (sound["waiting"], sound["likely"], sound["high"], sound["guessed"]) == (1, 0.0, 0.0, 0.0)  # no guess later
-    assert found["total"]["likely"] == found["now"]["likely"] + found["waiting"]["likely"] == 4.0
-    assert found["total"]["high"] == found["now"]["high"] + found["waiting"]["high"] == 6.0
-    assert found["total"]["measured"]["high"] + found["total"]["estimated"]["high"] == 6.0  # settle measured
+        1, {"an earlier step first": 1}, 0.0, 0.0)
+    assert (sound["waiting"], sound["likely"], sound["high"], sound["guessed"]) == (1, 0.0, 0.0, 0.0)
+    assert (found["total"]["likely"], found["total"]["high"]) == (found["now"]["likely"], found["now"]["high"]) == (
+        2.0, 3.0)
+    assert found["total"]["measured"]["high"] + found["total"]["estimated"]["high"] == 3.0
     assert (found["now"]["steps"], found["now"]["places"], found["now"]["stop"]) == (1, ["alpha"], 3.3)
-    assert found["waiting"]["why"] == ["an earlier step first", "predicted to fail"]
+    assert found["waiting"] == {"steps": 2, "why": ["an earlier step first"]}
     blocked = [{**item, "missing": ["a lost input"]} for item in cockpit.items]
     waits = screens.batch(cockpit.source.world_state(), blocked)
     assert waits["now"]["steps"] == 0 and waits["now"]["stop"] is None  # Buy buys nothing that cannot run
@@ -210,8 +211,8 @@ def test_the_buy_line_is_priced_as_its_checkout_records_it_and_refused_on_a_bask
     assert now["high"] == pricing.cleared_high(totals) and now["stop"] == round(6.0 * 1.10, 2) == 6.6
     assert now["no_price"] == {"models": 1}  # the rough model: bought, outside the figure
     assert now["eta"]["likely_minutes"] is None and now["eta"]["untimed"] == 3
-    assert now["eta"]["untimed_layers"] == {"models": 1, "light": 1, "sound": 1}
-    assert now["eta"]["at_least_minutes"] == 10.0  # the timed close-up, a floor
+    assert now["eta"]["untimed_kinds"] == {"rough model": 1, "light renders": 1, "sound": 1}
+    assert now["eta"]["at_least_minutes"] == 10.0 and now["eta"]["at_least_high_minutes"] == 20.0  # the close-up's
     assert found["refused"] == [] and found["made_at"] == "2099-01-01T00:00:00Z"
     older = screens.batch(world, items, "2026-10-19T08:00:00Z")["refused"]
     assert len(older) == 1 and older[0].startswith("the basket (2026-10-19 08:00) is older than the price (")

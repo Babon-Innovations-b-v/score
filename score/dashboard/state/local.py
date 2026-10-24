@@ -115,9 +115,12 @@ def layers_of(written):
             if take.get("inputs"):
                 why = waits.setdefault(take["place"], {})
                 why[wait_of(take["inputs"][0])] = why.get(wait_of(take["inputs"][0]), 0) + 1
-        found[stage] = {"takes": layer.get("takes", len(runs)),  # a per-scene layer (runs, scenes) counts its runs
+        places = Counter(take["place"] for take in runs)
+        if "scenes" in layer:  # once a scene (prepare's scene_layers): one run at each place with a bought take
+            places = Counter({take["place"]: 1 for take in bought})
+        found[stage] = {"takes": layer.get("takes", sum(places.values())),
                         "likely": price.get("likely_euros"), "high": price.get("high_euros"),
-                        "places": dict(Counter(take["place"] for take in runs)), "waits": waits}
+                        "places": dict(places), "waits": waits}
     return found
 
 

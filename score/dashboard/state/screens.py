@@ -329,8 +329,7 @@ LAYERS = (("models", ("rough-model", "rough-align", "props-inputs", "closeup", "
           ("effects", ("effects-",)), ("sound", ("sound",)), ("films", ("demo-",)))
 ORDER = [name for name, _ in LAYERS] + ["other"]
 # Why a part of the batch waits, in plain words (a take's lost input: local.WAITS).
-EARLIER, PLAN, MISSING, PREDICTED = ("an earlier step first", "not in the last plan", "inputs missing",
-                                     "predicted to fail")
+EARLIER, PLAN, MISSING = ("an earlier step first", "not in the last plan", "inputs missing")
 
 
 def layer_of(stage):
@@ -381,14 +380,14 @@ def part():
 
 def layer_row(rows, name):
     return rows.setdefault(name, {"layer": name, "make": 0, "library": 0, "waiting": 0, "why": {}, "models": 0,
-                                  "takes": 0, "steps": 0, "now": part(), "later": part(), "guessed": 0.0, "guesses": 0,
+                                  "takes": 0, "steps": 0, "now": part(), "guessed": 0.0, "guesses": 0,
                                   "no_price": {}, "measured": part(), "estimated": part(), "places": {}})
 
 
-def add_price(row, which, likely, high, basis):
-    """Adds one priced part to a row's `which` (now or later) and to its basis's sum (a measured run's, else
-    estimated: per unit times a count)."""
-    for into in (row[which], row["measured" if basis == MEASURED[0] else "estimated"]):
+def add_price(row, likely, high, basis):
+    """Adds one priced part to a row's `now` and to its basis's sum (a measured run's, else estimated: per unit times
+    a count)."""
+    for into in (row["now"], row["measured" if basis == MEASURED[0] else "estimated"]):
         into["likely"], into["high"] = round(into["likely"] + likely, 4), round(into["high"] + high, 4)
 
 
@@ -404,12 +403,12 @@ def step_name(stage):
     return groups.label(stage).replace("-", " ")
 
 
-def node_price(row, which, node, found):
-    """A node's price into its row: measured or per unit, else its stage's guess kept apart (what the runner
-    reserves for a node bought now), else no price, said by its step's name."""
+def node_price(row, node, found):
+    """A node bought now's price into its row: measured or per unit, else its stage's guess kept apart (what the
+    runner reserves for it), else no price, said by its step's name."""
     if found.get("likely_euros") is not None and found.get("basis", MEASURED[1]) in MEASURED:
-        add_price(row, which, found["likely_euros"], found["high_euros"], found.get("basis"))
-    elif which == "now" and found.get("guess_euros"):
+        add_price(row, found["likely_euros"], found["high_euros"], found.get("basis"))
+    elif found.get("guess_euros"):
         row["guessed"], row["guesses"] = round(row["guessed"] + found["guess_euros"], 4), row["guesses"] + 1
     else:
         count(row["no_price"], step_name(node.partition("@")[0]))
@@ -424,25 +423,18 @@ def now_rows(now, route, rows):
         count(row["places"], place or "environment")
         if stage not in route:
             row["make"], row["steps"] = row["make"] + 1, row["steps"] + 1
-        node_price(row, "now", node, found)
+        node_price(row, node, found)
 
 
 def route_rows(remake, now, rows):
-    """Prepare's prop route into `rows`: a stage's takes at a place whose node the Buy buys are priced with it, the
-    rest wait (by why) with their share of the stage's price; each layer's takes counted on its stage with the most,
-    the models layer's library and predicted-to-fail takes beside."""
+    """Prepare's prop route's take counts into `rows`: a stage's takes at a place whose node the Buy buys are made
+    now (priced as the Buy buys them), the rest wait by why, with no euros (owner, 2026-10-24: one figure, what Buy
+    buys); each layer's takes counted on its stage with the most, the models layer's library takes beside."""
     widest = {}
     for stage, found in remake.layers.items():
         if not found["takes"]:
             continue
         row = layer_row(rows, layer_of(stage))
-        bought = {place for place in found["places"] if f"{stage}@{place}" in now}
-        later = found["takes"] - sum(found["places"][place] for place in bought)
-        if found["likely"] is None:
-            count(row["no_price"], step_name(stage), later)
-        elif found["takes"]:
-            share = later / found["takes"]
-            add_price(row, "later", found["likely"] * share, found["high"] * share, None)
         if found["takes"] > widest.get(row["layer"], (0, None))[0]:
             widest[row["layer"]] = (found["takes"], stage)
     for name, (takes, stage) in widest.items():
@@ -450,10 +442,7 @@ def route_rows(remake, now, rows):
     if "models" in rows and widest:
         models = rows["models"]
         models["library"] = remake.counts.get("library", 0)
-        predicted = remake.counts.get("predicted_gaps", 0)
-        models["waiting"] += predicted
-        count(models["why"], PREDICTED, predicted)
-        models["models"] += models["library"] + predicted
+        models["models"] += models["library"]
 
 
 def route_counts(row, found, stage, now):
@@ -473,24 +462,24 @@ def route_counts(row, found, stage, now):
 
 def rest_rows(price, now, blocked, rows):
     """The gaps price's paid steps off the prop route that the Buy does not buy now into `rows`, each waiting on a
-    missing input (its basket item says so) or an earlier step, priced where measured or per unit."""
-    for node, found in price.nodes.items():
+    missing input (its basket item says so) or an earlier step, counted with no euros."""
+    for node in price.nodes:
         if on_route(node) or node in now:
             continue
         row = layer_row(rows, layer_of(node.partition("@")[0]))
         row["steps"], row["waiting"] = row["steps"] + 1, row["waiting"] + 1
         count(row["why"], MISSING if node in blocked else EARLIER)
-        node_price(row, "later", node, found)
 
 
 def rounded(row):
-    """A layer row as shown: its euros to the cent, its likely and high (the guesses the Buy reserves in the high)."""
-    for key in ("now", "later", "measured", "estimated"):
+    """A layer row as shown: its euros to the cent, its likely and high what the Buy buys of it (the guesses the
+    Buy reserves in the high)."""
+    for key in ("now", "measured", "estimated"):
         row[key] = {name: round(value, 2) for name, value in row[key].items()}
     row["guessed"] = round(row["guessed"], 2)
     row["makes"] = row["takes"] + row["steps"]  # what it makes: its route takes and its steps at places
-    row["likely"] = round(row["now"]["likely"] + row["later"]["likely"], 2)
-    row["high"] = round(row["now"]["high"] + row["guessed"] + row["later"]["high"], 2)
+    row["likely"] = round(row["now"]["likely"], 2)
+    row["high"] = round(row["now"]["high"] + row["guessed"], 2)
     return row
 
 
@@ -500,10 +489,11 @@ def summed(rows, key, field):
 
 def batch(world, items, made_at=None):
     """The Buy screen's one batch (CONTEXT.md "batch"): what its Buy buys now (the basket items of `now_items`, priced
-    as the runner planned them, the guesses it reserves in the high) and what waits, by why (prepare's prop route,
-    take by take, and every other paid step of the gaps price), by layer. Each layer {layer, make, library, waiting,
-    why, models, steps, now, later, guessed, guesses, no_price, measured, estimated, likely, high}; `total` its sum,
-    `now` (`now_of`) the Buy's line, `waiting` {likely, high, why}; `gets` the places it reaches; `in_design` how
+    as the runner planned them, the guesses it reserves in the high) and how many steps wait, by why, with no euros
+    (prepare's prop route, take by take, and every other paid step of the gaps price), by layer. Each layer {layer,
+    make, library, waiting, why, models, steps, now, guessed, guesses, no_price, measured, estimated, likely, high},
+    its euros what Buy buys of it; `total` their sum, the Buy's figure; `now` (`now_of`) the Buy's line, `waiting`
+    {steps, why}; `gets` the places it reaches; `in_design` how
     many places are still in design; `made_at` the basket's (its index's, `made_at`) and `refused` [why] the Buy may
     not be pressed now (`buy_refusals`). Nothing priced here (ADR-0006)."""
     whole = remake_money(world)
@@ -524,7 +514,8 @@ def batch(world, items, made_at=None):
         row["places"] = sorted(row["places"])
     return {"total": total_of_rows(shown), "now": now_of(now, buying), "waiting": waiting_of(shown),
             "gets": gets(world, now), "eta": whole["eta"], "stale": whole["stale"], "layers": shown,
-            "estimate": whole["estimate"], "in_design": whole["in_design"], "made_at": made_at,
+            "estimate": whole["estimate"], "approved": whole["approved"], "in_design": whole["in_design"],
+            "made_at": made_at,
             "refused": buy_refusals(world, whole["stale"], made_at), "plants": plants_total(world)}
 
 
@@ -589,21 +580,26 @@ def buy_refusals(world, stale, made_at):
 
 
 def waiting_of(rows):
-    """{likely, high, why} of what waits: its euros and why, the commonest first."""
+    """{steps, why} of what this Buy does not buy: how many takes and steps, and why, the commonest first; no euros
+    (owner, 2026-10-24: "this is confusing so can go"; one figure, what Buy buys)."""
     why = {}
     for row in rows:
         for reason, number in row["why"].items():
             count(why, reason, number)
-    return {"likely": summed(rows, "later", "likely"), "high": summed(rows, "later", "high"),
+    return {"steps": sum(row["waiting"] for row in rows),
             "why": [reason for reason, _ in sorted(why.items(), key=lambda pair: -pair[1])]}
 
 
 def now_eta(nodes):
-    """basket_eta of the nodes bought now and, while a node is not timed, `at_least_minutes`: the timed ones'
-    span (pricing.span), a floor, and `untimed_layers` {layer: its steps with no minutes}, in the layers' order."""
+    """basket_eta of the nodes bought now and, while a node is not timed, `at_least_minutes` and
+    `at_least_high_minutes`: the timed ones' likely and high span (pricing.span), a floor, and `untimed_kinds` {kind
+    of step: its steps with no measured minutes} (step_name), the most first."""
     timed = {node: found for node, found in nodes.items() if found.get("likely_minutes") is not None}
-    return {**basket_eta(nodes), "at_least_minutes": pricing.span(timed, "likely_minutes", pricing.DEFAULT_JOBS)
-            if timed else None, "untimed_layers": in_layers(set(nodes) - set(timed))}
+    untimed = Counter(step_name(node.partition("@")[0]) for node in set(nodes) - set(timed))
+    return {**basket_eta(nodes),
+            "at_least_minutes": pricing.span(timed, "likely_minutes", pricing.DEFAULT_JOBS) if timed else None,
+            "at_least_high_minutes": pricing.span(timed, "high_minutes", pricing.DEFAULT_JOBS) if timed else None,
+            "untimed_kinds": dict(untimed.most_common())}
 
 
 def in_layers(nodes):
