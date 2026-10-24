@@ -626,13 +626,13 @@ def retire_commands():
              {"UV_PROJECT_ENVIRONMENT": str(PROPS_HOME / "env")})]
 
 
-def retire_pc_home(yes, scw_path, run=subprocess.run):
+def retire_pc_home(yes, scw_path, bucket=None, run=subprocess.run):
     """Set this PC's home aside read-only at PC_FINAL_HOME once the store is on the conductor, so no session here
     writes a stale store or syncs it back: an empty home in its place filled by retire_commands, the move marked done
     on the yes in the set-aside store, then that home made read-only."""
     PROPS_HOME.rename(PC_FINAL_HOME)
     PROPS_HOME.mkdir()
-    environment = {**migrate_environment(scw_path, yes), conductor_yes.YES_HOME: str(PC_FINAL_HOME)}
+    environment = {**migrate_environment(scw_path, yes), **(bucket or {}), conductor_yes.YES_HOME: str(PC_FINAL_HOME)}
     for command, extra in retire_commands():
         done = run(command, env={**environment, **extra})
         if done.returncode != 0:
@@ -709,7 +709,7 @@ def move(options, scw, say=print):
         say(f"move: the store is on the conductor at {host}; the hosted cockpit asks you to confirm it as the store's "
             "machine once its first export arrives. Set this PC's home aside read-only (your step).")
         return
-    retire_pc_home(yes, scw_path)
+    retire_pc_home(yes, scw_path, bucket_key(scw))
     forget_once_key(host)
     say(f"move: the store is on the conductor at {host}; this PC's home is set aside read-only at {PC_FINAL_HOME} "
         "and the one-off key is gone; the cockpit asks the owner to confirm the machine once its first export arrives")
