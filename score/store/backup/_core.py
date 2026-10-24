@@ -28,10 +28,11 @@ def utc_now():
 
 
 def excludes(home, databases):
-    """restic's --exclude arguments for `home`: what can be rebuilt, partial writes, and each live database with its
-    side files (their consistent copies are backed up instead)."""
+    """restic's --exclude arguments for `home`: what can be rebuilt, the volume's lost+found, partial writes, and each
+    live database with its side files (their consistent copies are backed up instead)."""
     root = str(pathlib.Path(home).resolve())
-    patterns = [f"{root}/{name}" for name in REBUILT] + list(NEVER)
+    # The volume's lost+found is root's, mode 700: restic cannot open it and fails the whole backup (exit 3).
+    patterns = [f"{root}/{name}" for name in REBUILT + EMPTY_ENOUGH] + list(NEVER)
     for database in databases:
         patterns += [f"{root}/{name}" for name in [database, *_staging.side_files(database)]]
     return [argument for pattern in patterns for argument in ("--exclude", pattern)]

@@ -9,7 +9,7 @@ nl-ams, made by `tools/cloud/conductor/machine.py up`); its units are `tools/clo
   `SCORE_SECRET_READER`, into restic's environment only; `RESTIC_PASSWORD_FILE` and `_COMMAND` are dropped. An `s3:`
   repository's key comes from `scw config get access-key|secret-key`, the machine's one credential on disk.
 - **What a backup holds**: `$PROPS_HOME` minus `_core.REBUILT` (cache, store/cache, tmp, tmp.*, downloads, frozen, env,
-  store-tests, blender-mcp) and `*.partial`. Each SQLite database under `dashboard/` is held as its SQLite online-backup
+  store-tests, blender-mcp), the volume's `lost+found` (root's, mode 700: restic cannot open it) and `*.partial`. Each SQLite database under `dashboard/` is held as its SQLite online-backup
   copy (`_staging`: Python's `Connection.backup`, the API the CLI's `.backup` runs; no sqlite3 CLI needed), staged in
   `backup-staging/` inside the home, the live file and its -wal, -shm and -journal left out; a restore moves each copy
   back to its own path. A copy of one state is the same bytes every time, so its hash names the database's state.
