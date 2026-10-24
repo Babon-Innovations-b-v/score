@@ -857,7 +857,7 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
                 runner = a_runner(world, store, (stage,))
                 keyed = runner.key(stage, "hangar")
                 assert keyed["key"] != old["key"] and store.record("narrow@hangar", keyed["key"]) is None
-                assert (rebuy.to_make(runner, stage, "hangar", [], {}) is None) == kept, change
+                assert (rebuy.to_make(runner, stage, "hangar", [], {}) is rebuy.KEPT) == kept, change
                 done = runner.run(["hangar"])["narrow@hangar"]
             finally:
                 _code.sys = python

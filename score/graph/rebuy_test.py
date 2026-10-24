@@ -81,6 +81,16 @@ def test_a_changed_input_re_buys_every_paid_row_after_it_and_refuses_without_a_r
     assert entry["kind"] == "rebuy" and entry["euros"] == 0 and entry["estimate"] == 7.0
 
 
+def test_rows_after_a_node_kept_by_a_proof_are_still_buys():
+    """Fault (2026-10-24): the greenhouse's plan, kept under its new key by the narrowing proof, hid its whole prop
+    route from the plan, so the Buy's figure and stop left out rows the drive then makes."""
+    runner = a_runner()
+    assert "accepted automatically" in runner.run_node(DRAW, "hangar")
+    runner.code_versions["draw"] = "only narrowed"
+    runner.narrowing_proof = lambda stage, place, keyed: stage is DRAW
+    assert [buy.node for buy in bought(runner)] == ["render@hangar", "bake@hangar"]
+
+
 def test_re_buys_under_five_euros_go_without_a_reason():
     runner = made(a_runner())
     runner.code_versions["bake"] = "a bake changed"

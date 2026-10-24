@@ -71,20 +71,24 @@ def same_requests(runner, stage, node, parts):
     return not builders_changed(record["commit"])
 
 
+KEPT = "kept"  # to_make: a node the drive keeps by a proof, made again the same
+
+
 def to_make(runner, stage, place, pending, remade):
-    """The node's key parts when a drive would make it, else None: it has no record on its current key; or a node it
-    reads is made first and may give another output ({}: its parts are known only then); or those are made again the
-    same and its own parts moved from its accepted output's."""
+    """The node's key parts when a drive would make it, else None, or KEPT when the drive keeps its accepted output
+    under its new key by a proof (the nodes after it then key on that output, as when made again the same): it has no
+    record on its current key; or a node it reads is made first and may give another output ({}: its parts are known
+    only then); or those are made again the same and its own parts moved from its accepted output's."""
     node = node_name(stage, place)
     try:
         keyed = runner.key(stage, place)
         if runner.store.record(node, keyed["key"]) is not None:
             return None
         if hasattr(stage.files, "carries") and stage.files.carries(runner, stage, place, keyed):
-            return None  # the runner keeps its accepted output under the new key (surfaces/carry.py)
+            return KEPT  # the runner keeps its accepted output under the new key (surfaces/carry.py)
         if runner.bytecode_proof(stage, place, keyed) or runner.narrowing_proof(stage, place, keyed) or \
                 runner.no_op_proof(stage, place, keyed):
-            return None  # the runner keeps its accepted output: only bytecode moved its key (#67), its reads are as
+            return KEPT  # the runner keeps its accepted output: only bytecode moved its key (#67), its reads are as
             # they were when it was made, or a proof
         return keyed
     except Blocked:  # it reads a node not made on its current inputs yet, or one that blocks it
@@ -134,6 +138,9 @@ def buys(runner, nodes):
                        if name in remade]
             parts = to_make(runner, stage, place, pending, remade)
             if parts is None:
+                continue
+            if parts is KEPT:  # its readers key on the kept output once the drive keeps it (greenhouse, 2026-10-24)
+                remade[node] = False
                 continue
             cached = stage.paid and same_requests(runner, stage, node, parts)
             remade[node] = not cached
