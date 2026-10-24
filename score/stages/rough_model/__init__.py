@@ -1,5 +1,5 @@
 """rough-model@<place>: the place's rough model (CONTEXT.md "rough model", shapes first): its concept put through the
-prop pipeline whole, Pixal3D in a cloud batch (tools/props/cloud/batch.py's own command, through _cloud.py), one 3D
+prop pipeline whole, Pixal3D in a cloud batch (tools/cloud/batch.py's own command, through _cloud.py), one 3D
 model that gives the place's plan its proportions and shape; never shipped. Paid, cleared by the runner like any paid
 row. A row of every place with a plan (scene_record.written, as plan@<place>), outside shells and inside places alike.
 
@@ -34,7 +34,7 @@ from score.stages.surfaces.surface_gates import guarded, verdict
 REPO = pathlib.Path(__file__).resolve().parents[3]
 CLOUD = pathlib.Path(__file__).resolve().parent / "_cloud.py"
 FINISH = pathlib.Path(__file__).resolve().parent / "_finish.py"
-TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
+TOOLS = {"batch": "{repo}/tools/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
          "rough cloud": "{repo}/score/stages/rough_model/_cloud.py",
          "rough finish": "{repo}/score/stages/rough_model/_finish.py"}
 # The finish's machine (blender_cloud.py): a card by the minute first, a processor machine (by the hour) when no card
@@ -87,7 +87,7 @@ def take_files(take):
 
 
 def blender_cloud():
-    """tools/props/cloud/blender_cloud.py, the rented Blender machines' runner."""
+    """tools/cloud/blender_cloud.py, the rented Blender machines' runner."""
     return engines.machine_runner()
 
 

@@ -112,7 +112,7 @@ RETRIES, RETRY_WAIT = 4, 30
 # the waiter rather than be broken, so nothing is paid twice; a holder's death lets go of its lock at once.
 LOCK_WAIT, LOCK_POLL = 6 * 3600, 2
 # The folder a node makes into, named for its make and the processes it starts, so a cloud runner can keep each
-# finished job under the node's key and a rerun pay only for the jobs it lacks (tools/props/cloud/kept.py, C21).
+# finished job under the node's key and a rerun pay only for the jobs it lacks (tools/cloud/kept.py, C21).
 MAKING = "SCORE_MAKING"
 
 
@@ -805,7 +805,7 @@ class Runner:
         return record
 
     def drop_kept(self, node, key):
-        """Remove the jobs kept for an earlier try of this key (tools/props/cloud/kept.py): its output is stored."""
+        """Remove the jobs kept for an earlier try of this key (tools/cloud/kept.py): its output is stored."""
         folder = self.store.cache.parent / "kept" / node / key
         if folder.exists():
             shutil.rmtree(folder)

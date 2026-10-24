@@ -1,4 +1,4 @@
-"""A rough model's take through the cloud batch: tools/props/cloud/batch.py's own command (its plan and price, the
+"""A rough model's take through the cloud batch: tools/cloud/batch.py's own command (its plan and price, the
 clearance at every rent point, the machines, the ledger line, the finish), run in the prop environment:
 
     $PROPS_PYTHON score/stages/rough_model/_cloud.py <list.txt> --who "<session>" \
@@ -14,7 +14,7 @@ import pathlib
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-BATCH = REPO / "tools/props/cloud/batch.py"
+BATCH = REPO / "tools/cloud/batch.py"
 
 
 def load_batch():

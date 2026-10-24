@@ -101,7 +101,7 @@ def tools():
     """pro.py (the model, its picture parts and answers), google_spend (the call, on the Google ledger) and the
     secret reader, imported with the prop tools' folders on the path."""
     folders, kept = REPO / "tools/props", list(sys.path)
-    sys.path[:0] = [str(folders / "closeup"), str(folders / "cloud")]
+    sys.path[:0] = [str(folders / "closeup"), str(REPO / "tools/cloud")]
     try:
         import google_spend
         import pro

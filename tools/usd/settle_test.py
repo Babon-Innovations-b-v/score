@@ -401,7 +401,7 @@ def a_stacked_box_begun_inside_its_support_starts_over_it():
 
 def a_cloud_drop_asks_the_small_processor_class_only():
     """#20, #21: a drop asks the small processor class only, a class the backend sells: no chain to bigger ones."""
-    sys.path.insert(0, str(HERE.parents[1] / "tools/props/cloud"))
+    sys.path.insert(0, str(HERE.parents[1] / "tools/cloud"))
     import blender_cloud
     from backends import scaleway
 

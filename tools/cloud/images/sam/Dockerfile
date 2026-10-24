@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # platforms: linux/amd64
 # score-sam: the vision steps that segment and measure a picture, in one environment because a scene's steps run
-# on one card (tools/props/cloud/scene.py): SAM 3 through transformers (scene/cutout.py, box_masks.py,
+# on one card (tools/cloud/scene.py): SAM 3 through transformers (scene/cutout.py, box_masks.py,
 # closeups_gpu.py's segment), SAM 2.1 through facebookresearch/sam2 (cloud/segment_worker.py), MoGe-2 (scene/depth.py),
 # BiRefNet-lite through rembg (closeups_gpu.py's matte) and FLUX.2 klein through diffusers (scene/target.py and
 # redraw.py). The versions are scene_setup.sh's and closeups_setup.sh's second Python (torch 2.9.1, transformers

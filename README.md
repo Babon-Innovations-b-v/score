@@ -62,9 +62,9 @@ has it (the first environment's `~/.farm-factory-props/env/bin/python`).
 
 ```bash
 # 1. Pixal3D models from the close-ups, one cloud batch (a line a row: "<row>-s1 <close-up>")
-$py tools/props/cloud/batch.py $W/pixal-list.txt --who me --inventory data/inventory/wreck.json
+$py tools/cloud/batch.py $W/pixal-list.txt --who me --inventory data/inventory/wreck.json
 # 2. PartCrafter parts from each model's cut-out (~/.farm-factory-props/work/pixal/<take>.svviews/input.png)
-$py tools/props/cloud/parts.py $W/cutouts --who me --parts 8
+$py tools/cloud/parts.py $W/cutouts --who me --parts 8
 # 3. Labels: every part one allowed library material, checked for patchy paint
 $py tools/props/library/labels.py <row>-s1 $W/parts/<row>-s1 --place wreck --kind wreck_<row> \
     --parts $W/cutouts/parts/<row>-s1-8
@@ -72,7 +72,7 @@ $py tools/props/library/labels.py <row>-s1 $W/parts/<row>-s1 --place wreck --kin
 $py tools/props/library/place_route.py split $W/parts/torn_leg-s1 $W/parts/leg_strut-s1 $W/parts/leg_foot-s1
 # 4. The plan and the bake jobs, baked in the cloud (one class fixed at price time; --classes cpu-32c-128gb for a processor)
 $py tools/props/library/place_route.py plan wreck $W --take s1
-$py tools/props/cloud/library_bake.py $W/job-*.json --who me
+$py tools/cloud/library_bake.py $W/job-*.json --who me
 # 5. The model gate, then the scene package and its check
 $py tools/props/library/place_route.py check wreck $W
 $py tools/props/library/package.py wreck $W $W/package
@@ -110,17 +110,17 @@ checkout; `tools/library/library_files_test.py` fails when code or data names it
 ## Cloud capacity
 
 Every model step runs on machines rented from a cloud provider through one interface
-(`tools/props/cloud/provider.py`). The runners ask for a **capability class**, such as `gpu-24gb` (one
+(`tools/cloud/provider.py`). The runners ask for a **capability class**, such as `gpu-24gb` (one
 card with 24 GB), `gpu-80gb-x2` (two 80 GB cards) or `cpu-32c-128gb` (a processor machine), and never name a
 provider, a machine type, a zone or a price. The backend maps each class to its own machine types, zones
-and prices. Scaleway is the current backend (`tools/props/cloud/backends/scaleway.py`); `SCORE_CLOUD`
+and prices. Scaleway is the current backend (`tools/cloud/backends/scaleway.py`); `SCORE_CLOUD`
 chooses another.
 
 Stock is the bottleneck: on 2026-10-08 the cheapest cards in one zone were out of stock most of the day.
 The cloud credits cover far more than an environment costs, so a job takes whatever card is in stock, in the
 order that waits least, and is never tied to one card or one zone.
 
-- **Which classes a job may use** is set per job kind in `KINDS` in `tools/props/cloud/capacity.py`.
+- **Which classes a job may use** is set per job kind in `KINDS` in `tools/cloud/capacity.py`.
   Pixal3D may use any card of 24 GB or more, including two-card machines, because its fleet spreads
   work over cards. Every other kind was measured on a 24 GB card, so it may use the single-card
   classes of 24, 48 and 80 GB.
@@ -140,13 +140,13 @@ order that waits least, and is never tied to one card or one zone.
 - **Limits.** A batch's own stop is its high estimate plus 10%, set by the owner's yes; there is no month's
   ceiling (owner, 2026-10-20). A batch is also held to 4 h and EUR 60 (`ledger.py`).
 - **Forcing a class** for a measuring run: `batch.py --classes` and `library_bake.py --classes`.
-- **Secrets** are read by name through `tools/props/cloud/secret_store.py`: the environment variable
+- **Secrets** are read by name through `tools/cloud/secret_store.py`: the environment variable
   `SCORE_SECRET_<NAME>` first (for local use; `gemini-api-key` is `SCORE_SECRET_GEMINI_API_KEY`), else
   the backend's secret store (Scaleway Secret Manager today). No secret is written into the repo.
 - **The record.** Every run writes one row per machine to the ledger
   (`~/.farm-factory-props/cloud/ledger.jsonl`). A row holds the job kind, class, machine type, zone,
   wait until the machine answered, minutes worked, cost and, where the runner counts them, seconds per
-  unit of work. Failed starts are recorded too. `python3 tools/props/cloud/capacity.py report
+  unit of work. Failed starts are recorded too. `python3 tools/cloud/capacity.py report
   [--since YYYY-MM-DD]` writes time and cost per job kind per card type to
   `~/.farm-factory-props/cloud/capacity-report.txt` and prints one summary line (`--verbose` prints the table), and `capacity.py offers
   <kind>` shows where a kind can be rented right now.
@@ -168,7 +168,7 @@ scale from zero and expose `nvidia.com/gpu`. With the Scaleway backend:
 
 ```bash
 python3 tools/cloud/k8s/clusters/scaleway.py up      # the cluster (free control plane) and a pool per class and zone, all at 0 nodes
-SCORE_CLOUD=k8s $py tools/props/cloud/parts.py ...   # a runner sends its jobs to the cluster instead of renting machines
+SCORE_CLOUD=k8s $py tools/cloud/parts.py ...   # a runner sends its jobs to the cluster instead of renting machines
 python3 tools/cloud/k8s/clusters/scaleway.py down    # delete the cluster when the work is done
 ```
 
@@ -184,7 +184,7 @@ image. `tools/cloud/k8s/CLAUDE.md` says how AWS EKS and Google GKE plug in.
 
 ### Add a cloud backend
 
-1. Write `tools/props/cloud/backends/<name>.py` with everything `provider.py`'s docstring lists: `NAME`,
+1. Write `tools/cloud/backends/<name>.py` with everything `provider.py`'s docstring lists: `NAME`,
    `CLASSES` (each capability class as your machine types, in the order to try them), `account()`,
    `offers()`, `price()`, `month_spend()`, `allow_key()`, `create()`, `start_if_stopped()`, `address()`,
    `delete()`, `ours()`, the leftover sweeps and `secret()`. Copy the shape of `backends/scaleway.py`.
@@ -236,7 +236,7 @@ their own triangles (buildings and other rows marked `"fixed": true` stay static
 into the place's layout, with its turn as a `rotation`, as long as that is a small correction (at most 15° and
 30 cm); a piece that would move more keeps its laid pose and is marked for its layout to be put right. Export again
 and check. `--cloud` on settle.py and page.py runs the Blender work on rented machines
-(`tools/props/cloud/blender_cloud.py`).
+(`tools/cloud/blender_cloud.py`).
 
 ## Licence
 

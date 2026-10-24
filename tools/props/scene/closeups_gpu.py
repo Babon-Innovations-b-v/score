@@ -240,7 +240,7 @@ def matte(folder):
 
 
 def main():
-    refuse_here("splat rendering, SAM 3 and the cut-out", "tools/props/cloud/closeups_cloud.py <folder> --who <session>")
+    refuse_here("splat rendering, SAM 3 and the cut-out", "tools/cloud/closeups_cloud.py <folder> --who <session>")
     step = sys.argv[1]
     if step == "render":
         out = pathlib.Path(sys.argv[4])

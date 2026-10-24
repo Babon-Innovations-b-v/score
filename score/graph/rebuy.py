@@ -19,14 +19,14 @@ from score import review
 from score.graph import Blocked, _code, code_functions, node_name
 
 LIMIT = 5.0
-GOOGLE = _code.REPO / "tools/props/cloud/google_spend.py"
+GOOGLE = _code.REPO / "tools/cloud/google_spend.py"
 # The files a Google row's request bodies are built from (wording, models, settings), besides its inputs. google_spend's
 # cache key is pinned by google_spend_test, so google_spend.py itself changes no request.
-REQUEST_BUILDERS = ("score/stages/surfaces/finish_ask.py", "tools/props/cloud/gemini_judge.py",
+REQUEST_BUILDERS = ("score/stages/surfaces/finish_ask.py", "tools/cloud/gemini_judge.py",
                     "tools/props/closeup/pro.py", "score/adapters/models/__init__.py",
                     "score/stages/surfaces/route_list.py", "score/stages/surfaces/route_recheck.py",
                     "score/stages/surfaces/route_ask.py", "score/stages/surfaces/scene_palette.py",
-                    "score/stages/surfaces/scene_library.py", "tools/props/cloud/google_batch.py")
+                    "score/stages/surfaces/scene_library.py", "tools/cloud/google_batch.py")
 SAME_PARTS = ("contract", "expects", "params", "seed", "files", "after", "models")
 OWN_PARTS = ("code", "contract", "expects", "params", "seed", "files", "models")
 

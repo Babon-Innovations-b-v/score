@@ -1,4 +1,4 @@
-"""Runs inside Blender (`../blender/session.py batch`, or on a rented card through `../props/cloud/blender_cloud.py`):
+"""Runs inside Blender (`../blender/session.py batch`, or on a rented card through `../cloud/blender_cloud.py`):
 demo K9's "Built in layers" in real geometry. One place's accepted assembly is imported as composed, and every layer of
 its stack gets a copy of what it specifies (the prims it defines or authors values on, three or more deep: a layer
 that only nests into others claims nothing; a claimed prim with nothing to draw, a lamp or a sound, is a small glowing

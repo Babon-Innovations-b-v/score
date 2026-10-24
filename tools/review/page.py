@@ -10,7 +10,7 @@ is.
         [--agreement <tools/usd/views.py's out folder>]
         [--no-render]                               # reuse the Blender renders already in <out>
         [--plain]                                   # debug: the scene in one plain grey instead of its materials
-        [--cloud]                                   # render on rented cards (tools/props/cloud/blender_cloud.py)
+        [--cloud]                                   # render on rented cards (tools/cloud/blender_cloud.py)
         [--detach]                                  # progress to a log, one result line (start in the background)
 
 What each folder holds is in records.py. The pictures no stage drew (each model and its parts, the assembled scene from
@@ -724,7 +724,7 @@ def arguments():
                         "this machine's memory)")
     parser.add_argument("--cloud", action="store_true", help="render on rented cards, not this PC's Blender")
     parser.add_argument("--detach", action="store_true", help="progress to a log, one result line at the end "
-                        "(tools/props/cloud/detached.py): start it with run_in_background, never poll it")
+                        "(tools/cloud/detached.py): start it with run_in_background, never poll it")
     return parser.parse_args()
 
 
@@ -758,7 +758,7 @@ def build(options):
         del runs["before"]
     pictures = Pictures(out)
     if getattr(options, "cloud", False) and not options.no_render:  # one rented machine for every render of the page
-        sys.path.insert(0, str(HERE.parents[1] / "tools/props/cloud"))
+        sys.path.insert(0, str(HERE.parents[1] / "tools/cloud"))
         import blender_cloud
         with blender_cloud.Machine(renders.CLOUD_CLASSES, "review page") as machine:
             renders.CLOUD = machine
@@ -811,8 +811,8 @@ def stamp(out, stage, rendered):
 
 
 def detach(options):
-    """Rerun this call detached (tools/props/cloud/detached.py); its output is the page."""
-    sys.path.insert(0, str(HERE.parents[1] / "tools/props/cloud"))
+    """Rerun this call detached (tools/cloud/detached.py); its output is the page."""
+    sys.path.insert(0, str(HERE.parents[1] / "tools/cloud"))
     import detached
     detached.relaunch(sys.argv, "review-page", [options.out / "index.html"])
 

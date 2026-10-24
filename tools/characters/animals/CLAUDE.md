@@ -12,12 +12,12 @@ without `experimental=True`). The animal rows (`score/stages/animals`, #52) call
 row, and none does yet. It is proven when an animal it made
 moves in a place's stage and the owner has seen it there.
 
-- **Nothing runs here but plain Python.** The mesh (Pixal3D, `../../props/cloud/batch.py
-  --characters`), the rig (UniRig, `../../props/cloud/unirig.py`) and every Blender script
+- **Nothing runs here but plain Python.** The mesh (Pixal3D, `../../cloud/batch.py
+  --characters`), the rig (UniRig, `../../cloud/unirig.py`) and every Blender script
   (`blender_rig.py`, `blender_review.py`) run on rented machines; the Blender pair share one held
   machine (`blender_cloud.Machine`). The batch's finish of the raw model still runs on this PC as
   every batch's does (`pixal.py --finish-only`, about a minute a model): moving it up needs the
-  byte match `../../props/cloud/CLAUDE.md` asks for.
+  byte match `../../cloud/CLAUDE.md` asks for.
 - **The body decides the rig.** A fish gets a spine made in code (`spine.py`, `rig_fish.py`): a
   chain of bones along its level long axis, each vertex split between two bones by where it lies
   along it, so its fins follow the spine. A four-legged animal gets UniRig's skeleton and skin, and

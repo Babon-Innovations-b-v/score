@@ -1,4 +1,4 @@
-# The character maker's motion environment with SAM3DBody-cpp, as tools/props/cloud/characters_setup.sh's motion and
+# The character maker's motion environment with SAM3DBody-cpp, as tools/cloud/characters_setup.sh's motion and
 # sam3dbody steps install them on a rented card; one image for both because body_picture.py (the body read off a
 # picture by SAM3DBody-cpp) runs in the motion environment, as do export_body.py, head.py, the face and hair fits and
 # the build. So the characters-body and characters-motion kinds share this image.

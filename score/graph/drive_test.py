@@ -725,14 +725,14 @@ finally:
     for machine in machines:
         batch.delete_machine(machine)
 """
-# A `score run` in miniature whose one node runs SLOW_BATCH (argv[5]) from tools/props/cloud, its output piped to the
+# A `score run` in miniature whose one node runs SLOW_BATCH (argv[5]) from tools/cloud, its output piped to the
 # node as a stage's subprocess.run does; the run's grace is argv[3] seconds, each delete argv[4].
 GROUP_RUN = """
 import json, os, pathlib, subprocess, sys, threading, time, types
 sys.path.insert(0, sys.argv[1])
 from score import __main__ as command, graph
 from score.adapters import compute
-folder, cloud = pathlib.Path(sys.argv[2]), str(pathlib.Path(sys.argv[1]) / "tools/props/cloud")
+folder, cloud = pathlib.Path(sys.argv[2]), str(pathlib.Path(sys.argv[1]) / "tools/cloud")
 command.STOP_GRACE_SECONDS = float(sys.argv[3])
 runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
 
@@ -824,7 +824,7 @@ STUCK_GROUP_RUN = """
 import os, pathlib, signal, subprocess, sys, threading, time, types
 sys.path.insert(0, sys.argv[1])
 from score import __main__ as command, graph
-folder, cloud = pathlib.Path(sys.argv[2]), str(pathlib.Path(sys.argv[1]) / "tools/props/cloud")
+folder, cloud = pathlib.Path(sys.argv[2]), str(pathlib.Path(sys.argv[1]) / "tools/cloud")
 command.STOP_GRACE_SECONDS = float(sys.argv[3])
 runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
 

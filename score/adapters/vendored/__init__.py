@@ -14,7 +14,7 @@
 The table is checked, not trusted: `faults` refuses a vendor/ folder the table lacks, a row whose folder is gone, a
 caller file that is missing or never names its tool, an image kind with no folder in tools/cloud/images and a stage
 package that is not there. A new tool is wired the house way (bible `architecture/components`): a cloud runner in
-tools/props/cloud with its image and pinned models, an adapter call where a stage keys on it, a test with a stand-in,
+tools/cloud with its image and pinned models, an adapter call where a stage keys on it, a test with a stand-in,
 a rule in its caller's overlay; then its row here.
 """
 import pathlib
@@ -25,32 +25,32 @@ WIRED, AGENT, LEFT_OUT = "wired", "agent tool", "left out"
 TOOLS = {
     "image-to-3dlab": {
         "use": WIRED, "image": "pixal", "names": ("image-to-3dlab",),
-        "callers": ("tools/props/pixal.py", "tools/props/paths.py", "tools/props/cloud/batch.py",
+        "callers": ("tools/props/pixal.py", "tools/props/paths.py", "tools/cloud/batch.py",
                     "tools/cloud/images/pixal/Dockerfile"),
         "stages": ("props", "crops"),
         "why": "Pixal3D, the model made from a picture (asset route locked 2026-09-28), always through pixal.py"},
     "infinigen2": {
         "use": WIRED, "image": None, "names": ("infinigen2",),
         "callers": ("tools/props/library/recipes.py", "tools/props/library/inside/runtime.py",
-                    "tools/props/cloud/library_bake.py"),
+                    "tools/cloud/library_bake.py"),
         "stages": ("surfaces",),
         "why": "its shader recipes (paint, brushed metal, rubber) under the ProcFunc library surfaces, baked in "
                "Blender on a rented card"},
     "procfunc": {
         "use": WIRED, "image": None, "names": ("procfunc", "ProcFunc"),
         "callers": ("tools/props/library/recipes.py", "tools/props/library/inside/runtime.py",
-                    "tools/props/cloud/library_bake.py"),
+                    "tools/cloud/library_bake.py"),
         "stages": ("surfaces",),
         "why": "the library surfaces' recipes, composable shader functions (owner, 2026-10-06)"},
     "kimodo": {
         "use": WIRED, "image": "characters-motion", "names": ("kimodo", "Kimodo"),
-        "callers": ("tools/props/cloud/characters.py", "tools/characters/maker/chain.py",
+        "callers": ("tools/cloud/characters.py", "tools/characters/maker/chain.py",
                     "tools/characters/people/clips.py", "tools/cloud/images/characters-motion/Dockerfile"),
         "stages": ("people_bodies",),
         "why": "every person's and animal's motion clips, on the characters-motion image"},
     "sam3dbody-cpp": {
         "use": WIRED, "image": "characters-motion", "names": ("sam3dbody-cpp",),
-        "callers": ("tools/characters/maker/body_picture.py", "tools/props/cloud/characters.py",
+        "callers": ("tools/characters/maker/body_picture.py", "tools/cloud/characters.py",
                     "tools/characters/clips/video_motion.py", "tools/cloud/images/characters-motion/Dockerfile"),
         "stages": ("video_clips",),
         "why": "SAM 3D Body: the body read off a person's close-up (body_picture.py, on rented cards) and a body's "

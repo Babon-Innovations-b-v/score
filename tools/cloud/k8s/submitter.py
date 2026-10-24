@@ -11,7 +11,7 @@ secret, from the provider's object_store() and registry() at submit time, never 
 pool's size from the month's euros left, makes one Job a job (`manifests.py`) and then, every POLL_SECONDS, reads
 the Jobs, their pods, the autoscaler's events on them and the nodes.
 
-The order of classes. A kind's classes and their order come from `tools/props/cloud/capacity.py` (KINDS,
+The order of classes. A kind's classes and their order come from `tools/cloud/capacity.py` (KINDS,
 KIND_ORDER, LATE), never copied; a spec may name its own `classes` (as `--classes` does for the machine runners).
 A Job starts allowed on the kind's first class only, so the cluster autoscaler grows that class's pools (in any of
 their zones). When the autoscaler says it cannot (every pool of the allowed classes backed off after a failed
@@ -44,7 +44,7 @@ import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
-CLOUD = HERE.parents[1] / "props" / "cloud"
+CLOUD = HERE.parents[1] / "cloud"
 sys.path.insert(0, str(CLOUD.parent))
 sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(HERE))

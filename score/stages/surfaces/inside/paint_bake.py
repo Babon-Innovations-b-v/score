@@ -1,4 +1,4 @@
-"""Runs inside Blender on a rented card (tools/props/cloud/blender_cloud.py, the finish route's bake,
+"""Runs inside Blender on a rented card (tools/cloud/blender_cloud.py, the finish route's bake,
 ../route_bake.py): one take painted and baked in one job, so nothing heavy runs on the owner's PC (#18, 2026-10-20).
 
     blender -b --python paint_bake.py -- <listing>    (route_bake.card_job's: the bake's inputs, the take, its part

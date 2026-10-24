@@ -36,7 +36,7 @@ import time
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 RUNTIME = REPO / "tools/cloud/runtime"
-sys.path.insert(0, str(REPO / "tools/props/cloud"))
+sys.path.insert(0, str(REPO / "tools/cloud"))
 sys.path.insert(0, str(REPO / "tools/props"))
 sys.path.insert(0, str(RUNTIME))
 

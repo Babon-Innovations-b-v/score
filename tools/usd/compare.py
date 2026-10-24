@@ -206,7 +206,7 @@ def similar_scores(pairs, out, cloud, who):
     if not cloud or not pairs:
         return {}
     (out / "pairs.json").write_text(json.dumps(pairs, indent=1))
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import similar
     return similar.likeness(pairs, out / "likeness.json", who)
 

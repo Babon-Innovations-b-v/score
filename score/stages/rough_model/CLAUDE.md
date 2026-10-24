@@ -9,7 +9,7 @@ the output and the gates. Bible: `architecture/components`.
 - **Every place with a plan, in any environment.** It applies where `plan` does (`scene_record.written`), outside
   shells and inside places alike; nothing in it names a place of environment 1.
 - **The concept is the one the plan names, never chosen here** (its `concept.picture`, a declared file).
-- **The existing cloud path, not a new one.** `_cloud.py` runs `tools/props/cloud/batch.py`'s own command (its plan,
+- **The existing cloud path, not a new one.** `_cloud.py` runs `tools/cloud/batch.py`'s own command (its plan,
   price, clearance at every rent point, ledger line and finish) with only its row check swapped for the approval half
   (the inventory approved; no style: Pixal3D is worded by nothing): a rough model is on no inventory row. `batch.py`
   is never edited for it: the `pixal` row declares that file, so an edit there moves a paid key.

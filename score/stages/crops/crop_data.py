@@ -26,7 +26,7 @@ from score.stages import design_layers, row_kinds
 REPO = pathlib.Path(__file__).resolve().parents[3]
 # The SAM 3 runner and the script it copies up: imported inside the rows (tools()), so declared as files instead.
 MASKS_TOOLS = {"masks": "{repo}/tools/props/scene/box_masks.py",
-               "masks runner": "{repo}/tools/props/cloud/box_masks_cloud.py"}
+               "masks runner": "{repo}/tools/cloud/box_masks_cloud.py"}
 # The view every crop row reads: the place's locked design concept ({home}/design/concepts/<place>.png).
 DESIGN_VIEW = "design"
 
@@ -151,4 +151,4 @@ def layer_files(place):
 def look_files(place):
     """The look row's files: the design (the beds it stands the crops on), the SAM 3 tools and the renderer."""
     return {**design_files(place), **MASKS_TOOLS, "renderer": "{repo}/tools/blender/inside",
-            "blender runner": "{repo}/tools/props/cloud/blender_cloud.py"}
+            "blender runner": "{repo}/tools/cloud/blender_cloud.py"}

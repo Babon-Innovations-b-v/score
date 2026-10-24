@@ -1,4 +1,4 @@
-"""Runs inside Blender on a rented card (tools/props/cloud/blender_cloud.py; ../baked_body.py, the dress's bake): a
+"""Runs inside Blender on a rented card (tools/cloud/blender_cloud.py; ../baked_body.py, the dress's bake): a
 dressed body's library surfaces baked into one picture set, the way the library bakes a code-built piece's own
 surfaces (tools/props/library/inside/bake.py `Atlas.bake_self`: each slot's recipe, wear and dirt given off as light
 into base colour, roughness and metal, the normal map from the shaded recipe).

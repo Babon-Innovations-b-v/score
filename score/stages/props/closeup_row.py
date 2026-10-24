@@ -35,7 +35,7 @@ EUROS = round(51 * 2 * DOLLARS_A_PICTURE, 2)
 
 def closeup_tools():
     """The close-up stage (tools/props/closeup/stage.py) and its shape check, imported under prop_data.tools."""
-    with prop_data.tools("props/closeup", "props", "props/cloud"):
+    with prop_data.tools("props/closeup", "props", "cloud"):
         import check
         import stage
     return stage, check
@@ -127,7 +127,7 @@ def draw_missing(rows, out):
     for take in stage.PRO_TAKES:
         if not failed:
             break
-        with prop_data.tools("props/closeup", "props", "props/cloud"):  # Pro's key is read through secret_store
+        with prop_data.tools("props/closeup", "props", "cloud"):  # Pro's key is read through secret_store
             stage.draw_with_pro(rows, out, failed, take)
         for row in rows:
             if row["id"] in failed:

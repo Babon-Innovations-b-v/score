@@ -9,8 +9,8 @@ make.py sends a spec here only with --experimental (docs/bible.md, architecture/
 "picture" (a side-on close-up), "body" ("fish" or "quadruped"), "length_m" and "clips"; `folder` is where the make
 lands (~/.farm-factory-motion/made/<name>/). The steps, each skipped when its output is already there:
 
-1. mesh    Pixal3D from the picture (../../props/cloud/batch.py --characters), finished as every batch model is
-2. rig     a quadruped through UniRig on a card (../../props/cloud/unirig.py); a fish gets a spine made in Blender
+1. mesh    Pixal3D from the picture (../../cloud/batch.py --characters), finished as every batch model is
+2. rig     a quadruped through UniRig on a card (../../cloud/unirig.py); a fish gets a spine made in Blender
 3. clips   blender_rig.py on one held cloud machine: stood, scaled, rigged, its clips keyed, <name>.glb and lods/
 4. review  blender_review.py on the same machine: review/turntable/ and review/<clip>/ frames, and a GIF of each
 5. usd     usd/<name>.usdc through ../skel_usd.py (plain Python)
@@ -27,12 +27,12 @@ import time
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent.parent / "props"))
-sys.path.insert(0, str(HERE.parent.parent / "props" / "cloud"))
+sys.path.insert(0, str(HERE.parent.parent / "cloud"))
 
 from paths import HOME, WORK  # noqa: E402
 
 CLOUD_PYTHON = HOME / "env/bin/python"
-CLOUD = HERE.parent.parent / "props" / "cloud"
+CLOUD = HERE.parent.parent / "cloud"
 # The review renders want a card (Cycles), else a 32-core processor machine when no card is in stock; the rig job
 # runs on the same machine first.
 CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb")

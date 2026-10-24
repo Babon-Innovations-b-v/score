@@ -214,7 +214,7 @@ stage as each stage is built; nothing moves before.
   scene inventory reading run (`review/reading.py`, node `inventory-read`) cleared under the owner's standing
   allowance of 2026-10-21, no yes and no stop line, the books asked, at most `READING_EUROS` a place, against a grant
   when tagged), `engines`
-  (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
+  (Blender: the blender image's job, or `tools/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
   `vendored` (the table of every tool in `vendor/`: where it is called, or why it is left out; its test fails on a
   tool vendored and forgotten).
 - **`library/`** the one reader of the creator's library files (score_lib's `entries/` and `index/`), checked against

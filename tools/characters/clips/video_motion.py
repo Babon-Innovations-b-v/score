@@ -1,4 +1,4 @@
-"""A body's motion read off a video, on the rented card (tools/props/cloud/characters.py runs it for a make folder
+"""A body's motion read off a video, on the rented card (tools/cloud/characters.py runs it for a make folder
 whose spec names "program": "video_motion.py"; never on the owner's PC):
 
     /root/envs/motion/bin/python video_motion.py /root/make/<name>

@@ -44,7 +44,7 @@ def make_look(inputs, out, seed, params):
                                    "inputs": [str(folder / "body.glb")], "outputs": [str(shots)],
                                    "minutes": MINUTES}, indent=1))
         jobs.append(job)
-    done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/blender_cloud.py"), *map(str, jobs),
+    done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/blender_cloud.py"), *map(str, jobs),
                            "--who", "people-look", "--classes", "gpu-24gb"], cwd=REPO, capture_output=True, text=True)
     (out / "look.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
     if done.returncode:

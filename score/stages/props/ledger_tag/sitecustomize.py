@@ -1,4 +1,4 @@
-"""Every ledger line a process writes, tagged with SCORE_LEDGER_TAG: the cloud ledger's (tools/props/cloud/ledger.py
+"""Every ledger line a process writes, tagged with SCORE_LEDGER_TAG: the cloud ledger's (tools/cloud/ledger.py
 `record`) and Google's (google_spend.py `write`), so a run's euros count apart from every other line's.
 
 Python imports `sitecustomize` at start-up from the path, so a process started with this folder on PYTHONPATH and the

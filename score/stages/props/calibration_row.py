@@ -26,7 +26,7 @@ def make_calibration(inputs, out, seed, params):
         scored[model] = likeness.best_way(made, closeup)
         pairs[model] = likeness.write_pair(made, closeup, scored[model]["way"], out / "pairs", model)
     (out / "outline.json").write_text(json.dumps(scored, indent=1))
-    with prop_data.tools("props/cloud", "props"):
+    with prop_data.tools("cloud", "props"):
         import similar
         scores = similar.likeness(pairs, out / "likeness.json", "score likeness calibration")
     least = round(min(scores.values()) - MARGIN, 4) if len(scores) == len(pairs) and scores else None

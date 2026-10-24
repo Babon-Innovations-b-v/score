@@ -34,4 +34,4 @@ Google (Gemini and Nano Banana Pro), by caller:
       2.24  Nano Banana Pro pictures (close-ups, casts)
       0.83  surfaces-lists (Gemini 3.1 Pro)
      34.19  total
-Made from the cloud ledger (ledger.jsonl) and the Google ledger (google-ledger.jsonl) (see tools/props/cloud/CLAUDE.md): cloud rows summed by the stage named in their runner ticket ("<stage>@<place> <key>"), the people-body-<look> and people-take-<look> rows merged; Google calls summed by caller, a finished call at its price, a call started and never finished at its estimate. No machine names, addresses or keys are copied.
+Made from the cloud ledger (ledger.jsonl) and the Google ledger (google-ledger.jsonl) (see tools/cloud/CLAUDE.md): cloud rows summed by the stage named in their runner ticket ("<stage>@<place> <key>"), the people-body-<look> and people-take-<look> rows merged; Google calls summed by caller, a finished call at its price, a call started and never finished at its estimate. No machine names, addresses or keys are copied.

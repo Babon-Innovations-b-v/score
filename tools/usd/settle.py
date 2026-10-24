@@ -390,12 +390,12 @@ def simulate(stage_path, loose, folder, cloud=False, ignore=(), start=None, unde
                                "under": under or {}}, indent=1))
     if out.exists():
         out.unlink()
-    if cloud:  # a rented processor machine (tools/props/cloud/blender_cloud.py), not this PC's one Blender
+    if cloud:  # a rented processor machine (tools/cloud/blender_cloud.py), not this PC's one Blender
         kept = pathlib.Path(cache) / drop_key(stage_path, job) / "settled.json" if cache else None
         if kept is not None and kept.exists():
             out.write_bytes(kept.read_bytes())
             return json.loads(out.read_text())
-        sys.path.insert(0, str(REPO / "tools/props/cloud"))
+        sys.path.insert(0, str(REPO / "tools/cloud"))
         import blender_cloud
         blender_cloud.run_elsewhere(INSIDE, [stage_path, job, out], [stage_path.parent, job], [out],
                                     DROP_CLASSES, "settle", minutes=30)
@@ -719,8 +719,8 @@ def write_kit_room(settled, kit, kit_path):
 
 
 def detach(stage_path, kit_path):
-    """Rerun this call detached (tools/props/cloud/detached.py); its outputs are the settle folder and the layout."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    """Rerun this call detached (tools/cloud/detached.py); its outputs are the settle folder and the layout."""
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import detached
     stage = Usd.Stage.Open(str(stage_path))  # held: a prim of a stage nothing holds expires at once
     place = stage.GetDefaultPrim().GetName()
@@ -735,7 +735,7 @@ def main():
     parser.add_argument("--cloud", action="store_true", help="simulate on a rented processor machine")
     parser.add_argument("--reuse", action="store_true", help="write back the last run's result (settle/settled.json)")
     parser.add_argument("--detach", action="store_true", help="progress to a log, one result line at the end "
-                        "(tools/props/cloud/detached.py): start it with run_in_background, never poll it")
+                        "(tools/cloud/detached.py): start it with run_in_background, never poll it")
     arguments = parser.parse_args()
     stage_path = arguments.stage.resolve()
     kit_path = arguments.kit.resolve()

@@ -1,6 +1,6 @@
 """pixal@<place>: the prop objects' raw models from their close-ups, by Pixal3D through the existing cloud batch.
 
-tools/props/cloud/batch.py makes every take on rented cards (the close-up cut out on the machine, Pixal3D) and brings
+tools/cloud/batch.py makes every take on rented cards (the close-up cut out on the machine, Pixal3D) and brings
 each back raw (--no-finish) into WORK/pixal/ as <take>.glb and <take>.svviews (the close-up and its camera); each is
 finished on another rented machine (finish_here: pixal.py --finish-only, never on the owner's PC) into
 <take>-final.glb: the files the surface stage's line reads for every take its data lists
@@ -130,7 +130,7 @@ def make_pixal(inputs, out, seed, params):
                if (closeups / f"{row}.png").exists()}  # one with no close-up failed the prop route there
     listing = batch_list(objects, closeups, inputs["surfaces"], out)
     if listing:
-        done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/batch.py"), str(listing), "--who",
+        done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/batch.py"), str(listing), "--who",
                                f"score pixal {prop_data.record_at(inputs['props'])['place']}", "--inventory",
                                str(inputs["inventory"]), "--no-finish"], cwd=REPO, capture_output=True, text=True)
         (out / "batch.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])

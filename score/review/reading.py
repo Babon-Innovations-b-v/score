@@ -10,7 +10,7 @@ reading's cost is recorded and its running total shown in the cockpit). Its plan
    (tools/props/scene/inventory.py: `size` the metres, `size_words` the words), one direct call on the Google ledger.
    A row whose metres are not three lengths has no size, a gap of its place (`gaps`); SAM 3 gives where, never size.
 2. SAM 3 finds each row in the concept by its own words first, then its noun (tools/props/scene/box_masks.py on one
-   rented card through tools/props/cloud/box_masks_cloud.py, every place of one reading run on the same card), each
+   rented card through tools/cloud/box_masks_cloud.py, every place of one reading run on the same card), each
    instance's pixel box kept on its row, and asks PROBES, generic words, for what no row names.
 3. Their agreement is the confidence cut-off (`agreed`, the owner, 2026-10-21): an object is a row only where Gemini
    named it and SAM 3 found it, its count the instances SAM 3 found of it; a row SAM 3 found none of and a find no
@@ -494,7 +494,7 @@ def settled(place, rows, measured, size, holds=()):
 
 def card_estimate(jobs):
     """The euros SAM 3's card is forecast at for `jobs` (box_masks_cloud's minutes at the dearest card offered)."""
-    sys.path.insert(0, str(concepts.REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(concepts.REPO / "tools/cloud"))
     import batch
     import box_masks_cloud
     import capacity
@@ -508,7 +508,7 @@ def card_estimate(jobs):
 
 def boxes_of(jobs, folder):
     """SAM 3 on one rented card over every job; (instances by key, its ledger entry)."""
-    sys.path.insert(0, str(concepts.REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(concepts.REPO / "tools/cloud"))
     import box_masks_cloud
     (folder / "jobs.json").write_text(json.dumps(jobs, indent=1))
     entry = box_masks_cloud.mask(folder / "jobs.json", folder / "masks.json")

@@ -2,7 +2,7 @@
 
 The provider-neutral Kubernetes path for the job images (`../images/`, `../runtime/`): a run's job specs become
 Kubernetes Jobs on node pools per capability class that scale from zero. Chosen by `SCORE_CLOUD=k8s`; the machine
-runners in `tools/props/cloud/` stay as they are.
+runners in `tools/cloud/` stay as they are.
 
 - `cluster_jobs.py` is the runners' one door (SCORE_CLOUD=k8s): jobs described as command, code, inputs and outputs
   at their paths become one run; outputs come back where the runner wants them. `blender_cloud.py` and

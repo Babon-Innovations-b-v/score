@@ -51,8 +51,8 @@ def test_for_loop_sleeping_long_rounds_is_blocked():
 
 
 def test_foreground_cloud_blender_runs_are_blocked():
-    for command in ("python tools/props/cloud/blender_cloud.py job.json --who me",
-                    "cd wt && ~/.farm-factory-props/env/bin/python tools/props/cloud/blender_cloud.py j.json --who me > log",
+    for command in ("python tools/cloud/blender_cloud.py job.json --who me",
+                    "cd wt && ~/.farm-factory-props/env/bin/python tools/cloud/blender_cloud.py j.json --who me > log",
                     ".venv/bin/python tools/usd/settle.py stage.usda --cloud",
                     ".venv/bin/python tools/review/page.py hub --run r --out o --cloud"):
         code, err = _run(_bash(command))
@@ -62,13 +62,13 @@ def test_foreground_cloud_blender_runs_are_blocked():
 
 def test_background_calls_pass():
     assert _run(_bash("while true; do sleep 30; done", background=True))[0] == 0
-    assert _run(_bash("python tools/props/cloud/blender_cloud.py job.json --who me --detach", background=True))[0] == 0
+    assert _run(_bash("python tools/cloud/blender_cloud.py job.json --who me --detach", background=True))[0] == 0
 
 
 def test_ordinary_commands_pass():
     for command in ("sleep 2; ls", "cd x && sleep 30 && ls", "for i in 1 2 3; do curl -s x && break; sleep 2; done",
                     "python -c 'import time\nwhile True: time.sleep(5)'", "git commit -m 'sleep 600'",
-                    "python tools/props/cloud/blender_cloud.py job.json --who me --dry-run",
+                    "python tools/cloud/blender_cloud.py job.json --who me --dry-run",
                     "python tools/review/page.py hub --run r --out o --cloud --no-render", "make tests"):
         assert _run(_bash(command))[0] == 0, command
 
@@ -78,8 +78,8 @@ def test_leading_long_sleep_is_blocked():
 
 
 def test_reading_the_cloud_tools_is_not_a_run():
-    for command in ("sed -n 1,60p tools/props/cloud/blender_cloud.py; grep -n add_argument tools/props/cloud/blender_cloud.py",
-                    "grep -n detach tools/props/cloud/blender_cloud*.py | head -40", "cat tools/usd/settle.py | grep cloud",
+    for command in ("sed -n 1,60p tools/cloud/blender_cloud.py; grep -n add_argument tools/cloud/blender_cloud.py",
+                    "grep -n detach tools/cloud/blender_cloud*.py | head -40", "cat tools/usd/settle.py | grep cloud",
                     "git diff tools/review/page.py --stat"):
         assert _run(_bash(command))[0] == 0, command
 

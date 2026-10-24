@@ -3,7 +3,7 @@ on its plot, and its plants counted with SAM 3 the way the concept's were: the c
 
     make     a stage of the beds alone (the plan's bed boxes, crop_data.beds_in, nothing else of the place) with the crops layer
              and its assets over it, rendered from VIEWS (tools/blender/inside/usd_views.py through
-             tools/props/cloud/blender_cloud.py, the look's pictures); SAM 3 asked for every kind's nouns on each
+             tools/cloud/blender_cloud.py, the look's pictures); SAM 3 asked for every kind's nouns on each
              picture (box_masks_cloud.py), each plant once whatever noun found it; each plant's centre taken back
              onto the beds' top from its foot (its box's bottom middle) through the view's camera, and counted
              the kind of the bed it stands on;
@@ -119,7 +119,7 @@ def render(stage_path, views, out):
     job = {"script": "tools/blender/inside/usd_views.py", "args": [str(stage_path), str(spec), str(out / "render")],
            "inputs": [str(stage_path.parent), str(spec)], "outputs": [str(out / "render")], "minutes": MINUTES}
     (out / "job.json").write_text(json.dumps(job, indent=1))
-    subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/blender_cloud.py"), str(out / "job.json"),
+    subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/blender_cloud.py"), str(out / "job.json"),
                     "--who", "score crops look", "--classes", CARDS], check=True, cwd=REPO)
 
 
@@ -185,7 +185,7 @@ def make_look(inputs, out, seed, params):
     render(stage_path, views, out)
     jobs = count_jobs(record, views, out)
     (out / "jobs.json").write_text(json.dumps(jobs, indent=1))
-    with crop_data.tools("props/cloud", "props"):
+    with crop_data.tools("cloud", "props"):
         import box_masks_cloud
         box_masks_cloud.mask(out / "jobs.json", out / "instances.json")
     instances = json.loads((out / "instances.json").read_text())

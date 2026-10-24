@@ -14,7 +14,7 @@ TEXT = (".py", ".html", ".css", ".js", ".yml", ".example", ".env", ".md", "")
 def provider_words():
     """The stems of the cloud backends and cluster modules, and the words of the providers the models adapter's
     paid APIs name (score/adapters/models API)."""
-    stems = {path.stem.split("_")[0] for folder in ("tools/props/cloud/backends", "tools/cloud/k8s/clusters")
+    stems = {path.stem.split("_")[0] for folder in ("tools/cloud/backends", "tools/cloud/k8s/clusters")
              for path in (REPO / folder).glob("*.py") if not path.stem.startswith("_")}
     models = (REPO / "score/adapters/models/__init__.py").read_text()
     for provider in re.findall(r'"provider":\s*"([^"]+)"', models):
@@ -23,7 +23,7 @@ def provider_words():
 
 
 def cloud_modules():
-    return {path.stem for folder in ("tools/props/cloud", "tools/cloud") for path in (REPO / folder).rglob("*.py")}
+    return {path.stem for folder in ("tools/cloud", "tools/cloud") for path in (REPO / folder).rglob("*.py")}
 
 
 def files():

@@ -4,7 +4,7 @@ them on a rented card: ../maker/chain.py's clips step, the row people-clips-made
 A text to motion model turns a sentence into a piece of skeletal animation. The sentences are
 here rather than in somebody's shell history, because the sentence *is* the animation: changing a
 word changes the walk, and a clip nobody can remake is a clip nobody can change. Everything about
-how the chain is installed is in `tools/props/cloud/characters_setup.sh`.
+how the chain is installed is in `tools/cloud/characters_setup.sh`.
 
 Two of these were re-generated once already. The first suit walk held the hands 0.62 m apart, a
 fifth wider than a plain walk, and the owner called it too wide (#36, 2026-09-20); the word that

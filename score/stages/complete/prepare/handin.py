@@ -6,7 +6,7 @@ the takes the estimate prices. Free and local; nothing in the stage table import
 A designed place is one whose plan is kept where the plan stage reads it (score/review/plans.KEPT: its pick, its
 scene inventory read from it, its plan). Its hand-in (`{home}/design/props/<place>.json`) is both the loop's hand-in
 record (prop_data's form) and the scene inventory the Pixal3D batch builds from (approved by the creator's pick, the
-owner 2026-10-21, which tools/props/cloud/batch.py built_from takes as it stands):
+owner 2026-10-21, which tools/cloud/batch.py built_from takes as it stands):
 
     {"place" (its style's id: library_of), "scene" (the place), "order": "prop-first",
      "approved": {"by": "the creator's pick", "concept": <sha256>}, "migrated": false, "room",

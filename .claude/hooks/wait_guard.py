@@ -35,7 +35,7 @@ _CLOUD_RUNS = (
 _WAY_OUT = (
     "Never wait in the foreground (CLAUDE.md, Agent tools): start the command with run_in_background: true and go on "
     "with other work or end your turn; the completion notice wakes you. Cloud runs and test gates: add --detach "
-    "(blender_cloud.py, tools/usd/settle.py, tools/review/page.py) or wrap them in tools/props/cloud/detached.py, "
+    "(blender_cloud.py, tools/usd/settle.py, tools/review/page.py) or wrap them in tools/cloud/detached.py, "
     "which prints one result line at the end. To wait for a condition, use the Monitor tool."
 )
 

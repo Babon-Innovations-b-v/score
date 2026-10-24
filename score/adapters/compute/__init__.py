@@ -10,10 +10,10 @@ accepted (score.graph), when the month's books are known (ledger.books_refusal),
 benchmark grant) has room for the run's forecast; there is no month's ceiling (owner, 2026-10-20: a batch's own stop
 is its high estimate plus 10%, set by his yes). The clearance is written to the store
 (`clearances/<node>/<key>/`); without it nothing is submitted, so a run that skips the runner cannot spend. The job
-carries its node and key, so the finish record and the job can be matched. The machine path (tools/props/cloud) is
+carries its node and key, so the finish record and the job can be matched. The machine path (tools/cloud) is
 reached the same way, through the engine adapter (score.adapters.engines), which asks for clearance first.
 
-Every place that spends (tools/props/cloud/batch.py's `rent`, tools/cloud/k8s/submitter.py's `submit` and
+Every place that spends (tools/cloud/batch.py's `rent`, tools/cloud/k8s/submitter.py's `submit` and
 clusters/scaleway.py's `up`, tools/props/closeup/pro.py's `draw`, tools/props/scene/marble.py's `generate` and
 `paint`) asks `require_cleared` first, so the old paid entry points (blender_cloud.py, detached.py, the runners,
 demo.py, make_jobs.py, the close-up stage) refuse to spend unless they run inside a cleared run:
@@ -114,8 +114,8 @@ class Refused(Exception):
 
 
 def ledger():
-    """tools/props/cloud/ledger.py, the batch limits, the books and what the month has cost."""
-    for folder in ("tools/props", "tools/props/cloud"):
+    """tools/cloud/ledger.py, the batch limits, the books and what the month has cost."""
+    for folder in ("tools/props", "tools/cloud"):
         if str(REPO / folder) not in sys.path:
             sys.path.append(str(REPO / folder))  # appended: its modules must not shadow anyone else's
     import ledger as cloud_ledger
@@ -124,7 +124,7 @@ def ledger():
 
 def cloud_bill():
     """What the cloud provider has billed this month so far (its own consumption, every product), in euros."""
-    ledger()  # puts tools/props/cloud on the path
+    ledger()  # puts tools/cloud on the path
     import provider
 
     return provider.cloud.month_spend(provider.cloud.account())
@@ -132,8 +132,8 @@ def cloud_bill():
 
 def google_bill():
     """What Google has billed this month so far (cost plus credits, EUR), read from its billing export
-    (tools/props/cloud/google_bill.py); google_bill.Unread when it cannot be read."""
-    books = ledger()  # puts tools/props/cloud on the path
+    (tools/cloud/google_bill.py); google_bill.Unread when it cannot be read."""
+    books = ledger()  # puts tools/cloud on the path
     import google_bill as export
 
     return export.month_euros(books.this_month())
@@ -149,7 +149,7 @@ def google_bill_set():
 
 def google_month():
     """What Google cost this month, in euros: with the owner's figure in the books (`google_before`, an override)
-    that figure plus the Google ledger's month (tools/props/cloud/google_spend.py, calls still going or lost
+    that figure plus the Google ledger's month (tools/cloud/google_spend.py, calls still going or lost
     included), else the higher of the Google bill the books last read (`google_bill`, lagging by hours) and the
     Google ledger's month."""
     books = ledger()
@@ -251,7 +251,7 @@ def unit_price(node, store):
 
 def run_forecast(node, euros, store=None, units=None):
     """A paid node's run forecast ({euros, minutes, high_minutes, measured}): its stage's measured runs in the cloud
-    ledger at their high euros, likely and high minutes (tools/props/cloud/preflight.py), else its measured per-unit
+    ledger at their high euros, likely and high minutes (tools/cloud/preflight.py), else its measured per-unit
     high times its units (unit_price, on `store`) with no minutes, else its measured per-unit high times the `units`
     its forecast rule counted (forecast_price, as the run's plan prices it, so a stop line set on the plan rests on
     the same measured figures) with their unit minutes, else the stage's own estimate `euros` with no minutes;
@@ -301,7 +301,7 @@ def counted(entry, units):
 
 def unit_minutes(stage, units):
     """How long `units` units of `stage` keep the run, on its measured time (PER_UNIT's `time`, the same ledger lines
-    as its euros) by the runner's own card rule (tools/props/cloud/preflight.py cards_for and minutes_for, capped at
+    as its euros) by the runner's own card rule (tools/cloud/preflight.py cards_for and minutes_for, capped at
     capacity.run_cap; the high minutes on the high job time and the high set-up): {likely_minutes, high_minutes,
     cards} (cards None for a stage of calls), or {minutes_why} when its time or set-up is unmeasured or no units were
     counted."""
@@ -316,7 +316,7 @@ def unit_minutes(stage, units):
     setup = time.get("setup_minutes") or {}
     if "likely" not in setup:
         return {"minutes_why": setup.get("why", f"{stage}: no measured set-up in {PER_UNIT.name}")}
-    ledger()  # puts tools/props/cloud on the path
+    ledger()  # puts tools/cloud on the path
     import capacity  # beside ledger.py
     import preflight
     numbers = {"job_seconds": time["unit_seconds"]["likely"], "high_job_seconds": time["unit_seconds"]["high"],
@@ -348,7 +348,7 @@ def guess(euros, guess_from):
 
 
 def run_price(node, euros, store=None, units=None, guess_from=None):
-    """A paid node's price as the creator cockpit shows it, on the runner's own numbers (tools/props/cloud/preflight.py):
+    """A paid node's price as the creator cockpit shows it, on the runner's own numbers (tools/cloud/preflight.py):
     {likely_euros, high_euros, likely_minutes, high_minutes, cards, runs, basis}. When the caller counted `units` by
     its stage's forecast rule (the gaps' price: a node in a gap's chain is made again, with what the gap adds),
     measured per unit times those first (forecast_price, basis "per unit × forecast"): neither a whole run of
@@ -751,7 +751,7 @@ def reading_clearance(store, places, euros, node=READING):
 
 
 def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0):
-    """Clear run `run_id`'s warm pool (tools/props/cloud/pool.py) at the largest of `choices` ([(sizes, euros)],
+    """Clear run `run_id`'s warm pool (tools/cloud/pool.py) at the largest of `choices` ([(sizes, euros)],
     largest first: pool.shrinking) whose holding cost, every machine warm for `hours` (the most its own lines, the
     machines' rent and idle time, can bill), fits with `beside` (the high of the run's own rows, cleared later against
     the same money), checked as a node's run is (the month's books, then a benchmark grant's balance when GRANT names
@@ -838,15 +838,15 @@ def submit(runner, node, job_store, run, job, spec):
 
 
 def batch_preflights(ticket):
-    """The pre-flights the run's batches kept so far (tools/props/cloud/preflight.py)."""
-    ledger()  # puts tools/props/cloud on the path
+    """The pre-flights the run's batches kept so far (tools/cloud/preflight.py)."""
+    ledger()  # puts tools/cloud on the path
     import preflight
     return preflight.kept(ticket)
 
 
 def pool_waiting(ticket):
-    """Whether the run's processes wait for a warm pool card now (tools/props/cloud/preflight.py is_waiting)."""
-    ledger()  # puts tools/props/cloud on the path
+    """Whether the run's processes wait for a warm pool card now (tools/cloud/preflight.py is_waiting)."""
+    ledger()  # puts tools/cloud on the path
     import preflight
     return preflight.is_waiting(ticket)
 

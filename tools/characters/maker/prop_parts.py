@@ -4,12 +4,12 @@ painting unit is a 3D part, each part one surface; no picture colour reaches the
     ~/.farm-factory-props/env/bin/python tools/characters/maker/prop_parts.py questions <run> <take> <spec.json> [--outfit work]
     ~/.farm-factory-props/env/bin/python tools/characters/maker/prop_parts.py parts <run> <take> <spec.json> [--outfit work]
 
-Before `questions`: the close-up's SAM 2.1 regions (../../props/cloud/segment.py on <run>/pictures/<take>.png, the
+Before `questions`: the close-up's SAM 2.1 regions (../../cloud/segment.py on <run>/pictures/<take>.png, the
 batch's cut-out), split_compare.py `inputs` (<run>/<take>/up/), GeoSAM2 seeded with them on the raw model
-(../../props/cloud/meshparts.py --methods geosam2) and the split laid on the raw model (split_spread.lay_geosam2).
+(../../cloud/meshparts.py --methods geosam2) and the split laid on the raw model (split_spread.lay_geosam2).
 
 `questions` writes each GeoSAM2 part outlined on the close-up with the person's allowed materials (part_judge.py) to
-<run>/questions/ for ../../props/cloud/judge.py, each asked with three seeds; `regions` adds each finish region of the
+<run>/questions/ for ../../cloud/judge.py, each asked with three seeds; `regions` adds each finish region of the
 close-up (`finish_regions`: SAM 2.1's smaller masks, a shoulder panel, the flag, the belt's front, the piping) to the
 same list, so one judge run answers both. `parts` reads the answers (<run>/answers/), names each part's material (most
 of its seeds' usable answers, else the nearest allowed colour), gives each part its role in the body (skin, hair,

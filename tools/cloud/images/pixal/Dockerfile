@@ -1,4 +1,4 @@
-# Pixal3D (raven38/pixal3d.cpp) as tools/props/cloud/machine_setup.sh installs it on a rented machine: upstream's
+# Pixal3D (raven38/pixal3d.cpp) as tools/cloud/machine_setup.sh installs it on a rented machine: upstream's
 # prebuilt CUDA 12 trellis-cli at the release vendor/image-to-3dlab/scripts/bootstrap_pixal3d.py pins (its --prebuilt
 # route, checked against the release's sha256), and the Python that runs the lab's generator and its cut-out through
 # rembg with BiRefNet-lite. No weights: score-job fetches them into the node cache (models.json) and run.sh lays them

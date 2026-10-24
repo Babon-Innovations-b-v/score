@@ -192,16 +192,16 @@ def test_run_machinery_moves_no_row_and_a_maker_moves_its_own():
     """Code that only decides where and how a job runs (the warm pool, spreading, the provider and its backend, the
     ledgers, forecasts, money guards, the cockpit) moves no row's code version (a body made again for EUR 0.30 by
     warm-pool edits, owner 2026-10-23); a maker's own code and a runner module that sends its scripts up still do."""
-    machinery = ("tools/props/cloud/pool.py", "tools/props/cloud/spread.py", "tools/props/cloud/provider.py",
-                 "tools/props/cloud/backends/scaleway.py", "tools/props/cloud/ledger.py",
-                 "tools/props/cloud/google_spend.py", "tools/props/cloud/preflight.py",
-                 "tools/props/cloud/secret_store.py", "score/adapters/compute/guard.py", "score/dashboard/__init__.py")
+    machinery = ("tools/cloud/pool.py", "tools/cloud/spread.py", "tools/cloud/provider.py",
+                 "tools/cloud/backends/scaleway.py", "tools/cloud/ledger.py",
+                 "tools/cloud/google_spend.py", "tools/cloud/preflight.py",
+                 "tools/cloud/secret_store.py", "score/adapters/compute/guard.py", "score/dashboard/__init__.py")
     moved = {(stage.name, path) for stage in stages.STAGES for path in machinery
              if code_after_editing(stage, path) != code_after_editing(stage, "nothing")}
     assert not moved, sorted(moved)
     bodies = [stage for stage in stages.STAGES if stage.name.startswith("people-body-")]
     assert bodies
-    for maker in ("score/stages/people_bodies/bodies.py", "tools/props/cloud/similar.py"):
+    for maker in ("score/stages/people_bodies/bodies.py", "tools/cloud/similar.py"):
         assert all(code_after_editing(stage, maker) != code_after_editing(stage, "nothing") for stage in bodies), maker
 
 

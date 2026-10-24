@@ -26,7 +26,7 @@ from score.conductor import size
 from score.graph import runs
 from score.store import running_under_agent
 
-CLOUD_TOOLS = pathlib.Path(__file__).resolve().parents[2] / "tools/props/cloud"
+CLOUD_TOOLS = pathlib.Path(__file__).resolve().parents[2] / "tools/cloud"
 
 
 def now():

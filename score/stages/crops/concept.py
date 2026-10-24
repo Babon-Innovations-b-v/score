@@ -1,7 +1,7 @@
 """crops-concept@<place>: how each crop kind grows on the concept (its patches and its spacing in plant widths),
 measured with SAM 3 on one rented card.
 
-SAM 3 (tools/props/scene/box_masks.py through tools/props/cloud/box_masks_cloud.py)
+SAM 3 (tools/props/scene/box_masks.py through tools/cloud/box_masks_cloud.py)
 is asked for the plot on the whole concept view, and for every noun of every kind on TILES tiles of it, each tile
 OVERLAP wider than its share and drawn UPSCALE times larger (small plants and plants that touch are found on the
 close tiles; on the whole picture SAM 3 merged the bushes into a few boxes), each row keeping up to KEEP_PLANTS
@@ -285,7 +285,7 @@ def make_concept(inputs, out, seed, params):
     tiles = write_tiles(inputs["concept"], out)
     jobs = jobs_of(record, inputs["concept"], size, tiles)
     (out / "jobs.json").write_text(json.dumps(jobs, indent=1))
-    with crop_data.tools("props/cloud", "props"):
+    with crop_data.tools("cloud", "props"):
         import box_masks_cloud
         box_masks_cloud.mask(out / "jobs.json", out / "instances.json")
     instances = on_picture(json.loads((out / "instances.json").read_text()), [box for _, box in tiles])

@@ -26,7 +26,7 @@ from score.store.restore import __main__ as command  # noqa: E402
 from score.store.restore import _bucket  # noqa: E402
 from score.store.restore._bucket import Fetch, index_checkouts  # noqa: E402
 
-import google_spend  # noqa: E402  (tools/props/cloud, on the path through the restore)
+import google_spend  # noqa: E402  (tools/cloud, on the path through the restore)
 
 PLACES = ("hangar", "station", "garage")  # a line each: the paid row, the paid gatherer, Blender
 REPO = pathlib.Path(__file__).resolve().parents[3]

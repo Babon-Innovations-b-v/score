@@ -78,7 +78,7 @@ import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
-CLOUD = HERE.parents[2] / "props" / "cloud"
+CLOUD = HERE.parents[2] / "cloud"
 # This file shares its name with the backend it uses (`backends/scaleway.py`): run as a script, its own folder
 # would shadow the backend, so it leaves the import path. Other code loads it by path (`../submitter.py`'s
 # cluster_module) under the name cluster_scaleway.

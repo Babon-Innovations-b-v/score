@@ -38,7 +38,7 @@ from score import graph
 from score.store import locked, tree_hash
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-for _folder in ("tools/props", "tools/props/cloud"):
+for _folder in ("tools/props", "tools/cloud"):
     if str(REPO / _folder) not in sys.path:
         sys.path.append(str(REPO / _folder))  # appended: its modules must not shadow anyone else's
 import ledger  # noqa: E402

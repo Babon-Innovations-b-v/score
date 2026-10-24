@@ -39,7 +39,7 @@ in the test.
   stage with no timed job stays unpriced. Every mode writes them (`with_warm`), the other stages byte for byte.
 - **The ledger is never rewritten.** What a row lacks (a kind, a machine type) is added beside it: the reconciliation
   file tags rows by batch, and an engine run's type is read from its price. A fix to the runners goes in
-  `tools/props/cloud/`, not here.
+  `tools/cloud/`, not here.
 - **The paper reads the public copies** in `paper/evidence/cloud/`: `scrub` writes the ledger's first rows with every
   local root replaced (`$PROPS`, `$MOTION`, `$HOME`, repository-relative), `reconcile` and `tables` read only those
   copies and the saved bill, so anyone reruns them from the repository. The bill file carries no account or project

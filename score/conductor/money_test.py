@@ -23,7 +23,7 @@ LINES = [{"project_id": "batch-id", "product_name": "Instances", "value": {"unit
 
 
 def test_the_bill_the_stop_line_counts_is_the_batch_projects_alone():
-    compute.ledger()  # puts tools/props/cloud on the path
+    compute.ledger()  # puts tools/cloud on the path
     import provider
     asked = []
 

@@ -68,10 +68,10 @@ missing=0
 for label in "${made[@]}"; do [ -f "$WORK/pictures/$label.png" ] || missing=1; done
 if [ "$missing" -eq 1 ]; then
   printf '\n== the pictures, on a rented card\n'
-  "$PYTHON" "$HERE/cloud/pictures.py" "$JOBS" --cards 1 || fail "making the pictures"
+  "$PYTHON" "$HERE/../cloud/pictures.py" "$JOBS" --cards 1 || fail "making the pictures"
 fi
 printf '\n== the models, as one cloud batch\n'
-"$PYTHON" "$HERE/cloud/batch.py" "$MODELS" --who "run.sh $NAME" || fail "making the models"
+"$PYTHON" "$HERE/../cloud/batch.py" "$MODELS" --who "run.sh $NAME" || fail "making the models"
 
 printf '\n== the page\n'
 "$PYTHON" "$HERE/review.py" "${made[@]}" --out "$NAME" || fail "building the page"

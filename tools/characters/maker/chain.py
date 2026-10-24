@@ -1,4 +1,4 @@
-"""The maker's step runner on a rented card (tools/props/cloud/characters.py sets the machine up with
+"""The maker's step runner on a rented card (tools/cloud/characters.py sets the machine up with
 characters_setup.sh; never on the owner's PC): a make folder's spec, its folders, every program a step runs and the
 record of each step. prop_chain.py's steps run through it; its own step is the clips.
 

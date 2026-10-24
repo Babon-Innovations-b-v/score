@@ -17,7 +17,7 @@ running nothing: the missing inputs, the nodes it would make and why, the paid r
 and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard); each buy's `price` and the run's
 (`price`: likely and high euros and minutes) are `price`'s numbers, so the basket and the clearance read the same.
 `spend` reads the month's spend as the runner's clearance counts it, and its `paid_refused` says why paid work is
-refused while the month's books are unknown (tools/props/cloud/ledger.py books_refusal; both ledgers were lost on
+refused while the month's books are unknown (tools/cloud/ledger.py books_refusal; both ledgers were lost on
 2026-10-19): `--read-back` writes the Scaleway bill and Google's (its billing export, SCORE_GOOGLE_BILLING_TABLE)
 into the books, `known` once Google's was read, and the owner's `--google-month` (refused in an agent's process)
 overrides the Google figure and makes them `known`. `price` gives each paid node its likely and high euros and minutes and the cards
@@ -39,7 +39,7 @@ rows' paid runs open and the euros the ledger holds for them since it started), 
 <status>` line, after the lines' closing states and on an error or a stopping signal too: `exit: ok, ...` only when
 every line is done, else `exit: stopped, N of M lines done, ...` (exit code 1), `exit: error: ...` or `exit: stopped by
 signal N, exit 128+N`. --detach returns at once with the log's path: the run goes on in a session of its own
-(tools/props/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
+(tools/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
 (`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line; a run stopped by
 SIGTERM, SIGINT or SIGHUP says `score run: stopped by signal N`, then `detached: stopped by signal N exit=128+N ...`.
 Wait for that line with the Monitor tool, never a poll loop. Its log is under $PROPS_HOME/logs, not /tmp, so it
@@ -49,7 +49,7 @@ machine is up, a closed session) is marked stopped and never started again.
 
 A run and everything it starts end together (2026-10-17: orphaned cloud machines and boxes billed by the started hour
 after runs were stopped): `run` names itself SCORE_RUN_ID (every node, batch and cloud tool it starts inherits it; their
-machines count against one cap for the whole run, tools/props/cloud/capacity.py) and leads a process group of its own
+machines count against one cap for the whole run, tools/cloud/capacity.py) and leads a process group of its own
 (a later stage of a shell pipeline takes the terminal along, so Ctrl-C still reaches it, and gives it back when the run
 ends). Stopped by SIGTERM, SIGINT or SIGHUP, it passes the stop on to that whole group unless the signal already reached
 it (Ctrl-C, a closed terminal, `kill -- -<pgid>`: a batch stops deleting at its second signal): stopped.PASS_ON to its
@@ -123,7 +123,7 @@ STOP_GRACE_SECONDS = 30
 GROUP_STOP_SECONDS = 1
 # A process running anything from here is a cloud tool: it deletes its machines on its own stop path, which may take
 # minutes (park.park's remote clean-up, one machine after another), and is never sent SIGKILL by a stopped run.
-CLOUD_TOOLS = REPO / "tools/props/cloud"
+CLOUD_TOOLS = REPO / "tools/cloud"
 # The cloud tools and the nodes they write to that a stopped run left to end on their own (stop_run): the run's
 # release waits for them (release_once_ended), checking every RELEASE_POLL_SECONDS.
 STILL_ENDING = []
@@ -480,7 +480,7 @@ def release_once_ended(runner, run_id, mark, pool_ticket=None):
 
 
 def cloud_tool(name):
-    """A module of the cloud tools (tools/props/cloud), imported by name."""
+    """A module of the cloud tools (tools/cloud), imported by name."""
     if str(CLOUD_TOOLS) not in sys.path:
         sys.path.insert(0, str(CLOUD_TOOLS))
     return __import__(name)

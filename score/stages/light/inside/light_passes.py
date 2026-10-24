@@ -1,4 +1,4 @@
-"""Runs inside Blender on a rented card (tools/props/cloud/blender_cloud.py): a place's stage rendered on its views as
+"""Runs inside Blender on a rented card (tools/cloud/blender_cloud.py): a place's stage rendered on its views as
 tools/blender/inside/usd_views.py renders a look, with each of the place's own lamps in a light group of its own, so
 one render gives the place's light lamp by lamp (Cycles light groups: each a pass of what that lamp alone lights).
 

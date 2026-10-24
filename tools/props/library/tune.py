@@ -28,7 +28,7 @@ import library  # noqa: E402
 from paths import WORK  # noqa: E402
 
 # Every render is a cloud run (one card a round): no bake or render runs on this PC (2026-10-06).
-CLOUD = HERE.parent / "cloud" / "library_bake.py"
+CLOUD = HERE.parent.parent / "cloud" / "library_bake.py"
 # The settings a round may turn, and how: multiplied for sizes, added for roughness; then held within bounds. The
 # relief bounds are the ink look's, not the photos': the first unbounded run (2026-10-06) matched the references'
 # photo grain by turning every paint into crinkled hammer-tone, which reads as mess under the ink pass. Relief finer

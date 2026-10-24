@@ -1,6 +1,6 @@
 """A run stopped from outside still says so (2026-10-12: a `score run` whose process group was sent SIGTERM ended its
 log with no line). `stop_on_signals` makes SIGTERM, SIGINT and SIGHUP say one line and exit 128 + the signal's number;
-run as a script it is tools/props/cloud/detached.py's run with that line as its result line, which `score run
+run as a script it is tools/cloud/detached.py's run with that line as its result line, which `score run
 --detach` starts. Outside detached.py on purpose: most stages' code version hashes that file, and an edit there would
 re-make them all. A command that exits REFUSED (a `score run` another run's registration refused after it was
 detached, graph/runs.py) gets its refusal, its output's last line, as its result line: `detached: refused: ...`.
@@ -157,7 +157,7 @@ def forward(number, wait=FORWARD_WAIT_SECONDS):
 def detached_run(log, outputs, command):
     """detached.run's way (the command's output to the log, one result line at the end), its result line also on a
     stopping signal: `detached: stopped by signal N exit=128+N minutes=... log=... outputs=...`; the exit code."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import detached
     started = time.time()
 

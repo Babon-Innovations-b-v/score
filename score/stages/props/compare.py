@@ -97,7 +97,7 @@ def calibration_set(place, code_builds):
 
 def box_verdicts(scene):
     """The close-up stage's box gate on a scene's rows: {row: (result, why)}."""
-    with prop_data.tools("props/scene", "props/closeup", "props", "props/cloud"):
+    with prop_data.tools("props/scene", "props/closeup", "props", "cloud"):
         import box_check
         rows = box_check.gate(scene)["rows"]
         return {row: (found["result"] == box_check.PASS, found.get("why", "")) for row, found in rows.items()}
@@ -299,7 +299,7 @@ def dinov2_scores(store, output):
 def ledger_euros(tag):
     """Every cloud and Google ledger line tagged `tag`, in euros: a Google call started with no finished line (failed,
     killed) at its model's estimate, as google_spend counts the month."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import google_spend
     import ledger
     cloud = sum(entry.get("euros", 0) for entry in ledger.entries() if entry.get("tag") == tag)
@@ -359,7 +359,7 @@ def derived(place, prop, code):
 def sample_euros(place):
     """{what: euros} of the sample's runs from the tagged ledger lines: Pro's close-ups, the rest of prop-first
     (Pixal3D, the surface line, DINOv2) and the code-builds run (DINOv2)."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import google_spend
     tag = tag_of(place, "prop-first")
     calls = [json.loads(line) for line in google_spend.LEDGER.read_text().splitlines() if line.strip()]
@@ -450,7 +450,7 @@ def table(place):
 
 def detach(argv, place, order):
     """This command again, less --detach, in a session of its own under detached.py; the log's path printed."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import detached
     log = detached.log_path_for(f"compare-{place}-{order}")
     command = [sys.executable, detached.__file__, "--log", str(log), "--outputs",

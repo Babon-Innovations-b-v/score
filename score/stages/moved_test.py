@@ -30,7 +30,7 @@ def test_8b402226_moves_the_turntables_by_the_file_they_declare():
     found = moved.moved("8b402226^", "8b402226")
     assert {"surfaces-turntable", "people-turntable"} <= set(found), sorted(found)
     turntable = found["surfaces-turntable"]
-    assert not turntable["code"] and len(turntable["files"]["tools/props/cloud/blender_cloud.py"]) >= 17
+    assert not turntable["code"] and len(turntable["files"]["tools/cloud/blender_cloud.py"]) >= 17
 
 
 def test_1f90a0fe_moves_the_rows_its_new_gap_files_reach():

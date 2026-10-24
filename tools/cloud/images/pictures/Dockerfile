@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # platforms: linux/amd64
-# score-pictures: diffusers for the open picture models (tools/props/cloud/picture_worker.py): FLUX.2 klein 4B
+# score-pictures: diffusers for the open picture models (tools/cloud/picture_worker.py): FLUX.2 klein 4B
 # (Flux2KleinPipeline) and Qwen-Image-Edit-2511 (QwenImageEditPlusPipeline, whose processor needs torchvision). The
 # versions are the ones picture_setup.sh's unpinned install takes today (2026-10-09: torch 2.14.1, diffusers 0.41.0,
 # transformers 5.19.0; requirements.txt, resolved and hashed). amd64 only: every card class we rent is on x86

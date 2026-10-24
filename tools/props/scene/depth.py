@@ -36,7 +36,7 @@ WEIGHTS = "Ruicheng/moge-2-vitl-normal"
 
 def measured(image):
     """MoGe-2's points, trusted pixels and lens for one picture, on the card."""
-    refuse_here("MoGe-2", "tools/props/cloud/scene.py <plan.json> with \"depth\": true in the plan")
+    refuse_here("MoGe-2", "tools/cloud/scene.py <plan.json> with \"depth\": true in the plan")
     sys.path[:0] = [str(SOURCE), str(HELPERS)]
     from moge.model.v2 import MoGeModel
     pixels = torch.tensor(np.asarray(image) / 255.0, dtype=torch.float32).permute(2, 0, 1)

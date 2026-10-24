@@ -3,7 +3,7 @@
 The tools for video clips (CONTEXT.md "video clip", #52): a body's motion read off the creator's video and put onto
 the people's rig. They are run by the row `video-clip-<clip>` (`score/stages/video_clips`).
 
-- `video_motion.py` runs on the rented characters machine (`../../props/cloud/characters.py` program
+- `video_motion.py` runs on the rented characters machine (`../../cloud/characters.py` program
   `video_motion.py`, through `../maker/chain.py`'s step runner). It runs sam3dbody-cpp's offline extractor on the
   video and keeps the BVH of the person seen in the most frames. Nothing here runs a model on the owner's PC.
 - `retarget.py` is plain numpy and scipy and runs on the store's machine. It reads the BVH, gives each of SOMA-X's 27

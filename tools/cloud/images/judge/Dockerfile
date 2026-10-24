@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # platforms: linux/amd64
-# score-judge: vLLM 0.31.0 for the open judge (tools/props/cloud/judge_worker.py, Qwen3.8-27B in FP8), the version
+# score-judge: vLLM 0.31.0 for the open judge (tools/cloud/judge_worker.py, Qwen3.8-27B in FP8), the version
 # the machine runner's unpinned install took on 2026-10-08 and 09 (its logs); requirements.txt, resolved and hashed.
 # amd64 only: every card class we rent is on x86 machines. No weights: models.json, fetched by the runtime into
 # /cache, and `judge-run` (run.sh) links them where the worker looks.

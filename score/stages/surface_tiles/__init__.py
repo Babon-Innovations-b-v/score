@@ -2,7 +2,7 @@
 plan, scene_record.writer `structure`) drawn with its library surfaces, not a flat colour (the materials audit,
 2026-10-18: "the room shell is a flat colour with no texture"). Each surface the shell takes from the scene's own
 surface library (surface-library@<place>, design_shell.PART_KINDS) is baked once, flat, as a repeating tile
-(tools/props/library/inside/make_tiles.py, on a rented card through tools/props/cloud/library_bake.py), in the scene
+(tools/props/library/inside/make_tiles.py, on a rented card through tools/cloud/library_bake.py), in the scene
 palette's tokens, wear and dirt (finish-route-palette@<place>); the assembly writes the shell with it
 (tools/usd/shaders.py tile_look), every TILE_METRES along the mesh's own uvs.
 
@@ -25,7 +25,7 @@ from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = PROPS_HOME / "env/bin/python"
-LIBRARY_BAKE = REPO / "tools/props/cloud/library_bake.py"
+LIBRARY_BAKE = REPO / "tools/cloud/library_bake.py"
 DESIGN = PROPS_HOME / "design"  # the locked designs (score/review/plans.KEPT's folder)
 # The tile's side and its normal map's texels a metre: a shell's far density, so the shell holds a wall's detail;
 # colour and metal-roughness at half, as every bake (a 1024 normal map a tile).
@@ -96,7 +96,7 @@ def files(place):
             "bake": "{repo}/tools/props/library/inside/bake.py", "recipes": "{repo}/tools/props/library/recipes.py",
             "runtime": "{repo}/tools/props/library/inside/runtime.py",
             "scene setup": "{repo}/tools/props/library/inside/scene_setup.py",
-            "library bake": "{repo}/tools/props/cloud/library_bake.py"}
+            "library bake": "{repo}/tools/cloud/library_bake.py"}
 
 
 def tile_job(inputs, out):

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The judge image's command (installed as judge-run): links the judge's weights from the node cache
 # (SCORE_MODEL_QWEN3_8_27B_FP8, models.json) to /root/model, where judge_worker.py loads them, then runs the job's
-# arguments with the model Python (for example: judge-run tools/props/cloud/judge_worker.py /root/judge/jobs.json).
+# arguments with the model Python (for example: judge-run tools/cloud/judge_worker.py /root/judge/jobs.json).
 # A job that names a kernel_cache (job.json; kernels.py points CUDA_CACHE_PATH into the node cache, per card and
 # driver, and keeps it in the store) gets vLLM's torch.compile cache, DeepGEMM's and FlashInfer's compiled kernels and
 # Triton's beside it, so a node's first judge job takes them from the store instead of compiling.
