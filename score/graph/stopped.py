@@ -18,8 +18,10 @@ import time
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 STOPPING = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
-# How long a detached run's command has to end after its signal is passed on: score run's own grace and a margin.
-FORWARD_WAIT_SECONDS = 40
+# How long a detached run's command has to end after its signal is passed on: score run's pool release
+# (POOL_RELEASE_SECONDS), its own grace (STOP_GRACE_SECONDS) and a margin for its spend release (2026-10-24: at 40 s a
+# stopped Buy was SIGKILLed 10 s into its pool release). Under systemd's default 90 s stop timeout.
+FORWARD_WAIT_SECONDS = 90
 # What a stopped `score run` sends its own nodes when the stop reached it alone (score/__main__.py): a node that has
 # not had a stop of its own passes SIGTERM on to its children and ends after them (pass_stop_on). A real-time signal,
 # numbered above every stopping one: Python runs pending handlers in signal number order, so a node whose main thread

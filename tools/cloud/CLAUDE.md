@@ -172,9 +172,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `batch.claim` (every spread runner) and `batch.rent_fleet` (Pixal3D) take a pool card (`park.adopt`, by class in
   any zone, another kind's cleaned and set up again) or wait for one, the wait outside the step's own time limit
   (`pool.paused`, `spread.one_machine`, the Pixal3D fleet's `keep_the_fleet`: fault of 2026-10-23, sound@hub's takes
-  made gaps by 15 min of shortage), a class the pool lacks added to it
-  (`pool.want`, which also raises that one class's disk, never every class's: the collector rents one card of it at
-  the bigger disk and `pool.trim` lets an idle smaller one of that class go, so the pool keeps its size);
+  made gaps by 15 min of shortage), a class the pool lacks or a bigger disk asked of it (`pool.want`: an ask of the
+  claiming process, never a change of the pool's sizes or disk; the collector rents that one card beside the pool
+  while the asker lives and `pool.trim` lets it go once idle after; fault of 2026-10-24: a sound row's 200 GB raised
+  every later L4's disk and threw a warm one away);
   `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
   the usual 15-minute quiet limit, the collector beating it) and deletes a broken one, which the collector replaces;
   a card whose taker died is deleted by the collector. A card goes back only from a kind with a clean-up in
@@ -182,7 +183,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   since the pool `characters`, `pictures`, `pictures-20b` and `scene`, its depth step's); the kinds whose set-up
   writes no mark (parts, unlit, similar, unirig, closeups, moss-sound) remove their whole folder and every set-up mark
   (`park.ALL_MARKS`: their set-up rebuilds `/root/venv`), so the next kind sets up again (fault of 2026-10-23: the
-  likeness threw its pool L4 away). A dead card's unfinished share (`spread.Shares.again`) or
+  likeness threw its pool L4 away); `prove` (`images/prove.py`, every sound row's takes) stops its containers and
+  removes its store credentials, docker and its caches staying (fault of 2026-10-24). A card not given back is struck
+  off the pool only once its delete went through (`park.park`), so a release still sees it. A dead card's unfinished share (`spread.Shares.again`) or
   Pixal3D jobs (`Fleet.again`) go back on the queue once (a finished job never runs again; a second death makes it a gap).
   Dead means it no longer answers (`batch.answers`, review of 2026-10-23): a share that failed on a card that still
   answers (a copy-in, a local fault) is a gap and the card works on, and a card that failed in set-up is followed by
@@ -190,13 +193,20 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   never takes card after card. The collector says a failed round (the provider's API, a delete) and tries again,
   backing off as for stock; only the pool's end, its release or its run's end stop it. Stop everything closes every
   open pool and ends its collector (`pool.close_all`) before it releases the parked cards, and a release tries every
-  card before it raises, `score run`'s release going on past it. Every card minute is charged once:
+  card, side by side, before it raises, `score run`'s release going on past it. A stopped `score run` releases its
+  pool first, before its 30 s grace (`stop_run`), so no card is rented in the place of one a stopping taker deletes;
+  the detached wrapper waits `stopped.FORWARD_WAIT_SECONDS` (90) for it; a collector stops at its first signal and
+  ignores the next, so its rents under way delete their machines (faults of 2026-10-24); a zombie holds no card
+  (`pool.process_alive`). Every card minute is charged once:
   rent to first parking (`pool-<run>-<id>`), each spell idle (`pool-idle-...`, at its take or release), the taker's
   use; each line carries the run and the pool's ticket. The pool's idle time is the run's own cost, to be counted in
   its high estimate, its stop line and a benchmark grant's balance, never cut by a smaller pool or a cheaper class
   (quality is never a cost lever). Every `score run` with card rows opens its pool before it drives
-  (`score/__main__.py` `opened_pool`): sized by `pool_sizes` (the most cards one row of a line is priced on, summed
-  over the lines, at most `MOST_CARDS`, all L4; another class is added by its claim), held until a batch's longest
+  (`score/__main__.py` `opened_pool`): sized by `pool_sizes` (`pool.counts_for`: the most cards one row of a line is
+  priced on, summed over the `--jobs` lines holding most, cards and processor machines together, at most
+  `MOST_CARDS`, all L4; another class is asked for by its claim) and lowered by the run's heartbeat as its card rows
+  end (`pool_tender`, `pool.resize`: never above its opening size; fault of 2026-10-24: 10 L4s and 3 POP2s held for 8
+  jobs, the cards about 40% busy), held until a batch's longest
   run (the ledger's `BATCH_HOURS`), its holding cost (`holding_euros`: every card every hour at its class's dearest
   offer) cleared first as its own node (`compute.pool_clearance`, node `gpu-pool`, key the run's id: the stop line
   or the benchmark grant, reserved for the whole run) and its collector started under that ticket alone; on the
@@ -207,9 +217,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   renting their own: never a failed run. `pool.release(run)` (from `score run`'s release, first thing, so
   also on a failed run, its stop line and Stop everything; the collector's own end when the pool's end passes or the run's
   process is gone) closes it and ends the collector: idle cards deleted at
-  once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. Not yet
-  wired: releasing the pool once the run has no card work left (before its last free rows), and the cockpit's
-  cards-warm figure.
+  once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. Every
+  rent is priced (`pool.rents`, `pool.fits`): every card alive and chosen, at the class rented for the pool's whole
+  hours, within the euros its clearance reserved, so the run's high stays a bound; an asked card with no room makes
+  room by letting an idle card go (`pool.make_room`), and one no pool of that clearance can hold is refused
+  (`pool.TooDear`). Not yet wired: the cockpit's cards-warm figure.
 - **With L4s sold out, the pool rents a bigger card in an L4's place** (owner, 2026-10-23, "yes" to: "when L4s are sold
   out, should the pool take a bigger GPU (L40S or H100) instead? It costs more per hour but gives the same quality
   ... within the run's money limit"): `pool.stand_in` takes the next larger single card in stock (L40S, then H100)

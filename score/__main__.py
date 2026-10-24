@@ -128,6 +128,13 @@ CLOUD_TOOLS = REPO / "tools/cloud"
 # release waits for them (release_once_ended), checking every RELEASE_POLL_SECONDS.
 STILL_ENDING = []
 RELEASE_POLL_SECONDS = 1
+# The longest the run's pool release may take on a stop, its cards deleted side by side (pool.release; a delete took 6
+# to 18 s, 2026-10-24): with STOP_GRACE_SECONDS it must stay under stopped.FORWARD_WAIT_SECONDS, after which a
+# detached run is SIGKILLed.
+POOL_RELEASE_SECONDS = 40
+# The paid rows the run's warm pool was sized on, (node, line, cards, on processors) each (card_rows): its heartbeat
+# lowers the pool as they end (pool_tender).
+POOLED_ROWS = []
 
 
 ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
@@ -451,10 +458,7 @@ def release_once_ended(runner, run_id, mark, pool_ticket=None):
     The run's card pool (pool.py) is released first, so no idle card waits on the tools still ending; a card its
     release could not delete is said and left to its self-delete, never a reason to keep the run's reservations; then
     the pool's own clearance (`pool_ticket`) ends, a benchmark grant drawing what its cards billed."""
-    try:
-        cloud_tool("pool").release(run_id)
-    except Exception:  # noqa: BLE001 - said on the run's error output; the rest of the release must still run
-        traceback.print_exc()
+    release_pool(run_id)
     if pool_ticket:
         from score.adapters import compute
         compute.release(pool_ticket)
@@ -479,6 +483,15 @@ def release_once_ended(runner, run_id, mark, pool_ticket=None):
     frozen.hand_on()  # the releaser removes it
 
 
+def release_pool(run_id):
+    """Close the run's card pool and delete its idle cards (pool.release); a failure is said on the run's error
+    output, never raised: what follows the release must still run."""
+    try:
+        cloud_tool("pool").release(run_id)
+    except Exception:  # noqa: BLE001 - said on the run's error output; the rest of the release must still run
+        traceback.print_exc()
+
+
 def cloud_tool(name):
     """A module of the cloud tools (tools/cloud), imported by name."""
     if str(CLOUD_TOOLS) not in sys.path:
@@ -495,8 +508,12 @@ def alive(pid):
 
 
 def stop_run(number):
-    """A stopping signal's end of a run: say so and end its process group (end_group)."""
+    """A stopping signal's end of a run: say so, close its card pool and delete its idle cards (release_pool) before
+    anything else, so no card is rented in the place of one a stopping taker deletes and none waits out the grace
+    (2026-10-24: three cards rented at a stop, and a release cut off by the detached run's SIGKILL), then end its
+    process group (end_group)."""
     print(f"score run: stopped by signal {number}", flush=True)
+    release_pool(os.environ.get(RUN_ID))
     killed, spared = end_group()
     if killed:
         print(f"score run: SIGKILL to {len(killed)} processes still there after {STOP_GRACE_SECONDS} s", flush=True)
@@ -524,27 +541,63 @@ def as_run(runner, drive, opening=None):
         release_once_ended(runner, run_id, mark, pool_ticket[0] if pool_ticket else None)
 
 
-def pool_sizes(runner, places, whole, options):
-    """{class: cards} of the run's warm card pool from its planned paid rows (selected_price's `cards`, the cards each
-    row's run is sized on): the most cards one row of a line holds (a line's rows run one after another), summed over
-    the lines, at most pool.MOST_CARDS, all of the cheapest class every kind but the judge and the 20B picture model
-    holds (capacity.SPEED_ORDER's first); a row of another class adds one when it claims (pool.want). The rows whose
-    stage the ledger knows as renders and bakes (pool.processor_able) are sized the same way on the pool's processor
-    machines instead (pool.with_processors), which they take before its cards (park.processor_first: faster for them,
-    2026-10-23). {} for a run with no card row."""
+def card_rows(runner, places, whole, options):
+    """[(node, line, cards, on processors)] of the run's planned paid rows priced on machines (selected_price's
+    `cards`), each on the pool's processor machines when the ledger knows its stage as renders and bakes
+    (pool.processor_able)."""
     pool = cloud_tool("pool")
     entries = cloud_tool("ledger").entries()
-    most, processor = {}, {}
+    rows = []
     for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage)):
         cards = selected_price(runner, buy).get("cards") or 0
-        line = buy.node.partition("@")[2] or buy.node
-        held = processor if cards and pool.processor_able(buy.node.partition("@")[0], entries) else most
-        held[line] = max(held.get(line, 0), cards)
-    cards = min(pool.MOST_CARDS, sum(most.values()))
-    if not cards and not processor:
+        if cards:
+            rows.append((buy.node, buy.node.partition("@")[2] or buy.node, cards,
+                         pool.processor_able(buy.node.partition("@")[0], entries)))
+    return rows
+
+
+def pool_sizes(rows, jobs):
+    """{class: cards} of the run's warm card pool from its card rows (card_rows): what at most `jobs` of them can hold
+    at once (pool.counts_for), all of the cheapest class every kind but the judge and the 20B picture model holds
+    (capacity.SPEED_ORDER's first); a row of another class asks for one when it claims (pool.want). The renders and
+    bakes are sized the same way on the pool's processor machines instead (pool.with_processors), which they take
+    before its cards (park.processor_first: faster for them, 2026-10-23). {} for a run with no card row."""
+    pool = cloud_tool("pool")
+    cards, processors = pool.counts_for([(line, count, on) for _, line, count, on in rows], jobs)
+    if not cards and not processors:
         return {}
-    return pool.with_processors({cloud_tool("capacity").SPEED_ORDER[0]: cards} if cards else {},
-                                sum(processor.values()))
+    return pool.with_processors({cloud_tool("capacity").SPEED_ORDER[0]: cards} if cards else {}, processors)
+
+
+def pool_tender(runner, jobs, started):
+    """The heartbeat's pool tending: the run's pool lowered to what its card rows still to run can hold at once
+    (pool.resize), a row that ended since `started` (accepted or stopped) no longer counted."""
+    def tend():
+        if not POOLED_ROWS:
+            return
+        left = [(line, count, on) for node, line, count, on in POOLED_ROWS if not ended_since(runner, node, started)]
+        cloud_tool("pool").resize(os.environ[RUN_ID], *cloud_tool("pool").counts_for(left, jobs))
+    return tend
+
+
+def ended_since(runner, node, started):
+    """Whether `node` was accepted, or left a fault report, since `started` (epoch seconds)."""
+    accept = runner.store.current_accept(node) or {}
+    if accept.get("at") and datetime.datetime.fromisoformat(accept["at"]).timestamp() >= started:
+        return True
+    fault = runner.desk("faults", node, ".txt")
+    return fault.exists() and fault.stat().st_mtime >= started
+
+
+def tending(gauges, tend):
+    """The heartbeat's `gauges`, with `tend` run first (its failure said, never the heartbeat's)."""
+    def beat():
+        try:
+            tend()
+        except Exception:  # noqa: BLE001 - said on the run's error output; the heartbeat goes on
+            traceback.print_exc()
+        return gauges()
+    return beat
 
 
 def planned_prices(runner, places, whole, options):
@@ -569,7 +622,8 @@ def opened_pool(runner, places, whole, options):
     None for a run with no card work, on the cluster, or with no room for even one machine (its rows then rent their
     own)."""
     from score.adapters import compute
-    sizes = pool_sizes(runner, places, whole, options)
+    rows = card_rows(runner, places, whole, options)
+    sizes = pool_sizes(rows, options.jobs)
     if not sizes or cloud_tool("provider").on_cluster():
         return None
     pool, hours, run_id = cloud_tool("pool"), compute.ledger().BATCH_HOURS, os.environ[RUN_ID]
@@ -589,6 +643,7 @@ def opened_pool(runner, places, whole, options):
     os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
     try:
         pool.start(run_id, sizes, time.time() + hours * 3600, euros=ticket["clearance"]["holding"])
+        POOLED_ROWS[:] = rows
     finally:
         for name, value in before.items():
             if value is None:
@@ -954,8 +1009,9 @@ def run_with_exit_line(runner, places, whole, options, argv):
     try:
         started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
         found = {}
-        as_run(runner, lambda: found.update(driven(runner, places, whole, options, argv,
-                                                   gauges=run_gauges(runner, places, whole, options.stage, started))),
+        gauges = tending(run_gauges(runner, places, whole, options.stage, started),
+                         pool_tender(runner, options.jobs, time.time()))
+        as_run(runner, lambda: found.update(driven(runner, places, whole, options, argv, gauges=gauges)),
                opening=lambda: opened_pool(runner, places, whole, options))
         lines = closing_lines(runner, places, whole, options)
         status = exit_status(found, lines)

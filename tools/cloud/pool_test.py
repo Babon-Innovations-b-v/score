@@ -53,6 +53,13 @@ class Cloud:
                 "folder": folder, "deleted": None, "ready": None, "generating_began": None, "status": {},
                 "watchdog": GONE_PID}
 
+    def delete(self, server_id, zone):
+        """As the backend: True for a machine it deleted, False for one already gone."""
+        if server_id in self.deleted:
+            return False
+        self.deleted.append(server_id)
+        return True
+
     def install(self):
         batch.rent = self.rent
         batch.boot = lambda machine: machine.update(host="192.0.2.1", ready=time.time()) or machine["host"]
@@ -62,7 +69,7 @@ class Cloud:
         batch.start_watchdog = lambda server_id, zone, deadline, folder: GONE_PID
         batch.compute.require_cleared = lambda what, store=None: {"node": "test"}
         cloud.retag = lambda server_id, zone, tags: None
-        cloud.delete = lambda server_id, zone: self.deleted.append(server_id) or True
+        cloud.delete = self.delete
         cloud.offers = lambda classes: [offer for offer in OFFERS if offer.machine_class in classes]
         cloud.account = lambda: "account"
         cloud.allow_key = lambda *_: None
@@ -238,15 +245,15 @@ def test_a_stopped_runner_deletes_its_card_and_rents_nothing():
     assert calls.deleted == [card["id"]] and len(calls.rented) == 1 and not pool.members(run_id)
 
 
-def test_a_class_the_pool_lacks_is_added_and_no_stock_never_empties_the_offers():
+def test_a_class_the_pool_lacks_is_asked_for_and_no_stock_never_empties_the_offers():
     calls, run_id = fresh(stock=0, sizes={"gpu-24gb": 1})
     big = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "shortage")]
     pool.want(run_id, big, "judge", 100)
     plan = pool.current(run_id)
-    assert plan["sizes"] == {"gpu-24gb": 1, "gpu-48gb": 1} and pool.disk_of(plan, "gpu-48gb") == 100
-    assert pool.disk_of(plan, "gpu-24gb") == plan["disk_gb"] == batch.DISK_GB  # only the class the claim takes
+    assert plan["sizes"] == {"gpu-24gb": 1}  # the pool's own sizes never change: the claim's card is an ask
+    assert pool.shortfall(plan, []) == [("gpu-48gb", 100, True), ("gpu-24gb", batch.DISK_GB, False)]
     cloud.offers = lambda classes: [offer for offer in OFFERS + big if offer.machine_class in classes]
-    assert {offer.machine_class for offer in batch.one_class_in_stock(["gpu-48gb", "gpu-24gb"])} == {"gpu-48gb"}
+    assert {offer.machine_class for offer in batch.one_class_in_stock(["gpu-48gb", "gpu-24gb"])} == {"gpu-24gb"}
     pool.release(run_id)
     shortage = [offer._replace(stock_word="shortage") for offer in OFFERS]
     cloud.offers = lambda classes: [offer for offer in shortage if offer.machine_class in classes]
@@ -263,7 +270,7 @@ def test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned():
     commands = []
     batch.remote = lambda folder, host, command, **_: commands.append(command)
     unmarked = ["similar", "unirig", "parts", "closeups", "moss-sound", "unlit"]
-    kinds = [characters.KIND, "pictures", "pictures-20b", "scene", *unmarked]
+    kinds = [characters.KIND, "pictures", "pictures-20b", "scene", "prove", *unmarked]  # prove: the sound takes
     for kind in kinds:
         card = claimed(a_run(f"buy-{kind}"), kind)
         assert card is not None and card["pool"] == run_id, kind
@@ -271,7 +278,8 @@ def test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned():
         batch.delete_machine(card)
         assert len(park.pool_records(run_id)) == 1, kind  # back in the pool
     assert len(calls.rented) == 1 and not calls.deleted
-    for removed in ("/root/make/*", "/root/pics/out", "/root/props/work/scene", "/root/similar", "/root/UniRig"):
+    for removed in ("/root/make/*", "/root/pics/out", "/root/props/work/scene", "/root/similar", "/root/UniRig",
+                    "/root/smoke"):
         assert any(removed in command for command in commands), (removed, commands)
     assert all(park.ALL_MARKS in park.CLEANUPS[kind](card) for kind in unmarked)
     pool.release(run_id)
@@ -326,27 +334,146 @@ def test_a_pools_holding_cost_is_every_card_warm_every_hour_at_its_dearest_offer
         raise AssertionError("a class with no offer was priced")
 
 
-BIG = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "available")]
+def asker_gone(run_id):
+    """The pool's asks as if their asking process had ended."""
+    plan = pool.plan_of(run_id)
+    for ask in plan.get("asks", {}).values():
+        ask["pid"] = GONE_PID
+    pool.write_plan(run_id, plan)
 
 
-def test_a_bigger_disk_rents_one_card_of_the_claims_class_and_lets_a_smaller_idle_one_go():
-    """Review (2026-10-23): a claim's bigger disk was the whole pool's, so a card of every class was rented beside the
-    pool, never let go, every replacement at the bigger disk."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2, "gpu-48gb": 1})
-    cloud.offers = lambda classes: [offer for offer in OFFERS + BIG if offer.machine_class in classes]
-    assert grow(run_id) == 3
+def test_a_bigger_disk_is_one_card_beside_the_pool_for_its_claim_alone():
+    """Fault, 2026-10-24: a sound row's 200 GB disk raised the whole L4 class's disk for the rest of the run, a warm
+    60 GB card was let go for it and every later L4 was rented at 200 GB."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
+    assert grow(run_id) == 2
     pool.want(run_id, OFFERS, KINDS[0], 200)
     plan = pool.current(run_id)
-    assert pool.shortfall(plan, pool.members(run_id)) == [("gpu-24gb", 200)]  # one card, of the claim's class only
-    assert grow(run_id) == 1 and len(calls.rented) == 4
-    assert grow(run_id) == 0 and len(calls.deleted) == 1  # the next round lets one smaller idle card of it go
-    disks = sorted((card["class"], card["disk_gb"]) for card in pool.members(run_id))
-    assert disks == [("gpu-24gb", batch.DISK_GB), ("gpu-24gb", 200), ("gpu-48gb", batch.DISK_GB)]
+    assert pool.shortfall(plan, pool.members(run_id)) == [("gpu-24gb", 200, True)]
+    assert grow(run_id) == 1 and len(calls.rented) == 3 and not calls.deleted  # the warm smaller cards stay
     card = batch.claim(a_run("big-disk"), "account", OFFERS, 1, KINDS[0], 200, wanted=lambda: False)
     assert card["disk_gb"] == 200
+    card["healthy"] = True
+    batch.delete_machine(card)  # back to the pool while its asker lives
+    assert grow(run_id) == 0 and not calls.deleted
+    asker_gone(run_id)
+    assert grow(run_id) == 0 and calls.deleted == [card["id"]]  # idle, its asker gone: it goes, nothing replaces it
+    plan = pool.current(run_id)
+    assert plan["sizes"] == {"gpu-24gb": 2} and plan["disk_gb"] == batch.DISK_GB and not pool.shortfall(
+        plan, pool.members(run_id))
     pool.release(run_id)
 
 
+def test_every_rent_fits_the_pools_clearance_and_an_asked_card_makes_room():
+    """Review of 2026-10-24: a card a claim asked for (a bigger disk, a class the pool lacks) was rented beside the
+    pool with no money check, so the pool could bill past its clearance."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2}, euros=2 * HOUR_OF_L4)
+    offered(OFFERS + BIG)
+    assert grow(run_id) == 2
+    pool.want(run_id, OFFERS, KINDS[0], 200)
+    assert grow(run_id) == 1 and len(calls.rented) == 2 and len(calls.deleted) == 1  # room made, nothing beside
+    assert grow(run_id) == 1 and len(calls.rented) == 3  # the asked card in the room made
+    assert grow(run_id) == 0 and len(calls.rented) == 3  # the place it took is not filled again while it is asked
+    pool.release(run_id)
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1}, euros=HOUR_OF_L4)
+    offered(OFFERS + BIG)
+    try:
+        pool.want(run_id, BIG, "judge", batch.DISK_GB)  # one L40S alone is two L4 hours
+        raise AssertionError("a card no pool of this clearance can hold was asked for")
+    except pool.TooDear:
+        pass
+    pool.release(run_id)
+
+
+def test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go():
+    """Second Buy of 2026-10-24: 10 L4s held to the end while the card rows were done by 14:38."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
+    assert grow(run_id) == 3
+    pool.resize(run_id, 1, 0)
+    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1}
+    assert grow(run_id) == 0 and len(calls.deleted) == 2
+    pool.resize(run_id, 5, 0)  # never above its opening size
+    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 3}
+    pool.release(run_id)
+
+
+def test_a_stopped_takers_card_stays_on_the_pool_until_its_delete_went_through():
+    """Review of 2026-10-24: a card struck off before its delete was out of every release's sight when the taker was
+    killed between the two."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
+    grow(run_id)
+    card = claimed(a_run("stopped"), KINDS[0])
+    seen = []
+    cloud.delete = lambda server_id, zone: seen.append([found["id"] for found in pool.members(run_id)]) or True
+    batch.STOPPING.set()
+    try:
+        batch.delete_machine(card)
+    finally:
+        batch.STOPPING.clear()
+    assert seen[0] == [card["id"]] and not pool.members(run_id)  # on the pool while its delete ran
+    pool.release(run_id)
+
+
+def test_a_release_deletes_the_cards_side_by_side():
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 4})
+    assert grow(run_id) == 4
+    gate, started = threading.Barrier(4, timeout=5), []
+
+    def slow_delete(server_id, zone):
+        started.append(server_id)
+        gate.wait()  # each delete waits for the other three: one after another this would time out
+        return True
+    cloud.delete = slow_delete
+    pool.release(run_id)
+    assert len(started) == 4 and not pool.members(run_id)
+
+
+def test_a_pool_holds_what_its_jobs_can_run_at_once():
+    """Second Buy of 2026-10-24: sized on every line at once, 10 L4s and 3 POP2s opened for 8 jobs."""
+    rows = [(f"place-{number}", 3, False) for number in range(12)] + [("place-0", 1, True), ("place-1", 2, True)]
+    assert pool.counts_for(rows, 8) == (pool.MOST_CARDS, 0)  # the eight lines holding most: cards
+    assert pool.counts_for(rows, 2) == (6, 0)
+    assert pool.counts_for([("hub", 2, False), ("hub", 5, False), ("hub", 1, True)], 8) == (5, 1)  # a line's most
+    assert pool.counts_for([("hub", 2, False), ("lab", 3, True)], 1) == (0, 3)
+    assert pool.counts_for([], 8) == (0, 0)
+
+
+def test_the_collector_stops_once_and_lets_its_release_finish():
+    """First Buy of 2026-10-24: the run's release signalled the stopping collector again, and a card it was renting
+    was never deleted."""
+    import signal
+    before = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+    pool.stop_on_signals()
+    try:
+        try:
+            os.kill(os.getpid(), signal.SIGTERM)
+            time.sleep(1)
+            raise AssertionError("the first stop did not end the collector")
+        except SystemExit:
+            pass
+        assert batch.STOPPING.is_set() and signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
+        os.kill(os.getpid(), signal.SIGTERM)  # the second: ignored, the release goes on
+    finally:
+        for number, handler in before.items():
+            signal.signal(number, handler)
+        batch.STOPPING.clear()
+
+
+def test_a_zombie_holds_nothing():
+    """A taker killed and not yet reaped holds its card no longer (review of 2026-10-24)."""
+    child = os.fork()
+    if child == 0:
+        os._exit(0)
+    stat = pathlib.Path(f"/proc/{child}/stat")
+    deadline = time.time() + 5
+    while time.time() < deadline and stat.read_text().rpartition(")")[2].split()[0] != "Z":
+        time.sleep(0.01)
+    assert not pool.process_alive(child)  # ended, not yet reaped
+    os.waitpid(child, 0)
+    assert pool.process_alive(os.getpid())
+
+
+BIG = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "available")]
 L4_SHORT = [offer._replace(stock_word="shortage") for offer in OFFERS]
 HOUR_OF_L4 = CARD_PRICE * 60  # what the pool's clearance reserves for one L4 held its whole hour
 
@@ -362,7 +489,7 @@ def test_with_l4s_sold_out_the_pool_rents_an_l40s_in_an_l4s_place_and_a_24gb_cla
     assert grow(run_id) == 1  # one L40S (two L4 hours) fits the two L4s' reservation; a second would not
     [card] = pool.members(run_id)
     assert card["class"] == "gpu-48gb" and card["for"] == "gpu-24gb"
-    assert pool.shortfall(pool.current(run_id), pool.members(run_id)) == [("gpu-24gb", batch.DISK_GB)]
+    assert pool.shortfall(pool.current(run_id), pool.members(run_id)) == [("gpu-24gb", batch.DISK_GB, False)]
     assert claimed(a_run("on-l40s"), KINDS[0])["class"] == "gpu-48gb"  # asked on L4 offers alone
     assert "gpu-80gb" not in pool.takes("blender", OFFERS)  # a kind's never-classes stay out
     pool.release(run_id)
@@ -512,7 +639,8 @@ def test_a_render_takes_the_pools_processor_machine_a_model_kind_never_does():
     anything that needs a card (Pixal3D and the other models) still takes a card."""
     calls, run_id = processor_pool()
     assert claimed(a_run("pixal-waits"), "pixal") is None  # a card only: none warm, and the pool is asked for one
-    assert pool.current(run_id)["sizes"] == {PROCESSOR: 1, "gpu-24gb": 1}
+    plan = pool.current(run_id)
+    assert plan["sizes"] == {PROCESSOR: 1} and [ask["class"] for ask in pool.live_asks(plan)] == ["gpu-24gb"]
     machine = claimed(a_run("render"), "blender")  # asked on a card, takes the processor machine that is free
     assert machine["class"] == PROCESSOR and machine["pool"] == run_id
     assert spread.slots("blender", machine) == [None]  # so Cycles runs on its processor (FARM_CYCLES_CPU)
