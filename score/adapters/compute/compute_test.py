@@ -326,6 +326,26 @@ def test_a_measured_settle_run_is_not_timed_below_the_runs_it_is_read_from():
     assert timed["high_minutes"] >= per_unit.quantile(walls, per_unit.HIGH), (timed, sorted(walls))
 
 
+def test_pixal_s_time_holds_its_finish_of_every_take():
+    """Buy of 2026-10-24: pixal finished its takes on machines of their own after its batch, and the forecast held
+    the batch alone. The per-unit file's pixal time holds its finish step (`then`), read from the blender lines its
+    node ran, and unit_minutes adds that step on its own machines: at least a set-up and a finish job more."""
+    sys.path.insert(0, str(compute.REPO / "tools/costs"))
+    import per_unit
+    then = compute.per_unit("pixal")["time"]["then"]
+    assert then["kind"] == per_unit.SPECS["pixal"]["then"]["kind"] and "unit_seconds" in then, then
+    with_finish = compute.unit_minutes("pixal", 20)
+    likely, high = compute.then_minutes(then, 20)
+    assert likely >= then["setup_minutes"]["likely"] + then["unit_seconds"]["likely"] / 60, (likely, then)
+    assert high >= likely and compute.then_minutes({"why": "none"}, 20) == (0.0, 0.0)
+    line = {"kind": "blender", "ticket": "pixal@yard k", "jobs": ["a", "b"], "machines": [
+        {"started": True, "start_wait_minutes": 0.5, "setup_minutes": 1.0, "unit_seconds": [40.0, 50.0]}]}
+    found = per_unit.then_times([(line, "test line 1"), ({**line, "ticket": "settle@yard k"}, "test line 2")],
+                                "pixal", "blender")
+    assert found["lines"] == 1 and found["unit_seconds"]["likely"] == 45.0, found
+    assert with_finish["likely_minutes"] is not None, with_finish
+
+
 def test_a_stage_row_says_where_its_estimate_is_written():
     """A paid row records the line that builds it (through a helper that hands its euros on), so a guess names it;
     a row made from another by dataclasses.replace keeps the first's line unless its estimate changed."""
