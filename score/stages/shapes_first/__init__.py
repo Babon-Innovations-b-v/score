@@ -96,11 +96,19 @@ def after_step(adapter, step):
     return dataclasses.replace(step, applies=layer_applies(adapter.layer, step.applies))
 
 
+# The finish route's row that reads the Pixal3D row only as optional: the scene palette, which the surface library,
+# and through it the base and every layer, reads. A stopped prop route leaves the palette without its takes' close-ups,
+# never the place without its base (Buy of 2026-10-24: one crashed close-up stopped the square's whole line).
+PALETTE = "finish-route-palette"
+
+
 def finish_route():
     """The finish route's rows, its views and its scene palette (which sees every take's close-up) waiting on the
-    Pixal3D row whose takes it paints (props.FEEDS; a place with no prop data reads without it, Runner.reads)."""
-    return tuple(dataclasses.replace(row, after={**row.after, **props.FEEDS})
-                 if row.name in ("finish-route-views", "finish-route-palette") else row for row in surfaces.ROWS)
+    Pixal3D row whose takes it paints (props.FEEDS; a place with no prop data reads without it, Runner.reads); the
+    palette reads it as optional: it waits on it and runs without it once it stopped (Runner.unsettled)."""
+    return tuple(dataclasses.replace(row, after={**row.after, **props.FEEDS},
+                                     optional=(*row.optional, *props.FEEDS) if row.name == PALETTE else row.optional)
+                 if row.name in ("finish-route-views", PALETTE) else row for row in surfaces.ROWS)
 
 
 def rows(adapters=ADAPTERS):

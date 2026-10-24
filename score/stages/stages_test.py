@@ -225,6 +225,24 @@ def test_the_light_layer_reads_and_waits_on_every_body_face_row():
     assert faces and faces <= set(layer.after) and not faces & set(layer.optional)
 
 
+def test_no_base_or_layer_row_must_wait_on_the_prop_route():
+    """Buy of 2026-10-24: one crashed close-up stopped the square's earth seed, scene record, light and tiles, since
+    the scene palette, which the surface library and so the base read, waited on Pixal3D. Through every read that is
+    not optional, neither the earth seed nor the scene record reaches the prop route's rows."""
+    table = {stage.name: stage for stage in stages.STAGES}
+    prop_route = {"closeup", "pixal"}
+
+    def reached(name, seen):
+        for before in table[name].after:
+            if before not in table[name].optional and before not in seen:
+                seen.add(before)
+                reached(before, seen)
+        return seen
+    for start in ("earth-seed", "scene-record", "light-layer"):
+        assert not reached(start, set()) & prop_route, (start, reached(start, set()) & prop_route)
+    assert "pixal" in table["finish-route-palette"].optional
+
+
 def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
     """A dress row is read where a place's design dresses its look so: `-in-<surface>` where a person row's words
     name a fabric near its torso (people_clothes.py), the plain row where the look wears its own paint; no
