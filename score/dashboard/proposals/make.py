@@ -102,8 +102,10 @@ def gathered(buys, layer_of):
 
 
 def entry_of(buys, layer_of, title=None):
-    """An item's fields from its buys: {title, layers, nodes: {node: price}, why, again, missing}."""
-    entry = {"title": title, "layers": [], "nodes": {}, "why": {}, "again": [], "missing": [], "declared": bool(title)}
+    """An item's fields from its buys: {title, layers, nodes: {node: price}, why, again, missing, for (the places whose
+    line holds any of its nodes, the plan's)}."""
+    entry = {"title": title, "layers": [], "nodes": {}, "why": {}, "again": [], "missing": [], "declared": bool(title),
+             "for": sorted({place for buy in buys for place in buy.get("for", [])})}
     for buy in buys:
         stage, _, place = buy["node"].partition("@")
         layer = family(stage, place, layer_of)

@@ -80,6 +80,15 @@ def test_the_run_holds_and_prices_the_optional_read_and_the_line_it_reads():
     assert [buy.node for buy in rebuy.buys(runner, runner.line_nodes(PLACES, False))] == ["dress"]
 
 
+def test_a_shared_line_is_held_for_each_place_that_reads_it():
+    """The people line's nodes name every place whose cast reads them (the Buy buys them with those places, Buy of
+    2026-10-24); a place's own node names that place alone."""
+    runner = a_runner("a suit")
+    held = rebuy.held_for(runner, runner.line_nodes(PLACES, True), set(PLACES))
+    assert held["dress"] == held["look@people"] == set(PLACES), held
+    assert held["cast@hangar"] == {"hangar"}, held
+
+
 def test_the_reader_waits_on_its_optional_read_and_takes_it():
     runner = a_runner("a suit")
     found = runner.drive(PLACES, say=quiet, whole=False)
