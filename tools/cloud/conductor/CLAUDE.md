@@ -59,7 +59,20 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `score-update` (the checkout follows the hosted cockpit's pinned commit from `/api/sync/pin` `commit` with the sync
   token, never `/healthz`, whose body babon's Caddy writes itself; a pin it cannot read moves nothing, a cockpit
   reporting none falls back to origin/main forward only; never while score starts from the checkout, nor a uv.lock
-  change while a process works in a frozen copy, which links this checkout's `.venv`), `score-health`. Other areas add their own units here;
+  change while a process works in a frozen copy, which links this checkout's `.venv`), `score-health`. The sync
+  pass runs the same update first (its ExecStartPre, rendered by `install-sync --no-pull`; two calls take turns on
+  `.git/score-update.lock`): a pass outlasts its 5-minute timer, so with score-update's timer alone a pass was always
+  running and the live conductor's checkout sat on an old commit for hours (2026-10-24); the timer stays for an idle
+  conductor. **Hand fix to undo:** that day the live conductor got a cloud-init `bootcmd` in its user-data (key
+  `cloud-init`) that fetches and checks out origin/main as user score on every boot. Remove it once the units carry
+  this fix: after a release pins a commit holding it, the owner (his shell, or an agent under his recorded yes) runs as
+  score `systemctl --user stop score-sync.timer`, waits for `systemctl --user is-active score-sync.service` to say
+  inactive, runs `/usr/bin/python3 -I ~/projects/score/tools/cloud/conductor/update.py --repo ~/projects/score`, then
+  `cd ~/projects/score && .venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env
+  --no-pull` (re-enables the timer), checks `grep ExecStartPre ~/.config/systemd/user/score-sync.service` names
+  update.py; then from his PC `scw instance user-data get server-id=<id> key=cloud-init zone=fr-par-2`, the `bootcmd`
+  block deleted, `scw instance user-data set server-id=<id> key=cloud-init content=@<file> zone=fr-par-2`, and this
+  note deleted. Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
 - Tests (free, no cloud; each file well under 120 s): `machine_test.py` (cloud-init schema, `systemd-analyze --user
   verify`, `up --dry`, boot.sh against a temp root, the door), `update_test.py`, `health_push_test.py`,

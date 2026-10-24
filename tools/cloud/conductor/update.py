@@ -1,6 +1,9 @@
 """score-update.service: the conductor's checkout follows the hosted cockpit's pin, so one release moves both.
-Every 5 minutes (score-update.timer), standard library only, with the system interpreter (the checkout's .venv may be
-the thing being re-synced):
+Before every sync pass (score-sync.service's ExecStartPre, `install-sync --no-pull`) and every 5 minutes for an idle
+conductor (score-update.timer), standard library only, with the system interpreter (the checkout's .venv may be the
+thing being re-synced). The pass's own call sees no sync process yet: systemd starts the pass only after it, so it
+moves the checkout (2026-10-24: with the timer alone a pass always ran, as a pass outlasts 5 minutes, and the checkout
+never moved). Two calls at once take turns on a lock in the checkout's .git folder.
 
     /usr/bin/python3 -I tools/cloud/conductor/update.py [--repo <checkout>]
 
@@ -21,6 +24,7 @@ the thing being re-synced):
 It prints one line: what it moved, or why it did not.
 """
 import argparse
+import fcntl
 import json
 import os
 import pathlib
@@ -156,7 +160,9 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", type=pathlib.Path, default=REPO)
     options = parser.parse_args(argv)
-    print(update(options.repo.resolve(), os.environ.get("SCORE_SYNC_URL")))
+    with open(options.repo.resolve() / ".git" / "score-update.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)  # score-update.service and a pass's ExecStartPre never move it together
+        print(update(options.repo.resolve(), os.environ.get("SCORE_SYNC_URL")))
     return 0
 
 

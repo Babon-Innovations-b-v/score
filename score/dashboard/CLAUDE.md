@@ -430,8 +430,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   repository's Dockerfile must set it the same way), the one pin the conductor's score-update timer follows;
   `/healthz` says it too, but babon's Caddy answers `/healthz` with its own body, so nothing outside reads it there.
   `install-sync` renders the same templates for user `score` on the conductor: without `--host` it checks the commit
-  `/api/sync/pin` reports, and `--no-pull` leaves out the sync unit's `git pull` (ExecStartPre), which the score-update timer
-  replaces there.
+  `/api/sync/pin` reports, and `--no-pull` puts the conductor's update (`tools/cloud/conductor/update.py`, the system
+  python) in place of the sync unit's `git pull` (ExecStartPre), so every pass starts on the cockpit's pin.
 - **The store's machine** (`state/machine.py`, `sync/one_store.py`, `pages/machine.py`): the export carries
   `machine.json` right after the state: the machine's own record (`$PROPS_HOME/machine.json`, else its host name),
   `score.conductor.health.read()` and `score.conductor.logs.tails(TAIL_LINES)` cut to `TAIL_BYTES` (the largest

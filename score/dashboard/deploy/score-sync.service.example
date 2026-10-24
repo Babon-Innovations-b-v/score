@@ -12,8 +12,9 @@
 # run with no shell open.
 #
 # Before each pass the checkout is pulled to origin's main (ExecStartPre). On the conductor (the store's machine in
-# the cloud) the score-update timer moves the checkout to the commit the hosted cockpit runs instead, so there the
-# units are installed with `install-sync --no-pull`, which leaves that line out.
+# the cloud) the checkout follows the commit the hosted cockpit runs instead: `install-sync --no-pull` puts the
+# conductor's update (tools/cloud/conductor/update.py, the system python) in that line's place, so every pass starts
+# on the pinned commit (score-update's own timer waits while a pass runs, and a pass outlasts 5 minutes).
 #
 # The pass refuses to sync, and says why in the journal, from a checkout with changes not committed or a commit
 # origin's main does not hold, and when the runner's price (`score price <environment> --gaps`) fails.

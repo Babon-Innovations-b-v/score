@@ -9,8 +9,10 @@ The same command installs the units on the owner's PC and on the conductor (the 
 names a machine. With --host the cockpit's commit is read from the hosting repository's pinned Dockerfile; without
 it, from the cockpit's own /api/sync/pin (its `commit`, the SCORE_COMMIT it was built at; signed in by the sync token
 the env file's reader reads; never /healthz, which the hosting proxy answers with a body of its own), which is how the
-conductor, holding no hosting repository, checks it. --no-pull leaves out the sync unit's pull before each pass: on
-the conductor the score-update timer moves the checkout to the commit the cockpit runs instead.
+conductor, holding no hosting repository, checks it. --no-pull puts the conductor's update (tools/cloud/conductor/
+update.py) in place of the sync unit's pull before each pass, so every pass starts on the commit the cockpit runs: the
+score-update timer alone waits while a pass runs, and a pass outlasts the 5-minute timer, so the live conductor's
+checkout never moved (2026-10-24).
 
 Every pass of the timer (deploy/score-sync.service.example) reads the sync token from the owner's secret manager by
 name, inline, into that one process's environment, never into a file: the env file names the reader
@@ -37,9 +39,11 @@ DEPLOY = pathlib.Path(__file__).resolve().parents[1] / "deploy"
 UNITS = ("score-sync.service", "score-sync.timer", "score-listen.service")
 STARTED = ("score-sync.timer", "score-listen.service")  # the timer, and the listener (sync/listen.py)
 SECRET = "score-cockpit-sync-token"  # the token's name in the owner's secret manager
-PULL = "ExecStartPre=/usr/bin/git -C "  # the sync unit's pull before each pass, left out by --no-pull
+PULL = "ExecStartPre=/usr/bin/git -C "  # the sync unit's pull before each pass, UPDATE in its place with --no-pull
 REPO_SLOT, ENV_SLOT, SECRET_SLOT = ("<path to the score repository>", "<path to the env file kept outside the repo>",
                                     "<the sync token's name in your secret manager>")
+# The conductor's update before each pass, on the system python (.venv may be what it re-syncs).
+UPDATE = f"ExecStartPre=/usr/bin/python3 -I {REPO_SLOT}/tools/cloud/conductor/update.py --repo {REPO_SLOT}\n"
 
 
 def unquoted(value):
@@ -114,10 +118,10 @@ def dashboard_refusal(repo, pin):
 
 def unit_text(name, repo, env_file, secret, pull=True):
     """A unit's text: its template with the repository, the env file and the secret's name filled in; without
-    `pull`, the sync unit's pull before each pass left out."""
+    `pull`, the sync unit's pull before each pass is the conductor's update (UPDATE) instead."""
     text = (DEPLOY / f"{name}.example").read_text()
     if not pull:
-        text = "".join(line for line in text.splitlines(keepends=True) if not line.startswith(PULL))
+        text = "".join(UPDATE if line.startswith(PULL) else line for line in text.splitlines(keepends=True))
     return text.replace(REPO_SLOT, str(repo)).replace(ENV_SLOT, str(env_file)).replace(SECRET_SLOT, secret)
 
 
@@ -165,7 +169,8 @@ def install(repo, env_file, host=None, dockerfile=None, secret=SECRET, systemctl
                           f"the user manager needs systemd and `loginctl enable-linger` for this user: install again "
                           f"once it runs")
     return (f"install-sync: {', '.join(UNITS)} written to {folder}"
-            f"{'' if pull else ' (no pull before a pass: the score-update timer moves the checkout)'}; the timer is "
+            f"{'' if pull else ' (no pull before a pass: the conductor update moves the checkout to the pin first)'}"
+            f"; the timer is "
             f"enabled and the listener runs (journalctl --user -u score-listen.service); (systemctl --user list-timers "
             f"score-sync.timer); each pass reads the token {secret} by name and logs to journalctl --user -u "
             f"score-sync.service")

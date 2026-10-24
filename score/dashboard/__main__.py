@@ -42,7 +42,7 @@ def parse(argv):
             "the repository that hosts the cockpit (without it, the cockpit's /api/sync/pin names its commit)"))
         command.add_argument("--dockerfile", required=required, help="its Dockerfile with ARG SCORE_COMMIT, in it")
     install.add_argument("--no-pull", action="store_true",
-                         help="no pull before each pass: the conductor's score-update timer moves the checkout")
+                         help="the conductor's update before each pass, not a pull: the checkout follows the pin")
     release.add_argument("--subject", required=True, help="the host's commit subject, {short} the score commit")
     release.add_argument("--commit", help="the score commit to release (default: this checkout's HEAD)")
     release.add_argument("--trailer", action="append", default=[], help="a trailer line of the host's commit")
