@@ -26,7 +26,8 @@ REQUEST_BUILDERS = ("score/stages/surfaces/finish_ask.py", "tools/cloud/gemini_j
                     "tools/props/closeup/pro.py", "score/adapters/models/__init__.py",
                     "score/stages/surfaces/route_list.py", "score/stages/surfaces/route_recheck.py",
                     "score/stages/surfaces/route_ask.py", "score/stages/surfaces/scene_palette.py",
-                    "score/stages/surfaces/scene_library.py", "tools/cloud/google_batch.py")
+                    "score/stages/surfaces/scene_library.py", "tools/cloud/google_batch.py",
+                    "score/stages/surfaces/body_faces.py")
 SAME_PARTS = ("contract", "expects", "params", "seed", "files", "after", "models")
 OWN_PARTS = ("code", "contract", "expects", "params", "seed", "files", "models")
 
@@ -37,6 +38,7 @@ class Buy:
     euros: float
     why: str
     again: bool  # it has an accepted output: a re-buy
+    evidence: str = None  # a paid evidence gather on the node's output (Stage.gatherers), not the node's make
 
 
 def builders_changed(commit):
@@ -130,6 +132,25 @@ def read_first(runner, nodes):
     return order
 
 
+def evidence_buys(runner, stage, place, parts):
+    """[Buy] of the node's paid evidence gathers a drive would make (Stage.gatherers with euros: the likeness's
+    DINOv2, the assembly's drop run), each at its estimate: every one on an output the drive makes (`parts`, to_make's,
+    not None nor KEPT), else those whose missing evidence alone keeps its current output from passing
+    (Runner.gatherable). Buy of 2026-10-24: they were cleared and spent at run time, in no price the owner saw."""
+    paid = {name: euros for name, (_, euros) in stage.gatherers.items() if euros}
+    if not paid:
+        return []
+    node = node_name(stage, place)
+    if parts is not None and parts is not KEPT:
+        wanted, why = sorted(paid), "evidence on the output this run makes"
+    else:
+        try:
+            wanted, why = [name for name in runner.gatherable(stage, place) if name in paid], "evidence missing"
+        except Blocked:
+            return []
+    return [Buy(node, float(paid[name]), f"{why}: {name}", False, name) for name in wanted]
+
+
 def buys(runner, nodes):
     """[Buy] of every paid node among `nodes` (in table order) a drive would make, running nothing."""
     found, remade = [], {}  # remade: {node made first: True when its output may change}
@@ -140,6 +161,7 @@ def buys(runner, nodes):
             pending = [name for name in (node_name(*before) for before in runner.read_nodes(stage, place, every=True))
                        if name in remade]
             parts = to_make(runner, stage, place, pending, remade)
+            found += evidence_buys(runner, stage, place, parts)
             if parts is None:
                 continue
             if parts is KEPT:  # its readers key on the kept output once the drive keeps it (greenhouse, 2026-10-24)
@@ -160,7 +182,8 @@ def buys(runner, nodes):
 def listing(bought):
     """The lines a run prints before it starts: each paid node it would buy, and the totals."""
     again = sum(buy.euros for buy in bought if buy.again)
-    lines = [f"  {'re-buy' if buy.again else 'buy'} {buy.node}: EUR {buy.euros:.2f} ({buy.why})" for buy in bought]
+    lines = [f"  {'re-buy' if buy.again else 'buy'} {buy.node}{f' evidence {buy.evidence}' if buy.evidence else ''}: "
+             f"EUR {buy.euros:.2f} ({buy.why})" for buy in bought]
     return "\n".join([f"paid rows this run would buy: {len(bought)}, about EUR {sum(b.euros for b in bought):.2f}; "
                       f"re-buys of accepted outputs: {sum(b.again for b in bought)}, about EUR {again:.2f}", *lines])
 

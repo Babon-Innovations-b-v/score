@@ -99,6 +99,39 @@ def test_re_buys_under_five_euros_go_without_a_reason():
     assert rebuy.refusal(found, None) is None
 
 
+def judge_dropped(output, inputs, evidence):
+    if evidence is None:
+        return checks.Verdict("dropped", checks.UNKNOWN, "no drop run")
+    return checks.Verdict("dropped", checks.PASS, "dropped")
+
+
+def gather_drop(output, inputs, folder):
+    (folder / "drop.txt").write_text("still")
+    return folder / "drop.txt"
+
+
+def test_a_free_row_s_paid_evidence_gather_is_a_buy():
+    """Buy of 2026-10-24: the likeness's DINOv2 and the assembly's drop run, paid gathers on free rows, were cleared
+    and spent at run time but in no listing or price. A free row's paid gather is a buy at its estimate while the
+    row will be made, and while its output waits on that evidence alone; once gathered, nothing."""
+    check = checks.Check("dropped", judge_dropped, evidence="a drop run")
+    place = graph.Stage("place", "place", make_copy, TEXT, (check,), after={"draw": ("toy-text", 1)},
+                        gatherers={"dropped": (gather_drop, 1.5)})
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text("a hall")
+    runner = graph.Runner([DRAW, place], graph.Environment("toy", 1, {"data": data}),
+                          Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {"kind": kind})
+    found = rebuy.buys(runner, list(runner.nodes(["hangar"])))
+    assert [(buy.node, buy.euros, buy.evidence) for buy in found] == [("place@hangar", 1.5, "dropped")], found
+    assert "buy place@hangar evidence dropped: EUR 1.50" in rebuy.listing(found)
+    runner.run_node(DRAW, "hangar")
+    runner.run_node(place, "hangar")  # made, unknown on its missing drop run
+    found = rebuy.buys(runner, list(runner.nodes(["hangar"])))
+    assert [(buy.node, buy.why) for buy in found] == [("place@hangar", "evidence missing: dropped")], found
+    runner.gather(place, "hangar", ["dropped"])
+    assert rebuy.buys(runner, list(runner.nodes(["hangar"]))) == []
+
+
 def test_a_google_row_asking_the_same_is_cached_and_moves_nothing_after_it():
     runner = made(a_runner())
     runner.code_versions["render"] = "a render changed"
