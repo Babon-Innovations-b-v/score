@@ -22,7 +22,7 @@ import score.stages.crops.crop_data as crop_data
 
 # SAM 3 on one L4: EUR 0.04 a picture in the ledger on 2026-10-12, rounded up.
 EUROS = 0.5
-TOOLS = ("props/scene", "props", "props/cloud")
+TOOLS = ("props/scene", "props", "cloud")
 # Every instance of a crop's words (box_masks.py keeps 5 a row by default): a crop is one of dozens on the plot, and
 # its box's own plant is seldom among SAM 3's five surest (2026-10-12: the lettuce's and the potato's were not).
 KEEP = 400

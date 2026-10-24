@@ -3,7 +3,7 @@ store and read its result back. Kubernetes or a hand with docker then runs `scor
 
     import submit
     store = submit.cloud_store()                                   # the provider's object_store(), opened
-    code = submit.upload_code(store, ["tools/props/cloud", "data/x"], kind="blender")
+    code = submit.upload_code(store, ["tools/cloud", "data/x"], kind="blender")
     spec = {"kind": "blender", "image": submit.image("blender"), "code": code,
             "inputs": [submit.upload_input(store, run, job, "/local/in.json")],
             "outputs": [{"path": "/work/out", "key": submit.output_key(run, job, "out")}],
@@ -36,12 +36,12 @@ SKIPPED = {".git", "__pycache__", ".pytest_cache"}
 
 
 def cloud_store():
-    """The provider's object store (tools/props/cloud/provider.py object_store()), opened."""
+    """The provider's object store (tools/cloud/provider.py object_store()), opened."""
     return stores.open_store(provider_cloud().object_store())
 
 
 def provider_cloud():
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     sys.path.insert(0, str(REPO / "tools/props"))
     from provider import cloud
 

@@ -1,6 +1,6 @@
 """The surface stage's paid Google ask and what the finish route shares of it (route_ask.py, route_list.py,
 route_split.py, route_views.py, route_recheck.py: the labels, the reply, the key), through google_spend.generate
-(tools/props/cloud; priced on the Google ledger, each request cached by its input's hash).
+(tools/cloud; priced on the Google ledger, each request cached by its input's hash).
 
 Each is asked once (the batch rule, #21): no second draw, no second naming, no ask again after a timeout. A call cut
 off mid-way is not free: google_spend counts it at its estimate. Only a refusal (HTTP 429, 500, 503 or 504: the
@@ -17,7 +17,7 @@ nothing for it: the books lean high until Google's billing export (#13) reads th
   take's allowed library surfaces, given the close-up's measured colours (CIELAB) and the library surfaces within
   COLOUR_DELTA_E of each, measured free before the ask. Where none fits it gives the closest and proposes a new
   library surface (name, description, why), which the paint records in the finish registry as proposed, never in the
-  library. The prop batch's finish pick asks it (tools/props/cloud/prop_makers.py).
+  library. The prop batch's finish pick asks it (tools/cloud/prop_makers.py).
 - LABELS: the flat label colours a finish is drawn in on the route's views (the finish-map method's maps, which first
   used them, were deleted on 2026-10-20, #26).
 
@@ -32,7 +32,7 @@ import sys
 from PIL import Image
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-for folder in (REPO / "tools/props", REPO / "tools/props/cloud", REPO / "tools/props/library"):
+for folder in (REPO / "tools/props", REPO / "tools/cloud", REPO / "tools/props/library"):
     if str(folder) not in sys.path:
         sys.path.append(str(folder))  # appended: the prop tools must not shadow the framework's
 

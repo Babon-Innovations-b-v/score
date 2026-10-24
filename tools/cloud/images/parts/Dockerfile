@@ -1,4 +1,4 @@
-# PartCrafter (wgsxm/PartCrafter, MIT code and weights) as tools/props/cloud/parts_setup.sh installs it on a rented
+# PartCrafter (wgsxm/PartCrafter, MIT code and weights) as tools/cloud/parts_setup.sh installs it on a rented
 # machine, at a pinned commit: Python 3.11, torch 2.5.1 for CUDA 12.4 (the versions its README names), its
 # requirements less the training-only ones, and the spring 2025 diffusers and transformers it was released with
 # (requirements.txt, resolved and hashed). Its background remover (briaai/RMBG-1.4) is non-commercial: its download

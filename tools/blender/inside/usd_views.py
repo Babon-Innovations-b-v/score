@@ -232,7 +232,7 @@ def stage_ground(objects):
 
 def cycles_on_card(scene):
     """Cycles on the machine's graphics card (OptiX, else CUDA), denoised: a rented card machine
-    (tools/props/cloud/blender_cloud.py sets FARM_CYCLES_GPU)."""
+    (tools/cloud/blender_cloud.py sets FARM_CYCLES_GPU)."""
     scene.render.engine = "CYCLES"
     preferences = bpy.context.preferences.addons["cycles"].preferences
     for kind in ("OPTIX", "CUDA"):

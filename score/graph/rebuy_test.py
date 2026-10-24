@@ -133,7 +133,7 @@ def test_every_file_that_words_a_google_request_is_a_request_builder():
         if not path.name.endswith("_test.py") and wording.search(text) and reaches.search(text):
             found.add(str(path.relative_to(_code.REPO)))
     assert found and found <= set(rebuy.REQUEST_BUILDERS), sorted(found - set(rebuy.REQUEST_BUILDERS))
-    assert "tools/props/cloud/google_batch.py" in rebuy.REQUEST_BUILDERS
+    assert "tools/cloud/google_batch.py" in rebuy.REQUEST_BUILDERS
     assert all((_code.REPO / builder).is_file() for builder in rebuy.REQUEST_BUILDERS)
 
 

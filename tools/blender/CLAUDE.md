@@ -17,7 +17,7 @@ command.
   The graphics card is for game tests only. (Blender's own `blender-softwaregl` Mesa crashes in LLVM
   on this processor; do not switch to it.)
 - **Renders, settling and review pages run in the cloud**, never on the owner's PC (the PC is the coordinator,
-  2026-10-07): `../props/cloud/blender_cloud.py` (`--detach`), or a tool's own `--cloud`.
+  2026-10-07): `../cloud/blender_cloud.py` (`--detach`), or a tool's own `--cloud`.
 - **One heavy local job at a time on the machine**: the launch holds `flock` on
   `/tmp/farm-factory-gate.lock` (`GATE_LOCK`, the lock the game 2099's test gate took; this repo's `make check` does
   not take it) for Blender's whole life (WSL ran out of memory twice on 2026-10-05 with a Blender, a gate and a game
@@ -39,5 +39,5 @@ command.
 - **Versions**: 5.0.1 by default (LEGO's scorer; a newer `.blend` is not promised to open there),
   `--version 5.2.2` for the latest stable. `smoke.py` runs the whole route in seconds; it is not in
   the gate because it starts a Blender. `session_test.py` is, with the system python.
-- Heavy model steps (Pixal3D, MoGe-2, SAM 3) stay in the cloud (`tools/props/cloud/`); nothing here
+- Heavy model steps (Pixal3D, MoGe-2, SAM 3) stay in the cloud (`tools/cloud/`); nothing here
   loads a model.

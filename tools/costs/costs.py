@@ -86,7 +86,7 @@ RND_GROUPS = {"Engine runs: tests, shots, benchmarks, warm pool", "Container ima
               "Method experiments: terrain, plants, clay, Infinigen"}
 RND_KINDS = {"drapes-sim", "sfx-trial"}
 RND_WHO = re.compile(r"^(agent-tools|bench|fleet|fw-|k8s-|rw |bl-blocks)|proof|variants|\bdev\b|test|before|after")
-# The provider bills these types by the started hour and the cards by the minute (tools/props/cloud/backends/
+# The provider bills these types by the started hour and the cards by the minute (tools/cloud/backends/
 # scaleway.py, price()).
 HOURLY_PREFIXES = ("POP2-", "RENDER-")
 CLOUD_TOOLS = pathlib.Path(__file__).resolve().parents[1] / "props"
@@ -432,7 +432,7 @@ def by_product(lines):
 
 def read_bill():
     """The provider's month-to-date bill of the project, its lines (provider.cloud.consumption)."""
-    for folder in (CLOUD_TOOLS, CLOUD_TOOLS / "cloud"):
+    for folder in (CLOUD_TOOLS, CLOUD_TOOLS.parent / "cloud"):
         if str(folder) not in sys.path:
             sys.path.append(str(folder))
     import provider
@@ -662,8 +662,8 @@ def row_span(row):
 
 
 def cloud_ledger():
-    """The cloud ledger module (tools/props/cloud/ledger.py), its folders put on the path."""
-    for folder in (CLOUD_TOOLS, CLOUD_TOOLS / "cloud"):
+    """The cloud ledger module (tools/cloud/ledger.py), its folders put on the path."""
+    for folder in (CLOUD_TOOLS, CLOUD_TOOLS.parent / "cloud"):
         if str(folder) not in sys.path:
             sys.path.append(str(folder))
     import ledger

@@ -1,4 +1,4 @@
-"""Runs inside Blender on a rented processor machine (tools/props/cloud/blender_cloud.py, the surface stage's paint,
+"""Runs inside Blender on a rented processor machine (tools/cloud/blender_cloud.py, the surface stage's paint,
 ../place_line.py make_paint): hands one take's paint to Blender's own Python, outside Blender, with the prop
 environment's packages at their pinned versions (installed once a machine into SITE), and says its peak memory.
 

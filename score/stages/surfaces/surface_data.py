@@ -93,5 +93,5 @@ def bake_files(place):
     jobs = job_files(place, record(place).get("bake"))
     claimed = {f"claimed {claim['place']}": pattern(claim["place"])
                for claim in record(place).get("elsewhere", {}).values()}
-    return {"surfaces": pattern(place), **jobs, **claimed, "library bake": "{repo}/tools/props/cloud/library_bake.py",
+    return {"surfaces": pattern(place), **jobs, **claimed, "library bake": "{repo}/tools/cloud/library_bake.py",
             "bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library"}

@@ -4,7 +4,7 @@ uploads, played by the people's bodies beside Kimodo's generated clips. Each vid
 
     video-clip-<clip>   paid: the video copied into the output (the store keeps the upload), SAM 3D Body run over it
                         frame by frame on one rented characters machine (tools/characters/clips/video_motion.py through
-                        tools/props/cloud/characters.py: sam3dbody-cpp's offline extractor, one BVH per person seen, the
+                        tools/cloud/characters.py: sam3dbody-cpp's offline extractor, one BVH per person seen, the
                         longest kept), then here, free: retargeted onto SOMA-X's 27 kept joints of the people's rig
                         (people-clips-made's rig.npz), resampled to 30 frames a second, smoothed and put on the spot
                         (tools/characters/clips/retarget.py). Out: clip.bvh, clip.npz ({clip [F, 27, 4, 4] each joint
@@ -33,7 +33,7 @@ from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 CLIP_TOOLS = REPO / "tools/characters/clips"
-CLOUD = REPO / "tools/props/cloud"
+CLOUD = REPO / "tools/cloud"
 VIDEOS = PROPS_HOME / "design" / "clips"
 ROW = "video-clip"
 RIG = "people-clips-made"

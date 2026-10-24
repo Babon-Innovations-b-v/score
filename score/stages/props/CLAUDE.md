@@ -3,7 +3,7 @@
 The prop route as rows of the stage table (`__init__.py`): every object goes the prop route first, and only one whose
 measured checks fail is built in code and checked again (owner, 2026-10-12, flipping the parts check's order). Rows:
 `props-inputs` (free, the box gate), `closeup` (paid, Nano Banana Pro through `tools/props/closeup/pro.py`), `pixal`
-(paid, `tools/props/cloud/batch.py`), then the surface line (its first row waits on `pixal`), then `likeness` (free;
+(paid, `tools/cloud/batch.py`), then the surface line (its first row waits on `pixal`), then `likeness` (free;
 DINOv2 evidence gathered, paid). These rows are the shared loop's (`../shapes_first`, #41): the table takes them from
 `shapes_first.rows()`, and `props-inputs` waits on `rough-align` and holds every row to the registered floor.
 Environment data (`prop_data.py`): a designed place's hand-in, `{home}/design/props/<place>.json` (`prop_data.DESIGN`,

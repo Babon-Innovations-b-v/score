@@ -5,7 +5,7 @@ back more like one), so a new one slots in beside these and the takes are chosen
 only finds; fetching, trimming and the loudness rule are the same for every candidate (takes.py).
 
 - **MOSS** (the default, the owner's call 2026-10-06): the takes MOSS-SoundEffect v2.0 made on a rented card for
-  each sound's prompts (`tools/props/cloud/moss_sound.py`), each with its prompt, seed and CLAP score.
+  each sound's prompts (`tools/cloud/moss_sound.py`), each with its prompt, seed and CLAP score.
 - **Freesound**, CC0 only. With an API key (the secret `freesound-api-key`, read by `secret_store.py`; apply for
   one at https://freesound.org/apiv2/apply) it asks the API with `license:"Creative Commons 0"`; without one it
   reads the site's own search page with the same filter. Either way each candidate's licence is read again off
@@ -266,7 +266,7 @@ class InTheGame:
 def freesound_key():
     """The Freesound API key from the secret store (an environment variable or the cloud backend's), or None when
     there is none yet."""
-    sys.path.insert(0, str(REPO / "tools" / "props" / "cloud"))
+    sys.path.insert(0, str(REPO / "tools" / "cloud"))
     import secret_store  # noqa: E402  (the one place secrets are read)
     try:
         return secret_store.secret("freesound-api-key")

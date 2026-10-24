@@ -16,7 +16,7 @@ changed, on), and `score resume` starts the run at the boot on the batch size (s
 
 The kill switch's latch (kill.py) is a file, $PROPS_HOME/conductor/free-only, holding `SCORE_FREE_ONLY=1`: a unit can
 read it as an EnvironmentFile, and every `score` command reads it at its start (apply_free_only), so a run and every
-node and paid point under it run free only (tools/props/cloud/ledger.py FreeOnly) until the owner clears it.
+node and paid point under it run free only (tools/cloud/ledger.py FreeOnly) until the owner clears it.
 
 The conductor bills in a Scaleway project of its own (CONDUCTOR_PROJECT, by name), never the batch project, so its
 hourly bill never enters guard.spent_since (score/adapters/compute/guard.py refuses every paid run if the two names
@@ -33,7 +33,7 @@ HOME = PROPS_HOME / "conductor"
 MACHINE = PROPS_HOME / "machine.json"
 HEALTH = PROPS_HOME / "health.json"
 FREE_ONLY_LATCH = HOME / "free-only"
-FREE_ONLY = "SCORE_FREE_ONLY"  # tools/props/cloud/ledger.py FREE_ONLY: every paid point raises FreeOnly under it
+FREE_ONLY = "SCORE_FREE_ONLY"  # tools/cloud/ledger.py FREE_ONLY: every paid point raises FreeOnly under it
 SIZE_URL = "SCORE_CONDUCTOR_SIZE_URL"
 # The conductor's own Scaleway project, by name; the batch project is SCORE_SCALEWAY_PROJECT (backends/scaleway.py).
 CONDUCTOR_PROJECT = os.environ.get("SCORE_CONDUCTOR_PROJECT", "score-conductor")

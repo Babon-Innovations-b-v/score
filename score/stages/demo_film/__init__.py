@@ -1,6 +1,6 @@
 """demo-film and demo-film-extra: walk-through films for the paper's demo K9, from a place's final stage once it passes
 complete, with its own sound; place nodes, paid (the frames on the cheapest card through
-tools/props/cloud/blender_cloud.py inside the runner's clearance, drawn by tools/blender/inside/usd_views.py as
+tools/cloud/blender_cloud.py inside the runner's clearance, drawn by tools/blender/inside/usd_views.py as
 tools/review/demo.py plans them).
 
     a locked film script's walk-through or hero still   its `shows`: {"place", and optionally "film" (another film
@@ -217,7 +217,7 @@ def named_films(inputs, place, own):
 def render(jobs, out):
     """The frames' jobs on rented cards (the runner's clearance names them); the log kept in the output."""
     python = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
-    done = subprocess.run([str(python), str(REPO / "tools/props/cloud/blender_cloud.py"), *map(str, jobs),
+    done = subprocess.run([str(python), str(REPO / "tools/cloud/blender_cloud.py"), *map(str, jobs),
                            "--who", "demo-film", "--classes", CLASSES], cwd=REPO, capture_output=True, text=True)
     with (out / "frames.log").open("a") as log:
         log.write(done.stdout[-30000:] + "\n" + done.stderr[-30000:])
@@ -288,7 +288,7 @@ def forecast(stage_path, shots):
     minutes and the euros, likely and high (LIKELY_EUROS scaled from its measured film by frames and frame minutes); and what
     the scan found."""
     demo, _ = film_tools()
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import blender_cloud
     import capacity
     frames = round(shots * SECONDS * demo.RATE)

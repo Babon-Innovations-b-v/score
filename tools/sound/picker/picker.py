@@ -1,7 +1,7 @@
 """The game's sound, made in one go: every sound the game needs, generated, scored, levelled and put in; the owner's
 page to listen and swap any of them is optional (the owner, 2026-10-06).
 
-    ~/.farm-factory-props/env/bin/python tools/props/cloud/moss_sound.py game --who <session>   # the takes, on a card
+    ~/.farm-factory-props/env/bin/python tools/cloud/moss_sound.py game --who <session>   # the takes, on a card
     bash tools/sound/run.sh auto game [--out DIR] [--swaps picks.json]   # build, choose and put every sound in
     bash tools/sound/run.sh pick game [--out DIR] [--sources moss,game,freesound,kenney] [--more picks.json]
     bash tools/sound/run.sh apply DIR [picks.json]                       # put the chosen takes and the swaps in

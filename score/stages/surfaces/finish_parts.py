@@ -13,7 +13,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 PROPS = REPO / "tools/props"
-for folder in (HERE, PROPS, PROPS / "library", PROPS / "cloud"):
+for folder in (HERE, PROPS, PROPS / "library", REPO / "tools/cloud"):
     if str(folder) not in sys.path:
         sys.path.append(str(folder))  # appended: the method modules must not shadow the framework's
 if str(REPO) not in sys.path:

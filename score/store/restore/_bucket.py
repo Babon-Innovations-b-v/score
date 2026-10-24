@@ -1,7 +1,7 @@
 """The surviving bucket, read only: its checkout tars indexed by their first header, and downloaded one at a time
 within a run's budget once the owner said yes (#13).
 
-A store checkout went up as a job input named for its tar's sha256 (tools/props/cloud/inputs.py: `inputs/<sha>.tar`,
+A store checkout went up as a job input named for its tar's sha256 (tools/cloud/inputs.py: `inputs/<sha>.tar`,
 the input folder first, named as it was here); a checkout's folder is named for its output's hash, so a tar whose
 first member is a 64-hex folder holds one stored output's files.
 """
@@ -29,7 +29,7 @@ DISK_MARGIN = 20e9
 def open_bucket():
     """The project's bucket, read with the runtime key from its secret (provider.cloud): never makes a key or a
     bucket, unlike object_store()."""
-    import provider  # tools/props/cloud, on the path through the restore's ledger import
+    import provider  # tools/cloud, on the path through the restore's ledger import
     backend = provider.cloud
     key = json.loads(backend.secret(backend.RUNTIME_KEY_SECRET))
     return runtime_store.BucketStore({"endpoint": f"https://s3.{backend.REGION}.scw.cloud", "region": backend.REGION,

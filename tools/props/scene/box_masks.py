@@ -49,7 +49,7 @@ def picture_rows(model, processor, picture, rows):
 
 
 def main():
-    refuse_here("SAM 3", "tools/props/cloud/box_masks_cloud.py")
+    refuse_here("SAM 3", "tools/cloud/box_masks_cloud.py")
     jobs_path, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
     from transformers import Sam3Model, Sam3Processor
     processor = Sam3Processor.from_pretrained(cutout.WEIGHTS)

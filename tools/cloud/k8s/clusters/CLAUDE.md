@@ -9,6 +9,6 @@ its class pools, its nodes with their billed times, prices, the month's bill). T
   organisation-wide, never touch it.
 - **Nothing project-specific in the repo:** no project, cluster or pool ids, no kubeconfig. The kubeconfig is
   written to `~/.farm-factory-props/cloud/kubeconfig-<cluster>.yaml` (mode 600).
-- A module here shares its name with the provider's backend (`tools/props/cloud/backends/`); load it by path
+- A module here shares its name with the provider's backend (`tools/cloud/backends/`); load it by path
   (`../submitter.py` `cluster_module`), never by `import <provider>`.
 - Pools start at max 0; `cap_pools` sets each max from the batch cap's euros, and `idle` sets all to 0.

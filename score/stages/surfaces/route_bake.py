@@ -138,7 +138,7 @@ def make_bake(inputs, out, seed, params):
              for take in sorted(set(models.values()))}
     files = job_files(short, out, records, heads)
     jobs = [card_job(inputs, short, out, take, files[take]) for take in heads]
-    done = subprocess.run([str(prop_env.PROPS_PYTHON), str(place_line.PROPS / "cloud/blender_cloud.py"), *map(str, jobs),
+    done = subprocess.run([str(prop_env.PROPS_PYTHON), str(place_line.REPO / "tools/cloud/blender_cloud.py"), *map(str, jobs),
                            "--who", f"surfaces-bake-{data['place']}", "--classes", place_line.CLASSES],
                           cwd=place_line.REPO, capture_output=True, text=True)
     (out / "bake.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])

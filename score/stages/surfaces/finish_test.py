@@ -154,7 +154,7 @@ def library_of(**colours):
 def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again():
     import io
     import urllib.error
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import google_spend
     asked = []
 

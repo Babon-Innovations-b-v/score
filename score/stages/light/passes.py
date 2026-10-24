@@ -214,7 +214,7 @@ def render(jobs, folder):
         path = folder / f"job-{number}.json"
         path.write_text(json.dumps(job, indent=1))
         paths.append(str(path))
-    subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/blender_cloud.py"), *paths, "--who", WHO,
+    subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/blender_cloud.py"), *paths, "--who", WHO,
                     "--classes", CARDS], check=True, cwd=REPO)
     for path in paths:
         pathlib.Path(path).unlink()

@@ -5,7 +5,7 @@
     engines.blender_on_machines(runner, node, script, arguments, inputs, outputs, classes, minutes,
                                 euros)                                       # the default
 
-Both paths are tools/cloud's and tools/props/cloud's as they are (the blender image's command line as
+Both paths are tools/cloud's and tools/cloud's as they are (the blender image's command line as
 tools/cloud/images/warm.py writes it; blender_cloud.run_elsewhere for a rented machine), wrapped, not rewritten. No
 game engine yet: one comes when Godot is built (#2).
 """
@@ -28,8 +28,8 @@ def blender_job(script, arguments, outputs, code, minutes, euros):
 
 
 def machine_runner():
-    """tools/props/cloud/blender_cloud.py, the machine path's Blender runner."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    """tools/cloud/blender_cloud.py, the machine path's Blender runner."""
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import blender_cloud
     return blender_cloud
 

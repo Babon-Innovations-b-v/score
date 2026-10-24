@@ -27,12 +27,12 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 # The files that may make a paid call: (why, the top-level functions and constants it may be in). A paid call
 # anywhere else in the file fails as in any other. A new one is added only when it writes its ledger line first.
 ALLOWED = {
-    "tools/props/cloud/google_spend.py": ("the Gemini client: a started line before every call", {"URL", "post"}),
-    "tools/props/cloud/google_batch.py": ("the Gemini Batch API client: a started line on google_spend's ledger for "
+    "tools/cloud/google_spend.py": ("the Gemini client: a started line before every call", {"URL", "post"}),
+    "tools/cloud/google_batch.py": ("the Gemini Batch API client: a started line on google_spend's ledger for "
                                           "each request before its job is sent", {"API", "send", "status"}),
-    "tools/props/cloud/google_spend_test.py": ("the Gemini client's own lint names Google's hosts and clients",
+    "tools/cloud/google_spend_test.py": ("the Gemini client's own lint names Google's hosts and clients",
                                                {"test_no_module_calls_google_another_way"}),
-    "tools/props/cloud/backends/scaleway.py": (
+    "tools/cloud/backends/scaleway.py": (
         "the machine backend: create writes the started line before its order, under batch.rent, and the machine's "
         "disks and addresses go to the ledger at its delete. Known gap: quarantine_bad_address's fresh address is "
         "the machine's and ledgered at its delete, but the bad address it detaches stays in the project for good, "

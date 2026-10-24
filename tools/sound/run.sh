@@ -11,7 +11,7 @@
 #   bash tools/sound/run.sh loudness          # measure every sound of the world again (after made.py, say)
 #
 # The takes themselves are made on a rented card:
-#   ~/.farm-factory-props/env/bin/python tools/props/cloud/moss_sound.py game --who <session>
+#   ~/.farm-factory-props/env/bin/python tools/cloud/moss_sound.py game --who <session>
 #
 # Plain python3 and ffmpeg, nothing to install.
 set -euo pipefail

@@ -14,7 +14,7 @@ Hi3DGen hair, the depth-LoRA face, `rebuild.py`) and the prop route's own close-
   `--experimental` too, `route.make` its `experimental=True`). Proven: the prop route when the player and Nev pass
   tucks, pokes and skin-through-cloth on every clip and the owner picks them.
 - **Nothing here runs a model on the owner's PC.** `prop_person.py` writes a make folder and hands it to
-  `tools/props/cloud/characters.py`, which runs `prop_chain.py` (its steps through `chain.py`'s runner) on a rented
+  `tools/cloud/characters.py`, which runs `prop_chain.py` (its steps through `chain.py`'s runner) on a rented
   card, set up by `characters_setup.sh` (Kimodo with SOMA-X, SAM3DBody-cpp). A step is tried on a held machine
   (`characters.py --hold`), never here; only plain CPU geometry runs here.
 - **A make must be asked for.** A spec without `approved` (who asked, when) is refused before anything is rented.

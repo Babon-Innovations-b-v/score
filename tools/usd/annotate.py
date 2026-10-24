@@ -56,7 +56,7 @@ def run(stage, views, out, cloud=False, size=SIZE, classes=None, machine=None):
     job.write_text(json.dumps({"size": list(size), "views": views}, indent=1))
     stage = pathlib.Path(stage).resolve()
     if cloud or machine is not None:
-        sys.path.insert(0, str(REPO / "tools/props/cloud"))
+        sys.path.insert(0, str(REPO / "tools/cloud"))
         import blender_cloud
         outputs = [out / "ids.json"] + [out / f"{entry['name']}-{part}" for entry in views
                                         for part in (("look.png", "passes.npz") if entry.get("look", True)

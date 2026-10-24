@@ -86,8 +86,8 @@ FORMS = {"machine": MACHINE, "space": SPACE, "glass": GLASS}
 def load():
     """The picture model, ready to draw; refused on this PC (local_models.py)."""
     refuse_here("the picture model (FLUX.2 klein)",
-                "tools/props/cloud/pictures.py <jobs.json> for prop pictures, "
-                "tools/props/cloud/scene.py <plan.json> for a scene's targets and redraws")
+                "tools/cloud/pictures.py <jobs.json> for prop pictures, "
+                "tools/cloud/scene.py <plan.json> for a scene's targets and redraws")
     # The model stack is imported only where a model loads, so the plain-Python side (the cloud runners that read
     # this file's wording) needs no torch.
     import torch

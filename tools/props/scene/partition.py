@@ -5,7 +5,7 @@ a reason. No box is typed: a row's box is its proposals' box, and it records whi
 
     .venv/bin/python tools/props/scene/partition.py tiles <scene> <work folder>
     .venv/bin/python tools/props/scene/partition.py zoom <scene> <work folder> --zoom <view>,<l>,<t>,<r>,<b>,<scale>
-    .venv/bin/python tools/props/cloud/segment.py <work folder>/tiles --who <session>      # SAM 2.1, a rented card
+    .venv/bin/python tools/cloud/segment.py <work folder>/tiles --who <session>      # SAM 2.1, a rented card
     .venv/bin/python tools/props/scene/box_check.py <scene> --masks <masks folder>          # SAM 3, the rows' words
     .venv/bin/python tools/props/scene/partition.py proposals <scene> <work folder> --words <masks folder>
     .venv/bin/python tools/props/scene/partition.py apply <scene> <work folder> <mapping.json>

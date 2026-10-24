@@ -55,7 +55,7 @@ import zipfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
-CLOUD = REPO / "tools" / "props" / "cloud"
+CLOUD = REPO / "tools" / "cloud"
 sys.path.insert(0, str(HERE / "size_function"))
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(CLOUD.parent))  # tools/props: the ledger reads paths

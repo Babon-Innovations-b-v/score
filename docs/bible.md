@@ -24,7 +24,7 @@ generated while it is played.
   sound and people, each from the design alone, composed in OpenUSD with every parent scene holding its children.
 - **Outside services it calls**: Gemini 3.1 Pro (readings, plans, prompt rewrites, finish lists, Discuss), Nano Banana
   Pro (concept and top-down drawings), Qwen-Image-Edit (close-ups), SAM 3, Pixal3D, MOSS, Kimodo and the rest on rented cloud machines that delete
-  themselves (`tools/props/cloud/`, Scaleway the current cloud backend). No model runs on the coordinating machine.
+  themselves (`tools/cloud/`, Scaleway the current cloud backend). No model runs on the coordinating machine.
 - **score_lib**, the creator's library: everything a scene shows comes from it, and everything a batch accepts is
   handed to it.
 - **Out**: each scene's OpenUSD stage and scene package, the environment film, the library entries. The game 2099 was
@@ -52,8 +52,8 @@ machine that deletes itself. No model runs on the coordinating machine (`tools/p
   written by `tools/costs/per_unit.py`), and a node with none has no price, only a guess shown apart.
 - `score/library`: the one reader of score_lib's entries (ADR-0007); `tools/library/library_files.py` fetches its files.
 - `tools/props`: the prop pipeline (close-up, Pixal3D in a cloud batch, finish), the cloud runners
-  (`tools/props/cloud/`, through the provider interface `provider.py`), the surface library's recipes
-  (`tools/props/library/`). A Buy's cloud steps share one warm pool (`tools/props/cloud/pool.py`, CONTEXT.md "warm
+  (`tools/cloud/`, through the provider interface `provider.py`), the surface library's recipes
+  (`tools/props/library/`). A Buy's cloud steps share one warm pool (`tools/cloud/pool.py`, CONTEXT.md "warm
   pool"): its cards are rented once for the run by a collector of their own, and no step rents a card itself. It
   holds a few processor machines beside the cards (owner, 2026-10-23: "why isnt rendering on cpu better?", then
   "yeah" to bakes and small renders taking whichever machine is free first, and "cant u just get a faster cpu"): a
@@ -237,7 +237,7 @@ lock, reading and plan, parent before child, then the film.
    line and a grant's balance; the pool is released when the run has no card work left, ends, fails or is stopped.
    `score run` opens it before it drives, its holding cost cleared first as a node of its own (`gpu-pool`); releasing
    it once the run has no card work left and the cockpit's cards-warm figure are still to do
-   (`tools/props/cloud/CLAUDE.md`).
+   (`tools/cloud/CLAUDE.md`).
 5. The runner drives every scene's line side by side. A paid node runs once under its clearance; its failure is a
    batch gap, carried down the line and listed by the completion gate, never a retry (`architecture/failure`). A node
    that stops stops only its readers.
@@ -467,7 +467,7 @@ Recovery, in order:
 
 1. Paid work stays shut until the month's spend is known. A missing ledger reads as EUR 0, so every paid point refuses
    (`ledger.books_refusal`) until `cloud/books.json` says the month is `known`: `score spend --read-back` reads the
-   Scaleway bill and Google's (its billing export, `tools/props/cloud/google_bill.py`), or the owner enters the figure
+   Scaleway bill and Google's (its billing export, `tools/cloud/google_bill.py`), or the owner enters the figure
    on the cockpit's money card. `batch.rent` refuses without the runner's ssh and self-delete keys; the owner makes
    them.
 2. The store comes back by today's keys and gates, never by copying: `python -m score.store.restore <environment>
@@ -630,7 +630,7 @@ kept under `{home}/design/` (locked concepts, scene inventories, plans, hand-ins
 tools: for Scaleway, the `scw` CLI logged in to the project named by `SCORE_SCALEWAY_PROJECT` (by name, never an id).
 
 The people line needs nothing installed here: every environment it runs is set up on the rented card
-(`tools/props/cloud/characters_setup.sh`); it reads the secret `hf-read-token` (an account that accepted Meta's terms
+(`tools/cloud/characters_setup.sh`); it reads the secret `hf-read-token` (an account that accepted Meta's terms
 for `meta-llama/Meta-Llama-3-8B-Instruct`, Kimodo's text encoder's base).
 
 **The conductor** (`tools/cloud/conductor`, its overlay) is the store's machine as one Scaleway CPU machine of our

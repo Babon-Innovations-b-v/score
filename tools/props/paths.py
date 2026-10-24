@@ -2,7 +2,7 @@
 
 The models and the image-to-3dlab runtime are large and are not in the repo. No script in the repo
 installs them on this PC (the bible's workflow/bootstrap covers only PROPS_HOME's cloud/ and work/);
-the rented machines get theirs from the cloud runners' setup scripts (tools/props/cloud/*_setup.sh).
+the rented machines get theirs from the cloud runners' setup scripts (tools/cloud/*_setup.sh).
 This file is the single place that says where they are, so moving them is one edit.
 """
 import os

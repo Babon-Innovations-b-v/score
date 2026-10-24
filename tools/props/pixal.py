@@ -51,7 +51,7 @@ sys.path.insert(0, str(REPO / "vendor" / "image-to-3dlab"))
 from image_to_3dlab.glb_turn import CAMERA_KEY, FACING_KEY, VIEW_TURN  # noqa: E402
 
 # Where every Pixal3D step runs instead of this PC (local_models.py).
-CLOUD = 'tools/props/cloud/batch.py <list.txt> --who "<session>" (one line a model: name picture options)'
+CLOUD = 'tools/cloud/batch.py <list.txt> --who "<session>" (one line a model: name picture options)'
 
 LAB_PYTHON = IMAGE_TO_3DLAB / ".venv" / "bin" / "python"
 OUT = WORK / "pixal"

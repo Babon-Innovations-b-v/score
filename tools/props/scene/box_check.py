@@ -42,7 +42,7 @@ from PIL import Image, ImageDraw
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "closeup"))
-sys.path.insert(0, str(HERE.parent / "cloud"))
+sys.path.insert(0, str(HERE.parent.parent / "cloud"))
 import check  # noqa: E402
 import inventory  # noqa: E402
 from paths import WORK  # noqa: E402

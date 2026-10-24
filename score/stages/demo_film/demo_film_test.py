@@ -297,7 +297,7 @@ def test_the_forecast_counts_the_shots_film_one_makes_and_leaves_the_record_alon
 def test_the_frames_ask_cards_only_so_no_card_in_stock_is_a_gap():
     """#21: the frames' classes are cards; blender_cloud takes the first one in stock and never a processor machine in
     a card's place (batch.one_class_in_stock), so a film priced on cards runs on cards or is a gap."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import provider
     assert all(provider.cards(name) for name in demo_film.CLASSES.split(","))
 

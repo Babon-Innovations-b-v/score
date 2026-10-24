@@ -24,15 +24,15 @@ OUTSIDE = (REPO / ".venv", REPO / ".git")
 FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__.py", "score/graph/_code.py",
                                       "score/review/__init__.py", "score/review/__main__.py",
                                       "score/adapters/compute", "score/dashboard", "score/stages/__init__.py",
-                                      "score/stages/__main__.py", "tools/props/cloud/batch.py",
-                                      "tools/props/cloud/capacity.py", "tools/props/cloud/park.py",
-                                      "tools/props/cloud/pool.py", "tools/props/cloud/spread.py",
-                                      "tools/props/cloud/provider.py", "tools/props/cloud/backends",
-                                      "tools/props/cloud/preflight.py", "tools/props/cloud/kept.py",
-                                      "tools/props/cloud/self_delete.py", "tools/props/cloud/secret_store.py",
-                                      "tools/props/cloud/detached.py", "tools/props/cloud/google_spend.py",
-                                      "tools/props/cloud/google_bill.py", "tools/props/cloud/blender_cloud.py",
-                                      "tools/props/cloud/ledger.py")}
+                                      "score/stages/__main__.py", "tools/cloud/batch.py",
+                                      "tools/cloud/capacity.py", "tools/cloud/park.py",
+                                      "tools/cloud/pool.py", "tools/cloud/spread.py",
+                                      "tools/cloud/provider.py", "tools/cloud/backends",
+                                      "tools/cloud/preflight.py", "tools/cloud/kept.py",
+                                      "tools/cloud/self_delete.py", "tools/cloud/secret_store.py",
+                                      "tools/cloud/detached.py", "tools/cloud/google_spend.py",
+                                      "tools/cloud/google_bill.py", "tools/cloud/blender_cloud.py",
+                                      "tools/cloud/ledger.py")}
 # Where FRAMEWORK is declared, read at an older commit to rebuild the code version a record was made under.
 DECLARED_IN = "score/graph/_code.py"
 
@@ -46,7 +46,7 @@ def in_repo(path):
 @functools.cache
 def search_folders():
     """The import path's folders as this process first works out a code version, kept from then on. A make or a
-    later import that puts a folder on the path (the light layer's tools/props/scene, terrain's tools/props/cloud)
+    later import that puts a folder on the path (the light layer's tools/props/scene, terrain's tools/cloud)
     would otherwise give another same-named module to a stage worked out after it: effects-layer took in triage.py
     and feet.py through stages_test's earlier tests, 2026-10-13."""
     return tuple(sorted({pathlib.Path(entry).resolve() for entry in sys.path if entry}))

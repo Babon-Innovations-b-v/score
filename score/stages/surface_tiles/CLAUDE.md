@@ -5,7 +5,7 @@ plan) drawn with its scene library's surfaces instead of a flat colour, one paid
 1's table, read by the assembly.
 
 - **One tile a surface, baked flat on a card** (`tools/props/library/inside/make_tiles.py` through
-  `tools/props/cloud/library_bake.py`), in the scene palette's tokens, wear and dirt, `TILE_METRES` a side at the
+  `tools/cloud/library_bake.py`), in the scene palette's tokens, wear and dirt, `TILE_METRES` a side at the
   shell's density, made to repeat without a seam. The assembly's record step writes the shell with it
   (`tools/usd/shaders.py` `tile_look`, a UsdTransform2d over the mesh's uvs in metres); the web viewer carries the
   repeat as KHR_texture_transform.

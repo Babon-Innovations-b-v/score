@@ -9,10 +9,10 @@ few minutes across classes and zones while none is in stock) and the runs, each 
 jobs in order:
 
     {"classes": ["gpu-80gb", "gpu-80gb-x2"], "minutes": 90, "disk_gb": 300,
-     "runs": [{"kind": "judge", "code": ["tools/props/cloud/judge_worker.py"],
+     "runs": [{"kind": "judge", "code": ["tools/cloud/judge_worker.py"],
                "inputs": [{"from": "<local file>", "path": "/root/judge/in/a.png"}],
                "jobs": [{"name": "first-node", "cache": "a", "models": ["qwen3.8-27b-fp8"], "minutes": 40,
-                         "command": ["judge-run", "tools/props/cloud/judge_worker.py", "/root/judge/jobs.json"],
+                         "command": ["judge-run", "tools/cloud/judge_worker.py", "/root/judge/jobs.json"],
                          "env": {}, "kernel_cache": "judge-vllm-0.31.0",
                          "outputs": [{"path": "/root/judge/out", "to": "<local folder>"}]}]}]}
 

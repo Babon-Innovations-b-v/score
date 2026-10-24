@@ -99,7 +99,7 @@ def cut(image, mask):
 
 def segment(image, asked):
     """Every instance of every name and every room surface, found by SAM 3 on the card."""
-    refuse_here("SAM 3", "tools/props/cloud/scene.py <plan.json> with \"names\" in the plan")
+    refuse_here("SAM 3", "tools/cloud/scene.py <plan.json> with \"names\" in the plan")
     wanted = dict(name_and_sureness(name) for name in asked)
     wanted.update({surface: sureness for surface, (_, sureness) in SURFACES.items()})
     words = {surface: word for surface, (word, _) in SURFACES.items()}

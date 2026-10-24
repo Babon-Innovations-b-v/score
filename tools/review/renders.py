@@ -53,7 +53,7 @@ STANDING = 1.6
 
 
 # Where the Blender work runs: None for this PC's Blender (one at a time, the machine's lock), else a rented machine
-# held for the page's whole build (tools/props/cloud/blender_cloud.Machine), set by page.py --cloud.
+# held for the page's whole build (tools/cloud/blender_cloud.Machine), set by page.py --cloud.
 CLOUD = None
 CLOUD_CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb")
 

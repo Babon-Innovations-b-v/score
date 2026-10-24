@@ -23,7 +23,7 @@ Against the stop count, at each paid job's start (`score.adapters.compute.cleara
 A job that would pass the stop is refused before it starts, with one line in the owner's outbox per stop line; free
 work goes on, since only paid jobs are cleared. A job once started runs to its end: the only stop halfway is a runaway,
 a run still going past RUNAWAY times its high forecast minutes (at its forecast's cards, its cost grows with its time):
-the sum of its batches' pre-flights once it has any (tools/props/cloud/preflight.py, sized on their jobs), else its
+the sum of its batches' pre-flights once it has any (tools/cloud/preflight.py, sized on their jobs), else its
 stage's measured runs. `Watch` ends it by signalling the make's own child processes (the cloud runners delete their
 machines on a signal).
 

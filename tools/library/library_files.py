@@ -40,7 +40,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 REFERENCE = re.compile(r"^(?P<address>(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(?:\.[a-z0-9_]+)?)@(?P<version>[1-9][0-9]*))"
                        r"/(?P<file>[^@]+)$")
 DEFAULT_COMMAND = "score-lib"
-CLOUD = REPO / "tools/props/cloud"
+CLOUD = REPO / "tools/cloud"
 # The library's blobs sit under this prefix of the cloud backend's bucket (blobs/<sha[:2]>/<sha>).
 STORE_PREFIX = "score_lib"
 # Either of these set means the blob store is chosen already, and the cloud's is not read.

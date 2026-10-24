@@ -300,7 +300,7 @@ def stored_pairs(output):
 
 def gather_likeness(output, inputs, folder):
     """DINOv2's score of every pair on a rented machine (similar.py): the evidence file."""
-    with prop_data.tools("props/cloud", "props"):
+    with prop_data.tools("cloud", "props"):
         import similar
         similar.likeness(stored_pairs(output), folder / "likeness.json", "score likeness")
     return folder / "likeness.json"

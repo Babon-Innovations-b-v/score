@@ -20,7 +20,7 @@ OUT_OF_STOCK = "out of stock"
 SHORTAGE = "shortage"  # the backend's stock word for none to be had
 # Each card or processor layer of the remake: (its ledger kind, the classes its runner asks for, where they are set).
 LAYERS = {
-    "pixal": ("pixal", None, "tools/props/cloud/capacity.py KINDS['pixal']"),
+    "pixal": ("pixal", None, "tools/cloud/capacity.py KINDS['pixal']"),
     "surfaces-paint": ("blender", ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb"),
                        "score/stages/surfaces/place_line.py PAINT_CLASSES"),
     "surfaces-bake": ("library", ("gpu-24gb", "gpu-48gb", "gpu-80gb"), "score/stages/surfaces/place_line.py CLASSES"),
@@ -29,8 +29,8 @@ LAYERS = {
 
 
 def capacity():
-    """tools/props/cloud/capacity.py (the runner's classes and order)."""
-    compute.ledger()  # puts tools/props/cloud on the path
+    """tools/cloud/capacity.py (the runner's classes and order)."""
+    compute.ledger()  # puts tools/cloud on the path
     import capacity as found
     return found
 

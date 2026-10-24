@@ -8,4 +8,4 @@ mkdir -p /root/sfx/out /tmp/hf-hub
 /opt/score/venv/bin/python /opt/score/runtime/hf_cache.py /work/repo/tools/cloud/images/moss/models.json \
   /tmp/hf-hub
 cd /root/sfx
-HF_HUB_CACHE=/tmp/hf-hub HF_HUB_OFFLINE=1 exec /root/venv/bin/python /work/repo/tools/props/cloud/moss_generate.py "$@"
+HF_HUB_CACHE=/tmp/hf-hub HF_HUB_OFFLINE=1 exec /root/venv/bin/python /work/repo/tools/cloud/moss_generate.py "$@"

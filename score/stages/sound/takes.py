@@ -70,11 +70,11 @@ def missing(jobs):
 def plan_for(jobs_file, out, minutes, takes):
     """prove.py's plan: the jobs on one card of the moss-sound classes, the takes back into `out`; the ledger line
     names its `takes` (tools/costs/per_unit.py prices a take by them)."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(REPO / "tools/cloud"))
     import capacity
     return {"classes": list(capacity.classes_for("moss-sound")), "minutes": minutes, "disk_gb": 200,
             "ledger": {"takes": takes},
-            "runs": [{"kind": KIND, "code": ["tools/props/cloud/moss_generate.py"],
+            "runs": [{"kind": KIND, "code": ["tools/cloud/moss_generate.py"],
                       "inputs": [{"from": str(jobs_file), "path": f"{REMOTE}/jobs-0.json"}],
                       "jobs": [{"name": "takes", "cache": "a", "models": MODELS, "minutes": minutes,
                                 "command": ["moss-run", f"{REMOTE}/jobs-0.json", "0"],

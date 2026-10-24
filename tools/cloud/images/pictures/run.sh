@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The pictures image's command (installed as pictures-run): links the one picture model the job names from the node
 # cache (SCORE_MODEL_*, models.json) to /root/model, where picture_worker.py loads it, then runs the job's arguments
-# with the model Python (for example: pictures-run tools/props/cloud/picture_worker.py jobs.json
+# with the model Python (for example: pictures-run tools/cloud/picture_worker.py jobs.json
 # QwenImageEditPlusPipeline 80).
 set -euo pipefail
 

@@ -2,7 +2,7 @@
 
     .venv/bin/python tools/review/demo.py plan <out> --stages <stage root> [--jobs-each N] [--keep <earlier out>] \
         <film>[@<place>][=<camera>,...] [...]
-    ~/.farm-factory-props/env/bin/python tools/props/cloud/blender_cloud.py <out>/jobs/*.json --who <session> \
+    ~/.farm-factory-props/env/bin/python tools/cloud/blender_cloud.py <out>/jobs/*.json --who <session> \
         --classes gpu-24gb,gpu-48gb,gpu-80gb --detach
     .venv/bin/python tools/review/demo.py cut <out> <film>[:<Title>] [...]
     .venv/bin/python tools/review/film_checks.py films <out> <film> [...]

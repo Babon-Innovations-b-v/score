@@ -1,4 +1,4 @@
-# Splitting our own models into parts: SegviGen and GeoSAM2 in one image, as tools/props/cloud/meshparts_setup.sh
+# Splitting our own models into parts: SegviGen and GeoSAM2 in one image, as tools/cloud/meshparts_setup.sh
 # (job parts-test, 2026-10-09) installs them on a rented machine. One kind, two environments that cannot share a
 # Python: SegviGen on Python 3.10 and torch 2.6 (TRELLIS.2's environment) and GeoSAM2 on Python 3.11 and torch 2.5.1,
 # each resolved and hashed (segvigen.txt, geosam2.txt), with Blender 4.0.2 for GeoSAM2's EEVEE renders under a virtual

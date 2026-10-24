@@ -1,4 +1,4 @@
-"""Inside Blender on a rented machine (tools/props/cloud/blender_cloud.py): a rough model's raw take finished as
+"""Inside Blender on a rented machine (tools/cloud/blender_cloud.py): a rough model's raw take finished as
 pixal.py --finish-only finishes every take, there rather than on the owner's PC, which has neither image-to-3dlab's
 environment nor a Blender for it (2026-10-22 benchmark: the finish broke every scene's rough model).
 

@@ -335,8 +335,8 @@ def code_work(work):
 
 
 def run_cap():
-    """The most cards one run holds at once (tools/props/cloud/capacity.py run_cap), as the runner sizes its runs."""
-    compute.ledger()  # puts tools/props/cloud on the path
+    """The most cards one run holds at once (tools/cloud/capacity.py run_cap), as the runner sizes its runs."""
+    compute.ledger()  # puts tools/cloud on the path
     import capacity  # beside ledger.py
     return capacity.run_cap()
 

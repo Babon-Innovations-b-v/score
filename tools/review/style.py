@@ -5,7 +5,7 @@ against the creator's reviews (it reported nothing wrong on the paint he rejects
 architecture/experimental.
 
     .venv/bin/python tools/review/style.py pairs <review root> <work folder>      # the silhouettes and pairs.json
-    .venv/bin/python tools/props/cloud/similar.py <work>/pairs.json <work>/likeness.json --who "<session>"
+    .venv/bin/python tools/cloud/similar.py <work>/pairs.json <work>/likeness.json --who "<session>"
     .venv/bin/python tools/review/style.py report <review root> <work folder>     # <work>/style.json and style.txt
 
 <review root> holds one review page per place (<place>/models/<model>--made--now.png, tools/review/page.py). Three

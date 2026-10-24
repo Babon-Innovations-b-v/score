@@ -1,4 +1,4 @@
-"""Inside Blender on a rented machine (tools/props/cloud/blender_cloud.py run_elsewhere): a raw Pixal3D take finished
+"""Inside Blender on a rented machine (tools/cloud/blender_cloud.py run_elsewhere): a raw Pixal3D take finished
 as pixal.py --finish-only finishes it, there rather than on the owner's PC (no Blender, no bake, no model there; the
 pixal row's takes, score/stages/props/pixal_row.py, as score/stages/rough_model/_finish.py does the rough model's).
 

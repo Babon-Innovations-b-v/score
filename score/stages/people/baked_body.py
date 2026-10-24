@@ -79,7 +79,7 @@ def baked_on_card(job, mesh, folder):
     cloud.write_text(json.dumps({"script": SCRIPT, "args": [str(listing)], "minutes": MINUTES,
                                  "inputs": [str(listing), str(mesh), *(str(REPO / path) for path in SENT)],
                                  "outputs": [str(folder / "maps")]}))
-    done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/blender_cloud.py"), str(cloud), "--who",
+    done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/blender_cloud.py"), str(cloud), "--who",
                            "people-dress", "--classes", place_line.CLASSES], cwd=REPO, capture_output=True, text=True)
     (folder / "bake.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
     missing = [name for name in ("uvs.npy", *(f"{role}.png" for role in MAPS)) if not (folder / "maps" / name).exists()]

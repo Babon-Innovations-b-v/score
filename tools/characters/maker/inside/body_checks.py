@@ -1,4 +1,4 @@
-"""Runs inside Blender on a rented processor machine (tools/props/cloud/blender_cloud.py; the people stage's body
+"""Runs inside Blender on a rented processor machine (tools/cloud/blender_cloud.py; the people stage's body
 rows, prop_person.py `checks` with `cloud=True`): a built person's checks side by side, each in Blender's own Python
 outside Blender with the prop environment's packages at their pinned versions (installed once a machine), as the
 surface stage's paint runs (score/stages/surfaces/inside/paint_take.py). On the PC the two body-through-cloth counts

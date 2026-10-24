@@ -37,7 +37,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   pages' made-model renders only, the coloured pixels' fit to the place's library palette, the spread of the models'
   lightness, how blotchy their surfaces look (surface marks), and DINOv2's likeness within the place against across
   places, with the same pairs as silhouettes subtracted so what an object is does not count as its style. DINOv2
-  runs on a rented machine through `../props/cloud/similar.py`, never here. It reports numbers, never a verdict;
+  runs on a rented machine through `../cloud/similar.py`, never here. It reports numbers, never a verdict;
   validating it needs the creator's reviews. Experimental: it reported nothing wrong on the paint the owner rejects;
   it is proven when it ranks the models he flagged worse than the ones he accepted.
 - **Luminance per region** (`brightness.py`): the whole picture's mean hides a dark part behind a bright one (the far

@@ -66,7 +66,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   counted (`unseen_faces`) and the split walks its nearest seen face's finish onto it. Each view's colour regions:
   the model's own texture under each pixel in k-means groups (at most eight, the same in every view); the texture is
   measured, never painted. List (paid): one Gemini 3.1 Pro answer a take, all the place's takes in one batch through
-  Google's Batch API at half price (`route_ask.py`, `tools/props/cloud/google_batch.py`), seeing the close-up, every
+  Google's Batch API at half price (`route_ask.py`, `tools/cloud/google_batch.py`), seeing the close-up, every
   view and every region view: the complete finish list, each finish matched FIRST to a library surface with settings
   (a library token, roughness, metal, its own seed: `take_seed`, the node's moved by the take's name, so each
   object's wear and dirt pattern is its own), a new surface only when none fits with any settings; its wear the

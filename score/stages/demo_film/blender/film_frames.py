@@ -1,4 +1,4 @@
-"""Runs inside Blender (a demo-film frame job on a rented card, tools/props/cloud/blender_cloud.py): usd_views.py's
+"""Runs inside Blender (a demo-film frame job on a rented card, tools/cloud/blender_cloud.py): usd_views.py's
 frames of a film, each with the camera's motion blur.
 
     blender -b -P film_frames.py -- <stage.usda> <views.json> <out folder>

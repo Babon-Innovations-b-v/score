@@ -4,7 +4,7 @@
     .venv/bin/python -m score.store.restore world1 --library <score_lib> --reattach --max-gb N   # the owner's own
     .venv/bin/python -m score.store.restore --index-checkouts       # the bucket's checkout tars, by their headers
 
-Run it detached (tools/props/cloud/detached.py -- ...) under the Bash tool's run_in_background: it drives every line.
+Run it detached (tools/cloud/detached.py -- ...) under the Bash tool's run_in_background: it drives every line.
 It refuses to start while paid work is open (the month's books known: ledger.books_refusal gives no reason), so a run
 is proof that nothing could be bought; it takes the store's run claim (score/graph/runs.py), so a `score run` beside
 it is refused. `--reattach` downloads checkouts of paid outputs whose key matches today (score/store/restore); it is
@@ -30,7 +30,7 @@ from score.store import RUNNER, Store, running_under_agent, whole_file
 from score.store.restore import PAID_REFUSED, FreeRunner, guard_free_only, ledger, library_outputs
 from score.store.restore._bucket import Fetch, index_checkouts, open_bucket
 
-import google_spend  # noqa: E402  (tools/props/cloud, on the path through the restore's ledger import)
+import google_spend  # noqa: E402  (tools/cloud, on the path through the restore's ledger import)
 from paths import WORK  # noqa: E402
 
 FOLDER = WORK / "restore"

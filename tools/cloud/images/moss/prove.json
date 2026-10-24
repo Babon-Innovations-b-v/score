@@ -1,5 +1,5 @@
 {"classes": ["gpu-24gb"], "minutes": 60, "disk_gb": 200, "euros": 2.0,
- "runs": [{"kind": "moss", "code": ["tools/props/cloud/moss_generate.py"],
+ "runs": [{"kind": "moss", "code": ["tools/cloud/moss_generate.py"],
            "inputs": [{"from": "prove-jobs.json", "path": "/root/sfx/jobs-0.json"}],
            "jobs": [{"name": "takes", "cache": "a", "models": ["moss-soundeffect-v2", "clap-larger-general"],
                      "minutes": 30, "command": ["moss-run", "/root/sfx/jobs-0.json", "0"],

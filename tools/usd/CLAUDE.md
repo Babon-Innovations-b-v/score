@@ -167,7 +167,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   only the runner's complete row. The hash covers a model's .gltf and buffers, not its texture
   files, so a repaint that keeps the file names is not caught.
 - `compare.py` is the render-and-compare: each object with a close-up rendered alone from 8 ways round it, the best
-  outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../props/cloud/similar.py`).
+  outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../cloud/similar.py`).
   Experimental, a candidate check: no gate reads it and it has not yet failed a known-bad model; it is proven when it
   ranks a model from the fault corpus worst.
 - `made_only.py` is the made-only check on the stage: every drawn mesh says what made it (score:model, score:builder,

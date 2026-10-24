@@ -41,7 +41,7 @@ import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
-CLOUD = REPO / "tools/props/cloud"
+CLOUD = REPO / "tools/cloud"
 sys.path.insert(0, str(HERE))
 
 import spec as specs  # noqa: E402
@@ -171,7 +171,7 @@ NEAR_FACES = 27300
 
 
 def cloud(tool, *arguments):
-    """A cloud runner of tools/props/cloud as its own process, in the props environment; raises when it fails."""
+    """A cloud runner of tools/cloud as its own process, in the props environment; raises when it fails."""
     subprocess.run([str(PROPS_PYTHON), str(CLOUD / tool), *map(str, arguments)], check=True)
 
 

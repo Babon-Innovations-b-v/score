@@ -23,7 +23,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 PROPS = REPO / "tools/props"
-for folder in (HERE, PROPS, PROPS / "library", PROPS / "cloud"):
+for folder in (HERE, PROPS, PROPS / "library", REPO / "tools/cloud"):
     if str(folder) not in sys.path:
         sys.path.append(str(folder))  # appended: the method modules must not shadow the framework's
 if str(REPO) not in sys.path:
@@ -499,7 +499,7 @@ def make_paint(inputs, out, seed, params):
     jobs = [paint_job(inputs, short, out, take,
                       method_surfaces(take, data["takes"][take]["place"], record["parts"], registry))
             for take, record in method["takes"].items()]
-    done = subprocess.run([str(prop_env.PROPS_PYTHON), str(PROPS / "cloud/blender_cloud.py"), *map(str, jobs), "--who",
+    done = subprocess.run([str(prop_env.PROPS_PYTHON), str(REPO / "tools/cloud/blender_cloud.py"), *map(str, jobs), "--who",
                            f"surfaces-paint-{data['place']}", "--classes", PAINT_CLASSES], cwd=REPO,
                           capture_output=True, text=True)
     (out / "paint.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
@@ -647,7 +647,7 @@ def make_bake(inputs, out, seed, params):
         path = out / f".job-{entry['name']}.json"
         path.write_text(json.dumps(one, indent=1))
         jobs.append(str(path))
-    done = subprocess.run([str(prop_env.PROPS_PYTHON), str(PROPS / "cloud/library_bake.py"), *jobs, "--who",
+    done = subprocess.run([str(prop_env.PROPS_PYTHON), str(REPO / "tools/cloud/library_bake.py"), *jobs, "--who",
                            f"surfaces-{data['place']}", "--classes", CLASSES], cwd=REPO, capture_output=True,
                           text=True)
     (out / "bake.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
