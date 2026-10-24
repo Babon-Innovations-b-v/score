@@ -9,8 +9,10 @@
   SCORE_HEALTH_BUCKET, written every minute by tools/cloud/conductor/health_push.py) says a run is active, a paid
   machine is parked or a frozen worktree is in use, or is older than HEALTH_STALE_SECONDS (an unknown is never an
   idle): either way the server is powered off, which would cut the run and orphan its rented machines;
-- powers the server off, waits until it is stopped, sets its commercial type, powers it on (also when the type change
-  was refused, so the conductor is never left off) and returns the new state.
+- lifts the server's protection (`machine.py up` sets it, and Scaleway refuses to power off a protected server:
+  "precondition failed: server is protected", 2026-10-24), powers it off, waits until it is stopped, sets its
+  commercial type, powers it on (also when the type change was refused, so the conductor is never left off), protects
+  it again (in every path, a failure's too) and returns the new state.
 
 Its own Scaleway key (secret environment variables SCW_ACCESS_KEY, SCW_SECRET_KEY: the secret score-conductor-size-key)
 may change Instances in the conductor's project and read that one bucket.
@@ -130,6 +132,17 @@ def wait_stopped(api, path, sleep, clock):
         sleep(POLL_SECONDS)
 
 
+def change_type(api, path, state, target, sleep, clock):
+    """Power the server off (unless stopped), set its commercial type and power it on, also when the change failed."""
+    if state != "stopped":
+        api("POST", f"{path}/action", {"action": "poweroff"})
+        wait_stopped(api, path, sleep, clock)
+    try:
+        api("PATCH", path, {"commercial_type": target})
+    finally:
+        api("POST", f"{path}/action", {"action": "poweron"})
+
+
 def resize(action, config, api, read_health, sleep=time.sleep, clock=time.monotonic):
     """Carry out grow or shrink: the answer {action, from, to, state, changed}."""
     target = config["SCORE_BATCH_TYPE"] if action == "grow" else config["SCORE_IDLE_TYPE"]
@@ -142,13 +155,14 @@ def resize(action, config, api, read_health, sleep=time.sleep, clock=time.monoto
     refused = health_refusal(read_health(), server["state"], datetime.datetime.now(datetime.timezone.utc))
     if refused:
         raise Refused(f"{action} refused: {refused}; a resize powers the conductor off")
-    if server["state"] != "stopped":
-        api("POST", f"{path}/action", {"action": "poweroff"})
-        wait_stopped(api, path, sleep, clock)
+    protected = server.get("protected")
+    if protected:
+        api("PATCH", path, {"protected": False})
     try:
-        api("PATCH", path, {"commercial_type": target})
+        change_type(api, path, server["state"], target, sleep, clock)
     finally:
-        api("POST", f"{path}/action", {"action": "poweron"})
+        if protected:
+            api("PATCH", path, {"protected": True})
     state = api("GET", path)["server"]
     return {"action": action, "from": was, "to": state["commercial_type"], "state": state["state"], "changed": True}
 
