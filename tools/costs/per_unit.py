@@ -607,12 +607,26 @@ def google_times(calls, caller, google_path):
             "from": [costs.scrub(str(google_path))]}
 
 
+def batch_job_time(calls, caller, google_path):
+    """The `time` of a Batch API stage (google_batch.py: a row sends all its takes as one job): {why} always, saying
+    what its own calls measured. A call's span is its job's wait, but only jobs of a few requests were timed, and a
+    row's job of hundreds is not one of them, so neither one call a unit nor every unit at once is a measure of it
+    (2026-10-24: timing them as calls in a line gave a 39 h finish list)."""
+    found = google_times(calls, caller, google_path)
+    if "unit_seconds" not in found:
+        return found
+    return {"why": f"Batch API jobs of {found['slots']} request(s) at once timed only ({found['lines']} calls, "
+                   f"{found['unit_seconds']['likely']:.0f} s likely, {found['unit_seconds']['high']:.0f} s high); a "
+                   "row's whole job of its takes is not measured"}
+
+
 def times(lines, calls, google_path):
     """{stage: time} of every stage in SPECS from the lines read (cloud_times, google_times), and the RECORDED
     stages' time, null with why."""
     found = {stage: cloud_times(lines, spec) if "cloud" in spec else google_times(calls, spec["google"], google_path)
              for stage, spec in SPECS.items()}
-    lost = {"why": "priced from runs written down when they ran, euros and units but no time; their ledger lines "
+    found.update({stage: batch_job_time(calls, stage, google_path) for stage in BATCH if stage not in found})
+    lost ={"why": "priced from runs written down when they ran, euros and units but no time; their ledger lines "
                    "went with the old disk (2026-10-19)"}
     return {**{stage: spec.get("time", lost) for stage, spec in RECORDED.items()}, **found}
 
@@ -737,13 +751,24 @@ def own_rows(stage, spec, lines):
     return rows, sorted({source.rpartition(" line ")[0] for _, source in named})
 
 
-def warm_time(spec, seconds, machines, old, origin):
+def row_setups(rows):
+    """The minutes each fresh machine of `rows` took from its order to its first job (its start wait and in-machine
+    set-up, setups' rule for a row of a line that names no jobs at once); none for a row with no start wait."""
+    return [row["start_wait_minutes"] + in_machine_setup({}, row) for row in rows
+            if row.get("start_wait_minutes") is not None and not row.get("adopted")]
+
+
+def warm_time(spec, seconds, rows, old, origin):
     """A warm stage's `time`: its work seconds and the jobs a card runs at once, the set-up and failed starts of its
-    file's `time` kept (a fresh fleet still sets up), {why} for a set-up never measured."""
-    return {**old, "unit_seconds": spread(seconds), "slots": slots_of(spec),
-            "slots_from": f"capacity.runs_at_once({spec['kind']}, {spec['class']})",
-            "setup_minutes": old.get("setup_minutes") or {"why": "no line read here timed a machine's set-up"},
-            "holds": "machines", "lines": machines, "from": origin}
+    file's `time` kept (a fresh fleet still sets up), else the set-up of the machines its seconds were timed on
+    (row_setups: light-passes had none, so no ETA, 2026-10-24), {why} for a set-up never measured."""
+    kept, measured = old.get("setup_minutes") or {}, row_setups(rows)
+    setup = kept if "likely" in kept else spread(measured) if measured else {
+        "why": "no line read here timed a machine's set-up"}
+    return {**{name: value for name, value in old.items() if name != "why"}, "unit_seconds": spread(seconds),
+            "slots": slots_of(spec), "slots_from": f"capacity.runs_at_once({spec['kind']}, {spec['class']})",
+            **({} if "likely" in setup else {"why": setup["why"]}),
+            "setup_minutes": setup, "holds": "machines", "lines": len(rows), "from": origin}
 
 
 def warm_entry(found, spec, own=((), ())):
@@ -761,7 +786,7 @@ def warm_entry(found, spec, own=((), ())):
                            "(2026-10-20) until runs record it"}
     return {**found, "likely_euros": round(warm_price(spec, statistics.median(seconds)), 5),
             "high_euros": round(warm_price(spec, quantile(seconds, HIGH)), 5), "runs": len(seconds),
-            "sources": sources, "basis": "warm work time", "time": warm_time(spec, seconds, len(rows), found.get("time") or {}, origin)}
+            "sources": sources, "basis": "warm work time", "time": warm_time(spec, seconds, rows, found.get("time") or {}, origin)}
 
 
 def batch_entry(stage, found, spec):
