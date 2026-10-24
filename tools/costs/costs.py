@@ -51,6 +51,8 @@ import time
 HOME = str(pathlib.Path.home())
 # Local roots in the ledger's folders and jobs, and what the public copy writes instead.
 LOCAL_ROOTS = [
+    # This checkout wherever it sits (a clone outside ~/projects/score wrote its sources absolute: per_unit_test failed).
+    (re.escape(str(pathlib.Path(__file__).resolve().parents[2])) + "/", ""),
     (re.escape(HOME) + r"/\.claude/jobs/[^/]+/", ""),
     (re.escape(HOME) + r"/projects/score/\.claude/worktrees/[^/]+/", ""),
     (re.escape(HOME) + r"/projects/score/", ""),
