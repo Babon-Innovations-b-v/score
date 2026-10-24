@@ -4,7 +4,7 @@ Read only, but for the Launch row's state, which polling keeps (the dashboard's 
 from django.db.models import Q
 
 from score.dashboard.launch import guard
-from score.dashboard.pages.models import Checkout, Plan
+from score.dashboard.pages.models import Checkout, Launch, Plan
 
 
 def planned_nodes(plan_body):
@@ -17,12 +17,24 @@ def planned_nodes(plan_body):
     return list(found)
 
 
+def checkout_plans(record):
+    """The plans of every run of the checkout (their bodies name it; its launch's plan always counts), oldest first."""
+    return Plan.objects.filter(Q(body__checkout=record.pk) | Q(pk=record.launch.plan_id)).order_by("started")
+
+
+def checkout_runs(record):
+    """Every launch of the checkout's runs as {at, logs}, oldest first: a relaunch's monitor adds up what each spent
+    and times the batch from the first."""
+    launches = Launch.objects.filter(plan__in=checkout_plans(record)).order_by("at")
+    return [{"at": launch.at.isoformat(), "logs": [handle["log"] for handle in launch.handles if handle.get("log")]}
+            for launch in launches]
+
+
 def checkout_nodes(record):
     """Every row any run of the checkout planned (its plans name it; its launch's plan always counts), its first
     run's order first: a relaunch plans only what is not yet accepted, so the checkout's rows stay all of them."""
     found = {}
-    plans = Plan.objects.filter(Q(body__checkout=record.pk) | Q(pk=record.launch.plan_id)).order_by("started")
-    for plan in plans:
+    for plan in checkout_plans(record):
         found.update(dict.fromkeys(planned_nodes(plan.body)))
     return list(found)
 
@@ -37,8 +49,8 @@ def launch_of(launch):
 
 
 def newest():
-    """The newest checkout, its launch and the rows its runs plan (the bought rows alone before it launched), as
-    plain data for batch_run.gathered; None before one."""
+    """The newest checkout, its launch, every launch of its runs (checkout_runs) and the rows its runs plan (the
+    bought rows alone before it launched), as plain data for batch_run.gathered; None before one."""
     record = Checkout.objects.select_related("launch__plan").first()
     if record is None:
         return None
@@ -46,4 +58,5 @@ def newest():
     planned = checkout_nodes(record) if record.launch else []
     return {"checkout": record.pk, "at": record.at.isoformat(), "by": record.by, "state": record.state,
             "detail": record.detail, "totals": record.totals, "stop_line": record.stop_line,
-            "launch": launch_of(record.launch), "nodes": planned or bought}
+            "launch": launch_of(record.launch), "runs": checkout_runs(record) if record.launch else [],
+            "nodes": planned or bought}

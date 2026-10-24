@@ -90,6 +90,7 @@ never changes a run's inputs mid-run; the copy goes once the run, and every mach
 import argparse
 import atexit
 import datetime
+import importlib.util
 import json
 import os
 import pathlib
@@ -115,6 +116,9 @@ from score.store import Store  # noqa: E402
 DETACH = "--detach"
 RUN_ID = "SCORE_RUN_ID"
 RUN_PID = "SCORE_RUN_PID"
+# Every ledger line a run's processes write carries its tag (tag_ledgers, score/stages/props/ledger_tag).
+LEDGER_TAG = "SCORE_LEDGER_TAG"
+TAGGING = REPO / "score/stages/props/ledger_tag"
 # How long a stopped run's process group has to end after SIGTERM before what is left gets SIGKILL, cloud tools and
 # the nodes they write to spared (cloud_side).
 STOP_GRACE_SECONDS = 30
@@ -283,6 +287,19 @@ def become_run():
     os.environ[RUN_PID] = str(os.getpid())
     os.environ[RUN_ID] = f"{socket.gethostname()}-{os.getpid()}-{int(time.time())}"
     return held_before
+
+
+def tag_ledgers():
+    """Tag every ledger line the run and every process it starts write with its id (ledger_tag/sitecustomize.py:
+    in this process now, so its forked nodes too, and through PYTHONPATH in every Python it starts; the ledgers' own
+    files stay unedited, as close-up rows declare google_spend.py), so model_calls finds its Google calls; a tag
+    already set (a compare order's) is kept."""
+    if os.environ.get(LEDGER_TAG):
+        return
+    os.environ[LEDGER_TAG] = os.environ[RUN_ID]
+    os.environ["PYTHONPATH"] = os.pathsep.join(filter(None, [str(TAGGING), os.environ.get("PYTHONPATH")]))
+    spec = importlib.util.spec_from_file_location("ledger_tagging", TAGGING / "sitecustomize.py")
+    spec.loader.exec_module(importlib.util.module_from_spec(spec))
 
 
 def lead_group():
@@ -529,6 +546,7 @@ def as_run(runner, drive, opening=None):
     (opened_pool: the run's warm card pool, its ticket); however the drive ends (returned, raised or stopped) the
     terminal goes back to the group that held it and what the run held is released (release_once_ended)."""
     held_before = become_run()
+    tag_ledgers()
     run_id, mark = os.environ[RUN_ID], stopped.stop_mark(os.getpid())
     stopped.stop_on_signals(stop_run)
     pool_ticket = []
@@ -954,22 +972,67 @@ def stop_on_term(signal_number, frame):
 
 
 def run_gauges(runner, places, whole, only, started):
-    """The run's gauges for its heartbeat lines, read from files alone (no cloud call) and scoped to this run's rows:
-    their paid runs cleared and still open (each holds a rented machine or is about to), and the euros the cloud ledger
-    holds for batches this checkout ran for them since `started` (a row's batch carries its spend ticket, `<node>
-    <key>`)."""
+    """The run's gauges for its heartbeat lines, read from files alone (no cloud call) and scoped to this run: its
+    rows' paid runs cleared and still open (each holds a rented machine or is about to), and what the run has spent
+    since `started` (spent_by_run: its rows' and its warm pool's ledger lines, its pool cards idle now and its Google
+    calls), in all and by part."""
     from score.adapters import compute
     nodes = {graph.node_name(*node) for node in runner.line_nodes(places, whole, only)}
+    run_id = os.environ.get(RUN_ID)
 
     def gauges():
-        books = compute.ledger()
-        here = books.origin()["worktree"]
-        euros = sum(batch["euros"] for batch in books.entries() if batch.get("worktree") == here
-                    and (batch.get("ticket") or "").partition(" ")[0] in nodes and batch["started"] >= started)
+        euros = spent_by_run(compute.ledger(), nodes, started, run_id)
         held = compute.open_reservations(compute.covering_store(runner.store).cache.parent / "reservations.json")
         mine = [at for at, cleared in held.items() if cleared.get("node") in nodes]
-        return f"this run's rows: paid runs open {len(mine)}, EUR {euros:.2f} in the ledger since the run started"
+        return (f"this run's rows: paid runs open {len(mine)}, EUR {sum(euros.values()):.2f} in the ledger since the "
+                f"run started ({', '.join(f'{part} {value:.2f}' for part, value in euros.items())})")
     return gauges
+
+
+def spent_by_run(books, nodes, started, run_id):
+    """{rows, pool, idle now, model calls} in euros: the ledger lines of this checkout's batches for the run's row
+    `nodes` since `started` (a row's batch carries its spend ticket, `<node> <key>`), the lines of its warm pool (cold,
+    idle and disk, ticketed `gpu-pool <run id>`), what its pool cards parked now have cost since they parked (an idle
+    span reaches the ledger only as it ends) and its Google calls (model_calls, by the run's ledger tag)."""
+    from score.adapters import compute
+    here = books.origin()["worktree"]
+    pool_ticket = f"{compute.POOL} {run_id}"
+    rows = pool = 0.0
+    for batch in books.entries():
+        ticket = batch.get("ticket") or ""
+        if run_id and ticket == pool_ticket:
+            pool += batch.get("euros") or 0.0
+        elif batch.get("worktree") == here and ticket.partition(" ")[0] in nodes and batch["started"] >= started:
+            rows += batch.get("euros") or 0.0
+    return {"rows": rows, "pool": pool, "idle now": idle_now(run_id),
+            "model calls": model_calls(os.environ.get(LEDGER_TAG))}
+
+
+def idle_now(run_id):
+    """What the run's pool cards parked now have cost since they parked (park.idle_entry to this moment); 0 without
+    a run id."""
+    if not run_id:
+        return 0.0
+    park = cloud_tool("park")
+    now = time.time()
+    return sum(park.idle_entry(record, now)["euros"] for record in park.pool_records(run_id))
+
+
+def model_calls(tag):
+    """What the Google calls whose ledger lines carry `tag` (tag_ledgers) cost, as google_spend.month_euros counts:
+    finished calls at their price, a call started with no finished line (failed, killed, still going) and an unpriced
+    one at its model's estimate; 0 without a tag."""
+    if not tag:
+        return 0.0
+    google = cloud_tool("google_spend")
+    if not google.LEDGER.exists():
+        return 0.0
+    lines = [json.loads(line) for line in google.LEDGER.read_text().splitlines() if line.strip()]
+    lines = [line for line in lines if line.get("tag") == tag]
+    finished = [line for line in lines if line.get("state", "finished") == "finished"]
+    answered = {line.get("call") for line in finished}
+    return (sum(google.estimate(line["model"]) if line.get("euros") is None else line["euros"] for line in finished)
+            + sum(line["estimate"] for line in lines if line.get("state") == "started" and line["call"] not in answered))
 
 
 def closing_lines(runner, places, whole, options):

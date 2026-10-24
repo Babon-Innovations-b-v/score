@@ -217,7 +217,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   renting their own: never a failed run. `pool.release(run)` (from `score run`'s release, first thing, so
   also on a failed run, its stop line and Stop everything; the collector's own end when the pool's end passes or the run's
   process is gone) closes it and ends the collector: idle cards deleted at
-  once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. Every
+  once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. A stop
+  signal reaching the collector while it already releases (its own end) is said and ignored too, so its release
+  reaches the last card (fault of 2026-10-24: 6 of 13 parked machines left billing). Every
   rent is priced (`pool.rents`, `pool.fits`): every card alive and chosen, at the class rented for the pool's whole
   hours, within the euros its clearance reserved, so the run's high stays a bound; an asked card with no room makes
   room by letting an idle card go (`pool.make_room`), and one no pool of that clearance can hold is refused
@@ -341,7 +343,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **Every Gemini API call goes through `google_spend.generate`** (2026-10-11, after a EUR 257 day): it writes a
   `started` line to `~/.farm-factory-props/cloud/google-ledger.jsonl` before the call, then a `finished` line priced
   from the response's usageMetadata at Google's published prices and its service tier, or a `failed` line. With
-  `cache=True` the same request is asked once and read back from `google-cache/` by every place line and rerun. No day
+  `cache=True` the same request is asked once and read back from `google-cache/` by every place line and rerun. A
+  line written under a `score run` carries its run's id as `tag` (`score/__main__.py` `tag_ledgers`, through
+  `score/stages/props/ledger_tag`, so this file stays unedited: the close-up rows declare it), and the run monitor
+  counts its calls' cost by it (2026-10-24: a run's Pro close-ups were missing from its spend). No day
   cap (owner, 2026-10-11). The runner's stop check (`score.adapters.compute.months_since`) adds `month_euros`: a call
   started and never finished counts at its estimate (Oct 11: Google billed EUR 549, this ledger, then written only
   after a call came back, held EUR 30). Nothing calls generativelanguage.googleapis.com any other way:

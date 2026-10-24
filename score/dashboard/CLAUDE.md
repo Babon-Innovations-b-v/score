@@ -184,11 +184,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   done row's batch gaps; `$PROPS_HOME/cloud/pools/<run>/`: plan, cards, closed, collector.log), live locally
   (`LocalSource.batch_run`), hosted from the export's `batch-run.json`, or the newer one the listener sent each minute (`ExportedSource.batch_run`), with its age; a
   hosted Buy not answered yet shows as sent. One screen: state chip (starting, running, waiting for machines,
-  stopped, finished), started, elapsed, the ETA left from the checkout's runner minutes ("at least" while a bought
-  step is untimed), rows done of total, the owner's Stop everything (asked twice) while it lives; spent (the last
-  heartbeat's ledger euros) on one bar against likely, high and stop; a row a scene, parent before child
+  stopped, finished), started and elapsed from the checkout's first run (a relaunch goes on its clock), the ETA left
+  from the checkout's runner minutes ("at least" while a bought step is untimed), rows done of total, the owner's Stop
+  everything (asked twice) while it lives; spent (the checkout's: the last heartbeat of each of its runs, each its
+  rows', its warm pool's, its cards idle now and its model calls, `score/__main__.py` `spent_by_run`) on one bar
+  against likely, high and stop; a row a scene, parent before child
   (`within`), its rows done, what runs now, a chip, a done scene linking to its 3D copy or scene page; the warm pool's
-  cards and processor machines as squares (busy, idle, to come; waiting for stock); problems (a failed row in one
+  cards and processor machines as squares (busy, idle, to come; waiting for stock; once released, "N still renting"
+  for the machines its pools hold parked, `cloud/parked/`); problems (a failed row in one
   plain sentence with the rows it holds back, a row's batch gaps, the batch stopped), newest first. Times in the
   viewer's clock; it reads itself again every 20 s locally, 60 s hosted, while the batch lives. The numbers come
   from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `branch_rows`, `gaps_by_kind`, `places_complete`,

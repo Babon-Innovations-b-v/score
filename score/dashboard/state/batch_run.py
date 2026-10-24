@@ -9,14 +9,18 @@ the files the batch writes, read live locally and carried in the export as batch
                 run's of the checkout, so a relaunch goes on where it was), failed and not_run from this run's own lines, running and queued the last
                 heartbeat's
       eta       {likely_minutes, high_minutes} the checkout's runner times; untimed the bought steps with no
-                measured price (the ETA is then at least); elapsed
-      money     {spent (the last heartbeat: the cloud ledger's euros for this run's rows; None before one), open
+                measured price (the ETA is then at least); elapsed since the checkout's first run started (a relaunch
+                goes on the batch's clock)
+      money     {spent (the checkout's: the last heartbeat of each of its runs, each the euros its rows, its warm pool,
+                its cards idle now and its model calls cost; None before any), open
                 (paid runs open), likely, high (pricing.cleared_high: the high with the guessed steps, what the
                 runner clears), guessed, stop (this batch's own room under the stop line the Buy wrote: the line
                 less the spend and the reservations it was written over, on the same scale as spent; None for a
                 line written without them), line (the stop line itself, the environment's), closed (taken back)}
       scenes    [{place ("" the whole environment), total, done, failed, not_run, running [step labels], state}]
-      pool      the warm pool the run opened ({run, open, until, cards, processors, stock}; None before one)
+      pool      the warm pool the run opened ({run, open, until, cards, processors, stock, renting}; None before one):
+                renting the machines its pools (this run's and the checkout's earlier runs') hold parked now, which
+                bill whether the pool is open or released
       problems  [{at, place, node, kind (failed, gaps, run), words, tip}], newest first
 
 Read only. Every input is a file: the run's detached log (heartbeats, each finished row's line, the pool it opened,
@@ -220,9 +224,18 @@ def newest_first(problems):
     return sorted(problems, key=lambda problem: problem["at"] or "", reverse=True)
 
 
-def pool_of(run_id, pools_dir, now):
-    """The warm pool a run opened: {run, open, until, cards, processors, stock} where cards and processors are
-    {size, warm, busy, idle, short}; stock the collector's last word when it found none; None without one."""
+def parked_of(pools, parked_dir):
+    """How many machines `pools` (run ids) hold parked now ($PROPS_HOME/cloud/parked/<id>.json, each naming its pool):
+    each bills until it is deleted, whether its pool is open or released."""
+    folder = pathlib.Path(parked_dir)
+    records = [json.loads(path.read_text()) for path in sorted(folder.glob("*.json"))] if folder.is_dir() else []
+    return sum(1 for record in records if record.get("pool") in pools)
+
+
+def pool_of(run_id, pools_dir, now, renting=0):
+    """The warm pool a run opened: {run, open, until, cards, processors, stock, renting} where cards and processors
+    are {size, warm, busy, idle, short}; stock the collector's last word when it found none; renting the machines its
+    pools hold parked now (parked_of); None without one."""
     folder = pathlib.Path(pools_dir) / run_id if run_id else None
     plan_path = folder / "plan.json" if folder else None
     if not plan_path or not plan_path.is_file():
@@ -244,7 +257,7 @@ def pool_of(run_id, pools_dir, now):
     said = [line for line in log_lines(folder / "collector.log") if line.strip()]
     stock = is_open and bool(said) and bool(NO_STOCK.search(said[-1]))
     until = datetime.datetime.fromtimestamp(plan["deadline"], datetime.timezone.utc)
-    return {"run": run_id, "open": is_open, "until": stamp(until), **kinds, "stock": stock}
+    return {"run": run_id, "open": is_open, "until": stamp(until), **kinds, "stock": stock, "renting": renting}
 
 
 def failed_run(found):
@@ -303,8 +316,31 @@ def own_stop(stop_line):
     return round(stop_line["euros"] - stop_line["spent"] - stop_line["reserved"], 2)
 
 
-def money_of(totals, stop_line, beat):
-    return {"spent": beat["spent"] if beat else None, "open": beat["open"] if beat else None,
+def spent_before(runs, newest_logs, planned):
+    """What the checkout's earlier runs spent (`runs`, checkout/watched.checkout_runs, less the newest launch's
+    `newest_logs`): the last heartbeat's euros of each; None when none has one."""
+    found = [read_log(log_lines(path), planned)["beat"] for run in runs if run["logs"] != newest_logs
+             for path in run["logs"]]
+    spent = [beat["spent"] for beat in found if beat and beat["spent"] is not None]
+    return round(sum(spent), 2) if spent else None
+
+
+def checkout_spent(before, beat):
+    """The checkout's spend: its earlier runs' (`before`) and this run's last heartbeat's; None when neither has one."""
+    now = beat["spent"] if beat and beat["spent"] is not None else None
+    if before is None and now is None:
+        return None
+    return round((before or 0.0) + (now or 0.0), 2)
+
+
+def pools_of(runs, newest_pool, planned):
+    """Every warm pool the checkout's runs opened (run ids), the newest run's among them."""
+    found = {read_log(log_lines(path), planned)["pool"] for run in runs for path in run["logs"]}
+    return {pool for pool in found | {newest_pool} if pool}
+
+
+def money_of(totals, stop_line, beat, spent):
+    return {"spent": spent, "open": beat["open"] if beat else None,
             "likely": totals.get("likely_euros"),
             "high": pricing.cleared_high(totals) if totals.get("high_euros") is not None else None,
             "guessed": totals.get("guessed_euros"), "stop": own_stop(stop_line), "line": stop_line.get("euros"),
@@ -325,7 +361,10 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
     planned = list(batch.get("nodes") or [])
     found = read_log(log_lines(log_path), set(planned))
     started = parsed(launch.get("at") or batch["at"])
-    pool = pool_of(found["pool"], props_home / "cloud" / "pools", now)
+    runs = batch.get("runs") or []
+    first = parsed(runs[0]["at"]) if runs else started  # the batch's clock: its checkout's first run
+    renting = parked_of(pools_of(runs, found["pool"], set(planned)), props_home / "cloud" / "parked")
+    pool = pool_of(found["pool"], props_home / "cloud" / "pools", now, renting)
     state, why = overall(batch, found, launch.get("state") == "running", pool)
     states = row_states(planned, found["rows"], accepted_at, parsed(batch["at"]))
     running = {node for node in planned if node not in states and state in LIVE
@@ -333,14 +372,16 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
     ended = ended_at(batch, found["result"], log_path)
     problems = failures(found["rows"]) + gap_problems(found["rows"], gaps_of)
     if state == "stopped":
-        ran = eta_of({}, started, ended, now)["elapsed"] or 0
+        ran = eta_of({}, first, ended, now)["elapsed"] or 0
         problems.append({"at": stamp(ended or now), "place": "", "node": "", "kind": "run",
                          "words": f"The batch stopped after {round(ran)} min, before every scene was done.",
                          "tip": why})
     return {"read_at": stamp(now), "checkout": batch["checkout"], "at": batch["at"], "by": batch.get("by"),
-            "state": state, "why": why, "started": stamp(started), "ended": stamp(ended),
+            "state": state, "why": why, "started": stamp(first), "ended": stamp(ended),
             "rows": counted(states, len(planned), found["beat"]),
-            "eta": eta_of(batch.get("totals") or {}, started, ended, now),
-            "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"]),
+            "eta": eta_of(batch.get("totals") or {}, first, ended, now),
+            "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"],
+                              checkout_spent(spent_before(runs, launch.get("logs") or [], set(planned)),
+                                             found["beat"])),
             "scenes": scenes_of(planned, states, running, state in LIVE), "pool": pool,
             "problems": newest_first(problems)}
