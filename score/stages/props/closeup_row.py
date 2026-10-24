@@ -7,10 +7,12 @@ the data names one, its route, take and the model layer that handed it (the shar
 needs a box the gate passes, so nothing is drawn of the wrong thing.
 
 closeup@<place> draws every missing close-up with Nano Banana Pro through tools/props/closeup/pro.py, a take's
-close-ups as one Batch API job at half price (google_batch prices each answer): first from the crop alone, then, for
-what still fails, with the whole concept beside (the stage's PRO_TAKES). A drawn close-up is taken as it is, set on
-the stage's grey. Its gate, `close-up`, is the shape check's measured half (check.measured_faults: plain border, one
-object filling the frame, the row's proportions), free and re-measured on the stored pictures, so Pixal3D is never
+close-ups as one Batch API job at half price (google_batch prices each answer): the first take, then one retry,
+worded more strictly, for each picture the check rejected (the stage's PRO_TAKES, owner 2026-10-24), every rejected
+picture's request dropped from Google's cache and its euros written in UNCACHED. A drawn close-up is taken as it is,
+set on the stage's grey. Its gate, `close-up`, is the shape check's measured half (check.measured_faults: plain
+border, one object filling the frame, the proportions of the object's own size, stage.object_size), free and
+re-measured on the stored pictures, so Pixal3D is never
 paid for a close-up that fails it. An object every Pro take failed keeps none: its prop route failed there, a batch
 gap (batch-gaps.json, score/stages/batch_gaps.py) the rows after it leave out. The judge's half (a model on rented
 cards) is not run here.
@@ -31,6 +33,9 @@ GREY = (205, 205, 205)
 DOLLARS_A_PICTURE = 0.067
 # Up to two Pro pictures an object (PRO_TAKES), counted one dollar a euro (google_spend); the hub's 51 boxed objects.
 EUROS = round(51 * 2 * DOLLARS_A_PICTURE, 2)
+# The euros of the requests this output dropped from Google's cache (its rejected pictures): a make asking the same
+# requests again spends them, which score/graph/rebuy.py reads by this name (its UNCACHED) instead of pricing it EUR 0.
+UNCACHED = "google-uncached.json"
 
 
 def closeup_tools():
@@ -48,10 +53,11 @@ def layer_of(entry):
 
 
 def inventory_rows(inventory, wanted):
-    """The close-up stage's rows of `wanted` objects: name, size, concept view and box from the inventory (the view's
+    """The close-up stage's rows of `wanted` objects: name, size, its reading's own size where it has one (the
+    close-up is asked for and checked at it, stage.object_size), concept view and box from the inventory (the view's
     picture is filled in by make_inputs, from the row's declared file)."""
     return [{"id": row["id"], "scene": inventory["scene"], "words": row["name"], "size": row["size"],
-             "view": row.get("view"), "box": row.get("box")}
+             "read_size": row.get("read_size"), "view": row.get("view"), "box": row.get("box")}
             for row in inventory["rows"] if row["id"] in wanted]
 
 
@@ -119,20 +125,22 @@ def taken_or_why(row, out):
 
 
 def measured(path, row):
-    """The shape check's measured faults of one close-up at its row's size; a person's (a row of the people layer:
-    drawn in the rig's A-pose, no box's outline) by its framing and its arms clear of the body (check.person_faults);
-    any other row with no measured size is named, never measured against a made-up box."""
-    _, check = closeup_tools()
+    """The shape check's measured faults of one close-up at its object's own size (stage.object_size: its reading's,
+    else the row's); a person's (a row of the people layer: drawn in the rig's A-pose, no box's outline) by its
+    framing and its arms clear of the body (check.person_faults); any other row with no measured size is named, never
+    measured against a made-up box."""
+    stage, check = closeup_tools()
     if row.get("layer") == "people":
         return check.person_faults(path)
-    if row["size"] is None:
+    if stage.object_size(row) is None:
         return ["no measured size: its proportions held to none"]
-    return check.measured_faults(check.measure(path, row["size"]))
+    return check.measured_faults(check.measure(path, stage.object_size(row)))
 
 
 def draw_missing(rows, out):
-    """Pro's close-ups of the rows with none: each take of PRO_TAKES for what the takes before it failed; {id: take
-    record}."""
+    """Pro's close-ups of the rows with none: each take of PRO_TAKES for the rows whose picture of the take before it
+    the check rejected (one with no picture is a gap, not asked again), each rejected request dropped from Google's
+    cache (stage.forget_rejected); {id: take record}."""
     stage, _ = closeup_tools()
     stage.make_crops(rows, out)
     failed, found = {row["id"] for row in rows}, {}
@@ -141,12 +149,16 @@ def draw_missing(rows, out):
             break
         with prop_data.tools("props/closeup", "props", "cloud"):  # Pro's key is read through secret_store
             stage.draw_with_pro(rows, out, failed, take)
+        rejected = set()
         for row in rows:
             if row["id"] in failed:
                 picture = out / take / f"{row['id']}.png"
                 faults = measured(picture, row) if picture.exists() else [f"Pro gave no {take} picture"]
                 found.setdefault(row["id"], {})[take] = faults
-        failed = {row_id for row_id in failed if found[row_id][take]}
+                if faults and picture.exists():
+                    stage.forget_rejected(row, out, take)
+                    rejected.add(row["id"])
+        failed = rejected
     return found
 
 
@@ -163,7 +175,8 @@ def make_closeups(inputs, out, seed, params):
         passed = next((take for take, faults in tried.items() if not faults), None)
         if passed:
             shutil.copy(out / passed / f"{row['id']}.png", out / "closeups" / f"{row['id']}.png")
-        record[row["id"]] = {"size": row["size"], "layer": row.get("layer"), "drawn_by": "given" if row["drawn"] else passed,
+        record[row["id"]] = {"size": row["size"], "read_size": row.get("read_size"), "layer": row.get("layer"),
+                             "drawn_by": "given" if row["drawn"] else passed,
                              "takes": tried, "pro_pictures": sum((out / take / f"{row['id']}.png").exists()
                                                                  for take in tried)}
     batch_gaps.write(out, [batch_gaps.gap(f"{row['id']}: no close-up passed", "closeup", "close-up",
@@ -180,6 +193,10 @@ def make_closeups(inputs, out, seed, params):
     (out / "closeups.json").write_text(json.dumps({"objects": record, "pro_pictures": pictures,
                                                    "pro_dollars": round(pictures * DOLLARS_A_PICTURE, 3)},
                                                   indent=1))
+    rejected = sum(bool(faults) and (out / take / f"{row}.png").exists()
+                   for row, entry in record.items() for take, faults in entry["takes"].items())
+    (out / UNCACHED).write_text(json.dumps({"asks": rejected, "euros": round(rejected * DOLLARS_A_PICTURE, 3),
+                                            "why": "Pro pictures the shape check rejected, dropped from Google's cache"}))
 
 
 def closeups_faults(folder):

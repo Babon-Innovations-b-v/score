@@ -555,8 +555,8 @@
    "forecast": {
     "rule": "prop_takes",
     "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's gaps (score/stages/complete/gaps) whose node is this stage's there, by their take",
-    "per_model": 1.0,
-    "per_model_from": "tools/props/closeup/stage.py PRO_TAKES: one Pro picture a row, every job once (#21); the two-take chain the ship's close-ups measured (paper/evidence/cloud/forecast-2026-10-15.txt line 37: 25 for 21 pieces, 2026-10-14) is gone"
+    "per_model": 1.3687,
+    "per_model_from": "tools/props/closeup/stage.py PRO_TAKES: one Pro picture a row and one retry for a picture the shape check rejects (owner, 2026-10-24); the Buy of 2026-10-24 drew 217 close-ups and the check rejected 80, so 217 + 80 pictures"
    }
   },
   "light-passes": {

@@ -4,8 +4,8 @@ The close-up stage: one clean, three-quarter picture of each generated row of a 
 pipeline. Entry: `stage.py`; its docstring says how to call it. The owner's decision (2026-10-08): Qwen-Image-
 Edit-2511 draws every close-up first, the shape check (`check.py`) decides without a person whether each may go on,
 and Nano Banana Pro (`pro.py`) draws only the ones it fails. Pro's pictures are checked the same way. Pro draws from
-the crop alone first (given the whole room it drew the room behind the object, a miniature or dimension lines on
-half the lab's), with the room as a second reference only for what still fails; a row whose every take fails is left
+the crop alone (given the whole room it drew the room behind the object, a miniature or dimension lines on half the
+lab's), with the room as a second reference only when the crop is too small; a row whose every take fails is left
 for the creator.
 
 - **No model runs here.** Qwen draws on rented cards (`../cloud/pictures.py --model qwen-edit`), the judge answers on
@@ -17,6 +17,12 @@ for the creator.
   job (`../cloud/google_batch.py`), the same request as one call would send; only `stage.py` calls it, and only for
   rows the check failed.
   `pro.draw` refuses outside a cleared run (`score.adapters.compute.require_cleared`), as every paid call does.
+- **The object's own size, the check's own view, one strict retry** (owner, 2026-10-24, from the Buy's 80 gaps):
+  a close-up is asked for and checked at `stage.object_size` (the row's `read_size`, its inventory reading's metres,
+  else its `size`; a plan's item is the footprint it is laid in, never the object's size); every wording states the
+  check's turn and look-down (`stage.VIEW` from `check.TURN_DEGREES`, `LOOK_DOWN_DEGREES`); a picture the check
+  rejects leaves google_spend's cache (`stage.forget_rejected`) and gets one retry, `RETRY` added to its wording
+  (`PRO_TAKES`), at most one a row a run. Never loosen the check to pass more.
 - **A person is the one exception to the three-quarter view** (the people layer's own close-up, CONTEXT.md "layer
   adapter"): a row whose `layer` is `people` is drawn with `stage.PERSON` (one person, front on, in the rig's A-pose,
   arms and legs clear) and measured by `check.person_faults` (framed, arms apart: `arm_gap_share`, which the maker's

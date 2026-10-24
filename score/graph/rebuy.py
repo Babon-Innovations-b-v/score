@@ -6,8 +6,9 @@
 Worked out against the store, running nothing: a node is made when it has no record on its current key, or when a
 node it reads will be made and may give another output. A paid one is a re-buy when it already has an accepted
 output; a node never made before is a plain buy. Each counts at its estimate (`Stage.euros`), except a Google row
-that would ask exactly what its accepted output asked (same_requests): google_spend's cache answers it, EUR 0, and
-its output stays the same, so nothing after it is made for it. Over LIMIT in re-buys a run is refused unless it gives
+that would ask exactly what its accepted output asked (same_requests): google_spend's cache answers it, EUR 0 but for
+the requests its output dropped from the cache (UNCACHED, a rejected answer asked again), and with none dropped its
+output stays the same, so nothing after it is made for it. Over LIMIT in re-buys a run is refused unless it gives
 a reason (`score run ... --rebuy-reason "<text>"`), written to the run's log and the cloud ledger. Why: on 2026-10-12
 one library change re-rendered every place and re-drew every view map, about EUR 50, with nothing saying so first.
 """
@@ -23,11 +24,15 @@ GOOGLE = _code.REPO / "tools/cloud/google_spend.py"
 # The files a Google row's request bodies are built from (wording, models, settings), besides its inputs. google_spend's
 # cache key is pinned by google_spend_test, so google_spend.py itself changes no request.
 REQUEST_BUILDERS = ("score/stages/surfaces/finish_ask.py", "tools/cloud/gemini_judge.py",
-                    "tools/props/closeup/pro.py", "score/adapters/models/__init__.py",
+                    "tools/props/closeup/pro.py", "tools/props/closeup/stage.py", "tools/props/closeup/check.py",
+                    "score/adapters/models/__init__.py",
                     "score/stages/surfaces/route_list.py", "score/stages/surfaces/route_recheck.py",
                     "score/stages/surfaces/route_ask.py", "score/stages/surfaces/scene_palette.py",
                     "score/stages/surfaces/scene_library.py", "tools/cloud/google_batch.py",
                     "score/stages/surfaces/body_faces.py")
+# A Google row's output names here the euros of the requests it dropped from google_spend's cache (a rejected answer:
+# score/stages/props/closeup_row.UNCACHED), so asking them again is priced at that, never at EUR 0.
+UNCACHED = "google-uncached.json"
 SAME_PARTS = ("contract", "expects", "params", "seed", "files", "after", "models")
 OWN_PARTS = ("code", "contract", "expects", "params", "seed", "files", "models")
 
@@ -71,6 +76,13 @@ def same_requests(runner, stage, node, parts):
     if any(record.get(part, {}) != parts.get(part, {}) for part in SAME_PARTS):
         return False
     return not builders_changed(record["commit"])
+
+
+def uncached_euros(runner, node):
+    """The euros a Google row asking its accepted output's requests again still spends: those its output dropped from
+    google_spend's cache (UNCACHED, the close-up's rejected pictures, owner 2026-10-24), else EUR 0."""
+    found = runner.store.read_file(runner.store.accepted(node), UNCACHED) or {}
+    return float(found.get("euros", 0.0))
 
 
 KEPT = "kept"  # to_make: a node the drive keeps by a proof, made again the same
@@ -168,12 +180,13 @@ def buys(runner, nodes):
                 remade[node] = False
                 continue
             cached = stage.paid and same_requests(runner, stage, node, parts)
-            remade[node] = not cached
+            asked_again = uncached_euros(runner, node) if cached else 0.0  # a redrawn answer may change its output
+            remade[node] = not cached or asked_again > 0
             if stage.paid:
                 moving = [name for name in pending if remade[name]]
                 why = (f"reads {', '.join(moving)}" if not parts
                        else ", ".join(runner.stale_reasons(stage, place, parts)))
-                found.append(Buy(node, 0.0 if cached else float(stage.euros or 0),
+                found.append(Buy(node, asked_again if cached else float(stage.euros or 0),
                                  why + ("; the same Google requests: cached" if cached else ""),
                                  runner.store.accepted(node) is not None))
     return sorted(found, key=lambda buy: rank[buy.node])

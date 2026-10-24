@@ -62,6 +62,12 @@ def draw(key, asks):
     return {path: saved(answers[str(path)], bodies[str(path)], path) for path in asks}
 
 
+def forget(ask):
+    """One ask's (wording, crop, concept or None) answer dropped from google_spend's cache, so the same request
+    draws again: a picture the shape check rejected (owner, 2026-10-24)."""
+    google_spend.cache_path(MODEL, request_body(*ask)).unlink(missing_ok=True)
+
+
 def saved(answer, body, path):
     """One batch answer's picture saved at `path`; False for a gap (Unanswered, or no picture in it)."""
     if isinstance(answer, google_batch.Unanswered):

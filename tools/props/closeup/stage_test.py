@@ -91,11 +91,34 @@ def test_a_row_takes_the_first_picture_that_passed_and_records_its_cost():
     assert totals["pro_pictures"] == 2 and totals["cloud_euros_per_accepted"] == 0.75
 
 
-def test_pro_draws_one_take_a_row_worded_before_it_is_drawn():
-    """A batch draws each row once (CONTEXT.md, owner 2026-10-20): the room is chosen free, from the crop's size, not
-    as a second paid take for what the crop alone failed."""
-    assert stage.PRO_TAKES == ("pro",)
+def test_pro_draws_a_take_and_one_strict_retry_worded_before_it_is_drawn():
+    """The room is chosen free, from the crop's size, not as a second paid take for what the crop alone failed; a
+    rejected picture's one retry asks the same more strictly, so its request is a new one (owner, 2026-10-24)."""
+    assert stage.PRO_TAKES == ("pro", "retry")
     assert "Image 2" not in stage.PRO_WORDINGS["crop"] and "Image 2" in stage.PRO_WORDINGS["room"]
+    row, out = a_place()
+    row = dict(row, pro_wording="crop")
+    stage.make_crops([row], out)
+    first, retry = stage.pro_ask(row, out, "pro"), stage.pro_ask(row, out, "retry")
+    assert retry[0] == first[0] + stage.RETRY and "ONLY the object" in retry[0]
+    assert stage.pro.request_body(*first) != stage.pro.request_body(*retry)
+
+
+def test_the_close_up_is_asked_for_and_checked_at_the_objects_own_size_from_the_checks_view():
+    """Owner, 2026-10-24: a plan's item is the footprint an object is laid in (2 to 8 times a small thing's size), so
+    the request, the judge and the measurements take its reading's size; and the request states the check's look-down
+    angle, so a flat object is drawn as the check expects it."""
+    row, out = a_place()
+    own = dict(row, read_size=[0.3, 0.2, 0.4])
+    assert stage.object_size(own) == [0.3, 0.2, 0.4] and stage.object_size(row) == row["size"]
+    assert "0.30 m wide, 0.20 m deep and 0.40 m tall" in stage.wording(own, stage.PRO_WORDINGS["crop"])
+    for words in stage.PRO_WORDINGS["crop"], stage.PRO_WORDINGS["room"]:
+        assert f"looking down on it from about {stage.check.LOOK_DOWN_DEGREES:.0f} degrees above level" in words
+        assert f"turned about {stage.check.TURN_DEGREES:.0f} degrees" in words
+    stage.make_crops([own], out)
+    (out / "qwen").mkdir()
+    Image.new("RGB", (8, 8)).save(out / "qwen/cabinet.png")
+    assert "0.30 m wide" in stage.judge_questions([own], out, "qwen")[0]["text"]
     body = stage.pro.request_body("words", Image.new("RGB", (8, 8)))
     assert len(body["contents"][0]["parts"]) == 2
     row, _ = a_place()

@@ -152,6 +152,32 @@ def test_a_google_row_asking_the_same_is_cached_and_moves_nothing_after_it():
         rebuy.asks_google, rebuy.builders_changed = original, builders
 
 
+def test_a_google_row_whose_output_dropped_rejected_answers_prices_asking_them_again():
+    """Owner, 2026-10-24: a close-up the shape check rejected leaves Google's cache, so asking the same requests again
+    draws it again; the row's output names those euros (rebuy.UNCACHED) and the re-buy is priced at them, never EUR 0,
+    and what reads it is bought too (a redrawn answer may change its output)."""
+    import json
+
+    def make_with_rejects(inputs, out, seed, params):
+        make_copy(inputs, out, seed, params)
+        (out / rebuy.UNCACHED).write_text(json.dumps({"asks": 2, "euros": 0.134}))
+    render = graph.Stage("render", "place", make_with_rejects, TEXT, SAID, after={"draw": ("toy-text", 1)}, paid=True,
+                         euros=4.0)
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text("a hall")
+    runner = graph.Runner([DRAW, render, BAKE], graph.Environment("toy", 1, {"data": data}),
+                          Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {"kind": kind})
+    for stage in (DRAW, render, BAKE):
+        assert "accepted automatically" in runner.run_node(stage, "hangar"), stage.name
+    runner.code_versions["render"] = "a render changed"
+    original, builders = rebuy.asks_google, rebuy.builders_changed
+    rebuy.asks_google, rebuy.builders_changed = (lambda stage: stage is render), (lambda commit: False)
+    try:
+        assert [(buy.node, buy.euros) for buy in bought(runner)] == [("render@hangar", 0.134), ("bake@hangar", 3.0)]
+    finally:
+        rebuy.asks_google, rebuy.builders_changed = original, builders
+
+
 def test_every_file_that_words_a_google_request_is_a_request_builder():
     """Audit (2026-10-22): the finish route's list, recheck, palette and library wordings were left out, so an edit
     there was priced as a cached ask at EUR 0 while the run asked and paid again, under a stop line written too low.
