@@ -88,6 +88,8 @@ def test_the_hub_table_makes_every_rod_a_predicted_gap_and_a_lone_sheet_only_a_r
     assert predict.predicted([1.4, 0.02, 0.9], rates)["outcome"] == "at risk"
     solid = predict.predicted([0.6, 0.6, 0.9], rates)
     assert solid["outcome"] == "pass" and 0 < solid["pass_share"] < 1, solid
+    palm = predict.predicted([0.399, 1.16, 8.0], rates)  # street's distant palm: a "rod" by its sides alone
+    assert palm["outcome"] == "predicted gap" and prepare.status_of({"pipeline": None}, False, []) == "bought"
 
 
 def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_box():
@@ -318,7 +320,7 @@ def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     counts = record["counts"]
     assert counts["groups"] == len(record["takes"])
     assert counts["library"] == 0 and record["library"]["root"] is None  # no library given: nothing matches
-    assert counts["bought"] + counts["predicted_gaps"] + counts["made"] + counts["input_gaps"] == counts["groups"]
+    assert counts["bought"] + counts["made"] + counts["input_gaps"] == counts["groups"]  # a predicted gap is bought
     assert counts["input_gaps"] == counts["groups"]  # this reading measures no size: every take an input gap
     assert all(take["inputs"] == ["no size of three sides"] for take in record["takes"])  # its picture is the blob
     assert "every job once" in record["line"]
@@ -362,6 +364,7 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
             own = compute.per_unit(stage)
             measured = own is not None and own["stage"] == stage
             assert record["layers"][stage]["price"].get("estimated_from") == (None if measured else estimate.ASK_PRICED_AS)
+        assert estimate.once_a_scene("rough-model") and record["layers"]["rough-model"]["units"] == 1  # not a take
         for stage, layer in record["layers"].items():  # every layer prepare priced, the runner's node priced the same
             if stage in estimate.SCENE_ROWS:
                 continue

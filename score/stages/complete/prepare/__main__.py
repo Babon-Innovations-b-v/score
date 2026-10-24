@@ -57,17 +57,19 @@ def made(take):
     return pixal_row.made(take)
 
 
-def status_of(match, prediction, is_made, inputs):
+def status_of(match, is_made, inputs):
     """library (a model made under today's route, or locked, matches), made (its take stands), input gap (its inputs
     break their contract: no box from SAM 3 or Gemini, the whole picture, no size; its close-up cannot be framed or
-    checked, so it is not bought, never a stopped line), predicted gap, or bought."""
+    checked, so it is not bought, never a stopped line), or bought: a take predicted to fail is bought too and judged
+    by the real gates (coordinator, 2026-10-24: a prediction never drops a row from the Buy; street's palms, 0.4 x
+    1.16 x 8 m, read as rods by size alone, were left out)."""
     if match["pipeline"]:
         return "library"
     if is_made:
         return "made"
     if inputs:
         return "input gap"
-    return "predicted gap" if prediction["outcome"] == "predicted gap" else "bought"
+    return "bought"
 
 
 def take_entry(group, record, index, rates, work):
@@ -78,7 +80,7 @@ def take_entry(group, record, index, rates, work):
     prediction = predict.predicted(group["size"], rates) if model else OWN_ROUTE
     is_made = made(group["take"])
     inputs = contract.faults(record, group, work) if model else []
-    status = TERRAIN if group["route"] == "ground" else status_of(match, prediction, is_made, inputs)
+    status = TERRAIN if group["route"] == "ground" else status_of(match, is_made, inputs)
     return {**group, "library": match, "prediction": prediction, "inputs": inputs,
             "upscale": contract.upscale(group["box"]), "status": status,
             "key_diff": "made: its take stands, not bought again" if is_made else "new: no take of it stands"}
@@ -99,7 +101,7 @@ def take_counts(takes):
                                      for take in takes),
             "library_old": sum(not take["library"]["pipeline"] and bool(take["library"]["old"]) for take in takes),
             "made": sum(take["status"] == "made" for take in takes), "bought": len(bought),
-            "predicted_gaps": sum(take["status"] == "predicted gap" for take in takes),
+            "predicted_gaps": sum(take["prediction"]["outcome"] == "predicted gap" for take in bought),
             "input_gaps": sum(take["status"] == "input gap" for take in takes),
             "terrain": sum(take["status"] == TERRAIN for take in takes),
             "at_risk": sum(take["prediction"]["outcome"] == "at risk" for take in bought)}
@@ -129,11 +131,11 @@ def moved_rows(runner):
 
 
 def priced_layers(route, takes, fixed):
-    """(layers of the bought takes, of the predicted gaps, of the input gaps): the prop route's of the models
-    (groups.MODEL_ROUTES), then each take's own route's (estimate.own_route_layers)."""
+    """(layers of the bought takes, of the input gaps): the prop route's of the models (groups.MODEL_ROUTES), then
+    each take's own route's (estimate.own_route_layers)."""
     rules = estimate.one_shot()
     found = []
-    for status in ("bought", "predicted gap", "input gap"):
+    for status in ("bought", "input gap"):
         chosen = [take for take in takes if take["status"] == status]
         models = [take for take in chosen if take["route"] in groups.MODEL_ROUTES]
         found.append({**estimate.layers(route, models, rules, fixed), **estimate.own_route_layers(chosen)})
@@ -173,7 +175,7 @@ def remake(runner, data, root, work, stock=None, moved=None):
              for place, found in by_place.items() for group in found if not group["reuse"]]
     route = design_route(runner)
     fixed = fixed_machines(route, stock)
-    found, gaps, input_gaps = priced_layers(route, takes, fixed)
+    found, input_gaps = priced_layers(route, takes, fixed)
     found.update(estimate.scene_layers(route, len({take["place"] for take in takes if take["status"] == "bought"})))
     edges = estimate.route_edges(runner.stages, route)
     record = {"made_at": graph.now(), "priced_on": price.priced_on(),
@@ -182,7 +184,6 @@ def remake(runner, data, root, work, stock=None, moved=None):
               "takes": takes, "layers": found, "totals": estimate.totals(found),
               "eta": estimate.eta(found, edges, graph.JOBS, price.run_cap()),
               "expected_gaps": estimate.expected_gaps([take for take in takes if take["status"] == "bought"]),
-              "predicted_gaps_if_bought": estimate.totals(gaps),
               "input_gaps_if_bought": estimate.totals(input_gaps),
               "across_places": across_places(route, takes, fixed),
               "moved": {"rows": moved} if moved is not None else {"not_run": "--moved not given"},

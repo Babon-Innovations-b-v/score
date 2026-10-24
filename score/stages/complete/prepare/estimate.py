@@ -28,6 +28,13 @@ OWN_ROUTES = {"people": "people-body", "sky": "sky", "skyline": "skyline"}
 # at the measured one of the same answer (ASK_PRICED_AS, the finish list's), named as estimated from it.
 SCENE_ROWS = ("finish-route-palette", "surface-library")
 ASK_PRICED_AS = "finish-route-list"
+
+
+def once_a_scene(stage):
+    """Whether a route row runs once a scene: SCENE_ROWS, or its measured per unit's forecast rule is one a place, as
+    the runner counts it (gaps/price.route_units; the rough model, one Pixal3D take of the whole concept, was priced
+    once a take here, EUR 722 for 516 takes against the runner's 35 for 25 places, 2026-10-24)."""
+    return stage in SCENE_ROWS or ((compute.per_unit(stage) or {}).get("forecast") or {}).get("rule") == "one"
 DEADLINE_TIMES = 2  # a job's watchdog deadline: twice its measured high seconds (guard.py's runaway limit)
 
 
@@ -81,7 +88,7 @@ def settings(stage, rules, fixed_machine):
 def layers(route, groups_bought, rules, fixed):
     """{stage: {takes, units, price, minutes, settings}} of the batch's layers; `fixed` {stage: machine or None}."""
     found = {}
-    for stage, takes in takes_a_layer([stage for stage in route if stage not in SCENE_ROWS], groups_bought).items():
+    for stage, takes in takes_a_layer([stage for stage in route if not once_a_scene(stage)], groups_bought).items():
         found[stage] = {"takes": takes, **layer_cost(stage, takes, rules),
                         "settings": settings(stage, rules, fixed.get(stage)),
                         "runs": {"routes": list(groups.MODEL_ROUTES), "shell": True}}
@@ -105,11 +112,11 @@ def layer_cost(stage, takes, rules):
 
 
 def scene_layers(route, scenes):
-    """{stage: {scenes, units, price, minutes, settings, runs}} of the route's once-a-scene rows (SCENE_ROWS) for
+    """{stage: {scenes, units, price, minutes, settings, runs}} of the route's once-a-scene rows (once_a_scene) for
     `scenes` scenes: each at its own measured per unit, else at ASK_PRICED_AS's with `estimated_from` named, else
     unpriced (layer_cost)."""
     found = {}
-    for stage in (stage for stage in route if stage in SCENE_ROWS):
+    for stage in (stage for stage in route if once_a_scene(stage)):
         own = compute.per_unit(stage)
         measured = stage if own is not None and own["stage"] == stage else ASK_PRICED_AS
         cost = layer_cost(measured, scenes, {})
@@ -188,7 +195,7 @@ def line(record):
             f"({len(inventory['waiting'])} waiting on inventory, no euros): "
             f"{counts['bought']} takes of {counts['groups']} models "
             f"({counts['library']} from the library (made under today's route), "
-            f"{counts['predicted_gaps']} predicted gaps not bought), "
+            f"{counts['predicted_gaps']} predicted to fail, bought and judged), "
             f"EUR {money['likely_euros']:.2f} likely, {money['high_euros']:.2f} high, every job once{unpriced}; "
             f"ETA {minutes}; about {record['expected_gaps']} gaps expected after; "
             f"{counts['input_gaps']} input gaps (no box or size) priced apart, not bought")
