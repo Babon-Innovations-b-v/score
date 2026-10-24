@@ -96,6 +96,28 @@ def test_the_batch_is_read_from_its_log_its_rows_and_its_pool(world):
         problem["words"] and "fault report" not in problem["words"]
 
 
+def test_a_relaunch_goes_on_where_the_checkout_was(world):
+    """A second run of the same checkout plans only what is not accepted yet: the monitor still counts every row the
+    checkout planned, the ones accepted since as done, and this run's failures from its own log."""
+    record = a_batch(world)
+    first = record.launch.plan
+    first.body = {**PLAN, "checkout": record.pk}
+    first.save()
+    rest = {"groups": [{"places": ["alpha", "beta"], "to_run": {}, "blocked": {"assembly@alpha": "waits"},
+                        "buys": [{"node": "closeup@alpha"}, {"node": "closeup@beta"}]}], "checkout": record.pk}
+    again = Plan.objects.create(basket_hash="checkout-1", made_by="joey", state="ready", body=rest)
+    Launch.objects.filter(pk=record.launch.pk).update(plan=again)
+    after = (record.at + datetime.timedelta(minutes=5)).isoformat()
+    accepts = {"terrain": after, "plan@alpha": after, "assembly@beta": after,
+               "assembly@alpha": (record.at - datetime.timedelta(days=1)).isoformat()}  # stale: made again
+    found = batch_run.gathered(batch_run_input(), world.source.props_home, world.source.store_root,
+                               accepted_at=accepts.get)
+    assert found["rows"] == {"total": 6, "done": 3, "failed": 1, "not_run": 0, "running": 1, "queued": 1}
+    scenes = {scene["place"]: (scene["done"], scene["total"]) for scene in found["scenes"]}
+    assert scenes == {"": (1, 1), "alpha": (1, 3), "beta": (1, 2)}
+    assert [problem["node"] for problem in found["problems"]] == ["closeup@beta"]
+
+
 def test_the_state_follows_the_checkout_the_result_line_and_the_pool(world):
     record = a_batch(world, log=LOG + "detached: ok exit=0 minutes=15.6 log=x outputs=y\n")
     run = world.source.batch_run()

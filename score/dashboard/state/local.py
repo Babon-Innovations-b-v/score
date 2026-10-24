@@ -247,7 +247,8 @@ class LocalSource:
         from score.dashboard.checkout import watched
         from score.dashboard.state import batch_run
         now = datetime.datetime.fromisoformat(read_at) if read_at else None
-        return batch_run.gathered(watched.newest(), self.props_home, self.store_root, self.batch_gaps, now)
+        return batch_run.gathered(watched.newest(), self.props_home, self.store_root, self.batch_gaps, now,
+                                  lambda node: (self.store.current_accept(node) or {}).get("at"))
 
     def batch_gaps(self, node):
         """The batch gaps a row's accepted output names (its batch-gaps.json), [] for none."""
