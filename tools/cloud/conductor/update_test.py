@@ -186,3 +186,26 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             test()
             print(f"ok {name}")
+
+
+def test_a_passs_own_update_moves_and_two_calls_take_turns():
+    """The sync pass's ExecStartPre runs before its sync process exists, so it moves the checkout; a second call
+    (score-update.service meanwhile) waits on the checkout's lock until the first is done."""
+    import fcntl
+    with tempfile.TemporaryDirectory() as folder:
+        origin, checkout, commits, uv, log, proc = setup(folder)
+        assert "->" in moved(checkout, None, uv, proc)  # no sync process yet: nothing holds the checkout
+        called = []
+        real = update.update
+        update.update = lambda repo, url: called.append(repo) or "update: at test"
+        try:
+            with open(checkout / ".git" / "score-update.lock", "w") as held:
+                fcntl.flock(held, fcntl.LOCK_EX)
+                second = threading.Thread(target=update.main, args=(["--repo", str(checkout)],))
+                second.start()
+                second.join(0.5)
+                assert second.is_alive() and not called
+            second.join(5)
+        finally:
+            update.update = real
+        assert called == [checkout.resolve()]

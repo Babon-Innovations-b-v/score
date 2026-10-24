@@ -68,6 +68,25 @@ def test_units_pass_systemd_verify():
     assert problem is None, problem
 
 
+def test_the_sync_unit_install_sync_renders_for_user_score_passes_verify_and_updates_first():
+    """`install-sync --no-pull` on the conductor: the sync pass runs the update first, on the system python."""
+    from score.dashboard.sync import timer
+    with tempfile.TemporaryDirectory() as folder:
+        home = machine.fake_home(folder)
+        repo, env = home / "projects" / "score", home / "dashboard.env"
+        env.write_text("SCORE_SYNC_URL=https://cockpit.test\n")
+        copies = []
+        for name in ("score-sync.service", "score-sync.timer"):
+            copy = pathlib.Path(folder) / name
+            copy.write_text(timer.unit_text(name, repo, env, timer.SECRET, pull=False))
+            copies.append(str(copy))
+        service = pathlib.Path(copies[0]).read_text()
+        done = subprocess.run(["systemd-analyze", "--user", "verify", *copies], capture_output=True, text=True)
+    assert done.returncode == 0 and not (done.stderr + done.stdout).strip(), done.stderr + done.stdout
+    assert f"\nExecStartPre=/usr/bin/python3 -I {repo}/tools/cloud/conductor/update.py --repo {repo}\n" in service
+    assert "git -C" not in service
+
+
 def test_units_never_name_a_pc_path():
     for unit in machine.unit_files():
         text = unit.read_text()

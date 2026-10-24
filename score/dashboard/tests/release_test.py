@@ -148,14 +148,16 @@ def test_a_quoted_reader_is_read_as_systemd_reads_it_and_a_failed_user_manager_i
         timer.install(score, env, host, DOCKERFILE, systemctl=lambda *args: "no user manager")
 
 
-def test_the_units_render_for_the_conductors_user_and_no_pull_leaves_the_pull_out():
-    """On the conductor the same templates fill in for user score; --no-pull drops the sync unit's pull before each
-    pass (the score-update timer moves the checkout there) and nothing else."""
+def test_the_units_render_for_the_conductors_user_and_no_pull_runs_the_update_in_the_pulls_place():
+    """On the conductor the same templates fill in for user score; --no-pull puts the conductor's update in place of
+    the sync unit's pull before each pass (so every pass starts on the cockpit's pin) and changes nothing else."""
     repo, env = "/home/score/projects/score", "/home/score/.config/score/dashboard.env"
     pulled = timer.unit_text("score-sync.service", repo, env, timer.SECRET).splitlines()
     unpulled = timer.unit_text("score-sync.service", repo, env, timer.SECRET, pull=False).splitlines()
-    assert f"ExecStartPre=/usr/bin/git -C {repo} pull -q --ff-only" in pulled
-    assert [line for line in pulled if not line.startswith("ExecStartPre=")] == unpulled
+    pull = f"ExecStartPre=/usr/bin/git -C {repo} pull -q --ff-only"
+    update = f"ExecStartPre=/usr/bin/python3 -I {repo}/tools/cloud/conductor/update.py --repo {repo}"
+    assert pull in pulled and update not in pulled
+    assert [update if line == pull else line for line in pulled] == unpulled
     lines = [line for line in unpulled if not line.startswith("#")]
     assert not any("<" in line for line in lines) and not any("/home/dupe" in line for line in unpulled)
     assert f"WorkingDirectory={repo}" in lines and f"EnvironmentFile={env}" in lines
@@ -190,4 +192,5 @@ def test_without_a_host_the_install_checks_the_commit_the_cockpits_pin_reports(r
     assert cockpit.asked == [("https://cockpit.test/api/sync/pin", "Bearer token")]
     assert "no pull before a pass" in said
     service = (tmp_path / "config/systemd/user/score-sync.service").read_text()
-    assert "\nExecStartPre=" not in service and f"WorkingDirectory={score}" in service
+    assert "\nExecStartPre=/usr/bin/git" not in service and f"WorkingDirectory={score}" in service
+    assert f"\nExecStartPre=/usr/bin/python3 -I {score}/tools/cloud/conductor/update.py --repo {score}\n" in service
