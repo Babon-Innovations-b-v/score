@@ -1,8 +1,8 @@
 """pixal@<place>: the prop objects' raw models from their close-ups, by Pixal3D through the existing cloud batch.
 
 tools/cloud/batch.py makes every take on rented cards (the close-up cut out on the machine, Pixal3D) and brings
-each back raw (--no-finish) into WORK/pixal/ as <take>.glb and <take>.svviews (the close-up and its camera); each is
-finished on another rented machine (finish_here: pixal.py --finish-only, never on the owner's PC) into
+each back raw (--no-finish) into WORK/pixal/ as <take>.glb and <take>.svviews (the close-up and its camera); all are
+finished in one call of rented machines side by side (finish_all: pixal.py --finish-only, never on the owner's PC) into
 <take>-final.glb: the files the surface stage's line reads for every take its data lists
 (score/stages/surfaces, surface_data.take_files), so the surface line (split, library paint, made solid in the bake)
 takes the prop route's models from here, and its first row waits on this one. A take already made is not made again
@@ -89,19 +89,36 @@ def finished(take, faces):
     return made(take) and slimmed(take, faces).exists()
 
 
-def finish_here(take, closeup, faces):
-    """A take the cloud brought back raw, finished as the batch finishes every take (pixal.py --finish-only) on a
-    rented machine (tools/props/finish_elsewhere.py through blender_cloud.run_elsewhere, under this node's clearance):
-    no Blender or bake runs on the owner's PC. The raw take, its camera folder, its close-up, the prop tools and the
-    lab's copy go up at their own paths; the final and the slimmed model come back into WORK/pixal. Raises when the run
-    fails."""
-    from score.adapters import engines
+def finish_job(take, closeup, faces):
+    """A take the cloud brought back raw, as one blender_cloud.py job finishing it (pixal.py --finish-only in
+    tools/props/finish_elsewhere.py). The raw take, its camera folder, its close-up, the prop tools and the lab's copy
+    go up at their own paths; the final and the slimmed model come back into WORK/pixal."""
     raw, final, views = take_files(take)
     sent = [raw, *([views] if views.exists() else []), closeup, REPO / "tools/props", REPO / "vendor/image-to-3dlab"]
-    engines.machine_runner().run_elsewhere(REPO / "tools/props/finish_elsewhere.py",
-                                           [REPO, raw.parents[1], closeup, take, f"--faces={faces}"], sent,
-                                           [final, slimmed(take, faces)],
-                                           FINISH_CLASSES, f"score pixal {take}", FINISH_MINUTES)
+    return {"script": "tools/props/finish_elsewhere.py",
+            "args": [str(argument) for argument in (REPO, raw.parents[1], closeup, take, f"--faces={faces}")],
+            "inputs": [str(path) for path in sent], "outputs": [str(final), str(slimmed(take, faces))],
+            "minutes": FINISH_MINUTES}
+
+
+def finish_all(jobs, place, out):
+    """Every raw take's finish as one blender_cloud.py call, its jobs side by side on the rented machines it spreads
+    them over (under this node's clearance): no Blender or bake runs on the owner's PC, and no take waits on another's
+    machine (Buy of 2026-10-24: twenty finishes one after another, each its own machine run). A take whose finish
+    fails is its gap (finish_gaps); a call that brings no take back at all (a set-up fault) raises."""
+    paths = []
+    for number, job in enumerate(jobs):
+        paths.append(out / f".finish-{number}.json")
+        paths[-1].write_text(json.dumps(job, indent=1))
+    done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/blender_cloud.py"), *map(str, paths), "--who",
+                           f"score pixal {place}", "--classes", ",".join(FINISH_CLASSES)], cwd=REPO,
+                          capture_output=True, text=True)
+    (out / "finish.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
+    for path in paths:
+        path.unlink()
+    if done.returncode and not any(all(pathlib.Path(path).exists() for path in job["outputs"]) for job in jobs):
+        raise RuntimeError(f"the finish call failed (exit {done.returncode}) and brought no take back; its log is "
+                           "finish.log")
 
 
 def seed_of(take):
@@ -136,15 +153,26 @@ def make_pixal(inputs, out, seed, params):
         (out / "batch.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
         if done.returncode:
             raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
-    for row, entry in sorted(objects.items()):
-        faces = faces_of(inputs["surfaces"], entry["take"])
-        if raw_made(entry["take"]) and not finished(entry["take"], faces):
-            finish_here(entry["take"], closeups / f"{row}.png", faces)
+    faces = {row: faces_of(inputs["surfaces"], entry["take"]) for row, entry in objects.items()}
+    unfinished = {row: entry for row, entry in sorted(objects.items())
+                  if raw_made(entry["take"]) and not finished(entry["take"], faces[row])}
+    if unfinished:
+        finish_all([finish_job(entry["take"], closeups / f"{row}.png", faces[row])
+                    for row, entry in unfinished.items()], prop_data.record_at(inputs["props"])["place"], out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in objects.items()}
     (out / "takes.json").write_text(json.dumps(takes, indent=1))
-    batch_gaps.write(out, [*batch_gaps.of(inputs), *unmade_gaps(objects)])
+    batch_gaps.write(out, [*batch_gaps.of(inputs), *unmade_gaps(objects), *finish_gaps(unfinished, faces)])
+
+
+def finish_gaps(unfinished, faces):
+    """The batch gap of each raw take whose finish brought no model back: it ran once in the call."""
+    return [batch_gaps.gap(f"{row}: its finish made no model", "pixal", "takes",
+                           (row, entry["take"], *entry.get("rows", ())),
+                           [f"{row}: no {path.name}" for path in take_files(entry["take"]) if not path.exists()],
+                           "the finish job ran once on a rented machine and brought no model back")
+            for row, entry in sorted(unfinished.items()) if not finished(entry["take"], faces[row])]
 
 
 def unmade_gaps(objects):

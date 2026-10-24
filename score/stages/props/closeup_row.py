@@ -62,9 +62,11 @@ def make_inputs(inputs, out, seed, params):
     rows = inventory_rows(json.loads(inputs["inventory"].read_text()), objects)
     for row in rows:
         row["concept"] = str(inputs[f"view {row['view']}"]) if row["view"] else None
-        named = inputs.get(f"close-up {row['id']}")
-        row["drawn"] = str(named) if named else None
         entry = objects[row["id"]]
+        # only an object whose prop data names a close-up has one drawn: an object named like one of the row's tools
+        # (the square's `stage` took "close-up stage", the tool's folder, 2026-10-24) has none
+        named = inputs.get(f"close-up {row['id']}") if entry.get("closeup") else None
+        row["drawn"] = str(named) if named else None
         row.update(route=entry["route"], take=entry.get("take"), layer=layer_of(entry),
                    failures=entry.get("failures", {}))
     missing = sorted(set(objects) - {row["id"] for row in rows})
@@ -106,6 +108,16 @@ def taken_as_drawn(row, out):
     picture.convert("RGB").save(out / "closeups" / f"{row['id']}.png")
 
 
+def taken_or_why(row, out):
+    """taken_as_drawn, or why the drawn close-up could not be taken (missing, a folder, no picture): one object's
+    failure, a batch gap, never the whole row's."""
+    try:
+        taken_as_drawn(row, out)
+    except OSError as error:  # PIL's UnidentifiedImageError is one too
+        return f"{row['drawn']}: {type(error).__name__}: {error}"
+    return None
+
+
 def measured(path, row):
     """The shape check's measured faults of one close-up at its row's size; a person's (a row of the people layer:
     drawn in the rig's A-pose, no box's outline) by its framing and its arms clear of the body (check.person_faults);
@@ -142,9 +154,8 @@ def make_closeups(inputs, out, seed, params):
     """closeups/<id>.png for every object (drawn ones as they are, the rest by Pro) and closeups.json."""
     rows = json.loads((inputs["props-inputs"] / "rows.json").read_text())["rows"]
     (out / "closeups").mkdir(parents=True)
-    for row in rows:
-        if row["drawn"]:
-            taken_as_drawn(row, out)
+    unreadable = {row["id"]: taken_or_why(row, out) for row in rows if row["drawn"]}
+    unreadable = {row: why for row, why in unreadable.items() if why}
     takes = draw_missing([row for row in rows if not row["drawn"]], out)
     record = {}
     for row in rows:
@@ -160,7 +171,11 @@ def make_closeups(inputs, out, seed, params):
                                           [f"{take}: {', '.join(faults)}"
                                            for take, faults in record[row["id"]]["takes"].items()],
                                           "every Pro take failed the shape check's measured half")
-                           for row in rows if not row["drawn"] and not record[row["id"]]["drawn_by"]])
+                           for row in rows if not row["drawn"] and not record[row["id"]]["drawn_by"]] +
+                     [batch_gaps.gap(f"{row['id']}: its drawn close-up could not be read", "closeup", "close-up",
+                                     (row["id"], row.get("take")), [unreadable[row["id"]]],
+                                     "the close-up its prop data names is no picture that opens")
+                      for row in rows if row["id"] in unreadable])
     pictures = sum(entry["pro_pictures"] for entry in record.values())
     (out / "closeups.json").write_text(json.dumps({"objects": record, "pro_pictures": pictures,
                                                    "pro_dollars": round(pictures * DOLLARS_A_PICTURE, 3)},
