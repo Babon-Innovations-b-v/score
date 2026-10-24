@@ -282,15 +282,19 @@ def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_pat
 
 def test_environment_1_demo_is_its_complete_default():
     """env1_demo is environment 1's default film, complete (owner, 2026-10-21): every segment names a real scene, the
-    physics animation long enough to see an orbit, the walk-throughs the Base's rooms, inside its target."""
+    physics animation long enough to see an orbit, every zoom followed by a walk through its scenes (owner, 2026-10-24:
+    "scale zoom after scale zoom and no walkthroughs in between"), inside its target."""
     film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "env1_demo")
     assert origin == "starter" and film["default"] is True
-    assert script.faults(film, design_scenes()) == []
+    # the docking airlock: a scene added in the app on his kept Hangar plan, which the test's store does not hold
+    assert script.faults(film, design_scenes() | {"docking_airlock"}) == []
     assert script.total_seconds(film) <= film["target_seconds"]
     animation = next(segment for segment in film["segments"] if segment["cut"] == "setting-animation")
     assert animation["seconds"] * animation["days_per_second"] >= 300  # Earth goes most of the way round the Sun
-    walks = [segment["shows"]["place"] for segment in film["segments"] if segment["cut"] == "walk-through"]
-    assert walks == next(segment for segment in film["segments"] if segment["cut"] == "scale-zoom")["legs"][-1]["rooms"]
+    cuts = [segment["cut"] for segment in film["segments"]]
+    assert all(cuts[number + 1] == "walk-through" for number, cut in enumerate(cuts) if cut == "scale-zoom")
+    walks = {segment["shows"]["place"] for segment in film["segments"] if segment["cut"] == "walk-through"}
+    assert set(next(segment for segment in film["segments"] if segment["cut"] == "scale-zoom")["legs"][-1]["rooms"]) < walks
 
 
 def locking(client, film, body):
@@ -357,20 +361,24 @@ PLAN = {"maps": [{"on": "kepler", "sites": [{"place": "camp", "name": "Camp"}]},
 
 def test_an_environments_default_film_is_the_owners_structure_filled_from_its_own_scenes():
     """The owner's script for environment 1 as every environment's default (2026-10-21): the app's steps, then one
-    shot from the setting down into the top scene's rooms, then on to every other top scene, body by body, here an
-    environment that shares no name with his."""
+    shot from the setting down into the top scene's rooms, then on to every other top scene, body by body, every zoom
+    followed by a walk through its scene (not a shell) and every scene it holds, parent before child (2026-10-24),
+    here an environment that shares no name with his."""
     from score.dashboard.films import default
-    within = {"dock": "port", "bar": "port", "hold": "port", "deck": "port", "tent": "camp"}
+    within = {"dock": "port", "bar": "port", "bunk": "deck", "hold": "port", "deck": "port", "tent": "camp"}
     facts = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
                              {"tess": "tess_dust"})
     assert facts["top"] == "port" and [room for room, _ in facts["rooms"]] == ["dock", "bar", "hold"]
     assert [stop["place"] for stop in facts["stops"]] == ["port", "pier", "camp"]
     film = default.built("world7-film", facts)
-    assert script.faults(film, {"port", "pier", "camp", "dock", "bar", "hold", "deck", "tent"}) == []
+    assert script.faults(film, {"port", "pier", "camp", "dock", "bar", "hold", "deck", "bunk", "tent"}) == []
     assert [segment["cut"] for segment in film["segments"]] == [
         "title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take", "scale-zoom",
-        "walk-through", "walk-through", "walk-through", "scale-zoom", "scale-zoom"]
-    assert [segment["shows"]["place"] for segment in film["segments"][-5:]] == ["dock", "bar", "hold", "pier", "camp"]
+        *["walk-through"] * 5, "scale-zoom", "walk-through", "scale-zoom", "walk-through", "walk-through"]
+    assert [segment["shows"]["place"] for segment in film["segments"][7:]] == [
+        "dock", "bar", "hold", "deck", "bunk", "pier", "pier", "camp", "camp", "tent"]
+    assert [segment["line"] for segment in film["segments"][-4::2]] == ["Outside", "Outside"]
+    assert film["segments"][-1]["line"] == "Inside"
     assert script.total_seconds(film) <= film["target_seconds"] < script.total_seconds(film) + 5
     assert film["segments"][2]["seconds"] == 12.0
     pages = [segment["shows"].get("page") for segment in film["segments"] if segment["cut"] == "screen-take"]
@@ -378,7 +386,7 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     zoom = film["segments"][6]
     assert zoom["legs"][-1]["rooms"] == ["dock", "bar", "hold"] and zoom["legs"][3]["into"] == "dock"
     assert zoom["surfaces"] == {"tess": "tess_dust", "ground": "tess_dust"} and "kepler" in zoom["waiting"]
-    pier, camp = film["segments"][-2:]
+    pier, camp = film["segments"][-5], film["segments"][-3]
     assert [leg["layer"] for leg in pier["legs"]] == ["site", "place"] and pier["legs"][0]["from_place"] == "port"
     assert "Pier, 80 m from The Port" in json.dumps(pier) and pier["pip"]["concept"] == "pier"
     assert [leg["layer"] for leg in camp["legs"]] == ["world", "setting", "world", "site", "place", "room"]

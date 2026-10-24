@@ -2,11 +2,14 @@
 the structure of his script for environment 1 (data/films/env1_demo.json), filled in from the environment's own
 setting and scenes. The app's own steps in its own windows (the setting, its animation, the environment concept, a
 room's concept review, the top scene's inventory and plan), then one unbroken shot from the setting down into the top
-scene's rooms, then a walk through each of those rooms, then on through the whole environment (owner, 2026-10-21: "its
-needs to show all of env 1"): every other top scene, the rest of its body's first, then body by body, each reached
-from the one before over the ground or out to orbit and in again (the environment plan's sites, metres and the true
-distances its skies give), its concept in the corner, round it from outside and into its first rooms. The top scene
-is the site holding the most scenes; its rooms, like every scene's, the first three it holds. Every segment long enough to read what it shows (owner, 2026-10-21: the physics animation
+scene's rooms, then on through the whole environment (owner, 2026-10-21: "its needs to show all of env 1"): every
+other top scene, the rest of its body's first, then body by body, each reached from the one before over the ground or
+out to orbit and in again (the environment plan's sites, metres and the true distances its skies give), its concept
+in the corner, round it from outside and into its first rooms. Every top scene's zoom is followed by a walk through
+the scene itself (none for a shell, which is no place of its own) and every scene it holds, parent before child
+(owner, 2026-10-24: "at the end it has scale zoom after scale zoom and no walkthroughs in between"), so two zooms
+follow each other only where a site has nothing to walk. The top scene is the site holding the most scenes; the
+zoom's rooms, like every scene's, the first three it holds. Every segment long enough to read what it shows (owner, 2026-10-21: the physics animation
 long enough for a body to go a clear way round its orbit), the target the film's own length. The FILM page opens on
 it until he saves his own; plain Python, the hosted process reads it too. Its scale zooms name no `time`, so each
 lands where its site is lit (#51: the preview picks the hour through overhead.py, `preview/scenes.arrival`, which
@@ -15,7 +18,8 @@ the hosted process cannot import); a `time` the owner gives a zoom is kept as he
     facts  {"world", "title" (the environment's name), "bodies" [body] (the setting's, in its order), "shining"
             [body] (those that shine: drawn by their light, no surface),
             "body" (the top scene's site's body), "top", "top_name", "rooms" [[place, name]],
-            "stops" [{place, name, body, rooms, metres (from the site before on its body), km (from the site
+            "stops" [{place, name, body, rooms, walks [[place, name]] (the scene itself unless a shell, then every
+            scene it holds, parent before child), metres (from the site before on its body), km (from the site
             before, on another body)}] (every top scene in the journey's order, the top scene first),
             "surfaces" {body: library surface} (each body's, as earlier scripts drew it; a body with none waits)}
 """
@@ -189,16 +193,23 @@ def stop_zoom(facts, before, stop):
 
 
 def journey(facts):
-    """The rest of the environment after the top scene's rooms: every other top scene, body by body (see facts)."""
+    """The rest of the environment after the top scene's walks: every other top scene, body by body (see facts),
+    each zoom followed by its walks."""
     stops = facts["stops"]
-    return [stop_zoom(facts, before, stop) for before, stop in zip(stops, stops[1:])]
+    return [shown for before, stop in zip(stops, stops[1:])
+            for shown in (stop_zoom(facts, before, stop), *walks(stop))]
 
 
-def walk(room, name):
-    """6 on: a walk through one of the top scene's rooms, on its own sound."""
-    return {**segment("walk-through", {"place": room}, script.WALK_SECONDS, []), "sound": "place", "line": "Inside",
+def walks(stop):
+    """A walk through each of the stop's scenes (its `walks`): the top scene itself from outside, the rest inside."""
+    return [walk(place, name, "Outside" if place == stop["place"] else "Inside") for place, name in stop["walks"]]
+
+
+def walk(place, name, line):
+    """A walk through one scene, on its own sound."""
+    return {**segment("walk-through", {"place": place}, script.WALK_SECONDS, []), "sound": "place", "line": line,
             "text": name,
-            "waiting": "the finished room and its film (the batch): until then the preview shows its name"}
+            "waiting": "the finished scene and its film (the batch): until then the preview shows its name"}
 
 
 def built(film, facts):
@@ -217,12 +228,11 @@ def built(film, facts):
             "world": facts["world"], "default": True, "size": [1280, 720], "rate": 24,
             "defaults": {},
             "why": "The default film: the app's own steps in its own windows, then one unbroken shot from the "
-                   "setting down into the top scene's rooms and a walk through each, then on to every other top "
-                   "scene, body by body (the owner's script for environment 1, filled in from this environment's "
-                   "scenes)",
+                   "setting down into the top scene's rooms, then on to every other top scene, body by body, every "
+                   "zoom followed by a walk through its scene and every scene it holds (the owner's script for "
+                   "environment 1, filled in from this environment's scenes)",
             "segments": [title, setting_take(facts), animation, concept_take(facts), review_take(facts),
-                         plan_take(facts), zoom(facts), *(walk(room, name) for room, name in facts["rooms"]),
-                         *journey(facts)]}
+                         plan_take(facts), zoom(facts), *walks(facts["stops"][0]), *journey(facts)]}
     return {**made, "target_seconds": 5 * math.ceil(script.total_seconds(made) / 5)}
 
 
@@ -236,10 +246,16 @@ def body_km(sky, body, radius_km):
     return radius_km / math.tan(math.radians(seen["across"]) / 2) if seen and radius_km and seen["across"] else None
 
 
+def held_by(place, within):
+    """Every scene `place` holds, each before the scenes it holds in turn, in `within`'s order."""
+    return [found for child, holder in within.items() if holder == place for found in (child, *held_by(child, within))]
+
+
 def stops_of(plan, within, names, radii, top):
     """Every top scene in the journey's order: the top scene, the other sites on its body, then each other body's
-    sites, all in the environment plan's order; each with its rooms (the first three it holds), the metres from the
-    site before on the same body and the km from the site before to a new body."""
+    sites, all in the environment plan's order; each with its rooms (the first three it holds), its walks (itself
+    unless a shell, a key of `names`, then every scene it holds), the metres from the site before on the same body and
+    the km from the site before to a new body."""
     maps = plan["maps"]
     first = next(found for found in maps if any(site["place"] == top for site in found["sites"]))
     ordered = [(first, next(site for site in first["sites"] if site["place"] == top))]
@@ -249,7 +265,9 @@ def stops_of(plan, within, names, radii, top):
     for found, site in ordered:
         stop = {"place": site["place"], "name": named(site["place"], {site["place"]: site["name"], **names}),
                 "body": found["on"], "sky": site.get("sky") or {},
-                "rooms": [[room, named(room, names)] for room, holder in within.items() if holder == site["place"]][:3]}
+                "rooms": [[room, named(room, names)] for room, holder in within.items() if holder == site["place"]][:3],
+                "walks": [[place, named(place, names)] for place in ([] if site["place"] in names else [site["place"]])
+                          + held_by(site["place"], within)]}
         before = stops[-1] if stops else None
         if before and before["body"] == stop["body"]:
             stop["metres"] = next((entry["metres"] for entry in found.get("distances", [])
