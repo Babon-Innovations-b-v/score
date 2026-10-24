@@ -35,7 +35,9 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   minute by `health_push.py`) shows a live run claim, a parked paid machine or a frozen worktree a process works in
   (a waiting-for-size run's own copy left out: it waits for that grow), or is over 10
   minutes old (a power cycle mid-run cuts the run and orphans its rented machines); a refused type change still
-  powers the server back on. `health_push.py` pushes nothing when the claims file does not parse, so the record
+  powers the server back on. It lifts the server's protection first (Scaleway refuses to power off a protected
+  server) and sets it again in every path. `status` reads the health record with the conductor's own key
+  (`bucket_key`): this PC's key belongs to another project and gets 403. `health_push.py` pushes nothing when the claims file does not parse, so the record
   goes stale rather than idle.
 - **The data volume's bare mountpoint is immutable** (`chattr +i`, boot.sh): with `nofail`, a boot where the volume
   does not attach fails every writer there instead of starting an empty store on the root disk.

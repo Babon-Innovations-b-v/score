@@ -146,6 +146,19 @@ def test_the_conductors_key_comes_from_its_own_project_or_is_typed():
                for line in printed), printed
 
 
+def test_status_reads_the_health_record_with_the_conductors_own_key():
+    """The PC's own key belongs to another project, so the bucket refuses it (HTTP 403, 2026-10-24)."""
+    kept = machine.stored_key
+    machine.stored_key = lambda scw: {"access_key": "SCWCON", "secret_key": "s-con"}
+    try:
+        read = []
+        record = machine.health_record(types.SimpleNamespace(dry=False),
+                                       read=lambda *args: read.append(args) or b'{"active_runs": 0}')
+    finally:
+        machine.stored_key = kept
+    assert record == {"active_runs": 0} and read[0][-2:] == ("SCWCON", "s-con"), read
+
+
 def test_the_move_sets_the_pcs_home_aside_read_only_after_its_test_home_is_filled():
     with tempfile.TemporaryDirectory() as folder:
         home = pathlib.Path(folder) / "props"
