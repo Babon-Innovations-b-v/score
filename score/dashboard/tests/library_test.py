@@ -271,6 +271,14 @@ def test_a_withdrawn_entry_is_in_no_folder():
     assert [entry.state for entry in made["members"]["model"]] == ["draft"]
 
 
+def test_an_entry_is_one_item_its_newest_locked_version():
+    first = named(1, "crate")[0]
+    versions = [first.model_copy(update={"version": 1, "state": "locked"}),
+                first.model_copy(update={"version": 2, "state": "locked"}),
+                first.model_copy(update={"version": 3, "state": "draft"})]
+    assert [entry.version for entry in folders(versions)["members"]["model"]] == [2]
+
+
 def item_data(html):
     """The viewer's JSON the item page carries (item3d.js reads it), or None."""
     found = re.search(r'<script id="item-data" type="application/json">(.*?)</script>', html, re.S)

@@ -125,14 +125,24 @@ class Builder:
                           members, []) for key, members in in_order(groups)]
 
 
+def one_per_entry(entries):
+    """Each entry id once, as its newest locked version (else its newest); its other versions are on its page (owner,
+    2026-10-24, two "Cockpit concept" items: "this got duped in the lib")."""
+    newest = {}
+    for entry in sorted(entries, key=lambda entry: (entry.state == "locked", entry.version)):
+        newest[(entry.kind, entry.entry_id)] = entry
+    return [entry for entry in entries if newest[(entry.kind, entry.entry_id)] is entry]
+
+
 def folders(entries):
-    """The Library's tree of kinds and categories, and each node's entries; a withdrawn entry is in none (its page
-    stays reachable from its versions: withdrawn copies folded into one entry are no shelf of their own, #46). A
+    """The Library's tree of kinds and categories, and each node's entries, one item per entry id (one_per_entry); a
+    withdrawn entry is in none (its page stays reachable from its versions: withdrawn copies folded into one entry are
+    no shelf of their own, #46). A
     shelf's code that makes what it holds sits in its own "Made by code" folder, after the shelf's own folders (a
     shelf with none lists its own entries beside it)."""
     builder = Builder()
     tree = []
-    entries = [entry for entry in entries if entry.state != "withdrawn"]
+    entries = one_per_entry([entry for entry in entries if entry.state != "withdrawn"])
     for kind, _ in KINDS:
         of_kind = [entry for entry in entries if (entry.shelf or entry.kind) == kind]
         if of_kind:
