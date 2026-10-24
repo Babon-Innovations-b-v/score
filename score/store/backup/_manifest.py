@@ -41,9 +41,10 @@ def folder_files(home, folder, copies):
         if not kept(name) or relative in side:
             continue
         source = copies.get(relative)
-        if source is not None:
-            sha = tree_listing(source)[source.name]
-        files[relative] = {"sha256": sha, "bytes": (source or root / name).stat().st_size}
+        if source is not None:  # a database by its content: two copies of one state differ in header bytes
+            files[relative] = {"sha256": _staging.content_hash(source), "bytes": None}
+            continue
+        files[relative] = {"sha256": sha, "bytes": (root / name).stat().st_size}
     return files
 
 

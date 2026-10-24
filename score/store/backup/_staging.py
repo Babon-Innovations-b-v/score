@@ -6,6 +6,7 @@ included, while the cockpit keeps writing. The copies sit in STAGING inside the 
 of the live files (and the live files' -wal, -shm and -journal are left out), and a restore moves each back to its own
 path. Copying the same state twice gives the same bytes, so a copy's hash names the database's state.
 """
+import hashlib
 import os
 import pathlib
 import shutil
@@ -33,6 +34,18 @@ def databases(home):
         return []
     return sorted(path.relative_to(home).as_posix() for path in folder.rglob("*")
                   if path.is_file() and not path.is_symlink() and is_database(path))
+
+
+def content_hash(database):
+    """sha256 of a database's content (its SQL dump), the same for every copy of one state whatever its file bytes."""
+    digest = hashlib.sha256()
+    connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    try:
+        for line in connection.iterdump():
+            digest.update(line.encode() + b"\n")
+    finally:
+        connection.close()
+    return digest.hexdigest()
 
 
 def side_files(database):
