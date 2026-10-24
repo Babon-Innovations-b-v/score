@@ -688,6 +688,7 @@ def collect(run_id):
                           f"{(collecting.next_ask - time.time()) / 60:.0f} min")
             batch.STOPPING.wait(POLL_SECONDS)
     finally:
+        batch.STOPPING.set()  # from here a stop signal lets the release finish (stop_on_signals)
         release(run_id)
 
 
@@ -726,10 +727,15 @@ def collect_round(run_id, plan, collecting):
 def stop_on_signals():
     """Turn a stop of the collector's process into its release (collect's own end), once: a second signal (the run's
     release closing the pool again) is ignored, so the release and the rents still under way (each deletes its
-    machine on STOPPING) finish (fault, 2026-10-24: a card rented at a stop was never deleted)."""
+    machine on STOPPING) finish (fault, 2026-10-24: a card rented at a stop was never deleted), and so is a first one
+    that comes once the collector is already releasing (collect's end sets STOPPING first: a release cut off left 6
+    of 13 parked machines billing, 2026-10-24)."""
     def leave(number, _frame):
         for each in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
             signal.signal(each, signal.SIG_IGN)
+        if batch.STOPPING.is_set():
+            batch.say(f"pool: signal {number} while releasing; the release goes on")
+            return
         batch.STOPPING.set()
         raise SystemExit(f"stopped by signal {number}")
     for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):

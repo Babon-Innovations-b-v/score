@@ -622,6 +622,31 @@ def test_the_kill_switch_closes_every_open_pool_so_nothing_replaces_its_cards():
     assert not collector.is_alive() and len(calls.rented) == 2 and sorted(calls.deleted) == sorted(calls.rented)
 
 
+def test_a_stop_signal_during_the_collectors_release_lets_it_release_every_card():
+    """Fault of 2026-10-24: the collector, releasing after its first SIGTERM, took a second one (its run's group stop,
+    then the pool's close) and ended after 7 of 13 parked machines; the other 6 billed until deleted by hand."""
+    import signal
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
+    grow(run_id)
+    assert len(park.pool_records(run_id)) == 3
+    before = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+    delete = cloud.delete
+
+    def signalled(server_id, zone):
+        os.kill(os.getpid(), signal.SIGTERM)  # handled in this (the main) thread, between this card and the next
+        return delete(server_id, zone)
+    cloud.delete = signalled
+    pool.stop_on_signals()
+    try:
+        batch.STOPPING.set()  # the collector's release (collect's end) runs stopping
+        pool.release(run_id)
+    finally:
+        for number, handler in before.items():
+            signal.signal(number, handler)
+        batch.STOPPING.clear()
+    assert park.pool_records(run_id) == [] and sorted(calls.deleted) == sorted(calls.rented), calls.deleted
+
+
 PROCESSOR = "cpu-48c-96gb"
 PROCESSOR_OFFERS = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, PROCESSOR, 0, "available")]
 
