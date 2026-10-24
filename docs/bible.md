@@ -365,6 +365,10 @@ content-addressed and swapped whole once every file is up.
 - **Scene** `/place/<place>/`: its 3D view, its scene tree with gap dots, its gaps.
 - **Film** `/film/`: the script editor and free preview, Lock and Unlock (`architecture/lifecycles`).
 - **Buy** `/buy/`: what Buy buys now, its stop and ETA, what waits and why (`architecture/lifecycles`).
+- **Batch** `/buy/run/`: the run monitor the Buy's yes opens (Home links to it while a batch lives): its state, ETA
+  left and Stop everything; spent against its likely, high and stop; a row a scene with its rows done; the warm pool;
+  the problems. Read on the store's machine from the batch's own files (`state/batch_run.py`), carried hosted in the
+  export as `batch-run.json`.
 - **Money**: the month's cloud and model-call spend on every screen ("at least" while a line is unread); the books
   buttons (read the bills back, enter the model calls' month) show only while needed.
 - The top bar's back and forward move up a layer and down again to the one last opened, not through browser history.

@@ -1,6 +1,11 @@
 {% extends "pages/base.html" %}
 {% block title %}SCORE{% endblock %}
 {% block content %}
+{% if batch %}<a class="num-card num-link rm-live" href="/buy/run/" title="the batch Buy started: open it to watch it">
+  <span class="rm-chip tone-{{ batch.tone }}"><i class="dot tone-{{ batch.tone }}"></i><span data-v>{{ batch.label }}</span></span>
+  <span class="grow" data-v>Batch</span>
+  <span class="rm-count" data-v>{{ batch.done }}<small> of {{ batch.total }} rows</small></span><span data-v>&rsaquo;</span>
+</a>{% endif %}
 <section class="stats-group" aria-label="environments">
   <h2 class="eyebrow">Environments</h2>
   <div class="ptiles">

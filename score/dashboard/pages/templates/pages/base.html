@@ -18,7 +18,7 @@
     <a href="/places/"{% if request.path == "/places/" or request.path|slice:":14" == "/environments/" %} class="here"{% endif %}>Environment</a>
     {% if request.path|slice:":7" == "/place/" %}<a href="{{ request.path }}" class="here">Scene</a>{% endif %}
     <a href="/film/"{% if request.path|slice:":6" == "/film/" %} class="here"{% endif %} title="the film: its script locked after the scenes, before Buy">Film</a>
-    <a href="/buy/"{% if request.path == "/buy/" %} class="here"{% endif %}>Buy{% if basket_count %} <span class="count" data-v>{{ basket_count }}</span>{% endif %}</a>
+    <a href="/buy/"{% if request.path|slice:":5" == "/buy/" %} class="here"{% endif %}>Buy{% if basket_count %} <span class="count" data-v>{{ basket_count }}</span>{% endif %}</a>
     <a href="/stats/"{% if request.path == "/stats/" %} class="here"{% endif %}>Stats</a>
     <a href="/library/"{% if request.path|slice:":9" == "/library/" %} class="here"{% endif %}>Library</a>
   </nav>

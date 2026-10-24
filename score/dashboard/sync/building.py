@@ -5,6 +5,7 @@
     <out>/state.json           WorldState
     <out>/machine.json         the store's machine, its health and its logs' tails (state/machine.py), written right
                                after the state
+    <out>/batch-run.json       the newest Buy's batch as it runs (state/batch_run.py), right after the machine
     <out>/places/<place>.json  {"detail": PlaceDetail, "steps": {stage: StepDetail}, format, code_version};
                                _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero and concept pictures; <sha>-360.jpg thumbnails (the concepts' first, newest 8 a
@@ -35,7 +36,7 @@ import shutil
 import subprocess
 
 from score.dashboard.proposals import exporting as proposals
-from score.dashboard.state import library, machine, sliders, versions
+from score.dashboard.state import batch_run, library, machine, sliders, versions
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 from score.dashboard.state.models import PlaceDetail, StepDetail
 
@@ -219,6 +220,17 @@ def pictures_by_node(bundles):
     return found
 
 
+def batch_run_file(source, out, filler, made_at):
+    """batch-run.json (state/batch_run.py: the newest Buy's batch, read at the export's time) into the export right
+    after the machine, so the run monitor follows each pass; nothing before a batch."""
+    found = source.batch_run(made_at)
+    if found is None:
+        return
+    path = out / batch_run.RUN_FILE
+    path.write_text(json.dumps(found, sort_keys=True))
+    filler.wrote(path, path.stat().st_size)
+
+
 def build(source, out, made_at, cap_mb, spend, repo):
     """Write the export of `source` into `out`; its manifest."""
     out = pathlib.Path(out)
@@ -228,6 +240,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
     world.made_at, world.source = made_at, f"export {made_at}"
     filler.wrote(out / "state.json", write_json(out / "state.json", world))
     found_machine = machine_file(source, out, filler, made_at)
+    batch_run_file(source, out, filler, made_at)
     bundles =[place_bundle((None, step_details(source, None, source.world_rows())))]
     world_file = out / "places" / f"{WORLD_FILE}.json"
     filler.wrote(world_file, write_json(world_file, bundles[0]))

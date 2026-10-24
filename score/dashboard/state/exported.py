@@ -76,6 +76,12 @@ class ExportedSource:
         """The store's machine as the export carries it (machine.json, state/machine.py), or None before one."""
         return self.loaded("machine.json", lambda path: json.loads(path.read_text()))
 
+    def batch_run(self):
+        """The newest Buy's batch as the export carries it (batch-run.json, state/batch_run.py), or None before
+        one."""
+        from score.dashboard.state import batch_run
+        return self.loaded(batch_run.RUN_FILE, lambda path: json.loads(path.read_text()))
+
     def export_made_at(self):
         """When the store's machine made the export shown, or None before one arrived."""
         return (self.manifest() or {}).get("made_at")

@@ -176,7 +176,22 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   {key, batch: now} (`basket.buy_yes`, `batch_items`: exactly the approved places' items, `screens.now_items`, through
   the same checkout as the basket's, hosted queued; what waits is in the figure, not buyable); `{batch: benchmarks}` still buys the Benchmarks item, with no button on this screen; no choice
   an item is asked, so the nav's count is only the steps queued by hand and the refines; the last batch's stop (its
-  high plus 10%, `basket.last_batch`) shows after it. The numbers come
+  high plus 10%, `basket.last_batch`) shows after it, opening the run monitor. **Batch** `/buy/run/` (the run monitor,
+  `pages/run_monitor.py`, `run_monitor.html`, owner 2026-10-24: "make the monitor page for after buy ... easy to
+  understand and scan"): the Buy's yes opens it (`data-go` on its yes form) and Home links to it while a batch lives
+  (`run_monitor.live_batch`). The newest checkout's batch (`checkout/watched.newest`: the record, its launch polled,
+  every row its run plans) read from its files by `state/batch_run.py` (the run's detached log: heartbeats, each
+  finished row's line, the pool it opened, its result line; a row's own log written since the start: running; each
+  done row's batch gaps; `$PROPS_HOME/cloud/pools/<run>/`: plan, cards, closed, collector.log), live locally
+  (`LocalSource.batch_run`), hosted from the export's `batch-run.json` (`ExportedSource.batch_run`) with its age; a
+  hosted Buy not answered yet shows as sent. One screen: state chip (starting, running, waiting for machines,
+  stopped, finished), started, elapsed, the ETA left from the checkout's runner minutes ("at least" while a bought
+  step is untimed), rows done of total, the owner's Stop everything (asked twice) while it lives; spent (the last
+  heartbeat's ledger euros) on one bar against likely, high and stop; a row a scene, parent before child
+  (`within`), its rows done, what runs now, a chip, a done scene linking to its 3D copy or scene page; the warm pool's
+  cards and processor machines as squares (busy, idle, to come; waiting for stock); problems (a failed row in one
+  plain sentence with the rows it holds back, a row's batch gaps, the batch stopped), newest first. Times in the
+  viewer's clock; it reads itself again every 20 s locally, 60 s hosted, while the batch lives. The numbers come
   from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `branch_rows`, `gaps_by_kind`, `places_complete`,
   `measured_prices`, `spend_by_day`, `day_chart`), each None where the runner gives none, shown as a grey "unknown", never 0; the
   views are `views.environment`, `stats`, `buy`, `place_page` over `views.overview_of`. The components, each an
