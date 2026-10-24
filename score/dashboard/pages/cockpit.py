@@ -36,20 +36,19 @@ def month_money(view):
             "models_label": lines["models"].label if "models" in lines else "Models"}
 
 
-def remake(world):
-    """{low, high, hours, at_least_hours, unknown, why, approved, in_design} of the remake of the places whose design
-    is approved (state/screens.remake_money: prepare's one-shot figure of their prop route plus the gaps price of
-    every paid step off it there): its likely and high euros, its likely hours only when every step is timed, else
-    the floor; the steps and layers with no price; `why` the hover text while a part is missing or stale (no figure
-    then); how many places are approved and still in design (no figure before one is approved)."""
-    found = screens.remake_money(world)
-    eta = found["eta"]
-    return {"low": found["likely"], "high": found["high"], "approved": found["approved"],
-            "in_design": found["in_design"],
+def remake(batch):
+    """{low, high, hours, at_least_hours, untimed, unknown, why, approved, in_design, estimate} of what the Buy buys
+    (screens.batch's `now`, the runner's plan of the approved places, owner 2026-10-24: one figure on every page): its
+    likely and high euros (the guesses in the high, as Buy and its stop count them), its likely hours only when every
+    step is timed, else the floor and how many steps are untimed; the steps with no price; `why` the hover text while
+    its prices are stale (no figure then, as on Buy); how many places are approved and in design."""
+    now, eta = batch["now"], batch["now"]["eta"]
+    return {"low": None if batch["stale"] else now["likely"], "high": None if batch["stale"] else now["high"],
+            "approved": batch["approved"], "in_design": batch["in_design"],
             "hours": round(eta["likely_minutes"] / 60, 1) if eta["likely_minutes"] is not None else None,
-            "at_least_hours": round(eta["at_least_minutes"] / 60, 1) if eta["at_least_minutes"] else None,
-            "unknown": found["unpriced"], "why": "; ".join(found["stale"]) or None,
-            "estimate": estimate(found["estimate"])}
+            "at_least_hours": round(eta["at_least_minutes"] / 60, 1) if eta.get("at_least_minutes") else None,
+            "untimed": eta.get("untimed") or 0, "unknown": sum(now["no_price"].values()),
+            "why": "; ".join(batch["stale"]) or None, "estimate": estimate(batch["estimate"])}
 
 
 def estimate(found):
@@ -71,6 +70,13 @@ def estimate(found):
 def eta_hours(eta):
     """(likely, high) hours of a batch's ETA (screens.basket_eta), each None while a step is not timed."""
     return tuple(None if eta[name] is None else round(eta[name] / 60, 1) for name in ("likely_minutes", "high_minutes"))
+
+
+def floor_hours(eta):
+    """(likely, high) hours of the timed steps of a batch's ETA (screens.now_eta's at least: the untimed steps add to
+    it), each None while no step is timed."""
+    return tuple(None if eta.get(name) is None else round(eta[name] / 60, 1)
+                 for name in ("at_least_minutes", "at_least_high_minutes"))
 
 
 def made_of(card):

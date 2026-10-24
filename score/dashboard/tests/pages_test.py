@@ -433,8 +433,8 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     # the cloud bill read, the model bill not: at least the cloud's, the missing line as hover text; no stop shown
     assert "<small>&ge;</small> <small>EUR</small> 12.50" in top and "not read: Model calls" in top
     assert "250" not in top and "stop" not in top
-    # prepare's figure (EUR 10 to 12) and the gaps price off the prop route (none measured): prepare times no step
-    assert "<small>EUR</small> 10&ndash;12<small>, " in top and "&ge; 0.5 h</span>" in top  # at least its floor
+    # what Buy buys (the basket's close-up at alpha, EUR 2 to 3, timed), the Buy page's own figure
+    assert "<small>EUR</small> 2&ndash;3<small>, about 0.2 h" in top
 
 
 def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_inside_it(world, settings, tmp_path, read):
@@ -466,32 +466,35 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
     assert client.get("/places/?in=alpha").status_code == 404 and client.get("/places/?in=empty").status_code == 404
 
 
-def test_the_remake_is_prepares_whole_figure_plus_the_rest_and_its_time_only_when_every_step_is_timed(
-        world, settings, tmp_path):
-    from score.dashboard.pages import cockpit
+def test_the_remake_is_what_buy_buys_and_its_time_at_least_its_timed_steps_while_one_is_not(world, settings, tmp_path):
+    """Owner, 2026-10-24: Home said EUR 900-1031 while Buy said 162-314; the remake is now the Buy's own figure."""
+    from score.dashboard.pages import cockpit, views
+    from score.dashboard.proposals import records
+    from score.dashboard.state import screens
     from score.dashboard.tests.screens_test import a_remake
     a_gaps_finding(world, settings, tmp_path)
     a_gaps_price(world, milestones=milestones())
     a_remake(world)
     world.source.refresh()
-    remake = cockpit.remake(world.source.world_state())
-    # prepare's EUR 10 to 12 (the likeness calibration unpriced) and the sound off the prop route, only guessed
-    assert (remake["low"], remake["high"], remake["hours"], remake["unknown"]) == (10.0, 12.0, None, 2), remake
-    untimed = {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 45.0,
-               "unknown": [{"node": "sound@alpha", "paid": True, "why": "no run of sound in the cloud ledger"}]}
-    a_gaps_price(world, milestones=milestones(), eta=untimed)
-    world.source.refresh()
-    remake = cockpit.remake(world.source.world_state())
-    assert remake["hours"] is None and remake["at_least_hours"] == 0.8  # the longer floor of the two
+    state = world.source.world_state()
+    batch = views.batch_of(state)
+    remake = cockpit.remake(batch)
+    assert (remake["low"], remake["high"]) == (batch["now"]["likely"], batch["now"]["high"]) == (2.0, 3.0)
+    assert (remake["hours"], remake["unknown"]) == (0.2, 0)
+    untimed = {"likely_euros": 1.0, "high_euros": 1.0, "basis": "per unit × forecast", "likely_minutes": None}
+    items = [{**item, "nodes": {**item["nodes"], "sound@alpha": untimed}}
+             for item in records.items(settings.SCORE_HOME / "proposals")]
+    remake = cockpit.remake(screens.batch(state, items))
+    assert remake["hours"] is None and (remake["at_least_hours"], remake["untimed"]) == (0.2, 1)  # the close-up's
 
 
 def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, settings, tmp_path):
-    from score.dashboard.pages import cockpit
+    from score.dashboard.pages import cockpit, views
     from score.dashboard.state import local
     a_gaps_finding(world, settings, tmp_path)
     a_gaps_price(world)
     world.source.refresh()
-    assert cockpit.remake(world.source.world_state())["why"] == "prepare has not run"
+    assert cockpit.remake(views.batch_of(world.source.world_state()))["why"] == "prepare has not run"
     here = local.priced_here()
     for priced_on, said in (({**here, "commit": "0" * 40, "uncommitted": False}, "the code moved"),
                             ({**here, "per_unit_sha256": "0" * 64, "uncommitted": False}, "per-unit prices"),
@@ -499,7 +502,7 @@ def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, set
         a_gaps_price(world, milestones=milestones(), priced_on=priced_on)
         world.source.refresh()
         price = world.source.gaps_price()
-        remake = cockpit.remake(world.source.world_state())
+        remake = cockpit.remake(views.batch_of(world.source.world_state()))
         assert remake["low"] is None and said in remake["why"], (said, remake)
         assert cockpit.measured_prices(price) == (None, None)
     assert said in unescape(signed_in().get("/places/").content.decode())  # the why is the hover text
@@ -666,13 +669,13 @@ def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_fo
     html = client.get("/buy/").content.decode()
     top = html.split('<ul class="buy-layers buy-design">')[0]
     assert '"batch": "now"' in top and " disabled " not in top
-    buy_now, waits = top.split(">Buy now<")[1].split(">Waits<")
+    assert ">Waits<" not in top  # owner, 2026-10-24: "this is confusing so can go"
+    buy_now = top.split(">Buy now<")[1]
     # the headline is what Buy buys: the basket's close-up at alpha, measured; its stop, its ETA; settle waits
     assert "<small>EUR</small> 2.00&ndash;3.00" in buy_now and "<small>stop EUR</small> 3.30" in buy_now
     assert "<small>EUR</small> 0.00 <small>guessed,</small> 0 <small>of</small> 1 <small>steps</small>" in buy_now
     assert "<small>ETA</small> 0.2&ndash;0.3 <small>h</small>" in buy_now and "it stops at EUR 3.30" in buy_now
-    assert "<small>EUR</small> 2.00&ndash;3.00" in waits and "1 <small>scenes in design</small>" in waits
-    assert "an earlier step first, predicted to fail" in waits  # what waits, with why
+    assert "+ 2 <small>steps wait</small>" in buy_now and "in no figure: an earlier step first" in buy_now
     layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>', html)
     assert layers == [("Models", "2"), ("Motion", "1"), ("Sound", "1")]
     assert ">Plants <small" not in html  # no design grows a plant

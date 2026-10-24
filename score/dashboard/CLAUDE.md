@@ -82,18 +82,18 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     not), game (its gaps' `complete/game` gate: its layout still from the source game)}], approved}; `batch`
     (`screens.batch(world, items, made_at)`, the Buy screen's one batch, owner 2026-10-20: "what Buy buys must be exactly the
     total shown") {now {likely, high, guessed, guesses, no_price {layer: steps}, stop, steps, places, eta {likely_minutes,
-    high_minutes, untimed, at_least_minutes, untimed_layers {layer: steps}}} (the basket items `screens.now_items` gives: not the Benchmarks, none waiting on a missing
+    high_minutes, untimed, at_least_minutes, at_least_high_minutes (the timed steps' span: a floor), untimed_kinds {kind of step: steps}}} (the basket items `screens.now_items` gives: not the Benchmarks, none waiting on a missing
     input, only at places whose design is approved, none before one is; exactly what the Buy yes buys, priced as its
     checkout records it: `pricing.totals` of those nodes, high the cleared high with the guesses, stop that plus 10%,
     flow.write_line's; `no_price` the bought steps with neither price nor guess, outside the figure), `made_at` the
     basket's, `refused` [why] (`screens.buy_refusals`: the prices stale, or the basket older than prepare's record or the
-    gaps price, or of unknown age; the Buy shows disabled with the first why), `in_design`, waiting {likely, high, why [reason]} (prepare's prop route take by take,
-    a take's stage at a place the Buy buys counted there, the rest with its share of the stage's price; every other
-    paid step of the gaps price), total (now plus waiting, the sum of the lines: measured, estimated and guessed
+    gaps price, or of unknown age; the Buy shows disabled with the first why), `approved`, `in_design`, waiting {steps, why [reason]} (what this Buy does not buy, counted with no euros, owner 2026-10-24: one figure: prepare's prop route take by take,
+    a take's stage at a place the Buy buys counted there; every other
+    paid step of the gaps price), total (the sum of the lines, equal to now: measured, estimated and guessed
     parts of its high, `no_price` the kinds of step with none), gets [{place, made, after, needed, complete,
     layers}] (each place's steps before and after Buy now), layers [{layer (`screens.LAYERS`), make, library,
     waiting, why {reason: count} (plain words: `local.WAITS` for a take's lost input, an earlier step first, inputs
-    missing, predicted to fail, not in the last plan), models, steps (its units: the route's takes, steps at places),
+    missing, not in the last plan), models, steps (its units: the route's takes, steps at places),
     makes (its widest route stage's takes plus its steps at places), likely, high, guessed, no_price {kind: count}}], eta, stale, plants {rows, objects, crops, beds, places} (every plant of the designs, `WorldState.plants` from `design_layers.plants_of`; None when none grows: the Buy's Plants line, owner 2026-10-24)}.
   - `/api/screens/stats`: money, `bill_days` [{day, cloud, models}] (the bills as read each day on the store's
     machine), `days` (the ledgers' own counts, low), `prices` {measured, steps, by_basis, stale}, `remake_layers`,
@@ -113,7 +113,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   its environment concept page, and the hub of what spans them (the month's spent, Stats, Library, Buy); **Environment
   concept** `/environments/<world>/` (see below), its Places button opening **Environment** `/places/`
   (`environment.html`: the month spent (the lines read, "at least" while one is not, each line as hover text; no
-  stop shown), the remake's euros and hours for the approved designs and how many places are in design (only that
+  stop shown), the remake's euros and hours for the approved designs, the Buy page's own `batch.now` (`cockpit.remake`, `views.batch_of`; owner 2026-10-24: one figure on every page; its ETA at least its timed steps while one is untimed) and how many places are in design (only that
   count before one is approved), a Review and buy
   button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
   and gaps, shows what sits directly inside that holds places itself over its concept ("Hangar, 8 rooms": a shell's or an inside place's places are its rooms) and "+N"
@@ -126,8 +126,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the design is made (its concept review, outside any batch: no concept is bought here), and a Plan link to its plan
   review once its design is approved (the lock is the approval, owner 2026-10-21: no Approve); then After design: how many places await design while none is
   approved (no euros, no layers), else Buy now: what Buy buys (`batch.now`: EUR likely to high, the guessed euros and
-  steps, the stop, the ETA or "no ETA" with its untimed layers, its unpriced layers outside the figure, the basket's
-  made_at), Waits beside it (what waits, its euros and why, the places still in design), and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
+  steps, the stop, the ETA or, while a step is untimed, "ETA ≥" its timed steps' span with the untimed kinds of step named, its unpriced layers outside the figure, "+ N steps wait" (what this Buy does not buy, why as hover text, no euros: the Waits box went, owner 2026-10-24), the basket's
+  made_at), and a line a layer, how many it makes and its euros (what Buy buys of it), no step's own name and no dropdown; its Buy only
   once a design is approved, buying only those places, disabled with why while `batch.refused` holds any; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
   month figure while it is not read, its button named by their cost line's label; no Basket link, no stop control:
   the Buy yes sets the batch's stop), **Stats** `/stats/`
