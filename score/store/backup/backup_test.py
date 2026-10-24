@@ -296,3 +296,19 @@ def test_an_agents_process_moves_the_store_only_under_the_owners_open_yes(settin
 def _migrate_refusal():
     from score.store.backup import _migrate
     return _migrate.agent_refusal()
+
+
+def test_two_copies_of_one_database_have_one_content_hash(tmp_path):
+    """The move's manifest compares a database by its content: a restored copy differs in header bytes (2026-10-24)."""
+    import sqlite3
+    from score.store.backup import _staging
+    source = tmp_path / "live.sqlite3"
+    connection = sqlite3.connect(source)
+    connection.execute("create table t (x)")
+    connection.execute("insert into t values (1)")
+    connection.commit()
+    connection.close()
+    first, second = tmp_path / "a" / "copy.sqlite3", tmp_path / "b" / "copy.sqlite3"
+    _staging.copy_database(source, first)
+    _staging.copy_database(first, second)
+    assert _staging.content_hash(first) == _staging.content_hash(second)
