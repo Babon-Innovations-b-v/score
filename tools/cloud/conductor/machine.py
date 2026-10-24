@@ -44,6 +44,7 @@ import json
 import os
 import pathlib
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -104,6 +105,9 @@ UNIT_SLOTS = {"<path to the score repository>": "%h/projects/score",
               "<path to the env file kept outside the repo>": "%h/.config/score/dashboard.env",
               "<the sync token's name in your secret manager>": "score-cockpit-sync-token"}
 ACTIVE_STATES = ("running", "starting")
+# This PC's units that act as the store's machine (score/dashboard install-sync, score-resume): the move switches
+# them off before the PC's backup, so only the conductor acts as the store afterwards (sync/one_store.py).
+PC_UNITS = ("score-sync.timer", "score-listen.service", "score-resume.service")
 NAMESPACE_WAIT_SECONDS = 300
 
 
@@ -512,26 +516,40 @@ LANDED = ("set -a && . ~/.config/score/dashboard.env && set +a && cd ~/projects/
           ".venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env --no-pull")
 
 
-def move_steps(owner_env):
+def move_steps(scw_path):
     """The move's two commands: (this PC's migrate --from-pc as an argument list with its environment, the ssh
-    command for the conductor)."""
-    values = {}
-    for line in pathlib.Path(owner_env).expanduser().read_text().splitlines():
-        name, equals, value = line.partition("=")
-        if equals and name.strip() == "SCORE_SECRET_READER":
-            values[name.strip()] = value.strip()
-    if not values:
-        raise SystemExit(f"{owner_env} names no SCORE_SECRET_READER: the backup's password is read through it")
-    environment = {**os.environ, **values, "SCORE_BACKUP_REPO": BACKUP_REPO}
+    command for the conductor). The PC reads the backup's password through the conductor's own reader
+    (secret_reader.sh) from the same project the conductor reads (SCORE_SECRETS_PROJECT), with this PC's scw at
+    `scw_path`, so the password lives in one place."""
+    environment = {**os.environ, "SCORE_SECRET_READER": str(HERE / "secret_reader.sh"),
+                   "SCORE_SECRETS_PROJECT": SECRETS_PROJECT_NAME, "SCORE_SCW": scw_path,
+                   "SCORE_BACKUP_REPO": BACKUP_REPO}
     local = [str(REPO / ".venv" / "bin" / "python"), "-m", "score.store.backup", "migrate", "--from-pc"]
     return (local, environment), LANDED
 
 
+def pc_units_off(present=None, systemctl=None):
+    """Disable and stop this PC's units that act as the store's machine (PC_UNITS: the sync's timer, the listener,
+    resume), so after the move a reboot never starts a second store here; the ones switched off. score-sync.service
+    is left to finish its pass: migrate --from-pc refuses while it runs."""
+    run = systemctl or (lambda *args: subprocess.run(["systemctl", "--user", *args], capture_output=True, text=True))
+    if present is None:
+        listed = run("list-unit-files", "--no-legend", *PC_UNITS)
+        present = [line.split()[0] for line in listed.stdout.splitlines() if line.split()]
+    found = [unit for unit in PC_UNITS if unit in present]
+    if found:
+        done = run("disable", "--now", *found)
+        if done.returncode != 0:
+            raise SystemExit(f"move: systemctl --user disable --now {' '.join(found)} failed: {done.stderr.strip()}")
+    return found
+
+
 def move(options, scw, say=print):
-    """The store's one-time move from this PC to the conductor (the owner's, after `up`, with the PC's score-sync,
-    score-listen and score-resume units stopped): this PC's home backed up tagged pc-final with its manifest, then on
-    the conductor the restore, the manifests compared (any difference stops it), machine.json written, the sync and
-    listener installed and the waiting units started. Dry: both steps printed, nothing run."""
+    """The store's one-time move from this PC to the conductor (the owner's, after `up`): this PC's sync timer,
+    listener and resume disabled and stopped (pc_units_off: one store only), this PC's home backed up tagged pc-final
+    with its manifest, then on the conductor the restore, the manifests compared (any difference stops it),
+    machine.json written, the sync and listener installed and the waiting units started. Safe to run again after a
+    refusal. Dry: every step printed, nothing run."""
     refused = None if scw.dry else agent_refusal()
     if refused:
         raise SystemExit(refused)
@@ -539,14 +557,22 @@ def move(options, scw, say=print):
     host = ((found or {}).get("public_ip") or {}).get("address") or "<its address>"
     if not found and not scw.dry:
         raise SystemExit("no conductor server: run `machine.py up` first")
-    (local, environment), remote = move_steps(options.env_file)
+    scw_path = shutil.which("scw")
+    if not scw_path and not scw.dry:
+        raise SystemExit("move: no scw CLI on this PC's PATH: the backup's password and bucket key are read with it")
+    (local, environment), remote = move_steps(scw_path or "scw")
     if scw.dry:
-        say(f"then: SCORE_BACKUP_REPO={BACKUP_REPO} {' '.join(local)}")
+        say(f"then: systemctl --user disable --now {' '.join(PC_UNITS)} (the ones this PC has)")
+        say(f"then: SCORE_BACKUP_REPO={BACKUP_REPO} SCORE_SECRETS_PROJECT={SECRETS_PROJECT_NAME} {' '.join(local)}")
         say(f"then: ssh score@{host} {shlex.quote(remote)}")
         return
+    switched = pc_units_off()
+    say(f"move: this PC's {', '.join(switched) or 'store units (none installed)'} disabled and stopped")
     done = subprocess.run(local, env=environment)
     if done.returncode != 0:
-        raise SystemExit(f"move: this PC's backup failed (exit {done.returncode}); nothing moved")
+        raise SystemExit(f"move: this PC's backup failed (exit {done.returncode}); nothing moved. The store is still "
+                         f"on this PC with its units off: run move again once the reason above is gone, or put them "
+                         f"back with `systemctl --user enable --now {' '.join(switched)}`")
     ssh(host, options.owner_key, remote)
     say(f"move: the store is on the conductor at {host}; the hosted cockpit asks you to confirm it as the store's "
         "machine once its first export arrives. Rename this PC's home read-only (your step).")
@@ -698,8 +724,7 @@ def parser():
             command.add_argument("--dry", action="store_true", help="print every scw call, make none")
     move = commands.add_parser("move")
     move.add_argument("--owner-key", default="~/.ssh/id_ed25519", help="the owner's private ssh key")
-    move.add_argument("--env-file", default="~/.config/score/dashboard.env", help="the owner's dashboard env file")
-    move.add_argument("--dry", action="store_true", help="print both steps, run none")
+    move.add_argument("--dry", action="store_true", help="print every step, run none")
     for name in ("status", "grow", "shrink", "stop", "price"):
         commands.add_parser(name)
     commands.add_parser("down").add_argument("--with-data", action="store_true")

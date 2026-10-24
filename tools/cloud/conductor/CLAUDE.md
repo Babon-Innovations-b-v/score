@@ -10,7 +10,9 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   key in user-data or the repo, and pipes the conductor's one credential over ssh. `up --dry` and `dry` are
   free and open to agents: they print every scw call and make none. `up` also pipes the sizes record
   (`SIZES`, to `~/.config/score/conductor.json`, `SCORE_CONDUCTOR_RECORD`) and writes `SCORE_CONDUCTOR_SIZE_URL`
-  into the env file; `move` (the owner's, once, after `up`) backs this PC's home up tagged pc-final, then over ssh
+  into the env file; `move` (the owner's, once, after `up`) first disables and stops this PC's sync timer, listener and
+  resume (`PC_UNITS`: one store only, a reboot never starts a second one here), backs this PC's home up tagged pc-final
+  (the backup's password read through `secret_reader.sh` from `SCORE_SECRETS_PROJECT`, where the conductor reads it), then over ssh
   restores it (`migrate --onto-conductor` merges the sizes into `machine.json`, which makes it a conductor) and only
   then installs the sync and listener (`install-sync --no-pull`). score-resume (a drop-in boot.sh writes) and
   score-health wait for that machine.json: both write into the home the restore needs empty. Every scw call names its zone or region, every
