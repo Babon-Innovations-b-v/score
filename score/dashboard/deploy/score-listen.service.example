@@ -11,6 +11,9 @@
 Description=SCORE dashboard listener: answer the owner's concept draws and picks as they come
 
 [Service]
+# A run it launches outlives it: stop only this unit's own process, never the detached runs it started (2026-10-24: the
+# first Buy was killed the moment its sync pass ended).
+KillMode=process
 Type=simple
 WorkingDirectory=<path to the score repository>
 EnvironmentFile=<path to the env file kept outside the repo>
