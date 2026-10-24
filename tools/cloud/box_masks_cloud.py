@@ -100,6 +100,8 @@ def mask(jobs_path, out, dry_run=False):
                            lambda machine, share, card: run_jobs(machine, share, card, jobs, pathlib.Path(out)))
         if not run.machines:
             raise SystemExit("no card for SAM 3 answered")
+        if shares.failed or shares.waiting:  # spread leaves a failed set-up or job as a gap: no out.json came back
+            raise SystemExit(f"SAM 3 masks were not made (a gap; the reason is above, logs in {folder})")
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
