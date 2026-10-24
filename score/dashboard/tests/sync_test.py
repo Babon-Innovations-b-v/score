@@ -144,6 +144,14 @@ def test_every_sync_route_needs_the_token():
         assert web.put(f"/api/sync/blobs/{sha}?offset=0&size=1", content=gzip.compress(b"x"),
                        headers=wrong).status_code == 401
         assert web.post("/api/sync/commit", json={"name": "n", "files": {}}, headers=wrong).status_code == 401
+        assert web.get("/api/sync/pin", headers=wrong).status_code == 401
+
+
+@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN, SCORE_COMMIT="a" * 40)
+def test_the_pin_tells_the_store_s_machine_the_commit_the_cockpit_runs():
+    """/healthz's body is the hosting proxy's own, so the pin comes from here, behind the token."""
+    answer = hosted_client().get("/api/sync/pin", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert answer.status_code == 200 and answer.json() == {"commit": "a" * 40}
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)

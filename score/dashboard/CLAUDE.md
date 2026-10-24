@@ -417,11 +417,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   hosting repository's pinned `SCORE_COMMIT` to a pushed commit, from a worktree of its own, in the host's commit
   style; never run by a test against a real host (`tests/release_test.py` makes its repositories). The release stays
   the coordinating session's job on the owner's PC, even once the store's machine is the conductor (the always-on
-  cloud machine of our own; the PC then runs only a browser, the sessions and the release). `/healthz` reports the
-  `commit` the image was built at (`SCORE_COMMIT`, the Dockerfile's ARG set as ENV; the hosting repository's
-  Dockerfile must set it the same way), the one pin the conductor's score-update timer follows. `install-sync`
-  renders the same templates for user `score` on the conductor: without `--host` it checks the commit `/healthz`
-  reports, and `--no-pull` leaves out the sync unit's `git pull` (ExecStartPre), which the score-update timer
+  cloud machine of our own; the PC then runs only a browser, the sessions and the release). `/api/sync/pin` (token
+  only) reports the `commit` the image was built at (`SCORE_COMMIT`, the Dockerfile's ARG set as ENV; the hosting
+  repository's Dockerfile must set it the same way), the one pin the conductor's score-update timer follows;
+  `/healthz` says it too, but babon's Caddy answers `/healthz` with its own body, so nothing outside reads it there.
+  `install-sync` renders the same templates for user `score` on the conductor: without `--host` it checks the commit
+  `/api/sync/pin` reports, and `--no-pull` leaves out the sync unit's `git pull` (ExecStartPre), which the score-update timer
   replaces there.
 - **The store's machine** (`state/machine.py`, `sync/one_store.py`, `pages/machine.py`): the export carries
   `machine.json` right after the state: the machine's own record (`$PROPS_HOME/machine.json`, else its host name),

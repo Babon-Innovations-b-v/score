@@ -1,6 +1,7 @@
-# The conductor's checkout follows the hosted cockpit's pinned commit (its /healthz `commit`), else origin/main moved
-# forward only; never while a run or sync pass is starting from the checkout; .venv re-synced when uv.lock changed
-# (tools/cloud/conductor/update.py). The system interpreter runs it: .venv may be what it re-syncs.
+# The conductor's checkout follows the hosted cockpit's pinned commit (/api/sync/pin `commit`, with the sync token),
+# else origin/main moved forward only; never while a run or sync pass is starting from the checkout, nor a uv.lock
+# change while a run in a frozen copy uses .venv; .venv re-synced when uv.lock changed (tools/cloud/conductor/update.py).
+# The system interpreter runs it: .venv may be what it re-syncs.
 [Unit]
 Description=SCORE conductor: move the checkout to the cockpit's pinned commit
 Wants=network-online.target

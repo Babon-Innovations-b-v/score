@@ -7,9 +7,10 @@
 The same command installs the units on the owner's PC and on the conductor (the store's machine in the cloud, user
 `score`): the templates' slots take this checkout's path, the env file's and the secret's name, so nothing in them
 names a machine. With --host the cockpit's commit is read from the hosting repository's pinned Dockerfile; without
-it, from the cockpit's own /healthz (its `commit`, the SCORE_COMMIT it was built at), which is how the conductor,
-holding no hosting repository, checks it. --no-pull leaves out the sync unit's pull before each pass: on the conductor
-the score-update timer moves the checkout to the commit the cockpit runs instead.
+it, from the cockpit's own /api/sync/pin (its `commit`, the SCORE_COMMIT it was built at; signed in by the sync token
+the env file's reader reads; never /healthz, which the hosting proxy answers with a body of its own), which is how the
+conductor, holding no hosting repository, checks it. --no-pull leaves out the sync unit's pull before each pass: on
+the conductor the score-update timer moves the checkout to the commit the cockpit runs instead.
 
 Every pass of the timer (deploy/score-sync.service.example) reads the sync token from the owner's secret manager by
 name, inline, into that one process's environment, never into a file: the env file names the reader
@@ -75,15 +76,26 @@ def host_pin(host, dockerfile):
     return pinned(ran(host, "show", f"FETCH_HEAD:{inside(dockerfile)}"))
 
 
-def healthz_pin(url, opener=urllib.request.urlopen):
-    """The commit the cockpit at `url` says it runs (its /healthz `commit`); Refused when it says none."""
+def secret_value(env_file, secret):
+    """The secret `secret`, read by name through the env file's SCORE_SECRET_READER; Refused when it reads none."""
+    reader = env_values(env_file)["SCORE_SECRET_READER"]
+    done = subprocess.run([reader, secret], capture_output=True, text=True)
+    if done.returncode != 0 or not done.stdout.strip():
+        raise Refused(f"{reader} read no {secret} (exit {done.returncode})")
+    return done.stdout.strip()
+
+
+def cockpit_pin(url, token, opener=urllib.request.urlopen):
+    """The commit the cockpit at `url` says it runs (its /api/sync/pin `commit`, signed in by `token`); Refused when
+    it says none."""
+    asked = urllib.request.Request(f"{url.rstrip('/')}/api/sync/pin", headers={"Authorization": f"Bearer {token}"})
     try:
-        with opener(f"{url.rstrip('/')}/healthz", timeout=30) as answer:
+        with opener(asked, timeout=30) as answer:
             found = json.loads(answer.read() or b"{}").get("commit")
     except (OSError, ValueError) as unread:
-        raise Refused(f"the cockpit's /healthz at {url} could not be read: {unread}") from unread
+        raise Refused(f"the cockpit's /api/sync/pin at {url} could not be read: {unread}") from unread
     if not found:
-        raise Refused(f"the cockpit at {url} reports no commit: release a commit whose /healthz says it, then install")
+        raise Refused(f"the cockpit at {url} reports no commit: release a commit built with SCORE_COMMIT, then install")
     return found
 
 
@@ -120,13 +132,16 @@ def user_manager(*args):
     return None if done.returncode == 0 else (done.stderr.strip().splitlines() or [f"exit {done.returncode}"])[-1]
 
 
-def install_refusal(repo, env_file, host, dockerfile, opener):
+def install_refusal(repo, env_file, host, dockerfile, opener, secret=SECRET):
     """Why the units may not be installed, or None: env_refusal, else a cockpit on another dashboard (the commit the
-    host pins with `host`, else the one the cockpit's /healthz reports)."""
+    host pins with `host`, else the one the cockpit's /api/sync/pin reports, asked with the sync token `secret`)."""
     refused = env_refusal(env_file)
     if refused:
         return refused
-    pin = host_pin(host, dockerfile) if host else healthz_pin(env_values(env_file)["SCORE_SYNC_URL"], opener)
+    if host:
+        pin = host_pin(host, dockerfile)
+    else:
+        pin = cockpit_pin(env_values(env_file)["SCORE_SYNC_URL"], secret_value(env_file, secret), opener)
     return dashboard_refusal(repo, pin)
 
 
@@ -134,7 +149,7 @@ def install(repo, env_file, host=None, dockerfile=None, secret=SECRET, systemctl
             opener=urllib.request.urlopen):
     """Write the units, reload the user manager and enable the timer; what it did, in words. Refused (nothing
     written) on install_refusal."""
-    refused = install_refusal(repo, env_file, host, dockerfile, opener)
+    refused = install_refusal(repo, env_file, host, dockerfile, opener, secret)
     if refused:
         raise Refused(refused)
     folder = unit_folder()

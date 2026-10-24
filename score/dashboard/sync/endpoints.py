@@ -14,6 +14,9 @@ the export as a list of {path: sha256}; the hosted side builds it from hard link
                                     that is not the store's machine (its X-Score-Machine name, sync/one_store.py)
     POST /api/sync/requests/{id}    {state: picked_up|running|done|refused, detail, log_tail}
     PUT  /api/sync/request-files/<sha>-<360|1280>.jpg   a picture a request brought back (a concept draw)
+    GET  /api/sync/pin              {commit}: the score commit this image was built at (SCORE_COMMIT, None outside an
+                                    image), the pin install-sync and the conductor's score-update follow; here, not
+                                    only at /healthz, which the hosting proxy answers with a body of its own
 """
 import hashlib
 import hmac
@@ -198,6 +201,12 @@ def swept(now=None):
 def request_out(item):
     return {"id": item.pk, "kind": item.kind, "payload": item.payload, "user": item.user,
             "created": item.created.isoformat(), "state": item.state, "detail": item.detail}
+
+
+@sync.get("/pin")
+def pin(allowed=Depends(token_ok)):
+    """The score commit this cockpit runs (token only)."""
+    return {"commit": settings.SCORE_COMMIT}
 
 
 @sync.post("/lacking")
