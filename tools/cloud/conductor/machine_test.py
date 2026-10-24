@@ -462,7 +462,8 @@ def test_door_refuses_a_shell_a_paid_run_and_the_owners_commands():
         for asked in ("", "bash", "sh -c id", "bash -i", "status; bash", "python -m score.review accept x",
                       "spend --google-month 12", "spend --read-back", "run world1", "resume",
                       "benchmark world1 --detach", "benchmark 'g 1' world1 --detach", "scw instance server list",
-                      "cat /home/score/.config/scw/config.yaml", "health --write"):
+                      "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
+                      "gaps ../x", "gaps 'closeup@hub;id'"):
             code, why, argv, _ = through_door(folder, asked)
             assert code == 126 and argv is None, (asked, code, why)
             assert "refused" in why, asked
@@ -492,6 +493,8 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         assert code == 0 and argv == ["-m", "score.conductor", "logs", "--lines", "5"], (why, argv)
         code, why, argv, _ = through_door(folder, "health")
         assert code == 0 and argv == ["-m", "score.conductor", "health"], (why, argv)
+        code, why, argv, _ = through_door(folder, "gaps closeup@hub")
+        assert code == 0 and argv[0] == "-c" and argv[2:] == ["closeup@hub"], (why, argv)
 
 
 def test_the_move_switches_off_the_pcs_store_units_it_has():
