@@ -354,6 +354,67 @@ def test_a_persons_close_up_is_held_to_its_arms_apart_not_a_box():
     shutil.rmtree(folder)
 
 
+def test_a_rejected_close_up_is_retried_once_strictly_at_its_own_size_and_leaves_the_cache():
+    """Owner, 2026-10-24: the check holds a close-up to the object's own size from its reading (the plan's footprint
+    failed 23 of the Buy's 80 gaps alone); a picture it rejects leaves Google's cache and gets one retry, worded more
+    strictly; the rejected requests' euros are written for the rebuy's price."""
+    import types
+    from PIL import Image, ImageDraw
+    import score.stages.props.closeup_row as closeup_row
+    stage, check = closeup_row.closeup_tools()
+    spend = stage.pro.google_spend
+    folder = pathlib.Path(tempfile.mkdtemp())
+    Image.new("RGB", (800, 600), (120, 120, 120)).save(folder / "concept.png")
+    own = [0.5, 0.5, 1.0]
+    rows = [{"id": name, "scene": "s", "words": name, "size": [4.0, 0.5, 0.5], "read_size": own, "layer": "objects",
+             "concept": str(folder / "concept.png"), "box": [100, 100, 600, 500], "drawn": None}
+            for name in ("lamp", "crate")]
+    (folder / "inputs").mkdir()
+    (folder / "inputs/rows.json").write_text(json.dumps({"rows": rows}))
+    tall = 300
+
+    def picture(path, good):
+        drawn = Image.new("RGB", (512, 512), closeup_row.GREY)
+        if not good:  # a room's floor behind it, to the frame's edge
+            ImageDraw.Draw(drawn).rectangle((0, 300, 512, 512), fill=(150, 90, 30))
+        wide = round(tall / check.expected_proportion(own))
+        ImageDraw.Draw(drawn).rectangle((256 - wide // 2, 106, 256 + wide // 2, 106 + tall), fill=(60, 70, 80))
+        drawn.save(path)
+    sent = []
+
+    def draw(key, asks):
+        for path, ask in asks.items():
+            sent.append((path.parent.name, path.stem, ask[0]))
+            spend.cache_path(stage.pro.MODEL, stage.pro.request_body(*ask)).write_text("{}")
+            picture(path, path.stem == "crate" or path.parent.name == "retry")
+        return dict.fromkeys(asks, True)
+    kept = stage.pro.draw, spend.CACHE, sys.modules.get("secret_store")
+    stage.pro.draw, spend.CACHE = draw, folder / "cache"
+    spend.CACHE.mkdir()
+    sys.modules["secret_store"] = types.SimpleNamespace(secret=lambda name: "key")
+    try:
+        (folder / "out").mkdir()
+        closeup_row.make_closeups({"props-inputs": folder / "inputs"}, folder / "out", 7, {})
+        found = json.loads((folder / "out/closeups.json").read_text())["objects"]
+        assert [(take, name) for take, name, _ in sent] == [("pro", "lamp"), ("pro", "crate"), ("retry", "lamp")], sent
+        assert stage.RETRY not in sent[0][2] and sent[2][2] == sent[0][2] + stage.RETRY
+        assert found["crate"]["drawn_by"] == "pro" and found["lamp"]["drawn_by"] == "retry", found
+        assert found["lamp"]["pro_pictures"] == 2 and found["lamp"]["takes"]["pro"][0] == "background not plain to the edge"
+        lamp = dict(rows[0], pro_wording=stage.pro_wording(rows[0]))
+        assert not spend.cache_path(stage.pro.MODEL, stage.pro.request_body(*stage.pro_ask(lamp, folder / "out", "pro"))).exists()
+        assert len(list(spend.CACHE.iterdir())) == 2  # the passing pictures stay cached
+        assert json.loads((folder / "out" / closeup_row.UNCACHED).read_text())["asks"] == 1
+        assert closeup_row.measured(folder / "out/closeups/crate.png", {"size": [4.0, 0.5, 0.5]})  # the footprint fails
+        assert closeup_row.judge_closeups(folder / "out", {}, {}).answer == "pass"
+    finally:
+        stage.pro.draw, spend.CACHE = kept[:2]
+        if kept[2] is None:
+            del sys.modules["secret_store"]
+        else:
+            sys.modules["secret_store"] = kept[2]
+    shutil.rmtree(folder)
+
+
 def likeness_output(folder, objects):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "likeness.json").write_text(json.dumps({"objects": objects}))

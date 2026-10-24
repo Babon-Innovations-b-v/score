@@ -60,9 +60,12 @@ def current(store, places):
 def sized_rows(store, place, record):
     """A reading's rows as read_row gives them, each with its size: its item's on the place's current plan
     (plan_sizes: his edits count), else its reading's metres (a row on a wall, the ceiling or another row has no item
-    of its own, and keeps its own size), None where neither gives one (a gap: its take waits on "no size")."""
+    of its own, and keeps its own size), None where neither gives one (a gap: its take waits on "no size"); and its
+    `read_size`, the object's own metres as its reading gave them (None where it gave none): the plan's item is the
+    footprint it is laid in (a run of things, room round it), so the close-up's request and shape check hold the
+    object to its own size (owner, 2026-10-24)."""
     sizes = plan_sizes(store, place, record["inventory"]["rows"])
-    return [{**read_row(record, row), "size": sizes.get(row["id"]) or reading_size(row)}
+    return [{**read_row(record, row), "size": sizes.get(row["id"]) or reading_size(row), "read_size": reading_size(row)}
             for row in record["inventory"]["rows"]]
 
 

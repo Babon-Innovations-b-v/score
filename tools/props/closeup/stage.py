@@ -18,7 +18,8 @@ the out folder and is skipped when they are there, so a run that stops is run ag
    job, judged and checked the same way. Its wording is chosen free before it is drawn and kept on the row
    (`pro_wording`, pro_wording()): the crop alone (CROP_ONLY), or with the whole concept as a second reference
    (WORDING) when the row's crop is under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a gap,
-   never drawn again here (a batch, CONTEXT.md, owner 2026-10-20). Skipped with --no-pro.
+   never drawn again here (a batch, CONTEXT.md, owner 2026-10-20); the prop route's close-up row gives a rejected
+   picture its one retry (PRO_TAKES, RETRY; owner 2026-10-24). Skipped with --no-pro.
 5. closeups.json: per row the accepted picture and the model that made it (none when every take failed: those are
    gaps left for the creator to look at), every take's faults, its Pro wording and the row's cost; the batches'
    ledger entries and the totals.
@@ -41,13 +42,17 @@ sys.path.insert(0, str(HERE.parent.parent / "cloud"))
 import check  # noqa: E402
 import pro  # noqa: E402
 
+# The view every close-up is asked for: the shape check's own (check.expected_proportion), stated in degrees, so a flat
+# or thin object's outline is drawn as the check expects it ("a little from above" alone left Pro's look-down free:
+# 23 of the Buy's 80 gaps of 2026-10-24 were flat or thin pieces; owner, 2026-10-24).
+VIEW = (f"seen from three quarters: turned about {check.TURN_DEGREES:.0f} degrees and looking down on it from about "
+        f"{check.LOOK_DOWN_DEGREES:.0f} degrees above level")
 # What every close-up is drawn as, by either model: the object alone, from three quarters, its parts and wear from
 # the crop and its materials from the concept (the wording the lab's Pro close-ups were drawn with, job place-lab).
 WORDING = ("Make one clean product picture of a single object for a 3D model maker: the object alone on a plain, "
            "even, light grey background that fills the whole frame (no room, no walls, no floor line, no other "
-           "objects, no dimension lines, arrows, measurements or captions), seen from three quarters (turned about "
-           "35 degrees, a little from above), the whole object with a margin round it, evenly lit by soft studio "
-           "light with mild shadow, sharp fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m "
+           "objects, no dimension lines, arrows, measurements or captions), " + VIEW + ", the whole object with a "
+           "margin round it, evenly lit by soft studio light with mild shadow, sharp fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m "
            "deep and {tall:.2f} m tall; keep those proportions exactly. Image 1 is this very object cut from a "
            "concept picture of its room: take its shape, parts, layout, colours, wear, labels, stickers and taped "
            "notes from it, drawn crisp and complete. Image 2 is the whole room, for its materials, paint and wear "
@@ -58,8 +63,8 @@ WORDING = ("Make one clean product picture of a single object for a 3D model mak
 # 2026-10-08; the retake wording of job place-lab).
 CROP_ONLY = ("Make one clean product picture of a single object for a 3D model maker. ONLY this object, alone, floating on "
              "a plain, even, light grey studio background that fills the whole frame: no room, no walls, no floor, no "
-             "ground, no shadow pool, no other objects, no people, no dimension lines or captions. Seen from three "
-             "quarters, a little from above, the whole object with a wide margin round it, soft even studio light, sharp "
+             "ground, no shadow pool, no other objects, no people, no dimension lines or captions. " + VIEW.capitalize() +
+             ", the whole object with a wide margin round it, soft even studio light, sharp "
              "fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m deep and {tall:.2f} m tall; keep "
              "those proportions exactly. Image 1 shows this object among other things: take its shape, parts, materials, "
              "paint, wear and colours from it and ignore everything around it.")
@@ -80,15 +85,27 @@ PERSON = ("Make one clean full-body picture of a single person for a 3D characte
 # Pro's wordings, one chosen a row before anything is drawn (pro_wording): the crop alone, or with the room as a
 # second reference for an object whose crop is too small to make it clear; a person's own.
 PRO_WORDINGS = {"crop": CROP_ONLY, "room": WORDING, "person": PERSON}
-# Pro's one take a row (a batch draws each once), by its folder under the out folder.
-PRO_TAKES = ("pro",)
+# Pro's takes a row, by their folder under the out folder: the first, and one retry for a row whose first picture the
+# shape check rejected (owner, 2026-10-24: 28 of the Buy's 80 gaps drew the room or ground behind the object or cut it
+# at the frame), worded RETRY on top, so its request is a new one. At most one retry a row a run.
+PRO_TAKES = ("pro", "retry")
+RETRY = (" Be strict, the last picture failed: draw ONLY the object itself, nothing behind, under or around it (no "
+         "room, no wall, no floor, no ground, no scenery), on a plain, even, light grey background that reaches every "
+         "edge of the picture, the whole object inside the frame with a wide empty margin on every side.")
 MARGIN = 0.2
 SHORTEST_CROP = 512
 
 
+def object_size(row):
+    """The object's own [wide, deep, tall] metres its close-up is asked for and checked against: its inventory
+    reading's (`read_size`), else the row's size. A plan's item is the footprint the object is laid in, 2 to 8 times a
+    small thing's own size (23 of the Buy's 80 gaps of 2026-10-24 failed on it alone; owner, 2026-10-24)."""
+    return row.get("read_size") or row["size"]
+
+
 def wording(row, text=WORDING):
     """The words a row's close-up is drawn with (a person's need no size: the rig sizes the body)."""
-    wide, deep, tall = row["size"] or (0.0, 0.0, 0.0)
+    wide, deep, tall = object_size(row) or (0.0, 0.0, 0.0)
     return text.format(words=row["words"], wide=wide, deep=deep, tall=tall)
 
 
@@ -194,7 +211,7 @@ def draw_with_qwen(rows, out, dry_run=False):
 
 def judge_questions(rows, out, take):
     """The judge's list: each row's picture of `take` beside its crop, asked once with each of check.SEEDS."""
-    return [{"name": f"{row['id']}~{seed}", "seed": seed, "text": check.question(row["words"], row["size"]),
+    return [{"name": f"{row['id']}~{seed}", "seed": seed, "text": check.question(row["words"], object_size(row)),
              "images": [str(out / "crops" / f"{row['id']}.jpg"), str(out / take / f"{row['id']}.png")]}
             for row in rows if (out / take / f"{row['id']}.png").exists() for seed in check.SEEDS]
 
@@ -217,25 +234,36 @@ def checked(row, out, take):
     if not picture.exists():
         return [f"no {take} picture"]
     replies = [out / take / "judge" / f"{row['id']}~{seed}.txt" for seed in check.SEEDS]
-    return check.faults(check.measure(picture, row["size"]),
+    return check.faults(check.measure(picture, object_size(row)),
                         [check.answer_of(reply.read_text()) if reply.exists() else None for reply in replies])
 
 
+def pro_ask(row, out, take):
+    """A row's Pro request for `take` (pro.draw's ask): worded as its `pro_wording` says, RETRY on top for a take after
+    the first; its crop, and the whole concept for the "room" wording."""
+    text = wording(row, PRO_WORDINGS[row["pro_wording"]]) + (RETRY if take != PRO_TAKES[0] else "")
+    return (text, Image.open(out / "crops" / f"{row['id']}.jpg"),
+            Image.open(row["concept"]) if row["pro_wording"] == "room" else None)
+
+
 def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):
-    """One Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet, worded as the row's
-    `pro_wording` says (chosen first where the row has none), all of them as one Batch API job (pro.draw). Each is
-    asked once: one with no picture is a gap."""
+    """One Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet (pro_ask; its wording chosen
+    first where the row has none), all of them as one Batch API job (pro.draw). Each is asked once a take: one with no
+    picture is a gap."""
     from secret_store import secret
 
     (out / take).mkdir(parents=True, exist_ok=True)
     todo = [row for row in rows if row["id"] in failed and not (out / take / f"{row['id']}.png").exists()]
     if not todo:
         return
-    asks = {out / take / f"{row['id']}.png": (wording(row, PRO_WORDINGS[row["pro_wording"]]),
-                                              Image.open(out / "crops" / f"{row['id']}.jpg"),
-                                              Image.open(row["concept"]) if row["pro_wording"] == "room" else None)
-            for row in with_pro_wordings(todo)}
-    pro.draw(secret(pro.KEY_SECRET), asks)
+    pro.draw(secret(pro.KEY_SECRET), {out / take / f"{row['id']}.png": pro_ask(row, out, take)
+                                      for row in with_pro_wordings(todo)})
+
+
+def forget_rejected(row, out, take):
+    """The row's `take` request dropped from google_spend's cache once the shape check rejected its picture, so a
+    later make asking it again draws again rather than reading the rejected picture back (owner, 2026-10-24)."""
+    pro.forget(pro_ask(row, out, take))
 
 
 def kept_entry(entry, path):

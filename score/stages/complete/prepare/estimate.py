@@ -40,7 +40,8 @@ DEADLINE_TIMES = 2  # a job's watchdog deadline: twice its measured high seconds
 
 def one_shot():
     """{stage: (units a take, why)} where a batch's one run of a take differs from one unit a take."""
-    return {"closeup": (1, "one Pro wording a row, one take: the two-take chain goes (#21)")}
+    forecast = compute.per_unit("closeup")["forecast"]  # the runner's count too (gaps/price.py), so the two agree
+    return {"closeup": (forecast["per_model"], forecast["per_model_from"])}
 
 
 def takes_a_layer(route, groups_bought):
