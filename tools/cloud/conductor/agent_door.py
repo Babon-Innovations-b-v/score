@@ -36,8 +36,16 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, grant-benchmark, "
-         "benchmark")
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, "
+         "grant-benchmark, benchmark")
+# The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
+# applied launched nothing and nothing outside said why).
+CHECKOUTS_CODE = (
+    "import os, django; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'score.dashboard.site.settings'); django.setup(); "
+    "from django.apps import apps; "
+    "[print(model.__name__, row.pk, getattr(row, 'kind', ''), row.state, str(getattr(row, 'detail', '') or "
+    "getattr(row, 'result', ''))[:400]) for model in apps.get_models() if model.__name__ in ('Checkout', 'Launch', "
+    "'SyncRequest') for row in model.objects.order_by('-pk')[:5]]")
 GRANT_ID = re.compile(r"^[A-Za-z0-9._:-]+$")
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
@@ -103,6 +111,10 @@ def decide(words, latch):
         if args:
             raise Refused("health takes no arguments: writing it is its timer's job")
         return ["-m", "score.conductor", "health"], {}
+    if verb == "checkouts":
+        if args:
+            raise Refused("checkouts takes no arguments")
+        return ["-c", CHECKOUTS_CODE], {}
     if verb == "grant-benchmark":
         if len(args) != 3:
             raise Refused("grant-benchmark <euros> <the owner's answer> <the question he answered>")

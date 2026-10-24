@@ -285,6 +285,7 @@ def answered(remote, item, source, chosen=None):
     for name, path in applied.files.items():
         remote.put_request_file(name, pathlib.Path(path).read_bytes())
     remote.report(item["id"], applied.state, applied.detail, applied.log_tail)
+    print(f"request {item['id']} {item.get('kind')}: {applied.state}: {str(applied.detail or '')[:300]}", flush=True)
     if applied.launch_id:
         tracked_changed(lambda found: found.update({str(item["id"]): applied.launch_id}))
     return applied
