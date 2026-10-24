@@ -15,10 +15,13 @@ CONFIG = {"SCORE_SERVER_ID": "srv-1", "SCORE_ZONE": "fr-par-2", "SCORE_IDLE_TYPE
 
 
 class FakeApi:
-    """The Instances API for one server: poweroff stops it after two reads, patch changes its type."""
+    """The Instances API for one server, protected as `machine.py up` leaves it: poweroff stops it after two reads
+    and is refused while it is protected (as Scaleway's 400 'server is protected'), patch changes its type or
+    protection."""
 
     def __init__(self, kind="POP2-HM-2C-16G", state="running", name="score-conductor", tags=("score-conductor",)):
-        self.server = {"id": "srv-1", "name": name, "tags": list(tags), "commercial_type": kind, "state": state}
+        self.server = {"id": "srv-1", "name": name, "tags": list(tags), "commercial_type": kind, "state": state,
+                       "protected": True}
         self.calls, self.stopping = [], None
 
     def __call__(self, method, path, body=None):
@@ -29,10 +32,14 @@ class FakeApi:
                 if self.stopping <= 0:
                     self.server["state"], self.stopping = "stopped", None
             return {"server": dict(self.server)}
-        if method == "PATCH":
+        if method == "PATCH" and "protected" in body:
+            self.server["protected"] = body["protected"]
+        elif method == "PATCH":
             assert self.server["state"] == "stopped", "type changed on a running server"
             self.server["commercial_type"] = body["commercial_type"]
         elif body["action"] == "poweroff":
+            if self.server["protected"]:
+                raise OSError("HTTP Error 400: precondition failed: server is protected")
             self.server["state"], self.stopping = "stopping", 2
         elif body["action"] == "poweron":
             self.server["state"] = "starting"
@@ -54,7 +61,9 @@ def test_grow_powers_off_changes_type_and_powers_on():
     assert answer == {"action": "grow", "from": "POP2-HM-2C-16G", "to": "POP2-HM-16C-128G", "state": "starting",
                       "changed": True}
     actions = [call[2] for call in api.calls if call[0] != "GET"]
-    assert actions == [{"action": "poweroff"}, {"commercial_type": "POP2-HM-16C-128G"}, {"action": "poweron"}]
+    assert actions == [{"protected": False}, {"action": "poweroff"}, {"commercial_type": "POP2-HM-16C-128G"},
+                       {"action": "poweron"}, {"protected": True}]
+    assert api.server["protected"] is True
 
 
 def test_already_at_size_changes_nothing():
@@ -82,7 +91,7 @@ def test_grow_and_shrink_refused_while_busy_stale_or_unknown():
 def test_a_refused_type_change_still_powers_the_conductor_on():
     class Refusing(FakeApi):
         def __call__(self, method, path, body=None):
-            if method == "PATCH":
+            if "commercial_type" in (body or {}):
                 self.calls.append((method, path, body))
                 raise OSError("the type change was refused")
             return super().__call__(method, path, body)
@@ -93,6 +102,30 @@ def test_a_refused_type_change_still_powers_the_conductor_on():
     except OSError:
         pass
     assert [call[2] for call in api.calls if call[0] == "POST"] == [{"action": "poweroff"}, {"action": "poweron"}]
+    assert api.server["protected"] is True, "a failed type change left the conductor unprotected"
+
+
+def test_protection_comes_back_when_the_power_off_fails():
+    class Stuck(FakeApi):
+        def __call__(self, method, path, body=None):
+            if body == {"action": "poweroff"}:
+                self.calls.append((method, path, body))
+                raise OSError("the power off was refused")
+            return super().__call__(method, path, body)
+    api = Stuck()
+    try:
+        resize("grow", api)
+        raise AssertionError("a refused power off was taken as done")
+    except OSError:
+        pass
+    assert api.server["protected"] is True and api.calls[-1][2] == {"protected": True}
+
+
+def test_an_unprotected_server_is_left_unprotected():
+    api = FakeApi()
+    api.server["protected"] = False
+    resize("grow", api)
+    assert not any("protected" in (call[2] or {}) for call in api.calls)
 
 
 def test_shrink_of_a_stopped_server_needs_no_record():
