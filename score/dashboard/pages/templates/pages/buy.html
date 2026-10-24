@@ -32,12 +32,8 @@
     {% empty %}<li class="node-row">{% include "pages/c/dot.html" with tone="idle" tip="nothing priced yet" %}<span class="unknown" data-v>0</span></li>{% endfor %}
       {% if batch.plants %}<li><div class="node-row buy-item" title="{{ batch.plants.objects }} plants in {{ batch.plants.places|length }} scene{{ batch.plants.places|length|pluralize }} ({{ batch.plants.places|join:", " }}), each a model of the Models and Finishes rows{% if batch.plants.crops %}; the crops on {{ batch.plants.beds }} beds are also grown by the Crops row{% endif %}">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span class="node-label" data-v>Plants</span><span class="buy-n" data-v>{{ batch.plants.objects }}</span></div></li>{% endif %}</ul>{% endif %}
   </section>
-  <aside class="buy-side" aria-label="the last batch and the books">
-    {% if last %}<a class="num-card num-link" href="/buy/run/" title="{{ last.tip }}; open it">
-      <div class="num-label">{% include "pages/c/dot.html" with tone=last.tone tip=None %}<span data-v>last batch {{ last.state }}</span></div>
-      <div class="num-value" data-v>{% if last.stop is None %}<span class="unknown" title="written on the store's machine">stop unknown</span>{% else %}<small>stop EUR</small> {{ last.stop|floatformat:2 }}{% endif %}</div>
-    </a>{% endif %}
+  {% if owner and money.paid_refused or owner and figure %}<aside class="buy-side" aria-label="the books">
     {% if owner and money.paid_refused or owner and figure %}<div class="books"{% if money.paid_refused %} title="{{ money.paid_refused }}"{% endif %}>{% if money.paid_refused %}{% include "pages/c/dot.html" with tone="bad" tip=None %}{% endif %}{% include "pages/owner_forms.html" with refused=money.paid_refused %}</div>{% endif %}
-  </aside>
+  </aside>{% endif %}
 </div>
 {% endblock %}

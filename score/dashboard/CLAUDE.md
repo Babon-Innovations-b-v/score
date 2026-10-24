@@ -175,8 +175,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (a guess shows only as "*"); its Buy button posts `/buy/yes/`
   {key, batch: now} (`basket.buy_yes`, `batch_items`: exactly the approved places' items, `screens.now_items`, through
   the same checkout as the basket's, hosted queued; what waits is in the figure, not buyable); `{batch: benchmarks}` still buys the Benchmarks item, with no button on this screen; no choice
-  an item is asked, so the nav's count is only the steps queued by hand and the refines; the last batch's stop (its
-  high plus 10%, `basket.last_batch`) shows after it, opening the run monitor. **Batch** `/buy/run/` (the run monitor,
+  an item is asked, so the nav's count is only the steps queued by hand and the refines; no last-batch card (owner, 2026-10-24: "this needs to be deleted"): the monitor opens on the Buy's yes and Home links to it. **Batch** `/buy/run/` (the run monitor,
   `pages/run_monitor.py`, `run_monitor.html`, owner 2026-10-24: "make the monitor page for after buy ... easy to
   understand and scan"): the Buy's yes opens it (`data-go` on its yes form) and Home links to it while a batch lives
   (`run_monitor.live_batch`). The newest checkout's batch (`checkout/watched.newest`: the record, its launch polled,

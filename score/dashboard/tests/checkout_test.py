@@ -153,7 +153,8 @@ def test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run(
     assert planned == [RunGroup(("alpha", "beta"), ("closeup@alpha", "closeup@beta"))]
     assert [call[1] for call in launches()] == planned and "the owner's checkout" in launches()[0][3]
     assert record["launch"] is not None and [item["id"] for item in record["items"]] == ["alpha-pieces", "beta-pieces"]
-    assert basket.last_batch()["state"] == "running"  # the Buy screen follows the launched run, not the checkout
+    from score.dashboard.pages.models import Checkout
+    assert basket.batch_state(Checkout.objects.order_by("-pk").first())[0] == "running"  # the launched run's own state
 
 
 def test_a_press_while_a_batch_runs_is_refused_and_launches_nothing(shop, monkeypatch):
