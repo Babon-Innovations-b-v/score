@@ -9,6 +9,7 @@ import base64
 import datetime
 import functools
 import json
+import urllib.error
 import math
 import os
 import pathlib
@@ -194,7 +195,16 @@ def zone_quotas():
     request for more is granted), so it is never ordered."""
     organization = scw("account", "project", "get", f"project-id={account()}")["organization_id"]
     found = {}
-    for quota in quota_pages(organization, scw("config", "get", "secret-key")):
+    try:
+        pages = quota_pages(organization, scw("config", "get", "secret-key"))
+    except urllib.error.HTTPError as refused:
+        if refused.code != 403:
+            raise
+        # a key with no right to read quotas (the conductor's, 2026-10-24): order by stock alone, the provider refusing
+        # a type over its quota as it refuses one out of stock
+        print("scaleway: quotas not readable with this key (403): every type in stock is offered", file=sys.stderr)
+        return None
+    for quota in pages:
         if quota["name"].startswith(QUOTA_PREFIX):
             machine_type = quota["name"][len(QUOTA_PREFIX):].replace("_", "-")
             for limit in quota.get("limits") or []:
@@ -220,7 +230,7 @@ def offers(classes):
                                                                                  f"zone={zone}")}
         for machine_class in here:
             for order, machine_type in enumerate(CLASSES.get(machine_class, ())):
-                if machine_type not in listed or not quotas.get((machine_type, zone)):
+                if machine_type not in listed or (quotas is not None and not quotas.get((machine_type, zone))):
                     continue
                 euros = price(machine_type, zone)[0]
                 stock = listed[machine_type]
