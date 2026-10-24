@@ -2,7 +2,7 @@
   <h2 class="eyebrow">Machine</h2>
   {% if machine.second %}<div class="machine-alert" title="its exports are shown, but no click is applied there until you confirm it">{% include "pages/c/dot.html" with tone="bad" tip=None %}<span data-v>{{ machine.second }}</span> <span>exports too; clicks go to</span> <span data-v>{{ machine.store }}</span></div>{% endif %}
   <div class="nums">
-    <a class="num-card num-link" href="/machine/" title="{% if c.booted %}booted {{ c.booted }}; {% endif %}its health and the tails of its logs">
+    <a class="num-card num-link" href="/machine/" title="{% if c.booted %}booted {{ c.booted }}; {% endif %}{% for note in c.notes %}{{ note }}; {% endfor %}its health and the tails of its logs">
       <div class="num-label">{% include "pages/c/dot.html" with tone=c.failed|yesno:"bad,done" tip=c.failed %}Machine</div>
       <div class="num-value" data-v>{{ c.name|default:"unknown" }}{% if c.size %} <small>{{ c.size }}</small>{% endif %}</div>
     </a>

@@ -42,7 +42,11 @@ def test_the_health_has_every_field_the_machine_card_reads_and_is_written_whole(
         found = health.read(properties)
         assert set(found) == {"at", "machine", "size", "state", "cores", "memory_total", "memory_available", "memory",
                               "disk_free", "disk", "load", "units", "runs_active", "runs_waiting", "parked_machines",
-                              "last_backup", "backup", "last_sync", "sync", "free_only"}, sorted(found)
+                              "last_backup", "backup", "last_sync", "sync", "free_only", "notes"}, sorted(found)
+        (folder / "secrets").mkdir()
+        (folder / "secrets" / "google-billing-reader.note").write_text("no google-billing-reader secret\n")
+        assert health.notes(folder / "secrets") == ["no google-billing-reader secret"]
+        assert health.notes(folder / "none") == []
         assert found["last_backup"] == found["backup"] == {"at": "2026-10-22T09:30:00+00:00", "ok": True}
         assert found["sync"]["at"] == "2026-10-22T08:00:00+00:00"
         assert found["memory_total"] >= found["memory_available"] > 0 and len(found["load"]) == 3

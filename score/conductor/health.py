@@ -6,7 +6,8 @@ read() is {at, machine, size, state, cores, memory_total, memory_available, disk
 PROPS_HOME), load (1, 5 and 15 minutes), units {sync, listen, resume, backup: active, failed or inactive}, runs_active
 (live claims in runs/active.json), runs_waiting, parked_machines, last_backup (the newest backup's record in
 logs/backup-*.json, score.store.backup's: {at, ok}), last_sync (score-sync.service's last end: {at, ok}), free_only
-(the kill switch's latch)}, with the Machine card's own shapes beside them (score/dashboard/state/machine.py): state
+(the kill switch's latch), notes (each `*.note` the secrets unit left in $XDG_RUNTIME_DIR/score, one line each: an
+optional secret it skipped, tools/cloud/conductor/secrets.sh)}, with the Machine card's own shapes beside them (score/dashboard/state/machine.py): state
 (idle, growing, batch or shrinking), disk {free_gb, total_gb}, memory {available_gb, total_gb}, backup and sync (the
 same as last_backup and last_sync). A unit is failed when any of its units failed or its service's last run did not
 succeed, active when one of them is active. The conductor's own bill is not read here (a cloud call every minute).
@@ -106,7 +107,14 @@ def read(properties=unit_properties):
             "units": {name: unit_state(units, properties) for name, units in UNITS.items()},
             "runs_active": view["claims"], "runs_waiting": view["waiting"], "parked_machines": view["parked"],
             "last_backup": backup, "backup": backup, "last_sync": sync, "sync": sync,
-            "free_only": conductor.free_only()}
+            "free_only": conductor.free_only(), "notes": notes()}
+
+
+def notes(folder=None):
+    """The secrets unit's notes, sorted, one line each (an optional secret it skipped); [] when it left none."""
+    runtime = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    folder = pathlib.Path(folder or pathlib.Path(runtime) / "score")
+    return [path.read_text().strip() for path in sorted(folder.glob("*.note"))] if folder.is_dir() else []
 
 
 def write(found=None, path=None):

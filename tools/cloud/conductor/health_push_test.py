@@ -77,8 +77,12 @@ case "$1 $2" in
     echo '[{{"name": "other", "id": "p-0"}}, {{"name": "secrets-here", "id": "p-1"}}]' ;;
   "secret version")
     echo '{{"data": "{data}"}}' ;;
+  "secret secret")
+    echo '[{{"name": "gemini-api-key", "id": "s-1"}}]' ;;
 esac
 """
+# A secret reader printing each secret's name as its value, past the optional flag.
+READER_SHIM = "#!/bin/sh\n[ \"$1\" = --if-present ] && shift\nprintf 'value of %s' \"$1\"\n"
 
 
 def test_reader_finds_the_project_by_name():
@@ -106,7 +110,7 @@ def test_secrets_go_to_the_runtime_folder_whole_and_private():
         folder = pathlib.Path(folder)
         runtime = folder / "run"
         runtime.mkdir()
-        reader = executable(folder / "reader", "#!/bin/sh\nprintf 'value of %s' \"$1\"\n")
+        reader = executable(folder / "reader", READER_SHIM)
         gcloud = executable(folder / "gcloud", f"#!/bin/sh\necho \"$CLOUDSDK_CONFIG $*\" > {folder}/gcloud.log\n")
         env = {**os.environ, "XDG_RUNTIME_DIR": str(runtime), "SCORE_SECRET_READER": str(reader),
                "SCORE_GCLOUD": str(gcloud)}
@@ -127,6 +131,41 @@ def test_secrets_go_to_the_runtime_folder_whole_and_private():
         refused = subprocess.run(["sh", str(HERE / "secrets.sh")], env=env, capture_output=True, text=True, timeout=30)
         assert refused.returncode != 0 and "empty" in refused.stderr
         assert key.read_text() == "value of score-lib-deploy-key\n", "an empty read replaced a good key"
+
+
+def test_without_a_billing_reader_the_secrets_skip_it_with_a_note():
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        (folder / "run").mkdir()
+        # --if-present on a secret the project does not hold: nothing printed, exit 0
+        reader = executable(folder / "reader", "#!/bin/sh\n[ \"$1\" = --if-present ] && exit 0\n"
+                                               "printf 'value of %s' \"$1\"\n")
+        env = {**os.environ, "XDG_RUNTIME_DIR": str(folder / "run"), "SCORE_SECRET_READER": str(reader),
+               "SCORE_GCLOUD": "/bin/false"}
+        done = subprocess.run(["sh", str(HERE / "secrets.sh")], env=env, capture_output=True, text=True, timeout=30)
+        assert done.returncode == 0 and "skipped" in done.stdout, done.stderr
+        secrets = folder / "run" / "score"
+        assert sorted(path.name for path in secrets.iterdir()) == ["google-billing-reader.note", "score-lib-deploy-key"]
+        failing = executable(folder / "failing", "#!/bin/sh\n[ \"$1\" = --if-present ] && exit 1\n"
+                                                 "printf 'value of %s' \"$1\"\n")
+        env["SCORE_SECRET_READER"] = str(failing)
+        refused = subprocess.run(["sh", str(HERE / "secrets.sh")], env=env, capture_output=True, text=True, timeout=30)
+        assert refused.returncode != 0 and "reading google-billing-reader failed" in refused.stderr
+
+
+def test_reader_if_present_prints_nothing_for_a_secret_the_project_lacks():
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        data = base64.b64encode(b"the value").decode()
+        scw = executable(folder / "scw", SCW_SHIM.format(log=folder / "scw.log", data=data))
+        env = {**os.environ, "SCORE_SCW": str(scw), "SCORE_SECRETS_PROJECT": "secrets-here",
+               "SCORE_READER_PYTHON": sys.executable}
+        absent = subprocess.run(["sh", str(HERE / "secret_reader.sh"), "--if-present", "google-billing-reader"],
+                                env=env, capture_output=True, text=True, timeout=30)
+        assert absent.returncode == 0 and absent.stdout == "", absent.stderr
+        held = subprocess.run(["sh", str(HERE / "secret_reader.sh"), "--if-present", "gemini-api-key"], env=env,
+                              capture_output=True, text=True, timeout=30)
+        assert held.returncode == 0 and held.stdout == "the value", held.stderr
 
 
 if __name__ == "__main__":

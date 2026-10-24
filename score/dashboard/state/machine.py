@@ -6,7 +6,8 @@ and the tails of its logs, read on the store's machine and carried in the export
                   on a machine without one (the owner's PC) {name: its host name}
       health      score.conductor.health.read(): size, state (idle, growing, batch, shrinking), disk, memory, load,
                   units {unit: state}, backup {at, ok}, sync {at}, bill {euros, month, read_at} (the score-conductor
-                  project's own bill, never a batch's spend), free_only (the kill switch's latch); on a machine
+                  project's own bill, never a batch's spend), free_only (the kill switch's latch), notes [line] (an
+                  optional secret the conductor skipped: the Machine link's hover text); on a machine
                   without score.conductor {missing: NOT_ON_CONDUCTOR}
       tails       score.conductor.logs.tails(TAIL_LINES): {name: [lines]} (run logs, faults, the unit journals), cut
                   from the oldest line to TAIL_BYTES in all
@@ -138,7 +139,7 @@ def card(found, export_made_at=None, now=None):
             "export_minutes": export_minutes,
             "export_late": export_minutes is not None and export_minutes > EXPORT_LATE_MINUTES,
             "bill": bill.get("euros"), "bill_month": bill.get("month"), "free_only": bool(read.get("free_only")),
-            "units": sorted((read.get("units") or {}).items()),
+            "units": sorted((read.get("units") or {}).items()), "notes": read.get("notes") or [],
             "numbers": [(label, said(read[label])) for label in ("disk", "memory", "load") if read.get(label)],
             "sync_minutes": minutes_since(
                 (read.get("sync") or {}).get("at"), now), "read_at": found.get("read_at")}
