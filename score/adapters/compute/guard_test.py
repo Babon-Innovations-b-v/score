@@ -432,6 +432,29 @@ def test_a_runs_warm_pool_holds_its_cost_on_the_grant_and_draws_what_its_cards_b
     assert compute.grant_balance(runner.store, grant, {}) == 8.75
 
 
+def test_a_warm_pool_reserves_only_its_holding_beyond_the_rows_whose_machine_time_it_bills():
+    """Fault, 2026-10-24 Buy: rows high EUR 360.40 under a EUR 396.46 stop; the pool's whole 4 h holding was reserved
+    beside the rows' high, which already holds the machine time those pool machines run, so 5 of 10 machines opened.
+    Now the pool reserves its holding less the rows it bills (never below nothing), opens whole when that fits, still
+    shrinks when it does not, and what it reserves with the rows covers the most it and they can bill."""
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 90.0})
+    BILL["euros"] = 100.0
+    stop_at(runner, 396.46)
+    full, half, one = {"gpu-24gb": 10, "cpu-64c": 3}, {"gpu-24gb": 3, "cpu-64c": 2}, {"gpu-24gb": 1}
+    choices = [(full, 72.0), (half, 36.0), (one, 3.6)]
+    opened = compute.pool_clearance(runner, "run-buy", choices, 4, beside=360.40, covered=300.0)
+    assert opened["sizes"] == full and opened["clearance"]["euros"] == 0.0 and opened["clearance"]["holding"] == 72.0
+    # what is reserved (pool and rows) covers the pool's whole holding and the rows it does not bill
+    assert opened["clearance"]["euros"] + 360.40 >= 72.0 + (360.40 - 300.0)
+    assert "pass the EUR 396.46 stop" in compute_test.refused(lambda: clear_render(runner, 400.0)())
+    compute.release(opened)
+    tight = compute.pool_clearance(runner, "run-tight", choices, 4, beside=360.40, covered=20.0)
+    assert tight["sizes"] == half and tight["clearance"]["euros"] == 16.0  # 52 + 360.40 passes; 16 + 360.40 fits
+    compute.release(tight)
+    assert compute.pool_reserve(72.0, 300.0) == 0.0 and compute.pool_reserve(72.0, 20.0) == 52.0
+
+
 def clear_render(runner, euros):
     return lambda: compute.clearance(runner, "render@hangar", euros)
 

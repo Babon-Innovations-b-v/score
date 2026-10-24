@@ -547,12 +547,16 @@ def pool_sizes(runner, places, whole, options):
                                 sum(processor.values()))
 
 
-def rows_high(runner, places, whole, options):
-    """The run's planned paid rows' high euros (a not-measured row at its estimate, as its clearance holds it), what
-    the pool leaves room for."""
-    prices = [selected_price(runner, buy)
-              for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))]
-    return sum(price.get("high_euros") or price.get("guess_euros") or 0.0 for price in prices)
+def planned_prices(runner, places, whole, options):
+    """The run's planned paid rows' prices (selected_price)."""
+    return [selected_price(runner, buy) for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))]
+
+
+def rows_high(prices, pooled=False):
+    """The rows' high euros (a not-measured row at its estimate, as its clearance holds it), what the pool leaves room
+    for; `pooled`: only the rows pool_sizes sizes the pool on (a `cards` count), whose machine time the pool bills."""
+    return sum(price.get("high_euros") or price.get("guess_euros") or 0.0 for price in prices
+               if price.get("cards") or not pooled)
 
 
 def opened_pool(runner, places, whole, options):
@@ -560,16 +564,19 @@ def opened_pool(runner, places, whole, options):
     can just start as soon as one is warm, in the background u just try collecting more till 10") of pool_sizes,
     until a batch's longest run (the ledger's BATCH_HOURS), its holding cost cleared first
     (compute.pool_clearance, against the stop line or the benchmark grant) and the collector started under that
-    ticket alone, at the largest size the run's money holds beside its rows (pool.shrinking); the ticket, or None for
-    a run with no card work, on the cluster, or with no room for even one machine (its rows then rent their own)."""
+    ticket alone, at the largest size the run's money holds beside its rows (pool.shrinking; the pool reserves only its
+    holding beyond the rows' own machine time, compute.pool_reserve, as its machines bill that time); the ticket, or
+    None for a run with no card work, on the cluster, or with no room for even one machine (its rows then rent their
+    own)."""
     from score.adapters import compute
     sizes = pool_sizes(runner, places, whole, options)
     if not sizes or cloud_tool("provider").on_cluster():
         return None
     pool, hours, run_id = cloud_tool("pool"), compute.ledger().BATCH_HOURS, os.environ[RUN_ID]
+    prices = planned_prices(runner, places, whole, options)
     try:
-        ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours,
-                                        rows_high(runner, places, whole, options))
+        ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours, rows_high(prices),
+                                        rows_high(prices, pooled=True))
     except compute.Refused as refused:
         print(f"score run: no warm pool, its rows rent their own machines: {refused}", flush=True)
         return None
@@ -581,7 +588,7 @@ def opened_pool(runner, places, whole, options):
     before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
     os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
     try:
-        pool.start(run_id, sizes, time.time() + hours * 3600, euros=ticket["clearance"]["euros"])
+        pool.start(run_id, sizes, time.time() + hours * 3600, euros=ticket["clearance"]["holding"])
     finally:
         for name, value in before.items():
             if value is None:
