@@ -75,9 +75,24 @@ def pattern(place):
     return ("{home}/design/props/" if designed(place) else "{data}/props/") + f"{place}.json"
 
 
+def handin_part(path):
+    """A hand-in without its takes' progress (status, stages), which every sync pass's prepare rewrites as takes get
+    made: keyed by this, a row reading the hand-in keeps its key while Pixal3D makes takes (2026-10-25: three Pixal3D
+    rows of Batch 1 threw away two hours each when a pass flipped their takes to made)."""
+    record = record_at(path)
+    record["takes"] = {take: {name: value for name, value in entry.items() if name not in ("status", "stages")}
+                       for take, entry in record.get("takes", {}).items()}
+    return json.dumps(record, sort_keys=True)
+
+
+def keyed(place):
+    """The place's hand-in as a row's file: a designed one by handin_part, data/props' whole."""
+    return (pattern(place), handin_part) if designed(place) else pattern(place)
+
+
 def inventory_pattern(place):
     """The scene inventory its rows are drawn from: a designed place's hand-in itself, else data/inventory's."""
-    return pattern(place) if designed(place) else "{data}/inventory/" + f"{place}.json"
+    return keyed(place) if designed(place) else "{data}/inventory/" + f"{place}.json"
 
 
 def record_at(path):
@@ -129,7 +144,7 @@ def view_files(place):
 def inputs_files(place):
     """The inputs row's files: the place's file, its inventory and concept views, every close-up named, the inventory
     folder (the box gate reads the scene's inventory) and its tools."""
-    return {"props": pattern(place), "inventory": inventory_pattern(place),
+    return {"props": keyed(place), "inventory": inventory_pattern(place),
             "inventories": "{data}/inventory", **view_files(place), **closeup_files(place), **INPUTS_TOOLS}
 
 
@@ -167,7 +182,7 @@ def likeness_files(place):
     record = record_at(path_of(place)) if applies(place) else {"objects": {}, "fallback": {}}
     builds = {row: entry["code_model"] for row, entry in record["objects"].items() if entry["route"] == "code"}
     builds.update({row: model for row, model in record.get("fallback", {}).items() if model})
-    return {"props": pattern(place), "inventory": inventory_pattern(place),
+    return {"props": keyed(place), "inventory": inventory_pattern(place),
             **LIKENESS_TOOLS,
             **{f"code build {row}": model for row, model in builds.items()},
             **{f"code build {row} buffer": model.removesuffix(".gltf") + ".bin" for row, model in builds.items()}}

@@ -128,7 +128,7 @@ def test_a_place_reads_its_design_s_concept_and_inventory():
         assert set(runner.reads(row, "airlock")) == set(runner.reads(row, "galley")) == {"plan"}
         airlock = runner.files_of(row, "airlock")
         assert airlock["concept"] == "{home}/design/concepts/airlock.png", airlock
-        assert airlock["inventory"] == "{home}/design/props/airlock.json", airlock
+        assert airlock["inventory"][0] == "{home}/design/props/airlock.json", airlock
         galley = runner.files_of(row, "galley")
         assert "concept" not in galley and galley["inventory"] == "{home}/design/inventory/{place}.json", galley
         assert "places" not in airlock  # no style is read: Pixal3D is worded by nothing

@@ -350,7 +350,16 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
         assert handin.kept(store, record, route, ["wreck"]) == (["wreck"], ["wreck"])
         assert handin.kept(store, record, route, ["wreck"]) == (["wreck"], [])  # unchanged: no key moves
         assert prop_data.applies("wreck") and prop_data.pattern("wreck") == "{home}/design/props/wreck.json"
-        assert prop_data.pixal_files("wreck")["inventory"] == prop_data.pattern("wreck")
+        assert prop_data.pixal_files("wreck")["inventory"] == prop_data.keyed("wreck")
+        written = prop_data.path_of("wreck")
+        before = prop_data.handin_part(written)
+        handed = json.loads(written.read_text())
+        for take in handed["takes"].values():
+            take.update(status="made", stages=[])
+        kept_text = written.read_text()
+        written.write_text(json.dumps(handed))
+        assert prop_data.handin_part(written) == before  # a pass marking takes made moves no row's key
+        written.write_text(kept_text)
         assert surface_data.pattern("wreck") == "{home}/design/surfaces/wreck.json"
         bought = [take for take in record["takes"] if take["status"] == "bought"]
         assert all(sha[:8] in take["take"] for take in bought)  # a re-pick names new takes: their keys move
