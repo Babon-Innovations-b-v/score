@@ -63,7 +63,7 @@
       <section class="rm-panel" aria-label="machines" title="the warm pool: the machines this batch holds from its start to its end{% if run.pool.until %}, until {{ run.pool.until|slice:'11:16' }} UTC{% endif %}">
         <h2 class="eyebrow">Machines</h2>
         {% if not run.pool %}<p class="soft" data-v>no warm pool yet</p>
-        {% else %}{% if not run.pool.open %}<p class="soft" data-v>released</p>{% endif %}
+        {% else %}{% if not run.pool.open %}<p class="soft" data-v>released</p>{% if run.pool.renting %}<p class="rm-stock" title="parked machines of this batch's pools: each bills until it is deleted; Stop everything deletes them" data-v>{% include "pages/c/dot.html" with tone="bad" tip=None %} {{ run.pool.renting }} still renting</p>{% endif %}{% endif %}
         {% for kind in machines %}<div class="rm-machine">
           <div class="rm-machine-head"><span data-v>{{ kind.label }}</span><span class="rm-count" data-v>{{ kind.warm }}<small> of {{ kind.size }} warm</small></span></div>
           <div class="rm-slots" aria-hidden="true">{% for slot in kind.slots %}<i class="rm-slot rm-slot-{{ slot }}"></i>{% endfor %}</div>

@@ -12,6 +12,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import signal
 import subprocess
 import sys
@@ -1103,7 +1104,52 @@ def test_the_run_gauges_count_only_this_runs_rows():
         said = command.run_gauges(runner, ["hangar"], False, None, "2026-10-17T09:00:00Z")()
     finally:
         books.entries = before
-    assert said == "this run's rows: paid runs open 1, EUR 2.50 in the ledger since the run started", said
+    assert said == ("this run's rows: paid runs open 1, EUR 2.50 in the ledger since the run started (rows 2.50, "
+                    "pool 0.00, idle now 0.00, model calls 0.00)"), said
+
+
+def test_the_run_gauges_count_its_pool_its_idle_cards_and_its_google_calls():
+    """Fault of 2026-10-24: the heartbeat said EUR 2.31 while the run's pool lines (ticket `gpu-pool <run>`), its
+    cards parked idle and its Pro close-up calls had cost about ten times that."""
+    from score import __main__ as command
+    books = compute.ledger()
+    park, google_spend = command.cloud_tool("park"), command.cloud_tool("google_spend")
+    runner = slow_runner(0)
+    here = books.origin()["worktree"]
+    rows = [{"worktree": here, "ticket": "slow@hangar k1", "started": "2026-10-17T10:00:00Z", "euros": 2.5},
+            {"worktree": here, "ticket": "gpu-pool run-g", "started": "2026-10-17T10:01:00Z", "euros": 3.0,
+             "run": "run-g"},
+            {"worktree": "frozen-other", "ticket": "gpu-pool run-g", "started": "2026-10-17T10:02:00Z", "euros": 0.5},
+            {"worktree": here, "ticket": "gpu-pool other-run", "started": "2026-10-17T10:02:00Z", "euros": 9.0}]
+    before, books.entries = books.entries, lambda: rows
+    now = time.time()
+    park.PARKED.mkdir(parents=True, exist_ok=True)
+    (park.PARKED / "card-1.json").write_text(json.dumps(
+        {"id": "card-1", "pool": "run-g", "kind": "pixal", "type": "L4", "zone": "z", "cards": 1, "price": 0.02,
+         "created": now - 3600, "parked_at": now - 1800, "paid_minutes": 30.0}))
+    google_spend.LEDGER.unlink(missing_ok=True)  # the sandbox's
+    google_spend.started("gemini-3-pro-image", "another run's")  # untagged: not this run's
+    kept = {name: os.environ.get(name) for name in (command.RUN_ID, command.LEDGER_TAG, "PYTHONPATH")}
+    write, record = google_spend.write, books.record
+    os.environ.pop(command.LEDGER_TAG, None)
+    os.environ[command.RUN_ID] = "run-g"
+    try:
+        command.tag_ledgers()  # as the run does: its lines tagged with its id from here on
+        assert os.environ[command.LEDGER_TAG] == "run-g" and "ledger_tag" in os.environ["PYTHONPATH"]
+        google_spend.started("gemini-3-pro-image", "pro")  # never finished: its estimate, 0.15
+        google_spend.record("gemini-3-pro-image", "pro", {"usageMetadata": {"promptTokenCount": 1000000}},
+                            google_spend.started("gemini-3-pro-image", "pro"))  # EUR 2.00
+        said = command.run_gauges(runner, ["hangar"], False, None, "2026-10-17T09:00:00Z")()
+    finally:
+        books.entries, google_spend.write, books.record = before, write, record
+        sys.meta_path[:] = [finder for finder in sys.meta_path if type(finder).__name__ != "Tagging"]
+        for name, value in kept.items():
+            os.environ.pop(name, None) if value is None else os.environ.__setitem__(name, value)
+        (park.PARKED / "card-1.json").unlink()
+    parts = {part: float(value) for part, value in re.findall(r"(rows|pool|idle now|model calls) ([\d.]+)", said)}
+    assert parts["rows"] == 2.5 and parts["pool"] == 3.5 and parts["model calls"] == 2.15, said
+    assert 0.6 <= parts["idle now"] <= 0.64, said  # 30 min idle at EUR 0.02 a minute, billed by the started minute
+    assert f"EUR {sum(parts.values()):.2f} in the ledger" in said, said
 
 
 def test_a_detached_run_refused_on_the_store_ends_with_the_refusal_as_its_line():

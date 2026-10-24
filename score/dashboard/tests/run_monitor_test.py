@@ -118,6 +118,33 @@ def test_a_relaunch_goes_on_where_the_checkout_was(world):
     assert [problem["node"] for problem in found["problems"]] == ["closeup@beta"]
 
 
+def test_a_relaunch_adds_the_first_runs_money_and_clock_and_parked_machines_show(world):
+    """Fault of 2026-10-24: after a relaunch the monitor's spend began again at EUR 0 and its clock at the relaunch,
+    and once the pool was released its 13 parked machines billed with nothing on the page."""
+    record = a_batch(world)
+    first_log = world.source.props_home / "logs" / "score-run-0.log"
+    first_log.write_text("[cloud] 12:00:00 pool of 2 gpu-24gb opened for run old-run until 16:00\n"
+                         "heartbeat 2026-10-24T10:30:00+00:00: rows done 1, running 0, queued 5; this run's rows: "
+                         "paid runs open 0, EUR 1.18 in the ledger since the run started\n")
+    plan = Plan.objects.create(basket_hash="checkout-1", made_by="joey", state="ready",
+                               body={**PLAN, "checkout": record.pk})
+    earlier = Launch.objects.create(plan=plan, by="joey", state="stopped", handles=[
+        {"command": ["score", "run"], "pid": None, "log": str(first_log), "refused": None}])
+    began = record.launch.at - datetime.timedelta(minutes=45)
+    Launch.objects.filter(pk=earlier.pk).update(at=began)
+    parked = world.source.props_home / "cloud" / "parked"
+    parked.mkdir(parents=True)
+    for number, pool in enumerate(["old-run", RUN, RUN, "someone-else"]):
+        (parked / f"m-{number}.json").write_text(json.dumps({"id": f"m-{number}", "pool": pool}))
+    (world.source.props_home / "cloud" / "pools" / RUN / "closed").write_text("")
+    found = batch_run.gathered(batch_run_input(), world.source.props_home, world.source.store_root)
+    assert found["money"]["spent"] == 4.39, found["money"]  # 1.18 before the relaunch, 3.21 since
+    assert found["started"] == began.isoformat(timespec="seconds") and found["eta"]["elapsed"] >= 45
+    assert not found["pool"]["open"] and found["pool"]["renting"] == 3, found["pool"]
+    html = signed_in().get("/buy/run/").content.decode()
+    assert "3 still renting" in html and len(prose(html)) <= 60, prose(html)
+
+
 def test_the_state_follows_the_checkout_the_result_line_and_the_pool(world):
     record = a_batch(world, log=LOG + "detached: ok exit=0 minutes=15.6 log=x outputs=y\n")
     run = world.source.batch_run()
