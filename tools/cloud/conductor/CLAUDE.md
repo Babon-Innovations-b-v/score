@@ -48,7 +48,8 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `SCORE_SECRETS_PROJECT`); the file-shaped ones (`score-lib-deploy-key`, optional `google-billing-reader`) only on tmpfs at
   `/run/user/1100/score` (`secrets.sh`, `score-secrets.timer`), gcloud's config with them.
 - **The agents' door** (`agent_door.sh` -> `agent_door.py`): the forced command of the agents' authorized_keys
-  line. It runs only status, plan, price, resume --dry, a detached free run, logs, grant_benchmark and a benchmark
+  line. It runs only status, plan, price, resume --dry, a detached free run, logs (`score.conductor logs`: the run
+  logs, fault reports and unit journals, secrets left out), health (read only), grant_benchmark and a benchmark
   run tagged with its grant, as an argument list (never a shell), every agent marker set; anything else is refused
   with the reason. The owner's key must have a passphrase (`up` refuses one without), so an agent on his PC cannot
   reach a shell past the door.
