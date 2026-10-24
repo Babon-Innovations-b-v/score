@@ -152,7 +152,12 @@ class Scw:
         done = subprocess.run(["scw", *arguments, "-o", "json"], capture_output=True, text=True)
         if done.returncode != 0:
             raise SystemExit(f"scw {text} failed: {(done.stderr or done.stdout).strip()}")
-        return json.loads(done.stdout) if done.stdout.strip() else None
+        if not done.stdout.strip():
+            return None
+        try:
+            return json.loads(done.stdout)
+        except json.JSONDecodeError:  # `scw function deploy` prints its progress as text, even with -o json
+            return done.stdout
 
 
 def agent_refusal(environ=os.environ):
