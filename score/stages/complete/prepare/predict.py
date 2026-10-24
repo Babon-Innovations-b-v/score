@@ -1,6 +1,7 @@
 """Each take's predicted outcome before the batch, from a measured failure mode only (#21's batch contract): a group
-whose shape every measured row of that shape failed on is a predicted gap and is not bought; any other is bought,
-with its shape's measured close-up pass share beside it. No threshold is a guess at an outcome: the rates are counted
+whose shape every measured row of that shape failed on is a predicted gap, bought all the same and judged by the
+real gates (a prediction never drops a row from the Buy, 2026-10-24); each with its shape's measured close-up pass
+share beside it. No threshold is a guess at an outcome: the rates are counted
 here from the hub's prop-route table (paper/evidence/compare-hub/table.json, 13 objects, 2026-10) against those
 objects' sizes as measured (sizes.json beside it, from the hub's inventory of then), every time.
 

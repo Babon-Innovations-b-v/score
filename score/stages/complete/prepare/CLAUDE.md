@@ -36,10 +36,12 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   (`gaps/price.py` `BILL_SHARE`); Google calls do not.
 - **A prediction comes from a measured failure mode, never a guess.** `predict.py` counts the hub's prop-route table
   against the hub's sizes every run: a shape every one of at least `MIN_MEASURED` measured rows failed is a predicted
-  gap, not bought, and priced apart (`predicted_gaps_if_bought`); fewer measured rows is `at risk`, still bought.
+  gap; fewer measured rows is `at risk`. Both are bought and judged by the real gates: a prediction never drops a
+  row from the Buy (2026-10-24: street's palms, 0.4 x 1.16 x 8 m, were "rods" by size alone and left out).
   The crop's upscale is said, never a prediction (no failure was measured against it).
-- **Once-a-scene rows** (`estimate.SCENE_ROWS`: the scene palette and the surface-library row, which makes every
-  scene's surfaces fresh, owner 2026-10-21): one unit a scene with a bought take, not one a take; each priced at its
+- **Once-a-scene rows** (`estimate.once_a_scene`: the scene palette and the surface-library row, which makes every
+  scene's surfaces fresh, owner 2026-10-21, and every route row whose per unit's forecast rule is one a place, as the
+  runner counts it: the rough model): one unit a scene with a bought take, not one a take; each priced at its
   own measured per unit, else at the measured Gemini 3.1 Pro batch answer (`estimate.ASK_PRICED_AS`, the finish
   list's), marked `estimated_from` and counted in `totals.estimated`.
 - **Unmeasured stays unknown.** A layer with no per unit is unpriced and named; one with no measured minutes is
