@@ -2,7 +2,7 @@
 {% block title %}Batch{% endblock %}
 {% block content %}{% comment %}The run monitor (pages/run_monitor.py): the newest Buy's batch, summary before detail.{% endcomment %}
 <div class="rm"{% if reload %} data-rm-reload="{{ reload }}"{% endif %}>
-{% if sent %}<div class="rm-sent" title="{% if sent.detail %}{{ sent.detail }}{% else %}the store's machine checks it and starts the batch on its next sync pass{% endif %}">{% include "pages/c/dot.html" with tone=sent.tone tip=None %}<span data-v>Buy sent {{ sent.at }} UTC</span> <span class="soft" data-v>{% if sent.state == "refused" %}refused{% else %}waits for the store's machine{% endif %}</span></div>{% endif %}
+{% if sent %}<div class="rm-sent" title="{% if sent.detail %}{{ sent.detail }}{% else %}the store's machine checks it and starts the batch within seconds, or at its next sync pass when the price needs one{% endif %}">{% include "pages/c/dot.html" with tone=sent.tone tip=None %}<span data-v>Buy sent {{ sent.at }} UTC</span> <span class="soft" data-v>{% if sent.state == "refused" %}refused{% elif sent.state == "waiting" and sent.detail %}waits for the next sync pass{% else %}waits for the store's machine{% endif %}</span></div>{% endif %}
 {% if not run %}
   <section class="rm-empty">
     <h1>Batch</h1>
@@ -14,7 +14,7 @@
     <div class="rm-title">
       <span class="rm-chip tone-{{ tone }}" title="{{ tip }}{% if run.why %}: {{ run.why }}{% endif %}"><i class="dot tone-{{ tone }}"></i><span data-v>{{ label }}</span></span>
       <h1 data-v>Batch {{ run.checkout }}</h1>
-      <span class="rm-fresh soft" title="{% if fresh_minutes is None %}read live from the store{% else %}the state the store's machine sent last; it sends one every sync pass{% endif %}" data-v>{% if fresh_minutes is None %}live, {% endif %}as of <time data-local="{{ run.read_at }}">{{ fresh_at }}</time>{% if fresh_minutes is not None %}, {{ fresh_minutes }} min ago{% endif %}</span>
+      <span class="rm-fresh soft" title="{% if fresh_minutes is None %}read live from the store{% else %}the state the store's machine sent last; it sends one about every minute while the batch lives{% endif %}" data-v>{% if fresh_minutes is None %}live, {% endif %}as of <time data-local="{{ run.read_at }}">{{ fresh_at }}</time>{% if fresh_minutes is not None %}, {{ fresh_minutes }} min ago{% endif %}</span>
     </div>
     <div class="rm-clock">
       <div class="rm-stat" title="when the runner started it ({{ clock.day }})"><div class="num-label">Started</div><div class="rm-big" data-v><time data-local="{{ run.started }}">{{ clock.started|default:"–" }}</time></div></div>

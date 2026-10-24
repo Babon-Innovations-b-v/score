@@ -13,6 +13,8 @@ the export as a list of {path: sha256}; the hosted side builds it from hard link
     POST /api/sync/requests/{id}/claim   the waiting request taken by its first caller, else 409; 423 for a caller
                                     that is not the store's machine (its X-Score-Machine name, sync/one_store.py)
     POST /api/sync/requests/{id}    {state: picked_up|running|done|refused, detail, log_tail}
+    POST /api/sync/requests/{id}/note   {detail}: why a still waiting request waits (a Buy left for the next pass)
+    PUT  /api/sync/batch-run        the run monitor's batch-run.json, about every minute while a batch lives
     PUT  /api/sync/request-files/<sha>-<360|1280>.jpg   a picture a request brought back (a concept draw)
     GET  /api/sync/pin              {commit}: the score commit this image was built at (SCORE_COMMIT, None outside an
                                     image), the pin install-sync and the conductor's score-update follow; here, not
@@ -54,6 +56,10 @@ class Report(BaseModel):
     state: str
     detail: str = ""
     log_tail: str = ""
+
+
+class Note(BaseModel):
+    detail: str
 
 
 class Lacking(BaseModel):
@@ -264,21 +270,23 @@ def commit(body: Commit, allowed=Depends(token_ok)):
     return {"current": name, "swept": gone}
 
 
-def listed(state, kinds):
-    """The requests in `state` (of `kinds` when given), oldest first."""
-    found = SyncRequest.objects.filter(state=state)
+def listed(state, kinds, skipped=()):
+    """The requests in `state` (of `kinds` when given, less the ids `skipped`), oldest first."""
+    found = SyncRequest.objects.filter(state=state).exclude(pk__in=skipped)
     return [request_out(item) for item in (found.filter(kind__in=kinds) if kinds else found).order_by("created")]
 
 
 @sync.get("/requests")
-def requests(state: str = "waiting", kind: str = "", wait: float = 0.0, allowed=Depends(token_ok)):
-    """The requests in `state`, of the comma-separated `kind`s when given; with `wait` (seconds, at most
-    LONGEST_WAIT) the answer waits until one is there or the time is up: the store's machine's listener
-    (sync/listen.py) holds one such call open, so an owner's click reaches it within a POLL_SECONDS."""
+def requests(state: str = "waiting", kind: str = "", skip: str = "", wait: float = 0.0, allowed=Depends(token_ok)):
+    """The requests in `state`, of the comma-separated `kind`s when given, less the comma-separated ids `skip` (a
+    Buy the listener left for the pass); with `wait` (seconds, at most LONGEST_WAIT) the answer waits until one is
+    there or the time is up: the store's machine's listener (sync/listen.py) holds one such call open, so an owner's
+    click reaches it within a POLL_SECONDS."""
     kinds = [name for name in kind.split(",") if name]
+    skipped = [int(name) for name in skip.split(",") if name.isdigit()]
     deadline = time.monotonic() + min(max(wait, 0.0), LONGEST_WAIT)
     while True:
-        found = listed(state, kinds)
+        found = listed(state, kinds, skipped)
         if found or time.monotonic() >= deadline:
             return found
         time.sleep(POLL_SECONDS)
@@ -294,6 +302,39 @@ def claim(request_id: int, request: Request, allowed=Depends(token_ok)):
     if not SyncRequest.objects.filter(pk=request_id, state="waiting").update(state="picked_up"):
         raise HTTPException(409, "taken already")
     return request_out(SyncRequest.objects.get(pk=request_id))
+
+
+@sync.post("/requests/{request_id}/note")
+def note(request_id: int, body: Note, allowed=Depends(token_ok)):
+    """Words on a request still waiting (why the store's machine leaves it for its next pass); its state untouched,
+    so a claim still takes it once. 409 once it is no longer waiting."""
+    if not SyncRequest.objects.filter(pk=request_id, state="waiting").update(detail=body.detail[:4000]):
+        raise HTTPException(409, "no longer waiting")
+    return request_out(SyncRequest.objects.get(pk=request_id))
+
+
+@sync.put("/batch-run")
+async def batch_run(request: Request, allowed=Depends(token_ok)):
+    """The run monitor's record of the batch now (state/batch_run.py), sent by the listener about every minute while a
+    batch lives, kept beside the export (ExportedSource.batch_run reads the newer); only the store's machine's."""
+    refused = one_store.claim_refusal(request.headers.get(MACHINE_HEADER, "").strip())
+    if refused:
+        raise HTTPException(423, refused)
+    body = await request.body()
+    if len(body) > CHUNK:
+        raise HTTPException(413, "a batch record is at most 4 MiB")
+    try:
+        run = json.loads(body)
+    except ValueError as unread:
+        raise HTTPException(400, f"not JSON: {unread}") from unread
+    if not isinstance(run, dict) or not isinstance(run.get("read_at"), str):
+        raise HTTPException(400, "a batch record is an object with its read_at")
+    folder = settings.SCORE_HOME / "request-files"
+    folder.mkdir(parents=True, exist_ok=True)
+    partial = folder / "batch-run.json.partial"
+    partial.write_bytes(body)
+    os.replace(partial, folder / "batch-run.json")
+    return {"kept": run["read_at"]}
 
 
 @sync.put("/request-files/{name}")

@@ -182,7 +182,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   every row its run plans) read from its files by `state/batch_run.py` (the run's detached log: heartbeats, each
   finished row's line, the pool it opened, its result line; a row's own log written since the start: running; each
   done row's batch gaps; `$PROPS_HOME/cloud/pools/<run>/`: plan, cards, closed, collector.log), live locally
-  (`LocalSource.batch_run`), hosted from the export's `batch-run.json` (`ExportedSource.batch_run`) with its age; a
+  (`LocalSource.batch_run`), hosted from the export's `batch-run.json`, or the newer one the listener sent each minute (`ExportedSource.batch_run`), with its age; a
   hosted Buy not answered yet shows as sent. One screen: state chip (starting, running, waiting for machines,
   stopped, finished), started, elapsed, the ETA left from the checkout's runner minutes ("at least" while a bought
   step is untimed), rows done of total, the owner's Stop everything (asked twice) while it lives; spent (the last
@@ -402,7 +402,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   again from the runner's plan on this checkout (`basket_made`, `proposals/make.py` plan only, free; its index says
   when, on which commit and in which checkout), then fails a checkout left launching by a process that is gone and
   takes an ended batch's stop line back (`checkouts_tidied`, `checkout/flow.tidied`); a pass whose checkout moved to another commit
-  while it ran still pushes its export, so his locks and designs reach the cockpit, with the price shown stale and Buy waiting for the next pass, and still applies requests. The owner's money buttons and his waiver
+  while it ran still pushes its export, so his locks and designs reach the cockpit, with the price shown stale and Buy waiting for the next pass, and still applies requests (a Buy is left waiting then: `buy_waits`). The owner's money buttons and his waiver
   (`applying.OWNER_FIGURES`: the books' figure, the read-back, a waiver) are applied
   like his decisions: only when the request's user is this machine's `SCORE_OWNER`, through the same
   `pages/actions.py` function as the local cockpit, which refuses in an agent's process. Never tell the owner to
@@ -410,7 +410,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the pass and the listener never both apply it. The listener (`listen.py`, `python -m score.dashboard listen`, the
   owner's systemd service `score-listen.service` beside the timer, restarted hourly onto the pulled code) holds one
   call open (`/requests?kind=...&wait=25`) and answers the concept review's requests within a second of the click,
-  sending a draw's pictures back (`/request-files/`) before its report. The owner's timer (`timer.py`, `install-sync`, the
+  sending a draw's pictures back (`/request-files/`) before its report. It answers a hosted Buy (`checkout`) the same
+  way (owner, 2026-10-24: "can we make that delay less for the following runs"), unless `client.buy_waits` says its
+  price needs a fresh pass (a pass holding `pricing_now`, `tree_refusal`, `figures_moved`: the price, prepare's figure
+  or the basket on another commit, the basket older than prepare): then it notes why on the request
+  (`/requests/<id>/note`), skips it (`&skip=`) and the pass applies it, under the same check; a launch is followed by
+  either (`tracked_changed`, locked). While a batch lives it sends `batch-run.json` every `PUSH_SECONDS` (60) and once
+  as it ends (`PUT /batch-run`, kept in `request-files/`; `ExportedSource.batch_run` takes the newer read_at). The owner's timer (`timer.py`, `install-sync`, the
   deploy templates) reads the token by name from his secret manager each pass, inline, through the reader his env
   file names; it installs only once the cockpit runs this checkout's dashboard. `release.py` (`release`) moves the
   hosting repository's pinned `SCORE_COMMIT` to a pushed commit, from a worktree of its own, in the host's commit

@@ -77,10 +77,14 @@ class ExportedSource:
         return self.loaded("machine.json", lambda path: json.loads(path.read_text()))
 
     def batch_run(self):
-        """The newest Buy's batch as the export carries it (batch-run.json, state/batch_run.py), or None before
-        one."""
+        """The newest Buy's batch (batch-run.json, state/batch_run.py): the export's, or the one the listener sent
+        since (sync/endpoints.batch_run, in `results`) when read later; None before one."""
         from score.dashboard.state import batch_run
-        return self.loaded(batch_run.RUN_FILE, lambda path: json.loads(path.read_text()))
+        exported = self.loaded(batch_run.RUN_FILE, lambda path: json.loads(path.read_text()))
+        sent = self.results / batch_run.RUN_FILE if self.results else None
+        pushed = json.loads(sent.read_text()) if sent and sent.is_file() else None
+        found = [run for run in (exported, pushed) if run]
+        return max(found, key=lambda run: datetime.datetime.fromisoformat(run["read_at"])) if found else None
 
     def export_made_at(self):
         """When the store's machine made the export shown, or None before one arrived."""

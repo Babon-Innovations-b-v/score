@@ -14,7 +14,9 @@ A pass feeds the cockpit only from a checkout whose tracked files are committed 
 (tree_refusal), and only once the runner has priced the gaps and the remake on it (`score price <environment>
 --gaps`, after the gaps check): when either fails the pass syncs nothing and says why, so no stale record is ever
 sent."""
+import contextlib
 import datetime
+import fcntl
 import gzip
 import hashlib
 import json
@@ -86,10 +88,11 @@ class Remote:
                 raise
             raise Refused(json.loads(answer.read() or b"{}").get("detail", f"refused ({answer.code})")) from answer
 
-    def waiting(self, kinds=(), wait=0):
-        """The waiting requests (of `kinds` when given); with `wait` the hosted side holds the call open up to that
-        many seconds until one is there."""
-        query = "".join([f"&kind={','.join(kinds)}" if kinds else "", f"&wait={wait}" if wait else ""])
+    def waiting(self, kinds=(), wait=0, skip=()):
+        """The waiting requests (of `kinds` when given, less the ids `skip`); with `wait` the hosted side holds the
+        call open up to that many seconds until one is there."""
+        query = "".join([f"&kind={','.join(kinds)}" if kinds else "", f"&wait={wait}" if wait else "",
+                         f"&skip={','.join(map(str, skip))}" if skip else ""])
         return self.call("GET", f"/requests?state=waiting{query}")
 
     def claim(self, request_id):
@@ -117,6 +120,20 @@ class Remote:
     def report(self, request_id, state, detail="", log_tail=""):
         return self.call("POST", f"/requests/{request_id}", json.dumps(
             {"state": state, "detail": detail, "log_tail": log_tail}).encode())
+
+    def note(self, request_id, detail):
+        """Words on a request left waiting (why it waits); False from a hosted side before notes (404)."""
+        try:
+            self.call("POST", f"/requests/{request_id}/note", json.dumps({"detail": detail}).encode())
+        except urllib.error.HTTPError as answer:
+            if answer.code != 404:
+                raise
+            return False
+        return True
+
+    def put_batch_run(self, run):
+        """The run monitor's record of the batch now (state/batch_run.py), between the passes' exports."""
+        return self.call("PUT", "/batch-run", json.dumps(run, sort_keys=True).encode())
 
 
 def folder_name(made_at):
@@ -220,10 +237,15 @@ def tracked():
     return json.loads(path.read_text()) if path.is_file() else {}
 
 
-def keep_tracked(found):
+def tracked_changed(change):
+    """`change(found)` of the followed launches, read and written under a lock: the listener and a pass both add."""
     path = tracked_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(found, indent=1))
+    with path.with_suffix(".lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        found = tracked()
+        change(found)
+        path.write_text(json.dumps(found, indent=1))
 
 
 LATCHED = {"set": False}  # whether free_only_followed set SCORE_FREE_ONLY here (only then does it take it off)
@@ -249,8 +271,13 @@ def free_only_followed():
 
 
 def answered(remote, item, source, chosen=None):
-    """Claim one waiting request, apply it, send back the pictures it brought and report it; the Applied, or None
-    when another caller (the listener, sync/listen.py, or a pass) took it first."""
+    """Claim one waiting request, apply it, send back the pictures it brought and report it, its launch followed
+    (report_launches); the Applied, or None when another caller (the listener, sync/listen.py, or a pass) took it
+    first, or when it is a Buy that waits for the next pass (buy_waits: said on the request, left waiting)."""
+    waits = buy_waits(source) if item["kind"] == "checkout" else None
+    if waits:
+        remote.note(item["id"], f"waits for the next sync pass: {waits}")
+        return None
     if not remote.claim(item["id"]):
         return None
     free_only_followed()
@@ -258,28 +285,26 @@ def answered(remote, item, source, chosen=None):
     for name, path in applied.files.items():
         remote.put_request_file(name, pathlib.Path(path).read_bytes())
     remote.report(item["id"], applied.state, applied.detail, applied.log_tail)
+    if applied.launch_id:
+        tracked_changed(lambda found: found.update({str(item["id"]): applied.launch_id}))
     return applied
 
 
 def apply_waiting(remote, source, chosen):
     """Pick up, apply and report each waiting request; [(id, state)]."""
-    done, following = [], tracked()
+    done = []
     for item in remote.waiting():
         applied = answered(remote, item, source, chosen)
-        if applied is None:
-            continue
-        if applied.launch_id:
-            following[str(item["id"])] = applied.launch_id
-        done.append((item["id"], applied.state))
-    keep_tracked(following)
+        if applied is not None:
+            done.append((item["id"], applied.state))
     return done
 
 
 def report_launches(remote, chosen):
     """Report each followed launch that ended (done, else refused: the hosted side's states have no failed, so the
     run's own state leads its words); [(id, state)]."""
-    following, reported = tracked(), []
-    for request_id, launch_id in list(following.items()):
+    reported = []
+    for request_id, launch_id in tracked().items():
         record = guard.polled(Launch.objects.get(pk=launch_id), chosen)
         if record.state in ("running", "starting"):
             continue
@@ -287,9 +312,73 @@ def report_launches(remote, chosen):
         said = record.result if record.state == "done" else f"{record.state}: {record.result}"
         remote.report(int(request_id), "done" if record.state == "done" else "refused", said, tail)
         reported.append((int(request_id), record.state))
-        following.pop(request_id)
-    keep_tracked(following)
+        tracked_changed(lambda found, ended=request_id: found.pop(ended, None))
     return reported
+
+
+def pass_lock():
+    return settings.SCORE_HOME / "sync" / "pass.lock"
+
+
+@contextlib.contextmanager
+def pricing_now():
+    """Held while a pass prices and makes its export (sync_pass), so the listener leaves a Buy to the pass then."""
+    pass_lock().parent.mkdir(parents=True, exist_ok=True)
+    with pass_lock().open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def pass_pricing():
+    """Whether a sync pass holds pricing_now."""
+    if not pass_lock().is_file():
+        return False
+    with pass_lock().open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        return False
+
+
+def record_of(path):
+    return json.loads(path.read_text()) if path.is_file() else None
+
+
+def figures_moved(source, now):
+    """Why the pass's figures do not price the code at commit `now`, in words: the runner's price or prepare's figure
+    made on other code (or not made), the basket made on another commit or before prepare's figure; [] when they
+    stand."""
+    from score.dashboard.proposals import records
+    from score.dashboard.state import local
+    checks = source.props_home / "work" / local.CHECKS
+    figures = (("the runner's price", record_of(checks / local.GAPS_PRICE / f"{source.world.name}.json")),
+               ("prepare's figure", record_of(checks / local.REMAKE)))
+    found = []
+    for name, written in figures:
+        moved = "it is not made yet" if written is None else local.code_moved(written.get("priced_on"))
+        if moved:
+            found.append(f"{name}: {moved}")
+    index = records.index(settings.SCORE_HOME / "proposals")
+    if index.get("commit") != now:
+        found.append(f"the basket was made on commit {str(index.get('commit'))[:8]}, the code is at {str(now)[:8]}")
+    remake = figures[1][1]
+    made = datetime.datetime.fromisoformat(index["made_at"]) if index.get("made_at") else None
+    if remake and made and datetime.datetime.fromisoformat(remake["made_at"]).replace(microsecond=0) > made:
+        found.append(f"the basket was made at {index['made_at']}, before prepare's figure ({remake['made_at']})")
+    return found
+
+
+def buy_waits(source):
+    """Why a hosted Buy is left for the next sync pass rather than applied now, in words, or None: a pass pricing
+    now, the checkout not clean and pushed (tree_refusal), or figures_moved. The pass makes them again, then applies
+    it; every other refusal is the checkout's own (checkout/flow.py)."""
+    if pass_pricing():
+        return "a sync pass is pricing now; it applies this Buy once its price stands"
+    refused = tree_refusal(settings.SCORE_REPO)
+    if refused:
+        return refused
+    return "; ".join(figures_moved(source, head(settings.SCORE_REPO))) or None
 
 
 def checkouts_tidied(chosen):
@@ -444,24 +533,25 @@ def sync_pass(remote, source, chosen=None):
     designs reach the cockpit while agents push (owner 2026-10-21, "my concepts still not back"): prepare's and the
     price's records name the commit they were made on, so the cockpit shows those figures stale and Buy waits."""
     free_only_followed()
-    refused = tree_refusal(settings.SCORE_REPO)
-    if refused:
-        return refused_words(refused)
-    started = head(settings.SCORE_REPO)
     chosen = chosen or guard.backend()
-    swept = library_sweep()
-    gaps = gaps_sweep()
-    planned = plans_kept()  # before prepare and the price: both read the plans the plan stage reads
-    prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
-    demos = library_demos()
-    priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
-    if failed:
-        return refused_words(f"{failed}; {swept}; {gaps}; {planned}; {prepared}; {benched}; {pictured}; {demos}")
-    basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
-    now = head(settings.SCORE_REPO)
-    pushed = pushed_words(remote, source, chosen) + ("" if now == started else (
-        f" (the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass: its remake and price show "
-        "as stale, Buy waits for the next pass)"))
+    with pricing_now():  # the listener leaves a Buy to this pass meanwhile (buy_waits)
+        refused = tree_refusal(settings.SCORE_REPO)
+        if refused:
+            return refused_words(refused)
+        started = head(settings.SCORE_REPO)
+        swept = library_sweep()
+        gaps = gaps_sweep()
+        planned = plans_kept()  # before prepare and the price: both read the plans the plan stage reads
+        prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
+        demos = library_demos()
+        priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
+        if failed:
+            return refused_words(f"{failed}; {swept}; {gaps}; {planned}; {prepared}; {benched}; {pictured}; {demos}")
+        basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
+        now = head(settings.SCORE_REPO)
+        pushed = pushed_words(remote, source, chosen) + ("" if now == started else (
+            f" (the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass: its remake and price "
+            "show as stale, Buy waits for the next pass)"))
     tidy = checkouts_tidied(chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
