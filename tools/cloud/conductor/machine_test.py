@@ -138,23 +138,19 @@ def test_env_file_carries_no_secret_and_names_the_backup_repository():
 
 def test_move_dry_backs_this_pc_up_then_restores_before_the_sync_is_installed():
     printed = []
-    with tempfile.TemporaryDirectory() as folder:
-        owner_env = pathlib.Path(folder) / "dashboard.env"
-        owner_env.write_text("SCORE_OWNER=owner\nSCORE_SECRET_READER=/home/someone/.local/bin/reader\n")
-        options = types.SimpleNamespace(env_file=str(owner_env), owner_key="~/.ssh/id_ed25519")
-        scw = machine.Scw(dry=True, say=printed.append)
-        machine.move(options, scw, printed.append)
-        (local, environment), remote = machine.move_steps(owner_env)
-        owner_env.write_text("SCORE_OWNER=owner\n")
-        try:
-            machine.move_steps(owner_env)
-            raise AssertionError("a move with no secret reader was not refused")
-        except SystemExit as refused:
-            assert "SCORE_SECRET_READER" in str(refused)
+    options = types.SimpleNamespace(owner_key="~/.ssh/id_ed25519")
+    scw = machine.Scw(dry=True, say=printed.append)
+    machine.move(options, scw, printed.append)
+    (local, environment), remote = machine.move_steps("/home/someone/.local/bin/scw")
     assert local[-3:] == ["score.store.backup", "migrate", "--from-pc"]
     assert environment["SCORE_BACKUP_REPO"] == machine.BACKUP_REPO
-    assert environment["SCORE_SECRET_READER"] == "/home/someone/.local/bin/reader"
+    # the PC reads the backup's password where the conductor does: the conductor's reader, its secrets project
+    assert environment["SCORE_SECRET_READER"] == str(machine.HERE / "secret_reader.sh")
+    assert environment["SCORE_SECRETS_PROJECT"] == machine.SECRETS_PROJECT_NAME
+    assert environment["SCORE_SCW"] == "/home/someone/.local/bin/scw"
     assert remote.index("--onto-conductor") < remote.index("install-sync") and "--no-pull" in remote
+    assert printed.index(next(line for line in printed if "disable --now" in line)) < \
+        printed.index(next(line for line in printed if "--from-pc" in line))
     assert any("--from-pc" in line for line in printed) and any("--onto-conductor" in line for line in printed)
     assert all(call.startswith("account project list") or call.startswith("instance server list")
                for call in scw.calls), scw.calls
@@ -352,6 +348,27 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         assert code == 0 and argv[0] == "-c" and argv[2:] == ["12", "yes, go", "may I spend EUR 12 on x?"], argv
         code, why, argv, _ = through_door(folder, "resume --dry")
         assert code == 0 and argv == ["-m", "score", "resume", "--dry"]
+
+
+def test_the_move_switches_off_the_pcs_store_units_it_has():
+    calls = []
+
+    def systemctl(*args):
+        calls.append(args)
+        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    switched = machine.pc_units_off(present=["score-sync.timer", "score-listen.service"], systemctl=systemctl)
+    assert switched == ["score-sync.timer", "score-listen.service"]
+    assert calls == [("disable", "--now", "score-sync.timer", "score-listen.service")]
+    assert machine.pc_units_off(present=[], systemctl=systemctl) == [] and len(calls) == 1
+
+    def refusing(*args):
+        return types.SimpleNamespace(returncode=1, stdout="", stderr="Access denied")
+    try:
+        machine.pc_units_off(present=["score-resume.service"], systemctl=refusing)
+        raise AssertionError("a failed disable was not said")
+    except SystemExit as failed:
+        assert "Access denied" in str(failed)
 
 
 if __name__ == "__main__":
