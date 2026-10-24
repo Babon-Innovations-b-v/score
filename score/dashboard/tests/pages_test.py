@@ -675,6 +675,14 @@ def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_fo
     assert "an earlier step first, predicted to fail" in waits  # what waits, with why
     layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>', html)
     assert layers == [("Models", "2"), ("Motion", "1"), ("Sound", "1")]
+    assert ">Plants <small" not in html  # no design grows a plant
+    kept = world.source.props_home / "design" / "inventory"
+    kept.mkdir(parents=True, exist_ok=True)
+    (kept / "alpha.json").write_text(json.dumps({"rows": [{"id": "palm", "noun": "tree", "count": 3}]}))
+    world.source.refresh()
+    html = client.get("/buy/").content.decode()
+    assert re.search(r'title="3 plants in 1 scene \(alpha\), each a model.*?>Plants</span><span class="buy-n" data-v>3<',
+                     html)  # every plant of the design, with the count of them (owner, 2026-10-24)
     assert not re.search(r"calibration|lost concept|<details", html)  # no step's own name
     assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
     refused = client.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
