@@ -94,7 +94,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     layers}] (each place's steps before and after Buy now), layers [{layer (`screens.LAYERS`), make, library,
     waiting, why {reason: count} (plain words: `local.WAITS` for a take's lost input, an earlier step first, inputs
     missing, predicted to fail, not in the last plan), models, steps (its units: the route's takes, steps at places),
-    makes (its widest route stage's takes plus its steps at places), likely, high, guessed, no_price {kind: count}}], eta, stale}.
+    makes (its widest route stage's takes plus its steps at places), likely, high, guessed, no_price {kind: count}}], eta, stale, plants {rows, objects, crops, beds, places} (every plant of the designs, `WorldState.plants` from `design_layers.plants_of`; None when none grows: the Buy's Plants line, owner 2026-10-24)}.
   - `/api/screens/stats`: money, `bill_days` [{day, cloud, models}] (the bills as read each day on the store's
     machine), `days` (the ledgers' own counts, low), `prices` {measured, steps, by_basis, stale}, `remake_layers`,
     gaps, `places` {complete, total}.

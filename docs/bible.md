@@ -301,7 +301,9 @@ branch names a scene or a world.
   voices), each made fresh from its brief as MOSS takes; a take under the CLAP floor is a batch gap.
 - **People** (`score/stages/cast`, `people_rows.py`): each people row a look of the shared people line, a crowd one far
   look as one instancer, stood on the plan's person spots; `characters-layer` lays them.
-- **Crops** (`score/stages/crops`): kinds and beds read off the design (a growing row standing on a bed).
+- **Crops** (`score/stages/crops`): kinds and beds read off the design (a growing row standing on a bed). Every other
+  plant (CONTEXT.md: a tree, a shrub, a potted plant) is a model like any other and no layer of its own; the Buy
+  screen counts every plant of the design (`design_layers.plants_of`) apart from the crops' steps (owner, 2026-10-24).
 - **The assembly** (`score/stages/assembly`): one stage per scene from every layer's accepted output (`assembly.READS`),
   gated on `layers`, placeholders, resting and `collision` (`tools/usd/colliders.py`: every wall, floor, stair and
   ground has a collider, every model its own; a body in the sky none).

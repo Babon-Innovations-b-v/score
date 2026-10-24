@@ -248,6 +248,9 @@ class WorldState(BaseModel):
     # Each place's sound bed as its accepted `sound@<place>` output made it from the design (score/stages/sound,
     # sound.json's room uses): its files, the tone first; the film preview plays it. A place with none is absent.
     sound_beds: dict[str, list[FileRef]] = {}
+    # Each designed place's plants (CONTEXT.md "plant", score/stages/design_layers.plants_of): {rows, objects, crops,
+    # beds}; a place whose design grows nothing is absent.
+    plants: dict[str, dict] = {}
 
 
 class PlanReview(BaseModel):

@@ -525,7 +525,17 @@ def batch(world, items, made_at=None):
     return {"total": total_of_rows(shown), "now": now_of(now, buying), "waiting": waiting_of(shown),
             "gets": gets(world, now), "eta": whole["eta"], "stale": whole["stale"], "layers": shown,
             "estimate": whole["estimate"], "in_design": whole["in_design"], "made_at": made_at,
-            "refused": buy_refusals(world, whole["stale"], made_at)}
+            "refused": buy_refusals(world, whole["stale"], made_at), "plants": plants_total(world)}
+
+
+def plants_total(world):
+    """The design's plants in all (CONTEXT.md "plant", the state's `plants`): {rows, objects, crops, beds, places},
+    so the Buy shows every plant, not only the crops layer's steps; None when no design grows any."""
+    found = getattr(world, "plants", {}) or {}
+    if not found:
+        return None
+    total = {key: sum(entry.get(key, 0) for entry in found.values()) for key in ("rows", "objects", "crops", "beds")}
+    return {**total, "places": sorted(found)}
 
 
 def total_of_rows(rows):

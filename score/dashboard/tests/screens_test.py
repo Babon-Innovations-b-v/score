@@ -334,3 +334,21 @@ def test_a_withdrawn_library_place_is_no_3d_for_its_place_screen():
     assert screens.web3d_link(no_copy, "alpha", shelf_of) == (None, None)
     entry.state = "draft"
     assert screens.web3d_link(no_copy, "alpha", shelf_of) == ("/library-files/files/ab12", "library")
+
+
+def test_the_buy_counts_every_plant_of_the_design_not_only_the_crops_steps(cockpit):
+    """The owner, 2026-10-24, on the Buy's "Crops 3": "shouldnt these be called plants; and doesnt env 1 have way more
+    plants". Every growing row of a kept design is a plant, its count its objects; the planter its crops stand on is
+    their bed."""
+    kept = cockpit.source.props_home / "design" / "inventory"
+    kept.mkdir(parents=True, exist_ok=True)
+    (kept / "alpha.json").write_text(json.dumps({"rows": [
+        {"id": "planter", "noun": "planter", "count": 4}, {"id": "greens", "noun": "plants", "anchor": "on:planter"},
+        {"id": "palm", "noun": "tree", "count": 3}, {"id": "desk", "noun": "desk"}]}))
+    cockpit.source.refresh()
+    world = cockpit.source.world_state()
+    assert world.plants == {"alpha": {"rows": 2, "objects": 4, "crops": 1, "beds": 4}}
+    assert screens.batch(world, cockpit.items)["plants"] == {"rows": 2, "objects": 4, "crops": 1, "beds": 4,
+                                                            "places": ["alpha"]}
+    world.plants = {}
+    assert screens.batch(world, cockpit.items)["plants"] is None

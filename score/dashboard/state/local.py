@@ -535,7 +535,19 @@ class LocalSource:
                               remake=self.remake(), concepts=self.concepts(review), **review,
                               **self.environment_concept(), **self.plan_review(), **self.hierarchy(),
                               **self.environment_plan(), body_faces=self.body_faces(),
-                              sound_beds=self.sound_beds())
+                              sound_beds=self.sound_beds(), plants=self.plants())
+
+    def plants(self):
+        """{place: its design's plants (design_layers.plants_of)} of every place whose kept scene inventory grows
+        any, by the house's row-kind rules."""
+        from score.stages import design_layers, row_kinds
+        kinds, found = row_kinds.table(), {}
+        for place in self.places():
+            kept = self.props_home / "design" / "inventory" / f"{place}.json"
+            plants = design_layers.plants_of(json.loads(kept.read_text()), kinds) if kept.is_file() else {}
+            if plants.get("rows") or plants.get("crops"):
+                found[place] = plants
+        return found
 
     def body_faces(self):
         """{body: its face.json} of every body face row standing accepted (score/stages/surfaces/body_faces.py)."""

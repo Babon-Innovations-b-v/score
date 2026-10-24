@@ -63,6 +63,19 @@ def kinds_of(inventory, kinds=None):
     return set(EVERY_SCENE).union(*(row_layers(row, rows, kinds) for row in rows.values()))
 
 
+def plants_of(inventory, kinds):
+    """A design's plants (CONTEXT.md "plant"), every one a model of the prop pipeline: {rows, objects (their
+    counts), crops (the rows of them growing on a bed, which the crops layer also lays), beds (the objects those
+    stand on)}. A planter its crops stand on is their bed, not a plant of its own."""
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    growing = row_kinds.rows_that(inventory, "grows", kinds)
+    crops = [row for row in growing if on_bed(row, rows, kinds)]
+    beds = {holder_of(row, rows)["id"] for row in crops}
+    plants = [row for row in growing if row["id"] not in beds]
+    return {"rows": len(plants), "objects": sum(int(row.get("count") or 1) for row in plants), "crops": len(crops),
+            "beds": sum(int(rows[bed].get("count") or 1) for bed in beds)}
+
+
 def has_layer(place, kind):
     """Whether the place's design shows a layer of `kind`; False for a place with no design."""
     path = KEPT / f"{place}.json"
