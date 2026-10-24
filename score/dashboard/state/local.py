@@ -241,6 +241,20 @@ class LocalSource:
         from score.dashboard.state import machine
         return machine.gathered(self.props_home, read_at)
 
+    def batch_run(self, read_at=None):
+        """The newest Buy's batch now (state/batch_run.py), read live from its checkout, its run's log, its rows'
+        logs and batch gaps and its warm pool; None before one. `read_at` the ISO time it is stamped with."""
+        from score.dashboard.checkout import watched
+        from score.dashboard.state import batch_run
+        now = datetime.datetime.fromisoformat(read_at) if read_at else None
+        return batch_run.gathered(watched.newest(), self.props_home, self.store_root, self.batch_gaps, now)
+
+    def batch_gaps(self, node):
+        """The batch gaps a row's accepted output names (its batch-gaps.json), [] for none."""
+        sha = self.listing(self.accepted_output(node)).get("batch-gaps.json")
+        path = self.blob_path(sha) if sha else None
+        return json.loads(path.read_text()).get("gaps", []) if path and path.is_file() else []
+
     def export_made_at(self):
         """None: a local cockpit reads the store live, no export stands between."""
         return None

@@ -223,7 +223,7 @@ def steps_around(topic):
 
 def home(request):
     """`/`: the environments, each opening its concept page, and the hub of what spans them."""
-    from score.dashboard.pages import machine, views
+    from score.dashboard.pages import machine, run_monitor, views
     source = state.source()
     overview = views.overview_of(source)
     world = overview["world"]  # one read of the whole state: each takes seconds on the real store
@@ -233,7 +233,7 @@ def home(request):
     picture = next((references[ref["picture"]] for ref in held.get("references", []) if ref["picture"] in references),
                    None)
     return render(request, "pages/home.html", {
-        "machine": machine.shown(request, source, source.machine()),
+        "machine": machine.shown(request, source, source.machine()), "batch": run_monitor.live_batch(source),
         "money": cockpit.month_money(overview["view"]), "environments": [{
             "title": title_of(world.world), "href": f"/environments/{world.world}/", "locked": concept.get("locked"),
             "style": held.get("style"), "picture": picture, "places": len(held.get("places", []))}]})

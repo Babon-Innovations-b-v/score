@@ -179,7 +179,8 @@ function openPanel(opener) {
 
 // A yes form (form[data-yes]: the panel's one action, the Buy button) as the signed-in owner's request: data-body's
 // JSON to data-url with the reason when asked and the CSRF token; a green dot when done (the page read again with
-// data-reload), a red one when refused (the detail as hover text and in the log, never on the page).
+// data-reload, or the page at data-go opened: the Buy's yes opens the run monitor), a red one when refused (the detail
+// as hover text and in the log, never on the page).
 document.addEventListener("submit", async (event) => {
   const post = event.target.closest?.("form[data-yes]");
   if (!post) return;
@@ -202,7 +203,8 @@ document.addEventListener("submit", async (event) => {
     detail = answer.ok ? found.said : String(found.detail || answer.status);
     if (!answer.ok) throw new Error(detail);
     said.className = "dot tone-done";
-    if ("reload" in post.dataset) setTimeout(() => location.reload(), 800);
+    if (post.dataset.go) setTimeout(() => location.assign(post.dataset.go), 400);
+    else if ("reload" in post.dataset) setTimeout(() => location.reload(), 800);
   } catch (error) {
     console.error("panel action refused", post.dataset.url, error);
     said.className = "dot tone-bad";
