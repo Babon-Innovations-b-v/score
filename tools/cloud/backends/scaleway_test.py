@@ -230,6 +230,23 @@ def test_the_quota_list_is_read_by_type_and_zone():
         scaleway.zone_quotas.cache_clear()
 
 
+def test_a_key_that_may_not_read_quotas_offers_every_type_in_stock():
+    """The conductor's key reads no quota (HTTP 403, 2026-10-24): the Buy stopped at its pool; now no quota is known."""
+    import urllib.error
+    answers = {("account", "project", "get"): {"organization_id": "org"}, ("config", "get", "secret-key"): "key"}
+    kept = scaleway.quota_pages
+
+    def refused(organization, key):
+        raise urllib.error.HTTPError("https://api.scaleway.com", 403, "Forbidden", {}, None)
+    scaleway.quota_pages = refused
+    scaleway.zone_quotas.cache_clear()
+    try:
+        with_fake(answers, lambda fake: scaleway.zone_quotas() is None or (_ for _ in ()).throw(AssertionError("quotas")))
+    finally:
+        scaleway.quota_pages = kept
+        scaleway.zone_quotas.cache_clear()
+
+
 def created_with(address, failing=(), owner=OURS):
     """create() on a mocked Scaleway whose new machine got `address`; failing: the `ip` commands that fail. (its
     answer, the scw calls, the machines deleted)."""
