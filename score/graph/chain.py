@@ -25,10 +25,7 @@ from score.graph import node_name
 def reads(runner, stage, place):
     """(stage, place) of every node a node reads once all it may read is made: Runner.read_nodes with its optional
     reads in too (Runner.reads leaves out one not usable now; a remake makes it)."""
-    own = [(runner.stages[before], place if runner.stages[before].grain == "place" else None)
-           for before in stage.after
-           if place is None or runner.stages[before].applies is None or runner.stages[before].applies(place)]
-    return own + [(runner.stages[before], other) for before, other, _ in runner.besides(stage, place).values()]
+    return runner.read_nodes(stage, place, every=True)
 
 
 def readers(runner, places):

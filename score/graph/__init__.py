@@ -710,13 +710,19 @@ class Runner:
                 for other in stage.neighbours(place) for before, wanted in stage.beside.items()
                 if place is not None or self.stages[before].applies is None or self.stages[before].applies(other)}
 
-    def reads(self, stage, place):
+    def reads(self, stage, place, every=False):
         """{earlier stage: (schema, version)} the node reads: its `after`, less a place stage that has nothing to do
-        for this place (its `applies`), which the node then reads without."""
+        for this place (its `applies`), which the node then reads without, and less an optional read not usable now
+        (`every`: with it, every read it takes once all it may read is made)."""
         found = {before: wanted for before, wanted in stage.after.items()
                  if place is None or self.stages[before].applies is None or self.stages[before].applies(place)}
         return {before: wanted for before, wanted in found.items()
-                if before not in stage.optional or self.usable_now(before, place, wanted)}
+                if every or before not in stage.optional or self.usable_now(before, place, wanted)}
+
+    def optional_nodes(self, stage, place):
+        """The nodes of the node's optional reads (every one that applies, usable or not)."""
+        return [node_name(self.stages[before], place) for before in self.reads(stage, place, every=True)
+                if before in stage.optional]
 
     def usable_now(self, before, place, wanted):
         """True when an earlier node's output is usable (`usable`) now."""
@@ -1138,7 +1144,9 @@ class Runner:
         its surface line) is not run for a place that does not read it. A node name in `only` (`demo-film@hub`) keeps
         that one node, so one run can hold a benchmark batch of different stages at different places. An environment
         stage named in `only` with places given is kept too, with what it reads: `--place people --stage people-look-<look>`
-        is the people line and the bodies that read it beside, in one run (#26)."""
+        is the people line and the bodies that read it beside, in one run (#26). Every node a chosen node reads, its
+        optional reads too (usable now or not: a Buy makes them, the characters layer's people), is in the run, a line
+        no place given owns (the people's) with it, whole or not."""
         found = list(self.nodes(places))
         named = set()
         if only:
@@ -1147,18 +1155,16 @@ class Runner:
             names = {node_name(*node) for node in reading}
             named = set(names)
             while reading:
-                for before in self.read_nodes(*reading.pop()):
+                for before in self.read_nodes(*reading.pop(), every=True):
                     if node_name(*before) not in names:
                         names.add(node_name(*before))
                         reading.append(before)
             found = [(stage, place) for stage, place in found if node_name(stage, place) in names]
-        if whole:
-            return found
-        chosen = [(stage, place) for stage, place in found
-                  if stage.grain == "place" or node_name(stage, place) in named]
+        chosen = found if whole else [(stage, place) for stage, place in found
+                                      if stage.grain == "place" or node_name(stage, place) in named]
         names, reading = {node_name(*node) for node in chosen}, list(chosen)
         while reading:  # the environment nodes and other places' nodes the places read, and what those read
-            for before in self.read_nodes(*reading.pop()):
+            for before in self.read_nodes(*reading.pop(), every=True):
                 if node_name(*before) not in names:
                     names.add(node_name(*before))
                     reading.append(before)
@@ -1171,10 +1177,11 @@ class Runner:
             stage_name, _, place = name.partition("@")
             yield self.stages[stage_name], place or None
 
-    def read_nodes(self, stage, place):
-        """(stage, place) of every node this node reads: its own place's or the environment's, and other places'."""
+    def read_nodes(self, stage, place, every=False):
+        """(stage, place) of every node this node reads: its own place's or the environment's, and other places'
+        (`every`: its optional reads too, usable now or not, Runner.reads)."""
         own = [(self.stages[before], place if self.stages[before].grain == "place" else None)
-               for before in self.reads(stage, place)]
+               for before in self.reads(stage, place, every)]
         return own + [(self.stages[before], other) for before, other, _ in self.besides(stage, place).values()]
 
     def run(self, places):
@@ -1359,12 +1366,13 @@ class Runner:
         memory for one more (memory_room), so a line waiting on a cloud step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report: every node that reads it, directly or through another, is not run, and a node
-        on that line that reads nothing of it still runs; {node: what it did}, in table order. `whole` False drives the places'
+        on that line that reads nothing of it still runs; a node waits on its optional reads the drive makes too and
+        runs without one that stops (Runner.unsettled); {node: what it did}, in table order. `whole` False drives the places'
         lines alone, with only the environment nodes they read; `only` (stage names) those stages and the ones they read.
         `gauges`, given by score run alone (a stage's own drive says no beats), is called every HEARTBEAT seconds for
         the text a heartbeat line carries (the run's euros so far, its paid runs open)."""
         chosen = self.line_nodes(places, whole, only)
-        waiting = list(chosen)
+        waiting, line = list(chosen), {node_name(*node) for node in chosen}
         done, stopped, stood, running = {}, {}, set(), {}
         on_gaps = set()  # stopped nodes that fail only on their accepted gaps: a stage's `gapped` reads them
         beat_at = time.monotonic() + HEARTBEAT
@@ -1381,7 +1389,8 @@ class Runner:
                     stopped[node] = waits[0]
                     done[node] = f"not run: its line stopped at {waits[0]}"
                     say(f"{node}: {done[node]}")
-                elif stood.union(passes).issuperset(earlier) and len(running) < jobs:
+                elif stood.union(passes).issuperset(earlier) and len(running) < jobs and \
+                        not self.unsettled(stage, place, line, stood, stopped):
                     held = held or not memory_room(starts)
                     if held:
                         continue
@@ -1417,6 +1426,12 @@ class Runner:
                 say(f"{node}: {done[node]}")
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
+
+    def unsettled(self, stage, place, line, stood, stopped):
+        """The node's optional reads the drive still makes (in its `line`, neither stood nor stopped): the node waits
+        on them, then reads each that stood and runs without each that stopped (Runner.reads)."""
+        return [name for name in self.optional_nodes(stage, place)
+                if name in line and name not in stood and name not in stopped]
 
     def lines(self, places, whole=True, only=None):
         """{line: (its state, {node: state})}, running nothing: the environment's own nodes are one line, each place's
