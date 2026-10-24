@@ -466,7 +466,7 @@ def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_wait
             made.written(place, "2026-10-21T11:00", "2026-10-21T10:00")
         made.written("old_method", "2026-10-21T11:00", "2026-10-21T10:00", method=-1)
         made.edited("edited", "2026-10-21T11:00")
-        made.edited("read_again", "2026-10-21T09:30")  # his edit on the lock, made before the reading in force
+        made.edited("read_again", "2026-10-21T09:30")  # his edit before the reading in force: his edit wins
         places = sorted(["done", "edited", "moved", "unread", "old_reading", "derived", "old_method", "read_again",
                          "never"])
         found = design.designs(made.store, data, places)
@@ -474,14 +474,13 @@ def test_a_design_is_approved_only_once_it_stands_whole_on_its_lock_else_it_wait
         plans.DATA = was
     why = {place: row["waits"] for place, row in found["places"].items()}
     assert why == {
-        "done": None, "edited": None,
+        "done": None, "edited": None, "read_again": None,
         "moved": "room moved since its draw",
         "unread": "concept not locked, or its inventory not read from it",
         "old_reading": "concept not locked, or its inventory not read from it",  # no inventory file stands in now
         "derived": "plan not written by today's method", "old_method": "plan not written by today's method",
-        "read_again": "plan made before its inventory was read again",
         "never": "concept not locked, or its inventory not read from it"}, why
-    assert found["approved"] == ["done", "edited"], found["approved"]
+    assert found["approved"] == ["done", "edited", "read_again"], found["approved"]
     assert {place for place, row in found["places"].items() if row["plan"] == "approved"} == set(found["approved"])
 
 
