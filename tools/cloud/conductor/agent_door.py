@@ -8,7 +8,10 @@ as an argument list, never through a shell, and only when it is one of these:
     status|plan|price [args]                    python -m score status|plan|price ...
     resume --dry                                python -m score resume --dry
     run <environment> [args] --detach           python -m score run ... --detach, with SCORE_FREE_ONLY=1
-    logs [args]                                 python -m score.conductor logs ...
+    logs [--lines N]                            python -m score.conductor logs: the newest run logs, fault reports
+                                                and the sync, listener, resume and backup journals, secrets left out
+    health                                      python -m score.conductor health: the Machine card's health, read
+                                                only (writing it is its timer's job)
     grant-benchmark <euros> <answer> <question> score.adapters.compute.grant_benchmark: the owner's quoted yes,
                                                 asked in a Claude Code session, to one benchmark batch of at most
                                                 EUR 20
@@ -33,7 +36,8 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = "status, plan, price, resume --dry, run <environment> ... --detach, logs, grant-benchmark, benchmark"
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, grant-benchmark, "
+         "benchmark")
 GRANT_ID = re.compile(r"^[A-Za-z0-9._:-]+$")
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
@@ -95,6 +99,10 @@ def decide(words, latch):
         return ["-m", "score", "run", *args], {}
     if verb == "logs":
         return ["-m", "score.conductor", "logs", *args], {}
+    if verb == "health":
+        if args:
+            raise Refused("health takes no arguments: writing it is its timer's job")
+        return ["-m", "score.conductor", "health"], {}
     if verb == "grant-benchmark":
         if len(args) != 3:
             raise Refused("grant-benchmark <euros> <the owner's answer> <the question he answered>")
