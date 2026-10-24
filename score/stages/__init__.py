@@ -270,7 +270,7 @@ def paint_inventory(place):
     rows read from its locked concept, as scene_inventory_read gives props-inputs), else its scene inventory
     (tools/usd/stage_inputs.inventory_pattern: the design's, else the people line's)."""
     if prop_data.designed(place):
-        return prop_data.pattern(place)
+        return prop_data.keyed(place)
     import stage_inputs  # tools/usd, on the path by the assembly stage's import
     return stage_inputs.inventory_pattern(place)
 
@@ -317,7 +317,7 @@ def scene_inventory_read(files):
         if found.get("inventories") != "{data}/inventory":
             return found
         if prop_data.designed(place):  # a designed place's rows are its hand-in's (prepare/handin.py)
-            return {**found, "inventories": prop_data.pattern(place)}
+            return {**found, "inventories": prop_data.keyed(place)}
         own = prop_data.FOLDER.parent / "inventory" / f"{place}.json"
         scene = json.loads(own.read_text()).get("scene", place) if own.exists() else place
         return {**found, "inventories": "{data}/inventory/" + f"{scene}.json"}
@@ -336,7 +336,7 @@ def designed_rough(row):
         found = row.files(place)
         if not prop_data.designed(place):
             return found
-        return {**found, "concept": "{home}/design/concepts/" + f"{place}.png", "inventory": prop_data.pattern(place)}
+        return {**found, "concept": "{home}/design/concepts/" + f"{place}.png", "inventory": prop_data.keyed(place)}
     return dataclasses.replace(row, files=declared)
 
 

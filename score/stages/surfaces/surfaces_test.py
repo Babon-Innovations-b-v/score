@@ -548,8 +548,8 @@ def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_
     (surfaces.data.FOLDER / "greenhouse.json").write_text(json.dumps({"place": "greenhouse", "takes": {
         "gh_crate_ab12": {"place": "greenhouse", "kind": "gh_crate"}}}))
     try:
-        assert stages.paint_inventory("greenhouse") == "{home}/design/props/greenhouse.json"
-        assert paint.files("greenhouse")["inventory greenhouse"] == "{home}/design/props/greenhouse.json"
+        assert stages.paint_inventory("greenhouse")[0] == "{home}/design/props/greenhouse.json"
+        assert paint.files("greenhouse")["inventory greenhouse"][0] == "{home}/design/props/greenhouse.json"
         rules = REPO / "data/checks/resting.json"
         entry = {"place": "greenhouse", "kind": "gh_crate"}  # a designed take's kind lacks its take's suffix
         assert [row["id"] for row in place_line.standing_rows(entry, hand_in, rules, "gh_crate_ab12")] == ["crate"]
