@@ -538,14 +538,18 @@ def status(options, scw, say=print):
     for volume in ours(scw("block", "volume", "list", f"project-id={project}", f"tags.0={TAG}", f"zone={ZONE}"),
                        project):
         say(f"volume {volume['name']}: {volume['size'] // 10 ** 9} GB, {volume['status']}")
-    say(f"health: {json.dumps(health_record())}")
+    say(f"health: {json.dumps(health_record(scw))}")
 
 
-def health_record():
-    """The conductor's last health record from the backup bucket, read with the caller's own scw key; or None."""
+def health_record(scw, read=s3.get):
+    """The conductor's last health record from the backup bucket, read with the conductor's own key (bucket_key: this
+    PC's key is refused there, HTTP 403, 2026-10-24), else the caller's own scw key; or None."""
     def get(name):
         return subprocess.run(["scw", "config", "get", name], capture_output=True, text=True, check=True).stdout.strip()
-    raw = s3.get(BUCKET, "health/conductor.json", BUCKET_REGION, get("access-key"), get("secret-key"))
+    key = bucket_key(scw)
+    access, secret = ((key["AWS_ACCESS_KEY_ID"], key["AWS_SECRET_ACCESS_KEY"]) if key
+                      else (get("access-key"), get("secret-key")))
+    raw = read(BUCKET, "health/conductor.json", BUCKET_REGION, access, secret)
     return json.loads(raw) if raw else None
 
 
