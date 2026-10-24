@@ -62,7 +62,7 @@ import triage  # noqa: E402
 
 FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "resting rules": "{data}/checks/resting.json",
-         "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
+         "inventories": "{home}/design/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
          "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
          "row kinds": "{data}/checks/row-kinds.json"}
 
@@ -93,7 +93,6 @@ READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surf
 # The layer stage the assembly takes for each layer kind a design shows (design_layers; the physics' settle layer).
 NEEDS = {"people": "characters-layer", "crops": "crops-layer", "effects": "effects-layer", "motion": "motion",
          "physics": "settle", "light": "light", "sound": "sound"}
-INVENTORY_PREFIX = "data/inventory/"
 # One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
 # runs of 2026-10-10 cost EUR 0 to 0.85).
 DROP_EUROS = 1.0
@@ -222,13 +221,12 @@ def judge_collision(output, inputs, evidence):
 
 
 def declared_inventory(output, inventories):
-    """The inventory the seed was laid from (its inputs.json), in the world's declared inventory folder; None when it
-    names none there."""
+    """The inventory the seed was laid from, in the world's declared inventory folder: the file there of the name its
+    inputs.json records (written as the seed wrote it, a full path outside the repository: the place's design
+    inventory, {home}/design/inventory/<place>.json); None when it records none."""
     record = output / "inputs.json"
     named = json.loads(record.read_text()).get("inventory", "") if record.exists() else ""
-    if not named.startswith(INVENTORY_PREFIX):
-        return None
-    return pathlib.Path(inventories) / named.removeprefix(INVENTORY_PREFIX)
+    return pathlib.Path(inventories) / pathlib.Path(named).name if named else None
 
 
 def judge_resting(output, inputs, evidence):
