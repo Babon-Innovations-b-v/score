@@ -43,8 +43,10 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   with the reason. The owner's key must have a passphrase (`up` refuses one without), so an agent on his PC cannot
   reach a shell past the door.
 - **`units/`**: `score-resume.service` (the one template for every machine; the PC copies it), `score-secrets`,
-  `score-update` (the checkout follows the hosted cockpit's pinned commit from `/healthz` `commit`, else origin/main
-  forward only, never while score starts from the checkout), `score-health`. Other areas add their own units here;
+  `score-update` (the checkout follows the hosted cockpit's pinned commit from `/api/sync/pin` `commit` with the sync
+  token, never `/healthz`, whose body babon's Caddy writes itself; a pin it cannot read moves nothing, a cockpit
+  reporting none falls back to origin/main forward only; never while score starts from the checkout, nor a uv.lock
+  change while a process works in a frozen copy, which links this checkout's `.venv`), `score-health`. Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
 - Tests (free, no cloud; each file well under 120 s): `machine_test.py` (cloud-init schema, `systemd-analyze --user
   verify`, `up --dry`, boot.sh against a temp root, the door), `update_test.py`, `health_push_test.py`,

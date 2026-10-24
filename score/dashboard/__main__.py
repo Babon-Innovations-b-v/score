@@ -15,7 +15,7 @@
         # move the hosted cockpit's pinned SCORE_COMMIT to a pushed commit (sync/release.py)
     .venv/bin/python -m score.dashboard install-sync --env-file F [--host REPO --dockerfile PATH] [--secret NAME]
         [--no-pull]  # the owner's one command: the sync's systemd user units, once the cockpit runs this dashboard
-                     # (sync/timer.py); on the conductor without --host (the cockpit's /healthz) and with --no-pull
+                     # (sync/timer.py); on the conductor without --host (the cockpit's /api/sync/pin) and with --no-pull
 """
 import argparse
 import json
@@ -39,7 +39,7 @@ def parse(argv):
     install = commands.add_parser("install-sync", help="the sync's systemd user timer (the owner's one command)")
     for command, required in ((release, True), (install, False)):
         command.add_argument("--host", required=required, help=(
-            "the repository that hosts the cockpit (install-sync without it reads the cockpit's commit from /healthz)"))
+            "the repository that hosts the cockpit (without it, the cockpit's /api/sync/pin names its commit)"))
         command.add_argument("--dockerfile", required=required, help="its Dockerfile with ARG SCORE_COMMIT, in it")
     install.add_argument("--no-pull", action="store_true",
                          help="no pull before each pass: the conductor's score-update timer moves the checkout")
@@ -169,7 +169,7 @@ def install_sync(options):
     from score.dashboard.sync import release as releasing
     from score.dashboard.sync import timer
     if bool(options.host) != bool(options.dockerfile):
-        sys.exit("refused: --host and --dockerfile go together (without both, the cockpit's /healthz names its commit)")
+        sys.exit("refused: --host and --dockerfile go together (without both, /api/sync/pin names the commit)")
     try:
         print(timer.install(settings.SCORE_REPO, options.env_file, options.host and pathlib.Path(options.host),
                             options.dockerfile, options.secret or timer.SECRET, pull=not options.no_pull))

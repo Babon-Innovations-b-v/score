@@ -165,28 +165,29 @@ def test_the_units_render_for_the_conductors_user_and_no_pull_leaves_the_pull_ou
     assert f"WorkingDirectory={repo}" in listener and "WSL" not in listener
 
 
-class Healthz:
-    """A urlopen stand-in for the cockpit's /healthz."""
+class Pin:
+    """A urlopen stand-in for the cockpit's /api/sync/pin; what it was asked, with the token it was given."""
 
     def __init__(self, commit):
-        self.body = json.dumps({"ok": True, "mode": "hosted", "commit": commit}).encode()
+        self.body = json.dumps({"commit": commit}).encode()
         self.asked = []
 
-    def __call__(self, url, timeout):
-        self.asked.append(url)
+    def __call__(self, request, timeout):
+        self.asked.append((request.full_url, request.get_header("Authorization")))
         return io.BytesIO(self.body)
 
 
-def test_without_a_host_the_install_checks_the_commit_the_cockpits_healthz_reports(repositories, tmp_path,
-                                                                                  monkeypatch):
+def test_without_a_host_the_install_checks_the_commit_the_cockpits_pin_reports(repositories, tmp_path, monkeypatch):
+    """Not /healthz: the hosting proxy answers that with a body of its own, so it never names the commit."""
     score, _, first = repositories
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     for commit, why in ((None, "reports no commit"), (first, "whose dashboard is not this checkout's")):
         with pytest.raises(release.Refused, match=why):
-            timer.install(score, an_env_file(tmp_path), systemctl=lambda *args: None, opener=Healthz(commit))
+            timer.install(score, an_env_file(tmp_path), systemctl=lambda *args: None, opener=Pin(commit))
     assert not (tmp_path / "config").exists()  # nothing written
-    cockpit = Healthz(run(score, "git", "rev-parse", "HEAD"))
+    cockpit = Pin(run(score, "git", "rev-parse", "HEAD"))
     said = timer.install(score, an_env_file(tmp_path), systemctl=lambda *args: None, pull=False, opener=cockpit)
-    assert cockpit.asked == ["https://cockpit.test/healthz"] and "no pull before a pass" in said
+    assert cockpit.asked == [("https://cockpit.test/api/sync/pin", "Bearer token")]
+    assert "no pull before a pass" in said
     service = (tmp_path / "config/systemd/user/score-sync.service").read_text()
     assert "\nExecStartPre=" not in service and f"WorkingDirectory={score}" in service

@@ -325,7 +325,7 @@ reads the runner and the review tools and judges nothing itself. Words a person 
 - **The store's machine, the conductor**: one always-on cloud machine of our own (until the move, his PC) holding the
   store, the runner, `score.review.web` (every draw, reading, plan writing and their spend), the previews, the sync
   pass (`python -m score.dashboard sync`) and the listener (`python -m score.dashboard listen`), as user `score`'s
-  units, rendered by the same `install-sync` (without `--host`: the cockpit's `/healthz` names the commit it runs;
+  units, rendered by the same `install-sync` (without `--host`: the cockpit's `/api/sync/pin` names the commit it runs;
   `--no-pull`: its score-update timer follows that commit). It always calls out to the hosted side, never the other
   way, and names itself on every sync call.
 - **His PC** keeps only a browser, the Claude Code sessions and the release (`score.dashboard release --host ...`,
@@ -519,9 +519,10 @@ GitHub Actions; every command runs locally.
   Dockerfile). After pushes that change `score/dashboard`, the coordinating session releases once for the group:
   `.venv/bin/python -m score.dashboard release --host <host repository> --dockerfile <its Dockerfile> --subject
   "<host commit subject>"`, then checks the live pages. Agents never release. The release stays on the owner's PC
-  once the store's machine is the conductor. The image tells its commit at `/healthz` (`commit`, from `SCORE_COMMIT`
-  set as ENV after the ARG; the host's Dockerfile needs `ENV SCORE_COMMIT=${SCORE_COMMIT}` in its final stage), the
-  one pin the conductor's checkout follows, so one release moves both.
+  once the store's machine is the conductor. The image tells its commit at `/api/sync/pin`, token only (`commit`, from
+  `SCORE_COMMIT` set as ENV after the ARG; the host's Dockerfile needs `ENV SCORE_COMMIT=${SCORE_COMMIT}` in its final
+  stage; not `/healthz`, which babon's Caddy answers with its own body), the one pin the conductor's checkout follows,
+  so one release moves both; a uv.lock change waits while a run's frozen copy uses the checkout's `.venv`.
 
 Render checks run Blender headless on a rented machine, never here; nothing here runs Godot.
 
