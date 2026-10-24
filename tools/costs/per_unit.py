@@ -719,7 +719,7 @@ def warm_rows(spec):
 
 def cloud_module(name):
     """A module of tools/cloud (capacity, google_spend), its folder put on the path."""
-    folder = str(costs.CLOUD_TOOLS / "cloud")
+    folder = str(costs.CLOUD_TOOLS.parent / "cloud")
     if folder not in sys.path:
         sys.path.insert(0, folder)
     return __import__(name)
