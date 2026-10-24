@@ -601,6 +601,16 @@ def migrate_environment(scw_path, yes=None):
     return environment
 
 
+def bucket_key(scw):
+    """{AWS variable: value} of the conductor's own key for the backup bucket, which lives in its project: S3 reaches a
+    bucket through a key's default project, so this PC's own key is refused there (Access Denied, 2026-10-24); {} in a
+    dry run or before prepare.sh stored the key."""
+    if scw.dry:
+        return {}
+    key = stored_key(scw)
+    return {"AWS_ACCESS_KEY_ID": key["access_key"], "AWS_SECRET_ACCESS_KEY": key["secret_key"]} if key else {}
+
+
 def move_steps(scw_path, yes=None):
     """The move's two commands: (this PC's migrate --from-pc as an argument list with its environment, the ssh
     command for the conductor)."""
@@ -678,6 +688,7 @@ def move(options, scw, say=print):
     if not scw_path and not scw.dry:
         raise SystemExit("move: no scw CLI on this PC's PATH: the backup's password and bucket key are read with it")
     (local, environment), remote = move_steps(scw_path or "scw", yes)
+    environment.update(bucket_key(scw))
     if scw.dry:
         say(f"then: systemctl --user disable --now {' '.join(PC_UNITS)} (the ones this PC has)")
         say(f"then: SCORE_BACKUP_REPO={BACKUP_REPO} SCORE_SECRETS_PROJECT={SECRETS_PROJECT_NAME} {' '.join(local)}")
