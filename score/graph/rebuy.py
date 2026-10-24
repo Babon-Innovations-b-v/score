@@ -80,6 +80,8 @@ def to_make(runner, stage, place, pending, remade):
     record on its current key; or a node it reads is made first and may give another output ({}: its parts are known
     only then); or those are made again the same and its own parts moved from its accepted output's."""
     node = node_name(stage, place)
+    if any(remade[name] for name in pending if name.partition("@")[0] in stage.optional):
+        return {}  # an optional read made first is read once made (Runner.unsettled): its key is known only then
     try:
         keyed = runner.key(stage, place)
         if runner.store.record(node, keyed["key"]) is not None:
@@ -109,15 +111,16 @@ def to_make(runner, stage, place, pending, remade):
 
 
 def read_first(runner, nodes):
-    """The nodes in table order, each moved after every node among them it reads, as the drive makes them (a row
-    the table lists before a row it reads, scene-record before plan, was judged before it and counted as not made)."""
+    """The nodes in table order, each moved after every node among them it reads (its optional reads too), as the drive
+    makes them (a row the table lists before a row it reads, scene-record before plan, was judged before it and counted
+    as not made)."""
     named = {node_name(stage, place): (stage, place) for stage, place in nodes}
     done, order = set(), []
 
     def visit(name, seen):
         if name in done or name in seen:
             return
-        for before in runner.read_nodes(*named[name]):
+        for before in runner.read_nodes(*named[name], every=True):
             if node_name(*before) in named:
                 visit(node_name(*before), seen | {name})
         done.add(name)
@@ -134,7 +137,7 @@ def buys(runner, nodes):
     with runner.still():
         for stage, place in read_first(runner, nodes):
             node = node_name(stage, place)
-            pending = [name for name in (node_name(*before) for before in runner.read_nodes(stage, place))
+            pending = [name for name in (node_name(*before) for before in runner.read_nodes(stage, place, every=True))
                        if name in remade]
             parts = to_make(runner, stage, place, pending, remade)
             if parts is None:
