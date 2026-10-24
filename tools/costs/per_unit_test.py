@@ -185,6 +185,8 @@ def test_a_google_stages_time_is_its_calls_started_to_finished_and_how_many_ran_
     assert found["unit_seconds"]["likely"] == 45.0 and found["slots"] == 1 and found["holds"] == "calls"
     assert found["failed_start_share"] == round(1 / 3, 3) and found["lines"] == 2
     assert "why" in per_unit.google_times(calls, "pro", None) and "why" in per_unit.google_times([], "pro", "g")
+    batch = per_unit.batch_job_time(calls, "pro", "google-ledger.jsonl")  # a Batch API row's whole job: unmeasured
+    assert list(batch) == ["why"] and "1 request(s) at once timed only (2 calls, 45 s likely" in batch["why"]
 
 
 def test_node_minutes_are_the_store_finish_records_minutes_by_stage():
@@ -214,7 +216,8 @@ def test_a_warm_stage_is_its_measured_work_over_the_cards_slots_at_the_bills_pri
     assert len(seconds) == found["pixal"]["runs"] == 52 and round(per_unit.hourly("L4-1-24G"), 4) == 0.7875
     assert found["pixal"]["likely_euros"] == round(1358.404 / 3 * per_unit.hourly("L4-1-24G") / 3600 * 1.1, 5)
     assert found["pixal"]["time"]["slots"] == 3 and found["pixal"]["time"]["unit_seconds"]["likely"] == 1358.404
-    assert "why" in found["pixal"]["time"]["setup_minutes"] and found["settle"] == other
+    setups = per_unit.row_setups(per_unit.warm_rows(per_unit.WARM["pixal"]))  # its timed machines' own set-ups
+    assert found["pixal"]["time"]["setup_minutes"] == per_unit.spread(setups) and found["settle"] == other
 
 
 def test_a_batch_stage_is_half_its_measured_standard_calls_and_a_route_ask_says_it_is_priced_from_the_lists():

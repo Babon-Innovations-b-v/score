@@ -420,6 +420,9 @@
    "forecast": {
     "rule": "one",
     "source": "one a place (one for an environment node)"
+   },
+   "time": {
+    "why": "priced from runs written down when they ran, euros and units but no time; their ledger lines went with the old disk (2026-10-19)"
    }
   },
   "body-face-earth": {
@@ -476,19 +479,20 @@
    },
    "time": {
     "unit_seconds": {
-     "likely": 1358.404,
-     "high": 2545.74
+     "likely": 1051.435,
+     "high": 2292.11
     },
     "setup_minutes": {
      "likely": 0.732,
-     "high": 13.586
+     "high": 13.217
     },
     "slots": 3,
-    "slots_from": "capacity.runs_at_once(pixal, gpu-24gb)",
-    "failed_start_share": 0.632,
+    "slots_from": "per card times cards, the median machine",
+    "failed_start_share": 0.904,
     "holds": "machines",
-    "lines": 12,
+    "lines": 33,
     "from": [
+     "$PROPS/cloud/ledger.jsonl",
      "paper/evidence/cloud/ledger.jsonl"
     ]
    },
@@ -518,7 +522,22 @@
     "batch tier": "google_spend.TIER_PRICE['batch'] = 0.5"
    },
    "time": {
-    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
+    "unit_seconds": {
+     "likely": 22.0,
+     "high": 23.0
+    },
+    "setup_minutes": {
+     "likely": 0.0,
+     "high": 0.0
+    },
+    "slots": 1,
+    "slots_from": "the calls of the caller in flight as each began, the median",
+    "failed_start_share": 0.0,
+    "holds": "calls",
+    "lines": 19,
+    "from": [
+     "$PROPS/cloud/google-ledger.jsonl"
+    ]
    },
    "basis": "batch price of measured calls",
    "forecast": {
@@ -544,7 +563,6 @@
     "overhead": "10% for time outside jobs on warm parked cards, the owner's target (2026-10-20) until runs record it"
    },
    "time": {
-    "why": "no ledger line read here timed a unit of {'kind': 'blender', 'who': 'score light stage'}",
     "unit_seconds": {
      "likely": 115.9,
      "high": 792.05
@@ -552,7 +570,8 @@
     "slots": 1,
     "slots_from": "capacity.runs_at_once(blender, gpu-24gb)",
     "setup_minutes": {
-     "why": "no line read here timed a machine's set-up"
+     "likely": 8.952,
+     "high": 37.989
     },
     "holds": "machines",
     "lines": 212,
@@ -783,7 +802,7 @@
     "slots_from": "one a machine: no line names jobs at once",
     "failed_start_share": 0.333,
     "holds": "machines",
-    "lines": 2,
+    "lines": 3,
     "from": [
      "$PROPS/cloud/ledger.jsonl"
     ]
@@ -804,7 +823,7 @@
    },
    "price_note": "the finish route's ask sends every view and the split's groups beside the close-up, so it reads more than the method's list asks it is priced from; its own batch calls on the ledger replace them",
    "time": {
-    "why": "no batch call of it timed yet"
+    "why": "Batch API jobs of 1 request(s) at once timed only (5 calls, 249 s likely, 258 s high); a row's whole job of its takes is not measured"
    },
    "likely_euros": 0.01122,
    "high_euros": 0.01665,
@@ -826,7 +845,7 @@
    },
    "price_note": "the finish route's ask sends every view and the split's groups beside the close-up, so it reads more than the method's list asks it is priced from; its own batch calls on the ledger replace them",
    "time": {
-    "why": "no batch call of it timed yet"
+    "why": "Batch API jobs of 1 request(s) at once timed only (7 calls, 188 s likely, 514 s high); a row's whole job of its takes is not measured"
    },
    "likely_euros": 0.01122,
    "high_euros": 0.01665,
@@ -838,5 +857,216 @@
    "basis": "batch price of measured calls"
   }
  },
- "node_minutes": {}
+ "node_minutes": {
+  "body-face-earth": {
+   "likely": 3.17,
+   "high": 3.173,
+   "makes": 2,
+   "from": "finish records in $PROPS/store"
+  },
+  "body-face-mars": {
+   "likely": 2.148,
+   "high": 2.148,
+   "makes": 1,
+   "from": "finish records in $PROPS/store"
+  },
+  "body-face-moon": {
+   "likely": 2.107,
+   "high": 2.107,
+   "makes": 1,
+   "from": "finish records in $PROPS/store"
+  },
+  "closeup": {
+   "likely": 0.289,
+   "high": 0.718,
+   "makes": 4,
+   "from": "finish records in $PROPS/store"
+  },
+  "concept-views": {
+   "likely": 6.23,
+   "high": 6.23,
+   "makes": 1,
+   "from": "finish records in $PROPS/store"
+  },
+  "crops-boxes": {
+   "likely": 0.054,
+   "high": 0.054,
+   "makes": 1,
+   "from": "finish records in $PROPS/store"
+  },
+  "crops-concept": {
+   "likely": 5.811,
+   "high": 7.195,
+   "makes": 2,
+   "from": "finish records in $PROPS/store"
+  },
+  "earth-seed": {
+   "likely": 0.002,
+   "high": 0.002,
+   "makes": 2,
+   "from": "finish records in $PROPS/store"
+  },
+  "finish-route-list": {
+   "likely": 3.664,
+   "high": 4.3,
+   "makes": 6,
+   "from": "finish records in $PROPS/store"
+  },
+  "finish-route-palette": {
+   "likely": 0.089,
+   "high": 3.364,
+   "makes": 27,
+   "from": "finish records in $PROPS/store"
+  },
+  "finish-route-recheck": {
+   "likely": 3.143,
+   "high": 8.286,
+   "makes": 10,
+   "from": "finish records in $PROPS/store"
+  },
+  "finish-route-split": {
+   "likely": 0.053,
+   "high": 0.066,
+   "makes": 9,
+   "from": "finish records in $PROPS/store"
+  },
+  "finish-route-views": {
+   "likely": 0.036,
+   "high": 0.281,
+   "makes": 6,
+   "from": "finish records in $PROPS/store"
+  },
+  "library-clips-sample": {
+   "likely": 36.549,
+   "high": 65.582,
+   "makes": 3,
+   "from": "finish records in $PROPS/store"
+  },
+  "light-layer": {
+   "likely": 0.002,
+   "high": 0.002,
+   "makes": 2,
+   "from": "finish records in $PROPS/store"
+  },
+  "likeness": {
+   "likely": 0.009,
+   "high": 0.01,
+   "makes": 6,
+   "from": "finish records in $PROPS/store"
+  },
+  "people-body-astronaut-made": {
+   "likely": 20.262,
+   "high": 28.147,
+   "makes": 8,
+   "from": "finish records in $PROPS/store"
+  },
+  "people-clips-made": {
+   "likely": 17.879,
+   "high": 26.129,
+   "makes": 5,
+   "from": "finish records in $PROPS/store"
+  },
+  "people-dress-astronaut-made": {
+   "likely": 3.119,
+   "high": 4.928,
+   "makes": 8,
+   "from": "finish records in $PROPS/store"
+  },
+  "people-look-astronaut-made": {
+   "likely": 2.378,
+   "high": 3.348,
+   "makes": 6,
+   "from": "finish records in $PROPS/store"
+  },
+  "people-look-parts-astronaut-made": {
+   "likely": 0.008,
+   "high": 0.012,
+   "makes": 12,
+   "from": "finish records in $PROPS/store"
+  },
+  "people-made": {
+   "likely": 0.003,
+   "high": 0.003,
+   "makes": 7,
+   "from": "finish records in $PROPS/store"
+  },
+  "pixal": {
+   "likely": 0.214,
+   "high": 4.535,
+   "makes": 8,
+   "from": "finish records in $PROPS/store"
+  },
+  "plan": {
+   "likely": 0.002,
+   "high": 0.004,
+   "makes": 221,
+   "from": "finish records in $PROPS/store"
+  },
+  "props-inputs": {
+   "likely": 0.001,
+   "high": 0.001,
+   "makes": 6,
+   "from": "finish records in $PROPS/store"
+  },
+  "rough-model": {
+   "likely": 11.26,
+   "high": 11.26,
+   "makes": 1,
+   "from": "finish records in $PROPS/store"
+  },
+  "scene-record": {
+   "likely": 0.001,
+   "high": 0.001,
+   "makes": 2,
+   "from": "finish records in $PROPS/store"
+  },
+  "sound": {
+   "likely": 5.173,
+   "high": 5.853,
+   "makes": 2,
+   "from": "finish records in $PROPS/store"
+  },
+  "surface-library": {
+   "likely": 0.09,
+   "high": 4.154,
+   "makes": 27,
+   "from": "finish records in $PROPS/store"
+  },
+  "surface-tiles": {
+   "likely": 3.192,
+   "high": 4.881,
+   "makes": 2,
+   "from": "finish records in $PROPS/store"
+  },
+  "surfaces-bake": {
+   "likely": 7.047,
+   "high": 7.143,
+   "makes": 7,
+   "from": "finish records in $PROPS/store"
+  },
+  "surfaces-check": {
+   "likely": 0.036,
+   "high": 0.043,
+   "makes": 5,
+   "from": "finish records in $PROPS/store"
+  },
+  "surfaces-paint": {
+   "likely": 0.003,
+   "high": 0.003,
+   "makes": 7,
+   "from": "finish records in $PROPS/store"
+  },
+  "surfaces-parts": {
+   "likely": 0.007,
+   "high": 0.008,
+   "makes": 9,
+   "from": "finish records in $PROPS/store"
+  },
+  "terrain": {
+   "likely": 0.018,
+   "high": 0.935,
+   "makes": 3,
+   "from": "finish records in $PROPS/store"
+  }
+ }
 }
