@@ -113,9 +113,10 @@ def clock(run):
 
 
 def freshness(source, run):
-    """(when read, minutes ago or None locally): hosted the export's own time, locally the run's read."""
+    """(when read, minutes ago or None locally): the run's read (hosted the export's or the listener's, whichever is
+    newer, ExportedSource.batch_run), else the export's own time."""
     made = getattr(source, "export_made_at", lambda: None)()
-    when = moment(made) or moment(run["read_at"] if run else None)
+    when = moment(run["read_at"] if run else None) or moment(made)
     if when is None:
         return None, None
     minutes = int((datetime.datetime.now(datetime.timezone.utc) - when).total_seconds() // 60)

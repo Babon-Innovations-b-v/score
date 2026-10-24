@@ -207,7 +207,7 @@ def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(world):
     import urllib.error
 
     class Down:
-        def waiting(self, kinds, wait):
+        def waiting(self, kinds, wait, skip=()):
             raise urllib.error.URLError("refused")
     said, paused = [], []
     listen.listen(Down(), world.source, rounds=2, log=said.append, pause=paused.append)
@@ -216,7 +216,7 @@ def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(world):
     class Old:  # a hosted side that answers at once, not holding the call
         not_the_store = None
 
-        def waiting(self, kinds, wait):
+        def waiting(self, kinds, wait, skip=()):
             return []
     paused.clear()
     listen.listen(Old(), world.source, rounds=3, log=said.append, pause=paused.append)

@@ -411,7 +411,7 @@ class Hosted:
     def commit(self, name, files):
         self.commits.append(files)
 
-    def waiting(self, kinds=(), wait=0):
+    def waiting(self, kinds=(), wait=0, skip=()):
         return [item for item in self.waiting_items if not kinds or item["kind"] in kinds]
 
     def claim(self, request_id):

@@ -342,7 +342,10 @@ reads the runner and the review tools and judges nothing itself. Words a person 
 - **Hosted**: the same app as one ASGI process (`score/dashboard/site/asgi.py`: Django pages, FastAPI `/api`) reading
   the last pushed export (`state/exported.py`). It never imports the store, the stages, numpy or usd-core.
 - **A hosted click** becomes a SyncRequest. The listener (`score-listen.service`, one long call held open) answers
-  concept, environment and plan requests within about a second; the sync pass applies the rest. Both claim a request
+  concept, environment and plan requests within about a second, and a hosted Buy within seconds through the same
+  checkout (owner, 2026-10-24: "can we make that delay less for the following runs"); a Buy whose price needs a fresh
+  pass (a pass pricing now, a dirty checkout, the price, prepare's figure or the basket on other code, the basket older
+  than prepare: `client.buy_waits`) is said so on the request and left for the pass. The sync pass applies the rest. Both claim a request
   once and apply it through the same `pages/actions.py` function the local cockpit uses (`sync/applying.py`).
 
 **The sync pass** (`score-sync.timer`, every 5 minutes, installed by `install-sync`; its token read by name from his
@@ -368,7 +371,8 @@ content-addressed and swapped whole once every file is up.
 - **Batch** `/buy/run/`: the run monitor the Buy's yes opens (Home links to it while a batch lives): its state, ETA
   left and Stop everything; spent against its likely, high and stop; a row a scene with its rows done; the warm pool;
   the problems. Read on the store's machine from the batch's own files (`state/batch_run.py`), carried hosted in the
-  export as `batch-run.json`.
+  export as `batch-run.json` and, while the batch lives, sent by the listener every minute (`PUT /api/sync/batch-run`),
+  so the hosted page is at most about two minutes old.
 - **Money**: the month's cloud and model-call spend on every screen ("at least" while a line is unread); the books
   buttons (read the bills back, enter the model calls' month) show only while needed.
 - The top bar's back and forward move up a layer and down again to the one last opened, not through browser history.
