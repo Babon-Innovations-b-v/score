@@ -444,8 +444,9 @@ def remake_prepared():
 def plans_kept():
     """Every place's plan (made from its picked concept and its inventory, or his edit) where the plan stage reads
     it, and the plan row made again for those that changed or are not made yet (score.review.plans keep, free,
-    local, its run detached), so the batch is made from the plan his cockpit shows; its line."""
-    return step_line("score.review.plans", "plans failed", "keep")
+    local, its run detached; score.review.plans_pass: the same in seconds), so the batch is made from the plan his
+    cockpit shows; its line."""
+    return step_line("score.review.plans_pass", "plans failed")
 
 
 def basket_benchmarks():
