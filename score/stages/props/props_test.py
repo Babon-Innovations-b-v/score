@@ -190,29 +190,81 @@ def test_an_object_filter_narrows_the_loop_rows_and_their_forecast():
             graph.SELECTED.reset(token)
 
 
+def test_a_drawn_close_up_that_does_not_open_is_one_object_s_gap():
+    """Buy of 2026-10-24: the square's object `stage` took the row's tool input "close-up stage" (a folder) as its
+    drawn close-up, and opening it stopped closeup@square and with it the square's whole line. Only an object whose
+    prop data names a close-up has one drawn, and one that does not open is that object's batch gap."""
+    import score.stages.props.closeup_row as closeup_row
+    with tempfile.TemporaryDirectory() as held:
+        data = pathlib.Path(held)
+        (data / "props").mkdir()
+        (data / "tool").mkdir()
+        objects = {"stage": {"route": "prop", "take": "stage-p1"},
+                   "crate": {"route": "prop", "take": "crate-p1", "closeup": "{data}/crate.png"}}
+        (data / "props/square.json").write_text(json.dumps({"place": "square", "objects": objects}))
+        (data / "inventory.json").write_text(json.dumps({"scene": "square", "rows": [
+            {"id": row, "name": row, "size": [1, 1, 1]} for row in objects]}))
+        inputs = {"props": data / "props/square.json", "inventory": data / "inventory.json",
+                  "close-up stage": data / "tool", "close-up crate": data / "tool"}
+        (data / "inputs").mkdir()
+        closeup_row.make_inputs(inputs, data / "inputs", 7, {})
+        drawn = {row["id"]: row["drawn"] for row in json.loads((data / "inputs/rows.json").read_text())["rows"]}
+        assert drawn == {"stage": None, "crate": str(data / "tool")}, drawn
+        kept = closeup_row.draw_missing
+        closeup_row.draw_missing = lambda rows, out: {}
+        try:
+            (data / "out").mkdir()
+            closeup_row.make_closeups({"props-inputs": data / "inputs"}, data / "out", 7, {})
+        finally:
+            closeup_row.draw_missing = kept
+        gaps = json.loads((data / "out/batch-gaps.json").read_text())["gaps"]
+        assert [gap["name"] for gap in gaps] == ["stage: no close-up passed",
+                                                 "crate: its drawn close-up could not be read"], gaps
+
+
 def test_a_raw_take_is_finished_on_a_rented_machine_never_here():
     """2026-10-22: no Blender or bake on the owner's PC. The batch brings takes back raw (--no-finish) and the row
     finishes each through blender_cloud.run_elsewhere (tools/props/finish_elsewhere.py), the raw take, its camera
-    folder and close-up sent up."""
+    folder and close-up sent up. Buy of 2026-10-24: each take was finished on its own machine run, one after
+    another; every take's finish is one job of one blender_cloud.py call, side by side, a failed one its take's gap
+    and a call that brought nothing back a stop."""
     import types
     import score.stages.props.pixal_row as pixal_row
-    from score.adapters import engines
     assert '"--no-finish"' in (REPO / "score/stages/props/pixal_row.py").read_text()
     assert "finish elsewhere" in prop_data.PIXAL_TOOLS
-    calls = []
-    runner = types.SimpleNamespace(run_elsewhere=lambda *args: calls.append(args))
-    kept = engines.machine_runner
-    engines.machine_runner = lambda: runner
-    try:
-        pixal_row.finish_here("crate-t1", pathlib.Path("/close/crate.png"), 12000)
-    finally:
-        engines.machine_runner = kept
-    script, arguments, sent, outputs, classes = calls[0][:5]
+    job = pixal_row.finish_job("crate-t1", pathlib.Path("/close/crate.png"), 12000)
     raw, final, _ = pixal_row.take_files("crate-t1")
-    assert script == REPO / "tools/props/finish_elsewhere.py" and arguments[3:] == ["crate-t1", "--faces=12000"]
-    assert raw in sent and pathlib.Path("/close/crate.png") in sent, calls
-    assert outputs == [final, final.with_name("crate-t1-12000.glb")], outputs  # the paint replays its turn from it
-    assert classes == pixal_row.FINISH_CLASSES
+    assert job["script"] == "tools/props/finish_elsewhere.py" and job["args"][3:] == ["crate-t1", "--faces=12000"]
+    assert str(raw) in job["inputs"] and "/close/crate.png" in job["inputs"], job
+    # the paint replays its turn from the slimmed model
+    assert job["outputs"] == [str(final), str(final.with_name("crate-t1-12000.glb"))], job
+    calls = []
+
+    def one_comes_back(command, **options):
+        calls.append(command)
+        for path in json.loads(pathlib.Path(command[2]).read_text())["outputs"]:
+            pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+            pathlib.Path(path).write_text("made")
+        return types.SimpleNamespace(returncode=1, stdout="", stderr="the second job failed")
+    jobs = [job, pixal_row.finish_job("lamp-t1", pathlib.Path("/close/lamp.png"), 8000)]
+    kept = pixal_row.subprocess.run
+    with tempfile.TemporaryDirectory() as held:
+        try:
+            pixal_row.subprocess.run = one_comes_back
+            pixal_row.finish_all(jobs, "yard", pathlib.Path(held))
+            assert len(calls) == 1 and len([word for word in calls[0] if word.endswith(".json")]) == 2, calls
+            assert calls[0][calls[0].index("--classes") + 1] == ",".join(pixal_row.FINISH_CLASSES)
+            for path in job["outputs"]:
+                pathlib.Path(path).unlink()
+            pixal_row.subprocess.run = lambda command, **options: types.SimpleNamespace(returncode=1, stdout="",
+                                                                                      stderr="")
+            try:
+                pixal_row.finish_all(jobs, "yard", pathlib.Path(held))
+                raise AssertionError("a call that brought nothing back must stop the row")
+            except RuntimeError:
+                pass
+        finally:
+            pixal_row.subprocess.run = kept
 
 
 def test_no_object_is_code_built():
