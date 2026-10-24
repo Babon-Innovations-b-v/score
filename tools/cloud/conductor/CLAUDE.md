@@ -17,6 +17,16 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   then installs the sync and listener (`install-sync --no-pull`). score-resume (a drop-in boot.sh writes) and
   score-health wait for that machine.json: both write into the home the restore needs empty. Every scw call names its zone or region, every
   list and create the project; a record's own project id is checked before it is used or deleted.
+- **`prepare.sh [--dry]`** (free, before the first `up`, idempotent: what exists is kept and said): the project
+  score-conductor, both IAM applications with their policies and API keys, the size token, the restic password, the
+  sync token's copy and score_lib's deploy key (gh), each secret piped into Secret Manager through a file in
+  `/dev/shm`, never shown. The conductor's own key goes into `score-conductor-key` in score-conductor itself, which
+  no key but the owner's may read (the conductor's reads secrets in the batch project only, the size key and the
+  runtime key none); `up` reads it by name and pipes it over ssh, else asks as before. `--dry` prints every call;
+  `machine_test.py` checks it and a second run against an scw holding everything (no create).
+- **`google-billing-reader` is optional**: `secrets.sh` reads it `--if-present` (`secret_reader.sh`); without it,
+  it leaves `google-billing-reader.note` on the tmpfs, `score.conductor.health` carries every note to the Machine
+  card (the Machine link's hover text), and the books' Google read-back stays unread. A failed read still fails.
 - **Never tag the conductor `farm-factory-batch`**: the runner's leftover sweeps delete by that tag. The conductor
   lives in its own project so its hourly bill never enters the batch project's spend or a batch's 10% buffer.
 - **`size_function/`** (standard library only; deployed as `handler.py` and `s3.py` alone): grow or shrink between
@@ -35,7 +45,7 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   the checkout over https, `uv sync`, every unit in `units/` installed for user score.
 - **Secrets**: one credential on disk, `/home/score/.config/scw/config.yaml` (mode 600). Everything else by name
   through `/usr/local/bin/score-secret-reader` (`secret_reader.sh`: the project id found by its name,
-  `SCORE_SECRETS_PROJECT`); the file-shaped ones (`score-lib-deploy-key`, `google-billing-reader`) only on tmpfs at
+  `SCORE_SECRETS_PROJECT`); the file-shaped ones (`score-lib-deploy-key`, optional `google-billing-reader`) only on tmpfs at
   `/run/user/1100/score` (`secrets.sh`, `score-secrets.timer`), gcloud's config with them.
 - **The agents' door** (`agent_door.sh` -> `agent_door.py`): the forced command of the agents' authorized_keys
   line. It runs only status, plan, price, resume --dry, a detached free run, logs, grant_benchmark and a benchmark

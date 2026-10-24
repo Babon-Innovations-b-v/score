@@ -12,6 +12,7 @@ import pytest
 from score.store import AGENT_MARKERS, Store
 from score.store import backup as backups
 from score.store.backup import __main__ as command
+from score.store.backup import conductor_yes
 
 needs_restic = pytest.mark.skipif(shutil.which("restic") is None,
                                   reason="restic is not installed (bootstrap.sh lists it as missing)")
@@ -274,3 +275,24 @@ def test_the_password_comes_from_the_reader_only_and_lands_in_no_file(setting, m
     reader.chmod(0o755)
     with pytest.raises(backups.ResticFailed):
         backups.Restic().snapshots()  # the repository opens with the reader's password, no other
+
+
+def test_an_agents_process_moves_the_store_only_under_the_owners_open_yes(setting, monkeypatch):
+    monkeypatch.setenv(AGENT_MARKERS[0], "1")
+    monkeypatch.setenv(conductor_yes.YES_HOME, str(setting / "pc"))
+    with pytest.raises(conductor_yes.Refused):
+        conductor_yes.record("", "Switch the conductor on?")
+    given = conductor_yes.record("yes", "Switch the conductor on, about EUR 90 a month?")
+    assert conductor_yes.open_yes("prepare")["id"] == given["id"]
+    monkeypatch.setenv(conductor_yes.YES_ID, given["id"])
+    assert _migrate_refusal() is None
+    conductor_yes.mark_done(given, "move")
+    assert "agent" in _migrate_refusal() and conductor_yes.open_yes("move") is None
+    assert conductor_yes.open_yes("up")["id"] == given["id"], "each step is done on its own"
+    monkeypatch.setenv(conductor_yes.YES_ID, "no-such-yes")
+    assert "agent" in _migrate_refusal()
+
+
+def _migrate_refusal():
+    from score.store.backup import _migrate
+    return _migrate.agent_refusal()

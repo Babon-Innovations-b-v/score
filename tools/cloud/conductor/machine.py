@@ -18,10 +18,21 @@ default), one flexible IPv4, a POP2-HM-2C-16G server named and tagged score-cond
 the runner's leftover sweeps cannot touch it), protected from deletion, with cloud-init.yaml as its user-data; the
 backup bucket (SCORE_CONDUCTOR_BUCKET, default score-conductor-backup, nl-ams, versioning on, non-current versions
 kept 30 days: lifecycle.json); and the Serverless Function score-conductor-size (size_function/). Then, over ssh with
-the owner's key, it pipes the conductor's one credential (a scoped Scaleway IAM API key, typed by the owner, never in
-user-data or the repository) into /home/score/.config/scw/config.yaml at mode 600, and the conductor's env file
-(~/.config/score/dashboard.env: no secret, the sync URL and owner from the owner's own env file) beside it, and runs
-boot.sh's user part. `up` refuses in an agent's process (the store's agent markers, score/store AGENT_MARKERS).
+the owner's key, it pipes the conductor's one credential (a scoped Scaleway IAM API key: read by name from the secret
+score-conductor-key in the conductor's own project, which prepare.sh fills and only the owner's credential may read,
+else typed by the owner; never in user-data, the repository or a file on this PC) into
+/home/score/.config/scw/config.yaml at mode 600, and the conductor's env file (~/.config/score/dashboard.env: no
+secret, the sync URL and owner from the owner's own env file) beside it, and runs boot.sh's user part.
+
+`up` and `move` are the owner's: they refuse in an agent's process (the store's agent markers, score/store
+AGENT_MARKERS) unless the owner's yes to the switch is recorded and open for that step
+(score/store/backup/conductor_yes.py: asked in a Claude Code session with its question tool, his answer and the
+question quoted). Under that yes they use a one-off ssh key without a passphrase that lives only in memory
+(ONCE_KEY, /dev/shm), made by `up` and put in the server's cloud-init, since an agent cannot type a passphrase; the
+move ends by taking that key off the server and deleting it. What this gives up while the key lives (from up to the
+move's end): any process on this PC, an agent's included, can read it and open a full shell on the conductor past the
+agents' door. After the move nobody holds a full shell (the agents' key, when given, reaches only the door); a later
+one needs `down` (the data volume kept) and `up` again.
 
 Every scw call names its zone or region, and every create or list names the project; a resource is used or deleted
 only after its own record's project_id is checked. The owner's CLI profile may point at another project: it is
@@ -30,7 +41,8 @@ never changed and never relied on.
 The conductor's key may: Instances in the batch project, read Secret Manager, Object Storage for the job bucket and
 the backup bucket, read billing consumption, invoke the size function, and read the organisation's projects (so a
 name finds its id). The size function's own key (the secret score-conductor-size-key, JSON {access_key,
-secret_key}) may change Instances in the conductor's project and read the backup bucket. Both are made by the owner.
+secret_key}) may change Instances in the conductor's project and read the backup bucket. Both are made by prepare.sh, with the
+secrets the conductor reads.
 
 Unchecked until the first `up`, which needs the owner's yes: that Scaleway allows POP2-HM-2C-16G <-> POP2-HM-16C-128G
 on a powered-off block-only server and how long the round trip takes (refused: a fixed POP2-HM-8C-64G with
@@ -63,7 +75,8 @@ sys.path.insert(0, str(CLOUD))
 
 import ledger  # noqa: E402
 import s3  # noqa: E402
-from score.store import AGENT_MARKERS  # noqa: E402
+from score.store import AGENT_MARKERS, PROPS_HOME, Store  # noqa: E402
+from score.store.backup import conductor_yes  # noqa: E402
 
 PROJECT_NAME = os.environ.get("SCORE_CONDUCTOR_PROJECT", "score-conductor")
 # The batch project (the runner's machines), and the project whose Secret Manager holds the secrets, by name.
@@ -87,6 +100,13 @@ BACKUP_REPO = f"s3:https://s3.{BUCKET_REGION}.scw.cloud/{BUCKET}/restic"
 FUNCTION = "score-conductor-size"
 FUNCTION_RUNTIME = "python312"
 SIZE_TOKEN_SECRET, SIZE_KEY_SECRET = "score-conductor-size-token", "score-conductor-size-key"
+# The conductor's own key, JSON {access_key, secret_key}, in the conductor's own project (prepare.sh): not the secrets
+# project, whose secrets the conductor's key reads, so only the owner's credential reads it.
+CONDUCTOR_KEY_SECRET = "score-conductor-key"
+# The one-off ssh key an agent's process uses under the owner's yes: in memory only, gone at reboot or the move's end.
+ONCE_KEY = pathlib.Path("/dev/shm/score-conductor-once")
+# Where the move sets this PC's home aside, read-only, once the store is on the conductor.
+PC_FINAL_HOME = PROPS_HOME.with_name(f"{PROPS_HOME.name}.pc-final")
 SCORE_UID = 1100
 SCORE_HOME = "/home/score"
 # The conductor's sizes as score/conductor reads them (score.conductor.machine): piped by `up` to RECORD_PATH, merged
@@ -142,6 +162,18 @@ def agent_refusal(environ=os.environ):
         return (f"refused in an agent's process ({', '.join(found)} set): up, down and the owner's credential are "
                 "his own, run from his terminal")
     return None
+
+
+def step_refusal(step, environ=os.environ, open_yes=conductor_yes.open_yes):
+    """(why this process may not run `step` (up or move), or None; the owner's yes it runs under, or None). His own
+    process needs no yes; an agent's runs only under his recorded yes open for that step."""
+    refused = agent_refusal(environ)
+    if refused is None:
+        return None, None
+    found = open_yes(step)
+    if found is None:
+        return f"{refused}, or under his recorded yes to the switch (conductor_yes record): none open for {step}", None
+    return None, found
 
 
 def project_id(scw, name):
@@ -278,9 +310,10 @@ def bucket(scw, project):
         f"project-id={project}", f"region={BUCKET_REGION}")
 
 
-def secret_value(scw, name):
-    """A secret's latest value from the secrets project, by name; a placeholder in a dry run."""
-    project = project_id(scw, SECRETS_PROJECT_NAME)
+def secret_value(scw, name, project_name=SECRETS_PROJECT_NAME):
+    """A secret's latest value from the project named `project_name` (the secrets project), by name; a placeholder in
+    a dry run."""
+    project = project_id(scw, project_name)
     version = scw("secret", "version", "access-by-path", f"secret-name={name}", f"project-id={project}",
                   "revision=latest", f"region={SECRETS_REGION}")
     if scw.dry:
@@ -351,14 +384,23 @@ def size_function(scw, project, server_id, folder):
         f"zip-file={function_zip(folder)}", f"region={REGION}")
 
 
-def keys(owner_key_path, agent_key_path, dry):
+def once_key():
+    """ONCE_KEY, made (no passphrase, in memory) when missing: the owner's key for an agent's process under his yes."""
+    if not ONCE_KEY.exists():
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "score-conductor-once", "-f",
+                        str(ONCE_KEY)], check=True)
+    return ONCE_KEY
+
+
+def keys(owner_key_path, agent_key_path, dry, once=False):
     """(owner's public key, agents' public key or None). The owner's private key must have a passphrase, so an
-    agent on his PC cannot use it to reach the conductor without the door (checked, except in a dry run)."""
+    agent on his PC cannot use it to reach the conductor without the door (checked, except in a dry run and for
+    ONCE_KEY under his yes, `once`)."""
     private = pathlib.Path(owner_key_path).expanduser()
     public = pathlib.Path(f"{private}.pub")
     if not public.is_file():
         raise SystemExit(f"no public key at {public}: name the owner's key with --owner-key")
-    if not dry:
+    if not dry and not once:
         bare = subprocess.run(["ssh-keygen", "-y", "-P", "", "-f", str(private)], capture_output=True)
         if bare.returncode == 0:
             raise SystemExit(f"{private} has no passphrase: an agent on this PC could use it to reach the conductor "
@@ -388,10 +430,23 @@ def env_text(owner_env):
     return "".join(f"{name}={value}\n" for name, value in values.items())
 
 
-def credential_text(organisation):
-    """The conductor's scw config.yaml, from the scoped key the owner types (never echoed, never written here)."""
-    access = getpass.getpass("the conductor's scoped API key, access key: ").strip()
-    secret = getpass.getpass("its secret key: ").strip()
+def stored_key(scw):
+    """The conductor's own key {access_key, secret_key} from the secret score-conductor-key in its own project, or None
+    when prepare.sh has not put one there."""
+    project = project_id(scw, PROJECT_NAME)
+    listed = scw("secret", "secret", "list", f"name={CONDUCTOR_KEY_SECRET}", f"project-id={project}",
+                 f"region={SECRETS_REGION}")
+    if not any(item.get("name") == CONDUCTOR_KEY_SECRET for item in listed or []):
+        return None
+    return json.loads(secret_value(scw, CONDUCTOR_KEY_SECRET, PROJECT_NAME))
+
+
+def credential_text(organisation, key=None, ask=getpass.getpass):
+    """The conductor's scw config.yaml, from its stored key, else the one the owner types (never echoed, never
+    written here)."""
+    key = key or {"access_key": ask("the conductor's scoped API key, access key: "),
+                  "secret_key": ask("its secret key: ")}
+    access, secret = key["access_key"].strip(), key["secret_key"].strip()
     if not access or not secret:
         raise SystemExit("no key given")
     return (f"access_key: {access}\nsecret_key: {secret}\ndefault_organization_id: {organisation}\n"
@@ -423,17 +478,24 @@ def hand_over(host, key, credential, environment):
 
 
 def up(options, scw, say=print):
-    """Make or update the conductor; in a dry run (free, open to agents), print every call and make none."""
-    refused = None if scw.dry else agent_refusal()
+    """Make or update the conductor; in a dry run (free, open to agents), print every call and make none. In an
+    agent's process only under the owner's open yes (step_refusal), with ONCE_KEY, the step marked done at its end."""
+    refused, yes = (None, None) if scw.dry else step_refusal("up")
     if refused:
         raise SystemExit(refused)
-    owner_key, agent_key = keys(options.owner_key, options.agent_key, scw.dry)
+    fresh = bool(yes) and not ONCE_KEY.exists()
+    owner_key_path = once_key() if yes else options.owner_key
+    owner_key, agent_key = keys(owner_key_path, options.agent_key, scw.dry, once=bool(yes))
     environment = env_text(options.env_file) if not scw.dry or pathlib.Path(options.env_file).expanduser().is_file() \
         else None
     commit = pushed_commit(scw.dry)
     project = project_id(scw, PROJECT_NAME)
     group, ip, volume = security_group(scw, project), address(scw, project), data_volume(scw, project)
     found = server(scw, project)
+    if found and fresh:
+        raise SystemExit(f"the conductor exists, and the one-off key it was made with is gone from {ONCE_KEY} (a "
+                         "reboot clears it): `machine.py down` (the data volume is kept) and `up` again, or the owner "
+                         "runs up with his own key")
     with tempfile.TemporaryDirectory() as folder:
         user_data = pathlib.Path(folder) / "cloud-init.yaml"
         user_data.write_text(render_cloud_init(owner_key, agent_key, volume, commit))
@@ -444,12 +506,18 @@ def up(options, scw, say=print):
     if environment is not None:
         environment += f"{SIZE_URL_NAME}={size_url}\n"
     if scw.dry:
-        say(f"then: ssh score@{ip['address']}: the scoped key to {SCORE_HOME}/.config/scw/config.yaml (mode 600), "
-            "the env file, boot.sh user")
+        say(f"then: ssh score@{ip['address']}: the scoped key (the secret {CONDUCTOR_KEY_SECRET} in {PROJECT_NAME}, "
+            f"else typed) to {SCORE_HOME}/.config/scw/config.yaml (mode 600), the env file, boot.sh user")
         return
+    key = stored_key(scw)
+    if key is None and yes:
+        raise SystemExit(f"no secret {CONDUCTOR_KEY_SECRET} in {PROJECT_NAME}: run tools/cloud/conductor/prepare.sh "
+                         "first")
     organisation = subprocess.run(["scw", "config", "get", "default-organization-id"], capture_output=True,
                                   text=True, check=True).stdout.strip()
-    hand_over(ip["address"], options.owner_key, credential_text(organisation), environment)
+    hand_over(ip["address"], owner_key_path, credential_text(organisation, key), environment)
+    if yes:
+        conductor_yes.mark_done(yes, "up")
     say(f"up: the conductor runs at {ip['address']} ({IDLE_TYPE}); `machine.py status` shows its health")
 
 
@@ -516,16 +584,57 @@ LANDED = ("set -a && . ~/.config/score/dashboard.env && set +a && cd ~/projects/
           ".venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env --no-pull")
 
 
-def move_steps(scw_path):
-    """The move's two commands: (this PC's migrate --from-pc as an argument list with its environment, the ssh
-    command for the conductor). The PC reads the backup's password through the conductor's own reader
+def migrate_environment(scw_path, yes=None):
+    """This PC's environment for a migrate step: the backup's password read through the conductor's own reader
     (secret_reader.sh) from the same project the conductor reads (SCORE_SECRETS_PROJECT), with this PC's scw at
-    `scw_path`, so the password lives in one place."""
+    `scw_path`, so the password lives in one place; under the owner's yes, its id (conductor_yes.YES_ID)."""
     environment = {**os.environ, "SCORE_SECRET_READER": str(HERE / "secret_reader.sh"),
                    "SCORE_SECRETS_PROJECT": SECRETS_PROJECT_NAME, "SCORE_SCW": scw_path,
                    "SCORE_BACKUP_REPO": BACKUP_REPO}
+    if yes:
+        environment[conductor_yes.YES_ID] = yes["id"]
+    return environment
+
+
+def move_steps(scw_path, yes=None):
+    """The move's two commands: (this PC's migrate --from-pc as an argument list with its environment, the ssh
+    command for the conductor)."""
     local = [str(REPO / ".venv" / "bin" / "python"), "-m", "score.store.backup", "migrate", "--from-pc"]
-    return (local, environment), LANDED
+    return (local, migrate_environment(scw_path, yes)), LANDED
+
+
+def retire_commands():
+    """The commands that fill the PC's new empty home: work/ and design/ restored read-only (migrate --pc-test-home,
+    what the PC's tests read) and env/ built from uv.lock (bootstrap.sh's build_python); (command, extra env) each."""
+    return [([str(REPO / ".venv" / "bin" / "python"), "-m", "score.store.backup", "migrate", "--pc-test-home"], {}),
+            (["uv", "sync", "-q", "--frozen", "--no-dev", "--project", str(REPO)],
+             {"UV_PROJECT_ENVIRONMENT": str(PROPS_HOME / "env")})]
+
+
+def retire_pc_home(yes, scw_path, run=subprocess.run):
+    """Set this PC's home aside read-only at PC_FINAL_HOME once the store is on the conductor, so no session here
+    writes a stale store or syncs it back: an empty home in its place filled by retire_commands, the move marked done
+    on the yes in the set-aside store, then that home made read-only."""
+    PROPS_HOME.rename(PC_FINAL_HOME)
+    PROPS_HOME.mkdir()
+    environment = {**migrate_environment(scw_path, yes), conductor_yes.YES_HOME: str(PC_FINAL_HOME)}
+    for command, extra in retire_commands():
+        done = run(command, env={**environment, **extra})
+        if done.returncode != 0:
+            raise SystemExit(f"move: the store is on the conductor, but setting this PC's home aside stopped at "
+                             f"{' '.join(command[-3:])} (exit {done.returncode}); the old home is at {PC_FINAL_HOME}")
+    conductor_yes.mark_done(yes, "move", Store.in_folder(PC_FINAL_HOME / "store"))
+    run(["chmod", "-R", "a-w", str(PC_FINAL_HOME)], check=True)
+
+
+def forget_once_key(host):
+    """Take ONCE_KEY's line off the conductor's authorized_keys, then delete the key here."""
+    body = shlex.quote(pathlib.Path(f"{ONCE_KEY}.pub").read_text().split()[1])
+    listed = "~/.ssh/authorized_keys"
+    ssh(host, ONCE_KEY, f"umask 077 && {{ grep -vF -- {body} {listed} > {listed}.partial || [ $? -eq 1 ]; }} && "
+                        f"mv -f {listed}.partial {listed}")
+    for path in (ONCE_KEY, pathlib.Path(f"{ONCE_KEY}.pub")):
+        path.unlink()
 
 
 def pc_units_off(present=None, systemctl=None):
@@ -550,9 +659,12 @@ def move(options, scw, say=print):
     with its manifest, then on the conductor the restore, the manifests compared (any difference stops it),
     machine.json written, the sync and listener installed and the waiting units started. Safe to run again after a
     refusal. Dry: every step printed, nothing run."""
-    refused = None if scw.dry else agent_refusal()
+    refused, yes = (None, None) if scw.dry else step_refusal("move")
     if refused:
         raise SystemExit(refused)
+    if PC_FINAL_HOME.exists() and not scw.dry:
+        raise SystemExit(f"move: this PC's home was already set aside at {PC_FINAL_HOME}: the move ran")
+    owner_key = ONCE_KEY if yes else options.owner_key
     found = server(scw, project_id(scw, PROJECT_NAME))
     host = ((found or {}).get("public_ip") or {}).get("address") or "<its address>"
     if not found and not scw.dry:
@@ -560,11 +672,14 @@ def move(options, scw, say=print):
     scw_path = shutil.which("scw")
     if not scw_path and not scw.dry:
         raise SystemExit("move: no scw CLI on this PC's PATH: the backup's password and bucket key are read with it")
-    (local, environment), remote = move_steps(scw_path or "scw")
+    (local, environment), remote = move_steps(scw_path or "scw", yes)
     if scw.dry:
         say(f"then: systemctl --user disable --now {' '.join(PC_UNITS)} (the ones this PC has)")
         say(f"then: SCORE_BACKUP_REPO={BACKUP_REPO} SCORE_SECRETS_PROJECT={SECRETS_PROJECT_NAME} {' '.join(local)}")
         say(f"then: ssh score@{host} {shlex.quote(remote)}")
+        say(f"then, under the owner's yes: {PROPS_HOME} set aside read-only at {PC_FINAL_HOME}, "
+            + "; ".join(" ".join(command) for command, _ in retire_commands())
+            + f"; the one-off key {ONCE_KEY} taken off the conductor and deleted")
         return
     switched = pc_units_off()
     say(f"move: this PC's {', '.join(switched) or 'store units (none installed)'} disabled and stopped")
@@ -573,9 +688,15 @@ def move(options, scw, say=print):
         raise SystemExit(f"move: this PC's backup failed (exit {done.returncode}); nothing moved. The store is still "
                          f"on this PC with its units off: run move again once the reason above is gone, or put them "
                          f"back with `systemctl --user enable --now {' '.join(switched)}`")
-    ssh(host, options.owner_key, remote)
-    say(f"move: the store is on the conductor at {host}; the hosted cockpit asks you to confirm it as the store's "
-        "machine once its first export arrives. Rename this PC's home read-only (your step).")
+    ssh(host, owner_key, remote)
+    if not yes:
+        say(f"move: the store is on the conductor at {host}; the hosted cockpit asks you to confirm it as the store's "
+            "machine once its first export arrives. Set this PC's home aside read-only (your step).")
+        return
+    retire_pc_home(yes, scw_path)
+    forget_once_key(host)
+    say(f"move: the store is on the conductor at {host}; this PC's home is set aside read-only at {PC_FINAL_HOME} "
+        "and the one-off key is gone; the cockpit asks the owner to confirm the machine once its first export arrives")
 
 
 def confirmed(question, answer=input):
