@@ -17,9 +17,11 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
    origin/main, moved only forward (as the PC's sync pulls with --ff-only).
 3. `git fetch origin main`; a pin origin/main does not hold is refused (never a commit off main).
 4. Nothing moves when uv.lock or pyproject.toml would change while a process works in a frozen copy under
-   $PROPS_HOME/frozen: every run's copy links this checkout's .venv in (graph/frozen.py), so a re-sync would pull
-   packages from under a live run, a Buy included.
-5. `git checkout --detach <commit>`, then `uv sync --frozen --group dashboard` when uv.lock or pyproject.toml changed.
+   $PROPS_HOME/frozen: every run's copy links this checkout's .venv in (graph/frozen.py) and its rows run the prop
+   environment, so a re-sync would pull packages from under a live run, a Buy included.
+5. `git checkout --detach <commit>`, then `uv sync --frozen --group dashboard` when uv.lock or pyproject.toml changed,
+   and the prop environment ($PROPS_HOME/env, boot.sh props_env) synced the same way once the move made machine.json,
+   on that change or whenever it is missing (left out of every backup; nothing runs boot.sh at a reboot).
 
 It prints one line: what it moved, or why it did not.
 """
@@ -125,6 +127,16 @@ def lock_changed(repo, old, new):
     return git(repo, "diff", "--quiet", old, new, "--", *LOCK_FILES, check=False).returncode != 0
 
 
+def props_env(repo, home, uv, changed):
+    """Sync the prop environment (home/env, boot.sh props_env) once the move made machine.json, when uv.lock
+    `changed` or it is missing (a backup leaves it out); what the line adds."""
+    if not (home / "machine.json").exists() or not (changed or not (home / "env" / "bin" / "python").exists()):
+        return ""
+    subprocess.run([uv, "sync", "-q", "--frozen", "--no-dev", "--project", str(repo)], check=True,
+                   env={**os.environ, "UV_PROJECT_ENVIRONMENT": str(home / "env")})
+    return ", the prop environment synced"
+
+
 def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, token=sync_token, home=HOME):
     """Move the checkout as the module says; the one line of what happened."""
     busy = starting(repo, proc)
@@ -143,7 +155,7 @@ def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, toke
         return f"update: refused, {refused}"
     old = git(repo, "rev-parse", "HEAD").stdout.strip()
     if commit == old:
-        return f"update: at {commit[:12]}, {why}"
+        return f"update: at {commit[:12]}, {why}{props_env(repo, home, uv, False)}"
     runs = frozen_users(home, proc) if lock_changed(repo, old, commit) else []
     if runs:
         return (f"update: not now, {commit[:12]} changes uv.lock and a live run uses .venv "
@@ -153,6 +165,7 @@ def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, toke
     if lock_changed(repo, old, commit):
         subprocess.run([uv, "sync", "-q", "--frozen", "--group", "dashboard"], cwd=repo, check=True)
         synced = ", .venv synced"
+    synced += props_env(repo, home, uv, lock_changed(repo, old, commit))
     return f"update: {old[:12]} -> {commit[:12]}, {why}{synced}"
 
 

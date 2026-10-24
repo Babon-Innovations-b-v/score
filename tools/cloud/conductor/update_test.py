@@ -82,7 +82,7 @@ def setup(folder):
     git(checkout, "checkout", "-q", "--detach", commits[0])
     log = folder / "uv.log"
     uv = folder / "uv"
-    uv.write_text(f"#!/bin/sh\necho \"$*\" >> {log}\n")
+    uv.write_text(f"#!/bin/sh\necho \"${{UV_PROJECT_ENVIRONMENT:-}} $*\" >> {log}\n")
     uv.chmod(0o755)
     proc = folder / "proc"
     proc.mkdir()
@@ -105,6 +105,37 @@ def test_follows_the_pin_and_syncs_only_when_the_lock_moved():
             line = moved(checkout, url, uv, proc)
         assert git(checkout, "rev-parse", "HEAD") == commits[2] and ".venv synced" in line
         assert log.read_text().split() == ["sync", "-q", "--frozen", "--group", "dashboard"]
+
+
+def test_a_lock_move_syncs_the_prop_environment_once_the_move_made_it():
+    """After the move (machine.json), the rows' prop environment ($PROPS_HOME/env) follows uv.lock with .venv."""
+    with tempfile.TemporaryDirectory() as folder:
+        origin, checkout, commits, uv, log, proc = setup(folder)
+        home = proc.parent / "home"
+        home.mkdir()
+        (home / "machine.json").write_text("{}")
+        with cockpit({"ok": True, "commit": commits[2]}) as url:
+            line = moved(checkout, url, uv, proc)
+        assert "the prop environment synced" in line, line
+        assert log.read_text().splitlines()[-1].split() == [str(home / "env"), "sync", "-q", "--frozen", "--no-dev",
+                                                            "--project", str(checkout)]
+
+
+def test_a_missing_prop_environment_is_built_with_the_checkout_unmoved():
+    """The prop environment is left out of every backup: a conductor without one gets it at the next update."""
+    with tempfile.TemporaryDirectory() as folder:
+        origin, checkout, commits, uv, log, proc = setup(folder)
+        home = proc.parent / "home"
+        home.mkdir()
+        with cockpit({"ok": True, "commit": commits[0]}) as url:
+            assert "prop environment" not in moved(checkout, url, uv, proc)  # before the move: the home stays empty
+            (home / "machine.json").write_text("{}")
+            line = moved(checkout, url, uv, proc)
+            assert line.startswith("update: at ") and "the prop environment synced" in line, line
+            (home / "env" / "bin").mkdir(parents=True)
+            (home / "env" / "bin" / "python").write_text("")
+            assert "prop environment" not in moved(checkout, url, uv, proc)
+        assert len(log.read_text().splitlines()) == 1
 
 
 def test_refuses_a_pin_off_main():

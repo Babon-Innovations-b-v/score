@@ -3,6 +3,7 @@
 #
 #   bash tools/cloud/conductor/boot.sh system     # as root: cloud-init's last step; ends by running the user part
 #   bash tools/cloud/conductor/boot.sh user       # as score: the checkout, .venv, units, score_lib
+#   bash tools/cloud/conductor/boot.sh env        # as score: the prop environment alone
 #
 # system: the packages; user score (uid 1100) with linger; the data volume (SCORE_DATA_DEVICE, cloud-init's
 #   /etc/score-conductor.env) formatted only when blank and mounted at /home/score/.farm-factory-props through fstab by
@@ -10,8 +11,10 @@
 #   .claude/scripts/install-agent-tools.sh does (a mismatch stops the boot and installs nothing); the secret reader
 #   and the agents' door in /usr/local/bin; sshd keys-only, no root, user score only.
 # user: the checkout cloned when missing (score-update.service moves it later), `uv sync`, every unit in units/
-#   installed as a user unit and enabled; once ~/.config/scw/config.yaml is there (machine.py up pipes it over ssh),
-#   the tmpfs secrets written and score_lib cloned with its deploy key from tmpfs.
+#   installed as a user unit and enabled; once the move wrote machine.json, the prop environment ($PROPS_HOME/env,
+#   the rows' PROPS_PYTHON, never backed up) synced from uv.lock; once ~/.config/scw/config.yaml is there (machine.py up
+#   pipes it over ssh), the tmpfs secrets written and score_lib cloned with its deploy key from tmpfs, its .venv synced.
+# env: the prop environment alone (the move runs it right after its restore).
 #
 # SCORE_BOOT_ROOT puts every path under another root (the dry check, machine_test.py, runs it against a temp root
 # with its commands shimmed); on the machine it is empty.
@@ -23,7 +26,9 @@ SCORE_USER=score
 SCORE_UID=1100
 REPO_URL=https://github.com/Babon-Innovations-b-v/score
 LIB_URL=git@github.com:Babon-Innovations-b-v/score_lib.git
-APT_PACKAGES=(git sqlite3 ca-certificates curl bzip2 python3)
+# rsync and ssh: the cloud runners' copies to and from rented machines (batch.copy); ffmpeg: the sound rows' loudness;
+# node and npm: the 3D web copies' gltfpack (npx).
+APT_PACKAGES=(git sqlite3 ca-certificates curl bzip2 python3 rsync openssh-client ffmpeg nodejs npm)
 BIN="$ROOT/usr/local/bin"
 
 RESTIC_VERSION=0.19.1
@@ -216,6 +221,18 @@ checkout() {
   say ".venv synced from uv.lock"
 }
 
+# The prop environment the rows run their tools in ($PROPS_HOME/env, bootstrap.sh's build_python and update.py's
+# re-sync, the same command). Only once the move wrote machine.json: the restore goes only into an empty home.
+props_env() {
+  local repo="$1" props="$HOME/.farm-factory-props"
+  if [ ! -f "$props/machine.json" ]; then
+    say "no machine.json yet: the prop environment waits for the move"
+    return
+  fi
+  UV_PROJECT_ENVIRONMENT="$props/env" "$BIN/uv" sync -q --frozen --no-dev --project "$repo"
+  say "prop environment synced at $props/env from uv.lock"
+}
+
 # A unit's text for user score: the deploy templates' slots filled in; the units' own paths are systemd's %h.
 render_unit() {
   sed -e "s|$REPO_SLOT|%h/projects/score|g" -e "s|$ENV_SLOT|%h/.config/score/dashboard.env|g" \
@@ -256,11 +273,14 @@ clone_library() {
     say "score_lib cloned to $lib"
   fi
   git -C "$lib" config core.sshCommand "$ssh_command"
+  # library_files.py runs the library's own command, $lib/.venv/bin/score-lib
+  (cd "$lib" && "$BIN/uv" sync -q --frozen)
 }
 
 user_part() {
   local repo="$HOME/projects/score"
   checkout "$repo"
+  props_env "$repo"
   install_units "$repo"
   if [ ! -f "$HOME/.config/scw/config.yaml" ]; then
     say "no ~/.config/scw/config.yaml yet: machine.py up pipes it, then runs this part again"
@@ -274,5 +294,6 @@ user_part() {
 case "${1:-}" in
   system) system_part ;;
   user) user_part ;;
-  *) echo "usage: boot.sh system|user" >&2; exit 2 ;;
+  env) props_env "$HOME/projects/score" ;;
+  *) echo "usage: boot.sh system|user|env" >&2; exit 2 ;;
 esac
