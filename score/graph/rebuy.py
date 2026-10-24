@@ -144,6 +144,19 @@ def read_first(runner, nodes):
     return order
 
 
+def held_for(runner, nodes, places):
+    """{node: the places of `places` whose line holds it}: a place's own nodes and every node they read, directly or
+    through another (optional reads too), as a run of that place makes them (Runner.line_nodes), so a node of a line
+    no place given owns (the people's) names each place that reads it."""
+    order = read_first(runner, nodes)
+    found = {node_name(stage, place): {place} if place in places else set() for stage, place in order}
+    for stage, place in reversed(order):  # every reader before what it reads
+        for before in runner.read_nodes(stage, place, every=True):
+            if node_name(*before) in found:
+                found[node_name(*before)] |= found[node_name(stage, place)]
+    return found
+
+
 def evidence_buys(runner, stage, place, parts):
     """[Buy] of the node's paid evidence gathers a drive would make (Stage.gatherers with euros: the likeness's
     DINOv2, the assembly's drop run), each at its estimate: every one on an output the drive makes (`parts`, to_make's,

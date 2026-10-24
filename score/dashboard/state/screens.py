@@ -340,11 +340,21 @@ def now_items(items, approved):
     """The basket items the Buy screen's batch yes buys: every item a run on main buys now but the Benchmarks, the
     ones waiting on a missing input, any at a place whose design the creator has not approved (`approved`,
     CONTEXT.md "design": no step is bought on a concept he did not approve; none before one is approved) and any
-    holding a film row while no film script is locked (`film_waits`, the Film step)."""
+    holding a film row while no film script is locked (`film_waits`, the Film step). An item of a line no place owns
+    (the people's) goes with the approved places whose line holds it (its `for`, the plan's), as their run makes it."""
     waits = film_waits()
     return [item for item in items if item["id"] != benchmarks.ID and not item.get("missing")
-            and approved and set(item.get("places", [])) <= set(approved)
+            and approved and for_approved(item, set(approved))
             and not (waits and any(script.films_node(node) for node in item.get("nodes", {})))]
+
+
+def for_approved(item, approved):
+    """True when the item's places are approved: each of its places that is a place of the run (`for` names it), and
+    one at least whose line holds it; an item no place's line holds (or of a basket made before `for`), its places."""
+    held = set(item.get("for") or ())
+    if not held:
+        return set(item.get("places", [])) <= approved
+    return set(item.get("places", [])) & held <= approved and bool(held & approved)
 
 
 def film_waits():

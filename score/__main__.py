@@ -709,12 +709,15 @@ def checked_buys(runner, places, whole, options):
 
 def plan_json(runner, places, whole, options):
     """The plan of a run (buy_check) as one JSON object: each buy as {node, euros (its estimate), why, again, price
-    (buy_price), takes (a designed place's node: the takes prepare priced that it makes)}, and the run's price over
+    (buy_price), for (the run's places whose line holds it: rebuy.held_for, so the cockpit's Buy buys a shared line
+    with the places that read it), takes (a designed place's node: the takes prepare priced that it makes)}, and the
+    run's price over
     them (plan_price), the only euros and minutes the cockpit shows."""
     found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
     from score.stages.complete.gaps import price
+    held = rebuy.held_for(runner, runner.line_nodes(places, whole, options.stage), set(places))
     found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again,
-                      "price": selected_price(runner, buy),
+                      "price": selected_price(runner, buy), "for": sorted(held.get(buy.node, ())),
                       **({"takes": price.design_takes(buy.node)} if price.design_takes(buy.node) else {})}
                      for buy in found["buys"]]
     return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found,

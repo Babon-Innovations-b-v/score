@@ -83,7 +83,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     (`screens.batch(world, items, made_at)`, the Buy screen's one batch, owner 2026-10-20: "what Buy buys must be exactly the
     total shown") {now {likely, high, guessed, guesses, no_price {layer: steps}, stop, steps, places, eta {likely_minutes,
     high_minutes, untimed, at_least_minutes, at_least_high_minutes (the timed steps' span: a floor), untimed_kinds {kind of step: steps}}} (the basket items `screens.now_items` gives: not the Benchmarks, none waiting on a missing
-    input, only at places whose design is approved, none before one is; exactly what the Buy yes buys, priced as its
+    input, only at places whose design is approved, none before one is, a line no place owns (the people's) with the
+    approved places whose line holds it: the item's `for`, each buy's in `score plan`, `rebuy.held_for`; exactly what the Buy yes buys, priced as its
     checkout records it: `pricing.totals` of those nodes, high the cleared high with the guesses, stop that plus 10%,
     flow.write_line's; `no_price` the bought steps with neither price nor guess, outside the figure), `made_at` the
     basket's, `refused` [why] (`screens.buy_refusals`: the prices stale, or the basket older than prepare's record or the

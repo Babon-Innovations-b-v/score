@@ -10,7 +10,7 @@
     <root>/item-<id>/details.json, inputs/  a declared item's own pictures and files
 
 An item: {id, title (a declared item's), places, place (its one place, else None), layers, nodes: {node: price},
-why: {node: why}, again: [node], missing: [words], declared, totals, version}. `version` hashes its nodes and why,
+why: {node: why}, again: [node], missing: [words], declared, for (the places whose line holds it), totals, version}. `version` hashes its nodes and why,
 so a buy is of the item he saw. The environment's own rows keep their details under ENVIRONMENT.
 
 A declared item (`python -m score.dashboard basket-item`): {title, sentence, nodes: [patterns of the paid nodes it

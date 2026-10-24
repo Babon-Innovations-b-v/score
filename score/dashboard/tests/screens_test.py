@@ -353,3 +353,31 @@ def test_the_buy_counts_every_plant_of_the_design_not_only_the_crops_steps(cockp
                                                             "places": ["alpha"]}
     world.plants = {}
     assert screens.batch(world, cockpit.items)["plants"] is None
+
+
+def test_buy_buys_the_people_line_with_the_places_whose_cast_reads_it():
+    """The people line is no place the creator approves: its item goes with the approved places whose line holds it
+    (its `for`, the plan's), so the checkout's plan, which makes it for their cast, buys nothing outside the price
+    (Buy of 2026-10-24: refused, "the run would also buy closeup@people, ..."). Not while no approved place reads it;
+    an item at a place in design still waits."""
+    from types import SimpleNamespace
+
+    from score.dashboard.checkout import flow
+    from score.dashboard.launch.backend import GroupPlan
+    price = {"likely_euros": 1.0, "high_euros": 2.0, "runs": 1}
+
+    def item(ident, places, nodes, held):
+        return {"id": ident, "places": places, "nodes": {node: price for node in nodes}, "missing": [], "for": held}
+    items = [item("alpha-settle", ["alpha"], ["settle@alpha"], ["alpha"]),
+             item("beta-settle", ["beta"], ["settle@beta"], ["beta"]),
+             item("people-base", ["people"], ["closeup@people", "people-dress-pilot-made"], ["alpha", "beta"]),
+             item("environment-body-face", [], ["body-face-moon"], [])]
+    bought = screens.now_items(items, ["alpha"])
+    assert [found["id"] for found in bought] == ["alpha-settle", "people-base", "environment-body-face"]
+    assert [found["id"] for found in screens.now_items(items, ["gamma"])] == ["environment-body-face"]
+    plan = GroupPlan(missing=[], refusal=None, to_run={}, blocked={},
+                     buys=[{"node": node, "why": "", "again": False}
+                           for node in ("settle@alpha", "closeup@people", "people-dress-pilot-made", "body-face-moon")])
+    assert flow.plan_refusals(SimpleNamespace(items=bought), [(None, plan)]) == []
+    old = [{**found, "for": []} for found in items]  # a basket made before `for`: the people line waited
+    assert flow.plan_refusals(SimpleNamespace(items=screens.now_items(old, ["alpha"])), [(None, plan)])
