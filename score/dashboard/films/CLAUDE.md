@@ -39,8 +39,11 @@ Rules:
   body in the environment plan's order, one scale zoom each going on from where the last ended (over the ground from
   the site before, `from_place`; else out from its world, across the setting, `from_body`, the one leg that may go
   back up, and down again), the plan's metres and the true distance its sky gives in the captions, the concept in the
-  corner, round it from outside and into its first three rooms; never tied to one environment by name. A
-  default is complete: every segment names a real scene (the zoom's rooms walked through after it), each long enough
+  corner, round it from outside and into its first three rooms; never tied to one environment by name. Every zoom
+  is followed by a walk through its scene (not a shell, no place of its own) and every scene it holds, parent before
+  child (owner, 2026-10-24: "scale zoom after scale zoom and no walkthroughs in between"), so two zooms follow each
+  other only where a site has nothing to walk; the env1_demo starter the same. A
+  default is complete: every segment names a real scene, each long enough
   to read (the physics animation 12 s, `script.CUTS` defaults the same), its target its own length. The list of every
   film is `/film/all/`.
 - **The page is a cockpit** (owner, 2026-10-21: "this is not at all easy to use"; the design page's panels, enlarge

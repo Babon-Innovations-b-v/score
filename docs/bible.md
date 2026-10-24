@@ -204,7 +204,8 @@ score.review.plans keep`). A scene added in the app joins the build then; until 
 **The film** (`score/dashboard/films`, its overlay) is the last design step, after the scenes and before Buy. Every
 environment opens on its default film (`default.py`: the owner's script's structure filled in from the environment's
 own physics and scenes: the steps of the app, one unbroken scale zoom from the physics down into a top scene's rooms,
-then every other top scene body by body in the environment plan's order). He edits the script and previews it free,
+then every other top scene body by body in the environment plan's order, each zoom followed by a walk through its
+scene and every scene it holds, parent before child). He edits the script and previews it free,
 then locks it; the lock is the approval. `environment-film` reads only the locked script (a lock moves its key), Buy
 waits while none is locked, and Unlock is refused once a batch bought a film row on it.
 
