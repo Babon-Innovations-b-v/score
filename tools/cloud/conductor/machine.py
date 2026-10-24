@@ -222,7 +222,7 @@ def security_group(scw, project):
 
 def address(scw, project):
     """The conductor's flexible IPv4 record ({id, address}). Made when missing."""
-    found = one(ours(scw("instance", "ip", "list", f"project-id={project}", f"tags={TAG}", f"zone={ZONE}"), project),
+    found = one(ours(scw("instance", "ip", "list", f"project-id={project}", f"tags.0={TAG}", f"zone={ZONE}"), project),
                 "flexible IPs tagged score-conductor")
     if found:
         return found
@@ -719,7 +719,7 @@ def down(options, scw, say=print, answer=input):
         scw("instance", "server", "update", f"server-id={found['id']}", "protected=false", f"zone={ZONE}")
         scw("instance", "server", "delete", f"server-id={found['id']}", "with-volumes=root", "with-ip=false",
             "force-shutdown=true", f"zone={ZONE}")
-    for ip in ours(scw("instance", "ip", "list", f"project-id={project}", f"tags={TAG}", f"zone={ZONE}"), project):
+    for ip in ours(scw("instance", "ip", "list", f"project-id={project}", f"tags.0={TAG}", f"zone={ZONE}"), project):
         scw("instance", "ip", "delete", f"ip={ip['id']}", f"zone={ZONE}")
     groups = scw("instance", "security-group", "list", f"name={NAME}", f"project-id={project}", f"zone={ZONE}")
     for group in ours(groups, project, NAME):
