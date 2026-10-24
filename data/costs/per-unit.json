@@ -494,7 +494,19 @@
     "from": [
      "$PROPS/cloud/ledger.jsonl",
      "paper/evidence/cloud/ledger.jsonl"
-    ]
+    ],
+    "then": {
+     "kind": "blender",
+     "unit_seconds": {
+      "likely": 44.5,
+      "high": 44.66
+     },
+     "setup_minutes": {
+      "likely": 1.943,
+      "high": 2.554
+     },
+     "lines": 2
+    }
    },
    "basis": "warm work time",
    "forecast": {

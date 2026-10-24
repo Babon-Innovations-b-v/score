@@ -323,11 +323,27 @@ def unit_minutes(stage, units):
                "setup_minutes": setup["likely"]}
     machines, slots = time["holds"] == "machines", max(1, time.get("slots") or 1)
     cards = preflight.cards_for(units, numbers, capacity.run_cap() if machines else 1, slots)
+    then_likely, then_high = then_minutes(time.get("then") or {}, units)
     return {"likely_minutes": round(preflight.minutes_for(units, cards, numbers["job_seconds"], setup["likely"],
-                                                          slots), 2),
+                                                          slots) + then_likely, 2),
             "high_minutes": round(preflight.minutes_for(units, cards, numbers["high_job_seconds"], setup["high"],
-                                                        slots), 2),
+                                                        slots) + then_high, 2),
             "cards": cards if machines else None}
+
+
+def then_minutes(then, units):
+    """(likely, high) minutes of a stage's second step on machines after its own (PER_UNIT's time `then`: pixal's
+    finish of every raw take, one call spread side by side), by the same card rule; (0, 0) where none is measured
+    (its `why`)."""
+    if "unit_seconds" not in then:
+        return 0.0, 0.0
+    import capacity  # beside ledger.py, on the path once unit_minutes asked the ledger
+    import preflight
+    numbers = {"job_seconds": then["unit_seconds"]["likely"], "high_job_seconds": then["unit_seconds"]["high"],
+               "setup_minutes": then["setup_minutes"]["likely"]}
+    machines = preflight.cards_for(units, numbers, capacity.run_cap(), 1)
+    return (preflight.minutes_for(units, machines, numbers["job_seconds"], then["setup_minutes"]["likely"], 1),
+            preflight.minutes_for(units, machines, numbers["high_job_seconds"], then["setup_minutes"]["high"], 1))
 
 
 def per_unit_run(price, node, cards):

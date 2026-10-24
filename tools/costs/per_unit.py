@@ -85,7 +85,8 @@ CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
 # lines until 2026-10-20: their ledger lines still measure it).
 SPECS = {
     "pixal": {"unit": "model", "cloud": {"kind": "pixal"}, "per_line": "models_done",
-              "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "prop_takes"},
+              "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "prop_takes",
+              "then": {"kind": "blender"}},
     "closeup": {"unit": "close-up picture (Nano Banana Pro)", "google": "pro",
                 "count": {"json_field": ["closeups.json", "pro_pictures"]}, "also": ["crops-closeup"],
                 "forecast": "prop_takes",
@@ -620,12 +621,27 @@ def batch_job_time(calls, caller, google_path):
                    "row's whole job of its takes is not measured"}
 
 
+def then_times(lines, stage, kind):
+    """The `then` of a stage's time: a second step its node runs on machines of another `kind` after its own, one
+    job a unit (pixal's finish of every raw take, one blender_cloud.py call, pixal_row.finish_all), from the lines
+    of that kind whose ticket names the stage: {kind, unit_seconds, setup_minutes, lines}, or {kind, why}."""
+    found = [line for line, _ in lines if line.get("kind") == kind
+             and (line.get("ticket") or "").partition("@")[0] == stage]
+    seconds = [value for line in found for value in unit_seconds(line, "jobs")]
+    starts = [value for line in found for value in setups(line)]
+    if not seconds or not starts:
+        return {"kind": kind, "why": f"no {kind} line of {stage} read here timed a job and a set-up"}
+    return {"kind": kind, "unit_seconds": spread(seconds), "setup_minutes": spread(starts), "lines": len(found)}
+
+
 def times(lines, calls, google_path):
     """{stage: time} of every stage in SPECS from the lines read (cloud_times, google_times), and the RECORDED
     stages' time, null with why."""
     found = {stage: cloud_times(lines, spec) if "cloud" in spec else google_times(calls, spec["google"], google_path)
              for stage, spec in SPECS.items()}
     found.update({stage: batch_job_time(calls, stage, google_path) for stage in BATCH if stage not in found})
+    found.update({stage: {**found[stage], "then": then_times(lines, stage, spec["then"]["kind"])}
+                  for stage, spec in SPECS.items() if "then" in spec})
     lost ={"why": "priced from runs written down when they ran, euros and units but no time; their ledger lines "
                    "went with the old disk (2026-10-19)"}
     return {**{stage: spec.get("time", lost) for stage, spec in RECORDED.items()}, **found}
