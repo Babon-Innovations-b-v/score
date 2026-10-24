@@ -12,6 +12,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 and the sync, listener, resume and backup journals, secrets left out
     health                                      python -m score.conductor health: the Machine card's health, read
                                                 only (writing it is its timer's job)
+    checkouts                                   the cockpit's newest checkouts, launches and requests, read only
+    gaps <node>                                 the batch gaps the node's accepted output names (batch-gaps.json):
+                                                each gap's name, check and faults, read only
     grant-benchmark <euros> <answer> <question> score.adapters.compute.grant_benchmark: the owner's quoted yes,
                                                 asked in a Claude Code session, to one benchmark batch of at most
                                                 EUR 20
@@ -36,7 +39,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, gaps <node>, "
          "grant-benchmark, benchmark")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -46,6 +49,14 @@ CHECKOUTS_CODE = (
     "[print(model.__name__, row.pk, getattr(row, 'kind', ''), row.state, str(getattr(row, 'detail', '') or "
     "getattr(row, 'result', ''))[:400]) for model in apps.get_models() if model.__name__ in ('Checkout', 'Launch', "
     "'SyncRequest') for row in model.objects.order_by('-pk')[:5]]")
+# One node's batch gaps, read only (2026-10-24: the cockpit listed 147 close-up gaps and the door could not say why).
+GAPS_CODE = (
+    "import sys; from score.store import Store; store = Store.default(); node = sys.argv[1]; "
+    "output = store.accepted(node); "
+    "gaps = (store.read_file(output, 'batch-gaps.json') or {}).get('gaps', []) if output else []; "
+    "print(f'{node}: accepted output {output}, {len(gaps)} batch gaps'); "
+    "[print(gap['name'], '|', gap['check'], '|', ' ; '.join(gap['faults'])) for gap in gaps]")
+NODE = re.compile(r"^[a-z0-9][a-z0-9_.-]*(@[a-z0-9_.-]+)?$")
 GRANT_ID = re.compile(r"^[A-Za-z0-9._:-]+$")
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
@@ -115,6 +126,10 @@ def decide(words, latch):
         if args:
             raise Refused("checkouts takes no arguments")
         return ["-c", CHECKOUTS_CODE], {}
+    if verb == "gaps":
+        if len(args) != 1 or not NODE.match(args[0]):
+            raise Refused("gaps <node>, one node name such as closeup@hub")
+        return ["-c", GAPS_CODE, args[0]], {}
     if verb == "grant-benchmark":
         if len(args) != 3:
             raise Refused("grant-benchmark <euros> <the owner's answer> <the question he answered>")
