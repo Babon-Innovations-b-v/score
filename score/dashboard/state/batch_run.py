@@ -4,8 +4,10 @@ the files the batch writes, read live locally and carried in the export as batch
     batch-run.json  {read_at, checkout, at, by, state, why, started, ended, rows, eta, money, scenes, pool, problems}
       state     starting (the checkout plans it), running, waiting (running, the warm pool holds no card yet and
                 stock is short), stopped (a stop, a refusal or a run gone without its result line), finished
-      rows      {total, done, failed, not_run, running, queued}: the last heartbeat's running and queued; the
-                others counted from the run's own lines
+      rows      {total, done, failed, not_run, running, queued}: total every row the checkout's runs planned, done
+                those whose standing accept in the store is newer than the checkout (this run's or an earlier
+                run's of the checkout, so a relaunch goes on where it was), failed and not_run from this run's own lines, running and queued the last
+                heartbeat's
       eta       {likely_minutes, high_minutes} the checkout's runner times; untimed the bought steps with no
                 measured price (the ETA is then at least); elapsed
       money     {spent (the last heartbeat: the cloud ledger's euros for this run's rows; None before one), open
@@ -131,16 +133,25 @@ def scene_state(scene, live):
     return "working" if scene["running"] else "waiting"
 
 
-def scenes_of(planned, rows, running, live):
+def row_states(planned, rows, accepted_at, since):
+    """{node: done, failed or not_run} of the planned rows that have one: done when its standing accept is from
+    `since` (the checkout's time) on, made by this run or an earlier run of the checkout (an older accept is the
+    stale output the batch makes again), else this run's line's state."""
+    found = {node: rows[node][0] for node in planned if node in rows}
+    found.update((node, "done") for node in planned if (parsed(accepted_at(node)) or since) > since)
+    return found
+
+
+def scenes_of(planned, states, running, live):
     """[{place, total, done, failed, not_run, running, state}] a scene of the planned rows ("" the environment's own
-    rows), in the order first planned; `live` while the batch lives."""
+    rows), in the order first planned; `states` row_states; `live` while the batch lives."""
     found = {}
     for node in planned:
         scene = found.setdefault(place_of(node), {"place": place_of(node), "total": 0, "done": 0, "failed": 0,
                                                   "not_run": 0, "running": []})
         scene["total"] += 1
-        if node in rows:
-            scene[rows[node][0]] += 1
+        if node in states:
+            scene[states[node]] += 1
         elif node in running:
             scene["running"].append(groups.label(stage_of(node)))
     for scene in found.values():
@@ -149,10 +160,10 @@ def scenes_of(planned, rows, running, live):
     return list(found.values())
 
 
-def counted(rows, total, beat):
-    """{total, done, failed, not_run, running, queued}: the finished rows counted from their lines, the running
+def counted(states, total, beat):
+    """{total, done, failed, not_run, running, queued}: the finished rows counted from row_states, the running
     and queued from the last heartbeat (None before one)."""
-    states = [state for state, _, _ in rows.values()]
+    states = list(states.values())
     return {"total": total, "done": states.count("done"), "failed": states.count("failed"),
             "not_run": states.count("not_run"), "running": beat["running"] if beat else None,
             "queued": beat["queued"] if beat else None}
@@ -300,9 +311,10 @@ def money_of(totals, stop_line, beat):
             "closed": bool(stop_line.get("closed"))}
 
 
-def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None):
+def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, accepted_at=lambda node: None):
     """The monitor's record of `batch` (checkout/watched.newest: the newest checkout, its launch and the rows its
-    run plans), read from the files under `props_home` (the warm pools) and `store_root` (the rows' logs); None
+    runs plan), read from the files under `props_home` (the warm pools) and `store_root` (the rows' logs), a row
+    done when `accepted_at(node)`, the time of its standing accept in the store, is after the checkout; None
     without a batch."""
     if batch is None:
         return None
@@ -315,7 +327,8 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None):
     started = parsed(launch.get("at") or batch["at"])
     pool = pool_of(found["pool"], props_home / "cloud" / "pools", now)
     state, why = overall(batch, found, launch.get("state") == "running", pool)
-    running = {node for node in planned if node not in found["rows"] and state in LIVE
+    states = row_states(planned, found["rows"], accepted_at, parsed(batch["at"]))
+    running = {node for node in planned if node not in states and state in LIVE
                and started_since(node, pathlib.Path(store_root) / "logs", started.timestamp())}
     ended = ended_at(batch, found["result"], log_path)
     problems = failures(found["rows"]) + gap_problems(found["rows"], gaps_of)
@@ -326,8 +339,8 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None):
                          "tip": why})
     return {"read_at": stamp(now), "checkout": batch["checkout"], "at": batch["at"], "by": batch.get("by"),
             "state": state, "why": why, "started": stamp(started), "ended": stamp(ended),
-            "rows": counted(found["rows"], len(planned), found["beat"]),
+            "rows": counted(states, len(planned), found["beat"]),
             "eta": eta_of(batch.get("totals") or {}, started, ended, now),
             "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"]),
-            "scenes": scenes_of(planned, found["rows"], running, state in LIVE), "pool": pool,
+            "scenes": scenes_of(planned, states, running, state in LIVE), "pool": pool,
             "problems": newest_first(problems)}

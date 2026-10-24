@@ -179,7 +179,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `pages/run_monitor.py`, `run_monitor.html`, owner 2026-10-24: "make the monitor page for after buy ... easy to
   understand and scan"): the Buy's yes opens it (`data-go` on its yes form) and Home links to it while a batch lives
   (`run_monitor.live_batch`). The newest checkout's batch (`checkout/watched.newest`: the record, its launch polled,
-  every row its run plans) read from its files by `state/batch_run.py` (the run's detached log: heartbeats, each
+  every row any run of it planned: a relaunch goes on where it was, a row done once its accept is newer than the checkout) read from its files by `state/batch_run.py` (the run's detached log: heartbeats, each
   finished row's line, the pool it opened, its result line; a row's own log written since the start: running; each
   done row's batch gaps; `$PROPS_HOME/cloud/pools/<run>/`: plan, cards, closed, collector.log), live locally
   (`LocalSource.batch_run`), hosted from the export's `batch-run.json`, or the newer one the listener sent each minute (`ExportedSource.batch_run`), with its age; a
