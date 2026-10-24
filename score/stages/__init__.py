@@ -38,6 +38,7 @@ from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 from score.stages.assembly import scene_tree
 import score.stages.props.prop_data as prop_data
+import score.stages.shapes_first.floor_fit as floor_fit
 from score.stages.terrain import fit as ground_fit
 from score.review import concepts, plans
 from score.store import PROPS_HOME, Store
@@ -340,10 +341,23 @@ def designed_rough(row):
 
 
 def boxed_split(row):
-    """props-inputs, the loop's parts split, with its scene's inventory declared (scene_inventory_read)."""
+    """props-inputs, the loop's parts split, with its scene's inventory declared (scene_inventory_read) and its gate
+    `fits the plan` floor_fit's, which reads a designed place's kept plan (its structure and beyond rows stand on no
+    floor of its: 2026-10-24, eight places' shells failed the floor). Wrapped here, in the table, so no paid row's
+    code moves (shapes_first and align.py are in many)."""
     if row.name != "props-inputs":
         return row
-    return dataclasses.replace(row, files=scene_inventory_read(row.files))
+    inventory_read = scene_inventory_read(row.files)
+
+    @functools.wraps(inventory_read)
+    def declared(place):
+        found = inventory_read(place)
+        if not prop_data.designed(place):
+            return found
+        return {**found, floor_fit.KEPT_PLAN: "{home}/design/plans/" + f"{place}.json"}
+    fit = guarded("fits the plan", floor_fit.judge_rows_fit)
+    return dataclasses.replace(row, files=declared,
+                               checks=tuple(fit if check.name == fit.name else check for check in row.checks))
 
 
 # Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, or

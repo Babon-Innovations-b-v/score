@@ -16,6 +16,7 @@ from score.stages import shapes_first
 import score.stages.props.closeup_row as closeup_row
 import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.align as align
+import score.stages.shapes_first.floor_fit as floor_fit
 import score.stages.shapes_first.made as made
 from score.stages.surfaces import surface_data
 
@@ -115,6 +116,28 @@ def test_the_parts_split_is_held_to_the_registered_floor(tmp_path):
     person = {"id": "player-work", "size": None, "layer": "people"}  # a line no place owns: held to no plan
     (split / "rows.json").write_text(json.dumps({"rows": [person]}))
     assert align.judge_rows_fit(split, {}, {}).answer == checks.PASS
+
+
+def test_the_plan_s_structure_and_what_stands_beyond_it_are_counted_not_held_to_its_floor(tmp_path):
+    out, _ = aligned(tmp_path, (-1.0, 0.0, 0.0), (1.0, 3.0, 1.0))
+    split = tmp_path / "split"
+    split.mkdir()
+    rows = [{"id": "floor", "size": [9.0, 5.0, 0.1]}, {"id": "rocket", "size": [10.0, 10.0, 60.0]},
+            {"id": "beam", "size": [9.0, 0.3, 0.3]}, {"id": "rug", "size": [8.0005, 4.0, 0.01]}]
+    (split / "rows.json").write_text(json.dumps({"rows": rows}))
+    kept = tmp_path / "kept.json"
+    kept.write_text(json.dumps({"structure": ["floor", "rocket"], "beyond": ["rocket"]}))
+    found = floor_fit.judge_rows_fit(split, {"rough-align": out, floor_fit.KEPT_PLAN: kept}, {})
+    assert found.answer == checks.FAIL and found.findings == (
+        "beam: 9.0 by 0.3 m fits no way on the 8.00 by 4.00 m floor",)  # a rug as wide as the floor, rounded, fits
+    assert found.measures["rows of the plan's structure"] == 2 and found.measures["rows of the plan's beyond"] == 0
+    assert floor_fit.judge_rows_fit(split, {"rough-align": out}, {}).measures["failing"] == 3  # no kept plan: all held
+
+
+def test_the_table_s_split_reads_the_kept_plan_with_floor_fit_s_gate():
+    split = {stage.name: stage for stage in stages.STAGES}["props-inputs"]
+    fit = next(check for check in split.checks if check.name == "fits the plan")
+    assert fit.judge.__wrapped__ is floor_fit.judge_rows_fit
 
 
 def test_an_after_step_gets_the_made_models_with_their_finishes_or_the_gaps(tmp_path):
