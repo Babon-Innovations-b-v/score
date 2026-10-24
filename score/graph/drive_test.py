@@ -28,6 +28,9 @@ from score.adapters import compute  # noqa: E402
 compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
 compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
 from score.graph import stopped  # noqa: E402
+# The toy nodes take no memory, and memory_test.py proves the gate: read as always room, so a drive never sits out
+# MEMORY_POLL behind this PC's real memory (as graph_test, 951bbd59; owner's budget 120 s).
+graph.AVAILABLE = lambda: 2**50
 from score.store import Store  # noqa: E402
 
 PLACES = ("hangar", "station")
@@ -622,6 +625,7 @@ sys.path.insert(0, sys.argv[1])
 from score import __main__ as command
 from score.adapters import compute
 folder = pathlib.Path(sys.argv[2])
+command.STOP_GRACE_SECONDS = 2  # the stubborn batch is still SIGKILLed after the grace, without sitting out the real 30 s
 runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
 
 
