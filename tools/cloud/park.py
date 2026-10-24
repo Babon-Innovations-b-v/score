@@ -99,6 +99,11 @@ CLEANUPS = {
     "closeups": lambda _machine: f"rm -rf /root/closeups; {ALL_MARKS}",
     "moss-sound": lambda _machine: f"rm -rf /root/sfx; {ALL_MARKS}",
     "unlit": lambda _machine: f"rm -rf /root/unlit; {ALL_MARKS}",
+    # tools/cloud/images/prove.py (an image's proof, and every sound row's takes, score/stages/sound/takes.py): its
+    # containers stopped, its store credentials and registry login gone; docker, the pulled images and the node
+    # caches stay, outside /root/venv (fault, 2026-10-24: each sound row threw its warm pool card away).
+    "prove": lambda _machine: ("docker ps -q | xargs -r docker kill >/dev/null 2>&1; "
+                               "rm -rf /root/smoke /root/.docker/config.json"),
 }
 # Run on a taken machine: every set-up mark but the newest goes, so a kind whose environment a later set-up of another
 # kind replaced (most share /root/venv) sets up again, while the last set-up's own mark stays good.
@@ -236,17 +241,20 @@ def record_of(machine, until, token, now):
 def park(machine):
     """Park the machine instead of deleting it, when it is worth it; True if parked. Anything that goes wrong on the
     way leaves it to the caller's delete. A pool card parked is back in its pool (no process holds it); one not
-    parked is struck off its pool, which collects another."""
+    parked is deleted here and struck off its pool only once that delete went through, so a card mid-delete stays in
+    sight of the release and the collector's tidy (review of 2026-10-24); the caller's own delete then finds it gone.
+    Here, not in batch.delete_machine: the pixal and rough-model rows declare batch.py."""
     parked = park_here(machine)
     if machine.get("pool"):
         import pool
-        if parked:
+        if not parked:
+            cloud.delete(machine["id"], machine["zone"])
+            pool.left(machine["pool"], machine["id"])
+        else:
             pool.held_by(machine["pool"], machine["id"], None)
             if pool.current(machine["pool"]) is None:  # released while it was being parked: it goes now
                 release(machine["id"], machine["zone"], machine["parked_token"])
                 return False
-        else:
-            pool.left(machine["pool"], machine["id"])
     return parked
 
 
