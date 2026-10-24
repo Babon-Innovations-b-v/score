@@ -58,7 +58,7 @@ REPO = HERE.parents[2]
 CLOUD = REPO / "tools" / "cloud"
 sys.path.insert(0, str(HERE / "size_function"))
 sys.path.insert(0, str(REPO))
-sys.path.insert(0, str(CLOUD.parent))  # tools/props: the ledger reads paths
+sys.path.insert(0, str(CLOUD.parent / "props"))  # tools/props: the ledger reads paths
 sys.path.insert(0, str(CLOUD))
 
 import ledger  # noqa: E402

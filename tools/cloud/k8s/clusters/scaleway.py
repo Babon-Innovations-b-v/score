@@ -83,7 +83,7 @@ CLOUD = HERE.parents[2] / "cloud"
 # would shadow the backend, so it leaves the import path. Other code loads it by path (`../submitter.py`'s
 # cluster_module) under the name cluster_scaleway.
 sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != HERE]
-sys.path.insert(0, str(CLOUD.parent))
+sys.path.insert(0, str(CLOUD.parent / "props"))
 sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(CLOUD / "backends"))
 sys.path.insert(0, str(HERE.parent))

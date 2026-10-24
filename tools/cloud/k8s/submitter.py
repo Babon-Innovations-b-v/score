@@ -45,7 +45,7 @@ import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 CLOUD = HERE.parents[1] / "cloud"
-sys.path.insert(0, str(CLOUD.parent))
+sys.path.insert(0, str(CLOUD.parent / "props"))
 sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[2]))
