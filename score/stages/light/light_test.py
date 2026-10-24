@@ -358,6 +358,10 @@ def check_haze_from_the_kit():
             laid = {place: {"room": place, "pieces": [{"kind": f"{place}_{row['id']}", "part": "glow"} for row in rows]}
                     for place in aims}
             assert haze.shafted_rows("yard") == {"mast_lamp"}
+            # fault (Buy of 2026-10-24): glowing put score/stages on sys.path, so the assembly's `import sound` took the
+            # sound stage package for tools/usd/sound.py and failed on audio_prim
+            stages = str(pathlib.Path(haze.__file__).resolve().parents[1])
+            assert stages not in [str(pathlib.Path(entry).resolve()) for entry in sys.path if entry], sys.path
             assert haze.shafted_kinds("yard", laid["yard"]) == {"yard_mast_lamp"}
             assert not haze.shafted_kinds("hall", laid["hall"]) and not haze.shafted_kinds("shed", laid["shed"])
             assert not haze.shafted_kinds("yard", {"room": "yard", "pieces": []})
