@@ -337,7 +337,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (2026-10-20, #18 and #21): Google's Batch API at half price on google_spend's ledger and cache, a started line for
   each request before its job is sent, the job's name kept beside the cache so a run cut off mid-wait picks up the
   same job and never sends it again, each answer priced at the batch tier; a failed, cancelled or expired job, an
-  error answer or a send cut off is Unanswered, never asked again (the finish route's list and recheck).
+  error answer or a send cut off is Unanswered, never asked again (the finish route's list and recheck, and
+  since 2026-10-24 every Pro close-up, `../closeup/pro.py`: a step's close-ups one job, the owner's choice of the batch
+  rate they are priced at).
 - **Paid calls only through the ledgered clients** (2026-10-17): `tools/costs/paid_calls_test.py` reads every tracked
   file's syntax tree and fails on a Gemini host, key header or client, or an scw order of a machine, disk, address or
   cluster pool (words read through variables as their own function set them, joined and starred lists, `.append`,

@@ -13,7 +13,9 @@ for the creator.
 - **The check leans to failing.** A close-up passed wrongly costs a bad 3D model; one failed wrongly costs one Pro
   picture. Its limits were tuned on the 40 hand-scored close-ups of job openpics (2026-10-08); a change to a limit
   or to the judge's question is measured on those again before it lands.
-- **Pro's quota is shared** (250 a day): only `stage.py` calls `pro.py`, and only for rows the check failed.
+- **Pro draws through the Batch API at half price** (owner, 2026-10-24): `pro.draw` sends a step's close-ups as one
+  job (`../cloud/google_batch.py`), the same request as one call would send; only `stage.py` calls it, and only for
+  rows the check failed.
   `pro.draw` refuses outside a cleared run (`score.adapters.compute.require_cleared`), as every paid call does.
 - **A person is the one exception to the three-quarter view** (the people layer's own close-up, CONTEXT.md "layer
   adapter"): a row whose `layer` is `people` is drawn with `stage.PERSON` (one person, front on, in the rig's A-pose,

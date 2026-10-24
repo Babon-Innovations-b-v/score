@@ -14,11 +14,11 @@ the out folder and is skipped when they are there, so a run that stops is run ag
    the crop and the whole concept as references, spread over as many 80 GB cards as draw it in about one setup's
    time (../cloud/spread.py), each card taking the next share as it finishes one.
 3. qwen/judge/<id>.txt: the judge's answer for each (../cloud/judge.py), and the shape check (check.py) on top.
-4. pro/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), one take a row, judged and checked
-   the same way. Its wording is chosen free before it is drawn and kept on the row (`pro_wording`, pro_wording()):
-   the crop alone (CROP_ONLY), or with the whole concept as a second reference (WORDING) when the row's crop is
-   under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a gap, never drawn again here (a
-   batch, CONTEXT.md, owner 2026-10-20). Skipped with --no-pro.
+4. pro/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), one take a row, all as one Batch API
+   job, judged and checked the same way. Its wording is chosen free before it is drawn and kept on the row
+   (`pro_wording`, pro_wording()): the crop alone (CROP_ONLY), or with the whole concept as a second reference
+   (WORDING) when the row's crop is under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a gap,
+   never drawn again here (a batch, CONTEXT.md, owner 2026-10-20). Skipped with --no-pro.
 5. closeups.json: per row the accepted picture and the model that made it (none when every take failed: those are
    gaps left for the creator to look at), every take's faults, its Pro wording and the row's cost; the batches'
    ledger entries and the totals.
@@ -223,16 +223,19 @@ def checked(row, out, take):
 
 def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):
     """One Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet, worded as the row's
-    `pro_wording` says (chosen first where the row has none). Each is asked once: one with no picture is a gap."""
+    `pro_wording` says (chosen first where the row has none), all of them as one Batch API job (pro.draw). Each is
+    asked once: one with no picture is a gap."""
     from secret_store import secret
 
     (out / take).mkdir(parents=True, exist_ok=True)
     todo = [row for row in rows if row["id"] in failed and not (out / take / f"{row['id']}.png").exists()]
-    key = secret(pro.KEY_SECRET) if todo else None
-    for row in with_pro_wordings(todo):
-        cut = Image.open(out / "crops" / f"{row['id']}.jpg")
-        concept = Image.open(row["concept"]) if row["pro_wording"] == "room" else None
-        pro.draw(key, wording(row, PRO_WORDINGS[row["pro_wording"]]), cut, concept, out / take / f"{row['id']}.png")
+    if not todo:
+        return
+    asks = {out / take / f"{row['id']}.png": (wording(row, PRO_WORDINGS[row["pro_wording"]]),
+                                              Image.open(out / "crops" / f"{row['id']}.jpg"),
+                                              Image.open(row["concept"]) if row["pro_wording"] == "room" else None)
+            for row in with_pro_wordings(todo)}
+    pro.draw(secret(pro.KEY_SECRET), asks)
 
 
 def kept_entry(entry, path):

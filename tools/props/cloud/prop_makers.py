@@ -2,7 +2,8 @@
 the runners and the ledgered clients that already make these outputs, so the batch is paid and recorded as they are.
 
     close-up      Nano Banana Pro from this PC (../closeup/stage.py's one Pro take a prop, its wording chosen free
-                  first, through pro.draw, google_spend's ledger and cache: a drawn close-up is never drawn again);
+                  first, through pro.draw as one Batch API job, google_spend's ledger and cache: a drawn close-up is
+                  never drawn again);
                   a kept close-up is not asked at all
     image-to-3d   batch.py: one Pixal3D batch over every prop's new take, on the cheapest card that holds it (L4
                   first, capacity.KIND_ORDER) and as many takes to a card as it runs at once (RUNS_PER_24GB), each

@@ -179,10 +179,11 @@ def test_a_close_up_is_drawn_once_and_one_that_fails_is_a_gap():
             return {"id": prop["row"], "scene": prop["place"], "words": prop["row"], "size": [1.0, 1.0, 1.0],
                     "concept": str(concept), "box": [100, 100, 200, 150]}
 
-        def draw(key, wording, crop, reference, path):
-            drawn.append((path.name, reference is not None))
-            Image.new("RGB", (64, 64), (200, 200, 200)).save(path)  # a plain picture: the shape check fails it
-            return True
+        def draw(key, asks):
+            for path, (_, _, reference) in asks.items():
+                drawn.append((path.name, reference is not None))
+                Image.new("RGB", (64, 64), (200, 200, 200)).save(path)  # a plain picture: the shape check fails it
+            return dict.fromkeys(asks, True)
         kept = prop_makers.closeup_row, stage.pro.draw, sys.modules.get("secret_store")
         prop_makers.closeup_row, stage.pro.draw = row, draw
         sys.modules["secret_store"] = types.SimpleNamespace(secret=lambda name: "key")

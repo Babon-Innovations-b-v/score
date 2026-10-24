@@ -3,6 +3,7 @@ a batch takes and the record of what each row cost, without a model, a cloud mac
 
 Plain python: python3 tools/props/closeup/stage_test.py
 """
+import json
 import os
 import pathlib
 import sys
@@ -114,65 +115,62 @@ def test_a_person_is_drawn_alone_front_on_in_the_rigs_a_pose_never_the_concepts_
     assert "Image 2" not in words and "three quarters" not in words
 
 
-def test_pro_asks_again_only_for_a_free_refusal_and_an_empty_answer_is_a_gap():
-    import urllib.error
-    asked, waits = [], []
-    answers = [urllib.error.HTTPError("u", 429, "Too Many Requests", {}, None), {"candidates": []}]
-
-    def generate(*arguments, **options):
-        asked.append(1)
-        answer = answers.pop(0)
-        if isinstance(answer, Exception):
-            raise answer
-        return answer
-    kept = stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep
-    stage.pro.compute.require_cleared = lambda what: None
-    stage.pro.google_spend.generate, stage.pro.time.sleep = generate, waits.append
-    try:
-        path = pathlib.Path(tempfile.mkdtemp()) / "a.png"
-        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
-        assert len(asked) == 2 and len(waits) == 1 and not path.exists()  # the empty answer is not asked again
-        answers[:] = [urllib.error.HTTPError("u", 503, "Service Unavailable", {}, None), {"candidates": []}]
-        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
-        assert len(asked) == 4 and len(waits) == 2  # an overloaded service bills nothing: asked again after a wait
-        answers[:] = [urllib.error.HTTPError("u", 400, "Bad Request", {}, None), {"candidates": []}]
-        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
-        assert len(asked) == 5 and len(waits) == 2  # any other refusal is a gap at once
-    finally:
-        stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep = kept
-
-
-def test_pro_asks_again_after_a_timeout_only_when_the_request_never_reached_google():
-    """Audit (2026-10-22): a timeout escaped pro.draw and stopped the close-up step. A request not sent (urllib's
-    URLError) billed nothing and is asked again; a sent one whose answer timed out may be billed and is a gap."""
+def a_picture_answer():
+    """A generateContent answer holding one small picture, priced as a 2K picture."""
     import base64
     import io
-    import urllib.error
     buffer = io.BytesIO()
     Image.new("RGB", (8, 8)).save(buffer, "PNG")
-    picture = {"candidates": [{"content": {"parts": [{"inlineData": {"data": base64.b64encode(buffer.getvalue())
-                                                                      .decode()}}]}}]}
-    asked, waits = [], []
-    answers = [urllib.error.URLError(TimeoutError("timed out")), picture]
+    return {"candidates": [{"content": {"parts": [{"inlineData": {"data": base64.b64encode(buffer.getvalue())
+                                                                  .decode()}}]}}],
+            "usageMetadata": {"promptTokenCount": 600, "candidatesTokenCount": 1120, "serviceTier": "standard",
+                              "candidatesTokensDetails": [{"modality": "IMAGE", "tokenCount": 1120}]}}
 
-    def generate(*arguments, **options):
-        asked.append(options.get("cache"))
-        answer = answers.pop(0)
-        if isinstance(answer, Exception):
-            raise answer
-        return answer
-    kept = stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep
+
+def test_pro_draws_a_step_as_one_batch_job_at_half_price_cached_and_an_unanswered_one_is_a_gap():
+    """Owner, 2026-10-24 ("Make close-ups really use the batch rate"): a step's Pro close-ups go to Google as one
+    Batch API job with the same request each would have been sent alone, priced at the batch tier on the Google
+    ledger and cached; an answer with no picture, or one the batch did not give, is a gap; one asked before is free."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    spend, batch = stage.pro.google_spend, stage.pro.google_batch
+    sent = []
+
+    def send(model, request, api_key):
+        sent.append(request)
+        return {"name": f"batches/{len(sent)}"}
+
+    def status(name, api_key):
+        requests = sent[int(name.split("/")[1]) - 1]["batch"]["input_config"]["requests"]["requests"]
+        answers = {"a": a_picture_answer(), "b": {"candidates": []}}
+        inlined = [{"metadata": item["metadata"], "response": answers[pathlib.Path(item["metadata"]["key"]).stem]}
+                   for item in requests if not item["metadata"]["key"].endswith("c.png")]
+        return {"name": name, "done": True, "metadata": {"state": "JOB_STATE_SUCCEEDED"},
+                "response": {"inlinedResponses": {"inlinedResponses": inlined}}}
+    kept = (stage.pro.compute.require_cleared, spend.LEDGER, spend.CACHE, batch.send, batch.status)
     stage.pro.compute.require_cleared = lambda what: None
-    stage.pro.google_spend.generate, stage.pro.time.sleep = generate, waits.append
+    spend.LEDGER, spend.CACHE, batch.send, batch.status = folder / "ledger.jsonl", folder / "cache", send, status
     try:
-        path = pathlib.Path(tempfile.mkdtemp()) / "a.png"
-        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is True and path.exists()
-        assert asked == [True, True] and len(waits) == 1  # cached: an answer once back is never bought again
-        answers[:] = [TimeoutError("The read operation timed out"), picture]
-        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
-        assert len(asked) == 3 and len(waits) == 1  # sent, maybe billed: a gap, not asked again
+        asks = {folder / f"{name}.png": (f"words {name}", Image.new("RGB", (8, 8)), None) for name in "abc"}
+        drawn = stage.pro.draw("key", asks)
+        assert drawn == {folder / "a.png": True, folder / "b.png": False, folder / "c.png": False}, drawn
+        assert len(sent) == 1 and (folder / "a.png").exists() and not (folder / "b.png").exists()
+        requests = sent[0]["batch"]["input_config"]["requests"]["requests"]
+        assert [item["request"] for item in requests] == [stage.pro.request_body(*asks[path]) for path in sorted(asks)]
+        lines = [json.loads(line) for line in spend.LEDGER.read_text().splitlines()]
+        assert [line["state"] for line in lines].count("started") == 3
+        finished = [line for line in lines if line["state"] == "finished"]
+        assert [line["tier"] for line in finished] == ["batch", "batch"]
+        assert all(line["caller"] == "pro" for line in lines)
+        full = spend.dollars(stage.pro.MODEL, a_picture_answer()["usageMetadata"])
+        assert finished[0]["dollars"] == round(full * 0.5, 6), finished  # half the standard tier's price
+        assert [line["state"] for line in lines].count("failed") == 1  # c: unanswered, maybe billed
+        (folder / "a.png").unlink()
+        assert stage.pro.draw("key", {folder / "a.png": asks[folder / "a.png"]}) == {folder / "a.png": True}
+        assert len(sent) == 1  # asked before: read back from the cache, free
+        stage.pro.draw("key", {folder / "b.png": asks[folder / "b.png"]})
+        assert len(sent) == 2  # no picture came back: dropped from the cache, a new batch may ask again
     finally:
-        stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep = kept
+        stage.pro.compute.require_cleared, spend.LEDGER, spend.CACHE, batch.send, batch.status = kept
 
 
 def test_a_step_s_cost_is_kept_for_a_run_that_is_run_again():
@@ -187,17 +185,18 @@ def test_pro_draws_nothing_outside_a_cleared_run():
     """Fault (design of 2026-10-11, section 6): pro.draw sent a paid request (USD 0.134 a picture) for any caller,
     outside the runner's gate and the owner's yes."""
     sent = []
-    kept = stage.pro.urllib.request.urlopen
+    kept = stage.pro.google_batch.send
     ticket = os.environ.pop(stage.pro.compute.TICKET, None)
-    stage.pro.urllib.request.urlopen = lambda *arguments, **options: sent.append(arguments)
+    stage.pro.google_batch.send = lambda *arguments, **options: sent.append(arguments)
     try:
-        stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, pathlib.Path(tempfile.mkdtemp()) / "a.png")
+        path = pathlib.Path(tempfile.mkdtemp()) / "a.png"
+        stage.pro.draw("key", {path: ("words", Image.new("RGB", (8, 8)), None)})
     except stage.pro.compute.Refused as refusal:
         assert "nothing rents outside a cleared run" in str(refusal)
     else:
         raise AssertionError("a Nano Banana Pro picture was asked for outside a cleared run")
     finally:
-        stage.pro.urllib.request.urlopen = kept
+        stage.pro.google_batch.send = kept
         if ticket is not None:
             os.environ[stage.pro.compute.TICKET] = ticket
     assert sent == []

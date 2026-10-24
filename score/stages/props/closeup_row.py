@@ -6,13 +6,14 @@ the data names one, its route, take and the model layer that handed it (the shar
 `boxed or drawn`, is the close-up stage's own box gate (stage.gate_problems): every object without a drawn close-up
 needs a box the gate passes, so nothing is drawn of the wrong thing.
 
-closeup@<place> draws every missing close-up with Nano Banana Pro through tools/props/closeup/pro.py (google_spend
-prices each call): first from the crop alone, then, for what still fails, with the whole concept beside (the stage's
-PRO_TAKES). A drawn close-up is taken as it is, set on the stage's grey. Its gate, `close-up`, is the shape check's
-measured half (check.measured_faults: plain border, one object filling the frame, the row's proportions), free and
-re-measured on the stored pictures, so Pixal3D is never paid for a close-up that fails it. An object every Pro take
-failed keeps none: its prop route failed there, a batch gap (batch-gaps.json, score/stages/batch_gaps.py) the rows
-after it leave out. The judge's half (a model on rented cards) is not run here.
+closeup@<place> draws every missing close-up with Nano Banana Pro through tools/props/closeup/pro.py, a take's
+close-ups as one Batch API job at half price (google_batch prices each answer): first from the crop alone, then, for
+what still fails, with the whole concept beside (the stage's PRO_TAKES). A drawn close-up is taken as it is, set on
+the stage's grey. Its gate, `close-up`, is the shape check's measured half (check.measured_faults: plain border, one
+object filling the frame, the row's proportions), free and re-measured on the stored pictures, so Pixal3D is never
+paid for a close-up that fails it. An object every Pro take failed keeps none: its prop route failed there, a batch
+gap (batch-gaps.json, score/stages/batch_gaps.py) the rows after it leave out. The judge's half (a model on rented
+cards) is not run here.
 """
 import dataclasses
 import json
@@ -25,8 +26,9 @@ import score.stages.props.prop_data as prop_data  # the module, not the package:
 from score.stages.surfaces.surface_gates import verdict
 
 GREY = (205, 205, 205)
-# pro.DOLLARS_A_PICTURE, written here: pro is imported only inside the rows' functions (prop_data.tools).
-DOLLARS_A_PICTURE = 0.134
+# pro.DOLLARS_A_PICTURE, written here: pro is imported only inside the rows' functions (prop_data.tools). Google's
+# 2K price at the Batch API's half, as pro.draw asks (owner, 2026-10-24).
+DOLLARS_A_PICTURE = 0.067
 # Up to two Pro pictures an object (PRO_TAKES), counted one dollar a euro (google_spend); the hub's 51 boxed objects.
 EUROS = round(51 * 2 * DOLLARS_A_PICTURE, 2)
 
