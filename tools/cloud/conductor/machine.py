@@ -303,7 +303,7 @@ def pushed_commit(dry):
 def bucket(scw, project):
     """The backup bucket in nl-ams, versioned, its non-current versions kept 30 days. Made when missing."""
     listed = scw("object", "bucket", "list", f"project-id={project}", f"region={BUCKET_REGION}") or []
-    if not any(item.get("name") == BUCKET for item in listed):
+    if not any(BUCKET in (item.get("name"), item.get("Name")) for item in listed):  # scw lists it as Name
         scw("object", "bucket", "create", f"name={BUCKET}", "enable-versioning=true", "acl=private",
             f"project-id={project}", f"region={BUCKET_REGION}")
     scw("object", "bucket-lifecycle", "create", BUCKET, f"lifecycle-configuration={HERE / 'lifecycle.json'}",
