@@ -28,16 +28,14 @@ def waits(store, place):
     """Why a place whose concept is locked and inventory made is still in design, None once its design stands whole:
     its picked draw drawn on the room the plan above gives it now (concepts.plan_changed), its scene inventory read
     from the lock by today's method (reading.reading_of), its plan written by today's method or edited by him
-    (plans.design_done) after that reading."""
-    from score.review import concepts, plan_writing, plans, reading
+    (plans.design_done); an edit of his stays his when the inventory is read again (his edit always wins)."""
+    from score.review import concepts, plans, reading
     if concepts.plan_changed(store, place):
         return "room moved since its draw"
     if not reading.reading_of(store, place):
         return "inventory not read from its lock by today's method"
     if not plans.design_done(store, place):
         return "plan not written by today's method"
-    if plans.current(store, place)["at"] < plan_writing.reading_at(store, place):
-        return "plan made before its inventory was read again"
     return None
 
 
