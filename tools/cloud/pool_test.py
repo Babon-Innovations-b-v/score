@@ -748,6 +748,27 @@ def test_a_render_takes_the_pools_processor_machine_before_its_card_and_a_card_w
     pool.release(run_id)
 
 
+def test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raises_it():
+    """Batch 1 of 2026-10-24: the pool rented its three processor machines at the start and they sat idle for an hour
+    while only Pixal3D ran; they open at 0 and the run's heartbeat raises them (resize) when a render is near."""
+    reserved = {"gpu-24gb": 1, PROCESSOR: 2}
+    assert pool.cards_only(reserved) == {"gpu-24gb": 1, PROCESSOR: 0}
+    calls, run_id = fresh(stock=10)  # the fakes installed; this run's own pool opened next
+    pool.release(run_id)
+    os.environ["SCORE_RUN_ID"] = run_id = f"run-{time.time_ns()}"
+    pool.start(run_id, pool.cards_only(reserved), time.time() + 3600, reserved=reserved)
+    cloud.offers = lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS if offer.machine_class in classes]
+    assert grow(run_id) == 1 and len(calls.rented) == 1  # the card alone
+    pool.resize(run_id, 1, 1)
+    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1, PROCESSOR: 1}
+    assert grow(run_id) == 1 and len(calls.rented) == 2
+    pool.resize(run_id, 1, 5)  # never above what it reserved
+    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1, PROCESSOR: 2}
+    pool.resize(run_id, 1, 0)
+    assert grow(run_id) == 0 and len(calls.deleted) == 1  # the idle processor goes once no render is near
+    pool.release(run_id)
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()

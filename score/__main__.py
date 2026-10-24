@@ -588,14 +588,29 @@ def pool_sizes(rows, jobs):
 
 
 def pool_tender(runner, jobs, started):
-    """The heartbeat's pool tending: the run's pool lowered to what its card rows still to run can hold at once
-    (pool.resize), a row that ended since `started` (accepted or stopped) no longer counted."""
+    """The heartbeat's pool tending: the run's pool set to what its card rows still to run can hold at once
+    (pool.resize), a row that ended since `started` (accepted or stopped) no longer counted, and a render or bake
+    (on processors) counted only once it is near (`near`), so the pool's processor machines are rented for work
+    about to start, never held idle from the run's start."""
     def tend():
         if not POOLED_ROWS:
             return
-        left = [(line, count, on) for node, line, count, on in POOLED_ROWS if not ended_since(runner, node, started)]
+        left = [(line, count, on) for node, line, count, on in POOLED_ROWS
+                if not ended_since(runner, node, started) and (not on or near(runner, node))]
         cloud_tool("pool").resize(os.environ[RUN_ID], *cloud_tool("pool").counts_for(left, jobs))
     return tend
+
+
+def near(runner, node):
+    """Whether `node` is ready or one step from it: each node it reads stands accepted or itself reads only nodes
+    that stand accepted (an accept an earlier run left counts, so a row may be counted a step early, never late)."""
+    def standing(name):
+        return runner.store.current_accept(name) is not None
+
+    def ready(name):
+        return all(standing(before) for before in runner.earlier(*next(runner.nodes_named([name]))))
+
+    return all(standing(before) or ready(before) for before in runner.earlier(*next(runner.nodes_named([node]))))
 
 
 def ended_since(runner, node, started):
@@ -660,7 +675,8 @@ def opened_pool(runner, places, whole, options):
     before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
     os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
     try:
-        pool.start(run_id, sizes, time.time() + hours * 3600, euros=ticket["clearance"]["holding"])
+        pool.start(run_id, pool.cards_only(sizes), time.time() + hours * 3600, euros=ticket["clearance"]["holding"],
+                   reserved=sizes)
         POOLED_ROWS[:] = rows
     finally:
         for name, value in before.items():

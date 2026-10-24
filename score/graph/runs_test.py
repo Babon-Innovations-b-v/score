@@ -380,6 +380,23 @@ def test_the_claims_beside_the_entries_are_not_a_run():
         shutil.rmtree(folder)
 
 
+def test_a_render_counts_for_the_pools_processors_only_once_it_is_near():
+    """Batch 1 of 2026-10-24: three processor machines idle from the start while only Pixal3D ran."""
+    import types
+    from score import __main__ as command
+    reads = {"bake@a": ["paint@a"], "paint@a": ["model@a"], "model@a": ["close@a"], "close@a": []}
+    standing = {"close@a"}
+    runner = types.SimpleNamespace(
+        store=types.SimpleNamespace(current_accept=lambda node: {"at": "x"} if node in standing else None),
+        nodes_named=lambda names: iter([(name, None) for name in names]),
+        earlier=lambda node, _place: reads[node])
+    assert not command.near(runner, "bake@a")  # two steps away: no processor machine yet
+    standing.add("model@a")
+    assert command.near(runner, "bake@a")  # its input is ready to start: rent now
+    standing.add("paint@a")
+    assert command.near(runner, "bake@a")
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

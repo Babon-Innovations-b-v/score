@@ -156,7 +156,8 @@ def processor_margin(kinds):
     plan = pool.current()
     if not plan or not kinds or not set(kinds) <= set(capacity.PROCESSOR_KINDS):
         return 1
-    held = [name for name, count in plan["sizes"].items() if count and not provider.cards(name)]
+    # reserved: the processor machines the pool may be raised to while the batch runs (pool.resize)
+    held = [name for name, count in plan.get("reserved", plan["sizes"]).items() if count and not provider.cards(name)]
     return max([1] + [capacity.processor_times(name) for name in held])
 
 

@@ -257,15 +257,24 @@ def first_class(kind, offered=None):
                  and (offered is None or machine_class in offered)), None)
 
 
-def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB, euros=None):
+def cards_only(sizes):
+    """`sizes` with every processor class at 0: what a run's pool opens at, its processor machines rented only once
+    the run's heartbeat finds a render or bake near (resize; Batch 1 of 2026-10-24: three POP2s idle for an hour while
+    only Pixal3D ran)."""
+    return {name: count if provider.cards(name) else 0 for name, count in sizes.items()}
+
+
+def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB, euros=None, reserved=None):
     """Open the run's pool of `sizes` ({class: cards}) until `deadline` and start its collector in a process of its
     own; the plan. Renting is checked as for any rent (compute.require_cleared, here and in the collector): the
-    pool's cards are charged to the ticket this process holds. `euros`: what its clearance reserved for `sizes`
-    (compute.pool_clearance), what its stand-ins must fit in (stand_in); without it the pool rents no stand-in."""
-    batch.compute.require_cleared(f"a pool of {sum(sizes.values())} cards")
+    pool's cards are charged to the ticket this process holds. `reserved`: the most the pool may be raised to
+    (resize), `sizes` when not given. `euros`: what its clearance reserved for `reserved` (compute.pool_clearance),
+    what its stand-ins must fit in (stand_in); without it the pool rents no stand-in."""
+    reserved = dict(sizes if reserved is None else reserved)
+    batch.compute.require_cleared(f"a pool of {sum(reserved.values())} cards")
     with locked(run_id) as folder:
         (folder / "closed").unlink(missing_ok=True)
-        plan = {"sizes": dict(sizes), "deadline": deadline, "disk_gb": disk_gb, "reserved": dict(sizes),
+        plan = {"sizes": dict(sizes), "deadline": deadline, "disk_gb": disk_gb, "reserved": reserved,
                 **({"euros": euros} if euros is not None else {}),
                 "ticket": os.environ.get(SPEND_TICKET), "run_pid": int(os.environ.get(RUN_PID) or os.getpid()),
                 "started": time.time()}
@@ -492,9 +501,10 @@ def release_idle(record):
 
 
 def resize(run_id, cards, processors):
-    """Lower the pool to what the run's card rows still to run can hold at once (score run's heartbeat): each card
-    class of its opening sizes to at most `cards`, each processor class to at most `processors`, never above its
-    opening size; the idle cards past it go at the collector's next round (trim)."""
+    """Set the pool to what the run's card rows still to run can hold at once (score run's heartbeat): each card
+    class of its reserved sizes to at most `cards`, each processor class to `processors` (the renders and bakes near),
+    never above its reserved size; the idle cards past it go at the collector's next round (trim), the ones short
+    are rented then."""
     with locked(run_id):
         plan = plan_of(run_id)
         if plan is None:
