@@ -48,6 +48,9 @@ compute.cloud_bill = touched("the cloud bill")
 SCRATCH = pathlib.Path(tempfile.mkdtemp())
 restore.ledger.LEDGER, google_spend.LEDGER = SCRATCH / "ledger.jsonl", SCRATCH / "google-ledger.jsonl"
 restore.guard_free_only()
+# The toy nodes take no memory, and graph/memory_test.py proves the gate: read as always room, so a drive never sits
+# out MEMORY_POLL behind this PC's real memory (as graph_test, 951bbd59; owner's budget 120 s).
+graph.AVAILABLE = lambda: 2**50
 _bucket.DISK_MARGIN = 0  # the test disk's free room is not what these tests are about (one test sets it)
 
 
