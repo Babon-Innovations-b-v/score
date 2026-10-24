@@ -10,6 +10,7 @@ test that plays them is skipped where no library is configured: SCORE_LIB_*, or 
 """
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -420,6 +421,18 @@ def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
     assert asked == [round(takes.FIRST_RESULT_MINUTES + takes.MINUTES_A_TAKE * 2)], asked
     assert scored == {jobs[0]["file"]: 0.41}, scored
     assert len(sound.candidates("pump", jobs, scored, "rev")) == 1
+
+
+def test_the_moss_job_runs_the_repos_run_script_and_every_path_it_names_is_sent():
+    """The image's baked moss-run named a moved script and every take failed (Batch 1, 2026-10-24)."""
+    from score.stages.sound import takes
+    plan = takes.plan_for(pathlib.Path("jobs.json"), pathlib.Path("back"), 10, 1)
+    run = plan["runs"][0]
+    command = run["jobs"][0]["command"]
+    assert command[:2] == ["bash", f"/work/repo/{takes.RUN_SCRIPT}"] and takes.RUN_SCRIPT in run["code"], plan
+    script = (takes.REPO / takes.RUN_SCRIPT).read_text()
+    for named in re.findall(r"/work/repo/(\S+\.py)", script):
+        assert (takes.REPO / named).is_file() and named in run["code"], named
 
 
 def test_no_card_had_by_the_deadline_is_a_gap_asked_once():
