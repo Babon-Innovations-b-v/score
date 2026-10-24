@@ -316,8 +316,10 @@ def note(request_id: int, body: Note, allowed=Depends(token_ok)):
 @sync.put("/batch-run")
 async def batch_run(request: Request, allowed=Depends(token_ok)):
     """The run monitor's record of the batch now (state/batch_run.py), sent by the listener about every minute while a
-    batch lives, kept beside the export (ExportedSource.batch_run reads the newer); only the store's machine's."""
-    refused = one_store.claim_refusal(request.headers.get(MACHINE_HEADER, "").strip())
+    batch lives, kept beside the export with the machine that sent it (ExportedSource.batch_run reads the newer of
+    the store's machine's); only the store's machine's."""
+    caller = request.headers.get(MACHINE_HEADER, "").strip()
+    refused = one_store.claim_refusal(caller)
     if refused:
         raise HTTPException(423, refused)
     body = await request.body()
@@ -332,7 +334,7 @@ async def batch_run(request: Request, allowed=Depends(token_ok)):
     folder = settings.SCORE_HOME / "request-files"
     folder.mkdir(parents=True, exist_ok=True)
     partial = folder / "batch-run.json.partial"
-    partial.write_bytes(body)
+    partial.write_text(json.dumps({**run, "machine": caller}))  # whose, so a moved store's old record is not shown
     os.replace(partial, folder / "batch-run.json")
     return {"kept": run["read_at"]}
 

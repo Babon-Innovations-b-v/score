@@ -77,14 +77,16 @@ class ExportedSource:
         return self.loaded("machine.json", lambda path: json.loads(path.read_text()))
 
     def batch_run(self):
-        """The newest Buy's batch (batch-run.json, state/batch_run.py): the export's, or the one the listener sent
-        since (sync/endpoints.batch_run, in `results`) when read later; None before one."""
+        """The newest Buy's batch (batch-run.json, state/batch_run.py), only the store's machine's (store_batch):
+        the export's, or the one the listener sent since (sync/endpoints.batch_run, in `results`) when read later;
+        None before one."""
         from score.dashboard.state import batch_run
+        from score.dashboard.sync import one_store
+        manifest = self.manifest() or {}
         exported = self.loaded(batch_run.RUN_FILE, lambda path: json.loads(path.read_text()))
         sent = self.results / batch_run.RUN_FILE if self.results else None
         pushed = json.loads(sent.read_text()) if sent and sent.is_file() else None
-        found = [run for run in (exported, pushed) if run]
-        return max(found, key=lambda run: datetime.datetime.fromisoformat(run["read_at"])) if found else None
+        return store_batch(manifest, exported, pushed, one_store.record().get("name") or manifest.get("machine"))
 
     def export_made_at(self):
         """When the store's machine made the export shown, or None before one arrived."""
@@ -150,3 +152,29 @@ class ExportedSource:
         """The place's gaps as its exported detail carries them; [] for a place the export lacks."""
         detail = self.place_detail(place)
         return detail.gaps if detail else []
+
+
+def store_batch(manifest, exported, pushed, store):
+    """The batch record to show (owner 2026-10-24: a moved or reset store kept showing an old batch): none when the
+    export is not the store's machine's (`store`, sync/one_store.py); else the export's or the listener's
+    (pushed_current), whichever was read later."""
+    if (manifest.get("machine") or "") != (store or ""):
+        return None
+    found = [run for run in (exported, pushed if pushed_current(manifest, exported, pushed, store) else None) if run]
+    return max(found, key=lambda run: moment(run["read_at"])) if found else None
+
+
+def pushed_current(manifest, exported, pushed, store):
+    """Whether the listener's record still holds: sent by the store's machine, and of the newest checkout the
+    export names (none after a reset) or read after the export (a Buy since)."""
+    if not pushed or (pushed.get("machine") or "") != (store or ""):
+        return False
+    made = manifest.get("made_at")
+    return (not made or pushed.get("checkout") == (exported or {}).get("checkout")
+            or moment(pushed["read_at"]) > moment(made))
+
+
+def moment(stamp):
+    """An ISO time as an aware time (a time without a zone read as UTC)."""
+    found = datetime.datetime.fromisoformat(stamp)
+    return found if found.tzinfo else found.replace(tzinfo=datetime.timezone.utc)

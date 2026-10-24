@@ -183,7 +183,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   every row any run of it planned: a relaunch goes on where it was, a row done once its accept is newer than the checkout) read from its files by `state/batch_run.py` (the run's detached log: heartbeats, each
   finished row's line, the pool it opened, its result line; a row's own log written since the start: running; each
   done row's batch gaps; `$PROPS_HOME/cloud/pools/<run>/`: plan, cards, closed, collector.log), live locally
-  (`LocalSource.batch_run`), hosted from the export's `batch-run.json`, or the newer one the listener sent each minute (`ExportedSource.batch_run`), with its age; a
+  (`LocalSource.batch_run`), hosted from the export's `batch-run.json`, or the newer one the listener sent each minute (`ExportedSource.batch_run`), with its age, only the store's machine's and only of the newest checkout its export names, else read after it (`exported.store_batch`; owner 2026-10-24: a moved or reset store showed an old batch); a
   hosted Buy not answered yet shows as sent. One screen: state chip (starting, running, waiting for machines,
   stopped, finished), started and elapsed from the checkout's first run (a relaunch goes on its clock), the ETA left
   from the checkout's runner minutes ("at least" while a bought step is untimed), rows done of total, the owner's Stop
