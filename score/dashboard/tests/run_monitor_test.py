@@ -62,7 +62,8 @@ def a_batch(world, log=LOG, state="launched", pool=True):
         {"command": ["score", "run"], "pid": None, "log": str(path), "refused": None}])
     record = Checkout.objects.create(key="a" * 32, by="joey", state=state, totals=TOTALS, launch=launch,
                                      items=[{"nodes": {"closeup@alpha": {}, "closeup@beta": {}}}],
-                                     stop_line={"euros": 396.44, "at": "2026-10-24T11:08:38+00:00"})
+                                     stop_line={"euros": 516.44, "spent": 120.0, "reserved": 0.0,
+                                                "at": "2026-10-24T11:08:38+00:00"})
     (store / "logs").mkdir(parents=True, exist_ok=True)
     row_log = store / "logs" / "closeup@alpha.log"
     row_log.write_text("drawing\n")
@@ -78,7 +79,7 @@ def test_the_batch_is_read_from_its_log_its_rows_and_its_pool(world):
     run = world.source.batch_run()
     assert run["state"] == "running" and run["checkout"] == Checkout.objects.get().pk
     assert run["rows"] == {"total": 6, "done": 2, "failed": 1, "not_run": 1, "running": 1, "queued": 1}
-    assert run["money"]["spent"] == 3.21 and run["money"]["stop"] == 396.44 and run["money"]["high"] == 327.24
+    assert run["money"]["spent"] == 3.21 and run["money"]["line"] == 516.44
     assert run["eta"]["likely_minutes"] == 121.5 and run["eta"]["untimed"] == 1
     scenes = {scene["place"]: scene for scene in run["scenes"]}
     assert scenes[""] == {"place": "", "total": 1, "done": 1, "failed": 0, "not_run": 0, "running": [],
@@ -110,12 +111,47 @@ def test_the_state_follows_the_checkout_the_result_line_and_the_pool(world):
     assert world.source.batch_run()["state"] == "starting"
 
 
+def test_the_money_is_this_batchs_high_and_room_on_its_own_spends_scale(world):
+    """High is what the runner clears (the guesses in it, as the Buy showed), Stop this batch's room under the line:
+    the line less the spend before it, so its high plus 10%."""
+    a_batch(world)
+    money = world.source.batch_run()["money"]
+    assert money["high"] == round(327.24 + 33.16, 2) == 360.40
+    assert money["stop"] == round(516.44 - 120.0, 2) == round(360.40 * 1.1, 2)
+    assert not run_monitor.money_bar({**money, "spent": 340.0})["over"]  # inside the high he approved
+    assert batch_run.own_stop({"euros": 396.44}) is None  # a line without what it was written over: no room shown
+
+
+def test_a_failed_run_is_finished_only_when_its_drive_ended_with_lines_stopped():
+    def said(log):
+        return batch_run.overall({"state": "launched", "launch": {}}, batch_run.read_log(log.splitlines(), set()),
+                                 False, None)
+    assert said("exit: stopped, 3 of 4 lines done, 1 stopped\ndetached: failed exit=1 minutes=80.0") == (
+        "finished", "some scenes' lines stopped")
+    assert said("refused: these inputs are missing, so the rows ...\n  /x/a.json\nexit: exited, exit 1\n"
+                "detached: failed exit=1 minutes=0.3") == (
+        "stopped", "refused: these inputs are missing, so the rows ...")
+    assert said("exit: error: KeyError: 'x'\ndetached: failed exit=1 minutes=2.0") == ("stopped", "error: KeyError: 'x'")
+    assert said("Traceback\ndetached: failed exit=1 minutes=0.1")[0] == "stopped"
+
+
+def test_a_refused_run_shows_stopped_with_its_problem(world):
+    a_batch(world, log="refused: these inputs are missing\nexit: exited, exit 1\n"
+                       "detached: failed exit=1 minutes=0.3 log=x outputs=y\n", pool=False)
+    Launch.objects.update(state="failed")
+    run = world.source.batch_run()
+    assert run["state"] == "stopped" and run["problems"][0]["kind"] == "run"
+    html = signed_in().get("/buy/run/").content.decode()
+    assert "Stopped" in html and "Finished" not in html
+
+
 def test_no_warm_card_while_stock_is_short_is_waiting_for_machines():
     pool = {"open": True, "cards": {"warm": 0, "short": 2}}
-    assert batch_run.overall({"state": "launched", "launch": {}}, None, True, pool)[0] == "waiting"
+    nothing = batch_run.read_log([], set())
+    assert batch_run.overall({"state": "launched", "launch": {}}, nothing, True, pool)[0] == "waiting"
     pool["cards"]["warm"] = 1
-    assert batch_run.overall({"state": "launched", "launch": {}}, None, True, pool)[0] == "running"
-    assert batch_run.overall({"state": "launched", "launch": {}}, None, False, None) == (
+    assert batch_run.overall({"state": "launched", "launch": {}}, nothing, True, pool)[0] == "running"
+    assert batch_run.overall({"state": "launched", "launch": {}}, nothing, False, None) == (
         "stopped", "the run ended without its result line")
 
 

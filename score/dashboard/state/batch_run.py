@@ -9,7 +9,10 @@ the files the batch writes, read live locally and carried in the export as batch
       eta       {likely_minutes, high_minutes} the checkout's runner times; untimed the bought steps with no
                 measured price (the ETA is then at least); elapsed
       money     {spent (the last heartbeat: the cloud ledger's euros for this run's rows; None before one), open
-                (paid runs open), likely, high, guessed, stop (the stop line the Buy wrote), closed (taken back)}
+                (paid runs open), likely, high (pricing.cleared_high: the high with the guessed steps, what the
+                runner clears), guessed, stop (this batch's own room under the stop line the Buy wrote: the line
+                less the spend and the reservations it was written over, on the same scale as spent; None for a
+                line written without them), line (the stop line itself, the environment's), closed (taken back)}
       scenes    [{place ("" the whole environment), total, done, failed, not_run, running [step labels], state}]
       pool      the warm pool the run opened ({run, open, until, cards, processors, stock}; None before one)
       problems  [{at, place, node, kind (failed, gaps, run), words, tip}], newest first
@@ -23,6 +26,7 @@ import json
 import pathlib
 import re
 
+from score.dashboard.checkout import pricing
 from score.dashboard.state import groups, plain
 
 RUN_FILE = "batch-run.json"
@@ -30,6 +34,9 @@ HEARTBEAT = re.compile(r"^heartbeat (\S+): rows done (\d+), running (\d+), queue
 GAUGES = re.compile(r"paid runs open (\d+), EUR ([\d.]+) in the ledger")
 POOL_OPENED = re.compile(r"pool of .+ opened for run (\S+)")
 RESULT = re.compile(r"^detached: (ok|failed|stopped|refused)\b")
+EXIT = re.compile(r"^exit: (.+)$")  # run_with_exit_line's last word: ok, stopped (lines stopped), error, exited
+REFUSAL = re.compile(r"^refused: (.+)$")  # a `score run` that refused before it drove (sys.exit), its first line
+LINES_STOPPED = "stopped, "  # the exit line of a drive that ended with some lines stopped (exit_status)
 ROW_LINE = re.compile(r"^([A-Za-z0-9][\w.:-]*(?:@[\w.-]+)?): (.+)$")
 FAULT = re.compile(r";?\s*fault report \S+")
 MACHINE_CLASS = re.compile(r"\b(gpu|cpu)-(\d+)(gb|c)(?:-(\d+)gb)?(?:-x(\d+))?\b")
@@ -76,9 +83,10 @@ def log_lines(path):
 
 def read_log(lines, planned):
     """What the run's detached log says: {beat {at, done, running, queued, open, spent}, rows {node: (state, did,
-    about)}, pool (its run id), result (ok, failed, stopped, refused or None), result_line}. `about` is the heartbeat
-    time before the row's line (the log stamps only its beats)."""
-    found = {"beat": None, "rows": {}, "pool": None, "result": None, "result_line": ""}
+    about)}, pool (its run id), result (ok, failed, stopped, refused or None), result_line, exit (its `exit:` line's
+    status, "" without one), refusal (a `refused:` line's why, "" without one)}. `about` is the heartbeat time
+    before the row's line (the log stamps only its beats)."""
+    found = {"beat": None, "rows": {}, "pool": None, "result": None, "result_line": "", "exit": "", "refusal": ""}
     about = None
     for line in lines:
         beat = HEARTBEAT.match(line)
@@ -95,6 +103,10 @@ def read_log(lines, planned):
         ended = RESULT.match(line)
         if ended:
             found["result"], found["result_line"] = ended.group(1), line
+            continue
+        said = EXIT.match(line) or REFUSAL.match(line)
+        if said:
+            found["exit" if said.re is EXIT else "refusal"] = said.group(1)
             continue
         row = ROW_LINE.match(line)
         if row and row.group(1) in planned:
@@ -224,8 +236,19 @@ def pool_of(run_id, pools_dir, now):
     return {"run": run_id, "open": is_open, "until": stamp(until), **kinds, "stock": stock}
 
 
-def overall(batch, result, alive, pool):
-    """(state, why): the batch's one state from its checkout, its launch and its run's result line."""
+def failed_run(found):
+    """(state, why) of a run whose result line is `detached: failed`: finished when its drive ended with some lines
+    stopped (its exit line), else stopped: a refusal before it drove, a crash or an exit with no drive's end."""
+    if found["exit"].startswith(LINES_STOPPED):
+        return "finished", "some scenes' lines stopped"
+    if found["refusal"]:
+        return "stopped", f"refused: {found['refusal']}"
+    return "stopped", found["exit"] or "the run failed before it drove a line"
+
+
+def overall(batch, found, alive, pool):
+    """(state, why): the batch's one state from its checkout, its launch and its run's log (read_log)."""
+    result = found["result"]
     if batch["state"] == "launching":
         return "starting", "the runner plans the batch"
     if batch["state"] in ("refused", "failed"):
@@ -235,7 +258,7 @@ def overall(batch, result, alive, pool):
     if result == "ok":
         return "finished", "every scene's line done"
     if result == "failed":
-        return "finished", "some scenes' lines stopped"
+        return failed_run(found)
     if result in ("stopped", "refused"):
         return "stopped", (batch.get("launch") or {}).get("result") or result
     if not alive:
@@ -260,10 +283,20 @@ def eta_of(totals, started, ended, now):
             "untimed": len(totals.get("unmeasured") or []), "elapsed": elapsed}
 
 
+def own_stop(stop_line):
+    """This batch's room under the environment's stop line (flow.write_line: the spend so far, what was in flight
+    and the batch's cleared high plus 10%): the line less the spend and the reservations it was written over, on the
+    scale of this run's own spend; None for a line without them."""
+    if stop_line.get("euros") is None or stop_line.get("spent") is None or stop_line.get("reserved") is None:
+        return None
+    return round(stop_line["euros"] - stop_line["spent"] - stop_line["reserved"], 2)
+
+
 def money_of(totals, stop_line, beat):
     return {"spent": beat["spent"] if beat else None, "open": beat["open"] if beat else None,
-            "likely": totals.get("likely_euros"), "high": totals.get("high_euros"),
-            "guessed": totals.get("guessed_euros"), "stop": stop_line.get("euros"),
+            "likely": totals.get("likely_euros"),
+            "high": pricing.cleared_high(totals) if totals.get("high_euros") is not None else None,
+            "guessed": totals.get("guessed_euros"), "stop": own_stop(stop_line), "line": stop_line.get("euros"),
             "closed": bool(stop_line.get("closed"))}
 
 
@@ -281,7 +314,7 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None):
     found = read_log(log_lines(log_path), set(planned))
     started = parsed(launch.get("at") or batch["at"])
     pool = pool_of(found["pool"], props_home / "cloud" / "pools", now)
-    state, why = overall(batch, found["result"], launch.get("state") == "running", pool)
+    state, why = overall(batch, found, launch.get("state") == "running", pool)
     running = {node for node in planned if node not in found["rows"] and state in LIVE
                and started_since(node, pathlib.Path(store_root) / "logs", started.timestamp())}
     ended = ended_at(batch, found["result"], log_path)

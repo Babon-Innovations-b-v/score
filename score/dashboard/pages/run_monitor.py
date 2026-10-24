@@ -20,7 +20,7 @@ STATES = {"starting": ("Starting", "idle", "the runner plans the batch it bought
           "running": ("Running", "new", "the batch runs"),
           "waiting": ("Waiting for machines", "review", "the batch runs, but no graphics card is warm yet"),
           "stopped": ("Stopped", "bad", "the batch stopped before every scene was done"),
-          "finished": ("Finished", "done", "every row ran")}
+          "finished": ("Finished", "done", "the runner drove every line to its end")}
 SCENE_STATES = {"done": ("done", "done"), "failed": ("failed", "bad"), "working": ("working", "new"),
                 "waiting": ("waiting", "idle"), "left": ("not done", "idle")}
 RELOAD_SECONDS = {False: 20, True: 60}  # while a batch lives: local reads live, hosted follows the sync passes

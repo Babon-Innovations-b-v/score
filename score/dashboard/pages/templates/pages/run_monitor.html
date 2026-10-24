@@ -36,8 +36,8 @@
       <div><div class="num-label">Spent</div>{% if run.money.spent is None %}<div class="rm-big unknown" data-v>unknown</div>{% else %}<div class="rm-big" data-v><small>EUR</small> {{ run.money.spent|floatformat:2 }}</div>{% endif %}</div>
       <dl class="rm-legend">
         <div title="the runner's likely price of what Buy bought"><dt><i class="rm-key rm-key-likely"></i>Likely</dt><dd data-v>{{ run.money.likely|floatformat:2|default:"–" }}</dd></div>
-        <div title="the runner's high price, the guessed steps in it (EUR {{ run.money.guessed|floatformat:2 }})"><dt><i class="rm-key rm-key-high"></i>High</dt><dd data-v>{{ run.money.high|floatformat:2|default:"–" }}</dd></div>
-        <div title="the batch's stop: its high plus 10%; nothing more is cleared past it"><dt><i class="rm-key rm-key-stop"></i>Stop</dt><dd data-v>{{ run.money.stop|floatformat:2|default:"–" }}</dd></div>
+        <div title="the runner's high price, the guessed steps in it (EUR {{ run.money.guessed|floatformat:2 }}): what it clears"><dt><i class="rm-key rm-key-high"></i>High</dt><dd data-v>{{ run.money.high|floatformat:2|default:"–" }}</dd></div>
+        <div title="this batch's room under the stop line: its high plus 10%; nothing more is cleared past it{% if run.money.line is not None %} (the environment's stop line, EUR {{ run.money.line|floatformat:2 }}, counts the spend before the batch too){% endif %}"><dt><i class="rm-key rm-key-stop"></i>Stop</dt><dd data-v>{{ run.money.stop|floatformat:2|default:"–" }}</dd></div>
       </dl>
     </div>
     {% if bar %}<div class="rm-money-bar{% if bar.over %} rm-money-over{% endif %}" aria-hidden="true">
