@@ -1,5 +1,6 @@
 """The resting gate reads the world files the assembly stage declares, never the repository's own: a changed rules
-file, kit or inventory in the world's data changes its verdict, and a seed naming no inventory there is unknown.
+file, kit or inventory in the world's data changes its verdict, and a seed naming no inventory there is unknown. A
+seed records its design inventory by its full path ({home}/design/inventory/<place>.json, as earth-seed lays it).
 No spend: a one-piece place made here, a drop run in which nothing moved.
 
 Run: .venv/bin/python score/stages/assembly/assembly_test.py
@@ -36,7 +37,7 @@ def a_seed(root):
     output = root / "output"
     shutil.copytree(stage.parent, output)
     record = json.loads((output / "inputs.json").read_text())
-    (output / "inputs.json").write_text(json.dumps({**record, "inventory": f"data/inventory/{stage.stem}.json"}))
+    (output / "inputs.json").write_text(json.dumps({**record, "inventory": str(root / f"home/design/inventory/{stage.stem}.json")}))
     return output, stage.stem
 
 
@@ -75,6 +76,23 @@ def test_the_resting_gate_reads_the_declared_world_files():
         (output / "inputs.json").chmod(0o644)
         (output / "inputs.json").write_text(json.dumps({**record, "inventory": "/elsewhere/rows.json"}))
         assert resting(output, kit_floor).answer == checks.UNKNOWN
+    finally:
+        shutil.rmtree(root)
+
+
+def test_the_assembly_reads_the_inventory_folder_the_earth_seed_lays_from():
+    """Fault (Buy of 2026-10-24): the assembly declared {data}/inventory and took only a data/inventory/ name, while
+    every designed seed is laid from {home}/design/inventory and records that full path, so no resting gate was ever
+    judged and every drop run raised FileNotFoundError after its clearance."""
+    from score.stages import earth_seed
+    laid_from = pathlib.Path(earth_seed.design_files("hub")["design inventory"])
+    assert str(laid_from.parent) == assembly.FILES["inventories"], (laid_from, assembly.FILES["inventories"])
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        (root / "inputs.json").write_text(json.dumps({"inventory": str(root / "home/design/inventory/hub.json")}))
+        assert assembly.declared_inventory(root, root / "world") == root / "world/hub.json"
+        (root / "inputs.json").write_text(json.dumps({}))
+        assert assembly.declared_inventory(root, root / "world") is None
     finally:
         shutil.rmtree(root)
 
