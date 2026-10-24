@@ -185,7 +185,7 @@ policy score-conductor "$app" \
   rules.0.project-ids.0="$batch" rules.0.permission-set-names.0=InstancesFullAccess \
   rules.0.permission-set-names.1=BlockStorageFullAccess rules.0.permission-set-names.2=SecretManagerSecretAccess \
   rules.0.permission-set-names.3=SecretManagerReadOnly rules.0.permission-set-names.4=ObjectStorageFullAccess \
-  rules.0.permission-set-names.5=SSHKeysFullAccess \
+  rules.0.permission-set-names.5=SSHKeysFullAccess rules.0.permission-set-names.6=ContainerRegistryFullAccess \
   rules.1.project-ids.0="$conductor" rules.1.permission-set-names.0=ObjectStorageFullAccess \
   rules.2.organization-id="$organisation" rules.2.permission-set-names.0=BillingReadOnly \
   rules.2.permission-set-names.1=ProjectReadOnly
