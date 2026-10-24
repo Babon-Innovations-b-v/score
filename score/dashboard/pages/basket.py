@@ -337,10 +337,6 @@ def last_checkout():
     return f"Checkout {found.pk}: {state}. {tip}"
 
 
-BATCH_TONES = {"launching": "review", "waiting": "review", "picked_up": "review", "running": "review",
-               "launched": "done", "done": "done", "refused": "bad", "failed": "bad", "stopped": "bad"}
-
-
 def batch_state(found):
     """(state, tip) of a checkout: once launched, its run's own (running, done, failed, stopped, refused: its result
     line), else the checkout's."""
@@ -348,25 +344,6 @@ def batch_state(found):
         return found.state, found.detail
     run = guard.polled(found.launch)
     return run.state, run.result or found.detail
-
-
-def last_batch():
-    """{state, tone, stop, tip} of his last checkout, or None before one: `stop` the batch's own stop (its high plus
-    10%, flow.BUFFER) once its stop line is written here, None before that or while hosted (the store's machine
-    writes it)."""
-    if actions.hosted():
-        queued = SyncRequest.objects.filter(kind="checkout").first()
-        return queued and {"state": queued.state, "tone": BATCH_TONES.get(queued.state, "idle"), "stop": None,
-                           "tip": queued.detail}
-    from score.dashboard.checkout import flow
-    from score.dashboard.pages.models import Checkout
-    found = Checkout.objects.order_by("-pk").first()
-    if found is None:
-        return None
-    high = found.stop_line.get("high")
-    state, tip = batch_state(found)
-    return {"state": state, "tone": BATCH_TONES.get(state, "idle"), "tip": tip,
-            "stop": round(high * flow.BUFFER, 2) if high is not None else None}
 
 
 def current_choices(items):

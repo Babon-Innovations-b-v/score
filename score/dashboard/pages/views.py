@@ -146,7 +146,7 @@ def buy(request):
         "design": design, "batch": batch, "estimate": cockpit.estimate(batch["estimate"]),
         "hours": cockpit.eta_hours(batch["now"]["eta"]), "floor": cockpit.floor_hours(batch["now"]["eta"]),
         "money": found["view"],
-        "last": basket_items.last_batch(), "figure": cockpit.month_money(found["view"])["models"] is None,
+        "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex, "film_waits": screens.film_waits()})
 
 

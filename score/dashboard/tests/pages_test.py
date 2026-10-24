@@ -693,7 +693,7 @@ def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_fo
     assert signed_in("guest").post("/buy/yes/", {"key": "a" * 32}, content_type="application/json").status_code == 403
     assert 'data-url="/buy/yes/"' not in signed_in("guest2").get("/buy/").content.decode()
     Checkout.objects.create(key="k" * 8, by="joey", state="launched", stop_line={"high": 10.0, "euros": 30.0})
-    assert '<small>stop EUR</small> 11.00' in client.get("/buy/").content.decode()
+    assert "last batch" not in client.get("/buy/").content.decode()  # the run monitor shows it (owner, 2026-10-24)
 
 
 def test_the_buy_screen_has_no_basket_panel_and_the_books_buttons_only_while_needed(world, monkeypatch):
