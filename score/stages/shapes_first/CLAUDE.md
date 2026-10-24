@@ -30,8 +30,14 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   one scale, a 4x4 row-major matrix mesh frame to place frame in metres, the plan's floor and walls' height, the
   aligned extent and the misfits) and `aligned.glb` (the rough model under one root node carrying the matrix). A
   model whose nodes carry their own transform is not registered and its gate, `registered`, names it. The parts split
-  (`props-inputs`) waits on it, and its gate `fits the plan` fails a row that fits the registered floor no way round
-  (unknown with no registration), measuring how many rows fit no footprint of the aligned rough model.
+  (`props-inputs`) waits on it, and its gate `fits the plan` (`floor_fit.py`, wired by the table's
+  `stages.boxed_split` with the kept plan, `{home}/design/plans/<place>.json`, declared) fails a row that fits the
+  registered floor no way round (unknown with no registration), measuring how many rows fit no footprint of the
+  aligned rough model. Only rows the plan stands on its floor are held: its `structure` (laid as its walls, levels and
+  roofs, never at the row's metres) and its `beyond` (they stand in another place) are counted apart (2026-10-24: eight
+  places' floors, walls and roofs, and the stairwell's view of the Square, failed it). `align.judge_rows_fit` is the
+  old gate, unwired: align.py and this package are in many paid rows' code (`scene_palette` imports align), so delete
+  it only when align.py next moves for its own reason.
 
 ## Rules
 
