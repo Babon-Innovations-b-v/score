@@ -97,6 +97,18 @@ def test_a_backup_restores_every_kept_file_and_leaves_out_what_can_be_rebuilt(se
 
 
 @needs_restic
+def test_a_backup_passes_over_the_volumes_unreadable_lost_and_found(setting):
+    home = setting / "home"
+    make_home(home).close()
+    write(home / "machine.json", "{}")
+    (home / "lost+found").mkdir(mode=0o000)  # unreadable to the backup's user, as the volume's root-owned folder is
+    try:
+        assert backups.backup(home)["snapshot"]
+    finally:
+        (home / "lost+found").chmod(0o700)
+
+
+@needs_restic
 def test_a_live_database_is_backed_up_whole_with_only_its_committed_rows(setting):
     home = setting / "home"
     live = make_home(home)
