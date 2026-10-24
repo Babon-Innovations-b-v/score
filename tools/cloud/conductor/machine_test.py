@@ -70,6 +70,9 @@ def test_units_pass_systemd_verify():
 
 def test_the_sync_unit_install_sync_renders_for_user_score_passes_verify_and_updates_first():
     """`install-sync --no-pull` on the conductor: the sync pass runs the update first, on the system python."""
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "score.dashboard.site.settings")  # the sync's modules read them
+    django.setup()
     from score.dashboard.sync import timer
     with tempfile.TemporaryDirectory() as folder:
         home = machine.fake_home(folder)
@@ -281,6 +284,7 @@ def test_move_dry_backs_this_pc_up_then_restores_before_the_sync_is_installed():
     assert environment["SCORE_SECRETS_PROJECT"] == machine.SECRETS_PROJECT_NAME
     assert environment["SCORE_SCW"] == "/home/someone/.local/bin/scw"
     assert remote.index("--onto-conductor") < remote.index("install-sync") and "--no-pull" in remote
+    assert remote.index("--onto-conductor") < remote.index("boot.sh env") < remote.index("install-sync")
     assert printed.index(next(line for line in printed if "disable --now" in line)) < \
         printed.index(next(line for line in printed if "--from-pc" in line))
     assert any("--from-pc" in line for line in printed) and any("--onto-conductor" in line for line in printed)
@@ -382,6 +386,7 @@ def test_boot_runs_against_a_temp_root_and_again():
         sshd = (root / "etc" / "ssh" / "sshd_config.d" / "50-score-conductor.conf").read_text()
         assert "PasswordAuthentication no" in sshd and "PermitRootLogin no" in sshd
         assert any(call.startswith("uv sync -q --frozen") for call in calls)
+        assert not any("--no-dev" in call for call in calls), "the prop environment was built before the move"
         enabled = next(call for call in calls if call.startswith("systemctl --user enable"))
         for unit in ("score-resume.service", "score-secrets.timer", "score-update.timer", "score-health.timer"):
             assert unit in enabled, unit
@@ -397,8 +402,11 @@ def test_boot_runs_against_a_temp_root_and_again():
         assert "systemctl --user start score-secrets.service" in calls
         assert any(call.startswith("git -C") and "core.sshCommand" in call for call in calls)
 
+        # after the move (machine.json), every boot syncs the prop environment the rows' PROPS_PYTHON runs in
+        (root / "home" / "score" / ".farm-factory-props" / "machine.json").write_text("{}")
         again, calls_again = run_boot(folder, root, shims)
         assert again.returncode == 0, again.stderr
+        assert f"uv sync -q --frozen --no-dev --project {root}/home/score/projects/score" in calls_again
         assert calls_again.count("mkfs.ext4 -q -L score-data /dev/disk/by-id/scsi-0SCW_sbs_volume-test") == 1
         assert (root / "etc" / "fstab").read_text().count("UUID=1111-uuid") == 1
 

@@ -585,11 +585,12 @@ def stop(scw, say=print):
     say("stop: the conductor is powered off; `machine.py up` or the console powers it on")
 
 
-# On the conductor: the restore into the empty home, then the sync's units (score/dashboard install-sync, no pull:
-# score-update moves the checkout). Never before: a sync or listener on the empty home makes dashboard/ and the move
+# On the conductor: the restore into the empty home, the prop environment built (left out of every backup), then the
+# sync's units (score/dashboard install-sync, no pull: score-update moves the checkout). Never before: a sync or listener on the empty home makes dashboard/ and the move
 # refuses it. score-health and score-resume wait for the machine.json the restore writes (ConditionPathExists).
 LANDED = ("set -a && . ~/.config/score/dashboard.env && set +a && cd ~/projects/score && "
           ".venv/bin/python -m score.store.backup migrate --onto-conductor && "
+          "bash tools/cloud/conductor/boot.sh env && "
           ".venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env --no-pull")
 
 

@@ -44,7 +44,13 @@ makes, the rights of the two keys, and what is still unchecked until the first `
 - **`cloud-init.yaml` + `boot.sh`**: user score (uid 1100) with linger, the data volume formatted only when blank
   and mounted at `/home/score/.farm-factory-props` by UUID, restic, uv, scw and the Google Cloud CLI pinned by
   version and SHA-256 (a new pin: a version at least two weeks old, its checksum from the release's own sums file),
-  the checkout over https, `uv sync`, every unit in `units/` installed for user score.
+  the checkout over https, `uv sync`, every unit in `units/` installed for user score; rsync, ssh, ffmpeg and node from
+  apt (the runners' copies, the sound rows' loudness, the 3D web copies' gltfpack). Once machine.json is there,
+  the user part syncs the prop environment `$PROPS_HOME/env` (the rows' PROPS_PYTHON: rough-model, people, surfaces;
+  left out of every backup) from uv.lock with bootstrap.sh's command (`boot.sh env`, which the move runs after its
+  restore), and score_lib's `.venv` (its `score-lib` command, which library_files.py runs). Nothing runs boot.sh at
+  a reboot, so `update.py` syncs the prop environment whenever it is missing and with `.venv` on a uv.lock change. The first Buy on the conductor (2026-10-24, checkout 4)
+  failed for want of it.
 - **Secrets**: one credential on disk, `/home/score/.config/scw/config.yaml` (mode 600). Everything else by name
   through `/usr/local/bin/score-secret-reader` (`secret_reader.sh`: the project id found by its name,
   `SCORE_SECRETS_PROJECT`); the file-shaped ones (`score-lib-deploy-key`, optional `google-billing-reader`) only on tmpfs at
@@ -72,7 +78,15 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   --no-pull` (re-enables the timer), checks `grep ExecStartPre ~/.config/systemd/user/score-sync.service` names
   update.py; then from his PC `scw instance user-data get server-id=<id> key=cloud-init zone=fr-par-2`, the `bootcmd`
   block deleted, `scw instance user-data set server-id=<id> key=cloud-init content=@<file> zone=fr-par-2`, and this
-  note deleted. Other areas add their own units here;
+  note deleted. The same `bootcmd` got a second hand fix after the first Buy failed (2026-10-24): `uv sync` of the
+  prop environment (`UV_PROJECT_ENVIRONMENT=/home/score/.farm-factory-props/env uv sync -q --frozen --no-dev
+  --project /home/score/projects/score`, as score) on every boot. Remove it with the first once a release pins a
+  commit whose boot.sh has `props_env`: as score run `bash ~/projects/score/tools/cloud/conductor/boot.sh user` once
+  (it also builds score_lib's `.venv`, which no boot.sh before this one built: without it a library fetch finds no
+  `score-lib`) and check `ls ~/.farm-factory-props/env/bin/python ~/projects/score_lib/.venv/bin/score-lib`, then delete that `uv sync` line with the `git` lines in the same
+  user-data edit. The apt packages added that day (rsync, openssh-client, ffmpeg, nodejs, npm) reach the live
+  conductor only through the system part, which cloud-init ran once at its first boot: as root, `bash
+  /home/score/projects/score/tools/cloud/conductor/boot.sh system` (safe to re-run). Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
 - Tests (free, no cloud; each file well under 120 s): `machine_test.py` (cloud-init schema, `systemd-analyze --user
   verify`, `up --dry`, boot.sh against a temp root, the door), `update_test.py`, `health_push_test.py`,
