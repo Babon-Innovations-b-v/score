@@ -123,6 +123,106 @@ def test_up_refuses_in_an_agents_process():
     assert machine.agent_refusal({}) is None
 
 
+def test_an_agents_up_and_move_run_only_under_the_owners_open_yes():
+    yes = {"id": "y-1", "answer": "yes", "question": "Switch the conductor on?"}
+    marked = {AGENT_MARKERS[0]: "1"}
+    refused, found = machine.step_refusal("up", marked, open_yes=lambda step: None)
+    assert "none open for up" in refused and found is None
+    assert machine.step_refusal("up", marked, open_yes=lambda step: yes) == (None, yes)
+    assert machine.step_refusal("move", {}, open_yes=lambda step: yes) == (None, None), "the owner needs no yes"
+    (_, environment), _ = machine.move_steps("scw", yes)
+    assert environment["SCORE_CONDUCTOR_YES"] == "y-1", "the migrate steps check the same yes"
+
+
+def test_the_conductors_key_comes_from_its_own_project_or_is_typed():
+    stored = machine.credential_text("org-1", {"access_key": "SCWAAA", "secret_key": "s-1"})
+    assert "access_key: SCWAAA\nsecret_key: s-1\ndefault_organization_id: org-1\n" in stored
+    typed = iter(["SCWBBB", "s-2"])
+    assert "access_key: SCWBBB" in machine.credential_text("org-1", None, ask=lambda prompt: next(typed))
+    printed = []
+    scw = machine.Scw(dry=True, say=printed.append)
+    machine.stored_key(scw)
+    assert any("secret secret list name=score-conductor-key 'project-id=<id of project score-conductor>'" in line
+               for line in printed), printed
+
+
+def test_the_move_sets_the_pcs_home_aside_read_only_after_its_test_home_is_filled():
+    with tempfile.TemporaryDirectory() as folder:
+        home = pathlib.Path(folder) / "props"
+        (home / "store").mkdir(parents=True)
+        kept = machine.PROPS_HOME, machine.PC_FINAL_HOME
+        machine.PROPS_HOME, machine.PC_FINAL_HOME = home, pathlib.Path(folder) / "props.pc-final"
+        ran, marked = [], []
+        kept_mark = machine.conductor_yes.mark_done
+        machine.conductor_yes.mark_done = lambda yes, step, store=None: marked.append((step, store.objects.root))
+        try:
+            machine.retire_pc_home({"id": "y-1"}, "scw", run=lambda command, **kwargs: ran.append(
+                (command, kwargs.get("env", {}))) or types.SimpleNamespace(returncode=0))
+        finally:
+            machine.PROPS_HOME, machine.PC_FINAL_HOME = kept
+            machine.conductor_yes.mark_done = kept_mark
+        final = pathlib.Path(folder) / "props.pc-final"
+        assert final.is_dir() and home.is_dir() and not any(home.iterdir())
+        assert ran[0][0][-1] == "--pc-test-home" and ran[0][1]["SCORE_CONDUCTOR_YES_HOME"] == str(final)
+        assert ran[1][1]["UV_PROJECT_ENVIRONMENT"] == str(home / "env")
+        assert marked == [("move", final / "store" / "objects")]
+        assert ran[-1][0] == ["chmod", "-R", "a-w", str(final)], "read-only last, after the yes is marked"
+
+
+PREPARE_SECRETS = ("score-conductor-key", "score-conductor-size-key", "score-conductor-size-token",
+                   "score-backup-restic-password", "score-cockpit-sync-token", "score-lib-deploy-key")
+# An scw that holds everything prepare.sh makes: every list answers the one item asked for, a secret with a version.
+HOLDING_SCW = """#!/bin/sh
+echo "$*" >> "{log}"
+name=$(for argument in "$@"; do case "$argument" in name=*|policy-name=*) echo "${{argument#*=}}";; esac; done)
+case "$1 $2" in
+  "config get") echo org-1 ;;
+  "account project"|"iam application"|"iam policy") echo "[{{\\"name\\": \\"$name\\", \\"id\\": \\"id-$name\\"}}]" ;;
+  "secret secret") echo "[{{\\"name\\": \\"$name\\", \\"id\\": \\"s-$name\\", \\"version_count\\": 1}}]" ;;
+esac
+"""
+
+
+def prepare(folder, *arguments, scw_text=None):
+    """prepare.sh run with an scw shim (logging every call to folder/scw.log) and an owner's yes in the folder's
+    store (an agent's process needs one); the finished process."""
+    folder = pathlib.Path(folder)
+    machine.conductor_yes.record("yes", "Switch the conductor on?", machine.Store.in_folder(folder / "store"))
+    env = {**os.environ, "SCORE_CONDUCTOR_YES_HOME": str(folder), "SCORE_GH": "/bin/false",
+           "SCORE_PC_SECRET_READER": "/bin/false"}
+    if scw_text:
+        env["SCORE_SCW"] = str(executable(folder / "scw", scw_text.format(log=folder / "scw.log")))
+    return subprocess.run(["bash", str(HERE / "prepare.sh"), *arguments], env=env, capture_output=True, text=True,
+                          timeout=60)
+
+
+def test_prepare_dry_prints_every_call_and_makes_none():
+    with tempfile.TemporaryDirectory() as folder:
+        done = prepare(folder, "--dry")
+        assert done.returncode == 0, done.stderr
+        assert not (pathlib.Path(folder) / "scw.log").exists()
+    calls = done.stderr
+    assert "scw account project create name=score-conductor" in calls
+    for secret in PREPARE_SECRETS:
+        assert f"scw secret secret create name={secret} " in calls, secret
+    assert "name=score-conductor-key project-id=<new>" in calls, "the conductor's key lives in its own project"
+    assert "name=score-conductor-size-key project-id=<id of farm-factory>" in calls
+    assert "rules.0.project-ids.0=<new> rules.0.permission-set-names.0=InstancesFullAccess" in calls
+    assert "repo deploy-key add <its .pub> -R Babon-Innovations-b-v/score_lib -w" in calls and "openssl rand -base64 32" in calls
+    assert "data=@<a file in /dev/shm>" in calls and "<value>" not in calls
+
+
+def test_prepare_again_keeps_what_exists_and_makes_nothing():
+    with tempfile.TemporaryDirectory() as folder:
+        done = prepare(folder, scw_text=HOLDING_SCW)
+        assert done.returncode == 0, done.stderr
+        calls = (pathlib.Path(folder) / "scw.log").read_text().splitlines()
+    assert calls and not [call for call in calls if " create" in call], calls
+    for secret in PREPARE_SECRETS:
+        assert f"have the secret {secret}" in done.stderr, secret
+    assert "have the policy score-conductor (kept as it is)" in done.stderr
+
+
 def test_env_file_carries_no_secret_and_names_the_backup_repository():
     with tempfile.TemporaryDirectory() as folder:
         owner_env = pathlib.Path(folder) / "dashboard.env"

@@ -9,7 +9,8 @@
     PC:        migrate --pc-test-home    restores only the environment data the test sandbox links (work/, design/)
                                          into an empty PC home, read-only, so `make tests` keeps working on the PC
 
-Every mode is the owner's own: refused in an agent's process (the store's AGENT_MARKERS).
+Every mode is the owner's own: refused in an agent's process (the store's AGENT_MARKERS), unless the process names his
+recorded yes to the switch, open for the move (conductor_yes.move_allowed: SCORE_CONDUCTOR_YES).
 """
 import json
 import os
@@ -47,8 +48,11 @@ class Mismatch(RuntimeError):
 
 def agent_refusal():
     """Why this process may not move the store, or None."""
-    if running_under_agent():
-        return "the move is the owner's own: refused in an agent's process"
+    from score.store.backup import conductor_yes  # here: `python -m` runs conductor_yes after this package loads
+
+    if running_under_agent() and not conductor_yes.move_allowed():
+        return ("the move is the owner's own: refused in an agent's process without his recorded yes "
+                f"({conductor_yes.YES_ID} naming one open for the move)")
     return None
 
 
