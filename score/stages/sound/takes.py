@@ -40,6 +40,9 @@ FIRST_RESULT_MINUTES = 8
 REMOTE = "/root/sfx"
 ASKED = "asked"  # each take's last ask: the batch (the score run, else the process) that paid for it
 RUN_ID = "SCORE_RUN_ID"  # the run's id; every node of a score run inherits it (score/__main__.py)
+# The repo's moss-run, sent with the code: the image's own copy names the path moss_generate.py had when it was built
+# (tools/props/cloud, moved 2026-10-24), so every take of Batch 1 failed with "can't open file" (exit 2).
+RUN_SCRIPT = "tools/cloud/images/moss/run.sh"
 SEED = 1  # one take a sound (#29): a take under the floor is a gap, never another seed inside the batch
 
 
@@ -74,10 +77,10 @@ def plan_for(jobs_file, out, minutes, takes):
     import capacity
     return {"classes": list(capacity.classes_for("moss-sound")), "minutes": minutes, "disk_gb": 200,
             "ledger": {"takes": takes},
-            "runs": [{"kind": KIND, "code": ["tools/cloud/moss_generate.py"],
+            "runs": [{"kind": KIND, "code": ["tools/cloud/moss_generate.py", RUN_SCRIPT],
                       "inputs": [{"from": str(jobs_file), "path": f"{REMOTE}/jobs-0.json"}],
                       "jobs": [{"name": "takes", "cache": "a", "models": MODELS, "minutes": minutes,
-                                "command": ["moss-run", f"{REMOTE}/jobs-0.json", "0"],
+                                "command": ["bash", f"/work/repo/{RUN_SCRIPT}", f"{REMOTE}/jobs-0.json", "0"],
                                 "outputs": [{"path": f"{REMOTE}/out", "to": str(out)}]}]}]}
 
 
