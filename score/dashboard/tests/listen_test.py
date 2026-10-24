@@ -122,13 +122,41 @@ def test_the_hosted_side_notes_skips_and_serves_the_newer_batch_record(settings,
     assert web.get(f"/api/sync/requests?skip={buy.pk}", headers=bearer).json() == []
     assert web.post(f"/api/sync/requests/{buy.pk}/claim", headers=bearer).status_code == 200
     assert web.post(f"/api/sync/requests/{buy.pk}/note", json={"detail": "x"}, headers=bearer).status_code == 409
-    export = tmp_path / "export"
-    export.mkdir()
-    (export / "batch-run.json").write_text(json.dumps({"state": "running", "read_at": "2026-10-24T13:00:00+00:00"}))
-    source = ExportedSource(export, tmp_path / "request-files")
+    source = exported(tmp_path, {"checkout": 4, "state": "running", "read_at": "2026-10-24T13:00:00+00:00"})
     assert source.batch_run()["read_at"] == "2026-10-24T13:00:00+00:00"
-    sent = {"state": "running", "read_at": "2026-10-24T13:09:00+00:00"}
+    sent = {"checkout": 4, "state": "running", "read_at": "2026-10-24T13:09:00+00:00"}
     assert web.put("/api/sync/batch-run", content=json.dumps(sent), headers=bearer).status_code == 200
-    assert source.batch_run() == sent
+    assert source.batch_run() == {**sent, "machine": ""}
     assert web.put("/api/sync/batch-run", content=b"[]", headers=bearer).status_code == 400
     assert web.put("/api/sync/batch-run", content=b"{}").status_code == 401
+
+
+def exported(tmp_path, run, machine="", made_at="2026-10-24T12:55:00+00:00"):
+    """An export from `machine` made at `made_at` carrying the batch record `run` (None: no checkout in it)."""
+    export = tmp_path / "export"
+    export.mkdir(exist_ok=True)
+    (export / "manifest.json").write_text(json.dumps({"made_at": made_at, "machine": machine}))
+    (export / "batch-run.json").unlink(missing_ok=True)
+    if run:
+        (export / "batch-run.json").write_text(json.dumps(run))
+    return ExportedSource(export, tmp_path / "request-files")
+
+
+def test_a_moved_or_reset_store_shows_no_old_batch(settings, tmp_path):
+    """Owner 2026-10-24 ("can u fix that"): the page kept the PC's batch after the move to the conductor, and a
+    batch from before a store reset; a record shows only from the store's machine and of its newest checkout."""
+    settings.SCORE_HOME = tmp_path
+    (tmp_path / "store-machine.json").write_text(json.dumps({"name": "pc"}))
+    (tmp_path / "request-files").mkdir()
+    pushed = tmp_path / "request-files" / "batch-run.json"
+    pushed.write_text(json.dumps({"checkout": 4, "state": "finished", "read_at": "2026-10-24T22:22:00+00:00",
+                                  "machine": "pc"}))
+    assert exported(tmp_path, None, "pc", "2026-10-24T22:00:00+00:00").batch_run()["checkout"] == 4  # a Buy since
+    assert exported(tmp_path, None, "pc", "2026-10-24T22:30:00+00:00").batch_run() is None  # reset: no checkout
+    assert exported(tmp_path, {"checkout": 4, "read_at": "2026-10-24T22:10:00+00:00"}, "pc",
+                    "2026-10-24T22:30:00+00:00").batch_run()["read_at"] == "2026-10-24T22:22:00+00:00"
+    (tmp_path / "store-machine.json").write_text(json.dumps({"name": "conductor", "before": "pc"}))
+    assert exported(tmp_path, None, "conductor", "2026-10-24T22:00:00+00:00").batch_run() is None  # the PC's
+    assert exported(tmp_path, {"checkout": 4, "read_at": "2026-10-24T22:10:00+00:00"}, "pc").batch_run() is None
+    pushed.write_text(json.dumps({"checkout": 4, "state": "finished", "read_at": "2026-10-24T22:22:00+00:00"}))
+    assert exported(tmp_path, None, "conductor", "2026-10-24T22:00:00+00:00").batch_run() is None  # whose unknown
