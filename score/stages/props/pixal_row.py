@@ -34,6 +34,8 @@ SUFFIXES = (".glb", "-final.glb", ".svviews")
 # a processor machine (by the hour) when no card is in stock; its set-up and one finish, a minute or two.
 FINISH_CLASSES = ("gpu-24gb", "gpu-48gb", "cpu-16c-64gb", "cpu-32c-128gb")
 FINISH_MINUTES = 15
+# The lines of finish.log a failed finish call's error carries (the fault report shows the error, not the log).
+LOG_TAIL_LINES = 15
 
 
 def take_files(take):
@@ -113,12 +115,15 @@ def finish_all(jobs, place, out):
     done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/blender_cloud.py"), *map(str, paths), "--who",
                            f"score pixal {place}", "--classes", ",".join(FINISH_CLASSES)], cwd=REPO,
                           capture_output=True, text=True)
-    (out / "finish.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
+    log = done.stdout[-20000:] + done.stderr[-20000:]
+    (out / "finish.log").write_text(log)
     for path in paths:
         path.unlink()
     if done.returncode and not any(all(pathlib.Path(path).exists() for path in job["outputs"]) for job in jobs):
-        raise RuntimeError(f"the finish call failed (exit {done.returncode}) and brought no take back; its log is "
-                           "finish.log")
+        # the log's tail in the error, so the fault report shows the cause (Batch 1, 2026-10-24: only a traceback)
+        tail = "\n".join(log.strip().splitlines()[-LOG_TAIL_LINES:])
+        raise RuntimeError(f"the finish call failed (exit {done.returncode}) and brought no take back; the end of "
+                           f"its log, finish.log:\n{tail}")
 
 
 def seed_of(take):

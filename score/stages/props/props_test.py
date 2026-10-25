@@ -256,13 +256,13 @@ def test_a_raw_take_is_finished_on_a_rented_machine_never_here():
             assert calls[0][calls[0].index("--classes") + 1] == ",".join(pixal_row.FINISH_CLASSES)
             for path in job["outputs"]:
                 pathlib.Path(path).unlink()
-            pixal_row.subprocess.run = lambda command, **options: types.SimpleNamespace(returncode=1, stdout="",
-                                                                                      stderr="")
+            pixal_row.subprocess.run = lambda command, **options: types.SimpleNamespace(
+                returncode=1, stdout="renting\n", stderr="no machine could be rented\n")
             try:
                 pixal_row.finish_all(jobs, "yard", pathlib.Path(held))
                 raise AssertionError("a call that brought nothing back must stop the row")
-            except RuntimeError:
-                pass
+            except RuntimeError as error:  # its log's end in the error, so the fault report shows the cause
+                assert str(error).endswith("renting\nno machine could be rented"), error
         finally:
             pixal_row.subprocess.run = kept
 
