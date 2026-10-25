@@ -1,10 +1,10 @@
 """The likeness gate: a made model held to its close-up by its outline from eight ways round it and by DINOv2.
 
 tools/usd/compare.py's candidate check (render-and-compare, WorldAct's idea) promoted to a gate, on the model alone:
-the model's silhouette from YAWS ways round it at each of look_downs() (compare.py's ring, drawn here from the mesh
-with no renderer: a silhouette needs none), each scored by compare.outline against the close-up's object (its alpha
-where the close-up was cut out, else compare.closeup_mask), and the best way and look-down stand for the close-up's
-camera, which a code build never had. DINOv2 (similar.py on a rented machine, paid evidence) then scores the best way's silhouette against
+the model's silhouette from YAWS ways round it at the look-down its close-up was drawn and checked at (look_down:
+compare.py's ring, drawn here from the mesh with no renderer: a silhouette needs none), each scored by compare.outline
+against the close-up's object (its alpha where the close-up was cut out, else compare.closeup_mask), and the best way
+stands for the close-up's turn, which a code build never had. DINOv2 (similar.py on a rented machine, paid evidence) then scores the best way's silhouette against
 the close-up's, both black on white: a silhouette, since the library paint keeps the picture's colours off the model
 on purpose (method B), so colours would mark every right model down.
 
@@ -30,8 +30,6 @@ SIDE = 384
 # median 0.31 but up to 0.60 (11 of 72 pairs at 0.50 or more): the outline alone does not tell like shapes apart,
 # which is why DINOv2 must pass too.
 OUTLINE_LEAST = 0.50
-# Degrees between the look-downs a model's outline is drawn at (look_downs).
-LOOK_DOWN_STEP = 5.0
 
 
 def candidate():
@@ -41,13 +39,14 @@ def candidate():
     return compare
 
 
-def look_downs():
-    """The look-downs a close-up is drawn from, every LOOK_DOWN_STEP degrees from the close-up check's least to its
-    most (tools/props/closeup/check.py: Nano Banana Pro draws from 15 to about 30 degrees above level whatever the
-    wording says, so one look-down would fault the camera, not the model)."""
+def look_down():
+    """The one look-down a close-up is drawn and checked at (tools/props/closeup/check.py LOOK_DOWN_DEGREES): the
+    camera is held to it once, never searched per model, so a wrong model cannot pick the angle that suits it
+    (OUTLINE_LEAST was set at one look-down; on 10,255 wrong pairs, the pre-reset hub code builds against other
+    objects' close-ups, 2026-10-25, best of 32 views passed 36.9% of them, one look-down 32.9% at 15 or 20 degrees)."""
     with prop_data.tools("props/closeup", "props"):
         import check
-    return [float(value) for value in np.arange(check.LOOK_DOWN_DEGREES, check.LOOK_DOWN_MOST + 1e-6, LOOK_DOWN_STEP)]
+    return float(check.LOOK_DOWN_DEGREES)
 
 
 def gltf_mesh(path):
@@ -105,15 +104,13 @@ def closeup_object(path):
 
 
 def best_way(model, closeup):
-    """{"way", "look_down", "outline", "ways"} of a model against its close-up: every way's outline at the look-down
-    that fits it best, and the best way."""
+    """{"way", "look_down", "outline", "ways"} of a model against its close-up: every way's outline at the close-up's
+    look-down (look_down), and the best way."""
     points, triangles = gltf_mesh(model)
-    target, ring = closeup_object(closeup), candidate()
-    scored = [[round(ring.outline(silhouette(points, triangles, step, look_down), target), 4) for look_down in
-               look_downs()] for step in range(ring.YAWS)]
-    ways = [max(row) for row in scored]
+    target, ring, down = closeup_object(closeup), candidate(), look_down()
+    ways = [round(ring.outline(silhouette(points, triangles, step, down), target), 4) for step in range(ring.YAWS)]
     best = int(np.argmax(ways))
-    return {"way": best, "look_down": look_downs()[int(np.argmax(scored[best]))], "outline": ways[best], "ways": ways}
+    return {"way": best, "look_down": down, "outline": ways[best], "ways": ways}
 
 
 def silhouette_picture(mask):
