@@ -33,9 +33,12 @@ GREY = (205, 205, 205)
 # pro.DOLLARS_A_PICTURE, written here: pro is imported only inside the rows' functions (prop_data.tools). Google's
 # 2K price at the Batch API's half, as pro.draw asks (owner, 2026-10-24).
 DOLLARS_A_PICTURE = 0.067
-# Up to four Pro pictures an object (stage.PRO_TAKES), counted one dollar a euro (google_spend); the hub's 51 boxed
-# objects.
-EUROS = round(51 * 4 * DOLLARS_A_PICTURE, 2)
+# A place's row at its most: every object drawing all of Pro's takes (stage.PRO_TAKES: the first and up to three
+# retries), counted one dollar a euro (google_spend), for a place of OBJECTS_GUESS objects. A guess: a reading has no
+# cap on its rows and no spread of objects a place across environments is measured yet; prepare prices each Buy from
+# its own rows (estimate.per_model), never from this.
+OBJECTS_GUESS = 50
+EUROS = round(OBJECTS_GUESS * 4 * DOLLARS_A_PICTURE, 2)
 
 def closeup_tools():
     """The close-up stage (tools/props/closeup/stage.py) and its shape check, imported under prop_data.tools."""

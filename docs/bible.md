@@ -243,7 +243,8 @@ lock, reading and plan, parent before child, then the film.
    it once the run has no card work left and the cockpit's cards-warm figure are still to do
    (`tools/cloud/CLAUDE.md`).
 5. The runner drives every scene's line side by side. A paid node runs once under its clearance; its failure is a
-   batch gap, carried down the line and listed by the completion gate, never a retry (`architecture/failure`). A node
+   batch gap, carried down the line and listed by the completion gate, never a retry (`architecture/failure`; the
+   close-up's bounded retries within its own step are the one exception). A node
    that stops stops only its readers.
 6. The run's outcome reaches the cockpit; the stop is written back at what was spent.
 
@@ -432,7 +433,9 @@ The one boundary in use is the owner's: see `architecture/cockpit`, "Owner-only"
 
 **Inside a batch.** A paid step runs once. Its failure is a batch gap (`score/stages/batch_gaps.py`): the take is
 named with its failed check, left out of the rest of its scene's line and listed by the completion gate; it is never
-retried, waited out or sent to a bigger card class, and fixing it is a new batch (ADR-0005). A warm pool card that
+retried, waited out or sent to a bigger card class, and fixing it is a new batch (ADR-0005). The one exception, the owner's
+(2026-10-24, 2026-10-25): a close-up picture the shape check rejects is drawn again up to three times inside its own
+step (`tools/props/closeup/stage.py` `PRO_TAKES`), each retry priced in the Buy; a row whose every take fails is the gap. A warm pool card that
 dies is not the step's failure: its unfinished job goes back on the pool's queue once for the next card. A free node that fails on
 a transient fault (HTTP 5xx, a timeout, a dropped connection) runs again a few times. A node that does not end
 accepted stops only the nodes that read it, directly or through another; the rest of its line runs. It leaves
@@ -614,7 +617,9 @@ The house standard for a module, so a reader can predict the shape of code they 
 - **Failures propagate.** A failure the caller can act on raises a typed error; one nothing can act on crashes loudly.
   Swallowing is neither.
 - **A paid step's failure is a gap**, never a retry (`architecture/failure`). A retry is a mend only on a free step or
-  on a read that buys nothing.
+  on a read that buys nothing. The one exception is the close-up: a picture the shape check rejects is drawn again up
+  to three times in the same step, each retry priced in the Buy (`tools/props/closeup/stage.py` `PRO_TAKES`; owner,
+  2026-10-24, 2026-10-25).
 
 ## workflow/bootstrap
 
