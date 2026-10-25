@@ -430,7 +430,14 @@ def test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_pict
         sent.clear()
         (folder / "again").mkdir()
         closeup_row.make_closeups({"props-inputs": folder / "inputs"}, folder / "again", 7, {})
-        assert sent == []  # asked again: every take read back free and judged again
+        # asked again (the gap's step bought again): every take read back free and judged again, and only the gap's
+        # row drawn anew, four takes on past the ladder's first four, each firmer and on its own seed
+        assert [(take, name, seed) for take, name, _, seed in sent] == [
+            ("retry-4", "tools", 4), ("retry-5", "tools", 5), ("retry-6", "tools", 6), ("retry-7", "tools", 7)], sent
+        assert all(text.endswith(stage.RETRY + stage.FIRMER) for _, _, text, _ in sent)
+        again = json.loads((folder / "again/closeups.json").read_text())["objects"]
+        assert list(again["tools"]["takes"]) == ["pro", "retry", "retry-2", "retry-3", "retry-4", "retry-5",
+                                                 "retry-6", "retry-7"] and again["lamp"]["drawn_by"] == "retry-2"
         assert (folder / "again/closeups/lamp.png").read_bytes() == (folder / "out/closeups/lamp.png").read_bytes()
         assert closeup_row.measured(folder / "out/closeups/crate.png", {"size": [4.0, 0.5, 0.5]})  # the footprint fails
         assert closeup_row.judge_closeups(folder / "out", {}, {}).answer == "pass"

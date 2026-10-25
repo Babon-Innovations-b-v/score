@@ -22,13 +22,17 @@ for the creator.
   inventory reading's metres, else its `size`; a plan's item is the footprint it is laid in, never the object's size);
   every wording states the check's turn and look-down (`stage.VIEW` from `check.TURN_DEGREES`, `LOOK_DOWN_DEGREES`); a
   picture the check rejects gets up to three retries in the same step (`PRO_TAKES`): `RETRY` added to its wording,
-  then `FIRMER` too on a seed of its own (`RETRY_SEEDS`), so each take is a new request, every one priced and on the
+  then `FIRMER` too on a seed of its own (its number, `pro_ask`), so each take is a new request, every one priced and on the
   ledger like the first, at the same settings. Never loosen the check to pass more.
 - **A picture is keyed by its request, the check judges it apart** (coordinator, 2026-10-25): every Pro picture stays
   in google_spend's cache, a rejected one too; the close-up row first reads back every take the cache holds (free)
   and judges it with today's check, and draws only for the rows none passed. A check change re-judges kept pictures
   without drawing them; a passing picture is kept, so its model's take stands. Never change the first two takes'
   requests (`pro`, `retry`): the pictures of the batches before are cached under them.
+- **A gap's step bought again draws new takes** (owner, 2026-10-25: "a place needs every object"): the takes go on
+  past `PRO_TAKES` (`stage.take_at`: `retry-4` on, each `FIRMER` on its own seed), at most `len(PRO_TAKES)` new ones a
+  row a run, after every cached take is judged. Before, a row whose four takes failed read the same four pictures back
+  and drew nothing, so every close-up gap could only come back as it was.
 - **The outline is held to the one stated look-down** (`check.LOOK_DOWN_DEGREES`, the angle every wording states;
   2026-10-25): never a best fit over a range, whose free angle absorbs a wrong size. No documented camera of the
   picture model backs a range and Batch 1's flat close-ups fit 6 to 60 degrees, so a picture off the stated view is a
