@@ -62,6 +62,9 @@ def test_a_done_place_with_no_kept_plan_gets_one():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     test_the_narrow_walk_answers_as_the_whole_walk()
     test_the_keep_runs_inside_one_moment()
     test_a_done_place_with_no_kept_plan_gets_one()

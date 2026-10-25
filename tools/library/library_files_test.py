@@ -260,5 +260,5 @@ def main():
 
 if __name__ == "__main__":
     import runpy
-    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     main()

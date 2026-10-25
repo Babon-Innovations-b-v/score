@@ -7,7 +7,6 @@ import json
 import types
 
 import pytest
-from django.test import override_settings
 from fastapi.testclient import TestClient
 
 from score.dashboard.pages.models import SyncRequest
@@ -150,10 +149,11 @@ def test_the_batch_record_is_sent_while_it_lives_and_once_as_it_ends():
     assert hosted.runs == ["running", "waiting", "finished"]
 
 
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
 def test_the_hosted_side_notes_skips_and_serves_the_newer_batch_record(settings, tmp_path):
     from score.dashboard.site.asgi import app
-    settings.SCORE_HOME = tmp_path
+    # all through the settings fixture: an override_settings decorator ends before the fixture's own overrides are
+    # undone, which then put the hosted mode back for every later test file (concept_test, run after it)
+    settings.SCORE_MODE, settings.SCORE_SYNC_TOKEN, settings.SCORE_HOME = "hosted", TOKEN, tmp_path
     web, bearer = TestClient(app, base_url="http://127.0.0.1:8780"), {"Authorization": f"Bearer {TOKEN}"}
     buy = SyncRequest.objects.create(kind="checkout", user="joey", payload={})
     assert web.post(f"/api/sync/requests/{buy.pk}/note", json={"detail": "waits"}, headers=bearer).status_code == 200
