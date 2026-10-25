@@ -38,6 +38,12 @@ A place whose picked draw has a reading by today's METHOD is not read again (`to
 (a fix of how its rows are settled, `seen_large`); one read by an older method or again is read again from its own
 rows, no Gemini call (`earlier_rows`). A place whose rows answer is off the
 row schema is kept with `refused` (why) and its call's euros, no SAM 3 asked for it, and is read again next time.
+Each row says what part of the place it is (`part`, PARTS), which prepare routes it by; a reading answered before
+`part` was asked gets its rows' parts in one Gemini call of their own (`parted`), kept apart and read onto its rows
+(`with_parts`), its rows, boxes and plan untouched:
+
+    inventory-parts/<place>/<time>.json     {place, reading (the reading's `at`), at, by, parts {row id: part} or
+                                             refused, euros {total}, seconds, clearance}
 
     python -m score.review.reading <place> [<place> ...] [--by <name>] [--again]
 """
@@ -55,11 +61,29 @@ from score.review import concepts
 from score.store import Store, locked, stamp_key
 
 AREA = "inventory-readings"
+PARTS_AREA = "inventory-parts"  # the parts asked of a reading answered before `part` was (`parted`)
 MODEL = "gemini-3.1-pro-preview"
 CALLER = "inventory-reading"
 TIMEOUT = 400
 KINDS = ("generate", "code")
 ANCHORS = ("floor", "wall", "ceiling", "roof", "ground", "sky")
+# What part of the place a row is (`part`, asked with the rows; a reading answered before it was asked gets its rows'
+# parts in one call of their own, `parted`): prepare routes each row by it (score/stages/complete/prepare/groups.py),
+# never by a list of nouns (owner, 2026-10-25: "no hax tho ... framework remember").
+PARTS = {"object": "a thing made as a model of its own: furniture, a machine, a vehicle, a plant, a lamp, a sign, a "
+                   "person, a rock, a boulder or any other feature lying on the land",
+         "floor": "a floor, deck or raised level people stand on, or its plates",
+         "wall": "a wall of the place, or its panels",
+         "roof": "a roof or ceiling over the place, or its panels",
+         "opening": "a doorway, an open gap or a hole cut in a wall (not the door or window filling it)",
+         "structure": "any other built structure: a door, a window, stairs, a ramp, beams, pillars, a dome, a hull, a "
+                      "tube, a whole building's shell",
+         "ground": "the land or street surface itself the place stands on (the ground, the road, the pavement, the "
+                   "plaza, the hills), never a feature lying on it",
+         "sky": "the sky, a planet, a moon",
+         "effect": "water, rain, smoke, mist, steam or fog",
+         "backdrop": "a far city or landscape well beyond the place, seen as its backdrop"}
+PART_LINES = "\n".join(f'  "{name}": {said};' for name, said in PARTS.items())
 # Generic words SAM 3 is asked on every concept, for the things no row names.
 PROBES = ("object", "machine", "furniture", "container", "vehicle", "person")
 PROBE_KEEP = 40
@@ -103,6 +127,8 @@ are no rows: skip them. Each row with:
 - "noun": one to three words a segmentation model finds it by in the picture ("locker", "fuel drum");
 - "kind": "generate" for an object made as a model of its own, "code" for structure and repeated fittings (walls,
   floor plates, roof panels, pipes, cables, rails, lamps on a wall, signs);
+- "part": what part of the place it is, one of:
+{parts}
 - "terrain": true for a terrain feature (the ground itself and anything formed of it or lying on it as part of the
   land: rocks, boulders, craters, ridges, dunes, cairns, tracks), else false;
 - "count": how many of it the picture shows, counted, not guessed (a repeated panel counted as it shows);
@@ -119,6 +145,13 @@ are no rows: skip them. Each row with:
 Only what this picture shows; nothing hidden, nothing added for the game. No text besides the JSON."""
 OUTLINE = (" the whole place is about {wide:g} m wide and {deep:g} m deep (its outline in its plan), so no row is "
            "bigger than it and every row's metres fit it")
+PARTS_ASKED = """You are given a concept painting of one place of a game environment and the rows already read from it,
+as JSON below. For every row say what part of the place it is. Answer one JSON object {{"parts": {{"<row id>": "<part>",
+...}}}} naming every row's id once, each part one of:
+{parts}
+No text besides the JSON.
+
+{rows}"""
 WITHIN = ("The second picture is the picked concept of {holder}, the place this one sits within: it shows where this "
           "place stands; read only the first picture's place.")
 
@@ -141,9 +174,35 @@ def reading_of(store, place):
     """The newest reading of the place's picked draw by today's METHOD, or None (none picked, none read from this
     pick by it, or only ones whose rows answer was refused: those are read again)."""
     sha = concepts.picked(store, place)
-    return next((found for found in reversed(readings(store, place))
-                 if sha and found["concept"] == sha and found.get("method") == METHOD and not found.get("refused")),
-                None)
+    found = next((found for found in reversed(readings(store, place))
+                  if sha and found["concept"] == sha and found.get("method") == METHOD and not found.get("refused")),
+                 None)
+    return found and with_parts(store, found)
+
+
+def part_records(store, place):
+    """The place's parts records (`parted`), oldest first."""
+    return [store.read(key) for key in sorted(store.objects.keys(f"{PARTS_AREA}/{place}/"))]
+
+
+def with_parts(store, record):
+    """A reading with each row's part: as answered, else from the newest parts record asked of it (`parted`); a row
+    neither gives keeps none (prepare waits on it)."""
+    rows = record["inventory"]["rows"]
+    if all("part" in row for row in rows):
+        return record
+    given = next((found["parts"] for found in reversed(part_records(store, record["place"]))
+                  if found["reading"] == record["at"] and "parts" in found), None)
+    if given is None:
+        return record
+    return {**record, "inventory": {**record["inventory"], "rows": [
+        {**row, "part": given[row["id"]]} if "part" not in row and row["id"] in given else row for row in rows]}}
+
+
+def unparted(store, places):
+    """The places of `places` whose current reading has a row with no part."""
+    return [place for place in places if (found := reading_of(store, place))
+            and any("part" not in row for row in found["inventory"]["rows"])]
 
 
 def to_read(store, places):
@@ -170,8 +229,10 @@ def cost(store, record):
 
 
 def spent(store, places):
-    """The euros every reading of `places` cost, in sum (the cockpit's running total)."""
-    return round(sum(found["euros"]["total"] for place in places for found in readings(store, place)), 4)
+    """The euros every reading of `places` cost, its parts asked after (`parted`) too, in sum (the cockpit's running
+    total)."""
+    return round(sum(found["euros"]["total"] for place in places
+                     for found in readings(store, place) + part_records(store, place)), 4)
 
 
 def asked_body(place, concept, holder_picture, holder=None, outline=None):
@@ -182,7 +243,7 @@ def asked_body(place, concept, holder_picture, holder=None, outline=None):
     holder = holder or concepts.above(place)
     within = WITHIN.format(holder=concepts.name_of(holder)) if holder_picture else ""
     told = OUTLINE.format(wide=outline[0], deep=outline[1]) if outline and all(outline) else ""
-    parts = [{"text": ASKED.format(within=within, outline=told)},
+    parts = [{"text": ASKED.format(within=within, outline=told, parts=PART_LINES)},
              pro.part(Image.open(concept), max(Image.open(concept).size))]
     if holder_picture:
         parts.append(pro.part(Image.open(holder_picture), max(Image.open(holder_picture).size)))
@@ -228,6 +289,7 @@ def rows_of(text):
         wrong += [] if row.get("kind") in KINDS else ["kind"]
         wrong += [] if isinstance(row.get("count"), int) and row["count"] > 0 else ["count"]
         wrong += [] if isinstance(row.get("terrain"), bool) else ["terrain"]
+        wrong += [] if row.get("part") in PARTS else ["part"]
         if wrong:
             raise concepts.Refused(f"row {row.get('id')!r} has no valid {', '.join(wrong)}")
         row["anchor"] = anchor_of(str(row.get("anchor", "")), ids)
@@ -235,6 +297,66 @@ def rows_of(text):
     if len(set(ids)) != len(ids):
         raise concepts.Refused("two rows share an id")
     return rows
+
+
+def parts_of(text, ids):
+    """{row id: part} of a parts answer naming every id of `ids` with a part of PARTS; concepts.Refused off it."""
+    try:
+        parts = json.loads(text)["parts"]
+        wrong = sorted(set(ids) - set(parts)) + sorted(row for row in ids if row in parts and parts[row] not in PARTS)
+    except (ValueError, KeyError, TypeError) as failed:
+        raise concepts.Refused(f"the parts answer is no JSON object with parts: {str(failed)[:200]}") from failed
+    if wrong:
+        raise concepts.Refused(f"no valid part for {', '.join(map(repr, wrong))}")
+    return {row: parts[row] for row in ids}
+
+
+def asked_parts(store, place, folder):
+    """One Gemini call for the parts of a place's current reading's rows, its concept beside them: (parts, or why
+    it was refused, a string; the call's euros; seconds)."""
+    from PIL import Image
+    pro, _, _ = concepts.tools()
+    found = reading_of(store, place)
+    rows = [{key: row.get(key) for key in ("id", "name", "noun", "anchor", "terrain", "where")}
+            for row in found["inventory"]["rows"]]
+    concept = picture_path(store, found["concept"], folder)
+    response, seconds = asked({"contents": [{"role": "user", "parts": [
+        {"text": PARTS_ASKED.format(parts=PART_LINES, rows=json.dumps(rows, indent=1))},
+        pro.part(Image.open(concept), max(Image.open(concept).size))]}],
+        "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}})
+    (folder / f"{place}-parts.json").write_text(json.dumps(response, indent=1))
+    try:
+        parts = parts_of(answer_text(response), [row["id"] for row in rows])
+    except concepts.Refused as refused:
+        parts = str(refused)
+    return parts, call_euros(response), seconds
+
+
+def parted(store, places, by, clear=None, ask=asked_parts):
+    """Ask the parts of every place of `places` whose current reading has rows with none (`unparted`: read before
+    `part` was asked), one call a place side by side inside one reading clearance; each kept, written once, with its
+    reading's `at` (a refused answer kept with why, asked again next time). Its rows, boxes and plan stay as they
+    are. The kept records with parts."""
+    from score.adapters import compute
+    places = unparted(store, places)
+    if not places:
+        return []
+    folder = store.cache / PARTS_AREA / stamp_key(concepts.now())
+    folder.mkdir(parents=True, exist_ok=True)
+    ticket = (clear or compute.reading_clearance)(store, places, round(compute.READING_GEMINI_EUROS * len(places), 4))
+    with compute.spending(ticket):
+        compute.require_cleared("a scene inventory reading", store)
+        with concurrent.futures.ThreadPoolExecutor(len(places)) as pool:
+            answers = dict(zip(places, pool.map(lambda place: ask(store, place, folder), places)))
+    found = []
+    for place, (parts, euros, seconds) in answers.items():
+        record = {"place": place, "reading": reading_of(store, place)["at"], "at": concepts.now(), "by": by,
+                  "euros": {"total": euros}, "seconds": seconds,
+                  "clearance": {"node": ticket["node"], "key": ticket["key"]},
+                  **({"refused": parts} if isinstance(parts, str) else {"parts": parts})}
+        store.write_once(f"{PARTS_AREA}/{place}/{stamp_key(record['at'])}.json", record)
+        found += [] if isinstance(parts, str) else [record]
+    return found
 
 
 def anchor_of(anchor, ids):
@@ -644,6 +766,7 @@ def main(argv):
     store = Store.in_folder(os.environ["SCORE_SPEND_STORE"]) if os.environ.get("SCORE_SPEND_STORE") else Store.default()
     try:
         found = read(store, options.places, options.by, again=options.again)
+        given = parted(store, options.places, options.by)
     except (concepts.Refused, NotCleared) as refused:
         print(f"refused: {refused}", file=sys.stderr)
         return 1
@@ -651,6 +774,8 @@ def main(argv):
         print(json.dumps({"place": record["place"], "rows": len(record["inventory"]["rows"]),
                           "gaps": len(record["gaps"]), "skipped": len(record["skipped"]),
                           "merged": len(record["merged"]), "euros": record["euros"], "seconds": record["seconds"]}))
+    for record in given:
+        print(json.dumps({"place": record["place"], "parts": len(record["parts"]), "euros": record["euros"]}))
     return planned(store, options.places, options.by)  # one already read with no plan written gets it too
 
 

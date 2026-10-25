@@ -30,6 +30,10 @@ def box_faults(box):
     return None if box[0] < box[2] and box[1] < box[3] else f"box {box} has no area"
 
 
+PART_UNREAD = ("its part of the place not read, so no route (its reading was answered before parts were asked): "
+               "python -m score.review.reading <place> asks it")
+
+
 def faults(record, group, work):
     """[why] of a take's inputs that break their contract; empty when every one stands."""
     found = []

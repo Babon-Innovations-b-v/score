@@ -79,8 +79,9 @@ def take_entry(group, record, index, rates, work):
     model = group["route"] in groups.MODEL_ROUTES
     prediction = predict.predicted(group["size"], rates) if model else OWN_ROUTE
     is_made = made(group["take"])
-    inputs = contract.faults(record, group, work) if model else []
-    status = {"ground": TERRAIN, "plan": PLAN}.get(group["route"]) or status_of(match, is_made, inputs)
+    inputs = contract.faults(record, group, work) if model else [contract.PART_UNREAD] * (group["route"] is None)
+    status = {"ground": TERRAIN, "plan": PLAN, None: "input gap"}.get(group["route"]) or status_of(match, is_made,
+                                                                                                    inputs)
     return {**group, "library": match, "prediction": prediction, "inputs": inputs,
             "upscale": contract.upscale(group["box"]), "status": status,
             "key_diff": "made: its take stands, not bought again" if is_made else "new: no take of it stands"}
@@ -89,7 +90,8 @@ def take_entry(group, record, index, rates, work):
 # The ground itself: made by the terrain node from the design (free), its detail areas the scene inventory's terrain
 # rows, the terrain adapter's own, never a close-up of the whole picture; no take bought.
 TERRAIN = "terrain node"
-# A shell piece the plan lays itself (groups.plan_laid: the room's deck, walls and roof, every opening and doorway;
+# A shell piece the plan lays itself (groups.plan_parts: an enclosed place's decks, walls, roofs and the openings it
+# writes, an open place's raised levels;
 # score/stages/earth_seed/design_shell.py and the scene record lay them from the locked plan): no close-up, no take.
 PLAN = "laid from the plan"
 OWN_ROUTE = {"outcome": "pass", "shape": None, "pass_share": None, "mode": None,

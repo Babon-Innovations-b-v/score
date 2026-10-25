@@ -203,10 +203,10 @@ def test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_and_the_rest_run_once():
     assert found["pixal-l4"]["exit"] == 0 and calls.count("run") == 5 and calls.count("plan") == 6
 
 
-def a_read_row(row_id, kind, noun, count=1, terrain=False):
-    """A scene inventory reading's row (score/review/reading.py's shape: no metres, SAM 3's boxes)."""
+def a_read_row(row_id, kind, noun, count=1, terrain=False, part="object"):
+    """A scene inventory reading's row (score/review/reading.py's shape: no metres, SAM 3's boxes, its part)."""
     boxes = [[10.0 * number, 0.0, 10.0 * number + 8, 8.0] for number in range(count)]
-    return {"id": row_id, "name": row_id, "noun": noun, "kind": kind, "terrain": terrain, "count": count,
+    return {"id": row_id, "name": row_id, "noun": noun, "kind": kind, "terrain": terrain, "count": count, "part": part,
             "anchor": "floor", "where": "here", "region": [0, 0, 100, 100], "view": "v1", "box": boxes[0],
             "boxes": boxes, "size": None, "size_words": "waist high", "thing": ""}
 
@@ -246,11 +246,11 @@ def written(store, place):
                               "by": "test", "at": concepts.now(), "plan": plan})
 
 
-def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
+def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     rows = [{**a_read_row("fuel_drum", "generate", "drum", 2), "size": [0.6, 0.6, 0.9]},
             a_read_row("astronaut", "generate", "astronaut"),
             {**a_read_row("wall_lamp", "code", "wall lamp"), "anchor": "wall", "size": [0.3, 0.2, 0.4]},
-            {**a_read_row("night_sky", "generate", "sky"), "anchor": "sky"}]
+            {**a_read_row("night_sky", "generate", "sky", part="sky"), "anchor": "sky"}]
     store = a_read_store("wreck", "a" * 64, rows, picture=[100, 100])
     found, _ = groups.current(store, ["wreck"])
     by_id = {row["id"]: row for row in found["wreck"]["rows"]}
@@ -275,41 +275,58 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
     assert record["counts"]["input_gaps"] == 1 and record["input_gaps_if_bought"]["likely_euros"] > 0
 
 
-def test_a_row_is_routed_by_its_head_word_and_the_plan_lays_its_own_shell():
-    """Coordinator, 2026-10-25 (Batch 1 try 3's close-up gaps): a person row goes to the people line by the row-kind
-    rules (a man, women), a structure word routes a row to the shell whatever its kind or a part word after it ("wall
-    panels", "floor grating"), the ground's words to the terrain node, a "wall lamp" stays a prop; a floor, wall or
-    roof spanning ROOM_SHARE of its place's outline, and every opening, is the plan's own: no close-up."""
-    expected = {"man": "people", "women": "people", "crowd of people": "people", "astronaut": "people",
-                "wall panels": "shell", "floor grating": "shell", "floor plates": "shell", "deck": "shell",
-                "doorway": "shell", "door": "shell", "staircase": "shell", "street surface": "ground",
-                "distant hills": "ground", "pavement": "ground", "wall lamp": "prop", "control panel": "prop",
-                "fuel drum": "prop", "street lamp": "prop", "sky": "sky", "smoke": "effects"}
-    assert {noun: groups.route_of(noun) for noun in expected} == expected
-    outline = [14.5, 15.5]
-
-    def row(noun, size):
-        return {"noun": noun, "route": groups.route_of(noun), "size": size, "read_size": None}
-    assert groups.plan_laid(row("floor", [50.0, 3.0, 0.2]), outline)  # the greenhouse's upper floor
-    assert groups.plan_laid(row("wall panels", [16.0, 0.2, 8.0]), outline)
-    assert groups.plan_laid(row("doorway", None), None) and not groups.plan_laid(row("staircase", [1, 3, 2.5]), outline)
-    assert not groups.plan_laid(row("wall panel", [3.0, 0.2, 3.0]), outline)  # one panel: a shell piece's model
-    assert not groups.plan_laid(row("roof", [1.5, 2.0, 0.1]), outline)  # a porch's roof
-    assert not groups.plan_laid(row("floor", [50.0, 3.0, 0.2]), None)  # no plan: no outline to hold it to
-    assert not groups.plan_laid(row("crate", [20.0, 20.0, 1.0]), outline)
-    assert groups.read_row({"place": "p", "concept": "c" * 64}, {**a_read_row("plates", "generate", "floor plates")})[
-        "group"] == "kit: floor"
-    rows = [{**a_read_row("way_in", "code", "doorway"), "size": [1.0, 0.2, 2.1]},
+def test_a_row_is_routed_by_its_part_and_the_plan_lays_only_the_shell_it_draws():
+    """Owner, 2026-10-25 ("no hax tho ... framework remember"): a person row goes to the people line by the row-kind
+    rules, every other row by the part of the place its reading says it is, whatever its noun; a floor, wall, roof or
+    opening is the plan's own only where the place's plan lays that piece (an enclosed place's decks, walls, roofs and
+    written openings; an open place's raised levels), else a shell piece's model, whatever its size."""
+    def route(noun, part):
+        return groups.route_of({"noun": noun, "part": part})
+    assert [route("man", "object"), route("lantern", "object"), route("regolith", "ground"), route("plaza", "object"),
+            route("haze", "effect"), route("towers", "backdrop"), route("dome", "roof"), route("stairs", "structure")] \
+        == ["people", "prop", "ground", "prop", "effects", "skyline", "shell", "shell"]
+    room = {"w": 6.0, "d": 4.0, "walls": [{"from": [0, 0], "to": [6, 0]}], "openings": [{"kind": "door", "at": [3, 0], "wide": 1.0}]}
+    raised = {"w": 30.0, "d": 30.0, "levels": [{"name": "deck", "height": 2.0,
+                                                 "points": [[0, 0], [10, 0], [10, 10], [0, 10]]}]}
+    assert groups.plan_parts(room) == {"floor", "wall", "roof", "opening"}
+    assert groups.plan_parts({**room, "openings": []}) == {"floor", "wall", "roof"}
+    assert groups.plan_parts(raised) == {"floor"} and groups.plan_parts({"w": 30.0, "d": 30.0}) == set()
+    assert groups.plan_parts(None) == set()
+    assert groups.read_row({"place": "p", "concept": "c" * 64}, a_read_row("plates", "generate", "plates",
+                                                                           part="floor"))["group"] == "kit: floor"
+    rows = [{**a_read_row("way_in", "code", "doorway", part="opening"), "size": [1.0, 0.2, 2.1]},
+            {**a_read_row("big_floor", "code", "floor", part="floor"), "size": [40.0, 30.0, 0.2]},
             {**a_read_row("crate", "generate", "crate"), "size": [0.5, 0.4, 0.4]}]
     store = a_read_store("wreck", "f" * 64, rows, picture=[100, 100])
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
     takes = {take["rows"][0]: take for take in record["takes"]}
-    assert (takes["way_in"]["route"], takes["way_in"]["status"]) == ("plan", prepare.PLAN)
-    assert takes["crate"]["status"] == "bought" and record["counts"]["laid_from_the_plan"] == 1
+    # an open place whose plan lays no shell: its doorway and its big floor stay shell models, never dropped
+    assert takes["way_in"]["route"] == takes["big_floor"]["route"] == "shell", takes["big_floor"]
+    assert takes["crate"]["status"] == "bought" and record["counts"]["laid_from_the_plan"] == 0
     found, _ = groups.current(store, ["wreck"])
-    handed = handin.hand_in("wreck", found["wreck"], record["takes"], prepare.design_route(runner))
-    assert set(handed["objects"]) == {"crate"} and handed["takes"][takes["way_in"]["take"]]["stages"] == []
+    assert {row["id"]: row["route"] for row in found["wreck"]["rows"]}["big_floor"] == "shell"
+
+
+def test_a_row_whose_part_is_not_read_is_an_input_gap_until_its_parts_are_asked():
+    """A reading answered before `part` was asked: each row with no part has no route and its take is an input gap
+    (never bought, never guessed a prop) until reading.parted asks them; its rows, boxes and plan stay as they were."""
+    from score.review import reading
+    store = a_read_store("wreck", "d" * 64, [{**a_read_row("crate", "generate", "crate"), "size": [0.5, 0.4, 0.4]}])
+    record = reading.reading_of(store, "wreck")
+    del record["inventory"]["rows"][0]["part"]
+    store.objects.path(next(iter(store.objects.keys("inventory-readings/wreck/")))).write_text(json.dumps(record))
+    found, waiting = groups.current(store, ["wreck"])
+    assert waiting == [] and found["wreck"]["rows"][0]["route"] is None
+    assert reading.unparted(store, ["wreck"]) == ["wreck"]
+    runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
+    made = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
+    [take] = [take for take in made["takes"] if take["place"] == "wreck"]
+    assert take["status"] == "input gap" and contract.PART_UNREAD in take["inputs"], take
+    store.write_once("inventory-parts/wreck/1.json", {"place": "wreck", "reading": record["at"],
+                                                       "parts": {"crate": "object"}})  # as reading.parted keeps it
+    found, waiting = groups.current(store, ["wreck"])
+    assert waiting == [] and found["wreck"]["rows"][0]["route"] == "prop"
 
 
 def test_a_row_sam_3_missed_is_framed_by_gemini_and_one_with_neither_or_the_whole_picture_is_an_input_gap():
@@ -319,7 +336,7 @@ def test_a_row_sam_3_missed_is_framed_by_gemini_and_one_with_neither_or_the_whol
             {**a_read_row("drum", "generate", "drum"), **unboxed, "size": [0.6, 0.6, 0.9], "region": None},
             {**a_read_row("hall", "generate", "building"), "size": [12.0, 8.0, 12.0], "box": [0, 0, 100, 95]},
             {**a_read_row("chair", "generate", "chair"), "size": [0.5, 0.5, 0.9]},
-            {**a_read_row("martian_ground", "generate", "ground", terrain=True), "box": [0, 0, 100, 100]}]
+            {**a_read_row("martian_ground", "generate", "ground", terrain=True, part="ground"), "box": [0, 0, 100, 100]}]
     store = a_read_store("wreck", "e" * 64, rows, picture=[100, 100])
     found, _ = groups.current(store, ["wreck"])
     by_id = {row["id"]: row for row in found["wreck"]["rows"]}
@@ -342,7 +359,7 @@ def test_a_row_sam_3_missed_is_framed_by_gemini_and_one_with_neither_or_the_whol
 
 def test_a_places_current_reading_is_its_inventory_and_a_place_with_none_waits():
     rows = [a_read_row("wooden_crate", "generate", "crate", 3), a_read_row("crate_2", "generate", "crate"),
-            a_read_row("floor_plate", "code", "floor plate"), a_read_row("wall_lamp", "code", "wall lamp"),
+            a_read_row("floor_plate", "code", "floor plate", part="floor"), a_read_row("wall_lamp", "code", "wall lamp"),
             a_read_row("boulder", "generate", "boulder", 2, terrain=True)]
     store = a_read_store("wreck", "a" * 64, rows)
     found, waiting = groups.current(store, ["wreck", "lab"])
@@ -357,7 +374,7 @@ def test_a_places_current_reading_is_its_inventory_and_a_place_with_none_waits()
 
 def test_the_remake_record_prices_the_read_places_and_counts_the_rest_as_waiting():
     store = a_read_store("wreck", "a" * 64, [a_read_row("fuel_drum", "generate", "drum", 6),
-                                              a_read_row("wall_panel", "code", "wall")])
+                                              a_read_row("wall_panel", "code", "wall", part="wall")])
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
     assert record["inventory"]["read"] == ["wreck"] and "base" in record["inventory"]["waiting"]
@@ -369,7 +386,7 @@ def test_the_remake_record_prices_the_read_places_and_counts_the_rest_as_waiting
 
 def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     store = a_read_store("wreck", "a" * 64, [a_read_row("fuel_drum", "generate", "drum", 6),
-                                              a_read_row("wall_panel", "code", "wall")])
+                                              a_read_row("wall_panel", "code", "wall", part="wall")])
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     work = pathlib.Path(tempfile.mkdtemp())
     record = prepare.remake(runner, REPO / "data", None, work)
@@ -391,9 +408,9 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
     sha = "d" * 64
     rows = [{**a_read_row("fuel_drum", "generate", "drum", 2), "size": [0.6, 0.6, 0.9]},
             {**a_read_row("crate", "generate", "crate"), "size": [0.5, 0.4, 0.4]},
-            {**a_read_row("wall_panel", "code", "wall"), "anchor": "wall", "size": [1.2, 0.06, 1.1]},
+            {**a_read_row("wall_panel", "code", "wall", part="wall"), "anchor": "wall", "size": [1.2, 0.06, 1.1]},
             {**a_read_row("astronaut", "generate", "astronaut"), "size": [0.5, 0.4, 1.8]},
-            {**a_read_row("night_sky", "generate", "sky"), "anchor": "sky"}]
+            {**a_read_row("night_sky", "generate", "sky", part="sky"), "anchor": "sky"}]
     store = a_read_store("wreck", sha, rows, picture=[100, 100])
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
