@@ -392,14 +392,15 @@ def test_a_ship_place_is_read_from_git():
 
 def test_the_cast_crowds_from_its_plan_never_a_hand_written_record():
     """Every place's cast, the ship's and the earth's alike, takes its views from its plan row (an `after`) and
-    declares no old scene record (data/scene/<place>.json, the game's shots), no kit and no views file under work/."""
+    declares no old scene record (data/scene/<place>.json, the game's shots) and no views file under work/; its kit
+    is its own place's, which earth_seeded reads from its earth seed (the design's kit, for its scene record)."""
     row = next(row for row in stages.STAGES if row.name == "cast")
-    assert row.after["plan"] == ("place-plan", 2)
+    assert row.after["plan"] == ("place-plan", 2) and row.after["scene-record"] == ("scene-record", 1)
     for place in ("cockpit", "square", "hub"):
         declared = row.files(place)
         paths = [pattern[0] if isinstance(pattern, tuple) else pattern for pattern in declared.values()]
-        assert not any(path.startswith(("{data}/scene", "{data}/kit")) or "world1-r4" in path for path in paths), \
-            (place, declared)
+        assert not any(path.startswith("{data}/scene") or "world1-r4" in path for path in paths), (place, declared)
+        assert [path for path in paths if path.startswith("{data}/kit")] == ["{data}/kit/{place}.json"], declared
 
 
 # The environment data's paths into the work folder still standing, per file, and why: the work folder is no store

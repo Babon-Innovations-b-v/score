@@ -39,8 +39,9 @@ from score import checks, contracts
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))  # already on it by the assembly's import
 
-from score.stages import people_rows  # noqa: E402
+from score.stages import layer_base, people_rows  # noqa: E402
 from score.stages.cast import layer, measure, spread  # noqa: E402
+from score.stages.scene_record import plan as place_plan  # noqa: E402
 from score.stages.scene_record import writer  # noqa: E402
 
 # How far feet may stand off what is under them, metres: the floor's own unevenness, not a float or a sink.
@@ -53,9 +54,12 @@ def files(place):
     """The place's people from its picked design (its entry of data/people/rows.json, #26, what each row wears among
     it: which dress row a look is), its seed stage, the environment's eye height (its views') and cast.py's and
     cast_check.py's code (imported only inside the make and the gates, so the code version does not follow them:
-    measure.characters). Its views are its plan's (the plan row's output, an `after`: plan_views)."""
+    measure.characters), its locked plan (its levels: on_levels) and its kit (the scene record is written over the
+    seed as the assembly writes it: layer_base). Its views are its plan's (the plan row's output, an `after`:
+    plan_views)."""
     return {"design": ("{data}/people/rows.json", people_rows.place_part(place)),
-            "seed": "{seeds}/usd-r3/{place}",
+            "seed": "{seeds}/usd-r3/{place}", "design plan": "{home}/design/plans/{place}.json",
+            **layer_base.files(place),
             "places": "{data}/definitions/place.json", "cast rules": "{repo}/tools/characters/cast.py",
             "cast check": "{repo}/tools/characters/cast_check.py"}
 
@@ -80,6 +84,28 @@ def plan_views(inputs):
 
 def read_json(path):
     return json.loads(pathlib.Path(path).read_text())
+
+
+def on_levels(record, plan):
+    """The record with each person's spot raised to the plan level it lies in (the lowest whose outline holds it;
+    none: the floor). rows.json's spots are the plan's people spots on its floor (people_rows.placed_spots), so the
+    stairwell's walkway people, drawn on its 3 m landing, stood under it on nothing (Batch 1, 2026-10-25)."""
+    outlines = [(float(level["height"]), [place_plan.placed(plan, *point[:2])[[0, 2]].tolist()
+                                          for point in level["points"]])
+                for level in plan.get("levels") or [] if len(level.get("points") or []) >= 3]
+
+    def raised(at):
+        heights = [height for height, outline in outlines if writer.inside_polygon([at[0], at[2]], outline)]
+        return [at[0], at[1] + min(heights), at[2]] if heights else at
+
+    return dict(record, people=[dict(person, at=raised(person["at"])) for person in record.get("people", [])])
+
+
+def made_ground(inputs, place):
+    """The terrain row's made ground of the place (places/<place>.usdc, as the assembly's take_ground finds it), or
+    None: a room's floor is its seed's or its scene record's."""
+    made = sorted(pathlib.Path(inputs["terrain"]).glob(f"*/places/{place}.usdc")) if "terrain" in inputs else []
+    return made[0] if made else None
 
 
 # --- who: each character's look and the body it plays --------------------------------------------------------------
@@ -137,10 +163,11 @@ def crowd_of(record, singles, inputs):
 
 def asked_of(crowd, candidates):
     """How many copies the crowd asks for: its count, else (a design's crowd SAM 3 saw as one mass) every candidate
-    of its ground, packed; None with no ground."""
-    if crowd.get("count") is not None:
-        return crowd["count"]
-    return len(candidates) if crowd.get("spread") else None
+    of its ground, packed; None with no ground, counted or not (short_of names the missing ground, not a count that
+    could never fit: the stairwell's crowd of 3, Batch 1)."""
+    if not crowd.get("spread"):
+        return None
+    return crowd["count"] if crowd.get("count") is not None else len(candidates)
 
 
 def members_of(record):
@@ -159,14 +186,16 @@ def design_count(place, found):
 
 def make(inputs, out, seed, params):
     """The place's cast dealt into its characters, its people and crowd stood on the place (spread.py; `cast.json`),
-    and every body measured on its seed's base layer (`measures.json`)."""
+    and every body measured on its seed's base layer with its scene record written in (its shell and stairs where the
+    seed lays none: layer_base.built) on its made ground (`measures.json`)."""
     place = pathlib.Path(inputs["seed"]).name
-    base = pathlib.Path(inputs["seed"]) / "layers/base.usda"
     design = read_json(inputs["design"])
-    record = people_rows.cast_record(place, design)
+    record = on_levels(people_rows.cast_record(place, design), read_json(inputs["design plan"]))
     singles = dealt(record, inputs)
     crowd = crowd_of(record, singles, inputs)
-    found = measure.solids(base, place) if singles or crowd else {}
+    with layer_base.built(inputs) as folder:
+        base = folder / "layers/base.usda"
+        found = measure.solids(base, place, made_ground(inputs, place)) if singles or crowd else {}
     if found:
         members = members_of(record)
         singles, copies = spread.stand_every(singles, members, crowd["copies"] if crowd else [],

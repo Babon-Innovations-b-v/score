@@ -178,11 +178,14 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
                            after={"plan": ("place-plan", 2), scene_record.writer.LIBRARY_ROW: ("surface-library", 1)},
                            applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: the cast of each place whose design shows people,
-# placed and measured against its locked design's people (data/people/rows.json, #26) and its seed's geometry.
+# placed and measured against its locked design's people (data/people/rows.json, #26) and its seed's geometry with
+# its scene record written in, on its made ground (a place whose shell or stairs the scene record lays, or whose floor
+# is the terrain's, has none in its seed alone: Batch 1, 2026-10-25).
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
 DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
-                   after={"plan": ("place-plan", 2), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
+                   after={"plan": ("place-plan", 2), "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
+                          **{name: ("people-dress", 1) for name in DRESS_ROWS}},
                    optional=DRESS_ROWS, applies=designed("people"))
 # Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
 # dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look

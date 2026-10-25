@@ -56,10 +56,13 @@ def triangles(prim, cache):
     return world[np.concatenate(corners)] if corners else np.zeros((0, 3, 3))
 
 
-def solids(base, place):
-    """{prim path under the place: its triangles} of every visible mesh of the base layer that is solid, grouped by
-    the place's scopes' children (`Objects/desk_1`); the water's apart under `Water`."""
+def solids(base, place, ground=None):
+    """{prim path under the place: its triangles} of every visible mesh of the base layer, on its made ground (the
+    terrain row's layer, `ground`, held in the session as the assembly sublayers it) where it has one, that is solid,
+    grouped by the place's scopes' children (`Objects/desk_1`); the water's apart under `Water`."""
     stage = Usd.Stage.Open(str(base))
+    if ground:
+        stage.GetSessionLayer().subLayerPaths.append(str(ground))
     cache = UsdGeom.XformCache(Usd.TimeCode.Default())
     found = {}
     for scope in stage.GetPrimAtPath(f"/{place}").GetChildren():
