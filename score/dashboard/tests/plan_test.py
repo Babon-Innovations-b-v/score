@@ -98,8 +98,9 @@ def test_a_rough_plan_offers_make_plan_and_his_click_writes_it_with_its_gaps_to_
 
     def written(store, place, euros, by):  # the writing's own process, its model call a stand-in
         asked.append(euros)
-        record, = plan_writing.write(store, [place], by, ask=lambda body: ({"candidates": [{"content": {"parts": [
-            {"text": json.dumps(answer)}]}}], "usageMetadata": {}}, 1.0))
+        finished = {"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(answer)}]}}
+        record, = plan_writing.write(store, [place], by, ask=lambda body: ({"candidates": [finished],
+                                                                            "usageMetadata": {}}, 1.0))
         return json.loads(plan_writing.said(record))
 
     monkeypatch.setattr(web, "plan_write", written)

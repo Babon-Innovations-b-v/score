@@ -27,8 +27,9 @@ class FakeGoogle:
     """Google's batch endpoint faked: each send makes a job answering every request (`errors` as errors), done after
     `polls` polls in `state`; what was sent and polled is kept."""
 
-    def __init__(self, state="JOB_STATE_SUCCEEDED", polls=1, errors=(), send_error=None):
+    def __init__(self, state="JOB_STATE_SUCCEEDED", polls=1, errors=(), send_error=None, cut=()):
         self.state, self.polls, self.errors, self.send_error = state, polls, set(errors), send_error
+        self.cut = set(cut)  # keys answered cut off at the output limit
         self.sent, self.polled, self.ledger_at_send = [], [], []
         google_batch.send = self.send
         google_batch.status = self.status
@@ -48,10 +49,16 @@ class FakeGoogle:
             return {"name": name, "done": False}
         requests = self.sent[int(name.split("/")[1]) - 1]["batch"]["input_config"]["requests"]["requests"]
         answers = [{"metadata": item["metadata"], **({"error": {"code": 500}} if item["metadata"]["key"] in self.errors
-                                                     else {"response": {"usageMetadata": USAGE, "asked": item["request"]}})}
+                                                     else {"response": self.answer(item)})}
                    for item in requests]
         return {"name": name, "done": True, "metadata": {"state": self.state},
                 "response": {"inlinedResponses": {"inlinedResponses": answers}}}
+
+    def answer(self, item):
+        """A request's answer: finished, or cut off at the output limit mid-object for a key in `cut`."""
+        finish = "MAX_TOKENS" if item["metadata"]["key"] in self.cut else "STOP"
+        return {"usageMetadata": USAGE, "asked": item["request"],
+                "candidates": [{"content": {"parts": [{"text": '{"a": ['}]}, "finishReason": finish}]}
 
 
 def temporary_home():
@@ -183,6 +190,22 @@ def test_requests_past_the_inline_limit_go_into_more_jobs():
             ["a"], ["b"]]
     finally:
         google_batch.INLINE_MOST = kept
+
+
+def test_an_answer_cut_off_is_paid_with_its_finish_reason_and_never_cached():
+    temporary_home()
+    FakeGoogle(cut={"b"})
+    found = google_batch.generate(MODEL, {"a": {"ask": "a"}, "b": {"ask": "b"}}, "key", "test")
+    try:
+        google_spend.answer_text(found["b"])
+    except google_spend.Unfinished as unfinished:
+        assert "MAX_TOKENS" in str(unfinished), unfinished
+    else:
+        raise AssertionError("a cut answer was read as finished")
+    assert not google_spend.cache_path(MODEL, {"ask": "b"}).exists()
+    assert google_spend.cache_path(MODEL, {"ask": "a"}).exists()
+    finished = {line["finish"] for line in ledger() if line["state"] == "finished"}
+    assert finished == {"STOP", "MAX_TOKENS"}, finished
 
 
 if __name__ == "__main__":

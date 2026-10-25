@@ -151,8 +151,8 @@ def a_picture_answer():
     import io
     buffer = io.BytesIO()
     Image.new("RGB", (8, 8)).save(buffer, "PNG")
-    return {"candidates": [{"content": {"parts": [{"inlineData": {"data": base64.b64encode(buffer.getvalue())
-                                                                  .decode()}}]}}],
+    picture = {"inlineData": {"data": base64.b64encode(buffer.getvalue()).decode()}}
+    return {"candidates": [{"finishReason": "STOP", "content": {"parts": [picture]}}],
             "usageMetadata": {"promptTokenCount": 600, "candidatesTokenCount": 1120, "serviceTier": "standard",
                               "candidatesTokensDetails": [{"modality": "IMAGE", "tokenCount": 1120}]}}
 

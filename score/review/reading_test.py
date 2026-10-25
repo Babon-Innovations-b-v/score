@@ -203,6 +203,20 @@ def test_rows_off_the_schema_are_refused():
         reading.rows_of("rows: none")
 
 
+def test_a_cut_answer_is_refused_by_its_finish_reason_and_both_asks_answer_under_a_schema():
+    cut = {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"rows": [{'}]}}],
+           "usageMetadata": {"candidatesTokenCount": 2400, "thoughtsTokenCount": 63136}}
+    with pytest.raises(concepts.Refused, match="MAX_TOKENS .*thinking 63136"):
+        reading.answer_text(cut)
+    finished = {**cut, "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": '{"rows": []}'}]}}]}
+    assert reading.answer_text(finished) == '{"rows": []}'
+    row = reading.ROWS["properties"]["rows"]["items"]
+    assert {"id", "name", "noun", "kind", "count", "terrain", "part", "where"} <= set(row["required"])
+    assert row["properties"]["part"]["enum"] == list(reading.PARTS)
+    parts = reading.parts_schema(["drum", "mast"])["properties"]["parts"]
+    assert parts["required"] == ["drum", "mast"] and parts["properties"]["mast"]["enum"] == list(reading.PARTS)
+
+
 def test_a_rows_answer_off_the_schema_is_kept_with_its_cost_and_read_again(store, tmp_path):
     picked_place(store, tmp_path)
     off = lambda store, place, folder: ("row 'earth' has no valid anchor", 0.02, 9.0, None, None)  # noqa: E731

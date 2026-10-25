@@ -35,10 +35,16 @@ def test_the_answer_is_one_of_the_question_codes_or_unknown():
     assert "After your thinking" not in body["contents"][0]["parts"][-1]["text"]
 
 
-def test_the_reply_leaves_the_thinking_out():
-    response = {"candidates": [{"content": {"parts": [{"text": "hmm", "thought": True},
-                                                      {"text": '{"part": "leg", "material": "M1"}'}]}}]}
-    assert gemini_judge.reply_text(response) == '{"part": "leg", "material": "M1"}'
+def test_an_answer_cut_off_gets_no_verdict_naming_why():
+    cut = {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"part": "le'}]}}],
+           "usageMetadata": {"promptTokenCount": 1300, "candidatesTokenCount": 20, "thoughtsTokenCount": 500}}
+    original = google_spend.post
+    google_spend.post = lambda model, body, key, timeout: cut
+    try:
+        text = gemini_judge.answer_one(job(), gemini_judge.models.api_record(gemini_judge.KIND), "key")
+    finally:
+        google_spend.post = original
+    assert text.startswith(gemini_judge.FAILED) and "MAX_TOKENS" in text, text
 
 
 def test_a_question_that_hangs_on_every_try_gets_no_verdict():
@@ -57,7 +63,8 @@ def test_a_question_that_hangs_on_every_try_gets_no_verdict():
 
 
 def test_the_same_question_is_asked_once_and_priced():
-    answer = {"candidates": [{"content": {"parts": [{"text": '{"part": "leg", "material": "M2"}'}]}}],
+    parts = [{"text": "hmm", "thought": True}, {"text": '{"part": "leg", "material": "M2"}'}]
+    answer = {"candidates": [{"finishReason": "STOP", "content": {"parts": parts}}],
               "usageMetadata": {"promptTokenCount": 1300, "candidatesTokenCount": 20, "thoughtsTokenCount": 500}}
     sent = []
     original = google_spend.post

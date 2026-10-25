@@ -77,13 +77,6 @@ def request_body(job, record):
             "generationConfig": config}
 
 
-def reply_text(response):
-    """The answer's text from a generateContent response (thought parts left out); empty when it gave none."""
-    candidate = (response.get("candidates") or [{}])[0]
-    return "".join(part.get("text", "") for part in candidate.get("content", {}).get("parts", [])
-                   if not part.get("thought"))
-
-
 def answer_one(job, record, key):
     """One question's reply text; a refused or lost request (HTTP 429 or 402 when the API is busy, a 5xx) is asked
     again after BACKOFF_SECONDS doubling, a timeout at most TIMEOUT_TRIES times; after that, a line starting FAILED,
@@ -98,7 +91,10 @@ def answer_one(job, record, key):
         try:
             response = google_spend.generate(record["model"], body, key, compute.judge_timeout(),
                                              caller="gemini_judge", cache=True)
-            return reply_text(response) or "the model gave no answer"
+            try:
+                return google_spend.answer_text(response) or "the model gave no answer"
+            except google_spend.Unfinished as unfinished:  # cut off or blocked: no verdict, never kept
+                return f"{FAILED} {unfinished}"
         except urllib.error.HTTPError as error:
             failure = f"HTTP {error.code}"
         except OSError as error:  # a timeout or a dropped connection: asked again

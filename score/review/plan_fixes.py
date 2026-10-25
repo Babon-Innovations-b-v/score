@@ -32,6 +32,12 @@ CORRECTIONS = 2  # automatic Correct calls at most, each kept only when it leave
 NUDGE_ROUNDS = 4  # passes over the overlaps, each moving the smaller thing of a pair
 MARGIN = 0.05  # metres left between two things nudged apart
 FACINGS = ("N", "E", "S", "W")
+# The corrected plan's schema, the keys `corrected` reads: its items, each [name, x, y, w, d, facing, kind] (a name or
+# word, else a number), and its standing spots [x, y]; the API holds the answer to it (ai.google.dev structured output).
+CORRECTED = {"type": "OBJECT", "required": ["items", "people"], "propertyOrdering": ["items", "people"],
+             "properties": {"items": {"type": "ARRAY", "items": {"type": "ARRAY", "items": {
+                 "anyOf": [{"type": "STRING"}, {"type": "NUMBER"}], "nullable": True}}},
+                 "people": {"type": "ARRAY", "items": {"type": "ARRAY", "items": {"type": "NUMBER"}}}}}
 WHY = {  # what a gap left after the fixes says: why no fix of it took
     "placed": "no box of it on the concept projects onto the plan, and the correction did not place it",
     "people": "no box of them on the concept projects onto the plan",
@@ -305,7 +311,7 @@ def corrected(store, place, plan, left, ask):
     concept = Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{plans.pick_of(store, place)}")))
     body = {"contents": [{"role": "user", "parts": [{"text": question}] + [
         pro.part(picture, concepts.LONGEST_SENT) for picture in (plans.drawn(plan), concept)]}],
-        "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
+        "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": CORRECTED}}
     response, _ = ask(body)
     answered = reading.answer_text(response)
     call = {"model": plan_writing.MODEL, "asked": note, "answered": answered,
