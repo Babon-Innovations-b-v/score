@@ -7,7 +7,7 @@
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
     "paper/source/refs.bib": "f55427b11d8e8771d8c0f14a5111ae47308fc19feab436e9e4f31623ce93037d",
-    "paper/source/score.md": "69c13bd0c1763370a7ffdb6f19c010b88f798e7c926d5316709af20e497a29a6"
+    "paper/source/score.md": "3411f668f65f169cb304f0039ab307cf375dd67151a24dbfcdca8e4a9a882970"
   },
   "outputs": {
     "paper/arxiv/content/abstract.tex": "780151d8906ef2c1b6abf7570d6e236b76ab39f83e11987a06b3fa1bce597608",
@@ -16,15 +16,15 @@
     "paper/arxiv/content/limitations_future_work_and_conclusion.tex": "76cb91188309c33948b5cb8facc78daa67aa2a9c7cba3e7d553699a564af228c",
     "paper/arxiv/content/stages_and_their_gates.tex": "45696c27424542e2bfa97f66dc1860798b03f577a45f5f3f2e3e104c098b98a5",
     "paper/arxiv/content/teaser.tex": "3f0ae46f8d4cafe4e98fe42e7e78d5b8c5fe10eaced90ad4cecfb05687b9798e",
-    "paper/arxiv/content/the_framework.tex": "5314cb9a84fbf032d7fff2b6a03afc370427fe13bdfca98b181d172e72c6132b",
+    "paper/arxiv/content/the_framework.tex": "4616101b0f6ca9f3d40f9033b4eff3097d8272571d64635719d2c7566709241a",
     "paper/arxiv/figures/fig-k2.jpg": "b60e05e13b6d02d760ffef166301a4f912ca63672543c45ad29f969992742980",
     "paper/arxiv/figures/fig-k7.jpg": "8ab1866f68dec59d3d7e7643b33e1e54c186b1fa789caf8219daf84f9fe7c33c",
     "paper/arxiv/figures/fig-k9.jpg": "efa128a1c9e7519b5a56989bd69894c5505659788df5e4cf2862b56a3edb7599",
     "paper/arxiv/main.bbl": "263d428326ae4ccbd71cfe276c8a13f37775697220139a48498bd999ce6189a5",
-    "paper/arxiv/main.pdf": "050c14889e28cc889ff819dfa242853aa73f6288a796e52cbee512f7accfa94a",
+    "paper/arxiv/main.pdf": "0c73a7581d47b223d32a6bb729b9c7a744c67e445b1175201ef9c5d73e702779",
     "paper/arxiv/main.tex": "812fb7327f02a3a99b602745c27e5db3ae44639cc290032cfa462855c6c0d371",
     "paper/arxiv/refs.bib": "f55427b11d8e8771d8c0f14a5111ae47308fc19feab436e9e4f31623ce93037d",
-    "paper/out/score.pdf": "e8183e5b0c54c5f7fd559d6911344c0ef5a6bddb836b854648a82cb6463cb1ff",
-    "paper/out/score.tex": "cfe03cb997542438461ab7e126879de7420d2c15976307f00d1ec27679376970"
+    "paper/out/score.pdf": "2ba303cbd1eafa8754361a6232d878187531eeb3ccbcf9e83287f236d5e70f3b",
+    "paper/out/score.tex": "d531db77a3aa9547e8fbc4ae7022bf96093ec9c323a6a122cad67ebd7f2f46b4"
   }
 }
