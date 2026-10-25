@@ -15,7 +15,9 @@ own sound; paid and cleared by the runner like any paid row.
 - **The camera** is the segment's, else the place's scene record's first (`first_camera`: the plan's first view, as the
   scene record writes them); demo.py plans from the stage's own record (`scene.json`). The path starts there; the first frame is kept as `concept.png`, demo K8's still (no separate
   render); a standing shot starts 5 degrees off the camera's aim and a walk's start may move up to 1.5 m to stand clear,
-  which views.json records.
+  which views.json records. A shot whose camera stands no clear spot falls back to the record's next clear camera
+  (demo.spare_cameras), and a film whose kept shots show less than the longest walk-through showing it (`walk_seconds`)
+  fails before its frames are bought (`refuse_short`).
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;
   two shots of 4 s each (SHOTS, the finish plan of 2026-10-18: a place on screen about 7 s unbroken), 1280x720 at 24
   frames a second (192 frames), the look only (no ink): a 9 s film with its title card, which the length gate holds

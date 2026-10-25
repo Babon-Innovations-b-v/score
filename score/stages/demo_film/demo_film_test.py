@@ -327,6 +327,25 @@ def test_the_clearance_reserves_the_forecast_the_make_checks_against():
         shutil.rmtree(root)
 
 
+def test_a_film_too_short_for_the_walk_through_that_shows_it_fails_before_its_frames_are_bought():
+    """Fault 2026-10-25: a film that kept one shot (its second camera stood no clear spot) passed its own gate at
+    5.5 s and Blocked the environment film's 7 s walk-through after everything was bought. A film's record keeps the
+    longest walk-through showing it, and film_one refuses a plan whose shots show less, before anything is rented;
+    a film shown only as a hero still keeps one shot."""
+    script = {"segments": [{"cut": "walk-through", "seconds": 7, "shows": {"place": "hall"}},
+                           {"cut": "hero-still", "seconds": 3, "shows": {"place": "hall", "film": "porch"}}]}
+    films = demo_film.films_of({"tour": script})
+    assert films["hall"]["walk_seconds"] == 7.0 and films["porch"]["walk_seconds"] == 0.0, films
+    two, one = [{"camera": "a"}, {"camera": "b"}], [{"camera": "a"}]
+    demo_film.refuse_short("hall", two, films["hall"])
+    demo_film.refuse_short("porch", one, films["porch"])
+    try:
+        demo_film.refuse_short("hall", one, films["hall"])
+        raise AssertionError("a one-shot film passed a 7 s walk-through")
+    except RuntimeError as refused:
+        assert "3.50 s" in str(refused) and "wants 7 s" in str(refused), refused
+
+
 def test_the_frames_ask_cards_only_so_no_card_in_stock_is_a_gap():
     """#21: the frames' classes are cards; blender_cloud takes the first one in stock and never a processor machine in
     a card's place (batch.one_class_in_stock), so a film priced on cards runs on cards or is a gap."""

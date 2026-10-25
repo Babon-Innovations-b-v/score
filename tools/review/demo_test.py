@@ -202,6 +202,29 @@ def check_kept(stage, scenes, moves, shots):
     assert [fresh for _, fresh in again] == [False, True] and again[0][0] == shots[0][0], again[0][0][:1]
 
 
+def check_spare(stage, scenes):
+    """A shot whose camera stands no clear spot falls back to the record's next camera that does, the one furthest
+    from the first camera first (none looking up at a roof), so the film keeps its shots; with no spare it is left
+    out (fault 2026-10-25: a one-shot film too short for the environment film's walk-through)."""
+    record = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("walled", [-1, 1.6, 0], [-3, 1.2, 0]),
+                        camera("near", [-2.5, 1.6, 1.5], [-3, 1.2, -2]), camera("far", [3, 1.6, -2], [1, 1.2, 0]),
+                        camera("roof", [3, 1.6, 2], [3, 9.0, 2.1])],
+              "inside": True, "floor": [[-4.0, -3.0], [4.0, 3.0]]}
+    cameras = [record["views"][0], record["views"][1]]
+    spares = demo.spare_cameras(record, cameras)
+    assert [view["name"] for view in spares] == ["far", "near"], spares
+    real = demo.shot_move
+    demo.shot_move = lambda scene, view, *rest, **named: None if view["name"] == "walled" else real(
+        scene, view, *rest, **named)
+    try:
+        moves, _ = demo.film_shots(record, stage, scenes, cameras, {}, spares=spares)
+        alone, _ = demo.film_shots(record, stage, scenes, cameras, {})
+    finally:
+        demo.shot_move = real
+    assert [move["camera"] for move in moves] == ["a", "far"], moves
+    assert [move["camera"] for move in alone] == ["a"], alone
+
+
 def check_inked():
     """A frame whose cloud job drew its ink lines alone gets them laid over its look; a frame inked already is kept."""
     with tempfile.TemporaryDirectory() as temporary:
@@ -237,5 +260,6 @@ if __name__ == "__main__":
         check_stand_spot(rooms)
         check_clear_start(rooms)
         check_kept(stage, rooms, *check_time(stage, rooms))
+        check_spare(stage, rooms)
         check_people(stage, rooms)
     print("demo_test: ok")

@@ -384,22 +384,40 @@ def chosen(given):
     return film, place or film, [name for name in names.split(",") if name]
 
 
-def film_shots(record, stage, scenes, cameras, earlier, seconds=SHOT_SECONDS, start=0.0):
+def spare_cameras(record, cameras):
+    """The record's other cameras a left-out shot falls back to: none looking up at a roof and none already shot,
+    the one standing furthest from the first camera first."""
+    if not cameras:
+        return []
+    taken = {view["name"] for view in cameras}
+    others = [view for view in record.get("views", []) if view["name"] not in taken and not steep(view)]
+    first = np.asarray(cameras[0]["eye"], dtype=float)
+    return sorted(others, key=lambda view: -float(np.linalg.norm(np.asarray(view["eye"], dtype=float) - first)))
+
+
+def film_shots(record, stage, scenes, cameras, earlier, seconds=SHOT_SECONDS, start=0.0, spares=()):
     """A film's shots: an earlier take's where it stands clear (`earlier`, kept_shots) and its camera is the same,
-    else a new move from the camera: the moves, and each shot's views at its moments of the stage's time with
-    whether it is new; each shot `seconds` long, the first from the stage's `start` second."""
+    else a new move from the camera, else from the next of the `spares` (spare_cameras) whose spot stands clear, so a
+    film keeps its shots where its record holds another clear camera (fault 2026-10-25: a one-shot film passed its own
+    gate and was too short for the environment film's walk-through): the moves, and each shot's views at its moments
+    of the stage's time with whether it is new; each shot `seconds` long, the first from the stage's `start` second."""
     time_rate = renders.stage_rate(stage)
     people_at = people_over(stage, time_rate, seconds, start)
     room = record.get("floor") if record.get("inside") else None
     frames = round(seconds * RATE)
-    moves, shots = [], []
+    moves, shots, spares = [], [], list(spares)
     for view in cameras:
         number = len(moves)
         if number in earlier and earlier[number][0]["camera"] == view["name"]:
             moves.append(earlier[number][0])
             shots.append((earlier[number][1], False))
             continue
-        move = shot_move(camera_paths.with_people(scenes, people_at(number)), view, room, seed=number, seconds=seconds)
+        scene = camera_paths.with_people(scenes, people_at(number))
+        move = shot_move(scene, view, room, seed=number, seconds=seconds)
+        while move is None and spares:
+            print(f"{view['name']}: no spot within {MOVE_MOST} m of the camera stands clear; trying {spares[0]['name']}")
+            view = spares.pop(0)
+            move = shot_move(scene, view, room, seed=number, seconds=seconds)
         if move is None:
             print(f"{view['name']}: no spot within {MOVE_MOST} m of the camera stands clear; the shot is left out")
             continue
@@ -472,8 +490,9 @@ def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots
         if not record or not record.get("views"):
             raise SystemExit(f"{place} has no scene record with cameras ({kept} or data/scene/{place}.json)")
         scenes = camera_paths.place_scenes(stage)
-        moves, shots = film_shots(record, stage, scenes, film_cameras(place, record, names, count=shots),
-                                  kept_shots(keep, film, scenes, stage), seconds, start)
+        cameras = film_cameras(place, record, names, count=shots)
+        moves, shots = film_shots(record, stage, scenes, cameras, kept_shots(keep, film, scenes, stage), seconds, start,
+                                  spare_cameras(record, cameras))
         views = [view for shot, _ in shots for view in shot]
         new = [view for shot, fresh in shots if fresh for view in shot]
         old = [view for shot, fresh in shots if not fresh for view in shot]
