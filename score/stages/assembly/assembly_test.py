@@ -575,6 +575,48 @@ def test_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data():
         baked.DESIGN_SURFACES = kept
         shutil.rmtree(root)
 
+def read_only_toy(root):
+    """The toy seed as a store checkout holds it: every file read-only (store.place_blob), no assets/ folder (the
+    store keeps files alone, and an earth seed lays no kit piece)."""
+    stage = a_toy(root)
+    for path in root.rglob("*"):
+        if path.is_file():
+            path.chmod(0o444)
+    return stage
+
+
+def a_record(folder):
+    """An accepted scene record of the toy laying one lamp, and a kit with no pieces: the inputs take_record writes
+    the base over with."""
+    (folder / "record/record").mkdir(parents=True)
+    (folder / f"record/record/{TOY}.json").write_text(json.dumps(
+        {"place": TOY, "lights": [{"type": "omni", "at": [0, 2, 0], "energy": 1.0, "range": 4.0}]}))
+    (folder / "kit.json").write_text(json.dumps({"pieces": []}))
+    (folder / "terrain").mkdir()
+    return {"scene-record": folder / "record", "kit": folder / "kit.json", "terrain": folder / "terrain"}
+
+
+def test_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read_only_layer():
+    """A seed from the store is read-only; its copy takes the record's save over the base and a layer stage's
+    read-only layer in place of the seed's (Batch 1, 2026-10-25: every assembly refused the save)."""
+    from pxr import Usd
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        read_only_toy(folder / "store" / TOY)
+        effects = folder / "effects"
+        (effects / "layers").mkdir(parents=True)
+        (effects / "layers/effects.usda").write_text("#usda 1.0\n")
+        (effects / "layers/effects.usda").chmod(0o444)
+        (folder / "surfaces.json").write_text(json.dumps({}))
+        out = folder / "out"
+        out.mkdir()
+        assembly.make_from_seed({"seed": folder / "store" / TOY, "effects-layer": effects,
+                                 "surfaces": folder / "surfaces.json", **a_record(folder)}, out, folder / "store" / TOY, {})
+        stage = Usd.Stage.Open(str(out / f"{TOY}.usda"))
+        assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and not stage.GetPrimAtPath(f"/{TOY}/Structure/old_wall")
+        assert all(path.stat().st_mode & 0o200 for path in out.rglob("*") if path.is_file())
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
