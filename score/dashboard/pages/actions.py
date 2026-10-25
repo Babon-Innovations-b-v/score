@@ -111,9 +111,22 @@ def stop_everything(user, payload):
     unasked, the parked machines deleted and paid work latched off, by score.conductor.kill.stop_all; in words, with
     its report as JSON after "stopped everything: ". Local here, hosted queued; refused for anyone else, in an
     agent's process and on a machine that is not a conductor."""
+    return kill_clicked(user, payload, "stop-everything", "stopped everything", "stops every run and paid machine")
+
+
+def stop_batch(user, payload):
+    """The owner's Stop this batch (the run monitor, asked twice): stop_everything with no latch, so the next Buy needs
+    no Allow paid work again (score.conductor.kill.stop_batch); in words, its report as JSON after "stopped the batch:
+    ". Local here, hosted queued; refused as Stop everything is."""
+    return kill_clicked(user, payload, "stop-batch", "stopped the batch", "stops this batch and its machines")
+
+
+def kill_clicked(user, payload, kind, done, queued):
+    """One of the kill switch's stops (`kind`: stop-everything through kill.stop_all, stop-batch through
+    kill.stop_batch), in words; the local cockpit keeps it as its last stop."""
     words = str(payload.get("words") or "")[:500]
     if hosted():
-        return queued_for_store("stop-everything", user, {"words": words}, "stops every run and paid machine")
+        return queued_for_store(kind, user, {"words": words}, queued)
     refused = owner_figure_off_why(user)
     if refused:
         return refused
@@ -121,10 +134,11 @@ def stop_everything(user, payload):
     if kill is None:
         from score.dashboard.state.machine import NOT_ON_CONDUCTOR
         return f"refused: {NOT_ON_CONDUCTOR}"
-    report = kill.stop_all(user, words)
-    said = f"stopped everything: {json.dumps(report, default=str, sort_keys=True)}"[:3900]
+    report = (kill.stop_all if kind == "stop-everything" else kill.stop_batch)(user, words)
+    said = f"{done}: {json.dumps(report, default=str, sort_keys=True)}"[:3900]
     (settings.SCORE_HOME / LAST_STOP).write_text(json.dumps({
-        "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), "by": user, "said": said}))
+        "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), "by": user, "said": said,
+        "kind": kind}))
     return said
 
 

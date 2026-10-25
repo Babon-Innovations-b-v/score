@@ -15,8 +15,9 @@ from score.dashboard.pages import actions
 from score.dashboard.pages.models import SyncRequest, is_owner
 from score.dashboard.state import machine
 
-KINDS = {"stop-everything": "stop everything", "allow-paid": "paid allowed"}  # each click and its label
-REPORT = re.compile(r"^(stopped everything|paid work allowed again): (\{.*\})$", re.S)
+KINDS = {"stop-everything": "stop everything", "stop-batch": "batch stopped",  # each click and its label
+         "allow-paid": "paid allowed"}
+REPORT = re.compile(r"^(stopped everything|stopped the batch|paid work allowed again): (\{.*\})$", re.S)
 
 
 def report_counts(said):

@@ -187,7 +187,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   hosted Buy not answered yet shows as sent. One screen: state chip (starting, running, waiting for machines,
   stopped, finished), started and elapsed from the checkout's first run (a relaunch goes on its clock), the ETA left
   from the checkout's runner minutes ("at least" while a bought step is untimed), rows done of total, the owner's Stop
-  everything (asked twice) while it lives; spent (the checkout's: the last heartbeat of each of its runs, each its
+  this batch and Stop everything (each asked twice) while it lives; spent (the checkout's: the last heartbeat of each of its runs, each its
   rows', its warm pool's, its cards idle now and its model calls, `score/__main__.py` `spent_by_run`) on one bar
   against likely, high and stop; a row a scene, parent before child
   (`within`), its rows done, what runs now, a chip, a done scene linking to its 3D copy or scene page; the warm pool's
@@ -451,7 +451,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   only, asked twice, `/api/machine/stop` and `/api/machine/allow-paid`): Stop everything is a SyncRequest
   `stop-everything` the listener applies at once through `score.conductor.kill.stop_all(asked_by, words)`, its report
   as the answer the card counts; Allow paid work again (`allow-paid`, shown while `health.free_only`) through
-  `kill.allow_paid(asked_by, words)`; both refused for anyone else, in an agent's process and off a conductor.
+  `kill.allow_paid(asked_by, words)`; the run monitor's Stop this batch (`stop-batch`, `/api/machine/stop-batch`)
+  through `kill.stop_batch`: the same stop with no latch, so the next Buy needs no Allow paid (owner, 2026-10-25);
+  all refused for anyone else, in an agent's process and off a conductor.
 - **`proposals/`** the basket's details (its own overlay): what a run on main would buy (the runner's plan), grouped
   into items by place and by what changes (a department's declared item may span places), each place's free after
   assembled over the store's accepted outputs as a 3D web copy, what changes read from the two stages, each paid

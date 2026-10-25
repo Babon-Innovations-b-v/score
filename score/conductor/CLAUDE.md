@@ -29,7 +29,7 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   or holding a secret, or showing a secret's own shape, is left out whole. A running entry counts as live only
   while its own process is (`size.entry_alive`: a reused pid is not the run).
 - **`kill.py`**: `stop_all(asked_by, words)` and `allow_paid(asked_by, words)`, the cockpit's owner-only kill
-  switch, refused in an agent's process; the latch is `conductor/free-only` (`SCORE_FREE_ONLY=1`, an env file), read
+  switch, and `stop_batch` (the run monitor's Stop this batch: the same stop, no latch), refused in an agent's process; the latch is `conductor/free-only` (`SCORE_FREE_ONLY=1`, an env file), read
   by every `score` command at its start (`conductor.apply_free_only`). It closes every open warm pool and ends its
   collector (`pool.close_all`) before it releases the parked machines, so no collector orders cards in their place.
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads

@@ -25,10 +25,14 @@
         <div class="rm-big" data-v>{{ run.rows.done }}<small> of {{ run.rows.total }}</small></div>
         <div class="rm-bar" aria-hidden="true"><span class="rm-bar-done" style="width: {{ rows_bar }}%"></span><span class="rm-bar-bad" style="width: {{ rows_failed_bar }}%"></span></div></div>
     </div>
-    {% if owner and live %}<details class="ec-unlock rm-stop"><summary class="button bad" title="every run stopped (never resumed unasked), the parked paid machines deleted, only free work until you allow paid work again">Stop</summary>
+    {% if owner and live %}<div class="rm-stop"><details class="ec-unlock"><summary class="button bad" title="this batch's run stopped (never resumed unasked) and its machines deleted; paid work stays allowed, so the next Buy goes as it is">Stop this batch</summary>
+      <div class="ec-confirm ec-left"><p data-v>Stop this batch and its machines? Paid work stays allowed.</p>
+        <form data-yes data-reload data-url="/api/machine/stop-batch" data-body='{"sure": true}'><button type="submit" class="button bad" data-slot="post-label" data-v>Stop this batch</button><i class="dot" data-slot="said" hidden></i></form></div>
+    </details>
+    <details class="ec-unlock"><summary class="button bad" title="every run stopped (never resumed unasked), the parked paid machines deleted, only free work until you allow paid work again">Stop everything</summary>
       <div class="ec-confirm ec-left"><p data-v>Stop every run and paid machine?</p>
         <form data-yes data-reload data-url="/api/machine/stop" data-body='{"sure": true}'><button type="submit" class="button bad" data-slot="post-label" data-v>Stop everything</button><i class="dot" data-slot="said" hidden></i></form></div>
-    </details>{% endif %}
+    </details></div>{% endif %}
   </section>
 
   <section class="rm-money" aria-label="money" title="spent: the cloud ledger's euros for this batch's rows, as of the runner's last heartbeat{% if run.money.open is not None %}; {{ run.money.open }} paid run{{ run.money.open|pluralize }} open{% endif %}{% if run.money.closed %}; its stop was taken back when it ended{% endif %}">
