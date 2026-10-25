@@ -91,17 +91,24 @@ def test_a_row_takes_the_first_picture_that_passed_and_records_its_cost():
     assert totals["pro_pictures"] == 2 and totals["cloud_euros_per_accepted"] == 0.75
 
 
-def test_pro_draws_a_take_and_one_strict_retry_worded_before_it_is_drawn():
+def test_pro_draws_a_take_and_strict_retries_worded_before_it_is_drawn():
     """The room is chosen free, from the crop's size, not as a second paid take for what the crop alone failed; a
-    rejected picture's one retry asks the same more strictly, so its request is a new one (owner, 2026-10-24)."""
-    assert stage.PRO_TAKES == ("pro", "retry")
+    rejected picture's retries ask the same more strictly, the later ones firmer and on their own seeds, so each
+    request is a new one; the first two are asked as before, so a kept picture reads back from the cache (owner,
+    2026-10-24 and 2026-10-25)."""
+    assert stage.PRO_TAKES == ("pro", "retry", "retry-2", "retry-3")
     assert "Image 2" not in stage.PRO_WORDINGS["crop"] and "Image 2" in stage.PRO_WORDINGS["room"]
     row, out = a_place()
     row = dict(row, pro_wording="crop")
     stage.make_crops([row], out)
-    first, retry = stage.pro_ask(row, out, "pro"), stage.pro_ask(row, out, "retry")
-    assert retry[0] == first[0] + stage.RETRY and "ONLY the object" in retry[0]
-    assert stage.pro.request_body(*first) != stage.pro.request_body(*retry)
+    asks = [stage.pro_ask(row, out, take) for take in stage.PRO_TAKES]
+    assert asks[1][0] == asks[0][0] + stage.RETRY and "ONLY the object" in asks[1][0]
+    assert asks[2][0] == asks[3][0] == asks[1][0] + stage.FIRMER and "Exactly one copy" in asks[2][0]
+    assert [ask[3] for ask in asks] == [None, None, 2, 3]
+    bodies = [stage.pro.request_body(*ask) for ask in asks]
+    assert len({json.dumps(body, sort_keys=True) for body in bodies}) == 4
+    assert "seed" not in bodies[0]["generationConfig"] and bodies[3]["generationConfig"]["seed"] == 3
+    assert bodies[0] == stage.pro.request_body(*asks[0][:3])  # the first two requests as they were
 
 
 def test_the_close_up_is_asked_for_and_checked_at_the_objects_own_size_from_the_checks_view():

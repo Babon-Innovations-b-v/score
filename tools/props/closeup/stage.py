@@ -19,7 +19,8 @@ the out folder and is skipped when they are there, so a run that stops is run ag
    (`pro_wording`, pro_wording()): the crop alone (CROP_ONLY), or with the whole concept as a second reference
    (WORDING) when the row's crop is under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a gap,
    never drawn again here (a batch, CONTEXT.md, owner 2026-10-20); the prop route's close-up row gives a rejected
-   picture its one retry (PRO_TAKES, RETRY; owner 2026-10-24). Skipped with --no-pro.
+   picture up to three retries (PRO_TAKES, RETRY, FIRMER, RETRY_SEEDS; owner 2026-10-24, 2026-10-25). Skipped with
+   --no-pro.
 5. closeups.json: per row the accepted picture and the model that made it (none when every take failed: those are
    gaps left for the creator to look at), every take's faults, its Pro wording and the row's cost; the batches'
    ledger entries and the totals.
@@ -85,13 +86,20 @@ PERSON = ("Make one clean full-body picture of a single person for a 3D characte
 # Pro's wordings, one chosen a row before anything is drawn (pro_wording): the crop alone, or with the room as a
 # second reference for an object whose crop is too small to make it clear; a person's own.
 PRO_WORDINGS = {"crop": CROP_ONLY, "room": WORDING, "person": PERSON}
-# Pro's takes a row, by their folder under the out folder: the first, and one retry for a row whose first picture the
-# shape check rejected (owner, 2026-10-24: 28 of the Buy's 80 gaps drew the room or ground behind the object or cut it
-# at the frame), worded RETRY on top, so its request is a new one. At most one retry a row a run.
-PRO_TAKES = ("pro", "retry")
+# Pro's takes a row, by their folder under the out folder: the first, then up to three retries for a row whose picture
+# of the take before the shape check rejected (owner, 2026-10-24: 28 of the Buy's 80 gaps drew the room or ground
+# behind the object or cut it at the frame; owner, 2026-10-25: "fix all", 13 of Batch 1 try 3's close-up gaps still
+# drew the room, copies of the object or cut it off after the one retry). Each retry is worded RETRY on top, a later
+# one FIRMER too and its own seed (RETRY_SEEDS), so every take's request is a new one; the first two are asked as they
+# were, so a picture drawn and kept before reads back from Google's cache, free.
+PRO_TAKES = ("pro", "retry", "retry-2", "retry-3")
 RETRY = (" Be strict, the last picture failed: draw ONLY the object itself, nothing behind, under or around it (no "
          "room, no wall, no floor, no ground, no scenery), on a plain, even, light grey background that reaches every "
          "edge of the picture, the whole object inside the frame with a wide empty margin on every side.")
+FIRMER = (" Again the picture failed. Exactly one copy of the object, never two or a row of them; nothing else in the "
+          "picture at all; every part of the object well inside the frame, never cut off at an edge; the grey "
+          "background flat and empty from edge to edge.")
+RETRY_SEEDS = {"retry-2": 2, "retry-3": 3}
 MARGIN = 0.2
 SHORTEST_CROP = 512
 
@@ -240,10 +248,12 @@ def checked(row, out, take):
 
 def pro_ask(row, out, take):
     """A row's Pro request for `take` (pro.draw's ask): worded as its `pro_wording` says, RETRY on top for a take after
-    the first; its crop, and the whole concept for the "room" wording."""
-    text = wording(row, PRO_WORDINGS[row["pro_wording"]]) + (RETRY if take != PRO_TAKES[0] else "")
+    the first and FIRMER for one after the second; its crop, the whole concept for the "room" wording, and the take's
+    seed (RETRY_SEEDS, None for the first two)."""
+    index = PRO_TAKES.index(take)
+    text = wording(row, PRO_WORDINGS[row["pro_wording"]]) + (RETRY if index else "") + (FIRMER if index > 1 else "")
     return (text, Image.open(out / "crops" / f"{row['id']}.jpg"),
-            Image.open(row["concept"]) if row["pro_wording"] == "room" else None)
+            Image.open(row["concept"]) if row["pro_wording"] == "room" else None, RETRY_SEEDS.get(take))
 
 
 def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):
@@ -260,10 +270,11 @@ def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):
                                       for row in with_pro_wordings(todo)})
 
 
-def forget_rejected(row, out, take):
-    """The row's `take` request dropped from google_spend's cache once the shape check rejected its picture, so a
-    later make asking it again draws again rather than reading the rejected picture back (owner, 2026-10-24)."""
-    pro.forget(pro_ask(row, out, take))
+def cached(row, out, take):
+    """Whether the row's `take` request is in google_spend's cache: drawing it reads its picture back, free. Every
+    picture stays cached, a rejected one too, so a picture is keyed by what makes it (its request) and the shape check
+    judges it apart: a check changed re-judges kept pictures without drawing them again (coordinator, 2026-10-25)."""
+    return pro.cached(pro_ask(row, out, take))
 
 
 def kept_entry(entry, path):

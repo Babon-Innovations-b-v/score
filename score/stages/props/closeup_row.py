@@ -7,9 +7,11 @@ the data names one, its route, take and the model layer that handed it (the shar
 needs a box the gate passes, so nothing is drawn of the wrong thing.
 
 closeup@<place> draws every missing close-up with Nano Banana Pro through tools/props/closeup/pro.py, a take's
-close-ups as one Batch API job at half price (google_batch prices each answer): the first take, then one retry,
-worded more strictly, for each picture the check rejected (the stage's PRO_TAKES, owner 2026-10-24), every rejected
-picture's request dropped from Google's cache and its euros written in UNCACHED. A drawn close-up is taken as it is,
+close-ups as one Batch API job at half price (google_batch prices each answer): the first take, then up to three
+retries, each worded more strictly and the later ones on their own seeds, for each picture the check rejected (the
+stage's PRO_TAKES, owner 2026-10-24 and 2026-10-25). Every picture stays in Google's cache, keyed by its request, and
+the check judges it apart: a take cached before is read back free and judged again first, so a picture that passes is
+kept and only the rows none passed are drawn again (coordinator, 2026-10-25). A drawn close-up is taken as it is,
 set on the stage's grey. Its gate, `close-up`, is the shape check's measured half (check.measured_faults: plain
 border, one object filling the frame, the proportions of the object's own size, stage.object_size), free and
 re-measured on the stored pictures, so Pixal3D is never
@@ -31,12 +33,9 @@ GREY = (205, 205, 205)
 # pro.DOLLARS_A_PICTURE, written here: pro is imported only inside the rows' functions (prop_data.tools). Google's
 # 2K price at the Batch API's half, as pro.draw asks (owner, 2026-10-24).
 DOLLARS_A_PICTURE = 0.067
-# Up to two Pro pictures an object (PRO_TAKES), counted one dollar a euro (google_spend); the hub's 51 boxed objects.
-EUROS = round(51 * 2 * DOLLARS_A_PICTURE, 2)
-# The euros of the requests this output dropped from Google's cache (its rejected pictures): a make asking the same
-# requests again spends them, which score/graph/rebuy.py reads by this name (its UNCACHED) instead of pricing it EUR 0.
-UNCACHED = "google-uncached.json"
-
+# Up to four Pro pictures an object (stage.PRO_TAKES), counted one dollar a euro (google_spend); the hub's 51 boxed
+# objects.
+EUROS = round(51 * 4 * DOLLARS_A_PICTURE, 2)
 
 def closeup_tools():
     """The close-up stage (tools/props/closeup/stage.py) and its shape check, imported under prop_data.tools."""
@@ -138,28 +137,39 @@ def measured(path, row):
 
 
 def draw_missing(rows, out):
-    """Pro's close-ups of the rows with none: each take of PRO_TAKES for the rows whose picture of the take before it
-    the check rejected (one with no picture is a gap, not asked again), each rejected request dropped from Google's
-    cache (stage.forget_rejected); {id: take record}."""
+    """Pro's close-ups of the rows with none: first every take whose request google_spend's cache holds (free: a
+    picture drawn before, kept or rejected, judged again by today's check), then each take of PRO_TAKES in turn for
+    the rows no picture passed yet (one Pro gave no picture is a gap, not asked again); {id: take record}."""
     stage, _ = closeup_tools()
     stage.make_crops(rows, out)
-    failed, found = {row["id"] for row in rows}, {}
-    for take in stage.PRO_TAKES:
-        if not failed:
-            break
-        with prop_data.tools("props/closeup", "props", "cloud"):  # Pro's key is read through secret_store
-            stage.draw_with_pro(rows, out, failed, take)
-        rejected = set()
-        for row in rows:
-            if row["id"] in failed:
-                picture = out / take / f"{row['id']}.png"
-                faults = measured(picture, row) if picture.exists() else [f"Pro gave no {take} picture"]
-                found.setdefault(row["id"], {})[take] = faults
-                if faults and picture.exists():
-                    stage.forget_rejected(row, out, take)
-                    rejected.add(row["id"])
-        failed = rejected
-    return found
+    stage.with_pro_wordings(rows)
+    found = {}
+    with prop_data.tools("props/closeup", "props", "cloud"):  # Pro's key is read through secret_store
+        for take in stage.PRO_TAKES:
+            judged_take(rows, out, take, {row["id"] for row in rows if stage.cached(row, out, take)}, found)
+        for take in stage.PRO_TAKES:
+            judged_take(rows, out, take, {row["id"] for row in rows if still_open(found.get(row["id"], {}), take)},
+                        found)
+    return {row: {take: tried[take] for take in stage.PRO_TAKES if take in tried} for row, tried in found.items()}
+
+
+def still_open(tried, take):
+    """Whether a row is drawn at `take`: no take of it passed, none came back without a picture, and `take` untried."""
+    return take not in tried and all(faults and not faults[0].startswith("Pro gave no") for faults in tried.values())
+
+
+def judged_take(rows, out, take, wanted, found):
+    """The `wanted` rows' pictures of `take` drawn (pro.draw: a cached one read back free) and measured into `found`
+    ({id: {take: faults}})."""
+    stage, _ = closeup_tools()
+    if not wanted:
+        return
+    stage.draw_with_pro(rows, out, wanted, take)
+    for row in rows:
+        if row["id"] in wanted:
+            picture = out / take / f"{row['id']}.png"
+            found.setdefault(row["id"], {})[take] = measured(picture, row) if picture.exists() else [
+                f"Pro gave no {take} picture"]
 
 
 def make_closeups(inputs, out, seed, params):
@@ -193,10 +203,6 @@ def make_closeups(inputs, out, seed, params):
     (out / "closeups.json").write_text(json.dumps({"objects": record, "pro_pictures": pictures,
                                                    "pro_dollars": round(pictures * DOLLARS_A_PICTURE, 3)},
                                                   indent=1))
-    rejected = sum(bool(faults) and (out / take / f"{row}.png").exists()
-                   for row, entry in record.items() for take, faults in entry["takes"].items())
-    (out / UNCACHED).write_text(json.dumps({"asks": rejected, "euros": round(rejected * DOLLARS_A_PICTURE, 3),
-                                            "why": "Pro pictures the shape check rejected, dropped from Google's cache"}))
 
 
 def closeups_faults(folder):
