@@ -458,6 +458,24 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
 
+def test_a_pass_says_the_design_moved_when_a_live_runs_copy_differs(world, monkeypatch, settings):
+    """A live run reads its own design copy (graph/frozen.py): a pass whose design differs from it says so."""
+    from score.dashboard.tests.fixture import FakeBackend
+    fed(monkeypatch)
+    home = settings.SCORE_PROPS_HOME
+    (home / "design" / "plans").mkdir(parents=True, exist_ok=True)
+    (home / "design" / "plans" / "p.json").write_text("{}")
+    copy = home / "frozen" / "run1.home" / "design"
+    shutil.copytree(home / "design", copy)
+    assert "design moved" not in client.sync_pass(Hosted([]), world.source, FakeBackend())
+    (home / "design" / "plans" / "p.json").write_text('{"moved": true}')
+    assert client.sync_pass(Hosted([]), world.source, FakeBackend()).endswith(
+        "design moved since the running batch started (the cockpit prices the design as it is now)")
+    shutil.rmtree(copy)
+    copy.symlink_to(home / "design")  # the run ended: its copy is a link to the real design
+    assert "design moved" not in client.sync_pass(Hosted([]), world.source, FakeBackend())
+
+
 def test_each_pass_makes_the_basket_again_from_the_runners_plan_in_this_checkout(world, monkeypatch, settings):
     """A basket an agent's worktree made yesterday (a scene merged away since, none of today's rows) is replaced by
     the runner's plan of today, made here, when and on which commit said: what the checkout reads."""
