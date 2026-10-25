@@ -112,15 +112,19 @@ FILM_KEYS = ("camera", "eye", "aim", "across", "fov", "stand", "then", "start", 
 
 def films_of(scripts):
     """{film: its record} of every film the scripts ({name: script}) show, each with its `script`, its place and the
-    segment's own camera keys: the first segment showing it decides; `final` is true, the script being locked."""
+    segment's own camera keys: the first segment showing it decides; `final` is true, the script being locked; and
+    `walk_seconds`, the longest walk-through showing it (0 where only a hero still does), which film_one holds its
+    shots to."""
     from score.stages.demo_film import final
     found = {}
     for name, script in scripts.items():
         for _, segment in final.shown(script):
             shows = segment["shows"]
-            found.setdefault(shows.get("film") or shows["place"], {
-                "place": shows["place"], "script": name, "final": True,
+            film = found.setdefault(shows.get("film") or shows["place"], {
+                "place": shows["place"], "script": name, "final": True, "walk_seconds": 0.0,
                 **{key: shows[key] for key in FILM_KEYS if key in shows}})
+            if segment["cut"] == final.WALK:
+                film["walk_seconds"] = max(film["walk_seconds"], float(segment.get("seconds") or 0.0))
     return found
 
 
@@ -246,6 +250,7 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     refuse_over_clearance(name, planned, cleared_euros())
     jobs = demo.plan(work, work / "stages", [given], jobs_each=planned["jobs"], size=SIZE, ink=False,
                      shots=len(cameras), seconds=SECONDS, start=start)
+    refuse_short(name, json.loads((work / "views" / f"{name}.json").read_text())["moves"], film)
     with_deadlines(jobs, planned["high_frame_minutes"])
     motion_blurred(jobs, json.loads((work / "views" / f"{name}.json").read_text())["views"], SIZE[0])
     render(jobs, log_folder)
@@ -364,6 +369,20 @@ def refuse_over_clearance(name, planned, cleared):
     if cleared is not None and planned["high_euros"] > cleared + 1e-6:
         raise graph.Blocked(f"{name}: the forecast's high EUR {planned['high_euros']} passes the EUR {cleared:.2f} "
                             f"cleared ({forecast_line(planned)}); a new ask at the forecast's price")
+
+
+def refuse_short(name, moves, film):
+    """Fail the film before its frames are bought when the shots its plan kept (`moves`: a shot whose camera and
+    every spare record camera stand no clear spot is left out, demo.film_shots) show less than the longest
+    walk-through that shows it (`walk_seconds`), so the gap shows at this paid row and not as a Blocked environment
+    film after everything is bought (fault 2026-10-25: a one-shot film of 3.5 s passed its gate; the walk-through
+    wanted 7)."""
+    demo, _ = film_tools()
+    shown = planned_seconds(len(moves)) - demo.TITLE_SECONDS
+    if shown < film.get("walk_seconds", 0.0) - 1e-3:
+        raise RuntimeError(f"{name}: {len(moves)} shots stand clear of the scene record's cameras, {shown:.2f} s; its "
+                           f"walk-through wants {film['walk_seconds']:g} s (give the script's segment a `camera` or "
+                           "`then` spot that stands clear); nothing rented")
 
 
 def with_deadlines(jobs, frame_minutes):
