@@ -87,9 +87,14 @@ def test_the_export_writes_state_then_thumbnails_then_films_then_each_steps_larg
 def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
     exported(world, tmp_path / "one")
     exported(world, tmp_path / "two")
+    live = ("machine.json", "manifest.json")  # machine.json a live read (load, memory), counted in the manifest
     for path in sorted((tmp_path / "one").rglob("*")):
-        if path.is_file() and path.name != "machine.json":  # the machine's health is a live read: load, memory
+        if path.is_file() and path.name not in live:
             assert path.read_bytes() == (tmp_path / "two" / path.relative_to(tmp_path / "one")).read_bytes(), path
+    manifests = [json.loads((tmp_path / name / "manifest.json").read_text()) for name in ("one", "two")]
+    for name, manifest in zip(("one", "two"), manifests):
+        manifest["bytes"] -= (tmp_path / name / "machine.json").stat().st_size
+    assert manifests[0] == manifests[1]
     machines = [json.loads((tmp_path / name / "machine.json").read_text())["machine"] for name in ("one", "two")]
     assert machines[0] == machines[1]
     small = exported(world, tmp_path / "small", cap_mb=0.02)
