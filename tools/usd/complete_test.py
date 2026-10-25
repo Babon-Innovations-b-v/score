@@ -379,13 +379,42 @@ def loose_objects_with_no_drop_are_not_known_to_rest():
         return [] if found == complete.UNKNOWN else [f"two loose boxes with no drop run read {found}"]
 
 
+def a_designed_place_s_boxes_are_judged_on_its_hand_in():
+    """A designed place's boxes are judged on its hand-in, whose kept concept ({home}/design/concepts) and grounded
+    boxes its design inventory (a store blob, no grounding) does not name: a box the reading grounded passes, one
+    boxing the whole picture still fails."""
+    from PIL import Image
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        held, complete.HOME = complete.HOME, folder
+        try:
+            (folder / "design/concepts").mkdir(parents=True)
+            (folder / "design/props").mkdir(parents=True)
+            Image.new("RGB", (400, 300)).save(folder / "design/concepts/toy.png")
+            row = {"id": "crate", "name": "crate", "view": "v1", "grounded": "SAM 3's box in the reading"}
+            handin = {"scene": "toy", "plan": {"views": [{"id": "v1", "picture": "{home}/design/concepts/toy.png"}]},
+                      "rows": [{**row, "box": [40, 50, 120, 160]}]}
+            (folder / "design/props/toy.json").write_text(json.dumps(handin))
+            sys.path.insert(0, str(HERE.parents[1] / "tools/props/scene"))
+            import box_check
+            box_held, box_check.HOME = box_check.HOME, folder
+            found = [complete.boxes_check("toy", folder / "toy.usda")["result"]]
+            handin["rows"] = [{**row, "box": [0, 0, 400, 300]}]
+            (folder / "design/props/toy.json").write_text(json.dumps(handin))
+            found.append(complete.boxes_check("toy", folder / "toy.usda")["result"])
+            box_check.HOME = box_held
+        finally:
+            complete.HOME = held
+        return [] if found == [complete.PASS, complete.FAIL] else [f"a grounded box and a whole-picture box read {found}"]
+
+
 CHECKS = (loose_objects_with_no_drop_are_not_known_to_rest, a_finished_place_passes, an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
           a_store_copy_takes_resting_from_its_assembly_gate, a_ship_place_reads_the_runners_beside_likeness,
           a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
           a_check_that_cannot_run_is_unknown,
-          the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key)
+          the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key, a_designed_place_s_boxes_are_judged_on_its_hand_in)
 
 
 if __name__ == "__main__":

@@ -61,13 +61,14 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(REPO / "tools/props"))
 sys.path.insert(0, str(HERE))
-from paths import WORK  # noqa: E402
+from paths import HOME, WORK  # noqa: E402
 from stage_inputs import (INPUTS, INVENTORIES, file_hash, input_name, inventory_path, model_hash,  # noqa: E402,F401
                           now, record_inputs, recorded_inventory)
 import contents  # noqa: E402
 
 STAGES = WORK / "usd"
 REVIEWS = WORK / "review"
+HANDIN = "design/props/{place}.json"  # a designed place's hand-in, under the home (the complete stage declares it)
 CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes", "reach", *contents.JUDGES)
 # Checks whose faults are shown on the manifest but not counted, each unproven on its end-result fault (docs/bible.md,
 # architecture/experimental): what would prove it. That such a check was recorded on the stage as it is now counts.
@@ -257,10 +258,14 @@ def picks_check(place, stage):
 
 def boxes_check(place, stage):
     """The box gate (props/scene/box_check.py gate()) on the inventory the stage was laid from: every box measured
-    from SAM's proposals and checked on that box; a typed box fails, an unmeasured one is unknown."""
+    from SAM's proposals and checked on that box; a typed box fails, an unmeasured one is unknown. A designed place is
+    judged on its hand-in (HANDIN), which names each box's grounding in the reading (SAM 3's, else Gemini's region)
+    and the kept concept it was read from: its design inventory names neither (Batch 1, 2026-10-25: every place's
+    picture missing and every box unmeasured)."""
     sys.path.insert(0, str(REPO / "tools/props/scene"))
     import box_check
-    found = json.loads(recorded_inventory(place, stage).read_text())
+    handin = handin_path(place)
+    found = json.loads((handin if handin.is_file() else recorded_inventory(place, stage)).read_text())
     verdict = box_check.gate(found["scene"], found)
     faults = [{"row": row, "result": entry["result"], "why": entry["why"]}
               for row, entry in verdict["rows"].items() if entry["result"] != box_check.PASS]
@@ -268,6 +273,11 @@ def boxes_check(place, stage):
     counts = {name: sum(entry["result"] == name for entry in verdict["rows"].values()) for name in (PASS, FAIL, UNKNOWN)}
     return result("boxes", verdict["result"], stage, faults,
                   f"{counts[PASS]} boxes pass, {counts[FAIL]} fail, {counts[UNKNOWN]} unknown")
+
+
+def handin_path(place):
+    """A designed place's hand-in (score/stages/complete/prepare/handin.py)."""
+    return HOME / HANDIN.format(place=place)
 
 
 def reach_check(place, stage):

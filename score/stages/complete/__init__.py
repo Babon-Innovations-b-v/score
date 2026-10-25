@@ -36,9 +36,11 @@ FILES = {"inventories": "{data}/inventory",
 
 
 def files(place):
-    """The world folders, the place's design (its locked concept's scene inventory) where it has one, the built body's report of every body the cast its design gives draws, and its bed's design (the sound
+    """The world folders, the place's design (its locked concept's scene inventory, and its hand-in the boxes check
+    judges) where it has one, the built body's report of every body the cast its design gives draws, and its bed's design (the sound
     check's)."""
-    design = {"design": "{home}/design/inventory/{place}.json"} if contents.design(place) is not None else {}
+    design = {"design": "{home}/design/inventory/{place}.json",
+              "hand-in": "{home}/" + complete.HANDIN} if contents.design(place) is not None else {}
     cast = contents.cast_of(place) or {}
     bodies = {person["character"] for person in cast.get("people", [])}
     bodies |= {cast["crowd"]["character"]} if cast.get("crowd") else set()
