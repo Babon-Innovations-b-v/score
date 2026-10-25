@@ -47,6 +47,8 @@ def lane_faults(layout, lane):
         along = max(along, end)
     if along > back + EPSILON:
         faults.append(f"{lane}: a shape stands past the inside's end, {along} m over {back} m")
+    elif along < back - EPSILON:
+        faults.append(f"{lane}: nothing stands from {along} to {back} m")
     return faults
 
 
