@@ -39,6 +39,10 @@ class Kill:
         self.calls.append(("stop_all", asked_by, words))
         return {"runs": ["run-1", "run-2"], "parked": ["m-1"], "latched": True}
 
+    def stop_batch(self, asked_by, words):
+        self.calls.append(("stop_batch", asked_by, words))
+        return {"runs": ["run-1"], "parked": ["m-1"], "free_only": None}
+
     def allow_paid(self, asked_by, words):
         self.calls.append(("allow_paid", asked_by, words))
         return {"latched": False}
@@ -169,6 +173,26 @@ def test_stop_everything_and_allow_paid_are_the_owners_asked_twice_and_applied_o
     applied = client.answered(remote, {"id": allow.pk, "kind": allow.kind, "user": allow.user,
                                        "payload": allow.payload}, world.source)
     assert applied.state == "done" and conductor.calls[-1] == ("allow_paid", "joey", "")
+
+
+def test_stop_this_batch_is_the_owners_asked_twice_and_applied_once_with_no_latch(world, settings, conductor,
+                                                                                    no_record):
+    settings.SCORE_SYNC_TOKEN, settings.SCORE_MODE = TOKEN, settings.HOSTED
+    owner = api()
+    assert owner.post("/api/machine/stop-batch", json={}).status_code == 400  # the second ask not answered
+    assert api("mallory").post("/api/machine/stop-batch", json={"sure": True}).status_code == 403
+    assert owner.post("/api/machine/stop-batch", json={"sure": True}).json()["said"].startswith("queued")
+    settings.SCORE_MODE = settings.LOCAL
+    stop = SyncRequest.objects.get(kind="stop-batch")
+    item = {"id": stop.pk, "kind": stop.kind, "user": stop.user, "payload": stop.payload}
+    remote = remote_of(hosted_client(), "conductor")
+    assert client.answered(remote, item, world.source).state == "done"
+    assert client.answered(remote, item, world.source) is None  # claimed once
+    assert conductor.calls == [("stop_batch", "joey", "")]
+    refused = applying.apply({"kind": "stop-batch", "user": "mallory", "payload": {}}, world.source)
+    assert refused.state == "refused" and len(conductor.calls) == 1
+    from score.dashboard.pages import machine as page
+    assert page.report_counts(SyncRequest.objects.get(kind="stop-batch").detail) == [("parked", 1), ("runs", 1)]
 
 
 def test_the_kill_switch_refuses_in_an_agents_process_and_off_a_conductor(world, monkeypatch):

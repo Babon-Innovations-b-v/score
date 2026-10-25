@@ -878,7 +878,7 @@ body.focusing { overflow: hidden; }
 .rm-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; grid-column: 1; }
 .rm-title h1 { font-size: 26px; }
 .rm-fresh { font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
-.rm-stop { grid-column: 2; grid-row: 1; justify-self: end; }
+.rm-stop { grid-column: 2; grid-row: 1; justify-self: end; display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .rm-stop .ec-confirm { left: auto; right: 0; }
 .rm-clock { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 32px; }
 .rm-stat { min-width: 0; }

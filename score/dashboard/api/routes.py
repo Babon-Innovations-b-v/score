@@ -207,6 +207,14 @@ def machine_stop(body: SureIn, user=Depends(owner_only)):
     return said_or_refused(actions.stop_everything(user.username, {"words": body.words}))
 
 
+@api.post("/machine/stop-batch", response_model=Said)
+def machine_stop_batch(body: SureIn, user=Depends(owner_only)):
+    """The owner's Stop this batch (the run monitor): every run stopped, its pools' machines deleted, paid work left
+    allowed; hosted queued for the listener."""
+    asked_twice(body)
+    return said_or_refused(actions.stop_batch(user.username, {"words": body.words}))
+
+
 @api.post("/machine/allow-paid", response_model=Said)
 def machine_allow_paid(body: SureIn, user=Depends(owner_only)):
     """The owner's Allow paid work again: the kill switch's free-only latch cleared."""

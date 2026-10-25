@@ -28,7 +28,8 @@ PLAN_KINDS = {"plan-edit": actions.plan_edit, "plan-named": actions.plan_named, 
               "env-plan-write": actions.environment_plan_write}
 # The Machine card's two owner buttons (the kill switch): every run stopped, parked machines deleted and paid work
 # latched off, then that latch cleared; applied by the listener at once (sync/listen.py).
-MACHINE_KINDS = {"stop-everything": actions.stop_everything, "allow-paid": actions.allow_paid}
+MACHINE_KINDS = {"stop-everything": actions.stop_everything, "stop-batch": actions.stop_batch,
+                 "allow-paid": actions.allow_paid}
 DRAWN = ("sha", "name", "at", "by", "euros", "base", "marks", "note")  # a draw's fields its answer carries
 DISCUSSED = ("place", "base", "question", "answer", "at", "by", "euros")  # a discussion entry's its answer carries
 

@@ -38,7 +38,8 @@ def test_only_the_owners_process_pulls_the_switch_or_clears_the_latch():
     kept = kill.running_under_agent
     kill.running_under_agent = lambda: True
     try:
-        for call in (lambda: kill.stop_all("owner", "stop"), lambda: kill.allow_paid("owner", "go on")):
+        for call in (lambda: kill.stop_all("owner", "stop"), lambda: kill.allow_paid("owner", "go on"),
+                     lambda: kill.stop_batch("owner", "stop")):
             try:
                 call()
             except PermissionError as refused:
@@ -85,6 +86,25 @@ def test_the_switch_stops_every_run_releases_every_parked_machine_and_latches_fr
         assert list(conductor.HOME.glob("kill-*.json"))
         assert kill.unlatch("owner", "go on")["was_held"] and not conductor.free_only()
         assert list(conductor.HOME.glob("free-only-cleared-*.json"))
+    in_home(walk)
+
+
+def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed():
+    """Owner, 2026-10-25: the next Buy after a stopped batch needs no Allow paid work again."""
+    def walk(home):
+        (home / "runs").mkdir()
+        (home / "parked").mkdir()
+        live = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        runs.claim("c0ffee", ["draw@hangar"], live.pid, folder=home / "runs")
+        (home / "parked" / "m1.json").write_text(json.dumps({"id": "m1", "zone": "fr-par-2", "token": "t1"}))
+        released = []
+        report = kill.stop_everything("owner", "this batch", folder=home / "runs", parked=home / "parked",
+                                      release=lambda *machine: released.append(machine),
+                                      close_pools=lambda: ["run-1"], latched=False)
+        live.wait(10)
+        assert report["runs"] == [live.pid] and released == [("m1", "fr-par-2", "t1")] and report["pools"] == ["run-1"]
+        assert report["free_only"] is None and not conductor.free_only()
+        assert list(conductor.HOME.glob("batch-stop-*.json")) and not list(conductor.HOME.glob("kill-*.json"))
     in_home(walk)
 
 

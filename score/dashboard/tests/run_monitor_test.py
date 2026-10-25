@@ -229,6 +229,7 @@ def test_the_owner_sees_the_monitor_with_stop_and_few_words(world, settings):
     a_batch(world)
     html = signed_in().get("/buy/run/").content.decode()
     assert "Running" in html and "Batch" in html and 'data-url="/api/machine/stop"' in html
+    assert 'data-url="/api/machine/stop-batch"' in html and "Paid work stays allowed" in html
     assert re.search(r"3\.21", html) and "396.44" in html and "waiting for stock" in html
     assert 'href="/place/alpha/"' not in html  # alpha is not done: no result link yet
     assert len(prose(html)) <= 60, prose(html)

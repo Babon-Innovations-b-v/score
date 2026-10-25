@@ -3,6 +3,7 @@ conductor free only until his second click clears it.
 
     report = kill.stop_all(asked_by, words)      # the owner's process only
     kill.allow_paid(asked_by, words)             # his second click
+    report = kill.stop_batch(asked_by, words)    # the run monitor's Stop this batch: the same, with no latch
 
 stop_all writes the latch first (FREE_ONLY_LATCH holding SCORE_FREE_ONLY=1: every `score` command reads it at its
 start, and a unit may read it as an EnvironmentFile), so nothing started meanwhile can spend, and takes back a resize's
@@ -99,13 +100,22 @@ def stop_all(asked_by, words):
     return stop_everything(asked_by, words)
 
 
+def stop_batch(asked_by, words):
+    """The run monitor's Stop this batch, in the owner's process only: stop_everything's runs, pools and parked
+    machines with no latch, so the next Buy needs no Allow paid work again (owner, 2026-10-25); its report."""
+    refuse_agent("stopping the batch")
+    return stop_everything(asked_by, words, latched=False)
+
+
 def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None, pools=None,
-                    close_pools=None):
-    """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch, every live
-    run, every waiting run, every open warm pool, every parked machine; its report."""
+                    close_pools=None, latched=True):
+    """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch (unless not
+    `latched`: Stop this batch), every live run, every waiting run, every open warm pool, every parked machine; its
+    report."""
     folder = pathlib.Path(folder or runs.RUNS)
     at = now()
-    report = {"at": at, "by": asked_by, "words": words, "free_only": str(latch(asked_by, words, at)),
+    report = {"at": at, "by": asked_by, "words": words,
+              "free_only": str(latch(asked_by, words, at)) if latched else None,
               "runs": [], "waiting": [], "pools": [], "parked": [], "errors": []}
     conductor.RESIZING.unlink(missing_ok=True)  # the SIGTERMs below are the owner's stop, never a resize's
     for pid in live_runs(folder):
@@ -131,7 +141,7 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
             report["parked"].append(record["id"])
         except Exception as error:  # noqa: BLE001 - each machine is tried; the report names what failed
             report["errors"].append(f"parked {record['id']}: {type(error).__name__}: {error}")
-    keep(report, f"kill-{at.replace(':', '')}.json", report_folder)
+    keep(report, f"{'kill' if latched else 'batch-stop'}-{at.replace(':', '')}.json", report_folder)
     return report
 
 
