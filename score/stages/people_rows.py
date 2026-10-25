@@ -191,7 +191,8 @@ def cast_record(place, found=None):
     people = []
     for number, person in enumerate(persons(place, found)):
         character, outfit = split_look(person["look"])
-        people.append({"name": person["name"], "character": character, "look": f"{character}_{outfit}",
+        people.append({"name": person["name"], "row": person["row"], "character": character,
+                       "look": f"{character}_{outfit}",
                        "doing": person["doing"], "surface": person["surface"], "at": spots[number % len(spots)],
                        "facing_to": entry.get("middle", [0.0, 0.0, 1.0]),
                        "why": f"row {person['row']} of the picked design's scene inventory"})
