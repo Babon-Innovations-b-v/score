@@ -188,9 +188,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   off the pool only once its delete went through (`park.park`), so a release still sees it. A dead card's unfinished share (`spread.Shares.again`) or
   Pixal3D jobs (`Fleet.again`) go back on the queue once (a finished job never runs again; a second death makes it a gap).
   Dead means it no longer answers (`batch.answers`, review of 2026-10-23): a share that failed on a card that still
-  answers (a copy-in, a local fault) is a gap and the card works on, and a card that failed in set-up is followed by
-  one more only when it died, never after a set-up that failed on a card that answers, so a broken set-up script
-  never takes card after card. The collector says a failed round (the provider's API, a delete) and tries again,
+  answers (a copy-in, a local fault) is a gap and the card works on, and a card that failed in set-up, answering or
+  dead, is followed by one more, never a third, so a broken set-up script never takes card after card (fault of
+  2026-10-25: a set-up that failed once on an answering parked card ended its slot). The collector says a failed round (the provider's API, a delete) and tries again,
   backing off as for stock; only the pool's end, its release or its run's end stop it. Stop everything closes every
   open pool and ends its collector (`pool.close_all`) before it releases the parked cards, and a release tries every
   card, side by side, before it raises, `score run`'s release going on past it. A stopped `score run` releases its

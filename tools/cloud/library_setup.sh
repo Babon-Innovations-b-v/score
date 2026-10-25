@@ -33,11 +33,14 @@ curl -fsSL -o "$tarball" "https://download.blender.org/release/Blender${version%
 curl -fsSL "https://download.blender.org/release/Blender${version%.*}/blender-$version.sha256" | grep " $tarball\$" \
   > "$tarball.sha256"
 sha256sum -c "$tarball.sha256"
+# A pool card set up before, its mark since removed by another kind's clean-up (park.py), still holds a Blender:
+# mv would put the new one inside it, and fail the next time (fault, 2026-10-25: set-up exit 1 on two parked L4s).
+rm -rf /root/blender "blender-$version-linux-x64"
 tar xJf "$tarball"
 mv "blender-$version-linux-x64" /root/blender
 rm "$tarball" "$tarball.sha256"
 
-/root/blender/5.0/python/bin/python3.11 -m pip install --quiet --target /root/props/blender-mcp/pf-site \
+/root/blender/5.0/python/bin/python3.11 -m pip install --quiet --upgrade --target /root/props/blender-mcp/pf-site \
   "pandas>=1.5,<2.3" "numpy==1.26.4"
 /root/blender/blender -b -setaudio None --python-expr "import bpy; print('blender ok', bpy.app.version_string)"
 touch "$done_mark"

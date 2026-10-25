@@ -15,8 +15,7 @@ broken machine takes no more; a machine that fails while setting up ends with no
 shares left to the others or in `shares.waiting` as gaps. Under a run's card pool (pool.py, owner 2026-10-23) a share
 whose pool card died (stopped answering, batch.answers) goes back on the queue once (`Shares.again`) and the slot takes
 the pool's next card while shares wait; a second death makes it a gap. A share that failed on a pool card that still
-answers is a gap and the card works on; a pool card that died in set-up is followed by one more, never by a card after
-a set-up that failed on a card that answers. A machine runs capacity.runs_at_once shares on
+answers is a gap and the card works on; a pool card that failed in set-up is followed by one more, never a third. A machine runs capacity.runs_at_once shares on
 each card at once. Every machine is armed to delete itself if this PC goes quiet, hears this PC's heartbeat each
 minute, and is deleted when it has no more work; the run's ledger rows are the runner's (run.machines and
 run.attempts, as for one machine).
@@ -189,8 +188,6 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
         batch.say(f"{folder.name} failed while setting up: {error}")
     finally:
         stop.set()
-        if not ready and machine.get("pool"):  # read before the delete: a card that still answers is not dead
-            machine["answered"] = batch.answers(machine)
         batch.delete_machine(machine)
     return ready
 
@@ -198,8 +195,9 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
 def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb, at_once=None):
     """Claim one machine and tend it, once: none in its place when it fails; nothing when no offer gives one that
     answers or the work is gone. A pool card is followed by the pool's next while shares wait (one put back from a
-    card that died); a pool card that failed in set-up is followed by another only when it died (stopped answering),
-    and once: a set-up that fails on a card that answers, or twice, would fail on every card."""
+    card that died); a pool card that failed in set-up is followed by one other card, never a third: a set-up that
+    fails twice would fail on every card (fault, 2026-10-25: a parked card that answered failed blender's set-up and
+    the slot gave up while other cards stood ready)."""
     if shares.queued() <= 0 and not shares.open:
         return
     setup_deaths = 0
@@ -212,10 +210,10 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
             shares.deadline = max(shares.deadline, run.deadline)
         if not tend(run, machine, kind, shares, prepare, do, at_once):
             setup_deaths += 1
-            if machine.get("answered") or setup_deaths > 1:
-                batch.say(f"{machine['folder'].name}: {kind}'s set-up failed on a card"
-                          f"{' that answers' if machine.get('answered') else ' twice'}; this slot takes no other")
+            if setup_deaths > 1:
+                batch.say(f"{machine['folder'].name}: {kind}'s set-up failed on two cards; this slot takes no other")
                 return
+            batch.say(f"{machine['folder'].name}: {kind}'s set-up failed; this slot takes another card")
         if not machine.get("pool") or shares.queued() <= 0:
             return
 
