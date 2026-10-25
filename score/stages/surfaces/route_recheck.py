@@ -3,7 +3,7 @@ price, route_ask.py). One recheck, a batch (CONTEXT.md, owner 2026-10-20, #18 an
 passed or a named fault, with no tweak and no ask again.
 
 First, free, the colour check: a take one of whose finishes the parts row's check left off its colour (no library
-surface lies within finish_parts.COLOUR_DELTA_E of its texture's colour, or the close-up's lightness order cannot be
+surface lies within finish_parts.COLOUR_DELTA_E of its colour in the close-up, or the close-up's lightness order cannot be
 kept) is a gap with no ask. The rest are drawn from every view the views row cast, each part flat in its library
 surface's colour (in the list's token where the part carries its settings), shaded by angle, and asked once: Gemini, shown the close-up (its own, or the stand-in, said so) and
 the drawings, says per finish whether its library surface matches what the close-up shows for those parts. All

@@ -62,8 +62,14 @@ def library_files(place):
 
 def parts_files(place):
     """The parts row's files: library_files (a finish takes the scene's own shell surface from its surface library,
-    an input: palette_library.shell_surfaces)."""
-    return library_files(place)
+    an input: palette_library.shell_surfaces) and each own close-up's camera (Pixal3D's transforms.json beside it,
+    route_parts.close_up_camera), named `camera <take>`."""
+    found = library_files(place)
+    for name in [name for name in found if name.startswith("close-up ")]:
+        camera = pathlib.Path(found[name]).parent / "transforms.json"
+        if camera.exists():
+            found[f"camera {name.removeprefix('close-up ')}"] = str(camera)
+    return found
 
 
 def takes(inputs, params):

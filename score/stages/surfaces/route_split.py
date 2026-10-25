@@ -11,19 +11,17 @@ given the finish round it (finish_parts.without_strays) and crumbs joined (finis
 island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures
 its painted take) is a gap, named, before anything is baked.
 
-The colour check comes first, free, the moment the list's one answer is back and before any paid bake or recheck
-(owner, 2026-10-20): each region of every view, from every angle the views row cast, against the finish labelled
-there, its chosen surface's token colour (the list's settings) against the region's median texture colour in that
-view (`colour_faults`). First a finish whose token lies over VIEW_DELTA_E from any region it labels takes, of the
-scene palette's tokens within it of every one of those regions, the one nearest the listed token, its surface kept
-(`recoloured`, owner 2026-10-22: the list put the astronaut's mid-grey jacket in hull-white); then a region over
-VIEW_DELTA_E makes its take a gap, named with the colour it shows, so nothing of it is baked.
+The split decides by the labels alone (the paper, "Surfaces: the finish route": the views are split into colour
+regions only so the list can label them). No colour is judged here: a finish's surface is held against its colour
+in the close-up after the split, by the parts row's check and the bake check (route_parts, bake_check), never
+against the raw model's texture, whose colours carry the picture's baked light (Batch 1 try 4, 2026-10-25: 134 takes
+were gaps here for a surface dE 32 to 41 off a texture region; owner: "how is that possible with our finish lib and
+segmentation method read paper").
 
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
 area unassigned, disagreeing and unseen, its parts and each view's agreement with the vote.
-Gate "one finish a face": every listed take is split with no fault (the colour check's and patchy paint's gaps
-included). Each faulted
+Gate "one finish a face": every listed take is split with no fault (patchy paint's gaps included). Each faulted
 take, and each the rows before named, is a batch gap (batch-gaps.json, score/stages/batch_gaps.py): left out here and
 after, its fault moved to complete by the table.
 """
@@ -39,21 +37,13 @@ import numpy as np  # noqa: E402
 
 import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
-import palette_library  # noqa: E402
 import route_cast as cast  # noqa: E402
-import route_list  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 # A take whose disagreeing faces hold over this share of its area is a gap. UNMEASURED: picked (2026-10-20), not
 # measured; the one-shot benchmark that would measure it (under EUR 3) is on #18. Keep it until that runs.
 DISAGREE_MOST = 0.01
-# A region's chosen surface (its token's colour, with the list's settings) may lie this far (CIE76) from the region's
-# texture colour in each view that shows it. UNMEASURED on the views: picked (2026-10-20) as finish_parts'
-# COLOUR_DELTA_E, which round 4's six close-ups measured (right surfaces up to 29.7, wrong from 33.2), not these
-# texture views; the same benchmark on #18 would measure it.
-VIEW_DELTA_E = 32.0
-FINISHES = "finishes.json"  # a split take's finishes as judged (recoloured), the parts row's
 
 
 def model_of(folder):
@@ -113,101 +103,6 @@ def split_fault(found):
     return None
 
 
-def own_colour(finish):
-    """True for a finish judged by its own colour, never its texture's (owner, #8): glass, screen glow, lamp light,
-    print, or a see-through finish."""
-    return (finish.get("family") in finish_parts.OWN_COLOUR
-            or finish_parts.see_through(finish, {finish["surface"]: {"family": finish.get("family")}}))
-
-
-def region_colour(colours, regions, region):
-    """One region's median texture colour (CIELAB) in one view, None where the view shows none of it."""
-    pixels = colours[regions == region]
-    return np.median(cast.lab_of(pixels), axis=0) if len(pixels) else None
-
-
-def finish_regions(folder, listed):
-    """Each finish's regions as the views show them: [(view, region, CIELAB)], one entry for every region of every
-    view labelled with it that the view shows."""
-    colours, regions = np.load(folder / "colours.npz"), np.load(folder / "regions.npz")
-    found = [[] for _ in listed["finishes"]]
-    for view, labels in listed["labels"].items():
-        for region, number in labels.items():
-            seen = region_colour(colours[view], regions[view], int(region))
-            if seen is not None:
-                found[number].append((view, int(region), seen))
-    return found
-
-
-def worst_apart(seen, lab):
-    """How far (CIE76) a colour lies from the farthest of a finish's regions (finish_regions), 0 with none."""
-    return max((float(np.linalg.norm(colour - lab)) for _, _, colour in seen), default=0.0)
-
-
-def colour_faults(folder, listed):
-    """(faults, worst dE): every region of every view against the finish labelled there, before anything is baked: a
-    finish with no token colour, or one over VIEW_DELTA_E from what a view shows, is named with the colour that view
-    shows (so a colour the palette lacks is read off the gap). Finishes judged by their own colour are left out
-    (own_colour)."""
-    faults, worst = [], 0.0
-    for finish, seen in zip(listed["finishes"], finish_regions(folder, listed)):
-        if own_colour(finish) or not seen:
-            continue
-        if finish.get("colour") is None:
-            faults.append(f"{finish['finish']}: no token colour to check")
-            continue
-        lab = finish_parts.library_lab(finish)
-        for view, region, colour in seen:
-            apart = float(np.linalg.norm(colour - lab))
-            worst = max(worst, apart)
-            if apart > VIEW_DELTA_E:
-                faults.append(f"{finish['finish']} ({finish['surface']}, {finish['settings']['token']}) lies dE "
-                              f"{apart:.1f} from region {region + 1} in the {view} view, which shows L*a*b* "
-                              f"{[round(float(value), 1) for value in colour]}")
-    return faults, round(worst, 1)
-
-
-def recoloured(folder, listed, tokens):
-    """The list's answer with each finish over VIEW_DELTA_E from any region it labels (colour_faults' own test) given,
-    of the scene palette's tokens (`tokens`: {token: linear RGB}) within VIEW_DELTA_E of every one of its regions, the
-    one nearest the listed token, so the list's hue is kept where the views allow (astronaut-made-s1, 2026-10-22: its
-    brown trousers, listed maroon, took the nearer grey by the views alone, and the recheck failed them as grey); its
-    surface, and so its family, kept, as the parts row takes the nearest surface of a finish's family (finish_parts.
-    checked_finishes). The token is chosen by the test the check then applies: chosen within VIEW_DELTA_E of the
-    finish's pooled colour, the one nearest the listed token sits near that edge, so one of its regions can fail it
-    by a fraction of a dE (Batch 1 try 4, 2026-10-25: 114 of the 438 colour faults the split named on eight places lay
-    at dE 32 to 34). One no token fits, or judged by its own colour, or with no settings, is kept as listed."""
-    finishes = []
-    for finish, seen in zip(listed["finishes"], finish_regions(folder, listed)):
-        if not seen or own_colour(finish) or finish.get("colour") is None or not finish.get("settings"):
-            finishes.append(finish)
-            continue
-        listed_lab = finish_parts.library_lab(finish)
-        if worst_apart(seen, listed_lab) <= VIEW_DELTA_E:
-            finishes.append(finish)
-            continue
-        labs = {token: finish_parts.library_lab({"colour": colour}) for token, colour in tokens.items()}
-        fitting = [(float(np.linalg.norm(lab - listed_lab)), token) for token, lab in labs.items()
-                   if worst_apart(seen, lab) <= VIEW_DELTA_E]
-        if not fitting:
-            finishes.append(finish)
-            continue
-        token = min(fitting)[1]
-        finishes.append(dict(finish, settings=dict(finish["settings"], token=token),
-                             colour=[round(float(value), 5) for value in tokens[token]],
-                             listed_token=finish["settings"]["token"],
-                             by="the palette token the views allow nearest the list's"))
-    return dict(listed, finishes=finishes)
-
-
-def colour_fault(faults):
-    """The gap a take's colour faults make, None without one."""
-    if not faults:
-        return None
-    return f"a chosen surface sits off what the views show (over dE {VIEW_DELTA_E:.0f}): {'; '.join(faults[:4])}" + (
-        f" and {len(faults) - 4} more" if len(faults) > 4 else "")
-
-
 def voted_finishes(mesh, votes, count):
     """(part per face, finish per face): each face's most voted finish, unseen faces walked, smoothed, strays
     joined to the finish round them and crumbs joined."""
@@ -235,19 +130,15 @@ def split_saved(out, mesh, folder, angles, found):
                      cast.shading(mesh, faces[view], angles[view])).save(out / f"finish-{view}.png")
 
 
-def split_take(folders, listed, record, tokens):
-    """One take split into folders["out"] unless it is a gap; its split.json record. `record` is its views record,
-    `tokens` the scene palette's (recoloured); the finishes as judged go into folders["out"]/finishes.json, which the
-    parts row takes over the list's."""
+def split_take(folders, listed, record):
+    """One take split into folders["out"] unless it is a gap; its split.json record. `record` is its views record."""
     mesh = model_of(folders["views"])
-    listed = recoloured(folders["views"], listed, tokens)
     count = len(listed["finishes"])
     labelled = per_view(folders["views"], listed["labels"], len(record["regions"]), len(mesh.faces))
     per_map = finishes_only(labelled)
     votes = finish_parts.voted(per_map, count)
     found = shares(mesh, labelled, votes)
-    off, found["colour_worst"] = colour_faults(folders["views"], listed)
-    fault = split_fault(found) or colour_fault(off)
+    fault = split_fault(found)
     if fault is not None:
         return {"fault": fault, **found}
     part_of, finish_of = voted_finishes(mesh, votes, count)
@@ -255,7 +146,6 @@ def split_take(folders, listed, record, tokens):
     if patchy_fault(found["patchy"]) is not None:
         return {"fault": patchy_fault(found["patchy"]), **found}
     split_saved(folders["out"], mesh, folders["views"], record["views"], (finish_of, part_of))
-    (folders["out"] / FINISHES).write_text(json.dumps(listed["finishes"], indent=1))
     return {"fault": None, **found, "parts": int(part_of.max()) + 1,
             "agreement": finish_parts.agreement(mesh, finish_of, per_map)}
 
@@ -264,9 +154,8 @@ def make_split(inputs, out, seed, params):
     """Every listed take split by finish, or named a gap; split.json."""
     views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
     carried = batch_gaps.of(inputs)
-    tokens = route_list.palette_tokens(palette_library.read(inputs))
     found = {take: split_take({"views": views / take, "out": out / take},
-                              json.loads((listed / f"{take}.json").read_text()), record, tokens)
+                              json.loads((listed / f"{take}.json").read_text()), record)
              for take, record in json.loads((views / "views.json").read_text()).items()
              if (listed / f"{take}.json").exists() and take not in batch_gaps.objects(carried)}
     (out / "split.json").write_text(json.dumps(found, indent=1))
@@ -281,10 +170,9 @@ def split_faults(folder):
 
 
 def judge_split(output, inputs, evidence):
-    """Every listed take split, every face one finish: an unassigned face, views that disagree or a chosen surface
-    off what the views show is a gap, named."""
+    """Every listed take split, every face one finish: an unassigned face, views that disagree or patchy paint is a
+    gap, named."""
     found = json.loads((output / "split.json").read_text())
     failing = [f"{take}: {record['fault']}" for take, record in found.items() if record["fault"]]
     return gates.verdict("one finish a face", failing, len(found), "takes not split by finish",
-                         {"unseen_share_most": max((record["unseen"] for record in found.values()), default=0.0),
-                          "colour_worst": max((record["colour_worst"] for record in found.values()), default=0.0)})
+                         {"unseen_share_most": max((record["unseen"] for record in found.values()), default=0.0)})
