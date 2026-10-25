@@ -439,25 +439,39 @@ def library_sweep():
 
 
 def parts_read(store_root, ask=None):
-    """The parts asked of every locked place whose reading's rows have none (score/review/reading.py parted: one
-    Gemini call a place under the reading's clearance, the owner's standing allowance of 2026-10-21, its cost kept
-    where the cockpit's running total reads it), so the gaps, plans, prepare and price after it in the pass route
-    those rows; its words. The store at `store_root` (the pass's source's). Refused while Stop everything holds; one
+    """The parts asked of every locked place whose reading's rows have none (score/review/reading.py parted), so the
+    gaps, plans, prepare and price after it in the pass route those rows; its words (`asked_of_readings`)."""
+    from score.review import reading
+    return asked_of_readings(store_root, "parts", reading.unparted, reading.parted, ask)
+
+
+def light_read(store_root, ask=None):
+    """The concept's light (which rows glow, their colour and brightness, whether daylight lights the place) asked of
+    every locked place whose reading has none (score/review/reading.py lit), so the plans kept after it in the pass
+    carry it to the scene record's lamps, the light layer's fill and the environment plan's scene time; its words
+    (`asked_of_readings`)."""
+    from score.review import reading
+    return asked_of_readings(store_root, "light", reading.unlit, reading.lit, ask)
+
+
+def asked_of_readings(store_root, noun, missing_of, asked, ask=None):
+    """One reading question asked of every locked place `missing_of` names (one Gemini call a place under the
+    reading's clearance, the owner's standing allowance of 2026-10-21, its cost kept where the cockpit's running total
+    reads it); its words. The store at `store_root` (the pass's source's). Refused while Stop everything holds; one
     that fails is said, and the pass goes on."""
-    from score.review import concepts, reading
+    from score.review import concepts
     from score.store import Store
     store = Store.in_folder(store_root)
-    missing = reading.unparted(store, concepts.placed(store))
+    missing = missing_of(store, concepts.placed(store))
     if not missing:
-        return "parts: none missing"
+        return f"{noun}: none missing"
     if free_only_followed():
-        return f"parts not read for {len(missing)} places: refused, Stop everything holds (free only)"
+        return f"{noun} not read for {len(missing)} places: refused, Stop everything holds (free only)"
     try:
-        found = reading.parted(store, missing, "the sync pass (the owner's standing allowance)",
-                               **({"ask": ask} if ask else {}))
+        found = asked(store, missing, "the sync pass (the owner's standing allowance)", **({"ask": ask} if ask else {}))
     except Exception as error:  # reported in the pass's line, never swallowed
-        return f"parts failed: {type(error).__name__}: {error}"[:400]
-    return f"parts read: {len(found)} places, EUR {sum(record['euros']['total'] for record in found):.2f}"
+        return f"{noun} failed: {type(error).__name__}: {error}"[:400]
+    return f"{noun} read: {len(found)} places, EUR {sum(record['euros']['total'] for record in found):.2f}"
 
 
 def gaps_sweep():
@@ -622,14 +636,15 @@ def sync_pass(remote, source, chosen=None):
         started = head(settings.SCORE_REPO)
         swept = library_sweep()
         parts = parts_read(source.store_root)  # before the gaps, plans, prepare and price: each routes rows by part
+        lights = light_read(source.store_root)  # before the plans kept: they carry it to the lamps and scene times
         gaps = gaps_sweep()
         planned = plans_kept()  # before prepare and the price: both read the plans the plan stage reads
         prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
         demos = library_demos()
         priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
         if failed:
-            return refused_words(f"{failed}; {swept}; {parts}; {gaps}; {planned}; {prepared}; {benched}; {pictured}; "
-                                 f"{demos}")
+            return refused_words(f"{failed}; {swept}; {parts}; {lights}; {gaps}; {planned}; {prepared}; {benched}; "
+                                 f"{pictured}; {demos}")
         basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
         now = head(settings.SCORE_REPO)
         pushed = pushed_words(remote, source, chosen) + ("" if now == started else (
@@ -641,5 +656,6 @@ def sync_pass(remote, source, chosen=None):
     previews = film_previews()  # minutes of Chromium: after the requests, outside the pricing lock
     refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
     return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {swept}; "
-            f"{parts}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; {previews}"
+            f"{parts}; {lights}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; "
+            f"{previews}"
             f"{design_moved()}")

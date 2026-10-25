@@ -18,7 +18,9 @@ writer's own call, score/review/plan_writing.py, run without asking under the ow
 distances and what each site sees overhead (`settled`). Until it is written the plan shown is the free one
 (`derived`). Two sites whose footprints would stand closer than CLEAR_M are parted on every settle (`cleared`), the
 setting itself untouched; a spot the creator gave a site himself is never moved. He fixes it on its plan page (a site's scene time), his edit kept as his own and settled again;
-where a site stands is the environment concept's. A writing or edit records the environment concept's version it
+where a site stands is the environment concept's. A site whose concept shows daylight (score/review/reading.py
+concept_light) has its scene time moved on every settle to the nearest hour its sun is up (`concept_timed`), the
+time written kept beside it and shown on its plan page. A writing or edit records the environment concept's version it
 was made under, and one made under another is out of date: the plan shown is then the free one again (`current`).
 
 The store keeps it:
@@ -30,6 +32,7 @@ The store keeps it:
     python -m score.review.environment_plan write [--by <name>]   write environment 1's plan
 """
 import argparse
+import datetime
 import json
 import math
 import sys
@@ -47,6 +50,7 @@ SAME_SPOT = 1.0  # metres: two sites closer than this stand on one spot
 CLEAR_M = 10.0  # metres kept between two sites' footprints on one ground: a lane round each
 WHERE = ("latitude", "longitude", "x", "y", "height_m")
 WALLS_ITEM = "ON THE WALLS AND CEILING"  # a plan's item that is no thing standing (plan.js's WALLS)
+SUN_SEARCH_HOURS = 24 * 30  # either side of a written scene time: a moon's day is near a month
 ASKED = """You are an architect drawing the site plan of a game environment's worlds: one map a world, each top place's
 site on it, in metres. The facts below are fixed: where each site stands on its ground (a world at its true radius,
 or a flat plot), each site's size and outline from its own plan, the fall of the ground round each site on its
@@ -447,6 +451,7 @@ def settled(plan, store=None):
             shape = from_plan(site_plan(store, site["place"])) if store is not None else {}
             sites.append({**site, **where, **shape})
         sites = cleared(sites, radius, pinned)
+        sites = [concept_timed(store, setting, site, world["on"]) for site in sites]
         origin = sites[0] if sites else {}
         sites = [{**site, "at": map_at(site, origin, radius),
                   "overhead": overhead.seen(setting, {**site, "on": world["on"]}, site["time"]) if site.get("time")
@@ -455,6 +460,39 @@ def settled(plan, store=None):
     found = {**plan, "setting": setting, "maps": maps}
     found.pop("bodies", None)
     return {**found, "gaps": gaps_of(found)}
+
+
+def sun_up(setting, site, when):
+    """Whether a light stands over the site's horizon at `when` (overhead.risen); None while its position is not
+    known."""
+    seen = overhead.seen(setting, site, when)
+    return None if seen is None else bool(overhead.risen(seen)["lights"])
+
+
+def hours_from(when, hours):
+    """The ISO time `hours` after `when`, in UTC."""
+    moment = datetime.datetime.fromisoformat(str(when).replace("Z", "+00:00"))
+    moment = moment if moment.tzinfo else moment.replace(tzinfo=datetime.timezone.utc)
+    return (moment + datetime.timedelta(hours=hours)).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def concept_timed(store, setting, site, on):
+    """The site with its scene time on the nearest whole hour to the time written (`written_time` once moved, else
+    `time`) at which a sun is up, when its concept shows daylight (reading.concept_light's scene `daylight`; owner,
+    2026-10-25: a daylight concept never gets a night sky); the time written kept as `written_time` when moved. A
+    concept showing no daylight says nothing of the sky (a closed room), so its time stays as written; as written too
+    with no store, no time, no position or no sun within SUN_SEARCH_HOURS."""
+    from score.review import reading
+    found = {key: value for key, value in site.items() if key != "written_time"}
+    site = {**site, "on": on}
+    written = site.get("written_time") or site.get("time")
+    light = reading.concept_light(store, site["place"]) if store is not None and written else None
+    if not (light and light["scene"]["daylight"]) or sun_up(setting, site, written) is not False:
+        return {**found, "time": written} if written else found
+    for hours in (step * sign for step in range(1, SUN_SEARCH_HOURS + 1) for sign in (1, -1)):
+        if sun_up(setting, site, hours_from(written, hours)):
+            return {**found, "time": hours_from(written, hours), "written_time": written}
+    return {**found, "time": written}
 
 
 # --- kept ---------------------------------------------------------------------------------------------------------
@@ -518,7 +556,7 @@ def checked_edit(plan, base, store=None):
         sites = []
         for site in world["sites"]:
             his = sent.get((world["on"], site["place"]), {})
-            sites.append({**site, "time": moment(his["time"]) if his.get("time") else site.get("time")})
+            sites.append({**site, "time": moment(his["time"]), "written_time": None} if his.get("time") else site)
         maps.append({**world, "sites": sites})
     return settled({**base, "time": moment(plan.get("time")) or base.get("time"), "maps": maps}, store)
 

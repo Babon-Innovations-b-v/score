@@ -3,7 +3,7 @@
 scene time (score/review/overhead.py on the inputs score/review/scene_sky.py keeps), never a sky record of its own.
 
     lights     each light over the level horizon (a shining body's, a far light's; one under it lights nothing here,
-               the ground between: `risen`) a distant light shining from its direction,
+               the ground between: overhead.risen) a distant light shining from its direction,
                /<scene>/Lights/sky_<key>: its colour its kelvin, its strength its lux (W/m² at LUMENS_PER_WATT); a
                shining body's also its disc, a ball at its true size, /<scene>/Sky/Discs/<body>
     bodies     every other body a ball at its true direction and size SKY_DISTANCE out, /<scene>/Sky/Bodies/<body>;
@@ -27,7 +27,6 @@ site: the light layer's gate "sky bodies".
 
     kept_input(place) -> {name: path pattern}      the scene's kept sky, declared when it exists
     seen_of(kept) -> overhead.seen(...) | None
-    risen(seen) -> seen with only the lights over the horizon
     faces_of(inputs) -> {body: its face.json}      the accepted body faces among a node's inputs
     write(stage, place, seen, faces=None, library=None) -> {lights, bodies, backdrops}
     held(stage, place) -> {lights, bodies, backdrops}
@@ -96,14 +95,6 @@ def apart(first, second):
     """Degrees between two sky directions given as (azimuth, altitude)."""
     cosine = float(np.dot(way(*first), way(*second)))
     return math.degrees(math.acos(float(np.clip(cosine, -1.0, 1.0))))
-
-
-def risen(seen):
-    """What is overhead with only the lights whose disc stands at least partly over the level horizon (altitude over
-    minus half its `across`; a far light, with none, over 0): a light under the horizon reaches the scene through no
-    ground, so it is not one of the scene's lights."""
-    return {**seen, "lights": [light for light in seen["lights"]
-                               if light["altitude"] + (light.get("across") or 0.0) / 2.0 > 0.0]}
 
 
 def tagged(prim, values):
@@ -256,7 +247,7 @@ def write(stage, place, seen, faces=None, library=None):
     target, each body painted with its face (`faces`: faces_of's), each disc on the surface library's method
     (`library`: data/library/materials.json); what was written."""
     from pxr import UsdGeom
-    seen = risen(seen)
+    seen = overhead.risen(seen)
     UsdGeom.Scope.Define(stage, f"/{place}/Sky")
     for group in ("Bodies", "Backdrops"):
         UsdGeom.Scope.Define(stage, f"/{place}/Sky/{group}")
@@ -269,7 +260,7 @@ def write(stage, place, seen, faces=None, library=None):
 def sun_entries(seen):
     """The brightest light overhead as the record's unnamed sun the day dome is scattered from (scene.write_sky_dome:
     its `toward`, the way it shines); [] with none over the horizon."""
-    seen = risen(seen)
+    seen = overhead.risen(seen)
     return [{"type": "sun", "toward": (-way(light["azimuth"], light["altitude"])).tolist()}
             for light in seen["lights"][:1]]
 
@@ -357,7 +348,7 @@ def ball_faults(what, wanted, have):
 def faults(seen, found):
     """Each way the sky the stage holds differs from what overhead.py says is overhead (module docstring; a light under
     the horizon held is one in the sky but not overhead)."""
-    seen = risen(seen)
+    seen = overhead.risen(seen)
     faults_found = []
     for body in seen["bodies"]:
         faults_found += ball_faults(body["name"], (body["azimuth"], body["altitude"], body["across"]),

@@ -33,3 +33,19 @@ def test_the_plan_page_shows_each_world_and_keeps_his_scene_times(world):
     refused = signed_in("joey2").post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),
                                       content_type="application/json")
     assert refused.status_code == 403
+
+
+def test_a_daylight_concepts_site_shows_its_time_moved_to_sun_up(world, monkeypatch):
+    from score.review import reading
+    monkeypatch.setattr(reading, "concept_light", lambda store, place: {"rows": {}, "scene": {
+        "daylight": True, "unseen": False, "unseen_colour": ""}} if place == "base" else None)
+    name = world.source.world_state().world
+    owner = signed_in()
+    plan = {"maps": [{"on": "moon", "sites": [{"place": "base", "time": "2099-06-16T12:00:00Z"}]}]}  # its night
+    assert owner.post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),
+                      content_type="application/json").status_code == 200
+    base = environment_plan.site_of(world.store, "base", name)
+    assert base["written_time"] == "2099-06-16T12:00:00Z" and base["time"] != base["written_time"]
+    world.source.refresh()
+    page = owner.get(f"/environments/{name}/plan/").content.decode()
+    assert "sun up from its concept (written 2099-06-16T12:00:00Z)" in page

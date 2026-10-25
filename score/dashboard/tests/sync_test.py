@@ -30,10 +30,11 @@ PRICED = "priced by the runner: EUR 1.00 to 2.00 measured, 3 paid steps with no 
 
 
 def offline(monkeypatch):
-    """Prepare, the library's pictures and the plans kept as lines, so no test pass reads the real library, fetches
-    a picture or writes a plan where the plan stage reads it."""
+    """Prepare, the library's pictures, the parts and light read and the plans kept as lines, so no test pass reads
+    the real library, fetches a picture, asks a model or writes a plan where the plan stage reads it."""
     monkeypatch.setattr(client, "plans_kept", lambda: "plans for the plan stage: test")
     monkeypatch.setattr(client, "parts_read", lambda store_root: "parts: test")
+    monkeypatch.setattr(client, "light_read", lambda store_root: "light: test")
     monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
     monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
     monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
@@ -590,6 +591,38 @@ def test_a_pass_asks_the_parts_of_a_locked_place_read_before_parts_once_and_neve
         f"EUR {0.05 * len(places):.2f}"
     assert sorted(asked) == sorted(places) and reading.unparted(store, places) == []
     assert client.parts_read(world.source.store_root, ask=ask) == "parts: none missing" and len(asked) == len(places)
+
+
+def test_a_pass_asks_the_light_of_a_locked_place_read_before_it_once_and_never_under_stop_everything(
+        world, monkeypatch):
+    """client.light_read: the fixture's readings have no concept light, so the first pass asks it (one call a place,
+    under the reading's clearance) before the plans are kept; a second pass asks nothing; while Stop everything holds
+    nothing is asked and the pass's words say why."""
+    from score.adapters import compute
+    from score.review import reading
+    from score.store import Store
+    monkeypatch.setattr(compute, "require_books", lambda what: None)
+    monkeypatch.setattr(compute, "books_refusal", lambda: None)
+    monkeypatch.delenv(compute.GRANT, raising=False)
+    store = Store.in_folder(world.source.store_root)
+    places = reading.unlit(store, ["alpha", "beta"])
+    assert places
+    monkeypatch.setattr(client, "free_only_followed", lambda: True)
+    assert client.light_read(world.source.store_root, ask=None) == (
+        f"light not read for {len(places)} places: refused, Stop everything holds (free only)")
+    monkeypatch.setattr(client, "free_only_followed", lambda: False)
+    asked = []
+
+    def ask(store, place, folder):
+        asked.append(place)
+        rows = {row["id"]: {"glows": False, "glowing": "", "colour": "", "brightness": 0}
+                for row in reading.reading_of(store, place)["inventory"]["rows"]}
+        return {"rows": rows, "scene": {"daylight": True, "unseen": False, "unseen_colour": ""}}, 0.04, 1.0
+    assert client.light_read(world.source.store_root, ask=ask) == f"light read: {len(places)} places, " \
+        f"EUR {0.04 * len(places):.2f}"
+    assert sorted(asked) == sorted(places) and reading.unlit(store, places) == []
+    assert reading.concept_light(store, places[0])["scene"]["daylight"] is True
+    assert client.light_read(world.source.store_root, ask=ask) == "light: none missing" and len(asked) == len(places)
 
 
 def test_a_pass_makes_the_free_preview_of_each_locked_script_that_wants_one(monkeypatch):

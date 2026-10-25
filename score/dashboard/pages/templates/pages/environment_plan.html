@@ -30,6 +30,7 @@
         <span class="soft small" title="where it stands on its ground, set in the environment concept's physics" data-v>{{ site.where }}</span>
         {% if can %}<input type="text" data-f="time" value="{{ site.time|default_if_none:'' }}" placeholder="2099-06-01T20:00:00Z" title="its scene time in UTC; {{ site.overhead_tip|default:'its sky follows from the physics once it has one' }}">
         {% else %}<span class="small" title="{{ site.overhead_tip }}" data-v>{{ site.time|default_if_none:'no scene time' }}</span>{% endif %}
+        {% if site.written_time %}<span class="soft small" title="its concept shows daylight: its scene time moved to the nearest hour its sun is up" data-v>sun up from its concept (written {{ site.written_time }})</span>{% endif %}
       </div>{% endfor %}
     </div>{% endfor %}
   </div>

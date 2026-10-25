@@ -8,6 +8,7 @@ concept's draw takes one moment of it, the place's scene time.
         -> {lights: [{name, of, azimuth, altitude, kelvin, lux, across?}],
             bodies: [{body, name, azimuth, altitude, across, lit, lit_from}],
             backdrops: [{name, shape, lux, kelvin?}]}
+    risen(seen) -> seen with only the lights over the horizon
 
 Degrees throughout: azimuth from north towards east, altitude over the level horizon. A light's `of` is the body that
 gives it, None for a far light; the lights brightest first. A body's `across` is its true angular diameter (a shining
@@ -208,3 +209,9 @@ def seen(setting, site, when):
     return {"lights": lights, "bodies": found["bodies"], "backdrops": backdrops}
 
 
+def risen(seen):
+    """What is overhead with only the lights whose disc stands at least partly over the level horizon (altitude over
+    minus half its `across`; a far light, with none, over 0): a light under the horizon reaches the scene through no
+    ground, so it is not one of the scene's lights."""
+    return {**seen, "lights": [light for light in seen["lights"]
+                               if light["altitude"] + (light.get("across") or 0.0) / 2.0 > 0.0]}
