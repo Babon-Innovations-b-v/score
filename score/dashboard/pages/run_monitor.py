@@ -98,6 +98,7 @@ def clock(run):
     """{started, elapsed, left, left_high, at_least, by, by_high, over}: the times in words, the ETA left from the
     runner's minutes (None while not timed), at_least when a bought step was never timed."""
     eta, started = run["eta"], moment(run["started"])
+    begun = moment(run.get("try_started")) or started  # this try's start: its ETA and elapsed count from it
     elapsed = eta["elapsed"] or 0
     likely, high = eta["likely_minutes"], eta["high_minutes"]
     left = None if likely is None else max(0.0, likely - elapsed)
@@ -107,8 +108,8 @@ def clock(run):
             "elapsed": costs.hours(elapsed), "left": None if left is None else costs.hours(left),
             "left_high": None if left_high is None else costs.hours(left_high), "at_least": bool(eta["untimed"]),
             "untimed": eta["untimed"],
-            "by": (started + datetime.timedelta(minutes=likely)).strftime("%H:%M") if started and likely else None,
-            "by_high": (started + datetime.timedelta(minutes=high)).strftime("%H:%M") if started and high else None,
+            "by": (begun + datetime.timedelta(minutes=likely)).strftime("%H:%M") if begun and likely else None,
+            "by_high": (begun + datetime.timedelta(minutes=high)).strftime("%H:%M") if begun and high else None,
             "over": high is not None and elapsed > high}
 
 
@@ -149,9 +150,18 @@ def machines(pool):
             if pool[kind]["size"] or pool[kind]["warm"]]
 
 
+def problem_name(problem, names):
+    """(name, hover text) of a problem: its scene, how many places when several share it (their names as hover
+    text), else the batch."""
+    places = problem.get("places") or []
+    if len(places) > 1:
+        return f"{len(places)} places", ", ".join(scene_name(place, names) for place in places)
+    return (scene_name(problem["place"], names) if problem["place"] else "Batch"), problem["tip"]
+
+
 def problem_rows(run, world):
     names = groups.short_names(world)
-    return [{**problem, "name": scene_name(problem["place"], names) if problem["place"] else "Batch",
+    return [{**problem, **dict(zip(("name", "tip"), problem_name(problem, names))),
              "at": moment(problem["at"]).strftime("%H:%M") if problem["at"] else None, "at_iso": problem["at"]}
             for problem in run["problems"]]
 

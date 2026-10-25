@@ -123,6 +123,7 @@ class Checkout(models.Model):
     launch = models.ForeignKey(Launch, null=True, blank=True, on_delete=models.PROTECT, related_name="checkouts")
     detail = models.TextField(blank=True)
     pid = models.IntegerField(null=True, blank=True)  # the process running it while launching: gone, it failed
+    design_at = models.CharField(max_length=32, blank=True)  # when the design last changed as it was made: a new batch
 
     class Meta:
         ordering = ["-at"]

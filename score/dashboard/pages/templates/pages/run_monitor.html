@@ -13,12 +13,12 @@
   <section class="rm-head" aria-label="the batch now">
     <div class="rm-title">
       <span class="rm-chip tone-{{ tone }}" title="{{ tip }}{% if run.why %}: {{ run.why }}{% endif %}"><i class="dot tone-{{ tone }}"></i><span data-v>{{ label }}</span></span>
-      <h1 data-v>Batch {{ run.checkout }}</h1>
+      <h1 data-v title="{% if run.tries > 1 %}a Buy while the batch was unfinished and its design unchanged tries it again: rows, spend and problems count every try, the time left and the stop this try's{% endif %}">Batch {{ run.batch|default:run.checkout }}{% if run.tries > 1 %}, try {{ run.tries }}{% endif %}</h1>
       <span class="rm-fresh soft" title="{% if fresh_minutes is None %}read live from the store{% else %}the state the store's machine sent last; it sends one about every minute while the batch lives{% endif %}" data-v>{% if fresh_minutes is None %}live, {% endif %}as of <time data-local="{{ run.read_at }}">{{ fresh_at }}</time>{% if fresh_minutes is not None %}, {{ fresh_minutes }} min ago{% endif %}</span>
     </div>
     <div class="rm-clock">
       <div class="rm-stat" title="when the runner started it ({{ clock.day }})"><div class="num-label">Started</div><div class="rm-big" data-v><time data-local="{{ run.started }}">{{ clock.started|default:"–" }}</time></div></div>
-      <div class="rm-stat" title="{% if run.ended %}how long it ran{% else %}how long it has run so far{% endif %}"><div class="num-label">{% if run.ended %}Ran{% else %}Elapsed{% endif %}</div><div class="rm-big" data-v>{{ clock.elapsed }}</div></div>
+      <div class="rm-stat" title="{% if run.ended %}how long it ran{% else %}how long it has run so far{% endif %}{% if run.tries > 1 %}, this try{% endif %}"><div class="num-label">{% if run.ended %}Ran{% else %}Elapsed{% endif %}</div><div class="rm-big" data-v>{{ clock.elapsed }}</div></div>
       {% if live %}<div class="rm-stat" title="the runner's measured minutes, likely to high{% if clock.at_least %}; {{ clock.untimed }} bought step{{ clock.untimed|pluralize }} never timed add to it, so at least{% endif %}{% if clock.by %}; likely done {{ clock.by }}, at the latest {{ clock.by_high }} UTC{% endif %}"><div class="num-label">{% if clock.at_least %}Left, at least{% else %}Left{% endif %}</div>
         {% if clock.left is None %}<div class="rm-big unknown" data-v>unknown</div>{% elif clock.over %}<div class="rm-big rm-over" data-v>past the high</div>{% else %}<div class="rm-big" data-v>{{ clock.left }}</div><div class="num-sub" data-v><small>up to</small> {{ clock.left_high }}</div>{% endif %}</div>{% endif %}
       <div class="rm-stat rm-rows" title="{{ run.rows.done }} rows done, {{ run.rows.failed }} failed, {{ run.rows.not_run }} not run because an earlier row failed{% if run.rows.running is not None %}, {{ run.rows.running }} running, {{ run.rows.queued }} queued{% endif %}"><div class="num-label">Rows</div>
@@ -75,7 +75,7 @@
         <h2 class="eyebrow">Problems <span data-v>{{ problems|length }}</span></h2>
         {% for problem in problems %}<div class="rm-problem" title="{{ problem.tip }}">
           <i class="dot tone-{% if problem.kind == 'gaps' %}review{% else %}bad{% endif %}"></i>
-          <div><div class="rm-problem-head"><span data-v>{{ problem.name }}</span>{% if problem.at %}<time class="soft" data-local="{{ problem.at_iso }}">{{ problem.at }}</time>{% endif %}</div><div class="soft" data-v>{{ problem.words }}</div></div>
+          <div><div class="rm-problem-head"><span data-v>{{ problem.name }}</span>{% if problem.at %}<time class="soft" data-local="{{ problem.at_iso }}">{{ problem.at }}</time>{% endif %}</div><div class="soft" data-v>{{ problem.words }}</div>{% if problem.raw %}<details class="rm-raw"><summary>what the run said</summary>{% for said in problem.raw %}<div>{{ said }}</div>{% endfor %}</details>{% endif %}</div>
         </div>{% empty %}<p class="soft" data-v>none</p>{% endfor %}
       </section>
     </aside>

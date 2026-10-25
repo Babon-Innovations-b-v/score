@@ -227,6 +227,10 @@ lock, reading and plan, parent before child, then the film.
 3. His Buy is the one money yes. It writes the batch's stop: the high estimate plus 10%, on top of what is already spent
    and in flight. The checkout plans once and launches one runner command holding every bought node, so no two runs clash on a
    shared node. Buy buys what the runner plans now, nothing else.
+   A Buy while the last batch is unfinished (rows failed or never ran) and its design unchanged is another try of that
+   batch, not a new one: the monitor shows "Batch 1, try 2" with rows, spend and problems across its tries, and the Buy
+   page says what the try makes again and keeps (owner, 2026-10-25: "its the same batch, ur just retrying a failed
+   part of it"; `checkout/watched.batch_of`).
 4. The run rents its warm pool once, start to finish (CONTEXT.md "warm pool"; owner, 2026-10-23: "i would use like 10
    gpus but warm for the entire batch"): a collector beside the run rents cards, backing off for stock, until the
    pool holds its size (about 10, mostly L4, an L40S or H100 only when the run's rows need that class), and the run's

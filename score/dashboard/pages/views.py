@@ -22,7 +22,7 @@ from score.dashboard.pages import basket as basket_items
 from score.dashboard.pages.environment import title_of
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
-from score.dashboard.state import costs, groups, gaps, screens
+from score.dashboard.state import batch_run, costs, groups, gaps, screens
 from score.dashboard.state import money as month_money
 
 
@@ -132,7 +132,7 @@ def buy(request):
     """Screen 3, design first (CONTEXT.md "design"): each place's concept and its plan, made on
     the place's card and never bought here (screens.design), its Approve once made; then the batch after design
     (screens.batch: the whole remake by layer, how many each makes and its euros), its Buy only once a design is
-    approved and only for those places; the last batch's state and stop; the owner's books buttons only while paid
+    approved and only for those places; what it makes again, first and keeps beside the last batch (batch_run.next_buy); the owner's books buttons only while paid
     work is refused or the model calls' month is not read."""
     source = state.source()
     found = overview_of(source)
@@ -147,7 +147,8 @@ def buy(request):
         "hours": cockpit.eta_hours(batch["now"]["eta"]), "floor": cockpit.floor_hours(batch["now"]["eta"]),
         "money": found["view"],
         "figure": cockpit.month_money(found["view"])["models"] is None,
-        "key": uuid.uuid4().hex, "film_waits": screens.film_waits()})
+        "key": uuid.uuid4().hex, "film_waits": screens.film_waits(),
+        "since": batch_run.next_buy(source.batch_run(), batch["nodes"]) if design["approved"] else None})
 
 
 def place_page(request, place):

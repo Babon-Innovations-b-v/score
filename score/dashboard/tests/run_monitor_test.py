@@ -14,7 +14,7 @@ from django.test import override_settings
 
 from score.dashboard.pages import run_monitor
 from score.dashboard.pages.models import Checkout, Launch, Plan, SyncRequest
-from score.dashboard.state import batch_run
+from score.dashboard.state import batch_run, plain
 from score.dashboard.state.exported import ExportedSource
 from score.dashboard.sync import building
 from score.dashboard.tests.pages_test import prose, signed_in
@@ -51,16 +51,16 @@ def a_pool(props, short_word=True):
     (folder / "collector.log").write_text(f"[cloud] 13:07:13 rented a card\n{said}\n")
 
 
-def a_batch(world, log=LOG, state="launched", pool=True):
+def a_batch(world, log=LOG, state="launched", pool=True, key="a"):
     """A checkout launched one run whose log is `log`; closeup@alpha's own log written since (it runs now)."""
     props, store = world.source.props_home, world.source.store_root
     (props / "logs").mkdir(parents=True, exist_ok=True)
     path = props / "logs" / "score-run-1.log"
     path.write_text(log.format(run=RUN))
-    plan = Plan.objects.create(basket_hash="checkout-1", made_by="joey", state="ready", body=PLAN)
+    plan = Plan.objects.create(basket_hash=f"checkout-{key}", made_by="joey", state="ready", body=PLAN)
     launch = Launch.objects.create(plan=plan, by="joey", state="running", handles=[
         {"command": ["score", "run"], "pid": None, "log": str(path), "refused": None}])
-    record = Checkout.objects.create(key="a" * 32, by="joey", state=state, totals=TOTALS, launch=launch,
+    record = Checkout.objects.create(key=key * 32, by="joey", state=state, totals=TOTALS, launch=launch,
                                      items=[{"nodes": {"closeup@alpha": {}, "closeup@beta": {}}}],
                                      stop_line={"euros": 516.44, "spent": 120.0, "reserved": 0.0,
                                                 "at": "2026-10-24T11:08:38+00:00"})
@@ -267,3 +267,69 @@ def test_the_export_carries_the_batch_and_the_hosted_page_says_how_fresh(world, 
         SyncRequest.objects.filter(kind="checkout").update(
             created=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1))
         assert "Buy sent" in signed_in("sam").get("/buy/run/").content.decode()
+
+
+def test_a_fault_is_said_as_a_short_plain_cause():
+    cloud = ("error: CalledProcessError: Command '['/home/score/tools/cloud/blender_cloud.py', '--scene', 'x']' "
+             "returned non-zero exit status 1.")
+    assert plain.step_cause(cloud, "  | no card could be rented") == "no cloud machine could be rented"
+    assert plain.step_cause(cloud, "") == "its run on a cloud machine failed"
+    assert plain.step_cause("error: RuntimeError: light@a: an input changed while it ran; nothing is stored") == \
+        "an input file changed while it ran"
+    assert plain.step_cause("error: RuntimeError: the finish call failed (exit 1) and brought no take back") == \
+        "the model's finishing step on a cloud machine failed"
+    assert plain.step_cause("error: OSError: Insufficient permissions for /a/b.usd") == "a file could not be saved"
+    assert plain.step_cause("made: fail") == "it was made but failed its check"
+    assert plain.step_cause("error: ValueError: need at least one array to concatenate") == \
+        "need at least one array to concatenate"
+    said = plain.step_cause("error: KeyError: " + "word " * 40 + "/home/score/deep/file.json")
+    assert len(said) <= 103 and "/home" not in said
+
+
+def test_failed_rows_sharing_a_cause_are_one_problem_with_their_raw_words(tmp_path):
+    report = tmp_path / "faults.txt"
+    report.write_text("  | no card could be rented\n")
+    fault = (f"error: CalledProcessError: Command '['/x/blender_cloud.py']' returned non-zero exit status 1; "
+             f"fault report {report}")
+    rows = {f"light@{place}": ("failed", fault, "2026-10-24T11:09:00+00:00") for place in ("a", "b", "c")}
+    rows["film@a"] = ("not_run", "not run: its line stopped at light@a", None)
+    [problem] = batch_run.failures(rows)
+    assert problem["places"] == ["a", "b", "c"] and problem["place"] == ""
+    assert problem["words"].endswith("stopped in 3 places: no cloud machine could be rented. 1 later step waits on them.")
+    assert len(problem["raw"]) == 3 and "blender_cloud.py" in problem["raw"][0]
+
+
+def test_the_next_buy_says_what_it_makes_again_first_and_keeps():
+    run = {"checkout": 3, "batch": 1, "at": "2026-10-25T09:10:00+00:00", "state": "finished", "design_at": None,
+           "nodes": {"planned": ["a", "b", "c", "d"], "made": ["a", "b"], "failed": ["c"]}}
+    assert batch_run.next_buy(run, ["c", "d", "e"]) == (
+        "Retry Batch 1: makes again the 1 step that failed and the 1 that never ran; makes 1 step for the "
+        "first time; keeps the 2 already made.")
+    changed = {**run, "design_at": "2026-10-25T10:00:00Z"}
+    assert batch_run.next_buy(changed, ["c"]).startswith("Batch 2, after Batch 1: makes again the 1 step")
+    assert batch_run.next_buy({**run, "state": "running"}, ["c"]) is None
+    assert batch_run.next_buy({"checkout": 1, "state": "finished"}, ["c"]) is None
+
+
+def test_a_buy_while_the_batch_is_unfinished_is_its_next_try(world):
+    """Owner, 2026-10-25: "its the same batch, ur just retrying a failed part of it"."""
+    first = a_batch(world)
+    retry = a_batch(world, key="b")
+    retry.at = first.at + datetime.timedelta(hours=1)
+    retry.save()
+    found = world.source.batch_run()
+    assert (found["batch"], found["tries"], found["checkout"]) == (1, 2, retry.pk)
+    assert found["rows"]["failed"] == 1 and found["money"]["spent"] is not None
+    redesigned = a_batch(world, key="c")
+    redesigned.at, redesigned.design_at = retry.at + datetime.timedelta(hours=1), \
+        (retry.at + datetime.timedelta(minutes=5)).isoformat()
+    redesigned.save()
+    assert (world.source.batch_run()["batch"], world.source.batch_run()["tries"]) == (2, 1)
+
+
+def test_a_try_that_wrote_no_line_yet_shows_its_buys_stop_and_spends_nothing(world):
+    record = a_batch(world, log="paid rows this run would buy: 2\n", state="launching")
+    record.stop_line = {}
+    record.save()
+    money = world.source.batch_run()["money"]
+    assert money["spent"] == 0.0 and money["stop"] == round(money["high"] * batch_run.BUFFER, 2)

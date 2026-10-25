@@ -1,6 +1,8 @@
-"""The newest checkout as the run monitor reads it (state/batch_run.py), on the store's machine: its record, its launch
+"""The newest checkout, a try of its batch, as the run monitor reads it (state/batch_run.py), on the store's machine: its record, its launch
 polled (launch/guard.polled: the run's state from its log and process) and every row its run plans, as plain data.
 Read only, but for the Launch row's state, which polling keeps (the dashboard's own SQLite)."""
+import datetime
+
 from django.db.models import Q
 
 from score.dashboard.launch import guard
@@ -48,15 +50,52 @@ def launch_of(launch):
             "logs": [handle["log"] for handle in launch.handles if handle.get("log")]}
 
 
-def newest():
-    """The newest checkout, its launch, every launch of its runs (checkout_runs) and the rows its runs plan (the
-    bought rows alone before it launched), as plain data for batch_run.gathered; None before one."""
-    record = Checkout.objects.select_related("launch__plan").first()
-    if record is None:
-        return None
-    bought = sorted({node for item in record.items for node in item["nodes"]})
+def record_nodes(record):
+    """The rows a checkout's runs planned, its bought rows alone before it launched."""
     planned = checkout_nodes(record) if record.launch else []
+    return planned or sorted({node for item in record.items for node in item["nodes"]})
+
+
+def batch_ended(tries, record, accepted_at):
+    """Whether `record` begins a new batch after the checkouts `tries` (owner, 2026-10-25: "its the same batch, ur
+    just retrying a failed part of it"): every row they planned made since the first of them by the time it was made,
+    or the design changed since the last of them (its `design_at`)."""
+    start = tries[0].at
+    nodes = {node for one in tries if one.launch for node in checkout_nodes(one)}
+    made = bool(nodes) and all(start < (moment(accepted_at(node)) or start) <= record.at for node in nodes)
+    return made or bool(record.design_at) and moment(record.design_at) > tries[-1].at
+
+
+def moment(text):
+    return datetime.datetime.fromisoformat(text) if text else None
+
+
+def batch_of(records, accepted_at):
+    """(batch number, its checkouts oldest first) of the newest of `records` (oldest first): a checkout is another
+    try of the batch before it until batch_ended."""
+    number, tries = 0, []
+    for record in records:
+        if not tries or batch_ended(tries, record, accepted_at):
+            number, tries = number + 1, []
+        tries.append(record)
+    return number, tries
+
+
+def newest(accepted_at=lambda node: None):
+    """The newest checkout as a try of its batch (batch_of): its record and launch, every launch of every try's runs
+    (checkout_runs) and the rows they plan, the batch's number, its tries and when its first try was made, as plain
+    data for batch_run.gathered; None before one. `accepted_at(node)` the time of its standing accept."""
+    records = list(Checkout.objects.select_related("launch__plan").order_by("at"))
+    if not records:
+        return None
+    number, tries = batch_of(records, accepted_at)
+    record = tries[-1]
+    nodes = {}
+    for one in tries:
+        nodes.update(dict.fromkeys(record_nodes(one)))
     return {"checkout": record.pk, "at": record.at.isoformat(), "by": record.by, "state": record.state,
             "detail": record.detail, "totals": record.totals, "stop_line": record.stop_line,
-            "launch": launch_of(record.launch), "runs": checkout_runs(record) if record.launch else [],
-            "nodes": planned or bought}
+            "launch": launch_of(record.launch), "batch": number, "tries": len(tries),
+            "first_at": tries[0].at.isoformat(),
+            "runs": [run for one in tries if one.launch for run in checkout_runs(one)],
+            "try_runs": checkout_runs(record) if record.launch else [], "nodes": list(nodes)}
