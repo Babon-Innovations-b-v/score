@@ -439,6 +439,10 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
 ALL = None
 BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                "finish-route-split": ("one finish a face",), "surfaces-bake": ("baked",),
+               # the bake's own gates, held after it: a take or model they fail is named a gap by the row's make
+               # (route_paint.py, route_check.py)
+               "surfaces-paint": ("one surface a part", "colour against the close-up", "feet in one plane"),
+               "surfaces-check": ("baked matches its surfaces", "triangles within budget", "stands level"),
                "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
                "sound": ("likeness", "events", "voices")}
 

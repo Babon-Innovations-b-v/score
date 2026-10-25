@@ -4,6 +4,9 @@ token, roughness and metal under its settings name (route_settings), which the l
 finish with its own wear level is held against its surface worn to that level, not the scene's
 (`own_wear_checked`); the scene's wear, dirt and surfaces are its scene palette's (palette_library.py, read from its
 design), never place.json's.
+A model a gate fails is a batch gap of it and its take (route_paint.item_gaps: the batch rule, its bake ran once in
+the batch), named in batch-gaps.json with the gaps the inputs carry; the table moves the fault (stages.BATCH_GATES)
+and complete fails it by name, so one model's fault no longer stops the place's line.
 Its own module, so bake_check.py, in the crops', people's and finish-map lines' code versions, stays unedited.
 """
 import json
@@ -19,8 +22,32 @@ import palette_library  # noqa: E402
 import prop_env  # noqa: E402
 
 
+ROW = "surfaces-check"
+
+
 def make_check(inputs, out, seed, params):
+    """The check run in the prop environment, then each model a gate fails named a batch gap."""
     prop_env.handover(__file__, "check", inputs, out)
+    import route_paint
+    takes = take_of(inputs)
+    route_paint.write_gaps(inputs, out, ROW, check_gates(), "checks.json", lambda found: found,
+                           json.loads((out / "checks.json").read_text()),
+                           lambda model: (model, takes.get(model)),
+                           "the model's paint and bake ran once in the batch and failed this gate")
+
+
+def check_gates():
+    """Every gate the row holds as the table sets it (stages.bake_checked), guarded as the row's."""
+    from surface_gates import guarded
+    return tuple(guarded(name, judge) for name, judge in (
+        ("baked matches its surfaces", bake_check.judge_lit), ("triangles within budget", bake_check.judge_triangles),
+        ("stands level", bake_check.judge_stance)))
+
+
+def take_of(inputs):
+    """{model: its take} of the bake's entries (<surfaces-bake>/entries/<take>.json)."""
+    return {model: path.stem for path in sorted((pathlib.Path(inputs["surfaces-bake"]) / "entries").glob("*.json"))
+            for model in json.loads(path.read_text())}
 
 
 def own_wear_checked(check_model):

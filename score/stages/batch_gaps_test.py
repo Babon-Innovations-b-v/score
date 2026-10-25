@@ -208,3 +208,69 @@ def test_a_take_lost_with_no_batch_gap_still_stops_its_line():
     runner = fixture_line("the batch lost the crate")
     found = runner.drive(["dock"], say=lambda line: None)
     assert found["likeness@dock"] == "not run: its line stopped at pixal@dock", found
+
+
+def painted(folder):
+    """A surfaces-bake output whose take `crate-s1` has a finish off its close-up's colour and `hatch-s1` none, with
+    the bake's entries (each take's models) and checks.json as the check's step writes it: `crate` over its budget."""
+    baked = folder / "surfaces-bake"
+    clean = {"unnamed_parts": 0, "unnamed_share": 0.0, "finishes": [], "feet": {}}
+    off = dict(clean, finishes=[{"finish": "lid", "by": "off its colour", "measured_lab": [30.0, 0.0, 0.0],
+                                 "surface": "panel", "delta_e": 40.0, "new_surface": {"name": "panel_dark"}}])
+    (baked / "labelled" / "crate-s1").mkdir(parents=True)
+    (baked / "entries").mkdir()
+    written(baked, "painted.json", {"takes": {"crate-s1": off, "hatch-s1": clean}, "left_out": {}})
+    written(baked / "entries", "crate-s1.json", {"crate": {}})
+    written(baked / "entries", "hatch-s1.json", {"hatch": {}})
+    record = {"missing_maps": [], "surfaces": {}, "triangles": 100, "budget": 1000, "stands": False}
+    return baked, {"crate": dict(record, triangles=5000), "hatch": record}
+
+
+def test_a_take_the_paint_or_check_fails_is_a_gap_and_the_table_moves_its_fault_alone():
+    from score.stages.surfaces import route_check
+    folder = pathlib.Path(tempfile.mkdtemp())
+    try:
+        baked, records = painted(folder)
+        inputs = {"surfaces-bake": baked}
+        paint = folder / "paint"
+        paint.mkdir()
+        ROWS["surfaces-paint"].make(inputs, paint, 0, {})
+        found = batch_gaps.read([paint])
+        assert [entry["name"] for entry in found] == ["crate-s1: colour against the close-up"], found
+        gate = next(check for check in ROWS["surfaces-paint"].checks if check.name == "colour against the close-up")
+        assert gate.judge.__wrapped__(paint, inputs, None).answer == checks.FAIL
+        moved = gate.judge(paint, inputs, None)
+        assert moved.answer == checks.PASS and "moved to complete" in moved.reason, moved
+        # the check: its step faked to write checks.json; the model over its budget is a gap of it and its take
+        handover = route_check.prop_env.handover
+        route_check.prop_env.handover = lambda module, step, given, out: written(out, "checks.json", records)
+        check = folder / "check"
+        check.mkdir()
+        try:
+            route_check.make_check({**inputs, "surfaces-paint": paint}, check, 0, {})
+        finally:
+            route_check.prop_env.handover = handover
+        names = {entry["name"]: entry for entry in batch_gaps.read([check])}
+        assert set(names) == {"crate-s1: colour against the close-up", "crate: triangles within budget"}, names
+        assert set(names["crate: triangles within budget"]["objects"]) == {"crate", "crate-s1"}
+        gate = next(check for check in ROWS["surfaces-check"].checks if check.name == "triangles within budget")
+        assert gate.judge(check, {**inputs, "surfaces-paint": paint}, None).answer == checks.PASS
+        # a fault no gap names still stops: the clean model over its budget too
+        written(check, "checks.json", {**records, "hatch": dict(records["hatch"], triangles=5000)})
+        assert gate.judge(check, {**inputs, "surfaces-paint": paint}, None).answer == checks.FAIL
+    finally:
+        shutil.rmtree(folder)
+
+
+def test_a_clean_paint_writes_no_gaps_file():
+    folder = pathlib.Path(tempfile.mkdtemp())
+    try:
+        baked, _ = painted(folder)
+        written(baked, "painted.json", {"takes": {"hatch-s1": {"unnamed_parts": 0, "unnamed_share": 0.0,
+                                                               "finishes": [], "feet": {}}}, "left_out": {}})
+        paint = folder / "paint"
+        paint.mkdir()
+        ROWS["surfaces-paint"].make({"surfaces-bake": baked}, paint, 0, {})
+        assert not (paint / batch_gaps.FILE).exists()
+    finally:
+        shutil.rmtree(folder)

@@ -29,7 +29,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `route_views.py`), `finish-route-list` (paid, `route_list.py`), `finish-route-split` (free, `route_split.py`),
   `surfaces-parts` (free, `route_parts.py`: the method's interface), `surfaces-bake` (paid, `route_bake.py`: the
   paint and the bake in one job), `surfaces-paint` (free, `route_paint.py`: the bake's painted takes, the paint's
-  gates), `finish-route-recheck` (paid, `route_recheck.py`; `surfaces-check` reads it, so a failed
+  gates; a take a gate fails is a batch gap, as a model the check fails is: `route_paint.item_gaps`), `finish-route-recheck` (paid, `route_recheck.py`; `surfaces-check` reads it, so a failed
   recheck stops the line before the check), `surfaces-check`. Each route row selects (`score run --object <take>`).
   A take's model is its raw take (`route_data.py`); one with none here, or whose faces the paint loads differently, is
   named by the views gate before anything is asked. Its close-up is its own, else a **stand-in close-up** (the model's
