@@ -87,7 +87,8 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `score-lib`) and check `ls ~/.farm-factory-props/env/bin/python ~/projects/score_lib/.venv/bin/score-lib`, then delete that `uv sync` line with the `git` lines in the same
   user-data edit. The apt packages added that day (rsync, openssh-client, ffmpeg, nodejs, npm) reach the live
   conductor only through the system part, which cloud-init ran once at its first boot: as root, `bash
-  /home/score/projects/score/tools/cloud/conductor/boot.sh system` (safe to re-run). Other areas add their own units here;
+  /home/score/projects/score/tools/cloud/conductor/boot.sh system` (safe to re-run). The same holds for Chromium's libraries (`chromium_libraries`,
+  added 2026-10-25 for the film preview the sync pass renders); its browser comes with the user part. Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
 - Tests (free, no cloud; each file well under 120 s): `machine_test.py` (cloud-init schema, `systemd-analyze --user
   verify`, `up --dry`, boot.sh against a temp root, the door), `update_test.py`, `health_push_test.py`,

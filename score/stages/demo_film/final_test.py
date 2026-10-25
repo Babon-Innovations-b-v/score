@@ -187,6 +187,24 @@ def test_a_recorded_segment_is_cut_from_the_previews_take_of_that_very_segment()
     assert timeline["segments"][2]["exposure_gain"] == 1.0 and timeline["seconds"] == 13.5
 
 
+
+def test_a_locked_script_with_recorded_segments_wants_its_preview_until_it_is_made_from_the_lock():
+    """previews_wanted, what the sync pass makes: a lock with a recorded segment and no preview, or one recorded from
+    another script, wants it; a preview of the very lock, or a script with no recorded segment, does not."""
+    home, kept = pathlib.Path(tempfile.mkdtemp()), final.DASHBOARD
+    take = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
+    script = a_script([WALKS[0], take, WALKS[1]])
+    try:
+        locked_in(home, ("toy", script), ("plain", a_script(WALKS)))
+        assert final.previews_wanted() == ["toy"]
+        (home / final.PREVIEWS).mkdir(parents=True)
+        (home / final.PREVIEWS / "toy.json").write_text(json.dumps({"script": script}))
+        assert final.previews_wanted() == []
+        locked_in(home, ("toy", dict(script, segments=[WALKS[0], dict(take, seconds=4.0), WALKS[1]])))
+        assert final.previews_wanted() == ["toy"]
+    finally:
+        final.DASHBOARD = kept
+
 if __name__ == "__main__":
     import pathlib
     import runpy
