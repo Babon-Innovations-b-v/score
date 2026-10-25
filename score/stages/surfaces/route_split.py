@@ -14,10 +14,10 @@ its painted take) is a gap, named, before anything is baked.
 The colour check comes first, free, the moment the list's one answer is back and before any paid bake or recheck
 (owner, 2026-10-20): each region of every view, from every angle the views row cast, against the finish labelled
 there, its chosen surface's token colour (the list's settings) against the region's median texture colour in that
-view (`colour_faults`). First a finish whose token lies over VIEW_DELTA_E from what all its regions show takes, of
-the scene palette's tokens within it of that colour, the one nearest the listed token, its surface kept
+view (`colour_faults`). First a finish whose token lies over VIEW_DELTA_E from any region it labels takes, of the
+scene palette's tokens within it of every one of those regions, the one nearest the listed token, its surface kept
 (`recoloured`, owner 2026-10-22: the list put the astronaut's mid-grey jacket in hull-white); then a region over
-VIEW_DELTA_E makes its take a gap, named, so nothing of it is baked.
+VIEW_DELTA_E makes its take a gap, named with the colour it shows, so nothing of it is baked.
 
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
@@ -120,65 +120,75 @@ def own_colour(finish):
             or finish_parts.see_through(finish, {finish["surface"]: {"family": finish.get("family")}}))
 
 
-def region_apart(colours, regions, region, finish):
-    """How far (CIE76) a finish's token colour lies from one region's median texture colour in one view."""
-    seen = np.median(cast.lab_of(colours[regions == region]), axis=0)
-    return float(np.linalg.norm(seen - finish_parts.library_lab(finish)))
+def region_colour(colours, regions, region):
+    """One region's median texture colour (CIELAB) in one view, None where the view shows none of it."""
+    pixels = colours[regions == region]
+    return np.median(cast.lab_of(pixels), axis=0) if len(pixels) else None
+
+
+def finish_regions(folder, listed):
+    """Each finish's regions as the views show them: [(view, region, CIELAB)], one entry for every region of every
+    view labelled with it that the view shows."""
+    colours, regions = np.load(folder / "colours.npz"), np.load(folder / "regions.npz")
+    found = [[] for _ in listed["finishes"]]
+    for view, labels in listed["labels"].items():
+        for region, number in labels.items():
+            seen = region_colour(colours[view], regions[view], int(region))
+            if seen is not None:
+                found[number].append((view, int(region), seen))
+    return found
+
+
+def worst_apart(seen, lab):
+    """How far (CIE76) a colour lies from the farthest of a finish's regions (finish_regions), 0 with none."""
+    return max((float(np.linalg.norm(colour - lab)) for _, _, colour in seen), default=0.0)
 
 
 def colour_faults(folder, listed):
     """(faults, worst dE): every region of every view against the finish labelled there, before anything is baked: a
-    finish with no token colour, or one over VIEW_DELTA_E from what a view shows, is named. Finishes judged by their
-    own colour are left out (own_colour)."""
-    colours, regions = np.load(folder / "colours.npz"), np.load(folder / "regions.npz")
+    finish with no token colour, or one over VIEW_DELTA_E from what a view shows, is named with the colour that view
+    shows (so a colour the palette lacks is read off the gap). Finishes judged by their own colour are left out
+    (own_colour)."""
     faults, worst = [], 0.0
-    for view, labels in listed["labels"].items():
-        for region, number in labels.items():
-            finish = listed["finishes"][number]
-            if own_colour(finish):
-                continue
-            if finish.get("colour") is None:
-                faults.append(f"{finish['finish']}: no token colour to check")
-                continue
-            apart = region_apart(colours[view], regions[view], int(region), finish)
+    for finish, seen in zip(listed["finishes"], finish_regions(folder, listed)):
+        if own_colour(finish) or not seen:
+            continue
+        if finish.get("colour") is None:
+            faults.append(f"{finish['finish']}: no token colour to check")
+            continue
+        lab = finish_parts.library_lab(finish)
+        for view, region, colour in seen:
+            apart = float(np.linalg.norm(colour - lab))
             worst = max(worst, apart)
             if apart > VIEW_DELTA_E:
                 faults.append(f"{finish['finish']} ({finish['surface']}, {finish['settings']['token']}) lies dE "
-                              f"{apart:.1f} from region {int(region) + 1} in the {view} view")
+                              f"{apart:.1f} from region {region + 1} in the {view} view, which shows L*a*b* "
+                              f"{[round(float(value), 1) for value in colour]}")
     return faults, round(worst, 1)
 
 
-def finish_colours(folder, listed):
-    """Each finish's median CIELAB over every region labelled with it in every view, None where none is."""
-    colours, regions = np.load(folder / "colours.npz"), np.load(folder / "regions.npz")
-    found = []
-    for number in range(len(listed["finishes"])):
-        pixels = np.concatenate([colours[view][np.isin(regions[view], [int(region) for region, label in labels.items()
-                                                                       if label == number])]
-                                 for view, labels in listed["labels"].items()])
-        found.append(np.median(cast.lab_of(pixels), axis=0) if len(pixels) else None)
-    return found
-
-
 def recoloured(folder, listed, tokens):
-    """The list's answer with each finish whose token colour lies over VIEW_DELTA_E from what its regions show given,
-    of the scene palette's tokens (`tokens`: {token: linear RGB}) within VIEW_DELTA_E of that colour, the one nearest
-    the listed token, so the list's hue is kept where the views allow (astronaut-made-s1, 2026-10-22: its brown
-    trousers, listed maroon, took the nearer grey by the views alone, and the recheck failed them as grey); its
+    """The list's answer with each finish over VIEW_DELTA_E from any region it labels (colour_faults' own test) given,
+    of the scene palette's tokens (`tokens`: {token: linear RGB}) within VIEW_DELTA_E of every one of its regions, the
+    one nearest the listed token, so the list's hue is kept where the views allow (astronaut-made-s1, 2026-10-22: its
+    brown trousers, listed maroon, took the nearer grey by the views alone, and the recheck failed them as grey); its
     surface, and so its family, kept, as the parts row takes the nearest surface of a finish's family (finish_parts.
-    checked_finishes). One no token fits, or judged by its own colour, or with no settings, is kept as listed."""
+    checked_finishes). The token is chosen by the test the check then applies: chosen within VIEW_DELTA_E of the
+    finish's pooled colour, the one nearest the listed token sits near that edge, so one of its regions can fail it
+    by a fraction of a dE (Batch 1 try 4, 2026-10-25: 114 of the 438 colour faults the split named on eight places lay
+    at dE 32 to 34). One no token fits, or judged by its own colour, or with no settings, is kept as listed."""
     finishes = []
-    for finish, seen in zip(listed["finishes"], finish_colours(folder, listed)):
-        if seen is None or own_colour(finish) or finish.get("colour") is None or not finish.get("settings"):
+    for finish, seen in zip(listed["finishes"], finish_regions(folder, listed)):
+        if not seen or own_colour(finish) or finish.get("colour") is None or not finish.get("settings"):
             finishes.append(finish)
             continue
         listed_lab = finish_parts.library_lab(finish)
-        if float(np.linalg.norm(seen - listed_lab)) <= VIEW_DELTA_E:
+        if worst_apart(seen, listed_lab) <= VIEW_DELTA_E:
             finishes.append(finish)
             continue
         labs = {token: finish_parts.library_lab({"colour": colour}) for token, colour in tokens.items()}
         fitting = [(float(np.linalg.norm(lab - listed_lab)), token) for token, lab in labs.items()
-                   if float(np.linalg.norm(seen - lab)) <= VIEW_DELTA_E]
+                   if worst_apart(seen, lab) <= VIEW_DELTA_E]
         if not fitting:
             finishes.append(finish)
             continue

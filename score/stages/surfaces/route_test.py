@@ -292,6 +292,31 @@ def test_a_finish_off_what_the_views_show_takes_the_nearest_palette_token_before
         assert {finish["settings"]["token"] for finish in found["finishes"]} == {"sign-red", "bay-three"}, found
 
 
+def test_a_finish_takes_a_token_every_one_of_its_regions_allows_never_one_on_its_pooled_colours_edge():
+    """Batch 1 try 4 (2026-10-25): a token chosen within VIEW_DELTA_E of a finish's pooled colour sat just over it for
+    one of its regions. One finish on a grey region (sRGB 119, L* 50) and a lighter one three times its size (171, L*
+    70), listed in white: the pale token (232) lies within the limit of the pooled colour, nearest the white, but 42
+    from the darker region; the mid grey (160) fits both and is taken. With only the pale token the take is a gap."""
+    linear = lambda level: [((level / 255 + 0.055) / 1.055) ** 2.4] * 3
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        regions = np.array([[0, 1], [1, 1]])
+        colours = np.repeat(np.where(regions == 0, 119, 171)[..., None], 3, axis=-1).astype(np.uint8)
+        np.savez(folder / "colours.npz", front=colours)
+        np.savez(folder / "regions.npz", front=regions)
+        white = {"finish": "panel", "parts": "panel", "surface": "painted_panel", "family": "painted",
+                 "settings": {"token": "white"}, "colour": linear(255)}
+        listed = {"finishes": [white], "labels": {"front": {"0": 0, "1": 0}}}
+        assert route_split.colour_faults(folder, listed)[0]
+        tokens = {"pale": linear(232), "mid": linear(160)}
+        judged = route_split.recoloured(folder, listed, tokens)
+        assert judged["finishes"][0]["settings"]["token"] == "mid", judged
+        assert route_split.colour_faults(folder, judged) == ([], route_split.colour_faults(folder, judged)[1])
+        kept = route_split.recoloured(folder, listed, {"pale": tokens["pale"]})
+        faults = route_split.colour_faults(folder, kept)[0]
+        assert kept["finishes"][0]["settings"]["token"] == "white" and "shows L*a*b* [50.0" in faults[0], faults
+
+
 def test_a_chosen_surface_off_what_any_view_shows_is_a_gap_before_the_bake():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
