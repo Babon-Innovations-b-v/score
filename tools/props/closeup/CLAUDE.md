@@ -23,6 +23,10 @@ for the creator.
   check's turn and look-down (`stage.VIEW` from `check.TURN_DEGREES`, `LOOK_DOWN_DEGREES`); a picture the check
   rejects leaves google_spend's cache (`stage.forget_rejected`) and gets one retry, `RETRY` added to its wording
   (`PRO_TAKES`), at most one a row a run. Never loosen the check to pass more.
+- **The outline is held to a look-down range** (`check.LOOK_DOWN_DEGREES` to `LOOK_DOWN_MOST`, 15 to 30 degrees,
+  2026-10-25): Pro draws from that high whatever the wording says, and a flat object's outline is nearly all
+  look-down, so one angle faulted the camera, not the object (34 of 74 proportion faults of Batch 1's first try were
+  good pictures seen from higher; re-measured and looked at, the openpics set was not on the PC).
 - **A person is the one exception to the three-quarter view** (the people layer's own close-up, CONTEXT.md "layer
   adapter"): a row whose `layer` is `people` is drawn with `stage.PERSON` (one person, front on, in the rig's A-pose,
   arms and legs clear) and measured by `check.person_faults` (framed, arms apart: `arm_gap_share`, which the maker's
