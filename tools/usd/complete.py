@@ -266,13 +266,16 @@ def boxes_check(place, stage):
     import box_check
     handin = handin_path(place)
     found = json.loads((handin if handin.is_file() else recorded_inventory(place, stage)).read_text())
-    verdict = box_check.gate(found["scene"], found)
+    verdict = box_check.gate(found["scene"], found, box_check.UNBOXED)
     faults = [{"row": row, "result": entry["result"], "why": entry["why"]}
               for row, entry in verdict["rows"].items() if entry["result"] != box_check.PASS]
     faults += [{"row": None, "result": FAIL, "why": problem} for problem in verdict["views"]]
-    counts = {name: sum(entry["result"] == name for entry in verdict["rows"].values()) for name in (PASS, FAIL, UNKNOWN)}
+    boxed = [entry for row, entry in verdict["rows"].items() if row not in verdict["unboxed"]]
+    counts = {name: sum(entry["result"] == name for entry in boxed) for name in (PASS, FAIL, UNKNOWN)}
     return result("boxes", verdict["result"], stage, faults,
-                  f"{counts[PASS]} boxes pass, {counts[FAIL]} fail, {counts[UNKNOWN]} unknown")
+                  f"{counts[PASS]} boxes pass, {counts[FAIL]} fail, {counts[UNKNOWN]} unknown; "
+                  f"{len(verdict['unboxed'])} rows not boxed (routed {'/'.join(box_check.UNBOXED)}: laid from the "
+                  "plan or terrain)")
 
 
 def handin_path(place):

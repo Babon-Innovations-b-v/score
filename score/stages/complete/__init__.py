@@ -20,6 +20,7 @@ import pathlib
 import sys
 
 from score import checks
+from score.stages.props import prop_data
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))  # already on the path by the assembly stage's import: no new folder
@@ -40,7 +41,7 @@ def files(place):
     judges) where it has one, the built body's report of every body the cast its design gives draws, and its bed's design (the sound
     check's)."""
     design = {"design": "{home}/design/inventory/{place}.json",
-              "hand-in": "{home}/" + complete.HANDIN} if contents.design(place) is not None else {}
+              "hand-in": prop_data.keyed(place)} if contents.design(place) is not None else {}  # takes' progress left out
     cast = contents.cast_of(place) or {}
     bodies = {person["character"] for person in cast.get("people", [])}
     bodies |= {cast["crowd"]["character"]} if cast.get("crowd") else set()
