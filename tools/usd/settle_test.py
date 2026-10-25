@@ -12,7 +12,7 @@ import sys
 import tempfile
 
 import numpy as np
-from pxr import Usd, UsdGeom
+from pxr import Gf, Usd, UsdGeom
 from scipy.spatial.transform import Rotation
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -427,7 +427,32 @@ def a_cloud_drop_asks_the_small_processor_class_only():
                        if name not in scaleway.CLASSES]
 
 
-CHECKS = (a_cloud_drop_asks_the_small_processor_class_only, a_piece_on_a_slope_rests_flush_on_it, a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
+def a_turn_about_up_is_no_tip_and_debris_is_sized_in_its_own_frame():
+    """A spin about up onto uneven feet is no tip (a lean is); an object's size for the debris rule is its own, as its
+    kit piece's size says it, the same however it is turned (a stage-frame box round it grows as it turns)."""
+    problems = []
+    for turn, tips in (("y", False), ("x", True)):
+        motion = np.eye(4)
+        motion[:3, :3] = Rotation.from_euler(turn, 30, degrees=True).as_matrix()
+        if settle.tips_on_uneven_feet({"before": np.eye(4), "after": motion, "uneven": 0.1}) != tips:
+            problems.append(f"a 30 degree turn about {turn} onto uneven feet read as tip={not tips}")
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("crate", "box", (4, 0, 2))], [("crate", "floor")])
+        stage = Usd.Stage.Open(str(path))
+        prim = stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_1")
+        laid = settle.laid_matrix(stage, PLACE, "crate_1")
+        size = settle.own_size(stage, PLACE, "crate_1")
+        turned = np.eye(4)
+        turned[:3, :3] = Rotation.from_euler("y", 45, degrees=True).as_matrix()
+        UsdGeom.Xformable(prim).MakeMatrixXform().Set(Gf.Matrix4d((turned @ laid).T.tolist()))
+        if abs(settle.own_size(stage, PLACE, "crate_1") - size) > 1e-6:
+            problems.append(f"turning the crate 45 degrees changed its own size from {size}")
+    return problems
+
+
+CHECKS = (a_turn_about_up_is_no_tip_and_debris_is_sized_in_its_own_frame, a_cloud_drop_asks_the_small_processor_class_only, a_piece_on_a_slope_rests_flush_on_it, a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
           a_box_stacked_on_a_box_on_a_slope_meets_it,
           a_stacked_box_begun_inside_its_support_starts_over_it,
           a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most,

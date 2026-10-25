@@ -463,9 +463,7 @@ def dropped_pose(stage, place, name, found, starts):
              "base lean": base_lean(stage, place, name)}
     turned, drift = correction(entry)
     said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
-    piece = max(UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]).ComputeWorldBound(
-        stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange().GetSize())
-    debris = piece <= DEBRIS_SIZE
+    debris = own_size(stage, place, name) <= DEBRIS_SIZE
     if tips_on_uneven_feet(tip := {**entry, "before": starts.get(name, np.eye(4)) @ before}):
         # the tip from where its drop started: an old settle's tip onto the same feet is no rest either
         start = touching(stage, place, name, starts.get(name, np.eye(4)), np.asarray(found["motion"]))
@@ -554,6 +552,22 @@ def laid_matrix(stage, place, name):
     return np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())).T
 
 
+def own_size(stage, place, name):
+    """An object's longest side, metres, in its own frame as laid (its scale kept, its turn taken off), as its kit
+    piece's `size` says it (write_layout): a box round it in the stage's frame grows and shrinks as it is turned."""
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    size = np.asarray(UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+                      .ComputeUntransformedBound(prim).ComputeAlignedRange().GetSize(), dtype=float)
+    return float(max(size * np.linalg.norm(laid_matrix(stage, place, name)[:3, :3], axis=0)))
+
+
+def tilted(found):
+    """How far (degrees) an object's up leaned from as laid to at rest: its turn about the stage's up left out."""
+    motion = np.asarray(found["after"]) @ np.linalg.inv(np.asarray(found["before"]))
+    up = motion[:3, :3] @ np.array([0.0, 1.0, 0.0])
+    return math.degrees(math.acos(np.clip(up[1] / np.linalg.norm(up), -1.0, 1.0)))
+
+
 def correction(found):
     """How far an object turned (degrees) and how far its middle drifted (metres) from as laid to at rest."""
     before, after = np.asarray(found["before"]), np.asarray(found["after"])
@@ -604,7 +618,7 @@ def tips_on_uneven_feet(found):
     raised caster, 2026-10-15)."""
     import triage
     uneven = found.get("uneven", 0.0) > resting.TOLERANCE or found.get("base lean", 0.0) > triage.LEAN_MOST
-    return uneven and correction(found)[0] > triage.LEAN_MOST
+    return uneven and tilted(found) > triage.LEAN_MOST
 
 
 def uneven_said(found):
