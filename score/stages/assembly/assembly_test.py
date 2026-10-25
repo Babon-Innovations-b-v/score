@@ -427,6 +427,40 @@ def test_a_waiting_entry_whose_row_the_bake_made_is_laid_with_it_and_no_longer_n
         assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
 
 
+def test_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_row():
+    """Fault (2026-10-25): a designed place's record laid no object, so settle, physics and motion found none. A
+    design's object (the scene record's: `bake` its take's model, `row` its inventory row) is laid with the baked model
+    at /<place>/Objects/<name>, its score:row the inventory row; one whose model the bake has not made stays named."""
+    from pxr import Usd, UsdGeom
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        root = a_toy(folder / "out")
+        (folder / "record/record").mkdir(parents=True)
+        entries = [{"name": name, "row": row, "bake": bake, "at": [1.0, 0.0, 1.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "kind": "object", "waiting": "its model comes from the bake"}
+                   for name, row, bake in (("lamp_1", "lamp", "bench_1"), ("rail_1", "rail", "rail_1"))]
+        (folder / f"record/record/{TOY}.json").write_text(json.dumps({"place": TOY, "objects": entries}))
+        (folder / "kit.json").write_text(json.dumps({"pieces": []}))
+        assembly.take_record({"scene-record": folder / "record", "kit": folder / "kit.json"}, root.parent, TOY)
+        (root.parent / "assets").mkdir(exist_ok=True)
+        asset = Usd.Stage.CreateNew(str(root.parent / "assets/bench_1.usdc"))
+        mesh = UsdGeom.Mesh.Define(asset, "/bench_1/geo")
+        mesh.CreatePointsAttr([(-1.0, 0.0, -0.25), (1.0, 0.0, -0.25), (1.0, 1.0, 0.25)])
+        mesh.CreateFaceVertexCountsAttr([3])
+        mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
+        asset.SetDefaultPrim(asset.GetPrimAtPath("/bench_1"))
+        asset.Save()
+        (folder / "bake").mkdir()
+        (folder / "bake/baked.json").write_text(json.dumps({"bench_1": {}}))
+        assert made_waiting.lay(root.parent, TOY, folder / "bake") == ["bench_1"]
+        stage = Usd.Stage.Open(str(root))
+        prim = stage.GetPrimAtPath(f"/{TOY}/Objects/lamp_1")
+        assert prim.GetChild("geo").IsValid() and prim.GetAttribute("score:row").Get() == "lamp", prim
+        assert prim.GetAttribute("score:model").Get() == "bench_1" and not stage.GetPrimAtPath(f"/{TOY}/Fixtures")
+        assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [
+            "objects rail_1: its model comes from the bake"]
+
+
 def a_baked_triangle(made, name):
     """A one-triangle baked .gltf named `name` in `made`, its buffer beside it."""
     import struct

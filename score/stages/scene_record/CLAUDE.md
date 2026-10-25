@@ -19,6 +19,14 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   plan draws is a flight of `stairs`. Each entry's surface is the scene's surface library's for its kind
   (surface-library@<place>, an `after`; `design_shell.PART_KINDS`, as earth-seed paints), else none and its
   `surface_missing` says why; tools/usd/scene.py names that on the mesh and binds nothing (no fixed surface name).
+- **Objects from the plan's items** (2026-10-25: the record laid none, so no designed place's model was placed): one
+  at each plan item of each prop or shell row of the batch's hand-in (`{home}/design/props/<place>.json`, prepare's
+  handin.py: each row's route and the take that makes its model), `<row>_<n>`, on its spot at its shape's base,
+  turned along its item; an item counting several, or a run the plan draws once, lays that many pieces along its
+  path (a polygon's outline, else its box's long line). Each waits on its take's bake model (`bake`, `<first row>_1`)
+  and the assembly lays it under /<place>/Objects once baked (`assembly/made_waiting.py`); a row with no take or no
+  size stays named on the root's score:waiting. People are the cast's; a row the plan's shell lays itself (route
+  `plan`) is named on a shell piece of its part (`row`).
 - **Lamps from the row kinds**: a light at each plan item of a glowing row, over its middle, as high on it as the
   library's lamp for the row's mount says, numbered by that lamp. No lamp list per place.
 - **The sky is the physics'**: the record's environment says inside or not and what overhead.py sees at the site at
