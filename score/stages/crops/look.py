@@ -167,8 +167,9 @@ def seen_on_beds(record, view, instances, beds, shared, spots_record):
     found = {}
     for kind in record["kinds"]:
         points = [spot for spot in spots if spot and any(on_bed(spot, beds[name]) for name in shared[kind])]
-        spacing = (statistics.median(concept.nearest_distances(points)) / spots_record["widths"][kind]
-                   if len(points) >= 2 else None)
+        width = spots_record["widths"].get(kind)  # none for a kind the layer left out (a batch gap)
+        spacing = (statistics.median(concept.nearest_distances(points)) / width
+                   if len(points) >= 2 and width else None)
         found[kind] = {"seen": len(points), "laid": sum(spot["kind"] == kind for spot in spots_record["spots"]),
                        "spacing": round(spacing, 3) if spacing else None}
     return found

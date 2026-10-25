@@ -33,7 +33,10 @@ BOXES = graph.Stage("crops-boxes", "place", boxes.make_boxes, contracts.Contract
 LAYER = graph.Stage("crops-layer", "place", layer.make_layer, contracts.Contract("crops-layer", 1, layer.layer_faults),
                     layer.CHECKS, files=crop_data.layer_files,
                     after={"crops-concept": ("crops-concept", 1), "surfaces-bake": ("surfaces-bake", 1),
-                           "surfaces-paint": ("surfaces-paint", 1)}, applies=crop_data.applies)
+                           "surfaces-paint": ("surfaces-paint", 1),
+                           # the rows whose batch gaps say the prop route left a kind's take out (layer.left_out)
+                           "pixal": ("props-pixal", 1), "finish-route-split": ("finish-route-split", 1),
+                           "finish-route-recheck": ("finish-route-recheck", 1)}, applies=crop_data.applies)
 LOOK = graph.Stage("crops-look", "place", look.make_look, look.LOOK, look.CHECKS, files=crop_data.look_files,
                    after={"crops-concept": ("crops-concept", 1), "crops-layer": ("crops-layer", 1)}, paid=True,
                    euros=look.EUROS, applies=crop_data.applies)

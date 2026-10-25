@@ -11,7 +11,11 @@
              PointInstancer whose prototype references the kind's asset and carries the kind's inventory row
              (`score:row`, which the completion gate counts as laid) and says what made it (`score:kind` KIND, which
              the made-only check reads). spots.json keeps every plant (kind, bed,
-             spot, turn, size) and each kind's model width and spacing in metres.
+             spot, turn, size) and each kind's model width and spacing in metres. A kind whose model the bake did
+             not make and a batch gap its inputs carry names (the prop route left the take out: pixal, the finish
+             route, the bake; score/stages/batch_gaps.py) is left out, its beds bare, and named in this output's
+             batch-gaps.json with the gaps carried on, so `on beds` and `spacing` move its faults to it
+             (stages.BATCH_GATES); a model missing with no gap naming it still raises.
     gates    on beds    every plant stands on its bed, its centre at least EDGE inside the bed's edge, and every
                         bed carries plants
              spacing    each kind's spacing in plant widths as laid within LAID_WITHIN of the concept's
@@ -25,6 +29,7 @@ import random
 import statistics
 
 from score import checks
+from score.stages import batch_gaps
 import score.stages.crops.crop_data as crop_data
 
 LAYER = "layers/crops.usda"
@@ -103,6 +108,27 @@ def laid_spots(beds, shared, spacings, seed):
     return spots
 
 
+def left_out(record, bake, carried):
+    """{kind: [the carried batch gaps naming it]} of the kinds whose model the bake made none of and a batch gap names
+    (by its row or its model): the prop route left the take out inside the batch."""
+    baked = json.loads((pathlib.Path(bake) / "baked.json").read_text())
+    found = {}
+    for kind, entry in record["kinds"].items():
+        named = [gap["name"] for gap in carried if {entry["row"], model_of(entry)} & set(gap["objects"])]
+        if model_of(entry) not in baked and named:
+            found[kind] = named
+    return found
+
+
+def bare_gaps(record, left, shared):
+    """The batch gap of each kind left out: its beds bare, named by the kind, its model and its beds."""
+    return [batch_gaps.gap(f"{kind}: no model, its beds left bare", "crops-layer", "on beds",
+                           (kind, model_of(record["kinds"][kind]), *shared[kind]),
+                           [f"{kind}: {model_of(record['kinds'][kind])} was not baked ({'; '.join(names)})"],
+                           "the prop route left its take out inside the batch, so no plant of it stands")
+            for kind, names in sorted(left.items())]
+
+
 def write_assets(record, bake, paint, out):
     """Each kind's baked model as an asset under out/assets (export.write_asset, as the assembly takes a bake);
     {kind: {model, lowest (its lowest y), width (its widest across the floor)}}."""
@@ -164,15 +190,19 @@ def make_layer(inputs, out, seed, params):
     width and spacing in metres)."""
     record = crop_data.read(inputs)
     measured = json.loads((pathlib.Path(inputs["crops-concept"]) / "concept.json").read_text())["kinds"]
+    carried = batch_gaps.of(inputs)
+    left = left_out(record, inputs["surfaces-bake"], carried)
+    laid = dict(record, kinds={kind: entry for kind, entry in record["kinds"].items() if kind not in left})
     with crop_data.tools("usd"):
-        assets = write_assets(record, pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]),
+        assets = write_assets(laid, pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]),
                               out)
     beds = crop_data.beds_in(inputs, record)
     shared = shared_by_bed(record, beds, {kind: measured[kind]["share"] for kind in record["kinds"]})
-    spacings = {kind: measured[kind]["spacing"] * assets[kind]["width"] for kind in record["kinds"]}
-    spots = laid_spots(beds, shared, spacings, seed)
+    spacings = {kind: measured[kind]["spacing"] * assets[kind]["width"] for kind in laid["kinds"]}
+    spots = laid_spots(beds, {kind: shared[kind] for kind in laid["kinds"]}, spacings, seed)
     (out / "layers").mkdir(exist_ok=True)
-    write_layer(record["place"], record, assets, spots, out / LAYER)
+    write_layer(record["place"], laid, assets, spots, out / LAYER)
+    batch_gaps.write(out, [*carried, *bare_gaps(record, left, shared)])
     (out / "spots.json").write_text(json.dumps({"beds": shared, "spots": spots, "spacings": spacings,
                                                 "widths": {kind: entry["width"] for kind, entry in assets.items()}},
                                                indent=1))
