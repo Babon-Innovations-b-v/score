@@ -48,8 +48,17 @@ def built(inputs):
                 shutil.copytree(seed / part, folder / part)
             elif (seed / part).exists():
                 shutil.copy2(seed / part, folder / part)
+        writable(folder)
         record.take_record(inputs, folder, seed.name)
         yield folder
+
+
+def writable(folder):
+    """Every copied file and folder made writable: a seed in the store is read-only, and copies keep its modes, so the
+    record's save over the copied base was refused (Batch 1, 2026-10-25: every motion row)."""
+    for path in [folder, *folder.rglob("*")]:
+        if not path.is_symlink():
+            path.chmod(path.stat().st_mode | 0o200)
 
 
 def opened(folder):
