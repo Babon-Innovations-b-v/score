@@ -87,8 +87,9 @@ def on_floor(view, pixel, size, height):
 
 
 def beds_stage(place, beds, crops_folder, folder):
-    """The look's stage: the beds as boxes and the crops layer with its assets, under /<place>."""
-    from pxr import Gf, Usd, UsdGeom
+    """The look's stage: the beds as boxes and the crops layer with its assets, under /<place>. A bed's prim is its
+    plan item's name made a valid identifier ('PLANTER BED 1' is no prim name), its own name kept as score:name."""
+    from pxr import Gf, Sdf, Tf, Usd, UsdGeom
     tree = folder / place
     (tree / "layers").mkdir(parents=True)
     shutil.copy2(crops_folder / layer.LAYER, tree / layer.LAYER)
@@ -97,8 +98,12 @@ def beds_stage(place, beds, crops_folder, folder):
     UsdGeom.SetStageUpAxis(beds_layer, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(beds_layer, 1.0)
     UsdGeom.Xform.Define(beds_layer, f"/{place}")
-    for bed in beds:
-        cube = UsdGeom.Cube.Define(beds_layer, f"/{place}/Beds/{bed['name']}")
+    prims = [Tf.MakeValidIdentifier(bed["name"]) for bed in beds]
+    if len(set(prims)) < len(prims):
+        raise ValueError(f"{place}: two beds make one prim name: {sorted(bed['name'] for bed in beds)}")
+    for bed, prim in zip(beds, prims):
+        cube = UsdGeom.Cube.Define(beds_layer, f"/{place}/Beds/{prim}")
+        cube.GetPrim().CreateAttribute("score:name", Sdf.ValueTypeNames.String).Set(bed["name"])
         cube.AddTranslateOp().Set(Gf.Vec3d(*map(float, bed["centre"])))
         cube.AddScaleOp().Set(Gf.Vec3f(*(float(value) / 2.0 for value in bed["size"])))
         cube.CreateDisplayColorAttr([Gf.Vec3f(0.24, 0.17, 0.11)])
