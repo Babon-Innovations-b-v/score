@@ -385,6 +385,28 @@ def test_every_rent_fits_the_pools_clearance_and_an_asked_card_makes_room():
     pool.release(run_id)
 
 
+def test_a_pool_held_longer_stays_open_past_its_first_end_and_prices_its_whole_hours():
+    """Batch 1 of 2026-10-24: the pool closed at its cleared 4 h with ~550 rows queued, and every finish after failed
+    (a claim under a closed pool returns no card). Held longer, it is open past its first end, and its rents and
+    asks are priced for its whole hours against its whole clearance."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1}, euros=HOUR_OF_L4)
+    plan = pool.current(run_id)
+    pool.extend(run_id, plan["started"] + 2 * 3600, 2 * HOUR_OF_L4)
+    assert pool.current(run_id)["deadline"] == plan["started"] + 2 * 3600
+    offered(OFFERS + BIG)
+    assert grow(run_id) == 1  # one L4 its two hours fits two L4 hours
+    try:
+        pool.want(run_id, BIG, "judge", batch.DISK_GB)  # one L40S held two hours is four L4 hours
+        raise AssertionError("an L40S held two hours passes a clearance of two L4 hours")
+    except pool.TooDear:
+        pass
+    pool.extend(run_id, plan["started"] + 2 * 3600, 4 * HOUR_OF_L4)
+    pool.want(run_id, BIG, "judge", batch.DISK_GB)  # fits now
+    pool.release(run_id)
+    pool.extend(run_id, plan["started"] + 3 * 3600, 6 * HOUR_OF_L4)  # released: stays closed
+    assert pool.current(run_id) is None
+
+
 def test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go():
     """Second Buy of 2026-10-24: 10 L4s held to the end while the card rows were done by 14:38."""
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})

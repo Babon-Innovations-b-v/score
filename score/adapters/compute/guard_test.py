@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
@@ -453,6 +454,69 @@ def test_a_warm_pool_reserves_only_its_holding_beyond_the_rows_whose_machine_tim
     assert tight["sizes"] == half and tight["clearance"]["euros"] == 16.0  # 52 + 360.40 passes; 16 + 360.40 fits
     compute.release(tight)
     assert compute.pool_reserve(72.0, 300.0) == 0.0 and compute.pool_reserve(72.0, 20.0) == 52.0
+
+
+def test_a_warm_pool_held_longer_clears_the_more_in_its_one_reservation():
+    """Batch 1 of 2026-10-24: the pool closed at its cleared 4 h with ~550 rows queued, and every finish after failed.
+    Its run's heartbeat holds it longer (extend_pool): each further holding checked against the stop line with every
+    reservation, added to the pool's own one, and refused once the run's money has no room."""
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 90.0})
+    BILL["euros"] = 100.0
+    stop_at(runner, 20.0)
+    opened = compute.pool_clearance(runner, "run-long", [({"gpu-24gb": 1}, 6.0)], 4)
+    assert compute.extend_pool(runner, opened, 6.0, 4) == 12.0
+    mine = compute.open_reservations(pathlib.Path(opened["reservations"]))[opened["clearance"]["at"]]
+    assert mine["euros"] == 12.0 and mine["holding"] == 12.0 and mine["high_minutes"] == 480
+    assert "pass the EUR 20.00 stop" in compute_test.refused(lambda: compute.extend_pool(runner, opened, 10.0, 4))
+    assert "pass the EUR 20.00 stop" in compute_test.refused(clear_render(runner, 9.0))  # 12 held + 9
+    compute.release(opened)
+    assert "has ended" in compute_test.refused(lambda: compute.extend_pool(runner, opened, 1.0, 4))
+
+
+def test_the_runs_heartbeat_holds_its_pool_longer_only_near_its_end_and_within_its_money():
+    from score import __main__ as command
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 90.0})
+    BILL["euros"] = 100.0
+    stop_at(runner, 13.0)
+    opened = compute.pool_clearance(runner, "run-beat", [({"gpu-24gb": 1}, 6.0)], 4)
+    plan, extended = {"deadline": time.time() + 7200}, []
+    fake = types.SimpleNamespace(current=lambda run_id: plan, holding_euros=lambda sizes, hours: 6.0,
+                                 extend=lambda run_id, deadline, euros: extended.append((deadline, euros)))
+    kept = command.cloud_tool, os.environ.get(compute.RUN_ID)
+    command.cloud_tool, os.environ[compute.RUN_ID] = (lambda name: fake), "run-beat"
+    command.POOL_TICKET[:] = [opened]
+    try:
+        command.extend_pool(runner)
+        assert not extended  # two hours left: not yet
+        plan["deadline"] = time.time() + 600
+        command.extend_pool(runner)
+        hours = compute.ledger().BATCH_HOURS
+        assert extended == [(plan["deadline"] + hours * 3600, 12.0)], extended
+        command.extend_pool(runner)  # 12 held + 6 passes the EUR 13 stop: the pool ends at its cleared end
+        assert len(extended) == 1 and "pass the EUR 13.00 stop" in opened["refused"]
+    finally:
+        command.cloud_tool, command.POOL_TICKET[:] = kept[0], []
+        os.environ.pop(compute.RUN_ID) if kept[1] is None else os.environ.update({compute.RUN_ID: kept[1]})
+        compute.release(opened)
+
+
+def test_a_warm_pool_held_longer_under_a_grant_holds_the_more_and_draws_its_spend_once():
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 90.0})
+    BILL["euros"] = 100.0
+    stop_at(runner, 1.0)
+    grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
+    opened = as_benchmark(grant, "run-g", lambda: compute.pool_clearance(runner, "run-g", [({"gpu-24gb": 1}, 3.0)], 4))
+    as_benchmark(grant, "run-g", lambda: compute.extend_pool(runner, opened, 3.0, 4))  # 3.30 more held: 3.40 left
+    assert "EUR 3.40 left" in compute_test.refused(
+        lambda: as_benchmark(grant, "run-g", lambda: compute.extend_pool(runner, opened, 4.0, 4)))
+    billed(opened, 1.25)
+    compute.release(opened)
+    assert compute.grant_balance(runner.store, grant, {}) == 8.75  # both holds ended, its spend drawn
+    draws = [runner.store.read(key) for key in runner.store.objects.keys(f"grants/draws/{grant}/")]
+    assert [draw["euros"] for draw in draws] == [1.25], draws  # its real spend, once
 
 
 def clear_render(runner, euros):
