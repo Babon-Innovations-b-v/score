@@ -83,6 +83,10 @@ def check_sky():
     found = measure.sky_of(after, measure.sky_pixels(after))
     assert measure.colour_gap(flat["mean_rgb"], concept) > 80 and measure.colour_gap(found["mean_rgb"], concept) < 20
     assert found["rise_to_horizon"] > 0 and abs(found["blue_to_red"] - 0.6) < 0.01, found
+    black = np.zeros((SIZE, SIZE, 3))
+    near_black = np.full((SIZE, SIZE, 3), [1.33, 1.4, 1.3])
+    assert measure.sky_of(black, measure.sky_pixels(black))["blue_to_red"] == 1.0  # no hue, never "red"
+    assert abs(measure.sky_of(near_black, measure.sky_pixels(near_black))["blue_to_red"] - 1.0) < 0.05
 
 
 def check_veil():

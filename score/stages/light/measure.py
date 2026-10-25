@@ -17,6 +17,10 @@ from PIL import Image
 # The sky's pixels in the frame before: the top share of the picture, within this many levels of its commonest colour.
 SKY_ROWS = 0.45
 SKY_NEAR = 14
+# Both channels of a sky's blue to red floored alike at one level, so a black sky reads as no hue (1), as a grey one
+# does; until 2026-10-25 only red was floored and a black sky read 0, redder than any red sky (light@old_station failed
+# black against its own near-black concept).
+HUE_FLOOR = 1.0
 
 
 def picture(path):
@@ -129,7 +133,8 @@ def sky_pixels(before):
 
 
 def sky_of(rgb, mask):
-    """A sky's mean colour on its pixels, and how much lighter its lowest tenth of rows is than its highest tenth."""
+    """A sky's mean colour on its pixels, how much lighter its lowest tenth of rows is than its highest tenth, and its
+    blue to red (each floored at HUE_FLOOR)."""
     rows = np.nonzero(mask.any(axis=1))[0]
     if len(rows) < 10 or mask.sum() < 500:
         return None
@@ -138,9 +143,10 @@ def sky_of(rgb, mask):
     high[rows[tenth]:] = False
     low[: rows[-tenth]] = False
     light = lightness(rgb)
-    return {"mean_rgb": [round(float(value), 1) for value in rgb[mask].mean(axis=0)],
+    mean = rgb[mask].mean(axis=0)
+    return {"mean_rgb": [round(float(value), 1) for value in mean],
             "rise_to_horizon": round(float((light[low].mean() - light[high].mean()) / 255.0), 4),
-            "blue_to_red": round(float(rgb[mask][:, 2].mean() / max(rgb[mask][:, 0].mean(), 1.0)), 4)}
+            "blue_to_red": round(float(max(mean[2], HUE_FLOOR) / max(mean[0], HUE_FLOOR)), 4)}
 
 
 def colour_gap(first, second):
