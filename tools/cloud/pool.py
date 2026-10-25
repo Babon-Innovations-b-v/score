@@ -289,6 +289,21 @@ def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB, euros=None, reserved=N
     return plan
 
 
+def extend(run_id, deadline, euros):
+    """Hold the run's open pool until `deadline`, the euros its clearance reserved now `euros` (score run's heartbeat,
+    once compute.extend_pool cleared the more), so `fits` and `refuse_too_dear` price its whole hours against its whole
+    clearance; nothing for a pool closed or never opened. A card parked before keeps its old end: one idle that long
+    goes then and the collector rents its place."""
+    with locked(run_id) as folder:
+        plan = plan_of(run_id)
+        if plan is None or (folder / "closed").exists():
+            return
+        plan.update({"deadline": deadline, "euros": euros})
+        write_plan(run_id, plan)
+    batch.say(f"pool of run {run_id} held until {time.strftime('%H:%M', time.localtime(deadline))}, its clearance "
+              f"EUR {euros:.2f}")
+
+
 class TooDear(RuntimeError):
     """A claim's card no pool of its run can hold: one alone would pass the euros the pool's clearance reserved."""
 

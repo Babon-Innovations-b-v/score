@@ -207,7 +207,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `MOST_CARDS`, all L4; another class is asked for by its claim) and lowered by the run's heartbeat as its card rows
   end (`pool_tender`, `pool.resize`: never above its reserved size; its processor machines open at 0, `pool.cards_only`, and are raised only for the renders and bakes near, `near`: each read stands accepted or is ready, Batch 1 of 2026-10-24 having held three idle for an hour; fault of 2026-10-24: 10 L4s and 3 POP2s held for 8
   jobs, the cards about 40% busy), held until a batch's longest
-  run (the ledger's `BATCH_HOURS`), its holding cost (`holding_euros`: every card every hour at its class's dearest
+  run (the ledger's `BATCH_HOURS`) and then, while the run goes on, another `BATCH_HOURS` at a time once its end
+  is within an hour (`score/__main__.py` `extend_pool`, `compute.extend_pool`, `pool.extend`: each further holding
+  cleared first against the same stop line or grant and added to the pool's one reservation; refused, the pool ends at
+  its cleared end; Batch 1 of 2026-10-24 closed at 4 h with ~550 rows queued and every finish after failed), its
+  holding cost (`holding_euros`: every card every hour at its class's dearest
   offer) cleared first as its own node (`compute.pool_clearance`, node `gpu-pool`, key the run's id: the stop line
   or the benchmark grant, reserved for the whole run) and its collector started under that ticket alone; on the
   cluster no pool. The pool opens at the largest size whose holding cost fits beside the run's own rows' high

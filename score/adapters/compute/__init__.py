@@ -805,6 +805,39 @@ def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0):
             "store": str(runner.store.cache.parent), "sizes": sizes}
 
 
+def extend_pool(runner, ticket, holding, hours):
+    """Clear `holding` euros more on run `ticket`'s warm pool, held warm `hours` longer (owner, 2026-10-23: one pool
+    held for the whole batch; Batch 1 of 2026-10-24 closed its pool at the cleared 4 h with ~550 rows still queued,
+    and every finish after failed): checked as pool_clearance is (the month's books, then the clearance's benchmark
+    grant, else the world's stop line with every open reservation, the pool's own included) and added to the pool's
+    one reservation, so in flight and the run's release stay one entry; under a grant a further hold of the same
+    clearance time (settle_grant draws a run's spend once per clearance time). The clearance's new `holding`; Refused
+    when the money has no room, or the reservation has already ended."""
+    cleared = ticket["clearance"]
+    grant_id = cleared.get("grant")
+    covering = covering_store(runner.store)
+    reservations = pathlib.Path(ticket["reservations"])
+    with clearing(reservations):
+        held = open_reservations(reservations)
+        over = (books_refusal() or ("" if cleared["at"] in held else "its reservation has ended")
+                or (grant_refusal(covering, grant_id, holding, held) if grant_id else
+                    stop_refusal(runner, POOL, holding, held)))
+        if over:
+            raise Refused(f"{POOL} of run {cleared['key']}, {hours:g} h more: {over}")
+        if grant_id:  # a hold of the pool's own clearance time beside its first, so the run's spend draws once
+            reserved = round(holding * GRANT_BUFFER, 6)
+            covering.write_once(f"{GRANTS}/holds/{grant_id}/{stamp_key(cleared['at'])}-{stamp_key(graph.now())}.json",
+                                {"node": POOL, "key": cleared["key"], "run": os.environ.get(RUN_ID), "high": holding,
+                                 "reserved": reserved, "at": cleared["at"],
+                                 "balance": round(grant_balance(covering, grant_id, held) - reserved, 6)})
+        mine = held[cleared["at"]]
+        for name, more in (("euros", holding), ("holding", holding), ("high_minutes", hours * 60)):
+            mine[name] = round(mine.get(name, 0.0) + more, 4)
+        keep_reservations(reservations, held)
+    cleared["holding"] = mine["holding"]
+    return mine["holding"]
+
+
 def pool_reserve(holding, covered):
     """What a warm pool reserves beside its run's rows: its `holding` (every machine warm its whole hours) less the
     `covered` high of the rows whose card time it bills, never below nothing."""

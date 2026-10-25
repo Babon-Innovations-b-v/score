@@ -139,6 +139,10 @@ POOL_RELEASE_SECONDS = 40
 # The paid rows the run's warm pool was sized on, (node, line, cards, on processors) each (card_rows): its heartbeat
 # lowers the pool as they end (pool_tender).
 POOLED_ROWS = []
+# The run's warm pool's ticket (opened_pool), which its heartbeat extends (extend_pool) once the pool's end is within
+# EXTEND_BEFORE_SECONDS: a heartbeat is minutes apart, and a claim waiting then still finds the pool open.
+POOL_TICKET = []
+EXTEND_BEFORE_SECONDS = 3600
 
 
 ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
@@ -598,7 +602,33 @@ def pool_tender(runner, jobs, started):
         left = [(line, count, on) for node, line, count, on in POOLED_ROWS
                 if not ended_since(runner, node, started) and (not on or near(runner, node))]
         cloud_tool("pool").resize(os.environ[RUN_ID], *cloud_tool("pool").counts_for(left, jobs))
+        extend_pool(runner)
     return tend
+
+
+def extend_pool(runner):
+    """Hold the run's warm pool another batch's longest run (the ledger's BATCH_HOURS) once its end is within
+    EXTEND_BEFORE_SECONDS, that holding cleared first (compute.extend_pool: the stop line or the benchmark grant), so
+    the pool lives as long as its run (owner, 2026-10-23; Batch 1 of 2026-10-24: its pool closed at the cleared 4 h,
+    and every finish after failed with no machine). Refused, it is said once and the pool ends at its cleared end:
+    the run's money is reached. Nothing for a run with no pool, or one closed."""
+    if not POOL_TICKET:
+        return
+    from score.adapters import compute
+    pool, run_id, ticket = cloud_tool("pool"), os.environ[RUN_ID], POOL_TICKET[0]
+    plan = pool.current(run_id)
+    if plan is None or plan["deadline"] - time.time() > EXTEND_BEFORE_SECONDS:
+        return
+    hours = compute.ledger().BATCH_HOURS
+    try:
+        euros = compute.extend_pool(runner, ticket, pool.holding_euros(ticket["sizes"], hours), hours)
+    except compute.Refused as refused:
+        if ticket.get("refused") != str(refused):
+            ticket["refused"] = str(refused)
+            print(f"score run: the warm pool ends at {time.strftime('%H:%M', time.localtime(plan['deadline']))}, "
+                  f"not held longer: {refused}", flush=True)
+        return
+    pool.extend(run_id, plan["deadline"] + hours * 3600, euros)
 
 
 def near(runner, node):
@@ -648,7 +678,8 @@ def rows_high(prices, pooled=False):
 def opened_pool(runner, places, whole, options):
     """Open the run's warm card pool (pool.start, its collector renting beside the run; owner, 2026-10-23: "the buy run
     can just start as soon as one is warm, in the background u just try collecting more till 10") of pool_sizes,
-    until a batch's longest run (the ledger's BATCH_HOURS), its holding cost cleared first
+    until a batch's longest run (the ledger's BATCH_HOURS, then held longer while the run goes on: extend_pool), its
+    holding cost cleared first
     (compute.pool_clearance, against the stop line or the benchmark grant) and the collector started under that
     ticket alone, at the largest size the run's money holds beside its rows (pool.shrinking; the pool reserves only its
     holding beyond the rows' own machine time, compute.pool_reserve, as its machines bill that time); the ticket, or
@@ -678,6 +709,7 @@ def opened_pool(runner, places, whole, options):
         pool.start(run_id, pool.cards_only(sizes), time.time() + hours * 3600, euros=ticket["clearance"]["holding"],
                    reserved=sizes)
         POOLED_ROWS[:] = rows
+        POOL_TICKET[:] = [ticket]
     finally:
         for name, value in before.items():
             if value is None:
