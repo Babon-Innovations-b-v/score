@@ -206,8 +206,9 @@ def placeholders_check(place, stage):
 
 def resting_check(place, stage):
     """The resting triage's real faults (triage.py): each a fault the false-alarm guards kept, with the last settle
-    run's drop (SAGE's rule) when one lies beside the stage (settle/settled.json, newer than the stage). A store copy
-    is judged as the runner judges it: by its assembly's own resting gate (assembly_resting)."""
+    run's drop (SAGE's rule) when one lies beside the stage (settle/settled.json, newer than the stage). With loose
+    objects and no such drop it is unknown, never a pass: the static triage alone does not show they rest. A store
+    copy is judged as the runner judges it: by its assembly's own resting gate (assembly_resting)."""
     if (pathlib.Path(stage).parent / STORE_OUTPUT).exists():
         return assembly_resting(place, stage)
     import triage
@@ -217,7 +218,16 @@ def resting_check(place, stage):
     real = [fault for fault in found["faults"] if fault["real"]]
     note = (f"{found['real_objects']} objects with real faults, {found['false_objects']} false alarms"
             + ("" if fresh else "; no drop run on this stage (settle.py --dry-run)"))
-    return result("resting", FAIL if real else PASS, stage, real, note)
+    undropped = not fresh and loose_count(place, stage)
+    return result("resting", FAIL if real else UNKNOWN if undropped else PASS, stage, real, note)
+
+
+def loose_count(place, stage):
+    """How many of the stage's objects lie loose on the ground, as the settle drops them (settle.loose_objects)."""
+    import settle
+    from pxr import Usd
+    inventory = json.loads(recorded_inventory(place, stage).read_text())
+    return len(settle.loose_objects(Usd.Stage.Open(str(stage)), place, inventory))
 
 
 def assembly_resting(place, stage):
