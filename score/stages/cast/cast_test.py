@@ -96,6 +96,19 @@ def test_a_designs_crowd_asks_its_count_else_its_ground_packed():
     assert cast.asked_of({"count": 3, "spread": None}, []) is None
 
 
+def test_a_packed_crowd_asks_what_fits_and_a_counted_one_its_count():
+    """A crowd with no count stands as many as its ground holds: a lattice spot on a stall is no copy short; none
+    fitting is. A counted crowd short of its count is named short."""
+    packed = {"look": "crowd/made", "asked": 90, "packed": True, "grounds": [[0, 0, 5, 5]], "copies": [{}] * 90}
+    stood = cast.stood_crowd(packed, [{}] * 70)
+    assert (stood["asked"], stood["spots"], len(stood["copies"])) == (70, 90, 70)
+    assert cast.short_of({"left_out": [], "crowd": stood}) == []
+    assert cast.short_of({"left_out": [], "crowd": cast.stood_crowd(packed, [])}) == [
+        "none of the crowd's 90 spots on its ground fit (crowd/made)"]
+    counted = cast.stood_crowd(dict(packed, asked=40, packed=False), [{}] * 30)
+    assert cast.short_of({"left_out": [], "crowd": counted}) == ["30 of the crowd's 40 fit"]
+
+
 def test_a_crowd_lattice_stands_only_on_its_grounds():
     """A design's crowd stands on the plan items its row makes: two grounds 2 m wide, 6 m apart, none between."""
     crowd = {"spread": [0.0, 0.0, 10.0, 4.0], "grounds": [[0.0, 0.0, 2.0, 4.0], [8.0, 0.0, 2.0, 4.0]], "seed": 3,
