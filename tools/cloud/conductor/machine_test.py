@@ -346,6 +346,7 @@ def boot_root(folder, installed=True):
         executable(bin_folder / "uv", "#!/bin/sh\n[ \"$1\" = --version ] && echo 'uv 0.12.23' && exit 0\n"
                                       "echo \"uv $*\" >> \"$SHIM_LOG\"\n")
         executable(bin_folder / "scw", "#!/bin/sh\necho 'Version          2.65.1'\n")
+        executable(bin_folder / "node", "#!/bin/sh\necho v24.21.0\n")
         (root / "opt" / "google-cloud-sdk").mkdir(parents=True)
         (root / "opt" / "google-cloud-sdk" / "VERSION").write_text("588.0.0")
     home = root / "home" / "score"
@@ -402,6 +403,8 @@ def test_boot_runs_against_a_temp_root_and_again():
         assert "npx -y -p playwright@1.62.1 playwright install-deps chromium" in calls  # the film preview's recorder
         assert "npx -y -p playwright@1.62.1 playwright install chromium" in calls
         assert "systemctl --user start score-secrets.service" in calls
+        assert os.readlink(root / "home" / "score" / ".local" / "bin" / "score-lib") == \
+            f"{root}/home/score/projects/score_lib/.venv/bin/score-lib"  # the cockpit's lock runs score-lib from PATH
         assert any(call.startswith("git -C") and "core.sshCommand" in call for call in calls)
 
         # after the move (machine.json), every boot syncs the prop environment the rows' PROPS_PYTHON runs in

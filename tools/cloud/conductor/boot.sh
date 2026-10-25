@@ -7,9 +7,9 @@
 #
 # system: the packages; user score (uid 1100) with linger; the data volume (SCORE_DATA_DEVICE, cloud-init's
 #   /etc/score-conductor.env) formatted only when blank and mounted at /home/score/.farm-factory-props through fstab by
-#   UUID; restic, uv, the scw CLI and the Google Cloud CLI (bq) at pinned versions, each checked against its SHA-256 as
-#   .claude/scripts/install-agent-tools.sh does (a mismatch stops the boot and installs nothing); the secret reader
-#   and the agents' door in /usr/local/bin; sshd keys-only, no root, user score only.
+#   UUID; restic, uv, the scw CLI, Node.js and the Google Cloud CLI (bq) at pinned versions, each checked against its
+#   SHA-256 as .claude/scripts/install-agent-tools.sh does (a mismatch stops the boot and installs nothing); the secret
+#   reader and the agents' door in /usr/local/bin; sshd keys-only, no root, user score only.
 # user: the checkout cloned when missing (score-update.service moves it later), `uv sync`, every unit in units/
 #   installed as a user unit and enabled; once the move wrote machine.json, the prop environment ($PROPS_HOME/env,
 #   the rows' PROPS_PYTHON, never backed up) synced from uv.lock; once ~/.config/scw/config.yaml is there (machine.py up
@@ -27,8 +27,8 @@ SCORE_UID=1100
 REPO_URL=https://github.com/Babon-Innovations-b-v/score
 LIB_URL=git@github.com:Babon-Innovations-b-v/score_lib.git
 # rsync and ssh: the cloud runners' copies to and from rented machines (batch.copy); ffmpeg: the sound rows' loudness;
-# node and npm: the 3D web copies' gltfpack (npx).
-APT_PACKAGES=(git sqlite3 ca-certificates curl bzip2 python3 rsync openssh-client ffmpeg nodejs npm)
+# node and npm come from NODE_URL below, not apt (Ubuntu's is older than the film preview's Playwright takes).
+APT_PACKAGES=(git sqlite3 ca-certificates curl bzip2 python3 rsync openssh-client ffmpeg)
 BIN="$ROOT/usr/local/bin"
 
 RESTIC_VERSION=0.19.1
@@ -40,6 +40,11 @@ UV_SHA256=9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6
 SCW_VERSION=2.65.1
 SCW_URL="https://github.com/scaleway/scaleway-cli/releases/download/v$SCW_VERSION/scaleway-cli_${SCW_VERSION}_linux_amd64"
 SCW_SHA256=b9ced8bc52c27baba76136a24e65a5e0abd53e9499edf02226513977d45da503
+# Node.js (node, npm, npx in /usr/local/bin): the 3D web copies' gltfpack and the film preview's recorder, whose
+# playwright@1.62.1 takes node >=20 (its package.json engines). An LTS line; the checksum from the release's SHASUMS256.txt.
+NODE_VERSION=24.21.0
+NODE_URL="https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz"
+NODE_SHA256=6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff
 GCLOUD_VERSION=588.0.0
 GCLOUD_URL="https://storage.googleapis.com/cloud-sdk-release/google-cloud-cli-$GCLOUD_VERSION-linux-x86_64.tar.gz"
 GCLOUD_SHA256=e38ceac43022bb5a4d94d5a4a9c9c51f90f28c910b59a018ae07011e220c4412
@@ -80,12 +85,12 @@ install_packages() {
 # the browser itself in user score's cache (chromium_browser), so the sync pass can render a locked script's preview.
 PLAYWRIGHT="playwright@1.62.1"
 chromium_libraries() {
-  npx -y -p "$PLAYWRIGHT" playwright install-deps chromium > /dev/null
+  PATH="$BIN:$PATH" npx -y -p "$PLAYWRIGHT" playwright install-deps chromium > /dev/null
   say "Chromium's libraries for $PLAYWRIGHT"
 }
 
 chromium_browser() {
-  npx -y -p "$PLAYWRIGHT" playwright install chromium > /dev/null
+  PATH="$BIN:$PATH" npx -y -p "$PLAYWRIGHT" playwright install chromium > /dev/null
   say "Chromium for $PLAYWRIGHT"
 }
 
@@ -167,6 +172,25 @@ install_scw() {
   say "scw $SCW_VERSION installed"
 }
 
+install_node() {
+  local work lib="$ROOT/usr/local/lib/nodejs" name
+  if [ -x "$BIN/node" ] && [ "$("$BIN/node" --version 2> /dev/null)" = "v$NODE_VERSION" ]; then
+    say "node $NODE_VERSION already installed"
+    return
+  fi
+  work="$(mktemp -d)"
+  download_checked "$NODE_URL" "$NODE_SHA256" "$work" node.tar.gz
+  tar -xzf "$work/node.tar.gz" -C "$work"
+  mkdir -p "$lib" "$BIN"
+  rm -rf "$lib/node-v$NODE_VERSION"
+  mv "$work/node-v$NODE_VERSION-linux-x64" "$lib/node-v$NODE_VERSION"
+  for name in node npm npx; do
+    ln -sfn "/usr/local/lib/nodejs/node-v$NODE_VERSION/bin/$name" "$BIN/$name"
+  done
+  rm -rf "$work"
+  say "node $NODE_VERSION installed (node, npm, npx)"
+}
+
 install_gcloud() {
   local work sdk="$ROOT/opt/google-cloud-sdk"
   if [ "$(cat "$sdk/VERSION" 2> /dev/null)" = "$GCLOUD_VERSION" ]; then
@@ -211,12 +235,13 @@ EOF
 system_part() {
   [ -n "$ROOT" ] || [ "$(id -u)" -eq 0 ] || { echo "boot: the system part runs as root" >&2; exit 1; }
   install_packages
-  chromium_libraries
   ensure_user
   mount_data
   install_restic
   install_uv
   install_scw
+  install_node
+  chromium_libraries
   install_gcloud
   install_scripts
   harden_ssh
@@ -287,8 +312,12 @@ clone_library() {
     say "score_lib cloned to $lib"
   fi
   git -C "$lib" config core.sshCommand "$ssh_command"
-  # library_files.py runs the library's own command, $lib/.venv/bin/score-lib
+  # library_files.py runs the library's own command, $lib/.venv/bin/score-lib; the cockpit's lock and withdraw run
+  # score-lib from the PATH, whose ~/.local/bin (machine.py env_text) holds this link.
   (cd "$lib" && "$BIN/uv" sync -q --frozen)
+  mkdir -p "$HOME/.local/bin"
+  ln -sfn "$lib/.venv/bin/score-lib" "$HOME/.local/bin/score-lib"
+  say "score-lib at $HOME/.local/bin/score-lib"
 }
 
 user_part() {
