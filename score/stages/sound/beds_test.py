@@ -2,7 +2,7 @@
 bodies and row kinds: a room in a base on the Moon hears the base's room tone over its hum; a greenhouse's planters,
 a garage's rover, a tube's shape, a craft's room and a shelter alone in the open each hear their own tone; outside
 on the Moon and on Mars a person hears only the suit; outside on Earth the open air, its crowd where a crowd stands;
-a body with no surface pressure or a scene no site holds is undecided and named, never guessed; gaps name what
+a scene added in the app is held by the plan that holds it; a body with no surface pressure or a scene no site holds is undecided and named, never guessed; gaps name what
 the design lacks, and the row's `bed` gate fails on it.
 
 Run: .venv/bin/python -m pytest score/stages/sound/beds_test.py
@@ -30,7 +30,7 @@ SETTING = {"bodies": [{"body": "moon", "reference": "moon"}, {"body": "mars", "r
 HOLDERS = {"within": {name: {"within": "base"} for name in ("room", "farm", "bay", "link", "cabin")} |
            {"hut": {"within": "dunes"}, "flatlet": {"within": "plaza"}},
            "parts": {"pier": {"of": "plaza"}}, "merged": {}}
-PLANS = {"base": {"shell": "kit"}, "room": {}, "farm": {}, "bay": {}, "link": {"shape": "tube"}, "cabin": {"ground_free": "in the ship"},
+PLANS = {"base": {"shell": "kit", "holds": [{"place": "dock"}]}, "dock": {"ground_free": "in the ship"}, "room": {}, "farm": {}, "bay": {}, "link": {"shape": "tube"}, "cabin": {"ground_free": "in the ship"},
          "hut": {"shell": "outdoor", "inside": True}, "crater": {"shell": "outdoor"}, "dunes": {"shell": "outdoor"},
          "plaza": {"shell": "kit", "inside": False}, "pier": {"shell": "kit", "inside": False},
          "flatlet": {"shell": "kit", "inside": True}, "cave": {"shell": "outdoor"}, "lost": {}}
@@ -72,6 +72,7 @@ def test_rooms_hear_their_own_tone(toy):
     assert bed(toy, "bay")["sounds"] == ["garage", "base_hum"]
     assert bed(toy, "link")["sounds"] == ["link_tube", "base_hum"]
     assert bed(toy, "cabin")["sounds"] == ["ship_inside"]  # a craft's room: no base hum through its hull
+    assert bed(toy, "dock")["sounds"] == ["ship_inside"]  # added in the app: within.json lacks it, the base's plan holds it
     assert bed(toy, "hut")["sounds"] == ["camp_room"]  # a shelter alone in the open on Mars
     assert bed(toy, "flatlet")["sounds"] == ["earth_flat"]  # a room where the air outside is breathed
 
