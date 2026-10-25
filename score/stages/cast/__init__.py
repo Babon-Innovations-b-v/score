@@ -145,8 +145,9 @@ def dealt(record, inputs):
 
 
 def crowd_of(record, singles, inputs):
-    """The crowd's far body's look and its candidate copies (spread.lattice, kept off each of the place's plan's views:
-    spread.far_enough), or None for a cast with no crowd. The views are read only for a crowd with ground to stand
+    """The crowd's far body's look, the dress row of each variant of it the crowd wears (its palettes: None where not
+    made) and its candidate copies (spread.lattice, kept off each of the place's plan's views: spread.far_enough), or
+    None for a cast with no crowd. The views are read only for a crowd with ground to stand
     on, so a place with none never reads them."""
     crowd = record.get("crowd")
     if not crowd:
@@ -157,7 +158,10 @@ def crowd_of(record, singles, inputs):
     candidates = (spread.far_enough(spread.lattice(crowd, keep_clear), plan_views(inputs))
                   if crowd.get("spread") else [])
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
-            "made": made_row(look, None, 0, inputs), "doing": crowd["doing"], "asked": asked_of(crowd, candidates),
+            "made": made_row(look, None, 0, inputs),
+            "variants": {str(variant): made_row(look, None, variant, inputs)
+                         for variant in crowd.get("palettes") or [0]},
+            "doing": crowd["doing"], "asked": asked_of(crowd, candidates),
             "packed": crowd.get("count") is None, "grounds": crowd.get("grounds"), "copies": candidates}
 
 
@@ -374,6 +378,10 @@ def judge_made(output, inputs, evidence):
     missing = tuple(f"{who['name']}: " + (f"{who['look']} has no accepted dressed body (its people-dress row)"
                                           if who["look"] else "its record names no look (which outfit)")
                     for who in everyone if not who["made"])
+    crowd = cast["crowd"] or {}
+    missing += tuple(f"{crowd['name']} variant {variant}: {crowd['look']} has no accepted dressed body of it (its "
+                     f"people-dress row -v{variant})" for variant, row in (crowd.get("variants") or {}).items()
+                     if variant != "0" and not row)
     if missing:
         return checks.Verdict("made", checks.PASS, f"{len(everyone) - len(missing)} of {len(everyone)} looks made; "
                               f"{len(missing)} named missing, for complete's people check to fail",

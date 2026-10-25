@@ -105,21 +105,35 @@ def lay_person(stage, root, single, asset):
     prim.SetCustomDataByKey("score:look", single["look"])
 
 
-def lay_crowd(stage, root, crowd, record, asset):
-    """The crowd as cast.py's point instancer, its copies the cast's own (spread.py's, kept off the views)."""
-    from pxr import Gf, UsdGeom, Vt
+def lay_crowd(stage, root, crowd, record, assets):
+    """The crowd as one point instancer, a prototype per clip, phase and variant of its look's body it wears (`assets`:
+    {its palette, a variant number: that variant's dressed body}, each in its own baked library surfaces), its copies
+    the cast's own (spread.py's, kept off the views) whose variant is laid."""
+    from pxr import Gf, Sdf, UsdGeom, Vt
     writer = loaded("cast")
     whole = {**record, **{key: value for key, value in crowd.items() if key != "copies"}}
-    writer.write_crowd(stage, f"{root}/{crowd['name']}", whole, [], asset)
-    instancer = UsdGeom.PointInstancer(stage.GetPrimAtPath(f"{root}/{crowd['name']}"))
-    copies = crowd["copies"]
-    prototypes = {path.name: number for number, path in enumerate(instancer.GetPrototypesRel().GetTargets())}
-    instancer.GetPositionsAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*copy["at"]) for copy in copies]))
-    instancer.GetOrientationsAttr().Set(Vt.QuathArray([
+    path = f"{root}/{crowd['name']}"
+    instancer = UsdGeom.PointInstancer.Define(stage, path)
+    UsdGeom.Scope.Define(stage, f"{path}/Prototypes")
+    prototypes, index = [], {}
+    for clip_number, clip in enumerate(whole["doing"]):
+        for phase in range(whole["phases"]):
+            for variant, asset in sorted(assets.items()):
+                parts, clips = writer.asset_facts(asset)
+                prototype = f"{path}/Prototypes/{clip}_{phase}_{variant}"
+                writer.referenced(stage, prototype, asset, clips[clip] * phase / whole["phases"])
+                writer.dressed(stage, prototype, parts, [whole["body"]])
+                writer.playing(stage, prototype, clip, clips)
+                index[clip_number, phase, variant] = len(prototypes)
+                prototypes.append(Sdf.Path(prototype))
+    instancer.CreatePrototypesRel().SetTargets(prototypes)
+    copies = [copy for copy in crowd["copies"] if whole["palettes"][copy["palette"]] in assets]
+    instancer.CreatePositionsAttr(Vt.Vec3fArray([Gf.Vec3f(*copy["at"]) for copy in copies]))
+    instancer.CreateOrientationsAttr(Vt.QuathArray([
         Gf.Quath(Gf.Rotation(Gf.Vec3d(0, 1, 0), copy["turn"]).GetQuat()) for copy in copies]))
-    instancer.GetScalesAttr().Set(Vt.Vec3fArray([Gf.Vec3f(copy["tall"]) for copy in copies]))
-    instancer.GetProtoIndicesAttr().Set(Vt.IntArray([
-        prototypes[f"{whole['doing'][copy['clip']]}_{copy['phase']}_{copy['palette']}"] for copy in copies]))
+    instancer.CreateScalesAttr(Vt.Vec3fArray([Gf.Vec3f(copy["tall"]) for copy in copies]))
+    instancer.CreateProtoIndicesAttr(Vt.IntArray([
+        index[copy["clip"], copy["phase"], whole["palettes"][copy["palette"]]] for copy in copies]))
     instancer.GetPrim().SetCustomDataByKey("score:character", crowd["character"])
     instancer.GetPrim().SetCustomDataByKey("score:look", crowd["look"])
 
@@ -142,27 +156,43 @@ def make(inputs, out, seed, params):
     UsdGeom.Scope.Define(stage, root)
     layer.GetPrimAtPath(f"/{place}").specifier = Sdf.SpecifierOver  # the place itself is the base's
     looks, assets = {}, {}
-    for single in cast["characters"] + ([cast["crowd"]] if cast.get("crowd") else []):
+    for single in cast["characters"]:
         row = body_row(single.get("look"), single.get("surface"), single.get("variant", 0))
         looks[single["name"]] = {"look": single.get("look") or "none named"}
         if row is None or row not in inputs:
             looks[single["name"]]["missing"] = (f"no accepted body of its look ({row})" if row
                                                 else "the cast names no look")
             continue
-        if single is cast.get("crowd") and not single["copies"]:
-            looks[single["name"]]["missing"] = "no copy of the crowd stood on its ground (the cast's counted gate: why)"
-            continue
-        if single is cast.get("crowd") and not record.get("crowd", {}).get("palettes"):
-            looks[single["name"]]["missing"] = f"the crowd's colours: {record['crowd'].get('palettes_from')}"
-            continue
         if row not in assets:
             assets[row] = asset_for(row, inputs[row], out)
-        if single is cast.get("crowd"):
-            lay_crowd(stage, root, single, record.get("crowd", {}), assets[row])
-        else:
-            lay_person(stage, root, single, assets[row])
+        lay_person(stage, root, single, assets[row])
+    if cast.get("crowd"):
+        looks.update(laid_crowd(stage, root, cast["crowd"], record.get("crowd", {}), inputs, out, assets))
     layer.Save()
     (out / RECORD).write_text(json.dumps({"place": place, "looks": looks, "licence": []}, indent=1))
+
+
+def laid_crowd(stage, root, crowd, record, inputs, out, assets):
+    """The crowd laid in each variant of its look's body whose dressed body stands usable (lay_crowd), and its looks'
+    entries for characters.json: the crowd's, and each variant not made, named missing (its copies left out, never
+    worn in another variant's body)."""
+    looks = {crowd["name"]: {"look": crowd.get("look") or "none named"}}
+    rows = {variant: body_row(crowd.get("look"), None, variant) for variant in record.get("palettes", [])}
+    made = {variant: row for variant, row in rows.items() if row and row in inputs}
+    for variant, row in rows.items():
+        if variant not in made:
+            looks[f"{crowd['name']}-v{variant}"] = {"look": crowd.get("look") or "none named",
+                                                    "missing": f"no accepted body of its look ({row})"}
+    if not crowd["copies"]:
+        looks[crowd["name"]]["missing"] = "no copy of the crowd stood on its ground (the cast's counted gate: why)"
+    elif not made:
+        looks[crowd["name"]]["missing"] = "no variant of its look has an accepted body"
+    else:
+        for row in made.values():
+            if row not in assets:
+                assets[row] = asset_for(row, inputs[row], out)
+        lay_crowd(stage, root, crowd, record, {variant: assets[row] for variant, row in made.items()})
+    return looks
 
 
 def layer_faults(folder):

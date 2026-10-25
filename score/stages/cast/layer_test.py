@@ -79,8 +79,20 @@ def test_a_place_reads_only_the_looks_its_design_names():
     look; no old record, no lost concept picture, no hand-kept colours."""
     tube = layer.dressed_looks("tube")
     assert ("person_uniform-made", None, 0) in tube and not any(look == "player-work" for look, _, _ in tube)
-    assert layer.dressed_looks("square") == {("crowd-made", None, 0)}
+    assert layer.dressed_looks("square") == {("crowd-made", None, variant) for variant in range(5)}
     assert layer.dressed_looks("nowhere") == set()
+
+
+def test_a_crowd_variant_with_no_accepted_body_is_named_and_never_worn_by_another():
+    """The crowd wears the variants of its look's body (people_rows.crowd_record's palettes); one with no usable dress
+    row is named missing for complete's people check, and with none the crowd is not laid."""
+    crowd = {"name": "crowd", "look": "crowd/made", "copies": [{"palette": 0}, {"palette": 1}]}
+    looks = layer.laid_crowd(None, "/square/Characters", crowd, {"palettes": [0, 1]}, {}, None, {})
+    assert looks["crowd-v0"]["missing"] == "no accepted body of its look (people-dress-crowd-made)", looks
+    assert looks["crowd-v1"]["missing"] == "no accepted body of its look (people-dress-crowd-made-v1)", looks
+    assert looks["crowd"]["missing"] == "no variant of its look has an accepted body", looks
+    unstood = layer.laid_crowd(None, "/square/Characters", dict(crowd, copies=[]), {"palettes": [0]}, {}, None, {})
+    assert "no copy of the crowd stood" in unstood["crowd"]["missing"]
 
 
 def test_a_person_wears_the_dress_row_of_its_rows_fabric():

@@ -1148,8 +1148,6 @@
      "where": "everywhere",
      "share": 0.1836,
      "crowd": "crowd-made",
-     "palettes": null,
-     "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
      "dress": {
       "words": "crowd of people",
       "named": [],

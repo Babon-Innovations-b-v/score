@@ -8,8 +8,6 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
                                            "looks": [<look>, ... one a person]  |  "crowd": <far look>,
                                            "ground": [[left, near, wide, long], ...] (a crowd's: the plan items
                                                      its row makes, in the place's frame),
-                                           "palettes": [[skin, clothes, boots library surfaces], ...] | null,
-                                           "palettes_from": why they are null,
                                            "dress": {"surface": <library fabric> | null, ...}}}}}}
 
 A row's `dress` is what its people wear, read off the design (score/stages/people_clothes.py: of the people place's
@@ -22,15 +20,16 @@ look"): people rows are grouped into looks by what the reading says they are and
 where it stands or what it holds, its pose and colour words left out, so a seated astronaut and five standing ones in
 another scene are one `astronaut-made`), each person of a row standing as its row's look on its person spot, its colour
 its row's dress (the rule above); a named person (a capitalised word in its row's name) or the player is a look of its
-own, `<place>_<row>-made`. A crowd one far look in a few colour palettes (CONTEXT.md "crowd"): the line's look its row's
-words match (`crowd_look`), else its own words' look. The outfit `made` is the clothes as the concept draws them on the
+own, `<place>_<row>-made`. A crowd one far look in a few palettes of clothes (CONTEXT.md "crowd"): the line's look its
+row's words match (`crowd_look`), else its own words' look, its palettes that look's first `crowd_variants` variants
+(the dress rows `-v<n>`, as a place's people of one look: other surfaces of the line's scene library on the same body,
+baked, never a flat colour). The outfit `made` is the clothes as the concept draws them on the
 body the people route makes, its face the made one (tools/characters/maker/route_head.py FACE; `drawn` there is the
 owner's open choice, never what a row asks for). Each look's maker spec (data/people/specs/<character>.json: who from
 its row's words, the build from the row's metres, face, hair and clothes as the locked concept draws them, which the
 close-up is drawn from: drawn_from; the row that draws a look is its largest standing person, `origin_of`) and its take
 on the people line are written on every refresh (`designed_specs`, `with_designed`); no hand-written character file
-stands before a design's person. A crowd's palettes are not decided by any rule here (`UNDECIDED_PALETTES`): null, with
-why, until one recorded model call per scene names them. Which looks get a full body and which a far one follows from
+stands before a design's person. Which looks get a full body and which a far one follows from
 each person row's `share` (score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast
 (score/stages/cast) and the characters layer read who is in a place from here, never the old game records
 (data/characters) or the lost concept pictures; the people line's bake entries take each look's size from the person row
@@ -38,10 +37,10 @@ that maps it (`size_of`).
 
     .venv/bin/python -m score.stages.people_rows      # refresh from the store's current readings and plans
 
-A refresh copies each reading's people rows again, but those its plan shows beyond the place (`beyond`), and keeps every hand-made choice (looks, crowd, palettes: a row's fields
-recorded with its `why`) of a row read from the same concept; any other row is read again from its design (its drawn
-looks, the crowd's look by its words). A crowd's ground is taken from the plan again on every refresh. Then it
-writes the people line's data for its mapped looks (`write_line`).
+A refresh copies each reading's people rows again, but those its plan shows beyond the place (`beyond`), and keeps
+every hand-made choice (looks, crowd: a row's fields recorded with its `why`) of a row read from the same concept; any
+other row is read again from its design (its drawn looks, the crowd's look by its words). A crowd's ground is taken
+from the plan again on every refresh. Then it writes the people line's data for its mapped looks (`write_line`).
 """
 import json
 import pathlib
@@ -60,12 +59,14 @@ TAKE = "{look}-s1"  # a look's take on the line, as pixal@people names it
 # whose legs run forward), metres: under SLIM slim, over BROAD broad, else average. Bounds of a person's box as the
 # readings size them (0.3 to 0.8 m), not of the bare body: a suit or a coat is inside the box.
 SLIM, BROAD = 0.45, 0.65
+# A crowd wears this many variants of its look's body at most (CONTEXT.md "crowd": a few palettes of clothes; the
+# square's first crowd wore five, 2026-10-12), never more than the people SAM 3 counted in it.
+CROWD_VARIANTS = 5
 # A crowd's draws in cast.py (tools/characters/cast.py's crowd_copies): each copy turned up to TURN_JITTER radians off
 # facing the place's middle and HEIGHT_JITTER of its height taller or shorter (the square's first crowd's, 2026-10-12).
 TURN_JITTER, HEIGHT_JITTER = 0.35, 0.06
-PALETTE_PARTS = ["skin", "clothes", "boots"]
 # A row's hand-made fields, kept over a refresh of the same concept when recorded with their `why`.
-CHOSEN = ("looks", "crowd", "palettes", "palettes_from", "why")
+CHOSEN = ("looks", "crowd", "why")
 # The words that say a row is a crowd, not who is in it: they count only between looks that share no other word.
 CROWD_WORDS = {"crowd", "people", "person", "group"}
 # A look is what its people are and wear: a row's words from one of these on say where it stands or what it holds.
@@ -78,13 +79,6 @@ COLOUR_WORDS = {"white", "black", "grey", "gray", "blue", "red", "green", "yello
 PLURALS = {"people": "person", "men": "man", "women": "woman", "children": "child"}
 FUNCTION_WORDS = {"the", "and", "with", "his", "her", "their", "its", "from", "into", "onto", "over", "down", "for",
                   "who", "one", "two", "some", "many"}
-# Why a crowd's palettes stand undecided: measured on the locked concepts (2026-10-21) every crowd's SAM 3 box holds
-# its ground, flags and lanterns too, and a figure's torso reads the scene's light, not the cloth (the Moon wreck's
-# white-suited astronauts and the street's pedestrians alike nearest wool_charcoal; the 2026-10-13 torso measures found
-# the same, which is why people_clothes.py lets only a fabric a row's words name be chosen), so no pixel rule maps a crowd's colours to library surfaces.
-UNDECIDED_PALETTES = ("not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands "
-                      "round it, and a measured colour is the scene's light); one recorded model call per scene, in "
-                      "the batch, names them")
 
 
 def read():
@@ -149,7 +143,7 @@ def dressed_looks(place, found=None):
     wears."""
     crowd = crowd_row(place, found)
     return {(person["look"], person["surface"], person["variant"]) for person in persons(place, found)} | (
-        {(crowd[1]["crowd"], None, 0)} if crowd else set())
+        {(crowd[1]["crowd"], None, variant) for variant in range(crowd_variants(crowd[1]))} if crowd else set())
 
 
 def every_dressed(found=None):
@@ -170,32 +164,10 @@ def split_look(look):
     return character, outfit
 
 
-def srgb(colour):
-    """A library surface's linear colour as 0 to 255 sRGB (tools/characters/cast.py's palettes)."""
-    return [round(255 * (12.92 * value if value <= 0.0031308 else 1.055 * value ** (1 / 2.4) - 0.055))
-            for value in colour]
-
-
-def palette_colours(palettes):
-    """Each palette's library surfaces as sRGB colours; a surface the library does not hold (every old one retired,
-    2026-10-21) is library.LibraryEmpty naming it."""
-    import sys
-    folder = str(REPO / "tools/props/library")
-    if folder not in sys.path:
-        sys.path.append(folder)
-    import library
-    surfaces = library.resolved(LINE)
-    missing = sorted({name for palette in palettes for name in palette} - set(surfaces))
-    if missing:
-        raise library.LibraryEmpty(f"crowd palette surfaces {', '.join(missing)} are not in the surface library "
-                                   f"({library.EMPTY})")
-    return [[srgb(surfaces[name]["colour"]) for name in palette] for palette in palettes]
-
-
 def cast_record(place, found=None):
     """The place's cast record in tools/characters/cast.py's form, from its design: each person at the plan's people
     spots in turn (the cast stage stands them clear round it), facing the place's middle; the crowd its far look in
-    its palettes (none while undecided, `palettes_from` saying why) on its ground (crowd_record)."""
+    its variants on its ground (crowd_record)."""
     found = found or read()
     entry = place_entry(place, found)
     spots = entry.get("spots") or [entry.get("middle", [0.0, 0.0, 0.0])]
@@ -222,6 +194,12 @@ def crowd_count(fields):
     return count if isinstance(count, int) and count > 1 else None
 
 
+def crowd_variants(fields):
+    """How many variants of its look's body a crowd wears (its palettes): CROWD_VARIANTS, fewer for a crowd SAM 3
+    counted fewer people in."""
+    return min(crowd_count(fields) or CROWD_VARIANTS, CROWD_VARIANTS)
+
+
 def spread_of(grounds):
     """The [left, near, wide, long] box round a crowd's grounds, or None when it has none."""
     if not grounds:
@@ -232,20 +210,19 @@ def spread_of(grounds):
 
 
 def crowd_record(row, fields, entry):
-    """A crowd row in cast.py's form: its far look in its palettes, facing the place's middle, on its ground (the
-    plan items its row makes; `spread` the box round them, `grounds` each), its count crowd_count's, seeded by its
-    concept."""
+    """A crowd row in cast.py's form: its far look, facing the place's middle, on its ground (the plan items its row
+    makes; `spread` the box round them, `grounds` each), its count crowd_count's, seeded by its concept; its
+    `palettes` the variants of its look's body it wears (crowd_variants: 0 the look's plain dress row, n its `-v<n>`),
+    which cast.py's draw deals its copies in equal shares."""
     character, outfit = split_look(fields["crowd"])
     grounds = fields.get("ground")  # None: not read from a plan yet (a row of before 2026-10-21's refresh)
-    palettes = fields.get("palettes") or []
+    variants = list(range(crowd_variants(fields)))
     return {"name": row, "character": character, "look": f"{character}_{outfit}", "body": "far",
             "count": crowd_count(fields), "spread": spread_of(grounds), "grounds": grounds,
             "seed": int(entry["concept"][:8], 16),
             "facing_to": entry.get("middle", [0.0, 0.0, 0.0]), "turn_jitter": TURN_JITTER,
             "height_jitter": HEIGHT_JITTER, "doing": [doing_of(fields)], "shares": [1.0], "phases": 1,
-            "palettes": palette_colours(palettes), "palette_parts": PALETTE_PARTS,
-            "palette_shares": [1.0 / len(palettes) for _ in palettes],
-            **({} if palettes else {"palettes_from": fields.get("palettes_from")}),
+            "palettes": variants, "palette_shares": [1.0 / len(variants) for _ in variants],
             "why": f"row {row} of the picked design's scene inventory"}
 
 
@@ -338,10 +315,10 @@ def crowd_look(place, row, line=None):
 
 
 def default_choice(place, row):
-    """A row's looks read from its design: a crowd's far look by its words, its palettes undecided (with why), else
-    each of its people its row's look (look_of)."""
+    """A row's looks read from its design: a crowd's far look by its words, else each of its people its row's look
+    (look_of)."""
     if row["noun"] == "crowd" or "crowd" in row["name"]:
-        return {"crowd": crowd_look(place, row), "palettes": None, "palettes_from": UNDECIDED_PALETTES}
+        return {"crowd": crowd_look(place, row)}
     return {"looks": [look_of(place, row)] * row.get("count", 1)}
 
 
