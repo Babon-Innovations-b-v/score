@@ -108,10 +108,11 @@ def make(inputs, out, seed, params):
     """The scene's effects record made from its design over its stage, its effects layer and baked particles."""
     place = pathlib.Path(inputs["seed"]).name
     with layer_base.built(inputs) as source:
+        stage = layer_base.opened(source)
         record = from_design.record(place, read_json(inputs["design"]), row_kinds.table(inputs["row kinds"]),
-                                 read_json(inputs["effect kinds"]), layer_base.opened(source))
-    (out / RECORD).write_text(json.dumps(record, indent=1))
-    held = effect_layer.write_layer(place, record, out)
+                                    read_json(inputs["effect kinds"]), stage)
+        (out / RECORD).write_text(json.dumps(record, indent=1))
+        held = effect_layer.write_layer(place, record, out, base=stage)
     (out / "held.json").write_text(json.dumps({"place": place, "particles": held}, indent=1))
 
 
