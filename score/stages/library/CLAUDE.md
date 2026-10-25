@@ -24,6 +24,7 @@ is in an environment shows up in the library by construction, never by an agent'
 - **The library repository names files in this one.** Its `definitions/algorithms/*.toml` list score paths (roots,
   constants, tests) read at the commit its world pins; deleting or renaming such a file under `score/` or `tools/`
   breaks that definition at the next pin bump. Say so in the commit, and fix the definition in the library repository.
+- **`handed`** holds an output through what it was made into (owner's rule: everything shown comes from the library, not every intermediate file): one no exporter takes on its own (a finish route's list, a light layer) passes when an entry holds a row read here made from it (reads.json `into`, from the table's `after` in the `made into` param), and a world output the places' rows are made from (`beyond`) is held by those places' library nodes. Never a per-place exception for it.
 - **`traced`** wraps the library-finish check (`score/stages/complete/library`, its overlay) in `traced.py`, taken
   as it landed: the place's assembled stage traced against the library folder after the handover and the store's
   accepted bakes, read only. A change of that check's rules is made there, never here.

@@ -190,7 +190,8 @@ def test_configured_library_runs_once():
     assert value(place_words.index("handover") - 1) == str(HOME / "configured/library")  # --root
     assert "--world" in world_words, world_words
     output, _ = library_output(runner)
-    assert handover.handed(output) == [{"node": f"made@{PLACE}", "output": handover.handed(output)[0]["output"]}], \
+    assert handover.handed(output) == [{"node": f"made@{PLACE}", "output": handover.handed(output)[0]["output"],
+                                        "into": ["demo-film"], "beyond": []}], \
         handover.handed(output)  # the showcase render that never passed is read without
     again = runner.run([PLACE])
     assert again[f"library@{PLACE}"] == "fresh", again
@@ -227,6 +228,38 @@ def test_coverage():
     runner.run([PLACE])
     _, verdicts = library_output(runner)
     assert verdicts["handed"]["answer"] == checks.FAIL and "E1" in verdicts["handed"]["reason"], verdicts["handed"]
+
+
+def test_an_output_no_entry_holds_is_held_through_what_it_was_made_into():
+    tmp_path = HOME / "made-into"
+    tmp_path.mkdir(parents=True)
+    table = [graph.Stage("terrain", "world", make_text, TOY), graph.Stage("list", "place", make_text, TOY),
+             graph.Stage("bake", "place", make_text, TOY, after={"list": ("toy-text", 1)}),
+             graph.Stage("seed", "place", make_text, TOY, after={"terrain": ("toy-text", 1)}),
+             graph.Stage("film", "place", make_text, TOY)]
+    relation = library.made_into(table)
+    place = {"place record": str(tmp_path / f"{PLACE}.json")}
+    reads = library.reads_of({**place, **{name: str(tmp_path / (name[0] * 3)) for name in ("list", "bake", "film")}},
+                             relation)
+    assert {read["node"]: (read["into"], read["beyond"]) for read in reads} == {
+        f"list@{PLACE}": (["bake"], []), f"bake@{PLACE}": ([], []), f"film@{PLACE}": ([], [])}, reads
+    assert library.reads_of({"terrain": str(tmp_path / "ttt")}, relation)[0]["beyond"] == ["seed"]
+
+    def judged(held):
+        """`handed` over the reads, an entry holding each row in `held` and none the rest."""
+        handover.write(tmp_path / handover.READS, reads)
+        handover.write(tmp_path / handover.REPORT, {"covered": [
+            {"node": read["node"], "output": read["output"], "exception": None, "why": "no exporter takes it",
+             "entries": [f"layer/{read['node']}@1"] if read["node"].split("@")[0] in held else []}
+            for read in reads]})
+        return library_checks.judge_handed(tmp_path, {}, None)
+    verdict = judged({"bake", "film"})  # the list is held through the bake made from it
+    assert verdict.answer == checks.PASS and "(1 held through" in verdict.reason, verdict
+    verdict = judged({"film"})  # neither the list nor the bake it was made into is held
+    assert verdict.answer == checks.FAIL and {f"list@{PLACE}", f"bake@{PLACE}"} == {
+        finding.split(" ")[0] for finding in verdict.findings}, verdict
+    verdict = judged({"bake"})  # an output made into nothing held is held by no entry
+    assert verdict.answer == checks.FAIL and verdict.findings[0].startswith(f"film@{PLACE}"), verdict
 
 
 def test_missing_copy_is_unknown():

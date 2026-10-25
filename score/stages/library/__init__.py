@@ -14,7 +14,9 @@ prop pipeline and the finish route. It is a key part of both rows (a callable pa
 the library's command (`--route`), which stamps it into each entry's provenance; prepare reuses a library model only
 under today's route (score/stages/complete/prepare/library.py).
 
-The make (`make`) writes `reads.json`, every accepted output the node read as {node, output}, then runs the library's
+The make (`make`) writes `reads.json`, every accepted output the node read as {node, output, into, beyond}: `into`
+the rows of its own grain made from it, row by row (the table's `after`, the `made into` param), `beyond` those of the
+other grain (a world row a place's rows are made from); then it runs the library's
 handover command once (backend.py: SCORE_LIB_* from the environment, else the checkout beside score), which writes
 `handover.json` (contract library-handover v1, handover.py) into the node's output folder. With no library configured
 it writes a report that says so, and the gate fails unless the world is library-free (data/checks/library-free.json,
@@ -79,12 +81,49 @@ def place_of(inputs):
     return pathlib.Path(inputs[PLACE_RECORD]).stem if PLACE_RECORD in inputs else None
 
 
-def reads_of(inputs):
-    """[{node, output}] of every accepted output the node read, sorted: each earlier row's checkout is named by its
-    output's hash."""
+def made_into(table):
+    """{"readers": {row: the rows that read it, sorted}, "world": the world rows, sorted} of a stage table, the library
+    rows left out: what each row's output is made into (reads_of)."""
+    rows = [row for row in table if row.name not in (PLACE_ROW, WORLD_ROW)]
+    readers = {}
+    for row in rows:
+        for before in row.after:
+            readers.setdefault(before, set()).add(row.name)
+    return {"readers": {name: sorted(found) for name, found in sorted(readers.items())},
+            "world": sorted(row.name for row in rows if row.grain == "world")}
+
+
+def runner_made_into(runner):
+    """made_into of this runner's table (the library rows' `made into` param)."""
+    return made_into(runner.stages.values())
+
+
+def made_from(name, relation):
+    """Every row made from row `name`'s output, row by row through the readers of `relation` (made_into), sorted."""
+    found, waiting = set(), [name]
+    while waiting:
+        for reader in relation["readers"].get(waiting.pop(), []):
+            if reader not in found:
+                found.add(reader)
+                waiting.append(reader)
+    return sorted(found)
+
+
+def reads_of(inputs, relation):
+    """[{node, output, into, beyond}] of every accepted output the node read, sorted: each earlier row's checkout is
+    named by its output's hash; `into` the rows of the node's grain made from it, `beyond` those of the other grain
+    (made_from over `relation`, made_into's answer)."""
     place = place_of(inputs)
-    return sorted(({"node": f"{name}@{place}" if place else name, "output": pathlib.Path(path).name}
-                   for name, path in inputs.items() if name not in DECLARED), key=lambda row: row["node"])
+    world = set(relation["world"])
+    found = []
+    for name, path in inputs.items():
+        if name in DECLARED:
+            continue
+        made = made_from(name, relation)
+        own = [row for row in made if (row in world) == (place is None)]
+        found.append({"node": f"{name}@{place}" if place else name, "output": pathlib.Path(path).name, "into": own,
+                      "beyond": [row for row in made if row not in own]})
+    return sorted(found, key=lambda row: row["node"])
 
 
 def score_commit():
@@ -109,7 +148,7 @@ def run_of(inputs, out, params):
 def make(inputs, out, seed, params):
     """Write reads.json, then hand the node's outputs to the configured library, whose command writes handover.json;
     with none configured, a report saying so."""
-    handover.write(out / handover.READS, reads_of(inputs))
+    handover.write(out / handover.READS, reads_of(inputs, params["made into"]))
     run, values = run_of(inputs, out, params), backend.settings()
     if backend.kind(values) == backend.NONE:
         handover.write(out / handover.REPORT, handover.none_report(run))
@@ -121,9 +160,11 @@ def make(inputs, out, seed, params):
 
 def rows(table, data, identity=None):
     """(library, library-world) for a stage table: the place row reading every place row, the world row every world
-    row; their params the library's identity (backend.identity), so a new library re-keys these two alone, and the
-    route (`runner_route`), so a new route hands every entry again under it."""
-    params = {"library": backend.identity() if identity is None else identity, "route": runner_route}
+    row; their params the library's identity (backend.identity), so a new library re-keys these two alone, the
+    route (`runner_route`), so a new route hands every entry again under it, and what each row is made into
+    (`runner_made_into`), which the gate holds an output through."""
+    params = {"library": backend.identity() if identity is None else identity, "route": runner_route,
+              "made into": runner_made_into}
     place_rows = {row.name: (row.contract.schema, row.contract.version) for row in table if row.grain == "place"}
     world_rows = {row.name: (row.contract.schema, row.contract.version) for row in table if row.grain == "world"}
     files = declared_files(data)
