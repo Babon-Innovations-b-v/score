@@ -65,13 +65,33 @@ def check_the_contract_and_gate(folder, inputs):
     assert verdict.answer == checks.FAIL and verdict.findings == (wanted[0],), verdict
 
 
+def check_a_shell_no_tile_draws_rents_no_card(folder, inputs):
+    """A shell whose every surface is seen through writes an empty tiles.json, its gate passes, and nothing is run."""
+    kept = surface_tiles.subprocess.run
+    surface_tiles.subprocess.run = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("a card was rented"))
+    surface_tiles.scene_specs = lambda palette: {name: {"family": "glass"} for name in stand_in_specs(None)}
+    try:
+        surface_tiles.make(inputs, folder, 3, {})
+    finally:
+        surface_tiles.subprocess.run, surface_tiles.scene_specs = kept, stand_in_specs
+    assert json.loads((folder / "tiles.json").read_text()) == {} and surface_tiles.tile_faults(folder) == []
+    surface_tiles.scene_specs = lambda palette: {name: {"family": "glass"} for name in stand_in_specs(None)}
+    try:
+        assert surface_tiles.judge_tiles(folder, inputs, {}).answer == checks.PASS
+    finally:
+        surface_tiles.scene_specs = stand_in_specs
+
+
 def main():
     kept = surface_tiles.scene_specs
     surface_tiles.scene_specs = stand_in_specs
     try:
-        with tempfile.TemporaryDirectory() as records, tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory() as records, tempfile.TemporaryDirectory() as temporary, \
+                tempfile.TemporaryDirectory() as empty:
             check_the_tiled_surfaces()
-            check_the_contract_and_gate(pathlib.Path(temporary), written(pathlib.Path(records)))
+            inputs = written(pathlib.Path(records))
+            check_the_contract_and_gate(pathlib.Path(temporary), inputs)
+            check_a_shell_no_tile_draws_rents_no_card(pathlib.Path(empty), inputs)
     finally:
         surface_tiles.scene_specs = kept
     print("surface_tiles_test: ok")

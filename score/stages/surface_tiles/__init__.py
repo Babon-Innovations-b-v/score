@@ -109,8 +109,12 @@ def tile_job(inputs, out):
 
 
 def make(inputs, out, seed, params):
-    """The place's tiles baked on a rented card into `out`."""
+    """The place's tiles baked on a rented card into `out`; a shell whose surfaces no tile draws (all seen through
+    or glowing) writes an empty tiles.json and rents nothing."""
     place = pathlib.Path(inputs["design"]).stem
+    if not wanted(inputs)[0]:
+        (out / "tiles.json").write_text("{}")
+        return
     job = out / ".job-tiles.json"
     job.write_text(json.dumps(tile_job(inputs, out), indent=1))
     subprocess.run([str(PROPS_PYTHON), str(LIBRARY_BAKE), str(job), "--who", f"surface-tiles@{place} (seed {seed})"],
