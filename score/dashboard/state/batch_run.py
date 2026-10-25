@@ -27,7 +27,9 @@ the files the batch writes, read live locally and carried in the export as batch
                 bill whether the pool is open or released
       nodes     {planned, made, failed} the rows by name (nodes_of)
       problems  [{at, place, node, kind (failed, gaps, run), words, tip}], newest first; a failed one's places
-                and raw (each row's own fault text) too
+                and raw (each row's own fault text) too; an earlier try's failure of a row this try makes again
+                (its try_nodes) is none: the row waits for this try, and while it lives `retried` counts those
+                problems
 
 Read only. Every input is a file: the run's detached log (heartbeats, each finished row's line, the pool it opened,
 its result line), the rows' own logs (a row started in this run has written its log since), each finished row's batch
@@ -424,8 +426,8 @@ def money_of(totals, stop_line, beat, spent, launching=False):
 
 
 def tried_rows(runs, newest_rows, planned):
-    """{node: (state, did, about)} of every try's runs, oldest first, a later line of a row over an earlier one and
-    the newest run's (`newest_rows`) last: a row failed in an earlier try and not run again still shows."""
+    """{node: (state, did, about)} of `runs`, oldest first, a later line of a row over an earlier one and the newest
+    run's (`newest_rows`) last."""
     found = {}
     for run in runs:
         for path in run["logs"]:
@@ -438,7 +440,7 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
     """The monitor's record of `batch` (checkout/watched.newest: the newest checkout, a try of its batch, its launch
     and the rows every try's runs plan), read from the files under `props_home` (the warm pools) and `store_root`
     (the rows' logs), a row done when `accepted_at(node)`, the time of its standing accept in the store, is after the
-    batch's first try: rows, spend and problems across its tries, a problem gone once a later try made its row, the
+    batch's first try: rows, spend and problems across its tries, a problem gone once a later try made its row or makes it again, the
     ETA and stop this try's; `design_at` when the design last changed (the next Buy is a new batch past it); None
     without a batch."""
     if batch is None:
@@ -457,17 +459,26 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
     renting = parked_of(pools_of(runs, found["pool"], set(planned)), props_home / "cloud" / "parked")
     pool = pool_of(found["pool"], props_home / "cloud" / "pools", now, renting)
     state, why = overall(batch, found, launch.get("state") == "running", pool)
-    rows = tried_rows(runs, found["rows"], set(planned))
+    # an earlier try's line of a row this try makes again is no longer its state (owner, 2026-10-25: "it still
+    # shows all failed"); one this try does not make again still shows
+    redo = set(batch.get("try_nodes") or planned)
+    earlier = tried_rows([run for run in runs if run not in tried], {}, set(planned))
+    current = tried_rows(tried, found["rows"], set(planned))
+    rows = {**{node: row for node, row in earlier.items() if node not in redo}, **current}
     states = row_states(planned, rows, accepted_at, parsed(batch.get("first_at") or batch["at"]))
     running = {node for node in planned if node not in states and state in LIVE
                and started_since(node, pathlib.Path(store_root) / "logs", started.timestamp())}
     ended = ended_at(batch, found["result"], log_path)
     standing = {node: row for node, row in rows.items() if states.get(node) != "done"}
     problems = failures(standing) + gap_problems(found["rows"], gaps_of)
+    redone = {node: row for node, row in earlier.items() if node in redo and node not in current}
+    retried = len(failures(redone)) if state in LIVE else 0
     if state == "stopped":
-        ran = eta_of({}, first, ended, now)["elapsed"] or 0
+        ran = eta_of({}, this_try, ended, now)["elapsed"] or 0
+        tries = batch.get("tries") or 1
+        who = f"Try {tries}" if tries > 1 else "The batch"
         problems.append({"at": stamp(ended or now), "place": "", "node": "", "kind": "run",
-                         "words": f"The batch stopped after {round(ran)} min, before every scene was done.",
+                         "words": f"{who} stopped after {round(ran)} min, before every scene was done.",
                          "tip": why})
     spent = checkout_spent(spent_before(runs, launch.get("logs") or [], set(planned)), found["beat"])
     return {"read_at": stamp(now), "checkout": batch["checkout"], "at": batch["at"], "by": batch.get("by"),
@@ -479,4 +490,4 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
             "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"],
                               0.0 if spent is None and state in LIVE else spent, batch["state"] == "launching"),
             "scenes": scenes_of(planned, states, running, state in LIVE), "pool": pool,
-            "problems": newest_first(problems), "nodes": nodes_of(planned, states)}
+            "problems": newest_first(problems), "retried": retried, "nodes": nodes_of(planned, states)}

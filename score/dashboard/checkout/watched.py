@@ -83,7 +83,7 @@ def batch_of(records, accepted_at):
 
 def newest(accepted_at=lambda node: None):
     """The newest checkout as a try of its batch (batch_of): its record and launch, every launch of every try's runs
-    (checkout_runs) and the rows they plan, the batch's number, its tries and when its first try was made, as plain
+    (checkout_runs) and the rows they plan, the rows this try makes (try_nodes), the batch's number, its tries and when its first try was made, as plain
     data for batch_run.gathered; None before one. `accepted_at(node)` the time of its standing accept."""
     records = list(Checkout.objects.select_related("launch__plan").order_by("at"))
     if not records:
@@ -98,4 +98,5 @@ def newest(accepted_at=lambda node: None):
             "launch": launch_of(record.launch), "batch": number, "tries": len(tries),
             "first_at": tries[0].at.isoformat(),
             "runs": [run for one in tries if one.launch for run in checkout_runs(one)],
-            "try_runs": checkout_runs(record) if record.launch else [], "nodes": list(nodes)}
+            "try_runs": checkout_runs(record) if record.launch else [], "nodes": list(nodes),
+            "try_nodes": record_nodes(record)}
