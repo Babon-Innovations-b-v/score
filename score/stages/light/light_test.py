@@ -317,6 +317,16 @@ def check_exposure():
     shutil.rmtree(output)
 
 
+def check_unlit():
+    """A place the layer lights from nothing in its design is named before the paid render: no light at all, or an
+    inside place lit only by the sky's lights outside its shell."""
+    from score.stages import light
+    lamp, sun = {"path": "/p/Lights/lamp_1"}, {"path": "/p/Lights/sky_sun", "sun": True}
+    assert light.unlit_why([], inside=False) and light.unlit_why([], inside=True)
+    assert light.unlit_why([sun], inside=True) and light.unlit_why([sun], inside=False) is None
+    assert light.unlit_why([lamp], inside=True) is None and light.unlit_why([lamp, sun], inside=False) is None
+
+
 def check_design_rows():
     """The rows read the design only: no row declares a hand-kept record in data/scene (the old records were
     retired, 2026-10-21), the record is the scene-record output's (a shown place's read beside), and a place with no
@@ -406,6 +416,7 @@ def check_neighbours_from_the_record():
 
 
 def main():
+    check_unlit()
     check_design_rows()
     check_haze_from_the_kit()
     check_neighbours_from_the_record()

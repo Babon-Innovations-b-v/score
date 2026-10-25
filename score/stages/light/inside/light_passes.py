@@ -104,6 +104,8 @@ def main():
     usd_views.renderer(scene, views["size"])
     if effects and scene.render.engine == "CYCLES":
         scene.cycles.transparent_max_bounces = usd_views.EFFECT_BOUNCES
+    if not usd_views.stage_lights(stage)[0]:  # usd_views.lit would light it with its fixed sun, a light not designed
+        raise SystemExit("light_passes: the stage holds no light of its own; refused rather than lit by a stand-in sun")
     environment = usd_views.lit(scene, stage)
     plane = usd_views.stage_ground(objects)
     if plane is None and (environment is None or environment["ground_plane"]):

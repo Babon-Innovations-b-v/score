@@ -17,6 +17,8 @@ holds, as three rows of the stage table.
                   (looks/), and every fault measured on it
 
     gates (light-layer)  lamps placed  every lamp of the record stands in the layer
+                         lit           a lamp of its own, or (an open place) a sky light over the horizon
+                                       (unlit_why): an unlit place is a gap before the paid render
                          sky elements  as below, before anything is rendered
                          sky bodies    the sky's bodies, lights and backdrops where overhead.py has them at the
                                        scene's site at its scene time (sky.faults on the layer's geometry)
@@ -163,6 +165,33 @@ def judge_placed(output, inputs, evidence):
                    f"({', '.join(sorted({entry['done'].split()[0] for entry in found['placed']})) or 'none'}), "
                    f"{len(lamps)} lamps in the layer; lost: {lost or 'none'}", {"lamps": len(lamps), "lost": len(lost)},
                    {"lost": "lower"}, lost)
+
+
+def unlit_why(lamps, inside):
+    """Why the layer gives the place no light the render could measure, or None: no lamp of its own and no sky light
+    over the horizon at its scene time; or an inside place (its plan's walls or roofs) with no lamp of its own, whose
+    sky lights stand outside its shell. Rendered anyway, the views come back black or under the renderer's fixed
+    stand-in sun, a light not in the design (2026-10-25: engineroom, camp and campgrounds, a paid render each)."""
+    own = [lamp for lamp in lamps if not lamp.get("sun")]
+    if own:
+        return None
+    if not lamps:
+        return "no lamp of its own (its inventory has no glowing row) and no sky light over the horizon at its " \
+               "scene time"
+    if inside:
+        return "an inside place with no lamp of its own (its inventory has no glowing row): its sky lights stand " \
+               "outside its shell"
+    return None
+
+
+def judge_lit(output, inputs, evidence):
+    """The layer lights the place from its design (unlit_why), before light-passes is bought."""
+    found = json.loads((output / "lamps.json").read_text())
+    record = passes.record_of(found["place"], inputs)
+    why = unlit_why(found["lamps"], bool((record.get("environment") or {}).get("inside")))
+    suns = sum(1 for lamp in found["lamps"] if lamp.get("sun"))
+    return verdict("lit", why is None, why or f"{len(found['lamps']) - suns} lamps of its own, {suns} sky lights",
+                   {"lamps": len(found["lamps"]) - suns, "sky_lights": suns}, findings=[why] if why else ())
 
 
 def missing_elements(found):
@@ -835,8 +864,8 @@ def aimed_files(name):
 LIT = contracts.Contract("light", 1, light_faults, {"length": "metre", "up axis": "Y"})
 RECORD = {passes.RECORD: ("scene-record", 1)}  # the place's own as an after, each shown place's beside
 LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
-                          (checks.Check("lamps placed", judge_placed), checks.Check("sky elements", judge_layer_sky),
-                           checks.Check("sky bodies", judge_sky_bodies)),
+                          (checks.Check("lamps placed", judge_placed), checks.Check("lit", judge_lit),
+                           checks.Check("sky elements", judge_layer_sky), checks.Check("sky bodies", judge_sky_bodies)),
                           files=layer_files, after=RECORD, applies=applies)
 PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.PASSES,
                            (checks.Check("rendered", passes.judge_rendered),
