@@ -21,10 +21,12 @@ idle card's heartbeat each BEAT_SECONDS (an idle card's self-delete keeps its 15
 leaves none behind), deletes a card whose taker died, and ends when the pool is released, its end passes or the run's
 process is gone; however it ends it releases the pool.
 
-Every minute of a card is charged once, under the pool's ticket and run: its rent to its first parking (`pool-<run>`
-lines, written by the collector), each spell parked (`park.idle_entry`, written when it is taken or released), and
-what each taker used (the taker's own row, from when it took the card). A card is billed by the minute, so its idle
-time is the run's real cost of holding it warm.
+Every minute of a card is charged once, by the pool alone, under the pool's ticket and run (`pool-hold-<run>` lines,
+`hold`): from its creation to its delete, busy or idle, at its offer's price and billing unit, booked by the collector
+each BEAT_SECONDS and once more when it is struck off (`left`), so the run's spend, the money guards and the cockpit's
+Spent see it as it accrues (fault of 2026-10-25: Batch 1's pool of 13 machines held 11 h booked EUR 0). Its other
+lines (its rent to its first parking, each spell parked, each taker's row) keep their minutes for the measurements and
+book no euros (ledger.machine_row's `card_euros`); the first booking closes its rent's started line (open_rents).
 """
 import collections
 import contextlib
@@ -46,6 +48,8 @@ import provider
 from provider import cloud
 
 POOLS = batch.CLOUD / "pools"
+# The kind of the ledger lines that book the pool's machines' rented time (hold).
+HOLD = "pool-hold"
 # The most cards a pool holds (owner, 2026-10-23: "like 10 gpus"), each class also held to its quota.
 MOST_CARDS = 10
 # The most processor machines a pool holds beside its cards, for the run's renders and bakes (owner, 2026-10-23: "the
@@ -440,7 +444,8 @@ def joined(run_id, machine):
         (folder / "cards").mkdir(exist_ok=True)
         keys = ("id", "zone", "type", "class", "disk_gb", "created", "price")
         (folder / "cards" / f"{machine['id']}.json").write_text(json.dumps(
-            {**{key: machine[key] for key in keys}, "for": slot_of(machine), "holder": None}))
+            {**{key: machine[key] for key in keys}, "unit_minutes": machine.get("unit_minutes", 1),
+             "name": machine["folder"].name, "for": slot_of(machine), "holder": None, "booked": 0.0}))
 
 
 def held_by(run_id, server_id, holder):
@@ -452,9 +457,44 @@ def held_by(run_id, server_id, holder):
 
 
 def left(run_id, server_id):
-    """Strike a deleted card off the pool, so the collector replaces it while the pool is open."""
+    """Strike a deleted card off the pool, its rented time to now booked (book), so the collector replaces it while
+    the pool is open."""
     with locked(run_id) as folder:
-        (folder / "cards" / f"{server_id}.json").unlink(missing_ok=True)
+        path = folder / "cards" / f"{server_id}.json"
+        if path.exists():
+            book(run_id, [path], time.time())
+        path.unlink(missing_ok=True)
+
+
+def hold(run_id):
+    """Book every card of the pool's rented time to now (book): the collector's beat."""
+    with locked(run_id) as folder:
+        book(run_id, sorted((folder / "cards").glob("*.json")), time.time())
+
+
+def book(run_id, paths, now):
+    """One ledger line under the pool's ticket and run of what the cards at `paths` cost since their last booking
+    (charge); nothing when that is nothing. Called with the pool's lock held."""
+    charged = [charge(path, now) for path in paths]
+    added = {card["id"]: euros for card, euros in charged if euros > 0}
+    if not added:
+        return
+    ledger.record({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+                   "batch": f"pool-hold-{run_id}-{now:.3f}", "kind": HOLD, "run": run_id,
+                   "who": "pool.py: the pool's machines' rented time, busy or idle", "cards": added,
+                   "names": [card.get("name") for card, _ in charged], "machines": [], "attempts": [],
+                   "machine_minutes": 0.0, "euros": round(sum(added.values()), 6), "wall_minutes": 0.0,
+                   **ticket_of(run_id)})
+
+
+def charge(path, now):
+    """(the card at `path`, the euros it added): what it has cost from its creation to `now` at its price, billed by
+    its started unit (ledger.cost), less what was booked before, its booked total written back."""
+    card = json.loads(path.read_text())
+    owed = ledger.cost((now - card["created"]) / 60, card["price"], card.get("unit_minutes", 1))
+    added = max(0.0, owed - card.get("booked", 0.0))
+    path.write_text(json.dumps({**card, "booked": card.get("booked", 0.0) + added}))
+    return card, added
 
 
 def slot_of(card):
@@ -535,7 +575,8 @@ def resize(run_id, cards, processors):
 
 def warm(run_id, machine):
     """A card the collector rented that answers: one of the pool's, parked for the next claim (park.park through
-    batch.delete_machine, which also ends its rent's watchdog), its rent to now charged to the pool."""
+    batch.delete_machine, which also ends its rent's watchdog), its rent to its parking written for the measurements
+    (its euros are the pool's own booking, hold)."""
     machine.update({"pool": run_id, "kind": KIND, "healthy": True})
     joined(run_id, machine)
     batch.delete_machine(machine)
@@ -746,6 +787,7 @@ def collect_round(run_id, plan, collecting):
                       f"{(collecting.next_ask - time.time()) / 60:.0f} min")
     if time.time() >= collecting.next_beat:
         beat(run_id)
+        hold(run_id)
         collecting.next_beat = time.time() + BEAT_SECONDS
 
 

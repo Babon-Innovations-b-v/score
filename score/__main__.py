@@ -1032,14 +1032,14 @@ def stop_on_term(signal_number, frame):
 def run_gauges(runner, places, whole, only, started):
     """The run's gauges for its heartbeat lines, read from files alone (no cloud call) and scoped to this run: its
     rows' paid runs cleared and still open (each holds a rented machine or is about to), and what the run has spent
-    since `started` (spent_by_run: its rows' and its warm pool's ledger lines, its pool cards idle now and its Google
-    calls), in all and by part."""
+    since `started` (spent_by_run: its rows' and its warm pool's ledger lines and its Google calls), in all and by
+    part. The run's id is read at each beat: the gauges are made before the run takes its id (as_run; fault of
+    2026-10-25, every heartbeat of Batch 1 said its pool cost EUR 0.00)."""
     from score.adapters import compute
     nodes = {graph.node_name(*node) for node in runner.line_nodes(places, whole, only)}
-    run_id = os.environ.get(RUN_ID)
 
     def gauges():
-        euros = spent_by_run(compute.ledger(), nodes, started, run_id)
+        euros = spent_by_run(compute.ledger(), nodes, started, os.environ.get(RUN_ID))
         held = compute.open_reservations(compute.covering_store(runner.store).cache.parent / "reservations.json")
         mine = [at for at, cleared in held.items() if cleared.get("node") in nodes]
         return (f"this run's rows: paid runs open {len(mine)}, EUR {sum(euros.values()):.2f} in the ledger since the "
@@ -1048,10 +1048,10 @@ def run_gauges(runner, places, whole, only, started):
 
 
 def spent_by_run(books, nodes, started, run_id):
-    """{rows, pool, idle now, model calls} in euros: the ledger lines of this checkout's batches for the run's row
-    `nodes` since `started` (a row's batch carries its spend ticket, `<node> <key>`), the lines of its warm pool (cold,
-    idle and disk, ticketed `gpu-pool <run id>`), what its pool cards parked now have cost since they parked (an idle
-    span reaches the ledger only as it ends) and its Google calls (model_calls, by the run's ledger tag)."""
+    """{rows, pool, model calls} in euros: the ledger lines of this checkout's batches for the run's row `nodes` since
+    `started` (a row's batch carries its spend ticket, `<node> <key>`), the lines of its warm pool (its machines' every
+    minute, booked each minute by its collector: pool.hold, ticketed `gpu-pool <run id>`) and its Google calls
+    (model_calls, by the run's ledger tag)."""
     from score.adapters import compute
     here = books.origin()["worktree"]
     pool_ticket = f"{compute.POOL} {run_id}"
@@ -1062,18 +1062,7 @@ def spent_by_run(books, nodes, started, run_id):
             pool += batch.get("euros") or 0.0
         elif batch.get("worktree") == here and ticket.partition(" ")[0] in nodes and batch["started"] >= started:
             rows += batch.get("euros") or 0.0
-    return {"rows": rows, "pool": pool, "idle now": idle_now(run_id),
-            "model calls": model_calls(os.environ.get(LEDGER_TAG))}
-
-
-def idle_now(run_id):
-    """What the run's pool cards parked now have cost since they parked (park.idle_entry to this moment); 0 without
-    a run id."""
-    if not run_id:
-        return 0.0
-    park = cloud_tool("park")
-    now = time.time()
-    return sum(park.idle_entry(record, now)["euros"] for record in park.pool_records(run_id))
+    return {"rows": rows, "pool": pool, "model calls": model_calls(os.environ.get(LEDGER_TAG))}
 
 
 def model_calls(tag):

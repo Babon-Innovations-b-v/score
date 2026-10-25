@@ -457,9 +457,10 @@ def idle_entry(record, deleted):
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(record["parked_at"])),
              "batch": f"parked-{record['id']}", "kind": record["kind"], "who": "park.py: a parked card nobody took",
              "machines": [row], "attempts": [], "machine_minutes": minutes, "euros": euros, "wall_minutes": minutes}
-    if record.get("pool"):  # the pool's idle time, charged to its run under the pool's ticket
+    if record.get("pool"):  # the pool's idle time, under the pool's ticket; its euros are the pool's booking (hold)
         import pool
-        entry.update({"batch": f"pool-idle-{record['id']}-{record['parked_at']:.0f}", "kind": pool.KIND,
+        row["card_euros"], row["euros"] = euros, 0.0
+        entry.update({"batch": f"pool-idle-{record['id']}-{record['parked_at']:.0f}", "kind": pool.KIND, "euros": 0.0,
                       "run": record["pool"], "who": "pool.py: a pool card's time idle",
                       **pool.ticket_of(record["pool"])})
     return entry
