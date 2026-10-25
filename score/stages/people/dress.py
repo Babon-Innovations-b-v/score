@@ -59,12 +59,22 @@ def on_library_path():
         sys.path.append(folder)
 
 
-def library_surfaces():
-    """{library surface: its spec}, every variant in its own token (the people place's own list of materials in
-    place.json was retired, 2026-10-21)."""
-    on_library_path()
-    import library
-    return library.by_library(LINE)
+def line_palette(inputs):
+    """The people line's scene palette with its surface library (finish-route-palette@people and
+    surface-library@people: palette_library.read)."""
+    from score.stages.people import baked_body  # noqa: F401  (puts the surface stage's modules on the path)
+    import palette_library
+    return palette_library.read({"finish-route-palette": inputs[f"finish-route-palette@{LINE}"],
+                                 palette_library.ROW: inputs[f"{palette_library.ROW}@{LINE}"]})
+
+
+def library_surfaces(inputs):
+    """{library surface: its spec} of the people line's scene library (surface-library@people), every variant in its
+    own token dirtied in the line's dirt token: the surfaces a person's variant is dressed from (varied). The repo's
+    method library holds no variant (every old one retired, 2026-10-21), so a variant read from it alone could only
+    cycle the take's own painted surfaces and ran out past their count (Batch 1, 2026-10-25)."""
+    import palette_library
+    return palette_library.specs(line_palette(inputs))
 
 
 def read_glb(path):
@@ -383,12 +393,9 @@ def dressed_primitives(document, rest, primitives, painted, surfaces, params):
 def bake_head(inputs, specs):
     """The bake job's head (surfaces/bake_job.job_head: the route's near density, its seed) at the people palette's
     wear and dirt (finish-route-palette@people with its surface library, palette_library.wear)."""
-    from score.stages.people import baked_body  # noqa: F401  (puts the surface stage's modules on the path)
     import bake_job
     import palette_library
-    palette = palette_library.read({"finish-route-palette": inputs[f"finish-route-palette@{LINE}"],
-                                    palette_library.ROW: inputs[f"{palette_library.ROW}@{LINE}"]})
-    return bake_job.job_head(palette_library.wear(palette), specs)
+    return bake_job.job_head(palette_library.wear(line_palette(inputs)), specs)
 
 
 def make_dress(inputs, out, seed, params):
@@ -402,7 +409,7 @@ def make_dress(inputs, out, seed, params):
     look = json.loads((body / "look.json").read_text())
     look_name = name.removeprefix("people-body-")
     painted = Painted(painted_take(inputs, look_name), np.load(body / "rig.npz"))
-    surfaces = {**library_surfaces(), **handed_on(inputs, look_name)[1]["specs"]}
+    surfaces = {**library_surfaces(inputs), **handed_on(inputs, look_name)[1]["specs"]}
     document, rest = read_glb(body / "body.glb")
     found = {}
     for number in dressed_meshes(document):

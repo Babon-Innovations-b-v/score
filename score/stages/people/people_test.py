@@ -442,6 +442,32 @@ def test_each_person_of_a_look_wears_a_variant_of_its_own():
                                       {"surface": "suit_grey", "variant": 3})
 
 
+def test_a_variant_is_dressed_from_the_people_line_s_scene_library():
+    """Batch 1, 2026-10-25: the variants were dressed from the repo's method library, which holds no variant, so a
+    person past the take's own painted surfaces was a library gap. They come from surface-library@people."""
+    method = json.loads((REPO / "data/library/materials.json").read_text())
+    recipe = next(iter(method["recipes"]))
+    scene = {**method, "tokens": {"pale": "#e0d0c0", "dark": "#302820", "blue": "#203060", "grey": "#808080"},
+             "families": {"skin": {"variants": {"skin_pale": {"recipe": recipe, "token": "pale"},
+                                                "skin_dark": {"recipe": recipe, "token": "dark"}}},
+                          "fabric": {"variants": {"cloth_blue": {"recipe": recipe, "token": "blue"},
+                                                  "cloth_grey": {"recipe": recipe, "token": "grey"}}}}}
+    with tempfile.TemporaryDirectory() as held:
+        held = pathlib.Path(held)
+        (held / "palette").mkdir()
+        (held / "palette/palette.json").write_text(json.dumps(
+            {"tokens": scene["tokens"], "wear": {"level": "worked", "dirt": 0.2, "dirt_token": "grey"}}))
+        (held / "library").mkdir()
+        (held / "library/materials.json").write_text(json.dumps(scene))
+        surfaces = dress.library_surfaces({"finish-route-palette@people": held / "palette",
+                                           "surface-library@people": held / "library"})
+    assert {name: spec["family"] for name, spec in surfaces.items()} == {
+        "skin_pale": "skin", "skin_dark": "skin", "cloth_blue": "fabric", "cloth_grey": "fabric"}
+    record = {"skin#0": {"painted": "skin_pale", "role": "skin"}, "suit#1": {"painted": "cloth_blue", "role": "cloth"}}
+    assert dress.variant_gap(record, surfaces, {"variant": 1}) is None
+    assert dress.worn_name("cloth_blue", surfaces, {"variant": 1}, "cloth") == "cloth_grey"
+
+
 def test_clearance_eases_out_and_back():
     angles = np.zeros(20)
     angles[10] = 0.3

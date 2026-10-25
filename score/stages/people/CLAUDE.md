@@ -61,7 +61,8 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   `baked_body.py` bakes those surfaces onto the body itself with the library's own bake (`inside/bake_body.py`,
   `Atlas.bake_self`, on the bake's L4 through `blender_cloud.py`, the people palette's wear and dirt) and checks it
   with `bake_check.py`'s measures; `dressed` fails a material in flat factors with no baked maps, `baked` the
-  check's faults. skel_usd carries the three maps and `score:surface` into the asset. Tests: `people_test.py`.
+  check's faults. A person's variant (`-v<n>`, `varied`) wears other surfaces of the same families from the people
+  line's scene library (surface-library@people, `library_surfaces`), never the repo's method library, which holds none. skel_usd carries the three maps and `score:surface` into the asset. Tests: `people_test.py`.
 - **The concept decides the clothes** (owner, 2026-10-13), per person row and from the design alone
   (`../people_clothes.py`, each row's `dress` in `data/people/rows.json`, written by the people rows' refresh): of the
   people place's library fabrics, those whose name shares a word with the row's name as read, the nearest by dE to
