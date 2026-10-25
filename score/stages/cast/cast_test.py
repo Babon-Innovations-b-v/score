@@ -23,7 +23,7 @@ from score.store import PROPS_HOME  # noqa: E402
 def hub_inputs(folder, design):
     """The hub's inputs with its design swapped for the given one, written into `folder`."""
     inputs = {name: pathlib.Path((pattern[0] if isinstance(pattern, tuple) else pattern).format(
-        place="hub", data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"), repo=str(REPO)))
+        place="hub", data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"), repo=str(REPO), home=str(PROPS_HOME)))
         for name, pattern in cast.files("hub").items()}
     inputs["design"] = folder / "rows.json"
     inputs["design"].write_text(json.dumps({"places": {"hub": design}, "new": {}}))
@@ -93,6 +93,7 @@ def test_a_designs_crowd_asks_its_count_else_its_ground_packed():
     assert cast.asked_of({"count": 40, "spread": [0, 0, 5, 5]}, [{}] * 90) == 40
     assert cast.asked_of({"count": None, "spread": [0, 0, 5, 5]}, [{}] * 90) == 90
     assert cast.asked_of({"count": None, "spread": None}, []) is None
+    assert cast.asked_of({"count": 3, "spread": None}, []) is None
 
 
 def test_a_crowd_lattice_stands_only_on_its_grounds():
@@ -193,6 +194,38 @@ def test_a_base_with_no_solid_stands_nobody_and_runs_into_nothing():
     spots = [[0.0, 0.0, 0.0], [1.0, 0.0, 1.0]]
     assert measure.ground_under(spots, {}) == [{"gap": None, "on": None, "water": False}] * 2
     assert measure.run_into(spots, {}) == [[], []]
+
+
+def test_a_spot_on_a_raised_level_stands_at_its_height():
+    """A people spot inside a plan level's outline stands at that level's height (the stairwell's walkway people on
+    its 3 m landing); one outside every level stays on the floor."""
+    plan = {"w": 4.0, "d": 4.0, "frame": {"anchor": {"plan": [0.0, 0.0], "place": [10.0, 0.0, -5.0]}},
+            "levels": [{"height": 3.0, "points": [[0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [0.0, 2.0]]}]}
+    record = {"people": [{"name": "up", "at": [11.0, 0.0, -4.0]}, {"name": "down", "at": [13.0, 0.0, -2.0]}]}
+    assert [person["at"] for person in cast.on_levels(record, plan)["people"]] == [[11.0, 3.0, -4.0],
+                                                                                  [13.0, 0.0, -2.0]]
+
+
+def test_a_body_stands_on_the_places_made_ground():
+    """The terrain row's made ground of the place (places/<place>.usdc) is measured with its base layer: a base with
+    no solid of its own (an outdoor place) stands its people on the made ground."""
+    from pxr import Usd, UsdGeom
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        base = Usd.Stage.CreateNew(str(folder / "base.usda"))
+        UsdGeom.Xform.Define(base, "/camp")
+        base.Save()
+        ground = Usd.Stage.CreateNew(str(folder / "world/places/camp.usdc"))
+        patch = UsdGeom.Mesh.Define(ground, "/camp/Ground/patch")
+        patch.CreatePointsAttr([(-5, 0, -5), (5, 0, -5), (5, 0, 5), (-5, 0, 5)])
+        patch.CreateFaceVertexCountsAttr([4])
+        patch.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+        ground.Save()
+        made = cast.made_ground({"terrain": str(folder)}, "camp")
+        assert made == folder / "world/places/camp.usdc" and cast.made_ground({}, "camp") is None
+        found = measure.solids(folder / "base.usda", "camp", made)
+        assert measure.solids(folder / "base.usda", "camp") == {}
+        assert [ground["on"] for ground in measure.ground_under([[0.0, 0.0, 0.0]], found)] == ["Ground/patch"]
 
 
 def test_copied_constants_agree():
