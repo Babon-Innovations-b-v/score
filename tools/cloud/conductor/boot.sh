@@ -11,7 +11,8 @@
 #   UUID; restic, uv, the scw CLI, Node.js and the Google Cloud CLI (bq) at pinned versions, each checked against its
 #   SHA-256 as .claude/scripts/install-agent-tools.sh does (a mismatch stops the boot and installs nothing); the secret
 #   reader and the agents' door in /usr/local/bin; sshd keys-only, no root, user score only.
-# user: the checkout cloned when missing (score-update.service moves it later), `uv sync`, every unit in units/
+# user: the checkout cloned when missing (score-update.service moves it later), `uv sync`, gltfpack's pin in the npm
+#   cache (score_lib's web copies run it offline), every unit in units/
 #   installed as a user unit and enabled; once the move wrote machine.json, the prop environment ($PROPS_HOME/env,
 #   the rows' PROPS_PYTHON, never backed up) synced from uv.lock; once ~/.config/scw/config.yaml is there (machine.py up
 #   pipes it over ssh), the tmpfs secrets written and score_lib cloned with its deploy key from tmpfs, its .venv synced.
@@ -97,6 +98,21 @@ chromium_libraries() {
 chromium_browser() {
   PATH="$BIN:$PATH" npx -y -p "$PLAYWRIGHT" playwright install chromium > /dev/null
   say "Chromium for $PLAYWRIGHT"
+}
+
+# score_lib's web copies run `npx --offline -y gltfpack@<pin>` (its src/score_lib/web3d/pack.py GLTFPACK; this repo's
+# tools/review/viewer/export.py GLTFPACK): offline, so the pin must be in user score's npm cache, as bootstrap.sh's
+# seed_gltfpack puts it on the PC. Checked by running it from the cache alone (its -h prints its version, exit 1).
+GLTFPACK_PIN="gltfpack@0.22.0"
+gltfpack_cache() {
+  local said version="${GLTFPACK_PIN#gltfpack@}"
+  PATH="$BIN:$PATH" npm cache add "$GLTFPACK_PIN" > /dev/null
+  said="$(PATH="$BIN:$PATH" npx --offline -y "$GLTFPACK_PIN" -h 2>&1 || true)"
+  case "$said" in
+    "gltfpack ${version%.*}"*) ;;  # it says its major and minor: "gltfpack 0.22"
+    *) echo "boot: $GLTFPACK_PIN does not run from the npm cache: ${said:0:300}" >&2; exit 1 ;;
+  esac
+  say "$GLTFPACK_PIN in user $SCORE_USER's npm cache"
 }
 
 ensure_user() {
@@ -335,6 +351,7 @@ user_part() {
   checkout "$repo"
   props_env "$repo"
   chromium_browser
+  gltfpack_cache
   install_units "$repo"
   if [ ! -f "$HOME/.config/scw/config.yaml" ]; then
     say "no ~/.config/scw/config.yaml yet: machine.py up pipes it, then runs this part again"

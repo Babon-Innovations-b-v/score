@@ -371,11 +371,13 @@ case "$(basename "$0")" in
   curl)
     while [ "$1" != "-o" ]; do shift; done
     echo "not the pinned file" > "$2" ;;
+  npx)
+    case "$*" in *"--offline -y gltfpack@"*) echo "gltfpack 0.22"; exit 1 ;; esac ;;
 esac
 exit 0
 """
 SHIMMED = ("apt-get", "id", "useradd", "loginctl", "blkid", "mkfs.ext4", "mountpoint", "mount", "chown", "systemctl",
-           "runuser", "git", "curl", "chattr", "npx")
+           "runuser", "git", "curl", "chattr", "npx", "npm")
 
 
 def boot_root(folder, installed=True):
@@ -459,6 +461,8 @@ def test_boot_runs_against_a_temp_root_and_again():
         assert waits in (units / "score-health.service").read_text().splitlines()
         assert "npx -y -p playwright@1.62.1 playwright install-deps chromium" in calls  # the film preview's recorder
         assert "npx -y -p playwright@1.62.1 playwright install chromium" in calls
+        # score_lib's web copies run gltfpack offline: its pin in user score's npm cache, run from it once
+        assert "npm cache add gltfpack@0.22.0" in calls and "npx --offline -y gltfpack@0.22.0 -h" in calls
         assert "apt-get remove -y -q nodejs" in calls  # Ubuntu's old node is never found before the pinned one
         assert "systemctl --user start score-secrets.service" in calls
         assert os.readlink(root / "home" / "score" / ".local" / "bin" / "score-lib") == \
@@ -611,6 +615,11 @@ def test_the_move_switches_off_the_pcs_store_units_it_has():
         raise AssertionError("a failed disable was not said")
     except SystemExit as failed:
         assert "Access denied" in str(failed)
+
+
+def test_the_boot_seeds_the_gltfpack_pin_the_web_copies_run():
+    pin = re.search(r'^GLTFPACK = "(gltfpack@[0-9.]+)"', (REPO / "tools/review/viewer/export.py").read_text(), re.M)
+    assert f'GLTFPACK_PIN="{pin.group(1)}"' in (HERE / "boot.sh").read_text().splitlines()
 
 
 if __name__ == "__main__":
