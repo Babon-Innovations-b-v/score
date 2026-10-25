@@ -165,7 +165,10 @@ def guard(benchmarks=None):
     if high > CAP_EUROS:
         refusal = f"the benchmarks' high EUR {high:.2f} passes their EUR {CAP_EUROS:.0f} cap"
     else:
-        refusal = compute.books_refusal()
+        try:
+            refusal = compute.books_refusal()
+        except compute.ledger().FreeOnly as refused:  # free only (the kill latch): a refusal to show, the figure stands
+            refusal = str(refused)
     return {"total_euros": total(benchmarks, "likely_euros"), "high_euros": high, "cap_euros": CAP_EUROS,
             "refusal": refusal}
 

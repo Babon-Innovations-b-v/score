@@ -97,11 +97,13 @@ def written(where, held, found, rows, blobs, folder):
 def run(out=OUT):
     """Compare environment 1 with its library and write every place's findings under `out`; the summary line."""
     from score import stages
+    from score.review import plans
     world = stages.world1()
     values = backend.settings()
     configured = backend.kind(values) != backend.NONE or library_free(world.name)
     store = stored.reading()
-    handed = handed_of(store, stages.places(world))
+    with plans.one_moment():  # each place's plan read once: nothing is written meanwhile
+        handed = handed_of(store, stages.places(world))
     rows = library_rows(values.get("SCORE_LIB_ROOT"))
     accepted = {row["node"]: store.accepted(row["node"]) for row in rows if row.get("node")}
     found = invariant.problems(world.name, handed, rows, accepted, configured)

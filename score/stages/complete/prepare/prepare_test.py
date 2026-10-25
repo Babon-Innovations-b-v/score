@@ -164,6 +164,21 @@ def test_the_benchmarks_stay_under_their_cap_and_ask_the_months_guard():
     assert "cap" in over["refusal"] and over["total_euros"] == 1.0  # the guesses count against the cap
 
 
+def test_the_benchmarks_guard_under_the_kill_latch_is_a_refusal_and_the_figure_stands():
+    import os
+    name = compute.ledger().FREE_ONLY
+    before = os.environ.get(name)
+    os.environ[name] = "1"  # the sync pass runs free only while the latch holds
+    try:
+        found = benchmarks.guard([{"likely_euros": 1.0, "high_euros": 1.0}])
+    finally:
+        if before is None:
+            del os.environ[name]
+        else:
+            os.environ[name] = before
+    assert "free only" in found["refusal"] and found["total_euros"] == 1.0
+
+
 def test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_and_the_rest_run_once():
     import types
     pixal = benchmarks.BENCHMARKS[0]

@@ -39,8 +39,14 @@ DECLARED_IN = "score/graph/_code.py"
 
 def in_repo(path):
     """True for a source file of this repository (not its virtual environment)."""
-    path = pathlib.Path(path).resolve()
-    return path.is_relative_to(REPO) and not any(path.is_relative_to(folder) for folder in OUTSIDE)
+    return under_repo(pathlib.Path(path), REPO, OUTSIDE)
+
+
+@functools.cache
+def under_repo(path, repo, outside):
+    """in_repo's answer, once a path a process (a code version asks it of every file behind every stage)."""
+    path = path.resolve()
+    return path.is_relative_to(repo) and not any(path.is_relative_to(folder) for folder in outside)
 
 
 @functools.cache
@@ -103,8 +109,9 @@ def imports_of(path, is_file, read_text):
 
 
 def in_framework(path, framework):
-    """True for a file `framework` names, or one inside a folder it names."""
-    return any(path.is_relative_to(entry) for entry in framework)
+    """True for a file `framework` names, or one inside a folder it names (a set lookup of the path and each folder
+    above it: the walk asks it of every file behind every stage)."""
+    return path in framework or not framework.isdisjoint(path.parents)
 
 
 def followed(starts, framework, imports):

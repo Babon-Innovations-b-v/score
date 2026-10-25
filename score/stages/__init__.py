@@ -106,7 +106,7 @@ def held_scenes(place):
     tree; one in design is no scene of the batch, and the tree's gate names it. Here in the table, as it lists the
     environment's places."""
     children = scene_tree.held(place)
-    batch = set(places(world1())) if children else set()
+    batch = plans.once("batch", None, "world1", lambda: set(places(world1())), shared=True) if children else set()
     return [child for child in children if child in batch]
 
 
@@ -785,7 +785,7 @@ def places(world, store=None):
     path = data / "places/within.json"
     found = json.loads(path.read_text()) if path.exists() else {}
     within = {name: entry["within"] for name, entry in found.get("within", {}).items()}
-    store = store or Store.default()
+    store = graph.scoped(store or Store.default())  # each listing walks its prefix's folder, not the whole store
     gone = {*found.get("merged", {}), *found.get("parts", {}), *removed_by_him(store, within)}
     return parent_first(set(designed_scenes(store, within)) - gone, laid_out(store, within))
 
