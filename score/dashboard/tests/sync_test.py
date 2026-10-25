@@ -8,6 +8,7 @@ import io
 import json
 import os
 import shutil
+import threading
 import urllib.error
 
 import pytest
@@ -117,10 +118,17 @@ class Answer:
 
 
 def opener_of(web):
-    """A urlopen stand-in that sends client.Remote's requests to the hosted app in this process."""
+    """A urlopen stand-in that sends client.Remote's requests to the hosted app in this process, one at a time: the
+    test database is SQLite in memory with a shared cache, where a second writer is refused at once ("database table
+    is locked") instead of waiting out the busy timeout as the hosted side's file database does, so the listener's
+    side-by-side answers (listen.round_once) write to it in turn."""
+    one_at_a_time = threading.Lock()
+
     def opened(request, timeout):
         path = request.full_url.removeprefix("http://hosted")
-        answer = web.request(request.get_method(), path, content=request.data, headers=dict(request.header_items()))
+        with one_at_a_time:
+            answer = web.request(request.get_method(), path, content=request.data,
+                                 headers=dict(request.header_items()))
         if answer.status_code >= 400:
             raise urllib.error.HTTPError(request.full_url, answer.status_code, answer.text, {},
                                          io.BytesIO(answer.content))
