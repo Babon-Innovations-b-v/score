@@ -17,12 +17,18 @@ for the creator.
   job (`../cloud/google_batch.py`), the same request as one call would send; only `stage.py` calls it, and only for
   rows the check failed.
   `pro.draw` refuses outside a cleared run (`score.adapters.compute.require_cleared`), as every paid call does.
-- **The object's own size, the check's own view, one strict retry** (owner, 2026-10-24, from the Buy's 80 gaps):
-  a close-up is asked for and checked at `stage.object_size` (the row's `read_size`, its inventory reading's metres,
-  else its `size`; a plan's item is the footprint it is laid in, never the object's size); every wording states the
-  check's turn and look-down (`stage.VIEW` from `check.TURN_DEGREES`, `LOOK_DOWN_DEGREES`); a picture the check
-  rejects leaves google_spend's cache (`stage.forget_rejected`) and gets one retry, `RETRY` added to its wording
-  (`PRO_TAKES`), at most one a row a run. Never loosen the check to pass more.
+- **The object's own size, the check's own view, strict retries** (owner, 2026-10-24, from the Buy's 80 gaps;
+  2026-10-25, "fix all"): a close-up is asked for and checked at `stage.object_size` (the row's `read_size`, its
+  inventory reading's metres, else its `size`; a plan's item is the footprint it is laid in, never the object's size);
+  every wording states the check's turn and look-down (`stage.VIEW` from `check.TURN_DEGREES`, `LOOK_DOWN_DEGREES`); a
+  picture the check rejects gets up to three retries in the same step (`PRO_TAKES`): `RETRY` added to its wording,
+  then `FIRMER` too on a seed of its own (`RETRY_SEEDS`), so each take is a new request, every one priced and on the
+  ledger like the first, at the same settings. Never loosen the check to pass more.
+- **A picture is keyed by its request, the check judges it apart** (coordinator, 2026-10-25): every Pro picture stays
+  in google_spend's cache, a rejected one too; the close-up row first reads back every take the cache holds (free)
+  and judges it with today's check, and draws only for the rows none passed. A check change re-judges kept pictures
+  without drawing them; a passing picture is kept, so its model's take stands. Never change the first two takes'
+  requests (`pro`, `retry`): the pictures of the batches before are cached under them.
 - **The outline is held to a look-down range** (`check.LOOK_DOWN_DEGREES` to `LOOK_DOWN_MOST`, 15 to 30 degrees,
   2026-10-25): Pro draws from that high whatever the wording says, and a flat object's outline is nearly all
   look-down, so one angle faulted the camera, not the object (34 of 74 proportion faults of Batch 1's first try were

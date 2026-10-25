@@ -354,10 +354,11 @@ def test_a_persons_close_up_is_held_to_its_arms_apart_not_a_box():
     shutil.rmtree(folder)
 
 
-def test_a_rejected_close_up_is_retried_once_strictly_at_its_own_size_and_leaves_the_cache():
+def test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_picture_is_never_drawn_again():
     """Owner, 2026-10-24: the check holds a close-up to the object's own size from its reading (the plan's footprint
-    failed 23 of the Buy's 80 gaps alone); a picture it rejects leaves Google's cache and gets one retry, worded more
-    strictly; the rejected requests' euros are written for the rebuy's price."""
+    failed 23 of the Buy's 80 gaps alone); owner, 2026-10-25: a picture it rejects gets up to three retries, worded
+    more strictly, the later ones on their own seeds. Every picture stays cached: a make asked again reads each take
+    back free and judges it again, so a passing picture is kept and nothing is drawn twice (coordinator, 2026-10-25)."""
     import types
     from PIL import Image, ImageDraw
     import score.stages.props.closeup_row as closeup_row
@@ -368,7 +369,7 @@ def test_a_rejected_close_up_is_retried_once_strictly_at_its_own_size_and_leaves
     own = [0.5, 0.5, 1.0]
     rows = [{"id": name, "scene": "s", "words": name, "size": [4.0, 0.5, 0.5], "read_size": own, "layer": "objects",
              "concept": str(folder / "concept.png"), "box": [100, 100, 600, 500], "drawn": None}
-            for name in ("lamp", "crate")]
+            for name in ("lamp", "crate", "tools")]
     (folder / "inputs").mkdir()
     (folder / "inputs/rows.json").write_text(json.dumps({"rows": rows}))
     tall = 300
@@ -384,9 +385,11 @@ def test_a_rejected_close_up_is_retried_once_strictly_at_its_own_size_and_leaves
 
     def draw(key, asks):
         for path, ask in asks.items():
-            sent.append((path.parent.name, path.stem, ask[0]))
-            spend.cache_path(stage.pro.MODEL, stage.pro.request_body(*ask)).write_text("{}")
-            picture(path, path.stem == "crate" or path.parent.name == "retry")
+            kept_answer = spend.cache_path(stage.pro.MODEL, stage.pro.request_body(*ask))
+            if not kept_answer.exists():  # a cached request is read back free (google_batch.generate)
+                sent.append((path.parent.name, path.stem, ask[0], ask[3]))
+                kept_answer.write_text("{}")
+            picture(path, path.stem == "crate" or (path.stem == "lamp" and path.parent.name == "retry-2"))
         return dict.fromkeys(asks, True)
     kept = stage.pro.draw, spend.CACHE, sys.modules.get("secret_store")
     stage.pro.draw, spend.CACHE = draw, folder / "cache"
@@ -396,14 +399,23 @@ def test_a_rejected_close_up_is_retried_once_strictly_at_its_own_size_and_leaves
         (folder / "out").mkdir()
         closeup_row.make_closeups({"props-inputs": folder / "inputs"}, folder / "out", 7, {})
         found = json.loads((folder / "out/closeups.json").read_text())["objects"]
-        assert [(take, name) for take, name, _ in sent] == [("pro", "lamp"), ("pro", "crate"), ("retry", "lamp")], sent
-        assert stage.RETRY not in sent[0][2] and sent[2][2] == sent[0][2] + stage.RETRY
-        assert found["crate"]["drawn_by"] == "pro" and found["lamp"]["drawn_by"] == "retry", found
-        assert found["lamp"]["pro_pictures"] == 2 and found["lamp"]["takes"]["pro"][0] == "background not plain to the edge"
-        lamp = dict(rows[0], pro_wording=stage.pro_wording(rows[0]))
-        assert not spend.cache_path(stage.pro.MODEL, stage.pro.request_body(*stage.pro_ask(lamp, folder / "out", "pro"))).exists()
-        assert len(list(spend.CACHE.iterdir())) == 2  # the passing pictures stay cached
-        assert json.loads((folder / "out" / closeup_row.UNCACHED).read_text())["asks"] == 1
+        assert [(take, name) for take, name, _, _ in sent] == [
+            ("pro", "lamp"), ("pro", "crate"), ("pro", "tools"), ("retry", "lamp"), ("retry", "tools"),
+            ("retry-2", "lamp"), ("retry-2", "tools"), ("retry-3", "tools")], sent
+        first, retry, firmer = sent[0][2], sent[3][2], sent[5][2]
+        assert stage.RETRY not in first and retry == first + stage.RETRY and firmer == retry + stage.FIRMER
+        assert [seed for _, _, _, seed in sent] == [None] * 5 + [2, 2, 3]
+        assert found["crate"]["drawn_by"] == "pro" and found["lamp"]["drawn_by"] == "retry-2", found
+        assert found["tools"]["drawn_by"] is None and found["tools"]["pro_pictures"] == 4
+        assert found["lamp"]["takes"]["pro"][0] == "background not plain to the edge"
+        assert len(list(spend.CACHE.iterdir())) == 8  # every picture stays cached, a rejected one too
+        gaps = json.loads((folder / "out/batch-gaps.json").read_text())
+        assert [gap["name"] for gap in gaps["gaps"]] == ["tools: no close-up passed"], gaps
+        sent.clear()
+        (folder / "again").mkdir()
+        closeup_row.make_closeups({"props-inputs": folder / "inputs"}, folder / "again", 7, {})
+        assert sent == []  # asked again: every take read back free and judged again
+        assert (folder / "again/closeups/lamp.png").read_bytes() == (folder / "out/closeups/lamp.png").read_bytes()
         assert closeup_row.measured(folder / "out/closeups/crate.png", {"size": [4.0, 0.5, 0.5]})  # the footprint fails
         assert closeup_row.judge_closeups(folder / "out", {}, {}).answer == "pass"
     finally:

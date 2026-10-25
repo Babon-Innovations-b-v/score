@@ -30,9 +30,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   names the routes it runs (`runs`). Plans may refine positions later, never the count.
 - **Every job once.** The figure prices each take's layers one run each (`estimate.one_shot`: one draw a map, no
   finish asked again); no retry share, no second take, no fallback class. The one exception is the close-up: a
-  picture the shape check rejects gets one retry (owner, 2026-10-24), priced at the per unit file's measured
-  pictures a row (`per_model`, the runner's count too). A shell piece runs the
-  whole route like any model (CONTEXT.md "prop pipeline": the finish route lists its library surface, no maps, so the
+  picture the shape check rejects gets up to three retries (owner, 2026-10-24, 2026-10-25), priced at the per unit
+  file's measured pictures a row (`per_model`, the runner's count too). A shell piece runs the whole route like any model (CONTEXT.md "prop pipeline": the finish route lists its library surface, no maps, so the
   bake, which bakes the listed takes, bakes it, #10). likeness-calibration is no layer of a design's take
   (`__main__.design_route`: it applies only to prop data naming accepted models). Card and processor layers carry the bill share
   (`gaps/price.py` `BILL_SHARE`); Google calls do not.

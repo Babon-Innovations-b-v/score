@@ -33,11 +33,13 @@ def part(picture, longest):
     return {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}
 
 
-def request_body(wording, crop, concept=None):
-    """The request: the wording, the crop (image 1) and the whole concept when given (image 2), one 2K picture back."""
+def request_body(wording, crop, concept=None, seed=None):
+    """The request: the wording, the crop (image 1) and the whole concept when given (image 2), one 2K picture back;
+    `seed` in its generation settings when given (a later retry's own, so its request and picture are new ones)."""
     parts = [{"text": wording}, part(crop, 1024)] + ([part(concept, 1600)] if concept else [])
-    return {"contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"responseModalities": ["IMAGE"], "imageConfig": {"imageSize": "2K"}}}
+    settings = {"responseModalities": ["IMAGE"], "imageConfig": {"imageSize": "2K"},
+                **({"seed": seed} if seed is not None else {})}
+    return {"contents": [{"role": "user", "parts": parts}], "generationConfig": settings}
 
 
 def pictures_in(answer):
@@ -47,13 +49,13 @@ def pictures_in(answer):
 
 
 def draw(key, asks):
-    """Every close-up of `asks` ({path: (wording, crop, concept or None)}) drawn as one Batch API job at half price
-    (../cloud/google_batch.py, caller "pro", the same model, request and settings as one call at a time), each saved
-    at its path; {path: True when a picture came back, False for a gap}. A gap is a request the batch gave no answer
+    """Every close-up of `asks` ({path: (wording, crop, concept or None, seed or None)}) drawn as one Batch API job at
+    half price (../cloud/google_batch.py, caller "pro", the same model, request and settings as one call at a time),
+    each saved at its path; {path: True when a picture came back, False for a gap}. A gap is a request the batch gave no answer
     to (google_batch.Unanswered: the job failed, was cancelled or expired, the send was cut off, or it answered with an
     error; it may be billed) or an answer with no picture, dropped from the cache so a new batch may ask again. Each
     is asked once (a batch, CONTEXT.md, owner 2026-10-20): a gap is not asked again here, it goes to the basket and a
-    new batch. A request asked before (same wording, crop and concept) is read back from google_spend's cache, free,
+    new batch. A request asked before (same wording, crop, concept and seed) is read back from google_spend's cache, free,
     so a re-keyed node re-draws nothing. A set-up fault at the send reaches the caller (google_batch). Refused outside
     a cleared run (compute.require_cleared)."""
     compute.require_cleared("a Nano Banana Pro close-up")
@@ -62,10 +64,10 @@ def draw(key, asks):
     return {path: saved(answers[str(path)], bodies[str(path)], path) for path in asks}
 
 
-def forget(ask):
-    """One ask's (wording, crop, concept or None) answer dropped from google_spend's cache, so the same request
-    draws again: a picture the shape check rejected (owner, 2026-10-24)."""
-    google_spend.cache_path(MODEL, request_body(*ask)).unlink(missing_ok=True)
+def cached(ask):
+    """Whether one ask's (wording, crop, concept or None, seed or None) answer is in google_spend's cache: drawing it
+    reads that picture back, free."""
+    return google_spend.cache_path(MODEL, request_body(*ask)).exists()
 
 
 def saved(answer, body, path):
