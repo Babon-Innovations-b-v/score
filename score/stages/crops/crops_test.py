@@ -224,6 +224,23 @@ def test_look_finds_the_floor_again():
             assert 0 <= pixel[0] < look.SIZE[0] and 0 <= pixel[1] < look.SIZE[1], (view["name"], point, pixel)
 
 
+def test_look_stage_takes_beds_named_with_spaces():
+    """crops-look@greenhouse, try 4 of 2026-10-25: its beds are plan items named 'PLANTER BED 1', no prim name, so the
+    stage build raised before the card was rented. Each bed's prim is a valid identifier, its name kept."""
+    from pxr import Usd
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        crops = folder / "crops"
+        (crops / "assets").mkdir(parents=True)
+        (crops / layer.LAYER).parent.mkdir(parents=True)
+        empty = Usd.Stage.CreateNew(str(crops / layer.LAYER))
+        empty.GetRootLayer().Save()
+        path = look.beds_stage("greenhouse", BEDS, crops, folder / "look")
+        stage = Usd.Stage.Open(str(path))
+        named = sorted(prim.GetAttribute("score:name").Get() for prim in stage.Traverse() if prim.GetTypeName() == "Cube")
+        assert named == sorted(bed["name"] for bed in BEDS) and " " in named[0], named
+
+
 def test_look_counts_a_plant_the_kind_of_its_bed():
     """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on."""
     beds = {bed["name"]: bed for bed in BEDS}
