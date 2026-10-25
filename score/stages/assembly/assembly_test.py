@@ -617,6 +617,18 @@ def test_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read
         assert all(path.stat().st_mode & 0o200 for path in out.rglob("*") if path.is_file())
 
 
+def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder():
+    """The settle's grounded seed of a store checkout (read-only, no assets/ folder: Batch 1, 2026-10-25, every
+    settle) is laid with its record written over the copied base and an assets folder of its own."""
+    from pxr import Usd
+    from score.stages.assembly.grounded import grounded_seed
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        read_only_toy(folder / "store" / TOY)
+        root = grounded_seed({"seed": folder / "store" / TOY, **a_record(folder)}, folder / "settle")
+        assert Usd.Stage.Open(str(root)).GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
