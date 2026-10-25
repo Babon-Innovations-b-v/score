@@ -48,7 +48,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (the concept's pixels named shadows and the people's skin and missed the accents, measured 2026-10-21). Then the
   **material step**, `surface-library` (paid,
   `scene_library.py`, one Gemini 3.1 Pro ask a scene in the Batch API; owner, 2026-10-21: every old material
-  retired, the library starts empty): the scene's surfaces made fresh from its concept, palette and its takes' kinds
+  retired, the library starts empty): the scene's surfaces made fresh from its concept, palette, its takes' kinds and the shell its locked plan lays (`shell_kinds`: an enclosed place's floor, walls and roof are the plan's, no take's)
   by today's method (each a `recipes.py` recipe with token, roughness, metal, colour settings, seed and sound
   surface; a patterned recipe, a quilt, tiles, a grid or boards, only where the picture shows that pattern: asked
   with no such word, the people's library made its one fabric `quilted` twice and the astronaut's plain overalls took

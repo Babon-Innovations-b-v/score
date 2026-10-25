@@ -5,7 +5,9 @@ scene's surfaces are made fresh here, from its design alone, before anything of 
 
 Gemini sees the scene's locked concept (a line no scene owns, the people's: every locked concept), its scene palette
 (finish-route-palette: its tokens and colours, wear and dirt), every object kind its takes are (its surface data,
-written from its scene inventory) with the words for it, and today's method: the ProcFunc recipes
+written from its scene inventory) with the words for it, the parts of the shell its locked plan lays (the floor,
+walls, roof, raised levels and stairs, `shell_kinds`: the plan lays an enclosed place's shell, so no take is it), and
+today's method: the ProcFunc recipes
 (tools/props/library/recipes.py, their default settings and the colour settings each names, data/library/
 materials.json). It answers the scene's surfaces, each a variant of one recipe: a name, its family, its token, its
 roughness and metal, the token of each colour setting its recipe names, the surface it sounds like (one of
@@ -16,7 +18,8 @@ Output: materials.json, a surface library in the loader's form (tools/props/libr
 levels, recipes and colour settings; the scene's families of variants, its palette tokens, its dirt token, `kinds`
 {kind: [variant]}), every variant with its own seed and sound surface (`surface`, the family's its first
 variant's); or unanswered.json with why. Gate "surfaces from the design": at least one surface, every kind of the
-scene covered, every recipe the method's, every token the palette's, every sound surface known, every setting 0 to
+scene covered (the shell's
+parts too), every recipe the method's, every token the palette's, every sound surface known, every setting 0 to
 1. The rows after it (finish-route-list, surfaces-parts, surfaces-bake, finish-route-recheck,
 surfaces-check) take this library through palette_library.py. Handing the accepted library to score_lib as surface
 drafts is the library handover's (score/stages/library), not this row's.
@@ -68,9 +71,34 @@ boards) is only for a surface the picture shows with that pattern; a plain surfa
 def files(place):
     """The row's files: the scene palette row's (its surface data, its locked concept or every locked concept), the
     whole method's library (recipes, their colour settings, wear levels) and what its ground rows' recipes are ruled
-    from (ground_files)."""
+    from (ground_files), and its locked plan where it has one (the shell's parts, shell_kinds)."""
     return {**scene_palette.files(place), "library": "{data}/library/materials.json",
-            "sounds": "{data}/sound/surfaces.json", **ground_files(place)}
+            "sounds": "{data}/sound/surfaces.json", **ground_files(place), **plan_files(place)}
+
+
+def plan_files(place):
+    """The scene's locked plan where it has one ({home}/design/plans/<place>.json); none for a line no scene owns."""
+    from score.review import plans
+    return {"plan": f"{{home}}/design/plans/{place}.json"} if (plans.KEPT / f"{place}.json").is_file() else {}
+
+
+# The words the question gives each shell part's library kind (palette_library.SHELL_KINDS, its first).
+SHELL_WORDS = {"deck": "the floor the place stands on", "level": "a raised deck or level of the place",
+               "wall": "the room's walls", "roof": "the roof or ceiling over the room", "stair": "the stairs"}
+
+
+def shell_kinds(plan):
+    """{library kind: the words for it} of each part of the shell the locked plan lays (design_shell: an enclosed
+    place's deck, walls and roof, whoever lays them, else an open place's raised levels; `stair` for its flights),
+    each its part's first library kind (palette_library.SHELL_KINDS), the one the shell finds its surface by."""
+    from score.stages.earth_seed import design_shell
+    laid = design_shell.pieces(plan) if design_shell.encloses(plan) or design_shell.laid_for(plan) else \
+        design_shell.levels(plan)
+    parts = {design_shell.part_kind(name) for name, _, _ in laid}
+    if any(len(entry.get("points") or []) >= 3 for entry in plan.get("stairs") or []):
+        parts.add("stair")
+    return {palette_library.SHELL_KINDS[part][0]: f"{SHELL_WORDS[part]} (the shell its locked plan lays)"
+            for part in sorted(parts)}
 
 
 def ground_files(place):
@@ -117,12 +145,15 @@ def sound_surfaces(inputs):
 
 
 def kinds_of(inputs):
-    """{kind: the words for it} of every take in the scene's surface data and every ground row (grounds_of) of its
-    inventory (first words kept)."""
+    """{kind: the words for it} of every take in the scene's surface data, every ground row (grounds_of) of its
+    inventory and every part of the shell its locked plan lays (shell_kinds; first words kept)."""
     found = {kind: ground["words"] for kind, ground in grounds_of(inputs).items()}
     for take in json.loads(pathlib.Path(inputs["surfaces"]).read_text()).get("takes", {}).values():
         if take.get("kind"):
             found.setdefault(take["kind"], take.get("object") or take["kind"])
+    if "plan" in inputs:
+        for kind, words in shell_kinds(json.loads(pathlib.Path(inputs["plan"]).read_text())).items():
+            found.setdefault(kind, words)
     return dict(sorted(found.items()))
 
 
