@@ -106,11 +106,16 @@ def reads_assembly(name, by_name, seen=None):
 
 
 def forward_layer(name, readers, seen=None):
-    """The layer of the first assembly input reached walking a stage's readers forward, in table order, or None."""
+    """The layer of the first assembly input reached walking a stage's readers forward, in table order, or None; a
+    reader that is an assembly input itself comes before a longer walk through another (a model read on into the
+    scene record's surface library is still a piece: its finish palette feeds the bake)."""
     if name in LAYER_OF_INPUT:
         return LAYER_OF_INPUT[name]
     seen = seen if seen is not None else set()
     seen.add(name)
+    direct = next((LAYER_OF_INPUT[reader] for reader in readers.get(name, []) if reader in LAYER_OF_INPUT), None)
+    if direct:
+        return direct
     for reader in readers.get(name, []):
         if reader in seen:
             continue
