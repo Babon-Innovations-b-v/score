@@ -4,7 +4,8 @@ the real cloud ledger, 2026-10-17). `make tests` and `make check` run every test
 
     python3 .claude/scripts/sandbox-home.py -- <command> [<argument> ...]
 
-PROPS_HOME is a fresh folder in the temp folder (PROPS_WORK unset, so it follows), removed after. The tests read
+PROPS_HOME is a fresh folder in the run's own temp folder (TMPDIR, PROPS_WORK unset, so it follows), both removed
+after: whatever a test leaves in the temp folder goes with them. The tests read
 environment data from the real home (seeds, kits, stages under work/), so where bubblewrap is installed the sandbox links to
 the real home's folders and the command runs with the real home mounted read-only: a read works, a write through a
 link fails loudly instead of landing. work/ and work/carry-commits are real folders in the sandbox with their entries
@@ -48,10 +49,10 @@ def link_into(real, sandbox, folder):
             (sandbox / name).symlink_to(entry)
 
 
-def make_sandbox(real, link):
-    """A fresh sandbox home in the temp folder with an empty store (store/cache, as a fresh real home has), linking the
-    real home's environment data when `link`."""
-    sandbox = pathlib.Path(tempfile.mkdtemp(prefix="score-test-"))
+def make_sandbox(real, link, temp=None):
+    """A fresh sandbox home in the temp folder (`temp`, else the system's) with an empty store (store/cache, as a fresh
+    real home has), linking the real home's environment data when `link`."""
+    sandbox = pathlib.Path(tempfile.mkdtemp(prefix="score-test-", dir=temp))
     (sandbox / "store" / "cache").mkdir(parents=True)
     if link and real.is_dir():
         link_into(real, sandbox, "")
@@ -87,12 +88,17 @@ def remove(sandbox):
 def run(argv, real=REAL_HOME):
     """Run `argv` in a sandbox home; its exit status."""
     command = read_only_command(real, argv)
-    sandbox = make_sandbox(real, link=command is not None)
+    # the run's own temp folder (TMPDIR), its home inside it, removed with it: the tests' mkdtemp stores were never
+    # removed and took every inode of /tmp (2026-10-25: 6,000 folders), so nothing else could write there
+    temp = pathlib.Path(tempfile.mkdtemp(prefix="score-test-tmp-"))
+    sandbox = make_sandbox(real, link=command is not None, temp=temp)
     environ = {name: value for name, value in os.environ.items() if name != "PROPS_WORK"}
     try:
-        return subprocess.run(command or argv, env={**environ, "PROPS_HOME": str(sandbox)}).returncode
+        return subprocess.run(command or argv, env={**environ, "PROPS_HOME": str(sandbox),
+                                                    "TMPDIR": str(temp)}).returncode
     finally:
         remove(sandbox)
+        shutil.rmtree(temp, onerror=writable_again)
 
 
 def main(argv):
