@@ -418,6 +418,30 @@ def test_a_dress_row_bakes_on_a_card_and_reads_the_palette_and_the_bake():
         assert "baked" in {check.name for check in row.checks}
 
 
+def test_each_person_of_a_look_wears_a_variant_of_its_own():
+    """Owner, 2026-10-25: "Each one looks different": variant n of a body wears, for every part but a rigid one, the
+    n-th of its surface's family by colour nearness (itself first); a library too small to tell two apart is a gap."""
+    surfaces = {"skin_a": {"family": "skin", "colour": [0.5, 0.4, 0.3]},
+                "skin_b": {"family": "skin", "colour": [0.4, 0.3, 0.2]},
+                "skin_c": {"family": "skin", "colour": [0.1, 0.1, 0.1]},
+                "suit_white": {"family": "fabric", "colour": [0.9, 0.9, 0.9]},
+                "suit_grey": {"family": "fabric", "colour": [0.6, 0.6, 0.6]},
+                "visor": {"family": "glass", "colour": [0.1, 0.1, 0.1]}}
+    assert [dress.worn_name("skin_a", surfaces, {"variant": number}, "skin") for number in range(4)] == [
+        "skin_a", "skin_b", "skin_c", "skin_a"]
+    assert dress.worn_name("visor", surfaces, {"variant": 1}, "hard") == "visor"
+    assert dress.worn_name("suit_white", surfaces, {"surface": "suit_grey", "variant": 1}, "cloth") == "suit_white"
+    record = {"skin#0": {"painted": "skin_a", "role": "skin"}, "suit#1": {"painted": "suit_white", "role": "cloth"},
+              "visor#2": {"painted": "visor", "role": "hard"}}
+    assert [dress.variant_gap(record, surfaces, {"variant": number}) for number in range(6)] == [None] * 6
+    gap = dress.variant_gap(record, surfaces, {"variant": 6})
+    assert gap and "variant 0" in gap and "fabric, skin" in gap, gap
+    import score.stages.people as people
+    row = people.dress_row("astronaut-made", "suit_grey", 3)
+    assert (row.name, row.params) == ("people-dress-astronaut-made-in-suit_grey-v3",
+                                      {"surface": "suit_grey", "variant": 3})
+
+
 def test_clearance_eases_out_and_back():
     angles = np.zeros(20)
     angles[10] = 0.3

@@ -6,7 +6,7 @@ shows, each placed in the place with a clip, and measured against the concept an
              turn and stood clear round them; a crowd one far look in its palettes, #26), never the old game records
              or the lost concept pictures, dealt by cast.py's own rules, each with its
              spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<surface>`
-             where its design row wears a fabric of its own) stands usable, read as an optional input; `cast.json`. Then every
+             where its design row wears a fabric of its own, `-v<n>` the person's variant) stands usable, read as an optional input; `cast.json`. Then every
              spot measured on the seed's base layer (measure.py): what it stands on and what its body runs into;
              `measures.json`.
     gates    counted   the cast holds as many people as the design shows (its rows' counts), everyone fits on the
@@ -122,10 +122,10 @@ def look_of(character):
     return None
 
 
-def made_row(look, surface, inputs):
-    """The dress row of a look worn in its row's fabric (layer.body_row) when it stands usable for this node (an
-    optional input the runner gave it), else None: the look is not made."""
-    row = layer.body_row("/".join(look), surface) if look else None
+def made_row(look, surface, variant, inputs):
+    """The dress row of a look worn in its row's fabric and the person's variant (layer.body_row) when it stands
+    usable for this node (an optional input the runner gave it), else None: the look is not made."""
+    row = layer.body_row("/".join(look), surface, variant) if look else None
     return row if row in inputs else None
 
 
@@ -140,7 +140,7 @@ def dealt(record, inputs):
         single = dict(single, look=person.get("look"), surface=person.get("surface"))
         look = look_of(single)
         found.append({**single, "look": "/".join(look) if look else None,
-                      "made": made_row(look, single["surface"], inputs)})
+                      "made": made_row(look, single["surface"], single.get("variant") or 0, inputs)})
     return found
 
 
@@ -157,7 +157,7 @@ def crowd_of(record, singles, inputs):
     candidates = (spread.far_enough(spread.lattice(crowd, keep_clear), plan_views(inputs))
                   if crowd.get("spread") else [])
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
-            "made": made_row(look, None, inputs), "doing": crowd["doing"], "asked": asked_of(crowd, candidates),
+            "made": made_row(look, None, 0, inputs), "doing": crowd["doing"], "asked": asked_of(crowd, candidates),
             "grounds": crowd.get("grounds"), "copies": candidates}
 
 

@@ -14,24 +14,27 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
 
 A row's `dress` is what its people wear, read off the design (score/stages/people_clothes.py: of the people place's
 fabrics its words name, the nearest its measured torso), each person of a row with a surface dressed by
-`people-dress-<look>-in-<surface>`. One body a look (owner, 2026-10-22: "make bodies one per look"): people rows are
-grouped into looks by what the reading says they are and wear (`look_of`: the row's words before where it stands or
-what it holds, its pose and colour words left out, so a seated astronaut and five standing ones in another scene are
-one `astronaut-made`), each person of a row standing as its row's look on its person spot, its colour its row's dress
-(the rule above); a named person (a capitalised word in its row's name) or the player is a look of its own,
-`<place>_<row>-made`. A crowd one far look in a few colour palettes (CONTEXT.md "crowd"): the line's look its row's
-words match (`crowd_look`), else its own words' look. The outfit `made` is the clothes as the concept draws them on
-the body the people route makes, its face the made one (tools/characters/maker/route_head.py FACE; `drawn` there is
-the owner's open choice, never what a row asks for). Each look's maker spec (data/people/specs/<character>.json: who
-from its row's words, the build from the row's metres, face, hair and clothes as the locked concept draws them, which
-the close-up is drawn from: drawn_from; the row that draws a look is its largest standing person, `origin_of`) and
-its take on the people line are written on every refresh
-(`designed_specs`, `with_designed`); no hand-written character file stands before a design's person. A
-crowd's palettes are not decided by any rule here (`UNDECIDED_PALETTES`): null, with why, until one recorded model
-call per scene names them. Which looks get a full body and which a far one follows from each person row's `share`
-(score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast (score/stages/cast) and the
-characters layer read who is in a place from here, never the old game records (data/characters) or the lost concept
-pictures; the people line's bake entries take each look's size from the person row that maps it (`size_of`).
+`people-dress-<look>-in-<surface>`. Each person its own variant (owner, 2026-10-25: "Each one looks different"): the
+people of one look in a place are numbered 0, 1, ... (`persons`), the first the look's plain dress row, each other
+`-v<n>`, the same body finished in other library surfaces (score/stages/people/dress.py's `varied`), so no two people of
+a place look the same and the bodies are not made again. One body a look (owner, 2026-10-22: "make bodies one per
+look"): people rows are grouped into looks by what the reading says they are and wear (`look_of`: the row's words before
+where it stands or what it holds, its pose and colour words left out, so a seated astronaut and five standing ones in
+another scene are one `astronaut-made`), each person of a row standing as its row's look on its person spot, its colour
+its row's dress (the rule above); a named person (a capitalised word in its row's name) or the player is a look of its
+own, `<place>_<row>-made`. A crowd one far look in a few colour palettes (CONTEXT.md "crowd"): the line's look its row's
+words match (`crowd_look`), else its own words' look. The outfit `made` is the clothes as the concept draws them on the
+body the people route makes, its face the made one (tools/characters/maker/route_head.py FACE; `drawn` there is the
+owner's open choice, never what a row asks for). Each look's maker spec (data/people/specs/<character>.json: who from
+its row's words, the build from the row's metres, face, hair and clothes as the locked concept draws them, which the
+close-up is drawn from: drawn_from; the row that draws a look is its largest standing person, `origin_of`) and its take
+on the people line are written on every refresh (`designed_specs`, `with_designed`); no hand-written character file
+stands before a design's person. A crowd's palettes are not decided by any rule here (`UNDECIDED_PALETTES`): null, with
+why, until one recorded model call per scene names them. Which looks get a full body and which a far one follows from
+each person row's `share` (score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast
+(score/stages/cast) and the characters layer read who is in a place from here, never the old game records
+(data/characters) or the lost concept pictures; the people line's bake entries take each look's size from the person row
+that maps it (`size_of`).
 
     .venv/bin/python -m score.stages.people_rows      # refresh from the store's current readings and plans
 
@@ -115,12 +118,18 @@ def surface_of(fields):
 
 
 def persons(place, found=None):
-    """[{name, row, look, doing, surface}] of every person the place's design shows (a crowd is not among them)."""
+    """[{name, row, look, doing, surface, variant}] of every person the place's design shows (a crowd is not among
+    them); the people of one look numbered 0, 1, ... in order, each its own variant of the look's body (the dress
+    row `-v<n>`)."""
     entry = place_entry(place, found) or {"rows": {}}
-    return [{"name": row if len(fields["looks"]) == 1 else f"{row}_{number}", "row": row, "look": look,
-             "doing": doing_of(fields), "surface": surface_of(fields)}
-            for row, fields in sorted(entry["rows"].items()) if "looks" in fields
-            for number, look in enumerate(fields["looks"], 1)]
+    found = [{"name": row if len(fields["looks"]) == 1 else f"{row}_{number}", "row": row, "look": look,
+              "doing": doing_of(fields), "surface": surface_of(fields)}
+             for row, fields in sorted(entry["rows"].items()) if "looks" in fields
+             for number, look in enumerate(fields["looks"], 1)]
+    counted = {}
+    for person in found:
+        person["variant"] = counted[person["look"]] = counted.get(person["look"], -1) + 1
+    return found
 
 
 def crowd_row(place, found=None):
@@ -136,16 +145,18 @@ def looks_of(place, found=None):
 
 
 def dressed_looks(place, found=None):
-    """{(look, surface or None)} of every person and the crowd the place's design shows: the dress row each wears."""
+    """{(look, surface or None, variant)} of every person and the crowd the place's design shows: the dress row each
+    wears."""
     crowd = crowd_row(place, found)
-    return {(person["look"], person["surface"]) for person in persons(place, found)} | (
-        {(crowd[1]["crowd"], None)} if crowd else set())
+    return {(person["look"], person["surface"], person["variant"]) for person in persons(place, found)} | (
+        {(crowd[1]["crowd"], None, 0)} if crowd else set())
 
 
 def every_dressed(found=None):
-    """{(look, surface)} of every person a place's design dresses in a fabric of its own."""
+    """{(look, surface, variant)} of every person a place's design dresses in a fabric of its own or a variant of its
+    look's body (beyond the look's plain dress row)."""
     found = found or read()
-    return {pair for place in found["places"] for pair in dressed_looks(place, found) if pair[1]}
+    return {dressed for place in found["places"] for dressed in dressed_looks(place, found) if any(dressed[1:])}
 
 
 def every_look(found=None):
@@ -191,9 +202,9 @@ def cast_record(place, found=None):
     people = []
     for number, person in enumerate(persons(place, found)):
         character, outfit = split_look(person["look"])
-        people.append({"name": person["name"], "row": person["row"], "character": character,
-                       "look": f"{character}_{outfit}",
-                       "doing": person["doing"], "surface": person["surface"], "at": spots[number % len(spots)],
+        people.append({"name": person["name"], "character": character, "look": f"{character}_{outfit}",
+                       "doing": person["doing"], "surface": person["surface"], "variant": person["variant"],
+                       "at": spots[number % len(spots)],
                        "facing_to": entry.get("middle", [0.0, 0.0, 1.0]),
                        "why": f"row {person['row']} of the picked design's scene inventory"})
     record = {"place": place, "from": f"the picked design (concept {entry['concept'][:8]}): data/people/rows.json",

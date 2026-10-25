@@ -18,8 +18,8 @@ OpenUSD stage as skinned characters (UsdSkel) playing their clips. Bible chapter
   module's own seeded generator, so the same cast is always the same people in the same spots.
 - **Nobody twice, walks clear.** `cast_check.py` refuses a cast (the cast stage runs it) that shows the same
   person twice in a place (a named body, or a kit mix's build, face and hair: `cast.look_of`; groups are dealt a new
-  look for each member) or walks somebody through a person or a thing on the stage, with a margin (owner,
-  2026-10-09). The far crowd's copies are not checked: it is a crowd, not people one tells apart.
+  look for each member, a design's people of one look each their own variant of its body) or walks somebody
+  through a person or a thing on the stage, with a margin (owner, 2026-10-09). The far crowd's copies are not checked: it is a crowd, not people one tells apart.
 - **The characters layer is its own.** `<stage>/layers/characters.usda` sits between the creator's edit layer and
   the framework's base (`../usd/export.py` keeps it in the root); the cast stage rewrites it whole on every run, the
   edit layer never. Characters keep their names (`<entry>` or `<group>_<n>`), so an edit to one survives.

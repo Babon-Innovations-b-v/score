@@ -45,6 +45,7 @@ OUTER_REACH_M = 0.015
 OUTER_BAND_M = 0.004
 SMOOTH_ROUNDS = 3
 ONE_SURFACE = ("hard", "skin", "hair", "far")  # roles drawn in one surface: a rigid part, skin, hair, a far part
+KEPT_ROLES = ("hard",)  # a rigid part (helmet, visor, boots, tools) keeps its paint in every variant of a person
 UNMEASURED = ("far",)  # roles the aligned gate leaves out: the far body is a coarse stand-in, never on the take
 EUROS = 0.5  # the bake's card job (baked_body.MINUTES on an L4 with its setup); no measured run yet
 COMPONENTS = {5121: np.uint8, 5123: np.uint16, 5125: np.uint32, 5126: np.float32}
@@ -276,12 +277,47 @@ class Painted:
         return labels, cKDTree(self.points).query(finished)[0] * self.scale
 
 
-def worn_name(painted_name, surfaces, params):
-    """The library surface a part painted `painted_name` wears: `params["surface"]` (a worn row, `-in-<surface>`:
-    score/stages/people_clothes.py) on every fabric, else the paint's."""
+def worn_name(painted_name, surfaces, params, role=None):
+    """The library surface a part of `role` painted `painted_name` wears: `params["surface"]` (a worn row,
+    `-in-<surface>`: score/stages/people_clothes.py) on every fabric, else the paint's; then the person's variant of
+    it (`params["variant"]`, varied), a rigid part's (KEPT_ROLES) kept as it is."""
+    name = painted_name
     if params.get("surface") and surfaces.get(painted_name, {}).get("family") == "fabric":
-        return params["surface"]
-    return painted_name
+        name = params["surface"]
+    return name if role in KEPT_ROLES else varied(name, surfaces, params.get("variant", 0))
+
+
+def varied(name, surfaces, variant):
+    """The library surface the person's variant `variant` (people_rows.persons: 0 for the first person of a look in a
+    place) wears for `name` (owner, 2026-10-25: "Each one looks different"): of the library surfaces of name's own
+    family (skin for skin, a fabric for a fabric), ordered by colour nearness to it, itself first and ties by name,
+    the variant-th, round again past the last; `name` itself for variant 0 or a surface of no family."""
+    family = surfaces.get(name, {}).get("family")
+    if not variant or family is None:
+        return name
+    colour = np.asarray(surfaces[name].get("colour", (0.0, 0.0, 0.0)), dtype=float)
+    kin = sorted((other for other, spec in surfaces.items() if spec.get("family") == family),
+                 key=lambda other: (other != name, float(np.linalg.norm(
+                     np.asarray(surfaces[other].get("colour", (0.0, 0.0, 0.0)), dtype=float) - colour)), other))
+    return kin[variant % len(kin)]
+
+
+def variant_gap(record, surfaces, params):
+    """Why the person's variant (`params["variant"]`) is not a person of its own: the dress `record`'s parts (their
+    painted surface and role) worn in every lower variant, one the same as this one's; None when it differs from all.
+    The library then holds too few surfaces of the families the body wears for this many people of one look."""
+    variant = params.get("variant", 0)
+    parts = sorted({(entry["painted"], entry["role"]) for entry in record.values()}, key=str)
+
+    def worn(number):
+        return [worn_name(painted, surfaces, {**params, "variant": number}, role) for painted, role in parts]
+    same = next((number for number in range(variant) if worn(number) == worn(variant)), None)
+    if same is None:
+        return None
+    families = sorted({str(surfaces.get(painted, {}).get("family")) for painted, role in parts
+                       if role not in KEPT_ROLES})
+    return (f"library gap: variant {variant} wears what variant {same} wears; the people line's library holds too "
+            f"few surfaces of the families {', '.join(families)} for {variant + 1} people of one look")
 
 
 def named(material, name, spec):
@@ -325,7 +361,7 @@ def dressed_primitives(document, rest, primitives, painted, surfaces, params):
         kinds = np.unique(per_triangle)
         for painted_name in kinds:
             mine = faces[per_triangle == painted_name]
-            name = worn_name(str(painted_name), surfaces, params)
+            name = worn_name(str(painted_name), surfaces, params, role)
             if (number, name) not in chosen:
                 taken = any(material == number for material, _ in chosen)
                 if taken:
@@ -359,7 +395,8 @@ def make_dress(inputs, out, seed, params):
     """The dressed and baked body.glb, its usd/, bake.log and dress.json (each surface's library surface and its
     median distance, and the bake's check). With `params["surface"]` (a worn row, `-in-<surface>`:
     score/stages/people_clothes.py) every fabric surface of the outfit wears that library surface instead of the
-    paint's."""
+    paint's; with `params["variant"]` (a person's own, `-v<n>`) every part but a rigid one wears its variant (varied),
+    refused before the bake when the library holds too few surfaces to tell it from a lower one (variant_gap)."""
     from score.stages.people import baked_body
     name, body = next((name, pathlib.Path(path)) for name, path in inputs.items() if name.startswith("people-body-"))
     look = json.loads((body / "look.json").read_text())
@@ -373,6 +410,9 @@ def make_dress(inputs, out, seed, params):
         mesh["primitives"], rest, laid = dressed_primitives(document, rest, mesh["primitives"], painted, surfaces,
                                                             params)
         found.update(laid)
+    gap = variant_gap(found, surfaces, params)
+    if gap:
+        raise RuntimeError(gap)
     write_glb(out / "body.glb", document, rest)
     work = out / ".bake"
     labelled = pathlib.Path(inputs[f"surfaces-bake@{LINE}"]) / "labelled" / look["take"]
