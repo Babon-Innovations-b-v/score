@@ -59,6 +59,7 @@ from PIL import Image
 from score import checks, contracts, graph
 from score.stages.light import haze, layer, measure, mix, needs, passes, sky
 from score.stages.light.passes import groups_of, neighbours, views_of
+from score.stages.scene_record import writer
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -126,8 +127,13 @@ def make_layer(inputs, out, seed, params):
     found = layer.write(place, passes.record_of(place, inputs), stage, out, sky.read(inputs["sky"]) if "sky" in inputs
                         else None, sky.faces_of(inputs), sky.read(inputs["library"]))
     record = passes.record_of(place, inputs)
-    if not found["lamps"] or not (record.get("environment") or {}).get("inside"):
+    inside = bool((record.get("environment") or {}).get("inside"))
+    if not found["lamps"] or not inside:
         found["lamps"] += sun_lamps(place, out, stage)
+    light = sky.read(inputs["concept light"]) if "concept light" in inputs else None
+    if fill_wanted(light, found["lamps"], inside):
+        found["lamps"].append(layer.write_fill(out, stage, place, light["scene"]["unseen_colour"], inside,
+                                               record.get("ceiling"), inputs["lamp library"]))
     shutil.rmtree(out / "source")
     layer.lamps_file(found, out)
     (out / passes.VIEWS).write_text(json.dumps(passes.record_views(record), indent=1))
@@ -149,6 +155,15 @@ def sun_lamps(place, out, stage):
             for prim in (lights.GetChildren() if lights else []) if prim.IsA(UsdLux.DistantLight)]
 
 
+def fill_wanted(light, lamps, inside):
+    """Whether the place takes its concept's fill (layer.write_fill): its concept (`light`, its reading's concept
+    light) shows light falling on it from no source in view, and no sky light reaches it (none over the horizon at its
+    scene time, or an inside place, whose sky lights stand outside its shell)."""
+    if not light or not light["scene"]["unseen"]:
+        return False
+    return inside or not any(lamp.get("sun") for lamp in lamps)
+
+
 def layer_faults(folder):
     found = [f"no {name}" for name in (layer.LAYER, "lamps.json", passes.VIEWS) if not (folder / name).exists()]
     if not found and not views_of(folder)[1]:
@@ -167,20 +182,20 @@ def judge_placed(output, inputs, evidence):
                    {"lost": "lower"}, lost)
 
 
-def unlit_why(lamps, inside):
-    """Why the layer gives the place no light the render could measure, or None: no lamp of its own and no sky light
-    over the horizon at its scene time; or an inside place (its plan's walls or roofs) with no lamp of its own, whose
-    sky lights stand outside its shell. Rendered anyway, the views come back black or under the renderer's fixed
-    stand-in sun, a light not in the design (2026-10-25: engineroom, camp and campgrounds, a paid render each)."""
-    own = [lamp for lamp in lamps if not lamp.get("sun")]
-    if own:
+def unlit_why(lamps, inside, read=True):
+    """Why the layer gives the place no light the render could measure, or None: no lamp of its own (nor its
+    concept's fill) and no sky light over the horizon at its scene time; or an inside place (its plan's walls or roofs)
+    with no lamp of its own nor fill, whose sky lights stand outside its shell. Rendered anyway, the views come back
+    black or under the renderer's fixed stand-in sun, a light not in the design (2026-10-25: engineroom, camp and
+    campgrounds, a paid render each). `read`: whether its concept's light is read (reading.concept_light)."""
+    if [lamp for lamp in lamps if not lamp.get("sun") or lamp.get("fill")]:
         return None
+    glowing = "no glowing row (its row kinds" + (", its concept's light)" if read else "; its concept's light is not "
+                                                 "read: python -m score.review.reading <place>)")
     if not lamps:
-        return "no lamp of its own (its inventory has no glowing row) and no sky light over the horizon at its " \
-               "scene time"
+        return f"no lamp of its own ({glowing}) and no sky light over the horizon at its scene time"
     if inside:
-        return "an inside place with no lamp of its own (its inventory has no glowing row): its sky lights stand " \
-               "outside its shell"
+        return f"an inside place with no lamp of its own ({glowing}): its sky lights stand outside its shell"
     return None
 
 
@@ -188,10 +203,16 @@ def judge_lit(output, inputs, evidence):
     """The layer lights the place from its design (unlit_why), before light-passes is bought."""
     found = json.loads((output / "lamps.json").read_text())
     record = passes.record_of(found["place"], inputs)
-    why = unlit_why(found["lamps"], bool((record.get("environment") or {}).get("inside")))
-    suns = sum(1 for lamp in found["lamps"] if lamp.get("sun"))
-    return verdict("lit", why is None, why or f"{len(found['lamps']) - suns} lamps of its own, {suns} sky lights",
-                   {"lamps": len(found["lamps"]) - suns, "sky_lights": suns}, findings=[why] if why else ())
+    why = unlit_why(found["lamps"], bool((record.get("environment") or {}).get("inside")), "concept light" in inputs)
+    fills = sum(1 for lamp in found["lamps"] if lamp.get("fill"))
+    suns = sum(1 for lamp in found["lamps"] if lamp.get("sun")) - fills
+    light = sky.read(inputs["concept light"]) if "concept light" in inputs else None
+    night = light and light["scene"]["daylight"] and not suns and \
+        "its concept shows daylight and no sun is over the horizon at its scene time (the environment plan's)"
+    said = f"{len(found['lamps']) - suns - fills} lamps of its own, {suns} sky lights, {fills} concept fill" + \
+        (f"; {night}" if night else "")
+    measures = {"lamps": len(found["lamps"]) - suns - fills, "sky_lights": suns, "fill": fills}
+    return verdict("lit", why is None, why or said, measures, findings=[why] if why else ([night] if night else ()))
 
 
 def missing_elements(found):
@@ -233,11 +254,11 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 
 def layer_files(place):
     """The kit (its seat, its lenses: passes.place_files), the seed, the surface library's method (a shining body's
-    disc is its glowing recipe) and the scene's kept sky (sky.kept_input) when it has one; the record is the
-    scene-record row's output."""
+    disc is its glowing recipe), the library's lamp (its concept's fill), the scene's kept sky (sky.kept_input) and its
+    concept's light (writer.concept_light_input) when it has them; the record is the scene-record row's output."""
     return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
-            "library": "{data}/library/materials.json",
-            **passes.place_files(place), **sky.kept_input(place)}
+            "library": "{data}/library/materials.json", "lamp library": "{data}/library/lamps.json",
+            **passes.place_files(place), **sky.kept_input(place), **writer.concept_light_input(place)}
 
 
 # --- light: the sweep, the strengths and the measures ------------------------------------------------------------

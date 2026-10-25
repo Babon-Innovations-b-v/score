@@ -292,6 +292,43 @@ def write(place, record, seed_folder, out, kept=None, faces=None, library=None):
     return found
 
 
+FILL = "concept_fill"
+
+
+def write_fill(out, seed_folder, place, colour, inside, ceiling, library):
+    """The concept's fill (the library's `fill`, data/library/lamps.json) in the layer: the light its concept shows
+    falling on the place from no source in view, in `colour`; under the open sky a soft distant light from overhead,
+    inside a shell a sphere light over the place's middle at the library's share of its `ceiling` (its record's, else
+    the place's top), reaching half its width. Its lamps.json entry, swept as a sun is (after the lamps)."""
+    from pxr import Sdf, Usd, UsdGeom
+    lamp = json.loads(pathlib.Path(library).read_text())["fill"]
+    layer = Sdf.Layer.FindOrOpen(str(pathlib.Path(out) / LAYER))
+    composed = Sdf.Layer.CreateAnonymous(".usda")
+    composed.subLayerPaths.append(layer.identifier)
+    composed.subLayerPaths.append(str(pathlib.Path(seed_folder) / f"{place}.usda"))
+    stage = Usd.Stage.Open(composed)
+    stage.SetEditTarget(Usd.EditTarget(layer))
+    path = f"/{place}/Lights/{FILL}"
+    if inside:
+        box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(
+            stage.GetPrimAtPath(f"/{place}")).ComputeAlignedRange()
+        low, high = np.array(box.GetMin()), np.array(box.GetMax())
+        top = ceiling if ceiling is not None else high[1]
+        spot = [(low[0] + high[0]) / 2, low[1] + (top - low[1]) * lamp["inside"]["high"], (low[2] + high[2]) / 2]
+        entry = {"type": "omni", "at": spot, "energy": lamp["energy"], "colour": colour,
+                 "range": float(max(high[0] - low[0], high[2] - low[2])) / 2,
+                 "attenuation": lamp["inside"]["attenuation"], "radius": lamp["inside"]["radius"]}
+    else:
+        spot, entry = None, {"type": "sun", "energy": lamp["energy"], "colour": colour, "size": lamp["open"]["size"],
+                             "toward": [0.0, -1.0, 0.0]}
+    UsdGeom.Scope.Define(stage, f"/{place}/Lights")
+    scene.write_light(stage, path, entry)
+    layer.Save()
+    return {"path": path, "spot": [round(float(value), 4) for value in spot] if spot else None, "shaped": False,
+            "shaft": False, "sun": True, "fill": True,
+            "intensity": float(stage.GetPrimAtPath(path).GetAttribute("inputs:intensity").Get())}
+
+
 def strengths(layer_path, place, scales):
     """Each lamp's intensity set to its seed intensity times its scale ({path: (intensity, scale)}), in the layer."""
     from pxr import Sdf

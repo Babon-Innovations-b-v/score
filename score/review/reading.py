@@ -45,6 +45,15 @@ Each row says what part of the place it is (`part`, PARTS), which prepare routes
     inventory-parts/<place>/<time>.json     {place, reading (the reading's `at`), at, by, parts {row id: part} or
                                              refused, euros {total}, seconds, clearance}
 
+Its concept's light (LIGHT_ASKED: which rows glow in the picture, their colour and brightness, and the light falling
+from no source in view) is one Gemini call of its own a reading (`lit`), kept apart (`concept_light`) and kept for
+the stages by plans.keep as `{home}/design/light/<place>.json`: the scene record lights each glowing row from it, the
+light layer its fill:
+
+    inventory-light/<place>/<time>.json     {place, reading, at, by, light {rows {row id: {glows, glowing, colour,
+                                             brightness}}, scene {daylight, unseen, unseen_colour}} or refused,
+                                             euros {total}, seconds, clearance}
+
     python -m score.review.reading <place> [<place> ...] [--by <name>] [--again]
 """
 import argparse
@@ -53,6 +62,7 @@ import contextlib
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 import urllib.error
@@ -62,6 +72,7 @@ from score.store import Store, locked, stamp_key
 
 AREA = "inventory-readings"
 PARTS_AREA = "inventory-parts"  # the parts asked of a reading answered before `part` was (`parted`)
+LIGHT_AREA = "inventory-light"  # the concept's light asked of a reading (`lit`)
 MODEL = "gemini-3.1-pro-preview"
 CALLER = "inventory-reading"
 TIMEOUT = 400
@@ -162,6 +173,27 @@ as JSON below. For every row say what part of the place it is. Answer one JSON o
 No text besides the JSON.
 
 {rows}"""
+# The concept's light (owner, 2026-10-25: "look at the concept, the engines themself should be a source of light and
+# there are lights in the concept prob"): which rows give light in the picture, in what colour and how bright, and the
+# light falling on the place from what the picture does not show; the scene record lights each glowing row from it
+# (score/stages/scene_record/writer.py) and the light layer its fill (score/stages/light), for any environment.
+LIGHT_ASKED = """You are given a concept painting of one place of a game environment and the rows already read from it,
+as JSON below. Say how the place is lit in the picture. Answer one JSON object:
+{{"rows": [{{"id": the row's id, "glows": true when the picture shows this thing giving off light of its own (a lamp,
+  a light strip or panel, a screen, a glowing core, engine or machine part, a fire, a lit window at night, a sign),
+  else false;
+  "glowing": which part of it glows, in a few words ("" when it does not glow);
+  "colour": the colour of its light as "#rrggbb" ("" when it does not glow);
+  "brightness": how bright its light is against the brightest light in the picture, 0 to 1 (0 when it does not
+  glow)}}, ...] a glow for every row, each id once,
+ "scene": {{"daylight": true when daylight (a sun, a bright sky) lights the place, else false;
+  "unseen": true when light falls on the place from a source the picture does not show: a sun or a sky lighting it
+  from out of view (daylight whose sun the picture does not show is such light), lamps out of view; else false;
+  "unseen_colour": the colour of that light as "#rrggbb" ("" when there is none)}}}}
+No text besides the JSON.
+
+{rows}"""
+COLOUR = re.compile(r"#[0-9a-fA-F]{6}")
 WITHIN = ("The second picture is the picked concept of {holder}, the place this one sits within: it shows where this "
           "place stands; read only the first picture's place.")
 
@@ -209,6 +241,24 @@ def with_parts(store, record):
         {**row, "part": given[row["id"]]} if "part" not in row and row["id"] in given else row for row in rows]}}
 
 
+def light_records(store, place):
+    """The place's concept light records (`lit`), oldest first."""
+    return [store.read(key) for key in sorted(store.objects.keys(f"{LIGHT_AREA}/{place}/"))]
+
+
+def concept_light(store, place):
+    """The light of the place's current reading's concept (`lit`: {rows: {id: {glows, glowing, colour, brightness}},
+    scene: {daylight, unseen, unseen_colour}}), or None while it has none."""
+    found = reading_of(store, place)
+    return found and next((record["light"] for record in reversed(light_records(store, place))
+                           if record["reading"] == found["at"] and "light" in record), None)
+
+
+def unlit(store, places):
+    """The places of `places` with a current reading whose concept's light is not read yet."""
+    return [place for place in places if reading_of(store, place) and concept_light(store, place) is None]
+
+
 def unparted(store, places):
     """The places of `places` whose current reading has a row with no part."""
     return [place for place in places if (found := reading_of(store, place))
@@ -239,10 +289,11 @@ def cost(store, record):
 
 
 def spent(store, places):
-    """The euros every reading of `places` cost, its parts asked after (`parted`) too, in sum (the cockpit's running
-    total)."""
+    """The euros every reading of `places` cost, its parts and its concept's light asked after (`parted`, `lit`) too,
+    in sum (the cockpit's running total)."""
     return round(sum(found["euros"]["total"] for place in places
-                     for found in readings(store, place) + part_records(store, place)), 4)
+                     for found in readings(store, place) + part_records(store, place)
+                     + light_records(store, place)), 4)
 
 
 def asked_body(place, concept, holder_picture, holder=None, outline=None):
@@ -355,16 +406,84 @@ def asked_parts(store, place, folder):
     return parts, call_euros(response), seconds
 
 
+def light_schema(ids):
+    """The light answer's schema: a glow a row of `ids` (an array: an object keyed by every id is too large a schema
+    for a place of fifty rows, the API refuses it), and the scene's light."""
+    glow = {"type": "OBJECT", "required": ["id", "glows", "glowing", "colour", "brightness"],
+            "propertyOrdering": ["id", "glows", "glowing", "colour", "brightness"],
+            "properties": {"id": {"type": "STRING", "enum": list(ids)}, "glows": {"type": "BOOLEAN"},
+                           "glowing": {"type": "STRING"}, "colour": {"type": "STRING"},
+                           "brightness": {"type": "NUMBER"}}}
+    scene = {"type": "OBJECT", "required": ["daylight", "unseen", "unseen_colour"],
+             "propertyOrdering": ["daylight", "unseen", "unseen_colour"],
+             "properties": {"daylight": {"type": "BOOLEAN"}, "unseen": {"type": "BOOLEAN"},
+                            "unseen_colour": {"type": "STRING"}}}
+    return {"type": "OBJECT", "required": ["rows", "scene"], "propertyOrdering": ["rows", "scene"], "properties": {
+        "rows": {"type": "ARRAY", "items": glow}, "scene": scene}}
+
+
+def light_of(text, ids):
+    """The light answer ({rows: {id: glow}, scene}) naming every id of `ids`, each glowing row with its colour and a
+    brightness over 0 up to 1, an unseen light with its colour; concepts.Refused off it."""
+    try:
+        answer = json.loads(text)
+        given = {glow["id"]: glow for glow in answer["rows"]}
+        rows = {row: {key: given[row][key] for key in ("glows", "glowing", "colour", "brightness")} for row in ids}
+        scene = {key: answer["scene"][key] for key in ("daylight", "unseen", "unseen_colour")}
+        wrong = [row for row, glow in rows.items() if glow["glows"] and not (
+            COLOUR.fullmatch(str(glow["colour"])) and 0 < float(glow["brightness"]) <= 1)]
+    except (ValueError, KeyError, TypeError) as failed:
+        raise concepts.Refused(f"the light answer is no JSON object with every row and the scene: "
+                               f"{str(failed)[:200]}") from failed
+    wrong += ["scene"] if scene["unseen"] and not COLOUR.fullmatch(str(scene["unseen_colour"])) else []
+    if wrong:
+        raise concepts.Refused(f"no valid light for {', '.join(map(repr, wrong))}")
+    return {"rows": rows, "scene": scene}
+
+
+def asked_light(store, place, folder):
+    """One Gemini call for the light of a place's concept, its current reading's rows beside it: (light, or why it
+    was refused, a string; the call's euros; seconds)."""
+    from PIL import Image
+    pro, _, _ = concepts.tools()
+    found = reading_of(store, place)
+    rows = [{key: row.get(key) for key in ("id", "name", "noun", "where")} for row in found["inventory"]["rows"]]
+    ids = [row["id"] for row in rows]
+    concept = picture_path(store, found["concept"], folder)
+    response, seconds = asked({"contents": [{"role": "user", "parts": [
+        {"text": LIGHT_ASKED.format(rows=json.dumps(rows, indent=1))},
+        pro.part(Image.open(concept), max(Image.open(concept).size))]}],
+        "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
+                             "responseSchema": light_schema(ids)}})
+    (folder / f"{place}-light.json").write_text(json.dumps(response, indent=1))
+    try:
+        light = light_of(answer_text(response), ids)
+    except concepts.Refused as refused:
+        light = str(refused)
+    return light, call_euros(response), seconds
+
+
 def parted(store, places, by, clear=None, ask=asked_parts):
     """Ask the parts of every place of `places` whose current reading has rows with none (`unparted`: read before
-    `part` was asked), one call a place side by side inside one reading clearance; each kept, written once, with its
-    reading's `at` (a refused answer kept with why, asked again next time). Its rows, boxes and plan stay as they
-    are. The kept records with parts."""
+    `part` was asked), one call a place (`asked_after`). Its rows, boxes and plan stay as they are. The kept records
+    with parts."""
+    return asked_after(store, unparted(store, places), PARTS_AREA, "parts", ask, by, clear)
+
+
+def lit(store, places, by, clear=None, ask=asked_light):
+    """Ask the concept's light of every place of `places` whose current reading has none (`unlit`), one call a place
+    (`asked_after`). The kept records with light."""
+    return asked_after(store, unlit(store, places), LIGHT_AREA, "light", ask, by, clear)
+
+
+def asked_after(store, places, area, field, ask, by, clear=None):
+    """One call a place of `places` asked of its current reading, side by side inside one reading clearance; each
+    answer kept under `area` as `field`, written once, with its reading's `at` (a refused answer kept with why, asked
+    again next time). The kept records answered."""
     from score.adapters import compute
-    places = unparted(store, places)
     if not places:
         return []
-    folder = store.cache / PARTS_AREA / stamp_key(concepts.now())
+    folder = store.cache / area / stamp_key(concepts.now())
     folder.mkdir(parents=True, exist_ok=True)
     ticket = (clear or compute.reading_clearance)(store, places, round(compute.READING_GEMINI_EUROS * len(places), 4))
     with compute.spending(ticket):
@@ -372,13 +491,13 @@ def parted(store, places, by, clear=None, ask=asked_parts):
         with concurrent.futures.ThreadPoolExecutor(len(places)) as pool:
             answers = dict(zip(places, pool.map(lambda place: ask(store, place, folder), places)))
     found = []
-    for place, (parts, euros, seconds) in answers.items():
+    for place, (answer, euros, seconds) in answers.items():
         record = {"place": place, "reading": reading_of(store, place)["at"], "at": concepts.now(), "by": by,
                   "euros": {"total": euros}, "seconds": seconds,
                   "clearance": {"node": ticket["node"], "key": ticket["key"]},
-                  **({"refused": parts} if isinstance(parts, str) else {"parts": parts})}
-        store.write_once(f"{PARTS_AREA}/{place}/{stamp_key(record['at'])}.json", record)
-        found += [] if isinstance(parts, str) else [record]
+                  **({"refused": answer} if isinstance(answer, str) else {field: answer})}
+        store.write_once(f"{area}/{place}/{stamp_key(record['at'])}.json", record)
+        found += [] if isinstance(answer, str) else [record]
     return found
 
 
@@ -790,6 +909,7 @@ def main(argv):
     try:
         found = read(store, options.places, options.by, again=options.again)
         given = parted(store, options.places, options.by)
+        lights = lit(store, options.places, options.by)
     except (concepts.Refused, NotCleared) as refused:
         print(f"refused: {refused}", file=sys.stderr)
         return 1
@@ -799,6 +919,9 @@ def main(argv):
                           "merged": len(record["merged"]), "euros": record["euros"], "seconds": record["seconds"]}))
     for record in given:
         print(json.dumps({"place": record["place"], "parts": len(record["parts"]), "euros": record["euros"]}))
+    for record in lights:
+        glowing = sum(glow["glows"] for glow in record["light"]["rows"].values())
+        print(json.dumps({"place": record["place"], "glowing": glowing, "euros": record["euros"]}))
     return planned(store, options.places, options.by)  # one already read with no plan written gets it too
 
 

@@ -48,6 +48,7 @@ DATA = concepts.DATA
 KEPT = PROPS_HOME / "design" / "plans"  # the plan the plan stage reads (stages.creator_plan)
 KEPT_INVENTORY = PROPS_HOME / "design" / "inventory"  # and the scene inventory it was made from
 KEPT_CONCEPT = PROPS_HOME / "design" / "concepts"  # and the picked concept both were made from (its `concept` input)
+KEPT_LIGHT = PROPS_HOME / "design" / "light"  # and that concept's light (reading.concept_light), once read
 SIDES = ("N", "S", "E", "W")
 FACINGS = {0: "N", 90: "E", 180: "S", 270: "W"}
 WALLS_ITEM = "ON THE WALLS AND CEILING"
@@ -870,15 +871,19 @@ def plan_sha(plan):
 
 
 def kept_for_stage(store, place, plan):
-    """The plan, the scene inventory it was made from and the picked concept both were made from where the plan
-    stage reads them (stages.creator_plan; the plan names that picture as its concept), each unless it stands there
+    """The plan, the scene inventory it was made from, the picked concept both were made from and that concept's light
+    once read (reading.concept_light: the scene record's lamps and the light layer's fill read it) where the stages
+    read them (stages.creator_plan; the plan names that picture as its concept), each unless it stands there
     already."""
+    from score.review import reading
     pick = pick_of(store, place)
     plan = {**plan, "concept": {"pick": pick, "picture": f"{{home}}/design/concepts/{place}.png",
                                 "read": "its scene inventory, read from this picked concept (score/review/reading.py)"}}
     for path, found in ((KEPT / f"{place}.json", json.dumps(plan, indent=1).encode()),
                         (KEPT_INVENTORY / f"{place}.json", json.dumps(inventory_of(store, place), indent=1).encode()),
-                        (KEPT_CONCEPT / f"{place}.png", store.objects.read_bytes(f"blobs/{pick}"))):
+                        (KEPT_CONCEPT / f"{place}.png", store.objects.read_bytes(f"blobs/{pick}")),
+                        *[(KEPT_LIGHT / f"{place}.json", json.dumps(light, indent=1).encode())
+                          for light in [reading.concept_light(store, place)] if light]):
         if not path.is_file() or path.read_bytes() != found:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(found)
@@ -908,6 +913,7 @@ def keep(store, places):
             path.unlink()
             (KEPT_INVENTORY / f"{place}.json").unlink(missing_ok=True)
             (KEPT_CONCEPT / f"{place}.png").unlink(missing_ok=True)
+            (KEPT_LIGHT / f"{place}.json").unlink(missing_ok=True)
         if (path.read_text() if path.is_file() else None) != before:
             changed.append(place)
     return kept, changed
