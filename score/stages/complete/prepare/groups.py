@@ -127,9 +127,10 @@ def plan_sizes(store, place, rows, made=False):
     """{row id: [wide, deep, tall] metres} of the reading's `rows` the place's current plan sizes
     (score/review/plans.current: his newest edit on the pick, else the derived plan, whose items are sized by the
     reading's metres; `made`: the plan made without him, plans.made_plan), each from the first item tied to it: its
-    wide and deep as laid (turned back for one facing east or west), its tall the reading's, else off its surest SAM box at the scale its wide gives the box (an item
-    he sized whose row the reading gave no size). A row whose item is a size gap on its plan, or with no item of its
-    own (on a wall, in the sky, riding on another row: `sized_rows` gives it its reading's), has none here."""
+    wide and deep as laid (turned back for one facing east or west), its tall the reading's, else off its surest SAM
+    box at the scale its wide gives the box (an item he sized whose row the reading gave no size). A row whose item
+    is a size gap on its plan, or with no item of its own (on a wall, in the sky, riding on another row: `sized_rows`
+    gives it its reading's), has none here."""
     from score.review import plans
     shown = (plans.made_plan if made else plans.current)(store, place)
     if shown is None:
