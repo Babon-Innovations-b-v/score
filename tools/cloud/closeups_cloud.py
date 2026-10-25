@@ -60,8 +60,9 @@ def step_line(python, arguments):
 def set_up(machine, splats):
     """The scripts, the splats, the lab's remover and the models onto one machine."""
     log_folder, host = machine["folder"], machine["host"]
-    batch.remote(log_folder, host, f"mkdir -p {REMOTE}/repo/tools {REMOTE}/out", check=True)
+    batch.remote(log_folder, host, f"mkdir -p {REMOTE}/repo/tools/cloud {REMOTE}/out", check=True)
     batch.copy(log_folder, [REPO / "tools" / "props"], f"root@{host}:{REMOTE}/repo/tools/", "--exclude", "__pycache__")
+    batch.copy(log_folder, [REPO / "tools" / "cloud" / "closeups_setup.sh"], f"root@{host}:{REMOTE}/repo/tools/cloud/")
     batch.copy(log_folder, [splats], f"root@{host}:{REMOTE}/")
     batch.remote(log_folder, host, f"mkdir -p {REMOTE}/lab {REMOTE}/pictures", check=True)
     batch.copy(log_folder, [batch.LAB / "image_to_3dlab"], f"root@{host}:{REMOTE}/lab/", "--exclude", "__pycache__")

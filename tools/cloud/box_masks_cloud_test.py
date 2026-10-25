@@ -71,6 +71,38 @@ def test_masks_made_return_the_ledger_entry():
         assert out.read_text() == "[]" and entry["pictures"] == 1
 
 
+def sent_and_run(set_up):
+    """What a runner's set_up copies to the card ([(source, destination)]) and the scripts it runs there."""
+    sent, ran = [], []
+    real = batch.remote, batch.copy
+    batch.remote = lambda folder, host, command, **keywords: ran.append(command)
+    batch.copy = lambda folder, sources, destination, *extra: sent.extend((source, destination) for source in sources)
+    try:
+        set_up()
+    finally:
+        batch.remote, batch.copy = real
+    return sent, [word for command in ran for word in command.split() if word.endswith(".sh")]
+
+
+def test_every_set_up_script_a_runner_runs_is_sent_with_it():
+    """crops-concept, try 4 of 2026-10-25: the runners moved to tools/cloud (80fab258) and their set-ups still sent
+    only tools/props, so bash found no box_masks_setup.sh and every SAM 3 set-up failed; closeups and scene the same."""
+    import closeups_cloud
+    import scene
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        runs = {"box masks": lambda: box_masks_cloud.set_up({"folder": folder, "host": "card"}),
+                "closeups": lambda: closeups_cloud.set_up({"folder": folder, "host": "card"}, folder / "splats.ply"),
+                "scene": lambda: scene.set_up(folder, "card", {"room": "toy"})}
+        for name, run in runs.items():
+            sent, scripts = sent_and_run(run)
+            assert scripts, name
+            for script in scripts:
+                there = pathlib.PurePosixPath(script)
+                assert any(pathlib.Path(source).name == there.name and pathlib.Path(source).is_file()
+                           and destination.endswith(f"{there.parent}/") for source, destination in sent), (name, script)
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
