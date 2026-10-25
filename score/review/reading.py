@@ -42,8 +42,11 @@ Each row says what part of the place it is (`part`, PARTS), which prepare routes
 `part` was asked gets its rows' parts in one Gemini call of their own (`parted`), kept apart and read onto its rows
 (`with_parts`), its rows, boxes and plan untouched:
 
-    inventory-parts/<place>/<time>.json     {place, reading (the reading's `at`), at, by, parts {row id: part} or
-                                             refused, euros {total}, seconds, clearance}
+    inventory-parts/<place>/<time>.json     {place, reading (the reading's `at`), at, by, version (PARTS_VERSION),
+                                             parts {row id: part} or refused, euros {total}, seconds, clearance}
+
+A reading answered under an older PARTS (`parts_version`, PARTS_VERSION) has its parts asked again the same way, and
+the newest record of today's version is read over its rows.
 
 Its concept's light (LIGHT_ASKED: which rows glow in the picture, their colour and brightness, and the light falling
 from no source in view) is one Gemini call of its own a reading (`lit`), kept apart (`concept_light`) and kept for
@@ -84,16 +87,23 @@ ANCHORS = ("floor", "wall", "ceiling", "roof", "ground", "sky")
 PARTS = {"object": "a thing made as a model of its own: furniture, a machine, a vehicle, a plant, a lamp, a sign, a "
                    "person, a rock, a boulder or any other feature lying on the land",
          "floor": "a floor, deck or raised level people stand on, or its plates",
-         "wall": "a wall of the place, or its panels",
+         "wall": "a wall of the place, or its panels, or the hull, dome or tube enclosing the room the picture is "
+                 "inside of, whole",
          "roof": "a roof or ceiling over the place, or its panels",
          "opening": "a doorway, an open gap or a hole cut in a wall (not the door or window filling it)",
-         "structure": "any other built structure: a door, a window, stairs, a ramp, beams, pillars, a dome, a hull, a "
-                      "tube, a whole building's shell",
+         "structure": "any other built structure: a door, a window, stairs, a ramp, beams, pillars, ribs, a "
+                      "building's dome, hull or tube seen standing in the place, a whole building's shell",
          "ground": "the land or street surface itself the place stands on (the ground, the road, the pavement, the "
                    "plaza, the hills), never a feature lying on it",
          "sky": "the sky, a planet, a moon",
          "effect": "water, rain, smoke, mist, steam or fog",
          "backdrop": "a far city or landscape well beyond the place, seen as its backdrop"}
+# The parts' version: a reading whose rows were answered under an older PARTS (its `parts_version`, 1 when it has none)
+# gets its rows' parts asked again in one call (`parted`), the newest record of this version read over them. 2: the
+# hull, dome or tube enclosing the room the picture is inside of is its wall, which the plan of an enclosed place lays
+# itself, no longer a structure modelled whole (Batch 1 try 4: the cockpit's hull, the engine room's, the workshop's
+# dome went the prop route beside the walls and roof their plan lays).
+PARTS_VERSION = 2
 PART_LINES = "\n".join(f'  "{name}": {said};' for name, said in PARTS.items())
 # Generic words SAM 3 is asked on every concept, for the things no row names.
 PROBES = ("object", "machine", "furniture", "container", "vehicle", "person")
@@ -227,14 +237,31 @@ def part_records(store, place):
     return [store.read(key) for key in sorted(store.objects.keys(f"{PARTS_AREA}/{place}/"))]
 
 
+def asked_parts_of(store, record, current=False):
+    """The parts of the newest parts record asked of a reading (`parted`), of today's PARTS_VERSION when `current`;
+    None without one."""
+    return next((found["parts"] for found in reversed(part_records(store, record["place"]))
+                 if found["reading"] == record["at"] and "parts" in found
+                 and (not current or found.get("version", 1) >= PARTS_VERSION)), None)
+
+
+def parts_current(store, record):
+    """Whether a reading's parts are of today's PARTS_VERSION: answered under it, or asked again under it."""
+    return record.get("parts_version", 1) >= PARTS_VERSION or asked_parts_of(store, record, current=True) is not None
+
+
 def with_parts(store, record):
-    """A reading with each row's part: as answered, else from the newest parts record asked of it (`parted`); a row
-    neither gives keeps none (prepare waits on it)."""
+    """A reading with each row's part: from the newest parts record of today's PARTS_VERSION asked of it where its own
+    are older, else as answered, else from the newest parts record asked of it (`parted`); a row none gives keeps none
+    (prepare waits on it)."""
     rows = record["inventory"]["rows"]
+    again = None if record.get("parts_version", 1) >= PARTS_VERSION else asked_parts_of(store, record, current=True)
+    if again is not None:
+        return {**record, "inventory": {**record["inventory"], "rows": [
+            {**row, "part": again[row["id"]]} if row["id"] in again else row for row in rows]}}
     if all("part" in row for row in rows):
         return record
-    given = next((found["parts"] for found in reversed(part_records(store, record["place"]))
-                  if found["reading"] == record["at"] and "parts" in found), None)
+    given = asked_parts_of(store, record)
     if given is None:
         return record
     return {**record, "inventory": {**record["inventory"], "rows": [
@@ -260,9 +287,9 @@ def unlit(store, places):
 
 
 def unparted(store, places):
-    """The places of `places` whose current reading has a row with no part."""
+    """The places of `places` whose current reading has a row with no part, or parts of an older PARTS_VERSION."""
     return [place for place in places if (found := reading_of(store, place))
-            and any("part" not in row for row in found["inventory"]["rows"])]
+            and (any("part" not in row for row in found["inventory"]["rows"]) or not parts_current(store, found))]
 
 
 def to_read(store, places):
@@ -464,8 +491,8 @@ def asked_light(store, place, folder):
 
 
 def parted(store, places, by, clear=None, ask=asked_parts):
-    """Ask the parts of every place of `places` whose current reading has rows with none (`unparted`: read before
-    `part` was asked), one call a place (`asked_after`). Its rows, boxes and plan stay as they are. The kept records
+    """Ask the parts of every place of `places` whose current reading has rows with none or parts of an older
+    PARTS_VERSION (`unparted`: read before `part` was asked, or before PARTS last changed), one call a place (`asked_after`). Its rows, boxes and plan stay as they are. The kept records
     with parts."""
     return asked_after(store, unparted(store, places), PARTS_AREA, "parts", ask, by, clear)
 
@@ -493,6 +520,7 @@ def asked_after(store, places, area, field, ask, by, clear=None):
     found = []
     for place, (answer, euros, seconds) in answers.items():
         record = {"place": place, "reading": reading_of(store, place)["at"], "at": concepts.now(), "by": by,
+                  **({"version": PARTS_VERSION} if field == "parts" else {}),
                   "euros": {"total": euros}, "seconds": seconds,
                   "clearance": {"node": ticket["node"], "key": ticket["key"]},
                   **({"refused": answer} if isinstance(answer, str) else {field: answer})}
@@ -883,7 +911,7 @@ def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of, agai
                                 "plan": {"views": [{"id": "v1", "picture": f"blobs/{concepts.picked(store, place)}"}]},
                                 "rows": agreement["rows"]},
                   "gaps": agreement["gaps"], "skipped": agreement["skipped"], "merged": agreement["merged"],
-                  "method": METHOD,
+                  "method": METHOD, **({} if place in again else {"parts_version": PARTS_VERSION}),
                   "euros": {"rows": euros, "boxes": share, "total": round(euros + share, 6)},
                   "seconds": {"rows": seconds, "boxes": round(working / len(asked_places), 1), "card": card},
                   "clearance": {"node": ticket["node"], "key": ticket["key"]}}

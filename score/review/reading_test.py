@@ -252,6 +252,30 @@ def test_a_reading_answered_before_parts_were_asked_gets_them_in_one_call_its_ro
     assert reading.spent(store, ["wreck"]) == round(0.15 + 0.01 + 0.02, 4)
 
 
+def test_a_reading_parted_under_an_older_parts_version_is_asked_again_and_the_new_parts_read_over_it(
+        store, tmp_path, monkeypatch):
+    """PARTS_VERSION 2 (Batch 1 try 4): the hull, dome or tube enclosing the room the picture is inside of is its wall,
+    no longer a structure modelled whole. A reading answered under an older version is asked its parts again once,
+    and the newest record of today's version is read over its rows; one answered under today's is not asked."""
+    assert "enclosing the room" in reading.PARTS["wall"] and "hull" not in reading.PARTS["structure"].split("seen")[1]
+    picked_place(store, tmp_path)
+
+    def parted_rows(store, place, folder):
+        rows, *rest = stand_in_rows(store, place, folder)
+        return [{**row, "part": "structure" if row["id"] == "mast" else "object"} for row in rows], *rest
+    monkeypatch.setattr(reading, "PARTS_VERSION", 1)
+    [record] = reading.read(store, ["wreck"], "joey", ask=parted_rows, boxes=stand_in_boxes)
+    monkeypatch.setattr(reading, "PARTS_VERSION", 2)
+    assert reading.unparted(store, ["wreck"]) == ["wreck"]
+    ids = [row["id"] for row in record["inventory"]["rows"]]
+    asked = lambda store, place, folder: (reading.parts_of(  # noqa: E731
+        '{"parts": {"drum": "object", "drum_right": "object", "mast": "wall"}}', ids), 0.02, 4.0)
+    [kept] = reading.parted(store, ["wreck"], "joey", ask=asked)
+    assert kept["version"] == 2 and reading.unparted(store, ["wreck"]) == []
+    assert [row["part"] for row in reading.reading_of(store, "wreck")["inventory"]["rows"]] == ["object", "object", "wall"]
+    assert reading.parted(store, ["wreck"], "joey", ask=None) == []  # asked under today's version: not again
+
+
 def test_a_concepts_light_is_asked_once_of_its_reading_and_refused_off_its_schema(store, tmp_path):
     """reading.lit: one call a place whose reading's concept light is not read; every row named with its glow (a
     glowing one with its colour and a brightness over 0), the scene's unseen light with its colour, else refused and
