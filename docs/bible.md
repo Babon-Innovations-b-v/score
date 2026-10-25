@@ -450,7 +450,10 @@ accepted stops only the nodes that read it, directly or through another; the res
 
 **A checkout that moves under a run.** Every `score run` drives from a frozen copy of the code (`score/graph/frozen.py`:
 a git worktree under `$PROPS_HOME/frozen` at one commit, removed when the run ends and its parked machines are gone),
-so agents' and the sync's pulls never reach a running batch. A run killed outright (SIGKILL, OOM) leaves its copy
+so agents' and the sync's pulls never reach a running batch. Its design is frozen the same way: the run's `PROPS_HOME`
+is a home of its own beside the copy (`<copy>.home`: `design` copied as the run starts, every other entry a link to
+the shared one), so a sync pass, lock or edit that rewrites the design reaches the next run, never this one (Batch 1,
+2026-10-25: prepare rewrote the surface data mid-run). A run killed outright (SIGKILL, OOM) leaves its copy
 behind until `git worktree remove`. A run cut off by a reboot comes back with `python -m score resume`.
 
 **On the conductor** (`score/conductor`, the always-on cloud machine that holds the store):

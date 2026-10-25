@@ -7,6 +7,7 @@ jobs on 3 L4s, EUR 0.53, thrown away when the main checkout was pulled under its
     frozen.claim()        # at a run's start: the copy this process must remove, or None
     frozen.hand_on()      # another process removes it now (the detached run, the run's releaser)
     frozen.remove_owned() # remove it, once
+    frozen.home_copy(path)  # the run's own home beside its copy: the design copied, the rest linked (enter does it)
 
 A clean tree is frozen at HEAD. A tree with changes (a --uncommitted run; untracked files count) is frozen at one commit
 of the whole working tree, written through a throwaway index with HEAD its parent, so neither the index nor the stash
@@ -14,9 +15,20 @@ moves; SCORE_FROZEN_CHANGES then says so, and the run still registers as uncommi
 Python's venv as `.venv` (ignored, so the copy stays clean and its records name its commit). SCORE_FROZEN names the
 copy for every process the run starts, so none freezes again; SCORE_FROZEN_OWNER is read and dropped by the one process
 that owns the copy (the run, or the detached run it hands it on to), so only that one removes it.
+
+The design is frozen too: the run's PROPS_HOME is a home of its own beside the copy (`<copy>.home`), its design
+folder a copy of $PROPS_HOME/design as the run starts and every other entry a link to the real one, so the store,
+the work folder and the logs are the shared ones. A sync pass, a lock or an edit that rewrites the design during the
+run reaches the next run, never this one (Batch 1, 2026-10-25: prepare rewrote every place's surface data mid-run, 58
+takes to 62, and every finish-route-palette and finish-route-list on it had "not run on its current inputs" or had
+"an input changed while it ran"). Same content, same keys: a key hashes a file's bytes, never its path. Once the run
+ends its design copy goes and a link to the real design takes its place, so a path the run printed or recorded
+(its log, a fault report) still opens; an entry the run made at the home's top level is moved into the real home
+and linked the same way.
 """
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -60,20 +72,72 @@ def make(repo, commit, folder=None):
     return path
 
 
-def remove(path):
-    """Remove a frozen copy and its worktree entry."""
+def home_of(path):
+    """The run's own home beside the frozen copy at `path`."""
+    return pathlib.Path(f"{path}.home")
+
+
+def home_copy(path, home=PROPS_HOME):
+    """The run's own home beside the copy at `path` (module docstring): `home`'s design copied, every other entry
+    linked; its path."""
+    own = home_of(path)
+    own.mkdir()
+    for entry in home.iterdir():
+        if entry.name == "design" and entry.is_dir():
+            shutil.copytree(entry, own / "design", symlinks=True)
+        else:
+            (own / entry.name).symlink_to(entry.resolve())
+    return own
+
+
+def home_closed(path, home):
+    """The run at `path` ended: its design copy replaced by a link to `home`'s design, and every entry it made at its
+    own home's top level moved into `home` (one `home` has already is left, and named in the error)."""
+    own = home_of(path)
+    if not own.is_dir():
+        return
+    left = []
+    for entry in sorted(own.iterdir()):
+        if entry.is_symlink():
+            continue
+        if entry.name == "design" and (home / "design").exists():
+            writable(entry)
+            shutil.rmtree(entry)
+            entry.symlink_to((home / "design").resolve())
+        elif (home / entry.name).exists():
+            left.append(entry.name)
+        else:
+            shutil.move(entry, home / entry.name)
+            entry.symlink_to((home / entry.name).resolve())
+    if left:
+        raise RuntimeError(f"{own}: {', '.join(left)} made by the run at its home's top level, and the home has one: "
+                           "left there")
+
+
+def writable(folder):
+    """Let the owner write every folder under `folder` (a copied design is read-only), so it can be removed."""
+    for found in (folder, *folder.rglob("*")):
+        if found.is_dir() and not found.is_symlink():
+            found.chmod(found.stat().st_mode | 0o700)
+
+
+def remove(path, home=None):
+    """Remove a frozen copy and its worktree entry, and close its run's home (home_closed) against `home` (the home
+    whose frozen folder holds the copy)."""
     common = git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
     done = subprocess.run(["git", "--git-dir", common, "worktree", "remove", "--force", str(path)],
                           capture_output=True, text=True)
     if done.returncode:
         raise RuntimeError(f"frozen copy {path} not removed: {done.stderr.strip()}")
+    home_closed(path, home or pathlib.Path(path).parent.parent)
 
 
 def enter(argv, repo):
     """Freeze `repo` and start `python -m score <argv>` again inside the copy, in this process, as its owner."""
     commit, changes = snapshot(repo)
     path = make(repo, commit)
-    env = {**os.environ, FROZEN: str(path), OWNER: "1", **({CHANGES: "1"} if changes else {})}
+    env = {**os.environ, FROZEN: str(path), OWNER: "1", "PROPS_HOME": str(home_copy(path)),
+           **({CHANGES: "1"} if changes else {})}
     print(f"score run: frozen at {commit[:12]} in {path}", flush=True)
     os.chdir(path)
     os.execve(sys.executable, [sys.executable, "-m", "score", *argv], env)
@@ -122,4 +186,5 @@ def resumed_env(worktree):
     worktree = pathlib.Path(worktree)
     if worktree.parent != FOLDER:
         return dict(os.environ)
-    return {**os.environ, FROZEN: str(worktree), OWNER: "1"}
+    own = {"PROPS_HOME": str(home_of(worktree))} if home_of(worktree).is_dir() else {}
+    return {**os.environ, FROZEN: str(worktree), OWNER: "1", **own}
