@@ -26,12 +26,8 @@
     "picture": "{home}/design/concepts/hangar.png"
    },
    {
-    "id": "lab",
-    "picture": "{home}/design/concepts/lab.png"
-   },
-   {
-    "id": "stairwell",
-    "picture": "{home}/design/concepts/stairwell.png"
+    "id": "square",
+    "picture": "{home}/design/concepts/square.png"
    },
    {
     "id": "tube",
@@ -106,23 +102,23 @@
   },
   {
    "id": "crowd-made",
-   "name": "one person of the crowd of people, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "name": "one person of the crowd of people, an average build, as drawn in the square concept; the clothes as drawn in the square concept",
    "prop": "crowd-made",
    "size": [
     0.55,
     0.55,
     1.8
    ],
-   "size_from": "stairwell/crowd of data/people/rows.json",
-   "view": "stairwell",
+   "size_from": "square/crowd of data/people/rows.json",
+   "view": "square",
    "box": [
-    2125,
-    744,
-    2752,
-    1138
+    0,
+    534,
+    358,
+    816
    ],
    "grounded": "SAM 3's box in the reading of the picked concept",
-   "clothes": "the clothes as drawn in the stairwell concept"
+   "clothes": "the clothes as drawn in the square concept"
   },
   {
    "id": "officer-made",
@@ -163,26 +159,6 @@
    ],
    "grounded": "SAM 3's box in the reading of the picked concept",
    "clothes": "the clothes as drawn in the workshop concept"
-  },
-  {
-   "id": "person_spacesuit-made",
-   "name": "person in spacesuit, an average build, as drawn in the lab concept; the clothes as drawn in the lab concept",
-   "prop": "person_spacesuit-made",
-   "size": [
-    0.5,
-    0.5,
-    1.8
-   ],
-   "size_from": "lab/person of data/people/rows.json",
-   "view": "lab",
-   "box": [
-    1691,
-    869,
-    1921,
-    1200
-   ],
-   "grounded": "SAM 3's box in the reading of the picked concept",
-   "clothes": "the clothes as drawn in the lab concept"
   },
   {
    "id": "person_uniform-made",
@@ -253,8 +229,7 @@
    "garage",
    "greenhouse",
    "hangar",
-   "lab",
-   "stairwell",
+   "square",
    "tube",
    "workshop"
   ]

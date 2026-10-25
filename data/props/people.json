@@ -48,15 +48,6 @@
     "body": "people-body-person-made builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
    }
   },
-  "person_spacesuit-made": {
-   "route": "prop",
-   "take": "person_spacesuit-made-s1",
-   "layer": "people",
-   "failures": {
-    "parts": "split a second time by people-look-parts-person_spacesuit-made (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
-    "body": "people-body-person_spacesuit-made builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
-   }
-  },
   "person_uniform-made": {
    "route": "prop",
    "take": "person_uniform-made-s1",
@@ -103,8 +94,7 @@
    "garage",
    "greenhouse",
    "hangar",
-   "lab",
-   "stairwell",
+   "square",
    "tube",
    "workshop"
   ]

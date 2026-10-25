@@ -944,38 +944,7 @@
     0.0,
     0.0
    ],
-   "rows": {
-    "person": {
-     "name": "person in spacesuit",
-     "noun": "person",
-     "count": 3,
-     "size": [
-      0.5,
-      0.5,
-      1.8
-     ],
-     "where": "at desks and bottom right",
-     "share": 0.2155,
-     "looks": [
-      "person_spacesuit-made",
-      "person_spacesuit-made",
-      "person_spacesuit-made"
-     ],
-     "dress": {
-      "words": "person in spacesuit",
-      "named": [],
-      "torso_lab": [
-       39.6,
-       3.1,
-       4.3
-      ],
-      "figures": 3,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
-     }
-    }
-   }
+   "rows": {}
   },
   "old_station": {
    "concept": "1003bf34858d5a995323ab433bcecbaa35ef7ee9ce45dff91e8fe7f7f4077ef2",
@@ -1224,69 +1193,7 @@
     0.0,
     -3.971
    ],
-   "rows": {
-    "crowd": {
-     "name": "crowd of people",
-     "noun": "crowd",
-     "count": 3,
-     "size": [
-      120.0,
-      120.0,
-      1.8
-     ],
-     "where": "right side, background square",
-     "share": 0.2565,
-     "crowd": "crowd-made",
-     "palettes": null,
-     "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
-     "dress": {
-      "words": "crowd of people",
-      "named": [],
-      "torso_lab": [
-       36.6,
-       4.2,
-       -1.7
-      ],
-      "figures": 3,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
-     },
-     "ground": []
-    },
-    "walkway_crowd": {
-     "name": "people on walkway",
-     "noun": "people",
-     "count": 5,
-     "size": [
-      10.0,
-      30.0,
-      1.8
-     ],
-     "where": "bottom right, walkway",
-     "share": 0.0586,
-     "looks": [
-      "person-made",
-      "person-made",
-      "person-made",
-      "person-made",
-      "person-made"
-     ],
-     "dress": {
-      "words": "people on walkway",
-      "named": [],
-      "torso_lab": [
-       23.7,
-       5.3,
-       -4.1
-      ],
-      "figures": 5,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
-     }
-    }
-   }
+   "rows": {}
   },
   "storage": {
    "concept": "d36b2c57cac96ed1f57c42e22a86ad6499ce19052e98c92cf622f67745d593ae",
@@ -1470,35 +1377,6 @@
       "de": null,
       "why": "the words name no library fabric of the people place: the look's own paint"
      }
-    },
-    "distant_crowd": {
-     "name": "crowd of people",
-     "noun": "crowd",
-     "count": 1,
-     "size": [
-      8.0,
-      10.0,
-      1.8
-     ],
-     "where": "in the background square",
-     "share": 0.0475,
-     "crowd": "crowd-made",
-     "palettes": null,
-     "palettes_from": "not decided: no rule reads a crowd's clothing colours off its concept (its box holds what stands round it, and a measured colour is the scene's light); one recorded model call per scene, in the batch, names them",
-     "dress": {
-      "words": "crowd of people",
-      "named": [],
-      "torso_lab": [
-       42.3,
-       8.9,
-       -3.7
-      ],
-      "figures": 1,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
-     },
-     "ground": []
     }
    }
   },

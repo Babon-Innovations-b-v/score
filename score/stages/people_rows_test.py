@@ -112,6 +112,14 @@ def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
         raise AssertionError("a crowd palette was coloured from surfaces no library holds")
 
 
+def test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own():
+    plan = {"w": 20.0, "d": 10.0, "items": [], "rows": {}, "beyond": ["far_crowd"]}
+    inventory = {"concept_pick": {"sha256": "0badcafe"}, "rows": [
+        {"id": "far_crowd", "name": "crowd of people", "noun": "crowd", "count": 3, "route": "people"},
+        {"id": "pilot", "name": "pilot in a red suit", "noun": "pilot", "count": 1, "route": "people"}]}
+    assert set(people_rows.refreshed_place("deck", inventory, plan, None)["rows"]) == {"pilot"}
+
+
 def test_the_tube_casts_its_people_and_the_square_its_crowd():
     tube = people_rows.cast_record("tube")
     person = next(person for person in tube["people"] if person["name"] == "person_right")
@@ -135,10 +143,12 @@ def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
     assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"]) == set(props["objects"])
     assert people_rows.size_of("person_uniform-made")[1] == "tube/person_right"  # the larger of the tube's two rows
     size, origin = people_rows.size_of("crowd-made")
-    assert people_rows.person_sized(size) and origin == "stairwell/crowd"  # one member, never the crowd's extent
-    found = {"places": {"stairwell": people_rows.place_entry("stairwell")}}  # five people standing apart on 10 x 30 m
+    assert people_rows.person_sized(size) and origin == "square/crowd"  # one member, never the crowd's extent
+    walkway = {"name": "people on walkway", "noun": "people", "count": 5, "size": [10.0, 30.0, 1.8], "share": 0.06,
+               "looks": ["person-made"] * 5}  # five people standing apart on 10 x 30 m
+    found = {"places": {"deck": {"concept": "0badcafe", "rows": {"walkway_crowd": walkway}}}}
     size, origin = people_rows.size_of("person-made", found)
-    assert people_rows.person_sized(size) and origin == "stairwell/walkway_crowd", (size, origin)
+    assert people_rows.person_sized(size) and origin == "deck/walkway_crowd", (size, origin)
 
 
 def test_each_line_row_is_drawn_from_the_person_that_maps_it():
@@ -159,7 +169,7 @@ def test_each_line_row_is_drawn_from_the_person_that_maps_it():
     right = rows["person_uniform-made"]
     assert right["view"] == "tube" and right["box"] == [1, 2, 3, 4]
     assert right["grounded"] and right["prop"] == "person_uniform-made"
-    assert rows["crowd-made"]["view"] is None, "the stairwell keeps no inventory here"
+    assert rows["crowd-made"]["view"] is None, "the square keeps no inventory here"
     assert inventory["plan"]["views"] == [{"id": place, "picture": f"{{home}}/design/concepts/{place}.png"}
                                           for place in ("garage", "tube")]
     assert inventory["approved"]["by"] == "the creator's pick"
