@@ -198,7 +198,7 @@ def test_every_body_builds_with_walls_the_model_check_passes():
 
 if __name__ == "__main__":
     import runpy
-    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()
