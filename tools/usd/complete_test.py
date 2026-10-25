@@ -12,6 +12,7 @@ import pathlib
 import sys
 import tempfile
 
+import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -49,8 +50,18 @@ def laid(folder, rows=(("crate", "floor"), ("lamp", "floor"))):
     contents_test.world_data(folder, resting_test.PLACE)
     contents_test.held_layers(stage, resting_test.PLACE)
     repainted_by_the_bake(stage, folder / "models")
+    dropped_still(stage, [name for name, _ in rows])
     complete.stored_outputs = lambda place: finished_outputs(folder, [name for name, _ in rows])
     return stage
+
+
+def dropped_still(stage, rows):
+    """A settle run's drop beside the stage (settle/settled.json) in which each row's object stays as laid: without one
+    the resting check of a place with loose objects is unknown."""
+    (stage.parent / "settle").mkdir(exist_ok=True)
+    still = {"motion": np.eye(4).tolist(), "moving": 0.0, "inside": []}
+    (stage.parent / "settle/settled.json").write_text(json.dumps(
+        {"objects": {f"{row}_1": still for row in rows}, "overlaps": []}))
 
 
 def repainted_by_the_bake(stage, models):
@@ -358,7 +369,17 @@ def a_ship_place_reads_the_runners_beside_likeness():
     return problems
 
 
-CHECKS = (a_finished_place_passes, an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
+def loose_objects_with_no_drop_are_not_known_to_rest():
+    """The resting check of a place whose loose objects no drop has run on is unknown, not a pass."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = laid(folder)
+        (stage.parent / "settle/settled.json").unlink()
+        found = complete.resting_check(resting_test.PLACE, stage)["result"]
+        return [] if found == complete.UNKNOWN else [f"two loose boxes with no drop run read {found}"]
+
+
+CHECKS = (loose_objects_with_no_drop_are_not_known_to_rest, a_finished_place_passes, an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
           a_store_copy_takes_resting_from_its_assembly_gate, a_ship_place_reads_the_runners_beside_likeness,
           a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,
