@@ -17,6 +17,7 @@ sent."""
 import contextlib
 import datetime
 import fcntl
+import filecmp
 import gzip
 import hashlib
 import json
@@ -590,6 +591,23 @@ def refused_words(why):
     return f"REFUSED: nothing synced: {why}"
 
 
+def trees_differ(compared):
+    """Whether the two folders of a filecmp.dircmp differ anywhere below them (a file's bytes, or one only one has)."""
+    return bool(compared.left_only or compared.right_only or compared.diff_files or compared.funny_files) or any(
+        trees_differ(below) for below in compared.subdirs.values())
+
+
+def design_moved():
+    """The words for the pass's line when a live run's design copy (graph/frozen.py: <copy>.home/design, a folder
+    while the run runs) differs from the design the pass priced: the cockpit then shows a design the run is not
+    using. Empty when none does."""
+    home = settings.SCORE_PROPS_HOME
+    for copy in sorted((home / "frozen").glob("*.home/design")):
+        if copy.is_dir() and not copy.is_symlink() and trees_differ(filecmp.dircmp(copy, home / "design")):
+            return "; design moved since the running batch started (the cockpit prices the design as it is now)"
+    return ""
+
+
 def sync_pass(remote, source, chosen=None):
     """One pass; what it did, in words. Nothing is synced from a checkout not clean and pushed, when the runner's
     price fails; the export is pushed even when the checkout moved to another commit during the pass, so his locks and
@@ -623,4 +641,5 @@ def sync_pass(remote, source, chosen=None):
     previews = film_previews()  # minutes of Chromium: after the requests, outside the pricing lock
     refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
     return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {swept}; "
-            f"{parts}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; {previews}")
+            f"{parts}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; {previews}"
+            f"{design_moved()}")
