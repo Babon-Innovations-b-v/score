@@ -95,6 +95,8 @@ def ground_under(spots, found):
     negative when the feet are under it, None when nothing is within LOOK_DOWN), what it is, and whether water is
     over it there."""
     ground = {name: tris for name, tris in found.items() if not name.startswith(WATER)}
+    if not ground:  # a base layer with no solid (an earth seed whose plan lays no shell): nobody stands on anything
+        return [{"gap": None, "on": None, "water": False} for _ in spots]
     names = np.repeat(np.arange(len(ground)), [len(tris) for tris in ground.values()])
     mesh = mesh_of(np.concatenate(list(ground.values())))
     spots = np.asarray(spots, dtype=float)
