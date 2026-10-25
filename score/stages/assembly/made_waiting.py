@@ -5,7 +5,9 @@ there re-keys their paid rows.
 
     lay   each waiting entry naming a `row` the bake made: an Xform at /<place>/Fixtures/<name> referencing the
           assembly's asset of that model (take_bake writes it), turned by the entry's rotation, its middle over the
-          entry's spot and its lowest point on it; the entry leaves the root's score:waiting
+          entry's spot and its lowest point on it; the entry leaves the root's score:waiting. A design's object
+          (the scene record's: its `bake` the model, its `row` its inventory row) is laid so at
+          /<place>/Objects/<name>, where the settle, physics and motion find a laid object
 """
 import json
 
@@ -49,23 +51,27 @@ def lay(out, place, bake):
     laid = []
     for part, entries in record.items():
         for entry in entries if isinstance(entries, list) else []:
-            if not (isinstance(entry, dict) and entry.get("waiting") and entry.get("row") in baked):
+            if not isinstance(entry, dict):
                 continue
-            row = entry["row"]
-            if not stage.GetPrimAtPath(f"/{place}/Fixtures"):
-                UsdGeom.Scope.Define(stage, f"/{place}/Fixtures")
-            xform = UsdGeom.Xform.Define(stage, f"/{place}/Fixtures/{entry['name']}")
-            xform.GetPrim().GetReferences().AddReference(f"../assets/{row}.usdc")
-            xform.AddTransformOp().Set(placement(entry, *asset_bounds(out / "assets" / f"{row}.usdc")))
-            for name, value in (("score:kind", entry.get("kind", "fixture")), ("score:model", row),
-                                ("score:row", row), ("score:from", f"{entry.get('from', '')}; laid by the assembly "
-                                                                   f"with the surface line's baked {row}")):
+            model = entry["bake"] if "bake" in entry else entry.get("row")
+            if not (entry.get("waiting") and model in baked):
+                continue
+            scope = f"/{place}/Objects" if "bake" in entry else f"/{place}/Fixtures"
+            if not stage.GetPrimAtPath(scope):
+                UsdGeom.Scope.Define(stage, scope)
+            xform = UsdGeom.Xform.Define(stage, f"{scope}/{entry['name']}")
+            xform.GetPrim().GetReferences().AddReference(f"../assets/{model}.usdc")
+            xform.AddTransformOp().Set(placement(entry, *asset_bounds(out / "assets" / f"{model}.usdc")))
+            for name, value in (("score:kind", entry.get("kind", "fixture")), ("score:model", model),
+                                ("score:row", entry["row"]), ("score:from", f"{entry.get('from', '')}; laid by the "
+                                                                            f"assembly with the surface line's baked "
+                                                                            f"{model}")):
                 xform.GetPrim().CreateAttribute(name, Sdf.ValueTypeNames.String).Set(value)
             waiting.remove(f"{part} {entry.get('name', '?')}: {entry['waiting']}")
-            laid.append(row)
+            laid.append(model)
     if laid and waiting:
         root.GetAttribute(WAITING).Set(waiting)
     elif laid:
         root.RemoveProperty(WAITING)
     layer.Save()
-    return laid
+    return list(dict.fromkeys(laid))

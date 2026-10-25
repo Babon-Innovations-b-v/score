@@ -17,6 +17,11 @@ builds it unchanged; it lands as record/<place>.json in the output.
     lights       one at each plan item of a glowing row (its row kind, score/stages/row_kinds.py): over the item's
                  middle, as high on it as the library's lamp for the row's mount says, its numbers that lamp's
                  (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs
+    objects      one at each plan item of each prop or shell row of the batch's hand-in (several where the item
+                 counts several or a run the plan draws once), `<row>_<n>`, on its spot at its shape's base, turned
+                 along its item, waiting on the bake's model of its row's take (`bake`, `<first row>_1`), which the
+                 assembly lays (assembly/made_waiting.py); a row the plan's shell lays itself (route `plan`) is named
+                 on a shell piece of its part instead
     environment  inside or not, and the sky at the place's site at its scene time from the physics (overhead.py: each
                  light over the horizon, every other body, every backdrop), which the light layer draws
                  (score/stages/light/sky.py); the record draws no sky and holds no air the design does not give
@@ -58,15 +63,25 @@ VIEW_FOV = 80
 AIM_HEIGHT = 1.0
 # What a door may lead to that is no place.
 NOT_PLACES = ("outside", "sealed")
+# The routes whose rows' models the record lays at their plan items (prepare's groups.ROUTES): people are the cast's.
+LAID_ROUTES = ("prop", "shell")
+# The part of the place each piece of the shell is (design_shell.part_kind), as a reading's row says its part: a row
+# the plan lays itself (route `plan`) is named on a piece of its part, an opening on a wall it is cut in.
+SHELL_PARTS = {"deck": "floor", "wall": "wall", "roof": "roof"}
+PART_PIECE = {"opening": "wall"}
+# An item's way (x across) in plan metres by its facing (None as north): turned east or west it lies across.
+FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.0), "W": (0.0, -1.0)}
 
 
 def files(place):
     """The design files the writer reads: the place's kept plan and every other (its holder's `holds`, its siblings'
-    frames), its scene inventory, its sky inputs (scene_sky.keep's), the row-kind rules, the library's lamp and the
-    environment's eye height (place.json `shared`)."""
+    frames), its scene inventory, its sky inputs (scene_sky.keep's), the row-kind rules, the library's lamp, the
+    environment's eye height (place.json `shared`) and the batch's hand-in (prepare's handin.py: each row's route and
+    the take that makes its model)."""
     return {"inventory": "{home}/design/inventory/{place}.json", "plans": "{home}/design/plans",
             "sky": "{home}/design/sky/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
-            "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json"}
+            "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json",
+            "hand-in": "{home}/design/props/{place}.json"}
 
 
 def read(path):
@@ -116,11 +131,18 @@ def shell_entry(name, number, piece, design, said):
     return entry
 
 
-def shell(design, place, library):
+def shell(design, place, library, rows=None):
     """The room shell's entries (design_shell.pieces) stood in the place's frame, each painted from the scene's
-    library by its part's kind."""
-    return [painted(shell_entry(name, number, piece, design, said), design_shell.part_kind(name), place, library)
-            for name, parts, said in design_shell.pieces(design) for number, piece in enumerate(parts)]
+    library by its part's kind; each of the shell's own rows (`rows`: {part: [row id]}) named on the first piece of
+    its part no other row names (`row`, its score:row)."""
+    found = [painted(shell_entry(name, number, piece, design, said), design_shell.part_kind(name), place, library)
+             for name, parts, said in design_shell.pieces(design) for number, piece in enumerate(parts)]
+    free = {part: list(ids) for part, ids in (rows or {}).items()}
+    for entry in found:
+        ids = free.get(SHELL_PARTS.get(entry["name"].split("_")[0]))
+        if ids:
+            entry["row"] = ids.pop(0)
+    return found
 
 
 def stair(number, entry, design):
@@ -143,10 +165,12 @@ def stair(number, entry, design):
                     f"{max(1, steps)} steps up its footprint at {float(entry.get('angle') or 0.0):g} degrees"}
 
 
-def structure(plan, design, library=None):
-    """The record's structure: an inside place's shell where its base does not lay it, and the plan's stairs, each
-    painted from the scene's surface library (`library`: its materials.json content, None while not made)."""
-    shelled = shell(design, plan["place"], library) if inside(design) and not design_shell.laid_for(design) else []
+def structure(plan, design, library=None, rows=None):
+    """The record's structure: an inside place's shell where its base does not lay it (its own rows, `rows`, named on
+    its pieces), and the plan's stairs, each painted from the scene's surface library (`library`: its materials.json
+    content, None while not made)."""
+    shelled = shell(design, plan["place"], library, rows) if inside(design) and not design_shell.laid_for(design) \
+        else []
     return shelled + [painted(stair(number, entry, design), "stair", plan["place"], library)
                       for number, entry in enumerate(design.get("stairs") or [], 1)
                       if len(entry.get("points") or []) >= 3]
@@ -350,6 +374,125 @@ def places_of(place, plan, design, plans):
             if name in held and name != place and (pathlib.Path(plans) / f"{name}.json").is_file()]
 
 
+# --- the design's objects -----------------------------------------------------------------------------------------
+
+def models_of(handin):
+    """{row id: the model the bake makes for it}: each handed take's, `<its first row>_1` (prepare's handin.py
+    surface_record names it so); a row of no handed take has none."""
+    return {row: f"{first}_1" for first, entry in handin.get("objects", {}).items() for row in entry["rows"]}
+
+
+def plan_rows(handin):
+    """{shell part: [row id]} of the rows the plan's shell lays itself (route `plan`), in the hand-in's order."""
+    found = {}
+    for row in handin.get("rows", []):
+        if row.get("route") == "plan":
+            part = PART_PIECE.get(row.get("part"), row.get("part"))
+            found.setdefault(part, []).append(row["id"])
+    return found
+
+
+def item_path(item, shape):
+    """The path an item's pieces stand along, in plan metres: a polygon's outline round its box, closed; else its
+    box's long middle line."""
+    x, y, wide, deep = (float(value) for value in item[1:5])
+    if shape.get("shape") == "polygon" and len(shape.get("points") or []) >= 3:
+        points = [[x + float(across) * wide, y + float(along) * deep] for across, along in shape["points"]]
+        return np.asarray(points + points[:1])
+    if wide >= deep:
+        return np.asarray([[x, y + deep / 2], [x + wide, y + deep / 2]])
+    return np.asarray([[x + wide / 2, y], [x + wide / 2, y + deep]])
+
+
+def along(path, share):
+    """The plan point `share` of the way along a path and the way the path runs there (a unit plan vector)."""
+    legs = np.diff(path, axis=0)
+    lengths = np.linalg.norm(legs, axis=1)
+    reach = share * lengths.sum()
+    for start, leg, length in zip(path, legs, lengths):
+        if length > 0 and reach <= length:
+            return start + leg * reach / length, leg / length
+        reach -= length
+    last = int(np.flatnonzero(lengths)[-1])
+    return path[-1], legs[last] / lengths[last]
+
+
+def spots_of(item, shape, pieces):
+    """[(plan point, x way)] of an item's pieces: one over its box's middle turned by its facing; several evenly along
+    its path (item_path), each its long side along it."""
+    x, y, wide, deep = (float(value) for value in item[1:5])
+    if pieces == 1:
+        return [(np.array([x + wide / 2, y + deep / 2]), np.asarray(FACING_WAY.get(item[5], FACING_WAY[None])))]
+    path = item_path(item, shape)
+    return [along(path, (number + 0.5) / pieces) for number in range(pieces)]
+
+
+def yaw_turn(design, way, size):
+    """The turn [x, y, z, w] about up that lays a model's long side (its x, else its z where it is deeper than wide:
+    `size` [wide, deep, tall]) along a plan way, in the place's frame."""
+    _, east, south = place_plan.frame_of(design)
+    seen = east * way[0] + south * way[1]
+    deeper = isinstance(size, list) and len(size) == 3 and float(size[1]) > float(size[0])
+    angle = math.atan2(seen[0], seen[2]) if deeper else math.atan2(-seen[2], seen[0])
+    return [0.0, round(math.sin(angle / 2), 6), 0.0, round(math.cos(angle / 2), 6)]
+
+
+def pieces_of(row, items):
+    """How many pieces an item of the row lays: its shape's count; the row's own count on its only item (a run the
+    plan draws once, laid as the pieces prepare's groups.run_pieces makes it of)."""
+    counts = [int(shape.get("count") or 1) for _, shape in items]
+    if len(items) == 1:
+        counts = [max(counts[0], int(row.get("count") or 1))]
+    return counts
+
+
+def sized(row):
+    return isinstance(row.get("size"), list) and len(row["size"]) == 3 and all(
+        isinstance(side, (int, float)) and side > 0 for side in row["size"])
+
+
+def waits(row, model, by_id):
+    """Why an object of the row waits on its model: the bake's model to come, or why the batch makes none."""
+    if model is None:
+        return f"no take of the batch makes a model of row {row['id']} (prepare's hand-in hands none)"
+    first = by_id.get(model.removesuffix("_1"), row)
+    if not sized(first):
+        return f"its model {model} is never baked: row {first['id']} has no size (an input gap of the batch)"
+    return f"its model {model} comes from the surface line's bake"
+
+
+def design_objects(design, handin):
+    """Every object of the design: one at each plan item (more where the item counts several, or a run the plan
+    draws once) for each prop or shell row the item names, `<row>_<n>` the n-th of its row, standing on its plan spot
+    as high as its shape's base, turned along its item, waiting on the bake's model of its row (made_waiting lays it
+    once baked; one the bake never makes stays named on the stage's root)."""
+    by_id = {row["id"]: row for row in handin.get("rows", [])}
+    models, shapes, tied = models_of(handin), design.get("shapes") or {}, design.get("rows") or {}
+    items = {}
+    for item in design.get("items") or []:
+        if len(item) > 6 and item[6] != "item":
+            continue
+        for row_id in tied.get(item[0]) or []:
+            if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES:
+                items.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
+    found = []
+    for row_id, laid in items.items():
+        row, model = by_id[row_id], models.get(row_id)
+        size = by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
+        number = 0
+        for (item, shape), pieces in zip(laid, pieces_of(row, laid)):
+            base = float(shape.get("base") or 0.0)
+            for spot, way in spots_of(item, shape, pieces):
+                number += 1
+                (point,), floor = in_frame(design, [spot], base)
+                found.append({"name": f"{row_id}_{number}", "row": row_id, "bake": model, "kind": "object",
+                              "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
+                              "waiting": waits(row, model, by_id),
+                              "from": f"plan item {item[0]!r}, inventory row {row_id}: piece {number} of the row, "
+                                      f"{base:g} m over the floor"})
+    return found
+
+
 # --- the record ---------------------------------------------------------------------------------------------------
 
 def ceiling(design):
@@ -363,11 +506,14 @@ def record_of(plan, design, inputs):
     """The place's scene record from its design (module docstring)."""
     place = plan["place"]
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
+    handin = read(inputs["hand-in"])
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its design: its locked plan, "
                        "its scene inventory's row kinds, the library's lamp and the environment concept's physics at "
                        "its site. Frame: the plan's (x east, z south, y up over its floor).",
-              "floor": plan["floor"], "inside": inside(design), "structure": structure(plan, design, library_of(inputs)), "objects": [],
+              "floor": plan["floor"], "inside": inside(design),
+              "structure": structure(plan, design, library_of(inputs), plan_rows(handin)),
+              "objects": design_objects(design, handin),
               "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"])}
     record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye),

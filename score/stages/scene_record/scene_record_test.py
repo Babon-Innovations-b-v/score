@@ -106,6 +106,12 @@ LAMP_ROW = {"id": "ceiling_lamp", "name": "ceiling lamp", "noun": "lamp", "ancho
 SITE = {"title": "SITE", "w": 40.0, "d": 20.0, "leads": {},
         "holds": [{"place": "shed", "row": "shed", "x": 2.0, "y": 2.0, "w": 8.0, "d": 6.0},
                   {"place": "yard", "row": "yard", "x": 12.0, "y": 2.0, "w": 20.0, "d": 12.0}]}
+# The batch's hand-in (prepare's handin.py): the bench a model of its own take, the lamp sharing the bench's take, the
+# shed's floor the plan's own shell.
+HANDIN = {"rows": [{"id": "bench", "route": "prop", "size": [2.0, 0.6, 0.9], "count": 1},
+                   {"id": "ceiling_lamp", "route": "prop", "size": [1.0, 1.0, 0.2], "count": 1},
+                   {"id": "shed_floor", "route": "plan", "part": "floor"}],
+          "objects": {"bench": {"rows": ["bench", "ceiling_lamp"]}}}
 # The base's site at its scene time (data/physics/setting.json): the Sun stands over its horizon then.
 SKY = {"site": {"on": "moon", "latitude": 55.0, "longitude": 0.0, "height_m": 0.0}, "time": "2099-10-01T14:00:00Z"}
 
@@ -119,7 +125,8 @@ def written(folder, design):
     (folder / "plans/site.json").write_text(json.dumps(SITE))
     (folder / "inventory.json").write_text(json.dumps({**INVENTORY, "rows": [*INVENTORY["rows"], LAMP_ROW]}))
     (folder / "sky.json").write_text(json.dumps({**SKY, "place": "shed", "top": "site", "setting": setting.now()}))
-    inputs = {**inputs, "plan": out, "sky": folder / "sky.json", "row kinds": REPO / "data/checks/row-kinds.json",
+    (folder / "hand-in.json").write_text(json.dumps(HANDIN))
+    inputs = {**inputs, "plan": out, "sky": folder / "sky.json", "hand-in": folder / "hand-in.json", "row kinds": REPO / "data/checks/row-kinds.json",
               "lamp library": REPO / "data/library/lamps.json", "places": REPO / "data/definitions/place.json"}
     record = folder / "record"
     record.mkdir()
@@ -171,6 +178,40 @@ def test_the_record_is_written_from_the_design():
         output, inputs = written(folder, nowhere)
         verdict = gates.judge_openings(output, inputs, {})
         assert verdict.answer == checks.FAIL and "'moon_city'" in " ".join(verdict.findings), verdict.findings
+
+
+def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model():
+    """Fault (2026-10-25): the record laid no object of a designed place, so the assembly placed none of its models.
+    Each prop row's plan item gets its object `<row>_<n>` over its middle at its shape's base, waiting on its take's
+    model (`<first row>_1`); a run the plan draws once as a polygon counting three lays three pieces along it, each
+    its long side along the path; a row with no size waits named; the plan's own floor is named on its deck."""
+    from score.stages.scene_record import writer
+    design = {**WRITTEN, "items": [*WRITTEN["items"], ["RAIL", 1.0, 4.0, 3.0, 1.0, None, "item"]],
+              "rows": {**WRITTEN["rows"], "RAIL": ["rail"]},
+              "shapes": {**WRITTEN["shapes"], "RAIL": {"shape": "polygon", "points": [[0, 0], [1, 0], [1, 1], [0, 1]],
+                                                       "count": 3, "base": 0.5}}}
+    handin = {"rows": [*HANDIN["rows"], {"id": "rail", "route": "prop", "size": [1.0, 0.1, 1.0]}],
+              "objects": {**HANDIN["objects"], "rail": {"rows": ["rail"]}}}
+    with tempfile.TemporaryDirectory() as folder:
+        output, inputs = written(folder, design)
+        (pathlib.Path(folder) / "hand-in.json").write_text(json.dumps(handin))
+        record = writer.record_of(json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text()), design,
+                                  inputs)
+    found = {entry["name"]: entry for entry in record["objects"]}
+    assert sorted(found) == ["bench_1", "ceiling_lamp_1", "rail_1", "rail_2", "rail_3"], sorted(found)
+    bench = found["bench_1"]
+    assert bench["at"] == [-2.0, 0.0, -1.7] and bench["bake"] == "bench_1" and bench["row"] == "bench", bench
+    assert bench["rotation"] == [0.0, 0.0, 0.0, 1.0] and "surface line's bake" in bench["waiting"], bench
+    lamp = found["ceiling_lamp_1"]
+    assert lamp["bake"] == "bench_1" and lamp["at"] == [0.0, 2.7, 0.0], lamp  # the bench's take, at its base
+    rails = [found[f"rail_{number}"] for number in (1, 2, 3)]
+    assert all(rail["at"][1] == 0.5 for rail in rails) and len({tuple(rail["at"]) for rail in rails}) == 3, rails
+    assert rails[0]["at"] == [-1.6667, 0.5, 1.0] and rails[0]["rotation"] == [0.0, 0.0, 0.0, 1.0], rails[0]
+    deck = next(entry for entry in record["structure"] if entry.get("row"))
+    assert deck["name"].startswith("deck") and deck["row"] == "shed_floor", deck
+    unsized = {**handin, "rows": [{**row, "size": None} if row["id"] == "rail" else row for row in handin["rows"]]}
+    [rail] = [entry for entry in writer.design_objects(design, unsized) if entry["name"] == "rail_1"]
+    assert "row rail has no size" in rail["waiting"], rail
 
 
 def test_a_floodlight_tower_read_as_a_tower_gets_a_light_at_its_head():
@@ -231,4 +272,5 @@ if __name__ == "__main__":
     test_a_written_plan_with_no_corner_takes_its_outline()
     test_the_record_is_written_from_the_design()
     test_the_shell_and_stairs_take_the_scene_librarys_surfaces()
+    test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model()
     print("scene_record_test: ok")
