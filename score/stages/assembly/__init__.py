@@ -106,13 +106,15 @@ def make_from_seed(inputs, out, seed, params):
     it took into origin.json."""
     folder = inputs["seed"]
     root = folder / f"{folder.name}.usda"
-    shutil.copy2(root, out / root.name)
+    # copied as plain files (copyfile): the store's seed is read-only and a copy keeping its modes refused the
+    # record's save over the copied base (Batch 1, 2026-10-25: every assembly)
+    shutil.copyfile(root, out / root.name)
     for part in SEED_PARTS:
         source = folder / part
         if source.is_dir():
-            shutil.copytree(source, out / part)
+            shutil.copytree(source, out / part, copy_function=shutil.copyfile)
         elif source.exists():
-            shutil.copy2(source, out / part)
+            shutil.copyfile(source, out / part)
     record = take_record(inputs, out, folder.name)
     for name, (_, layer, assets) in LAYERS.items():
         if name in inputs:
@@ -141,9 +143,9 @@ def take_layer(made, root, layer, assets):
     if assets and assets != "assets":
         shutil.rmtree(root.parent / assets, ignore_errors=True)
     if assets and (made / assets).is_dir():
-        shutil.copytree(made / assets, root.parent / assets, dirs_exist_ok=True)
+        shutil.copytree(made / assets, root.parent / assets, dirs_exist_ok=True, copy_function=shutil.copyfile)
     (root.parent / layer).parent.mkdir(exist_ok=True)
-    shutil.copy2(made / layer, root.parent / layer)
+    shutil.copyfile(made / layer, root.parent / layer)
     hold(root, f"./{layer}")
     taken = Sdf.Layer.FindOrOpen(str(root.parent / layer))
     if taken.HasEndTimeCode():
