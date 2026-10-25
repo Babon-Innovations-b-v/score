@@ -62,7 +62,9 @@ def test_the_inputs_row_declares_its_scenes_inventory_not_the_whole_folder():
     for place in ("campgrounds", "hangar", "shiplock"):
         assert runner.files_of(row, place)["inventories"] == "{data}/inventory/" + f"{place}.json", place
     loop_split = stages.shapes_first.SPLIT  # the loop's parts split: props-inputs with its registration gate (#41)
-    assert _code.source_files(graph.code_functions(row)) == _code.source_files(graph.code_functions(loop_split))
+    floor_held = pathlib.Path(stages.shapes_first.floor_fit.__file__)  # its fits-the-plan check, the table's (78461f7f)
+    assert set(_code.source_files(graph.code_functions(row))) == {
+        *_code.source_files(graph.code_functions(loop_split)), floor_held}
 
 
 def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name():

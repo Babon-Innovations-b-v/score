@@ -380,7 +380,8 @@ def test_the_check_reads_every_input_check_step_reads():
     bake_check, prop_env = sys.modules["bake_check"], sys.modules["prop_env"]
     read = inputs_read(bake_check.check_step) | inputs_read(bake_check.data_of)
     row = next(row for row in stages.STAGES if row.name == "surfaces-check")
-    handed = prop_env.short({**row.files("greenhouse"), **dict.fromkeys(row.after, ".")})
+    # only the keys matter here: a declared file may be (path, part), the part the runner reads
+    handed = prop_env.short(dict.fromkeys([*row.files("greenhouse"), *row.after], "."))
     assert read <= set(handed), read - set(handed)
 
 
@@ -400,7 +401,10 @@ def test_the_cast_crowds_from_its_plan_never_a_hand_written_record():
         declared = row.files(place)
         paths = [pattern[0] if isinstance(pattern, tuple) else pattern for pattern in declared.values()]
         assert not any(path.startswith("{data}/scene") or "world1-r4" in path for path in paths), (place, declared)
-        assert [path for path in paths if path.startswith("{data}/kit")] == ["{data}/kit/{place}.json"], declared
+        kit = ["{data}/kit/{place}.json"]  # its own place's: declared, or read from its earth seed once it has one
+        assert [path for path in stages.cast.files(place).values() if str(path).startswith("{data}/kit")] == kit
+        kept = [] if stages.earth_place(place) else kit
+        assert [path for path in paths if path.startswith("{data}/kit")] == kept, declared
 
 
 # The environment data's paths into the work folder still standing, per file, and why: the work folder is no store
