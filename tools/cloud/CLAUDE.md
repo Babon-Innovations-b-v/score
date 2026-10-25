@@ -197,15 +197,26 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   pool first, before its 30 s grace (`stop_run`), so no card is rented in the place of one a stopping taker deletes;
   the detached wrapper waits `stopped.FORWARD_WAIT_SECONDS` (90) for it; a collector stops at its first signal and
   ignores the next, so its rents under way delete their machines (faults of 2026-10-24); a zombie holds no card
-  (`pool.process_alive`). Every card minute is charged once:
-  rent to first parking (`pool-<run>-<id>`), each spell idle (`pool-idle-...`, at its take or release), the taker's
-  use; each line carries the run and the pool's ticket. The pool's idle time is the run's own cost, to be counted in
+  (`pool.process_alive`). Every machine minute is charged once, by the pool
+  (`pool.hold`, `pool-hold-<run>-...` lines, kind `pool-hold`): from its creation to its delete, busy or idle, at its
+  offer's price and billing unit, booked each collector beat and when it is struck off (`pool.left`), under the run
+  and the pool's ticket, so the run's heartbeat, the cockpit's Spent and the money guards count it as it accrues
+  (fault of 2026-10-25: Batch 1's pool held 11 h booked EUR 0, its heartbeat gauges reading the run's id before the
+  run took it); its rent to first parking, idle spells and takers' rows keep their minutes and book no euros
+  (`card_euros`, read by the measurements), and its first booking closes its rent's started line. The pool's idle time is the run's own cost, to be counted in
   its high estimate, its stop line and a benchmark grant's balance, never cut by a smaller pool or a cheaper class
   (quality is never a cost lever). Every `score run` with card rows opens its pool before it drives
   (`score/__main__.py` `opened_pool`): sized by `pool_sizes` (`pool.counts_for`: the most cards one row of a line is
   priced on, summed over the `--jobs` lines holding most, cards and processor machines together, at most
-  `MOST_CARDS`, all L4; another class is asked for by its claim) and lowered by the run's heartbeat as its card rows
-  end (`pool_tender`, `pool.resize`: never above its reserved size; its processor machines open at 0, `pool.cards_only`, and are raised only for the renders and bakes near, `near`: each read stands accepted or is ready, Batch 1 of 2026-10-24 having held three idle for an hour; fault of 2026-10-24: 10 L4s and 3 POP2s held for 8
+  `MOST_CARDS`, all L4; another class is asked for by its claim) and held just in time by the run's heartbeat (owner,
+  2026-10-25: "cant u just do the start up earlier then when u need them again"): each machine, card or processor,
+  only for the rows whose first job is due within its class's lead (`pool.leads`: the median minutes its class's last
+  30 pool machines took to answer, and `LEAD_MARGIN_MINUTES`), on a forecast of each row's due time (`due_rows`,
+  `due_in`: the rows it reads still to run at their likely minutes), so a machine is rented its start-up before its
+  first job and let go while its next job is further away; it opens at what is due then (`pool.sized`), and an
+  idle machine billed by the started hour stays till its paid hour ends (`pool.paid_ahead`) (`pool_tender`,
+  `pool.resize`: never above its reserved size; Batch 1 of 2026-10-24 and 2026-10-25 held three processor machines
+  idle an hour and ten cards idle while the close-ups ran 2.5 h; fault of 2026-10-24: 10 L4s and 3 POP2s held for 8
   jobs, the cards about 40% busy), held until a batch's longest
   run (the ledger's `BATCH_HOURS`) and then, while the run goes on, another `BATCH_HOURS` at a time once its end
   is within an hour (`score/__main__.py` `extend_pool`, `compute.extend_pool`, `pool.extend`: each further holding

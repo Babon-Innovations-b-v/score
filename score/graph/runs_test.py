@@ -380,21 +380,50 @@ def test_the_claims_beside_the_entries_are_not_a_run():
         shutil.rmtree(folder)
 
 
-def test_a_render_counts_for_the_pools_processors_only_once_it_is_near():
-    """Batch 1 of 2026-10-24: three processor machines idle from the start while only Pixal3D ran."""
+def test_the_pool_rents_each_machine_its_start_up_before_its_first_job_and_lets_it_go_over_a_longer_gap():
+    """Owner, 2026-10-25: "cant u just do the start up earlier then when u need them again" (Batch 1: three
+    processor machines idle an hour, ten cards idle while the close-ups ran 2.5 h). A forecast of when each pooled
+    row's first job is due (the rows it reads still to run, at their minutes): a machine is held from its start-up
+    (the lead) before that, and let go while its next job is further away."""
+    import datetime
     import types
     from score import __main__ as command
-    reads = {"bake@a": ["paint@a"], "paint@a": ["model@a"], "model@a": ["close@a"], "close@a": []}
-    standing = {"close@a"}
+    reads = {"close@a": [], "model@a": ["close@a"], "bake@a": ["model@a"], "pixal@a": ["close@a"],
+             "finish@a": ["pixal@a"], "judge@a": ["finish@a"]}
+    started = time.time() - 60
+    standing = {}
+
+    def ends(node):
+        standing[node] = {"at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
     runner = types.SimpleNamespace(
-        store=types.SimpleNamespace(current_accept=lambda node: {"at": "x"} if node in standing else None),
+        store=types.SimpleNamespace(current_accept=standing.get),
         nodes_named=lambda names: iter([(name, None) for name in names]),
-        earlier=lambda node, _place: reads[node])
-    assert not command.near(runner, "bake@a")  # two steps away: no processor machine yet
-    standing.add("model@a")
-    assert command.near(runner, "bake@a")  # its input is ready to start: rent now
-    standing.add("paint@a")
-    assert command.near(runner, "bake@a")
+        earlier=lambda node, _place: reads[node],
+        desk=lambda area, node, ending: pathlib.Path(tempfile.gettempdir()) / "no-such-fault" / f"{node}{ending}")
+    leads = {False: 8.0, True: 8.0}  # each class's measured start-up and its margin (pool.leads)
+    kept = command.POOLED_ROWS[:], dict(command.PAID_MINUTES)
+    command.POOLED_ROWS[:] = [("bake@a", "a", 2, True), ("pixal@a", "a", 3, False), ("judge@a", "j", 1, False)]
+    command.PAID_MINUTES.clear()
+    command.PAID_MINUTES.update({"close@a": 150.0, "model@a": 30.0, "bake@a": 20.0, "pixal@a": 60.0,
+                                 "finish@a": 40.0, "judge@a": 10.0})
+    try:
+        assert command.due_rows(runner, started, leads) == []  # the close-ups first: nothing rented for 2.5 h
+        ends("close@a")
+        assert command.due_rows(runner, started, leads) == [("a", 3, False)]  # Pixal3D due now; the bake 30 min on
+        command.PAID_MINUTES["model@a"] = 6.0
+        assert ("a", 2, True) in command.due_rows(runner, started, leads)  # due in 6 min, within its 8 min lead
+        for node in ("pixal@a", "model@a", "bake@a"):
+            ends(node)
+        assert command.due_rows(runner, started, leads) == []  # the judge 40 min away: its card goes meanwhile
+        command.PAID_MINUTES["finish@a"] = 5.0
+        assert command.due_rows(runner, started, leads) == [("j", 1, False)]  # a 5 min gap: the card is held
+    finally:
+        command.POOLED_ROWS[:] = kept[0]
+        command.PAID_MINUTES.clear()
+        command.PAID_MINUTES.update(kept[1])
+    chain = {"c": ["b"], "b": ["a"], "a": []}
+    assert command.due_in("c", chain.get, lambda node: 10.0, lambda node: "stopped" if node == "a" else "todo",
+                          {}) == float("inf")  # a row it reads stopped: never due
 
 
 if __name__ == "__main__":

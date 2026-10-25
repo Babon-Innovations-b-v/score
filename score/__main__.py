@@ -92,6 +92,7 @@ import atexit
 import datetime
 import importlib.util
 import json
+import math
 import os
 import pathlib
 import signal
@@ -137,8 +138,11 @@ RELEASE_POLL_SECONDS = 1
 # detached run is SIGKILLed.
 POOL_RELEASE_SECONDS = 40
 # The paid rows the run's warm pool was sized on, (node, line, cards, on processors) each (card_rows): its heartbeat
-# lowers the pool as they end (pool_tender).
+# holds the pool to those due within its machines' start-up (pool_tender).
 POOLED_ROWS = []
+# The likely minutes of the run's paid rows, {node: minutes} (opened_pool, from their prices), the pool's forecast of
+# when each pooled row's first job is due (row_due).
+PAID_MINUTES = {}
 # The run's warm pool's ticket (opened_pool), which its heartbeat extends (extend_pool) once the pool's end is within
 # EXTEND_BEFORE_SECONDS: a heartbeat is minutes apart, and a claim waiting then still finds the pool open.
 POOL_TICKET = []
@@ -592,18 +596,71 @@ def pool_sizes(rows, jobs):
 
 
 def pool_tender(runner, jobs, started):
-    """The heartbeat's pool tending: the run's pool set to what its card rows still to run can hold at once
-    (pool.resize), a row that ended since `started` (accepted or stopped) no longer counted, and a render or bake
-    (on processors) counted only once it is near (`near`), so the pool's processor machines are rented for work
-    about to start, never held idle from the run's start."""
+    """The heartbeat's pool tending: the run's pool set to what its card rows due within their machines' start-up
+    can hold at once (pool.resize of due_rows), so every machine, card or processor, is rented its start-up before its
+    first job and let go while its next job is further than that (owner, 2026-10-25: "cant u just do the start up
+    earlier then when u need them again"; Batch 1: three processor machines idle an hour, ten cards idle while the
+    close-ups ran 2.5 h)."""
     def tend():
-        if not POOLED_ROWS:
+        pool = cloud_tool("pool")
+        plan = pool.plan_of(os.environ[RUN_ID])
+        if not POOLED_ROWS or plan is None:
             return
-        left = [(line, count, on) for node, line, count, on in POOLED_ROWS
-                if not ended_since(runner, node, started) and (not on or near(runner, node))]
-        cloud_tool("pool").resize(os.environ[RUN_ID], *cloud_tool("pool").counts_for(left, jobs))
+        due = due_rows(runner, started, pool.leads(plan["reserved"]))
+        pool.resize(os.environ[RUN_ID], *pool.counts_for(due, jobs))
         extend_pool(runner)
     return tend
+
+
+def due_rows(runner, started, leads):
+    """(line, cards, on processors) of the run's pooled rows not ended since `started` whose first job is due within
+    its machines' lead (`leads`, {on processors: minutes}, pool.leads), on row_due's forecast."""
+    found, due = [], row_due(runner, started)
+    for node, line, count, on in POOLED_ROWS:
+        if not ended_since(runner, node, started) and due(node) <= leads[on]:
+            found.append((line, count, on))
+    return found
+
+
+def row_due(runner, started):
+    """A forecast of the minutes until a row can start (due_in): the rows it reads, a row accepted since `started`
+    (or standing accepted and not one of the run's paid rows) done, one with a fault since then stopped, each other
+    at its likely minutes (a paid row's price, PAID_MINUTES; a free row's stage's timed makes; untimed none)."""
+    from score.adapters import compute
+    made, memo = compute.node_minutes(), {}
+
+    def reads(node):
+        return runner.earlier(*next(runner.nodes_named([node])))
+
+    def minutes(node):
+        return PAID_MINUTES.get(node) or made.get(node.partition("@")[0], {}).get("likely") or 0.0
+
+    def state(node):
+        accept = runner.store.current_accept(node)
+        if accept and datetime.datetime.fromisoformat(accept["at"]).timestamp() >= started:
+            return "done"
+        if ended_since(runner, node, started):  # a fault since: its line stopped
+            return "stopped"
+        return "done" if accept and node not in PAID_MINUTES else "todo"
+
+    return lambda node: due_in(node, reads, minutes, state, memo)
+
+
+def due_in(node, reads, minutes, state, memo):
+    """The minutes until `node` can start: the longest chain of the rows it reads still to run (`state` "todo"), each
+    at its `minutes`; a read row "done" adds none, one "stopped" makes it never (inf: its line stopped). A row running
+    counts its whole minutes, so the forecast is late by the time it has run (pool.LEAD_MARGIN_MINUTES covers a
+    heartbeat of it). `memo` keeps each row's."""
+    if node not in memo:
+        waits = [0.0]
+        for before in reads(node):
+            kind = state(before)
+            if kind == "stopped":
+                waits.append(math.inf)
+            elif kind == "todo":
+                waits.append(due_in(before, reads, minutes, state, memo) + minutes(before))
+        memo[node] = max(waits)
+    return memo[node]
 
 
 def extend_pool(runner):
@@ -631,18 +688,6 @@ def extend_pool(runner):
     pool.extend(run_id, plan["deadline"] + hours * 3600, euros)
 
 
-def near(runner, node):
-    """Whether `node` is ready or one step from it: each node it reads stands accepted or itself reads only nodes
-    that stand accepted (an accept an earlier run left counts, so a row may be counted a step early, never late)."""
-    def standing(name):
-        return runner.store.current_accept(name) is not None
-
-    def ready(name):
-        return all(standing(before) for before in runner.earlier(*next(runner.nodes_named([name]))))
-
-    return all(standing(before) or ready(before) for before in runner.earlier(*next(runner.nodes_named([node]))))
-
-
 def ended_since(runner, node, started):
     """Whether `node` was accepted, or left a fault report, since `started` (epoch seconds)."""
     accept = runner.store.current_accept(node) or {}
@@ -664,8 +709,9 @@ def tending(gauges, tend):
 
 
 def planned_prices(runner, places, whole, options):
-    """The run's planned paid rows' prices (selected_price)."""
-    return [selected_price(runner, buy) for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))]
+    """The run's planned paid rows' prices (selected_price), {node: price}."""
+    return {buy.node: selected_price(runner, buy)
+            for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))}
 
 
 def rows_high(prices, pooled=False):
@@ -682,9 +728,10 @@ def opened_pool(runner, places, whole, options):
     holding cost cleared first
     (compute.pool_clearance, against the stop line or the benchmark grant) and the collector started under that
     ticket alone, at the largest size the run's money holds beside its rows (pool.shrinking; the pool reserves only its
-    holding beyond the rows' own machine time, compute.pool_reserve, as its machines bill that time); the ticket, or
-    None for a run with no card work, on the cluster, or with no room for even one machine (its rows then rent their
-    own)."""
+    holding beyond the rows' own machine time, compute.pool_reserve, as its machines bill that time), its collector
+    renting at first only what the rows due within its machines' start-up hold (due_rows; pool_tender then); the
+    ticket, or None for a run with no card work, on the cluster, or with no room for even one machine (its rows then
+    rent their own)."""
     from score.adapters import compute
     rows = card_rows(runner, places, whole, options)
     sizes = pool_sizes(rows, options.jobs)
@@ -693,8 +740,8 @@ def opened_pool(runner, places, whole, options):
     pool, hours, run_id = cloud_tool("pool"), compute.ledger().BATCH_HOURS, os.environ[RUN_ID]
     prices = planned_prices(runner, places, whole, options)
     try:
-        ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours, rows_high(prices),
-                                        rows_high(prices, pooled=True))
+        ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours,
+                                        rows_high(prices.values()), rows_high(prices.values(), pooled=True))
     except compute.Refused as refused:
         print(f"score run: no warm pool, its rows rent their own machines: {refused}", flush=True)
         return None
@@ -705,10 +752,12 @@ def opened_pool(runner, places, whole, options):
     compute.hold(ticket)
     before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
     os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
+    POOLED_ROWS[:] = rows
+    PAID_MINUTES.update({node: price.get("likely_minutes") for node, price in prices.items()})
+    due = pool.counts_for(due_rows(runner, time.time(), pool.leads(sizes)), options.jobs)  # what is due now
     try:
-        pool.start(run_id, pool.cards_only(sizes), time.time() + hours * 3600, euros=ticket["clearance"]["holding"],
+        pool.start(run_id, pool.sized(sizes, *due), time.time() + hours * 3600, euros=ticket["clearance"]["holding"],
                    reserved=sizes)
-        POOLED_ROWS[:] = rows
         POOL_TICKET[:] = [ticket]
     finally:
         for name, value in before.items():
