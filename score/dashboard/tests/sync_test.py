@@ -638,3 +638,16 @@ def test_a_pass_makes_the_free_preview_of_each_locked_script_that_wants_one(monk
     assert client.film_previews(rendered.append) == "film previews: none wanted"
     monkeypatch.setattr(final, "previews_wanted", lambda: json.loads("{"))
     assert client.film_previews(rendered.append).startswith("film previews failed: JSONDecodeError")
+
+
+def test_a_step_leaves_nothing_running_after_it(settings, tmp_path):
+    """A pass step's leftovers (a film preview's Chromium) end with the step (2026-10-25: chrome-headless stayed
+    after the pass); its output and exit code are kept."""
+    import pathlib
+    import sys
+    settings.SCORE_REPO = tmp_path
+    left = "import subprocess; print(subprocess.Popen(['sleep', '60']).pid)"
+    done = client.step_run([sys.executable, "-c", left], grace=2)
+    assert done.returncode == 0
+    stat = pathlib.Path(f"/proc/{int(done.stdout)}/stat")
+    assert not stat.exists() or stat.read_text().rpartition(")")[2].split()[0] == "Z"

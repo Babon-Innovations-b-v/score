@@ -972,4 +972,7 @@ def planned(store, places, by):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    from score import conductor
+    with conductor.holding("reading"):  # the size timer never shrinks the machine under a reading
+        code = main(sys.argv[1:])
+    sys.exit(code)

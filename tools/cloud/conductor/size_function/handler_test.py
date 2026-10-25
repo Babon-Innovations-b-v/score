@@ -48,7 +48,7 @@ class FakeApi:
 
 def fresh(**counts):
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-    return lambda: {"written_at": now, "active_runs": 0, "parked": 0, "frozen": 0, **counts}
+    return lambda: {"written_at": now, "active_runs": 0, "parked": 0, "frozen": 0, "working": 0, **counts}
 
 
 def resize(action, api, health=None):
@@ -86,6 +86,20 @@ def test_grow_and_shrink_refused_while_busy_stale_or_unknown():
             except handler.Refused as refused:
                 assert words in str(refused), (action, words, str(refused))
             assert all(call[0] == "GET" for call in api.calls)
+
+
+def test_work_under_a_hold_refuses_only_a_shrink():
+    """A sync pass or a film preview at work (`working`, or a record that does not say) refuses a shrink; a grow,
+    which a waiting run asked for, still goes on."""
+    unsaid = {key: value for key, value in fresh()().items() if key != "working"}
+    for health in (fresh(working=1), lambda: unsaid):
+        api = FakeApi(kind="POP2-HM-16C-128G")
+        try:
+            resize("shrink", api, health)
+            raise AssertionError("shrink went on under work")
+        except handler.Refused as refused:
+            assert "hold(s) of work" in str(refused), str(refused)
+    assert resize("grow", FakeApi(kind="POP2-HM-2C-16G"), fresh(working=1))["changed"]
 
 
 def test_a_refused_type_change_still_powers_the_conductor_on():

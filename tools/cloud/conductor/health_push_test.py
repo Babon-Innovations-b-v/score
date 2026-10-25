@@ -55,7 +55,21 @@ def test_record_counts_live_claims_parked_and_frozen():
 def test_record_of_an_empty_home_is_idle():
     with tempfile.TemporaryDirectory() as folder:
         record = health_push.record(pathlib.Path(folder), datetime.datetime.now(datetime.timezone.utc))
-        assert (record["active_runs"], record["parked"], record["frozen"], record["health"]) == (0, 0, 0, None)
+        assert (record["active_runs"], record["parked"], record["frozen"], record["working"], record["health"]) == (
+            0, 0, 0, 0, None)
+
+
+def test_record_counts_held_work_only_while_its_process_holds_it():
+    import fcntl
+    with tempfile.TemporaryDirectory() as folder:
+        home = pathlib.Path(folder)
+        (home / "conductor" / "holds").mkdir(parents=True)
+        (home / "conductor" / "holds" / "sync-pass-1.lock").write_text("")  # its holder gone
+        with (home / "conductor" / "holds" / "film-preview-2.lock").open("a") as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            # flock is per open file: another open of the same file in this process is refused like another holder's
+            assert health_push.working(home) == 1
+        assert health_push.working(home) == 0
 
 
 def test_an_unreadable_claims_file_is_never_read_as_idle():

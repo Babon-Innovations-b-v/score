@@ -34,7 +34,8 @@ def main(argv=None):
         size.tick()
     else:
         from score.conductor import dry
-        line, code = dry.start()
+        with conductor.holding("dry"):
+            line, code = dry.start()
         print(line, flush=True)
         sys.exit(code)
 
