@@ -21,7 +21,8 @@ is on), never from a record written for the scene; only a scene whose inventory 
        gates       reacted   each drop came to rest on its target, each hinge opened at least OPENED_LEAST, each
                              pushed object moved at least MOVED_LEAST
                    at rest   at the end every body is still (under STILL), lies inside no static, and no body ever
-                             went under the floor (FLOOR_MOST)
+                             went under its floor (FLOOR_MOST): a drop's target's top, else where it stood at the
+                             start (made ground and upper floors are not at 0)
                    hinge     every hinge stayed within its limits (to LIMIT_SLACK) every frame
                    energy    while nothing drives the trial (no hand moves, no motor is on), the bodies' energy never
                              rises over where it stood when the drive stopped (ENERGY_SLACK)
@@ -242,6 +243,7 @@ def measured(trial, record, laid, middles):
                   if frozenset((name, path.removesuffix("/geo"))) not in joined]
         bodies[name] = {"mass": body["mass"], "end speed": body["speed"][-1], "lowest ever": min(body["lowest"]),
                         "lowest at end": body["lowest"][-1],
+                        "floor": min(body["lowest"][0], laid["tops"].get(name, body["lowest"][0])),
                         "moved": round(moved_by(body["motions"][-1], middles[name]), 4), "inside at end": inside}
     drops = {drop["object"]: {"onto": drop.get("onto", "where it stood"), "top": laid["tops"][drop["object"]],
                               "over top at end": round(bodies[drop["object"]]["lowest at end"]
@@ -278,7 +280,7 @@ def judge_reacted(output, inputs, evidence):
 
 
 def judge_rest(output, inputs, evidence):
-    """Pass when every body ends still, inside no static, and never went under the floor."""
+    """Pass when every body ends still, inside no static, and never went under its floor."""
     found = measures(output)
     faults = []
     for name, body in found["bodies"].items():
@@ -286,8 +288,8 @@ def judge_rest(output, inputs, evidence):
             faults.append(f"{name} still moves at {body['end speed']:.3f} m/s")
         if body["inside at end"]:
             faults.append(f"{name} ends inside {', '.join(body['inside at end'])}")
-        if body["lowest ever"] < FLOOR_MOST:
-            faults.append(f"{name} went {-body['lowest ever']:.3f} m under the floor")
+        if body["lowest ever"] - body["floor"] < FLOOR_MOST:
+            faults.append(f"{name} went {body['floor'] - body['lowest ever']:.3f} m under its floor")
     fastest = max(body["end speed"] for body in found["bodies"].values())
     return checks.Verdict("at rest", checks.FAIL if faults else checks.PASS,
                           f"{len(faults)} faults at the end" if faults
