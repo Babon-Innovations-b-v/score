@@ -9,7 +9,8 @@ needs a box the gate passes, so nothing is drawn of the wrong thing.
 closeup@<place> draws every missing close-up with Nano Banana Pro through tools/props/closeup/pro.py, a take's
 close-ups as one Batch API job at half price (google_batch prices each answer): the first take, then up to three
 retries, each worded more strictly and the later ones on their own seeds, for each picture the check rejected (the
-stage's PRO_TAKES, owner 2026-10-24 and 2026-10-25). Every picture stays in Google's cache, keyed by its request, and
+stage's PRO_TAKES, owner 2026-10-24 and 2026-10-25); the step bought again for a gap draws up to four new takes on the
+ladder after them (stage.take_at, owner 2026-10-25: "a place needs every object"). Every picture stays in Google's cache, keyed by its request, and
 the check judges it apart: a take cached before is read back free and judged again first, so a picture that passes is
 kept and only the rows none passed are drawn again (coordinator, 2026-10-25). A drawn close-up is taken as it is,
 set on the stage's grey. Its gate, `close-up`, is the shape check's measured half (check.measured_faults: plain
@@ -140,20 +141,35 @@ def measured(path, row):
 
 
 def draw_missing(rows, out):
-    """Pro's close-ups of the rows with none: first every take whose request google_spend's cache holds (free: a
-    picture drawn before, kept or rejected, judged again by today's check), then each take of PRO_TAKES in turn for
-    the rows no picture passed yet (one Pro gave no picture is a gap, not asked again); {id: take record}."""
+    """Pro's close-ups of the rows with none: first every take on the ladder whose request google_spend's cache holds
+    (free: a picture drawn before, kept or rejected, judged again by today's check), then up to len(PRO_TAKES) new
+    takes for each row no picture passed yet, each row at its next take (stage.take_at: a gap's step bought again
+    draws new takes, never only its rejected ones read back; one Pro gave no picture is a gap, not asked again);
+    {id: take record}, its takes in ladder order."""
     stage, _ = closeup_tools()
     stage.make_crops(rows, out)
     stage.with_pro_wordings(rows)
     found = {}
     with prop_data.tools("props/closeup", "props", "cloud"):  # Pro's key is read through secret_store
-        for take in stage.PRO_TAKES:
-            judged_take(rows, out, take, {row["id"] for row in rows if stage.cached(row, out, take)}, found)
-        for take in stage.PRO_TAKES:
-            judged_take(rows, out, take, {row["id"] for row in rows if still_open(found.get(row["id"], {}), take)},
-                        found)
-    return {row: {take: tried[take] for take in stage.PRO_TAKES if take in tried} for row, tried in found.items()}
+        index = 0
+        while wanted := {row["id"] for row in rows if stage.cached(row, out, stage.take_at(index))}:
+            judged_take(rows, out, stage.take_at(index), wanted, found)
+            index += 1
+        for _ in stage.PRO_TAKES:
+            for take, wanted in next_takes(rows, found, stage).items():
+                judged_take(rows, out, take, wanted, found)
+    return {row: dict(sorted(tried.items(), key=lambda item: stage.take_index(item[0]))) for row, tried in found.items()}
+
+
+def next_takes(rows, found, stage):
+    """{take: {id}} of each row still open at its next take on the ladder (the one after its takes tried)."""
+    wanted = {}
+    for row in rows:
+        tried = found.get(row["id"], {})
+        take = stage.take_at(len(tried))
+        if still_open(tried, take):
+            wanted.setdefault(take, set()).add(row["id"])
+    return wanted
 
 
 def still_open(tried, take):

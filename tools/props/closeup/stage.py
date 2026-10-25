@@ -19,7 +19,7 @@ the out folder and is skipped when they are there, so a run that stops is run ag
    (`pro_wording`, pro_wording()): the crop alone (CROP_ONLY), or with the whole concept as a second reference
    (WORDING) when the row's crop is under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a gap,
    never drawn again here (a batch, CONTEXT.md, owner 2026-10-20); the prop route's close-up row gives a rejected
-   picture up to three retries (PRO_TAKES, RETRY, FIRMER, RETRY_SEEDS; owner 2026-10-24, 2026-10-25). Skipped with
+   picture up to three retries (PRO_TAKES, RETRY, FIRMER, take_at; owner 2026-10-24, 2026-10-25). Skipped with
    --no-pro.
 5. closeups.json: per row the accepted picture and the model that made it (none when every take failed: those are
    gaps left for the creator to look at), every take's faults, its Pro wording and the row's cost; the batches'
@@ -91,7 +91,7 @@ PRO_WORDINGS = {"crop": CROP_ONLY, "room": WORDING, "person": PERSON}
 # of the take before the shape check rejected (owner, 2026-10-24: 28 of the Buy's 80 gaps drew the room or ground
 # behind the object or cut it at the frame; owner, 2026-10-25: "fix all", 13 of Batch 1 try 3's close-up gaps still
 # drew the room, copies of the object or cut it off after the one retry). Each retry is worded RETRY on top, a later
-# one FIRMER too and its own seed (RETRY_SEEDS), so every take's request is a new one; the first two are asked as they
+# one FIRMER too and its own seed (its number, pro_ask), so every take's request is a new one; the first two are asked as they
 # were, so a picture drawn and kept before reads back from Google's cache, free.
 PRO_TAKES = ("pro", "retry", "retry-2", "retry-3")
 RETRY = (" Be strict, the last picture failed: draw ONLY the object itself, nothing behind, under or around it (no "
@@ -100,7 +100,10 @@ RETRY = (" Be strict, the last picture failed: draw ONLY the object itself, noth
 FIRMER = (" Again the picture failed. Exactly one copy of the object, never two or a row of them; nothing else in the "
           "picture at all; every part of the object well inside the frame, never cut off at an edge; the grey "
           "background flat and empty from edge to edge.")
-RETRY_SEEDS = {"retry-2": 2, "retry-3": 3}
+# The takes go on past PRO_TAKES in the run after (a new batch: the gap's step bought again), "retry-4" on, each FIRMER
+# on its own seed, its number. Every take stays cached, so without them a gap's step asked again read its four rejected
+# pictures back and drew nothing new: every close-up gap of Batch 1 try 4 (43 objects) could only come back as it was
+# (owner, 2026-10-25: "a place needs every object"). A run draws at most len(PRO_TAKES) new takes a row, as priced.
 MARGIN = 0.2
 SHORTEST_CROP = 512
 
@@ -249,14 +252,24 @@ def checked(row, out, take):
                         [check.answer_of(reply.read_text()) if reply.exists() else None for reply in replies])
 
 
+def take_index(take):
+    """A take's place on the ladder of takes: "pro" 0, "retry" 1, "retry-<n>" n."""
+    return PRO_TAKES.index(take) if take in PRO_TAKES[:2] else int(take.removeprefix("retry-"))
+
+
+def take_at(index):
+    """The take at `index` on the ladder (take_index's inverse): PRO_TAKES, then "retry-4" on."""
+    return PRO_TAKES[index] if index < 2 else f"retry-{index}"
+
+
 def pro_ask(row, out, take):
     """A row's Pro request for `take` (pro.draw's ask): worded as its `pro_wording` says, RETRY on top for a take after
     the first and FIRMER for one after the second; its crop, the whole concept for the "room" wording, and the take's
-    seed (RETRY_SEEDS, None for the first two)."""
-    index = PRO_TAKES.index(take)
+    seed (its number from "retry-2" on; None for the first two)."""
+    index = take_index(take)
     text = wording(row, PRO_WORDINGS[row["pro_wording"]]) + (RETRY if index else "") + (FIRMER if index > 1 else "")
     return (text, Image.open(out / "crops" / f"{row['id']}.jpg"),
-            Image.open(row["concept"]) if row["pro_wording"] == "room" else None, RETRY_SEEDS.get(take))
+            Image.open(row["concept"]) if row["pro_wording"] == "room" else None, index if index > 1 else None)
 
 
 def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):

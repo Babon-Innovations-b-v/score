@@ -109,6 +109,11 @@ def test_pro_draws_a_take_and_strict_retries_worded_before_it_is_drawn():
     assert len({json.dumps(body, sort_keys=True) for body in bodies}) == 4
     assert "seed" not in bodies[0]["generationConfig"] and bodies[3]["generationConfig"]["seed"] == 3
     assert bodies[0] == stage.pro.request_body(*asks[0][:3])  # the first two requests as they were
+    # the ladder goes on past PRO_TAKES for a gap's step bought again: firmer, each on its own seed
+    assert [stage.take_at(index) for index in range(6)] == [*stage.PRO_TAKES, "retry-4", "retry-5"]
+    assert all(stage.take_index(stage.take_at(index)) == index for index in range(9))
+    later = stage.pro_ask(row, out, "retry-4")
+    assert later[0] == asks[3][0] and later[3] == 4
 
 
 def test_the_close_up_is_asked_for_and_checked_at_the_objects_own_size_from_the_checks_view():
