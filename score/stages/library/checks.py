@@ -2,7 +2,10 @@
 
     configured   a library is configured, or the world is library-free (data/checks/library-free.json: an owner's
                  dated decision, each row {world, why, who, when})
-    handed       every accepted output the node read (reads.json) is covered, with entries or a written exception
+    handed       every accepted output the node read (reads.json) is covered, with entries or a written exception, or
+                 held through what it was made into: an output no exporter takes on its own (a finish route's list,
+                 a light layer) is held by an entry of a row read here that is made from it (its `into`), and a
+                 world output the places' rows are made from (its `beyond`) by those places' own library nodes
     refused      the library refused nothing
     traced       the library-finish check (score/stages/complete/library, wrapped in traced.py) finds nothing in the
                  place's assembled stage that is not a library entry or a written exception; every finish a library
@@ -75,15 +78,32 @@ def judge_configured(output, inputs, evidence):
     return free_pass("configured", inputs) or checks.Verdict("configured", checks.FAIL, handover.NO_LIBRARY)
 
 
+def holding(output):
+    """The rows read here whose output an entry holds (their covered row names entries)."""
+    reads = {(read["node"], read["output"]) for read in handover.handed(output)}
+    return {row["node"].split("@", 1)[0] for row in handover.report(output)["covered"]
+            if row["entries"] and (row["node"], row["output"]) in reads}
+
+
+def held_through(read, held):
+    """Whether an output with no entry of its own is held through what it was made into: a held row read here made
+    from it, or a row of the other grain (whose own library node holds it)."""
+    return bool(set(read.get("into", [])) & held or read.get("beyond"))
+
+
 def uncovered(output, inputs):
-    """Each accepted output the node read that the report does not cover with entries or a written exception."""
+    """Each accepted output the node read that the report does not cover with entries or a written exception, and
+    that is not held through what it was made into (held_through)."""
     covered = {(row["node"], row["output"]): row for row in handover.report(output)["covered"]}
     allowed = exception_names(inputs)
+    held = holding(output)
     found = []
     for read in handover.handed(output):
         row = covered.get((read["node"], read["output"]))
         if row is None:
             found.append(f"{read['node']} ({read['output'][:12]}) is not in the handover")
+        elif not row["entries"] and not row["exception"] and held_through(read, held):
+            continue
         elif not row["entries"] and not row["exception"]:
             found.append(f"{read['node']} ({read['output'][:12]}) holds no entry: {row['why'] or 'no reason given'}")
         elif not row["entries"] and str(row["exception"]) not in allowed:
@@ -95,7 +115,17 @@ def uncovered(output, inputs):
 def judge_handed(output, inputs, evidence):
     return free_pass("handed", inputs) or verdict(
         "handed", uncovered(output, inputs), checks.FAIL,
-        f"every one of the {len(handover.handed(output))} accepted outputs read is in the library")
+        f"every one of the {len(handover.handed(output))} accepted outputs read is in the library "
+        f"({through(output)} held through what they were made into)")
+
+
+def through(output):
+    """How many outputs read here no entry or exception holds on its own, held through what they were made into."""
+    covered = {(row["node"], row["output"]): row for row in handover.report(output)["covered"]}
+    held = holding(output)
+    return sum(1 for read in handover.handed(output)
+               if (row := covered.get((read["node"], read["output"]))) is not None and not row["entries"]
+               and not row["exception"] and held_through(read, held))
 
 
 def judge_refused(output, inputs, evidence):
