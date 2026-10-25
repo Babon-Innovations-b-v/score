@@ -594,6 +594,9 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         assert code == 0 and argv == ["-m", "score.conductor", "health"], (why, argv)
         code, why, argv, _ = through_door(folder, "gaps closeup@hub")
         assert code == 0 and argv[0] == "-c" and argv[2:] == ["closeup@hub"], (why, argv)
+        code, why, argv, env = through_door(folder, "stop-batch 'the run holds 13 idle machines'")
+        assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
+        assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
 
 
 def test_the_move_switches_off_the_pcs_store_units_it_has():

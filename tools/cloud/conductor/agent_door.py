@@ -14,6 +14,8 @@ as an argument list, never through a shell, and only when it is one of these:
     health                                      python -m score.conductor health: the Machine card's health, read
                                                 only (writing it is its timer's job)
     checkouts                                   the cockpit's newest checkouts, launches and requests, read only
+    stop-batch <reason>                         score.conductor.kill.agent_stop_batch: stop the batch's runs, pools
+                                                and parked machines, no latch (owner, 2026-10-25)
     gaps <node>                                 the batch gaps the node's accepted output names (batch-gaps.json):
                                                 each gap's name, check and faults, read only
     grant-benchmark <euros> <answer> <question> score.adapters.compute.grant_benchmark: the owner's quoted yes,
@@ -50,9 +52,13 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, gaps <node>, "
-         "grant-benchmark, benchmark, buy-yes, buy <yes id>")
+         "grant-benchmark, benchmark, buy-yes, buy <yes id>, stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
+# Stop this batch from an agent (owner, 2026-10-25: "this is also something u should just do urself"): its runs,
+# pools and parked machines, no latch.
+STOP_CODE = ("import json, sys; from score.conductor import kill; "
+             "print('stopped the batch: ' + json.dumps(kill.agent_stop_batch(sys.argv[1])))")
 CHECKOUTS_CODE = (
     "import os, django; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'score.dashboard.site.settings'); django.setup(); "
     "from django.apps import apps; "
@@ -156,6 +162,10 @@ def decide(words, latch):
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
         return ["-m", "score.dashboard", "buy", args[0]], {"SCORE_FREE_ONLY": None}
+    if verb == "stop-batch":
+        if len(args) != 1 or not args[0].strip():
+            raise Refused("stop-batch <reason>, one quoted reason")
+        return ["-c", STOP_CODE, args[0]], {}
     raise Refused(f"{verb} is not a door command; name one of: {VERBS}")
 
 

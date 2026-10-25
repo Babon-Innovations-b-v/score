@@ -107,6 +107,15 @@ def stop_batch(asked_by, words):
     return stop_everything(asked_by, words, latched=False)
 
 
+def agent_stop_batch(words):
+    """Stop this batch from an agent's process (owner, 2026-10-25: "this is also something u should just do urself"):
+    stop_everything's runs, pools and parked machines with no latch, asked by an agent with its reason; stopping only
+    ends spending, so it is the one money action an agent may take. Its report."""
+    if not str(words or "").strip():
+        raise ValueError("an agent's stop names its reason")
+    return stop_everything("agent", words, latched=False)
+
+
 def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None, pools=None,
                     close_pools=None, latched=True):
     """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch (unless not
