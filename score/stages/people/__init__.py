@@ -9,6 +9,7 @@ data/surfaces/people.json; after the loop:
     people-body-<look>               a look's body: build, the people route and every body gate (people_bodies/bodies.py)
     people-dress-<look>              the loop's library surfaces laid on the body and baked there (dress.py, paid)
     people-dress-<look>-in-<surface> the same worn in a fabric a design's person row reads (people_clothes.py)
+    people-dress-<look>[-in-<s>]-v<n> a person's own variant: other library surfaces and wear on the same body
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
     people-look-<look>               a full look's review page, one a look the designs name (look.py)
 
@@ -27,10 +28,13 @@ from score.stages.people_bodies.bodies import guarded
 DRESS_READS = ("finish-route-palette", "surface-library", "surfaces-bake")
 
 
-def dress_row(name, surface=None):
+def dress_row(name, surface=None, variant=0):
     """A look's dress row; worn in a fabric a design's person row reads (people_rows.every_dressed)
-    `people-dress-<look>-in-<surface>`, its fabrics that library surface."""
-    return graph.Stage(f"people-dress-{name}" + (f"-in-{surface}" if surface else ""), "world", dress.make_dress,
+    `people-dress-<look>-in-<surface>`, its fabrics that library surface; a person's variant of the body beyond the
+    first `-v<n>` (dress.varied: other library surfaces on the same body)."""
+    params = {**({"surface": surface} if surface else {}), **({"variant": variant} if variant else {})}
+    return graph.Stage(f"people-dress-{name}" + (f"-in-{surface}" if surface else "")
+                       + (f"-v{variant}" if variant else ""), "world", dress.make_dress,
                        contracts.Contract("people-dress", 1, dress.dress_faults),
                        (guarded("dressed", dress.judge_dressed), guarded("aligned", dress.judge_aligned),
                         guarded("baked", dress.judge_baked), guarded("strays", dress.judge_strays)),
@@ -40,7 +44,7 @@ def dress_row(name, surface=None):
                               "bake": "{repo}/tools/props/library", "bake script": "{repo}/score/stages/people/inside"},
                        after={f"{bodies.BODY}-{name}": (bodies.BODY, 1)},
                        beside={bodies.MADE: (bodies.MADE, 1), **{row: (row, 1) for row in DRESS_READS}},
-                       neighbours=bodies.the_line, params={"surface": surface} if surface else {},
+                       neighbours=bodies.the_line, params=params,
                        paid=True, euros=dress.EUROS)
 
 
@@ -78,8 +82,9 @@ LOOKS = tuple(map(look_row, FULL))
 
 def worn_rows():
     """A dress row for each line look a design's person row dresses in a fabric of its own (people_rows.every_dressed:
-    the row's words and its measured torso, score/stages/people_clothes.py)."""
-    return [dress_row(look, surface) for look, surface in sorted(people_rows.every_dressed())
+    the row's words and its measured torso, score/stages/people_clothes.py) or a person wears in a variant of its own."""
+    return [dress_row(look, surface, variant)
+            for look, surface, variant in sorted(people_rows.every_dressed(), key=lambda dressed: str(dressed))
             if look in bodies.looks()]
 
 

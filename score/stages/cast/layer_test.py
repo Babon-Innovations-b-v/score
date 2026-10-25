@@ -78,8 +78,8 @@ def test_a_place_reads_only_the_looks_its_design_names():
     in what each row wears: the tube's person in uniform (no fabric named: its own paint) and the square's crowd far
     look; no old record, no lost concept picture, no hand-kept colours."""
     tube = layer.dressed_looks("tube")
-    assert ("person_uniform-made", None) in tube and not any(look == "player-work" for look, _ in tube)
-    assert layer.dressed_looks("square") == {("crowd-made", None)}
+    assert ("person_uniform-made", None, 0) in tube and not any(look == "player-work" for look, _, _ in tube)
+    assert layer.dressed_looks("square") == {("crowd-made", None, 0)}
     assert layer.dressed_looks("nowhere") == set()
 
 

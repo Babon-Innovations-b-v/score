@@ -315,15 +315,8 @@ def test_cast_check():
                 "facing_to": [2.0, 0.0, 1.0]}
     twice = {"people": [walker, dict(standing, name="again", at=[9.0, 0.0, 9.0]), standing]}
     assert cast_check.repeated_people(twice) == ["again and standing are the same person (take_c)"]
-    worker = {"character": "worker", "row": "worker_blue", "doing": "standing", "facing_to": [0.0, 0.0, 9.0]}
-    copies = {"people": [dict(worker, name="worker_blue_1", at=[0.0, 0.0, 0.0]),
-                         dict(worker, name="worker_blue_2", at=[3.0, 0.0, 0.0])]}
-    assert cast_check.repeated_people(copies) == [], "copies of one row apart by their spots are not one person twice"
-    stacked = {"people": copies["people"] + [dict(worker, name="worker_blue_3", at=[3.0, 0.0, 0.0])]}
-    assert cast_check.repeated_people(stacked) == [
-        "worker_blue_2 and worker_blue_3 are one copy twice (same look, clip, start, turn and spot)"]
-    other_row = {"people": copies["people"][:1] + [dict(worker, name="worker_red", row="worker_red", at=[6, 0, 0])]}
-    assert cast_check.repeated_people(other_row) == ["worker_blue_1 and worker_red are the same person (worker)"]
+    told_apart = {"people": [dict(standing, variant=1), dict(standing, name="again", variant=2)]}
+    assert cast_check.repeated_people(told_apart) == [], "one body in two variants is two people"
     assert any("from standing" in fault for fault in cast_check.walk_faults({"people": [walker, standing]}, []))
     crate = ("Objects/crate_1", (1.8, -0.3, 2.4, 0.3), 0.0, 0.8)
     plate = ("Objects/plate_1", (1.0, -1.0, 3.0, 1.0), -0.05, 0.02)

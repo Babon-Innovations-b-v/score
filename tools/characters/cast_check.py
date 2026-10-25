@@ -8,11 +8,11 @@ other):
 
 - **Nobody twice.** A person is their look (cast.look_of): a named body (`nev`, `oona`, the leader) is one person,
   and a kit mix is its build with its face and hair. Two characters with the same look are the same person, whatever
-  they wear, and a place never shows the same person twice. One exception: the copies of one design row (a scene
-  inventory row of N people of one kind, its `row`) may share their look, each a copy apart by its clip, start, turn
-  or spot (recommended to the owner, 2026-10-25); two rows, or a row and a kit mix, of one look are still one person
-  twice. The crowd (one cheap distant body copied many times as a
-  PointInstancer, seen only from far away) is not checked: it is a crowd, not people one tells apart.
+  they wear, and a place never shows the same person twice. A design's people of one body are told apart by their
+  variant (a different library skin, hair, clothes and wear on the same body; owner, 2026-10-25: "Each one looks
+  different"), so two people of one body and one variant are one person twice, copies of one row included. The
+  crowd (one cheap distant body copied many times as a PointInstancer, seen only from far away) is not checked: it
+  is a crowd, not people one tells apart.
 - **Walks stay clear.** Each walk is followed along its `path` at the cast's pace; at every step the walker's middle
   stays CLEARANCE metres from every other character where that one is at the same moment (standing still, or along
   its own walk), and BODY_RADIUS plus MARGIN metres from the footprint of every object the stage holds between a
@@ -49,24 +49,13 @@ OBJECT_SCOPES = ("Objects", "Fixtures", "Structure")
 
 
 def repeated_people(cast_record):
-    """Faults: every look worn by more than one row (a design row, or a person or kit mix of its own), with the names
-    it appears under; and copies of one design row that share a look and also its clip, start, turn and spot."""
+    """Faults: every person who is in the cast more than once, with the names they appear under."""
     seen = {}
     for character in cast.characters_of(cast_record):
-        seen.setdefault(cast.look_of(character["character"], character.get("worn")), []).append(character)
-    faults = []
-    for who, same in seen.items():
-        names = [character["name"] for character in same]
-        if len({character.get("row") or character["name"] for character in same}) > 1:
-            faults.append(f"{' and '.join(names)} are the same person ({', '.join(who)})")
-            continue
-        poses = {}
-        for character in same:
-            pose = (character["doing"], character["start"], round(character["turn"], 3), tuple(character["at"]))
-            poses.setdefault(pose, []).append(character["name"])
-        faults += [f"{' and '.join(twins)} are one copy twice (same look, clip, start, turn and spot)"
-                   for twins in poses.values() if len(twins) > 1]
-    return faults
+        who = cast.look_of(character["character"], character.get("worn"), character.get("variant"))
+        seen.setdefault(who, []).append(character["name"])
+    return [f"{' and '.join(names)} are the same person ({', '.join(who)})"
+            for who, names in seen.items() if len(names) > 1]
 
 
 def where_at(character, seconds):

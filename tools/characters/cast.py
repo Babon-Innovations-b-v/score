@@ -76,10 +76,13 @@ def kit_mix(seed, kit=None):
             "worn": {"plain": [f"plain_{plain}"] + head, "work": [f"work_{scheme}"] + head, "suit": ["suit"]}}
 
 
-def look_of(character, worn):
+def look_of(character, worn, variant=None):
     """Who a character looks like: its body file and, for a kit mix, the face and hair it wears (a named body has its
-    own). Two characters with the same look are the same person, whatever else they wear."""
-    return (character, *sorted(part for part in (worn or []) if part.startswith(("head_", "hair_"))))
+    own); a design's person also its variant of the body (skin, hair, clothes and wear drawn from the library, the
+    people dress rows' `-v<n>`: owner, 2026-10-25, "Each one looks different"). Two characters with the same look are
+    the same person, whatever else they wear."""
+    return (character, *sorted(part for part in (worn or []) if part.startswith(("head_", "hair_"))),
+            *([f"variant {variant}"] if variant else []))
 
 
 def unseen_mix(seed, outfit, taken, kit=None):
@@ -185,8 +188,8 @@ def characters_of(cast):
                       "turn": facing_degrees(person["at"], person["facing_to"]), "doing": person["doing"],
                       "start": person.get("start", 0.0), "worn": person.get("worn"), "path": person.get("path"),
                       "pace": person.get("pace", WALK_PACE), "held": person.get("held", False),
-                      "row": person.get("row")})
-    taken = {look_of(person["character"], person.get("worn")) for person in found}
+                      "variant": person.get("variant")})
+    taken = {look_of(person["character"], person.get("worn"), person["variant"]) for person in found}
     for group in cast.get("groups", []):
         outfit = group.get("outfit", "plain")
         for number, at in enumerate(band_places(group)):

@@ -263,11 +263,14 @@ def test_a_worn_dress_row_applies_only_where_its_look_wears_that_fabric():
     from score.stages import people
     worn_row, plain_row = (stages.worn(people.dress_row("person_uniform-made", surface))
                            for surface in ("jacket_blue", None))
-    dressed = {"deck": {("person_uniform-made", "jacket_blue")}, "hold": {("person_uniform-made", None)}}
+    second = stages.worn(people.dress_row("person_uniform-made", None, 1))
+    dressed = {"deck": {("person_uniform-made", "jacket_blue", 0)}, "hold": {("person_uniform-made", None, 0)},
+               "hall": {("person_uniform-made", None, 0), ("person_uniform-made", None, 1)}}
     with mock.patch.object(stages.characters_layer, "dressed_looks", lambda place: dressed.get(place, set())):
         assert worn_row.applies("deck") and not worn_row.applies("hold") and not worn_row.applies("nowhere")
         assert plain_row.applies("hold") and not plain_row.applies("deck")
-    assert worn_row.params == {"surface": "jacket_blue"}
+        assert second.applies("hall") and not second.applies("hold"), "a person's own variant where they stand"
+    assert worn_row.params == {"surface": "jacket_blue"} and second.params == {"variant": 1}
 
 
 def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch():

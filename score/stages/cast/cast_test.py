@@ -16,7 +16,7 @@ sys.path.insert(0, str(REPO))
 
 from score import checks  # noqa: E402
 from score.stages import cast  # noqa: E402
-from score.stages.cast import measure, spread  # noqa: E402
+from score.stages.cast import layer, measure, spread  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
 
@@ -109,13 +109,19 @@ def test_a_crowd_lattice_stands_only_on_its_grounds():
 def test_a_look_is_made_by_its_usable_dress_row():
     look = cast.look_of({"character": "bram", "look": "bram_work"})
     assert look == ("bram", "work")
-    assert cast.made_row(look, None, {"people-dress-bram-work": "accepted"}) == "people-dress-bram-work"
-    assert cast.made_row(look, None, {}) is None
+    assert cast.made_row(look, None, 0, {"people-dress-bram-work": "accepted"}) == "people-dress-bram-work"
+    assert cast.made_row(look, None, 0, {}) is None
     # a person whose design row wears a fabric of its own is made by that fabric's dress row only
-    assert cast.made_row(look, "jacket_blue", {"people-dress-bram-work": "accepted"}) is None
-    assert cast.made_row(look, "jacket_blue", {"people-dress-bram-work-in-jacket_blue": "a"}) == \
+    assert cast.made_row(look, "jacket_blue", 0, {"people-dress-bram-work": "accepted"}) is None
+    assert cast.made_row(look, "jacket_blue", 0, {"people-dress-bram-work-in-jacket_blue": "a"}) == \
         "people-dress-bram-work-in-jacket_blue"
-    assert cast.made_row(None, None, {}) is None
+    # and a person in a variant of its own by that variant's
+    assert cast.made_row(look, "jacket_blue", 2, {"people-dress-bram-work-in-jacket_blue": "a"}) is None
+    assert cast.made_row(look, "jacket_blue", 2, {"people-dress-bram-work-in-jacket_blue-v2": "a"}) == \
+        "people-dress-bram-work-in-jacket_blue-v2"
+    assert layer.dressed_of("people-dress-bram-work-in-jacket_blue-v2") == ("bram-work", "jacket_blue", 2)
+    assert layer.dressed_of("people-dress-astronaut-made") == ("astronaut-made", None, 0)
+    assert cast.made_row(None, None, 0, {}) is None
     assert cast.look_of({"character": "kit_m_avg", "worn": ["plain_coat_grey", "head_f1"]}) == ("kit_m_avg", "coat-grey")
 
 
@@ -235,13 +241,25 @@ def test_copied_constants_agree():
 
 
 def test_the_cast_check_judges_each_person_where_they_were_stood():
-    """Two copies of one row dealt the same plan spot are judged at the spots they were stood on, apart."""
-    copy = {"character": "worker", "look": "worker_made", "row": "worker", "doing": "standing", "at": [0.0, 0.0, 0.0],
-            "facing_to": [0.0, 0.0, 9.0]}
-    record = {"people": [dict(copy, name="worker_1"), dict(copy, name="worker_2")]}
-    assert cast.checked_cast(record, []) != [], "dealt one spot, unmoved, they are one copy twice"
-    stood = [{"name": "worker_1", "at": [0.0, 0.0, 0.0]}, {"name": "worker_2", "at": [1.0, 0.0, 0.0]}]
-    assert cast.checked_cast(record, stood) == []
+    """A person dealt a plan spot on another's walk is judged at the spot they were stood on, off it."""
+    walker = {"name": "walker", "character": "bram", "doing": "walking", "at": [0.0, 0.0, 0.0],
+              "facing_to": [4.0, 0.0, 0.0], "path": [[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]]}
+    standing = {"name": "worker", "character": "worker", "doing": "standing", "at": [2.0, 0.0, 0.0],
+                "facing_to": [0.0, 0.0, 9.0]}
+    record = {"people": [walker, standing]}
+    assert cast.checked_cast(record, []) != [], "dealt a spot on the walk, unmoved, the walk runs through them"
+    assert cast.checked_cast(record, [{"name": "worker", "at": [2.0, 0.0, 5.0]}]) == []
+
+
+def test_one_look_in_two_variants_is_two_people():
+    """Each person of one look is its own variant (owner, 2026-10-25: "Each one looks different"), made by its own
+    dress row; the same variant twice is one person twice."""
+    copy = {"character": "worker", "look": "worker_made", "doing": "standing", "facing_to": [0.0, 0.0, 9.0]}
+    record = {"people": [dict(copy, name="worker_1", at=[0.0, 0.0, 0.0], variant=0),
+                         dict(copy, name="worker_2", at=[3.0, 0.0, 0.0], variant=1)]}
+    assert cast.checked_cast(record, []) == []
+    same = {"people": [dict(person, variant=0) for person in record["people"]]}
+    assert cast.checked_cast(same, []) == ["worker_1 and worker_2 are the same person (worker)"]
 
 
 if __name__ == "__main__":

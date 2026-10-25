@@ -521,13 +521,12 @@ def layered(row, names):
 
 def worn(row):
     """A look's dress row read by a place's characters layer only where that place's design dresses the look in it
-    (characters_layer.dressed_looks: the look, worn in a fabric of its row's or in its own paint), so a cast place
-    waits on its own looks, not the slowest of all."""
+    (characters_layer.dressed_looks: the look, worn in a fabric of its row's or in its own paint, and the person's
+    variant), so a cast place waits on its own looks, not the slowest of all."""
     if not row.name.startswith(f"{characters_layer.DRESS}-"):
         return row
-    look, _, surface = row.name.removeprefix(f"{characters_layer.DRESS}-").partition("-in-")
-    return dataclasses.replace(row, applies=lambda place: (look, surface or None)
-                               in characters_layer.dressed_looks(place))
+    dressed = characters_layer.dressed_of(row.name)
+    return dataclasses.replace(row, applies=lambda place: dressed in characters_layer.dressed_looks(place))
 
 
 OLD_SEED = "usd-r3"

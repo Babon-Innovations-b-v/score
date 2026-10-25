@@ -4,9 +4,9 @@ accepted cast, each in its own look's accepted body, for the assembly to take in
     make     every person of the cast (cast@<place>'s cast.json: spot or walk, turn, clip and its start, look) laid
              as tools/characters/cast.py lays one (a SkelRoot referencing its body, placed or walking, playing its
              clip, held still where the cast says), the body its look's dressed body (people-dress-<look>, or
-             people-dress-<look>-in-<surface> where its design row wears a fabric of its own, converted by
-             tools/characters/skel_usd.py into assets/characters/<look>.usdc); the crowd as cast.py's
-             point instancer over its look's body, its copies the cast's own. layers/characters.usda, and
+             people-dress-<look>-in-<surface> where its design row wears a fabric of its own, `-v<n>` its own
+             variant, converted by tools/characters/skel_usd.py into assets/characters/<that row's suffix>.usdc);
+             the crowd as cast.py's point instancer over its look's body, its copies the cast's own. layers/characters.usda, and
              characters.json: each person's look and, for one not laid, what is missing (the completion gate's
              people check reads it)
     gate     laid    every person and the crowd laid in their own look's accepted body; a cast naming no look, or a
@@ -22,6 +22,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import shutil
 import tempfile
 
@@ -44,12 +45,19 @@ def files(place):
             "cast writer": "{repo}/tools/characters/cast.py", "skeleton writer": "{repo}/tools/characters/skel_usd.py"}
 
 
-def body_row(look, surface=None):
+def body_row(look, surface=None, variant=0):
     """The dress row of a cast look (`person/outfit`) worn in its row's fabric (`-in-<surface>`, people_rows'
-    `dress`), or None for a cast that names none."""
+    `dress`) and the person's variant (`-v<n>`, people_rows.persons), or None for a cast that names none."""
     if not look:
         return None
-    return f"{DRESS}-{look.replace('/', '-')}" + (f"-in-{surface}" if surface else "")
+    return (f"{DRESS}-{look.replace('/', '-')}" + (f"-in-{surface}" if surface else "")
+            + (f"-v{variant}" if variant else ""))
+
+
+def dressed_of(row):
+    """(look, surface or None, variant) of a dress row's name (body_row's, the look as the line names it)."""
+    found = re.fullmatch(r"(.+?)(?:-in-(.+?))?(?:-v([1-9][0-9]*))?", row.removeprefix(f"{DRESS}-"))
+    return found[1], found[2], int(found[3] or 0)
 
 
 def loaded(name):
@@ -69,11 +77,12 @@ def loaded(name):
     return module
 
 
-def asset_for(look, body, out):
-    """The look's dressed body as the stage's asset, assets/characters/<look>.usdc."""
+def asset_for(row, body, out):
+    """A dress row's dressed body as the stage's asset, assets/characters/<look>[-in-<surface>][-v<n>].usdc (its row's
+    name without the prefix: each fabric and variant of a look its own asset)."""
     skel_usd = loaded("skel_usd")
     with tempfile.TemporaryDirectory(dir=SCRATCH) as scratch:
-        named = pathlib.Path(scratch) / f"{look.replace('/', '-')}.glb"
+        named = pathlib.Path(scratch) / f"{row.removeprefix(f'{DRESS}-')}.glb"
         shutil.copyfile(pathlib.Path(body) / "body.glb", named)
         return skel_usd.convert(named, out / ASSETS)
 
@@ -134,7 +143,7 @@ def make(inputs, out, seed, params):
     layer.GetPrimAtPath(f"/{place}").specifier = Sdf.SpecifierOver  # the place itself is the base's
     looks, assets = {}, {}
     for single in cast["characters"] + ([cast["crowd"]] if cast.get("crowd") else []):
-        row = body_row(single.get("look"), single.get("surface"))
+        row = body_row(single.get("look"), single.get("surface"), single.get("variant", 0))
         looks[single["name"]] = {"look": single.get("look") or "none named"}
         if row is None or row not in inputs:
             looks[single["name"]]["missing"] = (f"no accepted body of its look ({row})" if row
@@ -146,12 +155,12 @@ def make(inputs, out, seed, params):
         if single is cast.get("crowd") and not record.get("crowd", {}).get("palettes"):
             looks[single["name"]]["missing"] = f"the crowd's colours: {record['crowd'].get('palettes_from')}"
             continue
-        if single["look"] not in assets:
-            assets[single["look"]] = asset_for(single["look"], inputs[row], out)
+        if row not in assets:
+            assets[row] = asset_for(row, inputs[row], out)
         if single is cast.get("crowd"):
-            lay_crowd(stage, root, single, record.get("crowd", {}), assets[single["look"]])
+            lay_crowd(stage, root, single, record.get("crowd", {}), assets[row])
         else:
-            lay_person(stage, root, single, assets[single["look"]])
+            lay_person(stage, root, single, assets[row])
     layer.Save()
     (out / RECORD).write_text(json.dumps({"place": place, "looks": looks, "licence": []}, indent=1))
 
@@ -178,7 +187,7 @@ CHECKS = (checks.Check("laid", judge_laid),)
 
 
 def dressed_looks(place):
-    """{(look, surface or None)} the place's picked design dresses (`person-outfit`, as the dress rows are named;
-    data/people/rows.json)."""
+    """{(look, surface or None, variant)} the place's picked design dresses (`person-outfit`, as the dress rows are
+    named; data/people/rows.json)."""
     from score.stages import people_rows
     return people_rows.dressed_looks(place)

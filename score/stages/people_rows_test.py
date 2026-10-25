@@ -116,8 +116,8 @@ def test_the_tube_casts_its_people_and_the_square_its_crowd():
     tube = people_rows.cast_record("tube")
     person = next(person for person in tube["people"] if person["name"] == "person_right")
     assert (person["character"], person["look"]) == ("person_uniform", "person_uniform_made"), person
-    assert person["row"] == "person_right", "each person names its design row: the cast check lets one row's copies share a look"
     assert {person["look"] for person in tube["people"]} == {"person_uniform_made"}  # its three people, one look
+    assert sorted(person["variant"] for person in tube["people"]) == [0, 1, 2], "each its own variant of the body"
     assert all(person["at"] in people_rows.place_entry("tube")["spots"] for person in tube["people"])
     assert "concept 3059819b" in tube["from"] and "crowd" not in tube
     square = people_rows.cast_record("square")
@@ -274,9 +274,13 @@ def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
     unseen = people_rows.refreshed_place("deck", inventory, None, None, None, fabrics)["rows"]["worker"]["dress"]
     assert unseen["surface"] is None and unseen["torso_lab"] is None, unseen
     found = {"places": {"deck": {**entry, "concept": "one"}}}
-    assert people_rows.dressed_looks("deck", found) == {("worker_jumpsuit-made", "jacket_blue"),
-                                                        ("person-made", None)}
-    assert people_rows.every_dressed(found) == {("worker_jumpsuit-made", "jacket_blue")}
+    assert people_rows.dressed_looks("deck", found) == {("worker_jumpsuit-made", "jacket_blue", 0),
+                                                        ("person-made", None, 0)}
+    assert people_rows.every_dressed(found) == {("worker_jumpsuit-made", "jacket_blue", 0)}
+    worker_row = {**entry["rows"]["worker"], "looks": ["worker_jumpsuit-made"] * 2}
+    twice = {"places": {"deck": {**entry, "concept": "one", "rows": {**entry["rows"], "worker": worker_row}}}}
+    assert people_rows.every_dressed(twice) == {("worker_jumpsuit-made", "jacket_blue", 0),
+                                                ("worker_jumpsuit-made", "jacket_blue", 1)}, "two people, two variants"
     assert {person["name"]: person["surface"] for person in people_rows.cast_record("deck", found)["people"]} == {
         "worker": "jacket_blue", "pilot": None}
 

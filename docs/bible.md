@@ -305,7 +305,14 @@ branch names a scene or a world.
 - **Sound** (`score/stages/sound`): every source from the design (the bed, objects by row kind and move, people's
   voices), each made fresh from its brief as MOSS takes; a take under the CLAP floor is a batch gap.
 - **People** (`score/stages/cast`, `people_rows.py`): each people row a look of the shared people line, a crowd one far
-  look as one instancer, stood on the plan's person spots; `characters-layer` lays them.
+  look as one instancer, stood on the plan's person spots; `characters-layer` lays them. **Each person looks
+  different** (owner, 2026-10-25, asked what three identical astronauts should be: "Each one looks different"): the
+  people of one look in a place are numbered 0, 1, ... (`people_rows.persons`), and person n wears variant n of the
+  look's one body, its own dress row `people-dress-<look>[-in-<fabric>]-v<n>` (0 the plain row): every part but a
+  rigid one in the n-th library surface of its own family by colour nearness (`people/dress.py` `varied`), so skin,
+  hair and clothes differ and no body is made again. `cast_check.py`'s nobody-twice holds for everyone, copies of one
+  row included. A library with too few surfaces to tell variant n from a lower one is refused before the bake as a
+  named library gap, never repeated quietly.
 - **Crops** (`score/stages/crops`): kinds and beds read off the design (a growing row standing on a bed). Every other
   plant (CONTEXT.md: a tree, a shrub, a potted plant) is a model like any other and no layer of its own; the Buy
   screen counts every plant of the design (`design_layers.plants_of`) apart from the crops' steps (owner, 2026-10-24).
