@@ -649,10 +649,10 @@ def test_the_palette_sees_every_take_s_close_up_after_the_concepts():
     assert "pixal" in palette.after and not palette.selects, palette.after
 
 
-def library_made(folder, answer, kinds=("two_boxes",), grounds=None):
+def library_made(folder, answer, kinds=("two_boxes",), grounds=None, plan=None):
     """The surface-library row made on the scene palette and its takes' kinds, its one ask faked to answer `answer`
     (a dict, or an exception the batch holds): its output, its verdict and the batches asked. `grounds` (terrain
-    rows) gives it a kept inventory and a kept sky on the Moon."""
+    rows) gives it a kept inventory and a kept sky on the Moon; `plan` a locked plan."""
     from score.stages.surfaces import scene_library
     concept = folder / "cockpit.png"
     Image.new("RGB", (64, 36), (90, 90, 100)).save(concept)
@@ -667,6 +667,9 @@ def library_made(folder, answer, kinds=("two_boxes",), grounds=None):
         (folder / "sky.json").write_text(json.dumps({"setting": setting.checked(setting.now()), "site": {"on": "moon"}}))
         inputs.update(inventory=folder / "inventory.json", sky=folder / "sky.json",
                       reference=REPO / "data/physics/bodies.json")
+    if plan:
+        (folder / "plan.json").write_text(json.dumps(plan))
+        inputs["plan"] = folder / "plan.json"
     asked = []
     original = scene_library.ask
     scene_library.ask = lambda bodies: asked.append(bodies) or {
@@ -725,6 +728,39 @@ def test_a_scene_library_missing_a_kind_or_unanswered_fails_by_name():
         out, verdict, _ = library_made(pathlib.Path(temporary), route_ask.google_batch.Unanswered("none for it"))
         assert not (out / "materials.json").exists() and verdict.answer == "fail", verdict
         assert "none for it" in verdict.findings[0], verdict
+
+
+def test_the_shell_a_locked_plan_lays_is_a_kind_the_scene_library_must_cover():
+    from score.stages.surfaces import palette_library
+    box = [[0.0, 0.0], [6.0, 0.0], [6.0, 4.0], [0.0, 4.0]]
+    room = {"w": 6.0, "d": 4.0, "outline": box,
+            "walls": [{"from": one, "to": two, "thick": 0.2, "tall": 2.5} for one, two in zip(box, box[1:] + box[:1])],
+            "roofs": [{"kind": "flat", "points": box, "eave": 2.5, "top": 2.5}],
+            "stairs": [{"kind": "stair", "points": [[4.0, 2.0], [5.0, 2.0], [5.0, 4.0], [4.0, 4.0]]}]}
+    panel = {"name": "panel", "family": "paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
+             "metal": 0.0, "colours": [{"setting": "bare", "token": "steel"}], "sound": "steel_plate",
+             "kinds": ["two_boxes"]}
+    with tempfile.TemporaryDirectory() as temporary:
+        out, verdict, asked = library_made(pathlib.Path(temporary), {"surfaces": [panel]}, plan=room)
+        body = asked[0]["cockpit"]
+        enum = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]["kinds"]
+        assert {"floor", "wall", "roof", "stairs"} <= set(enum["items"]["enum"]), enum  # no take is the shell
+        assert "- wall: the room's walls" in body["contents"][0]["parts"][-1]["text"]
+        assert verdict.answer == "fail" and {"kind floor has no surface", "kind wall has no surface",
+                                             "kind roof has no surface"} <= set(verdict.findings), verdict.findings
+    shell = dict(panel, kinds=["two_boxes", "floor", "wall", "roof", "stairs"])
+    with tempfile.TemporaryDirectory() as temporary:
+        out, verdict, _ = library_made(pathlib.Path(temporary), {"surfaces": [shell]}, plan=room)
+        assert verdict.answer == "pass", verdict
+        made = json.loads((out / "materials.json").read_text())
+        # the shell's parts find their surface in it (the earth seed, the scene record, the tiles)
+        assert {part: palette_library.shell_surface(part, made) for part in ("deck", "wall", "roof", "stair")} == {
+            "deck": "panel", "wall": "panel", "roof": "panel", "stair": "panel"}
+    # an open place with a raised level: its level is the floor's kind; one with neither lays no shell
+    from score.stages.surfaces import scene_library
+    level = {"w": 6.0, "d": 4.0, "levels": [{"name": "stage", "points": box, "height": 0.5}]}
+    assert list(scene_library.shell_kinds(level)) == ["floor"]
+    assert scene_library.shell_kinds({"w": 6.0, "d": 4.0}) == {}
 
 
 def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
