@@ -58,12 +58,12 @@ PROPORTION_LIMIT = 0.5     # |ln(seen height:width / expected)| at most this
 # The view the close-ups are drawn from: turned about 35 degrees, a little from above (the close-up wording).
 TURN_DEGREES = 35.0
 LOOK_DOWN_DEGREES = 15.0
-# The look-downs the outline is held to, LOOK_DOWN_DEGREES the least. Nano Banana Pro draws from 15 to about 30 degrees
-# above level whatever the wording says, and a flat object's outline is nearly all look-down (a 4 x 5 x 0.1 m plate:
-# 0.28 at 15 degrees, 0.53 at 30), so one look-down faulted the camera, not the object: 34 of Batch 1's first try's 74
-# proportion faults were a good picture seen from higher (233 close-ups re-measured and looked at, 2026-10-25; Batch 1
-# try 3 still left 64 of its 81 close-up gaps on proportions alone, its wording stating 15 degrees).
-LOOK_DOWN_MOST = 30.0
+# The outline is held to that one look-down, the one every wording states (stage.VIEW), never a best fit over a range:
+# the fit's free angle absorbs a wrong size (a range of 15 to 30 degrees, 9ef3c78c, newly passed 34 proportion faults,
+# 8 of them not plainly good pictures). No documented camera of the picture model backs a range, and the measured fits
+# do not: Batch 1's 59 framed flat close-ups (whose outline is mostly look-down) fit 6 to 60 degrees, 29 of them
+# inside 15 to 30 (2026-10-25). Nothing on the picture alone tells the camera from the shape, so a picture off the
+# stated view is a retry (PRO_TAKES), a Pro picture's cost, never a bad model's.
 # The judge is asked each question with these seeds, and a close-up passes its half when most answers pass: one
 # answer alone gave a different verdict for the same picture between runs (the lab desk, 2026-10-08).
 SEEDS = (7, 8, 9)
@@ -147,9 +147,8 @@ def measure(path, size):
 
 
 def proportion_error(seen, size):
-    """|ln(seen height:width / expected)| at the look-down between LOOK_DOWN_DEGREES and LOOK_DOWN_MOST that fits best."""
-    return min(abs(math.log(seen / expected_proportion(size, look_down)))
-               for look_down in np.linspace(LOOK_DOWN_DEGREES, LOOK_DOWN_MOST, 16))
+    """|ln(seen height:width / expected)| at the close-up's stated look-down (LOOK_DOWN_DEGREES)."""
+    return abs(math.log(seen / expected_proportion(size)))
 
 
 def frame_faults(measures):

@@ -3,7 +3,6 @@ and the faults each half finds, without a model or a cloud machine.
 
 Plain python: python3 tools/props/closeup/check_test.py
 """
-import math
 import pathlib
 import sys
 import tempfile
@@ -65,13 +64,14 @@ def test_a_wrong_proportion_is_faulted():
     assert "proportions off the row's box" in check.measured_faults(check.measure(path, (0.4, 0.4, 1.2)))
 
 
-def test_a_flat_object_seen_from_higher_passes_and_a_block_does_not():
+def test_a_flat_object_is_held_to_the_stated_look_down():
+    """A plate drawn as seen from 30 degrees is faulted: the check holds the one stated look-down, no best fit."""
     plate = (4.0, 5.0, 0.1)
-    from_higher = check.expected_proportion(plate, check.LOOK_DOWN_MOST) / check.expected_proportion(plate)
-    assert from_higher > math.exp(check.PROPORTION_LIMIT)  # one look-down faulted it
-    height = 0.7 * 512 * check.expected_proportion(plate, check.LOOK_DOWN_MOST)
+    height = 0.7 * 512 * check.expected_proportion(plate, 30.0)
+    assert "proportions off the row's box" in check.measured_faults(
+        check.measure(drawn([(77, 256 - height / 2, 435, 256 + height / 2)]), plate))
+    height = 0.7 * 512 * check.expected_proportion(plate)
     assert check.measured_faults(check.measure(drawn([(77, 256 - height / 2, 435, 256 + height / 2)]), plate)) == []
-    assert "proportions off the row's box" in check.measured_faults(check.measure(drawn([(56, 56, 456, 456)]), plate))
 
 
 def shaded_backdrop(side):
