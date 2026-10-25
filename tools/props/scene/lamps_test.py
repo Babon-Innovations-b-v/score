@@ -69,14 +69,18 @@ def test_a_lens_part_is_not_where_the_lamp_hangs():
     assert lamps.light_of(row, pieces, library=LIBRARY)["reach"] == 6.0
 
 
-def test_a_lamp_on_its_own_post_or_tower_shines_from_its_head():
-    """A street lamp or a floodlight tower standing on the ground is mounted by its own words: at its head."""
-    words = {**WORDS, "head": ["post", "tower", "street"]}
-    for row in ({"id": "street_lamp", "name": "street lamp", "noun": "lamp", "anchor": "ground"},
-                {"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "on:plaza"}):
-        assert lamps.mount_of(row, READING, words) == "head", row
-    assert lamps.mount_of({"id": "table_lamp", "name": "table lamp", "noun": "lamp"}, READING, words) == "stands"
-    assert lamps.mounts()["head"]["high"] > 0.9
+def test_a_lamp_on_a_stem_shines_from_its_head_by_its_metres_not_its_words():
+    """A street lamp standing on the ground, or a lamp on a mast, is mounted at its head because its own metres (or
+    the mast's) are a stem's; a squat lamp of the same words stands, and no word makes a head."""
+    rows = READING + [{"id": "mast", "noun": "mast", "anchor": "ground", "size": [0.3, 0.3, 6.0]}]
+    assert lamps.mount_of({"id": "street_lamp", "name": "street lamp", "noun": "lamp", "anchor": "ground",
+                           "size": [0.4, 0.4, 5.0]}, rows, WORDS) == "head"
+    assert lamps.mount_of({"id": "light", "noun": "light", "anchor": "on:mast", "size": [0.5, 0.3, 0.4]}, rows,
+                          WORDS) == "head"
+    assert lamps.mount_of({"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "ground",
+                           "size": [3.0, 3.0, 4.0]}, rows, WORDS) == "stands"
+    assert lamps.mount_of({"id": "table_lamp", "name": "table lamp", "noun": "lamp"}, rows, WORDS) == "stands"
+    assert "head" not in lamps.mount_words() and lamps.mounts()["head"]["high"] > 0.9
 
 
 def test_the_real_library_names_the_words_of_a_ceiling_and_a_wall():

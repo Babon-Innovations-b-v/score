@@ -77,10 +77,10 @@ serve: skill `make-scene`, bible "How a scene is designed".
   (`score/stages/earth_seed/design_shell.py`), and every reader of an old kit reads the design's kit there.
 - **A kit's lamps come from the design** (owner, 2026-10-21: no per-scene list decides what a scene gets): `lamps.py`
   gives a lamp its light (the scene record's kit shell reads it, `score/stages/scene_record/kit_shell.py`): a row whose row kind glows (its reading `noun`,
-  `score/stages/row_kinds.py`) lit by the library's lamp for its mount (`data/library/lamps.json`: ceiling, wall or
-  stands; reach from its laid pieces' height, the starting strength the light sweep then measures, shadows by mount).
+  `score/stages/row_kinds.py`) lit by the library's lamp for its mount (`data/library/lamps.json`: ceiling, wall,
+  head or stands; a lamp, or the row it stands on, whose own metres are a stem's, `STEM` times as tall as wide, is at its head, never by its words; reach from its laid pieces' height, the starting strength the light sweep then measures, shadows by mount).
   A reading's row anchored `on:<row>` is mounted as that row is (the library's `mount_words` in its noun, else its
-  own anchor, else what it rests on in turn), so a caller passes the inventory's rows to `light_of`. No row carries typed `light` numbers and no builder keeps a lamp list.
+  own anchor, else a stem by its metres, else what it rests on in turn), so a caller passes the inventory's rows to `light_of`. No row carries typed `light` numbers and no builder keeps a lamp list.
 - `ship_floor.py <out>` is the ship's floor plan inside its 46 m hull (the owner's loop, 2026-10-19: the outside's
   plan split into the inside's rooms): data/definitions/ship_floor.json names each room's span, side, floors and doors
   and carries its own hull (`hull`: plan v7's stations at 46 m, their section, the nose spike and the side ring,
