@@ -811,12 +811,14 @@ def stood(xform, emitter):
         spin.Set(math.degrees(float(emitter["spin"]) * span), span * RATE)
 
 
-def write_emitter(stage, root, emitter, out, interiors=None):
+def write_emitter(stage, root, emitter, out, interiors=None, base=None):
     """One emitter: its schema prim and its baked points, played from their clip; the particles it holds. One `on` a
-    prim of the base is that prim's child, the prims over it left as the base's."""
+    prim of the base (`base`, the place's stage it is written over) is that prim's child, the prims over it left as
+    the base's, its own sizes kept from that prim's scale."""
     path = emitter_path(stage, root, emitter)
     xform = UsdGeom.Xform.Define(stage, path)
     stood(xform, emitter)
+    unscaled(xform, rider_scale(base, path) if emitter.get("parent") and base else None)
     for name, (kind, read) in SCHEMA.items():
         xform.GetPrim().CreateAttribute(f"score:effect:{name}", kind).Set(read(emitter))
     clip, samples = write_clip(emitter, out, interiors)
@@ -839,6 +841,27 @@ def write_emitter(stage, root, emitter, out, interiors=None):
     clips.SetClipTimes(clip_times(emitter, samples))
     UsdShade.MaterialBindingAPI.Apply(prim).Bind(effect_look(stage, root, emitter))
     return int(emitter["count"])
+
+
+def rider_scale(base, path):
+    """The scale (x, y, z) the place's stage `base` lays on what rides its prim at `path` (the row lengths of that
+    prim's transform: export.py scales an object last), or None when the stage does not hold it."""
+    holder = base.GetPrimAtPath(Sdf.Path(path).GetParentPath())
+    if not holder:
+        return None
+    matrix = np.asarray(UsdGeom.Xformable(holder).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    return np.linalg.norm(matrix[:3, :3], axis=1)
+
+
+def unscaled(xform, scale):
+    """An emitter's own sizes (its box, speeds and grains, in metres) kept from the scale of the prim it rides: its
+    offset is scaled as a spot on the prim, its particles are not (an inverse scale between its spot and its turn)."""
+    if scale is None or np.allclose(scale, 1.0):
+        return
+    ops = xform.GetOrderedXformOps()
+    undo = xform.AddScaleOp(opSuffix="unscaled")
+    undo.Set(Gf.Vec3f(*(1.0 / scale)))
+    xform.SetXformOpOrder([ops[0], undo, *ops[1:]])
 
 
 def emitter_path(stage, root, emitter):
@@ -878,9 +901,12 @@ def variant_target(stage, root, variant):
     return variant_set.GetVariantEditTarget()
 
 
-def write_layer(place, effects, out, ground=None, scene=None, motions=None):
+def write_layer(place, effects, out, ground=None, scene=None, motions=None, base=None):
     """The effects layer of the place's stage under `out`, rewritten whole; how many particles each emitter holds.
-    `motions` is the place's motion record (or None), which a following emitter reads."""
+    `motions` is the place's motion record (or None), which a following emitter reads; `base` the place's stage the
+    layer goes over (opened; else `out`'s own base layer), whose prims' scales the riders are kept from."""
+    base_layer = pathlib.Path(out) / "layers/base.usda"
+    base = base or (Usd.Stage.Open(str(base_layer)) if base_layer.exists() else None)
     effects = timed(effects, motions)
     if scene:
         scene_record.refuse_rejected(scene, [entry["name"] for entry in effects["effects"]], "the effects record")
@@ -902,9 +928,9 @@ def write_layer(place, effects, out, ground=None, scene=None, motions=None):
     for emitter in emitters_of(effects, ground, scene, motions):
         if emitter.get("variant"):
             with Usd.EditContext(stage, variant_target(stage, root, emitter["variant"])):
-                held[emitter["name"]] = write_emitter(stage, root, emitter, out, effects.get("interiors"))
+                held[emitter["name"]] = write_emitter(stage, root, emitter, out, effects.get("interiors"), base)
         else:
-            held[emitter["name"]] = write_emitter(stage, root, emitter, out, effects.get("interiors"))
+            held[emitter["name"]] = write_emitter(stage, root, emitter, out, effects.get("interiors"), base)
     for light in effects.get("lights", []):
         write_light(stage, place, light)
     for name, choice in effects.get("variants", {}).items():

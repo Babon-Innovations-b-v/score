@@ -177,6 +177,26 @@ def test_a_rider_moves_with_its_prim_and_lights_when_it_starts():
         assert stage.GetPrimAtPath("/pad/Fixtures").GetSpecifier() == Sdf.SpecifierDef  # the base's, kept
 
 
+def test_a_rider_keeps_its_own_size_on_a_scaled_prim():
+    """An effect riding a prim scaled 4 x 2 x 4 stands at its offset scaled as a spot on the prim, and its particles
+    keep the metres the effect gives them."""
+    record = {"place": "pad", "effects": [dict(box_emitter(name="flame", count=50, lifetime=0.5),
+                                               placement={"on": "Fixtures/tank", "offset": [0.0, 1.0, 0.0]})]}
+    with tempfile.TemporaryDirectory() as folder:
+        out = stage_folder("pad", folder)
+        base = Usd.Stage.Open(str(out / "layers/base.usda"))
+        tank = UsdGeom.Xform.Define(base, "/pad/Fixtures/tank")
+        tank.AddTranslateOp().Set(Gf.Vec3d(5.0, 0.0, 0.0))
+        tank.AddRotateYOp().Set(90.0)
+        tank.AddScaleOp().Set(Gf.Vec3f(4.0, 2.0, 4.0))
+        base.GetRootLayer().Save()
+        effects.write_layer("pad", record, out)
+        stage = Usd.Stage.Open(str(out / "pad.usda"))
+        placed = UsdGeom.Xformable(stage.GetPrimAtPath("/pad/Fixtures/tank/flame")).ComputeLocalToWorldTransform(0.0)
+        assert np.allclose(placed.ExtractTranslation(), [5.0, 2.0, 0.0]), placed
+        assert np.allclose(np.linalg.norm(np.asarray(placed)[:3, :3], axis=1), 1.0), placed
+
+
 def test_a_devil_wanders_downwind():
     entry = dict(box_emitter(name="devil"), placement={"ground": [10.0, 0.0, 0.0]},
                  travel={"downwind": 1.4, "seconds": 80.0, "age": 20.0}, spin=3.0)
