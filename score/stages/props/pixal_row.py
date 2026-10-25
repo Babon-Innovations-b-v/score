@@ -91,14 +91,24 @@ def finished(take, faces):
     return made(take) and slimmed(take, faces).exists()
 
 
-def finish_job(take, closeup, faces):
+def lies_flat(row):
+    """Whether an inventory row lies flat at the size its close-up was drawn at (tools/props/closeup/check.py
+    lies_flat; stage.py object_size): its close-up is drawn from straight above, so its take is laid on its face."""
+    with prop_data.tools("props/closeup", "props"):
+        import check
+    return check.lies_flat(row.get("read_size") or row["size"])
+
+
+def finish_job(take, closeup, faces, flat=False):
     """A take the cloud brought back raw, as one blender_cloud.py job finishing it (pixal.py --finish-only in
-    tools/props/finish_elsewhere.py). The raw take, its camera folder, its close-up, the prop tools and the lab's copy
-    go up at their own paths; the final and the slimmed model come back into WORK/pixal."""
+    tools/props/finish_elsewhere.py; `flat`: laid on its face, pixal.py --flat). The raw take, its camera folder,
+    its close-up, the prop tools and the lab's copy go up at their own paths; the final and the slimmed model come
+    back into WORK/pixal."""
     raw, final, views = take_files(take)
     sent = [raw, *([views] if views.exists() else []), closeup, REPO / "tools/props", REPO / "vendor/image-to-3dlab"]
     return {"script": "tools/props/finish_elsewhere.py",
-            "args": [str(argument) for argument in (REPO, raw.parents[1], closeup, take, f"--faces={faces}")],
+            "args": [str(argument) for argument in (REPO, raw.parents[1], closeup, take, f"--faces={faces}",
+                                                    *(["--flat"] if flat else []))],
             "inputs": [str(path) for path in sent], "outputs": [str(final), str(slimmed(take, faces))],
             "minutes": FINISH_MINUTES}
 
@@ -161,8 +171,9 @@ def make_pixal(inputs, out, seed, params):
     faces = {row: faces_of(inputs["surfaces"], entry["take"]) for row, entry in objects.items()}
     unfinished = {row: entry for row, entry in sorted(objects.items())
                   if raw_made(entry["take"]) and not finished(entry["take"], faces[row])}
+    rows = {row["id"]: row for row in json.loads(inputs["inventory"].read_text())["rows"]}
     if unfinished:
-        finish_all([finish_job(entry["take"], closeups / f"{row}.png", faces[row])
+        finish_all([finish_job(entry["take"], closeups / f"{row}.png", faces[row], lies_flat(rows[row]))
                     for row, entry in unfinished.items()], prop_data.record_at(inputs["props"])["place"], out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}

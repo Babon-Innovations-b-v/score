@@ -39,14 +39,15 @@ def candidate():
     return compare
 
 
-def look_down():
-    """The one look-down a close-up is drawn and checked at (tools/props/closeup/check.py LOOK_DOWN_DEGREES): the
-    camera is held to it once, never searched per model, so a wrong model cannot pick the angle that suits it
-    (OUTLINE_LEAST was set at one look-down; on 10,255 wrong pairs, the pre-reset hub code builds against other
-    objects' close-ups, 2026-10-25, best of 32 views passed 36.9% of them, one look-down 32.9% at 15 or 20 degrees)."""
+def look_down(size=None):
+    """The one look-down a close-up is drawn and checked at (tools/props/closeup/check.py look_down: from straight
+    above for a row of `size` that lies flat, else LOOK_DOWN_DEGREES): the camera is held to it once, never searched
+    per model, so a wrong model cannot pick the angle that suits it (OUTLINE_LEAST was set at one look-down; on 10,255
+    wrong pairs, the pre-reset hub code builds against other objects' close-ups, 2026-10-25, best of 32 views passed
+    36.9% of them, one look-down 32.9% at 15 or 20 degrees)."""
     with prop_data.tools("props/closeup", "props"):
         import check
-    return float(check.LOOK_DOWN_DEGREES)
+    return float(check.look_down(size))
 
 
 def gltf_mesh(path):
@@ -81,8 +82,7 @@ def silhouette(points, triangles, step, look_down=None):
     distance = radius / math.sin(math.radians(ring.FOV / 2)) * 1.05
     yaw, pitch = math.radians(360.0 * step / ring.YAWS), math.radians(ring.ELEVATION if look_down is None else look_down)
     back = np.array([math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)])
-    right = np.cross([0.0, 1.0, 0.0], back)
-    right /= np.linalg.norm(right)
+    right = np.array([math.cos(yaw), 0.0, -math.sin(yaw)])  # up x back, defined straight above too
     up = np.cross(back, right)
     seen = points - (middle + back * distance)
     depth = -seen @ back
@@ -103,11 +103,11 @@ def closeup_object(path):
     return candidate().closeup_mask(picture)
 
 
-def best_way(model, closeup):
+def best_way(model, closeup, size=None):
     """{"way", "look_down", "outline", "ways"} of a model against its close-up: every way's outline at the close-up's
-    look-down (look_down), and the best way."""
+    look-down (look_down, for its row's `size`), and the best way."""
     points, triangles = gltf_mesh(model)
-    target, ring, down = closeup_object(closeup), candidate(), look_down()
+    target, ring, down = closeup_object(closeup), candidate(), look_down(size)
     ways = [round(ring.outline(silhouette(points, triangles, step, down), target), 4) for step in range(ring.YAWS)]
     best = int(np.argmax(ways))
     return {"way": best, "look_down": down, "outline": ways[best], "ways": ways}

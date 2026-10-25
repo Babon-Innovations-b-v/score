@@ -64,6 +64,17 @@ LOOK_DOWN_DEGREES = 15.0
 # do not: Batch 1's 59 framed flat close-ups (whose outline is mostly look-down) fit 6 to 60 degrees, 29 of them
 # inside 15 to 30 (2026-10-25). Nothing on the picture alone tells the camera from the shape, so a picture off the
 # stated view is a retry (PRO_TAKES), a Pro picture's cost, never a bad model's.
+# A row that lies flat (the model gate's shape class "flat", tools/props/gates/model.py FLAT_SHARE and SLENDER_SHARE:
+# its thinnest side under FLAT_SHARE of its longest, its middle side at least SLENDER_SHARE of it) whose thinnest side
+# is its height is drawn and checked from straight above (TOP_DOWN_DEGREES), square to the frame: from the stated
+# look-down its outline's height is nearly all the view's (a 2 x 3 m rug 2 cm thick, 0.93 m of the outline's height
+# from its top, 0.02 from its own), so the proportion check judged the camera, not the object, and Batch 1's flat
+# rows (rug, poster, sticky note) failed it on all four takes (try 4, 2026-10-25). From above its outline is its face,
+# held to wide:deep either way round; turned 35 degrees a 1 x 3 face would show 1.19 and a square 1.0, too close to judge.
+# A flat row standing on its edge (a poster on a wall, sized thin in depth) shows its face from the stated view.
+FLAT_SHARE = 0.18
+SLENDER_SHARE = 0.25
+TOP_DOWN_DEGREES = 90.0
 # The judge is asked each question with these seeds, and a close-up passes its half when most answers pass: one
 # answer alone gave a different verdict for the same picture between runs (the lab desk, 2026-10-08).
 SEEDS = (7, 8, 9)
@@ -87,6 +98,20 @@ def answer_of(text):
         except json.JSONDecodeError:
             continue
     return found
+
+
+def lies_flat(size):
+    """Whether a row of `size` (wide, deep, tall) lies flat (the rule above): its height its thinnest side, under
+    FLAT_SHARE of its longest, its middle side at least SLENDER_SHARE of it."""
+    tall = float(size[2])
+    smallest, middle, longest = sorted(float(value) for value in size)
+    return tall == smallest and smallest < FLAT_SHARE * longest and middle >= SLENDER_SHARE * longest
+
+
+def look_down(size):
+    """The look-down a row's close-up is drawn and checked at: from straight above for a row that lies flat
+    (lies_flat), else the stated LOOK_DOWN_DEGREES."""
+    return TOP_DOWN_DEGREES if size and lies_flat(size) else LOOK_DOWN_DEGREES
 
 
 def expected_proportion(size, look_down=LOOK_DOWN_DEGREES):
@@ -147,7 +172,12 @@ def measure(path, size):
 
 
 def proportion_error(seen, size):
-    """|ln(seen height:width / expected)| at the close-up's stated look-down (LOOK_DOWN_DEGREES)."""
+    """|ln(seen height:width / expected)| at the close-up's stated look-down (LOOK_DOWN_DEGREES); for a row that
+    lies flat, against its face seen from straight above, square to the frame, either way round (a flat thing has
+    no up in a picture)."""
+    if lies_flat(size):
+        wide, deep, _ = size
+        return min(abs(math.log(seen * wide / deep)), abs(math.log(seen * deep / wide)))
     return abs(math.log(seen / expected_proportion(size)))
 
 

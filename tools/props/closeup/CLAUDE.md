@@ -33,6 +33,13 @@ for the creator.
   2026-10-25): never a best fit over a range, whose free angle absorbs a wrong size. No documented camera of the
   picture model backs a range and Batch 1's flat close-ups fit 6 to 60 degrees, so a picture off the stated view is a
   retry. The likeness gate draws the model at the same look-down (`score/stages/props/likeness.look_down`).
+- **A row that lies flat is drawn and checked from straight above** (`check.lies_flat`, the model gate's flat class
+  with its height its thinnest side; Batch 1 try 4, 2026-10-25: the rug, poster and sticky note failed the proportion
+  check on all four takes, their outline at the stated look-down nearly all view): worded `stage.VIEW_ABOVE`, its
+  outline held to its face's wide:deep either way round, the likeness gate drawing the model from above
+  (`likeness.look_down(size)`) and its take laid on its face (`pixal.py --flat`, `pixal_row.lies_flat`). Every other
+  row's request is unchanged, so its cached pictures read back free. A slender row (a pipe) is not flat: it keeps
+  the three-quarter view.
 - **A person is the one exception to the three-quarter view** (the people layer's own close-up, CONTEXT.md "layer
   adapter"): a row whose `layer` is `people` is drawn with `stage.PERSON` (one person, front on, in the rig's A-pose,
   arms and legs clear) and measured by `check.person_faults` (framed, arms apart: `arm_gap_share`, which the maker's

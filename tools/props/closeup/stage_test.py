@@ -119,9 +119,13 @@ def test_the_close_up_is_asked_for_and_checked_at_the_objects_own_size_from_the_
     own = dict(row, read_size=[0.3, 0.2, 0.4])
     assert stage.object_size(own) == [0.3, 0.2, 0.4] and stage.object_size(row) == row["size"]
     assert "0.30 m wide, 0.20 m deep and 0.40 m tall" in stage.wording(own, stage.PRO_WORDINGS["crop"])
-    for words in stage.PRO_WORDINGS["crop"], stage.PRO_WORDINGS["room"]:
+    rug = dict(row, read_size=[2.0, 3.0, 0.02])
+    for text in stage.PRO_WORDINGS["crop"], stage.PRO_WORDINGS["room"]:
+        words = stage.wording(own, text)
         assert f"looking down on it from about {stage.check.LOOK_DOWN_DEGREES:.0f} degrees above level" in words
         assert f"turned about {stage.check.TURN_DEGREES:.0f} degrees" in words
+        # a row that lies flat is drawn from straight above, as the check holds it (check.lies_flat)
+        assert stage.VIEW_ABOVE in stage.wording(rug, text).lower() and stage.VIEW not in stage.wording(rug, text)
     stage.make_crops([own], out)
     (out / "qwen").mkdir()
     Image.new("RGB", (8, 8)).save(out / "qwen/cabinet.png")

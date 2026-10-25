@@ -64,14 +64,34 @@ def test_a_wrong_proportion_is_faulted():
     assert "proportions off the row's box" in check.measured_faults(check.measure(path, (0.4, 0.4, 1.2)))
 
 
-def test_a_flat_object_is_held_to_the_stated_look_down():
-    """A plate drawn as seen from 30 degrees is faulted: the check holds the one stated look-down, no best fit."""
-    plate = (4.0, 5.0, 0.1)
-    height = 0.7 * 512 * check.expected_proportion(plate, 30.0)
+def test_an_object_is_held_to_its_one_stated_look_down():
+    """A low cabinet drawn as seen from 45 degrees is faulted: the check holds the one stated look-down, no best fit."""
+    cabinet = (4.0, 5.0, 1.0)
+    assert not check.lies_flat(cabinet) and check.look_down(cabinet) == check.LOOK_DOWN_DEGREES
+    height = 0.7 * 512 * check.expected_proportion(cabinet, 45.0)
     assert "proportions off the row's box" in check.measured_faults(
-        check.measure(drawn([(77, 256 - height / 2, 435, 256 + height / 2)]), plate))
-    height = 0.7 * 512 * check.expected_proportion(plate)
-    assert check.measured_faults(check.measure(drawn([(77, 256 - height / 2, 435, 256 + height / 2)]), plate)) == []
+        check.measure(drawn([(77, 256 - height / 2, 435, 256 + height / 2)]), cabinet))
+    height = 0.7 * 512 * check.expected_proportion(cabinet)
+    assert check.measured_faults(check.measure(drawn([(77, 256 - height / 2, 435, 256 + height / 2)]), cabinet)) == []
+
+
+def test_a_row_that_lies_flat_is_held_to_its_face_from_straight_above():
+    """Batch 1 try 4 (2026-10-25): from the stated look-down a rug's outline is nearly all view. A row that lies flat
+    (the model gate's flat class, its height its thinnest side) is drawn and checked from straight above, square to
+    the frame: its face is its outline, either way round, so a 1 x 3 m rug drawn 1 x 3 or 3 x 1 passes, drawn square
+    or a 2 x 3 m one as the old 15 degree view shows it is faulted. A poster sized thin in depth stands on its edge and keeps the
+    stated view; a pipe is slender, not flat."""
+    rug = (1.0, 3.0, 0.02)
+    assert check.lies_flat(rug) and check.look_down(rug) == check.TOP_DOWN_DEGREES
+    assert not check.lies_flat((0.4, 0.01, 0.6)) and not check.lies_flat((0.1, 0.1, 4.0))
+    assert not check.lies_flat((0.6, 0.5, 0.8))
+    faulted = lambda box: "proportions off the row's box" in check.measured_faults(check.measure(drawn([box]), rug))
+    assert not faulted((196, 76, 316, 436)) and not faulted((76, 196, 436, 316))
+    assert faulted((106, 106, 406, 406))
+    wide_rug = (2.0, 3.0, 0.02)  # its outline at the old view, 0.28, is no face of it (1.5 or 0.67)
+    height = 358 * check.expected_proportion(wide_rug)
+    assert "proportions off the row's box" in check.measured_faults(
+        check.measure(drawn([(77, 256 - height / 2, 435, 256 + height / 2)]), wide_rug))
 
 
 def shaded_backdrop(side):

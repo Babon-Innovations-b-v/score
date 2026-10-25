@@ -211,18 +211,19 @@ def box_sides(points):
     return sides[np.argsort(-np.asarray(extents))]
 
 
-def upright_turn(points, long=False, feet=False, tube=False):
+def upright_turn(points, long=False, feet=False, tube=False, flat=False):
     """The turn that stands a model up.
 
     By default the box side pointing nearest to up becomes straight up. `long` stands it on its
     longest side instead (a tall rocket, whose splayed legs can make another side look more
-    upright). `feet` then sets it down on the face it would settle on (`resting_face`), so a model
+    upright). `flat` lays it on its face, its shortest side up (a rug drawn from straight above,
+    which Pixal3D builds standing in the picture's plane). `feet` then sets it down on the face it would settle on (`resting_face`), so a model
     on legs stands on its footpads. `tube` then stands a round body's own axis straight up
     (`tube_axis`), for a rocket section, whose fins and side boxes fool the other two. Last, it is
     squared to the ground (`squared`).
     """
     sides = box_sides(points)
-    side = sides[0] if long else sides[np.argmax(np.abs(sides[:, 1]))]
+    side = sides[0] if long else sides[2] if flat else sides[np.argmax(np.abs(sides[:, 1]))]
     turn = rotation_between(side * np.sign(side[1]), np.array([0.0, 1.0, 0.0]))
     if feet:
         turn = rotation_between(-resting_face(points @ turn.T), np.array([0.0, 1.0, 0.0])) @ turn

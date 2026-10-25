@@ -90,6 +90,13 @@ def a_tall_rocket_stands_on_its_long_side():
     return [] if abs(height - 2.0) < 0.1 else [f"a rocket 2.0 tall stood up {height:.2f} tall"]
 
 
+def a_flat_take_is_laid_on_its_face():
+    """A rug drawn from straight above comes out standing in the picture's plane; `flat` lays it, its thin side up."""
+    points = tilted(box(2.0, 3.0, 0.02), 10)
+    height = np.ptp(points @ glb_file.upright_turn(points, flat=True).T, axis=0)[1]
+    return [] if abs(height - 0.02) < 0.01 else [f"a rug 0.02 thick laid {height:.2f} tall"]
+
+
 def a_model_on_legs_is_levelled_on_its_feet():
     """Four thin legs under a body that leans in the model's own box: the feet decide level."""
     rng = np.random.default_rng(1)
@@ -221,6 +228,7 @@ CHECKS = (
     a_steep_lean_is_not_trusted,
     a_tilted_crate_stands_back_up,
     a_tall_rocket_stands_on_its_long_side,
+    a_flat_take_is_laid_on_its_face,
     a_model_on_legs_is_levelled_on_its_feet,
     a_long_model_faces_along_an_axis,
     a_rocket_section_stands_on_its_own_axis,
