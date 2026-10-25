@@ -65,8 +65,14 @@ gates.
 - **Strengths are measured on the round-three seeds' layouts** (2026-10-12, tonight's cut): the passes render the
   seed with the layer, not the final assembly; once the assembly takes the layer the measurement moves onto it.
 - **No per-place light file** (2026-10-21: `data/light/` is gone). A lamp is its glowing inventory row's (row kind,
-  on its kit glow part; its numbers the library's lamp, a row the plan `aims` its aimed spot), the pad floodlights'
-  shaft too; the camera's glow is written only from a record environment that holds one (the scene record, from
+  or its concept showing it glow, as the reading's concept light says: `{home}/design/light/<place>.json`,
+  `reading.concept_light`, in the colour and at the brightness the concept shows; on its kit glow part; its numbers
+  the library's lamp, a row the plan `aims` its aimed spot), the pad floodlights' shaft too. Where the concept shows
+  light falling from no source in view (its `unseen`) and no sky light reaches the place (none over the horizon, or
+  inside its shell), the layer adds the library's fill (`layer.write_fill`, lamps.json `fill`) in the concept's
+  colour, swept after the lamps as a sun is (owner, 2026-10-25: "the frame work should solve this, look at the
+  concept"); `lit` names a concept showing daylight with no sun up at the scene time (the environment plan's);
+  the camera's glow is written only from a record environment that holds one (the scene record, from
   the design alone, holds none: the old sky record was retired, 2026-10-21); the kit pieces stand where the earth
   seed lays them from the design, never re-laid here.
 - **Never edit what a running light node reads** (its layer code, the place's and its neighbours' records, kits and

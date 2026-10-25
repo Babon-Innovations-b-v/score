@@ -4,6 +4,7 @@ disagreement is a named gap; an unpicked place, or one already read from its pic
 every reading."""
 import hashlib
 import io
+import json
 
 import pytest
 from PIL import Image
@@ -249,3 +250,31 @@ def test_a_reading_answered_before_parts_were_asked_gets_them_in_one_call_its_ro
     assert now["at"] == record["at"] and reading.unparted(store, ["wreck"]) == []
     assert reading.parted(store, ["wreck"], "joey", ask=None) == []  # parted already: nothing asked
     assert reading.spent(store, ["wreck"]) == round(0.15 + 0.01 + 0.02, 4)
+
+
+def test_a_concepts_light_is_asked_once_of_its_reading_and_refused_off_its_schema(store, tmp_path):
+    """reading.lit: one call a place whose reading's concept light is not read; every row named with its glow (a
+    glowing one with its colour and a brightness over 0), the scene's unseen light with its colour, else refused and
+    asked again next time; kept apart from the reading (concept_light), its cost in the running total."""
+    picked_place(store, tmp_path)
+    [record] = reading.read(store, ["wreck"], "joey", ask=stand_in_rows, boxes=stand_in_boxes)
+    ids = [row["id"] for row in record["inventory"]["rows"]]
+    dark = {"glows": False, "glowing": "", "colour": "", "brightness": 0}
+    lamp = {"id": "mast", "glows": True, "glowing": "its lamp", "colour": "#ffd29a", "brightness": 0.5}
+    scene = {"daylight": False, "unseen": True, "unseen_colour": "#8899aa"}
+    answer = lambda rows, seen=scene: json.dumps({"rows": rows, "scene": seen})  # noqa: E731
+    rows = [{"id": "drum", **dark}, {"id": "drum_right", **dark}, lamp]
+    with pytest.raises(concepts.Refused, match="every row"):
+        reading.light_of(answer(rows[:2]), ids)
+    with pytest.raises(concepts.Refused, match="'mast'"):
+        reading.light_of(answer(rows[:2] + [{**lamp, "colour": "warm"}]), ids)
+    with pytest.raises(concepts.Refused, match="'scene'"):
+        reading.light_of(answer(rows, {**scene, "unseen_colour": ""}), ids)
+    assert reading.unlit(store, ["wreck"]) == ["wreck"]
+    asked = lambda store, place, folder: (reading.light_of(answer(rows), ids), 0.03, 5.0)  # noqa: E731
+    [kept] = reading.lit(store, ["wreck", "lab"], "joey", ask=asked)
+    assert kept["reading"] == record["at"] and reading.concept_light(store, "wreck")["rows"]["mast"]["glows"]
+    assert reading.unlit(store, ["wreck"]) == [] and reading.lit(store, ["wreck"], "joey", ask=None) == []
+    assert reading.spent(store, ["wreck"]) == round(0.15 + 0.03, 4)
+    schema = reading.light_schema(ids)["properties"]
+    assert schema["rows"]["items"]["properties"]["id"]["enum"] == ids

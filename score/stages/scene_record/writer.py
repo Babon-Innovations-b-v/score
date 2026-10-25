@@ -14,9 +14,11 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  plan draws as a flight of steps; each entry's surface the scene's surface library's for its kind
                  (surface-library@<place>, read as an `after`: design_shell.PART_KINDS), else none and
                  `surface_missing` says why (the scene builder names it on the mesh, never paints another way)
-    lights       one at each plan item of a glowing row (its row kind, score/stages/row_kinds.py): over the item's
+    lights       one at each plan item of a glowing row (its row kind, score/stages/row_kinds.py, or its concept
+                 showing it glow, `{home}/design/light/<place>.json`, reading.concept_light): over the item's
                  middle, as high on it as the library's lamp for the row's mount says, its numbers that lamp's
-                 (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs
+                 (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs; a row the
+                 concept shows glowing in the colour it shows there, its strength times its brightness there
     objects      one at each plan item of each prop or shell row of the batch's hand-in (several where the item
                  counts several or a run the plan draws once), `<row>_<n>`, on its spot at its shape's base, turned
                  along its item, waiting on the bake's model of its row's take (`bake`, `<first row>_1`), which the
@@ -75,13 +77,21 @@ FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.
 
 def files(place):
     """The design files the writer reads: the place's kept plan and every other (its holder's `holds`, its siblings'
-    frames), its scene inventory, its sky inputs (scene_sky.keep's), the row-kind rules, the library's lamp, the
-    environment's eye height (place.json `shared`) and the batch's hand-in (prepare's handin.py: each row's route and
-    the take that makes its model)."""
+    frames), its scene inventory, its concept's light once read, its sky inputs (scene_sky.keep's), the row-kind
+    rules, the library's lamp, the environment's eye height (place.json `shared`) and the batch's hand-in (prepare's
+    handin.py: each row's route and the take that makes its model)."""
     return {"inventory": "{home}/design/inventory/{place}.json", "plans": "{home}/design/plans",
             "sky": "{home}/design/sky/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
             "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json",
-            "hand-in": "{home}/design/props/{place}.json"}
+            "hand-in": "{home}/design/props/{place}.json", **concept_light_input(place)}
+
+
+def concept_light_input(place):
+    """{"concept light": its kept path pattern} once the place's concept's light is read (reading.concept_light,
+    kept by plans.keep), else {}: a place read before it was asked keeps its row-kind lamps alone."""
+    from score.review import plans
+    return {"concept light": "{home}/design/light/{place}.json"} if (plans.KEPT_LIGHT / f"{place}.json").is_file() \
+        else {}
 
 
 def read(path):
@@ -192,9 +202,10 @@ def game_lamp():
     return scene.LAMP_ENERGY, scene.LAMP_COLOUR, scene.LAMP_ATTENUATION
 
 
-def item_lamp(item, row, rows, design, library, path):
+def item_lamp(item, row, rows, design, library, path, glow=None):
     """The light of a glowing row's plan item: over its middle, as high on it as the library's lamp for the row's
-    mount puts it, reaching by how high that is over the floor."""
+    mount puts it, reaching by how high that is over the floor; where its concept shows it glowing (`glow`, the
+    concept's light), the colour its light is there and its strength that lamp's times its brightness there."""
     name, x, y, wide, deep = item[0], *[float(value) for value in item[1:5]]
     shape = (design.get("shapes") or {}).get(name) or {}
     base, tall = float(shape.get("base") or 0.0), float(shape.get("tall") or 0.0)
@@ -204,17 +215,26 @@ def item_lamp(item, row, rows, design, library, path):
     light = library.light_at(row, high, rows, mounts, words)
     energy, colour, attenuation = game_lamp()
     (spot,), floor = in_frame(design, [[x + wide / 2, y + deep / 2]], high)
-    return {"type": "omni", "at": [spot[0], floor, spot[1]], "colour": colour,
-            "energy": round(energy * light["strength"], 4), "range": light["reach"], "attenuation": attenuation,
-            "shadows": light["shadows"],
-            "from": f"plan item {name!r}, inventory row {row['id']} (row kind {row['row_kind']}, it glows): the "
-                    f"library's lamp (data/library/lamps.json) for its mount, {high:.2f} m over the floor"}
+    why = f"its concept shows its {glow['glowing'] or 'light'} glowing" if glow else \
+        f"row kind {row['row_kind']}, it glows"
+    return {"type": "omni", "at": [spot[0], floor, spot[1]], "colour": glow["colour"] if glow else colour,
+            "energy": round(energy * light["strength"] * (float(glow["brightness"]) if glow else 1.0), 4),
+            "range": light["reach"], "attenuation": attenuation, "shadows": light["shadows"],
+            "from": f"plan item {name!r}, inventory row {row['id']} ({why}): the library's lamp "
+                    f"(data/library/lamps.json) for its mount, {high:.2f} m over the floor"}
 
 
 def lights(design, inputs):
-    """A light at each plan item of the scene's glowing rows (row_kinds.rows_that)."""
+    """A light at each plan item of the scene's glowing rows: those whose row kind glows (row_kinds.rows_that) and
+    those its concept shows glowing (`concept light`: an engine's core, a screen, a light strip; owner, 2026-10-25:
+    "look at the concept, the engines themself should be a source of light"), in the colour and brightness the concept
+    shows; a row of the sky (anchored `sky`: its stars, a planet) is the physics' (the light layer's sky), no lamp."""
     inventory = read(inputs["inventory"])
     glowing = {row["id"]: row for row in row_kinds.rows_that(inventory, "glows", row_kinds.table(inputs["row kinds"]))}
+    shown = {row: glow for row, glow in (read(inputs["concept light"])["rows"] if "concept light" in inputs
+                                         else {}).items() if glow["glows"]}
+    glowing |= {row["id"]: {**row, "row_kind": glowing.get(row["id"], {}).get("row_kind")}
+                for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}
     rows_of, library = design.get("rows") or {}, library_lamps()
     found = []
     for item in design.get("items") or []:
@@ -223,7 +243,7 @@ def lights(design, inputs):
         for row_id in rows_of.get(item[0]) or []:
             if row_id in glowing:
                 found.append(item_lamp(item, glowing[row_id], inventory["rows"], design, library,
-                                       inputs["lamp library"]))
+                                       inputs["lamp library"], shown.get(row_id)))
     return found
 
 

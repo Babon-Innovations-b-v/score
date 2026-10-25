@@ -233,6 +233,39 @@ def test_a_floodlight_tower_read_as_a_tower_gets_a_light_at_its_head():
     assert lamp["at"][1] == 9.5 and "floodlight_tower" in lamp["from"] and lamp["range"] == 14.25, lamp
 
 
+def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
+    """An engine room's core (a machine: its row kind does not glow) its concept shows glowing blue at half the
+    brightest light gets the library's lamp over its plan item in that blue at half the lamp's strength; the engine
+    its concept shows dark and the starry sky (the physics') get none (reading.concept_light, kept as
+    {home}/design/light/<place>.json)."""
+    from score.stages.scene_record import writer
+    design = {**WRITTEN, "items": [["CORE", 3.0, 2.0, 1.0, 1.0, None, "item"], ["ENGINE", 1.0, 1.0, 2.0, 1.0, None,
+                                                                                  "item"],
+                                   ["SKY", 0.0, 0.0, 1.0, 1.0, None, "item"]],
+              "rows": {"CORE": ["core"], "ENGINE": ["engine"], "SKY": ["sky"]},
+              "shapes": {"CORE": {"shape": "rect", "tall": 3.0, "base": 0.0}}}
+    rows = [{"id": "core", "name": "energy core", "noun": "core", "anchor": "floor", "size": [1.0, 1.0, 3.0]},
+            {"id": "engine", "name": "engine", "noun": "engine", "anchor": "floor", "size": [2.0, 1.0, 1.0]},
+            {"id": "sky", "name": "starfield", "noun": "sky", "anchor": "sky"}]
+    dark = {"glows": False, "glowing": "", "colour": "", "brightness": 0}
+    light = {"rows": {"core": {"glows": True, "glowing": "its column", "colour": "#44aaff", "brightness": 0.5},
+                      "engine": dark,
+                      "sky": {"glows": True, "glowing": "stars", "colour": "#ffffff", "brightness": 0.4}},
+             "scene": {"daylight": False, "unseen": False, "unseen_colour": ""}}
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        (folder / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": rows}))
+        (folder / "light.json").write_text(json.dumps(light))
+        inputs = {"inventory": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
+                  "lamp library": REPO / "data/library/lamps.json"}
+        assert writer.lights(design, inputs) == []  # its row kinds alone light nothing
+        [lamp] = writer.lights(design, {**inputs, "concept light": folder / "light.json"})
+        full = writer.item_lamp(design["items"][0], {**rows[0], "row_kind": "machine"}, rows, design,
+                                writer.library_lamps(), inputs["lamp library"])
+    assert lamp["colour"] == "#44aaff" and "its column" in lamp["from"] and "core" in lamp["from"], lamp
+    assert lamp["energy"] == round(full["energy"] / 2, 4) and lamp["at"] == full["at"]
+
+
 def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
     """Each shell part and stair takes the variant the scene's surface library gives its kind (a stair the floor's
     when the library names no stair), and a part it gives none, or every part while no library is made, carries no

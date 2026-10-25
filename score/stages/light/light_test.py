@@ -325,6 +325,38 @@ def check_unlit():
     assert light.unlit_why([], inside=False) and light.unlit_why([], inside=True)
     assert light.unlit_why([sun], inside=True) and light.unlit_why([sun], inside=False) is None
     assert light.unlit_why([lamp], inside=True) is None and light.unlit_why([lamp, sun], inside=False) is None
+    fill = {"path": "/p/Lights/concept_fill", "sun": True, "fill": True}
+    assert light.unlit_why([sun, fill], inside=True) is None and "not read" in light.unlit_why([], False, read=False)
+
+
+def check_fill():
+    """A concept showing light from no source in view takes its fill where no sky light reaches the place (none over
+    the horizon, or inside its shell), never where the concept shows none or a sun lights it in the open; the fill is
+    a soft overhead distant light in the open, a sphere light under the ceiling over the middle inside, in the
+    concept's colour."""
+    import tempfile
+    from pxr import Usd, UsdGeom, UsdLux
+    from score.stages import light
+    seen = {"rows": {}, "scene": {"daylight": True, "unseen": True, "unseen_colour": "#ffddbb"}}
+    sun = {"path": "/p/Lights/sky_sun", "sun": True}
+    assert light.fill_wanted(seen, [], inside=False) and light.fill_wanted(seen, [sun], inside=True)
+    assert not light.fill_wanted(seen, [sun], inside=False) and not light.fill_wanted(None, [], inside=True)
+    assert not light.fill_wanted({**seen, "scene": {**seen["scene"], "unseen": False}}, [], inside=True)
+    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
+    library = pathlib.Path(__file__).resolve().parents[3] / "data/library/lamps.json"
+    for inside, kind in ((False, UsdLux.DistantLight), (True, UsdLux.SphereLight)):
+        with tempfile.TemporaryDirectory(dir=PROPS_HOME / "store-tests") as folder:
+            seed, out = pathlib.Path(folder) / "seed", pathlib.Path(folder) / "out"
+            tiny_seed(seed)
+            base = Usd.Stage.Open(str(seed / "layers/base.usda"))
+            UsdGeom.Cube.Define(base, "/tiny/Room").CreateSizeAttr(6.0)  # a room 6 m across round the middle
+            base.Save()
+            layer.write("tiny", {"lights": []}, seed, out)
+            found = layer.write_fill(out, seed, "tiny", "#ffddbb", inside, 3.0, library)
+            opened = Usd.Stage.Open(str(out / layer.LAYER))
+            held = opened.GetPrimAtPath(found["path"])
+            assert held.IsA(kind) and found["fill"] and found["sun"], found
+            assert (found["spot"] is None) != inside and (not inside or found["spot"][1] < 3.0), found
 
 
 def check_design_rows():
@@ -417,6 +449,7 @@ def check_neighbours_from_the_record():
 
 def main():
     check_unlit()
+    check_fill()
     check_design_rows()
     check_haze_from_the_kit()
     check_neighbours_from_the_record()
