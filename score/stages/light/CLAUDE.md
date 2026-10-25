@@ -86,7 +86,8 @@ gates.
   kept sky inputs (`{home}/design/sky/<scene>.json`, `score/review/scene_sky.py`, kept by `python -m
   score.review.plans keep`; a room takes its top scene's site), and turns the seed's and the record's old sky off. The
   light-layer gate `sky bodies` holds the layer's geometry to overhead.py; unknown while the scene has no site or
-  scene time on the environment's plan. Every body's ball is drawn from its face as its `body-face-<body>` row made it (the layer reads and waits on each, so a place's line makes its sky's faces first, `sky.faces_of`; never by a library name or a picture of its own: the Earth's NASA picture was retired 2026-10-22), a shining body's disc its library surface (`<body>_disc`), or named
-  missing, never grey.
+  scene time on the environment's plan. Every body's ball is drawn from its face as its `body-face-<body>` row made it (the layer reads and waits on each, so a place's line makes its sky's faces first, `sky.faces_of`; never by a library name or a picture of its own: the Earth's NASA picture was retired 2026-10-22), a shining body's disc `<body>_disc`, the library's glowing recipe
+  in the black body's colour at its light's kelvin (`sky.disc_material`; it had no surface until 2026-10-25 and
+  failed `stage_no_worse` in 21 places), or named missing, never grey.
 - `light_test.py` checks the measures, the sweep and the layer on pictures, passes and a stage made in the test;
   `sky_test.py` the sky against skies worked out by hand.

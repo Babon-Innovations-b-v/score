@@ -192,3 +192,22 @@ def test_the_light_layer_writes_the_physics_sky_over_the_old_one_and_its_gate_ho
     verdict = light.judge_sky_bodies(out, {"sky": str(tmp_path / "later.json")}, {})
     assert verdict.answer == checks.FAIL and "the light Sun: shines from" in verdict.reason, verdict
     assert light.judge_sky_bodies(out, {}, {}).answer == checks.UNKNOWN
+
+
+def test_the_sun_s_disc_is_the_library_s_glowing_recipe_in_its_black_body_colour_and_no_placeholder(tmp_path):
+    import sys
+    from pxr import UsdShade
+    sys.path.insert(0, str(sky.REPO / "tools/usd"))
+    import placeholders
+    library = json.loads((sky.REPO / "data/library/materials.json").read_text())
+    stage = stage_of("base")
+    stage.SetDefaultPrim(stage.GetPrimAtPath("/base"))
+    sky.write(stage, "base", overhead.seen(ENVIRONMENT_1, BASE, WHEN), library=library)
+    disc = stage.GetPrimAtPath("/base/Sky/Discs/sun")
+    material = UsdShade.MaterialBindingAPI(disc).ComputeBoundMaterial()[0]
+    assert material.GetPath() == "/base/Looks/sun_disc" and not disc.HasAttribute("score:surface:missing")
+    assert material.GetPrim().GetAttribute("score:recipe").Get() == "glowing"
+    glow = UsdShade.Shader(stage.GetPrimAtPath("/base/Looks/sun_disc/surface")).GetInput("emissiveColor").Get()
+    assert glow[0] == pytest.approx(1.0, abs=0.01) and glow[2] < glow[0]  # 5772 K: white, a little warm
+    stage.GetRootLayer().Export(str(tmp_path / "base.usda"))
+    assert [fault for fault in placeholders.check(tmp_path / "base.usda") if "/Discs/" in fault["prim"]] == []

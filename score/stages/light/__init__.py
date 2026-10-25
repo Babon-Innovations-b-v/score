@@ -122,7 +122,7 @@ def make_layer(inputs, out, seed, params):
     place = place_of(inputs)
     stage = passes.source(place, inputs, out / "source")
     found = layer.write(place, passes.record_of(place, inputs), stage, out, sky.read(inputs["sky"]) if "sky" in inputs
-                        else None, sky.faces_of(inputs))
+                        else None, sky.faces_of(inputs), sky.read(inputs["library"]))
     record = passes.record_of(place, inputs)
     if not found["lamps"] or not (record.get("environment") or {}).get("inside"):
         found["lamps"] += sun_lamps(place, out, stage)
@@ -203,9 +203,11 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 
 
 def layer_files(place):
-    """The kit (its seat, its lenses: passes.place_files), the seed and the scene's kept sky (sky.kept_input) when it
-    has one; the record is the scene-record row's output."""
+    """The kit (its seat, its lenses: passes.place_files), the seed, the surface library's method (a shining body's
+    disc is its glowing recipe) and the scene's kept sky (sky.kept_input) when it has one; the record is the
+    scene-record row's output."""
     return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
+            "library": "{data}/library/materials.json",
             **passes.place_files(place), **sky.kept_input(place)}
 
 
