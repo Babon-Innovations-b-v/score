@@ -113,8 +113,8 @@ def test_a_crowd_lattice_stands_only_on_its_grounds():
     """A design's crowd stands on the plan items its row makes: two grounds 2 m wide, 6 m apart, none between."""
     crowd = {"spread": [0.0, 0.0, 10.0, 4.0], "grounds": [[0.0, 0.0, 2.0, 4.0], [8.0, 0.0, 2.0, 4.0]], "seed": 3,
              "count": None, "facing_to": [0.0, 0.0, -10.0], "turn_jitter": 0.1, "height_jitter": 0.0,
-             "doing": ["standing"], "shares": [1.0], "phases": 1, "palettes": [], "palette_shares": []}
-    spots = [copy["at"] for copy in spread.lattice(crowd, [])]  # its palettes undecided, it still stands
+             "doing": ["standing"], "shares": [1.0], "phases": 1, "palettes": [0, 1], "palette_shares": [0.5, 0.5]}
+    spots = [copy["at"] for copy in spread.lattice(crowd, [])]
     assert spots and all(spot[0] <= 2.0 or spot[0] >= 8.0 for spot in spots), spots
     assert any(spot[0] <= 2.0 for spot in spots) and any(spot[0] >= 8.0 for spot in spots)
 
@@ -141,7 +141,7 @@ def test_a_look_is_made_by_its_usable_dress_row():
 def test_a_crowd_lattice_keeps_bodies_apart():
     crowd = {"spread": [0.0, 0.0, 6.0, 6.0], "seed": 3, "count": 10, "facing_to": [0.0, 0.0, -10.0],
              "turn_jitter": 0.1, "height_jitter": 0.0, "doing": ["standing"], "shares": [1.0], "phases": 1,
-             "palettes": [[0, 0, 0]], "palette_shares": [1.0]}
+             "palettes": [0], "palette_shares": [1.0]}
     spots = [copy["at"] for copy in spread.lattice(crowd, [])]
     nearest = min(((a[0] - b[0]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5 for number, a in enumerate(spots)
                   for b in spots[number + 1:])

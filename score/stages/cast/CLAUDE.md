@@ -2,7 +2,7 @@
 
 The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for the places whose locked design shows
 people, read from `data/people/rows.json` (`score/stages/people_rows.py`, #26: its scene inventory's people rows,
-each person a look of the shared people line, a crowd one far look in palettes), never the old game records
+each person a look of the shared people line, a crowd one far look in a few variants of its body), never the old game records
 (`data/characters/`). `__init__.py`'s docstring has the make and
 the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are stood on the place.
 
@@ -36,6 +36,10 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   down, never a stop: the owner's rule, 2026-10-13), and complete's people check fails it by name.
   `drapes` is retired (2026-10-13): the SOMA-shell rig replaced the drapes route (owner, 2026-10-12 21:40), and the
   people rows' per-clip, shell and outline gates judge the cloth now.
+- **A crowd's palettes are its look's dress variants** (`people_rows.crowd_record`, `CROWD_VARIANTS`): each copy
+  wears one variant's dressed body (`people-dress-<look>-v<n>`, the scene library's surfaces, baked), a prototype per
+  clip, phase and variant (`layer.lay_crowd`); never cast.py's flat palette colours. A variant with no usable body is
+  named missing and its copies left out, never worn in another's body.
 - **The characters layer** (`layer.py`, row `characters-layer@<place>`) lays each person of the accepted cast in
   their own look's accepted dressed body (`people-dress-<look>`); a person whose cast names no look, or whose look has
   no usable body (its dress rows are optional reads, `Stage.optional`), is left out, named in `characters.json`,

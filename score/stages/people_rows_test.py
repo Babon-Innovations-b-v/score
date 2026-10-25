@@ -20,15 +20,10 @@ from score.stages import people_rows  # noqa: E402
 def test_every_people_row_maps_to_a_look():
     found = people_rows.read()
     line = people_rows.line_looks()
-    sys.path.append(str(REPO / "tools/props/library"))
-    import library
-    surfaces = library.resolved(people_rows.LINE)
     for place, entry in found["places"].items():
         for row, fields in entry["rows"].items():
             if "crowd" in fields:
                 assert fields["crowd"] in line, (place, row)
-                assert fields["palettes"] is not None or fields["palettes_from"].startswith("not decided"), (place, row)
-                assert all(len(palette) == 3 and set(palette) <= set(surfaces) for palette in fields["palettes"] or [])
             else:
                 assert len(fields["looks"]) == fields["count"], (place, row)  # a look for each person
                 assert all(look in line for look in fields["looks"]), (place, row)  # every person can be made
@@ -66,7 +61,7 @@ def test_a_person_row_s_look_is_written_from_the_row_alone():
         "copilot": {"name": "seated pilot in a suit", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
                     "where": "sitting at the console", "share": 0.5, "looks": ["pilot_suit-made"]},
         "crowd": {"name": "crowd of people", "noun": "crowd", "count": 1, "size": [8.0, 9.0, 1.8],
-                  "crowd": "crowd-made", "palettes": None}}}}}
+                  "crowd": "crowd-made"}}}}}
     surfaces = json.loads(people_rows.LINE_FILES["surfaces"].read_text())
     made = people_rows.designed_specs(found, surfaces)
     assert set(made) == {"pilot_suit-made", "guest-made", "crowd-made"}
@@ -99,17 +94,11 @@ def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
     crowd = people_rows.crowd_record("crowd", entry["rows"]["crowd"], entry)
     assert crowd["spread"] == [-8.0, -4.0, 6.0, 4.0] and crowd["grounds"] == [[-8.0, -4.0, 6.0, 4.0]]
     assert crowd["count"] is None and crowd["seed"] == 0x0badcafe and crowd["facing_to"] == entry["middle"]
-    assert crowd["palettes"] == [] and crowd["palettes_from"] == people_rows.UNDECIDED_PALETTES
+    # its palettes the variants of its look's body it wears, a few, never more than SAM 3 counted people in it
+    assert crowd["palettes"] == list(range(people_rows.CROWD_VARIANTS)) and sum(crowd["palette_shares"]) == 1.0
     counted = {**entry["rows"]["crowd"], "count": 30}
     assert people_rows.crowd_record("crowd", counted, entry)["count"] == 30
-    import library
-    try:  # a palette of surfaces the (empty) library does not hold names them, never a KeyError
-        people_rows.crowd_record("crowd", {**counted, "palettes": [["skin_light", "wool_grey", "leather_black"]]},
-                                 entry)
-    except library.LibraryEmpty as empty:
-        assert "skin_light" in str(empty) and library.EMPTY in str(empty), empty
-    else:
-        raise AssertionError("a crowd palette was coloured from surfaces no library holds")
+    assert people_rows.crowd_record("crowd", {**counted, "count": 3}, entry)["palettes"] == [0, 1, 2]
 
 
 def test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own():
@@ -130,7 +119,9 @@ def test_the_tube_casts_its_people_and_the_square_its_crowd():
     assert "concept 3059819b" in tube["from"] and "crowd" not in tube
     square = people_rows.cast_record("square")
     assert square["crowd"]["look"] == "crowd_made" and square["crowd"]["count"] is None
-    assert square["crowd"]["palettes"] == [] and square["crowd"]["palettes_from"] == people_rows.UNDECIDED_PALETTES
+    assert square["crowd"]["palettes"] == list(range(people_rows.CROWD_VARIANTS))
+    assert {("crowd-made", None, variant) for variant in range(people_rows.CROWD_VARIANTS)} <= \
+        people_rows.dressed_looks("square"), "each variant of the crowd's body a dress row of its own"
 
 
 def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
@@ -198,7 +189,7 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
         {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop"}]}
     fresh = people_rows.refreshed_place("deck", inventory, None, None)
     assert fresh["rows"]["pilot"]["looks"] == ["person-made", "person-made"] and "chair" not in fresh["rows"]
-    assert fresh["rows"]["crowd"]["crowd"] == "crowd-made" and fresh["rows"]["crowd"]["palettes"] is None, \
+    assert fresh["rows"]["crowd"]["crowd"] == "crowd-made", \
         "a crowd takes no look drawn from another scene's row"
     fresh["rows"]["pilot"]["looks"] = ["deck_pilot-made", "person-made"]
     assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \

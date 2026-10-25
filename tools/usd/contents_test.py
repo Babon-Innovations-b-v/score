@@ -365,15 +365,10 @@ def a_far_look_near_a_view_both_ways():
     from pxr import Vt
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        palette = [["skin_light", "wool_grey", "leather_black"]]  # surfaces of the people line's library
-        # the old library's surfaces are retired (2026-10-21) and the people line's are not made yet: the crowd's
-        # colours are stood in, as this check judges where people stand, not what they wear
-        rows_module = contents.stages_module("people_rows")
-        rows_module.palette_colours = lambda palettes: [[(0.5, 0.5, 0.5)] * len(one) for one in palettes]
         people = {**NOBODY, "spots": [[0.0, 0.0, 0.0]], "rows": {
             "guard": {"name": "guard", "looks": ["guard-uniform"], "share": 0.05},
             "bram": {"name": "bram", "looks": ["bram-work"], "share": 0.3},
-            "crowd": {"name": "crowd", "noun": "crowd", "crowd": "kit_m_avg-coat-grey", "palettes": palette}}}
+            "crowd": {"name": "crowd", "noun": "crowd", "crowd": "kit_m_avg-coat-grey"}}}
         view = {"name": "gate", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, 10.0], "fov": 60}
         world_data(folder, people=people, scene={"place": PLACE, "lights": [], "places": [], "views": [view]},
                    design=[row("guard", "person"), row("bram", "person"), row("crowd", "crowd")])

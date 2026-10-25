@@ -108,10 +108,8 @@ def lattice(crowd, keep_clear):
                 spots.append((x, z))
     draw.shuffle(spots)
     boxes = cast_rules.raised_ground(crowd)
-    # A design's crowd whose palettes are undecided (people_rows.UNDECIDED_PALETTES) still stands: its copies draw
-    # palette 0 of none, and the characters layer lays no crowd without its colours (it names the gap).
-    undecided = {} if crowd.get("palettes") else {"palettes": [None], "palette_shares": [1.0]}
-    copies = cast_rules.crowd_copies(dict(crowd, count=len(spots), **undecided), keep_clear)
+    # each copy's palette is the variant of the look's body it wears (people_rows.crowd_record)
+    copies = cast_rules.crowd_copies(dict(crowd, count=len(spots)), keep_clear)
     return [dict(copy, at=[x, cast_rules.ground_at(boxes, x, z), z],
                  turn=cast_rules.facing_degrees([x, 0.0, z], crowd["facing_to"]) + copy["turn"]
                  - cast_rules.facing_degrees(copy["at"], crowd["facing_to"]))
