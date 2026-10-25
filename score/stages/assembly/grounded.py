@@ -22,16 +22,22 @@ def grounded_seed(inputs, folder):
     seed = pathlib.Path(inputs["seed"])
     folder.mkdir(parents=True, exist_ok=True)
     root = folder / f"{seed.name}.usda"
-    shutil.copy2(seed / root.name, root)
+    # copied as plain files (copyfile): the store's seed is read-only and a copy keeping its modes refused the
+    # record's save over the copied base (Batch 1, 2026-10-25)
+    shutil.copyfile(seed / root.name, root)
     for part in SEED_PARTS:
         source = seed / part
         if source.is_dir():
-            shutil.copytree(source, folder / part)
+            shutil.copytree(source, folder / part, copy_function=shutil.copyfile)
         elif source.exists():
-            shutil.copy2(source, folder / part)
-    # copied where the bakes are written over them (a write through a link would change the seed's file)
-    shutil.copytree(seed / "assets", folder / "assets",
-                    copy_function=shutil.copy2 if "surfaces-bake" in inputs else linked)
+            shutil.copyfile(source, folder / part)
+    # copied where the bakes are written over them (a write through a link would change the seed's file); a seed
+    # laying no kit piece has none, and the store keeps no empty folder (Batch 1, 2026-10-25: every settle)
+    if (seed / "assets").is_dir():
+        shutil.copytree(seed / "assets", folder / "assets",
+                        copy_function=shutil.copyfile if "surfaces-bake" in inputs else linked)
+    else:
+        (folder / "assets").mkdir()
     record.take_record({key: inputs[key] for key in ("kit", "scene", "scene-record") if key in inputs}, folder,
                        seed.name)
     take_bakes(inputs, folder, seed.name)
@@ -62,4 +68,4 @@ def linked(source, target):
     try:
         os.link(source, target)
     except OSError:
-        shutil.copy2(source, target)
+        shutil.copyfile(source, target)
