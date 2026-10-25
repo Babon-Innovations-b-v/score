@@ -185,10 +185,10 @@ def test_a_row_is_found_by_its_own_words_first_and_an_older_reading_is_read_agai
 
 def test_rows_off_the_schema_are_refused():
     good = '{"rows": [{"id": "a", "name": "a", "noun": "a", "kind": "code", "count": 1, "size": "s", ' \
-           '"anchor": "floor", "where": "w", "terrain": false}]}'
+           '"anchor": "floor", "where": "w", "terrain": false, "part": "object"}]}'
     assert reading.rows_of(good)[0]["id"] == "a" and reading.rows_of(good)[0]["region"] is None
     for wrong, said in (('"count": 1', '"count": 0'), ('"kind": "code"', '"kind": "mechanic"'),
-                        ('"terrain": false', '"terrain": "no"')):
+                        ('"terrain": false', '"terrain": "no"'), ('"part": "object"', '"part": "lamp"')):
         with pytest.raises(concepts.Refused, match=said.split(":")[0].strip('"')):
             reading.rows_of(good.replace(wrong, said))
     assert reading.rows_of(good.replace('"floor"', '"on:b"'))[0]["anchor"] is None  # a gap of its row, not a refusal
@@ -210,3 +210,28 @@ def test_a_rows_answer_off_the_schema_is_kept_with_its_cost_and_read_again(store
     [refused] = reading.readings(store, "wreck")
     assert "anchor" in refused["refused"] and reading.spent(store, ["wreck"]) == 0.02
     assert reading.reading_of(store, "wreck") is None and reading.to_read(store, ["wreck"]) == ["wreck"]
+
+
+def test_a_reading_answered_before_parts_were_asked_gets_them_in_one_call_its_rows_kept(store, tmp_path):
+    """reading.parted: one call a place whose reading's rows have no part, inside the reading's clearance; the parts
+    kept apart and read onto its rows (with_parts), the reading itself, its boxes and plan untouched; an answer
+    missing a row or off PARTS is refused and asked again next time."""
+    picked_place(store, tmp_path)
+    [record] = reading.read(store, ["wreck"], "joey", ask=stand_in_rows, boxes=stand_in_boxes)
+    assert reading.unparted(store, ["wreck"]) == ["wreck"]  # the stand-in answered no parts
+    ids = [row["id"] for row in record["inventory"]["rows"]]
+    with pytest.raises(concepts.Refused, match="'mast'"):
+        reading.parts_of('{"parts": {"drum": "object", "drum_right": "object"}}', ids)
+    with pytest.raises(concepts.Refused, match="'mast'"):
+        reading.parts_of('{"parts": {"drum": "object", "drum_right": "object", "mast": "pole"}}', ids)
+    off = lambda store, place, folder: ("no valid part for 'mast'", 0.01, 3.0)  # noqa: E731
+    assert reading.parted(store, ["wreck"], "joey", ask=off) == [] and reading.unparted(store, ["wreck"]) == ["wreck"]
+    asked = lambda store, place, folder: (reading.parts_of(  # noqa: E731
+        '{"parts": {"drum": "object", "drum_right": "object", "mast": "structure"}}', ids), 0.02, 4.0)
+    [kept] = reading.parted(store, ["wreck", "lab"], "joey", ask=asked)
+    assert kept["reading"] == record["at"] and kept["parts"]["mast"] == "structure"
+    now = reading.reading_of(store, "wreck")
+    assert [row["part"] for row in now["inventory"]["rows"]] == ["object", "object", "structure"]
+    assert now["at"] == record["at"] and reading.unparted(store, ["wreck"]) == []
+    assert reading.parted(store, ["wreck"], "joey", ask=None) == []  # parted already: nothing asked
+    assert reading.spent(store, ["wreck"]) == round(0.15 + 0.01 + 0.02, 4)

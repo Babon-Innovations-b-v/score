@@ -21,14 +21,16 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   reading (`groups.boxed_by`, marked so in the hand-in). A model take with no box, a box that is the whole picture or
   no size is an **input gap** (`contract.faults`, `__main__.status_of`): not bought, priced apart
   (`input_gaps_if_bought`), never handed to the loop, so the runner neither buys nor counts it. Rows of
-  one model (kind, size ratio, kit) share a take. Each row's route is its noun's head word's (`groups.route_of`, `head_word`: its last word, or
-  the word before a part word, "wall panels" a wall's; owner's rules, CONTEXT.md "layer adapter", "motion"): a row
-  whose head is a structure word (the reading's `STRUCTURE`, `groups.SHELL_WORDS`: walls, floors, decks, doors,
-  windows, stairs, building shells), whatever its kind, is a shell piece (route `shell`); a floor, deck, wall, roof or
-  ceiling spanning `ROOM_SHARE` of its place's outline, and every opening and doorway, is the plan's own (route
-  `plan`, status `laid from the plan`: the earth seed and the scene record lay it, no take, no close-up; Batch 1 try
-  3 drew a 50 m upper floor, 2026-10-25); the ground itself (the street, pavements, the plaza, the hills) is the
-  terrain node's (route `ground`, status `terrain node`: no take, never a close-up of the whole picture); people are models of the prop pipeline with the motion
+  one model (kind, size ratio, kit) share a take. Each row's route is its part's (`groups.route_of`, `ROUTES`: the
+  part of the place its reading says it is, score/review/reading.py `PARTS`, never a list of nouns; owner, 2026-10-25:
+  "no hax tho ... framework remember"; CONTEXT.md "layer adapter", "motion"): a floor, wall, roof, opening or other
+  structure is a shell piece (route `shell`); one whose part the place's plan lays itself (`groups.plan_parts`, by
+  score/stages/earth_seed/design_shell: an enclosed place's decks, walls, roofs and the openings it writes, an open
+  place's raised levels) is the plan's own (route `plan`, status `laid from the plan`: the earth seed and the scene
+  record lay it, no take, no close-up), never by its size; the ground itself is the terrain node's (route `ground`,
+  status `terrain node`: no take, never a close-up of the whole picture); a row whose part is not read (a reading
+  answered before parts were asked) has no route and its take is an input gap (`contract.PART_UNREAD`) until
+  `python -m score.review.reading <place>` asks them (`reading.parted`: one call, its rows, boxes and plan kept); people are models of the prop pipeline with the motion
   layer's steps after (`estimate.OWN_ROUTES`); the sky, the effects (water, rain, smoke, mist) and the far city
   are their own routes, priced only by their own measured per unit (unpriced until then), their inputs their
   route's own (not checked here); every other row, terrain too, is a model through the prop pipeline. Each layer
