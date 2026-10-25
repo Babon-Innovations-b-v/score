@@ -10,7 +10,7 @@ on, then the library beds whose brief fits it.
                 air        the outside air of the body it stands on: `sealed` under the Armstrong limit, else
                            `breathable`; the body is the site's (data/physics/setting.json `sites`) of the outside
                            place holding it (data/places/within.json: `within`, a part's `of`, a merged place's
-                           `into`), its surface pressure the setting's own value, else the cited reference table's
+                           `into`; else the design's plan that `holds` it: a scene added in the app), its surface pressure the setting's own value, else the cited reference table's
                            (data/physics/bodies.json `surface_pressure_kpa`)
                 shell      `open` for a room whose plan's shell is outdoor (a shelter standing alone in the open),
                            else `built`
@@ -40,14 +40,14 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 # The creator's design as the cockpit keeps it (score/stages/__init__.py creator_plan): his plan and scene inventory.
 DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "design"
 FILES = {"setting": "{data}/physics/setting.json", "bodies": "{data}/physics/bodies.json",
-         "holders": "{data}/places/within.json", "row kinds": "{data}/checks/row-kinds.json",
+         "holders": "{data}/places/within.json", "plans": "{home}/design/plans", "row kinds": "{data}/checks/row-kinds.json",
          "sounds": "{data}/sound/sounds.json"}
 
 
 def files(place, design=DESIGN):
     """The bed's inputs as the stage table's patterns: the place's kept plan and scene inventory (the old data/plans
-    and data/inventory records were retired, owner, 2026-10-21), and the setting, reference bodies, holders, row
-    kinds and library briefs."""
+    and data/inventory records were retired, owner, 2026-10-21), and the setting, reference bodies, holders (within.json
+    and the design's plans, whose `holds` name the scenes added in the app), row kinds and library briefs."""
     found = dict(FILES)
     if (design / "plans" / f"{place}.json").is_file():
         found["plan"] = "{home}/design/plans/{place}.json"
@@ -92,17 +92,26 @@ def outside(plan, top):
 
 def site_place(place, holders):
     """The outside place whose site holds the place: up its holders (within, a part's `of`, a merged place's
-    `into`) to one held by none."""
+    `into`, then the design's plan that holds it: `held`, held_by) to one held by none."""
     seen = []
     while place not in seen:
         seen.append(place)
-        for table, key in (("within", "within"), ("parts", "of"), ("merged", "into")):
+        for table, key in (("within", "within"), ("parts", "of"), ("merged", "into"), ("held", "by")):
             if place in holders.get(table, {}):
                 place = holders[table][place][key]
                 break
         else:
             return place
     return None
+
+
+def held_by(plans):
+    """{scene: {"by": the scene whose design plan `holds` it}} of the design's plans folder; {} with none."""
+    folder = pathlib.Path(plans) if plans else None
+    if folder is None or not folder.is_dir():
+        return {}
+    return {hold["place"]: {"by": path.stem} for path in sorted(folder.glob("*.json"))
+            for hold in (read(path) or {}).get("holds") or [] if hold.get("place") and hold["place"] != path.stem}
 
 
 def surface_pressure(place, setting, reference, holders):
@@ -175,8 +184,9 @@ def beds(found, briefs):
 
 def of_place(place, inputs):
     """The place's facts and its bed from the stage's inputs (files: `plan`, `scene inventory`, `setting`, `bodies`,
-    `holders`, `row kinds`, `sounds`): {"facts", "sounds"}."""
+    `holders`, `plans`, `row kinds`, `sounds`): {"facts", "sounds"}."""
+    holders = {**(read(inputs.get("holders")) or {}), "held": held_by(inputs.get("plans"))}
     found = facts(place, read(inputs.get("plan")), read(inputs.get("scene inventory")) or {},
                   read(inputs.get("setting")) or {}, read(inputs.get("bodies")) or {},
-                  read(inputs.get("holders")) or {}, (read(inputs.get("row kinds")) or {}).get("kinds"))
+                  holders, (read(inputs.get("row kinds")) or {}).get("kinds"))
     return {"facts": found, "sounds": beds(found, (read(inputs.get("sounds")) or {}).get("sounds", {}))}
