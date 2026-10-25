@@ -44,7 +44,7 @@ import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import place  # noqa: E402
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "cloud"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "cloud"))
 import secret_store  # noqa: E402
 from paths import scene_folder as folder  # noqa: E402
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
