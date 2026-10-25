@@ -17,7 +17,7 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   metres, unless his plan edit sized its item (`groups.row_size`: his edits counted, wide and deep as he laid them,
   tall the reading's), else its plan item's (`groups.plan_sizes`) where the reading gave none; a plan's item is the
   footprint the object is laid in, so it places the object and never sizes its model (coordinator, 2026-10-25: the
-  airlock's 0.1 m porch post was baked 0.48 by 1.7 m); a row neither sizes has none. A row's box is SAM 3's, else Gemini's region from the same
+  airlock's 0.1 m porch post was baked 0.48 by 1.7 m); a row the plan lays as a run or path (`groups.run_pieces`: several pieces counted or laid, a polygon round an edge) whose own metres overrun its item measured the whole run, so it is made as one repeating piece, the run over its pieces, each side held to its item (`groups.run_piece`; 2026-10-25: the stairwell's 12 m conduit, the greenhouse's 50 m railing); a row neither sizes has none. A row's box is SAM 3's, else Gemini's region from the same
   reading (`groups.boxed_by`, marked so in the hand-in). A model take with no box, a box that is the whole picture or
   no size is an **input gap** (`contract.faults`, `__main__.status_of`): not bought, priced apart
   (`input_gaps_if_bought`), never handed to the loop, so the runner neither buys nor counts it. Rows of

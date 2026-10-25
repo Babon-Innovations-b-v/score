@@ -261,6 +261,17 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert groups.row_size(post, footprint, footprint) == post  # a plan's item only places the object
     assert groups.row_size(post, edited, footprint) == edited  # his edit sized it: his edits count
     assert groups.row_size(None, footprint, footprint) == footprint and groups.row_size(None, None, None) is None
+    pipes, floor = [12.0, 0.1, 0.1], [7.421, 4.058, 0.1]  # a run's whole length, laid along the stairwell's walls
+    assert groups.row_size(pipes, floor, floor, 4) == [3.0, 0.1, 0.1]  # one of its four pieces, laid along the item
+    railing, ring = [50.0, 0.1, 1.0], [8.837, 9.435, 1.0]  # round a floor's edge: each piece held to the item laid
+    assert groups.row_size(railing, ring, ring, 5) == [9.435, 0.1, 1.0]
+    beam = [9.0, 0.3, 0.3]  # one object longer than its item: kept at its own size, so `fits the plan` still rejects it
+    assert groups.row_size(beam, [3.0, 0.3, 0.3], [3.0, 0.3, 0.3], None) == beam
+    assert groups.row_size(post, footprint, footprint, 3) == post  # a run's piece that fits its item is its own size
+    plan = {"items": [["PIPES 1", 0, 0, 7.4, 4.0, None, "item"], ["RAIL 1", 0, 0, 9, 9, None, "item"]],
+            "rows": {"PIPES 1": ["pipes"], "RAIL 1": ["rail"]}, "shapes": {"RAIL 1": {"shape": "polygon"}}}
+    assert groups.run_pieces(plan, {"id": "pipes", "count": 4}) == 4 and groups.run_pieces(plan, {"id": "rail"}) == 1
+    assert groups.run_pieces(plan, {"id": "pipes", "count": 1}) is None  # one item of one: a single object
     assert [by_id[name]["route"] for name in ("fuel_drum", "astronaut", "wall_lamp", "night_sky")] == [
         "prop", "people", "prop", "sky"]
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
