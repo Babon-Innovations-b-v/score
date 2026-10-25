@@ -33,6 +33,7 @@ def offline(monkeypatch):
     """Prepare, the library's pictures and the plans kept as lines, so no test pass reads the real library, fetches
     a picture or writes a plan where the plan stage reads it."""
     monkeypatch.setattr(client, "plans_kept", lambda: "plans for the plan stage: test")
+    monkeypatch.setattr(client, "parts_read", lambda store_root: "parts: test")
     monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
     monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
     monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
@@ -541,3 +542,32 @@ def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, sett
         assert "state from 2026-10-18 12:00" in html, page
     pages.post("/place/alpha/step/closeup/decide/", {"decision": "reject", "output": "x", "reason": "no"})
     assert SyncRequest.objects.filter(kind="decision").exists()
+
+
+def test_a_pass_asks_the_parts_of_a_locked_place_read_before_parts_once_and_never_under_stop_everything(
+        world, monkeypatch):
+    """client.parts_read: the fixture's readings have no parts, so the first pass asks them (one call a place, under
+    the reading's clearance, the owner's standing allowance) before the gaps, plans, prepare and price; a second pass
+    asks nothing; while Stop everything holds nothing is asked and the pass's words say why."""
+    from score.adapters import compute
+    from score.review import reading
+    from score.store import Store
+    monkeypatch.setattr(compute, "require_books", lambda what: None)
+    monkeypatch.setattr(compute, "books_refusal", lambda: None)
+    monkeypatch.delenv(compute.GRANT, raising=False)
+    store = Store.in_folder(world.source.store_root)
+    places = reading.unparted(store, ["alpha", "beta"])
+    assert places
+    monkeypatch.setattr(client, "free_only_followed", lambda: True)
+    assert client.parts_read(world.source.store_root, ask=None) == (
+        f"parts not read for {len(places)} places: refused, Stop everything holds (free only)")
+    monkeypatch.setattr(client, "free_only_followed", lambda: False)
+    asked = []
+
+    def ask(store, place, folder):
+        asked.append(place)
+        return {row["id"]: "object" for row in reading.reading_of(store, place)["inventory"]["rows"]}, 0.05, 1.0
+    assert client.parts_read(world.source.store_root, ask=ask) == f"parts read: {len(places)} places, " \
+        f"EUR {0.05 * len(places):.2f}"
+    assert sorted(asked) == sorted(places) and reading.unparted(store, places) == []
+    assert client.parts_read(world.source.store_root, ask=ask) == "parts: none missing" and len(asked) == len(places)
