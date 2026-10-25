@@ -257,6 +257,10 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
     assert by_id["fuel_drum"]["size"] == [0.6, 0.6, 0.9], by_id["fuel_drum"]  # its plan item, laid at its metres
     assert by_id["wall_lamp"]["size"] == [0.3, 0.2, 0.4]  # no item of its own: its reading's metres
     assert by_id["astronaut"]["size"] is None and by_id["night_sky"]["size"] is None  # none read: a gap
+    post, footprint, edited = [0.1, 0.1, 2.5], [0.484, 1.699, 2.5], [0.3, 0.3, 2.5]
+    assert groups.row_size(post, footprint, footprint) == post  # a plan's item only places the object
+    assert groups.row_size(post, edited, footprint) == edited  # his edit sized it: his edits count
+    assert groups.row_size(None, footprint, footprint) == footprint and groups.row_size(None, None, None) is None
     assert [by_id[name]["route"] for name in ("fuel_drum", "astronaut", "wall_lamp", "night_sky")] == [
         "prop", "people", "prop", "sky"]
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())

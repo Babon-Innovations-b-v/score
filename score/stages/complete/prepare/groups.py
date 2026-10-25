@@ -74,17 +74,28 @@ def current(store, places):
 
 
 def sized_rows(store, place, record):
-    """A reading's rows as read_row gives them, each with its size: its item's on the place's current plan
-    (plan_sizes: his edits count), else its reading's metres (a row on a wall, the ceiling or another row has no item
-    of its own, and keeps its own size), None where neither gives one (a gap: its take waits on "no size"); and its
-    `read_size`, the object's own metres as its reading gave them (None where it gave none): the plan's item is the
-    footprint it is laid in (a run of things, room round it), so the close-up's request and shape check hold the
-    object to its own size (owner, 2026-10-24). A shell piece the plan lays itself has route "plan" (plan_laid)."""
-    sizes = plan_sizes(store, place, record["inventory"]["rows"])
+    """A reading's rows as read_row gives them, each with its size (row_size: the object's own metres, unless his plan
+    edit sized its item) and its `read_size`, the object's own metres as its reading gave them (None where it gave
+    none): the close-up's request and shape check hold the object to its own size (owner, 2026-10-24). A row the
+    reading and the plan give no size has none (a gap: its take waits on "no size"). A shell piece the plan lays
+    itself has route "plan" (plan_laid)."""
+    rows = record["inventory"]["rows"]
+    laid, made = plan_sizes(store, place, rows), plan_sizes(store, place, rows, made=True)
     outline = outline_of(store, place)
-    found = [{**read_row(record, row), "size": sizes.get(row["id"]) or reading_size(row),
-              "read_size": reading_size(row)} for row in record["inventory"]["rows"]]
+    found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"])),
+              "read_size": reading_size(row)} for row in rows]
     return [{**row, "route": "plan"} if plan_laid(row, outline) else row for row in found]
+
+
+def row_size(own, laid, made):
+    """A row's size: its item's on the plan shown where his edit sized it (`laid` not the plan made without him's,
+    `made`: his edits count, owner 2026-10-21), else the object's own metres from its reading (`own`), else its item's
+    (an item he sized whose row the reading gave none). A plan's item is the footprint the object is laid in (a run
+    of things, room round it: the airlock's porch post laid 0.48 by 1.7 m, a 0.1 by 0.1 m post), so it only places
+    the object, never sizes its model (coordinator, 2026-10-25)."""
+    if laid and laid != made:
+        return laid
+    return own or laid
 
 
 def outline_of(store, place):
@@ -112,15 +123,15 @@ def reading_size(row):
     return list(size) if sides(size) else None
 
 
-def plan_sizes(store, place, rows):
+def plan_sizes(store, place, rows, made=False):
     """{row id: [wide, deep, tall] metres} of the reading's `rows` the place's current plan sizes
     (score/review/plans.current: his newest edit on the pick, else the derived plan, whose items are sized by the
-    reading's metres), each from the first item tied to it: its wide and deep as laid (turned back for one facing
-    east or west), its tall the reading's, else off its surest SAM box at the scale its wide gives the box (an item
+    reading's metres; `made`: the plan made without him, plans.made_plan), each from the first item tied to it: its
+    wide and deep as laid (turned back for one facing east or west), its tall the reading's, else off its surest SAM box at the scale its wide gives the box (an item
     he sized whose row the reading gave no size). A row whose item is a size gap on its plan, or with no item of its
     own (on a wall, in the sky, riding on another row: `sized_rows` gives it its reading's), has none here."""
     from score.review import plans
-    shown = plans.current(store, place)
+    shown = (plans.made_plan if made else plans.current)(store, place)
     if shown is None:
         return {}
     plan, by_id = shown["plan"], {row["id"]: row for row in rows}
