@@ -22,20 +22,36 @@ import re
 from score.stages.complete.prepare import contract
 
 SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
-# A reading's code row of one of these nouns (" panel" or " plate" after it too) is that shell piece (read_row).
+# A row whose head word (head_word) is one of these is that shell piece, whatever its kind (read_row).
 SHELL_NOUNS = {"wall": "kit: wall", "floor": "kit: floor", "ceiling": "kit: ceiling", "roof": "kit: ceiling"}
-# A row's route by its noun (owner's rules, CONTEXT.md "layer adapter", "motion"): people are models
-# of the prop pipeline with the motion layer's steps after; the sky, the effects and the far city have routes of their
-# own (layers without models); windows, stairs and building shells are shell pieces (route "shell"); the
-# ground itself is the terrain node's (its own rows, CONTEXT.md "layer adapter": no take); every other row, a terrain
-# feature too, a model through the prop pipeline.
+# A row's route by its head word (head_word, or its whole noun) (owner's rules, CONTEXT.md "layer adapter",
+# "motion"): people are models of the prop pipeline with the motion layer's steps after; the sky, the effects and the far city have
+# routes of their own (layers without models); the place's ground itself (plans.GROUND's land words: the street, the
+# pavement, the plaza, the hills) is the terrain node's (its own rows, CONTEXT.md "layer adapter": no take); the
+# place's structure (the reading's STRUCTURE words, windows, doors, stairs and building shells) is a shell piece
+# (route "shell"), or the plan's own where the plan lays it (plan_laid: route "plan", no take); every other row, a
+# terrain feature too, a model through the prop pipeline.
 ROUTES = {"people": {"astronaut", "person", "people", "pedestrian", "crowd", "child", "worker"},
           "sky": {"sky", "planet", "moon"},
           "effects": {"water", "ocean", "puddles", "rain", "smoke", "mist", "plume", "steam", "fog"},
           "skyline": {"city", "cityscape", "city skyline", "skyline"},
-          "shell": {"window", "windows", "stairs", "steps", "staircase", "building", "buildings", "building facade",
-                    "facade", "exterior wall"},
-          "ground": {"ground"}}
+          "ground": {"ground", "terrain", "road", "street", "pavement", "plaza", "grass", "sand", "dust", "regolith",
+                     "soil", "hills", "mountains", "landscape"}}
+SHELL_WORDS = {"window", "windows", "door", "doors", "stairs", "steps", "staircase", "building facade", "exterior wall"}
+# A head word that names a piece of what the word before it names: "wall panels", "floor grating", "street surface"
+# are a wall's, a floor's, a street's (a "control panel" a control's: no shell).
+PART_WORDS = {"panel", "panels", "plate", "plates", "grating", "grate", "grates", "tile", "tiles", "section",
+              "sections", "slab", "slabs", "surface", "surfaces"}
+# The plan cuts these itself (score/stages/earth_seed/design_shell.py, the scene record: every opening of its walls),
+# so a row of one is no model. A stair or ramp stays a shell piece's model: a lander's ramp is no stair the plan draws.
+PLAN_LAID = {"opening", "openings", "doorway", "doorways"}
+# A floor, deck, wall, roof or ceiling at least this share of its place's outline across (its own longest side over
+# the outline's shorter side) is the room's own shell the plan lays (deck, walls, roof), never a model: the Batch 1
+# try 3 close-ups of a 50 m upper floor and 32 by 12 m wall panels. Measured on the 24 kept plans' rows (2026-10-25):
+# a room's floors, walls and roofs span 1 to 3.4 of it, its single panels and porch pieces at most 0.17; a dome's
+# floor or wall in an outdoor camp 0.46 to 0.61.
+ROOM_SHARE = 0.5
+ROOM_PIECES = {"floor", "floors", "deck", "decks", "wall", "walls", "roof", "roofs", "ceiling", "ceilings"}
 MODEL_ROUTES = ("prop", "shell", "people")  # the routes whose models the prop pipeline makes
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
 
@@ -63,10 +79,31 @@ def sized_rows(store, place, record):
     of its own, and keeps its own size), None where neither gives one (a gap: its take waits on "no size"); and its
     `read_size`, the object's own metres as its reading gave them (None where it gave none): the plan's item is the
     footprint it is laid in (a run of things, room round it), so the close-up's request and shape check hold the
-    object to its own size (owner, 2026-10-24)."""
+    object to its own size (owner, 2026-10-24). A shell piece the plan lays itself has route "plan" (plan_laid)."""
     sizes = plan_sizes(store, place, record["inventory"]["rows"])
-    return [{**read_row(record, row), "size": sizes.get(row["id"]) or reading_size(row), "read_size": reading_size(row)}
-            for row in record["inventory"]["rows"]]
+    outline = outline_of(store, place)
+    found = [{**read_row(record, row), "size": sizes.get(row["id"]) or reading_size(row),
+              "read_size": reading_size(row)} for row in record["inventory"]["rows"]]
+    return [{**row, "route": "plan"} if plan_laid(row, outline) else row for row in found]
+
+
+def outline_of(store, place):
+    """The place's outline [wide, deep] metres on its current plan, None without a plan."""
+    from score.review import plans
+    shown = plans.current(store, place)
+    return [shown["plan"].get("w") or 0.0, shown["plan"].get("d") or 0.0] if shown else None
+
+
+def plan_laid(row, outline):
+    """Whether a shell piece is the plan's own (PLAN_LAID: an opening or a doorway; or a floor, deck, wall, roof or
+    ceiling spanning ROOM_SHARE of the place's `outline` by its own size, else its size)."""
+    if row["route"] != "shell":
+        return False
+    head = head_word(row["noun"])
+    if head in PLAN_LAID:
+        return True
+    size, short = row.get("read_size") or row.get("size"), min(outline or [0.0])
+    return head in ROOM_PIECES and bool(sides(size)) and short > 0 and max(size[:2]) >= ROOM_SHARE * short
 
 
 def reading_size(row):
@@ -117,13 +154,14 @@ def blob_path(store, sha):
 
 def read_row(record, row):
     """A reading's row as a take's: its take named by its place, row and concept (a take made from another concept
-    never counts as made), its route by its noun (route_of), and a code row whose noun is a shell word (SHELL_NOUNS)
-    that shell piece's kit; every other row, a terrain feature's too, a model through the prop pipeline. A reading
-    sizes in metres; its plan's item, his edits counted, gives it first (sized_rows). Its box is SAM 3's, else
-    Gemini's (boxed_by)."""
-    noun = SHELL_NOUNS.get(row["noun"].removesuffix(" panel").removesuffix(" plate")) if row["kind"] == "code" else None
+    never counts as made), its route by its noun (route_of), and a shell piece whose head word is a shell word
+    (SHELL_NOUNS) that piece's kit; every other row, a terrain feature's too, a model through the prop pipeline. A
+    reading sizes in metres; its plan's item, his edits counted, gives it first (sized_rows). Its box is SAM 3's,
+    else Gemini's (boxed_by)."""
+    route = route_of(row["noun"])
+    noun = SHELL_NOUNS.get(singular(head_word(row["noun"]))) if route == "shell" else None
     return {**row, **boxed_by(record, row), "thing": f"prop:{record['place']}_{row['id']}_{record['concept'][:8]}",
-            "route": "shell" if noun else route_of(row["noun"]), **({"group": noun} if noun else {})}
+            "route": route, **({"group": noun} if noun else {})}
 
 
 def boxed_by(record, row):
@@ -146,8 +184,28 @@ def gemini_box(region, size):
 
 
 def route_of(noun):
-    """A reading row's route by its noun (ROUTES), else prop."""
-    return next((route for route, nouns in ROUTES.items() if noun.strip().lower() in nouns), "prop")
+    """A reading row's route by its noun: the first of ROUTES holding its whole noun or its head word (head_word), else
+    a shell piece where that is a structure word (the reading's STRUCTURE, SHELL_WORDS), else prop."""
+    whole, head = noun.strip().lower(), head_word(noun)
+    found = next((route for route, nouns in ROUTES.items() if whole in nouns or {head, singular(head)} & nouns), None)
+    if found:
+        return found
+    from score.review import reading
+    return "shell" if whole in SHELL_WORDS or {head, singular(head)} & (reading.STRUCTURE | SHELL_WORDS) else "prop"
+
+
+def head_word(noun):
+    """A noun's head word, lower case: its last word, or the word before it where the last names a part of it
+    (PART_WORDS: "wall panels" a wall's, "street surface" a street's)."""
+    words = noun.strip().lower().split()
+    if len(words) > 1 and words[-1] in PART_WORDS:
+        return words[-2]
+    return words[-1] if words else ""
+
+
+def singular(word):
+    """A word without a plural's s ("plates" "plate", "stairs" kept where its singular is no word here)."""
+    return word[:-1] if word.endswith("s") and not word.endswith("ss") else word
 
 
 def object_kind(row_id):
