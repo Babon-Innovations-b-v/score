@@ -25,14 +25,14 @@ SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
 # A row whose head word (head_word) is one of these is that shell piece, whatever its kind (read_row).
 SHELL_NOUNS = {"wall": "kit: wall", "floor": "kit: floor", "ceiling": "kit: ceiling", "roof": "kit: ceiling"}
 # A row's route by its head word (head_word, or its whole noun) (owner's rules, CONTEXT.md "layer adapter",
-# "motion"): people are models of the prop pipeline with the motion layer's steps after; the sky, the effects and the far city have
+# "motion"): people are models of the prop pipeline with the motion layer's steps after (every row the row-kind rules
+# say acts: row_kinds' person kind, the one classification, people_of); the sky, the effects and the far city have
 # routes of their own (layers without models); the place's ground itself (plans.GROUND's land words: the street, the
 # pavement, the plaza, the hills) is the terrain node's (its own rows, CONTEXT.md "layer adapter": no take); the
 # place's structure (the reading's STRUCTURE words, windows, doors, stairs and building shells) is a shell piece
 # (route "shell"), or the plan's own where the plan lays it (plan_laid: route "plan", no take); every other row, a
 # terrain feature too, a model through the prop pipeline.
-ROUTES = {"people": {"astronaut", "person", "people", "pedestrian", "crowd", "child", "worker"},
-          "sky": {"sky", "planet", "moon"},
+ROUTES = {"sky": {"sky", "planet", "moon"},
           "effects": {"water", "ocean", "puddles", "rain", "smoke", "mist", "plume", "steam", "fog"},
           "skyline": {"city", "cityscape", "city skyline", "skyline"},
           "ground": {"ground", "terrain", "road", "street", "pavement", "plaza", "grass", "sand", "dust", "regolith",
@@ -184,14 +184,28 @@ def gemini_box(region, size):
 
 
 def route_of(noun):
-    """A reading row's route by its noun: the first of ROUTES holding its whole noun or its head word (head_word), else
-    a shell piece where that is a structure word (the reading's STRUCTURE, SHELL_WORDS), else prop."""
+    """A reading row's route by its noun: people where the row-kind rules say it acts (people_of), else the first of
+    ROUTES holding its whole noun or its head word (head_word), else a shell piece where that is a structure word
+    (the reading's STRUCTURE, SHELL_WORDS), else prop."""
     whole, head = noun.strip().lower(), head_word(noun)
+    if people_of(noun):
+        return "people"
     found = next((route for route, nouns in ROUTES.items() if whole in nouns or {head, singular(head)} & nouns), None)
     if found:
         return found
     from score.review import reading
     return "shell" if whole in SHELL_WORDS or {head, singular(head)} & (reading.STRUCTURE | SHELL_WORDS) else "prop"
+
+
+def people_of(noun):
+    """Whether a noun names people: its whole noun or its last word, as written or singular, is a noun of a row kind
+    that acts (score/stages/row_kinds.py, data/checks/row-kinds.json: person, man, women, pilot...)."""
+    from score.stages import row_kinds
+    kinds = row_kinds.table()
+    words = row_kinds.words(noun).split()
+    last = words[-1] if words else ""
+    return any("acts" in row_kinds.does(row_kinds.kind_of({"noun": wanted}, kinds), kinds)
+               for wanted in {" ".join(words), last, singular(last)} if wanted)
 
 
 def head_word(noun):

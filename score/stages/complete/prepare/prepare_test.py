@@ -272,10 +272,12 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
 
 
 def test_a_row_is_routed_by_its_head_word_and_the_plan_lays_its_own_shell():
-    """Coordinator, 2026-10-25 (Batch 1 try 3's close-up gaps): a structure word routes a row to the shell whatever its kind or a part word after it ("wall
+    """Coordinator, 2026-10-25 (Batch 1 try 3's close-up gaps): a person row goes to the people line by the row-kind
+    rules (a man, women), a structure word routes a row to the shell whatever its kind or a part word after it ("wall
     panels", "floor grating"), the ground's words to the terrain node, a "wall lamp" stays a prop; a floor, wall or
     roof spanning ROOM_SHARE of its place's outline, and every opening, is the plan's own: no close-up."""
-    expected = {"crowd of people": "people", "astronaut": "people", "wall panels": "shell", "floor grating": "shell", "floor plates": "shell", "deck": "shell",
+    expected = {"man": "people", "women": "people", "crowd of people": "people", "astronaut": "people",
+                "wall panels": "shell", "floor grating": "shell", "floor plates": "shell", "deck": "shell",
                 "doorway": "shell", "door": "shell", "staircase": "shell", "street surface": "ground",
                 "distant hills": "ground", "pavement": "ground", "wall lamp": "prop", "control panel": "prop",
                 "fuel drum": "prop", "street lamp": "prop", "sky": "sky", "smoke": "effects"}
