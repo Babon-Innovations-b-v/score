@@ -17,10 +17,11 @@ from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, cockpit, concepts, library, present, seen
+from score.dashboard.pages import actions, cockpit, concepts, library, present, run_monitor, seen
 from score.dashboard.pages import basket as basket_items
 from score.dashboard.pages.environment import title_of
-from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
+from score.dashboard.pages.models import (BasketItem, ChangeRequest, Checkout, Launch, Plan, RefineItem, SyncRequest,
+                                          is_owner)
 from score.dashboard.proposals import records
 from score.dashboard.state import batch_run, costs, groups, gaps, screens
 from score.dashboard.state import money as month_money
@@ -34,7 +35,14 @@ def everywhere(request):
             "export_age": source.age_words() if hasattr(source, "age_words") else None,
             "owner": is_owner(request.user), "decisions_on": actions.decisions_on(),
             "decisions_off_why": actions.decisions_off_why(), "proxy_mode": settings.SCORE_PROXY_MODE,
-            "basket_count": basket_count() if request.user.is_authenticated else 0}
+            "basket_count": basket_count() if request.user.is_authenticated else 0,
+            "batch_exists": request.user.is_authenticated and batch_exists(source)}
+
+
+def batch_exists(source):
+    """A Buy has made a batch: the top nav links to its monitor (`/buy/run/`). Locally a checkout record; hosted the
+    export's batch."""
+    return source.batch_run() is not None if actions.hosted() else Checkout.objects.exists()
 
 
 def basket_count():
@@ -149,7 +157,7 @@ def buy(request):
         "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex, "film_waits": screens.film_waits(),
         "since": batch_run.next_buy(run, batch["nodes"]) if design["approved"] else None,
-        "chat_yes": (run or {}).get("yes")})
+        "chat_yes": (run or {}).get("yes"), "live": run_monitor.live_batch(run)})
 
 
 def place_page(request, place):

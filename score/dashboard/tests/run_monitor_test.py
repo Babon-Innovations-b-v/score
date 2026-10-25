@@ -253,6 +253,17 @@ def test_home_links_to_the_monitor_while_the_batch_lives_and_buy_opens_it(world)
     assert 'data-go="/buy/run/" data-url="/buy/yes/"' in buy
 
 
+def test_buy_leads_to_the_live_batch_instead_of_a_second_buy(world):
+    client = signed_in()
+    assert ">Batch</a>" not in client.get("/buy/").content.decode()
+    a_batch(world)
+    html = client.get("/buy/").content.decode()
+    assert re.search(r"Batch \d+ is (starting|running|waiting for machines): \d+ of \d+ steps, EUR [\d.]+ spent", html)
+    assert 'data-url="/buy/yes/"' not in html and ">Batch</a>" in html
+    Checkout.objects.update(state="done")
+    Launch.objects.update(state="done")
+
+
 def test_the_export_carries_the_batch_and_the_hosted_page_says_how_fresh(world, tmp_path, monkeypatch):
     a_batch(world)
     building.build(world.source, tmp_path / "one", MADE, 50, SPEND, world.root)

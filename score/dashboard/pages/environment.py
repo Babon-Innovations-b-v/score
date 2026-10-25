@@ -233,7 +233,7 @@ def home(request):
     picture = next((references[ref["picture"]] for ref in held.get("references", []) if ref["picture"] in references),
                    None)
     return render(request, "pages/home.html", {
-        "machine": machine.shown(request, source, source.machine()), "batch": run_monitor.live_batch(source),
+        "machine": machine.shown(request, source, source.machine()), "batch": run_monitor.live_batch(source.batch_run()),
         "money": cockpit.month_money(overview["view"]), "environments": [{
             "title": title_of(world.world), "href": f"/environments/{world.world}/", "locked": concept.get("locked"),
             "style": held.get("style"), "picture": picture, "places": len(held.get("places", []))}]})

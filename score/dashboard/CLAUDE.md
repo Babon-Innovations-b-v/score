@@ -131,7 +131,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   made_at), and a line a layer, how many it makes and its euros (what Buy buys of it), no step's own name and no dropdown; its Buy only
   once a design is approved, buying only those places, disabled with why while `batch.refused` holds any; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
   month figure while it is not read, its button named by their cost line's label; no Basket link, no stop control:
-  the Buy yes sets the batch's stop), **Stats** `/stats/`
+  the Buy yes sets the batch's stop; while a batch lives, starting, running or waiting, a line on top "Batch N, try T is
+  running: done of total steps, EUR spent" and a Watch the batch button in the Buy's place open `/buy/run/`, owner
+  2026-10-25; the top nav's Batch opens it whenever a batch exists), **Stats** `/stats/`
   (`stats.html`: numbers only, no controls, three groups: money this month (cloud, AI calls, total, no stop; the
   remake's spend so far once a batch's stop line is written; a bar a day on one labelled scale, `cockpit.spend_by_day`:
   the bills' growth over a day read that day and the day before, else the ledgers' count when above 0 as a paler
