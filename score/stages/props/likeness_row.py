@@ -23,7 +23,9 @@ Whether a model is closed is written as a measure only: 3 of the hub's 9 accepte
 accepted code builds are not (2026-10-12), so no gate as it exists fails an open model.
 An object a batch gap names (score/stages/batch_gaps.py: a paid step of its take failed in the batch) still fails each
 gate by name; the table moves those faults to complete, which lists the gaps from this output's batch-gaps.json (the
-gaps of every row it read, each with its hand-in object and inventory rows).
+gaps of every row it read, each with its hand-in object and inventory rows). A take the thin straight route built in
+code (thin_straight.py) is held to its concept crop, cut out (its take's input.png), in place of a close-up; its
+close-up's gap is carried only while a free check fails it (its faults then move to complete with the gap).
 """
 import dataclasses
 import json
@@ -37,6 +39,7 @@ import score.stages.batch_gaps as batch_gaps
 import score.stages.props.calibration_row as calibration_row
 import score.stages.props.likeness as likeness
 import score.stages.props.prop_data as prop_data
+import score.stages.props.thin_straight as thin_straight
 from score.stages.surfaces.prop_env import PROPS_HOME
 from score.stages.surfaces.surface_gates import guarded, unknown, verdict
 
@@ -52,7 +55,10 @@ def files(place):
     return {**prop_data.likeness_files(place),
             **{f"pixal input {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
                for row, entry in record["objects"].items() if entry["route"] == "prop"
-               and (PROPS_HOME / "work/pixal" / f"{entry['take']}.svviews/input.png").exists()}}
+               and (PROPS_HOME / "work/pixal" / f"{entry['take']}.svviews/input.png").exists()},
+            **{f"code take {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/{thin_straight.MARK}"
+               for row, entry in record["objects"].items() if entry["route"] == "prop"
+               and thin_straight.code_built(entry["take"], PROPS_HOME / "work/pixal")}}
 
 
 def route_of(row, record):
@@ -100,36 +106,6 @@ def model_checks(path, size, kind, square):
     return found
 
 
-def shading(pixels):
-    """A close-up's backdrop colour at every pixel: a quadratic in x and y fitted to its border's pixels."""
-    tall, wide = pixels.shape[:2]
-    down, across = np.mgrid[0:tall, 0:wide] / max(tall, wide)
-    terms = np.stack([np.ones_like(across), across, down, across * across, across * down, down * down], axis=-1)
-    border = np.zeros((tall, wide), dtype=bool)
-    border[0], border[-1], border[:, 0], border[:, -1] = True, True, True, True
-    return terms @ np.linalg.lstsq(terms[border], pixels[border], rcond=None)[0]
-
-
-def cut_out(closeup, folder):
-    """The close-up with its object as alpha, which likeness.closeup_object reads before compare.closeup_mask: the
-    mask taken on the close-up with its backdrop's shading levelled out. compare.closeup_mask's one border colour
-    took a studio backdrop's darker corner for the object (engineroom's power core, 2026-10-15: border 176 to 229
-    grey, the corner joined the core's foot and its outline fell from 0.76 to 0.46). A close-up already cut out is
-    kept. A prop object's take's Pixal3D input, the same close-up as Pixal3D cut it out, is taken before this
-    (object_record): on the galley's fold-down seat, 2026-10-15, white cushions on a white backdrop, this mask kept
-    11% of the picture, the frame without its cushions, and the outline fell to 0.26."""
-    picture = Image.open(closeup)
-    if picture.mode == "RGBA" and np.asarray(picture)[..., 3].min() < 128:
-        return closeup
-    pixels = np.asarray(picture.convert("RGB"), dtype=np.float64)
-    level = Image.fromarray(np.clip(pixels - shading(pixels) + 128, 0, 255).astype(np.uint8))
-    mask = likeness.candidate().closeup_mask(level)
-    folder.mkdir(parents=True, exist_ok=True)
-    path = folder / closeup.name
-    Image.fromarray(np.dstack([pixels.astype(np.uint8), np.where(mask, 255, 0).astype(np.uint8)])).save(path)
-    return path
-
-
 def pixal_cut(path, folder, row):
     """A prop object's close-up as its take's Pixal3D input cut it out, its object made one piece with its holes filled
     as compare.closeup_mask makes every other cut (a rack's open frame stays one silhouette: storage's cargo rack, cut
@@ -155,10 +131,13 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     found = {"route": route, "model": None}
     model = model_of(row, record, inputs, baked)
     closeup = inputs["closeup"] / "closeups" / f"{row}.png"
+    if f"code take {row}" in inputs:  # built in code from its concept crop (thin_straight.py): held to the crop
+        found["made"] = "code"
+        closeup = pathlib.Path(inputs[f"pixal input {row}"])
     if model is None or not pathlib.Path(model).exists() or not closeup.exists():
         return {**found, "missing": "no model" if closeup.exists() else "no close-up"}
     cut = inputs.get(f"pixal input {row}") if route == "prop" else None
-    closeup = pixal_cut(cut, cuts, row) if cut is not None and pathlib.Path(cut).exists() else cut_out(closeup, cuts)
+    closeup = pixal_cut(cut, cuts, row) if cut is not None and pathlib.Path(cut).exists() else thin_straight.cut_out(closeup, cuts)
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),
@@ -183,7 +162,14 @@ def make_likeness(inputs, out, seed, params):
              for row, entry in found.items() if "way" in entry}
     (out / "likeness.json").write_text(json.dumps({"objects": found}, indent=1))
     (out / "pairs.json").write_text(json.dumps(pairs, indent=1))
-    batch_gaps.write(out, [with_rows(entry, record) for entry in batch_gaps.of(inputs)])
+    built = [row for row in found if f"code take {row}" in inputs and free_passed(found, row)]
+    batch_gaps.write(out, [with_rows(entry, record)
+                           for entry in thin_straight.without_closeup_gaps(batch_gaps.of(inputs), built)])
+
+
+def free_passed(found, row):
+    """Whether an object passed every free check (FREE), so a code build's close-up gap is closed by it."""
+    return all(object_faults({row: found[row]}, faults_of)[row] == [] for faults_of in FREE.values())
 
 
 def with_rows(entry, record):

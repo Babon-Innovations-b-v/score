@@ -12,7 +12,9 @@ The gate `takes`: every prop object's three files are there and listed in takes.
 is one of the place's surface data's takes, or the surface line would never paint it. A take the batch ran once and got
 no model back for, and an object whose close-up failed, is a batch gap (batch-gaps.json, score/stages/batch_gaps.py):
 the gate still fails it by name, the table moves those faults to complete, and the finish route leaves the take out.
-A batch that fails as a whole (its command exits other than 0: a set-up fault) still stops the row.
+A batch that fails as a whole (its command exits other than 0: a set-up fault) still stops the row. An object whose
+close-up failed and whose row is thin and straight is built in code instead (thin_straight.py, owner 2026-10-25), its
+take's files written here from its concept crop, so it is made and no gap; a close-up that passes later replaces it.
 """
 import hashlib
 import json
@@ -22,6 +24,7 @@ import subprocess
 
 import score.stages.batch_gaps as batch_gaps
 import score.stages.props.prop_data as prop_data
+import score.stages.props.thin_straight as thin_straight
 from score.stages.surfaces.prop_env import PROPS_PYTHON
 from score.stages.surfaces.surface_gates import verdict
 
@@ -36,6 +39,11 @@ FINISH_CLASSES = ("gpu-24gb", "gpu-48gb", "cpu-16c-64gb", "cpu-32c-128gb")
 FINISH_MINUTES = 15
 # The lines of finish.log a failed finish call's error carries (the fault report shows the error, not the log).
 LOG_TAIL_LINES = 15
+
+
+def files(place):
+    """prop_data.pixal_files and the tools the thin straight route runs (thin_straight.TOOLS)."""
+    return {**prop_data.pixal_files(place), **thin_straight.TOOLS}
 
 
 def take_files(take):
@@ -158,7 +166,15 @@ def batch_list(objects, closeups, surfaces, out):
 def make_pixal(inputs, out, seed, params):
     """Every prop object's take, made by the batch where missing; takes.json with each take's file hashes."""
     closeups = inputs["closeup"] / "closeups"
-    objects = {row: entry for row, entry in prop_data.prop_objects(prop_data.record_at(inputs["props"])).items()
+    rows = {row["id"]: row for row in json.loads(inputs["inventory"].read_text())["rows"]}
+    every = prop_data.prop_objects(prop_data.record_at(inputs["props"]))
+    pixal = take_files("-")[0].parent
+    for row, entry in every.items():  # the picture route first: a close-up that passed since replaces a code build
+        if (closeups / f"{row}.png").exists() and thin_straight.code_built(entry["take"], pixal):
+            thin_straight.unbuild(entry["take"], pixal)
+    built = code_builds({row: entry for row, entry in every.items() if not (closeups / f"{row}.png").exists()},
+                        rows, inputs, out)
+    objects = {row: entry for row, entry in every.items()
                if (closeups / f"{row}.png").exists()}  # one with no close-up failed the prop route there
     listing = batch_list(objects, closeups, inputs["surfaces"], out)
     if listing:
@@ -171,15 +187,30 @@ def make_pixal(inputs, out, seed, params):
     faces = {row: faces_of(inputs["surfaces"], entry["take"]) for row, entry in objects.items()}
     unfinished = {row: entry for row, entry in sorted(objects.items())
                   if raw_made(entry["take"]) and not finished(entry["take"], faces[row])}
-    rows = {row["id"]: row for row in json.loads(inputs["inventory"].read_text())["rows"]}
     if unfinished:
         finish_all([finish_job(entry["take"], closeups / f"{row}.png", faces[row], lies_flat(rows[row]))
                     for row, entry in unfinished.items()], prop_data.record_at(inputs["props"])["place"], out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
-             for row, entry in objects.items()}
+             for row, entry in {**objects, **built}.items()}
     (out / "takes.json").write_text(json.dumps(takes, indent=1))
-    batch_gaps.write(out, [*batch_gaps.of(inputs), *unmade_gaps(objects), *finish_gaps(unfinished, faces)])
+    batch_gaps.write(out, [*thin_straight.without_closeup_gaps(batch_gaps.of(inputs), built), *unmade_gaps(objects),
+                           *finish_gaps(unfinished, faces)])
+
+
+def code_builds(failed, rows, inputs, out):
+    """{row: entry} of the objects whose close-up failed that the thin straight route built (thin_straight.py), each
+    from its concept crop (the close-up row's crops/<id>.jpg); one already built is kept."""
+    pixal = take_files("-")[0].parent
+    built = {}
+    for row, entry in sorted(failed.items()):
+        crop = inputs["closeup"] / "crops" / f"{row}.jpg"
+        if row not in rows or not thin_straight.thin_straight(rows[row]) or not crop.exists():
+            continue
+        if thin_straight.code_built(entry["take"], pixal) or thin_straight.write_take(
+                entry["take"], rows[row], crop, faces_of(inputs["surfaces"], entry["take"]), pixal, out / "cut"):
+            built[row] = entry
+    return built
 
 
 def finish_gaps(unfinished, faces):
