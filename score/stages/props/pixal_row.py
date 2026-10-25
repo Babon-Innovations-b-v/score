@@ -14,7 +14,7 @@ no model back for, and an object whose close-up failed, is a batch gap (batch-ga
 the gate still fails it by name, the table moves those faults to complete, and the finish route leaves the take out.
 A batch that fails as a whole (its command exits other than 0: a set-up fault) still stops the row. An object whose
 close-up failed and whose row is thin and straight is built in code instead (thin_straight.py, owner 2026-10-25), its
-take's files written here from its concept crop, so it is made and no gap; a close-up that passes later replaces it.
+take's files written here from its concept crop cut out by its SAM 3 mask, so it is made and no gap; a close-up that passes later replaces it.
 """
 import hashlib
 import json
@@ -42,8 +42,9 @@ LOG_TAIL_LINES = 15
 
 
 def files(place):
-    """prop_data.pixal_files and the tools the thin straight route runs (thin_straight.TOOLS)."""
-    return {**prop_data.pixal_files(place), **thin_straight.TOOLS}
+    """prop_data.pixal_files, the concept views the thin straight route masks and the tools it runs
+    (thin_straight.TOOLS)."""
+    return {**prop_data.pixal_files(place), **prop_data.view_files(place), **thin_straight.TOOLS}
 
 
 def take_files(take):
@@ -200,17 +201,22 @@ def make_pixal(inputs, out, seed, params):
 
 def code_builds(failed, rows, inputs, out):
     """{row: entry} of the objects whose close-up failed that the thin straight route built (thin_straight.py), each
-    from its concept crop (the close-up row's crops/<id>.jpg); one already built is kept."""
+    from its concept crop cut out by its SAM 3 mask (one rented card for every row not built yet); one already built
+    is kept."""
     pixal = take_files("-")[0].parent
-    built = {}
-    for row, entry in sorted(failed.items()):
-        crop = inputs["closeup"] / "crops" / f"{row}.jpg"
-        if row not in rows or not thin_straight.thin_straight(rows[row]) or not crop.exists():
-            continue
-        if thin_straight.code_built(entry["take"], pixal) or thin_straight.write_take(
-                entry["take"], rows[row], crop, faces_of(inputs["surfaces"], entry["take"]), pixal, out / "cut"):
-            built[row] = entry
-    return built
+    thin = {row: entry for row, entry in sorted(failed.items())
+            if row in rows and rows[row].get("box") and thin_straight.thin_straight(rows[row])}
+    kept = {row: entry for row, entry in thin.items() if thin_straight.code_built(entry["take"], pixal)}
+    concepts = {row: inputs[f"view {rows[row]['view']}"] for row in thin if row not in kept}
+    masks = thin_straight.concept_masks({row: rows[row] for row in concepts}, concepts, out / "masks") if concepts else {}
+    built = dict(kept)
+    for row, mask in masks.items():
+        picture = thin_straight.cut_by_mask(concepts[row], rows[row]["box"], mask)
+        if picture is not None and thin_straight.write_take(thin[row]["take"], rows[row], picture,
+                                                            faces_of(inputs["surfaces"], thin[row]["take"]), pixal,
+                                                            mask):
+            built[row] = thin[row]
+    return dict(sorted(built.items()))
 
 
 def finish_gaps(unfinished, faces):

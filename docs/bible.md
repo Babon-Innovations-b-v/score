@@ -266,7 +266,7 @@ lock, reading and plan, parent before child, then the film.
    cable, conduit, post, pole, rail, rod, beam, pillar, mast, ...) and whose every close-up take failed is swept in
    code by the Pixal3D row (`score/stages/props/thin_straight.py`: round or rectangular profile from its size, along
    its longest side), written as its take, then painted by the finish route and held by the likeness gate to its
-   concept crop like any take; its close-up gap closes only when the free checks pass it.
+   concept crop cut out by its own SAM 3 mask on the concept (never its box) like any take; its close-up gap closes only when the free checks pass it.
 3. The base and layers (`architecture/layers`), the assembly, `neighbours`, `scene-tree`.
 4. `complete`, then the library handover.
 

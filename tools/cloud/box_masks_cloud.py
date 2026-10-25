@@ -4,7 +4,8 @@ delete the machine.
     .venv/bin/python tools/cloud/box_masks_cloud.py <jobs.json> <out.json> [--dry-run]
 
 The jobs are box_masks.py's ([{"picture": <a picture path here>, "rows": [{"key", "noun", "box"}]}], written by
-box_check.py --masks); the pictures go up with them and the measured instances come back as <out.json>. Renting,
+box_check.py --masks); the pictures go up with them and the measured instances come back as <out.json>, with the
+masks rows ask for (`"mask": true`) as <out stem>.masks/<key>.png. Renting,
 the owner's limits, the self-delete and deleting are batch.py's, as for the judge (judge.py).
 """
 import argparse
@@ -76,6 +77,8 @@ def run_jobs(machine, share, card, jobs, out):
                                 f"{REMOTE}/out.json", stdout=log, stderr=subprocess.STDOUT)
     finally:
         batch.copy(folder, [f"root@{host}:{REMOTE}/out.json"], str(out))
+        if any(row.get("mask") for job in jobs for row in job["rows"]):  # box_masks.py's masks asked for, if any came
+            batch.copy(folder, [f"root@{host}:{REMOTE}/out.masks/"], str(out.parent / f"{out.stem}.masks"))
         machine["made"] = len(jobs)
     machine.setdefault("unit_seconds", []).append(round(time.time() - began, 1))
     spread.raise_for(done.returncode, f"SAM 3 masks ({folder / 'masks.log'})")

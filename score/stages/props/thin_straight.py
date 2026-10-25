@@ -12,11 +12,14 @@ short sides) for the kinds in ROUND, a rectangle of the two short sides for the 
 Its take (`write_take`), in WORK/pixal where the batch would bring one: `<take>.glb` (raw) and the slimmed
 `<take>-<faces>.glb` (the same model), `<take>-final.glb` (it stood by the finish's own turn, which the paint replays),
 and `<take>.svviews/` with `input.png`, the row's
-concept crop (closeup@<place>'s crops/<id>.jpg) cut out by the likeness row's mask (`cut_out`, kept here), which the finish route reads as
-the take's close-up and the likeness row holds the model to, and `code.json` naming the build. The model's one colour
-is the cut-out's median (the model's own texture, which the finish route measures and replaces with a library surface).
-A crop the mask finds no object in is no build: the row stays a gap. Joints and brackets are not built: no world 1 row
-names any (2026-10-25).
+concept crop (the close-up stage's crop of its box, tools/props/closeup/stage.py) cut out by the row's own SAM 3 mask
+on its concept (`concept_masks`: box_masks.py's instance that best matches the row's box, on one rented card for every
+row built at once), which the finish route reads as the take's close-up and the likeness row holds the model to, and
+`code.json` naming the build. The cut is by the thing's shape, never its box: the close-up mask's border colour
+(`cut_out`) on a busy concept crop kept wall and neighbours: 3 of world 1's 26 builds passed their outline on it
+(2026-10-25). The model's one colour is the cut-out's median (the model's own texture, which the finish route measures
+and replaces with a library surface). A row SAM 3 finds no instance of is no build: it stays a gap. Joints and
+brackets are not built: no world 1 row names any (2026-10-25).
 """
 import json
 import pathlib
@@ -41,8 +44,9 @@ RAW_TILT = (0.2, (1.0, 0.0, 1.0))
 # no long side, so glb_file.squared turns a square post set square 45 degrees, and one set at 45 degrees back square.
 RAW_YAWS = (0.0, np.pi / 4)
 MARK = "code.json"
-# The tool files it runs, declared by the Pixal3D row (pixal_row.files): the cut-out's mask and the slender rule.
-TOOLS = {"close-up mask": "{repo}/tools/usd/compare.py", "model gate": "{repo}/tools/props/gates/model.py",
+# The tool files it runs, declared by the Pixal3D row (pixal_row.files): SAM 3's masks, the crop and the slender rule.
+TOOLS = {"masks": "{repo}/tools/props/scene/box_masks.py", "masks runner": "{repo}/tools/cloud/box_masks_cloud.py",
+         "close-up crop": "{repo}/tools/props/closeup/stage.py", "model gate": "{repo}/tools/props/gates/model.py",
          "glb file": "{repo}/tools/props/glb_file.py"}
 
 
@@ -101,10 +105,35 @@ def finish_turn(raw):
     return whole
 
 
-def cut_crop(crop, folder):
-    """The concept crop cut out by the likeness row's mask (cut_out), or None when it finds no object."""
-    picture = Image.open(cut_out(pathlib.Path(crop), pathlib.Path(folder))).convert("RGBA")
-    return picture if (np.asarray(picture)[..., 3] > 127).any() else None
+def mask_jobs(rows, concepts):
+    """box_masks.py's jobs asking each row's own mask: one a concept, each row by its name and noun in its box."""
+    jobs = {}
+    for name, row in sorted(rows.items()):
+        words = list(dict.fromkeys(word for word in (row["name"], row.get("noun")) if word))
+        jobs.setdefault(str(concepts[name]), []).append({"key": name, "nouns": words, "box": row["box"], "mask": True})
+    return [{"picture": picture, "rows": asked} for picture, asked in jobs.items()]
+
+
+def concept_masks(rows, concepts, folder):
+    """{row: its SAM 3 mask on its concept} of the inventory `rows` ({id: row}; `concepts`: {id: its concept}), made
+    on one rented card (box_masks_cloud.py, its spend in the ledger); a row SAM 3 found nothing of is left out."""
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "jobs.json").write_text(json.dumps(mask_jobs(rows, concepts), indent=1))
+    with prop_data.tools("props/scene", "props", "cloud"):
+        import box_masks_cloud
+        box_masks_cloud.mask(folder / "jobs.json", folder / "masks.json")
+    return {name: folder / "masks.masks" / f"{name}.png" for name in rows
+            if (folder / "masks.masks" / f"{name}.png").exists()}
+
+
+def cut_by_mask(concept, box, mask):
+    """The concept's crop of `box` as the close-up stage crops it (stage.crop) with the row's mask as alpha, or None
+    when the mask holds nothing inside it."""
+    with prop_data.tools("props/closeup", "props", "cloud"):
+        import stage
+    pixels = np.asarray(stage.crop(Image.open(concept), box))
+    alpha = np.asarray(stage.crop(Image.open(mask), box).convert("L")) > 127
+    return Image.fromarray(np.dstack([pixels, np.where(alpha, 255, 0).astype(np.uint8)])) if alpha.any() else None
 
 
 def shading(pixels):
@@ -159,12 +188,9 @@ def raw_take(row, yaw, factor, path):
     return float(np.abs(mesh.copy().apply_transform(finish_turn(path)).extents - built).max()), mesh
 
 
-def write_take(take, row, crop, faces, pixal, scratch):
-    """The take's files (module docstring) in `pixal`, or None and the take unwritten when its crop holds no object."""
+def write_take(take, row, picture, faces, pixal, mask):
+    """The take's files (module docstring) in `pixal` from `picture`, its concept crop cut out by its SAM 3 `mask`."""
     import trimesh
-    picture = cut_crop(crop, scratch)
-    if picture is None:
-        return None
     factor = [*(colour(picture) / 255.0), 1.0]
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True, exist_ok=True)
@@ -175,7 +201,7 @@ def write_take(take, row, crop, faces, pixal, scratch):
     raw.apply_transform(finish_turn(pixal / f"{take}.glb"))
     raw.export(pixal / f"{take}-final.glb")
     (views / MARK).write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)",
-                                          "profile": profile(row), "size": row["size"], "crop": str(crop)}, indent=1))
+                                          "profile": profile(row), "size": row["size"], "mask": str(mask)}, indent=1))
     return views
 
 

@@ -8,8 +8,10 @@ every distinct noun is asked of SAM 3 once (cutout.py's way, at cutout.THRESHOLD
 against each row asking for that noun: `inside`, the share of the mask inside the row's box, and `fills`, the share
 of the box the mask covers. The out file maps each row's key to its instances, surest first, at most KEEP of them
 (or the row's own `keep`: a count of many, such as a bed's plants):
-{"box": the mask's pixel box, "score", "inside", "fills"}. No mask leaves the card. Refused on this PC
-(local_models.py); the runner is ../cloud/box_masks_cloud.py.
+{"box": the mask's pixel box, "score", "inside", "fills"}. No mask leaves the card, but for a row asking for its own
+(`"mask": true`): its instance that best matches its box (`matching`) is saved, full size, as
+<out stem>.masks/<key>.png beside the out file (a code-built row's likeness is held to it: score/stages/props
+thin_straight.py). Refused on this PC (local_models.py); the runner is ../cloud/box_masks_cloud.py.
 """
 import json
 import pathlib
@@ -37,11 +39,28 @@ def measured(mask, box):
             "fills": round(within / area, 3)}
 
 
-def picture_rows(model, processor, picture, rows):
-    """Every row of one picture with its nouns' instances measured against its box, surest first."""
+def matching(pairs, box):
+    """The mask of (mask, score) `pairs` that is most nearly the box's own thing (the larger of its smaller share,
+    inside and fills), or None when there are none."""
+    shares = [min(found["inside"], found["fills"]) for found in (measured(mask, box) for mask, _ in pairs)]
+    return pairs[shares.index(max(shares))][0] if pairs else None
+
+
+def save_masks(found, rows, folder):
+    """Each row asking for its mask (`"mask": true`) whose words SAM 3 found: its matching mask as folder/<key>.png."""
+    for row in rows:
+        mask = matching([pair for word in row["nouns"] for pair in found[word]], row["box"]) if row.get("mask") else None
+        if mask is not None:
+            Image.fromarray(mask.astype("uint8") * 255).save(folder / f"{row['key']}.png")
+
+
+def picture_rows(model, processor, picture, rows, masks):
+    """Every row of one picture with its nouns' instances measured against its box, surest first; the masks the rows
+    ask for saved in `masks`."""
     image = Image.open(picture).convert("RGB")
     found = {word: cutout.found(model, processor, image, word, cutout.THRESHOLD)
              for word in sorted({word for row in rows for word in row["nouns"]})}
+    save_masks(found, rows, masks)
     return {row["key"]: [dict(measured(mask, row["box"]), score=round(score, 3))
                          for mask, score in sorted((pair for word in row["nouns"] for pair in found[word]),
                                                    key=lambda pair: -pair[1])[:row.get("keep", KEEP)]]
@@ -54,9 +73,10 @@ def main():
     from transformers import Sam3Model, Sam3Processor
     processor = Sam3Processor.from_pretrained(cutout.WEIGHTS)
     model = Sam3Model.from_pretrained(cutout.WEIGHTS, torch_dtype=torch.float32).to("cuda").eval()
-    results = {}
+    results, masks = {}, out.parent / f"{out.stem}.masks"
+    masks.mkdir(parents=True, exist_ok=True)  # there even when empty: the runner copies it back
     for job in json.loads(jobs_path.read_text()):
-        results.update(picture_rows(model, processor, jobs_path.parent / job["picture"], job["rows"]))
+        results.update(picture_rows(model, processor, jobs_path.parent / job["picture"], job["rows"], masks))
         print(f"{job['picture']}: {len(job['rows'])} rows", flush=True)
         out.write_text(json.dumps(results, indent=1))
 
