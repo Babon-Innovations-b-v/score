@@ -370,11 +370,13 @@ DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT
                         files=demo_film.files, after={"assembly": ("openusd-stage", 1),
                                                       "neighbours": ("openusd-stage", 1),
                                                       "complete": ("place-manifest", 1)},
-                        paid=True, euros=demo_film.EUROS, applies=demo_film.applies, gapped=("complete",))
+                        paid=True, euros=demo_film.EUROS, forecast=demo_film.own_forecast, applies=demo_film.applies,
+                        gapped=("complete",))
 # A place's other films (the ship's hull through the hangar), one node a place, so its own film's key never moves.
 DEMO_FILM_EXTRA = dataclasses.replace(DEMO_FILM, name="demo-film-extra", make=demo_film.make_extra,
                                       contract=demo_film.EXTRA_CONTRACT, checks=demo_film.EXTRA_CHECKS,
-                                      files=demo_film.extra_files, applies=demo_film.applies_extra)
+                                      files=demo_film.extra_files, forecast=demo_film.extra_forecast,
+                                      applies=demo_film.applies_extra)
 
 
 def filmed_places(place=None):

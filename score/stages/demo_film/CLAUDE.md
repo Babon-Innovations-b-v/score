@@ -32,7 +32,10 @@ own sound; paid and cleared by the runner like any paid row.
   <place>`: frames, cards, card minutes and euros likely and high, from a scan of the accepted stage for fog,
   volumes and glass, priced high at `FOG_FRAME_MINUTES` a frame). His lock of a script on the Film step is the yes
   (`final`): a place no locked script shows has no node. A film whose forecast's high passes the euros its run was
-  cleared at is Blocked: a dearer film is a new ask at the forecast's price. Never lock for him.
+  cleared at is Blocked: a dearer film is a new ask at the forecast's price.
+  The runner clears the row at its films' forecast high (`own_forecast`, `extra_forecast` as graph.Stage.forecast, from
+  the node's inputs), the one figure the make holds each film to (fault 2026-10-25: cleared at the row's EUR 3.50, or
+  at measured runs of 96-frame films, a fogged or a 192-frame film Blocked itself). Never lock for him.
   The final is rendered once at 1280x720 over the cards `capacity.machines_for` sizes (no fixed card count), each
   job's deadline its frames at the forecast's high; a job that dies or passes it is a gap, never run again inside
   the batch, and filming it again is a new batch and a new yes. The gate holds each film to the size its views.json

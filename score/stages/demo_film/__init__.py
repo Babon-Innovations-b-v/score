@@ -241,7 +241,7 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     cameras = own_cameras(work / "stages" / place / "scene.json", film)
     leave_out(work / "stages" / place / f"{place}.usda", film)
     given = f"{place}={','.join(cameras)}" if name == place else f"{name}@{place}={','.join(cameras)}"
-    planned = forecast(work / "stages" / place / f"{place}.usda", len(cameras))
+    planned = film_forecast(stage_folder, film)  # the figure its clearance reserved (own_forecast)
     print(f"{name}: {forecast_line(planned)}", flush=True)
     refuse_over_clearance(name, planned, cleared_euros())
     jobs = demo.plan(work, work / "stages", [given], jobs_each=planned["jobs"], size=SIZE, ink=False,
@@ -260,12 +260,47 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     shutil.rmtree(work)
 
 
-def slow_parts(stage_path):
-    """What in the stage makes a frame slow, by a free scan of its composed prims: {"fog": plain-card puff emitters
+def film_forecast(stage_folder, film):
+    """The forecast of one film of the place's final stage (`stage_folder`, read only): its shots as own_cameras
+    picks them and the stage as its `leave_out` leaves it. The clearance (own_forecast) and the make (film_one) both
+    price the film by it, so they hold one figure."""
+    place = place_of(stage_folder)
+    record = json.loads((pathlib.Path(stage_folder) / "scene.json").read_text())
+    shots = len(film_cameras(record, film)[:SHOTS])
+    return forecast(pathlib.Path(stage_folder) / f"{place}.usda", shots, film.get("leave_out", ()))
+
+
+def cleared_forecast(planned):
+    """What a node's clearance reserves for its films' forecasts (`planned`): their highs added up, no minutes (the
+    runner's figures for an unmeasured run, compute.run_forecast's estimate)."""
+    return {"euros": round(sum(film["high_euros"] for film in planned), 2), "minutes": None, "high_minutes": None,
+            "measured": 0}
+
+
+def own_forecast(inputs):
+    """The place's own film's forecast from the node's inputs, which its clearance reserves (graph.Stage.forecast)."""
+    stage_folder = final_stage(inputs)
+    place = place_of(stage_folder)
+    return cleared_forecast([film_forecast(stage_folder, named_films(inputs, place, True)[place])])
+
+
+def extra_forecast(inputs):
+    """The place's other films' forecasts from the node's inputs, added up: what its clearance reserves."""
+    stage_folder = final_stage(inputs)
+    named = named_films(inputs, place_of(stage_folder), False)
+    return cleared_forecast([film_forecast(stage_folder, film) for _, film in sorted(named.items())])
+
+
+def slow_parts(stage_path, left_out=()):
+    """What in the stage makes a frame slow, by a free scan of its composed prims with the `left_out` prims inactive
+    (a film's leave_out, in the scan's own session layer: the file untouched): {"fog": plain-card puff emitters
     (steam, fog, mist), "volumes": UsdVol volumes, "glass": UsdPreviewSurfaces drawn see-through (opacity under 1)},
     each a list of prim paths."""
     from pxr import Usd, UsdShade, UsdVol
     stage = Usd.Stage.Open(str(stage_path))
+    stage.SetEditTarget(stage.GetSessionLayer())
+    for path in left_out:
+        stage.OverridePrim(path).SetActive(False)
     found = {"fog": [], "volumes": [], "glass": []}
     for prim in stage.Traverse():
         look, card = prim.GetAttribute("score:effect:look"), prim.GetAttribute("score:effect:card")
@@ -280,19 +315,19 @@ def slow_parts(stage_path):
     return found
 
 
-def forecast(stage_path, shots):
+def forecast(stage_path, shots, left_out=()):
     """A film's free forecast before the creator's yes: its frames; the jobs they are dealt over
     (capacity.machines_for on the likely frame minutes and blender_cloud's set-up, a card a job); the likely and high
     minutes a frame (demo.FRAME_MINUTES; high FOG_FRAME_MINUTES where the scan finds fog, a volume or glass, else FRAME_SPREAD times
     the likely); the card
     minutes and the euros, likely and high (LIKELY_EUROS scaled from its measured film by frames and frame minutes); and what
-    the scan found."""
+    the scan found, the `left_out` prims inactive."""
     demo, _ = film_tools()
     sys.path.insert(0, str(REPO / "tools/cloud"))
     import blender_cloud
     import capacity
     frames = round(shots * SECONDS * demo.RATE)
-    slow = slow_parts(stage_path)
+    slow = slow_parts(stage_path, left_out)
     likely = demo.FRAME_MINUTES
     high = FOG_FRAME_MINUTES if any(slow.values()) else likely * FRAME_SPREAD
     euros = LIKELY_EUROS * frames / round(SHOTS * SECONDS * demo.RATE)
@@ -395,15 +430,21 @@ def own_cameras(record_path, film):
     scene record itself untouched): the first its `camera`, the second its `then`, else the record camera standing
     furthest from the first (second_camera); one only where the record holds no other."""
     record = json.loads(record_path.read_text())
-    first = film_view(record, film.get("camera") or first_camera(record), film)
-    then = film.get("then")
-    second = (film_view(record, then if isinstance(then, str) else then["camera"], then if isinstance(then, dict)
-                        else {}) if then else second_camera(record, first))
-    shots = [first] + ([second] if second else [])
+    shots = film_cameras(record, film)
     record["views"] = [view for view in record.get("views", []) if view["name"] not in {shot["name"] for shot in shots}]
     record["views"] += shots
     record_path.write_text(json.dumps(record, indent=1))
     return [shot["name"] for shot in shots][:SHOTS]
+
+
+def film_cameras(record, film):
+    """The film's camera views in the scene record: the first its `camera`, the second its `then`, else the record
+    camera standing furthest from the first (second_camera); one only where the record holds no other."""
+    first = film_view(record, film.get("camera") or first_camera(record), film)
+    then = film.get("then")
+    second = (film_view(record, then if isinstance(then, str) else then["camera"], then if isinstance(then, dict)
+                        else {}) if then else second_camera(record, first))
+    return [first] + ([second] if second else [])
 
 
 def first_camera(record):

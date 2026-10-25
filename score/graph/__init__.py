@@ -186,6 +186,11 @@ class Stage:
     is keyed (the library rows' route, from the runner's code versions).
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
     paid, euros: a stage that rents, and its run's estimate in euros, cleared against its stop.
+    forecast: for a paid stage that prices its own make from what it reads, forecast(inputs) gives its run's forecast
+    ({euros (its high), minutes, high_minutes, measured}) from the node's checked-out inputs: its clearance reserves
+    that figure in place of the stage's measured runs or estimate, so the clearance and the make's own check against
+    it are one number (demo-film: its frames' forecast; fault 2026-10-25, a film cleared at EUR 3.50 and forecast at
+    77.71 Blocked itself, and measured runs of 96-frame films cleared 192-frame ones). None: compute.run_forecast.
     gatherers: {check name: (gather, euros or None)}, how the runner's drive makes a check's missing evidence:
     gather(output, inputs, folder) writes it and returns its file; a paid one names its estimate in euros. Kept out of
     score.checks on purpose: every stage's code version hashes that module, so a change there reruns every stage.
@@ -228,6 +233,7 @@ class Stage:
     params: dict = field(default_factory=dict)
     paid: bool = False
     euros: float = None
+    forecast: Callable = None
     models: tuple = ()
     gatherers: dict = field(default_factory=dict)
     applies: Callable = None
@@ -756,18 +762,24 @@ class Runner:
         paths.update({node: self.store.checkout(output) for node, output in keyed.get("beside", {}).items()})
         return paths
 
-    def spending(self, stage, node):
-        """For a paid stage, its clearance's ticket named for the rent points while it makes; else nothing."""
-        return self.cleared(node, stage.euros) if stage.paid else contextlib.nullcontext()
+    def spending(self, stage, node, inputs):
+        """For a paid stage, its clearance's ticket named for the rent points while it makes (at the stage's own
+        forecast of its `inputs` where it has one); else nothing."""
+        if not stage.paid:
+            return contextlib.nullcontext()
+        if stage.forecast:
+            return self.cleared(node, stage.euros, lambda: stage.forecast(inputs))
+        return self.cleared(node, stage.euros)
 
-    def cleared(self, node, euros):
-        """The node's clearance at `euros`, named for the rent points while the block runs; Blocked when refused, and
-        always in a free-only run (a paid gatherer of a free node), before the clearance is asked."""
+    def cleared(self, node, euros, forecast=None):
+        """The node's clearance at `euros` (or at what `forecast()` gives, the stage's own forecast), named for the
+        rent points while the block runs; Blocked when refused, and always in a free-only run (a paid gatherer of a
+        free node), before the clearance is asked."""
         if self.free_only:
             raise Blocked(f"{node}: a paid step ({euros} EUR) is not cleared in a free-only run: left for the Buy")
         from score.adapters import compute  # here: compute imports this module for its tickets
         try:
-            return compute.spending(compute.clearance(self, node, euros))
+            return compute.spending(compute.clearance(self, node, euros, forecast() if forecast else None))
         except compute.Refused as refusal:
             raise Blocked(str(refusal)) from refusal
 
@@ -799,10 +811,10 @@ class Runner:
         """Make the node's output, store it and write its finish record; the record (another run's, when one stored
         this key first: it is taken as made)."""
         node = node_name(stage, place)
-        cleared = self.spending(stage, node)
+        inputs = self.input_paths(stage, place, keyed)
+        cleared = self.spending(stage, node, inputs)
         out = self.store.making(keyed["key"])
         started, clock = now(), time.monotonic()
-        inputs = self.input_paths(stage, place, keyed)
         with cleared, making_in(out):
             stage.make(inputs, out, keyed["seed"], keyed["params"])
         if self.file_keys(stage, place) != keyed["files"]:
