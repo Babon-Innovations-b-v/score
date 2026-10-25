@@ -821,11 +821,11 @@ def test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raise
     """Batch 1 of 2026-10-24: the pool rented its three processor machines at the start and they sat idle for an hour
     while only Pixal3D ran; they open at 0 and the run's heartbeat raises them (resize) when a render is near."""
     reserved = {"gpu-24gb": 1, PROCESSOR: 2}
-    assert pool.cards_only(reserved) == {"gpu-24gb": 1, PROCESSOR: 0}
+    assert pool.sized(reserved, 10, 0) == {"gpu-24gb": 1, PROCESSOR: 0}
     calls, run_id = fresh(stock=10)  # the fakes installed; this run's own pool opened next
     pool.release(run_id)
     os.environ["SCORE_RUN_ID"] = run_id = f"run-{time.time_ns()}"
-    pool.start(run_id, pool.cards_only(reserved), time.time() + 3600, reserved=reserved)
+    pool.start(run_id, pool.sized(reserved, 10, 0), time.time() + 3600, reserved=reserved)
     cloud.offers = lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS if offer.machine_class in classes]
     assert grow(run_id) == 1 and len(calls.rented) == 1  # the card alone
     pool.resize(run_id, 1, 1)
@@ -835,6 +835,34 @@ def test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raise
     assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1, PROCESSOR: 2}
     pool.resize(run_id, 1, 0)
     assert grow(run_id) == 0 and len(calls.deleted) == 1  # the idle processor goes once no render is near
+    pool.release(run_id)
+
+
+def test_a_machine_is_rented_its_classes_measured_start_up_before_its_first_job():
+    """The lead (owner, 2026-10-25: "cant u just do the start up earlier then when u need them again"): the median of
+    its class's pool machines' minutes from order to answering, and the margin; the margin alone unmeasured."""
+    def cold(machine_class, minutes):
+        return {"kind": pool.KIND, "machines": [{"class": machine_class, "started": True,
+                                                 "start_wait_minutes": minutes}]}
+    entries = [cold("gpu-24gb", 4.0), cold("gpu-24gb", 6.0), cold("gpu-24gb", 30.0), cold(PROCESSOR, 2.0),
+               {"kind": pool.HOLD, "machines": [], "euros": 1.0}]
+    assert pool.lead_minutes("gpu-24gb", entries) == 6.0 + pool.LEAD_MARGIN_MINUTES
+    assert pool.leads(["gpu-24gb", PROCESSOR], entries) == {False: 6.0 + pool.LEAD_MARGIN_MINUTES,
+                                                            True: 2.0 + pool.LEAD_MARGIN_MINUTES}
+    assert pool.leads(["gpu-48gb"], entries) == {False: pool.LEAD_MARGIN_MINUTES, True: pool.LEAD_MARGIN_MINUTES}
+
+
+def test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends():
+    """A processor machine is billed by the started hour: let go early, its paid minutes are lost and nothing saved."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
+    grow(run_id)
+    path = next(park.PARKED.glob("*.json"))
+    record = json.loads(path.read_text())
+    path.write_text(json.dumps({**record, "unit_minutes": 60, "created": time.time() - 20 * 60}))
+    pool.resize(run_id, 0, 0)
+    assert grow(run_id) == 0 and not calls.deleted  # 40 paid minutes left: kept
+    path.write_text(json.dumps({**record, "unit_minutes": 60, "created": time.time() - 58 * 60}))
+    assert grow(run_id) == 0 and len(calls.deleted) == 1  # its paid hour ends: it goes
     pool.release(run_id)
 
 

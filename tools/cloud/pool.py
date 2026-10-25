@@ -35,6 +35,7 @@ import json
 import os
 import pathlib
 import signal
+import statistics
 import subprocess
 import sys
 import threading
@@ -50,6 +51,11 @@ from provider import cloud
 POOLS = batch.CLOUD / "pools"
 # The kind of the ledger lines that book the pool's machines' rented time (hold).
 HOLD = "pool-hold"
+# A machine is rented this long beyond its measured start-up before its first job is due (leads): a heartbeat or two
+# of score run, which tends the pool, and the forecast's slack.
+LEAD_MARGIN_MINUTES = 5
+# The pool machines of a class whose start-up the lead is measured on, newest first (lead_minutes).
+LEAD_MACHINES = 30
 # The most cards a pool holds (owner, 2026-10-23: "like 10 gpus"), each class also held to its quota.
 MOST_CARDS = 10
 # The most processor machines a pool holds beside its cards, for the run's renders and bakes (owner, 2026-10-23: "the
@@ -261,11 +267,30 @@ def first_class(kind, offered=None):
                  and (offered is None or machine_class in offered)), None)
 
 
-def cards_only(sizes):
-    """`sizes` with every processor class at 0: what a run's pool opens at, its processor machines rented only once
-    the run's heartbeat finds a render or bake near (resize; Batch 1 of 2026-10-24: three POP2s idle for an hour while
-    only Pixal3D ran)."""
-    return {name: count if provider.cards(name) else 0 for name, count in sizes.items()}
+def sized(reserved, cards, processors):
+    """`reserved` ({class: machines}) held to what is due: each card class to at most `cards`, each processor class
+    to at most `processors` (score run's due_rows: the rows due within their machines' lead)."""
+    return {name: min(count, cards if provider.cards(name) else processors) for name, count in reserved.items()}
+
+
+def lead_minutes(machine_class, entries):
+    """How long before its first job a pool machine of `machine_class` is rented: the median minutes its class's last
+    LEAD_MACHINES pool machines took from their order to answering (their rent lines, cold_entry, in the ledger
+    `entries`), and LEAD_MARGIN_MINUTES; the margin alone while none was measured."""
+    waits = [row["start_wait_minutes"] for entry in entries if entry.get("kind") == KIND
+             for row in entry.get("machines", ()) if row.get("class") == machine_class and row.get("started")]
+    return (statistics.median(waits[-LEAD_MACHINES:]) if waits else 0.0) + LEAD_MARGIN_MINUTES
+
+
+def leads(classes, entries=None):
+    """{on processors: minutes} the pool's machines are rented before their first job (lead_minutes), the longest
+    of its card classes and of its processor classes among `classes`; `entries` the ledger's, read when not given."""
+    entries = ledger.entries() if entries is None else entries
+    found = {False: LEAD_MARGIN_MINUTES, True: LEAD_MARGIN_MINUTES}
+    for name in classes:
+        on_processors = not provider.cards(name)
+        found[on_processors] = max(found[on_processors], lead_minutes(name, entries))
+    return found
 
 
 def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB, euros=None, reserved=None):
@@ -518,7 +543,9 @@ def trim(run_id, plan, alive):
     cards still alive."""
     import park
 
-    idle = {record["id"]: record for record in park.pool_records(run_id)}
+    now = time.time()
+    idle = {record["id"]: record for record in park.pool_records(run_id)
+            if not paid_ahead(record, now)}
     spare, _ = matched(plan, alive)
     for machine_class, cards in spare.items():
         extra = len(cards) - plan["sizes"].get(machine_class, 0)
@@ -530,6 +557,13 @@ def trim(run_id, plan, alive):
             release_idle(idle[card["id"]])
             alive = [kept for kept in alive if kept["id"] != card["id"]]
     return alive
+
+
+def paid_ahead(record, now):
+    """Whether an idle machine billed by the started hour has more than park.MARGIN_MINUTES of its paid hour left:
+    kept till then, as letting it go saves nothing (a processor machine)."""
+    import park
+    return record["unit_minutes"] > 1 and park.paid_until(record, now) - now > park.MARGIN_MINUTES * 60
 
 
 def make_room(run_id, plan, alive, machine_class):
@@ -556,16 +590,15 @@ def release_idle(record):
 
 
 def resize(run_id, cards, processors):
-    """Set the pool to what the run's card rows still to run can hold at once (score run's heartbeat): each card
-    class of its reserved sizes to at most `cards`, each processor class to `processors` (the renders and bakes near),
-    never above its reserved size; the idle cards past it go at the collector's next round (trim), the ones short
-    are rented then."""
+    """Set the pool to what the run's rows due within their machines' lead can hold at once (score run's heartbeat):
+    each card class of its reserved sizes to at most `cards`, each processor class to `processors` (sized), never
+    above its reserved size; the idle cards past it go at the collector's next round (trim), the ones short are
+    rented then."""
     with locked(run_id):
         plan = plan_of(run_id)
         if plan is None:
             return
-        sizes = {name: min(count, cards if provider.cards(name) else processors)
-                 for name, count in plan["reserved"].items()}
+        sizes = sized(plan["reserved"], cards, processors)
         if sizes != plan["sizes"]:
             batch.say(f"pool: {', '.join(f'{count} {name}' for name, count in sizes.items())} from now on, what the "
                       "run's card rows still to run can hold")
