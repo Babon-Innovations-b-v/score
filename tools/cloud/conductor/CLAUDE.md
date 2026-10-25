@@ -44,8 +44,10 @@ makes, the rights of the two keys, and what is still unchecked until the first `
 - **`cloud-init.yaml` + `boot.sh`**: user score (uid 1100) with linger, the data volume formatted only when blank
   and mounted at `/home/score/.farm-factory-props` by UUID, restic, uv, scw and the Google Cloud CLI pinned by
   version and SHA-256 (a new pin: a version at least two weeks old, its checksum from the release's own sums file),
-  the checkout over https, `uv sync`, every unit in `units/` installed for user score; rsync, ssh, ffmpeg and node from
-  apt (the runners' copies, the sound rows' loudness, the 3D web copies' gltfpack). Once machine.json is there,
+  the checkout over https, `uv sync`, every unit in `units/` installed for user score; rsync, ssh and ffmpeg from apt (the runners'
+  copies, the sound rows' loudness), Node.js pinned by version and SHA-256 into /usr/local (the 3D web copies' gltfpack,
+  the film preview's Playwright, which takes node >=20: Ubuntu's apt node is older), score_lib's `score-lib` linked into
+  ~/.local/bin (on the env file's PATH) for the cockpit's lock and withdraw. Once machine.json is there,
   the user part syncs the prop environment `$PROPS_HOME/env` (the rows' PROPS_PYTHON: rough-model, people, surfaces;
   left out of every backup) from uv.lock with bootstrap.sh's command (`boot.sh env`, which the move runs after its
   restore), and score_lib's `.venv` (its `score-lib` command, which library_files.py runs). Nothing runs boot.sh at
@@ -85,7 +87,7 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   commit whose boot.sh has `props_env`: as score run `bash ~/projects/score/tools/cloud/conductor/boot.sh user` once
   (it also builds score_lib's `.venv`, which no boot.sh before this one built: without it a library fetch finds no
   `score-lib`) and check `ls ~/.farm-factory-props/env/bin/python ~/projects/score_lib/.venv/bin/score-lib`, then delete that `uv sync` line with the `git` lines in the same
-  user-data edit. The apt packages added that day (rsync, openssh-client, ffmpeg, nodejs, npm) reach the live
+  user-data edit. The apt packages added that day (rsync, openssh-client, ffmpeg) and Node.js (`install_node`, 2026-10-25) reach the live
   conductor only through the system part, which cloud-init ran once at its first boot: as root, `bash
   /home/score/projects/score/tools/cloud/conductor/boot.sh system` (safe to re-run). The same holds for Chromium's libraries (`chromium_libraries`,
   added 2026-10-25 for the film preview the sync pass renders); its browser comes with the user part. Other areas add their own units here;

@@ -25,5 +25,7 @@ film script's rules are `../CLAUDE.md`'s).
   A scale zoom arrives at each place in daylight (#51, `scenes.arrival`): the first hour from its site's scene time
   when its sun stands `LIT_DEGREES` up, its sky worked out again there through `overhead.seen`; a segment's `time`
   (ISO) overrides it for its own place.
+- Node.js 20 or newer (the pin's `engines`; older stops with "Please update your version of Node.js"): the
+  conductor's `tools/cloud/conductor/boot.sh` installs `NODE_VERSION`, a PC brings its own.
 - Chromium: `npx -p playwright@1.62.1` (viewer_look.py's pin), its libraries on `LD_LIBRARY_PATH` where the machine
   lacks them. Tests: `../../tests/films_test.py` (the join's clock, the setting's scale; no browser).
