@@ -45,7 +45,7 @@ sys.path.insert(0, str(HERE.parent / "closeup"))
 sys.path.insert(0, str(HERE.parent.parent / "cloud"))
 import check  # noqa: E402
 import inventory  # noqa: E402
-from paths import WORK  # noqa: E402
+from paths import HOME, WORK  # noqa: E402
 
 # A box over this share of its picture marks no place in it.
 WHOLE = 0.8
@@ -95,8 +95,11 @@ CROP_MARGIN = 0.1
 
 
 def picture_path(written):
-    """A view's picture as a real path: `WORK/...` under the framework's work folder, else as written."""
-    return WORK / written.removeprefix("WORK/") if written.startswith("WORK/") else pathlib.Path(written)
+    """A view's picture as a real path: `WORK/...` under the framework's work folder, `{home}/...` under the home (a
+    design's hand-in names its kept concept so, score/stages/complete/prepare/handin.py), else as written."""
+    if written.startswith("WORK/"):
+        return WORK / written.removeprefix("WORK/")
+    return HOME / written.removeprefix("{home}/") if written.startswith("{home}/") else pathlib.Path(written)
 
 
 def is_whole(box, size):
