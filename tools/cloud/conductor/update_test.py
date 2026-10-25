@@ -101,6 +101,8 @@ def test_follows_the_pin_and_syncs_only_when_the_lock_moved():
             line = moved(checkout, url, uv, proc)
         assert git(checkout, "rev-parse", "HEAD") == commits[1], line
         assert "the cockpit's pin" in line and not log.exists()
+        noted = json.loads((proc.parent / "home" / "conductor" / "pin.json").read_text())
+        assert noted["pin"] == commits[1] and noted["at"]  # the Machine card's pin (score.conductor.health.code)
         with cockpit({"ok": True, "commit": commits[2]}) as url:
             line = moved(checkout, url, uv, proc)
         assert git(checkout, "rev-parse", "HEAD") == commits[2] and ".venv synced" in line

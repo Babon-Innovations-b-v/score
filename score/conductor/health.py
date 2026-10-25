@@ -7,7 +7,8 @@ PROPS_HOME), load (1, 5 and 15 minutes), units {sync, listen, resume, backup: ac
 (live claims in runs/active.json), runs_waiting, parked_machines, last_backup (the newest backup's record in
 logs/backup-*.json, score.store.backup's: {at, ok}), last_sync (score-sync.service's last end: {at, ok}), free_only
 (the kill switch's latch), notes (each `*.note` the secrets unit left in $XDG_RUNTIME_DIR/score, one line each: an
-optional secret it skipped, tools/cloud/conductor/secrets.sh)}, with the Machine card's own shapes beside them (score/dashboard/state/machine.py): state
+optional secret it skipped, tools/cloud/conductor/secrets.sh), code {checkout: the checkout's commit, pin: the
+cockpit's pinned commit score-update last read (conductor/pin.json), pin_at, matches: whether they agree}}, with the Machine card's own shapes beside them (score/dashboard/state/machine.py): state
 (idle, growing, batch or shrinking), disk {free_gb, total_gb}, memory {available_gb, total_gb}, backup and sync (the
 same as last_backup and last_sync). A unit is failed when any of its units failed or its service's last run did not
 succeed, active when one of them is active. The conductor's own bill is not read here (a cloud call every minute).
@@ -28,6 +29,8 @@ UNITS = {"sync": ("score-sync.timer", "score-sync.service"), "listen": ("score-l
          "resume": ("score-resume.service",), "backup": ("score-backup.timer", "score-backup.service")}
 BACKUPS = PROPS_HOME / "logs"  # score.store.backup writes logs/backup-<time>.json: {at, ok, ...}
 PROPERTIES = ("ActiveState", "Result", "ExecMainExitTimestamp")
+REPO = pathlib.Path(__file__).resolve().parents[2]  # the checkout the units run from
+PIN = conductor.HOME / "pin.json"  # tools/cloud/conductor/update.py pin_noted
 
 
 def unit_properties(unit):
@@ -107,7 +110,18 @@ def read(properties=unit_properties):
             "units": {name: unit_state(units, properties) for name, units in UNITS.items()},
             "runs_active": view["claims"], "runs_waiting": view["waiting"], "parked_machines": view["parked"],
             "last_backup": backup, "backup": backup, "last_sync": sync, "sync": sync,
-            "free_only": conductor.free_only(), "notes": notes()}
+            "free_only": conductor.free_only(), "notes": notes(), "code": code()}
+
+
+def code(repo=REPO, pin_path=PIN):
+    """{checkout, pin, pin_at, matches}: the checkout's commit beside the cockpit's pin score-update last read; matches
+    None while either is unknown (no pin read yet, or a cockpit reporting none)."""
+    done = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True)
+    here = done.stdout.strip() or None
+    noted = json.loads(pin_path.read_text()) if pin_path.is_file() else {}
+    pin = noted.get("pin")
+    return {"checkout": here, "pin": pin, "pin_at": noted.get("at"),
+            "matches": None if not (here and pin) else here.startswith(pin) or pin.startswith(here)}
 
 
 def notes(folder=None):

@@ -17,6 +17,7 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
    /healthz: the hosting proxy answers that with a body of its own. A pin that cannot be read moves nothing; only a
    cockpit that answers with no commit (an image built without SCORE_COMMIT), or no SCORE_SYNC_URL, falls back to
    origin/main, moved only forward (as the PC's sync pulls with --ff-only).
+   The pin read is kept in $PROPS_HOME/conductor/pin.json, so the Machine card shows a checkout off it.
 3. `git fetch origin main`; a pin origin/main does not hold is refused (never a commit off main).
 4. Nothing moves when uv.lock or pyproject.toml would change while a process works in a frozen copy under
    $PROPS_HOME/frozen or a sync pass runs from the checkout: every run's copy links this checkout's .venv in
@@ -29,6 +30,7 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
 It prints one line: what it moved, or why it did not.
 """
 import argparse
+import datetime
 import fcntl
 import json
 import os
@@ -99,6 +101,16 @@ def pinned_commit(sync_url, token, opener=urllib.request.urlopen):
     return commit if isinstance(commit, str) and len(commit) >= 7 else None
 
 
+def pin_noted(home, pin):
+    """Keep the pin last read in home/conductor/pin.json ({at, pin}), for the Machine card (score.conductor.health)."""
+    path = home / "conductor" / "pin.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_name(f"pin.json.{os.getpid()}.partial")
+    at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    partial.write_text(json.dumps({"at": at, "pin": pin}))
+    os.replace(partial, path)
+
+
 def frozen_users(home=HOME, proc=PROC):
     """The pids working in a frozen copy under home/frozen: live runs, each on this checkout's .venv."""
     folder = home / "frozen"
@@ -153,6 +165,7 @@ def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, toke
         pin = pinned_commit(sync_url, token, opener)
     except RuntimeError as unread:
         return f"update: not now, {unread}"
+    pin_noted(home, pin)
     try:
         commit, why = target(repo, pin)
     except RuntimeError as refused:

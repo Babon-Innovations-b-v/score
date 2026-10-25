@@ -24,7 +24,8 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   or the sync. The drive's own guard is `graph.memory_room` (a floor per node starting); `SCORE_MIN_FREE_GB` in the
   env file gives the conductor its own floor (the idle size has 16 GB).
 - **`health.py`**: `$PROPS_HOME/health.json` for the Machine card (`python -m score.conductor health --write`, AREA 1's
-  minute timer). **`logs.py`**: `tails(limit_lines)`, newest run logs, fault reports and unit journals; a line naming
+  minute timer). Its `code` is the checkout's commit beside the cockpit's pin score-update last read
+  (`conductor/pin.json`), red on the card when they differ. **`logs.py`**: `tails(limit_lines)`, newest run logs, fault reports and unit journals; a line naming
   or holding a secret, or showing a secret's own shape, is left out whole. A running entry counts as live only
   while its own process is (`size.entry_alive`: a reused pid is not the run).
 - **`kill.py`**: `stop_all(asked_by, words)` and `allow_paid(asked_by, words)`, the cockpit's owner-only kill
