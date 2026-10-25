@@ -37,7 +37,7 @@ def written(folder, name, found):
 
 def fake_batch(made):
     """subprocess.run as the Pixal3D batch would answer: only the takes in `made` come back (raw model and camera
-    folder; the batch exits 0 and names the rest gaps), and the finish here writes the finished model."""
+    folder; the batch exits 0 and names the rest gaps), and the finish here writes each job's finished models."""
     def run(command, **options):
         pixal = pixal_row.take_files("any")[0].parent
         pixal.mkdir(parents=True, exist_ok=True)
@@ -47,9 +47,10 @@ def fake_batch(made):
                 if take in made:
                     (pixal / f"{take}.glb").write_text("raw")
                     (pixal / f"{take}.svviews").mkdir(exist_ok=True)
-        else:
-            take = command[3]
-            (pixal / f"{take}-final.glb").write_text("finished")
+        else:  # every finish one blender_cloud.py call of job files, each bringing its outputs back (484e538e)
+            for job in (json.loads(pathlib.Path(path).read_text()) for path in command[2:] if path.endswith(".json")):
+                for output in job["outputs"]:
+                    pathlib.Path(output).write_text("finished")
         return subprocess.CompletedProcess(command, 0, "", "")
     return run
 
@@ -60,6 +61,8 @@ def pixal_made(made):
     (folder / "closeup" / "closeups").mkdir(parents=True)
     for row in OBJECTS:
         (folder / "closeup" / "closeups" / f"{row}.png").write_text("close-up")
+    # the close-up row's record of the rows it worked on, which the takes gate narrows to (a8ebe414)
+    written(folder / "closeup", "closeups.json", {"objects": {row: {"drawn_by": "drawn"} for row in OBJECTS}})
     entries = {row: {"faces": 1000} for row in OBJECTS}
     inputs = {"closeup": folder / "closeup",
               "props": written(folder, "props.json", {"place": "toy", "objects": OBJECTS}),
