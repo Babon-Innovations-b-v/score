@@ -234,6 +234,16 @@ def test_copied_constants_agree():
                                                                  cast_check.HEAD)
 
 
+def test_the_cast_check_judges_each_person_where_they_were_stood():
+    """Two copies of one row dealt the same plan spot are judged at the spots they were stood on, apart."""
+    copy = {"character": "worker", "look": "worker_made", "row": "worker", "doing": "standing", "at": [0.0, 0.0, 0.0],
+            "facing_to": [0.0, 0.0, 9.0]}
+    record = {"people": [dict(copy, name="worker_1"), dict(copy, name="worker_2")]}
+    assert cast.checked_cast(record, []) != [], "dealt one spot, unmoved, they are one copy twice"
+    stood = [{"name": "worker_1", "at": [0.0, 0.0, 0.0]}, {"name": "worker_2", "at": [1.0, 0.0, 0.0]}]
+    assert cast.checked_cast(record, stood) == []
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
@@ -242,3 +252,4 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             test()
             print("ok", name)
+

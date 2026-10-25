@@ -116,6 +116,7 @@ def test_the_tube_casts_its_people_and_the_square_its_crowd():
     tube = people_rows.cast_record("tube")
     person = next(person for person in tube["people"] if person["name"] == "person_right")
     assert (person["character"], person["look"]) == ("person_uniform", "person_uniform_made"), person
+    assert person["row"] == "person_right", "each person names its design row: the cast check lets one row's copies share a look"
     assert {person["look"] for person in tube["people"]} == {"person_uniform_made"}  # its three people, one look
     assert all(person["at"] in people_rows.place_entry("tube")["spots"] for person in tube["people"])
     assert "concept 3059819b" in tube["from"] and "crowd" not in tube

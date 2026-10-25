@@ -184,7 +184,8 @@ def characters_of(cast):
         found.append({"name": person["name"], "character": person["character"], "at": person["at"],
                       "turn": facing_degrees(person["at"], person["facing_to"]), "doing": person["doing"],
                       "start": person.get("start", 0.0), "worn": person.get("worn"), "path": person.get("path"),
-                      "pace": person.get("pace", WALK_PACE), "held": person.get("held", False)})
+                      "pace": person.get("pace", WALK_PACE), "held": person.get("held", False),
+                      "row": person.get("row")})
     taken = {look_of(person["character"], person.get("worn")) for person in found}
     for group in cast.get("groups", []):
         outfit = group.get("outfit", "plain")

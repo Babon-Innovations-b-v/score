@@ -229,15 +229,19 @@ def measured(record, singles, crowd, found, base, place):
     bodies = [{"name": name, "at": [round(value, 3) for value in spot], "doing": doing, **ground, "into": into}
               for (name, spot, doing), ground, into in zip(spots, grounds, clashes)]
     return {"bodies": bodies, "overlaps": overlaps(singles, crowd),
-            "cast_check": checked_cast(record)}
+            "cast_check": checked_cast(record, singles)}
 
 
-def checked_cast(record):
-    """tools/characters/cast_check.py's people faults of the record: nobody twice, no walk through a person. Its walk
-    against things is left out: it tests each thing's box, so a walk through a ring (the tube's hoops) runs into the
-    box round it; the bodies' own triangle test (measure.run_into, every WALK_STEP along a walk) judges things."""
+def checked_cast(record, singles):
+    """tools/characters/cast_check.py's people faults of the record with each person at the spot they were stood on
+    (`singles`, spread.stand_every: a row's copies are dealt the plan's spots in turn and stood apart from there):
+    nobody twice, no walk through a person. Its walk against things is left out: it tests each thing's box, so a walk
+    through a ring (the tube's hoops) runs into the box round it; the bodies' own triangle test (measure.run_into,
+    every WALK_STEP along a walk) judges things."""
     _, cast_check = measure.characters()
-    return cast_check.check(record, [])
+    stood = {single["name"]: single["at"] for single in singles}
+    people = [dict(person, at=stood.get(person["name"], person["at"])) for person in record.get("people", [])]
+    return cast_check.check(dict(record, people=people), [])
 
 
 def overlaps(singles, crowd):
