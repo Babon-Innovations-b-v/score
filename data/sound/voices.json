@@ -1,4 +1,4 @@
 {
- "is": "The voice a place's people play, worked out from its design, never a list of places or people (score/stages/sound): wherever the place's picked design stands people (data/people/rows.json), `people` (a sound of data/sound/sounds.json) plays on its first person, at /<place>/Characters/<name>. None is named while the old sound shelf is withdrawn (owner, 2026-10-21: all old stuff is retired): a place with people is a voice gap until a fresh take is picked and named here. What the people say (a speech, a radio call) is not in the design, so no rule here picks it.",
- "people": null
+ "is": "The voice a place's people play, worked out from its design, never a list of places or people (score/stages/sound): wherever the place's picked design stands people (data/people/rows.json), `people` (a sound of data/sound/sounds.json) plays on its first person, at /<place>/Characters/<name>. It names the library's brief crew_talk: every old pick is retired (owner, 2026-10-21), so the sound row makes it fresh in the batch, one take every place with people shares (takes.held), and a take that does not come back is a batch gap on each place's first person. What the people say (a speech, a radio call) is not in the design, so no rule here picks it.",
+ "people": "crew_talk"
 }

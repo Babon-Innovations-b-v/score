@@ -108,28 +108,47 @@ def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices
         assert not [use for use in sound.uses_of("toy", inputs) if use["on"] == "pilot"], "no voice named, none plays"
 
 
+def needs_of_toy(folder, named):
+    """The toy design's needs and gaps (needs.needs, needs.gaps) over the environment's tables, or (`named` false)
+    over tables that name no sound: a moving sounds table whose parts name none and no voice."""
+    from score.stages.sound import needs
+    data = pathlib.Path(folder)
+    for part in ("sound", "checks", "people", "inventory"):
+        (data / part).mkdir()
+    for name in ("sounds", "catalogue", "voices", "moving"):
+        shutil.copyfile(REPO / f"data/sound/{name}.json", data / f"sound/{name}.json")
+    if not named:
+        table = json.loads((data / "sound/moving.json").read_text())
+        for moves in table["kinds"].values():
+            for move in moves.values():
+                move["sounds"] = [{key: value for key, value in part.items() if key != "name"}
+                                  for part in move["sounds"]]
+        (data / "sound/moving.json").write_text(json.dumps(table))
+        (data / "sound/voices.json").write_text(json.dumps({"people": None}))
+    shutil.copyfile(REPO / "data/checks/row-kinds.json", data / "checks/row-kinds.json")
+    (data / "people/rows.json").write_text(json.dumps({"places": {"toy": {"rows": {"pilot": {"looks": ["p-d"]}}}}}))
+    design = data / "design"
+    (design / "inventory").mkdir(parents=True)
+    (design / "inventory/toy.json").write_text(json.dumps({"rows": [{"id": "hatch", "noun": "door"},
+                                                                     {"id": "pilot", "noun": "person"}]}))
+    found = {(need["kind"], need["item"]): need for need in needs.needs("toy", data, design)}
+    return found, {gap["id"]: gap for gap in needs.gaps("toy", data, design)}
+
+
 def test_needs_name_what_the_library_does_not_answer():
-    """#29: free, from the design: a door row the design moves, with no sound named for its kind's move (the old
-    names withdrawn), and the people it stands, with no voice named, are each a gap naming its work."""
+    """#29: free, from the design: a door row the design moves, with no sound named for its kind's move, and the
+    people it stands, with no voice named, are each a gap naming its work; the environment's own tables name a brief
+    for each, which the sound row's batch makes."""
     from score.stages.sound import needs
     with tempfile.TemporaryDirectory() as folder:
-        data = pathlib.Path(folder)
-        for part in ("sound", "checks", "people", "inventory"):
-            (data / part).mkdir()
-        for name in ("sounds", "catalogue", "voices", "moving"):
-            shutil.copyfile(REPO / f"data/sound/{name}.json", data / f"sound/{name}.json")
-        shutil.copyfile(REPO / "data/checks/row-kinds.json", data / "checks/row-kinds.json")
-        (data / "people/rows.json").write_text(json.dumps({"places": {"toy": {"rows": {"pilot": {"looks": ["p-d"]}}}}}))
-        design = data / "design"
-        (design / "inventory").mkdir(parents=True)
-        (design / "inventory/toy.json").write_text(json.dumps({"rows": [{"id": "hatch", "noun": "door"},
-                                                                         {"id": "pilot", "noun": "person"}]}))
-        found = {(need["kind"], need["item"]): need for need in needs.needs("toy", data, design)}
-        gaps = {gap["id"]: gap for gap in needs.gaps("toy", data, design)}
+        found, gaps = needs_of_toy(folder, named=False)
     assert found[("event", "hatch")]["state"] == needs.NONE and found[("event", "hatch")]["prim"] == "/toy/hatch", found
     assert found[("voice", "people")]["state"] == needs.NONE, found
     assert "data/sound/moving.json" in gaps["sound:event:hatch"]["work"], gaps
     assert "data/sound/voices.json" in gaps["sound:voice:people"]["work"], gaps
+    with tempfile.TemporaryDirectory() as folder:
+        found, gaps = needs_of_toy(folder, named=True)
+    assert found[("event", "hatch")]["state"] == needs.MAKE and found[("voice", "people")]["state"] == needs.MAKE, found
 
 
 def test_a_missing_sound_and_a_lost_row_fail_sources():
@@ -511,6 +530,47 @@ def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap():
         assert "rover_idle: no MOSS take came back" in names, names
         assert not record["uses"], record["uses"]
         assert gates.judge_sources(out, inputs, None).answer == checks.UNKNOWN
+
+
+def test_a_moving_thing_or_a_voice_left_silent_by_a_lost_take_is_its_gap_and_events_and_voices_move_it():
+    """try 4, 2026-10-25: moving.json and voices.json named no sound, so every place with motion or people failed
+    `events` or `voices` and stopped its line. Their briefs are named now and made in the batch: a take that does not
+    come back leaves its door and its person silent, a gap that names each, and the table's events and voices gates
+    move those faults to it; a moving thing no part names a sound for still fails."""
+    from score import stages
+    from score.stages import batch_gaps
+    table = {row.name: row for row in stages.STAGES}["sound"]
+    gated = {check.name: check for check in table.checks}
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = toy_design(folder)
+        uses = sound.uses_of("toy", inputs)
+        lost = {"door_open", "door_shut", "crew_talk"}
+        kept = [use for use in uses if use["sound"] not in lost]
+        out = pathlib.Path(folder) / "out"
+        out.mkdir()
+        (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": kept, "sounds": {
+            use["sound"]: {"files": ["files/x.wav"]} for use in kept}}))
+        batch_gaps.write(out, sound.take_gaps(sorted(lost), {}, uses))
+        assert gates.judge_events(out, inputs, None).answer == checks.FAIL  # the gates' own answers stand
+        assert gates.judge_voices(out, inputs, None).answer == checks.FAIL
+        for name in ("events", "voices"):
+            moved = gated[name].judge(out, inputs, None)
+            assert moved.answer == checks.PASS and "moved to complete as accepted gaps" in moved.reason, moved
+        (out / batch_gaps.FILE).unlink()  # no take lost: the door is silent because no sound is named for it
+        assert gated["events"].judge(out, inputs, None).answer == checks.FAIL  # silent with no gap: still a fail
+
+
+def test_the_environment_names_a_brief_for_every_moving_part_it_plays_and_for_the_voice():
+    """Every sound moving.json and voices.json name is a library brief the batch can make (data/sound/sounds.json,
+    with prompts): a name with no brief would be silent with no take to ask."""
+    briefs = json.loads((REPO / "data/sound/sounds.json").read_text())["sounds"]
+    table = json.loads((REPO / "data/sound/moving.json").read_text())
+    named = [part["name"] for moves in table["kinds"].values() for move in moves.values()
+             for part in move["sounds"] if part.get("name")]
+    named.append(json.loads((REPO / "data/sound/voices.json").read_text())["people"])
+    assert all(briefs.get(name, {}).get("pick", {}).get("prompts") for name in named), named
+    assert all(any(part.get("name") for part in move["sounds"]) for moves in table["kinds"].values()
+               for move in moves.values()), "a kind's move with no sound named fails events wherever it moves"
 
 
 if __name__ == "__main__":

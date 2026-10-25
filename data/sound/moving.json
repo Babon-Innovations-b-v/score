@@ -1,14 +1,16 @@
 {
- "is": "what the things that move sound like, where no record plays a sound with them: the library's sounds for a moving thing by what moves and how, keyed by its row's kind (data/checks/row-kinds.json, score/stages/row_kinds.py: door, crane, fan, vehicle, lift) and its move (slide, swing, path, spin, climb, turn), never by a place or a prim's name. A moving thing's kind is its inventory row's (the row its record names, else the row its prim is an object of), else the kind whose motion its record's `kind` is. Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound/moving.py) plays them in every round of the moving thing's or motion's loop. Only sounds with a picked file are named here (`name`), never one still to make: the old sound shelf's names were withdrawn (owner, 2026-10-21: all old stuff is retired), so each part below keeps its rule (when it plays) and names no sound until a fresh take is picked; a moving thing whose part names none plays nothing and is a gap.",
+ "is": "what the things that move sound like, where no record plays a sound with them: the library's sounds for a moving thing by what moves and how, keyed by its row's kind (data/checks/row-kinds.json, score/stages/row_kinds.py: door, crane, fan, vehicle, lift) and its move (slide, swing, path, spin, climb, turn), never by a place or a prim's name. A moving thing's kind is its inventory row's (the row its record names, else the row its prim is an object of), else the kind whose motion its record's `kind` is. Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound/moving.py) plays them in every round of the moving thing's or motion's loop. Each part names a library brief (`name`): every old pick is retired (owner, 2026-10-21), so each brief named here is made fresh in the batch by the sound row (a MOSS take, made once and shared by every place that plays it), and a take that does not come back is a batch gap on the moving things that play it; a part that names none plays nothing, and a moving thing none of whose parts names a sound fails `events`.",
  "kinds": {
   "door": {
    "swing": {
     "sounds": [
      {
+      "name": "hatch_open",
       "part": "start",
       "when": "open"
      },
      {
+      "name": "airlock_hatch_seal_clunk",
       "part": "end",
       "when": "shut"
      }
@@ -18,10 +20,12 @@
    "slide": {
     "sounds": [
      {
+      "name": "door_slide_open",
       "part": "start",
       "when": "open"
      },
      {
+      "name": "door_slide_close",
       "part": "start",
       "when": "shut"
      }
@@ -33,14 +37,17 @@
    "swing": {
     "sounds": [
      {
+      "name": "lift_start",
       "part": "start",
       "when": "either"
      },
      {
+      "name": "lift_travel",
       "part": "travel",
       "when": "either"
      },
      {
+      "name": "lift_stop",
       "part": "end",
       "when": "either"
      }
@@ -52,6 +59,7 @@
    "spin": {
     "sounds": [
      {
+      "name": "vent_air",
       "part": "always"
      }
     ],
@@ -62,13 +70,14 @@
    "path": {
     "sounds": [
      {
+      "name": "rover_motor",
       "part": "drive"
      },
      {
       "part": "drive"
      }
     ],
-    "from": "a vehicle's electric drive and its wheels on the ground while it drives"
+    "from": "a vehicle's electric drive (rover_motor) while it drives, and its wheels on the ground, which name no sound: the library's wheel take is on gravel, and the ground a vehicle drives is its place's"
    }
   }
  },
