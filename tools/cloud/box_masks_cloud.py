@@ -49,8 +49,9 @@ def price(jobs, account):
 def set_up(machine):
     """The scene tools, the setup and SAM 3 onto one machine."""
     folder, host = machine["folder"], machine["host"]
-    batch.remote(folder, host, f"mkdir -p {REMOTE}/repo/tools {REMOTE}/in", check=True)
+    batch.remote(folder, host, f"mkdir -p {REMOTE}/repo/tools/cloud {REMOTE}/in", check=True)
     batch.copy(folder, [REPO / "tools" / "props"], f"root@{host}:{REMOTE}/repo/tools/", "--exclude", "__pycache__")
+    batch.copy(folder, [REPO / "tools" / "cloud" / "box_masks_setup.sh"], f"root@{host}:{REMOTE}/repo/tools/cloud/")
     with (folder / "setup.log").open("w") as log:
         batch.remote(folder, host, f"env SAM3_WEIGHTS={shlex.quote(SAM3_WEIGHTS)} bash "
                      f"{REMOTE}/repo/tools/cloud/box_masks_setup.sh", check=True, stdout=log,

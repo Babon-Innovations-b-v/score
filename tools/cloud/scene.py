@@ -237,8 +237,9 @@ def price(plan, account):
 def set_up(folder, host, plan):
     """The scripts, the room's folder, the inputs and MoGe-2's code on the machine, and its Python."""
     room = plan["room"]
-    batch.remote(folder, host, f"mkdir -p {REMOTE_REPO}/tools {REMOTE_INPUTS} {remote_room(room)}", check=True)
+    batch.remote(folder, host, f"mkdir -p {REMOTE_REPO}/tools/cloud {REMOTE_INPUTS} {remote_room(room)}", check=True)
     batch.copy(folder, [REPO / "tools" / "props"], f"root@{host}:{REMOTE_REPO}/tools/", "--exclude", "__pycache__")
+    batch.copy(folder, [REPO / "tools" / "cloud" / "scene_setup.sh"], f"root@{host}:{REMOTE_REPO}/tools/cloud/")
     if local_room(room).is_dir():
         batch.copy(folder, [f"{local_room(room)}/"], f"root@{host}:{remote_room(room)}/")
     for here, there in uploads(plan):
