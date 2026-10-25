@@ -36,9 +36,18 @@ def words(text):
 
 def kind_of(row, kinds):
     """The first kind whose nouns hold the row's reading noun whole; for a row read with no noun, its name's last
-    word (its id's when it has no name); None when no kind does."""
+    word (its id's when it has no name); else the kind it is held by (held_kind); None when no kind does."""
     wanted = words(row.get("noun")) or words(row.get("name") or row.get("id")).rsplit(" ", 1)[-1]
-    return next((kind for kind, rule in kinds.items() if wanted and wanted in rule["nouns"]), None)
+    return next((kind for kind, rule in kinds.items() if wanted and wanted in rule["nouns"]), None) or \
+        held_kind(row, kinds)
+
+
+def held_kind(row, kinds):
+    """The first kind whose `held_by` words end the row's name (its id's when it has no name) right after one of its
+    nouns: a "floodlight tower" read as a tower is a lamp; None when no kind's does."""
+    said = words(row.get("name") or row.get("id")).split()
+    return next((kind for kind, rule in kinds.items() if len(said) > 1 and said[-1] in rule.get("held_by", ())
+                 and said[-2] in rule["nouns"]), None)
 
 
 def does(kind, kinds):

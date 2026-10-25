@@ -173,6 +173,24 @@ def test_the_record_is_written_from_the_design():
         assert verdict.answer == checks.FAIL and "'moon_city'" in " ".join(verdict.findings), verdict.findings
 
 
+def test_a_floodlight_tower_read_as_a_tower_gets_a_light_at_its_head():
+    """A yard with a 10 m floodlight tower read as a tower (the reading's noun) and a light switch: the tower's plan
+    item gets one library lamp near its top over its middle, the switch none (score/stages/row_kinds.py held_by)."""
+    from score.stages.scene_record import writer
+    design = {**WRITTEN, "items": [["TOWER", 3.0, 2.0, 1.0, 1.0, None, "item"], ["SWITCH", 1.0, 1.0, 0.1, 0.1, None,
+                                                                                    "item"]],
+              "rows": {"TOWER": ["floodlight_tower"], "SWITCH": ["light_switch"]},
+              "shapes": {"TOWER": {"shape": "rect", "tall": 10.0, "base": 0.0}}}
+    rows = [{"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "on:yard"},
+            {"id": "light_switch", "name": "light switch", "noun": "switch", "anchor": "wall"}]
+    with tempfile.TemporaryDirectory() as folder:
+        (pathlib.Path(folder) / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": rows}))
+        [lamp] = writer.lights(design, {"inventory": pathlib.Path(folder) / "inventory.json",
+                                        "row kinds": REPO / "data/checks/row-kinds.json",
+                                        "lamp library": REPO / "data/library/lamps.json"})
+    assert lamp["at"][1] == 9.5 and "floodlight_tower" in lamp["from"] and lamp["range"] == 14.25, lamp
+
+
 def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
     """Each shell part and stair takes the variant the scene's surface library gives its kind (a stair the floor's
     when the library names no stair), and a part it gives none, or every part while no library is made, carries no

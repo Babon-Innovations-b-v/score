@@ -3,7 +3,7 @@ reading noun) gives its kind a light from the library's lamp (data/library/lamps
 from how high its laid pieces hang. No per-scene number decides it; the light sweep measures the strength after.
 
     light_of(row, laid, rows)   the light a row's kind gives ({strength, reach, high, shadows}), or None
-    mount_of(row, rows)         how a row is mounted: ceiling, wall or stands
+    mount_of(row, rows)         how a row is mounted: ceiling, wall, head or stands
     light_at(row, high, rows)   the light of a glowing row's lamp hanging `high` metres over the floor
     aimed()                     the library's lamp for a row its plan aims (a spot with its angle, reach and shaft)
 """
@@ -38,7 +38,8 @@ def mount_named(text, words):
 
 def mount_of(row, rows=(), words=None):
     """How a row is mounted: its anchor when it is the ceiling or a wall; for a row anchored `on:<row>` (a reading's
-    rows), what that row is (its noun, else its own anchor, else what it is on in turn); else it stands on something."""
+    rows), what that row is (its noun, else its own anchor, else what it is on in turn); else what its own noun or name
+    says (a street lamp, a floodlight tower: its head); else it stands on something."""
     words = words if words is not None else mount_words()
     by_id = {other["id"]: other for other in rows}
     anchor, seen = row.get("anchor") or "", set()
@@ -52,7 +53,7 @@ def mount_of(row, rows=(), words=None):
             None if anchor.startswith("on:") else mount_named(anchor, words))
         if found:
             return found
-    return "stands"
+    return mount_named(f"{row.get('noun') or ''} {row.get('name') or ''}", words) or "stands"
 
 
 def glows(row, kinds=None):

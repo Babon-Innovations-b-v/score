@@ -69,6 +69,16 @@ def test_a_lens_part_is_not_where_the_lamp_hangs():
     assert lamps.light_of(row, pieces, library=LIBRARY)["reach"] == 6.0
 
 
+def test_a_lamp_on_its_own_post_or_tower_shines_from_its_head():
+    """A street lamp or a floodlight tower standing on the ground is mounted by its own words: at its head."""
+    words = {**WORDS, "head": ["post", "tower", "street"]}
+    for row in ({"id": "street_lamp", "name": "street lamp", "noun": "lamp", "anchor": "ground"},
+                {"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "on:plaza"}):
+        assert lamps.mount_of(row, READING, words) == "head", row
+    assert lamps.mount_of({"id": "table_lamp", "name": "table lamp", "noun": "lamp"}, READING, words) == "stands"
+    assert lamps.mounts()["head"]["high"] > 0.9
+
+
 def test_the_real_library_names_the_words_of_a_ceiling_and_a_wall():
     assert {"ceiling", "roof"} <= set(lamps.mount_words()["ceiling"]) and "wall" in lamps.mount_words()["wall"]
 
