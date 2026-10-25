@@ -807,6 +807,29 @@ def test_paid_asks_refuse_outside_a_cleared_run():
     raise AssertionError("a Gemini batch was sent outside a cleared run")
 
 
+def test_an_answer_that_does_not_parse_is_a_gap_dropped_from_the_cache():
+    """Fault (2026-10-25, surface-library@camp): a malformed JSON answer was kept in the cache, so every later try read
+    the same broken answer back."""
+    from score.adapters import compute
+    broken = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": [{,}]}'}]}}]}
+    good = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": []}'}]}}]}
+    bodies = {"broken": {"ask": 1}, "good": {"ask": 2}}
+    kept = compute.require_cleared, route_ask.google_batch.generate, route_ask.finish_ask.secret_key
+    compute.require_cleared = lambda what, store=None: {"node": "test"}
+    route_ask.google_batch.generate = lambda model, asked, key, caller: {"broken": broken, "good": good}
+    route_ask.finish_ask.secret_key = lambda: "key"
+    try:
+        for body, response in zip(bodies.values(), (broken, good)):
+            route_ask.google_spend.keep(route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, body),
+                                        response)
+        found = route_ask.asked(bodies, "test")
+    finally:
+        compute.require_cleared, route_ask.google_batch.generate, route_ask.finish_ask.secret_key = kept
+    assert isinstance(found["broken"], route_ask.google_batch.Unanswered) and found["good"] == '{"surfaces": []}'
+    assert not route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, bodies["broken"]).exists()
+    assert route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, bodies["good"]).exists()
+
+
 def test_the_object_filter_keys_only_a_selecting_row():
     from score import graph
     from score.stages import world1
