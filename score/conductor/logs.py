@@ -17,6 +17,7 @@ from score.conductor import health
 from score.store import PROPS_HOME, Store
 
 RUN_LOGS, FAULTS = 3, 20
+UPDATE = "score-update.service"
 SECRET_ENV = ("SCORE_SYNC_TOKEN", "SCORE_DASHBOARD_SECRET_KEY", "SCORE_STORE_SECRET_KEY", "SCW_SECRET_KEY",
               "GEMINI_API_KEY", "GOOGLE_API_KEY", "WORLDLABS_API_KEY", "HF_TOKEN", "FREESOUND_API_KEY",
               "RESTIC_PASSWORD", "AWS_SECRET_ACCESS_KEY")
@@ -73,6 +74,7 @@ def tails(limit_lines=40, logs=None, faults=None, read_journal=journal):
     logs = pathlib.Path(logs or PROPS_HOME / "logs")
     faults = pathlib.Path(faults or Store.default().cache.parent / "faults")
     services = [unit for units in health.UNITS.values() for unit in units if unit.endswith(".service")]
+    services.append(UPDATE)  # whether the checkout follows the cockpit's pin (2026-10-25: it did not, unseen)
     return {**{f"run {path.name}": tail(path, limit_lines) for path in newest(logs, "score-run-*.log", RUN_LOGS)},
             **{f"fault {path.stem}": tail(path, limit_lines) for path in newest(faults, "*.txt", FAULTS)},
             **{f"journal {unit}": read_journal(unit, limit_lines) for unit in services}}
