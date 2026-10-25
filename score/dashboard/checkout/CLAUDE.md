@@ -28,6 +28,11 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   price (likely and high None): `pricing.totals` keeps its stage's estimate apart as `guessed_euros`, the pages say
   it as a guess, and the stop line holds it beside the high (`pricing.cleared_high`, the launch guard's high too), since the runner's clearance
   reserves that estimate.
+- **A Buy approved in a session** (`chat_yes.py`, root CLAUDE.md, owner 2026-10-25): `buy-yes` records his quoted
+  answer and question, the high and stop he approved and the Buy screen's basket (grants/buy/<id>.json, written by
+  score.review.web); `buy <id>` runs `flow.start` as his click, once (grants/buy-used/<id>.json written before it),
+  refused on another basket, a high or stop above his (`flow.yes_refusals`, again in `write_line`), code off the
+  pin, the latch or a live run. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
 - **Tests never launch.** `tests/checkout_test.py` uses `FakeBackend`, a temp basket and a temp store.
 - One function, one purpose; no provider names; no imports of `tools.*` or `score.adapters` (`score.review.web` reaches
   the guard for us).

@@ -59,7 +59,8 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `/run/user/1100/score` (`secrets.sh`, `score-secrets.timer`), gcloud's config with them.
 - **The agents' door** (`agent_door.sh` -> `agent_door.py`): the forced command of the agents' authorized_keys
   line. It runs only status, plan, price, resume --dry, a detached free run, logs (`score.conductor logs`: the run
-  logs, fault reports and unit journals, secrets left out), health (read only), checkouts, gaps <node> (a node's batch gaps, read only), grant_benchmark and a benchmark
+  logs, fault reports and unit journals, secrets left out), health (read only), checkouts, gaps <node> (a node's batch gaps, read only), buy-yes and buy <yes id> (the owner's Buy
+  approved in a session, score/dashboard/checkout/chat_yes.py), grant_benchmark and a benchmark
   run tagged with its grant, as an argument list (never a shell), every agent marker set; anything else is refused
   with the reason. The owner's key must have a passphrase (`up` refuses one without), so an agent on his PC cannot
   reach a shell past the door.

@@ -141,14 +141,15 @@ def buy(request):
     design = screens.design(source, world)
     for row in design["places"]:
         row["name"] = names.get(row["place"], present.place_title(row["place"]))
-    batch = batch_of(world)
+    batch, run = batch_of(world), source.batch_run()
     return render(request, "pages/buy.html", {
         "design": design, "batch": batch, "estimate": cockpit.estimate(batch["estimate"]),
         "hours": cockpit.eta_hours(batch["now"]["eta"]), "floor": cockpit.floor_hours(batch["now"]["eta"]),
         "money": found["view"],
         "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex, "film_waits": screens.film_waits(),
-        "since": batch_run.next_buy(source.batch_run(), batch["nodes"]) if design["approved"] else None})
+        "since": batch_run.next_buy(run, batch["nodes"]) if design["approved"] else None,
+        "chat_yes": (run or {}).get("yes")})
 
 
 def place_page(request, place):

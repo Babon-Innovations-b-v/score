@@ -425,3 +425,98 @@ def test_no_benchmark_that_can_run_is_no_item(settings):
     a_prepare_record(settings, LISTED[2:])
     assert benchmarks.put(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME) == "benchmarks: none listed"
     assert records.item(settings.SCORE_HOME / "proposals", "benchmarks") is None
+
+
+# --- a Buy approved in chat (checkout/chat_yes.py) ----------------------------------------------------------------
+
+QUESTION = "Buy the batch: likely EUR 20, high EUR 30, stop EUR 33?"
+
+
+@pytest.fixture
+def chat(shop, settings, monkeypatch, tmp_path):
+    """The shop as the conductor's door sees it: the owner set, the code on a pin read just now, no latch, no run, the
+    agent markers set; the Buy screen's basket alpha's and beta's close-ups (high EUR 30, stop EUR 33)."""
+    from score import conductor
+    from score.conductor import health
+    from score.dashboard.checkout import chat_yes
+    from score.graph import runs
+    settings.SCORE_OWNER = "joey"
+    get_user_model().objects.create_user("joey", password="a long enough password")
+    monkeypatch.setattr(health, "code", lambda: {"checkout": "582df3eb" * 5, "pin": "582df3eb",
+                                                 "pin_at": chat_yes.now(), "matches": True})
+    monkeypatch.setattr(conductor, "FREE_ONLY_LATCH", tmp_path / "free-only")
+    monkeypatch.setattr(runs, "RUNS", tmp_path / "runs")
+    from score.dashboard.state import screens
+    monkeypatch.setattr(screens, "approved_places", lambda world: ["alpha", "beta"])
+    monkeypatch.delenv("SCORE_FREE_ONLY", raising=False)
+    for name in AGENT_MARKERS:
+        monkeypatch.setenv(name, "1")
+    return shop
+
+
+def chat_buy(yes_id):
+    """(Checkout or None, words or the refusal)."""
+    from score.dashboard.checkout import chat_yes
+    try:
+        return chat_yes.buy(yes_id)
+    except chat_yes.Refused as refused:
+        return None, f"refused: {refused}"
+
+
+def a_yes(stop=33.0, high=30.0):
+    from score.dashboard.checkout import chat_yes
+    return chat_yes.record(stop, high, "Yes, buy it", QUESTION)
+
+
+def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, monkeypatch):
+    monkeypatch.setattr(FakeBackend, "log_folder", None)
+    yes = a_yes()
+    assert [item["id"] for item in yes["basket"]["items"]] == ["alpha-pieces", "beta-pieces"] and yes["by"] == "joey"
+    record, said = chat_buy(yes["id"])
+    assert record is not None and record.state == "launched", said
+    line = stop_line(chat)
+    assert line["euros"] == 100.0 + 10.0 + 33.0  # as his click: spent, in flight, the batch's high plus 10%
+    assert line["by"] == record.by == f"joey, approved in chat at {yes['at']}"
+    assert record.chat_yes["answer"] == "Yes, buy it" and record.chat_yes["question"] == QUESTION
+    assert len(launches()) == 1 and all(os.getenv(name) == "1" for name in AGENT_MARKERS)  # back once launched
+    from score.dashboard.checkout import watched
+    assert watched.newest()["yes"]["answer"] == "Yes, buy it"
+    assert "used already" in chat_buy(yes["id"])[1] and len(launches()) == 1 and Checkout.objects.count() == 1
+
+
+def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settings, monkeypatch, tmp_path):
+    from score import conductor
+    from score.conductor import health
+    from score.dashboard.checkout import chat_yes
+    from score.graph import runs
+    from score.review import web
+
+    def refused(yes_id, words):
+        record, said = chat_buy(yes_id)
+        assert record is None and words in said, said
+        assert not web.buy_yes_used(chat.store, yes_id)  # refused before the yes was spent
+
+    assert "above EUR 0" in str(pytest.raises(chat_yes.Refused, a_yes, stop="nan").value)
+    pytest.raises(chat_yes.Refused, chat_yes.record, 33, 30, "", QUESTION)
+    refused("20261025T000000Z", "no quoted Buy yes")
+    refused(a_yes(high=29.99)["id"], "its high is EUR 30.00, above the EUR 29.99")
+    refused(a_yes(stop=32.99)["id"], "its stop is EUR 33.00, above the EUR 32.99")
+    code = health.code()
+    monkeypatch.setattr(health, "code", lambda: {**code, "matches": False, "checkout": "0" * 40})
+    refused(a_yes()["id"], "is not the cockpit's pin 582df3eb")
+    monkeypatch.setattr(health, "code", lambda: {**code, "pin_at": "2026-10-01T00:00:00+00:00"})
+    refused(a_yes()["id"], "not in the last 30 minutes")
+    monkeypatch.setattr(health, "code", lambda: code)
+    conductor.FREE_ONLY_LATCH.write_text("")
+    refused(a_yes()["id"], "latched off")
+    conductor.FREE_ONLY_LATCH.unlink()
+    monkeypatch.setenv("SCORE_FREE_ONLY", "1")
+    refused(a_yes()["id"], "latched off")
+    monkeypatch.delenv("SCORE_FREE_ONLY")
+    assert runs.claim("abc", ["closeup@alpha"], os.getpid(), folder=tmp_path / "runs") is None
+    refused(a_yes()["id"], "a run is active")
+    runs.unclaim(os.getpid(), folder=tmp_path / "runs")
+    changed = a_yes()["id"]
+    chat.items = a_basket(settings, ["closeup@alpha"])
+    refused(changed, "the basket changed since he approved it")
+    assert not Checkout.objects.exists() and not launches() and stop_line(chat) is None

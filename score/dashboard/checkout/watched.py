@@ -81,6 +81,15 @@ def batch_of(records, accepted_at):
     return number, tries
 
 
+def chat_words(yes):
+    """{at, answer, question, high, stop} of a checkout's Buy approved in chat (checkout/chat_yes.py), for the pages;
+    None for his click."""
+    if not yes:
+        return None
+    return {"at": yes["at"], "answer": yes["answer"], "question": yes["question"], "high": yes["high_euros"],
+            "stop": yes["stop_euros"]}
+
+
 def newest(accepted_at=lambda node: None):
     """The newest checkout as a try of its batch (batch_of): its record and launch, every launch of every try's runs
     (checkout_runs) and the rows they plan, the rows this try makes (try_nodes), the batch's number, its tries and when its first try was made, as plain
@@ -93,7 +102,8 @@ def newest(accepted_at=lambda node: None):
     nodes = {}
     for one in tries:
         nodes.update(dict.fromkeys(record_nodes(one)))
-    return {"checkout": record.pk, "at": record.at.isoformat(), "by": record.by, "state": record.state,
+    return {"checkout": record.pk, "at": record.at.isoformat(), "by": record.by, "yes": chat_words(record.chat_yes),
+            "state": record.state,
             "detail": record.detail, "totals": record.totals, "stop_line": record.stop_line,
             "launch": launch_of(record.launch), "batch": number, "tries": len(tries),
             "first_at": tries[0].at.isoformat(),

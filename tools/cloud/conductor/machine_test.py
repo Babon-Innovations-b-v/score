@@ -474,6 +474,11 @@ def test_door_refuses_a_shell_a_paid_run_and_the_owners_commands():
             assert "refused" in why, asked
         code, why, argv, _ = through_door(folder, "benchmark g1 world1 --detach", "SCORE_FREE_ONLY=1\n")
         assert code == 126 and argv is None and "latch" in why
+        for asked in ("buy", "buy a b", "buy 'y 1'", "buy-yes 30 33 'yes'"):
+            code, why, argv, _ = through_door(folder, asked)
+            assert code == 126 and argv is None and "refused" in why, (asked, why)
+        code, why, argv, _ = through_door(folder, "buy 20261025T1700000000", "SCORE_FREE_ONLY=1\n")
+        assert code == 126 and argv is None and "latch" in why
 
 
 def test_door_runs_the_allowed_commands_marked_as_an_agents():
@@ -492,6 +497,13 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
         code, why, argv, _ = through_door(folder, "grant-benchmark 12 'yes, go' 'may I spend EUR 12 on x?'")
         assert code == 0 and argv[0] == "-c" and argv[2:] == ["12", "yes, go", "may I spend EUR 12 on x?"], argv
+        code, why, argv, env = through_door(folder, "buy-yes 33 30 'Yes, buy it' 'Buy at high EUR 30, stop EUR 33?'")
+        assert code == 0 and argv == ["-m", "score.dashboard", "buy-yes", "33", "30", "Yes, buy it",
+                                      "Buy at high EUR 30, stop EUR 33?"], (why, argv)
+        assert env["SCORE_FREE_ONLY"] == "1" and all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+        code, why, argv, env = through_door(folder, "buy 20261025T170000Z")
+        assert code == 0 and argv == ["-m", "score.dashboard", "buy", "20261025T170000Z"], (why, argv)
+        assert "SCORE_FREE_ONLY" not in env and all(env.get(marker) == "1" for marker in AGENT_MARKERS)
         code, why, argv, _ = through_door(folder, "resume --dry")
         assert code == 0 and argv == ["-m", "score", "resume", "--dry"]
         code, why, argv, _ = through_door(folder, "logs --lines 5")
