@@ -260,7 +260,13 @@ lock, reading and plan, parent before child, then the film.
    surfaces.
 2. Models, one shared loop (`score/stages/shapes_first`): close-up, Pixal3D, the finish route (free views, one
    Gemini batch list, a free split by labels, paint and bake in one job, one recheck), the likeness gate, then each
-   layer adapter's after-steps.
+   layer adapter's after-steps. **Thin straight things are built in code** (owner, 2026-10-25, asked whether the
+   framework may build "straight thin things, swept along their path" in code with a library finish: "Yes,
+   code-build thin straight things"): a row slender by the model gate's rule whose name names a straight kind (pipe,
+   cable, conduit, post, pole, rail, rod, beam, pillar, mast, ...) and whose every close-up take failed is swept in
+   code by the Pixal3D row (`score/stages/props/thin_straight.py`: round or rectangular profile from its size, along
+   its longest side), written as its take, then painted by the finish route and held by the likeness gate to its
+   concept crop like any take; its close-up gap closes only when the free checks pass it.
 3. The base and layers (`architecture/layers`), the assembly, `neighbours`, `scene-tree`.
 4. `complete`, then the library handover.
 

@@ -24,6 +24,7 @@ import score.stages.props.compare as compare  # noqa: E402
 import score.stages.props.likeness as likeness  # noqa: E402
 import score.stages.props.likeness_row as likeness_row  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
+import score.stages.props.thin_straight as thin_straight  # noqa: E402
 from score.stages.surfaces import surface_data  # noqa: E402
 
 # These tests hold their own hand-ins; a designed place's hand-in (the home's design/, which
@@ -326,7 +327,7 @@ def test_a_close_up_s_shaded_backdrop_is_not_its_object():
     pixels[10:50, 20:40] = (90, 60, 40)
     folder = pathlib.Path(tempfile.mkdtemp())
     Image.fromarray(pixels).save(folder / "crate.png")
-    found = likeness.closeup_object(likeness_row.cut_out(folder / "crate.png", folder / "cut"))
+    found = likeness.closeup_object(thin_straight.cut_out(folder / "crate.png", folder / "cut"))
     assert abs(int(found.sum()) - 40 * 20) < 40, found.sum()
     shutil.rmtree(folder)
 

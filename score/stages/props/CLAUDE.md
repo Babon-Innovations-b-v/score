@@ -33,6 +33,13 @@ gate passes it), else
   names (`accepted`); without it the `likeness` check answers unknown and blocks. A designed place's hand-in names
   none, so it has no calibration row: its DINOv2 scores are measured and shown, never judged (`measured_only`), and
   `outline` holds its likeness (#10). Change a threshold only by measuring the accepted set again.
+- **Thin straight things are built in code** (`thin_straight.py`; owner, 2026-10-25: "Yes, code-build thin straight
+  things"): `pixal` sweeps a row slender by `gates/model.py`'s rule and named for a straight kind, whose every Pro take
+  failed, as its take's files (raw, slimmed, final stood by the finish's own turn, `input.png` its concept crop cut
+  out, `code.json`), so the finish route paints it and `likeness` holds it to that crop. `pixal` drops its close-up
+  gap (the finish route skips a gapped take); `likeness` carries it again only while a free check fails the build. A
+  close-up that passes later removes the build and Pixal3D makes the take. Keep `likeness_row` out of its imports:
+  the paid rows' code must not hash the checks (`props_test.py`), so the shared cut-out (`cut_out`) lives there.
 - **A take a paid step failed is a batch gap, never a stop** (`../batch_gaps.py`, score's overlay): `closeup` names
   each object no Pro take passed, `pixal` each take its batch brought no model back for (carrying the close-up's), in
   `batch-gaps.json`; their gates still fail them by name and the table moves those faults. `likeness` reads the rows

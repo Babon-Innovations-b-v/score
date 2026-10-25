@@ -36,7 +36,7 @@ CLOSEUP = graph.Stage("closeup", "place", closeup_row.make_closeups, contract("p
                       euros=closeup_row.EUROS,
                       applies=prop_data.applies, selects=True)
 PIXAL = graph.Stage("pixal", "place", pixal_row.make_pixal, contract("props-pixal", pixal_row.pixal_faults),
-                    (guarded("takes", pixal_row.judge_takes),), files=prop_data.pixal_files,
+                    (guarded("takes", pixal_row.judge_takes),), files=pixal_row.files,
                     after={"closeup": ("props-closeups", 1)}, paid=True, euros=pixal_row.EUROS,
                     applies=prop_data.applies, selects=True)
 CALIBRATION = graph.Stage("likeness-calibration", "place", calibration_row.make_calibration,
