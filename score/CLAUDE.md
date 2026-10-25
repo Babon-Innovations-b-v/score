@@ -63,6 +63,11 @@ stage as each stage is built; nothing moves before.
   as it starts (the command starts itself again inside it) and removed once it ends, after the machines it parked
   are gone (`park.outlive`); a pull or push in the checkout it came from never reaches it. Never point a run at a
   checkout to "pick up" a fix mid-run: start a new run.
+  `run --free` (every run under `SCORE_FREE_ONLY=1` by default: the agents' door, the kill latch) is a free-only run, said in its log's first line: every free node whose inputs stand runs for real, a
+  paid node not standing accepted is `not run: paid, left for the Buy` (its line waits there, no fault report) and
+  the nodes reading it wait on it; no warm pool, nothing cleared (`Runner.cleared` refuses), no re-buy check; it ends
+  with the list of free rows that stand, failed (with causes) and paid rows left, `exit: ok, free-only, ...` unless a
+  free row failed.
 - **`python -m score resume [--dry]`** starts again, each from its own worktree and detached, every `score run` in
   the run registry (`graph/runs.py`, `$PROPS_HOME/runs/<id>.json`) an earlier boot cut off (one the owner stopped is marked `stopped` and never resumed), one resume at a time, and clears an earlier boot's `.partial` files. It starts a run only at the commit that registered it with nothing uncommitted, and only one alive (its entry touched every minute while it drives) within 12 h before the boot; any other, or one whose restart fails, is marked `unresumable` with why and listed by `score status`; a
   detached run's log is under `$PROPS_HOME/logs`. `tools/cloud/conductor/units/score-resume.service` runs it at boot

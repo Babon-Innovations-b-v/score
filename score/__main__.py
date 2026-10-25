@@ -1,7 +1,7 @@
 """SCORE's one command: the runner drives an environment's lines to their end, with no agent in the loop.
 
     .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
-        [--uncommitted] [--oversubscribe]
+        [--uncommitted] [--oversubscribe] [--free]
     .venv/bin/python -m score status [<environment>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
     .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
@@ -83,6 +83,13 @@ run asking for more jobs than the machine has cores (up to its batch size's, out
 waiting for size instead of being refused: the size function grows the machine and `score resume` starts it at the
 boot on the batch size. Every command runs free only (SCORE_FREE_ONLY=1) while the owner's kill switch latch holds.
 
+`run --free` (and every run under SCORE_FREE_ONLY=1: the agents' door, the kill switch's latch) is a free-only run,
+said in its log's first line: every free node whose inputs stand runs for real, each paid node not already standing
+accepted is left for the Buy (graph.PAID_LEFT, its line waiting there, not an error) and the nodes reading it wait on
+it; it opens no warm pool, clears nothing and buys nothing, so the re-buy check and the commit check's paid test are
+left out. It ends with a list (free_closing): the free nodes that stand, those that failed with their causes, the
+paid nodes left; `exit: ok, free-only, ...` unless a free node failed (exit code 1).
+
 Every `run` drives from a frozen copy of the code (score/graph/frozen.py, #45): it makes a git worktree of the
 working tree as it is under $PROPS_HOME/frozen and starts itself again inside it, so a pull or push in this checkout
 never changes a run's inputs mid-run; the copy goes once the run, and every machine it parked, has ended.
@@ -162,6 +169,8 @@ def parse(argv):
     run.add_argument("--oversubscribe", action="store_true", help="allow more jobs than this PC has cores")
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     run.add_argument("--uncommitted", action="store_true", help="run this worktree's changes not committed")
+    run.add_argument("--free", action="store_true", help="free steps only, paid nodes left for the Buy (default "
+                     f"under {conductor.FREE_ONLY}=1)")
     status = commands.add_parser("status")
     status.add_argument("world", metavar="environment", nargs="?", default="world1", choices=sorted(stages.WORLDS),
                         help=ENVIRONMENT_HELP)
@@ -248,7 +257,7 @@ def waited_for_size(runner, places, whole, options, argv):
     run_commit(runner, nodes, options)
     missing = runner.missing_inputs(nodes)
     refused = (("refused: these inputs are missing:\n  " + "\n  ".join(missing)) if missing
-               else rebuy.refusal(rebuy.buys(runner, nodes), options.rebuy_reason))
+               else None if options.free else rebuy.refusal(rebuy.buys(runner, nodes), options.rebuy_reason))
     if refused:
         sys.exit(refused)
     if options.detach:
@@ -1152,6 +1161,26 @@ def exit_status(found, lines):
     return f"stopped, {done} of {len(lines)} lines done, {len(lines) - done} stopped, {rows}"
 
 
+def free_closing(found):
+    """A free-only run's closing list printed (the free nodes that stand, each that failed with its cause, the paid
+    nodes left for the Buy, the nodes waiting on them, the nodes after a failure) and its exit status: ok unless a
+    free node failed."""
+    left = [node for node, did in found.items() if did == graph.PAID_LEFT]
+    waiting = [node for node, did in found.items() if did.startswith(graph.FREE_WAITS.split("{")[0])]
+    after = [node for node, did in found.items() if did.startswith("not run:") and node not in left + waiting]
+    failed = {node: did for node, did in found.items() if "fault report" in did}
+    stand = len(found) - len(left) - len(waiting) - len(after) - len(failed)
+    print(f"free-only run: {stand} free rows stand, {len(failed)} failed, {len(after)} not run after a failure; "
+          f"{len(left)} paid rows left for the Buy, {len(waiting)} rows wait on them")
+    for listed in [*(f"  failed {node}: {did}" for node, did in failed.items()),
+                   *(f"  left for the Buy: {node}" for node in left),
+                   *(f"  waits on a paid row: {node}" for node in waiting)]:
+        print(listed)
+    word = "stopped" if failed else "ok"
+    return (f"{word}, free-only, {stand} free rows stand, {len(failed)} failed, {len(left)} paid rows left for the "
+            f"Buy, {len(waiting)} wait on them")
+
+
 def raised_status(error):
     """A run's exit status from what it raised: a signal's stop (exit code 128 + its number) named as such."""
     if isinstance(error, SystemExit):
@@ -1163,18 +1192,18 @@ def raised_status(error):
 def run_with_exit_line(runner, places, whole, options, argv):
     """Drive the lines as a run (as_run) registered in the run registry (driven), then print their closing states,
     then one `exit: <status>` line, the run's last, said in every case: when it ends, raises, or is stopped by a
-    signal (stopped.stop_on_signals raises SystemExit); the lines."""
-    status = "ended without a status"
+    signal (stopped.stop_on_signals raises SystemExit); (the lines, the status)."""
+    status, free = "ended without a status", getattr(options, "free", False)
     try:
         started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
         found = {}
         gauges = tending(run_gauges(runner, places, whole, options.stage, started),
                          pool_tender(runner, options.jobs, time.time()))
         as_run(runner, lambda: found.update(driven(runner, places, whole, options, argv, gauges=gauges)),
-               opening=lambda: opened_pool(runner, places, whole, options))
+               opening=None if free else lambda: opened_pool(runner, places, whole, options))
         lines = closing_lines(runner, places, whole, options)
-        status = exit_status(found, lines)
-        return lines
+        status = free_closing(found) if free else exit_status(found, lines)
+        return lines, status
     except BaseException as error:  # noqa: BLE001 - said, then raised again as it was
         status = raised_status(error)
         raise
@@ -1210,7 +1239,8 @@ def run_commit(runner, nodes, options):
     """The commit this run registers as; exit when the worktree has tracked changes not committed, the run would buy
     a paid row and no --uncommitted is given."""
     dirty = runs.tracked_changes() or frozen.had_changes()
-    refused = runs.dirty_refusal(dirty, options.uncommitted, dirty and bool(rebuy.buys(runner, nodes)))
+    buying = dirty and not options.free and bool(rebuy.buys(runner, nodes))
+    refused = runs.dirty_refusal(dirty, options.uncommitted, buying)
     if refused:
         sys.exit(refused)
     return runs.identity(_code.git_commit()["commit"], dirty, REPO)
@@ -1267,17 +1297,23 @@ def main(argv=None):
         slices.apply_shim()  # in the runs' slice, a step's own systemd-run scope stays in it
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
+    if options.command == "run":
+        options.free = runner.free_only = options.free or os.environ.get(conductor.FREE_ONLY) == "1"
     places, whole = options.place or stages.places(runner.world, runner.store), not options.place
     if options.command == "plan":
         print(json.dumps(plan_json(runner, places, whole, options)))
         return
     if options.command == "run":
+        if options.free:
+            print("score run: free-only run: every free row whose inputs stand runs, paid rows are left for the Buy; "
+                  "no warm pool, nothing cleared or bought", flush=True)
         checked_thread_variables()
         if waited_for_size(runner, places, whole, options, sys.argv[1:] if argv is None else argv):
             return
         checked_threads(options)
         claim(runner, places, whole, options)
-        checked_buys(runner, places, whole, options)
+        if not options.free:  # a free-only run buys nothing: no re-buy list or reason
+            checked_buys(runner, places, whole, options)
     if getattr(options, "detach", False):
         detach(sys.argv)
         return
@@ -1294,8 +1330,8 @@ def main(argv=None):
         for entry in runs.waiting().values():
             print(f"waiting for size {runs.describe(entry)}: {entry.get('jobs')} jobs")
         return
-    lines = run_with_exit_line(runner, places, whole, options, sys.argv[1:] if argv is None else argv)
-    if any(state != "done" for state, _ in lines.values()):
+    _, status = run_with_exit_line(runner, places, whole, options, sys.argv[1:] if argv is None else argv)
+    if not status.startswith("ok"):  # a free-only run's lines wait at the paid rows left: only a failure counts
         sys.exit(1)
 
 
