@@ -24,7 +24,8 @@ def make_calibration(inputs, out, seed, params):
     for model in sorted(accepted):
         made, closeup = inputs[f"accepted model {model}"], inputs[f"accepted close-up {model}"]
         scored[model] = likeness.best_way(made, closeup)
-        pairs[model] = likeness.write_pair(made, closeup, scored[model]["way"], out / "pairs", model)
+        pairs[model] = likeness.write_pair(made, closeup, scored[model]["way"], out / "pairs", model,
+                                           scored[model]["look_down"])
     (out / "outline.json").write_text(json.dumps(scored, indent=1))
     with prop_data.tools("cloud", "props"):
         import similar
