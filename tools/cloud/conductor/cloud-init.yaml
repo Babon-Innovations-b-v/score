@@ -1,8 +1,13 @@
 #cloud-config
-# The conductor's first boot (tools/cloud/conductor/machine.py renders this template into the server's user-data; its
-# slots are filled there, never in the repository): user score (uid 1100) with the owner's ssh key and the agents'
-# key held to the door, sshd keys-only, the packages boot.sh needs first, this repository cloned over https at the
-# commit `up` was run from, then boot.sh's system part. No secret is in here: the one credential arrives over ssh.
+# The conductor's boot (tools/cloud/conductor/machine.py renders this template into the server's user-data; its slots
+# are filled there, never in the repository): user score (uid 1100) with the owner's ssh key and the agents' key held
+# to the door, sshd keys-only, the packages boot.sh needs first. No secret is in here: the one credential arrives over
+# ssh. users, packages and write_files run at the first boot only; bootcmd runs at every boot, so a live server gets
+# score-boot.service from a user-data update and a reboot (`machine.py user-data`). bootcmd runs before systemd's bus
+# is up, so it only writes files: the unit, and a per-boot script cloud-init's final stage runs (bus up), which enables
+# the unit and starts it when this boot has not (the first boot, and the first after an update). score-boot.service
+# runs at every boot after the network: this repository cloned when missing and moved to origin/main as score, then
+# boot.sh system (/var/log/score-boot-system.log), then boot.sh user as score (/var/log/score-boot-user.log).
 users:
   - name: score
     uid: 1100
@@ -22,7 +27,34 @@ write_files:
     permissions: "0644"
     content: |
       SCORE_DATA_DEVICE=@DATA_DEVICE@
-runcmd:
-  - [runuser, -u, score, --, git, clone, -q, "https://github.com/Babon-Innovations-b-v/score", /home/score/projects/score]
-  - [runuser, -u, score, --, git, -C, /home/score/projects/score, checkout, -q, --detach, "@COMMIT@"]
-  - [bash, -c, "set -a && . /etc/score-conductor.env && set +a && exec bash /home/score/projects/score/tools/cloud/conductor/boot.sh system"]
+bootcmd:
+  - |
+    cat > /etc/systemd/system/score-boot.service << 'UNIT'
+    [Unit]
+    Description=SCORE conductor boot: checkout to origin/main, boot.sh system, boot.sh user (cloud-init.yaml)
+    Wants=network-online.target
+    After=network-online.target
+
+    [Service]
+    Type=oneshot
+    RemainAfterExit=yes
+    TimeoutStartSec=infinity
+    EnvironmentFile=/etc/score-conductor.env
+    ExecStart=/bin/sh -c 'R=/home/score/projects/score; { test -d $$R/.git || runuser -u score -- git clone -q https://github.com/Babon-Innovations-b-v/score $$R; runuser -u score -- git -C $$R fetch -q origin main && runuser -u score -- git -C $$R checkout -q --detach origin/main && echo "boot: checkout at origin/main" || echo "boot: the checkout move failed; booting the checkout as it is"; } > /var/log/score-boot-system.log 2>&1'
+    ExecStart=/bin/sh -c 'exec bash /home/score/projects/score/tools/cloud/conductor/boot.sh system >> /var/log/score-boot-system.log 2>&1'
+    ExecStart=/bin/sh -c 'exec runuser -u score -- env XDG_RUNTIME_DIR=/run/user/1100 HOME=/home/score bash /home/score/projects/score/tools/cloud/conductor/boot.sh user > /var/log/score-boot-user.log 2>&1'
+
+    [Install]
+    WantedBy=multi-user.target
+    UNIT
+    mkdir -p /var/lib/cloud/scripts/per-boot
+    cat > /var/lib/cloud/scripts/per-boot/score-boot.sh << 'SCRIPT'
+    #!/bin/sh
+    set -e
+    systemctl daemon-reload
+    systemctl enable -q score-boot.service
+    if [ "$(systemctl show -p ActiveState --value score-boot.service)" = inactive ]; then
+      systemctl start score-boot.service
+    fi
+    SCRIPT
+    chmod 0755 /var/lib/cloud/scripts/per-boot/score-boot.sh

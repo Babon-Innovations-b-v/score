@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# The conductor's boot, after cloud-init (cloud-init.yaml) made user score and cloned this repository. Safe to re-run.
+# The conductor's boot, run at every boot by score-boot.service (cloud-init.yaml installs it), which first clones this
+# repository when missing and moves it to origin/main. Safe to re-run.
 #
-#   bash tools/cloud/conductor/boot.sh system     # as root: cloud-init's last step; ends by running the user part
-#   bash tools/cloud/conductor/boot.sh user       # as score: the checkout, .venv, units, score_lib
+#   bash tools/cloud/conductor/boot.sh system     # as root, with systemd's and D-Bus's sockets up (score-boot.service)
+#   bash tools/cloud/conductor/boot.sh user       # as score, after the system part: the checkout, .venv, units, score_lib
 #   bash tools/cloud/conductor/boot.sh env        # as score: the prop environment alone
 #
 # system: the packages; user score (uid 1100) with linger; the data volume (SCORE_DATA_DEVICE, cloud-init's
@@ -18,7 +19,9 @@
 #
 # SCORE_BOOT_ROOT puts every path under another root (the dry check, machine_test.py, runs it against a temp root
 # with its commands shimmed); on the machine it is empty.
-set -euo pipefail
+set -Eeuo pipefail
+# Any failing command stops the boot and names itself, so the boot log says where it stopped.
+trap 'code=$?; echo "boot: stopped at boot.sh line $LINENO, exit $code: $BASH_COMMAND" >&2' ERR
 
 ROOT="${SCORE_BOOT_ROOT:-}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -236,6 +239,12 @@ EOF
 
 system_part() {
   [ -n "$ROOT" ] || [ "$(id -u)" -eq 0 ] || { echo "boot: the system part runs as root" >&2; exit 1; }
+  # cloud-init's bootcmd runs before D-Bus is up; loginctl and the units need it, so stop here and say so.
+  if [ ! -S "$ROOT/run/dbus/system_bus_socket" ]; then
+    echo "boot: no system bus at /run/dbus/system_bus_socket (run from early boot?); the system part runs from" \
+      "score-boot.service after the network is up" >&2
+    exit 1
+  fi
   install_packages
   ensure_user
   mount_data
@@ -247,9 +256,8 @@ system_part() {
   install_gcloud
   install_scripts
   harden_ssh
+  # user score's manager, for the user part score-boot.service runs next
   systemctl start "user@$SCORE_UID.service"
-  runuser -u "$SCORE_USER" -- env "XDG_RUNTIME_DIR=/run/user/$SCORE_UID" "HOME=$ROOT/home/$SCORE_USER" \
-    "SCORE_BOOT_ROOT=$ROOT" bash "$HERE/boot.sh" user
 }
 
 checkout() {

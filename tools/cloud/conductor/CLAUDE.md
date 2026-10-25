@@ -50,8 +50,14 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   ~/.local/bin (on the env file's PATH) for the cockpit's lock and withdraw. Once machine.json is there,
   the user part syncs the prop environment `$PROPS_HOME/env` (the rows' PROPS_PYTHON: rough-model, people, surfaces;
   left out of every backup) from uv.lock with bootstrap.sh's command (`boot.sh env`, which the move runs after its
-  restore), and score_lib's `.venv` (its `score-lib` command, which library_files.py runs). Nothing runs boot.sh at
-  a reboot, so `update.py` syncs the prop environment whenever it is missing and with `.venv` on a uv.lock change. The first Buy on the conductor (2026-10-24, checkout 4)
+  restore), and score_lib's `.venv` (its `score-lib` command, which library_files.py runs). **Every boot** runs the
+  root oneshot `score-boot.service`: the checkout cloned when missing and moved to origin/main as score, `boot.sh
+  system` (`/var/log/score-boot-system.log`), then `boot.sh user` as score (`/var/log/score-boot-user.log`). cloud-init's
+  `bootcmd` (every boot, before D-Bus is up, so files only) writes the unit and a per-boot script; cloud-init's final
+  stage runs that script (bus up), which enables the unit and starts it when this boot has not. A live server gets it
+  by `machine.py user-data [--dry]` (sets its user-data key `cloud-init` to the rendered template; users and
+  write_files do not run again) and a reboot. `boot.sh system` stops with a clear message without the system bus,
+  and names the line of any failing command. Between boots `update.py` syncs the prop environment whenever it is missing and with `.venv` on a uv.lock change. The first Buy on the conductor (2026-10-24, checkout 4)
   failed for want of it.
 - **Secrets**: one credential on disk, `/home/score/.config/scw/config.yaml` (mode 600). Everything else by name
   through `/usr/local/bin/score-secret-reader` (`secret_reader.sh`: the project id found by its name,
@@ -73,25 +79,15 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   pass runs the same update first (its ExecStartPre, rendered by `install-sync --no-pull`; two calls take turns on
   `.git/score-update.lock`): a pass outlasts its 5-minute timer, so with score-update's timer alone a pass was always
   running and the live conductor's checkout sat on an old commit for hours (2026-10-24); the timer stays for an idle
-  conductor. **Hand fix to undo:** that day the live conductor got a cloud-init `bootcmd` in its user-data (key
-  `cloud-init`) that fetches and checks out origin/main as user score on every boot. Remove it once the units carry
-  this fix: after a release pins a commit holding it, the owner (his shell, or an agent under his recorded yes) runs as
-  score `systemctl --user stop score-sync.timer`, waits for `systemctl --user is-active score-sync.service` to say
-  inactive, runs `/usr/bin/python3 -I ~/projects/score/tools/cloud/conductor/update.py --repo ~/projects/score`, then
+  conductor. **Hand fix to undo:** the live conductor's user-data carries a hand-written `bootcmd` (2026-10-24/25:
+  fetch and check out origin/main, the prop environment's `uv sync`, and `boot.sh system` then `user`, which died there
+  for want of D-Bus). After a batch ends: `python3 tools/cloud/conductor/machine.py user-data --agent-key
+  ~/.ssh/score_conductor_agents.pub` (from this PC with the owner's scw profile; `--dry` first), then a reboot; check
+  the boot logs through the door, then delete this note. Unless done already, the sync unit's own fix still needs, as
+  score: `systemctl --user stop score-sync.timer`, wait for `systemctl --user is-active score-sync.service` to say
+  inactive, `/usr/bin/python3 -I ~/projects/score/tools/cloud/conductor/update.py --repo ~/projects/score`, then
   `cd ~/projects/score && .venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env
-  --no-pull` (re-enables the timer), checks `grep ExecStartPre ~/.config/systemd/user/score-sync.service` names
-  update.py; then from his PC `scw instance user-data get server-id=<id> key=cloud-init zone=fr-par-2`, the `bootcmd`
-  block deleted, `scw instance user-data set server-id=<id> key=cloud-init content=@<file> zone=fr-par-2`, and this
-  note deleted. The same `bootcmd` got a second hand fix after the first Buy failed (2026-10-24): `uv sync` of the
-  prop environment (`UV_PROJECT_ENVIRONMENT=/home/score/.farm-factory-props/env uv sync -q --frozen --no-dev
-  --project /home/score/projects/score`, as score) on every boot. Remove it with the first once a release pins a
-  commit whose boot.sh has `props_env`: as score run `bash ~/projects/score/tools/cloud/conductor/boot.sh user` once
-  (it also builds score_lib's `.venv`, which no boot.sh before this one built: without it a library fetch finds no
-  `score-lib`) and check `ls ~/.farm-factory-props/env/bin/python ~/projects/score_lib/.venv/bin/score-lib`, then delete that `uv sync` line with the `git` lines in the same
-  user-data edit. The apt packages added that day (rsync, openssh-client, ffmpeg) and Node.js (`install_node`, 2026-10-25) reach the live
-  conductor only through the system part, which cloud-init ran once at its first boot: as root, `bash
-  /home/score/projects/score/tools/cloud/conductor/boot.sh system` (safe to re-run). The same holds for Chromium's libraries (`chromium_libraries`,
-  added 2026-10-25 for the film preview the sync pass renders); its browser comes with the user part. Other areas add their own units here;
+  --no-pull`, and `grep ExecStartPre ~/.config/systemd/user/score-sync.service` names update.py. Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
 - Tests (free, no cloud; each file well under 120 s): `machine_test.py` (cloud-init schema, `systemd-analyze --user
   verify`, `up --dry`, boot.sh against a temp root, the door), `update_test.py`, `health_push_test.py`,

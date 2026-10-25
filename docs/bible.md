@@ -652,7 +652,7 @@ for `meta-llama/Meta-Llama-3-8B-Instruct`, Kimodo's text encoder's base).
 **The conductor** (`tools/cloud/conductor`, its overlay) is the store's machine as one Scaleway CPU machine of our
 own instead of this PC: the owner runs `python3 tools/cloud/conductor/machine.py up` once from his terminal (it
 costs money; `machine.py price` gives the month, `machine.py dry` checks it all for free). Cloud-init and `boot.sh`
-make user `score` with linger, mount the data volume at `/home/score/.farm-factory-props` (so `PROPS_HOME` keeps its
+(at every boot, through the root unit `score-boot.service` cloud-init installs) make user `score` with linger, mount the data volume at `/home/score/.farm-factory-props` (so `PROPS_HOME` keeps its
 default; the bare mountpoint is made immutable, so a boot without the volume never starts an empty store), install restic, uv, scw and the Google Cloud CLI pinned by SHA-256, clone this repository over https,
 `uv sync`, and install the units in `tools/cloud/conductor/units/` (`score-resume`, `score-secrets`,
 `score-update`, `score-health`, and the other areas' own). Its one credential on disk is
