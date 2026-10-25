@@ -114,6 +114,11 @@ LOCK_WAIT, LOCK_POLL = 6 * 3600, 2
 # The folder a node makes into, named for its make and the processes it starts, so a cloud runner can keep each
 # finished job under the node's key and a rerun pay only for the jobs it lacks (tools/cloud/kept.py, C21).
 MAKING = "SCORE_MAKING"
+# A free-only run (`score run --free`, or any run under SCORE_FREE_ONLY=1: the agents' door, before the owner's Buy)
+# runs every free node whose inputs stand and leaves each paid node that does not already stand accepted, as a line
+# waits on a block: not cleared, not an error. A node reading one waits on it (FREE_WAITS).
+PAID_LEFT = "not run: paid, left for the Buy"
+FREE_WAITS = "not run: waits on {node}, paid, left for the Buy"
 
 
 def transient(error):
@@ -531,6 +536,7 @@ class Runner:
         self.code_versions = {}
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
+        self.free_only = False  # a free-only run (PAID_LEFT): nothing cleared, paid nodes left for the Buy
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
         if unknown:
             raise ValueError(f"stages read stages the table lacks: {sorted(unknown)}")
@@ -755,7 +761,10 @@ class Runner:
         return self.cleared(node, stage.euros) if stage.paid else contextlib.nullcontext()
 
     def cleared(self, node, euros):
-        """The node's clearance at `euros`, named for the rent points while the block runs; Blocked when refused."""
+        """The node's clearance at `euros`, named for the rent points while the block runs; Blocked when refused, and
+        always in a free-only run (a paid gatherer of a free node), before the clearance is asked."""
+        if self.free_only:
+            raise Blocked(f"{node}: a paid step ({euros} EUR) is not cleared in a free-only run: left for the Buy")
         from score.adapters import compute  # here: compute imports this module for its tickets
         try:
             return compute.spending(compute.clearance(self, node, euros))
@@ -1393,7 +1402,12 @@ class Runner:
                 if waits:
                     waiting.remove((stage, place))
                     stopped[node] = waits[0]
-                    done[node] = f"not run: its line stopped at {waits[0]}"
+                    done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0]) == PAID_LEFT
+                                  else f"not run: its line stopped at {waits[0]}")
+                    say(f"{node}: {done[node]}")
+                elif stood.union(passes).issuperset(earlier) and self.left_for_buy(stage, place):
+                    waiting.remove((stage, place))
+                    stopped[node], done[node] = node, PAID_LEFT
                     say(f"{node}: {done[node]}")
                 elif stood.union(passes).issuperset(earlier) and len(running) < jobs and \
                         not self.unsettled(stage, place, line, stood, stopped):
@@ -1432,6 +1446,14 @@ class Runner:
                 say(f"{node}: {done[node]}")
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
+
+    def left_for_buy(self, stage, place):
+        """In a free-only run, whether a paid node is left for the Buy: it does not already stand accepted (one that
+        does is run as any, which finds its record and pays nothing)."""
+        if not (self.free_only and stage.paid):
+            return False
+        with self.still():
+            return self.standing(stage, place) is not None
 
     def unsettled(self, stage, place, line, stood, stopped):
         """The node's optional reads the drive still makes (in its `line`, neither stood nor stopped): the node waits

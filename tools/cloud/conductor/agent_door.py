@@ -7,7 +7,8 @@ as an argument list, never through a shell, and only when it is one of these:
 
     status|plan|price [args]                    python -m score status|plan|price ...
     resume --dry                                python -m score resume --dry
-    run <environment> [args] --detach           python -m score run ... --detach, with SCORE_FREE_ONLY=1
+    run <environment> [args] --detach           python -m score run ... --detach --free, with SCORE_FREE_ONLY=1:
+                                                a free-only run, every free row for real, paid rows left for the Buy
     logs [--lines N]                            python -m score.conductor logs: the newest run logs, fault reports
                                                 and the sync, listener, resume and backup journals, secrets left out
     health                                      python -m score.conductor health: the Machine card's health, read
@@ -124,7 +125,7 @@ def decide(words, latch):
         if not args or args[0].startswith("-"):
             raise Refused("run names an environment first")
         detached(args, verb)
-        return ["-m", "score", "run", *args], {}
+        return ["-m", "score", "run", *args, "--free"], {}
     if verb == "logs":
         return ["-m", "score.conductor", "logs", *args], {}
     if verb == "health":

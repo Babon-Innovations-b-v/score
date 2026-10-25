@@ -486,7 +486,7 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         door_checkout(folder)
         code, why, argv, env = through_door(folder, "run world1 --place hangar --detach")
         assert code == 0, why
-        assert argv == ["-m", "score", "run", "world1", "--place", "hangar", "--detach"]
+        assert argv == ["-m", "score", "run", "world1", "--place", "hangar", "--detach", "--free"]
         assert env["SCORE_FREE_ONLY"] == "1" and "SCORE_BENCHMARK_GRANT" not in env
         assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
         code, why, argv, env = through_door(folder, "status world1 $(id)")

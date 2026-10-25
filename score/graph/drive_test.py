@@ -1036,7 +1036,7 @@ def run_printing(runner, places, whole=False):
     from score import __main__ as command
     printed = io.StringIO()
     with contextlib.redirect_stdout(printed):
-        lines = command.run_with_exit_line(runner, places, whole, run_options(), ["run", "world1"])
+        lines, _ = command.run_with_exit_line(runner, places, whole, run_options(), ["run", "world1"])
     return printed.getvalue().splitlines(), lines
 
 
