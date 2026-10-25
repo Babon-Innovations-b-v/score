@@ -193,10 +193,12 @@ def monitor(request):
         "reload": RELOAD_SECONDS[actions.hosted()] if context["live"] or waiting else None})
 
 
-def live_batch(source):
-    """Home's link to the monitor while a batch lives: {label, tone, done, total}, else None."""
-    run = source.batch_run()
+def live_batch(run):
+    """Home's and Buy's link to the monitor while the batch `run` lives (starting, running or waiting): {label, tone,
+    words ("is running"), batch, tries, done, total, spent}, else None."""
     if not run or run["state"] not in batch_run.LIVE:
         return None
     label, tone, _ = STATES[run["state"]]
-    return {"label": label, "tone": tone, "done": run["rows"]["done"], "total": run["rows"]["total"]}
+    return {"label": label, "tone": tone, "words": f"is {label.lower()}", "batch": run["batch"] or run["checkout"],
+            "tries": run.get("tries") or 1, "done": run["rows"]["done"], "total": run["rows"]["total"],
+            "spent": run["money"]["spent"] or 0}
