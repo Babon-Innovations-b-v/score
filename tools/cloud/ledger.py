@@ -81,6 +81,7 @@ def open_rents(batches, now):
     machine (written at its delete) and no refused line of their order."""
     runs = {batch.get("batch") for batch in batches if batch.get("kind") not in ORDER_LINES}
     closed = {batch.get("name") for batch in batches if batch.get("kind") in ("disk-and-address", RENT_REFUSED)}
+    closed |= {name for batch in batches if batch.get("kind") == "pool-hold" for name in batch.get("names", ())}
     return [batch for batch in batches if batch.get("kind") == RENT_STARTED and batch.get("run") not in runs
             and batch.get("name") not in closed and moment(batch["started"]) <= now]
 
@@ -260,6 +261,8 @@ def machine_row(machine):
         row["setup_minutes"] = (machine["set_up"] - ready) / 60
     row.update({key: machine[key] for key in ("peak_gb", "made", "unit_seconds", "adopted", "parked")
                 if machine.get(key) is not None})
+    if machine.get("pool"):  # its pool books every minute of it (pool.hold); the measurements read card_euros
+        row["card_euros"], row["euros"] = row["euros"], 0.0
     return row
 
 

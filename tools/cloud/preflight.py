@@ -73,9 +73,9 @@ def setup_minutes(machines):
 
 
 def euros_per_card_minute(machines):
-    """Every euro the machines cost over every card-minute they were held."""
+    """Every euro the machines cost over every card-minute they were held (a pool machine's booked by its pool)."""
     card_minutes = sum(row["minutes"] * max(1, row.get("cards") or 1) for row in machines)
-    return sum(row["euros"] for row in machines) / card_minutes if card_minutes else 0.0
+    return sum(row["euros"] + row.get("card_euros", 0.0) for row in machines) / card_minutes if card_minutes else 0.0
 
 
 def batch_kinds(entries):
@@ -139,7 +139,8 @@ def run_costs(entries):
     found = {}
     for entry in entries:
         euros, minutes = found.get(entry["ticket"], (0.0, 0.0))
-        found[entry["ticket"]] = (euros + entry.get("euros", 0.0), minutes + batch_minutes(entry))
+        pooled = sum(row.get("card_euros", 0.0) for row in entry.get("machines", ()))  # its pool's booking
+        found[entry["ticket"]] = (euros + entry.get("euros", 0.0) + pooled, minutes + batch_minutes(entry))
     return found
 
 

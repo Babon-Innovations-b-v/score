@@ -15,8 +15,8 @@ the files the batch writes, read live locally and carried in the export as batch
       eta       {likely_minutes, high_minutes} the checkout's runner times; untimed the bought steps with no
                 measured price (the ETA is then at least); elapsed since the checkout's first run started (a relaunch
                 goes on the batch's clock)
-      money     {spent (the checkout's: the last heartbeat of each of its runs, each the euros its rows, its warm pool,
-                its cards idle now and its model calls cost; None before any), open
+      money     {spent (the checkout's: the last heartbeat of each of its runs, each the euros its rows, its warm pool
+                (every minute of its machines) and its model calls cost; None before any), open
                 (paid runs open), likely, high (pricing.cleared_high: the high with the guessed steps, what the
                 runner clears), guessed, stop (this batch's own room under the stop line the Buy wrote: the line
                 less the spend and the reservations it was written over, on the same scale as spent; None for a

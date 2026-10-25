@@ -397,8 +397,8 @@ def summarise(rows):
     for (kind, machine_type), group in sorted(groups.items()):
         ran = [row for row in group if row.get("started", True)]
         units = [seconds for row in ran for seconds in row.get("unit_seconds") or []]
-        euros = sum(row.get("euros", 0.0) for row in group)
-        counted = sum(row.get("euros", 0.0) for row in ran if row.get("unit_seconds"))
+        euros = sum(row.get("euros", 0.0) + row.get("card_euros", 0.0) for row in group)  # a pool's booking too
+        counted = sum(row.get("euros", 0.0) + row.get("card_euros", 0.0) for row in ran if row.get("unit_seconds"))
         table.append({"kind": kind, "type": machine_type, "machines": len(ran),
                       "failed_starts": len(group) - len(ran),
                       "start_wait_minutes": median(row.get("start_wait_minutes") for row in ran),
