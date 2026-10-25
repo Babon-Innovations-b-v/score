@@ -67,6 +67,9 @@ KIND = "pool"
 POLL_SECONDS = 10
 # How often the collector touches every idle card's heartbeat (self_delete.py deletes a card 15 min quiet).
 BEAT_SECONDS = 60
+# How long a release lets the pool's collector end on its SIGTERM (close) before it is sent SIGKILL (end_collector):
+# within score run's POOL_RELEASE_SECONDS, so a collector hung in a provider call never holds a pool past its run.
+COLLECTOR_STOP_SECONDS = 10
 SPEND_TICKET = "SCORE_SPEND_TICKET"
 RUN_PID = "SCORE_RUN_PID"
 
@@ -856,8 +859,23 @@ def release(run_id):
     at_once(errors, [lambda record=record: release_idle(record) for record in park.pool_records(run_id)])
     at_once(errors, [lambda card=card: delete_card(run_id, card) for card in members(run_id)
                      if not card.get("holder") or not process_alive(card["holder"])])
+    end_collector(plan_of(run_id).get("collector"))
     if errors:
         raise errors[0]
+
+
+def end_collector(collector, wait=None):
+    """SIGKILL the pool's `collector` (its pid) when it has not ended `wait` seconds (COLLECTOR_STOP_SECONDS) after
+    close's SIGTERM; nothing for this process's own pid or one already gone."""
+    if not collector or collector == os.getpid():
+        return
+    ends = time.time() + (COLLECTOR_STOP_SECONDS if wait is None else wait)
+    while process_alive(collector) and time.time() < ends:
+        time.sleep(0.1)
+    if process_alive(collector):
+        batch.say(f"pool: its collector (pid {collector}) did not end on its stop; killing it")
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(collector, signal.SIGKILL)
 
 
 def at_once(errors, calls):

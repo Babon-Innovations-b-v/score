@@ -196,7 +196,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   card, side by side, before it raises, `score run`'s release going on past it. A stopped `score run` releases its
   pool first, before its 30 s grace (`stop_run`), so no card is rented in the place of one a stopping taker deletes;
   the detached wrapper waits `stopped.FORWARD_WAIT_SECONDS` (90) for it; a collector stops at its first signal and
-  ignores the next, so its rents under way delete their machines (faults of 2026-10-24); a zombie holds no card
+  ignores the next, so its rents under way delete their machines (faults of 2026-10-24), and one still there
+  `pool.COLLECTOR_STOP_SECONDS` after a release deleted the cards is sent SIGKILL (`pool.end_collector`); a card of a
+  closed pool still parked when its run's release was cut off goes at once (`park.outlive`); a zombie holds no card
   (`pool.process_alive`). Every machine minute is charged once, by the pool
   (`pool.hold`, `pool-hold-<run>-...` lines, kind `pool-hold`): from its creation to its delete, busy or idle, at its
   offer's price and billing unit, booked each collector beat and when it is struck off (`pool.left`), under the run

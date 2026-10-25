@@ -541,6 +541,7 @@ class Runner:
         self.model_record = model_record or models.record
         self.code_versions = {}
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
+        self.driving = None  # (nodes running, monotonic time) at the end of drive's last pass: score run's watchdog
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
         self.free_only = False  # a free-only run (PAID_LEFT): nothing cleared, paid nodes left for the Buy
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
@@ -1405,30 +1406,36 @@ class Runner:
         beat_at = time.monotonic() + HEARTBEAT
         threads = node_threads(jobs)
         starts, told = [], False  # starts: when each node started (memory_room); told: the memory wait was said
+        self.driving = (0, time.monotonic())
         while waiting or running:
             held = False  # a node ready to start waits for memory
-            for stage, place in list(waiting):
-                node, earlier = node_name(stage, place), self.earlier(stage, place)
-                passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}
-                waits = [stopped[before] for before in earlier if before in stopped and before not in passes]
-                if waits:
-                    waiting.remove((stage, place))
-                    stopped[node] = waits[0]
-                    done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0]) == PAID_LEFT
-                                  else f"not run: its line stopped at {waits[0]}")
-                    say(f"{node}: {done[node]}")
-                elif stood.union(passes).issuperset(earlier) and self.left_for_buy(stage, place):
-                    waiting.remove((stage, place))
-                    stopped[node], done[node] = node, PAID_LEFT
-                    say(f"{node}: {done[node]}")
-                elif stood.union(passes).issuperset(earlier) and len(running) < jobs and \
-                        not self.unsettled(stage, place, line, stood, stopped):
-                    held = held or not memory_room(starts)
-                    if held:
-                        continue
-                    waiting.remove((stage, place))
-                    running.update(self.start(stage, place, threads))
-                    starts.append(time.monotonic())
+            ready = []  # started once the pass is over: a forked node must not inherit its remembered keys
+            with self.still():  # each key worked out once a pass (Batch 1, 2026-10-25: a pass took 12 min and more)
+                for stage, place in list(waiting):
+                    node, earlier = node_name(stage, place), self.earlier(stage, place)
+                    passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}
+                    waits = [stopped[before] for before in earlier if before in stopped and before not in passes]
+                    if waits:
+                        waiting.remove((stage, place))
+                        stopped[node] = waits[0]
+                        done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0]) == PAID_LEFT
+                                      else f"not run: its line stopped at {waits[0]}")
+                        say(f"{node}: {done[node]}")
+                    elif stood.union(passes).issuperset(earlier) and self.left_for_buy(stage, place):
+                        waiting.remove((stage, place))
+                        stopped[node], done[node] = node, PAID_LEFT
+                        say(f"{node}: {done[node]}")
+                    elif stood.union(passes).issuperset(earlier) and len(running) + len(ready) < jobs and \
+                            not self.unsettled(stage, place, line, stood, stopped):
+                        held = held or not memory_room(starts)
+                        if held:
+                            continue
+                        waiting.remove((stage, place))
+                        ready.append((stage, place))
+                        starts.append(time.monotonic())
+            for stage, place in ready:
+                running.update(self.start(stage, place, threads))
+            self.driving = (len(running), time.monotonic())
             if held and not told:
                 say(f"memory: {AVAILABLE() / 2**30:.1f} GB available, {len(running)} running; ready nodes wait for "
                     f"{memory_floor() / 2**30:.0f} GB free per node starting")

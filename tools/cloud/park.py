@@ -413,14 +413,16 @@ def outlive(run_id, poll=PARKED_POLL_SECONDS):
     """Wait until no machine `run_id` parked is listed: one another run took, or its --expire process deleted, is
     gone; one still listed at its time is released here (its --expire process is gone or late: 2026-10-20, three L4s
     of an ended run parked past their time until removed by hand), never left to the machine's own self-delete. The
-    run's releaser calls it once the run has ended (score/__main__.py release_once_ended)."""
+    run's releaser calls it once the run has ended (score/__main__.py release_once_ended). A card of a pool closed
+    goes at once: the run's own release of it was cut off (its end bounded, POOL_RELEASE_SECONDS)."""
+    import pool
     while True:
         records = parked_by(run_id)
         if not records:
             return
         now = time.time()
         for record in records:
-            if record["until"] <= now:
+            if record["until"] <= now or (record.get("pool") and pool.current(record["pool"]) is None):
                 release(record["id"], record["zone"], record["token"])
         soonest = min(record["until"] for record in records) - now
         time.sleep(min(poll, soonest) if soonest > 0 else poll)

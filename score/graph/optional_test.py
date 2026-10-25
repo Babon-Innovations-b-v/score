@@ -8,6 +8,7 @@ as optional and an optional read not usable now was left out of the run's line; 
 
 Run: .venv/bin/python score/graph/optional_test.py
 """
+import os
 import pathlib
 import sys
 import tempfile
@@ -101,6 +102,46 @@ def test_the_reader_runs_without_an_optional_read_that_stopped():
     found = runner.drive(PLACES, say=quiet, whole=False)
     assert found["dress"] == "not run: its line stopped at look@people", found
     assert cast_of(runner, "hangar") == "undressed", found
+
+
+def test_a_pass_of_the_drive_works_out_each_key_once():
+    """Batch 1 (2026-10-25): each pass of the drive worked out its waiting nodes' optional reads' keys outside a
+    `still` pass, once a path through every node they read; its passes took 12 min and then over an hour, the run never
+    ended and its pool's machines billed. A ladder (each rung reads the two below) read as optional by a top row: in
+    the drive's own process no key is worked out outside a pass, nor twice in one."""
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar").mkdir()
+    (data / "hangar" / "brief.txt").write_text("a rung")
+    made = (checks.Check("made", judge_made),)
+    rungs = [graph.Stage("rung0", "place", make_look, TEXT, made, files={"brief": "{data}/{place}/brief.txt"})]
+    for number in range(1, 12):
+        after = {f"rung{below}": ("toy-text", 1) for below in (number - 1, number - 2) if below >= 0}
+        rungs.append(graph.Stage(f"rung{number}", "place", make_rung, TEXT, made, after=after))
+    top = graph.Stage("top", "place", make_cast, TEXT, made, after={"rung11": ("toy-text", 1)}, optional=("rung11",))
+    runner = graph.Runner((*rungs, top), graph.Environment("toy", 7, {"data": data}),
+                          Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {"kind": kind})
+    drive_pid, worked, passes = os.getpid(), [], []
+    work = runner.worked_out_key
+
+    def counted(stage, place):
+        if os.getpid() == drive_pid:
+            if runner.remembered is not None and not any(seen is runner.remembered for seen in passes):
+                passes.append(runner.remembered)
+            worked.append((len(passes) if runner.remembered is not None else None, graph.node_name(stage, place)))
+        return work(stage, place)
+    runner.worked_out_key = counted
+    available, graph.AVAILABLE = graph.AVAILABLE, lambda: 2**50  # the rungs start one after another, none held
+    try:
+        found = runner.drive(("hangar",), say=quiet, whole=False)
+    finally:
+        graph.AVAILABLE = available
+    assert found["top@hangar"].startswith("made: pass"), found
+    assert None not in {each for each, _ in worked}, worked
+    assert len(worked) == len(set(worked)), sorted(worked)
+
+
+def make_rung(inputs, out, seed, params):
+    (out / "rung.txt").write_text(str(len(inputs)))
 
 
 if __name__ == "__main__":
