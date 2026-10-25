@@ -101,7 +101,7 @@ def judge_events(output, inputs, evidence):
     moves = needs.design_moves(inputs)
     found = needs.events([], moves.get("moves", []), moves.get("renamed", {}))
     sounding = {use["on"] for use in record["uses"] if use["role"] == "motion"}
-    silent = [f"{event['name']} ({event['prims'][0]}) moves without a sound" for event in found
+    silent = [f"{event['name']}: ({event['prims'][0]}) moves without a sound" for event in found
               if not sounding & set(event["prims"])]
     measures = {"events": len(found), "silent": len(silent)}
     if silent:
@@ -121,7 +121,7 @@ def judge_voices(output, inputs, evidence):
     measures = {"people": len(cast), "voiced": len(voiced)}
     if cast and not voiced:
         return checks.Verdict("voices", checks.FAIL, f"{len(cast)} people here and no voice: {cast}", measures,
-                              {"voiced": "higher"}, (f"no voice on any of {cast}",))
+                              {"voiced": "higher"}, (f"{cast[0]}: no voice on any of {cast}",))
     return checks.Verdict("voices", checks.PASS, f"voices on {voiced}" if cast else "no one in the place",
                           measures, {"voiced": "higher"})
 
