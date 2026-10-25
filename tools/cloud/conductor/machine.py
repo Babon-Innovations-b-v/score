@@ -10,6 +10,7 @@ browser). This module is the machine as code, driving the scw CLI as tools/cloud
     python3 tools/cloud/conductor/machine.py down [--with-data]   # delete all but the data volume and backup bucket
     python3 tools/cloud/conductor/machine.py price          # per month, from Scaleway's product catalog
     python3 tools/cloud/conductor/machine.py dry            # free: cloud-init schema, the units, `up --dry`
+    python3 tools/cloud/conductor/machine.py user-data [--dry]   # the live server's user-data set to cloud-init.yaml
 
 What `up` makes, in the project named SCORE_CONDUCTOR_PROJECT (default score-conductor, looked up by name, never
 written down), zone fr-par-2 (SCORE_CONDUCTOR_ZONE): a security group (inbound tcp/22 only, outbound open), a 20 GB
@@ -239,10 +240,15 @@ def address(scw, project):
             "address": "<its address>" if scw.dry else made["ip"]["address"]}
 
 
+def existing_volume(scw, project):
+    """The data volume's record, or None."""
+    return one(ours(scw("block", "volume", "list", f"name={DATA_NAME}", f"project-id={project}", f"zone={ZONE}"),
+                    project, DATA_NAME), "volumes named score-conductor-data")
+
+
 def data_volume(scw, project):
     """The data volume's id: 100 GB SBS at 5K IOPS, kept by `down` unless --with-data. Made when missing."""
-    found = one(ours(scw("block", "volume", "list", f"name={DATA_NAME}", f"project-id={project}", f"zone={ZONE}"),
-                     project, DATA_NAME), "volumes named score-conductor-data")
+    found = existing_volume(scw, project)
     if found:
         return found["id"]
     if not scw.dry:
@@ -284,11 +290,11 @@ def authorized_keys(owner_key, agent_key):
     return "\n".join(lines)
 
 
-def render_cloud_init(owner_key, agent_key, volume, commit):
-    """cloud-init.yaml with its slots filled: the keys, the data volume's device and the commit to clone."""
+def render_cloud_init(owner_key, agent_key, volume):
+    """cloud-init.yaml with its slots filled: the keys and the data volume's device."""
     text = (HERE / "cloud-init.yaml").read_text()
     for slot, value in (("@AUTHORIZED_KEYS@", authorized_keys(owner_key, agent_key)),
-                        ("@DATA_DEVICE@", DATA_DEVICE.format(volume)), ("@COMMIT@", commit)):
+                        ("@DATA_DEVICE@", DATA_DEVICE.format(volume))):
         text = text.replace(slot, value)
     return text
 
@@ -493,7 +499,7 @@ def up(options, scw, say=print):
     owner_key, agent_key = keys(owner_key_path, options.agent_key, scw.dry, once=bool(yes))
     environment = env_text(options.env_file) if not scw.dry or pathlib.Path(options.env_file).expanduser().is_file() \
         else None
-    commit = pushed_commit(scw.dry)
+    pushed_commit(scw.dry)  # score-boot.service checks out origin/main, which must hold this checkout's HEAD
     project = project_id(scw, PROJECT_NAME)
     group, ip, volume = security_group(scw, project), address(scw, project), data_volume(scw, project)
     found = server(scw, project)
@@ -503,7 +509,7 @@ def up(options, scw, say=print):
                          "runs up with his own key")
     with tempfile.TemporaryDirectory() as folder:
         user_data = pathlib.Path(folder) / "cloud-init.yaml"
-        user_data.write_text(render_cloud_init(owner_key, agent_key, volume, commit))
+        user_data.write_text(render_cloud_init(owner_key, agent_key, volume))
         server_id = found["id"] if found else make_server(scw, project, group, ip["id"], volume, user_data)
         bucket(scw, project)
         size_function(scw, project, server_id, folder)
@@ -524,6 +530,23 @@ def up(options, scw, say=print):
     if yes:
         conductor_yes.mark_done(yes, "up")
     say(f"up: the conductor runs at {ip['address']} ({IDLE_TYPE}); `machine.py status` shows its health")
+
+
+def set_user_data(options, scw, say=print):
+    """Set the live server's user-data (key cloud-init) to the rendered cloud-init.yaml, so its bootcmd installs
+    score-boot.service at the next reboot. users and write_files ran at its first boot and do not run again, so the
+    keys rendered here change nothing on it; they keep the record whole for a reader."""
+    project = project_id(scw, PROJECT_NAME)
+    found, volume = server(scw, project), existing_volume(scw, project)
+    if not scw.dry and not (found and volume):
+        raise SystemExit("no conductor server or data volume in the project: nothing to set user-data on")
+    owner_key, agent_key = keys(options.owner_key, options.agent_key, dry=True)  # public halves only
+    with tempfile.TemporaryDirectory() as folder:
+        user_data = pathlib.Path(folder) / "cloud-init.yaml"
+        user_data.write_text(render_cloud_init(owner_key, agent_key, volume["id"] if volume else "<volume>"))
+        scw("instance", "user-data", "set", f"server-id={found['id'] if found else '<id of the server>'}",
+            "key=cloud-init", f"content=@{user_data}", f"zone={ZONE}")
+    say("user-data: " + ("dry, no call made" if scw.dry else "set; score-boot.service installs at the next reboot"))
 
 
 def status(options, scw, say=print):
@@ -804,7 +827,7 @@ def check_cloud_init(owner_key="ssh-ed25519 AAAA-owner owner", agent_key="ssh-ed
     """Why the rendered cloud-init fails `cloud-init schema`, or None."""
     with tempfile.TemporaryDirectory() as folder:
         path = pathlib.Path(folder) / "user-data.yaml"
-        path.write_text(render_cloud_init(owner_key, agent_key, "<volume>", "0" * 40))
+        path.write_text(render_cloud_init(owner_key, agent_key, "<volume>"))
         done = subprocess.run(["cloud-init", "schema", "--config-file", str(path)], capture_output=True, text=True)
     return None if done.returncode == 0 else (done.stderr or done.stdout).strip()
 
@@ -864,6 +887,10 @@ def parser():
                              help="the owner's dashboard env file; its non-secret values are carried over")
         if name == "up":
             command.add_argument("--dry", action="store_true", help="print every scw call, make none")
+    user_data = commands.add_parser("user-data")
+    user_data.add_argument("--owner-key", default="~/.ssh/id_ed25519", help="the owner's ssh key; its .pub is rendered")
+    user_data.add_argument("--agent-key", default=None, help="the agents' public key, held to the door")
+    user_data.add_argument("--dry", action="store_true", help="print the scw call, make none")
     move = commands.add_parser("move")
     move.add_argument("--owner-key", default="~/.ssh/id_ed25519", help="the owner's private ssh key")
     move.add_argument("--dry", action="store_true", help="print every step, run none")
@@ -883,6 +910,8 @@ def main(argv):
     scw = Scw(dry=getattr(options, "dry", False))
     if options.command == "up":
         up(options, scw)
+    elif options.command == "user-data":
+        set_user_data(options, scw)
     elif options.command == "status":
         status(options, scw)
     elif options.command in ("grow", "shrink"):

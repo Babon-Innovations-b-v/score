@@ -10,6 +10,7 @@ import os
 import pathlib
 import re
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -51,15 +52,51 @@ def test_cloud_init_passes_schema():
 
 
 def test_cloud_init_holds_the_agents_key_to_the_door():
-    text = machine.render_cloud_init("ssh-ed25519 AAAA owner", "ssh-ed25519 BBBB agent", "vol-1", "c" * 40)
+    text = machine.render_cloud_init("ssh-ed25519 AAAA owner", "ssh-ed25519 BBBB agent", "vol-1")
     door_line = next(line for line in text.splitlines() if "BBBB" in line)
     for option in ('command=\\"/usr/local/bin/score-agent-door\\"', "no-pty", "no-port-forwarding",
                    "no-agent-forwarding"):
         assert option in door_line, (option, door_line)
     owner_line = next(line for line in text.splitlines() if "AAAA" in line)
     assert "command=" not in owner_line
-    assert "scsi-0SCW_sbs_volume-vol-1" in text and "c" * 40 in text
+    assert "scsi-0SCW_sbs_volume-vol-1" in text
     assert re.search(r"@[A-Z_]+@", text) is None, "a slot left unfilled"
+
+
+def heredoc(text, end):
+    """The lines of the bootcmd heredoc ending at `end`, indentation removed."""
+    lines = text.splitlines()
+    start = next(index for index, line in enumerate(lines) if line.endswith(f"<< '{end}'"))
+    stop = next(index for index in range(start + 1, len(lines)) if lines[index].strip() == end)
+    return [line[4:] for line in lines[start + 1:stop]]
+
+
+def test_cloud_init_installs_the_boot_unit_from_bootcmd_and_starts_it_once_the_bus_is_up():
+    text = machine.render_cloud_init("ssh-ed25519 AAAA owner", None, "vol-1")
+    assert "runcmd:" not in text, "the first boot runs boot.sh through the unit, as every later boot does"
+    bootcmd = text[text.index("bootcmd:"):]
+    assert "/etc/systemd/system/score-boot.service" in bootcmd
+    unit = heredoc(text, "UNIT")
+    for line in ("Type=oneshot", "RemainAfterExit=yes", "After=network-online.target", "Wants=network-online.target",
+                 "EnvironmentFile=/etc/score-conductor.env", "WantedBy=multi-user.target"):
+        assert line in unit, line
+    starts = [line for line in unit if line.startswith("ExecStart=")]
+    assert len(starts) == 3
+    move, system, user = starts
+    assert "checkout -q --detach origin/main" in move and "> /var/log/score-boot-system.log" in move
+    assert "boot.sh system >> /var/log/score-boot-system.log" in system
+    assert "runuser -u score --" in user and "boot.sh user > /var/log/score-boot-user.log" in user
+    # bootcmd has no bus: it only writes files; the per-boot script (cloud-init's final stage) enables and starts
+    assert not any(line.strip().startswith(("systemctl", "loginctl")) for line in bootcmd.split("<< 'SCRIPT'")[0]
+                   .splitlines())
+    script = heredoc(text, "SCRIPT")
+    assert script.index("systemctl daemon-reload") < script.index("systemctl enable -q score-boot.service")
+    assert any("systemctl start score-boot.service" in line for line in script)
+    with tempfile.TemporaryDirectory() as folder:
+        copy = pathlib.Path(folder) / "score-boot.service"
+        copy.write_text("\n".join(unit) + "\n")
+        done = subprocess.run(["systemd-analyze", "verify", str(copy)], capture_output=True, text=True)
+    assert "score-boot.service" not in done.stderr, done.stderr
 
 
 def test_units_pass_systemd_verify():
@@ -137,6 +174,16 @@ def test_up_dry_names_project_and_zone_and_calls_nothing():
     assert any("dest-port-from=22 dest-port-to=22" in call for call in calls)
     assert any(call.startswith("function deploy") for call in calls)
     assert all("<secret>" in call for call in calls if ".value=" in call)
+
+
+def test_user_data_dry_sets_the_rendered_cloud_init_and_calls_nothing():
+    with tempfile.TemporaryDirectory() as folder:
+        options = types.SimpleNamespace(owner_key=str(owner_keys(folder)), agent_key=None)
+        scw = machine.Scw(dry=True, say=lambda line: None)
+        machine.set_user_data(options, scw, say=lambda line: None)
+    assert any(call.startswith("instance user-data set ") and "key=cloud-init" in call
+               and "content=@" in call and f"zone={machine.ZONE}" in call for call in scw.calls), scw.calls
+    assert not any(" create " in f" {call} " or " delete " in f" {call} " for call in scw.calls), scw.calls
 
 
 def test_up_refuses_in_an_agents_process():
@@ -356,15 +403,25 @@ def boot_root(folder, installed=True):
     (home / ".config" / "scw").mkdir(parents=True)
     (home / ".config" / "scw" / "config.yaml").write_text("access_key: test\n")
     (home / "projects" / "score_lib" / ".git").mkdir(parents=True)
+    bus = root / "run" / "dbus" / "system_bus_socket"
+    bus.parent.mkdir(parents=True)
+    with socket.socket(socket.AF_UNIX) as listening:
+        listening.bind(str(bus))
     return root, shims
 
 
-def run_boot(folder, root, shims):
+def run_boot(folder, root, shims, parts=("system", "user")):
+    """Run boot.sh's parts in order as score-boot.service does; (the last part's process, every shimmed call)."""
     env = {**os.environ, "PATH": f"{shims}:{os.environ['PATH']}", "SHIM_LOG": str(pathlib.Path(folder) / "log"),
            "SHIM_STATE": str(pathlib.Path(folder) / "state"), "SCORE_BOOT_ROOT": str(root),
            "SCORE_DATA_DEVICE": "/dev/disk/by-id/scsi-0SCW_sbs_volume-test"}
-    done = subprocess.run(["bash", str(HERE / "boot.sh"), "system"], env=env, capture_output=True, text=True,
-                          timeout=60)
+    for part in parts:
+        part_env = env if part == "system" else {**env, "HOME": str(root / "home" / "score"),
+                                                 "XDG_RUNTIME_DIR": "/run/user/1100"}
+        done = subprocess.run(["bash", str(HERE / "boot.sh"), part], env=part_env, capture_output=True, text=True,
+                              timeout=60)
+        if done.returncode != 0:
+            break
     log = pathlib.Path(env["SHIM_LOG"])
     return done, log.read_text().splitlines() if log.exists() else []
 
@@ -425,6 +482,26 @@ def test_boot_stops_on_a_download_that_misses_its_pin():
         assert "does not match its pinned SHA-256" in done.stderr
         assert not (root / "usr" / "local" / "bin" / "restic").exists()
         assert not any(call.startswith("runuser") for call in calls)
+
+
+def test_boot_without_the_system_bus_stops_before_anything_and_says_why():
+    with tempfile.TemporaryDirectory() as folder:
+        root, shims = boot_root(folder)
+        (root / "run" / "dbus" / "system_bus_socket").unlink()
+        done, calls = run_boot(folder, root, shims, parts=("system",))
+        assert done.returncode != 0
+        assert "no system bus" in done.stderr and "score-boot.service" in done.stderr
+        assert calls == []
+
+
+def test_a_failing_command_stops_the_boot_and_names_its_line():
+    with tempfile.TemporaryDirectory() as folder:
+        root, shims = boot_root(folder)
+        executable(shims / "chattr", "#!/bin/sh\nexit 3\n")
+        done, calls = run_boot(folder, root, shims, parts=("system",))
+        assert done.returncode != 0
+        assert re.search(r"boot: stopped at boot.sh line \d+, exit 3: chattr", done.stderr), done.stderr
+        assert not any(call.startswith("mount ") for call in calls)
 
 
 # The agents' door, end to end through agent_door.sh: a copy of the door in a fake checkout whose interpreter runs
