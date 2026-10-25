@@ -221,6 +221,7 @@ MAKES_NO_MODEL = {
     "light-passes": "renders", "surface-tiles": "surface tile pictures",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
     "body-face-*": "a body's face palette and recipe variant", "people-clips-made": "Kimodo clips and the mean rig", "people-look-*": "renders of a made body (its review page)",
+    "people-dress-*": "the loop's library surfaces baked onto a made body's own model, every variant (c3a5a275)",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
 MADE_OUTSIDE = {
