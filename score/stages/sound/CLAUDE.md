@@ -31,9 +31,12 @@ gates; `takes.py` the paid part.
   their row kind (`score/stages/row_kinds.py`) and move, never by
   a place's or a prim's name (`moving.py`: a door's latch as it swings open, a vehicle's drive over its path, timed off
   the record's own moves, so a moving thing that stops moving stops sounding; things moving as one, about one named pivot, sound once; things only moving alike, two doors of a row, each sound) and the whole
-  surface bank (`data/sound/surfaces.json`). Those tables name only picked sounds: the old sound shelf's names were
-  withdrawn (owner, 2026-10-21: all old stuff is retired), so moving.json keeps each part's rule (when it plays) and
-  voices.json its rule with no sound named, each a gap until a fresh take is picked and named. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
+  surface bank (`data/sound/surfaces.json`). Those tables name library briefs (moving.json a brief for each part of a kind's move, voices.json
+  `crew_talk`), each made fresh in the batch like every other sound (all old picks are retired, owner, 2026-10-21); a
+  take that does not come back is a batch gap that names the moving thing's event or the person it leaves silent, so
+  `events` and `voices` move those faults to it (`stages.BATCH_GATES`, try 4 of 2026-10-25: unnamed tables failed 22
+  places' events and 15 places' voices and stopped their lines). A part or voice naming no sound is silent with no gap
+  and still fails. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
 - **Every old pick is retired** (owner, 2026-10-21: every old library sound withdrawn from score_lib, all remade
   fresh): `data/sound/sounds.json` keeps each brief and `catalogue.json` how each sound plays (bus, loop, reach), but no
