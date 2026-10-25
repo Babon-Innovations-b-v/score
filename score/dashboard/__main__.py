@@ -16,6 +16,9 @@
     .venv/bin/python -m score.dashboard install-sync --env-file F [--host REPO --dockerfile PATH] [--secret NAME]
         [--no-pull]  # the owner's one command: the sync's systemd user units, once the cockpit runs this dashboard
                      # (sync/timer.py); on the conductor without --host (the cockpit's /api/sync/pin) and with --no-pull
+    .venv/bin/python -m score.dashboard buy-yes <stop euros> <high euros> <answer> <question>
+        # the owner's Buy approved in a session, his answer and the question quoted (checkout/chat_yes.py); its id
+    .venv/bin/python -m score.dashboard buy <yes id>   # his Buy under that yes, once, as his click (checkout/chat_yes.py)
 """
 import argparse
 import json
@@ -70,7 +73,34 @@ def parse(argv):
     words.add_argument("--says", help="one plain sentence: the fault in the place this fixes, as the owner sees it")
     words.add_argument("--ask", action="append", default=[], help="a decision only the owner can make (repeat)")
     words.add_argument("--recommend", action="append", default=[], help="the answer you recommend, one an --ask")
+    yes = commands.add_parser("buy-yes", help="the owner's Buy approved in a session, quoted (checkout/chat_yes.py)")
+    for name in ("stop", "high", "answer", "question"):
+        yes.add_argument(name)
+    commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)").add_argument("yes")
     return parser.parse_args(argv)
+
+
+def buy_yes(options):
+    from score.dashboard.checkout import chat_yes
+    migrate()
+    try:
+        yes = chat_yes.record(options.stop, options.high, options.answer, options.question)
+    except chat_yes.Refused as refused:
+        sys.exit(f"buy-yes: refused: {refused}")
+    print(f"buy-yes {yes['id']}: high EUR {yes['high_euros']:.2f}, stop EUR {yes['stop_euros']:.2f}, "
+          f"{len(yes['basket']['items'])} items of the basket made at {yes['basket']['made_at']}")
+
+
+def buy(options):
+    from score.dashboard.checkout import chat_yes
+    migrate()
+    try:
+        record, said = chat_yes.buy(options.yes)
+    except chat_yes.Refused as refused:
+        sys.exit(f"buy {options.yes}: refused: {refused}")
+    print(f"buy {options.yes}: {said}")
+    if record is None or record.state not in ("launched", "done"):
+        sys.exit(1)
 
 
 def migrate():
@@ -275,6 +305,10 @@ def main(argv=None):
         film_preview(options)
     elif options.command == "install-sync":
         install_sync(options)
+    elif options.command == "buy-yes":
+        buy_yes(options)
+    elif options.command == "buy":
+        buy(options)
     else:
         check()
 

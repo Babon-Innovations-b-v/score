@@ -35,10 +35,20 @@ one draw run as its own process inside it (score/review/concepts.py). The store 
 
 `stop` is his money yes from the cockpit's checkout: the signed-in owner on the trusted cockpit counts as the owner
 at his terminal (`python -m score.review stop`, C22), and the line is written by the same guard.set_line, which
-refuses in any process an agent started, so no agent can trigger it by any route through here.
+refuses in any process an agent started, so no agent can trigger it by any route through here but one: his Buy
+approved in a Claude Code session (root CLAUDE.md, owner 2026-10-25), his answer and the question quoted.
+
+    web.buy_yes_written(store, yes)     # his quoted yes, grants/buy/<id>.json (score/dashboard/checkout/chat_yes.py)
+    web.buy_yes_spent(store, yes_id, record)   # marked used once, grants/buy-used/<id>.json: one yes, one checkout
+    with web.as_owner_under(store, yes_id): ...   # that one checkout run as his: the agent markers lifted
 """
+import contextlib
+import os
+
 from score import graph, review
-from score.store import RUNNER
+from score.store import AGENT_MARKERS, RUNNER
+
+BUY_YESES, BUY_USED = "grants/buy", "grants/buy-used"
 
 DECISIONS = ("accept", "reject")
 
@@ -78,6 +88,44 @@ def stop(store, world, euros, reason, by, books=None):
     name = checked_by(by)
     baseline = None if guard.current(store, world) else (books or books_now)()
     return guard.set_line(store, world, euros, reason, name, graph.now(), baseline)
+
+
+def buy_yes_written(store, yes):
+    """Keep his Buy approved in a session once (grants/buy/<id>.json); the yes. review.Refused unless it quotes his
+    answer and the question he answered."""
+    if not str(yes.get("answer") or "").strip() or not str(yes.get("question") or "").strip():
+        raise review.Refused("a Buy approved in chat quotes the owner's answer and the question he answered, both")
+    store.write_once(f"{BUY_YESES}/{yes['id']}.json", yes)
+    return yes
+
+
+def buy_yes(store, yes_id):
+    """His Buy yes `yes_id` as written, or None."""
+    return store.read(f"{BUY_YESES}/{yes_id}.json")
+
+
+def buy_yes_used(store, yes_id):
+    """Whether the yes `yes_id` launched its one checkout already (or was spent on one that was refused)."""
+    return store.objects.exists(f"{BUY_USED}/{yes_id}.json")
+
+
+def buy_yes_spent(store, yes_id, record):
+    """Mark the yes `yes_id` used, once (`record` what it was spent on); FileExistsError when it was already."""
+    store.write_once(f"{BUY_USED}/{yes_id}.json", record)
+
+
+@contextlib.contextmanager
+def as_owner_under(store, yes_id):
+    """This process as the owner's own for the one checkout his yes `yes_id` covers, once it is marked used
+    (buy_yes_spent): the agent markers lifted, so guard.set_line writes his line, and put back after.
+    PermissionError for a yes not marked used."""
+    if not buy_yes(store, yes_id) or not buy_yes_used(store, yes_id):
+        raise PermissionError(f"no spent Buy yes {yes_id}: only his quoted yes, marked used, runs his checkout")
+    kept = {name: os.environ.pop(name) for name in AGENT_MARKERS if name in os.environ}
+    try:
+        yield
+    finally:
+        os.environ.update(kept)
 
 
 def google_month(euros, by):

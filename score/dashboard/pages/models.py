@@ -124,6 +124,7 @@ class Checkout(models.Model):
     detail = models.TextField(blank=True)
     pid = models.IntegerField(null=True, blank=True)  # the process running it while launching: gone, it failed
     design_at = models.CharField(max_length=32, blank=True)  # when the design last changed as it was made: a new batch
+    chat_yes = models.JSONField(default=dict, blank=True)  # his Buy approved in a session (checkout/chat_yes.py)
 
     class Meta:
         ordering = ["-at"]

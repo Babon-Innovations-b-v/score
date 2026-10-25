@@ -22,9 +22,18 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 python -m score run ... --detach tagged
                                                 SCORE_BENCHMARK_GRANT=<grant id>; refused while the
                                                 owner's free-only latch (SCORE_FREE_ONLY) is set
+    buy-yes <stop euros> <high euros> <answer> <question>
+                                                python -m score.dashboard buy-yes: the owner's quoted yes, asked in a
+                                                Claude Code session, to the basket the Buy screen buys now at that high
+                                                and stop (score/dashboard/checkout/chat_yes.py); prints its id
+    buy <yes id>                                python -m score.dashboard buy: his Buy under that yes, once, as his
+                                                click (the same checkout, stop line and refusals); refused while the
+                                                free-only latch is set
 
 Every command runs with each of the store's agent markers set (score/store AGENT_MARKERS), so the owner-only barrier
-(the store refusing owner areas in an agent's process) holds over ssh. Anything else is refused with the reason, exit
+(the store refusing owner areas in an agent's process) holds over ssh; `buy` lifts them in its own process only for
+the one checkout his yes covers, once that yes passed every check and is marked used (score.review.web
+as_owner_under). Anything else is refused with the reason, exit
 126. The env file (~/.config/score/dashboard.env) is read as data, NAME=value lines, never run.
 """
 import os
@@ -40,7 +49,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, gaps <node>, "
-         "grant-benchmark, benchmark")
+         "grant-benchmark, benchmark, buy-yes, buy <yes id>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
 CHECKOUTS_CODE = (
@@ -136,6 +145,16 @@ def decide(words, latch):
         return ["-c", GRANT_CODE, *args], {}
     if verb == "benchmark":
         return benchmark(args, latch)
+    if verb == "buy-yes":
+        if len(args) != 4:
+            raise Refused("buy-yes <stop euros> <high euros> <the owner's answer> <the question he answered>")
+        return ["-m", "score.dashboard", "buy-yes", *args], {}
+    if verb == "buy":
+        if len(args) != 1 or not GRANT_ID.match(args[0]):
+            raise Refused("buy <yes id>, the id buy-yes printed")
+        if latch:
+            raise Refused("the owner's free-only latch is set: no Buy")
+        return ["-m", "score.dashboard", "buy", args[0]], {"SCORE_FREE_ONLY": None}
     raise Refused(f"{verb} is not a door command; name one of: {VERBS}")
 
 

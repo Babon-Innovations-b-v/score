@@ -1,7 +1,8 @@
 """The Buy's batch as it runs, for the run monitor (`/buy/run/`, pages/run_monitor.py): read on the store's machine from
 the files the batch writes, read live locally and carried in the export as batch-run.json (sync/building.py).
 
-    batch-run.json  {read_at, checkout, at, by, batch, tries, design_at, state, why, started, try_started, ended, rows,
+    batch-run.json  {read_at, checkout, at, by, yes (his Buy approved in chat: {at, answer, question, high, stop};
+                     None for his click), batch, tries, design_at, state, why, started, try_started, ended, rows,
                      eta, money, scenes, pool, nodes, problems}
       batch     the batch's number and `tries` how many checkouts tried it (checkout/watched.batch_of: a Buy while the
                 batch before is unfinished and the design unchanged retries it); started the first try's, try_started
@@ -482,6 +483,7 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
                          "tip": why})
     spent = checkout_spent(spent_before(runs, launch.get("logs") or [], set(planned)), found["beat"])
     return {"read_at": stamp(now), "checkout": batch["checkout"], "at": batch["at"], "by": batch.get("by"),
+            "yes": batch.get("yes"),
             "batch": batch.get("batch") or batch["checkout"], "tries": batch.get("tries") or 1,
             "design_at": design_at, "state": state, "why": why, "started": stamp(first),
             "try_started": stamp(this_try), "ended": stamp(ended),

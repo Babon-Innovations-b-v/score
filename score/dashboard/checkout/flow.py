@@ -162,24 +162,47 @@ def snapshot(items):
              "totals": pricing.totals(item["nodes"])} for item in items]
 
 
-def start(user, key, confirmed, seen, at_once=False):
+def yes_refusals(yes, totals):
+    """Why his Buy approved in a session (`yes`, checkout/chat_yes.py) does not cover a basket at `totals`, in words:
+    its high above the high he approved, or its stop (the high with the guesses, plus BUFFER: what write_line adds to
+    the spend) above the stop he approved; none without a yes."""
+    if not yes:
+        return []
+    found, stop = [], round(pricing.cleared_high(totals) * BUFFER, 2)
+    if round(totals["high_euros"], 2) > round(yes["high_euros"], 2):
+        found.append(f"its high is EUR {totals['high_euros']:.2f}, above the EUR {yes['high_euros']:.2f} he approved "
+                     "in chat: a higher price needs a new yes")
+    if stop > round(yes["stop_euros"], 2):
+        found.append(f"its stop is EUR {stop:.2f}, above the EUR {yes['stop_euros']:.2f} he approved in chat: a "
+                     "higher stop needs a new yes")
+    return found
+
+
+def by_of(user, yes):
+    """Who the checkout is by: his name, and when he approved it in chat for a Buy approved in a session."""
+    return f"{user.username}, approved in chat at {yes['at']}" if yes else user.username
+
+
+def start(user, key, confirmed, seen, at_once=False, yes=None):
     """(Checkout or None, words): the same checkout again for a key already used; else every refusal checked, then
     the checkout recorded and run in the background, or in this thread when `at_once` (a sync pass applying the
-    owner's hosted checkout, whose process ends with the pass). `seen` [{id, version}] the items he bought."""
+    owner's hosted checkout, whose process ends with the pass). `seen` [{id, version}] the items he bought; `yes`
+    his Buy approved in a session (checkout/chat_yes.py), whose high and stop the basket must stay within."""
     with checking_out():
         found = Checkout.objects.filter(key=key).first()
         if found is not None:
             return found, f"checkout {found.pk} was already made with this key: {found.state}"
         items, changed = bought_items(seen)
-        refused = refusals(user, seen, items, changed, confirmed)
+        bought = snapshot(items)
+        totals = pricing.totals(pricing.basket_prices(bought))
+        refused = refusals(user, seen, items, changed, confirmed) + yes_refusals(yes, totals)
         if refused:
             return None, "refused: " + "; ".join(refused)
-        bought = snapshot(items)
         try:
             with transaction.atomic():
-                record = Checkout.objects.create(key=key, by=user.username, items=bought, state="launching",
-                                                 totals=pricing.totals(pricing.basket_prices(bought)),
-                                                 pid=os.getpid(), design_at=design_now())
+                record = Checkout.objects.create(key=key, by=by_of(user, yes), items=bought, state="launching",
+                                                 totals=totals, pid=os.getpid(), design_at=design_now(),
+                                                 chat_yes=yes or {})
         except IntegrityError:
             record = Checkout.objects.get(key=key)
             return record, f"checkout {record.pk} was already made with this key: {record.state}"
@@ -317,6 +340,9 @@ def write_line(record, chosen):
     stop, its high (pricing.cleared_high: the guessed nodes' estimates with it) plus BUFFER (CONTEXT.md "batch").
     Refused, nothing written, while the month's books are not known."""
     from score.review import web
+    refused = yes_refusals(record.chat_yes, record.totals)
+    if refused:  # start checked it already; kept beside the one line a yes in chat may write
+        raise Refused("; ".join(refused))
     spent, reserved = spend_now(chosen, books=True)
     euros = round(spent + reserved + pricing.cleared_high(record.totals) * BUFFER, 2)
     bought = ", ".join(label(item) for item in record.items)
