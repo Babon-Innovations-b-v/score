@@ -68,20 +68,53 @@ def sized_rows(store, place, record):
     laid, made = plan_sizes(store, place, rows), plan_sizes(store, place, rows, made=True)
     shown = plans.current(store, place)
     own = plan_parts(shown and shown["plan"])
-    found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"])),
+    found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"]),
+                                                         run_pieces(shown and shown["plan"], row)),
               "read_size": reading_size(row)} for row in rows]
     return [{**row, "route": "plan"} if row["route"] == "shell" and row.get("part") in own else row for row in found]
 
 
-def row_size(own, laid, made):
+def row_size(own, laid, made, pieces=None):
     """A row's size: its item's on the plan shown where his edit sized it (`laid` not the plan made without him's,
     `made`: his edits count, owner 2026-10-21), else the object's own metres from its reading (`own`), else its item's
     (an item he sized whose row the reading gave none). A plan's item is the footprint the object is laid in (a run
     of things, room round it: the airlock's porch post laid 0.48 by 1.7 m, a 0.1 by 0.1 m post), so it only places
-    the object, never sizes its model (coordinator, 2026-10-25)."""
+    the object, never sizes its model (coordinator, 2026-10-25). A row the plan lays as a run or path (`pieces`,
+    run_pieces) whose own metres do not fit its item measured the whole run (a railing round a floor, pipes along a
+    wall): it is made as one repeating piece laid along the item (run_piece), never as one object the run's length."""
     if laid and laid != made:
         return laid
+    if own and laid and pieces and not within(own, laid):
+        return run_piece(own, laid, pieces)
     return own or laid
+
+
+def run_pieces(plan, row):
+    """How many pieces a row the plan lays as a run or path is made of: its reading's count, or its items' on the
+    plan (several items, an item counting several), whichever is more; at least 1 for one laid as a path (a polygon
+    round a floor's edge). None for a row laid as one object (one item of one, a rect)."""
+    tied = (plan or {}).get("rows") or {}
+    names = [name for name, *_ in (plan or {}).get("items", []) if row["id"] in (tied.get(name) or [])]
+    shapes = [(plan.get("shapes") or {}).get(name) or {} for name in names]
+    pieces = max(row.get("count") or 1, sum(shape.get("count", 1) for shape in shapes))
+    return pieces if pieces > 1 or any(shape.get("shape") == "polygon" for shape in shapes) else None
+
+
+def within(size, laid):
+    """Whether a size's wide and deep fit a laid footprint's, turned or not."""
+    return all(side <= room for side, room in zip(sorted(size[:2]), sorted(laid[:2])))
+
+
+def run_piece(own, laid, pieces):
+    """One repeating piece of a run whose reading measured the whole run (`own`, longer than the item it is laid in):
+    its long side the run's over its `pieces`, each side held to the laid item's (the piece is laid along it), its
+    tall the reading's."""
+    long = 0 if own[0] >= own[1] else 1
+    room_long, room_short = sorted(laid[:2], reverse=True)
+    piece = list(own)
+    piece[long] = round(min(own[long] / pieces, room_long), 3)
+    piece[1 - long] = round(min(own[1 - long], room_short), 3)
+    return piece
 
 
 def plan_parts(plan):
