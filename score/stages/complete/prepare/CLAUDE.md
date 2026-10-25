@@ -30,7 +30,7 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   record lay it, no take, no close-up), never by its size; the ground itself is the terrain node's (route `ground`,
   status `terrain node`: no take, never a close-up of the whole picture); a row whose part is not read (a reading
   answered before parts were asked) has no route and its take is an input gap (`contract.PART_UNREAD`) until
-  `python -m score.review.reading <place>` asks them (`reading.parted`: one call, its rows, boxes and plan kept); people are models of the prop pipeline with the motion
+  `python -m score.review.reading <place>` asks them (`reading.parted`: one call, its rows, boxes and plan kept; a reading parted under an older `reading.PARTS_VERSION` is asked again the same way: since version 2 the hull, dome or tube enclosing the room is its wall, so an enclosed place's plan lays it); people are models of the prop pipeline with the motion
   layer's steps after (`estimate.OWN_ROUTES`); the sky, the effects (water, rain, smoke, mist) and the far city
   are their own routes, priced only by their own measured per unit (unpriced until then), their inputs their
   route's own (not checked here); every other row, terrain too, is a model through the prop pipeline. Each layer
