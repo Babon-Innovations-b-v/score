@@ -51,6 +51,8 @@ from paths import HOME, WORK  # noqa: E402
 WHOLE = 0.8
 # The kit groups whose pieces repeat round the whole room: each such row boxes one clear example and carries
 # `"repeats": "across the room"`.
+# The routes laid from the plan or the terrain, never from a box: their box is the whole picture, which marks nothing.
+UNBOXED = ("plan", "shell", "ground", "terrain", "sky")
 ROOM_WIDE = ("kit: wall", "kit: floor", "kit: ceiling", "kit: pipe")
 # The share of the picture a view's boxes should cover for each row boxed on it, and the cover that is always enough
 # (a picture with many rows is not expected to be covered whole). Set on the 17 world-1 places, 2026-10-09: the
@@ -392,28 +394,35 @@ def row_verdict(row, size, proposals, recorded):
     return (PASS if found["passes"] else FAIL), found["by"]
 
 
-def gate(scene, found=None):
-    """The box gate for one scene: {"result", "rows": {row: {"result", "why"}}, "views": [problems]}. A view whose
-    boxes crowd one corner fails the scene; any failing row fails it; any unknown row makes it unknown. A scene with
-    no inventory given and none filed (the old filed inventories were retired, 2026-10-21) is unknown, named."""
+def gate(scene, found=None, unboxed_routes=()):
+    """The box gate for one scene: {"result", "rows": {row: {"result", "why"}}, "views": [problems], "unboxed": [rows
+    routed one of `unboxed_routes`, passed unboxed]}: complete's gate passes UNBOXED, the close-ups (which crop by the
+    box) none. A view whose boxes crowd one corner fails the scene; any failing row fails it; any unknown row makes it
+    unknown. A scene with no inventory given and none filed (the old filed inventories were retired, 2026-10-21) is
+    unknown, named."""
     if found is None and not inventory.path_of(scene).exists():
         return {"result": UNKNOWN, "rows": {}, "views": [f"no scene inventory for {scene}: "
-                                                         f"{inventory.path_of(scene)} is not there"]}
+                                                         f"{inventory.path_of(scene)} is not there"], "unboxed": []}
     found = found if found is not None else json.loads(inventory.path_of(scene).read_text())
     sizes = view_sizes(found)
     proposals_file = PARTITION / scene / "proposals.json"
     proposals = json.loads(proposals_file.read_text()) if proposals_file.exists() else None
     recorded = json.loads(results_path(scene).read_text()) if results_path(scene).exists() else {}
     rows = {}
+    unboxed = [row["id"] for row in found["rows"] if row.get("route") in unboxed_routes]
     for row in found["rows"]:
         size = sizes.get(row.get("view"))
-        verdict, why = (UNKNOWN, "its view's picture is missing") if size is None and row.get("box") else \
-            row_verdict(row, size, proposals, recorded)
+        if row["id"] in unboxed:
+            verdict, why = PASS, f"not boxed: routed {row['route']}, laid from the plan or terrain"
+        elif size is None and row.get("box"):
+            verdict, why = UNKNOWN, "its view's picture is missing"
+        else:
+            verdict, why = row_verdict(row, size, proposals, recorded)
         rows[row["id"]] = {"result": verdict, "why": why}
     views = [problem for problem in measured_problems(found, sizes) if problem.startswith("view ")]
     verdicts = {entry["result"] for entry in rows.values()}
     result = FAIL if views or FAIL in verdicts else UNKNOWN if UNKNOWN in verdicts else PASS
-    return {"result": result, "rows": rows, "views": views}
+    return {"result": result, "rows": rows, "views": views, "unboxed": unboxed}
 
 
 def measured_boxes(folders):

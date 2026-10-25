@@ -205,6 +205,16 @@ def test_a_typed_or_guessed_box_fails_the_gate():
     assert "typed" in rows["galley"]["why"] and "whole picture" in rows["crate"]["why"]
 
 
+def test_a_row_laid_from_the_plan_or_terrain_is_not_boxed():
+    found = a_partitioned_place({"galley": ([113, 207, 391, 618], ["v1.1"]), "ground": ([0, 0, SIZE[0], SIZE[1]], None)})
+    found["rows"][1]["route"] = "ground"
+    verdict = box_check.gate("camp", found, box_check.UNBOXED)
+    assert verdict["result"] == "pass" and verdict["unboxed"] == ["ground"], verdict
+    assert box_check.gate("camp", found)["rows"]["ground"]["result"] == "fail"  # the close-ups crop by the box
+    found["rows"][1]["route"] = "prop"
+    assert box_check.gate("camp", found, box_check.UNBOXED)["rows"]["ground"]["result"] == "fail"
+
+
 def test_an_unmeasured_box_is_unknown_and_blocks():
     found = a_partitioned_place({"galley": ([113, 207, 391, 618], ["v1.1"]), "crate": ([1503, 811, 1701, 1033], None)})
     verdict = box_check.gate("camp", found)
