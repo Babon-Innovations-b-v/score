@@ -38,7 +38,9 @@ stopped. Every score.graph.HEARTBEAT seconds it prints a heartbeat line (rows do
 rows' paid runs open and the euros the ledger holds for them since it started), and it always ends with one `exit:
 <status>` line, after the lines' closing states and on an error or a stopping signal too: `exit: ok, ...` only when
 every line is done, else `exit: stopped, N of M lines done, ...` (exit code 1), `exit: error: ...` or `exit: stopped by
-signal N, exit 128+N`. --detach returns at once with the log's path: the run goes on in a session of its own
+signal N, exit 128+N`. A drive that has not ended a pass in DRIVE_STALL_SECONDS is stopped by its watchdog as by
+SIGTERM, and the pool's release at the end waits at most POOL_RELEASE_SECONDS, so a run always ends. --detach returns
+at once with the log's path: the run goes on in a session of its own
 (tools/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
 (`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line; a run stopped by
 SIGTERM, SIGINT or SIGHUP says `score run: stopped by signal N`, then `detached: stopped by signal N exit=128+N ...`.
@@ -96,6 +98,7 @@ never changes a run's inputs mid-run; the copy goes once the run, and every mach
 """
 import argparse
 import atexit
+import contextlib
 import datetime
 import importlib.util
 import json
@@ -106,6 +109,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import traceback
 
@@ -144,6 +148,12 @@ RELEASE_POLL_SECONDS = 1
 # to 18 s, 2026-10-24): with STOP_GRACE_SECONDS it must stay under stopped.FORWARD_WAIT_SECONDS, after which a
 # detached run is SIGKILLed.
 POOL_RELEASE_SECONDS = 40
+# A drive whose last pass (Runner.driving) is DRIVE_STALL_SECONDS old is stuck: a pass ends at least every
+# graph.HEARTBEAT while nodes run. The watchdog (watching), checking every WATCH_SECONDS, then stops the run as a
+# signal does (stop_run: its pool released, its exit line said). Batch 1, 2026-10-25: its drive sat in one pass over an
+# hour, its pool's 13 machines parked and billing.
+DRIVE_STALL_SECONDS = 30 * 60
+WATCH_SECONDS = 60
 # The paid rows the run's warm pool was sized on, (node, line, cards, on processors) each (card_rows): its heartbeat
 # holds the pool to those due within its machines' start-up (pool_tender).
 POOLED_ROWS = []
@@ -518,12 +528,20 @@ def release_once_ended(runner, run_id, mark, pool_ticket=None):
 
 
 def release_pool(run_id):
-    """Close the run's card pool and delete its idle cards (pool.release); a failure is said on the run's error
-    output, never raised: what follows the release must still run."""
-    try:
-        cloud_tool("pool").release(run_id)
-    except Exception:  # noqa: BLE001 - said on the run's error output; the rest of the release must still run
-        traceback.print_exc()
+    """Close the run's card pool and delete its idle cards (pool.release), waiting at most POOL_RELEASE_SECONDS: one
+    that hangs (a lock, a provider call) is said and left, its cards to the run's releaser (park.outlive), so the run
+    still ends. A failure is said on the run's error output, never raised: what follows the release must still run."""
+    def releasing():
+        try:
+            cloud_tool("pool").release(run_id)
+        except Exception:  # noqa: BLE001 - said on the run's error output; the rest of the release must still run
+            traceback.print_exc()
+    release = threading.Thread(target=releasing, name="pool-release", daemon=True)
+    release.start()
+    release.join(POOL_RELEASE_SECONDS)
+    if release.is_alive():
+        print(f"score run: the pool's release did not end in {POOL_RELEASE_SECONDS} s; its parked cards are left to "
+              "the run's releaser", flush=True)
 
 
 def cloud_tool(name):
@@ -1219,7 +1237,7 @@ def driven(runner, places, whole, options, argv, gauges=None):
     entry = runs.new_entry(argv)
     path = runs.entry_path(entry)
     try:
-        with runs.beating(runs.written(path, entry)):
+        with runs.beating(runs.written(path, entry)), watching(runner):
             found = runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
                                  only=options.stage, gauges=gauges)
     except Exception:
@@ -1233,6 +1251,28 @@ def driven(runner, places, whole, options, argv, gauges=None):
         raise
     runs.mark(path, runs.ENDED)
     return found
+
+
+@contextlib.contextmanager
+def watching(runner, stall=None, every=None):
+    """The drive's watchdog while the block runs: once the drive's last pass (runner.driving) is `stall` seconds old
+    (DRIVE_STALL_SECONDS), checked every `every` (WATCH_SECONDS), it is said and this process sent SIGTERM, so the
+    run ends as on a stop (stop_run: its pool released, its exit line said)."""
+    stall, every, done = stall or DRIVE_STALL_SECONDS, every or WATCH_SECONDS, threading.Event()
+
+    def watch():
+        while not done.wait(every):
+            running, at = runner.driving or (0, time.monotonic())
+            if time.monotonic() - at > stall:
+                print(f"score run: the drive has not moved in {stall / 60:.0f} min ({running} nodes running at its "
+                      "last pass); ending the run", flush=True)
+                os.kill(os.getpid(), signal.SIGTERM)
+                return
+    threading.Thread(target=watch, name="drive-watchdog", daemon=True).start()
+    try:
+        yield
+    finally:
+        done.set()
 
 
 def run_commit(runner, nodes, options):

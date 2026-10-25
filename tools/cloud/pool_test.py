@@ -9,6 +9,8 @@ Run: .venv/bin/python tools/cloud/pool_test.py   (make tests runs it)
 import json
 import os
 import pathlib
+import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -27,6 +29,8 @@ import pool  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
+
+REAL_POPEN = subprocess.Popen  # Cloud.install fakes it for park's --expire processes
 
 CARD_PRICE = 0.8 / 60  # euros a minute
 GONE_PID = 2 ** 22 + 4321  # no process: the fake collector's
@@ -864,6 +868,26 @@ def test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends():
     path.write_text(json.dumps({**record, "unit_minutes": 60, "created": time.time() - 58 * 60}))
     assert grow(run_id) == 0 and len(calls.deleted) == 1  # its paid hour ends: it goes
     pool.release(run_id)
+
+
+def test_a_hung_collector_is_killed_once_the_release_has_waited_its_bound():
+    """Batch 1 (2026-10-25): a run that does not end holds its pool's parked machines. A release whose collector
+    does not end on its SIGTERM sends it SIGKILL after COLLECTOR_STOP_SECONDS, its idle cards deleted first."""
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
+    grow(run_id)
+    hung = REAL_POPEN([sys.executable, "-c", "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+                       "print('ready', flush=True); time.sleep(60)"], stdout=subprocess.PIPE, text=True)
+    assert hung.stdout.readline().strip() == "ready"  # its SIGTERM is ignored from here
+    with pool.locked(run_id):
+        pool.write_plan(run_id, {**pool.plan_of(run_id), "collector": hung.pid})
+    pool.COLLECTOR_STOP_SECONDS, started = 0.5, time.time()
+    try:
+        pool.release(run_id)
+        assert hung.wait(5) == -signal.SIGKILL and time.time() - started < 5
+    finally:
+        hung.kill()
+        hung.wait()
+    assert sorted(calls.deleted) == sorted(calls.rented) and not park.pool_records(run_id)
 
 
 if __name__ == "__main__":

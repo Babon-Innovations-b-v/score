@@ -1047,6 +1047,18 @@ def test_a_run_ends_with_its_exit_line_after_its_line_states():
     assert lines["hangar"][0] == "done"
 
 
+def test_a_run_whose_last_node_finishes_releases_its_pool_and_ends():
+    """Batch 1 (2026-10-25): a run past its last node never ended, its pool's 13 machines parked and billing."""
+    from score import __main__ as command
+    released, release = [], command.release_pool
+    command.release_pool = lambda run_id: released.append(run_id)
+    try:
+        printed, _ = run_printing(slow_runner(0.2), ["hangar"])
+    finally:
+        command.release_pool = release
+    assert released == [os.environ[command.RUN_ID]] and printed[-1].startswith("exit: ok"), (released, printed)
+
+
 def test_a_run_whose_line_stopped_says_stopped_in_its_exit_line():
     """Review (C8): `exit: ok` was said for a run main then ended with 1, its not-run rows counted as ended."""
     printed, lines = run_printing(a_runner({"hangar": "explode", "station": "a hub"}), list(PLACES))
