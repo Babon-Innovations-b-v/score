@@ -28,6 +28,15 @@ def test_the_noun_decides_before_the_name():
                              {"loose": {"nouns": ["plate"], "does": ["loose"]}}) is None
 
 
+def test_a_lamp_read_as_what_holds_it_is_still_a_lamp():
+    # a "floodlight tower" read as a tower is the lamp kind's (held_by); a "light switch" and a "fence post" are none
+    rules = {"lamp": {"nouns": ["light", "floodlight"], "does": ["glows"], "held_by": ["tower", "frame", "post"]}}
+    assert row_kinds.kind_of({"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower"}, rules) == "lamp"
+    assert row_kinds.kind_of({"id": "grow_light_frame", "noun": "frame"}, rules) == "lamp"
+    assert row_kinds.kind_of({"id": "light_switch", "name": "light switch", "noun": "switch"}, rules) is None
+    assert row_kinds.kind_of({"id": "fence_post", "name": "fence post", "noun": "post"}, rules) is None
+
+
 def test_a_kind_can_do_more_than_one_thing():
     inventory = {"rows": [{"id": "kettle", "noun": "kettle"}, {"id": "stool", "noun": "chair"},
                           {"id": "front_door", "noun": "door"}, {"id": "wall", "noun": "wall"}]}
