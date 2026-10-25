@@ -334,3 +334,50 @@ def test_a_try_that_wrote_no_line_yet_shows_its_buys_stop_and_spends_nothing(wor
     record.save()
     money = world.source.batch_run()["money"]
     assert money["spent"] == 0.0 and money["stop"] == round(money["high"] * batch_run.BUFFER, 2)
+
+
+TRY_ONE = """heartbeat 2026-10-24T23:05:00+00:00: rows done 0, running 2, queued 3; this run's rows: paid runs open 1, EUR 2.00 in the ledger since the run started
+terrain: made: pass, accepted automatically
+light@alpha: error: RuntimeError: boom; fault report /x/faults/light@alpha.txt
+closeup@beta: error: RuntimeError: no card; fault report /x/faults/closeup@beta.txt
+assembly@beta: not run: its line stopped at closeup@beta
+detached: failed
+"""
+
+
+def two_tries(tmp_path, try_log=None):
+    """Batch 1 of two tries: the first failed light@alpha and closeup@beta; the second buys closeup@beta and
+    assembly@beta again, launching (no log) or ended with `try_log`."""
+    first, second = tmp_path / "try1.log", tmp_path / "try2.log"
+    first.write_text(TRY_ONE)
+    one = {"at": "2026-10-24T23:00:00+00:00", "logs": [str(first)]}
+    two = {"at": "2026-10-25T09:00:00+00:00", "logs": [str(second)]}
+    if try_log:
+        second.write_text(try_log)
+    return {"checkout": 2, "at": "2026-10-25T08:59:00+00:00", "state": "launched" if try_log else "launching",
+            "totals": TOTALS, "stop_line": {}, "batch": 1, "tries": 2, "first_at": "2026-10-24T22:59:00+00:00",
+            "launch": {"at": two["at"], "state": "done", "result": "failed", "logs": two["logs"]} if try_log else None,
+            "runs": [one, two] if try_log else [one], "try_runs": [two] if try_log else [],
+            "nodes": ["terrain", "light@alpha", "closeup@beta", "assembly@beta"],
+            "try_nodes": ["closeup@beta", "assembly@beta"]}
+
+
+def test_a_try_shows_what_it_makes_again_as_waiting_not_as_an_earlier_tries_failure(tmp_path):
+    """Owner, 2026-10-25: "and it still shows all failed etc"."""
+    accepted = {"terrain": "2026-10-24T23:04:00+00:00"}.get
+    run = batch_run.gathered(two_tries(tmp_path), tmp_path, tmp_path, accepted_at=accepted,
+                             now=datetime.datetime(2026, 10, 25, 9, 1, tzinfo=datetime.timezone.utc))
+    scenes = {scene["place"]: scene["state"] for scene in run["scenes"]}
+    assert run["state"] == "starting" and scenes == {"": "done", "alpha": "failed", "beta": "waiting"}
+    assert (run["rows"]["done"], run["rows"]["failed"], run["rows"]["not_run"]) == (1, 1, 0)
+    assert [problem["node"] for problem in run["problems"]] == ["light@alpha"] and run["retried"] == 1
+    assert run["started"].startswith("2026-10-24T23:00") and run["try_started"].startswith("2026-10-25T08:59")
+    clock = run_monitor.clock(run)
+    assert clock["started"] == "08:59" and clock["batch_started"] == "24 Oct 23:00"
+
+    again = TRY_ONE.splitlines()[0] + "\ncloseup@beta: error: RuntimeError: no card again; fault report /x/f.txt\n" \
+        "assembly@beta: not run: its line stopped at closeup@beta\ndetached: failed\nexit: stopped, 1 line\n"
+    ended = batch_run.gathered(two_tries(tmp_path, again), tmp_path, tmp_path, accepted_at=accepted)
+    assert ended["state"] == "finished" and ended["retried"] == 0
+    assert {problem["node"] for problem in ended["problems"]} == {"light@alpha", "closeup@beta"}
+    assert "no card again" in next(problem["tip"] for problem in ended["problems"] if problem["node"] == "closeup@beta")

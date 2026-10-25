@@ -17,7 +17,7 @@
       <span class="rm-fresh soft" title="{% if fresh_minutes is None %}read live from the store{% else %}the state the store's machine sent last; it sends one about every minute while the batch lives{% endif %}" data-v>{% if fresh_minutes is None %}live, {% endif %}as of <time data-local="{{ run.read_at }}">{{ fresh_at }}</time>{% if fresh_minutes is not None %}, {{ fresh_minutes }} min ago{% endif %}</span>
     </div>
     <div class="rm-clock">
-      <div class="rm-stat" title="when the runner started it ({{ clock.day }})"><div class="num-label">Started</div><div class="rm-big" data-v><time data-local="{{ run.started }}">{{ clock.started|default:"–" }}</time></div></div>
+      <div class="rm-stat" title="when the runner started {% if run.tries > 1 %}this try{% else %}it{% endif %} ({{ clock.day }})"><div class="num-label">Started</div><div class="rm-big" data-v><time data-local="{{ run.try_started|default:run.started }}">{{ clock.started|default:"–" }}</time></div>{% if clock.batch_started %}<div class="num-sub" data-v>Batch started <time data-local="{{ run.started }}" data-day>{{ clock.batch_started }}</time></div>{% endif %}</div>
       <div class="rm-stat" title="{% if run.ended %}how long it ran{% else %}how long it has run so far{% endif %}{% if run.tries > 1 %}, this try{% endif %}"><div class="num-label">{% if run.ended %}Ran{% else %}Elapsed{% endif %}</div><div class="rm-big" data-v>{{ clock.elapsed }}</div></div>
       {% if live %}<div class="rm-stat" title="the runner's measured minutes, likely to high{% if clock.at_least %}; {{ clock.untimed }} bought step{{ clock.untimed|pluralize }} never timed add to it, so at least{% endif %}{% if clock.by %}; likely done {{ clock.by }}, at the latest {{ clock.by_high }} UTC{% endif %}"><div class="num-label">{% if clock.at_least %}Left, at least{% else %}Left{% endif %}</div>
         {% if clock.left is None %}<div class="rm-big unknown" data-v>unknown</div>{% elif clock.over %}<div class="rm-big rm-over" data-v>past the high</div>{% else %}<div class="rm-big" data-v>{{ clock.left }}</div><div class="num-sub" data-v><small>up to</small> {{ clock.left_high }}</div>{% endif %}</div>{% endif %}
@@ -77,6 +77,7 @@
       </section>
       <section class="rm-panel" aria-label="problems">
         <h2 class="eyebrow">Problems <span data-v>{{ problems|length }}</span></h2>
+        {% if run.retried %}<p class="soft" data-v title="this try makes their steps again; a step that fails again shows here once more">{{ run.retried }} problem{{ run.retried|pluralize }} from earlier tries {{ run.retried|pluralize:"is,are" }} being retried</p>{% endif %}
         {% for problem in problems %}<div class="rm-problem" title="{{ problem.tip }}">
           <i class="dot tone-{% if problem.kind == 'gaps' %}review{% else %}bad{% endif %}"></i>
           <div><div class="rm-problem-head"><span data-v>{{ problem.name }}</span>{% if problem.at %}<time class="soft" data-local="{{ problem.at_iso }}">{{ problem.at }}</time>{% endif %}</div><div class="soft" data-v>{{ problem.words }}</div>{% if problem.raw %}<details class="rm-raw"><summary>what the run said</summary>{% for said in problem.raw %}<div>{{ said }}</div>{% endfor %}</details>{% endif %}</div>
@@ -90,7 +91,9 @@
 // Times as the viewer's own clock (the page writes them in UTC); the page read again while the batch lives.
 for (const node of document.querySelectorAll("time[data-local]")) {
   const when = new Date(node.dataset.local);
-  if (!isNaN(when)) node.textContent = when.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hour12: false});
+  if (isNaN(when)) continue;
+  const day = "day" in node.dataset ? when.toLocaleDateString("en-GB", {day: "numeric", month: "short"}) + " " : "";
+  node.textContent = day + when.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hour12: false});
 }
 const monitor = document.querySelector("[data-rm-reload]");
 if (monitor) setInterval(() => { if (!document.querySelector("details[open]")) location.reload(); }, monitor.dataset.rmReload * 1000);

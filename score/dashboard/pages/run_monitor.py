@@ -95,16 +95,19 @@ def moment(text):
 
 
 def clock(run):
-    """{started, elapsed, left, left_high, at_least, by, by_high, over}: the times in words, the ETA left from the
-    runner's minutes (None while not timed), at_least when a bought step was never timed."""
-    eta, started = run["eta"], moment(run["started"])
-    begun = moment(run.get("try_started")) or started  # this try's start: its ETA and elapsed count from it
+    """{started, day, batch_started, elapsed, left, left_high, at_least, by, by_high, over}: the times in words, this
+    try's (started, elapsed and the ETA left from the runner's minutes, None while not timed; at_least when a bought
+    step was never timed), batch_started the batch's first start in words when an earlier try began it."""
+    eta, first = run["eta"], moment(run["started"])
+    begun = moment(run.get("try_started")) or first  # this try's start: its ETA and elapsed count from it
+    started = begun
     elapsed = eta["elapsed"] or 0
     likely, high = eta["likely_minutes"], eta["high_minutes"]
     left = None if likely is None else max(0.0, likely - elapsed)
     left_high = None if high is None else max(0.0, high - elapsed)
     return {"started": started.strftime("%H:%M") if started else None,
             "day": started.strftime("%d %b") if started else None,
+            "batch_started": first.strftime("%d %b %H:%M") if first and first != begun else None,
             "elapsed": costs.hours(elapsed), "left": None if left is None else costs.hours(left),
             "left_high": None if left_high is None else costs.hours(left_high), "at_least": bool(eta["untimed"]),
             "untimed": eta["untimed"],
