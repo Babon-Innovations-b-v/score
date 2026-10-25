@@ -17,7 +17,14 @@ timer by `install-sync`), its token read by name from his secret manager like th
 applied in his process and never an agent's (the store and score.review.web refuse there). A batch it launches runs
 detached in a session of its own (`score run --detach`; on a conductor its own scope too) and the unit stops only its
 own process (KillMode=process), so the hourly restart never ends a run.
+
+Each request is answered in the listener's own pool, so a slow one (a draw) never holds back the next held call: a
+Stop everything or a Buy clicked meanwhile is claimed at once. The hourly restart (RuntimeMaxSec, onto the code the
+update moved to) sends SIGTERM: the listener then claims nothing more and ends once every request it claimed is
+answered (the unit's TimeoutStopSec gives it the time), so a request claimed at that moment is never left picked up
+and unanswered; one not claimed yet stays waiting for the next listener or the pass.
 """
+import signal
 import threading
 import time
 import urllib.error
@@ -34,15 +41,43 @@ SHORTEST_ROUND = 2.0  # an empty answer sooner than this waits this long before 
 PUSH_SECONDS = 60.0  # the run monitor's record sent this often while a batch lives
 
 
-def round_once(remote, source, left=None):
+def answered_here(remote, item, source, left):
+    """client.answered of one request; (id, state), or None when it was not applied here (a Buy left for the pass
+    goes into `left`)."""
+    applied = client.answered(remote, item, source)
+    if applied is None:
+        if item["kind"] == "checkout":
+            left.add(item["id"])
+        return None
+    return item["id"], applied.state
+
+
+def round_once(remote, source, left=None, pool=None, busy=None, stopping=None):
     """One held call: every waiting request of LISTENED answered, side by side (a Draw all's draws are one direct
-    call each, made at once); [(id, state)]. `left` the ids of Buys left for the pass, not asked for again."""
+    call each, made at once); [(id, state)]. `left` the ids of Buys left for the pass, not asked for again. With the
+    listener's `pool` each is handed to it and the round returns [] at once, `busy` holding the ids being answered;
+    once `stopping` is set nothing more is claimed."""
     left = set() if left is None else left
-    items = [item for item in remote.waiting(LISTENED, WAIT_SECONDS, sorted(left)) if item["id"] not in left]
-    with ThreadPoolExecutor(max_workers=max(1, len(items))) as pool:
-        answers = list(pool.map(lambda item: (item, client.answered(remote, item, source)), items))
-    left.update(item["id"] for item, applied in answers if applied is None and item["kind"] == "checkout")
-    return [(item["id"], applied.state) for item, applied in answers if applied is not None]
+    busy = set() if busy is None else busy
+    items = [item for item in remote.waiting(LISTENED, WAIT_SECONDS, sorted(left | busy))
+             if item["id"] not in left | busy]
+    if stopping is not None and stopping.is_set():
+        return []  # the hourly restart: what was not claimed stays waiting for the next listener or the pass
+    if pool is None:
+        with ThreadPoolExecutor(max_workers=max(1, len(items))) as own:
+            return [found for found in own.map(lambda item: answered_here(remote, item, source, left), items) if found]
+    for item in items:
+        busy.add(item["id"])
+        pool.submit(answered_here, remote, item, source, left).add_done_callback(
+            lambda done, request_id=item["id"]: ended(done, request_id, busy))
+    return []
+
+
+def ended(done, request_id, busy, log=print):
+    """A request answered in the pool: out of `busy`, and a failure said in the log (never lost in its future)."""
+    busy.discard(request_id)
+    if done.exception() is not None:
+        log(f"request {request_id} failed: {type(done.exception()).__name__}: {done.exception()}")
 
 
 def batch_pushed(remote, source, was_live):
@@ -66,16 +101,20 @@ def following(remote, source, log=print, pause=time.sleep):
 
 
 def listen(remote, source, rounds=None, log=print, pause=time.sleep):
-    """Answer the owner's quick requests until stopped (`rounds` held calls when given, and then no batch record
-    sent); an unreachable hosted side is said in one line and asked again after RETRY_SECONDS."""
+    """Answer the owner's quick requests until stopped (`rounds` held calls when given, each answered within its
+    round, and then no batch record sent); an unreachable hosted side is said in one line and asked again after
+    RETRY_SECONDS. Run as the service, SIGTERM ends it once the requests it claimed are answered."""
+    stopping, pool, busy = threading.Event(), None, set()
     if rounds is None:
         threading.Thread(target=following, args=(remote, source, log), daemon=True).start()
+        signal.signal(signal.SIGTERM, lambda *_: stopping.set())
+        pool = ThreadPoolExecutor(max_workers=16)
     count, said, left = 0, None, set()
-    while rounds is None or count < rounds:
+    while (rounds is None or count < rounds) and not stopping.is_set():
         count += 1
         started = time.monotonic()
         try:
-            answered = round_once(remote, source, left)
+            answered = round_once(remote, source, left, pool, busy, stopping)
         except (urllib.error.URLError, TimeoutError, ConnectionError) as unreachable:
             log(f"the hosted side did not answer ({unreachable}); asking again in {RETRY_SECONDS:.0f} s")
             pause(RETRY_SECONDS)
@@ -87,3 +126,6 @@ def listen(remote, source, rounds=None, log=print, pause=time.sleep):
             log(f"no request applied here: {said}")
         if not answered and time.monotonic() - started < SHORTEST_ROUND:
             pause(SHORTEST_ROUND)  # a hosted side that does not hold the call open is not asked in a tight loop
+    if pool is not None:
+        log(f"stopping: answering the {len(busy)} requests claimed, claiming no more")
+        pool.shutdown(wait=True)

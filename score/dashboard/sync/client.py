@@ -323,7 +323,8 @@ def pass_lock():
 
 @contextlib.contextmanager
 def pricing_now():
-    """Held while a pass prices and makes its export (sync_pass), so the listener leaves a Buy to the pass then."""
+    """Held while a pass prices and makes its export (sync_pass): the listener then judges a Buy by its basket's commit
+    alone (buy_waits)."""
     pass_lock().parent.mkdir(parents=True, exist_ok=True)
     with pass_lock().open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
@@ -371,15 +372,19 @@ def figures_moved(source, now):
 
 
 def buy_waits(source):
-    """Why a hosted Buy is left for the next sync pass rather than applied now, in words, or None: a pass pricing
-    now, the checkout not clean and pushed (tree_refusal), or figures_moved. The pass makes them again, then applies
-    it; every other refusal is the checkout's own (checkout/flow.py)."""
-    if pass_pricing():
-        return "a sync pass is pricing now; it applies this Buy once its price stands"
+    """Why a hosted Buy is left for the next sync pass rather than applied now, in words, or None: the checkout not
+    clean and pushed (tree_refusal), or figures_moved. The pass makes them again, then applies it; every other
+    refusal is the checkout's own (checkout/flow.py). While a pass prices it makes prepare's figure and the price
+    again on this same commit, so only a basket made on another commit makes the Buy wait then: the last pass's
+    figures priced this code, and a pass is about 15 minutes (owner, 2026-10-25: "this process is stupid")."""
     refused = tree_refusal(settings.SCORE_REPO)
     if refused:
         return refused
-    return "; ".join(figures_moved(source, head(settings.SCORE_REPO))) or None
+    moved = figures_moved(source, head(settings.SCORE_REPO))
+    if pass_pricing():
+        moved = [words for words in moved
+                 if words.startswith("the basket was made on commit") or "not made yet" in words]
+    return "; ".join(moved) or None
 
 
 def checkouts_tidied(chosen):
@@ -536,7 +541,7 @@ def sync_pass(remote, source, chosen=None):
     price's records name the commit they were made on, so the cockpit shows those figures stale and Buy waits."""
     free_only_followed()
     chosen = chosen or guard.backend()
-    with pricing_now():  # the listener leaves a Buy to this pass meanwhile (buy_waits)
+    with pricing_now():  # the listener judges a Buy by its basket's commit alone meanwhile (buy_waits)
         refused = tree_refusal(settings.SCORE_REPO)
         if refused:
             return refused_words(refused)

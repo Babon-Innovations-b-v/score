@@ -412,11 +412,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   type a command: an owner-only action is a button (#39). Each request is claimed once (`/requests/<id>/claim`), so
   the pass and the listener never both apply it. The listener (`listen.py`, `python -m score.dashboard listen`, the
   owner's systemd service `score-listen.service` beside the timer, restarted hourly onto the pulled code) holds one
-  call open (`/requests?kind=...&wait=25`) and answers the concept review's requests within a second of the click,
+  call open (`/requests?kind=...&wait=25`), answers each request in its own pool (a slow draw never holds back a
+  Stop or a Buy), on the hourly SIGTERM claims nothing more and ends once what it claimed is answered, and answers the concept review's requests within a second of the click,
   sending a draw's pictures back (`/request-files/`) before its report. It answers a hosted Buy (`checkout`) the same
   way (owner, 2026-10-24: "can we make that delay less for the following runs"), unless `client.buy_waits` says its
-  price needs a fresh pass (a pass holding `pricing_now`, `tree_refusal`, `figures_moved`: the price, prepare's figure
-  or the basket on another commit, the basket older than prepare): then it notes why on the request
+  price needs a fresh pass (`tree_refusal`, `figures_moved`: the price, prepare's figure or the basket on another
+  commit, the basket older than prepare; while a pass holds `pricing_now` only a basket on another commit, owner
+  2026-10-25: "this process is stupid"): then it notes why on the request
   (`/requests/<id>/note`), skips it (`&skip=`) and the pass applies it, under the same check; a launch is followed by
   either (`tracked_changed`, locked). While a batch lives it sends `batch-run.json` every `PUSH_SECONDS` (60) and once
   as it ends (`PUT /batch-run`, kept in `request-files/`; `ExportedSource.batch_run` takes the newer read_at). The owner's timer (`timer.py`, `install-sync`, the

@@ -6,9 +6,10 @@
 #
 # It reads the sync token the way the sync pass does: by its name from the owner's secret manager, inline, into this
 # one process's environment, never into a file. It holds one call open to the hosted side at a time (the store's
-# machine calls out; nothing calls in), and starts again every hour so it runs the code the sync pass pulled.
+# machine calls out; nothing calls in), and starts again every hour so it runs the code the sync pass pulled. At that
+# SIGTERM it claims nothing more and ends once the requests it claimed are answered (TimeoutStopSec gives it time).
 [Unit]
-Description=SCORE dashboard listener: answer the owner's concept draws and picks as they come
+Description=SCORE dashboard listener: answer the owner's clicks (reviews, Buy, Stop) as they come
 
 [Service]
 # A run it launches outlives it: stop only this unit's own process, never the detached runs it started (2026-10-24: the
@@ -21,6 +22,7 @@ ExecStart=/bin/sh -c 'SCORE_SYNC_TOKEN="$$("$$SCORE_SECRET_READER" "<the sync to
 Restart=always
 RestartSec=10
 RuntimeMaxSec=3600
+TimeoutStopSec=600
 
 [Install]
 WantedBy=default.target

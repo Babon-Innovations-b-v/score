@@ -66,13 +66,53 @@ def test_a_buy_whose_price_needs_a_pass_is_said_so_and_left_waiting_for_it(monke
     assert listen.round_once(hosted, None, left) == [] and hosted.skips[-1] == [5]  # an old hosted side ignores skip
 
 
-def test_a_pass_pricing_now_leaves_the_buy_to_it(settings, tmp_path):
+def test_a_buy_during_a_pass_waits_only_for_a_basket_on_another_commit(monkeypatch, settings, tmp_path):
+    """A pass makes prepare's figure and the price again on the same commit for about 15 minutes; the last pass's
+    stand meanwhile (owner, 2026-10-25: "this process is stupid"), a basket on another commit does not."""
     settings.SCORE_HOME = tmp_path
-    assert not client.pass_pricing()
+    monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
+    remade = ["prepare's figure: the code moved since it was made",
+              "the basket was made at 2026-10-25T09:00:00Z, before prepare's figure (2026-10-25T09:05:00Z)"]
+    monkeypatch.setattr(client, "figures_moved", lambda source, now: list(remade))
+    assert client.buy_waits(None).startswith("prepare's figure")
     with client.pricing_now():
-        assert client.pass_pricing()
-        assert client.buy_waits(None).startswith("a sync pass is pricing now")
+        assert client.pass_pricing() and client.buy_waits(None) is None
+        remade.append("the basket was made on commit aaaaaaaa, the code is at bbbbbbbb")
+        assert client.buy_waits(None) == remade[-1]
     assert not client.pass_pricing()
+
+
+def test_a_slow_request_never_holds_back_the_next_and_a_stop_claims_nothing(monkeypatch):
+    """The listener's pool: a draw still answering does not keep Stop everything waiting for it; once SIGTERM set
+    `stopping`, nothing more is claimed and what was claimed is answered before the process ends."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    release, answered = threading.Event(), []
+
+    def answer(remote, item, source, chosen=None):
+        if item["kind"] == "concept-draw":
+            release.wait(5)
+        answered.append(item["id"])
+        return applying.Applied("done", "")
+    monkeypatch.setattr(client, "answered", answer)
+    draw, stop = {"id": 1, "kind": "concept-draw"}, {"id": 2, "kind": "stop-everything"}
+    hosted, busy, left = Hosted([draw]), set(), set()
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        assert listen.round_once(hosted, None, left, pool, busy) == [] and busy == {1}
+        hosted.items = [draw, stop]  # the draw is skipped while it is answered
+        listen.round_once(hosted, None, left, pool, busy)
+        assert hosted.skips[-1] == [1]
+        for _ in range(50):
+            if answered == [2]:
+                break
+            threading.Event().wait(0.05)
+        assert answered == [2]
+        stopping = threading.Event()
+        stopping.set()
+        hosted.items = [{"id": 3, "kind": "stop-everything"}]
+        assert listen.round_once(hosted, None, left, pool, busy, stopping) == []
+        release.set()
+    assert answered == [2, 1] and busy == set()
 
 
 def test_the_figures_must_price_this_commit_and_the_basket_come_after_prepare(settings, tmp_path):
