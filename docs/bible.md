@@ -190,7 +190,11 @@ Make plan click):
 Invariants: his plan and edits always win (a plan written after his edit is shown as an `edited` gap, never over it);
 creator data wins (the ship's floor plan, `data/definitions/ship_floor.json`, is laid at its own size where the drawing
 puts it); fixes and rewrites never move a locked child scene's room, only his edit does, and a moved room puts its draws
-out of date; people are standing spots (`plan["people"]`, position, facing, row), never items, and a crowd gets none.
+out of date. A child scene's spot takes the size of its own plan (drawn from its own concept at its own scale), its
+middle where the spot sat, the parent's items it newly covers pushed off it the shortest way, each change a `held` gap
+on the parent's plan (`plans.holds_fitted`, owner 2026-10-25), so the scene tree never fails on size; that resize is
+no move of its room. People are standing spots (`plan["people"]`, position, facing, row), never items, and a crowd
+gets none.
 
 **Plan editing in the app** (`plans.py`; the page's `plan.js`). He drags, resizes, moves doors and person spots, adds,
 renames or removes child scenes, marks the plan and asks for Correct with notes. Drop decides: a box in open space is a

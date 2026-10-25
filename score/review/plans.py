@@ -19,7 +19,8 @@ The store keeps his work, written only in the owner's process (`concepts.recorde
     plans/<place>/edits/<time>.json      {place, plan, concept (the pick it was made on), by, at, how, calls}
     plans/<place>/named/<time>.json      {place, names, by, at}: inside places he named on the concept page
 
-The plan shown is his newest edit made on the current pick, else the derived one; the plan stage reads it (`keep`:
+The plan shown is his newest edit made on the current pick, else the derived one, each child scene's spot at its own
+plan's size, centred where it sat (`holds_fitted`); the plan stage reads it (`keep`:
 {home}/design/plans/<place>.json, written on his edit and by the sync pass, stages.creator_plan). An inside place's
 concept is drawn only once the layer above's plan is made (`made`, concepts.step_refusal), from the row holding it
 there (`holder_of`: the row, its SAM box, its outline); `shape_sent` draws its shape on that plan. His notes go to Gemini 3.1 Pro (`revised`: one direct call, his click its spend yes at
@@ -227,6 +228,7 @@ def moved_draws(store, place):
     locked = concepts.picked(store, place)
     # his lock made on the plan above shown now: he locked it on that room, nothing has moved it since
     locked_since = locked and since and concepts.records(store, place, "picks")[-1].get("at", "") >= since
+    size = own_size(store, place) if any(draw.get("room", room) != room for draw in draws) else None
 
     def moved(draw, seen=(), mine=False):
         if mine and locked_since:
@@ -235,8 +237,8 @@ def moved_draws(store, place):
             base = by_sha.get(draw["base"])
             return base is not None and base is not draw and draw["base"] not in seen and moved(
                 base, (*seen, draw["base"]), mine)
-        if "room" in draw:
-            return draw["room"] != room
+        if "room" in draw:  # a spot taking the place's own plan's size (holds_fitted) is no move
+            return room_at(draw["room"], size) != room_at(room, size)
         # shortcut: a draw from before rooms were recorded counts as moved by any plan of the layer above made after
         # it, whether or not that plan moved this room, his locked one by his own edit only (a plan written again
         # never moves a locked scene's room); drop once no such draw is in use
@@ -646,7 +648,7 @@ def once(what, store, key, make, shared=False):
 def current(store, place):
     """{plan, how, at, by} of the plan shown: his newest edit made on the current pick (how: edited or revised), else
     the plan made without him (`made_plan`: written, else derived); None while its inventory does not count."""
-    return once("plan", store, place, lambda: shown_plan(store, place))
+    return once("plan", store, place, lambda: holds_fitted(store, shown_plan(store, place)))
 
 
 def shown_plan(store, place):
@@ -662,6 +664,81 @@ def shown_plan(store, place):
             "kind": "edited", "words": "the plan was written again after your edit (its inventory read again): "
                                        "your edit is kept, the new writing not shown"}]}
     return shown
+
+
+def own_size(store, place):
+    """(w, d) of `place`'s own plan, his newest edit else its writing; None while neither is (a derived plan takes its
+    hold's size, so it agrees already)."""
+    found = newest_edit(store, place) or written(store, place)
+    return (found["plan"]["w"], found["plan"]["d"]) if found and found["plan"].get("w") else None
+
+
+def overlap(box, other):
+    """Whether two [x, y, w, d] boxes share floor (more than a millimetre each way)."""
+    return (min(box[0] + box[2], other[0] + other[2]) - max(box[0], other[0]) > 0.001
+            and min(box[1] + box[3], other[1] + other[3]) - max(box[1], other[1]) > 0.001)
+
+
+def pushed_out(box, hold):
+    """`box` [x, y, w, d] moved the shortest way off `hold`'s box."""
+    moves = [(hold[0] - box[0] - box[2], 0.0), (hold[0] + hold[2] - box[0], 0.0),
+             (0.0, hold[1] - box[1] - box[3]), (0.0, hold[1] + hold[3] - box[1])]
+    across, along = min(moves, key=lambda move: abs(move[0]) + abs(move[1]))
+    return [round(box[0] + across, 3), round(box[1] + along, 3), box[2], box[3]]
+
+
+def room_at(hold, size):
+    """`hold` at `size` (w, d), its middle kept; as it is with no size or no box."""
+    if not size or not isinstance(hold, dict) or "w" not in hold:
+        return hold
+    middle = [hold["x"] + hold["w"] / 2, hold["y"] + hold["d"] / 2]
+    return {**hold, "x": round(middle[0] - size[0] / 2, 3), "y": round(middle[1] - size[1] / 2, 3),
+            "w": size[0], "d": size[1]}
+
+
+def hold_fitted(plan, hold, size):
+    """(the hold at `size`, its middle kept; gaps): each floor item of `plan` the new box covers and the old did not
+    pushed off it in place, each change named."""
+    old = [hold["x"], hold["y"], hold["w"], hold["d"]]
+    middle = [old[0] + old[2] / 2, old[1] + old[3] / 2]
+    fitted = room_at(hold, size)
+    new = [fitted["x"], fitted["y"], fitted["w"], fitted["d"]]
+    at = [round(value, 2) for value in middle]
+    gaps = [{"kind": "held", "item": hold["place"], "row": hold.get("row"), "at": at,
+             "words": f"{hold['place'].replace('_', ' ')}'s spot was {old[2]:g} x {old[3]:g} m, its own plan "
+                      f"{size[0]:g} x {size[1]:g} m: the spot takes its plan's size, its middle kept"}]
+    for number, item in enumerate(plan.get("items", [])):
+        box = item[1:5]
+        if item[6] != "item" or hold.get("row") in plan.get("rows", {}).get(item[0], []) or overlap(box, old) \
+                or not overlap(box, new):
+            continue
+        plan["items"][number] = [item[0], *pushed_out(box, new), *item[5:]]
+        gaps.append({"kind": "held", "item": item[0], "with": hold["place"], "at": at,
+                     "words": f"{item[0].lower()} stood where {hold['place'].replace('_', ' ')} now sits: moved off it"})
+    return fitted, gaps
+
+
+def holds_fitted(store, shown):
+    """`shown` with each hold at its child scene's own plan's size, centred where the hold sat (owner, 2026-10-25: a
+    child's plan is drawn from its own concept at its own scale, its holder's plan says where it sits, and the two
+    agree before any paid work, so the scene tree never fails on size), each change a `held` gap for him to see."""
+    if shown is None or not shown["plan"].get("holds"):
+        return shown
+    plan = copy.deepcopy(shown["plan"])
+    gaps, holds, resized = [gap for gap in plan.get("gaps", []) if gap.get("kind") != "held"], [], set()
+    for hold in plan["holds"]:
+        size = own_size(store, hold["place"])
+        if size and (abs(size[0] - hold["w"]) > 0.001 or abs(size[1] - hold["d"]) > 0.001):
+            hold, moved = hold_fitted(plan, hold, size)
+            gaps += moved
+            resized.add(hold["place"])
+        holds.append(hold)
+    # a sibling spot is another child's own: never moved here, named
+    gaps += [{"kind": "held", "item": hold["place"], "with": other["place"], "at": [hold["x"], hold["y"]],
+              "words": f"{hold['place'].replace('_', ' ')} at its plan's size overlaps {other['place']}"}
+             for hold in holds if hold["place"] in resized for other in holds
+             if other is not hold and overlap(*([spot["x"], spot["y"], spot["w"], spot["d"]] for spot in (hold, other)))]
+    return {**shown, "plan": {**plan, "holds": holds, "gaps": gaps}}
 
 
 # --- his edits --------------------------------------------------------------------------------------------------

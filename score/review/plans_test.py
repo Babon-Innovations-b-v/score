@@ -385,3 +385,27 @@ def test_a_holder_with_no_outline_of_its_own_gets_one_round_its_inside_places_be
     assert reading.outline_of(store, "nowhere") is None
     picked(store, "yard")
     assert plans.current(store, "yard")["plan"]["w"] == 6.6
+
+
+def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so(store):
+    """Owner, 2026-10-25 ("the framework should be able to solve [it] agnosticly"): a child scene's own plan is drawn
+    from its own concept at its own scale, the holder's spot says where it sits; they agree before any paid work."""
+    rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
+            {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
+    picked(store, "yard", rows)
+    plan = plans.current(store, "yard")["plan"]
+    plan["w"] = plan["d"] = 30.0
+    plan["holds"] = [{"place": "shed", "row": None, "x": 10.0, "y": 10.0, "w": 6.0, "d": 6.0}]
+    plan["items"] = [["CART 1", 13.0, 7.5, 1.0, 1.0, None, "item"]]  # clear of the spot, not of the shed's own size
+    plans.edited(store, "yard", plan, "joey")
+    held = plans.current(store, "yard")["plan"]
+    assert held["holds"][0]["w"] == 6.0 and not [gap for gap in held["gaps"] if gap["kind"] == "held"]
+    store.write_once("concepts/shed/draws/0.json", {"place": "shed", "sha": "b" * 64, "at": "2026-10-20T00:00",
+                                                    "room": held["holds"][0]})  # drawn on the spot as it was
+    picked(store, "shed")
+    written(store, "shed", {**plans.current(store, "shed")["plan"], "w": 4.0, "d": 10.0})
+    fitted = plans.current(store, "yard")["plan"]
+    assert {key: fitted["holds"][0][key] for key in "xywd"} == {"x": 11.0, "y": 8.0, "w": 4.0, "d": 10.0}
+    assert fitted["items"][0][1:5] == [13.0, 7.0, 1.0, 1.0]  # pushed north off the shed, the shortest way
+    assert [gap["item"] for gap in fitted["gaps"] if gap["kind"] == "held"] == ["shed", "CART 1"]
+    assert plans.moved_draws(store, "shed") == set()  # its own size is no move of its room
