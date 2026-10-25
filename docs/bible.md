@@ -126,7 +126,9 @@ owner, 2026-10-23); two sites whose footprints would stand closer than 10 m are 
 (`environment_plan.cleared`: the smaller moved out along its own bearing from the larger, on its ground's curve; the
 locked concept's text untouched), never a site the creator placed himself (moved from where his first kept concept had it), in any environment and on
 one ground at a time; a site with no plan yet stands where the physics puts it until its plan lands. So only two of his own that overlap are
-a gap (the owner, 2026-10-21: "gaps should only show things that cant be fixed auto"). Its page draws each
+a gap (the owner, 2026-10-21: "gaps should only show things that cant be fixed auto"). A site whose concept shows daylight (the reading's
+concept light, asked by the sync pass) has its scene time moved on every settle to the nearest hour its sun is up, the
+time written shown beside it (`environment_plan.concept_timed`; owner, 2026-10-25). Its page draws each
 site's plan with plan.js's own sheet at its true footprint and distance. What
 each site sees overhead at its scene time is worked out from the physics (`overhead.seen`: every light, every other
 body at its true direction, size and phase, every backdrop) and kept per scene (`scene_sky.py`, a child scene using its

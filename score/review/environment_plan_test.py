@@ -213,6 +213,27 @@ def test_his_edit_is_kept_and_settled_again(store, scene_plans):
         environment_plan.edited(store, {"maps": "none"}, "joey")
 
 
+def test_a_daylight_concept_moves_its_sites_time_to_the_nearest_hour_its_sun_is_up(store, scene_plans, monkeypatch):
+    from score.review import reading
+    daylight = {"square": True, "wreck": False}
+    monkeypatch.setattr(reading, "concept_light", lambda store, place: {"rows": {}, "scene": {
+        "daylight": daylight[place], "unseen": False, "unseen_colour": ""}} if place in daylight else None)
+    plan = environment_plan.current(store)["plan"]
+    for world in plan["maps"]:
+        for site in world["sites"]:
+            site["time"] = "2099-06-01T20:00:00Z"  # 4 in the morning in Hong Kong
+    environment_plan.edited(store, plan, "joey")
+    square = environment_plan.site_of(store, "square")
+    assert square["written_time"] == "2099-06-01T20:00:00Z" and square["time"] == "2099-06-01T22:00:00Z"
+    assert square["overhead"]["lights"][0]["altitude"] > 0  # the Sun up, the hour before it still under
+    assert environment_plan.sun_up(environment_plan.current(store)["plan"]["setting"], square, "2099-06-01T21:00:00Z") \
+        is False
+    wreck = environment_plan.site_of(store, "wreck")
+    assert wreck["time"] == "2099-06-01T20:00:00Z" and "written_time" not in wreck  # no daylight: as written
+    daylight["square"] = False  # read again as dark: back to the time written
+    assert environment_plan.site_of(store, "square")["time"] == "2099-06-01T20:00:00Z"
+
+
 def test_a_plan_made_under_another_concept_is_out_of_date(store, scene_plans):
     plan = environment_plan.current(store)["plan"]
     for world in plan["maps"]:
