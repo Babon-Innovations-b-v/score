@@ -174,14 +174,15 @@ def test_the_record_is_written_from_the_design():
 
 
 def test_a_floodlight_tower_read_as_a_tower_gets_a_light_at_its_head():
-    """A yard with a 10 m floodlight tower read as a tower (the reading's noun) and a light switch: the tower's plan
+    """A yard with a 1 by 1 by 10 m floodlight tower (a stem by its metres) read as a tower (the reading's noun) and a light switch: the tower's plan
     item gets one library lamp near its top over its middle, the switch none (score/stages/row_kinds.py held_by)."""
     from score.stages.scene_record import writer
     design = {**WRITTEN, "items": [["TOWER", 3.0, 2.0, 1.0, 1.0, None, "item"], ["SWITCH", 1.0, 1.0, 0.1, 0.1, None,
                                                                                     "item"]],
               "rows": {"TOWER": ["floodlight_tower"], "SWITCH": ["light_switch"]},
               "shapes": {"TOWER": {"shape": "rect", "tall": 10.0, "base": 0.0}}}
-    rows = [{"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "on:yard"},
+    rows = [{"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "on:yard",
+             "size": [1.0, 1.0, 10.0]},
             {"id": "light_switch", "name": "light switch", "noun": "switch", "anchor": "wall"}]
     with tempfile.TemporaryDirectory() as folder:
         (pathlib.Path(folder) / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": rows}))
