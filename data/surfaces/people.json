@@ -68,19 +68,6 @@
    "spec": "data/people/specs/person.json",
    "outfit": "made"
   },
-  "person_spacesuit-made-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "the clothes as drawn in the lab concept",
-   "spec": "data/people/specs/person_spacesuit.json",
-   "outfit": "made"
-  },
   "person_uniform-made-s1": {
    "places": [
     "people"
@@ -129,7 +116,7 @@
    ],
    "place": "people",
    "kind": "person",
-   "object": "the clothes as drawn in the stairwell concept",
+   "object": "the clothes as drawn in the square concept",
    "spec": "data/people/specs/crowd.json",
    "outfit": "made"
   }
@@ -142,7 +129,6 @@
    "astronaut_suit-made": "astronaut_suit-made-s1",
    "officer-made": "officer-made-s1",
    "person-made": "person-made-s1",
-   "person_spacesuit-made": "person_spacesuit-made-s1",
    "person_uniform-made": "person_uniform-made-s1",
    "pilot-made": "pilot-made-s1",
    "worker_jumpsuit-made": "worker_jumpsuit-made-s1",
@@ -206,19 +192,6 @@
      0.6,
      1.8,
      0.4
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
-   "person_spacesuit-made": {
-    "size": [
-     0.5,
-     1.8,
-     0.5
     ],
     "screens": [],
     "cuts": [],
