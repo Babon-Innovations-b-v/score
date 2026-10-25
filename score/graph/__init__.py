@@ -601,11 +601,14 @@ class Runner:
         return self.code_versions[stage.name]
 
     def files_of(self, stage, place):
-        """{name: path pattern} of the environment files the node reads."""
+        """{name: path pattern} of the environment files the node reads (worked out once a `still` pass)."""
         if not callable(stage.files):
             return stage.files
-        with self.selection(stage):
-            return stage.files(place)
+
+        def worked_out():
+            with self.selection(stage):
+                return stage.files(place)
+        return self.remember("files", node_name(stage, place), worked_out)
 
     @contextlib.contextmanager
     def selection(self, stage):
@@ -1179,10 +1182,13 @@ class Runner:
 
     def read_nodes(self, stage, place, every=False):
         """(stage, place) of every node this node reads: its own place's or the environment's, and other places'
-        (`every`: its optional reads too, usable now or not, Runner.reads)."""
-        own = [(self.stages[before], place if self.stages[before].grain == "place" else None)
-               for before in self.reads(stage, place, every)]
-        return own + [(self.stages[before], other) for before, other, _ in self.besides(stage, place).values()]
+        (`every`: its optional reads too, usable now or not, Runner.reads); once a `still` pass (a price walks each
+        node's reads from every chain through it)."""
+        def worked_out():
+            own = [(self.stages[before], place if self.stages[before].grain == "place" else None)
+                   for before in self.reads(stage, place, every)]
+            return own + [(self.stages[before], other) for before, other, _ in self.besides(stage, place).values()]
+        return list(self.remember(("read nodes", every), node_name(stage, place), worked_out))
 
     def run(self, places):
         """Run every node in table order; {node: what it did}."""

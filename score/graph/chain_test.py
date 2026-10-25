@@ -101,6 +101,20 @@ def test_a_node_that_does_not_stand_is_walked_through():
     assert found["draw@hangar"] is False
 
 
+def test_a_still_pass_walks_the_same_reads_and_the_next_pass_sees_a_change():
+    runner = a_runner()
+    unheld = {graph.node_name(stage, place): sorted(graph.node_name(*before) for before in runner.read_nodes(stage, place, every=True))
+              for stage, place in runner.nodes(["hangar"])}
+    with runner.still():
+        held = {graph.node_name(stage, place): sorted(graph.node_name(*before) for before in runner.read_nodes(stage, place, every=True))
+                for stage, place in runner.nodes(["hangar"])}
+        files = runner.files_of(runner.stages["draw"], "hangar")
+    assert held == unheld and files == {"brief": "{data}/{place}.txt"}
+    assert "draw@hangar" not in chained(runner, "gap")
+    (runner.world.roots["data"] / "hangar.txt").write_text("a bigger hall")  # a pass held nothing over to the next
+    assert chained(runner, "gap")["draw@hangar"] is False
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()

@@ -760,14 +760,17 @@ def plan_json(runner, places, whole, options):
     (buy_price), for (the run's places whose line holds it: rebuy.held_for, so the cockpit's Buy buys a shared line
     with the places that read it), takes (a designed place's node: the takes prepare priced that it makes)}, and the
     run's price over
-    them (plan_price), the only euros and minutes the cockpit shows."""
-    found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
+    them (plan_price), the only euros and minutes the cockpit shows. It writes nothing, so each plan, key and read is
+    worked out once (plans.one_moment, Runner.still)."""
+    from score.review import plans
     from score.stages.complete.gaps import price
-    held = rebuy.held_for(runner, runner.line_nodes(places, whole, options.stage), set(places))
-    found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again,
-                      "price": selected_price(runner, buy), "for": sorted(held.get(buy.node, ())),
-                      **({"takes": price.design_takes(buy.node)} if price.design_takes(buy.node) else {})}
-                     for buy in found["buys"]]
+    with plans.one_moment(), runner.still():
+        found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
+        held = rebuy.held_for(runner, runner.line_nodes(places, whole, options.stage), set(places))
+        found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again,
+                          "price": selected_price(runner, buy), "for": sorted(held.get(buy.node, ())),
+                          **({"takes": price.design_takes(buy.node)} if price.design_takes(buy.node) else {})}
+                         for buy in found["buys"]]
     return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found,
             "price": plan_price([buy["price"] for buy in found["buys"]], options.jobs)}
 
@@ -927,11 +930,15 @@ GAPS_PRICE = "work/checks/gaps-price"  # under PROPS_HOME: the gaps' prices the 
 
 
 def gaps_record(world):
-    """Every place's gaps priced through their chains (score/stages/complete/gaps/price.py) on the framework store."""
+    """Every place's gaps priced through their chains (score/stages/complete/gaps/price.py) on the framework store,
+    each place's plan read once (plans.one_moment: it writes nothing meanwhile)."""
+    from score.review import plans
     from score.stages.complete.gaps import OUT, price
     from score.store import Store
-    runner = stages.runner(world=stages.WORLDS[world]())
-    return price.gaps_price(runner, world, OUT, stages.places(runner.world, runner.store), counting_store(Store.default()))
+    with plans.one_moment():
+        runner = stages.runner(world=stages.WORLDS[world]())
+        return price.gaps_price(runner, world, OUT, stages.places(runner.world, runner.store),
+                                counting_store(Store.default()))
 
 
 def gaps_price(world):
