@@ -72,13 +72,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   object's wear and dirt pattern is its own), a new surface only when none fits with any settings; its wear the
   place's level, or its own library level where the views show a cause (walked paths, edges, round doors; owner,
   2026-10-20), level and cause both or neither, listed in `questions.json`; and a label for each region in each
-  view. Split (free): first the colour check, before any paid bake or recheck (owner, 2026-10-20): each region of
-  every view from every angle against the finish labelled there, its token's colour against the region's median
-  texture colour in that view (`colour_faults`; glass, glow, light, print and see-through left out), after a finish
-  whose token lies over `VIEW_DELTA_E` from any region it labels took, of the scene palette's tokens within it of
-  every one of those regions (the check's own test, never the pooled colour's: a token on its edge failed one region
-  by a fraction of a dE, Batch 1 try 4), the one nearest the listed token, its surface kept (`recoloured`, written to `<take>/finishes.json`, which the parts row reads; owner, 2026-10-22); one still over
-  `VIEW_DELTA_E` (32, UNMEASURED on the views) makes the take a gap, named with the colour the region shows, so nothing of it is baked. Then the labels voted
+  view. Split (free): by the labels alone (the paper, "Surfaces: the finish route": the views are split into colour
+  regions only so the list can label them); no colour is judged there. The split's own colour check against the raw
+  texture's regions (VIEW_DELTA_E, owner 2026-10-20, and its recolour, 2026-10-22) is gone (owner, 2026-10-25: "how is
+  that possible with our finish lib and segmentation method read paper"): the texture carries the picture's baked
+  light, and Batch 1 try 4 lost 134 takes to it at dE 32 to 41. Then the labels voted
   across views (`finish_parts.voted`, the front counting double); a seen face no
   label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
   the area are views that disagree: either is a gap, named in "one finish a face"; the rest smoothed, strays given
@@ -86,8 +84,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   one, not a whole piece; voted by larger islands only) and crumbs joined (`cleaned`, `merged_islands`), each island
   a part. A face no view sees is no gap (a raw take's inner shell: 71% of astronaut-made-s1), but its walked paint
   left jagged islands of the dark joints (stray 0.054, 2026-10-23), so a take still patchy (`patchiness`, patchy.py
-  with each part its own region, as the paint measures it) is a gap in "one finish a face" before any bake. Parts (free): each finish checked against the median of
-  its faces' texture colour (`finish_parts.checked_finishes`: the nearest surface of its family or the room's kit
+  with each part its own region, as the paint measures it) is a gap in "one finish a face" before any bake. Parts (free): each finish checked against its colour in
+  the close-up (`route_parts.close_up_colours`: the raw take cast through the close-up's own camera, Pixal3D's
+  `transforms.json` beside it, a `camera <take>` input of the parts row alone; each inner pixel takes the finish of
+  the face under it; a take with no own close-up or camera, or a cast under `CLOSE_UP_FIT` of the close-up's outline,
+  is measured on its views' texture, named in `colour_from`), the paper's dE 32 (`finish_parts.checked_finishes`: the nearest surface of its family or the room's kit
   surface that fits, else off its colour with a proposal, which the paint's gate fails by name), then each part its
   finish's surface (`part_rows`), with the list's settings where its finish kept the listed surface
   (`route_settings.applied`); the takes the split made gaps are `left_out`. Bake (paid, `route_bake.py`; #18,

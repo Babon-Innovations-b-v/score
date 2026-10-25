@@ -16,7 +16,6 @@ import pathlib
 import subprocess
 import sys
 import tempfile
-import types
 
 import numpy as np
 import trimesh
@@ -275,69 +274,96 @@ def test_an_unassigned_face_or_views_that_disagree_make_a_gap():
     assert "disagree" in route_split.split_fault(found)
 
 
-def test_a_finish_off_what_the_views_show_takes_the_nearest_palette_token_before_it_is_judged():
-    """Owner, 2026-10-22: the list put the astronaut's mid-grey jacket in hull-white. A finish whose token lies over
-    VIEW_DELTA_E from what its regions show takes the palette's nearest token, its surface kept, and the parts row
-    paints it so; only a region still over the limit is a gap."""
+def test_the_split_decides_by_the_labels_alone():
+    """The paper: the views are split into colour regions only so the list can label them. The blue box listed in
+    red is split, its colour judged after the split against the close-up, never against a texture region here."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         far = lambda views, take: dict(two_finish_answer(views), finishes=[
             finish_entry("red paint"), finish_entry("blue paint", token="sign-red")])  # the blue box in red
-        rows = parted(folder, split(folder, listed(folder, far)[0]))
-        record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
-        assert record["fault"] is None, record
-        judged = json.loads((rows["finish-route-split"] / TAKE / route_split.FINISHES).read_text())
-        assert judged[1]["listed_token"] == "sign-red" and judged[1]["settings"]["token"] == "bay-three", judged[1]
-        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]
-        assert {finish["settings"]["token"] for finish in found["finishes"]} == {"sign-red", "bay-three"}, found
+        rows = split(folder, listed(folder, far)[0])
+        assert json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]["fault"] is None
+        assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "pass"
 
 
-def test_a_finish_takes_a_token_every_one_of_its_regions_allows_never_one_on_its_pooled_colours_edge():
-    """Batch 1 try 4 (2026-10-25): a token chosen within VIEW_DELTA_E of a finish's pooled colour sat just over it for
-    one of its regions. One finish on a grey region (sRGB 119, L* 50) and a lighter one three times its size (171, L*
-    70), listed in white: the pale token (232) lies within the limit of the pooled colour, nearest the white, but 42
-    from the darker region; the mid grey (160) fits both and is taken. With only the pale token the take is a gap."""
-    linear = lambda level: [((level / 255 + 0.055) / 1.055) ** 2.4] * 3
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        regions = np.array([[0, 1], [1, 1]])
-        colours = np.repeat(np.where(regions == 0, 119, 171)[..., None], 3, axis=-1).astype(np.uint8)
-        np.savez(folder / "colours.npz", front=colours)
-        np.savez(folder / "regions.npz", front=regions)
-        white = {"finish": "panel", "parts": "panel", "surface": "painted_panel", "family": "painted",
-                 "settings": {"token": "white"}, "colour": linear(255)}
-        listed = {"finishes": [white], "labels": {"front": {"0": 0, "1": 0}}}
-        assert route_split.colour_faults(folder, listed)[0]
-        tokens = {"pale": linear(232), "mid": linear(160)}
-        judged = route_split.recoloured(folder, listed, tokens)
-        assert judged["finishes"][0]["settings"]["token"] == "mid", judged
-        assert route_split.colour_faults(folder, judged) == ([], route_split.colour_faults(folder, judged)[1])
-        kept = route_split.recoloured(folder, listed, {"pale": tokens["pale"]})
-        faults = route_split.colour_faults(folder, kept)[0]
-        assert kept["finishes"][0]["settings"]["token"] == "white" and "shows L*a*b* [50.0" in faults[0], faults
+LIT_RED, LIT_BLUE = (180, 40, 30), (155, 125, 222)  # the close-up's colours, near sign-red and bay-three
+SHADED_RED, SHADED_BLUE = (70, 8, 8), (60, 48, 90)  # the raw take's texture: the picture's light baked in
 
 
-def test_a_chosen_surface_off_what_any_view_shows_is_a_gap_before_the_bake():
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        far = lambda views, take: dict(two_finish_answer(views), finishes=[
-            finish_entry("red paint"), finish_entry("blue paint", token="sign-red")])  # the blue box in red
-        rows = listed(folder, far)[0]
-        tokens = route_split.route_list.palette_tokens(route_split.palette_library.read(rows))
-        kept = route_split.route_list
-        route_split.route_list = types.SimpleNamespace(palette_tokens=lambda palette: {"sign-red": tokens["sign-red"]})
-        try:  # a palette with no token near the blue box: it stays off its colour
-            rows = parted(folder, split(folder, rows))
-        finally:
-            route_split.route_list = kept
-        record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
-        assert "blue paint (" in record["fault"] and "sign-red) lies dE" in record["fault"], record
-        assert record["colour_worst"] > route_split.VIEW_DELTA_E, record
-        assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "fail"
-        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())
-        assert TAKE not in found["takes"] and TAKE in found["left_out"], found  # nothing of it is baked
-    glass = {"finish": "window", "parts": "pane", "surface": "pane", "family": "glass"}
-    assert route_split.own_colour(glass) and not route_split.own_colour(dict(glass, family="painted"))
+def close_up_of(folder, model, side=256):
+    """A close-up of the two boxes and its camera (Pixal3D's transforms.json, 3 in front, 1.2 rad across): each box
+    in its lit colour where the camera sees it, clear elsewhere."""
+    camera = folder / "transforms.json"
+    camera.write_text(json.dumps({"camera_angle_x": 1.2, "frames": [{"transform_matrix": [
+        [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 3.0], [0, 0, 0, 1]]}]}))
+    loaded = route_cast.loaded(model)
+    faces = route_parts.close_up_cast(loaded, route_parts.close_up_camera(camera), (side, side))[0]
+    left = loaded.mesh.triangles_center[:, 0] < 0
+    picture = np.zeros((side, side, 4), dtype=np.uint8)
+    seen = faces >= 0
+    picture[seen, :3] = np.where(left[faces[seen]][:, None], LIT_RED, LIT_BLUE)
+    picture[seen, 3] = 255
+    Image.fromarray(picture).save(folder / "input.png")
+    return {f"close-up {TAKE}": folder / "input.png", f"camera {TAKE}": camera}
+
+
+def close_up_judged(folder, finishes):
+    """bake_check's close-up faults of the two boxes baked each in its finish's colour (its token's, as the bake
+    paints it), read against the finishes' close-up colours as the paint reports them (labels.json)."""
+    bake_check = route_check.bake_check
+    labelled = folder / "labelled"
+    labelled.mkdir(exist_ok=True)
+    (labelled / "labels.json").write_text(json.dumps({"finishes": finishes}))
+    names = {route_settings.settings_name(finish["surface"], route_settings.applied(finish))
+             if route_settings.applied(finish) else finish["surface"]: finish for finish in finishes}
+    surfaces = {name: {"baked_lab": [float(value) for value in route_parts.finish_parts.library_lab(finish)],
+                       "share": 0.5, "family": "painted"} for name, finish in names.items()}
+    return bake_check.close_up_faults("two_boxes", {"surfaces": surfaces,
+                                                     "close_up": bake_check.close_up_colours(labelled)})
+
+
+def test_a_finish_is_held_against_its_colour_in_the_close_up_never_the_light_baked_texture():
+    """Batch 1 try 4 (2026-10-25): 134 takes were gaps for a surface over dE 32 from a raw texture region, whose colours
+    carry the picture's light. The boxes' texture is shaded over the limit from their tokens; the close-up shows
+    them near: each keeps its listed surface and the bake check passes it. A wrong surface (the blue box as bare
+    steel) is still off its colour, and the bake check still fails it against the close-up."""
+    global RED, BLUE
+    kept = RED, BLUE
+    RED, BLUE = SHADED_RED, SHADED_BLUE
+    finish_parts = route_parts.finish_parts
+    try:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = pathlib.Path(temporary)
+            rows = listed(folder, lambda views, take: two_finish_answer(views))[0]
+            rows = parted(folder, split(folder, {**rows, **close_up_of(folder, rows[f"model {TAKE}"])}))
+            record = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]
+            assert record["colour_from"].startswith("close-up"), record["colour_from"]
+            assert [finish["by"] for finish in record["finishes"]] == ["the list"] * 2, record["finishes"]
+            assert all(finish["delta_e"] <= finish_parts.COLOUR_DELTA_E for finish in record["finishes"])
+            finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy").astype(int)
+            textured = route_parts.seen_colours(rows["finish-route-views"] / TAKE, finish_of, 2)
+            assert all(np.linalg.norm(colour - finish_parts.library_lab(finish)) > finish_parts.COLOUR_DELTA_E
+                       for colour, finish in zip(textured, record["finishes"])), textured  # what the split failed
+            assert close_up_judged(folder, record["finishes"]) == []
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = pathlib.Path(temporary)
+            library = folder / "library"
+            library.mkdir()
+            palette = route_parts.palette_library.read({"finish-route-palette": paletted(library),
+                                                        "surface-library": libraried(library)})
+            import part_judge
+            steel = part_judge.code(list(route_parts.palette_library.take_surfaces({"kind": "two_boxes"},
+                                                                                   palette)).index("bare_steel"))
+            wrong = lambda views, take: dict(two_finish_answer(views), finishes=[
+                finish_entry("red paint"), finish_entry("blue paint", surface=steel, token="steel")])
+            rows = listed(folder, wrong)[0]
+            rows = parted(folder, split(folder, {**rows, **close_up_of(folder, rows[f"model {TAKE}"])}))
+            finishes = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]["finishes"]
+            assert finishes[1]["surface"] == "bare_steel" and finishes[1]["by"] == "off its colour", finishes[1]
+            faults = close_up_judged(folder, finishes)
+            assert len(faults) == 1 and "bare_steel" in faults[0], faults
+    finally:
+        RED, BLUE = kept
 
 
 def test_a_take_with_no_usable_answer_is_a_gap_named_by_the_list():

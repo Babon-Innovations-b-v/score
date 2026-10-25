@@ -36,11 +36,12 @@ SHADE_LEAST = 0.35  # the share of a face's colour it keeps seen edge-on (the pi
 
 class Model:
     """A model's welded faces with what its texture needs: each face's three corners' UVs (NaN without), its piece
-    and each piece's colour picture (sRGB 0-255, or None) and colour factor (0-1 RGBA)."""
+    and each piece's colour picture (sRGB 0-255, or None) and colour factor (0-1 RGBA); `frame` the file's (middle,
+    largest side) the faces were normalised by."""
 
-    def __init__(self, mesh, corner_uv, piece_of, pictures, factors):
+    def __init__(self, mesh, corner_uv, piece_of, pictures, factors, frame=None):
         self.mesh, self.corner_uv, self.piece_of = mesh, corner_uv, piece_of
-        self.pictures, self.factors = pictures, factors
+        self.pictures, self.factors, self.frame = pictures, factors, frame
 
 
 def piece_colouring(geometry):
@@ -76,10 +77,11 @@ def loaded(path):
         offset += len(geometry.vertices)
     every = np.concatenate(vertices)
     low, high = every.min(0), every.max(0)
-    every = (every - (low + high) / 2) / max(float((high - low).max()), 1e-9)
+    frame = ((low + high) / 2, max(float((high - low).max()), 1e-9))
+    every = (every - frame[0]) / frame[1]
     mesh = trimesh.Trimesh(every, np.concatenate(faces), process=False)
     mesh.merge_vertices()
-    return Model(mesh, np.concatenate(corners), np.concatenate(pieces), pictures, factors)
+    return Model(mesh, np.concatenate(corners), np.concatenate(pieces), pictures, factors, frame)
 
 
 def camera(angles):

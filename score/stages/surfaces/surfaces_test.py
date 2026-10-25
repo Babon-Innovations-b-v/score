@@ -126,7 +126,7 @@ def test_a_method_change_moves_only_the_rows_that_read_the_library():
     library["recipes"]["rubber"]["roughness"] = 0.8
     (data / "library" / "materials.json").write_text(json.dumps(library))
     moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
-    assert moved == {"surface-library", "finish-route-list", "finish-route-split", "surfaces-parts", "surfaces-paint",
+    assert moved == {"surface-library", "finish-route-list", "surfaces-parts", "surfaces-paint",
                      "surfaces-bake",
                      "finish-route-recheck", "surfaces-check"}, moved
     library["wear_levels"]["scarred"] = 1.0
