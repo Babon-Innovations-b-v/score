@@ -68,6 +68,9 @@ def each_gate_breaks():
     assert answers(a_run(**{"bodies.leaf.speed": [0, 1, 1, 1, 0.5, 0.4]}))["at rest"] == checks.FAIL
     inside = {"leaf": ["/p/Objects/frame/geo"], "crate": ["/p/Objects/table/geo"]}
     assert answers(a_run(**{"inside at end": inside}))["at rest"] == checks.FAIL
+    # the floor is each body's own (a drop's target top, else where it stood), not y = 0: made ground is not at 0
+    assert answers(a_run(**{"bodies.stool.lowest": [2.0, 1.9, 2.0, 2.0, 2.0, 2.0]}))["at rest"] == checks.FAIL
+    assert answers(a_run(**{"bodies.stool.lowest": [-1.5] * FRAMES}))["at rest"] == checks.PASS
 
 
 def the_rises_are_per_undriven_stretch():
