@@ -171,8 +171,8 @@ def test_a_pin_that_cannot_be_read_moves_nothing():
         assert git(checkout, "rev-parse", "HEAD") == commits[0]
 
 
-def test_a_lock_change_waits_while_a_run_uses_the_venv():
-    """A run's frozen copy links this checkout's .venv in: a uv.lock move waits for it, any other move goes on."""
+def test_any_move_waits_while_a_run_works_in_its_frozen_copy():
+    """A run's frozen copy links this checkout's .venv in: every move waits for it and goes on once it ends."""
     with tempfile.TemporaryDirectory() as folder:
         origin, checkout, commits, uv, log, proc = setup(folder)
         copy = proc.parent / "home" / "frozen" / "abc123"
@@ -186,7 +186,8 @@ def test_a_lock_change_waits_while_a_run_uses_the_venv():
         assert "not now" in line and "5151" in line and git(checkout, "rev-parse", "HEAD") == commits[0]
         assert not log.exists()
         with cockpit({"commit": commits[1]}) as url:
-            assert "->" in moved(checkout, url, uv, proc)  # a.txt only: the .venv stays as it is
+            line = moved(checkout, url, uv, proc)  # a.txt only: still held
+        assert "not now" in line and "5151" in line and git(checkout, "rev-parse", "HEAD") == commits[0]
         (running / "cwd").unlink()
         (running / "cwd").symlink_to(folder)  # the run ended
         with cockpit({"commit": commits[2]}) as url:
