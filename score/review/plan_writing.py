@@ -139,6 +139,52 @@ Write the plan as one JSON object with these keys:
 No text besides the JSON."""
 
 
+# The plan answer's schema (ASKED's keys): the API holds the answer to it (ai.google.dev structured output).
+NUMBER, STRING = {"type": "NUMBER"}, {"type": "STRING"}
+POINT = {"type": "ARRAY", "items": NUMBER}
+POINTS = {"type": "ARRAY", "items": POINT}
+
+
+def shaped(fields, required=None):
+    """An OBJECT schema of `fields` ({name: schema}) in their order; `required` names, else every field."""
+    return {"type": "OBJECT", "properties": fields, "propertyOrdering": list(fields),
+            "required": list(fields) if required is None else required}
+
+
+def listed(fields, required=None):
+    return {"type": "ARRAY", "items": shaped(fields, required)}
+
+
+def chosen(*words, nullable=False):
+    return {"type": "STRING", "enum": list(words), **({"nullable": True} if nullable else {})}
+
+
+PLAN = shaped({
+    "outline": POINTS,
+    "walls": listed({"from": POINT, "to": POINT, "arc": shaped({"centre": POINT, "radius": NUMBER, "start": NUMBER,
+                                                                "end": NUMBER}), "thick": NUMBER, "tall": NUMBER},
+                    ["thick", "tall"]),
+    "openings": listed({"kind": chosen("door", "window", "gate", "opening"), "at": POINT, "wide": NUMBER,
+                        "angle": NUMBER, "swing": chosen("left", "right", "double", "slide", "none"), "sill": NUMBER,
+                        "head": NUMBER, "to": {**STRING, "nullable": True}}),
+    "levels": listed({"name": STRING, "height": NUMBER, "points": POINTS}),
+    "stairs": listed({"kind": chosen("stair", "ramp"), "points": POINTS, "from": NUMBER, "to": NUMBER,
+                      "angle": NUMBER, "steps": {"type": "INTEGER"}}),
+    "roofs": listed({"kind": chosen("flat", "dome", "pitched", "vault", "shed"), "points": POINTS, "eave": NUMBER,
+                     "top": NUMBER}),
+    "terrain": shaped({"spots": POINTS, "contours": listed({"height": NUMBER, "points": POINTS})}, []),
+    "items": listed({"row": STRING, "count": {"type": "INTEGER"}, "box_2d": POINT,
+                     "shape": chosen("rect", "circle", "polygon"), "points": POINTS,
+                     "facing": chosen(*FACINGS, nullable=True), "seen": {**STRING, "nullable": True}, "tall": NUMBER,
+                     "base": NUMBER}, ["row", "count", "box_2d", "shape", "facing", "seen", "tall", "base"]),
+    "structure": {"type": "ARRAY", "items": STRING},
+    "beyond": {"type": "ARRAY", "items": STRING},
+    "zones": listed({"name": STRING, "box_2d": POINT}),
+    "places": listed({"place": STRING, "in": {**STRING, "nullable": True}, "box_2d": POINT}),
+    "people": POINTS,
+    "section": shaped({"y": NUMBER})})
+
+
 class Refused(ValueError):
     pass
 
@@ -252,7 +298,7 @@ def asked_body(drawing, concept, facts):
     return {"contents": [{"role": "user", "parts": [
         {"text": ASKED.format(facts=json.dumps(facts, indent=1))},
         pro.part(drawn, max(drawn.size)), pro.part(picture, max(picture.size))]}],
-        "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
+        "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": PLAN}}
 
 
 def asked(body):

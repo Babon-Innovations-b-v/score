@@ -247,7 +247,8 @@ def test_the_plan_writer_writes_it_under_the_allowance_and_a_refused_answer_is_n
 
     def ask(body):
         asked.append(body)
-        return {"candidates": [{"content": {"parts": [{"text": json.dumps(answer_of(free))}]}}]}, 2.0
+        return {"candidates": [{"finishReason": "STOP",
+                                "content": {"parts": [{"text": json.dumps(answer_of(free))}]}}]}, 2.0
 
     def clear(store, places, euros, node):
         clears.append((node, places))

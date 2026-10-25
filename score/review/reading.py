@@ -143,6 +143,16 @@ are no rows: skip them. Each row with:
 - "where": where in the picture it stands, in a few words ("left wall, by the door", "centre, under the crane");
 - "region": the box round every one of it in the first picture, [ymin, xmin, ymax, xmax] on a 0 to 1000 scale.
 Only what this picture shows; nothing hidden, nothing added for the game. No text besides the JSON."""
+# The rows answer's schema (ASKED's row): the API holds the answer to it (ai.google.dev structured output).
+NUMBERS = {"type": "ARRAY", "items": {"type": "NUMBER"}}
+ROW_FIELDS = {"id": {"type": "STRING"}, "name": {"type": "STRING"}, "noun": {"type": "STRING"},
+              "kind": {"type": "STRING", "enum": list(KINDS)}, "part": {"type": "STRING", "enum": list(PARTS)},
+              "terrain": {"type": "BOOLEAN"}, "count": {"type": "INTEGER"}, "size": {"type": "STRING"},
+              "metres": NUMBERS, "anchor": {"type": "STRING"}, "where": {"type": "STRING"}, "region": NUMBERS}
+ROWS = {"type": "OBJECT", "required": ["rows"], "properties": {"rows": {"type": "ARRAY", "items": {
+    "type": "OBJECT", "properties": ROW_FIELDS, "propertyOrdering": list(ROW_FIELDS),
+    "required": ["id", "name", "noun", "kind", "part", "terrain", "count", "size", "metres", "anchor", "where",
+                 "region"]}}}}
 OUTLINE = (" the whole place is about {wide:g} m wide and {deep:g} m deep (its outline in its plan), so no row is "
            "bigger than it and every row's metres fit it")
 PARTS_ASKED = """You are given a concept painting of one place of a game environment and the rows already read from it,
@@ -248,12 +258,24 @@ def asked_body(place, concept, holder_picture, holder=None, outline=None):
     if holder_picture:
         parts.append(pro.part(Image.open(holder_picture), max(Image.open(holder_picture).size)))
     return {"contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": ROWS}}
 
 
 def answer_text(response):
-    return "".join(part.get("text", "") for candidate in response.get("candidates", [])
-                   for part in candidate.get("content", {}).get("parts", []) if not part.get("thought"))
+    """The finished answer's text (google_spend.answer_text); concepts.Refused naming the finish reason when the model
+    did not finish it (cut at the output limit, blocked), never the JSON error a cut answer parses into."""
+    _, google_spend, _ = concepts.tools()
+    try:
+        return google_spend.answer_text(response)
+    except google_spend.Unfinished as unfinished:
+        raise concepts.Refused(str(unfinished)) from unfinished
+
+
+def parts_schema(ids):
+    """The parts answer's schema: every row id of `ids` named once, its part one of PARTS."""
+    return {"type": "OBJECT", "required": ["parts"], "properties": {"parts": {
+        "type": "OBJECT", "required": list(ids),
+        "properties": {row: {"type": "STRING", "enum": list(PARTS)} for row in ids}}}}
 
 
 def call_euros(response):
@@ -323,7 +345,8 @@ def asked_parts(store, place, folder):
     response, seconds = asked({"contents": [{"role": "user", "parts": [
         {"text": PARTS_ASKED.format(parts=PART_LINES, rows=json.dumps(rows, indent=1))},
         pro.part(Image.open(concept), max(Image.open(concept).size))]}],
-        "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}})
+        "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
+                             "responseSchema": parts_schema([row["id"] for row in rows])}})
     (folder / f"{place}-parts.json").write_text(json.dumps(response, indent=1))
     try:
         parts = parts_of(answer_text(response), [row["id"] for row in rows])

@@ -36,7 +36,8 @@ ANSWER = {
 
 
 def response(answer):
-    return {"candidates": [{"content": {"parts": [{"text": json.dumps(answer)}]}}], "usageMetadata": {}}
+    return {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(answer)}]}}],
+            "usageMetadata": {}}
 
 
 UNITS = 100  # drawing units a metre in the stand-in answer: the rows' metres measure it back

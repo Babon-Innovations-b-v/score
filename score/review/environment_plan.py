@@ -533,9 +533,21 @@ def edited(store, plan, by, world=None):
     return record
 
 
+# The plan answer's schema (ASKED's object): the API holds the answer to it (ai.google.dev structured output).
+STRING = {"type": "STRING"}
+SITE = {"type": "OBJECT", "required": ["place", "time", "terrain"], "propertyOrdering": ["place", "time", "terrain"],
+        "properties": {"place": STRING, "time": STRING, "terrain": {
+            "type": "OBJECT", "required": ["spots"], "properties": {"spots": {
+                "type": "ARRAY", "items": {"type": "ARRAY", "items": {"type": "NUMBER"}}}}}}}
+MAP = {"type": "OBJECT", "required": ["on", "ground", "sites"], "propertyOrdering": ["on", "ground", "sites"],
+       "properties": {"on": STRING, "ground": STRING, "sites": {"type": "ARRAY", "items": SITE}}}
+PLAN = {"type": "OBJECT", "required": ["time", "maps"], "propertyOrdering": ["time", "maps"],
+        "properties": {"time": STRING, "maps": {"type": "ARRAY", "items": MAP}}}
+
+
 def asked_body(facts):
     return {"contents": [{"role": "user", "parts": [{"text": ASKED.format(facts=json.dumps(facts, indent=1))}]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": PLAN}}
 
 
 def write(store, by, world=None, ask=None, clear=None):

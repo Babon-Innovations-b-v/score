@@ -361,7 +361,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `cache=True` the same request is asked once and read back from `google-cache/` by every place line and rerun. A
   line written under a `score run` carries its run's id as `tag` (`score/__main__.py` `tag_ledgers`, through
   `score/stages/props/ledger_tag`, so this file stays unedited: the close-up rows declare it), and the run monitor
-  counts its calls' cost by it (2026-10-24: a run's Pro close-ups were missing from its spend). No day
+  counts its calls' cost by it (2026-10-24: a run's Pro close-ups were missing from its spend). An answer is read
+  through `google_spend.answer_text`: a finishReason other than STOP (MAX_TOKENS: the 65,536-token output limit,
+  thinking included; SAFETY, RECITATION, ...) is `Unfinished` naming it and its tokens, never the JSONDecodeError a
+  cut answer parses into; it is priced (its `finish` on the ledger line) and never cached (`keep`, the batch's answers
+  too) (fault, 2026-10-25: surface-library@camp). Every JSON ask sets a responseSchema. No day
   cap (owner, 2026-10-11). The runner's stop check (`score.adapters.compute.months_since`) adds `month_euros`: a call
   started and never finished counts at its estimate (Oct 11: Google billed EUR 549, this ledger, then written only
   after a call came back, held EUR 30). Nothing calls generativelanguage.googleapis.com any other way:

@@ -18,12 +18,18 @@ JUDGE = "gemini-3.1-pro-preview"
 USAGE = {"promptTokenCount": 1000, "candidatesTokenCount": 100, "thoughtsTokenCount": 900}
 
 
+def answered(text, finish="STOP"):
+    """A generateContent response: a thought, then `text`, ended for `finish`."""
+    return {"usageMetadata": USAGE, "candidates": [{"finishReason": finish, "content": {"parts": [
+        {"text": "thinking it over", "thought": True}, {"text": text}]}}]}
+
+
 def in_temporary_home():
     """Point the guard's ledger and cache at a fresh folder; the posts it would have sent."""
     folder = pathlib.Path(tempfile.mkdtemp())
     google_spend.LEDGER, google_spend.CACHE = folder / "google-ledger.jsonl", folder / "cache"
     sent = []
-    google_spend.post = lambda model, body, key, timeout: sent.append(body) or {"usageMetadata": USAGE}
+    google_spend.post = lambda model, body, key, timeout: sent.append(body) or answered("{}")
     return sent
 
 
@@ -124,6 +130,32 @@ def test_cache_answers_the_same_question_once():
     assert first == again and len(sent) == 2
     assert [line["state"] for line in lines()] == ["started", "finished"] * 2
 
+
+def test_an_answer_cut_off_is_priced_never_cached_and_read_as_its_finish_reason():
+    sent = in_temporary_home()
+    cut = answered('{"surfaces": [{"colours": [\n        {', "MAX_TOKENS")
+    google_spend.post = lambda model, body, key, timeout: sent.append(body) or cut
+    for _ in range(2):
+        response = google_spend.generate(JUDGE, {"ask": "long"}, "key", 5, caller="test", cache=True)
+    assert len(sent) == 2 and not google_spend.cache_path(JUDGE, {"ask": "long"}).exists()
+    assert lines()[-1]["finish"] == "MAX_TOKENS" and lines()[-1]["euros"] > 0
+    try:
+        google_spend.answer_text(response)
+    except google_spend.Unfinished as unfinished:
+        assert "MAX_TOKENS" in str(unfinished) and "thinking 900" in str(unfinished), unfinished
+    else:
+        raise AssertionError("a cut answer was read as finished")
+
+
+def test_a_finished_answer_is_its_text_without_thoughts_and_no_answer_is_unfinished():
+    assert google_spend.answer_text(answered('{"a": 1}')) == '{"a": 1}'
+    for response in ({"promptFeedback": {"blockReason": "SAFETY"}}, answered("{}", "SAFETY")):
+        try:
+            google_spend.answer_text(response)
+        except google_spend.Unfinished as unfinished:
+            assert "SAFETY" in str(unfinished), unfinished
+        else:
+            raise AssertionError(f"read as finished: {response}")
 
 
 def test_unpriced_model_recorded_without_a_price():

@@ -10,7 +10,14 @@ call with no finished line counts at its model's estimate (Google may bill a cal
 day billed EUR 549 against EUR 30 on this ledger, which then wrote only after a call came back). No cap: the owner
 wants none (2026-10-11).
 With cache=True the same request (same pictures, text, allowed answers, model and settings) is asked once: its
-response is kept in google-cache/ and read back by every later caller, any place line or rerun.
+response is kept in google-cache/ and read back by every later caller, any place line or rerun. An answer the model did
+not finish (`unfinished`: its finishReason is not STOP) is priced and written down, its finish reason on its line,
+but never kept (`keep`, google_batch's answers too), so the next ask is fresh rather than the same cut answer read
+back.
+
+Every answer is read through `answer_text`: its text, or Unfinished naming the finish reason and the tokens it spent.
+A JSON answer cut off (MAX_TOKENS: the output limit, thinking included; SAFETY, RECITATION, OTHER, ...) is reported as
+that, never as the JSONDecodeError it would otherwise parse into (fault, 2026-10-25: surface-library@camp).
 """
 import datetime
 import hashlib
@@ -46,6 +53,33 @@ TIER_PRICE = {"priority": 1.8, "batch": 0.5, "flex": 0.5}
 # USD a call that never finished is counted at: a 2K picture is 1120 image tokens ($0.134) plus its prompt and
 # thinking; a 3.1 Pro text ask measured EUR 0.01 to 0.03 on the ledger (2026-10-12). Another model: the larger.
 ESTIMATES = {"gemini-3-pro-image": 0.15, "gemini-3.1-pro-preview": 0.05}
+
+
+class Unfinished(ValueError):
+    """An answer the model did not finish (its finishReason is not STOP): what it holds is no whole answer."""
+
+
+def unfinished(response):
+    """Why the model did not finish the answer (its first candidate's finishReason when that is not STOP, or that it
+    gave none); None for a finished answer."""
+    candidate = (response.get("candidates") or [{}])[0]
+    reason = candidate.get("finishReason")
+    if reason == "STOP":
+        return None
+    return reason or f"no finish reason (prompt {response.get('promptFeedback', {}).get('blockReason', 'not blocked')})"
+
+
+def answer_text(response):
+    """The finished answer's text (thought parts left out); Unfinished naming the finish reason and the output and
+    thinking tokens spent when the model did not finish it."""
+    reason = unfinished(response)
+    if reason:
+        usage = response.get("usageMetadata", {})
+        raise Unfinished(f"the model did not finish the answer: {reason} (output {usage.get('candidatesTokenCount', 0)}"
+                         f", thinking {usage.get('thoughtsTokenCount', 0)} tokens)")
+    candidate = response["candidates"][0]
+    return "".join(part.get("text", "") for part in candidate.get("content", {}).get("parts", [])
+                   if not part.get("thought"))
 
 
 def today():
@@ -96,6 +130,7 @@ def record(model, caller, response, call=None):
     entry = {"call": call, "state": "finished", "model": model, "caller": caller, "tier": tier,
              "input": usage.get("promptTokenCount", 0),
              "output": usage.get("candidatesTokenCount", 0), "thinking": usage.get("thoughtsTokenCount", 0),
+             "finish": unfinished(response) or "STOP",
              "dollars": None if cost is None else round(cost, 6),
              "euros": None if cost is None else round(cost * EUROS_PER_DOLLAR, 6)}
     write(entry)
@@ -123,7 +158,10 @@ def cache_path(model, body):
 
 
 def keep(path, response):
-    """Write a response to the cache whole (a reader never sees half a file)."""
+    """Write a response to the cache whole (a reader never sees half a file). A model's answer it did not finish
+    (`unfinished`) is never kept, here for google_batch's answers too: the next ask is fresh."""
+    if ("candidates" in response or "promptFeedback" in response) and unfinished(response):
+        return
     CACHE.mkdir(parents=True, exist_ok=True)
     part = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}")
     part.write_text(json.dumps(response))
