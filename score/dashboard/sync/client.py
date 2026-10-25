@@ -281,7 +281,8 @@ def answered(remote, item, source, chosen=None):
     if not remote.claim(item["id"]):
         return None
     free_only_followed()
-    applied = applying.apply(item, source, chosen)
+    refused = pin_refusal(remote, settings.SCORE_REPO) if item["kind"] == "checkout" else None
+    applied = applying.Applied("refused", refused) if refused else applying.apply(item, source, chosen)
     for name, path in applied.files.items():
         remote.put_request_file(name, pathlib.Path(path).read_bytes())
     remote.report(item["id"], applied.state, applied.detail, applied.log_tail)
@@ -289,6 +290,24 @@ def answered(remote, item, source, chosen=None):
     if applied.launch_id:
         tracked_changed(lambda found: found.update({str(item["id"]): applied.launch_id}))
     return applied
+
+
+def pin_refusal(remote, repo):
+    """On a conductor, why a Buy may not start on this checkout, in words, or None: its commit is not the one the
+    cockpit pins (/api/sync/pin; score-update moves it there: on 2026-10-25 it did not, and a retry ran Batch 1's old
+    code unnoticed), or the pin cannot be read. Off a conductor, and for a cockpit reporting no pin, None."""
+    from score import conductor
+    if conductor.machine() is None:
+        return None
+    try:
+        pinned = (remote.call("GET", "/pin") or {}).get("commit")
+    except (urllib.error.URLError, TimeoutError, ConnectionError, ValueError) as unread:
+        return f"the cockpit's released code could not be read ({type(unread).__name__}): buy again in a few minutes"
+    here = head(repo) or ""
+    if not pinned or (here and (here.startswith(pinned) or pinned.startswith(here))):
+        return None
+    return (f"the cloud machine is on {here[:8] or 'an unknown commit'}, the cockpit on {pinned[:8]}; it is being "
+            "updated: buy again in a few minutes")
 
 
 def apply_waiting(remote, source, chosen):

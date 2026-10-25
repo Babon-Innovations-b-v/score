@@ -419,7 +419,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   price needs a fresh pass (`tree_refusal`, `figures_moved`: the price, prepare's figure or the basket on another
   commit, the basket older than prepare; while a pass holds `pricing_now` only a basket on another commit, owner
   2026-10-25: "this process is stupid"): then it notes why on the request
-  (`/requests/<id>/note`), skips it (`&skip=`) and the pass applies it, under the same check; a launch is followed by
+  (`/requests/<id>/note`), skips it (`&skip=`) and the pass applies it, under the same check; on a conductor a Buy whose checkout is not the
+  cockpit's pinned commit is refused in plain words (`client.pin_refusal`, owner 2026-10-25: a retry ran old code); a launch is followed by
   either (`tracked_changed`, locked). While a batch lives it sends `batch-run.json` every `PUSH_SECONDS` (60) and once
   as it ends (`PUT /batch-run`, kept in `request-files/`; `ExportedSource.batch_run` takes the newer read_at). The owner's timer (`timer.py`, `install-sync`, the
   deploy templates) reads the token by name from his secret manager each pass, inline, through the reader his env

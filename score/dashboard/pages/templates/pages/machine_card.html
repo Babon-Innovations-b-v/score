@@ -12,6 +12,7 @@
     {% if not c.on_pc %}{% include "pages/c/number.html" with label="Machine bill" value=c.bill unit="EUR" of=None bar=None tone=None tip="this month, its own project: never in a batch's spend or stop" unknown_tip=c.missing|default:"its bill was not read" %}{% endif %}
   </div>
   {% if c.export_late %}<p class="bad-words" data-v>the store's machine is not reaching the cockpit</p>{% endif %}
+  {% if c.code_off %}<p class="bad-words" title="a Buy is refused until it is on the released code" data-v>the cloud machine is on {{ c.code.checkout|slice:":8" }}, the cockpit on {{ c.code.pin|slice:":8" }}; it is being updated</p>{% endif %}
   {% if machine.last %}<p class="soft small" title="{{ machine.last.said }}"><span data-v>{{ machine.last.label }}</span> <span data-v>{{ machine.last.state }}</span> <span data-v>{{ machine.last.at|slice:":16" }}</span>{% for name, count in machine.last.counts %} <span data-v>{{ name }} {{ count }}</span>{% endfor %}</p>{% endif %}
   {% if machine.owner %}<div class="machine-actions">
     <details class="ec-unlock"><summary class="button bad" title="every run stopped (never resumed unasked), the parked paid machines deleted, only free work until you allow paid work again">Stop everything</summary>

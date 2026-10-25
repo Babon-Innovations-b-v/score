@@ -203,6 +203,40 @@ def test_the_card_and_the_machine_page_render(world, conductor):
     assert "run.log" in page and "one fault" in page and "score-sync.timer" in page
 
 
+def test_the_card_says_when_the_cloud_machine_is_off_the_cockpits_pin(world, conductor, monkeypatch):
+    named(world, "conductor")
+    off = {"checkout": "a" * 40, "pin": "b" * 40, "matches": False}
+    monkeypatch.setitem(sys.modules, "score.conductor.health",
+                        types.SimpleNamespace(read=lambda: {**HEALTH, "code": off}))
+    user = get_user_model().objects.create_user("joey", password="a long enough password")
+    pages = Client()
+    pages.force_login(user)
+    assert "the cloud machine is on aaaaaaaa, the cockpit on bbbbbbbb; it is being updated" in \
+        pages.get("/").content.decode()
+    assert machine.card({"health": {"code": {**off, "matches": True}}})["code_off"] is False
+
+
+def test_a_buy_is_refused_on_a_conductor_whose_checkout_is_off_the_pin(monkeypatch, settings):
+    """2026-10-25: the checkout never followed the pin and a retry ran Batch 1's old code unnoticed."""
+    import score.conductor as real
+    monkeypatch.setattr(real, "machine", lambda path=None: {"name": "conductor"})
+    monkeypatch.setattr(client, "head", lambda repo: "a" * 40)
+
+    class Pinned:
+        def __init__(self, commit):
+            self.commit = commit
+
+        def call(self, method, path):
+            assert (method, path) == ("GET", "/pin")
+            return {"commit": self.commit}
+    assert client.pin_refusal(Pinned("b" * 40), "/repo") == (
+        "the cloud machine is on aaaaaaaa, the cockpit on bbbbbbbb; it is being updated: buy again in a few minutes")
+    assert client.pin_refusal(Pinned("a" * 40), "/repo") is None
+    assert client.pin_refusal(Pinned(None), "/repo") is None  # a cockpit reporting no pin
+    monkeypatch.setattr(real, "machine", lambda path=None: None)
+    assert client.pin_refusal(Pinned("b" * 40), "/repo") is None  # off a conductor
+
+
 def test_the_sync_and_the_listener_follow_the_kill_switch_latch(monkeypatch):
     from score import conductor
     from score.dashboard.sync import client
