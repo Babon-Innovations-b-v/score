@@ -205,6 +205,22 @@ def test_waits_while_score_starts_from_the_checkout():
         assert "->" in moved(checkout, None, uv, proc)
 
 
+def test_a_sync_pass_holds_back_only_a_lock_move():
+    """A pass outlasts the 5-minute timer and the next starts right after it (2026-10-25: the checkout sat on an old
+    commit all morning): a sync pass from the checkout lets a move go on, and holds back only one changing uv.lock."""
+    with tempfile.TemporaryDirectory() as folder:
+        origin, checkout, commits, uv, log, proc = setup(folder)
+        syncing = proc / "6161"
+        syncing.mkdir()
+        (syncing / "cmdline").write_bytes(b"/x/.venv/bin/python\0-m\0score.dashboard\0sync\0")
+        (syncing / "cwd").symlink_to(checkout)
+        with cockpit({"commit": commits[1]}) as url:
+            assert "->" in moved(checkout, url, uv, proc) and git(checkout, "rev-parse", "HEAD") == commits[1]
+        with cockpit({"commit": commits[2]}) as url:
+            line = moved(checkout, url, uv, proc)
+        assert "not now" in line and "6161" in line and git(checkout, "rev-parse", "HEAD") == commits[1]
+
+
 def test_waits_while_the_checkout_has_changes():
     with tempfile.TemporaryDirectory() as folder:
         origin, checkout, commits, uv, log, proc = setup(folder)

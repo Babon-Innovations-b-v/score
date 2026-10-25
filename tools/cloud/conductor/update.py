@@ -7,9 +7,11 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
 
     /usr/bin/python3 -I tools/cloud/conductor/update.py [--repo <checkout>]
 
-1. Nothing moves while a run or a sync pass is starting from the checkout itself (a `score run`, `score resume` or
-   `score.dashboard sync` process whose working folder is the checkout: a run moves to its own frozen copy as it
-   starts, graph/frozen.py, so after that a move cannot reach it), nor while the checkout has tracked changes.
+1. Nothing moves while a run is starting from the checkout itself (a `score run` or `score resume` process whose
+   working folder is the checkout: a run moves to its own frozen copy as it starts, graph/frozen.py, so after that a
+   move cannot reach it), nor while the checkout has tracked changes. A sync pass is not a run: it holds back only a
+   move that changes uv.lock (step 4), since a pass outlasts the 5-minute timer and the next starts right after it,
+   so counting it kept the checkout on an old commit all morning (2026-10-25, the Buy's retry ran old code).
 2. The commit to follow is the hosted cockpit's pinned SCORE_COMMIT, read from SCORE_SYNC_URL's /api/sync/pin as
    `commit`, signed in by the sync token (read by name through SCORE_SECRET_READER, as the sync pass reads it). Not
    /healthz: the hosting proxy answers that with a body of its own. A pin that cannot be read moves nothing; only a
@@ -17,8 +19,9 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
    origin/main, moved only forward (as the PC's sync pulls with --ff-only).
 3. `git fetch origin main`; a pin origin/main does not hold is refused (never a commit off main).
 4. Nothing moves when uv.lock or pyproject.toml would change while a process works in a frozen copy under
-   $PROPS_HOME/frozen: every run's copy links this checkout's .venv in (graph/frozen.py) and its rows run the prop
-   environment, so a re-sync would pull packages from under a live run, a Buy included.
+   $PROPS_HOME/frozen or a sync pass runs from the checkout: every run's copy links this checkout's .venv in
+   (graph/frozen.py) and its rows run the prop environment, so a re-sync would pull packages from under a live run, a
+   Buy included; the pass's own ExecStartPre makes that move before its sync process starts.
 5. `git checkout --detach <commit>`, then `uv sync --frozen --group dashboard` when uv.lock or pyproject.toml changed,
    and the prop environment ($PROPS_HOME/env, boot.sh props_env) synced the same way once the move made machine.json,
    on that change or whenever it is missing (left out of every backup; nothing runs boot.sh at a reboot).
@@ -35,7 +38,8 @@ import sys
 import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-STARTERS = (("score", "run"), ("score", "resume"), ("score.dashboard", "sync"))
+STARTERS = (("score", "run"), ("score", "resume"))
+SYNCING = (("score.dashboard", "sync"),)  # a sync pass: holds back only a uv.lock move
 LOCK_FILES = ("uv.lock", "pyproject.toml")
 UV = os.environ.get("SCORE_UV", "/usr/local/bin/uv")
 PROC = pathlib.Path(os.environ.get("SCORE_PROC", "/proc"))
@@ -51,8 +55,8 @@ def git(repo, *args, check=True):
     return done
 
 
-def starting(repo, proc=PROC):
-    """The pids of score processes starting from the checkout itself (their working folder is the checkout)."""
+def starting(repo, proc=PROC, starters=STARTERS):
+    """The pids of score processes of `starters` started from the checkout itself (their working folder is it)."""
     found = []
     for entry in proc.iterdir():
         if not entry.name.isdigit():
@@ -64,7 +68,7 @@ def starting(repo, proc=PROC):
             continue
         text = [word.decode(errors="replace") for word in words]
         pairs = set(zip(text, text[1:]))
-        if any(pair in pairs for pair in STARTERS) and cwd == repo:
+        if any(pair in pairs for pair in starters) and cwd == repo:
             found.append(int(entry.name))
     return found
 
@@ -156,9 +160,9 @@ def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, toke
     old = git(repo, "rev-parse", "HEAD").stdout.strip()
     if commit == old:
         return f"update: at {commit[:12]}, {why}{props_env(repo, home, uv, False)}"
-    runs = frozen_users(home, proc) if lock_changed(repo, old, commit) else []
+    runs = frozen_users(home, proc) + starting(repo, proc, SYNCING) if lock_changed(repo, old, commit) else []
     if runs:
-        return (f"update: not now, {commit[:12]} changes uv.lock and a live run uses .venv "
+        return (f"update: not now, {commit[:12]} changes uv.lock and a live run or sync pass uses .venv "
                 f"(pid {', '.join(map(str, runs))})")
     git(repo, "checkout", "-q", "--detach", commit)
     synced = ""

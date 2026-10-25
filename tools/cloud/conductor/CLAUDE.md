@@ -64,8 +64,9 @@ makes, the rights of the two keys, and what is still unchecked until the first `
 - **`units/`**: `score-resume.service` (the one template for every machine; the PC copies it), `score-secrets`,
   `score-update` (the checkout follows the hosted cockpit's pinned commit from `/api/sync/pin` `commit` with the sync
   token, never `/healthz`, whose body babon's Caddy writes itself; a pin it cannot read moves nothing, a cockpit
-  reporting none falls back to origin/main forward only; never while score starts from the checkout, nor a uv.lock
-  change while a process works in a frozen copy, which links this checkout's `.venv`), `score-health`. The sync
+  reporting none falls back to origin/main forward only; never while a run starts from the checkout, nor a uv.lock
+  change while a process works in a frozen copy or a sync pass runs (a pass is not a run: counted as one, it kept the
+  checkout on an old commit all of 2026-10-25's morning, as passes run back to back), which links this checkout's `.venv`), `score-health`. The sync
   pass runs the same update first (its ExecStartPre, rendered by `install-sync --no-pull`; two calls take turns on
   `.git/score-update.lock`): a pass outlasts its 5-minute timer, so with score-update's timer alone a pass was always
   running and the live conductor's checkout sat on an old commit for hours (2026-10-24); the timer stays for an idle
