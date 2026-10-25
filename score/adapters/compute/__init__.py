@@ -699,17 +699,15 @@ def keep_reservations(reservations, held):
     partial.replace(reservations)
 
 
-def clearance(runner, node, euros):
+def clearance(runner, node, euros, own=None):
     """Clear one paid run: the node's ticket ({node, key, after, clearance, reservations}) when the runner keys it (its
     inputs passed and stand accepted), the month's books are known (books_refusal) and the world's stop line has room
-    for its forecast (run_forecast: measured, else the stage's estimate `euros`) with every open reservation; the
+    for its forecast (`own`, the stage's own forecast of its inputs where it has one, graph.Stage.forecast; else
+    run_forecast: measured, else the stage's estimate `euros`) with every open reservation; the
     clearance kept in the store and its
     forecast reserved, under the clearing lock. A benchmark batch (GRANT set) is checked against its grant instead of
     the world's stop line (grant_refusal), and its clearance counted against the grant. Else Refused."""
-    from score.stages.complete.gaps import price  # the units the run's plan prices it by
-    with runner.selection(runner.stages[node.partition("@")[0]]):  # a selecting stage's units: its objects only
-        units = price.planned_units(node, runner.world.roots.get("data"), runner.store)
-    forecast = run_forecast(node, euros, runner.store, units)
+    forecast = own or planned_forecast(runner, node, euros)
     grant_id = os.environ.get(GRANT)
     try:
         ticket = runner.ticket(node)
@@ -732,6 +730,14 @@ def clearance(runner, node, euros):
         keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": os.environ.get(RUN_ID)}})
     return {**ticket, "clearance": cleared, "reservations": str(reservations),
             "store": str(runner.store.cache.parent)}
+
+
+def planned_forecast(runner, node, euros):
+    """run_forecast of the node at the units the run's plan prices it by (price.planned_units)."""
+    from score.stages.complete.gaps import price
+    with runner.selection(runner.stages[node.partition("@")[0]]):  # a selecting stage's units: its objects only
+        units = price.planned_units(node, runner.world.roots.get("data"), runner.store)
+    return run_forecast(node, euros, runner.store, units)
 
 
 def reading_clearance(store, places, euros, node=READING):

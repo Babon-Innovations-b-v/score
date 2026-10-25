@@ -278,18 +278,51 @@ def test_a_film_whose_forecast_high_passes_its_clearance_is_blocked_before_its_f
         shutil.rmtree(root)
 
 
-def test_the_forecast_counts_the_shots_film_one_makes_and_leaves_the_record_alone():
-    """#21: a place whose record holds one camera is forecast at one shot, as film_one plans it."""
-    from score.stages.demo_film import __main__ as forecast_cli
+def test_the_forecast_counts_the_shots_film_one_makes_and_leaves_the_stage_alone():
+    """#21: a place whose record holds one camera is forecast at one shot, as film_one plans it; a prim the film
+    leaves out is out of the scan, the stage's files untouched."""
     root = folder()
     try:
         record = {"views": [{"name": "door", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1]}]}
         (root / "scene.json").write_text(json.dumps(record))
-        assert forecast_cli.shots_of(root / "scene.json", {"place": "hall", "camera": "door"}) == 1
+        (root / "hall.usda").write_text(FOGGED)
+        film = {"place": "hall", "camera": "door"}
+        assert demo_film.film_forecast(root, film)["frames"] == 96
         record["views"].append({"name": "back", "eye": [5, 1.6, 5], "aim": [0, 1.6, 0]})
         (root / "scene.json").write_text(json.dumps(record))
-        assert forecast_cli.shots_of(root / "scene.json", {"place": "hall", "camera": "door"}) == 2
+        assert demo_film.film_forecast(root, film)["frames"] == 192
+        assert demo_film.film_forecast(root, film)["slow"]["fog"] == 1
+        assert demo_film.film_forecast(root, dict(film, leave_out=["/hall/Effects"]))["slow"]["fog"] == 0
         assert json.loads((root / "scene.json").read_text()) == record
+        assert (root / "hall.usda").read_text() == FOGGED
+    finally:
+        shutil.rmtree(root)
+
+
+def test_the_clearance_reserves_the_forecast_the_make_checks_against():
+    """Fault 2026-10-25: the clearance reserved the row's EUR 3.50 (or measured runs of 96-frame films) while the
+    make held the film to its own forecast, so a fogged film Blocked itself after it was cleared. The rows now clear
+    at their films' forecast high (graph.Stage.forecast), the figure film_one refuses over."""
+    from score import stages
+    root = folder()
+    try:
+        (root / "stage").mkdir()
+        (root / "stage/hall.usda").write_text(FOGGED)
+        (root / "stage/scene.json").write_text(json.dumps({"views": [
+            {"name": "door", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1]},
+            {"name": "back", "eye": [5, 1.6, 5], "aim": [0, 1.6, 0]}]}))
+        script = {"segments": [{"cut": "walk-through", "seconds": 7, "shows": {"place": "hall"}},
+                               {"cut": "walk-through", "seconds": 7, "shows": {"place": "hall", "film": "porch",
+                                                                               "camera": "back"}}]}
+        (root / "script.json").write_text(json.dumps(script))
+        inputs = {"assembly": str(root / "stage"), "script tour": str(root / "script.json")}
+        own = stages.DEMO_FILM.forecast(inputs)
+        planned = demo_film.film_forecast(root / "stage", {"place": "hall"})
+        assert own == {"euros": planned["high_euros"], "minutes": None, "high_minutes": None, "measured": 0}, own
+        demo_film.refuse_over_clearance("hall", planned, own["euros"])  # the cleared figure holds the film
+        extra = stages.DEMO_FILM_EXTRA.forecast(inputs)
+        assert extra["euros"] == demo_film.film_forecast(root / "stage", {"place": "hall", "camera": "back"})[
+            "high_euros"] > demo_film.EUROS, extra
     finally:
         shutil.rmtree(root)
 
