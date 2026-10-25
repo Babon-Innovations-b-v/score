@@ -150,14 +150,33 @@ def takes(film, script, inputs):
     if not numbers:
         return {}
     made = json.loads(pathlib.Path(inputs[f"preview {film}"]).read_text()).get("script", {})
-    same = all(made.get(key, default) == script.get(key, default) for key, default in (("size", [1280, 720]),
-                                                                                        ("rate", 24)))
-    stale = [number for number, segment in numbers
-             if not same or len(made.get("segments", [])) < number or made["segments"][number - 1] != segment]
+    stale = stale_segments(script, made)
     if stale:
         raise graph.Blocked(f"{film}: segment(s) {', '.join(map(str, stale))} of the free preview were recorded from "
                             "another script than the lock: render the preview again")
     return {number: pathlib.Path(inputs[f"take {film} {number}"]) for number, _ in numbers}
+
+
+def stale_segments(script, made):
+    """The numbers of the script's recorded segments the free preview did not record as the script holds them
+    (`made`: the script its record says it was made from: another size, rate or segment)."""
+    same = all(made.get(key, default) == script.get(key, default) for key, default in (("size", [1280, 720]),
+                                                                                        ("rate", 24)))
+    return [number for number, segment in recorded(script)
+            if not same or len(made.get("segments", [])) < number or made["segments"][number - 1] != segment]
+
+
+def previews_wanted():
+    """The locked films with recorded segments whose free preview is missing or was recorded from another script than
+    the lock: the sync pass makes them (score/dashboard/sync/client.py film_previews), so a lock alone yields the takes
+    this row cuts from."""
+    wanted = []
+    for film, script in scripts().items():
+        record = DASHBOARD / PREVIEWS / f"{film}.json"
+        made = json.loads(record.read_text()).get("script", {}) if record.is_file() else None
+        if recorded(script) and (made is None or stale_segments(script, made)):
+            wanted.append(film)
+    return wanted
 
 
 def shown(script):

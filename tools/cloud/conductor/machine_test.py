@@ -328,7 +328,7 @@ esac
 exit 0
 """
 SHIMMED = ("apt-get", "id", "useradd", "loginctl", "blkid", "mkfs.ext4", "mountpoint", "mount", "chown", "systemctl",
-           "runuser", "git", "curl", "chattr")
+           "runuser", "git", "curl", "chattr", "npx")
 
 
 def boot_root(folder, installed=True):
@@ -399,6 +399,8 @@ def test_boot_runs_against_a_temp_root_and_again():
         waits = "ConditionPathExists=%h/.farm-factory-props/machine.json"
         assert waits in (units / "score-resume.service.d" / "conductor.conf").read_text().splitlines()
         assert waits in (units / "score-health.service").read_text().splitlines()
+        assert "npx -y -p playwright@1.62.1 playwright install-deps chromium" in calls  # the film preview's recorder
+        assert "npx -y -p playwright@1.62.1 playwright install chromium" in calls
         assert "systemctl --user start score-secrets.service" in calls
         assert any(call.startswith("git -C") and "core.sshCommand" in call for call in calls)
 

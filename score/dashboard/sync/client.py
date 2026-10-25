@@ -496,6 +496,21 @@ def plans_kept():
     return step_line("score.review.plans_pass", "plans failed")
 
 
+def film_previews(render=None):
+    """The free preview made (`python -m score.dashboard film-preview <film>`, films/preview/make.py: local, nothing
+    spent) of every locked film script with recorded segments whose preview is missing or was recorded from another
+    script than the lock (score/stages/demo_film/final.py previews_wanted), so a lock alone yields the takes the
+    environment-film row cuts from, on whichever machine holds the store; its words. One that fails is said, and the
+    pass goes on."""
+    from score.stages.demo_film import final
+    render = render or (lambda film: step_line("score.dashboard", f"film preview {film} failed", "film-preview", film))
+    try:
+        wanted = final.previews_wanted()
+    except Exception as error:  # reported in the pass's line, never swallowed
+        return f"film previews failed: {type(error).__name__}: {error}"[:400]
+    return "; ".join(render(film) for film in wanted) or "film previews: none wanted"
+
+
 def basket_benchmarks():
     """Prepare's benchmarks as the basket's one Benchmarks item (proposals/benchmarks.py), so the export carries this
     pass's estimate; its line."""
@@ -605,6 +620,7 @@ def sync_pass(remote, source, chosen=None):
     tidy = checkouts_tidied(chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
+    previews = film_previews()  # minutes of Chromium: after the requests, outside the pricing lock
     refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
     return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {swept}; "
-            f"{parts}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}")
+            f"{parts}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; {previews}")

@@ -5,7 +5,9 @@ their defaults, the clock, the checks and the lock; `default.py` an environment'
 pictures); `render.py` the render items. The pages are `pages/films.py`, `templates/pages/film*.html` and
 `static/pages/film.js` (the editor and the three.js preview), `film.css`. `takes.py` is a screen take's steps and
 its refusal (CONTEXT.md "screen take"). `preview/` (store's machine only, never imported hosted) renders a script's
-free preview end to end (`python -m score.dashboard film-preview <film> [--export DIR]`, `make.py`'s docstring): the
+free preview end to end (`python -m score.dashboard film-preview <film> [--export DIR]`, `make.py`'s docstring; every
+sync pass runs it for each locked script whose preview is missing or not of the lock, `sync/client.film_previews`, so
+the environment-film row's takes follow a lock on any store's machine): the
 takes recorded in headless Chromium on a hosted-mode cockpit of its own over a state export, signed in as the owner by
 the proxy header (`recorder.mjs`), the setting animation and scale zoom drawn by `scene.js` from `scenes.py` (the
 setting's physics through `score/review/overhead.py`, the environment plan's sites and blocks, the locked concepts,

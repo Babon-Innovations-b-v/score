@@ -76,6 +76,19 @@ install_packages() {
   say "packages: ${APT_PACKAGES[*]}"
 }
 
+# The film preview's recorder (score/dashboard/films/preview/make.py PLAYWRIGHT): Chromium's system libraries here,
+# the browser itself in user score's cache (chromium_browser), so the sync pass can render a locked script's preview.
+PLAYWRIGHT="playwright@1.62.1"
+chromium_libraries() {
+  npx -y -p "$PLAYWRIGHT" playwright install-deps chromium > /dev/null
+  say "Chromium's libraries for $PLAYWRIGHT"
+}
+
+chromium_browser() {
+  npx -y -p "$PLAYWRIGHT" playwright install chromium > /dev/null
+  say "Chromium for $PLAYWRIGHT"
+}
+
 ensure_user() {
   if ! id -u "$SCORE_USER" > /dev/null 2>&1; then
     useradd --uid "$SCORE_UID" --create-home --shell /bin/bash "$SCORE_USER"
@@ -198,6 +211,7 @@ EOF
 system_part() {
   [ -n "$ROOT" ] || [ "$(id -u)" -eq 0 ] || { echo "boot: the system part runs as root" >&2; exit 1; }
   install_packages
+  chromium_libraries
   ensure_user
   mount_data
   install_restic
@@ -281,6 +295,7 @@ user_part() {
   local repo="$HOME/projects/score"
   checkout "$repo"
   props_env "$repo"
+  chromium_browser
   install_units "$repo"
   if [ ! -f "$HOME/.config/scw/config.yaml" ]; then
     say "no ~/.config/scw/config.yaml yet: machine.py up pipes it, then runs this part again"

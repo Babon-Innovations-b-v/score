@@ -37,6 +37,7 @@ def offline(monkeypatch):
     monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
     monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
     monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
+    monkeypatch.setattr(client, "film_previews", lambda: "film previews: test")
 
 
 def fed(monkeypatch):
@@ -451,7 +452,7 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     # and the gaps after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
     assert "gaps failed: exit 1: no store at " in said, said
     # priced before the push
-    assert said.endswith(f"{PRICED}; plans for the plan stage: test; remake batch (estimate): test; benchmarks: none listed; basket made: 0 items, 0 paid steps; library pictures: test; library demos: test")
+    assert said.endswith(f"{PRICED}; plans for the plan stage: test; remake batch (estimate): test; benchmarks: none listed; basket made: 0 items, 0 paid steps; library pictures: test; library demos: test; film previews: test")
     assert "checkouts: 0 left launching failed, 0 ended batches' lines taken back" in said
     assert priced == [world.source.world.name]
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
@@ -571,3 +572,18 @@ def test_a_pass_asks_the_parts_of_a_locked_place_read_before_parts_once_and_neve
         f"EUR {0.05 * len(places):.2f}"
     assert sorted(asked) == sorted(places) and reading.unparted(store, places) == []
     assert client.parts_read(world.source.store_root, ask=ask) == "parts: none missing" and len(asked) == len(places)
+
+
+def test_a_pass_makes_the_free_preview_of_each_locked_script_that_wants_one(monkeypatch):
+    """client.film_previews: every film final.previews_wanted names is rendered, each said in the pass's words; none
+    wanted is said so, and a failure to read the locks is said, not raised."""
+    from score.stages.demo_film import final
+    rendered = []
+    monkeypatch.setattr(final, "previews_wanted", lambda: ["one", "two"])
+    assert client.film_previews(lambda film: rendered.append(film) or f"film-preview {film}: made") == \
+        "film-preview one: made; film-preview two: made"
+    assert rendered == ["one", "two"]
+    monkeypatch.setattr(final, "previews_wanted", lambda: [])
+    assert client.film_previews(rendered.append) == "film previews: none wanted"
+    monkeypatch.setattr(final, "previews_wanted", lambda: json.loads("{"))
+    assert client.film_previews(rendered.append).startswith("film previews failed: JSONDecodeError")
