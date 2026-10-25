@@ -16,7 +16,7 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
 - **The design says who, the stage says where they fit.** Each person is dealt to the plan's people spots in turn and
   stood on the seed's measured ground round it, clear of every solid and of each other, or left out and named; a
   design's crowd stands on the plan items its row makes (rows.json's `ground`, taken from the plan on every refresh),
-  as many as SAM 3 counted, else as many as fit packed (one mass SAM 3 could not part); a crowd row with no plan item
+  as many as SAM 3 counted, else as many as fit packed (one mass SAM 3 could not part: it asks the copies that fit, and fails only when none do); a crowd row with no plan item
   has no ground, and `counted` names it short. Never hand-place a person to pass a gate:
   put the design right (`python -m score.stages.people_rows` refreshes rows.json from the store and keeps each row's
   looks while its concept stands).

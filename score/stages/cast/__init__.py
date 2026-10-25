@@ -158,12 +158,12 @@ def crowd_of(record, singles, inputs):
                   if crowd.get("spread") else [])
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
             "made": made_row(look, None, 0, inputs), "doing": crowd["doing"], "asked": asked_of(crowd, candidates),
-            "grounds": crowd.get("grounds"), "copies": candidates}
+            "packed": crowd.get("count") is None, "grounds": crowd.get("grounds"), "copies": candidates}
 
 
 def asked_of(crowd, candidates):
     """How many copies the crowd asks for: its count, else (a design's crowd SAM 3 saw as one mass) every candidate
-    of its ground, packed; None with no ground, counted or not (short_of names the missing ground, not a count that
+    of its ground, packed (stood_crowd then asks for the copies that fit); None with no ground, counted or not (short_of names the missing ground, not a count that
     could never fit: the stairwell's crowd of 3, Batch 1)."""
     if not crowd.get("spread"):
         return None
@@ -201,12 +201,22 @@ def make(inputs, out, seed, params):
         singles, copies = spread.stand_every(singles, members, crowd["copies"] if crowd else [],
                                              crowd["asked"] or 0 if crowd else 0, found)
         left_out = sorted(members - {single["name"] for single in singles})
-        crowd = dict(crowd, copies=copies) if crowd else None
+        crowd = stood_crowd(crowd, copies) if crowd else None
     cast = {"place": place, "inventory": place, "from": record.get("from"), "note": record.get("note"),
             "count_reason": record.get("count_reason"), "concept": design_count(place, design), "characters": singles,
             "left_out": left_out if found else [], "crowd": crowd}
     (out / "cast.json").write_text(json.dumps(cast, indent=1))
     (out / "measures.json").write_text(json.dumps(measured(record, singles, crowd, found, base, place), indent=1))
+
+
+def stood_crowd(crowd, copies):
+    """The crowd with the copies that fit on the place. A packed crowd (no count: one mass SAM 3 could not part)
+    stands as many as its ground holds, so it asks for the copies that fit and keeps its lattice's candidates as
+    `spots`: a lattice spot on a stall, a lamp or off its ground is no copy short (the square's, Batch 1). A counted
+    crowd keeps asking for its count."""
+    if crowd["asked"] is None or not crowd.get("packed"):
+        return dict(crowd, copies=copies)
+    return dict(crowd, copies=copies, asked=len(copies), spots=crowd["asked"])
 
 
 def body_spots(singles, crowd):
@@ -282,6 +292,8 @@ def short_of(cast):
                      f"(python -m score.stages.people_rows) ({crowd['look']})")
     elif crowd and crowd["asked"] is None:
         short.append(f"the crowd's row makes no item on the plan, so it has no ground ({crowd['look']})")
+    elif crowd and crowd.get("packed") and not crowd["copies"]:
+        short.append(f"none of the crowd's {crowd.get('spots', 0)} spots on its ground fit ({crowd['look']})")
     elif crowd and len(crowd["copies"]) < crowd["asked"]:
         short.append(f"{len(crowd['copies'])} of the crowd's {crowd['asked']} fit")
     return short
