@@ -303,6 +303,16 @@ def test_a_box_s_silhouette_matches_itself_and_not_a_rod():
     assert ring.outline(cube, rod) < likeness.OUTLINE_LEAST
 
 
+def test_the_outline_is_held_to_the_look_down_that_fits_best():
+    """A slab's outline drawn from 30 degrees above level is matched at 30, not at the ring's one 20 degrees."""
+    points, triangles = box((0, 0, 0), (4, 0.1, 5))
+    target = likeness.silhouette(points, triangles, 1, 30.0)
+    downs = likeness.look_downs()
+    assert downs[0] == 15.0 and downs[-1] == 30.0, downs
+    scored = [likeness.candidate().outline(likeness.silhouette(points, triangles, 1, down), target) for down in downs]
+    assert downs[int(np.argmax(scored))] == 30.0 and max(scored) > scored[downs.index(20.0)], scored
+
+
 def test_a_close_up_s_shaded_backdrop_is_not_its_object():
     from PIL import Image
     backdrop = np.clip(220 - np.add.outer(np.arange(60), np.arange(80)) * 0.9, 0, 255).astype(np.uint8)
