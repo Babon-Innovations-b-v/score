@@ -147,8 +147,9 @@ def pixal_cut(path, folder, row):
     return out
 
 
-def object_record(row, record, inputs, baked, parts, sizes, square, cuts):
-    """One object's route, model, outline, checks and missing parts."""
+def object_record(row, record, inputs, baked, parts, rows, square, cuts):
+    """One object's route, model, outline (at the look-down its close-up was drawn at, for the size it was drawn at:
+    tools/props/closeup/stage.py object_size), checks and missing parts; `rows`: the inventory's rows by id."""
     route = route_of(row, record)
     place = record["place"]
     found = {"route": route, "model": None}
@@ -159,8 +160,9 @@ def object_record(row, record, inputs, baked, parts, sizes, square, cuts):
     cut = inputs.get(f"pixal input {row}") if route == "prop" else None
     closeup = pixal_cut(cut, cuts, row) if cut is not None and pathlib.Path(cut).exists() else cut_out(closeup, cuts)
     kind = f"{place}_{row}"
-    found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup),
-                 **model_checks(model, sizes[row], kind, route == "prop" and kind in square))
+    drawn = rows[row].get("read_size") or rows[row]["size"]
+    found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),
+                 **model_checks(model, rows[row]["size"], kind, route == "prop" and kind in square))
     # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
     found["parts_missing"] = finishes_missing(record["objects"][row]["take"], parts) if route == "prop" else None
     return found
@@ -169,12 +171,12 @@ def object_record(row, record, inputs, baked, parts, sizes, square, cuts):
 def make_likeness(inputs, out, seed, params):
     """likeness.json (every object's record) and pairs.json (each best way's silhouette pair, for DINOv2)."""
     record = prop_data.record_at(inputs["props"])
-    sizes = {row["id"]: row["size"] for row in json.loads(inputs["inventory"].read_text())["rows"]}
+    rows = {row["id"]: row for row in json.loads(inputs["inventory"].read_text())["rows"]}
     square = set()  # no rule names a kind that stands square since the old kinds' details retired (2026-10-21)
     prop = "surfaces-bake" in inputs
     baked = baked_models(inputs["surfaces-bake"]) if prop else {}
     parts = json.loads((inputs["surfaces-parts"] / "parts.json").read_text()) if prop else {"takes": {}}
-    found = {row: object_record(row, record, inputs, baked, parts, sizes, square, out / "cut")
+    found = {row: object_record(row, record, inputs, baked, parts, rows, square, out / "cut")
              for row in sorted(prop_data.kept(record["objects"], params))}
     pairs = {row: likeness.write_pair(entry["model"], entry["closeup"], entry["way"], out / "pairs", row,
                                       entry["look_down"])

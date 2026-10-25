@@ -237,6 +237,9 @@ def test_a_raw_take_is_finished_on_a_rented_machine_never_here():
     job = pixal_row.finish_job("crate-t1", pathlib.Path("/close/crate.png"), 12000)
     raw, final, _ = pixal_row.take_files("crate-t1")
     assert job["script"] == "tools/props/finish_elsewhere.py" and job["args"][3:] == ["crate-t1", "--faces=12000"]
+    assert pixal_row.finish_job("rug-t1", pathlib.Path("/close/rug.png"), 12000, True)["args"][-1] == "--flat"
+    assert pixal_row.lies_flat({"size": [4.0, 4.0, 4.0], "read_size": [2.0, 3.0, 0.02]})
+    assert not pixal_row.lies_flat({"size": [2.0, 3.0, 0.02], "read_size": [0.6, 0.5, 0.8]})
     assert str(raw) in job["inputs"] and "/close/crate.png" in job["inputs"], job
     # the paint replays its turn from the slimmed model
     assert job["outputs"] == [str(final), str(final.with_name("crate-t1-12000.glb"))], job
@@ -310,6 +313,10 @@ def test_the_outline_is_held_to_the_close_up_s_one_look_down():
     with likeness.prop_data.tools("props/closeup", "props"):
         import check
     assert likeness.look_down() == check.LOOK_DOWN_DEGREES == 15.0
+    # a row that lies flat is drawn from straight above, and its model's outline drawn so: its face, not a line
+    assert likeness.look_down([2.0, 3.0, 0.02]) == check.TOP_DOWN_DEGREES
+    face = likeness.silhouette(*box((0, 0, 0), (2.0, 0.02, 3.0)), 0, check.TOP_DOWN_DEGREES)
+    assert face.sum() > 2 * likeness.silhouette(*box((0, 0, 0), (2.0, 0.02, 3.0)), 0).sum(), face.sum()
 
 
 def test_a_close_up_s_shaded_backdrop_is_not_its_object():

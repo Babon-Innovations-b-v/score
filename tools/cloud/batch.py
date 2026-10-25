@@ -782,7 +782,7 @@ class Fleet:
         """Finish one model with pixal.py --finish-only, as a local run would."""
         options = self.models[name]
         flags = [f"--faces={options.faces}", f"--seed={options.seed}"]
-        flags += [f"--{flag}" for flag in ("long", "feet", "tube") if getattr(options, flag)]
+        flags += [f"--{flag}" for flag in ("long", "feet", "tube", "flat") if getattr(options, flag)]
         with finish_slot(), (self.folder / "finish.log").open("a") as log:
             done = subprocess.run([str(VENV_PYTHON), str(HERE.parent / "props" / "pixal.py"), options.picture,
                                    name, "--who", self.who, "--finish-only", *flags],

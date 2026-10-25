@@ -554,10 +554,11 @@ def finish_turn(take):
     final = trimesh.load(PIXAL / f"{take}-final.glb", force="mesh")
     best = None
     for path in sorted(PIXAL.glob(f"{take}-[0-9]*.glb")):
-        for long, feet in ((False, False), (True, False), (False, True), (True, True)):
+        for long, feet, flat in ((False, False, False), (True, False, False), (False, True, False), (True, True, False),
+                                 (False, False, True)):
             document, views = glb_file.read(path)
             points = glb_file.positions(document, views)
-            turn = glb_file.upright_turn(points, long=long, feet=feet)
+            turn = glb_file.upright_turn(points, long=long, feet=feet, flat=flat)
             glb_file.turned(document, views, turn)
             whole = glb_file.level_turn(*glb_file.faces(document, views)) @ turn
             moved = points @ whole.T

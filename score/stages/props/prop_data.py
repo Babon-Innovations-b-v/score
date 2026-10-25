@@ -43,7 +43,8 @@ INPUTS_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "box check": "{r
 CLOSEUP_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "google spend": "{repo}/tools/cloud/google_spend.py"}
 PIXAL_TOOLS = {"batch": "{repo}/tools/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
                "machine setup": "{repo}/tools/cloud/machine_setup.sh",
-               "finish elsewhere": "{repo}/tools/props/finish_elsewhere.py"}
+               "finish elsewhere": "{repo}/tools/props/finish_elsewhere.py",
+               "close-up check": "{repo}/tools/props/closeup/check.py"}
 LIKENESS_TOOLS = {"compare": "{repo}/tools/usd/compare.py", "glb file": "{repo}/tools/props/glb_file.py",
                   "model gate": "{repo}/tools/props/gates/model.py",
                   "straight": "{repo}/tools/props/library/straight.py",

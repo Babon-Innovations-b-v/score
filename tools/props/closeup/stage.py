@@ -48,11 +48,13 @@ import pro  # noqa: E402
 # 23 of the Buy's 80 gaps of 2026-10-24 were flat or thin pieces; owner, 2026-10-24).
 VIEW = (f"seen from three quarters: turned about {check.TURN_DEGREES:.0f} degrees and looking down on it from about "
         f"{check.LOOK_DOWN_DEGREES:.0f} degrees above level")
+# A row that lies flat (check.lies_flat) is drawn from straight above, its face its outline (check.look_down).
+VIEW_ABOVE = "laid flat and seen from straight above, looking straight down on its face, its edges square to the frame"
 # What every close-up is drawn as, by either model: the object alone, from three quarters, its parts and wear from
 # the crop and its materials from the concept (the wording the lab's Pro close-ups were drawn with, job place-lab).
 WORDING = ("Make one clean product picture of a single object for a 3D model maker: the object alone on a plain, "
            "even, light grey background that fills the whole frame (no room, no walls, no floor line, no other "
-           "objects, no dimension lines, arrows, measurements or captions), " + VIEW + ", the whole object with a "
+           "objects, no dimension lines, arrows, measurements or captions), {view}, the whole object with a "
            "margin round it, evenly lit by soft studio light with mild shadow, sharp fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m "
            "deep and {tall:.2f} m tall; keep those proportions exactly. Image 1 is this very object cut from a "
            "concept picture of its room: take its shape, parts, layout, colours, wear, labels, stickers and taped "
@@ -64,9 +66,8 @@ WORDING = ("Make one clean product picture of a single object for a 3D model mak
 # 2026-10-08; the retake wording of job place-lab).
 CROP_ONLY = ("Make one clean product picture of a single object for a 3D model maker. ONLY this object, alone, floating on "
              "a plain, even, light grey studio background that fills the whole frame: no room, no walls, no floor, no "
-             "ground, no shadow pool, no other objects, no people, no dimension lines or captions. " + VIEW.capitalize() +
-             ", the whole object with a wide margin round it, soft even studio light, sharp "
-             "fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m deep and {tall:.2f} m tall; keep "
+             "ground, no shadow pool, no other objects, no people, no dimension lines or captions. {View}, the whole "
+             "object with a wide margin round it, soft even studio light, sharp fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m deep and {tall:.2f} m tall; keep "
              "those proportions exactly. Image 1 shows this object among other things: take its shape, parts, materials, "
              "paint, wear and colours from it and ignore everything around it.")
 # A person's close-up (a row the people layer handed the shared loop, CONTEXT.md "layer adapter": its own close-up
@@ -112,9 +113,11 @@ def object_size(row):
 
 
 def wording(row, text=WORDING):
-    """The words a row's close-up is drawn with (a person's need no size: the rig sizes the body)."""
+    """The words a row's close-up is drawn with, from the row's own view (VIEW_ABOVE for a row that lies flat); a
+    person's need no size: the rig sizes the body."""
     wide, deep, tall = object_size(row) or (0.0, 0.0, 0.0)
-    return text.format(words=row["words"], wide=wide, deep=deep, tall=tall)
+    view = VIEW_ABOVE if object_size(row) and check.lies_flat(object_size(row)) else VIEW
+    return text.format(words=row["words"], wide=wide, deep=deep, tall=tall, view=view, View=view[0].upper() + view[1:])
 
 
 def crop_bounds(size, box):
