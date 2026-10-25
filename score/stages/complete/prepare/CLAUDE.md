@@ -13,10 +13,11 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   `data/inventory/` (retired with the old concepts on 2026-10-21; the library models' sizes are read from the design's
   kept inventories, the hub's measured rates from the evidence's own sizes, `paper/evidence/compare-hub/sizes.json`). A place with none
   waits on inventory, no euros (`inventory.waiting`). A reading gives each row its size in metres (Gemini, from
-  what it is and the picture, against the place's outline; SAM 3 gives only where, #10): a row's size is its place's
-  current plan's item (`groups.plan_sizes`, `score/review/plans.current`, laid at the reading's metres, his edits
-  counted: wide and deep as laid, tall the reading's), else its reading's own metres (on a wall, the ceiling or
-  another row); a row the reading gave none has none. A row's box is SAM 3's, else Gemini's region from the same
+  what it is and the picture, against the place's outline; SAM 3 gives only where, #10): a row's size is its reading's own
+  metres, unless his plan edit sized its item (`groups.row_size`: his edits counted, wide and deep as he laid them,
+  tall the reading's), else its plan item's (`groups.plan_sizes`) where the reading gave none; a plan's item is the
+  footprint the object is laid in, so it places the object and never sizes its model (coordinator, 2026-10-25: the
+  airlock's 0.1 m porch post was baked 0.48 by 1.7 m); a row neither sizes has none. A row's box is SAM 3's, else Gemini's region from the same
   reading (`groups.boxed_by`, marked so in the hand-in). A model take with no box, a box that is the whole picture or
   no size is an **input gap** (`contract.faults`, `__main__.status_of`): not bought, priced apart
   (`input_gaps_if_bought`), never handed to the loop, so the runner neither buys nor counts it. Rows of
