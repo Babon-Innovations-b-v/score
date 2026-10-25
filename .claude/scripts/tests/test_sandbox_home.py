@@ -88,6 +88,18 @@ def test_a_test_reads_world_data_and_writes_only_its_own_home():
     assert not pathlib.Path(said.read_text()).exists()
 
 
+def test_what_a_test_leaves_in_the_temp_folder_goes_with_its_home():
+    """Fault (2026-10-25): the tests' mkdtemp stores were never removed and took every inode of /tmp."""
+    module, real = sandbox_script(), fake_home()
+    script = ("import os, pathlib, sys, tempfile; left = pathlib.Path(tempfile.mkdtemp()); (left / 'kept').write_text('x');"
+              "home = pathlib.Path(os.environ['PROPS_HOME']);"
+              "assert home.parent == pathlib.Path(tempfile.gettempdir()), home;"
+              "pathlib.Path(sys.argv[1]).write_text(str(left))")
+    said = pathlib.Path(tempfile.mkdtemp()) / "left.txt"
+    assert module.run([sys.executable, "-c", script, str(said)], real) == 0
+    assert not pathlib.Path(said.read_text()).exists()
+
+
 def test_a_write_through_a_link_fails_and_the_real_home_stands():
     module, real = sandbox_script(), fake_home()
     if module.read_only_command(real, ["true"]) is None:
@@ -159,8 +171,13 @@ def test_every_plain_script_test_refuses_first_without_a_sandbox_home():
     for path in plain_script_tests():
         # the lines after the guard; its own line may end in a comment (score/stages/moved_test.py)
         block = path.read_text().split('if __name__ == "__main__":', 1)[1].splitlines()[1:]
-        assert block[2].strip().startswith("runpy.run_path(") and "refuse_outside_sandbox" in block[2], path
-        assert f"parents[{len(path.relative_to(REPO).parts) - 1}] / " in block[2], path  # the repository's root
+        guard = next(line for line in block if not line.strip().startswith("import "))  # first after its imports
+        if guard.strip().startswith("sys.exit(pytest.main("):
+            continue  # a pytest run: conftest.py refuses it
+        assert guard.strip().startswith("runpy.run_path(") and "refuse_outside_sandbox" in guard, path
+        root = f"parents[{len(path.relative_to(REPO).parts) - 1}]"  # the repository's root, inline or as its REPO
+        assert f"{root} / " in guard or ("REPO / " in guard and f"REPO = pathlib.Path(__file__).resolve().{root}\n"
+                                         in path.read_text()), path
     environ = {name: value for name, value in os.environ.items() if name not in ("PROPS_HOME", "PROPS_WORK")}
     done = subprocess.run([sys.executable, str(REPO / "tools/usd/triage_test.py")], cwd=REPO, env=environ,
                           capture_output=True, text=True)
