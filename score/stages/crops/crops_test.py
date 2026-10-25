@@ -181,6 +181,40 @@ def test_layer_gates():
         assert layer.judge_on_beds(folder, inputs, None).answer == "fail"
 
 
+def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare():
+    """crops-layer, try 4 of 2026-10-25: a kind whose take the prop route made a batch gap has no baked model, and the
+    layer raised instead of carrying the gap. Now the kind is left out, its beds bare and named in a gap, and the
+    table's `on beds` and `spacing` move its faults to that gap; a model missing with no gap naming it is no gap."""
+    from score import stages
+    from score.stages import batch_gaps
+    gated = {check.name: check for row in stages.STAGES if row.name == "crops-layer" for check in row.checks}
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        bake, pixal = folder / "bake", folder / "pixal"
+        bake.mkdir(), pixal.mkdir()
+        (bake / "baked.json").write_text(json.dumps({layer.model_of(entry): {} for kind, entry in RECORD["kinds"].items()
+                                                     if kind != "potato"}))
+        assert layer.left_out(RECORD, bake, []) == {}  # no gap names it: make_layer's write_assets still raises
+        batch_gaps.write(pixal, [batch_gaps.gap("potato: Pixal3D made no model", "pixal", "takes", ("potato",),
+                                                ["potato: no model"], "the job ran once")])
+        left = layer.left_out(RECORD, bake, batch_gaps.read([pixal]))
+        assert left == {"potato": ["potato: Pixal3D made no model"]}, left
+        inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
+        laid = [spot for spot in spots if spot["kind"] != "potato"]
+        (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
+                                                       "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
+        assert layer.judge_on_beds(folder, inputs, None).answer == "fail"  # the gate's own answer stands
+        assert layer.judge_spacing(folder, inputs, None).answer == "fail"
+        batch_gaps.write(folder, [*batch_gaps.read([pixal]), *layer.bare_gaps(RECORD, left, shared)])
+        for name in ("on beds", "spacing"):
+            moved = gated[name].judge(folder, {**inputs, "pixal": pixal}, None)
+            assert moved.answer == "pass" and "moved to complete as accepted gaps" in moved.reason, moved
+        laid[0]["at"][0] += 1.0  # a laid kind's own fault is no gap's
+        (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
+                                                       "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
+        assert gated["on beds"].judge(folder, {**inputs, "pixal": pixal}, None).answer == "fail"
+
+
 def test_layer_says_what_made_its_crops():
     """Each kind's prototype says what made it (score:kind), so the made-only check passes the laid crop meshes;
     without the mark it fails them, as it did on complete@greenhouse of 2026-10-17."""
