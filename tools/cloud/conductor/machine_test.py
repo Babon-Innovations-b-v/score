@@ -402,6 +402,7 @@ def test_boot_runs_against_a_temp_root_and_again():
         assert waits in (units / "score-health.service").read_text().splitlines()
         assert "npx -y -p playwright@1.62.1 playwright install-deps chromium" in calls  # the film preview's recorder
         assert "npx -y -p playwright@1.62.1 playwright install chromium" in calls
+        assert "apt-get remove -y -q nodejs" in calls  # Ubuntu's old node is never found before the pinned one
         assert "systemctl --user start score-secrets.service" in calls
         assert os.readlink(root / "home" / "score" / ".local" / "bin" / "score-lib") == \
             f"{root}/home/score/projects/score_lib/.venv/bin/score-lib"  # the cockpit's lock runs score-lib from PATH
