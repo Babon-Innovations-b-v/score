@@ -176,10 +176,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (a guess shows only as "*"); its Buy button posts `/buy/yes/`
   {key, batch: now} (`basket.buy_yes`, `batch_items`: exactly the approved places' items, `screens.now_items`, through
   the same checkout as the basket's, hosted queued; what waits is in the figure, not buyable); `{batch: benchmarks}` still buys the Benchmarks item, with no button on this screen; no choice
-  an item is asked, so the nav's count is only the steps queued by hand and the refines; no last-batch card (owner, 2026-10-24: "this needs to be deleted"): the monitor opens on the Buy's yes and Home links to it. **Batch** `/buy/run/` (the run monitor,
+  an item is asked, so the nav's count is only the steps queued by hand and the refines; no last-batch card (owner, 2026-10-24: "this needs to be deleted"); over the figures one line of what this Buy does beside the last batch (`batch_run.next_buy`: "Retry Batch 1: makes again the N steps that failed and the M that never ran; keeps the K already made", owner 2026-10-25): the monitor opens on the Buy's yes and Home links to it. **Batch** `/buy/run/` (the run monitor,
   `pages/run_monitor.py`, `run_monitor.html`, owner 2026-10-24: "make the monitor page for after buy ... easy to
   understand and scan"): the Buy's yes opens it (`data-go` on its yes form) and Home links to it while a batch lives
-  (`run_monitor.live_batch`). The newest checkout's batch (`checkout/watched.newest`: the record, its launch polled,
+  (`run_monitor.live_batch`). The newest checkout's batch (`checkout/watched.newest`: a checkout is another try of the batch before it while that batch has rows not made and the design (`Checkout.design_at`) is unchanged, `batch_of`, CONTEXT.md "try", owner 2026-10-25; "Batch 1, try 2", rows, spend and problems across its tries, a problem gone once a later try made its row, the ETA and stop this try's; the record, its launch polled,
   every row any run of it planned: a relaunch goes on where it was, a row done once its accept is newer than the checkout) read from its files by `state/batch_run.py` (the run's detached log: heartbeats, each
   finished row's line, the pool it opened, its result line; a row's own log written since the start: running; each
   done row's batch gaps; `$PROPS_HOME/cloud/pools/<run>/`: plan, cards, closed, collector.log), live locally
@@ -192,8 +192,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   against likely, high and stop; a row a scene, parent before child
   (`within`), its rows done, what runs now, a chip, a done scene linking to its 3D copy or scene page; the warm pool's
   cards and processor machines as squares (busy, idle, to come; waiting for stock; once released, "N still renting"
-  for the machines its pools hold parked, `cloud/parked/`); problems (a failed row in one
-  plain sentence with the rows it holds back, a row's batch gaps, the batch stopped), newest first. Times in the
+  for the machines its pools hold parked, `cloud/parked/`); problems (failed rows by step and plain cause, `plain.step_cause`'s table, grouped when several places share it, the run's own words behind "what the run said"; with the rows they hold back, a row's batch gaps, the batch stopped), newest first. Times in the
   viewer's clock; it reads itself again every 20 s locally, 60 s hosted, while the batch lives. The numbers come
   from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `branch_rows`, `gaps_by_kind`, `places_complete`,
   `measured_prices`, `spend_by_day`, `day_chart`), each None where the runner gives none, shown as a grey "unknown", never 0; the

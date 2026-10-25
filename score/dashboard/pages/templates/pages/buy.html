@@ -4,6 +4,7 @@
 <div class="buy-layout">
   <section class="buy-list" aria-label="design, then the batch">
     {% if batch.stale and design.approved %}<div class="num-card buy-stale" title="{{ batch.stale|join:'; ' }}">{% include "pages/c/dot.html" with tone="bad" tip=None %} <span data-v>prices out of date</span></div>{% endif %}
+    {% if since %}<p class="buy-since" data-v title="beside the last batch: a step that failed or never ran is made again, a made one is kept and not paid for again">{{ since }}</p>{% endif %}
     <div class="topbar">
       <div class="topbar-num" title="each scene's concept and its plan: drawn and locked by you on the scene's card, before any batch">
         <div class="num-label">Design first</div>

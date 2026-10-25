@@ -124,8 +124,14 @@ def basket_refusals():
     """stale_basket of this cockpit's basket against its store; none while hosted (place_refusals says that)."""
     if settings.SCORE_MODE != settings.LOCAL:
         return []
-    return stale_basket(records.index(basket_root()), settings.SCORE_REPO,
-                        design_changed(state.source().store.objects.root))
+    return stale_basket(records.index(basket_root()), settings.SCORE_REPO, design_now())
+
+
+def design_now():
+    """design_changed of this cockpit's store; "" while hosted, where no store is."""
+    if settings.SCORE_MODE != settings.LOCAL:
+        return ""
+    return design_changed(state.source().store.objects.root) or ""
 
 
 def refusals(user, seen, items, changed, confirmed):
@@ -173,7 +179,7 @@ def start(user, key, confirmed, seen, at_once=False):
             with transaction.atomic():
                 record = Checkout.objects.create(key=key, by=user.username, items=bought, state="launching",
                                                  totals=pricing.totals(pricing.basket_prices(bought)),
-                                                 pid=os.getpid())
+                                                 pid=os.getpid(), design_at=design_now())
         except IntegrityError:
             record = Checkout.objects.get(key=key)
             return record, f"checkout {record.pk} was already made with this key: {record.state}"

@@ -504,7 +504,7 @@ def batch(world, items, made_at=None):
     make, library, waiting, why, models, steps, now, guessed, guesses, no_price, measured, estimated, likely, high},
     its euros what Buy buys of it; `total` their sum, the Buy's figure; `now` (`now_of`) the Buy's line, `waiting`
     {steps, why}; `gets` the places it reaches; `in_design` how
-    many places are still in design; `made_at` the basket's (its index's, `made_at`) and `refused` [why] the Buy may
+    many places are still in design; `nodes` the steps its Buy buys; `made_at` the basket's (its index's, `made_at`) and `refused` [why] the Buy may
     not be pressed now (`buy_refusals`). Nothing priced here (ADR-0006)."""
     whole = remake_money(world)
     remake, price = approved_parts(world)
@@ -525,7 +525,7 @@ def batch(world, items, made_at=None):
     return {"total": total_of_rows(shown), "now": now_of(now, buying), "waiting": waiting_of(shown),
             "gets": gets(world, now), "eta": whole["eta"], "stale": whole["stale"], "layers": shown,
             "estimate": whole["estimate"], "approved": whole["approved"], "in_design": whole["in_design"],
-            "made_at": made_at,
+            "made_at": made_at, "nodes": sorted({node for item in buying for node in item["nodes"]}),
             "refused": buy_refusals(world, whole["stale"], made_at), "plants": plants_total(world)}
 
 

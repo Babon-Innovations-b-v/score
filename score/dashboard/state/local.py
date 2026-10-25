@@ -244,11 +244,14 @@ class LocalSource:
     def batch_run(self, read_at=None):
         """The newest Buy's batch now (state/batch_run.py), read live from its checkout, its run's log, its rows'
         logs and batch gaps and its warm pool; None before one. `read_at` the ISO time it is stamped with."""
-        from score.dashboard.checkout import watched
+        from score.dashboard.checkout import flow, watched
         from score.dashboard.state import batch_run
         now = datetime.datetime.fromisoformat(read_at) if read_at else None
-        return batch_run.gathered(watched.newest(), self.props_home, self.store_root, self.batch_gaps, now,
-                                  lambda node: (self.store.current_accept(node) or {}).get("at"))
+
+        def accepted_at(node):
+            return (self.store.current_accept(node) or {}).get("at")
+        return batch_run.gathered(watched.newest(accepted_at), self.props_home, self.store_root, self.batch_gaps,
+                                  now, accepted_at, flow.design_changed(self.store.objects.root))
 
     def batch_gaps(self, node):
         """The batch gaps a row's accepted output names (its batch-gaps.json), [] for none."""

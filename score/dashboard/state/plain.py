@@ -43,6 +43,16 @@ SAID = {
               "{things} are missing from {place}: its layout rule never places them here."),
 }
 SAID["grounded"] = SAID["boxes"]
+# A stopped step's fault in plain words, first match wins (step_cause); a cloud tool's exit 1 is said apart.
+CAUSES = ((re.compile(r"an input changed while it ran"), "an input file changed while it ran"),
+          (re.compile(r"the finish call failed"), "the model's finishing step on a cloud machine failed"),
+          (re.compile(r"Insufficient permissions"), "a file could not be saved"),
+          (re.compile(r"^made: fail"), "it was made but failed its check"))
+CLOUD_TOOL = re.compile(r"CalledProcessError: Command .*(blender_cloud|library_bake|characters)\S*\.py.*exit status 1")
+NO_MACHINE = re.compile(r"could be rented|in stock|no machine|none rented")
+EXCEPTION = re.compile(r"^(?:error|blocked):\s*|^\w+(?:Error|Exception):\s*")
+A_PATH = re.compile(r"(?:\S*/)+([^\s/'\",\]]+)")
+CAUSE_LENGTH = 100
 NO_LIKENESS = "The props in {place} were never compared with their close-up pictures: it has no props list."
 
 
@@ -97,6 +107,25 @@ def stop_sentence(label, why, place, gaps):
         return f"The {label} step stopped: its {failed.group(1).strip()} check failed."
     cause = re.split(r"[;(]", why, maxsplit=1)[0].strip().rstrip(".:")
     return f"The {label} step stopped: {cause}." if cause else f"The {label} step stopped."
+
+
+def step_cause(why, report=""):
+    """A stopped step's cause in a few plain words from its run line's fault (`why`) and its fault report's text: a
+    cloud tool that rented no machine, a known cause of CAUSES, a check it failed, else the fault's first line, its
+    exception name and folders dropped, at most CAUSE_LENGTH characters."""
+    if re.search(r"could be rented|no machine", why) or CLOUD_TOOL.search(why) and NO_MACHINE.search(report):
+        return "no cloud machine could be rented"
+    if CLOUD_TOOL.search(why):
+        return "its run on a cloud machine failed"
+    found = next((cause for pattern, cause in CAUSES if pattern.search(why)), None)
+    if found:
+        return found
+    failed = re.search(r"answered fail: ([^:;]+)", why)
+    if failed:
+        return f"its {failed.group(1).strip()} check failed"
+    first = re.split(r"[;(]", (why.splitlines() or [""])[0], maxsplit=1)[0]
+    cause = A_PATH.sub(r"\1", EXCEPTION.sub("", EXCEPTION.sub("", first.strip()))).strip().rstrip(".:")
+    return cause if len(cause) <= CAUSE_LENGTH else cause[:CAUSE_LENGTH].rsplit(" ", 1)[0] + "..."
 
 
 def lost_item(gap_id):

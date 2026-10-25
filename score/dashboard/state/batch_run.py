@@ -1,7 +1,11 @@
 """The Buy's batch as it runs, for the run monitor (`/buy/run/`, pages/run_monitor.py): read on the store's machine from
 the files the batch writes, read live locally and carried in the export as batch-run.json (sync/building.py).
 
-    batch-run.json  {read_at, checkout, at, by, state, why, started, ended, rows, eta, money, scenes, pool, problems}
+    batch-run.json  {read_at, checkout, at, by, batch, tries, design_at, state, why, started, try_started, ended, rows,
+                     eta, money, scenes, pool, nodes, problems}
+      batch     the batch's number and `tries` how many checkouts tried it (checkout/watched.batch_of: a Buy while the
+                batch before is unfinished and the design unchanged retries it); started the first try's, try_started
+                this try's; design_at when the design last changed
       state     starting (the checkout plans it), running, waiting (running, the warm pool holds no card yet and
                 stock is short), stopped (a stop, a refusal or a run gone without its result line), finished
       rows      {total, done, failed, not_run, running, queued}: total every row the checkout's runs planned, done
@@ -21,7 +25,9 @@ the files the batch writes, read live locally and carried in the export as batch
       pool      the warm pool the run opened ({run, open, until, cards, processors, stock, renting}; None before one):
                 renting the machines its pools (this run's and the checkout's earlier runs') hold parked now, which
                 bill whether the pool is open or released
-      problems  [{at, place, node, kind (failed, gaps, run), words, tip}], newest first
+      nodes     {planned, made, failed} the rows by name (nodes_of)
+      problems  [{at, place, node, kind (failed, gaps, run), words, tip}], newest first; a failed one's places
+                and raw (each row's own fault text) too
 
 Read only. Every input is a file: the run's detached log (heartbeats, each finished row's line, the pool it opened,
 its result line), the rows' own logs (a row started in this run has written its log since), each finished row's batch
@@ -49,6 +55,7 @@ MACHINE_CLASS = re.compile(r"\b(gpu|cpu)-(\d+)(gb|c)(?:-(\d+)gb)?(?:-x(\d+))?\b"
 NO_STOCK = re.compile(r"none in stock|no \S+ in stock|no \S+ rented")
 CARD_PREFIX = "gpu"  # a pool class of graphics cards; every other class is a processor machine
 LIVE = ("starting", "running", "waiting")
+BUFFER = 1.10  # a batch's stop: its high plus 10% (checkout/flow.BUFFER writes it)
 
 
 def now_utc():
@@ -182,25 +189,49 @@ def plain_machines(text):
     return MACHINE_CLASS.sub(said, text)
 
 
-def failures(rows):
-    """[problem] a row that stopped its line: its step and scene in one plain sentence, the later rows it held
-    back counted in it."""
+def report_text(did):
+    """The text of the fault report a row's line names, "" when it names none or it is gone."""
+    named = FAULT.search(did)
+    path = pathlib.Path(named.group(0).split("fault report ", 1)[1]) if named else None
+    return path.read_text(errors="replace") if path and path.is_file() else ""
+
+
+def held_back(rows):
+    """{node: how many later rows its stop held back (their `not run:` lines name it)}."""
     held = {}
     for _, did, _ in rows.values():
         if did.startswith("not run:"):
             stopper = did.rsplit(" ", 1)[-1]
             held[stopper] = held.get(stopper, 0) + 1
-    found = []
+    return held
+
+
+def failures(rows):
+    """[problem] the rows that stopped their lines, one per step and plain cause (plain.step_cause): the step, the
+    scene or how many places share that cause, the later rows they held back; `raw` each row's own fault text."""
+    held, found = held_back(rows), {}
     for node, (state, did, about) in rows.items():
         if state != "failed":
             continue
-        why = plain_machines(FAULT.sub("", did).strip().removeprefix("blocked: "))
-        sentence = plain.stop_sentence(groups.label(stage_of(node)), why, place_of(node), 0)
-        if held.get(node):
-            sentence += f" {held[node]} later step{'s' if held[node] != 1 else ''} wait on it."
-        found.append({"at": about, "place": place_of(node), "node": node, "kind": "failed", "words": sentence,
-                      "tip": why})
-    return found
+        why = plain_machines(FAULT.sub("", did).strip())
+        label = groups.label(stage_of(node))
+        group = found.setdefault((label, plain.step_cause(why, report_text(did))), [])
+        group.append({"node": node, "place": place_of(node), "about": about, "why": why})
+    return [failure_problem(label, cause, group, held) for (label, cause), group in found.items()]
+
+
+def failure_problem(label, cause, group, held):
+    """[problem] one step's stopped rows that share one plain cause, in one sentence."""
+    places = sorted({row["place"] for row in group})
+    where = f" in {len(places)} places" if len(places) > 1 else ""
+    sentence = f"The {label} step stopped{where}: {cause}."
+    waiting = sum(held.get(row["node"], 0) for row in group)
+    if waiting:
+        sentence += f" {waiting} later step{'s wait' if waiting != 1 else ' waits'} on {'them' if len(group) > 1 else 'it'}."
+    return {"at": max((row["about"] or "" for row in group), default="") or None,
+            "place": places[0] if len(places) == 1 else "", "places": places, "node": group[0]["node"],
+            "kind": "failed", "words": sentence, "tip": group[0]["why"],
+            "raw": [f"{row['node']}: {row['why']}" for row in group]}
 
 
 def gap_problems(rows, gaps_of):
@@ -218,6 +249,46 @@ def gap_problems(rows, gaps_of):
                                    "out as gaps.",
                           "tip": "; ".join(gap.get("name", "") for gap in gaps)})
     return found
+
+
+def nodes_of(planned, states):
+    """{planned, made, failed}: the batch's rows by name, for the next Buy to say what it makes again and keeps."""
+    return {"planned": sorted(planned), "made": sorted(node for node in planned if states.get(node) == "done"),
+            "failed": sorted(node for node in planned if states.get(node) == "failed")}
+
+
+def steps(count):
+    return f"{count} step{'s' if count != 1 else ''}"
+
+
+def retries(run):
+    """Whether the next Buy is another try of the batch `run` (watched.batch_of): some row of it not made and the
+    design unchanged since its newest try."""
+    rows = run["nodes"]
+    unmade = set(rows["planned"]) - set(rows["made"])
+    return bool(unmade) and not (run.get("design_at") and parsed(run["design_at"]) > parsed(run["at"]))
+
+
+def next_buy(run, buying):
+    """What a Buy of the nodes `buying` does beside the last batch (`run`, gathered's record) in one sentence: a retry
+    of it (retries) or the next batch; the rows it makes again because they failed or never ran there, those it
+    makes for the first time, the made ones it keeps and does not pay for again; None with no ended batch of named
+    rows (an older record) or nothing to buy."""
+    rows = (run or {}).get("nodes") or {}
+    if not rows.get("planned") or run["state"] in LIVE or not buying:
+        return None
+    number, buying = run.get("batch") or run["checkout"], set(buying)
+    planned, made, failed = set(rows["planned"]), set(rows["made"]), set(rows["failed"])
+    unrun = planned - made - failed
+    again = [f"the {steps(len(buying & failed))} that failed" if buying & failed else "",
+             f"the {len(buying & unrun)} that never ran" if buying & unrun else "",
+             f"the {len(buying & made)} made that changed since" if buying & made else ""]
+    again = [part for part in again if part]
+    said = [f"makes again {' and '.join(again)}" if again else "",
+            f"makes {steps(len(buying - planned))} for the first time" if buying - planned else "",
+            f"keeps the {len(made - buying)} already made" if made - buying else ""]
+    head = f"Retry Batch {number}" if retries(run) else f"Batch {number + 1}, after Batch {number}"
+    return f"{head}: " + "; ".join(part for part in said if part) + "."
 
 
 def newest_first(problems):
@@ -339,18 +410,36 @@ def pools_of(runs, newest_pool, planned):
     return {pool for pool in found | {newest_pool} if pool}
 
 
-def money_of(totals, stop_line, beat, spent):
+def money_of(totals, stop_line, beat, spent, launching=False):
+    """The batch's money: its spend, this try's likely, high and stop (its own room under the stop line; while it
+    launches and has written no line yet, the stop its Buy writes: its high plus BUFFER)."""
+    high = pricing.cleared_high(totals) if totals.get("high_euros") is not None else None
+    stop = own_stop(stop_line)
+    if stop is None and launching and high is not None:
+        stop = round(high * BUFFER, 2)
     return {"spent": spent, "open": beat["open"] if beat else None,
-            "likely": totals.get("likely_euros"),
-            "high": pricing.cleared_high(totals) if totals.get("high_euros") is not None else None,
-            "guessed": totals.get("guessed_euros"), "stop": own_stop(stop_line), "line": stop_line.get("euros"),
+            "likely": totals.get("likely_euros"), "high": high,
+            "guessed": totals.get("guessed_euros"), "stop": stop, "line": stop_line.get("euros"),
             "closed": bool(stop_line.get("closed"))}
 
 
-def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, accepted_at=lambda node: None):
-    """The monitor's record of `batch` (checkout/watched.newest: the newest checkout, its launch and the rows its
-    runs plan), read from the files under `props_home` (the warm pools) and `store_root` (the rows' logs), a row
-    done when `accepted_at(node)`, the time of its standing accept in the store, is after the checkout; None
+def tried_rows(runs, newest_rows, planned):
+    """{node: (state, did, about)} of every try's runs, oldest first, a later line of a row over an earlier one and
+    the newest run's (`newest_rows`) last: a row failed in an earlier try and not run again still shows."""
+    found = {}
+    for run in runs:
+        for path in run["logs"]:
+            found.update(read_log(log_lines(path), planned)["rows"])
+    return {**found, **newest_rows}
+
+
+def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, accepted_at=lambda node: None,
+             design_at=None):
+    """The monitor's record of `batch` (checkout/watched.newest: the newest checkout, a try of its batch, its launch
+    and the rows every try's runs plan), read from the files under `props_home` (the warm pools) and `store_root`
+    (the rows' logs), a row done when `accepted_at(node)`, the time of its standing accept in the store, is after the
+    batch's first try: rows, spend and problems across its tries, a problem gone once a later try made its row, the
+    ETA and stop this try's; `design_at` when the design last changed (the next Buy is a new batch past it); None
     without a batch."""
     if batch is None:
         return None
@@ -362,26 +451,32 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
     found = read_log(log_lines(log_path), set(planned))
     started = parsed(launch.get("at") or batch["at"])
     runs = batch.get("runs") or []
-    first = parsed(runs[0]["at"]) if runs else started  # the batch's clock: its checkout's first run
+    tried = batch.get("try_runs", runs) or []
+    first = parsed(runs[0]["at"]) if runs else started  # the batch's clock: its first try's first run
+    this_try = parsed(tried[0]["at"]) if tried else started  # this try's clock: its ETA
     renting = parked_of(pools_of(runs, found["pool"], set(planned)), props_home / "cloud" / "parked")
     pool = pool_of(found["pool"], props_home / "cloud" / "pools", now, renting)
     state, why = overall(batch, found, launch.get("state") == "running", pool)
-    states = row_states(planned, found["rows"], accepted_at, parsed(batch["at"]))
+    rows = tried_rows(runs, found["rows"], set(planned))
+    states = row_states(planned, rows, accepted_at, parsed(batch.get("first_at") or batch["at"]))
     running = {node for node in planned if node not in states and state in LIVE
                and started_since(node, pathlib.Path(store_root) / "logs", started.timestamp())}
     ended = ended_at(batch, found["result"], log_path)
-    problems = failures(found["rows"]) + gap_problems(found["rows"], gaps_of)
+    standing = {node: row for node, row in rows.items() if states.get(node) != "done"}
+    problems = failures(standing) + gap_problems(found["rows"], gaps_of)
     if state == "stopped":
         ran = eta_of({}, first, ended, now)["elapsed"] or 0
         problems.append({"at": stamp(ended or now), "place": "", "node": "", "kind": "run",
                          "words": f"The batch stopped after {round(ran)} min, before every scene was done.",
                          "tip": why})
+    spent = checkout_spent(spent_before(runs, launch.get("logs") or [], set(planned)), found["beat"])
     return {"read_at": stamp(now), "checkout": batch["checkout"], "at": batch["at"], "by": batch.get("by"),
-            "state": state, "why": why, "started": stamp(first), "ended": stamp(ended),
+            "batch": batch.get("batch") or batch["checkout"], "tries": batch.get("tries") or 1,
+            "design_at": design_at, "state": state, "why": why, "started": stamp(first),
+            "try_started": stamp(this_try), "ended": stamp(ended),
             "rows": counted(states, len(planned), found["beat"]),
-            "eta": eta_of(batch.get("totals") or {}, first, ended, now),
+            "eta": eta_of(batch.get("totals") or {}, this_try, ended, now),
             "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"],
-                              checkout_spent(spent_before(runs, launch.get("logs") or [], set(planned)),
-                                             found["beat"])),
+                              0.0 if spent is None and state in LIVE else spent, batch["state"] == "launching"),
             "scenes": scenes_of(planned, states, running, state in LIVE), "pool": pool,
-            "problems": newest_first(problems)}
+            "problems": newest_first(problems), "nodes": nodes_of(planned, states)}
