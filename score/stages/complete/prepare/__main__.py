@@ -80,7 +80,7 @@ def take_entry(group, record, index, rates, work):
     prediction = predict.predicted(group["size"], rates) if model else OWN_ROUTE
     is_made = made(group["take"])
     inputs = contract.faults(record, group, work) if model else []
-    status = TERRAIN if group["route"] == "ground" else status_of(match, is_made, inputs)
+    status = {"ground": TERRAIN, "plan": PLAN}.get(group["route"]) or status_of(match, is_made, inputs)
     return {**group, "library": match, "prediction": prediction, "inputs": inputs,
             "upscale": contract.upscale(group["box"]), "status": status,
             "key_diff": "made: its take stands, not bought again" if is_made else "new: no take of it stands"}
@@ -89,6 +89,9 @@ def take_entry(group, record, index, rates, work):
 # The ground itself: made by the terrain node from the design (free), its detail areas the scene inventory's terrain
 # rows, the terrain adapter's own, never a close-up of the whole picture; no take bought.
 TERRAIN = "terrain node"
+# A shell piece the plan lays itself (groups.plan_laid: the room's deck, walls and roof, every opening and doorway;
+# score/stages/earth_seed/design_shell.py and the scene record lay them from the locked plan): no close-up, no take.
+PLAN = "laid from the plan"
 OWN_ROUTE = {"outcome": "pass", "shape": None, "pass_share": None, "mode": None,
              "measured": "its own route: no close-up, so no close-up failure is measured against it"}
 
@@ -104,6 +107,7 @@ def take_counts(takes):
             "predicted_gaps": sum(take["prediction"]["outcome"] == "predicted gap" for take in bought),
             "input_gaps": sum(take["status"] == "input gap" for take in takes),
             "terrain": sum(take["status"] == TERRAIN for take in takes),
+            "laid_from_the_plan": sum(take["status"] == PLAN for take in takes),
             "at_risk": sum(take["prediction"]["outcome"] == "at risk" for take in bought)}
 
 

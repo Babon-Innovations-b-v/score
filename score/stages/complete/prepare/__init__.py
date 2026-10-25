@@ -27,8 +27,9 @@ The record (`WORK/checks/prepare/remake.json` by default):
      "rates": {shape: {failed, of, objects}},             (the measured close-up failures by shape, predict.py)
      "library": {"root", "models"} or {"root": null, "why"},
      "takes": [{place, rows, take, key, route, shell, instances, crop, library, prediction, inputs, upscale, status,
-                key_diff}],                               (status: library, made, input gap, terrain node or
-                                                          bought, a predicted gap bought too; route groups.ROUTES')
+                key_diff}],                               (status: library, made, input gap, terrain node, laid
+                                                          from the plan or bought, a predicted gap bought too;
+                                                          route groups.ROUTES')
      "layers": {stage: {takes, units, price, minutes, settings, runs: {routes, shell}}},
      "totals": {likely_euros, high_euros, unpriced}, "eta": schedule.schedule's, "expected_gaps",
      "input_gaps_if_bought": {likely_euros, high_euros},

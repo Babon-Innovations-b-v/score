@@ -271,6 +271,41 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_noun():
     assert record["counts"]["input_gaps"] == 1 and record["input_gaps_if_bought"]["likely_euros"] > 0
 
 
+def test_a_row_is_routed_by_its_head_word_and_the_plan_lays_its_own_shell():
+    """Coordinator, 2026-10-25 (Batch 1 try 3's close-up gaps): a structure word routes a row to the shell whatever its kind or a part word after it ("wall
+    panels", "floor grating"), the ground's words to the terrain node, a "wall lamp" stays a prop; a floor, wall or
+    roof spanning ROOM_SHARE of its place's outline, and every opening, is the plan's own: no close-up."""
+    expected = {"crowd of people": "people", "astronaut": "people", "wall panels": "shell", "floor grating": "shell", "floor plates": "shell", "deck": "shell",
+                "doorway": "shell", "door": "shell", "staircase": "shell", "street surface": "ground",
+                "distant hills": "ground", "pavement": "ground", "wall lamp": "prop", "control panel": "prop",
+                "fuel drum": "prop", "street lamp": "prop", "sky": "sky", "smoke": "effects"}
+    assert {noun: groups.route_of(noun) for noun in expected} == expected
+    outline = [14.5, 15.5]
+
+    def row(noun, size):
+        return {"noun": noun, "route": groups.route_of(noun), "size": size, "read_size": None}
+    assert groups.plan_laid(row("floor", [50.0, 3.0, 0.2]), outline)  # the greenhouse's upper floor
+    assert groups.plan_laid(row("wall panels", [16.0, 0.2, 8.0]), outline)
+    assert groups.plan_laid(row("doorway", None), None) and not groups.plan_laid(row("staircase", [1, 3, 2.5]), outline)
+    assert not groups.plan_laid(row("wall panel", [3.0, 0.2, 3.0]), outline)  # one panel: a shell piece's model
+    assert not groups.plan_laid(row("roof", [1.5, 2.0, 0.1]), outline)  # a porch's roof
+    assert not groups.plan_laid(row("floor", [50.0, 3.0, 0.2]), None)  # no plan: no outline to hold it to
+    assert not groups.plan_laid(row("crate", [20.0, 20.0, 1.0]), outline)
+    assert groups.read_row({"place": "p", "concept": "c" * 64}, {**a_read_row("plates", "generate", "floor plates")})[
+        "group"] == "kit: floor"
+    rows = [{**a_read_row("way_in", "code", "doorway"), "size": [1.0, 0.2, 2.1]},
+            {**a_read_row("crate", "generate", "crate"), "size": [0.5, 0.4, 0.4]}]
+    store = a_read_store("wreck", "f" * 64, rows, picture=[100, 100])
+    runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
+    record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
+    takes = {take["rows"][0]: take for take in record["takes"]}
+    assert (takes["way_in"]["route"], takes["way_in"]["status"]) == ("plan", prepare.PLAN)
+    assert takes["crate"]["status"] == "bought" and record["counts"]["laid_from_the_plan"] == 1
+    found, _ = groups.current(store, ["wreck"])
+    handed = handin.hand_in("wreck", found["wreck"], record["takes"], prepare.design_route(runner))
+    assert set(handed["objects"]) == {"crate"} and handed["takes"][takes["way_in"]["take"]]["stages"] == []
+
+
 def test_a_row_sam_3_missed_is_framed_by_gemini_and_one_with_neither_or_the_whole_picture_is_an_input_gap():
     unboxed = {"box": None, "boxes": []}
     rows = [{**a_read_row("crate", "generate", "crate"), **unboxed, "size": [0.5, 0.4, 0.4],
