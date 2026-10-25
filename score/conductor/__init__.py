@@ -22,6 +22,8 @@ The conductor bills in a Scaleway project of its own (CONDUCTOR_PROJECT, by name
 hourly bill never enters guard.spent_since (score/adapters/compute/guard.py refuses every paid run if the two names
 are ever the same: project_refusal).
 """
+import contextlib
+import fcntl
 import json
 import os
 import pathlib
@@ -33,6 +35,7 @@ HOME = PROPS_HOME / "conductor"
 MACHINE = PROPS_HOME / "machine.json"
 HEALTH = PROPS_HOME / "health.json"
 FREE_ONLY_LATCH = HOME / "free-only"
+HOLDS = HOME / "holds"  # one locked file per piece of work the size timer must not cut (holding)
 FREE_ONLY = "SCORE_FREE_ONLY"  # tools/cloud/ledger.py FREE_ONLY: every paid point raises FreeOnly under it
 SIZE_URL = "SCORE_CONDUCTOR_SIZE_URL"
 # The conductor's own Scaleway project, by name; the batch project is SCORE_SCALEWAY_PROJECT (backends/scaleway.py).
@@ -47,6 +50,41 @@ def machine(path=None):
     if not path.is_file() or not os.environ.get(SIZE_URL):
         return None
     return json.loads(path.read_text())
+
+
+@contextlib.contextmanager
+def holding(name, folder=None):
+    """Hold the machine at its size while the block runs (a sync pass, a request the listener answers, a film
+    preview, a reading, a free check): an exclusive lock on HOLDS/<name>-<pid>.lock, which the kernel lets go when
+    the process ends however it ends. Nothing off a conductor."""
+    if folder is None and machine() is None:
+        yield
+        return
+    folder = pathlib.Path(folder or HOLDS)
+    folder.mkdir(parents=True, exist_ok=True)
+    path, partial = folder / f"{name}-{os.getpid()}.lock", folder / f"{name}-{os.getpid()}.partial"
+    with partial.open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        os.replace(partial, path)  # locked before holds() can see it, so never taken for a dead holder's
+        try:
+            yield
+        finally:
+            path.unlink(missing_ok=True)
+
+
+def holds(folder=None):
+    """The names of the holds a live process keeps now; a file no process locks (its holder killed) is removed."""
+    folder = pathlib.Path(folder or HOLDS)
+    held = []
+    for path in sorted(folder.glob("*.lock")) if folder.is_dir() else []:
+        with path.open("a") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                held.append(path.stem)
+                continue
+            path.unlink(missing_ok=True)
+    return held
 
 
 def cores():

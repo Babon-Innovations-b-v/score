@@ -7,12 +7,14 @@ it, since neither can reach the machine (it takes ssh only).
 The record: written_at, boot_id, host, commercial_type (from the instance's metadata), the shrink guard's counts read
 from PROPS_HOME (active_runs: live claims in runs/active.json; parked: paid machines in cloud/parked; frozen: frozen
 worktrees under frozen/ a process works in, a waiting-for-size run's own copy left out: it waits for this very grow,
-and a copy left behind by a killed run holds nothing up), and `health`, the record score.conductor's `health --write` keeps at SCORE_HEALTH_FILE
+and a copy left behind by a killed run holds nothing up; working: holds a live process keeps under conductor/holds,
+score.conductor.holding's: a sync pass, a request, a film preview, a reading), and `health`, the record score.conductor's `health --write` keeps at SCORE_HEALTH_FILE
 (default $PROPS_HOME/conductor/health.json) when there is one. The counts err on the side of busy: a claim whose pid
 lives counts, whoever holds the pid now. It writes with user score's one credential (`scw config get`), to the bucket
 SCORE_CONDUCTOR_BUCKET in SCORE_CONDUCTOR_BUCKET_REGION (the env file's, written by `machine.py up`).
 """
 import datetime
+import fcntl
 import json
 import os
 import pathlib
@@ -106,6 +108,19 @@ def frozen_in_use(home, find=processes_in):
                and find(copy))
 
 
+def working(home):
+    """How many holds (score.conductor.holding: a sync pass, a request, a film preview, a reading, the free check) a
+    live process keeps under conductor/holds."""
+    count = 0
+    for path in (home / "conductor" / "holds").glob("*.lock"):
+        with path.open("a") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                count += 1
+    return count
+
+
 def commercial_type():
     """The instance's commercial type from Scaleway's metadata service, or None off Scaleway."""
     try:
@@ -136,7 +151,7 @@ def record(home, now):
     return {"written_at": now.isoformat(timespec="seconds"), "boot_id": boot_id(), "host": socket.gethostname(),
             "commercial_type": commercial_type(), "active_runs": active_runs(home),
             "parked": entries(home / "cloud" / "parked"), "frozen": frozen_in_use(home),
-            "health": conductor_health(home)}
+            "working": working(home), "health": conductor_health(home)}
 
 
 def credentials():

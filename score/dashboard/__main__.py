@@ -162,8 +162,13 @@ def sync():
     from score.dashboard.sync.client import Remote, sync_pass
     if not settings.SCORE_SYNC_URL or len(settings.SCORE_SYNC_TOKEN) < 32:
         sys.exit("refused: sync needs SCORE_SYNC_URL and a SCORE_SYNC_TOKEN of 32+ characters")
+    from score import conductor
+    from score.graph import stopped
     migrate()
-    print(sync_pass(Remote(settings.SCORE_SYNC_URL, settings.SCORE_SYNC_TOKEN), state.source()))
+    # a stop (the unit's, a shutdown's) exits through the finally blocks, so each step's processes end with the pass
+    stopped.stop_on_signals(lambda number: print(f"sync: stopped by signal {number}", flush=True))
+    with conductor.holding("sync-pass"):  # the size timer never shrinks the machine under a pass
+        print(sync_pass(Remote(settings.SCORE_SYNC_URL, settings.SCORE_SYNC_TOKEN), state.source()))
 
 
 def listen():
@@ -268,9 +273,11 @@ def basket_answers():
 
 
 def film_preview(options):
+    from score import conductor
     from score.dashboard.films.preview import make
     try:
-        out, record = make.make(options.film, options.export, options.user, options.keep)
+        with conductor.holding("film-preview"):
+            out, record = make.make(options.film, options.export, options.user, options.keep)
     except make.Refused as refused:
         raise SystemExit(f"film-preview {options.film}: refused: {refused}")
     bed = json.loads(record.read_text())["bed"]

@@ -20,7 +20,7 @@ from score.graph import runs  # noqa: E402
 
 RECORD = {"name": "conductor", "idle_type": "POP2-HM-2C-16G", "batch_type": "POP2-HM-16C-128G", "idle_cores": 2,
           "batch_cores": 16, "project": "score-conductor"}
-IDLE = {"claims": 0, "running": 0, "waiting": 0, "wanted": 0, "parked": 0, "frozen": 0}
+IDLE = {"claims": 0, "running": 0, "waiting": 0, "wanted": 0, "parked": 0, "frozen": 0, "working": 0}
 
 
 def as_conductor(call, cores=2):
@@ -69,7 +69,7 @@ def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size():
     assert size.decide(IDLE, 16, RECORD, now - 29 * 60, now, False)[0] is None
     assert size.decide(IDLE, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
     assert size.decide(IDLE, 2, RECORD, 0, now, False) == (None, "at the idle size")
-    for busy in ("claims", "running", "waiting", "parked", "frozen"):
+    for busy in ("claims", "running", "waiting", "parked", "frozen", "working"):
         found = size.decide({**IDLE, busy: 1}, 16, RECORD, 0, now, False)
         assert found[0] is None and busy in found[1], (busy, found)
 
@@ -174,11 +174,44 @@ def test_busy_counts_claims_waiting_runs_parked_machines_and_frozen_copies_in_us
         runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=home / "runs")
         (home / "parked" / "machine.json").write_text("{}")
         os.chdir(home / "frozen" / "live-copy")
-        view = size.busy(home / "runs", home / "parked", home / "frozen")
-        assert view == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1}, view
+        view = size.busy(home / "runs", home / "parked", home / "frozen", home / "holds")
+        assert view == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1,
+                        "working": 0}, view
     finally:
         os.chdir("/")
         shutil.rmtree(home)
+
+
+def test_a_hold_keeps_the_machine_busy_until_its_process_lets_go():
+    """A sync pass (or a request, a film preview, a reading) holds the machine at its size while it works; a holder
+    killed mid-way holds nothing (2026-10-25: a shrink cut the first pass after a boot)."""
+    import subprocess
+    home = pathlib.Path(tempfile.mkdtemp())
+    try:
+        with conductor.holding("sync-pass", home):
+            assert conductor.holds(home) == [f"sync-pass-{os.getpid()}"]
+            assert size.busy(home / "runs", home / "parked", home / "frozen", home)["working"] == 1
+        assert conductor.holds(home) == [] and not list(home.glob("*.lock"))
+        code = (f"import os, sys, pathlib; sys.path.insert(0, {str(pathlib.Path(__file__).resolve().parents[2])!r}); "
+                f"from score import conductor; h = conductor.holding('film-preview', pathlib.Path({str(home)!r})); "
+                "h.__enter__(); print('held', flush=True); os.kill(os.getpid(), 9)")
+        child = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
+        assert child.stdout.readline().strip() == "held"
+        child.wait()
+        assert conductor.holds(home) == [] and not list(home.glob("*.lock"))  # the dead holder's file is gone
+    finally:
+        shutil.rmtree(home)
+
+
+def test_holding_off_a_conductor_writes_nothing():
+    kept = conductor.HOLDS
+    conductor.HOLDS = pathlib.Path(tempfile.mkdtemp()) / "holds"
+    try:
+        os.environ.pop(conductor.SIZE_URL, None)
+        with conductor.holding("sync-pass"):
+            assert not conductor.HOLDS.exists()
+    finally:
+        conductor.HOLDS = kept
 
 
 if __name__ == "__main__":

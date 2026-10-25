@@ -30,6 +30,7 @@ import time
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
+from score import conductor
 from score.dashboard.state import batch_run
 from score.dashboard.sync import applying, client
 
@@ -44,7 +45,8 @@ PUSH_SECONDS = 60.0  # the run monitor's record sent this often while a batch li
 def answered_here(remote, item, source, left):
     """client.answered of one request; (id, state), or None when it was not applied here (a Buy left for the pass
     goes into `left`)."""
-    applied = client.answered(remote, item, source)
+    with conductor.holding(f"request-{item['id']}"):  # the size timer never shrinks the machine under it
+        applied = client.answered(remote, item, source)
     if applied is None:
         if item["kind"] == "checkout":
             left.add(item["id"])

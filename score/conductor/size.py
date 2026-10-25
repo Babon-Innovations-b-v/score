@@ -16,8 +16,12 @@ and `score resume` at the boot on the batch size starts it. A run started in an 
 machine (a bigger machine is spend, and only the owner's click says yes to spend): it is refused as on the PC.
 
 The shrink comes after IDLE_MINUTES with no live claim (runs/active.json), no running or waiting run, no parked paid
-machine and no frozen copy a process still uses (a run's releaser waits out its parked machines from it); the idle
-time counts from the last pass that saw the machine busy, or from the boot.
+machine, no frozen copy a process still uses (a run's releaser waits out its parked machines from it) and no hold
+(score.conductor.holding: a sync pass, a request the listener answers, a film preview, a reading, the free check;
+2026-10-25 a shrink 31 minutes after a boot cut the first pass mid-preview); the idle time counts from the last pass
+that saw the machine busy, or from the boot, so a boot or a grow has IDLE_MINUTES of grace. The idle size holds a
+pass (the pass the 2026-10-25 shrink left ran 40 minutes on 2 cores and 16 GB without running out of memory): a pass
+is never a reason to grow, only to wait.
 """
 import datetime
 import json
@@ -34,7 +38,8 @@ from score.graph import frozen, runs, stopped
 from score.store import PROPS_HOME, running_under_agent
 
 GROW, SHRINK = "grow", "shrink"
-IDLE_MINUTES = 30
+IDLE_MINUTES = 30  # idle this long, counted from the last busy pass or the boot (a grow is a boot), before a shrink
+BUSY = ("claims", "running", "waiting", "parked", "frozen", "working")
 GROW_WAIT = 3600  # seconds a waiting run waits for the grow's shutdown before it gives up (unresumable)
 WAIT_STEP = 5
 STATE = conductor.HOME / "size.json"
@@ -96,8 +101,9 @@ def processes_in(folder):
     return found
 
 
-def busy(runs_folder=None, parked=None, frozen_folder=None):
-    """What keeps the machine at its size now: {claims, running, waiting, parked, frozen}, each a count."""
+def busy(runs_folder=None, parked=None, frozen_folder=None, holds_folder=None):
+    """What keeps the machine at its size now: {claims, running, waiting, parked, frozen, working}, each a count
+    (working: the holds of score.conductor.holding, a sync pass, a request, a film preview, a reading, a free check)."""
     runs_folder = pathlib.Path(runs_folder or runs.RUNS)
     with runs.claims_locked(runs_folder) as claims:
         live_claims = len(claims)
@@ -109,12 +115,13 @@ def busy(runs_folder=None, parked=None, frozen_folder=None):
     in_use = [copy for copy in sorted(frozen_folder.iterdir()) if processes_in(copy)] if frozen_folder.is_dir() else []
     return {"claims": live_claims, "running": len(running), "waiting": len(waiting),
             "wanted": max((entry.get("jobs", 0) for entry in waiting), default=0),
-            "parked": len(list(parked_folder.glob("*.json"))) if parked_folder.is_dir() else 0, "frozen": len(in_use)}
+            "parked": len(list(parked_folder.glob("*.json"))) if parked_folder.is_dir() else 0, "frozen": len(in_use),
+            "working": len(conductor.holds(holds_folder))}
 
 
 def is_busy(view):
     """Whether anything in a busy view keeps the machine at its size."""
-    return any(view[name] for name in ("claims", "running", "waiting", "parked", "frozen"))
+    return any(view.get(name) for name in BUSY)
 
 
 def decide(view, cores, record, idle_since, now, latched):
@@ -131,8 +138,7 @@ def decide(view, cores, record, idle_since, now, latched):
     if cores <= int(record["idle_cores"]):
         return None, "at the idle size"
     if is_busy(view):
-        return None, "busy: " + ", ".join(f"{name} {view[name]}" for name in ("claims", "running", "waiting",
-                                                                             "parked", "frozen") if view[name])
+        return None, "busy: " + ", ".join(f"{name} {view[name]}" for name in BUSY if view.get(name))
     idle = (now - idle_since) / 60
     if idle < IDLE_MINUTES:
         return None, f"idle {idle:.0f} of {IDLE_MINUTES} minutes"

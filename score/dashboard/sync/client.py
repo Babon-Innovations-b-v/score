@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import pathlib
+import signal
 import subprocess
 import sys
 import tempfile
@@ -486,12 +487,50 @@ def gaps_sweep():
     return (done.stdout.strip().splitlines() or ["gaps wrote nothing"])[-1]
 
 
+def step_run(command, grace=10):
+    """A pass step's command run to its end in a process group of its own, its output kept; whatever it left running
+    (a film preview's Chromium) ended with it, and the whole group ended when the pass is stopped (2026-10-25: a shrink
+    left the preview's chrome-headless running after the unit stopped). A `score run --detach` it starts has a session
+    of its own and is never ended here."""
+    process = subprocess.Popen(command, cwd=settings.SCORE_REPO, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, start_new_session=True)
+    try:
+        out, err = process.communicate()
+    finally:
+        group_ended(process, grace)
+    return subprocess.CompletedProcess(command, process.returncode, out, err)
+
+
+def group_ended(process, grace):
+    """End a step's process group: SIGTERM, then SIGKILL to what is left after `grace` seconds."""
+    for number in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(process.pid, number)
+        except ProcessLookupError:
+            break
+        try:
+            process.wait(timeout=grace)
+        except subprocess.TimeoutExpired:
+            continue
+        if not group_alive(process.pid):
+            break
+    process.wait()
+
+
+def group_alive(group):
+    """Whether any process is still in a process group."""
+    try:
+        os.killpg(group, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
 def step_line(module, failed, *args):
     """A free store-side step (`python -m <module> [args]`, in a process of its own) run once; its last line, or
     `failed` with its exit code and last error line. One that fails is said in the pass's words, and the pass goes
     on."""
-    done = subprocess.run([sys.executable, "-m", module, *args], cwd=settings.SCORE_REPO, capture_output=True,
-                          text=True)
+    done = step_run([sys.executable, "-m", module, *args])
     if done.returncode != 0:
         return f"{failed}: exit {done.returncode}: {(done.stderr.strip().splitlines() or ['no output'])[-1]}"
     return (done.stdout.strip().splitlines() or [f"{module} wrote nothing"])[0]

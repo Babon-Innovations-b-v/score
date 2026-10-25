@@ -8,7 +8,7 @@
 - refuses to grow or shrink a running server while the conductor's health record (health/conductor.json in
   SCORE_HEALTH_BUCKET, written every minute by tools/cloud/conductor/health_push.py) says a run is active, a paid
   machine is parked or a frozen worktree is in use, or is older than HEALTH_STALE_SECONDS (an unknown is never an
-  idle): either way the server is powered off, which would cut the run and orphan its rented machines;
+  idle), and to shrink it while it holds work (`working`: a sync pass, a request, a film preview, a reading): either way the server is powered off, which would cut the run and orphan its rented machines;
 - lifts the server's protection (`machine.py up` sets it, and Scaleway refuses to power off a protected server:
   "precondition failed: server is protected", 2026-10-24), powers it off, waits until it is stopped, sets its
   commercial type, powers it on (also when the type change was refused, so the conductor is never left off), protects
@@ -95,8 +95,9 @@ def request_action(event, token):
     return action
 
 
-def health_refusal(record, server_state, now):
-    """Why the conductor may not be powered off for a resize now by its health record, or None."""
+def health_refusal(record, server_state, now, action="grow"):
+    """Why the conductor may not be powered off for `action` now by its health record, or None. Work under a hold
+    (a sync pass, a film preview: `working`) refuses only a shrink, and a record that does not say it is unknown."""
     if server_state == "stopped":
         return None
     if not record:
@@ -108,6 +109,8 @@ def health_refusal(record, server_state, now):
                          ("frozen", "frozen worktree(s) in use")):
         if record.get(field):
             return f"{record[field]} {words}"
+    if action == "shrink" and record.get("working", 1):
+        return f"{record.get('working', 'unknown')} hold(s) of work (a sync pass, a request, a film preview)"
     return None
 
 
@@ -152,7 +155,8 @@ def resize(action, config, api, read_health, sleep=time.sleep, clock=time.monoto
     was = server["commercial_type"]
     if was == target:
         return {"action": action, "from": was, "to": target, "state": server["state"], "changed": False}
-    refused = health_refusal(read_health(), server["state"], datetime.datetime.now(datetime.timezone.utc))
+    refused = health_refusal(read_health(), server["state"], datetime.datetime.now(datetime.timezone.utc),
+                             action)
     if refused:
         raise Refused(f"{action} refused: {refused}; a resize powers the conductor off")
     protected = server.get("protected")
