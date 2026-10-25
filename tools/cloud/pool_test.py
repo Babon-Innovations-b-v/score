@@ -608,9 +608,9 @@ def test_a_share_that_fails_on_a_card_that_answers_is_a_gap_and_the_card_works_o
 
 def test_a_set_up_that_keeps_failing_takes_no_card_after_card():
     """Review (2026-10-23): a pool card that failed in set-up was deleted and the slot took the next, until the run's
-    deadline (105 cards in 3 s with the fakes). A set-up failing on a card that answers ends the slot; a card that died
-    in set-up is followed by one more, never a third."""
-    for answering, cards_taken in ((True, 1), (False, 2)):
+    deadline (105 cards in 3 s with the fakes). A card that failed in set-up, answering or dead, is followed by one
+    more, never a third (fault, 2026-10-25: a set-up that failed on an answering card ended the slot)."""
+    for answering, cards_taken in ((True, 2), (False, 2)):
         calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
         grow(run_id)
         if not answering:
