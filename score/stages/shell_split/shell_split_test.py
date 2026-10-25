@@ -102,6 +102,16 @@ def test_overlapping_shapes_fail_tiled_by_name():
     assert verdict.answer == checks.FAIL and any("overlap" in finding for finding in verdict.findings), verdict
 
 
+def test_a_gap_at_the_back_fails_tiled():
+    """A lane whose last shape stops short of the inside's end is not tiled."""
+    def shortened(split):
+        last = max(split["places"], key=lambda item: item["along"][1])
+        last["along"][1] -= 1.0
+    out, inputs = made(TOY)
+    verdict = verdicts(rewritten(out, shortened), inputs)["tiled"]
+    assert verdict.answer == checks.FAIL and any("nothing stands" in finding for finding in verdict.findings), verdict
+
+
 def test_a_room_with_no_door_fails_reached_by_name():
     def shut(split):
         for item in split["places"]:
