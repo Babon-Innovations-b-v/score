@@ -187,6 +187,14 @@ def test_a_group_wears_only_its_kit():
     assert {mix["worn"]["plain"][0] for mix in mixes} == {"plain_uniform_olive"}
 
 
+def test_a_base_with_no_solid_stands_nobody_and_runs_into_nothing():
+    """A seed's base layer holding no solid (an earth seed whose plan lays no shell) measures every body as standing
+    on nothing, for the standing gate to name, instead of failing the make."""
+    spots = [[0.0, 0.0, 0.0], [1.0, 0.0, 1.0]]
+    assert measure.ground_under(spots, {}) == [{"gap": None, "on": None, "water": False}] * 2
+    assert measure.run_into(spots, {}) == [[], []]
+
+
 def test_copied_constants_agree():
     cast_rules, cast_check = measure.characters()
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,
