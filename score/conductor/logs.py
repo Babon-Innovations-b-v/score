@@ -1,6 +1,6 @@
 """The conductor's logs for the cockpit's Machine card: the tails the export carries, with no secret in them.
 
-    tails(limit_lines)  # {"run <log>" | "fault <node>" | "journal <unit>": [lines]}
+    tails(limit_lines)  # {"run <log>" | "fault <node>" | "journal <unit>" | "boot <log>": [lines]}
 
 The newest RUN_LOGS detached run logs ($PROPS_HOME/logs/score-run-*.log), the newest FAULTS fault reports (faults/
 beside the store), and `journalctl --user` of each unit health.UNITS names, each cut to its last `limit_lines` lines.
@@ -17,6 +17,8 @@ from score.conductor import health
 from score.store import PROPS_HOME, Store
 
 RUN_LOGS, FAULTS = 3, 20
+# The boot's own logs (cloud-init's per-boot boot.sh, as root): whether install_node and the rest ran at the last boot.
+BOOT_LOGS = (pathlib.Path("/var/log/score-boot-system.log"), pathlib.Path("/var/log/score-boot-user.log"))
 UPDATE = "score-update.service"
 SECRET_ENV = ("SCORE_SYNC_TOKEN", "SCORE_DASHBOARD_SECRET_KEY", "SCORE_STORE_SECRET_KEY", "SCW_SECRET_KEY",
               "GEMINI_API_KEY", "GOOGLE_API_KEY", "WORLDLABS_API_KEY", "HF_TOKEN", "FREESOUND_API_KEY",
@@ -50,6 +52,14 @@ def tail(path, limit_lines):
     return clean(lines)[-limit_lines:]
 
 
+def boot_tail(path, limit_lines):
+    """A boot log's clean tail; why not, when user score cannot read root's file."""
+    try:
+        return tail(path, limit_lines)
+    except OSError as error:
+        return [f"boot log not read: {error}"]
+
+
 def newest(folder, pattern, count):
     """The `count` newest files in `folder` matching `pattern`, newest first."""
     folder = pathlib.Path(folder)
@@ -68,13 +78,14 @@ def journal(unit, limit_lines):
     return clean(done.stdout.splitlines())[-limit_lines:]
 
 
-def tails(limit_lines=40, logs=None, faults=None, read_journal=journal):
-    """{name: [lines]}, the cockpit's shape: `run <log>`, `fault <node>` and `journal <unit>`, each one's clean
-    tail."""
+def tails(limit_lines=40, logs=None, faults=None, read_journal=journal, boot_logs=BOOT_LOGS):
+    """{name: [lines]}, the cockpit's shape: `run <log>`, `fault <node>`, `journal <unit>` and `boot <log>` (each
+    boot log there), each one's clean tail."""
     logs = pathlib.Path(logs or PROPS_HOME / "logs")
     faults = pathlib.Path(faults or Store.default().cache.parent / "faults")
     services = [unit for units in health.UNITS.values() for unit in units if unit.endswith(".service")]
     services.append(UPDATE)  # whether the checkout follows the cockpit's pin (2026-10-25: it did not, unseen)
     return {**{f"run {path.name}": tail(path, limit_lines) for path in newest(logs, "score-run-*.log", RUN_LOGS)},
             **{f"fault {path.stem}": tail(path, limit_lines) for path in newest(faults, "*.txt", FAULTS)},
-            **{f"journal {unit}": read_journal(unit, limit_lines) for unit in services}}
+            **{f"journal {unit}": read_journal(unit, limit_lines) for unit in services},
+            **{f"boot {path.name}": boot_tail(path, limit_lines) for path in boot_logs if path.exists()}}

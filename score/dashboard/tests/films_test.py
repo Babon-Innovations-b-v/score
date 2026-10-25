@@ -461,3 +461,11 @@ def test_the_state_knows_a_designed_bed_by_the_sound_stages_own_words():
     """local.DESIGNED_BED is the word the sound stage writes on a bed its design decided (an older bed is none)."""
     from score.dashboard.state import local
     assert f'"from": "{local.DESIGNED_BED}"' in (settings.SCORE_REPO / "score/stages/sound/__init__.py").read_text()
+
+
+def test_a_recorder_failure_names_the_node_the_path_found(tmp_path):
+    from score.dashboard.films.preview import make
+    (tmp_path / "node").write_text("#!/bin/sh\necho v18.19.1\n")
+    (tmp_path / "node").chmod(0o755)
+    assert make.node_used(str(tmp_path)) == f"node {tmp_path / 'node'} v18.19.1"  # the version the sync line lacked
+    assert make.node_used(str(tmp_path / "none")) == "no node on the PATH"

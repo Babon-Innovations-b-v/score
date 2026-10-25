@@ -78,7 +78,9 @@ install_binary() {
 
 install_packages() {
   DEBIAN_FRONTEND=noninteractive apt-get install -y -q "${APT_PACKAGES[@]}" > /dev/null
-  say "packages: ${APT_PACKAGES[*]}"
+  # Ubuntu's older node (apt's nodejs, which boots before 2026-10-25 installed) goes, so only install_node's is found.
+  DEBIAN_FRONTEND=noninteractive apt-get remove -y -q nodejs > /dev/null
+  say "packages: ${APT_PACKAGES[*]}; apt's nodejs removed"
 }
 
 # The film preview's recorder (score/dashboard/films/preview/make.py PLAYWRIGHT): Chromium's system libraries here,

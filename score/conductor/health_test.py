@@ -77,11 +77,15 @@ def test_the_log_tails_leave_out_every_line_naming_or_holding_a_secret():
             "token hf_abcdefghijklmnopqrstuvwxyz0123456789\n-----BEGIN OPENSSH PRIVATE KEY-----\n"
             "asked with X-Score-Size-Token set\nexit: ok\n")
         (folder / "faults" / "brief@south.txt").write_text("cause: the brief is empty\n")
+        (folder / "score-boot-system.log").write_text("boot: node 24.21.0 installed\nsent s3cr3t-sync-value along\n")
         found = logs.tails(10, logs=folder / "logs", faults=folder / "faults",
-                           read_journal=lambda unit, limit: [f"{unit}: fine"])
+                           read_journal=lambda unit, limit: [f"{unit}: fine"],
+                           boot_logs=(folder / "score-boot-system.log", folder / "score-boot-user.log"))
         assert found["run score-run-1.log"] == ["brief@north: made", "exit: ok"], found
         assert found["fault brief@south"] == ["cause: the brief is empty"]
         assert found["journal score-listen.service"] == ["score-listen.service: fine"]
+        assert found["boot score-boot-system.log"] == ["boot: node 24.21.0 installed"]  # whether install_node ran
+        assert "boot score-boot-user.log" not in found  # a boot log not written is not listed
         assert logs.tail(folder / "logs" / "score-run-1.log", 1) == ["exit: ok"]
     finally:
         os.environ.pop("SCORE_SYNC_TOKEN") if kept is None else os.environ.update({"SCORE_SYNC_TOKEN": kept})

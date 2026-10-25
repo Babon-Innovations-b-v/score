@@ -3,7 +3,7 @@
     python -m score.conductor health [--write]   # the health as JSON, or written to $PROPS_HOME/health.json
     python -m score.conductor size               # one pass of the size timer: grow, shrink or nothing
     python -m score.conductor dry                # the free end-to-end check: one line, its detail in a file
-    python -m score.conductor logs [--lines N]   # logs.tails: run logs, fault reports, unit journals, as text
+    python -m score.conductor logs [--lines N]   # logs.tails: run logs, fault reports, unit journals, boot logs, as text
 """
 import argparse
 import json

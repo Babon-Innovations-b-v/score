@@ -36,6 +36,9 @@ from score.dashboard.films import script, takes
 from score.dashboard.films.preview import scenes
 
 PLAYWRIGHT = "playwright@1.62.1"  # viewer_look.py's: its Chromium (1234) is the one installed in ~/.cache/ms-playwright
+# The conductor's pinned Node (tools/cloud/conductor/boot.sh install_node), put ahead of the PATH: playwright takes
+# node >=20, older than any apt node. A machine without it (the owner's PC) finds its own node further down the PATH.
+PINNED_NODE = "/usr/local/bin"
 HERE = pathlib.Path(__file__).resolve().parent
 FOLDER = "films/previews"
 SCALE = 2  # each frame drawn at twice its size and brought down to it, so the cockpit's text stays sharp
@@ -179,14 +182,26 @@ def recorded(job, work):
     """Run the recorder over the job; each segment's frame folder. Refused with the recorder's words."""
     listing = work / "job.json"
     listing.write_text(json.dumps(job))
+    environment = {**os.environ, "PATH": f"{PINNED_NODE}{os.pathsep}{os.environ.get('PATH', '')}"}
     done = subprocess.run(["npx", "-y", "-p", PLAYWRIGHT, "node", str(HERE / "recorder.mjs"), str(listing)],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, env=environment)
     (work / "recorder.log").write_text(done.stdout + done.stderr)
     lines = [json.loads(line) for line in done.stdout.splitlines() if line.startswith("{")]
     failed = [line["error"] for line in lines if "error" in line]
     if failed or done.returncode != 0:
-        raise Refused(failed[0] if failed else f"the recorder failed: {done.stderr[-2000:]}")
+        raise Refused(failed[0] if failed else
+                      f"the recorder failed: {done.stderr[-2000:].rstrip()} ({node_used(environment['PATH'])})")
     return {line["segment"]: pathlib.Path(line["out"]) for line in lines}
+
+
+def node_used(path):
+    """The node `path` finds first and its version, as `node <where> <version>`: said with a recorder's failure,
+    whose last line (the sync pass's words) names no version."""
+    node = shutil.which("node", path=path)
+    if node is None:
+        return "no node on the PATH"
+    version = subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip()
+    return f"node {node} {version}"
 
 
 def clip(frames, out, size, rate):
