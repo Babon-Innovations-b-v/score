@@ -29,10 +29,10 @@ for the creator.
   and judges it with today's check, and draws only for the rows none passed. A check change re-judges kept pictures
   without drawing them; a passing picture is kept, so its model's take stands. Never change the first two takes'
   requests (`pro`, `retry`): the pictures of the batches before are cached under them.
-- **The outline is held to a look-down range** (`check.LOOK_DOWN_DEGREES` to `LOOK_DOWN_MOST`, 15 to 30 degrees,
-  2026-10-25): Pro draws from that high whatever the wording says, and a flat object's outline is nearly all
-  look-down, so one angle faulted the camera, not the object (34 of 74 proportion faults of Batch 1's first try were
-  good pictures seen from higher; re-measured and looked at, the openpics set was not on the PC).
+- **The outline is held to the one stated look-down** (`check.LOOK_DOWN_DEGREES`, the angle every wording states;
+  2026-10-25): never a best fit over a range, whose free angle absorbs a wrong size. No documented camera of the
+  picture model backs a range and Batch 1's flat close-ups fit 6 to 60 degrees, so a picture off the stated view is a
+  retry. The likeness gate draws the model at the same look-down (`score/stages/props/likeness.look_down`).
 - **A person is the one exception to the three-quarter view** (the people layer's own close-up, CONTEXT.md "layer
   adapter"): a row whose `layer` is `people` is drawn with `stage.PERSON` (one person, front on, in the rig's A-pose,
   arms and legs clear) and measured by `check.person_faults` (framed, arms apart: `arm_gap_share`, which the maker's
