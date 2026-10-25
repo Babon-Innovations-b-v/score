@@ -440,7 +440,7 @@ ALL = None
 BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                "finish-route-split": ("one finish a face",), "surfaces-bake": ("baked",),
                "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
-               "sound": ("likeness",)}
+               "sound": ("likeness", "events", "voices")}
 
 
 def with_gap_files(files, row=None):

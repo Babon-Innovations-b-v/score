@@ -140,14 +140,15 @@ def uses_of(place, inputs):
 
 def moving_uses(inputs):
     """The sounds of the place's moving things (data/sound/moving.json, by each one's row kind and move): one set for
-    each event of the motion row's moves (needs.design_moves, needs.events)."""
+    each event of the motion row's moves (needs.design_moves, needs.events), each use naming its event (`event`), so a
+    take that does not come back is a gap on the moving thing it leaves silent (take_gaps)."""
     if "moving sounds" not in inputs:
         return []
     table, kinds = read_json(inputs["moving sounds"]), row_kinds.table(inputs["row kinds"])
     rows = inventory_rows(inputs)
     moves = needs.design_moves(inputs)
     renamed = moves.get("renamed", {})
-    return [found for event in needs.events([], moves.get("moves", []), renamed)
+    return [dict(found, event=event["name"]) for event in needs.events([], moves.get("moves", []), renamed)
             for found in moving.event_uses(event, rows, kinds, table, renamed)]
 
 
@@ -358,13 +359,14 @@ def make(inputs, out, seed, params):
 def take_gaps(made_here, sounds, uses):
     """The batch gaps of the sounds made here (score/stages/batch_gaps.py), each a gap by the creator's yes to the
     batch (a new take is a new batch): a brief whose take did not come back usable has no sound, its uses left out of
-    the record (the gap names each, so the assembly plays nothing in its place); a take under gates.CLAP_FLOOR plays,
-    its `likeness` fault moved to the gap (stages.BATCH_GATES)."""
+    the record (the gap names each, so the assembly plays nothing in its place) and names what its uses sound on (a
+    moving thing's event, a person), so the `events` and `voices` faults it leaves move to it (stages.BATCH_GATES); a
+    take under gates.CLAP_FLOOR plays, its `likeness` fault moved to the gap."""
     found = []
     for name in made_here:
         if name not in sounds:
             found.append(batch_gaps.gap(
-                f"{name}: no MOSS take came back", "sound", "sources", (name,),
+                f"{name}: no MOSS take came back", "sound", "sources", (name, *silenced(name, uses)),
                 [f"{name}: no sound ({use['role']}, {use['from']})" for use in uses if use["sound"] == name],
                 "its MOSS take was asked once in the batch and did not come back usable; its uses left out"))
         elif sounds[name].get("clap") is not None and sounds[name]["clap"] < gates.CLAP_FLOOR:
@@ -373,6 +375,13 @@ def take_gaps(made_here, sounds, uses):
                 [f"{name}: CLAP {sounds[name]['clap']} under {gates.CLAP_FLOOR}"],
                 "its one MOSS take of the batch came back under the CLAP floor"))
     return found
+
+
+def silenced(name, uses):
+    """What the sound's uses sound on that the gates name when it plays nothing: each motion use's event, each object
+    use's thing (a person's voice)."""
+    return [use.get("event") if use["role"] == "motion" else use["on"] for use in uses
+            if use["sound"] == name and use["role"] in ("motion", "object")]
 
 
 def layer_faults(folder):
