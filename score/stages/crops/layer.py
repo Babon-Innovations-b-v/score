@@ -182,7 +182,9 @@ def write_layer(place, record, assets, spots, path):
         instancer.CreateOrientationsAttr(Vt.QuathArray([Gf.Quath(math.cos(half), Gf.Vec3h(0.0, math.sin(half), 0.0))
                                                         for half in halves]))
         instancer.CreateScalesAttr(Vt.Vec3fArray([Gf.Vec3f(spot["size"]) for spot in own]))
-    stage.GetRootLayer().Save()
+    with crop_data.tools("usd"):
+        import whole_layer
+    whole_layer.stamped(stage.GetRootLayer(), place).Save()
 
 
 def make_layer(inputs, out, seed, params):

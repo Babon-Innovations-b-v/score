@@ -107,6 +107,7 @@ import export  # noqa: E402
 import ground as grounds  # noqa: E402
 import motion as motion_record  # noqa: E402
 import scene as scene_record  # noqa: E402
+import whole_layer  # noqa: E402
 
 LAYER = "layers/effects.usda"
 ASSETS = "assets/effects"
@@ -935,7 +936,7 @@ def write_layer(place, effects, out, ground=None, scene=None, motions=None, base
         write_light(stage, place, light)
     for name, choice in effects.get("variants", {}).items():
         stage.GetPrimAtPath(root).GetVariantSets().GetVariantSet(name).SetVariantSelection(choice)
-    layer.Save()
+    whole_layer.stamped(layer, place).Save()
     export.held_by_root(place, out)
     return held
 

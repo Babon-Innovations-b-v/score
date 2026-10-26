@@ -112,6 +112,11 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   On ground sloping over 1 degree under an object standing on it (`ground_plane`) its footing and feet are read by
   height over the ground's plane, not straight up (read straight up, the campgrounds' reactor flush on a 6.6 degree
   slope touched along its downhill edge and tipped by 0.8 m, 2026-10-15); level ground and decks read as before.
+- **A place layer is a whole asset alone** (`whole_layer.py`): a layer writer stamps its layer (metres, Y up,
+  `/<place>` its default prim, a def Xform) before saving, since the library takes each layer as an asset of its own;
+  composition is unchanged. Not yet stamped (2026-10-26): the export's base, terrain's ground and the characters
+  layer, whose writers sit in the code version of accepted paid rows (pixal, surface-library). The USD check (`score/stages/complete/usd`) judges the composed stage; fix what it finds
+  in the writer that wrote it.
 - `colliders.py` is what the stage collides with (UsdPhysics, static only; mass is the physics stage's): the scene
   record's structure and ground (`solid`: an exact box, `boundingCube`, for a mesh that is one closed box square to
   its frame, else `meshSimplification`; water never, nor a structure entry of `plain` sky: the Earth over the Moon), a made model's convex hull guide (`hull`), a world model file's
