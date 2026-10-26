@@ -32,7 +32,7 @@ import score.stages.earth_seed as earth_seed
 import score.stages.shapes_first.align as align
 import score.stages.shapes_first.made as made
 from score.stages.surfaces.surface_gates import guarded
-from score.stages.terrain import join as ground_join
+import score.stages.terrain.join as ground_join  # by module: terrain's make (its __init__) stays out of this key
 
 
 @dataclasses.dataclass(frozen=True)

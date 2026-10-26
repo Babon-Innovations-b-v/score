@@ -232,7 +232,7 @@ def routed(row, own, beyond, shell=frozenset()):
     "ground"), raised on the far ground round the place, and so is a body of water (terrain.design.water_row: the
     square's sea), laid as water over the ground lowered under it (shown_from makes every other backdrop row a
     model)."""
-    from score.stages.terrain import design
+    import score.stages.terrain.design as design  # by module: terrain's make stays out of this key
     if design.far_row(row, beyond) or design.water_row(row):
         return {**row, "route": ROUTES["ground"]}
     if row["route"] == "shell" and (row.get("part") in own or row["id"] in shell):

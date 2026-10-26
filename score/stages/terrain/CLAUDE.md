@@ -31,7 +31,9 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   (`made_by`, `MADE_BY`).
 - **Each place's layer** (`places/<place>.usdc`, `outside.py`): the ground in its own frame under `/<place>/Outside`,
   `near` (its plan's box grown by NEAR_MARGIN, 0.5 m apart) and `far` (out past the horizon an eye 12 m up sees, at
-  least 1.5 km), static colliders; the place's old `Ground`, `Terrain` and `Water` made inactive.
+  least 1.5 km), static colliders, each only the points its triangles use; stamped a whole asset
+  (`tools/usd/whole_layer.py`). No over of an old `Ground`, `Terrain` or `Water`: no base drawn from a design has one,
+  and an over of nothing dangles (the USD check).
 - **The far ground follows the concept** (2026-10-26: the campgrounds' distant hills had no maker). A landform of the
   far ground (`design.far_row`: a terrain row whose part is the ground or the backdrop, that the plan marks beyond)
   is raised by `design.far_reliefs` round its place over the bearings its concept box spans, as water's
@@ -53,4 +55,8 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   pictures (`ground-fit`, free): `under` (the ground under every object standing on it level enough), `floating`,
   `continuous` (rays straight down round the place for holes) and `openings` (its scene record's doorways onto a
   floor, no view ray into nothing: `sight.py`, the body's horizon dipping with the viewer's height).
+- **Import a terrain module by its module** (`import score.stages.terrain.join as ground_join`), never `from
+  score.stages.terrain import ...`: that names the package, whose `__init__.py` (terrain's make) then sits in the
+  code version of every row reading it; shapes_first's and prepare's did, so a ground-layer fix re-bought about 80
+  paid rows' keys (2026-10-26).
 - Test: `test_ground_follows_design.py` (a design of its own on the Moon: its ground, its gates both ways, the fit measures).

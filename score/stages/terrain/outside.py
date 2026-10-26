@@ -1,9 +1,10 @@
 """What a place sees outside: its made ground (design.py) in the place's own frame, a fine patch round its plan's box
-and a coarse ground out past its horizon, written as OpenUSD under /<place>/Outside (`near`, `far`), over any old
-ground the place drew (/<place>/Ground, /Terrain and /Water made inactive). Each mesh is a static collider and names
-the ground's row (its top scene's inventory row the ground is) and its finish as missing until the surface line makes
-it: never painted another way. The ground's bodies of water (design.waters) are one sheet, `water`, on the same spots
-at each water line, kept where the ground lies under it: no collider, named its row and the ocean recipe the same way.
+and a coarse ground out past its horizon, written as OpenUSD under /<place>/Outside (`near`, `far`); no over of an old
+ground (/<place>/Ground, /Terrain, /Water): no base drawn from a design has one, so it dangled (9c7466b1). Each mesh
+is a static collider and names the ground's row (its top scene's inventory row the ground is) and its finish as missing
+until the surface line makes it: never painted another way. The ground's bodies of water (design.waters) are one
+sheet, `water`, on the same spots at each water line, kept where the ground lies under it: no collider, named its
+row and the ocean recipe the same way. Each mesh holds only the points its triangles use.
 
     meshes = outside.meshes(ground, place, shaped)     # {"near": (points, triangles), "far": ...} in the place's frame
     outside.write(stage, place, meshes, row, recipe)
@@ -20,6 +21,7 @@ from score.stages.terrain import design
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import colliders  # noqa: E402
+import whole_layer  # noqa: E402
 
 # The fine patch: this far past the place's box, points this far apart, at most NEAR_MOST points a side (metres).
 NEAR_MARGIN = 30.0
@@ -30,8 +32,6 @@ NEAR_MOST = 640
 FAR_POINTS = 160
 HORIZON_EYE = 12.0
 FAR_LEAST = 1500.0
-# What the old ground of a place was drawn as, made inactive under the made ground.
-OLD_GROUND = ("Ground", "Terrain", "Water")
 # A water sheet's triangle shows where a corner of the ground lies this far under it (metres).
 UNDER = 0.01
 
@@ -101,13 +101,14 @@ def write_mesh(stage, path, points, triangles, row, recipe, kind="ground"):
     """One ground mesh, a static collider, naming its row, the natural ground recipe its finish is made with by rule
     (`recipe`: [recipe, why], natural_grounds) and its finish missing until the surface line makes it; a `water`
     sheet the same, no collider (water is not solid: colliders.NOT_SOLID_PLAINS)."""
+    kept, triangles = np.unique(triangles, return_inverse=True)  # only the points a triangle uses (the far grid's
+    points, triangles = points[kept].astype(np.float32), triangles.reshape(-1, 3)  # middle is the near patch's)
     mesh = UsdGeom.Mesh.Define(stage, path)
-    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points.astype(np.float32)))
+    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points))
     mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(triangles), 3, dtype=np.int32)))
     mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(triangles.reshape(-1).astype(np.int32)))
     mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
-    used = points[np.unique(triangles)]
-    mesh.CreateExtentAttr([Gf.Vec3f(*used.min(axis=0).tolist()), Gf.Vec3f(*used.max(axis=0).tolist())])
+    mesh.CreateExtentAttr([Gf.Vec3f(*points.min(axis=0).tolist()), Gf.Vec3f(*points.max(axis=0).tolist())])
     prim = mesh.GetPrim()
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)
     prim.CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
@@ -123,11 +124,9 @@ def write_mesh(stage, path, points, triangles, row, recipe, kind="ground"):
 
 
 def write(stage, place, found, row, recipe, sheet=None):
-    """The made ground into the stage (its edit target) under /<place>/Outside, over the place's old ground; its
+    """The made ground into the stage (its edit target) under /<place>/Outside; its
     natural ground recipe `recipe` ([recipe, why]) on each mesh; its water (`sheet`: (points, triangles, its row, its
     recipe), else None) as /<place>/Outside/water."""
-    for old in OLD_GROUND:
-        stage.OverridePrim(f"/{place}/{old}").SetActive(False)
     UsdGeom.Scope.Define(stage, f"/{place}/Outside")
     for name, (points, triangles) in found.items():
         write_mesh(stage, f"/{place}/Outside/{name}", points, triangles, row, recipe)

@@ -17,7 +17,8 @@ import numpy as np
 from pxr import Usd, UsdGeom
 
 from score import checks
-from score.stages.terrain import design, sight
+import score.stages.terrain.design as design  # by module: terrain's make (its __init__) stays out of the key
+import score.stages.terrain.sight as sight
 
 # A spot's ground within this of its planned height (metres): the fine patch's step bends the spline no more.
 SPOT_WITHIN = 0.05

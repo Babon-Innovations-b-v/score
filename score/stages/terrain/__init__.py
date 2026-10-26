@@ -25,7 +25,7 @@ its old ground (the ground only: the places it shows are its own stage's and the
 import json
 import pathlib
 
-from pxr import Sdf, Usd, UsdGeom
+from pxr import Sdf, Usd
 
 from score import contracts
 from score.stages import natural_grounds
@@ -97,16 +97,14 @@ def sheet_of(ground, place, found, sheets, inventories):
 
 
 def write_layer(folder, place, found, row, recipe, sheet=None):
-    """The layer that draws the ground in the place's frame: places/<place>.usdc."""
+    """The layer that draws the ground in the place's frame, a whole asset (whole_layer): places/<place>.usdc."""
     path = folder / "places" / f"{place}.usdc"
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(path))
     stage = Usd.Stage.Open(layer)
-    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
-    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     stage.DefinePrim(f"/{place}")
     outside.write(stage, place, found, row, recipe, sheet)
-    layer.Save()
+    outside.whole_layer.stamped(layer, place).Save()
 
 
 def make_ground(name, ground, row, recipe, out, plans, inventories):
