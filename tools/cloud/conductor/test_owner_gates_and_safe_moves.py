@@ -256,7 +256,7 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
                   "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
                   "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
-                  "batch-money 1"):
+                  "batch-money 1", "disk /", "clean-frozen --all"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000"):
@@ -295,6 +295,9 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     assert code == 0 and argv == ["-m", "score.conductor", "logs", "--lines", "5"], (why, argv)
     code, why, argv, _ = door("gaps closeup@hub")
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["closeup@hub"], (why, argv)
+    for verb in ("disk", "clean-frozen"):  # 2026-10-26: the data disk full, the copies of ended runs on it
+        code, why, argv, env = door(verb)
+        assert code == 0 and argv == ["-m", "score.conductor", verb] and env["SCORE_FREE_ONLY"] == "1", (why, argv)
     code, why, argv, env = door("stop-batch 'the run holds 13 idle machines'")
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)

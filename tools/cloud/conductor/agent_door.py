@@ -13,6 +13,11 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 and the sync, listener, resume and backup journals, secrets left out
     health                                      python -m score.conductor health: the Machine card's health, read
                                                 only (writing it is its timer's job)
+    disk                                        python -m score.conductor disk: free room and the biggest folders
+                                                under $PROPS_HOME (frozen copies, store, cache, logs, ...), read only
+    clean-frozen                                python -m score.conductor clean-frozen: remove the frozen copies no
+                                                registered run needs and no process works in (2026-10-26: the
+                                                data disk full); refused while it cannot tell, never the store or design
     checkouts                                   the cockpit's newest checkouts, launches and requests, read only
     stop-batch <reason>                         score.conductor.kill.agent_stop_batch: stop the batch's runs, pools
                                                 and parked machines, no latch (owner, 2026-10-25)
@@ -61,7 +66,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, gaps <node>, predicted, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, checkouts, gaps <node>, predicted, "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -168,6 +173,10 @@ def decide(words, latch):
         if args:
             raise Refused("health takes no arguments: writing it is its timer's job")
         return ["-m", "score.conductor", "health"], {}
+    if verb in ("disk", "clean-frozen"):
+        if args:
+            raise Refused(f"{verb} takes no arguments")
+        return ["-m", "score.conductor", verb], {}
     if verb == "checkouts":
         if args:
             raise Refused("checkouts takes no arguments")

@@ -1298,6 +1298,8 @@ def driven(runner, places, whole, options, argv, gauges=None):
         code = stop.code if isinstance(stop.code, int) else 0
         if code > 128 and path.exists():  # stopped.stop_on_signals exits 128 + the signal's number
             runs.stopped_by(path, code - 128)
+            if json.loads(path.read_text())["state"] == runs.RUNNING:  # a shutdown's: resume starts it from its copy
+                frozen.hand_on()
         raise
     runs.mark(path, runs.ENDED)
     return found
@@ -1354,6 +1356,29 @@ def claim(runner, places, whole, options):
         sys.exit(stopped.REFUSED)
 
 
+def copies_swept(say):
+    """After the boot's resume: remove every frozen copy no run needs (score/conductor/disk.py clean), so a copy left
+    by a run that ended without removing it (a SIGKILL, an out-of-memory kill, a resume refused) never fills the disk;
+    one it cannot tell about is said, and the boot goes on."""
+    from score.conductor import disk
+    try:
+        done = disk.clean(say=lambda line: say(f"frozen copies: {line}"))
+    except disk.Unprovable as why:
+        say(f"frozen copies: none removed: {why}")
+        return
+    say(f"frozen copies: removed {len(done['removed'])}, freed {done['freed_gb']} GB")
+
+
+def disk_refused():
+    """Exit REFUSED, before any copy is made, while the data disk is under its floor (score/conductor/disk.py;
+    2026-10-26: Batch 1 died with "No space left on device" at 0.24 GB free)."""
+    from score.conductor import disk
+    refused = disk.launch_refusal()
+    if refused:
+        print(refused, file=sys.stderr, flush=True)
+        sys.exit(stopped.REFUSED)
+
+
 def main(argv=None):
     conductor.apply_free_only()  # the owner's kill switch latch (score/conductor/kill.py): free only while it holds
     options = parse(argv)
@@ -1377,8 +1402,11 @@ def main(argv=None):
         return
     if options.command == "resume":
         runs.resume(options.dry, say=lambda line: print(line, flush=True))
+        if not options.dry:
+            copies_swept(say=lambda line: print(line, flush=True))
         return
     if options.command == "run" and not frozen.inside():
+        disk_refused()
         frozen.enter(sys.argv[1:] if argv is None else argv, REPO)
     if options.command == "run" and frozen.claim():
         atexit.register(frozen.remove_owned)  # a run refused or raising before its drive ends here

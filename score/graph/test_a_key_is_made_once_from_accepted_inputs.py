@@ -2487,6 +2487,11 @@ def test_a_run_is_frozen_at_its_tree_as_it_started_and_a_pull_after_never_reache
         assert (copy / ".venv").resolve() == pathlib.Path(sys.prefix).resolve()
     assert frozen.git(copy, "status", "--porcelain") == ""
     frozen.remove(copy)
+    copy = frozen.make(repo, head, tempfile.mkdtemp())  # 2026-10-26: a copy git cannot remove still goes (disk full)
+    (copy / ".git").write_text("gitdir: /nowhere\n")
+    frozen.remove(copy)
+    assert not copy.exists()
+    frozen.git(repo, "worktree", "prune")
 
 
 def test_only_the_owner_removes_the_copy_ending_every_process_left_in_it_and_resume_gives_it_back(monkeypatch):
