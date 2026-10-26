@@ -9,6 +9,7 @@ kits and records, retired on 2026-10-21.
 Run: .venv/bin/python score/stages/scene_record/scene_record_test.py
 """
 import json
+import math
 import pathlib
 import sys
 import tempfile
@@ -196,6 +197,39 @@ def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_hol
         assert by_name["site"]["at"] == [14.0, 0.0, 5.0] and "palm_tree" in by_name["site"]["from"], by_name["site"]
 
 
+def test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_pieces():
+    """2026-10-26: the square's city skyline had no maker; no scene of the environment stands there, so it is ordinary
+    objects (prepare's groups.far_made): laid along the bearing its box is seen at (the plan fixes' projection: up
+    the picture is away), at the distance its read tall rises to its box's height in the framework's view, its
+    pieces square to that bearing; one with no projection to stand it by is named, never placed by guess."""
+    from score.stages.scene_record import far, writer
+    rows = [{"id": name, "anchor": "floor", "noun": name, "count": 1, "size": [1, 1, 1], "boxes": [box]}
+            for name, box in (("crate", [240, 700, 260, 750]), ("drum", [740, 700, 760, 750]),
+                              ("bench", [490, 200, 510, 250]))]
+    plan = {"w": 20.0, "d": 20.0, "items": [["CRATE 1", 4.5, 14.5, 1, 1, None, "item"],
+                                            ["DRUM 1", 14.5, 14.5, 1, 1, None, "item"],
+                                            ["BENCH 1", 9.5, 4.5, 1, 1, None, "item"]],
+            "rows": {"CRATE 1": ["crate"], "DRUM 1": ["drum"], "BENCH 1": ["bench"]}}
+    city = {"id": "city", "anchor": "ground", "part": "backdrop", "route": "prop", "size": [100.0, 100.0, 50.0],
+            "box": [450, 100, 550, 150], "far": {"pieces": 2, "length": 200.0}}
+    inventory = {"picture": [1000, 1000], "rows": [*rows, city]}
+    assert far.far_object(city, set()) and not far.far_object({**city, "terrain": True}, set())
+    focal = 500 / math.tan(math.radians(writer.VIEW_FOV / 2))
+    spot = far.spot(plan, inventory, city)
+    assert abs(spot["distance"] - 50 * focal / 50) < 0.1 and np.allclose(spot["at"], [10.0, 10.0 - spot["distance"]],
+                                                                          atol=0.1), spot
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "inventory.json"
+        path.write_text(json.dumps(inventory))
+        laid, unplaced = writer.far_objects({**plan, "corner": [0.0, 0.0, 0.0]}, {"rows": [city], "objects": {
+            "city": {"rows": ["city"]}}}, path)
+        assert unplaced == [] and [entry["name"] for entry in laid] == ["city_1", "city_2"]
+        assert sorted(round(abs(entry["at"][0] - laid[0]["at"][0]), 3) for entry in laid) == [0.0, 100.0]
+        assert all(entry["bake"] == "city_1" and "far off" in entry["from"] for entry in laid)
+        path.write_text(json.dumps({**inventory, "rows": [city]}))  # no rows to fit the projection on
+        assert writer.far_objects(plan, {"rows": [city]}, path)[1][0]["row"] == "city"
+
+
 def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model():
     """Fault (2026-10-25): the record laid no object of a designed place, so the assembly placed none of its models.
     Each prop row's plan item gets its object `<row>_<n>` over its middle at its shape's base, waiting on its take's
@@ -356,4 +390,5 @@ if __name__ == "__main__":
     test_the_record_is_written_from_the_design()
     test_the_shell_and_stairs_take_the_scene_librarys_surfaces()
     test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model()
+    test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_pieces()
     print("scene_record_test: ok")

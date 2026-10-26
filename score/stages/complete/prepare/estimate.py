@@ -19,9 +19,10 @@ from score.stages.complete.prepare import groups
 # {route: its layer's stage} of a take's layers past or in place of the prop pipeline (groups.ROUTES): a person's
 # model is the prop pipeline's, then the people adapter's body step (rig, build, settle and every body gate:
 # score/stages/people_bodies, the motion layer's "bodies" module; never the `motion` row, which moves rigid parts only);
-# the sky and the far city are layers without models, each its own route (CONTEXT.md "layer adapter"); an effect's
+# the sky is a layer without models, its own route (CONTEXT.md "layer adapter"; the far city's are models, laid far
+# off: groups.far_made); an effect's
 # own layer is the free effects-layer, made from the design's emitting rows, so it adds no paid layer.
-OWN_ROUTES = {"people": "people-body", "sky": "sky", "skyline": "skyline"}
+OWN_ROUTES = {"people": "people-body", "sky": "sky"}
 # The route's rows that run once a scene, not once a take: the scene palette and the scene's surfaces made fresh
 # (owner, 2026-10-21: every old material retired, so every scene's surfaces are made before anything is finished).
 # Each is one Gemini 3.1 Pro answer on its concept through the Batch API, priced at its own measured per unit, else
@@ -130,8 +131,8 @@ def scene_layers(route, scenes):
 
 def own_route_layers(groups_bought):
     """{stage: {takes, units, price, minutes, settings, runs}} of the layers a take adds past the prop pipeline or in
-    place of it (OWN_ROUTES): the motion layer's steps after a person's model, the sky's, the effects' and the far
-    city's own routes; each at its stage's measured per unit, else unpriced and untimed (layer_cost)."""
+    place of it (OWN_ROUTES): the motion layer's steps after a person's model, the sky's and the effects' own
+    routes; each at its stage's measured per unit, else unpriced and untimed (layer_cost)."""
     found = {}
     for route, stage in OWN_ROUTES.items():
         takes = sum(group["route"] == route for group in groups_bought)
@@ -199,5 +200,4 @@ def line(record):
             f"{counts['predicted_gaps']} predicted to fail, bought and judged), "
             f"EUR {money['likely_euros']:.2f} likely, {money['high_euros']:.2f} high, every job once{unpriced}; "
             f"ETA {minutes}; about {record['expected_gaps']} gaps expected after; "
-            f"{counts['input_gaps']} input gaps (no box or size) priced apart, not bought; "
-            f"{counts['no_maker']} backdrop rows no place makes (no maker)")
+            f"{counts['input_gaps']} input gaps (no box or size) priced apart, not bought")

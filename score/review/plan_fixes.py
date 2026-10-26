@@ -75,16 +75,23 @@ def anchors(plan, inventory):
     return found
 
 
-def projector(plan, inventory):
-    """A function from a SAM box (pixels of the concept) to its spot [x, y] on the plan, inside its outline box, fitted
-    on the rows boxed and laid alike (`anchors`: the box's middle across and its foot); None with fewer than three
-    such rows."""
+def projection(plan, inventory):
+    """The fitted map (a 3 x 2 matrix) from [a box's middle across, its foot, 1] as shares of the concept to its spot
+    [x, y] on the plan, fitted on the rows boxed and laid alike (`anchors`); None with fewer than three such rows."""
     fitted = anchors(plan, inventory)
     if len(fitted) < 3:
         return None
     source = numpy.array([[seen[0], seen[1], 1.0] for seen, _ in fitted])
     target = numpy.array([spot for _, spot in fitted], dtype=float)
-    matrix = numpy.linalg.lstsq(source, target, rcond=None)[0]
+    return numpy.linalg.lstsq(source, target, rcond=None)[0]
+
+
+def projector(plan, inventory):
+    """A function from a SAM box (pixels of the concept) to its spot [x, y] on the plan, inside its outline box
+    (`projection`); None with fewer than three rows to fit it on."""
+    matrix = projection(plan, inventory)
+    if matrix is None:
+        return None
     wide, high = inventory["picture"]
 
     def project(box):

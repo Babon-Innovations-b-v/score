@@ -29,6 +29,12 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   and the assembly lays it under /<place>/Objects once baked (`assembly/made_waiting.py`); a row with no take or no
   size stays named on the root's score:waiting. People are the cast's; a row the plan's shell lays itself (route
   `plan`) is named on a shell piece of its part (`row`).
+- **Far objects** (`far.py`; the owner, 2026-10-26: the skyline is the environment's own scenes where its plan puts
+  them, and ordinary objects for anything that is no scene): each prop row of the hand-in marked `far` (prepare's
+  groups.far_made) stands where its concept box is seen, along its bearing off the plan fixes' projection (up the
+  picture is away), at the distance its read tall rises to its box's height in the framework's view (VIEW_FOV), its
+  `far` pieces square to that bearing, waiting on its take's model like every object; one with no projection or box
+  is named in `far_unplaced`, never placed by guess.
 - **Lamps from the row kinds and the concept**: a light at each plan item of a glowing row (its row kind, or its
   concept showing it glow: `{home}/design/light/<place>.json`, the reading's concept light, its colour and brightness
   there; a row of the sky is the physics', no lamp), over its middle, as high on it as the library's lamp for the

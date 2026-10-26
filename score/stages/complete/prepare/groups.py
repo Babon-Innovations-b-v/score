@@ -26,8 +26,9 @@ SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
 # A row's route by the part of the place its reading says it is (score/review/reading.py PARTS, never a list of nouns:
 # owner, 2026-10-25, "no hax tho ... framework remember"; CONTEXT.md "layer adapter", "motion"): people are models of
 # the prop pipeline with the motion layer's steps after (every row the row-kind rules say acts: row_kinds' person
-# kind, the one classification, people_of); the sky, the effects and the far backdrop have routes of their own
-# (layers without models); the place's ground itself is the terrain node's (no take); its floors, walls, roofs,
+# kind, the one classification, people_of); the sky and the effects have routes of their own (layers without
+# models); the far backdrop (route "skyline") is shown from the place of its scene that makes it, else made here as
+# models laid far off (shown_from, far_made); the place's ground and water are the terrain node's (no take); its floors, walls, roofs,
 # openings and other structure are shell pieces (route "shell"), or the plan's own where its shell lays that piece
 # for this place (plan_parts: route "plan", no take); every other row, a feature lying on the land too, a model
 # through the prop pipeline.
@@ -40,6 +41,7 @@ PIECE_PARTS = {"deck": "floor", "level": "floor", "wall": "wall", "roof": "roof"
 MODEL_ROUTES = ("prop", "shell", "people")  # the routes whose models the prop pipeline makes
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
 RUN_SLENDER = 0.25  # tools/props/gates/model.py SLENDER_SHARE: a run's footprint is a line (overruns)
+FAR_RUN = 2.0  # a far row this many times longer than deep and tall is a run of pieces (far_made)
 
 
 def inventories(folder):
@@ -65,13 +67,34 @@ def shown_from(place, rows, read, folder):
     """The place's rows, each backdrop row (route "skyline") that a place of its scene makes as a model marked
     `shown`: {place, row} of that place's row (source_of), the object made, bought and laid where it stands and stood
     in this place's stage with that place (the scene record's `places`, the neighbours stage), never a second take.
-    A backdrop row no place of its scene makes keeps its route and no `shown`."""
-    others = [(other, read[other]["rows"]) for other in scene_places(place, folder) if other in read]
+    A backdrop row no place of its scene makes is an ordinary model made here and laid far off (far_made); a top
+    scene's own backdrop rows are made there, so a place it holds shows them from it (the stairwell's city skyline
+    is the square's)."""
+    others = [(other, [far_made(row) if not scene_places(other, folder) else row for row in read[other]["rows"]])
+              for other in scene_places(place, folder) if other in read]
     found = []
     for row in rows:
         source = source_of(row, others) if row["route"] == ROUTES["backdrop"] else None
-        found.append({**row, "shown": {"place": source[0], "row": source[1]}} if source else row)
+        found.append({**row, "shown": {"place": source[0], "row": source[1]}} if source else far_made(row))
     return found
+
+
+def far_made(row):
+    """A backdrop row (route "skyline") as an ordinary model made through the prop pipeline and laid far off by the
+    scene record where its concept box is seen, at its true distance (scene_record/far.py; the owner, 2026-10-26: "the
+    skyline is world1's own scenes at their real distance, plus ordinary objects for anything that isn't a scene"),
+    marked `far`: {pieces, length}. One whose footprint is a line FAR_RUN times longer than it is deep or tall (a
+    city's skyline) is a run of repeating pieces, each as long as it is tall, so its close-up is drawn and checked at
+    one piece (its size and read size); any other row is returned as it is."""
+    if row["route"] != ROUTES["backdrop"]:
+        return row
+    size = reading_size(row)
+    if size is None:
+        return {**row, "route": "prop", "far": {"pieces": 1, "length": 0.0}}
+    long, short, tall = max(size[:2]), min(size[:2]), size[2]
+    pieces = max(1, round(long / max(short, tall))) if long >= FAR_RUN * max(short, tall) else 1
+    piece = [round(long / pieces, 3), short, tall] if size[0] >= size[1] else [short, round(long / pieces, 3), tall]
+    return {**row, "route": "prop", "size": piece, "read_size": piece, "far": {"pieces": pieces, "length": long}}
 
 
 def scene_places(place, folder):
@@ -176,9 +199,11 @@ def routed(row, own, beyond, shell=frozenset()):
     placed here, plan_writing) is the backdrop's (route "skyline"), never a close-up of a far speck (Batch 1 try 4:
     the stairwell's palms, street lamps and lanterns seen through its window, the street's far rocket); a landform of
     the far ground beyond it (terrain.design.far_row: the campgrounds' distant hills) is the terrain node's (route
-    "ground"), raised on the far ground round the place."""
+    "ground"), raised on the far ground round the place, and so is a body of water (terrain.design.water_row: the
+    square's sea), laid as water over the ground lowered under it (shown_from makes every other backdrop row a
+    model)."""
     from score.stages.terrain import design
-    if design.far_row(row, beyond):
+    if design.far_row(row, beyond) or design.water_row(row):
         return {**row, "route": ROUTES["ground"]}
     if row["route"] == "shell" and (row.get("part") in own or row["id"] in shell):
         return {**row, "route": "plan"}

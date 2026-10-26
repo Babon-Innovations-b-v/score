@@ -48,6 +48,7 @@ from score import contracts
 from score.review import overhead
 from score.stages import row_kinds
 from score.stages.earth_seed import design_shell
+from score.stages.scene_record import far
 from score.stages.scene_record import plan as place_plan
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -565,6 +566,36 @@ def design_objects(design, handin):
     return found
 
 
+def far_objects(design, handin, inventory_path):
+    """Every far object of the design (a prop row prepare marks `far`, groups.far_made: a thing the place shows far
+    off that no place of its scene makes): its pieces (`far`: how many, along how long a line) laid square to its
+    bearing at its far spot (far.spot: where its concept box is seen, at its true distance), each turned along that
+    line, waiting on its take's bake model like every object; and [{row, why}] of those no spot is found for."""
+    by_id, models = {row["id"]: row for row in handin.get("rows", [])}, models_of(handin)
+    rows = [row for row in handin.get("rows", []) if row.get("far") and row.get("route") == "prop"]
+    inventory = read(inventory_path) if rows else {}
+    found, unplaced = [], []
+    for row in rows:
+        placed = far.spot(design, inventory, row)
+        if placed is None:
+            unplaced.append({"row": row["id"], "why": "no far spot: the plan fixes fit no projection of the concept, "
+                                                      "or the row has no box or no read tall"})
+            continue
+        model = models.get(row["id"])
+        size = by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
+        pieces, length = int(row["far"]["pieces"]), float(row["far"]["length"])
+        way = np.asarray(placed["way"])
+        for number in range(1, pieces + 1):
+            spot = np.asarray(placed["at"]) + way * length * ((number - 0.5) / pieces - 0.5)
+            (point,), floor = in_frame(design, [spot])
+            found.append({"name": f"{row['id']}_{number}", "row": row["id"], "bake": model, "kind": "object",
+                          "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
+                          "waiting": waits(row, model, by_id),
+                          "from": f"far off, {placed['distance']:g} m from the plan's middle where its concept box is "
+                                  f"seen (far.spot): piece {number} of {pieces} along {length:g} m"})
+    return found, unplaced
+
+
 # --- the record ---------------------------------------------------------------------------------------------------
 
 def ceiling(design):
@@ -580,6 +611,7 @@ def record_of(plan, design, inputs):
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     handin = read(inputs["hand-in"])
     design = design_shell.cut_for(design, handin.get("rows", []))
+    far_laid = far_objects(design, handin, inputs.get("inventory"))
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its design: its locked plan, "
                        "its scene inventory's row kinds, the library's lamp and the environment concept's physics at "
@@ -587,13 +619,15 @@ def record_of(plan, design, inputs):
               "floor": plan["floor"], "inside": inside(design),
               "structure": structure(plan, design, library_of(inputs), plan_rows(handin)) +
               arch_entries(design, plan["place"], library_of(inputs), handin),
-              "objects": design_objects(design, handin),
+              "objects": design_objects(design, handin) + far_laid[0],
               "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
     record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye),
                                              design, record["inside"])
     if left_out:
         record["views_left_out"] = left_out
+    if far_laid[1]:
+        record["far_unplaced"] = far_laid[1]
     high = ceiling(design)
     if record["inside"] and high is not None:
         record["ceiling"] = round(float(place_plan.frame_of(design)[0][1]) + high, 4)
