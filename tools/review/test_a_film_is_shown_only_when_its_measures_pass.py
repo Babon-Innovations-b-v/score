@@ -6,7 +6,13 @@ nothing in any frame, and a frame whose lines are faint or empty (a far view) fa
 past-fade rule counts it; and the summary adds up each cloud batch's own cost line. ffmpeg on the path; no Blender,
 no cloud.
 
-Run: .venv/bin/python tools/review/film_checks_test.py   (make tests runs it with the framework's environment)
+Breaks (each applied once, seen red, reverted), in tools/review/film_checks.py:
+- the video checks: video_checks' length test becomes `if False:`.
+- the clearance: clearance_checks never counts a frame near a person (`+= 0`).
+- the ink: ink_checks never fails the frames inked nowhere at half strength (`if False:`).
+- the report: cost_lines keeps only the last batch's euros (`total = float(euros)`).
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_a_film_is_shown_only_when_its_measures_pass.py
 """
 import json
 import pathlib
@@ -23,6 +29,11 @@ import film_checks  # noqa: E402
 import camera_paths_test  # noqa: E402  (tools/usd, on the path through demo)
 
 
+def a_folder():
+    """A fresh folder in the run's own temp folder (removed with it)."""
+    return pathlib.Path(tempfile.mkdtemp())
+
+
 def tone_video(path, seconds, sound=True):
     """A 1920x1080 test picture for `seconds`, with a tone under it or none."""
     audio = ["-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}"] if sound else []
@@ -32,7 +43,8 @@ def tone_video(path, seconds, sound=True):
     return path
 
 
-def check_video(folder):
+def test_a_film_too_short_or_silent_fails_its_video_checks():
+    folder = a_folder()
     video = tone_video(folder / "tone.mp4", 3)
     passed = film_checks.video_checks(video, 2.0, 4.0)
     assert not passed["failures"] and passed["size"] == [1920, 1080] and passed["mean_db"] > -50, passed
@@ -48,7 +60,8 @@ def walk(name, start, end, frames=12):
                                                        / (frames - 1)), "frame": 0} for index in range(frames)]
 
 
-def check_clearance(folder):
+def test_a_shot_through_a_person_or_past_a_wall_fails_its_clearance():
+    folder = a_folder()
     stage = camera_paths_test.rooms_stage(folder)
     camera_paths_test.add_person(stage, "stander", (0.6, 1.8, 0.6), (-2.0, 0.9, 0.0))
     views = (walk("shot0", [-3.0, 1.6, 2.0], [-1.0, 1.6, 2.0]) + walk("shot1", [-3.0, 1.6, 0.0], [-1.0, 1.6, 0.0])
@@ -60,7 +73,8 @@ def check_clearance(folder):
     assert len(failures) == 2 and failures[0].startswith("shot1:") and "person" in failures[0], failures
 
 
-def check_ink(folder):
+def test_a_frame_with_no_ink_fails_unless_past_the_fade():
+    folder = a_folder()
     frames = folder / "frames"
     frames.mkdir()
     names = ["shot0-000", "shot0-001", "shot0-002", "shot0-003", "shot1-000"]
@@ -79,7 +93,8 @@ def check_ink(folder):
     assert failures[-1] == "3 frames inked nowhere at half strength (first shot0-001)", failures
 
 
-def check_report(folder):
+def test_the_report_adds_up_each_batchs_own_cost():
+    folder = a_folder()
     (folder / "out" / "checks").mkdir(parents=True)
     video = tone_video(folder / "out" / "flat.mp4", 3)
     (folder / "out" / "checks" / "flat.json").write_text(json.dumps(film_checks.video_checks(video, 2.0, 4.0)))
@@ -96,12 +111,9 @@ def check_report(folder):
 
 
 if __name__ == "__main__":
-    import pathlib
     import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    with tempfile.TemporaryDirectory() as temporary:
-        for check in (check_video, check_clearance, check_ink, check_report):
-            place = pathlib.Path(temporary) / check.__name__
-            place.mkdir()
-            check(place)
-    print("film_checks_test: ok")
+    runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
+    for name, test in list(globals().items()):
+        if name.startswith("test_"):
+            test()
+            print("ok", name)
