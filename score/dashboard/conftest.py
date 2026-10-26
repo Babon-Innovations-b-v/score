@@ -14,7 +14,7 @@ os.environ.setdefault("SCORE_COMPUTE_BACKEND", "score.dashboard.tests.fixture:Fa
 for name in ("SCORE_TRUSTED_PROXIES", "SCORE_ALLOWED_USERS", "SCORE_SYNC_TOKEN", "SCORE_DASHBOARD_MODE"):
     os.environ.pop(name, None)
 (ROOT / "props").mkdir(parents=True, exist_ok=True)
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 import django  # noqa: E402
 import pytest  # noqa: E402
