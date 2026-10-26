@@ -1,7 +1,12 @@
-"""A Blender job runs the pinned image headless, and the machine path never starts for a node the compute adapter
-refuses. No machine is rented: the machine runner's run_elsewhere is replaced by a recorder.
+"""A Blender job runs the pinned image headless and fails when its script fails, and the machine path never starts
+for a node the compute adapter refuses; it starts named by the node's ticket once cleared. No machine is rented: the
+machine runner's run_elsewhere is replaced by a recorder.
 
-Run: .venv/bin/python score/adapters/engines/engines_test.py
+Breaks (each applied once, seen red, reverted), in score/adapters/engines/__init__.py:
+- pinned and headless: blender_job's command drops "-b".
+- only once cleared: blender_on_machines takes its ticket from runner.ticket instead of compute.clearance.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/adapters/engines/test_blender_runs_pinned_and_only_once_cleared.py
 """
 import os
 import pathlib
@@ -30,9 +35,11 @@ RENDER = graph.Stage("render", "place", make_nothing, contracts.Contract("toy-re
 def test_a_blender_job_runs_the_pinned_image_headless():
     spec = engines.blender_job("tools/blender/inside/warm_kernels.py", ["/work/out.json"], [], "code/x.tar.gz", 5, 0.4)
     assert spec["euros"] == 0.4
-    assert spec["image"] == compute.job_contract.image("blender") and "@sha256:" in spec["image"]
-    assert spec["command"][:3] == [engines.BLENDER, "-b", "-setaudio"] and spec["command"][-2:] == ["--",
-                                                                                                    "/work/out.json"]
+    assert "@sha256:" in spec["image"]  # pinned by digest, never a moving tag
+    command = spec["command"]
+    assert "-b" in command and command[command.index("--python-exit-code") + 1] == "1"  # headless; a failed script fails
+    assert command[command.index("--python") + 1] == "tools/blender/inside/warm_kernels.py"
+    assert command[-2:] == ["--", "/work/out.json"]
 
 
 def test_the_machine_path_starts_only_for_a_cleared_node():

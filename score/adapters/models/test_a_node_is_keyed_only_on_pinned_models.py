@@ -1,6 +1,13 @@
-"""The model adapter keys a node only on pinned images and models.
+"""The model adapter keys a node only on pinned images and models: an image by digest, each model by revision, hash
+and licence, a model not for commercial use only in a tool-only kind, an API model by its id and settings.
 
-Run: .venv/bin/python score/adapters/models/models_test.py
+Breaks (each applied once, seen red, reverted), in score/adapters/models/__init__.py:
+- every built kind pinned: record carries `"digest": ""`.
+- loose image or model refused: built_image's `if not image.get("digest"):` becomes `if False:`.
+- commercial use: pinned_models' commercial check becomes `if False:`.
+- API model: api_record's `if kind not in API:` becomes `if False:` (a KeyError, not NotPinned).
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/adapters/models/test_a_node_is_keyed_only_on_pinned_models.py
 """
 import json
 import pathlib

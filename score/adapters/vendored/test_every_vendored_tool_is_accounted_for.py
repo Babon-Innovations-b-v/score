@@ -6,7 +6,14 @@
     a gone image      a wired tool's image with no folder is refused
     no why            a row without its reason is refused
 
-Run: .venv/bin/python score/adapters/vendored/vendored_test.py
+Breaks (each applied once, seen red, reverted), in score/adapters/vendored/__init__.py:
+- the real table, a gone image: row_faults looks for the image one folder too deep (`images / "x" / row["image"]`).
+- a new tool: folder_faults reports no folder without a row.
+- a stale caller: caller_faults' never-names check becomes `elif False:`.
+- a gone stage: row_faults' stage check never fires (`if False`).
+- no why: row_faults starts from `faults = []`.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/adapters/vendored/test_every_vendored_tool_is_accounted_for.py
 """
 import pathlib
 import shutil

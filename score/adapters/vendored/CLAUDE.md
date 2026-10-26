@@ -3,7 +3,7 @@
 The table of every vendored tool in `vendor/` and where the framework calls it (`__init__.py`'s docstring has the
 fields): wired (its callers, its cloud image, the stages it reaches), an agent tool, or left out with why.
 
-- **A tool is never vendored and forgotten.** `vendored_test.py` fails on a `vendor/` folder with no row, a caller
+- **A tool is never vendored and forgotten.** `test_every_vendored_tool_is_accounted_for.py` fails on a `vendor/` folder with no row, a caller
   that is gone or never names its tool, an image kind with no folder in `tools/cloud/images` and a stage package that
   is not there. Add the row in the same commit as the tool.
 - **Wire a new tool the house way**, before its row says wired: a cloud runner in `tools/cloud` with its image
