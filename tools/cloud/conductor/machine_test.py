@@ -604,6 +604,40 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
 
 
+def test_gaps_prints_a_nodes_batch_gaps_and_its_logs_reason():
+    """2026-10-26: galley's jars and oven were "Pixal3D made no model" and only batch.log said why."""
+    import contextlib
+    import io
+    from unittest import mock
+    import score.store
+    from agent_door import GAPS_CODE
+    files = {"batch-gaps.json": json.dumps({"gaps": [
+        {"name": "jars: Pixal3D made no model", "check": "takes", "faults": ["jars: no galley_jars.glb"]}]}),
+        "batch.log": "[cloud] renting 2 cards\n[cloud] gaps (ran once or never sent, no model; a new batch and a "
+                     "new ask to try again): galley_jars: out of memory\n", "takes.json": "{}"}
+
+    class Kept:
+        """The stored output of one node, its files by name (score.store.Store's reading half)."""
+        objects = mock.Mock(read_bytes=lambda key: files[key.removeprefix("blobs/")].encode())
+
+        def accepted(self, node):
+            return "out1" if node == "pixal@galley" else None
+
+        def listing(self, output):
+            return {name: name for name in files}
+
+        def read_file(self, output, name):
+            return json.loads(files[name])
+    printed = io.StringIO()
+    with mock.patch.object(score.store.Store, "default", Kept), mock.patch.object(sys, "argv", ["-c", "pixal@galley"]), \
+            contextlib.redirect_stdout(printed):
+        exec(GAPS_CODE, {})
+    lines = printed.getvalue().splitlines()
+    assert "1 batch gaps" in lines[0] and lines[1].startswith("jars: Pixal3D made no model | takes |"), lines
+    assert lines[2:] == ["batch.log: [cloud] gaps (ran once or never sent, no model; a new batch and a new ask to try "
+                         "again): galley_jars: out of memory"], lines
+
+
 def test_predicted_prints_the_takes_that_may_not_stand():
     with tempfile.TemporaryDirectory() as home:
         record = pathlib.Path(home) / "work" / "checks" / "prepare" / "remake.json"

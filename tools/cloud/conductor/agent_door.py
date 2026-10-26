@@ -17,7 +17,8 @@ as an argument list, never through a shell, and only when it is one of these:
     stop-batch <reason>                         score.conductor.kill.agent_stop_batch: stop the batch's runs, pools
                                                 and parked machines, no latch (owner, 2026-10-25)
     gaps <node>                                 the batch gaps the node's accepted output names (batch-gaps.json):
-                                                each gap's name, check and faults, read only
+                                                each gap's name, check and faults, and its batch.log and
+                                                finish.log lines saying why a model was not made, read only
     predicted                                   the prepared batch's takes (work/checks/prepare/remake.json) that are
                                                 a predicted gap, at risk or an input gap: place, rows, route, size
                                                 and the reason, read only
@@ -69,13 +70,19 @@ CHECKOUTS_CODE = (
     "[print(model.__name__, row.pk, getattr(row, 'kind', ''), row.state, str(getattr(row, 'detail', '') or "
     "getattr(row, 'result', ''))[:400]) for model in apps.get_models() if model.__name__ in ('Checkout', 'Launch', "
     "'SyncRequest') for row in model.objects.order_by('-pk')[:5]]")
-# One node's batch gaps, read only (2026-10-24: the cockpit listed 147 close-up gaps and the door could not say why).
+# One node's batch gaps, read only (2026-10-24: the cockpit listed 147 close-up gaps and the door could not say why),
+# and the lines of its output's batch and finish logs that say why a model was not made (2026-10-26: galley's jars
+# and oven, "Pixal3D made no model", their reason only in batch.log).
 GAPS_CODE = (
     "import sys; from score.store import Store; store = Store.default(); node = sys.argv[1]; "
     "output = store.accepted(node); "
     "gaps = (store.read_file(output, 'batch-gaps.json') or {}).get('gaps', []) if output else []; "
     "print(f'{node}: accepted output {output}, {len(gaps)} batch gaps'); "
-    "[print(gap['name'], '|', gap['check'], '|', ' ; '.join(gap['faults'])) for gap in gaps]")
+    "[print(gap['name'], '|', gap['check'], '|', ' ; '.join(gap['faults'])) for gap in gaps]; "
+    "logs = {name: store.objects.read_bytes(f'blobs/{sha}').decode(errors='replace') for name, sha in "
+    "(store.listing(output) if output else {}).items() if name in ('batch.log', 'finish.log')}; "
+    "[print(f'{name}: {line.strip()}') for name, text in sorted(logs.items()) for line in text.splitlines() "
+    "if any(word in line for word in ('gaps (', 'not made', 'failed', 'Error', 'deadline'))]")
 # The prepared batch's takes that may not stand, read only (2026-10-26: the retry's predicted failures were read off
 # the cockpit by hand), and the backdrop rows no place makes (2026-10-26: the sync pass counted 6 and named none).
 PREDICTED_CODE = (
