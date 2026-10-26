@@ -9,7 +9,8 @@ says so (`made_by`, MADE_BY): the ground the design gives, standing wherever no 
 
     make     for each body or plot a top scene stands on (design.layout: its kept sky's site, the setting's body at its
              true radius or the plot's plane), the ground under every scene standing on it (the top scene and each
-             scene its plan holds) raised by the relief of each kept plan's terrain spots; for every such scene the
+             scene its plan holds) raised by the relief of each kept plan's terrain spots and by its far landforms (the
+             far hills its places' plans mark beyond, design.far_reliefs); for every such scene the
              layer that draws the ground in its frame (outside.py); the ground's record (ground.json) and measures
     gates    spots      the ground drawn passes through every terrain spot of the plans standing on it
              curve      the ground falls away with its body's true radius (level on a plot)
@@ -89,17 +90,19 @@ def write_layer(folder, place, found, row, recipe):
     layer.Save()
 
 
-def make_ground(name, ground, row, recipe, out):
+def make_ground(name, ground, row, recipe, out, plans, inventories):
     """One ground's place layers, record and measures into out/<name>, its natural ground recipe (`recipe`,
-    [recipe, why]) on its record and meshes."""
+    [recipe, why]) on its record and meshes, the far landforms of its places' inventories (design.far_reliefs) raised
+    on it and listed in its record (`far`)."""
     folder = out / name
     folder.mkdir(parents=True)
-    shaped = design.reliefs(ground)
+    far, raised = design.far_reliefs(ground, plans, inventories, outside.reach(ground))
+    shaped = design.reliefs(ground) + far
     laid = {place: outside.meshes(ground, place, shaped) for place in ground["places"]}
     for place, found in laid.items():
         write_layer(folder, place, found, row, recipe)
     (folder / "ground.json").write_text(json.dumps({**ground, "ground": name, "row": row, "recipe": recipe[0],
-                                                    "recipe_by": recipe[1]}, indent=1))
+                                                    "recipe_by": recipe[1], "far": raised}, indent=1))
     (folder / "measures.json").write_text(json.dumps({**MADE_BY, **gates.measured(ground, laid)}, indent=1))
 
 
@@ -109,7 +112,8 @@ def make(inputs, out, seed, params):
     table = json.loads(pathlib.Path(inputs["reference"]).read_text())
     for name, ground in design.layout(plans, skies).items():
         row = ground_row(ground, inputs["inventories"], plans)
-        make_ground(name, ground, row, recipe_of(ground, row, inputs["inventories"], skies, table), out)
+        make_ground(name, ground, row, recipe_of(ground, row, inputs["inventories"], skies, table), out, plans,
+                    inputs["inventories"])
 
 
 def grounds_faults(folder):

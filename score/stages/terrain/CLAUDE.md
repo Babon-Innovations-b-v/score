@@ -32,6 +32,12 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
 - **Each place's layer** (`places/<place>.usdc`, `outside.py`): the ground in its own frame under `/<place>/Outside`,
   `near` (its plan's box grown by NEAR_MARGIN, 0.5 m apart) and `far` (out past the horizon an eye 12 m up sees, at
   least 1.5 km), static colliders; the place's old `Ground`, `Terrain` and `Water` made inactive.
+- **The far ground follows the concept** (2026-10-26: the campgrounds' distant hills had no maker). A landform of the
+  far ground (`design.far_row`: a terrain row whose part is the ground or the backdrop, that the plan marks beyond)
+  is raised by `design.far_reliefs` as a ring round its place at the horizon a person's eye sees (FAR_SHARE of the
+  far reach on a plot), as tall as its SAM 3 box rises in the concept at the framework's view (VIEW_FOV), as broad as
+  its read size is to its height; listed in ground.json `far`, and prepare routes it to this node (`groups.routed`).
+  It fades to nothing before the far edge, so `curve` still measures the body.
 - **Gates**: `spots` (the drawn ground passes through every plan's terrain spot) and `curve` (the far ground has
   fallen by the body's true sagitta from the top scene's site). The place gates measure the place's own stage, not
   pictures (`ground-fit`, free): `under` (the ground under every object standing on it level enough), `floating`,
