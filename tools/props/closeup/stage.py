@@ -107,11 +107,12 @@ FIRMER = (" Again the picture failed. Exactly one copy of the object, never two 
 # A take past PRO_TAKES (a gap's step bought again, retry-4 on) is asked from the crop alone, never the room, and told to
 # stand the object upright (UPRIGHT; not a row that lies flat, drawn from above, nor a person, posed by PERSON). Batch 1
 # try 4's close-up gaps were "room" rows (the crop under SHORTEST_CROP) whose four takes drew the corridor behind the
-# keypad (the room reference), a cast floor shadow the outline took for object (the corner shelves, the spacesuit
-# locker: "mild shadow"), or the wall keypad lying on its back (2026-10-26). Only takes no row has drawn change, so
-# every kept picture still reads back from the cache.
+# keypad (the room reference), a cast floor shadow the outline took for object (the corner shelves, the dome door:
+# "mild shadow"), the wall keypad lying on its back, or the spacesuit locker with its door swung open (2026-10-26).
+# Only takes no row has drawn change, so every kept picture still reads back from the cache.
 UPRIGHT = (" Stand it upright as it stands or hangs in its room, its {tall:.2f} m height upright in the picture: never "
-           "laid down, tipped over or lying on its back; lit evenly from the front so it casts no shadow at all.")
+           "laid down, tipped over or lying on its back; every door, lid and drawer shut or open as image 1 shows it; lit "
+           "evenly from the front so it casts no shadow at all.")
 MARGIN = 0.2
 SHORTEST_CROP = 512
 
