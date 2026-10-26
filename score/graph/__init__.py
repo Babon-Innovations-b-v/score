@@ -1377,7 +1377,11 @@ class Runner:
         otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
         death ends it (watch_runner)."""
         threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
-        sending.send(self.drive_node(stage, place, threads))
+        try:
+            did = self.drive_node(stage, place, threads)
+        except BaseException as error:  # noqa: BLE001 - raised where its log could not take it (Batch 1, a full disk)
+            did = f"error: {type(error).__name__}: {error}; raised outside its log:\n{traceback.format_exc()}"
+        sending.send(did)
         sending.close()
         sys.stdout.flush()
         sys.stderr.flush()

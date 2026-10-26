@@ -1278,6 +1278,21 @@ def test_a_cap_that_fails_shows_its_cause_in_the_nodes_fault_report(monkeypatch)
     assert "RuntimeError" in report and "  | " in report and "pool cannot be capped" in report, report
 
 
+def test_a_node_whose_log_cannot_be_written_still_says_why_it_ended(monkeypatch):
+    """Batch 1, 2026-10-26: the conductor's disk full, surfaces-parts@engineroom ended 'without saying what it did'
+    and an empty log; the error comes back through the pipe, which needs no disk.
+    Break: score/graph/__init__.py: '        except BaseException as error:  # noqa: BLE001 - raised where' -> '        except KeyError as error:  # noqa: BLE001 - raised where'"""
+    @contextlib.contextmanager
+    def full_disk(path):
+        raise OSError(28, "No space left on device")
+        yield
+
+    monkeypatch.setattr(graph, "logged", full_disk)
+    did, _ = thread_note(6, monkeypatch)
+    assert "OSError: [Errno 28] No space left on device" in did and "without saying" not in did, did
+    assert "raised outside its log" in did and "Traceback" in did, did
+
+
 def test_score_run_refuses_a_thread_count_that_is_not_one_and_more_jobs_than_cores(monkeypatch):
     """Review (C11): OMP_NUM_THREADS '4,2', 'auto' and '0' crashed every node; --jobs 0 ended in a ZeroDivisionError.
     Break: score/graph/__init__.py: '        if own and not (own.isdigit() and int(own) > 0):' -> '        if own and not own.isdigit():'"""
