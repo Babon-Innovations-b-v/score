@@ -259,7 +259,7 @@ def straight_outcome(take, row, measures):
         views = thin_straight.write_take(name, sized, Image.open(folder / "cut.png"), "built", folder / "pixal",
                                          folder / "cut.png")
         faults = build_faults(folder / "pixal" / f"{name}-final.glb", views / "input.png", take["place"], name, sized,
-                              folder)
+                              folder, straight=True)
     return judged_build(faults, "thin straight code build (thin_straight.py)")
 
 
@@ -279,14 +279,16 @@ def sheet_faults(store, closeup_output, place, name, row):
         return build_faults(folder / "pixal" / f"{name}-final.glb", views / "input.png", place, name, row, folder)
 
 
-def build_faults(model, picture, place, name, row, folder):
+def build_faults(model, picture, place, name, row, folder, straight=False):
     """The faults of a code build `model` held to `picture` (its take's input.png) as the likeness row holds a code
-    take (likeness_row.object_record): `outline` at likeness.OUTLINE_LEAST on that picture as Pixal3D's cut makes it,
-    and `thin and in proportion`; `close-up parts present` needs the finish route's parts, so the likeness row judges
-    it. CPU only: no renderer, no model, nothing rented."""
+    take (likeness_row.object_record): `outline` at likeness.OUTLINE_LEAST on that picture as Pixal3D's cut makes it
+    (a thin straight build's, `straight`, turned upright or level: likeness_row.straight_cut), and `thin and in
+    proportion`; `close-up parts present` needs the finish route's parts, so the likeness row judges it. CPU only: no
+    renderer, no model, nothing rented."""
     import score.stages.props.likeness as likeness
     import score.stages.props.likeness_row as likeness_row
-    cut = likeness_row.pixal_cut(picture, folder / "pixal-cut", name)
+    cut = (likeness_row.straight_cut(picture, folder / "pixal-cut", name, row["size"]) if straight
+           else likeness_row.pixal_cut(picture, folder / "pixal-cut", name))
     found = {**likeness.best_way(model, cut, row.get("read_size") or row["size"]),
              **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False)}
     return likeness_row.outline_faults(name, found) + likeness_row.model_faults(name, found)

@@ -50,7 +50,7 @@ SEGMENTS = 32
 # box leans and the finish's stand (the shortest turn back up) undoes it exactly.
 RAW_TILT = (0.2, (1.0, 0.0, 1.0))
 # The turns about up tried first (write_take keeps the one the stand undoes best): a square section's ground spread has
-# no long side, so glb_file.squared turns a square post set square 45 degrees, and one set at 45 degrees back square.
+# no long side; glb_file.squared lines its tightest rectangle up with the axes (since 2026-10-26), so either comes out square.
 RAW_YAWS = (0.0, np.pi / 4)
 MARK = "code.json"
 # The tool files it runs, declared by the Pixal3D row (pixal_row.files): SAM 3's masks, the crop and the slender rule.
