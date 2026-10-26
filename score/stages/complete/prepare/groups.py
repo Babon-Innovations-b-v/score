@@ -68,10 +68,24 @@ def sized_rows(store, place, record):
     laid, made = plan_sizes(store, place, rows), plan_sizes(store, place, rows, made=True)
     shown = plans.current(store, place)
     own = plan_parts(shown and shown["plan"])
+    beyond = set((shown and shown["plan"] or {}).get("beyond") or [])
     found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"]),
                                                          run_pieces(shown and shown["plan"], row)),
-              "read_size": reading_size(row)} for row in rows]
-    return [{**row, "route": "plan"} if row["route"] == "shell" and row.get("part") in own else row for row in found]
+              "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
+             for row in rows]
+    return [routed(row, own, beyond) for row in found]
+
+
+def routed(row, own, beyond):
+    """A sized row with its plan's route: a shell piece whose part the plan lays itself (`own`) is the plan's; a model
+    row the plan says the painting shows beyond the place (`beyond`: through a window, past its edge, far off; never
+    placed here, plan_writing) is the backdrop's (route "skyline"), never a close-up of a far speck (Batch 1 try 4:
+    the stairwell's palms, street lamps and lanterns seen through its window, the street's far rocket)."""
+    if row["route"] == "shell" and row.get("part") in own:
+        return {**row, "route": "plan"}
+    if row["route"] in MODEL_ROUTES and row["id"] in beyond:
+        return {**row, "route": ROUTES["backdrop"]}
+    return row
 
 
 def row_size(own, laid, made, pieces=None):
@@ -84,9 +98,16 @@ def row_size(own, laid, made, pieces=None):
     wall): it is made as one repeating piece laid along the item (run_piece), never as one object the run's length."""
     if laid and laid != made:
         return laid
+    return own_size(own, laid, pieces) or laid
+
+
+def own_size(own, laid, pieces=None):
+    """The object's own metres, the size its close-up is drawn and checked at (`read_size`): its reading's (`own`),
+    but one repeating piece (run_piece) of a run the reading measured whole, so the close-up draws the piece, never
+    the 50 m railing (Batch 1 try 4: the greenhouse's railing)."""
     if own and laid and pieces and not within(own, laid):
         return run_piece(own, laid, pieces)
-    return own or laid
+    return own
 
 
 def run_pieces(plan, row):

@@ -269,6 +269,12 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert groups.row_size(pipes, floor, floor, 4) == [3.0, 0.1, 0.1]  # one of its four pieces, laid along the item
     railing, ring = [50.0, 0.1, 1.0], [8.837, 9.435, 1.0]  # round a floor's edge: each piece held to the item laid
     assert groups.row_size(railing, ring, ring, 5) == [9.435, 0.1, 1.0]
+    assert groups.own_size(railing, ring, 5) == [9.435, 0.1, 1.0]  # its close-up draws the piece, not the 50 m run
+    assert groups.own_size(post, footprint, 3) == post and groups.own_size(None, footprint) is None
+    lamp = {"id": "street_lamp", "route": "prop", "part": "object"}
+    assert groups.routed(lamp, set(), {"street_lamp"})["route"] == "skyline"  # beyond the place: the backdrop's
+    assert groups.routed(lamp, set(), set()) == lamp
+    assert groups.routed({**lamp, "route": "sky"}, set(), {"street_lamp"})["route"] == "sky"
     beam = [9.0, 0.3, 0.3]  # one object longer than its item: kept at its own size, so `fits the plan` still rejects it
     assert groups.row_size(beam, [3.0, 0.3, 0.3], [3.0, 0.3, 0.3], None) == beam
     assert groups.row_size(post, footprint, footprint, 3) == post  # a run's piece that fits its item is its own size
