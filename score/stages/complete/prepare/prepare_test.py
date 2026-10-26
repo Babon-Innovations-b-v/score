@@ -90,6 +90,10 @@ def test_the_hub_table_makes_every_rod_a_predicted_gap_and_a_lone_sheet_only_a_r
     assert solid["outcome"] == "pass" and 0 < solid["pass_share"] < 1, solid
     palm = predict.predicted([0.399, 1.16, 8.0], rates)  # street's distant palm: a "rod" by its sides alone
     assert palm["outcome"] == "predicted gap" and prepare.status_of({"pipeline": None}, False, []) == "bought"
+    conduit = predict.predicted([0.05, 0.05, 3.0], rates, {"name": "conduit", "noun": "conduit"})
+    assert conduit["outcome"] == "at risk" and conduit["pass_share"] is None, conduit  # built in code after
+    assert predict.predicted([0.399, 1.16, 8.0], rates, {"name": "palm tree", "noun": "tree"})["outcome"] == \
+        "predicted gap"
 
 
 def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_box():
