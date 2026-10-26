@@ -76,15 +76,15 @@ GAPS_CODE = (
     "print(f'{node}: accepted output {output}, {len(gaps)} batch gaps'); "
     "[print(gap['name'], '|', gap['check'], '|', ' ; '.join(gap['faults'])) for gap in gaps]")
 # The prepared batch's takes that may not stand, read only (2026-10-26: the retry's predicted failures were read off
-# the cockpit by hand).
+# the cockpit by hand), and the backdrop rows no place makes (2026-10-26: the sync pass counted 6 and named none).
 PREDICTED_CODE = (
     "import json; from score.store import PROPS_HOME; path = PROPS_HOME / 'work/checks/prepare/remake.json'; "
     "takes = json.loads(path.read_text()).get('takes', []) if path.is_file() else []; "
-    "shown = [take for take in takes if take['status'] == 'input gap' "
+    "shown = [take for take in takes if take['status'] in ('input gap', 'no maker') "
     "or take['prediction']['outcome'] in ('predicted gap', 'at risk')]; "
-    "print(f'{path}: {len(takes)} takes, {len(shown)} predicted gap, at risk or input gap'); "
+    "print(f'{path}: {len(takes)} takes, {len(shown)} predicted gap, at risk, input gap or no maker'); "
     "[print(take['place'], '|', ','.join(take['rows']), '|', take['route'], '|', take.get('size'), '|', "
-    "take['status'] if take['status'] == 'input gap' else take['prediction']['outcome'], '|', "
+    "take['status'] if take['status'] in ('input gap', 'no maker') else take['prediction']['outcome'], '|', "
     "' ; '.join(take['inputs']) or take['prediction'].get('mode') or take['prediction'].get('measured')) "
     "for take in shown]")
 NODE = re.compile(r"^[a-z0-9][a-z0-9_.-]*(@[a-z0-9_.-]+)?$")
