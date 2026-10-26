@@ -1,21 +1,26 @@
-"""Which layers a scene has, read off its design alone (design_layers.py), on designs and row-kind rules written here,
-and the stage table and the assembly's layers gate giving one answer for a design kept where the plan stage keeps it.
+"""Which layers a scene has is read off its design alone, and the stage table and the assembly's layers gate give one
+answer (design_layers.py): each row shows the layer its kind does, crops are plants on a bed and never a potted
+plant, every scene with a design has light and sound, a place with no kept design has no layer at all, and for a
+design kept where the plan stage keeps it every layer row the assembly's gate waits on is a row the table holds for
+the place, and no other. On designs and row-kind rules written here.
 
-Run: .venv/bin/python score/stages/design_layers_test.py
+Breaks that turn it red (each applied once and seen red, then reverted):
+- `DOES`: `"loose": "physics"` dropped  -> the kind test (the kettle shows no physics).
+- `on_bed`: `or "grows" in ...` dropped  -> the crops test (greens on a planter are no crops).
+- `plants_of`: the beds kept among the plants (`if row["id"] not in beds` dropped)  -> the plants test.
+- `has_layer`: `if place is None or not path.is_file(): return False` read as returning True  -> the kept test.
+- `kinds_of`: `set(EVERY_SCENE)` read as `set()`  -> the kind test (a bare room has no light).
 """
 import json
 import pathlib
-import sys
 import tempfile
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
-
-from score.stages import design_layers  # noqa: E402
+from score.stages import design_layers
 
 KINDS = {"person": {"nouns": ["astronaut", "crowd"], "does": ["acts"]},
          "kettle": {"nouns": ["kettle"], "does": ["emits", "loose"]},
          "door": {"nouns": ["door"], "does": ["moves"]}, "vehicle": {"nouns": ["rover"], "does": ["moves"]},
-         "plant": {"nouns": ["plant", "plants", "planter"], "does": ["grows"]},
+         "plant": {"nouns": ["plant", "plants", "planter", "rack"], "does": ["grows"]},
          "loose": {"nouns": ["chair"], "does": ["loose"]}}
 
 
@@ -39,6 +44,8 @@ def test_crops_are_plants_on_a_bed_never_a_potted_plant():
     # floor or on a desk is not
     beds = [row("planter", "planter"), row("greens", "plants", anchor="on:planter")]
     assert "crops" in design_layers.kinds_of({"rows": beds}, KINDS)
+    rack = [row("rack", "rack"), row("greens", "plants", anchor="on:rack")]  # no bed noun: it grows itself
+    assert "crops" in design_layers.kinds_of({"rows": rack}, KINDS)
     plot = [row("bed", "bed", kind="code"), row("greens", "plants", anchor="on:bed")]
     assert "crops" in design_layers.kinds_of({"rows": plot}, KINDS)
     potted = [row("desk", "desk"), row("pot", "plant", anchor="on:desk"), row("fern", "plant")]
@@ -92,12 +99,3 @@ def test_the_table_has_a_row_for_every_layer_the_gate_waits_on():
     assert needed == ["characters-layer", "crops-layer", "effects-layer", "motion", "settle", "light", "sound"]
     assert rows == set(needed), rows
 
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-    print("ok")
