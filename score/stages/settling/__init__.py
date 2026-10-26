@@ -4,7 +4,8 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
     make     the seed (world 1's round-three stage) on the terrain stage's made ground (assembly.take_ground), every
              loose object dropped once in headless Blender on a rented processor machine (tools/usd/settle.py's drop
              job: an object an old settle left tipped onto uneven feet stood upright first, one stacked on another
-             meeting it), and each one's rest (settle.rest_poses: a small correction written, a large one left as laid,
+             meeting it, a hollow one (a crate, a tray, a bin, a shelf) by its convex parts so what is stacked in it
+             meets its floor: tools/usd/convex_parts.py, written beside the dropped stage), and each one's rest (settle.rest_poses: a small correction written, a large one left as laid,
              a tip onto uneven feet stood upright for the paint to level); then each fixed one the triage finds
              floating as laid let down onto what is under it (held.fixed_let_down); then each held object stood
              upright and snapped down onto its holder as it rests (held.held_rests); and each object that then rests
@@ -39,6 +40,7 @@ from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
+import convex_parts  # noqa: E402
 import settle  # noqa: E402
 import triage  # noqa: E402
 import whole_layer  # noqa: E402
@@ -52,6 +54,8 @@ DROP = "drop"
 EUROS = 1.0
 # Drops already paid for, by their job, drop script and stage (settle.drop_key): the same drop is never bought twice.
 DROPS = PROPS_HOME / "store/cache/drops"
+# Each loose model's convex parts, once worked out (convex_parts.py, by its mesh): a library model's paid once.
+PARTS = PROPS_HOME / "store/cache/convex-parts"
 # Where the gates put a seed together to judge it (on disk, beside the store's cache).
 SCRATCH = PROPS_HOME / "store/cache"
 # How far round an object, and over or under its bottom, another may lie and hold it up (metres; supports_of).
@@ -97,6 +101,8 @@ def make(inputs, out, seed, params):
         found = judged(root, inputs)
         laid = faulty(found, place)
         if starts or under or laid & set(loose):
+            hollow = convex_parts.hollow_parts(stage, place, loose, PARTS)
+            (root.parent / convex_parts.FILE).write_text(json.dumps(hollow, indent=1))
             simulated = settle.simulate(root, loose, out / DROP, cloud=True, ignore=ignore, start=starts, under=under,
                                         cache=DROPS)
         else:  # nothing loose to stand up, unstack or put right: no drop is bought, each rests as laid

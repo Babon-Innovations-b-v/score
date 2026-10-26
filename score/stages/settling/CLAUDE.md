@@ -10,7 +10,7 @@ settle.py, whose readers a snap edit would otherwise move) and the drop's Blende
 - **Only `SETTLED` places have the row** (`score/stages/__init__.py`): a place joins once its settle row has passed;
   any other place's assembly lays the seed's poses. A stage reading this one reads without it where it does not apply.
 - **Three steps, one method each.** Loose floor objects are dropped (physics: stood upright first, meeting what they
-  are stacked on); held objects are snapped down onto their holders as they rest, onto a level spot within 30 cm when
+  are stacked on, a hollow one by its convex parts, `convex_parts.py`, written beside the dropped stage); held objects are snapped down onto their holders as they rest, onto a level spot within 30 cm when
   the straight snap leaves them leaning (a convex hull of a shelf unit spans its shelves, so they are not dropped);
   fixed objects the triage finds floating are let straight down. Nothing turns or moves past the settle's limits.
 - **The seed's models are dropped, not the bakes**, so the row does not wait on the paint. A tip onto uneven feet is

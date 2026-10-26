@@ -183,7 +183,17 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   seat frame, which replaces `facing` and `tilt`). Settling only corrects: a piece that would turn more than 15° or
   drift more than 30 cm (small debris, no side over 1.4 m: any turn, 1 m) keeps its laid pose and is marked `unrested` (the check fails it as "would not rest as laid"),
   because the concept's composition is the owner's; put its layout right instead. Loose pieces collide with the
-  ground and the static pieces only (convex hulls over hollows rested on debris). `--cloud` runs it on a rented
+  ground and the static pieces only (convex hulls over hollows rested on debris), and with what they are stacked on.
+  In the settle stage's drop a hollow loose piece (a crate, a tray, a bin, a shelf) drops as its convex parts
+  (`convex_parts.py`: CoACD, MIT, at most 60 corners a part, its own process, one hull when the parts hold 95 to 105%
+  of the hull's volume, kept per mesh in `store/cache/convex-parts` so a library model is worked out once, about 13 s
+  of one core for an open crate; written beside the dropped stage as `convex-parts.json`), each part a light body
+  glued to the piece by a fixed joint (settle_stage's `glued_parts`): a box laid at an open crate's rim came to rest
+  on its floor at 0.07 m, not on its hull's top at 0.62 (Blender 5.0.1, 2026-10-26). Blender's own COMPOUND body
+  walks on a triangle ground (21 cm and 0.3 rad in 10 s), so it is not used. Kept out of settle.py and colliders.py:
+  both sit in the code of about 90 rows (triage imports settle), so an edit there moves them all. The assembly's own
+  drop (`--dry-run`) writes no parts file and drops hulls as before. Loose to loose collision stays off: not yet
+  measured on a real place's drop. `--cloud` runs it on a rented
   machine, a small processor one only (`DROP_CLASSES`, #20; #21: no chain to bigger classes; a drop waits for a
   machine of the run's warm pool or for stock, never a gap for no stock, owner 2026-10-23; parked for its billed hour, so the places' drops share one rental; that the solve uses one core is not
   yet timed). `ground.py level <place>` levels a place's yard in the plan; `ground.py dent <place> <piece>` cuts a
