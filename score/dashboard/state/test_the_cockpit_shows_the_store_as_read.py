@@ -12,6 +12,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - groups.short_name: `len(style.places) == 1` -> `>= 1` -> test_a_place_is_said_by_its_short_name_once
 - money.total: `whole=not gaps` -> `whole=True` -> test_a_partial_line_is_never_the_total
 - money.with_bill_days: `{**days.get(today, {}), **read}` -> `read` -> test_each_read_of_the_month_keeps_its_day
+- costs.hours: `{minutes % 60:02d}` -> `{minutes % 60}` -> test_minutes_are_said_in_hours_and_minutes
 - api/deps.py: the session check (401) dropped -> test_without_a_session_every_route_is_401
 - api/deps.py: the owner check dropped -> test_owner_routes_refuse_a_non_owner
 - api/deps.py: the Origin check dropped -> test_writes_need_the_csrf_header_and_an_origin
@@ -29,7 +30,7 @@ from django.test import override_settings
 from fastapi.testclient import TestClient
 
 from score import stages
-from score.dashboard.state import groups, money
+from score.dashboard.state import costs, groups, money
 from score.dashboard.state.models import CostLine, PlaceCard, Spend, StyleGroup
 from score.dashboard.tests.fixture import ORIGIN, api
 
@@ -143,6 +144,10 @@ def test_each_read_of_the_month_keeps_its_day(tmp_path):
     assert first.bill_days == [{"day": today, "cloud": 2118.87, "models": None}]
     unread = read.model_copy(update={"lines": []})
     assert money.with_bill_days(unread, tmp_path).bill_days == first.bill_days  # a line not read keeps the day's
+
+
+def test_minutes_are_said_in_hours_and_minutes():
+    assert costs.hours(125) == "2 h 05 min" and costs.hours(14) == "14 min"
 
 
 def test_reads_answer_from_the_fixture_and_unknowns_are_404(world):
