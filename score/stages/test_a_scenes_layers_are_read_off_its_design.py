@@ -53,7 +53,8 @@ def test_crops_are_plants_on_a_bed_never_a_potted_plant():
 
 
 def test_plants_are_every_growing_row_and_the_planter_under_crops_is_their_bed():
-    design = {"rows": [row("planter", "planter") | {"count": 11}, row("greens", "plants", anchor="on:planter") | {"count": 5},
+    design = {"rows": [row("planter", "planter") | {"count": 11},
+                       row("greens", "plants", anchor="on:planter") | {"count": 5},
                        row("pot", "plant") | {"count": 2}, row("desk", "desk")]}
     assert design_layers.plants_of(design, KINDS) == {"rows": 2, "objects": 7, "crops": 1, "beds": 11}
     assert design_layers.plants_of({"rows": [row("desk", "desk")]}, KINDS)["rows"] == 0
