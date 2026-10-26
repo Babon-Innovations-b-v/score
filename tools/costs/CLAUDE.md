@@ -1,7 +1,7 @@
 # tools/costs/
 
 The cloud's cost and time as the paper's cost tables give them (Appendix G), from the spend ledger and the provider's
-bill. `costs.py` is the way in (its docstring has the commands); `costs_test.py` checks its sums on a ledger written
+bill. `costs.py` is the way in (its docstring has the commands); `test_costs_add_the_ledgers_up_to_the_bill.py` checks its sums on a ledger written
 in the test.
 
 - **`per_unit.py` writes the runner's per-unit prices** (`data/costs/per-unit.json`, owner 2026-10-18: prices only
@@ -29,7 +29,7 @@ in the test.
   every stage's makes as the store's finish records time them (`--store`, `score/graph/runs.py` `node_times`). A stage
   with no timed lines keeps `time` null with its `why`, never a figure from elsewhere; a `RECORDED` stage may carry
   its run's own `time`, read from that run's ledger line. `--times-only` writes only
-  these into the file, every euro byte-identical (`per_unit_test.py` checks it on the repository's own file); the
+  these into the file, every euro byte-identical (`test_per_unit_prices_rest_on_measured_lines_only.py` checks it on the repository's own file); the
   runner turns them into a row's minutes (`compute.unit_minutes`) and a plan's ETA (`gaps/schedule.py`).
 - **The remake is priced warm** (owner, 2026-10-20, #21): `WARM` stages (Pixal3D, the bake) at their jobs' measured
   work seconds on the type in the paper's ledger copy (no set-up, no idle) over `capacity.runs_at_once`, at the saved
@@ -59,6 +59,6 @@ in the test.
   files under disks and addresses) and machines kept running for good (as dev1_m and play2_pico in the saved reads)
   count under machines; until they are ledgered or split out, its gap includes spend the owner already knows about.
   The default ledger (`~/.farm-factory-props/cloud/ledger.jsonl`) is not on every box, so any figure quoted from it
-  names its `--ledger`. A gap means spend outside the ledgers, fixed in the client that made it (`paid_calls_test.py`
+  names its `--ledger`. A gap means spend outside the ledgers, fixed in the client that made it (`test_paid_calls_go_through_the_ledgered_clients.py`
   lists the allowed ones), never by editing a row. The paper's commands (`reconcile`, `tables`, `types`) leave the
   order lines (`ledger.ORDER_LINES`: started, refused, cluster orders) out; they are not batches.

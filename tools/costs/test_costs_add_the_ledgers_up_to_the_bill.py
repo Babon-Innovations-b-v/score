@@ -1,9 +1,19 @@
-"""The cost tables' sums (costs.py), on a ledger and a bill written in the test: no cloud, no evidence files.
+"""costs.py's invariant: the ledgers add up to the bill. The paper's reconciliation is the ledger rows before the read
+plus every part of the bill the ledger misses (storage, unledgered compute), each figure worked out by hand from the
+ledger and bill written here (no cloud, no evidence files); an engine run is typed by its price, a processor machine
+priced again by the started hour, R&D and production cover the ledger, order lines change no table; the day's alarm
+(`reconcile-day`) fails when a ledgered line is over 5% off its bill and names the provider, fails on an empty or
+partial bill and on a missing ledger (faults of the review of C1, 2026-10-17), counts a run across midnight by its
+share and a machine still running at its price, and keeps storage and other lines out of the gap; `today` is the bill
+less the last read before the day; local roots never reach the paper's copy.
 
-    python3 tools/costs/costs_test.py
+Break that turns it red: in `reconcile` count the late row after the read; in reconcile-day's gap test take 15% for
+5%; or drop the order lines filter (`ledger.ORDER_LINES`) from `run_rows`.
 """
 import pathlib
 import sys
+
+import pytest
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -333,27 +343,19 @@ def order_lines_stay_out_of_the_paper():
     return problems
 
 
-def main():
-    """Run every check; exit 1 on any problem."""
-    checks = [local_roots_leave_the_copy, a_row_without_kind_is_tagged_pixal, the_bill_is_the_ledger_and_what_it_misses,
-              an_engine_run_is_typed_by_its_price, an_engine_run_group_names_its_card_type,
-              processor_machines_are_priced_again_by_the_started_hour,
-              rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split,
-              today_is_the_bill_less_the_last_read_before_the_day, spend_since_splits_by_track,
-              a_day_eleven_percent_off_its_bill_fails_and_names_the_provider, a_day_within_five_percent_passes,
-              an_empty_or_partial_bill_fails, the_scaleway_day_comes_from_the_saved_reads,
-              a_run_across_midnight_counts_its_share_of_the_day, storage_and_other_lines_never_alarm,
-              a_machine_still_running_counts_at_its_price, a_missing_ledger_fails_as_missing,
-              order_lines_stay_out_of_the_paper]
-    problems = [f"{check.__name__}: {problem}" for check in checks for problem in check()]
-    for problem in problems:
-        print(problem)
-    print(f"costs: {len(checks)} checks, {len(problems)} problems")
-    sys.exit(1 if problems else 0)
+CHECKS = [local_roots_leave_the_copy, a_row_without_kind_is_tagged_pixal, the_bill_is_the_ledger_and_what_it_misses,
+          an_engine_run_is_typed_by_its_price, an_engine_run_group_names_its_card_type,
+          processor_machines_are_priced_again_by_the_started_hour,
+          rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split,
+          today_is_the_bill_less_the_last_read_before_the_day, spend_since_splits_by_track,
+          a_day_eleven_percent_off_its_bill_fails_and_names_the_provider, a_day_within_five_percent_passes,
+          an_empty_or_partial_bill_fails, the_scaleway_day_comes_from_the_saved_reads,
+          a_run_across_midnight_counts_its_share_of_the_day, storage_and_other_lines_never_alarm,
+          a_machine_still_running_counts_at_its_price, a_missing_ledger_fails_as_missing,
+          order_lines_stay_out_of_the_paper]
 
 
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    main()
+@pytest.mark.parametrize("check", CHECKS, ids=[check.__name__ for check in CHECKS])
+def test_the_ledgers_add_up_to_the_bill(check):
+    """Each check gives the problems it found: none."""
+    assert check() == []
