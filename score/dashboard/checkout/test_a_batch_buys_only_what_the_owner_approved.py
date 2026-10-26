@@ -608,13 +608,23 @@ def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):
 
 def test_a_batch_budget_counts_from_an_older_first_try_line():
     """A batch whose first try wrote its line before budgets (Batch 1) counts from what that line was written over;
-    his new yes is the batch total, refused when the batch's spend so far plus this try's stop does not fit it."""
+    his new yes is the batch total, refused when the batch's spend so far plus this try's stop does not fit it. Break:
+    checkout/flow.py `batch_budget` and checkout/watched.py `batch_money` take a line's `batch_budget` as written."""
     older = Checkout(stop_line={"euros": 596.76, "spent": 300.0, "reserved": 0.0, "high": 100.0})
     this = Checkout(stop_line={})
     assert flow.batch_budget([older, this], 710.0, 250.0, {"batch_total_euros": 740.0}) == (300.0, 740.0)
     with pytest.raises(flow.Refused, match="over the batch total he approved: EUR 410.00 spent"):
         flow.batch_budget([older, this], 710.0, 250.0, {"batch_total_euros": 659.99})
     assert flow.batch_budget([this], 710.0, 33.0, None) == (710.0, 33.0)  # a new batch: its own stop
+    # a try once counted as a batch of its own (2026-10-26, checkouts 5 and 6 from EUR 297.18): its budget is read
+    # from the batch's start, so the total stays the line, EUR 665.18
+    split = Checkout(stop_line={"euros": 665.18, "spent": 297.18, "reserved": 0.0, "batch_from": 297.18,
+                                "batch_budget": 368.0})
+    first = Checkout(stop_line={"euros": 553.08, "spent": 0.0, "reserved": 0.0})
+    assert flow.batch_budget([first, split, this], 300.0, 33.0, None) == (0.0, 665.18)
+    from score.dashboard.checkout import watched
+    reading = types.SimpleNamespace(spent=300.0, reserved=0.0, parts={}, as_of="now")
+    assert watched.batch_money([first, split], reading)["budget"] == 665.18
 
 
 # --- the launch guard and the local backend ----------------------------------------------------------------------

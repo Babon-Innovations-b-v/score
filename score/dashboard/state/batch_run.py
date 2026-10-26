@@ -2,11 +2,11 @@
 the files the batch writes, read live locally and carried in the export as batch-run.json (sync/building.py).
 
     batch-run.json  {read_at, checkout, at, by, yes (his Buy approved in chat: {at, answer, question, high, stop};
-                     None for his click), batch, tries, design_at, state, why, started, try_started, ended, rows,
+                     None for his click), batch, tries, state, why, started, try_started, ended, rows,
                      eta, money, scenes, pool, nodes, problems}
-      batch     the batch's number and `tries` how many checkouts tried it (checkout/watched.batch_of: a Buy while the
-                batch before is unfinished and the design unchanged retries it); started the first try's, try_started
-                this try's; design_at when the design last changed
+      batch     the batch's number and `tries` the newest try's number (checkout/watched.batch_of: a Buy while the
+                batch before has rows not made retries it, whatever the design edits since; watched.try_count: a
+                relaunch whose run never began is no try); started the first try's, try_started this try's
       state     starting (the checkout plans it), running, waiting (running, the warm pool holds no card yet and
                 stock is short), stopped (a stop, a refusal or a run gone without its result line), finished
       rows      {total, done, failed, not_run, running, queued}: total every row the checkout's runs planned, done
@@ -269,11 +269,10 @@ def steps(count):
 
 
 def retries(run):
-    """Whether the next Buy is another try of the batch `run` (watched.batch_of): some row of it not made and the
-    design unchanged since its newest try."""
+    """Whether the next Buy is another try of the batch `run` (watched.batch_of): some row of it not made, whatever
+    the design edits since."""
     rows = run["nodes"]
-    unmade = set(rows["planned"]) - set(rows["made"])
-    return bool(unmade) and not (run.get("design_at") and parsed(run["design_at"]) > parsed(run["at"]))
+    return bool(set(rows["planned"]) - set(rows["made"]))
 
 
 def next_buy(run, buying):
@@ -456,14 +455,12 @@ def tried_rows(runs, newest_rows, planned):
     return {**found, **newest_rows}
 
 
-def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, accepted_at=lambda node: None,
-             design_at=None):
+def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, accepted_at=lambda node: None):
     """The monitor's record of `batch` (checkout/watched.newest: the newest checkout, a try of its batch, its launch
     and the rows every try's runs plan), read from the files under `props_home` (the warm pools) and `store_root`
     (the rows' logs), a row done when `accepted_at(node)`, the time of its standing accept in the store, is after the
     batch's first try: rows, spend and problems across its tries, a problem gone once a later try made its row or makes it again, the
-    ETA and stop this try's; `design_at` when the design last changed (the next Buy is a new batch past it); None
-    without a batch."""
+    ETA and stop this try's; None without a batch."""
     if batch is None:
         return None
     now = now or now_utc()
@@ -506,7 +503,7 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
     return {"read_at": stamp(now), "checkout": batch["checkout"], "at": batch["at"], "by": batch.get("by"),
             "yes": batch.get("yes"),
             "batch": batch.get("batch") or batch["checkout"], "tries": batch.get("tries") or 1,
-            "design_at": design_at, "state": state, "why": why, "started": stamp(first),
+            "state": state, "why": why, "started": stamp(first),
             "try_started": stamp(this_try), "ended": stamp(ended),
             "rows": counted(states, len(planned), found["beat"]),
             "eta": eta_of(batch.get("totals") or {}, this_try, ended, now),

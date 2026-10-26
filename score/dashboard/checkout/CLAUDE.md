@@ -40,7 +40,7 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
 - **One budget a batch, across its tries** (root CLAUDE.md, owner 2026-10-26: "those budget asks should become per
   batch tho, not per try"). `flow.batch_budget` (in `write_line`): the batch's start is what its first try's line was
   written over (`watched.batch_start`: `batch_from`, else that line's spent plus reserved); its budget the newest
-  try's, raised by a click to what the batch spent so far plus the try's high plus BUFFER when that is more; a new
+  try's line less that start (a try once counted as a batch of its own kept another start), raised by a click to what the batch spent so far plus the try's high plus BUFFER when that is more; a new
   yes in chat sets it to the batch total he approved, refused when the batch's spend so far plus this try's high
   plus BUFFER does not fit; the line is start plus budget, so the guard (score.adapters.compute) stops at the budget
   less what earlier tries spent. A retry under a used yes keeps the budget and is refused when its high plus BUFFER
