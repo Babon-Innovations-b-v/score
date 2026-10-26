@@ -393,6 +393,24 @@ def test_the_parts_row_writes_the_methods_interface_each_finish_checked_against_
         assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass"
 
 
+def test_a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour():
+    with tempfile.TemporaryDirectory() as temporary:
+        mark = pathlib.Path(temporary) / "code.json"
+        mark.write_text(json.dumps({"route": "code", "size": [1.0, 0.1, 0.1]}))
+        assert route_parts.lit_take({"kind": "light", "object": "wall light"}, mark)
+        assert not route_parts.lit_take({"kind": "pipe", "object": "wall pipes"}, mark)
+        mark.write_text(json.dumps({"route": "code", "size": [0.3, 0.3, 6.0]}))  # a stem lamp's post is a post
+        assert not route_parts.lit_take({"kind": "light", "object": "street light"}, mark)
+    every = {"warm": {"recipe": "glowing", "colour": [1.0, 0.8, 0.3]}, "cold": {"recipe": "glowing", "colour":
+             [0.3, 0.6, 1.0]}, "steel": {"recipe": "bare_metal", "colour": [0.5, 0.5, 0.5]}}
+    finish = {"finish": "light bar", "surface": "steel", "fits": True, "by": "the list",
+              "measured_lab": [float(value) for value in route_parts.finish_parts.library_lab(every["cold"])]}
+    (lit,) = route_parts.lit_finishes([finish], every)
+    assert lit["surface"] == "cold" and lit["fits"] and lit["by"] == "its light, built in code", lit
+    (unlit,) = route_parts.lit_finishes([finish], {"steel": every["steel"]})
+    assert unlit["fits"] is False and "no glowing surface" in unlit["new_surface"]["why"], unlit
+
+
 def baked(folder, rows):
     """The bake made through the rows, the cloud call faked: each take's job writes back its labelled take, its
     models' entries and a baked model. The bake's inputs, its output and the calls made (with the jobs' files)."""

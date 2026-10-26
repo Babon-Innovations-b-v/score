@@ -246,6 +246,14 @@ def paint_baked(row):
                                                for name in ("paint_bake.py", "paint_take.py")}})
 
 
+def code_marked(row):
+    """surfaces-parts with each code-built take's mark as a file (route_parts.files: a light built in code takes the
+    scene library's glowing surface). Set here, as feet_checked is, so no row reading the surfaces package moves."""
+    if row.name != "surfaces-parts":
+        return row
+    return dataclasses.replace(row, files=surfaces.route_parts.files)
+
+
 def feet_checked(row):
     """surfaces-paint with the gate "feet in one plane" beside its own (place_line.judge_feet: a take's short legs are
     stretched down before its bake, a missing leg fails by name). Set here, as bake_checked is, so the turntable's and
@@ -404,8 +412,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(
-              boxed_split, map(designed_rough, shapes_first.rows())))))),
+          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(code_marked, map(
+              boxed_split, map(designed_rough, shapes_first.rows()))))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,
