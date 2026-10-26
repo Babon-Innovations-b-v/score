@@ -991,6 +991,7 @@ dependencies = [
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "trimesh" },
     { name = "usd-core" },
+    { name = "usd-validation-nvidia", extra = ["usd"] },
     { name = "xatlas" },
 ]
 
@@ -1024,6 +1025,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.17" },
     { name = "trimesh", specifier = ">=5.1" },
     { name = "usd-core", specifier = ">=25.5" },
+    { name = "usd-validation-nvidia", extras = ["usd"], specifier = "==1.22.0" },
     { name = "xatlas", specifier = ">=0.0.11" },
 ]
 
@@ -1164,6 +1166,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/97/44/fb780d02b04bbebc410bfb6decccc66aec07fb0322172ad019c4579ad80a/usd_core-26.8-cp312-none-macosx_10_15_universal2.whl", hash = "sha256:aaf1a68bf4c7ab959b9f4d3a6e0ef9347ff6135a1452676bb40916060146c53e", size = 40698020, upload-time = "2026-07-20T14:32:20.788Z" },
     { url = "https://files.pythonhosted.org/packages/19/0b/efe5c0d7c273149ac94083831e5b36649925a621a73cd2ddf9616e160c8c/usd_core-26.8-cp312-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:204fb1ef1fc977b827c491f4e9fa39b57518504ed0cacfe12e026e95123cacf1", size = 29530957, upload-time = "2026-07-20T14:32:24.255Z" },
     { url = "https://files.pythonhosted.org/packages/79/d3/749edc4d2eea3ffb94aa0526d5da6f4a3f185ef7004ceeb6b5ecdb6a0c68/usd_core-26.8-cp312-none-win_amd64.whl", hash = "sha256:6db0031224b718cae53e4b19ecd80aea0a7ed4348e330fd82ccfbdc9b8b311ed", size = 13887898, upload-time = "2026-07-20T14:32:27.452Z" },
+]
+
+[[package]]
+name = "usd-validation-nvidia"
+version = "1.22.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/4b/af5572bfa80013a34abb980c339436e1ae2a67407a935f3864c27aa81b0a/usd_validation_nvidia-1.22.0-py3-none-any.whl", hash = "sha256:5bf8756a1642c627561859f46ba04b898f79ff0b09a494aa468d027821a2b5c4", size = 327888, upload-time = "2026-09-10T18:13:56.555Z" },
+]
+
+[package.optional-dependencies]
+usd = [
+    { name = "usd-core" },
 ]
 
 [[package]]
