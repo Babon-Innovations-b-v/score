@@ -135,7 +135,10 @@ stage as each stage is built; nothing moves before.
   merged, a single object Gemini counted once over `LARGE` of the picture that SAM 3 found under no word kept with
   Gemini's region as its box (`boxed_by` "gemini", the engine room's core), the rest kept apart as `skipped` (never a
   row or a gap); `--again` reads a place already read again from its own rows, SAM 3 only; a kept row with no metres or anchor its gaps; a
-  reading by an older method is read again from its own rows, SAM 3 only; each
+  reading by an older method is read again from its own rows, SAM 3 only; a kept reading holding a row both readers
+  put inside another row's thing (camp's "door" that is its fridge's glass door) has it merged into that thing by
+  `reading_fixes.py` (free, a new reading; the sync pass runs it before parts, light and plans: not in reading.py,
+  which is in the code version of 74 paid rows); each
   reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no lock of its own.
   `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the locked concept.
   `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its lock, inventory and the layer

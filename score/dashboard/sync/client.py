@@ -439,6 +439,19 @@ def library_sweep():
         return f"library sweep failed: {type(error).__name__}: {error}"
 
 
+def readings_fixed(store_root):
+    """Every locked place's reading fixed where it holds a part of another row's thing read as a thing of its own
+    (score/review/reading_fixes.py: free, from its own rows and boxes), so the parts, light and plans after it in
+    the pass are of the right rows; its words. One that fails is said, and the pass goes on."""
+    from score.review import concepts, reading_fixes
+    from score.store import Store
+    store = Store.in_folder(store_root)
+    try:
+        return reading_fixes.said(reading_fixes.fix(store, concepts.placed(store), "the sync pass"))
+    except Exception as error:  # reported in the pass's line, never swallowed
+        return f"reading fixes failed: {type(error).__name__}: {error}"[:400]
+
+
 def parts_read(store_root, ask=None):
     """The parts asked of every locked place whose reading's rows have none (score/review/reading.py parted), so the
     gaps, plans, prepare and price after it in the pass route those rows; its words (`asked_of_readings`)."""
@@ -674,6 +687,7 @@ def sync_pass(remote, source, chosen=None):
             return refused_words(refused)
         started = head(settings.SCORE_REPO)
         swept = library_sweep()
+        readings = readings_fixed(source.store_root)  # before the parts, light and plans: each reads its rows
         parts = parts_read(source.store_root)  # before the gaps, plans, prepare and price: each routes rows by part
         lights = light_read(source.store_root)  # before the plans kept: they carry it to the lamps and scene times
         gaps = gaps_sweep()
@@ -682,8 +696,8 @@ def sync_pass(remote, source, chosen=None):
         demos = library_demos()
         priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
         if failed:
-            return refused_words(f"{failed}; {swept}; {parts}; {lights}; {gaps}; {planned}; {prepared}; {benched}; "
-                                 f"{pictured}; {demos}")
+            return refused_words(f"{failed}; {swept}; {readings}; {parts}; {lights}; {gaps}; {planned}; {prepared}; "
+                                 f"{benched}; {pictured}; {demos}")
         basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
         now = head(settings.SCORE_REPO)
         pushed = pushed_words(remote, source, chosen) + ("" if now == started else (
@@ -695,6 +709,6 @@ def sync_pass(remote, source, chosen=None):
     previews = film_previews()  # minutes of Chromium: after the requests, outside the pricing lock
     refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
     return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {swept}; "
-            f"{parts}; {lights}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; "
+            f"{readings}; {parts}; {lights}; {gaps}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; "
             f"{previews}"
             f"{design_moved()}")
