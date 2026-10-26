@@ -164,6 +164,11 @@ PAID_MINUTES = {}
 # EXTEND_BEFORE_SECONDS: a heartbeat is minutes apart, and a claim waiting then still finds the pool open.
 POOL_TICKET = []
 EXTEND_BEFORE_SECONDS = 3600
+# How long the run's warm pool may hold no machine while rows are due on it before its heartbeat says so, and how often
+# it says it again (said_empty_pool; fault of 2026-10-26: a benchmark waited an hour on a pool with no card, silent).
+POOL_EMPTY_SAY_SECONDS = 600
+# When the pool was first seen with no machine while rows are due on it, and when that was last said.
+POOL_EMPTY = {}
 
 
 ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
@@ -635,8 +640,32 @@ def pool_tender(runner, jobs, started):
             return
         due = due_rows(runner, started, pool.leads(plan["reserved"]))
         pool.resize(os.environ[RUN_ID], *pool.counts_for(due, jobs))
+        if POOL_TICKET:
+            with pool_ticket_env(POOL_TICKET[0]):
+                pool.revive(os.environ[RUN_ID])
+        said_empty_pool(pool, os.environ[RUN_ID], due, time.time())
         extend_pool(runner)
     return tend
+
+
+def said_empty_pool(pool, run_id, due, now):
+    """Say on the run's output, once the run's pool has held no machine POOL_EMPTY_SAY_SECONDS while rows are `due`
+    on it (due_rows) and each POOL_EMPTY_SAY_SECONDS after, how long and why: the pool closed, its collector gone, or
+    the collector's last line (no stock, no room in its clearance); quiet again once a machine is in. A run waiting on
+    such a pool is said, never silent (fault of 2026-10-26: a benchmark's Pixal3D rows waited an hour on a pool whose
+    card had gone, every card class sold out, and its log said nothing)."""
+    if not due or pool.members(run_id):
+        POOL_EMPTY.clear()
+        return
+    since = POOL_EMPTY.setdefault("since", now)
+    if now - since < POOL_EMPTY_SAY_SECONDS or now - POOL_EMPTY.get("said", since) < POOL_EMPTY_SAY_SECONDS:
+        return
+    POOL_EMPTY["said"] = now
+    plan = pool.current(run_id)
+    why = ("it is closed" if plan is None else "its collector is gone" if not pool.collector_alive(plan)
+           else f"its collector last said: {pool.collector_said(run_id) or 'nothing'}")
+    print(f"score run: the warm pool has held no machine for {(now - since) / 60:.0f} min while {len(due)} row"
+          f"{'s are' if len(due) != 1 else ' is'} due on it; {why}", flush=True)
 
 
 def due_rows(runner, started, leads):
@@ -777,22 +806,31 @@ def opened_pool(runner, places, whole, options):
               "rows", flush=True)
     sizes = ticket["sizes"]
     compute.hold(ticket)
-    before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
-    os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
     POOLED_ROWS[:] = rows
     PAID_MINUTES.update({node: price.get("likely_minutes") for node, price in prices.items()})
     due = pool.counts_for(due_rows(runner, time.time(), pool.leads(sizes)), options.jobs)  # what is due now
-    try:
+    with pool_ticket_env(ticket):
         pool.start(run_id, pool.sized(sizes, *due), time.time() + hours * 3600, euros=ticket["clearance"]["holding"],
                    reserved=sizes)
         POOL_TICKET[:] = [ticket]
+    return ticket
+
+
+@contextlib.contextmanager
+def pool_ticket_env(ticket):
+    """This process's spend ticket and store set to the pool's `ticket` while the block runs (a collector started in
+    it rents under that ticket alone); as they were after."""
+    from score.adapters import compute
+    before = {name: os.environ.get(name) for name in (compute.TICKET, compute.STORE)}
+    os.environ.update({compute.TICKET: f"{ticket['node']} {ticket['key']}", compute.STORE: ticket["store"]})
+    try:
+        yield
     finally:
         for name, value in before.items():
             if value is None:
                 os.environ.pop(name, None)
             else:
                 os.environ[name] = value
-    return ticket
 
 
 def checked_thread_variables():

@@ -426,6 +426,39 @@ def test_the_pool_rents_each_machine_its_start_up_before_its_first_job_and_lets_
                           {}) == float("inf")  # a row it reads stopped: never due
 
 
+def test_a_pool_holding_no_machine_while_rows_are_due_on_it_is_said_with_why():
+    """Fault of 2026-10-26: a benchmark's Pixal3D rows waited an hour on a pool whose card had gone (every card class
+    sold out) and the run's log said nothing. Its heartbeat says it once the pool is empty POOL_EMPTY_SAY_SECONDS
+    while rows are due, with the collector's last line, then each POOL_EMPTY_SAY_SECONDS; quiet with a machine in."""
+    import contextlib
+    import io
+    import types
+    from score import __main__ as command
+    state = {"members": [], "plan": {"collector": os.getpid()}}
+    pool = types.SimpleNamespace(members=lambda run_id: state["members"], current=lambda run_id: state["plan"],
+                                 collector_alive=lambda plan: True,
+                                 collector_said=lambda run_id: "[cloud] pool: 1 card(s) short, none in stock")
+    due, step = [("a", 3, False)], command.POOL_EMPTY_SAY_SECONDS
+
+    def said(now):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            command.said_empty_pool(pool, "run", due, now)
+        return out.getvalue()
+    command.POOL_EMPTY.clear()
+    try:
+        assert said(1000.0) == "" and said(1000.0 + step - 1) == ""  # a pool just opened: its first card is coming
+        line = said(1000.0 + step)
+        assert "no machine for 10 min while 1 row is due" in line and "none in stock" in line, line
+        assert said(1000.0 + step + 60) == ""  # said again only after another POOL_EMPTY_SAY_SECONDS
+        state["plan"] = None
+        assert "it is closed" in said(1000.0 + 2 * step)
+        state["members"] = [{"id": "card-1"}]
+        assert said(1000.0 + 3 * step) == "" and command.POOL_EMPTY == {}  # a machine in: quiet, counted afresh
+    finally:
+        command.POOL_EMPTY.clear()
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

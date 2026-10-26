@@ -236,7 +236,13 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   process is gone) closes it and ends the collector: idle cards deleted at
   once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. A stop
   signal reaching the collector while it already releases (its own end) is said and ignored too, so its release
-  reaches the last card (fault of 2026-10-24: 6 of 13 parked machines left billing). Every
+  reaches the last card (fault of 2026-10-24: 6 of 13 parked machines left billing). No run waits on a pool that
+  cannot fill (fault of 2026-10-26: a benchmark's Pixal3D rows waited an hour, silent, on a pool whose only card had
+  gone with every card class sold out): a waiting claim's time limit is paused only while its pool is open
+  (`pool.claim`, and the Pixal3D fleet's `batch.pool_closed`: a closed pool once paused it for ever), so a pool closed
+  under its run ends its claims as gaps; the run's heartbeat starts a collector again for an open pool whose
+  collector is gone (`pool.revive`, under the pool's ticket), and says each 10 min a pool has held no machine while
+  rows are due on it, with why: closed, collector gone, or the collector's last line (`said_empty_pool`). Every
   rent is priced (`pool.rents`, `pool.fits`): every card alive and chosen, at the class rented for the pool's whole
   hours, within the euros its clearance reserved, so the run's high stays a bound; an asked card with no room makes
   room by letting an idle card go (`pool.make_room`), and one no pool of that clearance can hold is refused

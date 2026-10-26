@@ -311,14 +311,46 @@ def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB, euros=None, reserved=N
                 "ticket": os.environ.get(SPEND_TICKET), "run_pid": int(os.environ.get(RUN_PID) or os.getpid()),
                 "started": time.time()}
         write_plan(run_id, plan)
-        with (folder / "collector.log").open("a") as log:
-            collector = subprocess.Popen([sys.executable, __file__, "--collect", run_id], start_new_session=True,
-                                         stdout=log, stderr=subprocess.STDOUT)
-        plan["collector"] = collector.pid
+        plan["collector"] = spawn_collector(run_id, folder)
         write_plan(run_id, plan)
     batch.say(f"pool of {', '.join(f'{count} {name}' for name, count in sizes.items())} opened for run {run_id} "
               f"until {time.strftime('%H:%M', time.localtime(deadline))}; jobs start on the first warm card")
     return plan
+
+
+def spawn_collector(run_id, folder):
+    """Start the pool's collector (collect) in a process of its own, its lines in the pool's collector.log; its pid."""
+    with (folder / "collector.log").open("a") as log:
+        return subprocess.Popen([sys.executable, __file__, "--collect", run_id], start_new_session=True,
+                                stdout=log, stderr=subprocess.STDOUT).pid
+
+
+def collector_alive(plan):
+    """Whether the pool's collector lives (one not started yet counts as alive): with it gone, nothing rents."""
+    return not plan.get("collector") or process_alive(plan["collector"])
+
+
+def revive(run_id):
+    """Start a collector again for the run's open pool whose collector is gone (killed past its own release), so its
+    places are rented again and no claim waits on a pool nobody fills (score run's heartbeat, fault of 2026-10-26);
+    whether one was started. Renting stays checked as in start: the caller holds the pool's ticket."""
+    with locked(run_id) as folder:
+        plan = current(run_id)
+        if plan is None or collector_alive(plan):
+            return False
+        gone = plan["collector"]
+        plan["collector"] = spawn_collector(run_id, folder)
+        write_plan(run_id, plan)
+    batch.say(f"pool: its collector (pid {gone}) was gone with the pool open; a new one (pid {plan['collector']}) "
+              "rents its places")
+    return True
+
+
+def collector_said(run_id, lines=1):
+    """The collector's last `lines` lines (collector.log), joined; '' when it said nothing."""
+    path = folder_of(run_id) / "collector.log"
+    said = path.read_text(errors="replace").splitlines() if path.exists() else []
+    return " | ".join(line.strip() for line in said[-lines:])
 
 
 def extend(run_id, deadline, euros):
