@@ -12,11 +12,14 @@ The answers are the same; `keep` writes only the files the stages read and start
 its own, never a store write the moment would hide.
 
 After it, every written plan that is `unsettled` (never fixed, or today's free fixes place or stand things it lacks:
-a fix added since it was fixed, the airlock's sandbags at the concept's foot, 2026-10-26) is fixed again in a process
-of its own (`fixing`, `python -m score.review.plans_pass fix <place> ...`: plan_fixes.settled, its free fixes and at
-most its automatic Corrects under the plan-writing allowance, kept as a new writing). Each re-fix leaves fewer
-missing, so a plan is fixed again only while the free fixes improve it. Here, not in plan_fixes.py, which is in
-the code version of every stage that reads plans.py.
+a fix added since it was fixed, the airlock's sandbags at the concept's foot, 2026-10-26), or whose things the free
+fixes left in each other the relation solver parts (`relation_solver.parted`, IsaacLab-Arena's solver ported to
+numpy: the airlock's sandbags, 7 pairs in each other after the nudge, none after it, 2026-10-26), is fixed again in
+a process of its own (`fixing`, `python -m score.review.plans_pass fix <place> ...`: `settled_again`,
+plan_fixes.settled's free fixes and at most its automatic Corrects under the plan-writing allowance when the free
+fixes place more, then the solver, free; kept as a new writing). Each re-fix leaves fewer missing or fewer in each other, so a plan is fixed
+again only while that improves it. Here, not in plan_fixes.py, which is in the code version of every stage that
+reads plans.py (an edit to it re-keyed 74 paid rows, `score.stages.moved`, 2026-10-26).
 
 Before it, every place of the environment (stages.places: each scene whose design is done) with no kept plan gets one
 (`restored`): `keep` walks only the kept plans and the scene tree, so a scene outside the tree whose kept plan was once
@@ -28,7 +31,7 @@ import os
 import subprocess
 import sys
 
-from score.review import concepts, plan_fixes, plan_writing, plans
+from score.review import concepts, plan_fixes, plan_writing, plans, relation_solver
 from score.store import Store, locked, runtime_store
 
 
@@ -59,12 +62,32 @@ def missing(plan, inventory):
     return [gap for gap in plan_fixes.open_gaps(plan, inventory) if gap["kind"] in ("placed", "people")]
 
 
-def unsettled(plan, inventory):
+def placing_more(plan, inventory):
     """Whether a written plan wants its fixes made (again): never fixed, or today's free fixes leave fewer missing."""
     if "fixes" not in plan:
         return True
     lacking = len(missing(plan, inventory))
     return bool(lacking) and len(missing(plan_fixes.fixed(plan, inventory)[0], inventory)) < lacking
+
+
+def unsettled(plan, inventory):
+    """Whether a written plan wants fixing again: `placing_more`, or the relation solver parts things the fixes left
+    in each other (relation_solver.parted)."""
+    return placing_more(plan, inventory) or bool(relation_solver.parted(plan, inventory)[1])
+
+
+def settled_again(store, place, plan, inventory, ask):
+    """(the plan fixed again, the Correct calls made): plan_fixes.settled when it is `placing_more`, else as written
+    (no Correct asked again for overlaps alone); then the things still in each other parted by the relation solver,
+    its fixes added and its gaps checked again, each left saying why."""
+    calls = []
+    if placing_more(plan, inventory):
+        plan, calls = plan_fixes.settled(store, place, plan, inventory, ask)
+    answer, more = relation_solver.parted(plan, inventory)
+    if more:
+        plan = {**answer, "fixes": [*plan.get("fixes", []), *more]}
+        plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
+    return plan, calls
 
 
 def to_fix(store, places):
@@ -87,7 +110,7 @@ def fixing(store, places, start=subprocess.Popen):
 
 
 def refixed(store, place, by, ask):
-    """The place's writing in force fixed again (plan_fixes.settled) and kept as a new writing of the same lock,
+    """The place's writing in force fixed again (`settled_again`) and kept as a new writing of the same lock,
     reading and method with its fixes and the cost of its Correct calls, under the place's writing lock (a second
     process waits and finds it settled: nothing is paid twice); None when it is not `unsettled`."""
     with locked(store.cache / plan_writing.AREA / "locks" / f"{place}.lock"):
@@ -95,7 +118,7 @@ def refixed(store, place, by, ask):
         inventory = plans.inventory_of(store, place)
         if not writing or not unsettled(writing["plan"], inventory):
             return None
-        plan, calls = plan_fixes.settled(store, place, writing["plan"], inventory, ask)
+        plan, calls = settled_again(store, place, writing["plan"], inventory, ask)
         return plan_writing.kept(store, {
             **{key: writing[key] for key in ("place", "concept", "reading", "method", "drawing", "measured")
                if key in writing}, "by": by, "at": concepts.now(), "drawing_euros": 0.0, "fixed_from": writing["at"],

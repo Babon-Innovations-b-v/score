@@ -1,5 +1,6 @@
 """The sync pass's plans keep made fast (score/review/plans_pass.py): the narrow key walk answers exactly as the whole
-store's walk, the keep runs inside one moment, and a done place with no kept plan gets one first. A folder store of
+store's walk, the keep runs inside one moment, a done place with no kept plan gets one first, and a pile the free
+fixes left is parted free on a re-fix. A folder store of
 the test's own."""
 import contextlib
 import io
@@ -77,6 +78,22 @@ def test_a_plan_fixed_before_a_fix_it_needs_is_fixed_again_in_a_process_of_its_o
     assert started and started[0][-3:] == ["score.review.plans_pass", "fix", "airlock"], started
 
 
+def test_a_fixed_plan_with_a_pile_is_parted_again_free_and_then_settled():
+    """2026-10-26: the airlock's sandbags stayed in each other after the nudge; the relation solver parts them on a
+    re-fix, free (no Correct asked for overlaps alone), and the parted plan is not fixed again."""
+    items = [[f"SANDBAGS {number}", 1.2, 1.3, 0.6, 0.35, None, "item"] for number in range(1, 7)]
+    plan = {"w": 3.0, "d": 3.0, "doors": [], "people": [], "items": items, "fixes": ["earlier fix"], "gaps": [],
+            "rows": {item[0]: ["sandbags"] for item in items}}
+    inventory = {"rows": [{"id": "sandbags", "anchor": "ground", "count": 6, "size": [0.6, 0.35, 0.15]}]}
+    assert not plans_pass.placing_more(plan, inventory) and plans_pass.unsettled(plan, inventory)
+
+    def ask(body):
+        raise AssertionError("no Correct is asked for overlaps alone")
+    fixed, calls = plans_pass.settled_again(None, "airlock", plan, inventory, ask)
+    assert calls == [] and fixed["fixes"][0] == "earlier fix" and len(fixed["fixes"]) >= 6
+    assert not [gap for gap in fixed["gaps"] if gap["kind"] == "overlap"] and not plans_pass.unsettled(fixed, inventory)
+
+
 def test_a_done_place_with_no_kept_plan_gets_one():
     """The wreck, 2026-10-24: an outside place in no tree whose kept plan was taken out is kept again; a place whose
     plan is kept is not asked again."""
@@ -102,4 +119,5 @@ if __name__ == "__main__":
     test_the_keep_runs_inside_one_moment()
     test_a_done_place_with_no_kept_plan_gets_one()
     test_a_plan_fixed_before_a_fix_it_needs_is_fixed_again_in_a_process_of_its_own()
+    test_a_fixed_plan_with_a_pile_is_parted_again_free_and_then_settled()
     print("plans_pass_test: ok")

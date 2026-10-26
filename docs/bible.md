@@ -186,8 +186,11 @@ Make plan click):
    arrangement as the concept shows it (order, place across the view, facing).
 4. **The fix step** (`plan_fixes.py`): free fixes first (people stood on spots, spread runs split, missing things
    placed where their boxes project, facings turned, overlaps parted inside the walls), then at most two automatic
-   Corrects (notes rounds back to Gemini), each kept only when it leaves fewer gaps. Only what is left shows as gaps,
-   each saying why.
+   Corrects (notes rounds back to Gemini), each kept only when it leaves fewer gaps. Things the nudge left in each
+   other (a pile of sandbags) are parted by IsaacLab-Arena's relation solver ported to numpy
+   (`review/relation_solver`, Apache-2.0, free and seeded; plan spots soft targets, walls and the other things box
+   obstacles), its answer kept only when the checks find fewer overlaps and nothing new; the sync pass runs it
+   (`plans_pass.settled_again`), so it is in no stage's key. Only what is left shows as gaps, each saying why.
 
 Invariants: his plan and edits always win (a plan written after his edit is shown as an `edited` gap, never over it);
 creator data wins (the ship's floor plan, `data/definitions/ship_floor.json`, is laid at its own size where the drawing
