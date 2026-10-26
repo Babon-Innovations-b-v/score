@@ -164,6 +164,59 @@ def test_the_plan_s_structure_and_what_stands_beyond_it_are_counted_not_held_to_
     assert floor_fit.judge_rows_fit(split, {"rough-align": out}, {}).measures["failing"] == 3  # no kept plan: all held
 
 
+def test_a_building_the_plan_lays_against_its_edge_and_a_far_row_are_counted_not_held_to_its_floor(tmp_path):
+    """Fault 2026-10-26 (props-inputs@square): the square's buildings stand on the ground round its 29.86 m floor, the
+    plan laying only their faces at its edges, and failed as floor objects at their read 30 by 30 m. Read without
+    their anchors (no inventory) the fault's measures come back; with them the buildings are counted past the edge,
+    and the far rocket (also the plan's structure) is counted once. A beam on the ground in the middle and a stall on
+    the plaza at the edge stay held.
+    Break: score/stages/shapes_first/floor_fit.py:
+        `return min(x, y) <= ROUNDING or x + across >= wide - ROUNDING or y + along >= deep - ROUNDING` -> `return True`
+    Break: score/stages/shapes_first/floor_fit.py: `"rows past the plan's edge": past_edge(plan, inventory)}` -> `}`"""
+    out, _ = aligned(tmp_path, (-1.0, 0.0, -1.0), (1.0, 3.0, 1.0), floor=((-14.93, -14.93), (14.93, 14.93)))
+    split = tmp_path / "split"
+    split.mkdir()
+    buildings = {"left_building": [30.0, 30.0, 24.0], "right_building": [30.0, 30.0, 20.0],
+                 "foreground_building": [40.0, 20.0, 15.0]}
+    rows = [{"id": name, "size": size} for name, size in buildings.items()] + [
+        {"id": "rocket", "size": [15.8, 4.2, 60.0], "far": {"pieces": 1, "length": 15.8}},
+        {"id": "city_skyline", "size": [100.0, 30.0, 100.0], "far": {"pieces": 10, "length": 1000.0}},
+        *({"id": f"thing_{number}", "size": [1.0, 1.0, 1.0]} for number in range(9))]
+    (split / "rows.json").write_text(json.dumps({"rows": rows}))
+    kept = tmp_path / "kept.json"
+    items = [["LEFT BUILDING 1", 0.0, 15.77, 2.145, 6.609, "E", "item"],
+             ["RIGHT BUILDING 1", 26.38, 4.464, 2.609, 17.799, "W", "item"],
+             ["FOREGROUND BUILDING 1", 10.784, 23.423, 7.421, 5.566, "N", "item"]]
+    kept.write_text(json.dumps({"w": 28.989, "d": 28.989, "items": items, "beyond": [],
+                                "rows": {item[0]: [item[0].lower().replace(" 1", "").replace(" ", "_")] for item in items},
+                                "structure": ["sky", "sea", "city_skyline", "rocket", "planet", "plaza"]}))
+    inputs = {"rough-align": out, floor_fit.KEPT_PLAN: kept}
+    found = floor_fit.judge_rows_fit(split, inputs, {})
+    assert found.answer == checks.FAIL and len(found.findings) == 3
+    assert found.findings[0] == "left_building: 30.0 by 30.0 m fits no way on the 29.86 by 29.86 m floor"
+    assert {key: found.measures[key] for key in ("failing", "rows of the plan's beyond", "rows of the plan's structure",
+                                                 "rows past the rough model", "rows round the floor")} == {
+        "failing": 3, "rows of the plan's beyond": 0, "rows of the plan's structure": 2, "rows past the rough model": 3,
+        "rows round the floor": 0}
+    inventory = tmp_path / "inventory.json"
+    anchors = {"rows": [{"id": name, "anchor": "ground"} for name in buildings]}
+    inventory.write_text(json.dumps(anchors))
+    found = floor_fit.judge_rows_fit(split, {**inputs, "inventory": inventory}, {})
+    assert found.answer == checks.PASS and found.measures["rows past the plan's edge"] == 3
+    assert found.measures["rows of the plan's structure"] == 2 and found.measures["rows laid far off"] == 0
+    middle = [["BEAM 1", 10.0, 10.0, 9.0, 0.3, None, "item"], ["STALL 1", 0.0, 2.0, 2.0, 2.0, None, "item"]]
+    kept.write_text(json.dumps({"w": 28.989, "d": 28.989, "items": items + middle, "structure": [],
+                                "rows": {**{item[0]: [item[0].lower().replace(" 1", "").replace(" ", "_")]
+                                            for item in items}, "BEAM 1": ["beam"], "STALL 1": ["stall"]}}))
+    rows += [{"id": "beam", "size": [31.0, 0.3, 0.3]}, {"id": "stall", "size": [31.0, 2.0, 3.0]}]
+    (split / "rows.json").write_text(json.dumps({"rows": rows}))
+    inventory.write_text(json.dumps({"rows": [*anchors["rows"], {"id": "beam", "anchor": "ground"},
+                                              {"id": "stall", "anchor": "on:plaza"}]}))
+    found = floor_fit.judge_rows_fit(split, {**inputs, "inventory": inventory}, {})
+    assert [finding.split(":")[0] for finding in found.findings] == ["beam", "stall"]
+    assert found.measures["rows laid far off"] == 2  # no longer the plan's structure: counted as laid far off
+
+
 def test_the_table_s_split_reads_the_kept_plan_with_floor_fit_s_gate():
     """Fault 2026-10-24 (eight places' shells failed the floor): the table's parts split gates on floor_fit's judge,
     which reads the kept plan, not align's.

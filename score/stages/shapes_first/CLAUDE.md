@@ -34,8 +34,11 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   `stages.boxed_split` with the kept plan, `{home}/design/plans/<place>.json`, declared) fails a row that fits the
   registered floor no way round (unknown with no registration), measuring how many rows fit no footprint of the
   aligned rough model. Only rows the plan stands on its floor are held: its `structure` (laid as its walls, levels and
-  roofs, never at the row's metres) and its `beyond` (they stand in another place) are counted apart (2026-10-24: eight
-  places' floors, walls and roofs, and the stairwell's view of the Square, failed it). `align.judge_rows_fit` is the
+  roofs, never at the row's metres), its `beyond` (they stand in another place), a row marked `far` (laid far off by
+  the scene record alone) and a row on the ground the plan lays only against its edge (`floor_fit.past_edge`: its face
+  the plan's item, its body on the ground round the place) are counted apart (2026-10-24: eight places' floors, walls
+  and roofs, and the stairwell's view of the Square, failed it; 2026-10-26: the square's 30 m buildings round its
+  29.86 m floor). `align.judge_rows_fit` is the
   old gate, unwired: align.py and this package are in many paid rows' code (`scene_palette` imports align), so delete
   it only when align.py next moves for its own reason.
 
