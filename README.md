@@ -105,7 +105,7 @@ bytes in the library's blob store. A record names a file by its library referenc
 `tools/library/library_files.py` fetches it with the library's own command into a cache under `$PROPS_HOME` and
 checks it against the entry's sha256 (the library's settings: `SCORE_LIB_*`, else the score_lib checkout beside score and the cloud backend's object store, its key from the secret store; no settings file). A
 name the library does not hold is a gap, left out of the scene. The framework reads nothing from the game 2099's
-checkout; `tools/library/library_files_test.py` fails when code or data names it.
+checkout; `tools/library/test_every_record_name_resolves_or_is_a_gap.py` fails when code or data names it.
 
 ## Cloud capacity
 
