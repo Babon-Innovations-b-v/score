@@ -96,6 +96,51 @@ def test_the_hub_table_makes_every_rod_a_predicted_gap_and_a_lone_sheet_only_a_r
         "predicted gap"
 
 
+def a_stored_output(store, files):
+    folder = pathlib.Path(tempfile.mkdtemp())
+    for name, value in files.items():
+        (folder / name).write_text(json.dumps(value))
+    return store.put_tree(folder)
+
+
+def test_a_take_its_environment_measured_is_predicted_by_that_not_by_its_shape():
+    from score.store import Store
+    store = Store.in_folder(tempfile.mkdtemp())
+    pipe, door, rug, tile = [0.1, 0.1, 3.0], [1.0, 0.1, 2.1], [2.0, 3.0, 0.02], [0.5, 0.5, 0.4]
+    closeups = {"pipe": {"size": pipe, "drawn_by": None, "takes": {"pro": ["x"], "retry": ["x"]}},
+                "door": {"size": door, "drawn_by": "retry", "takes": {"pro": ["x"], "retry": []}},
+                "rug": {"size": rug, "drawn_by": None, "takes": {"pro": ["x"]}},
+                "crate": {"size": tile, "drawn_by": "pro", "takes": {"pro": []}},
+                "tile": {"size": tile, "drawn_by": None, "takes": {"pro": ["x"]}}}
+    at = "2026-10-25T18:00:00+00:00"
+    store.write_accept("closeup@lab", {"output": a_stored_output(store, {"closeups.json": {"objects": closeups}}),
+                                       "at": at})
+    store.write_accept("pixal@lab", {"output": a_stored_output(store, {"batch-gaps.json": {"gaps": [
+        {"row": "pixal", "objects": ["crate", "lab_crate"]}, {"row": "closeup", "objects": ["tile"]}]}}), "at": at})
+    store.write_accept("likeness@lab", {"output": a_stored_output(store, {
+        "likeness.json": {"objects": {"pipe": {"made": "code"}, "door": {}}}, "batch-gaps.json": {"gaps": []}}),
+        "at": at})
+    measures = predict.environment_measures(store, ["lab", "hub"])
+    assert set(measures) == {"lab"} and measures["lab"]["built"] == {"pipe": True}, measures
+
+    def own(name, size, read_size=None):
+        take = {"place": "lab", "rows": [name], "take": f"lab_{name}", "size": size}
+        return predict.own_outcome(take, {"id": name, "name": name, "noun": name, "size": size,
+                                          "read_size": read_size}, measures["lab"])
+    assert own("pipe", pipe)["outcome"] == "pass"  # its close-up failed, its code build passed the likeness
+    assert own("door", door)["outcome"] == "pass" and "closeup@lab" in own("door", door)["measured"]
+    assert own("door", [1.0, 0.1, 2.4]) is None  # asked at another size today: not measured
+    assert own("door", [1.0, 0.1, 2.4], read_size=door)["outcome"] == "pass"  # its own metres as measured
+    assert own("rug", rug) is None  # a flat row drawn before the view from above: another request
+    assert own("crate", tile)["outcome"] == "at risk"  # passed, but Pixal3D made no model of it
+    assert own("tile", tile)["outcome"] == "predicted gap"  # no route builds it after
+    assert own("lamp", tile) is None
+    measures["lab"]["built"] = {}
+    assert own("pipe", pipe)["outcome"] == "at risk"  # built in code, its likeness not judged yet
+    measures["lab"]["built"] = {"pipe": False}
+    assert own("pipe", pipe)["outcome"] == "predicted gap"
+
+
 def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_box():
     work = pathlib.Path(tempfile.mkdtemp())
     (work / "scene").mkdir()
