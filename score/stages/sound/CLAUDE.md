@@ -91,5 +91,5 @@ gates; `takes.py` the paid part.
   fails it. Replacing them is his call, not the stage's.
 - **Never lower `gates.CLAP_FLOOR` to pass a sound**: write a better prompt (what it is, its size, material and
   place, and what is not in it). The floor is the tenth percentile of the environment's 55 MOSS picks.
-- `sound_test.py` runs the make and the gates on the hub and the airlock (nothing rented: the airlock's people, whose
-  voice is still to make, left out), sounds a new scene from its design alone, and breaks each gate once.
+- `test_a_place_is_heard_as_its_design_says.py` works out toy scenes' beds from their design alone, runs the make and
+  the gates on toy records (nothing rented), sounds a new scene from its design alone, and breaks each gate once.
