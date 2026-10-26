@@ -47,7 +47,7 @@ Python only.
 
 ```bash
 make env       # the Python environment (.venv) from pyproject.toml
-make tests     # every framework check; TESTS="tools/props/library/package_test.py" for some
+make tests     # every framework check; TESTS="<module>/test_<invariant>.py" for some
 ```
 
 ### One place end to end: the wreck

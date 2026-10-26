@@ -110,7 +110,7 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   (`score/stages/shapes_first`), whatever its own `kind` (`code` or `generate`) says, so its close-up is taken and it
   is handed to the loop. A row with no take yet is a gap that `plan.json` lists (`gaps`), never a code build and never
   a stop (`place_route.py plan`). A kind's shape class (`tools/props/gates/model.py` `shape_class`) says how its model
-  is judged, never whether it is made. Big objects keep their code body (below). `library_test.py` fails on a code
+  is judged, never whether it is made. Big objects keep their code body (below). The module's test fails on a code
   builder that is not a body `bodies.BODIES` names for a take (the old kits' builders and their routes went with the
   old kits, 2026-10-21).
 - **Paint by parts.** `labels.py` paints a generated model by its parts (job paint, 2026-10-08, the owner: "shouldn't the painting be
@@ -154,13 +154,13 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **A piece of thin rails and open shelves may close thicker** (`details.json` `wall`, `make_chunky.solid_copy`): the
   solid step's 5 mm left berths, shelves and an alcove's rails under the model check's 3 mm (modules batch one).
 - **A body is built as geometry alone before its bake** (`inside/build_only.py`, headless Blender, no bake, no
-  render; `bodies_test.py`): a band laid 2 mm proud of what it wraps reads as a 2 mm wall, so a band, tape or stripe
-  stands 4 mm proud or sits on its face.
+  render; the module's test builds every body where Blender is): a band laid 2 mm proud of what it wraps reads as a
+  2 mm wall, so a band, tape or stripe stands 4 mm proud or sits on its face.
 - **A shared picture set never silently loses density**: `bake.Atlas` stops past the 4096 side.
 - `tune.py`: relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high); matched freely, it crinkles every
   paint into photo grain.
-- Checks: `library_test.py` (system python), `straight_test.py` and `paint_test.py` (hand themselves to the prop
-  environment).
+- The module's one test file, `test_pieces_keep_true_shape_and_library_paint.py`, pins its invariant (pytest, the
+  framework's `.venv`).
 - **Part splitters compared** (`split_compare.py`, `split_page.py`, `split_html.py`; job parts-test, 2026-10-09): on 22
   models GeoSAM2 seeded with the close-up's regions gave 79% of finishes parts of their own against PartCrafter's 34%
   (SegviGen 46% unguided, 68% guided but a median of 30 parts); its weakness is cuts through smooth surfaces where SAM

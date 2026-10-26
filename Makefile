@@ -7,7 +7,7 @@ PYTEST ?= uv run -q --with pytest pytest
 
 # The framework's Python environment (pyproject.toml, uv.lock) in .venv: the plain-Python side, no models.
 PYTHON := $(CURDIR)/.venv/bin/python
-# Every framework check (tools/ and score/), or only the ones named: make tests TESTS="tools/props/library/paint_test.py ...".
+# Every framework check (tools/ and score/), or only the ones named: make tests TESTS="<module>/test_<invariant>.py ...".
 # Each is a plain script, or, when it has test_ functions and no __main__ block (it wants pytest's fixtures), a pytest
 # file; a heavy one runs under a memory cap so it can never take the machine down. Each runs in a fresh sandbox home
 # (.claude/scripts/sandbox-home.py: PROPS_HOME in the temp folder, the real home read-only), so no test touches the
