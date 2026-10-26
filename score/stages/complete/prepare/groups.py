@@ -85,7 +85,8 @@ def far_made(row):
     skyline is world1's own scenes at their real distance, plus ordinary objects for anything that isn't a scene"),
     marked `far`: {pieces, length}. One whose footprint is a line FAR_RUN times longer than it is deep or tall (a
     city's skyline) is a run of repeating pieces, each as long as it is tall, so its close-up is drawn and checked at
-    one piece (its size and read size); any other row is returned as it is."""
+    one piece (its size and read size); one of a single piece is as wide as its concept box shows it (seen_size); any
+    other row is returned as it is."""
     if row["route"] != ROUTES["backdrop"]:
         return row
     size = reading_size(row)
@@ -94,7 +95,22 @@ def far_made(row):
     long, short, tall = max(size[:2]), min(size[:2]), size[2]
     pieces = max(1, round(long / max(short, tall))) if long >= FAR_RUN * max(short, tall) else 1
     piece = [round(long / pieces, 3), short, tall] if size[0] >= size[1] else [short, round(long / pieces, 3), tall]
+    piece = seen_size(piece, row) if pieces == 1 else piece
     return {**row, "route": "prop", "size": piece, "read_size": piece, "far": {"pieces": pieces, "length": long}}
+
+
+def seen_size(size, row):
+    """A far row's [wide, deep, tall] as its SAM 3 box shows it: its read tall kept (scene_record/far.spot stands it
+    where that tall rises to its box's height) and its footprint scaled so its longer side is as wide as the box shows
+    at that distance (tall times the box's width over its height: far off and near level, the painting is the
+    object's outline). A reading sizes a far speck's core, never its outline: the square's 60 m rocket read 5 m wide,
+    12:1, while its box (boosters and fins) is 3.8:1, and Batch 1's benchmark of 2026-10-26 failed its one clean take
+    on that alone. A Gemini region, loose round its thing, or no box keeps the size."""
+    box = row.get("box") if row.get("boxed_by") == "SAM 3" else None
+    if not box or box[2] <= box[0] or box[3] <= box[1]:
+        return size
+    scale = size[2] * (box[2] - box[0]) / (box[3] - box[1]) / max(size[:2])
+    return [round(size[0] * scale, 3), round(size[1] * scale, 3), size[2]]
 
 
 def scene_places(place, folder):
@@ -174,12 +190,15 @@ def plan_arches(plan, rows):
 
 
 def beyond_of(plan, rows, picture):
-    """The ids of a reading's rows the place shows beyond it: the plan's `beyond`, and every row the reading names
+    """The ids of a reading's rows the place shows beyond it: the plan's `beyond`, every row the reading names
     seen far off (plan_checks.afar, the rows the plan checks leave outside the place on purpose: the street's distant
     floodlights, flags and palms in the square past its end, which its plan laid in the street and Batch 1 try 4 drew
-    close-ups of from a speck), less each standing on a row laid here (stood_beyond) or at the picture's foot
-    (at_foot)."""
-    return stood_beyond(rows, set((plan or {}).get("beyond") or []) | afar({"rows": rows})) - at_foot(rows, picture)
+    close-ups of from a speck), and every row it anchors in the sky (reading.ANCHORS: a planet, a moon, a backdrop;
+    plan_checks.whole leaves it out of the place: the square's launching rocket over the sea, which its plan left off
+    `beyond`, so its close-up took the room and Pro drew the whole square on three of four takes, 2026-10-26), less
+    each standing on a row laid here (stood_beyond) or at the picture's foot (at_foot)."""
+    sky = {row["id"] for row in rows if row.get("anchor") == "sky"}
+    return stood_beyond(rows, set((plan or {}).get("beyond") or []) | afar({"rows": rows}) | sky) - at_foot(rows, picture)
 
 
 def stood_beyond(rows, beyond):

@@ -7,6 +7,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/stages/complete/prepare/prep
 """
 import collections
 import json
+import math
 import pathlib
 import sys
 import tempfile
@@ -142,6 +143,11 @@ def test_a_take_its_environment_measured_is_predicted_by_that_not_by_its_shape()
     rocket = {**far, "id": "crate", "name": "crate", "noun": "crate"}  # passed from the whole painting, now far
     assert predict.own_outcome({"place": "lab", "rows": ["crate"], "take": "lab_crate", "size": tile}, rocket,
                                measures["lab"])["outcome"] == "at risk"
+    measures["lab"]["at"] = predict.FAR_CROP_SINCE
+    tile_take = {"place": "lab", "rows": ["tile"], "take": "lab_tile", "size": tile}
+    assert predict.own_outcome(tile_take, far, measures["lab"])["outcome"] == "predicted gap"  # far, crop alone then
+    assert predict.own_outcome(tile_take, {**far, "anchor": "sky"}, measures["lab"]) is None  # beyond only since
+    measures["lab"]["at"] = predict.LATER_TAKES_SINCE
     assert own("lamp", tile) is None
     measures["lab"]["built"] = {}
     assert own("pipe", pipe)["outcome"] == "at risk"  # built in code, its likeness not judged yet
@@ -472,6 +478,23 @@ def test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_with_no_t
     assert predict.predicted(made["size"], predict.hub_rates())["outcome"] == "pass"  # a solid, no longer a rod
 
 
+def test_a_far_row_of_one_piece_is_as_wide_as_its_box_shows_it():
+    """2026-10-26: the square's 60 m rocket read 5 m wide (12:1), its SAM 3 box (boosters and fins) 3.8:1, and its one
+    clean close-up failed the proportions on that alone. A far row keeps its read tall (its distance) and is as wide
+    as its box shows at that distance; a loose Gemini region or a run of pieces keeps its size."""
+    rocket = {"id": "rocket", "route": "skyline", "anchor": "sky", "size": [5.0, 5.0, 60.0],
+              "box": [1978, 33, 2007, 143], "boxed_by": "SAM 3"}
+    made = groups.far_made(rocket)
+    assert made["size"] == made["read_size"] == [15.818, 15.818, 60.0] and made["far"]["pieces"] == 1
+    assert groups.far_made({**rocket, "boxed_by": "Gemini"})["size"] == [5.0, 5.0, 60.0]
+    assert groups.far_made({**rocket, "size": [30.0, 10.0, 20.0]})["size"] == [5.273, 1.758, 20.0]  # footprint kept
+    assert groups.far_made({**rocket, "size": [1000.0, 100.0, 100.0]})["size"] == [100.0, 100.0, 100.0]  # a run
+    assert predict.shape_of(made["size"]) == "solid"  # its outline no rod: the hub's solid rate
+    with predict.prop_data.tools("props/closeup"):
+        import check
+    assert abs(math.log(3.82 / check.expected_proportion(made["size"]))) < check.PROPORTION_LIMIT  # its clean take
+
+
 def test_a_backdrop_part_of_a_structure_is_shown_by_a_neighbours_structure_else_made_far_here(tmp=None):
     """Batch 1: the stairwell's lit and dark windows, on the walls of the buildings seen through its window, are the
     square's buildings' (their finish lights them); a part no neighbour's structure holds is made here, far off."""
@@ -502,6 +525,8 @@ def test_a_row_the_reading_names_far_off_is_beyond_and_shown_by_its_kind():
             {"id": "distant_crowd", "box": [1841, 407, 2303, 1536]}, {"id": "pram", "anchor": "on:police_car"}]
     assert groups.beyond_of({"beyond": ["pram"]}, rows, [2752, 1536]) == {"distant_floodlight"}  # at the foot: here
     assert groups.beyond_of(None, rows[:2], None) == {"distant_floodlight"}
+    rocket = {"id": "rocket", "anchor": "sky", "box": [1978, 33, 2007, 143]}  # the square's, over the sea
+    assert groups.beyond_of({"beyond": []}, [rocket, rows[1]], [2752, 1536]) == {"rocket"}  # in the sky: beyond
     folder = pathlib.Path(tempfile.mkdtemp())
     (folder / "square.json").write_text(json.dumps({"holds": [{"place": "street"}]}))
     read = {"square": {"rows": [{"id": "floodlight_tower_left", "route": "shell"}, {"id": "red_flag", "route": "prop"}]}}

@@ -44,7 +44,10 @@ for the creator.
   takes' requests are unchanged, so their kept pictures still read back free.
 - **A row laid far off is drawn from its crop alone** (`far`, prepare's groups.far_made; `stage.pro_wording`): its crop
   is a speck of the whole painting, and given the room as well Pro drew the room (Batch 1 try 4: the street's distant
-  rocket's and floodlight's first takes were the whole street). Every other row's request is unchanged.
+  rocket's and floodlight's first takes were the whole street). Every other row's request is unchanged. A row
+  anchored in the sky is far too (prepare's groups.beyond_of; 2026-10-26: the square's rocket, never marked far, took
+  the room and three of its four takes were the whole square), and a far row is asked at the width its box shows
+  (groups.seen_size), never its read core's: its one clean take failed only on a 12:1 read size against a 3.8:1 outline.
 - **A row that lies flat is drawn and checked from straight above** (`check.lies_flat`, the model gate's flat class
   with its height its thinnest side; Batch 1 try 4, 2026-10-25: the rug, poster and sticky note failed the proportion
   check on all four takes, their outline at the stated look-down nearly all view): worded `stage.VIEW_ABOVE`, its
