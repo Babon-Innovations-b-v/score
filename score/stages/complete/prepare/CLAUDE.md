@@ -17,7 +17,7 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   metres, unless his plan edit sized its item (`groups.row_size`: his edits counted, wide and deep as he laid them,
   tall the reading's), else its plan item's (`groups.plan_sizes`) where the reading gave none; a plan's item is the
   footprint the object is laid in, so it places the object and never sizes its model (coordinator, 2026-10-25: the
-  airlock's 0.1 m porch post was baked 0.48 by 1.7 m); a row the plan lays as a run or path (`groups.run_pieces`: several pieces counted or laid, a polygon round an edge) whose own metres overrun its item measured the whole run, so it is made as one repeating piece, the run over its pieces, each side held to its item (`groups.run_piece`; 2026-10-25: the stairwell's 12 m conduit, the greenhouse's 50 m railing); a row neither sizes has none. A row's box is SAM 3's, else Gemini's region from the same
+  airlock's 0.1 m porch post was baked 0.48 by 1.7 m); a row the plan lays as a run or path (`groups.run_pieces`: several pieces counted or laid, a polygon round an edge) whose own metres overrun its item measured the whole run, so it is made as one repeating piece, the run over its pieces, each side held to its item (`groups.run_piece`; 2026-10-25: the stairwell's 12 m conduit, the greenhouse's 50 m railing), and its close-up is drawn and checked at that piece (`groups.own_size`, its `read_size`); a row neither sizes has none. A row's box is SAM 3's, else Gemini's region from the same
   reading (`groups.boxed_by`, marked so in the hand-in). A model take with no box, a box that is the whole picture or
   no size is an **input gap** (`contract.faults`, `__main__.status_of`): not bought, priced apart
   (`input_gaps_if_bought`), never handed to the loop, so the runner neither buys nor counts it. Rows of
@@ -27,7 +27,7 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   structure is a shell piece (route `shell`); one whose part the place's plan lays itself (`groups.plan_parts`, by
   score/stages/earth_seed/design_shell: an enclosed place's decks, walls, roofs and the openings it writes, an open
   place's raised levels) is the plan's own (route `plan`, status `laid from the plan`: the earth seed and the scene
-  record lay it, no take, no close-up), never by its size; the ground itself is the terrain node's (route `ground`,
+  record lay it, no take, no close-up), never by its size; a model row its plan shows beyond the place (the plan's `beyond`: through a window, past its edge, far off, never placed here) is the backdrop's (route `skyline`, `groups.routed`: no take, no close-up of a far speck); the ground itself is the terrain node's (route `ground`,
   status `terrain node`: no take, never a close-up of the whole picture); a row whose part is not read (a reading
   answered before parts were asked) has no route and its take is an input gap (`contract.PART_UNREAD`) until
   `python -m score.review.reading <place>` asks them (`reading.parted`: one call, its rows, boxes and plan kept; a reading parted under an older `reading.PARTS_VERSION` is asked again the same way: since version 2 the hull, dome or tube enclosing the room is its wall, so an enclosed place's plan lays it); people are models of the prop pipeline with the motion
