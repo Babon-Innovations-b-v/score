@@ -357,6 +357,21 @@ def test_a_backdrop_part_of_a_structure_is_shown_by_a_neighbours_structure_else_
     assert found == {"window_lit": {"place": "square", "row": "left_building"}, "rocket_launch": None}
     assert groups.shown_from("stairwell", [window], {"square": {"rows": read["square"]["rows"][:2]}}, folder)[0].get(
         "shown") is None  # no structure taller than the window: no maker
+    wall = {"id": "exterior_wall", "route": "skyline", "part": "structure", "anchor": "on:lunar_surface",
+            "size": [20.0, 1.0, 3.0]}  # a building's wall seen through the tube's glass: the base's building's
+    assert groups.shown_from("tube", [wall], read, folder)[0].get("shown") is None  # the tube is no place of it
+    (folder / "base.json").write_text(json.dumps({"holds": [{"place": "tube"}]}))
+    assert groups.shown_from("tube", [wall], {"base": read["square"]}, folder)[0]["shown"] == {
+        "place": "base", "row": "left_building"}
+
+
+def test_a_row_at_the_picture_s_foot_is_never_beyond():
+    """2026-10-26: the airlock's sandbags, piled at its picture's bottom edges, were listed beyond and nothing made
+    them: a row a SAM 3 box of which reaches the picture's foot stands before the viewer, on the place's own ground."""
+    sandbags = {"id": "sandbags", "box": [185, 1163, 392, 1264], "boxes": [[185, 1163, 392, 1264], [1968, 1499, 2110, 1536]]}
+    far = {"id": "rocket", "box": [10, 20, 40, 300]}
+    assert groups.at_foot([sandbags, far], [2752, 1536]) == {"sandbags"}
+    assert groups.at_foot([sandbags], None) == set() and groups.at_foot([{"id": "x", "box": None}], [10, 10]) == set()
 
 
 def test_a_row_is_routed_by_its_part_and_the_plan_lays_only_the_shell_it_draws():
