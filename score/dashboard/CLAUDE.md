@@ -506,7 +506,7 @@ Rules:
   name, a state) with `data-v`: `tests/pages_test.py` (`prose`, `WORD_BUDGET`) fails a screen with more than 40
   words of anything else. Node ids only inside a `details class="ids"` fold. Money is the total against the one stop
   line, never per-piece prices alone; a provider is named only by its cost line's label (`tests/test_no_provider_is_named_here.py`).
-- Tests: `make tests TESTS="score/dashboard/tests/*_test.py score/review/web_test.py"` (temp `PROPS_HOME` and
+- Tests: `make tests TESTS="score/dashboard/tests/*_test.py score/review/test_the_owners_word_stands.py"` (temp `PROPS_HOME` and
   dashboard home, `conftest.py`). `tests/real_store_smoke.py` runs by hand against the real store, read-only.
   `tests/viewer_look.py` runs by hand too, free: the 3D viewer in headless Chromium from each film shot's and light
   look's camera beside that picture (difference, structure, brightness, pink and black, its `THRESHOLDS`); run it on
