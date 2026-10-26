@@ -294,8 +294,7 @@ def build_faults(model, picture, place, name, row, folder, straight=False):
     renderer, no model, nothing rented."""
     import score.stages.props.likeness as likeness
     import score.stages.props.likeness_row as likeness_row
-    cut = (likeness_row.straight_cut(picture, folder / "pixal-cut", name, row["size"],
-                                     pathlib.Path(picture).parent / thin_straight.MARK) if straight
+    cut = (likeness_row.straight_cut(picture, folder / "pixal-cut", name, row["size"]) if straight
            else likeness_row.pixal_cut(picture, folder / "pixal-cut", name))
     found = {**likeness.best_way(model, cut, row.get("read_size") or row["size"]),
              **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False)}

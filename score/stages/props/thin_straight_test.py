@@ -2,7 +2,9 @@
 the finish route and the likeness row read one, and the Pixal3D row building it for a row whose close-up failed.
 
 Breaks (applied once, seen red, reverted): build ignoring its mask (always the one straight sweep) turns
-test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red (the elbow's outline 0.04).
+test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red (the elbow's outline 0.04);
+write_take standing its final again (`mesh.apply_transform(finish_turn(pixal / f"{take}.glb"))` before the final's
+export) turns it red too (the elbow turned off its mask).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -113,7 +115,7 @@ def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it
     with prop_data.tools("props/library", "props"):
         import labels
     monkeypatch.setattr(labels, "PIXAL", pixal)
-    labels.finish_turn("garage_pipe_1")  # exits when no stand of it matches the final model within FINISH_MISS
+    assert np.array_equal(labels.finish_turn("garage_pipe_1"), np.eye(3))  # made in its own pose, never stood
     assert np.allclose(trimesh.load(pixal / "garage_pipe_1-final.glb", force="mesh").extents, [0.1, 0.1, 4.0], atol=0.01)
     # the likeness row holds it to the crop cut by its mask: the bar's own outline matches it, not the crate's
     outline = likeness.best_way(pixal / "garage_pipe_1-final.glb", pixal / "garage_pipe_1.svviews/input.png",
@@ -290,6 +292,9 @@ def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s
         assert found["outline"] >= likeness.OUTLINE_LEAST and not faults, (name, found["outline"], faults)
         made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
         assert np.isclose(made.extents.max(), row["size"][0], rtol=0.02), (name, made.extents)
+        built = thin_straight.build({"view": "v1", **row}, np.asarray(Image.open(
+            tmp_path / name / "pixal" / "take.svviews" / "input.png"))[..., 3] > 127)
+        assert np.allclose(made.bounds, built.bounds, atol=1e-5), name  # the final keeps the pose it was built in
 
 
 def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):
