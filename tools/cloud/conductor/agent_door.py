@@ -18,6 +18,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 and parked machines, no latch (owner, 2026-10-25)
     gaps <node>                                 the batch gaps the node's accepted output names (batch-gaps.json):
                                                 each gap's name, check and faults, read only
+    predicted                                   the prepared batch's takes (work/checks/prepare/remake.json) that are
+                                                a predicted gap, at risk or an input gap: place, rows, route, size
+                                                and the reason, read only
     grant-benchmark <euros> <answer> <question> score.adapters.compute.grant_benchmark: the owner's quoted yes,
                                                 asked in a Claude Code session, to one benchmark batch of at most
                                                 EUR 20
@@ -51,7 +54,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, gaps <node>, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, gaps <node>, predicted, "
          "grant-benchmark, benchmark, buy-yes, buy <yes id>, stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -72,6 +75,18 @@ GAPS_CODE = (
     "gaps = (store.read_file(output, 'batch-gaps.json') or {}).get('gaps', []) if output else []; "
     "print(f'{node}: accepted output {output}, {len(gaps)} batch gaps'); "
     "[print(gap['name'], '|', gap['check'], '|', ' ; '.join(gap['faults'])) for gap in gaps]")
+# The prepared batch's takes that may not stand, read only (2026-10-26: the retry's predicted failures were read off
+# the cockpit by hand).
+PREDICTED_CODE = (
+    "import json; from score.store import PROPS_HOME; path = PROPS_HOME / 'work/checks/prepare/remake.json'; "
+    "takes = json.loads(path.read_text()).get('takes', []) if path.is_file() else []; "
+    "shown = [take for take in takes if take['status'] == 'input gap' "
+    "or take['prediction']['outcome'] in ('predicted gap', 'at risk')]; "
+    "print(f'{path}: {len(takes)} takes, {len(shown)} predicted gap, at risk or input gap'); "
+    "[print(take['place'], '|', ','.join(take['rows']), '|', take['route'], '|', take.get('size'), '|', "
+    "take['status'] if take['status'] == 'input gap' else take['prediction']['outcome'], '|', "
+    "' ; '.join(take['inputs']) or take['prediction'].get('mode') or take['prediction'].get('measured')) "
+    "for take in shown]")
 NODE = re.compile(r"^[a-z0-9][a-z0-9_.-]*(@[a-z0-9_.-]+)?$")
 GRANT_ID = re.compile(r"^[A-Za-z0-9._:-]+$")
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
@@ -146,6 +161,10 @@ def decide(words, latch):
         if len(args) != 1 or not NODE.match(args[0]):
             raise Refused("gaps <node>, one node name such as closeup@hub")
         return ["-c", GAPS_CODE, args[0]], {}
+    if verb == "predicted":
+        if args:
+            raise Refused("predicted takes no arguments")
+        return ["-c", PREDICTED_CODE], {}
     if verb == "grant-benchmark":
         if len(args) != 3:
             raise Refused("grant-benchmark <euros> <the owner's answer> <the question he answered>")

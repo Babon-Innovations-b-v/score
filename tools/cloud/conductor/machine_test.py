@@ -6,6 +6,7 @@ and the owner's commands while it runs the allowed ones marked as an agent's.
     .venv/bin/python tools/cloud/conductor/machine_test.py
     make tests TESTS=tools/cloud/conductor/machine_test.py
 """
+import json
 import os
 import pathlib
 import re
@@ -550,7 +551,7 @@ def test_door_refuses_a_shell_a_paid_run_and_the_owners_commands():
                       "spend --google-month 12", "spend --read-back", "run world1", "resume",
                       "benchmark world1 --detach", "benchmark 'g 1' world1 --detach", "scw instance server list",
                       "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
-                      "gaps ../x", "gaps 'closeup@hub;id'"):
+                      "gaps ../x", "gaps 'closeup@hub;id'", "predicted x"):
             code, why, argv, _ = through_door(folder, asked)
             assert code == 126 and argv is None, (asked, code, why)
             assert "refused" in why, asked
@@ -594,9 +595,31 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         assert code == 0 and argv == ["-m", "score.conductor", "health"], (why, argv)
         code, why, argv, _ = through_door(folder, "gaps closeup@hub")
         assert code == 0 and argv[0] == "-c" and argv[2:] == ["closeup@hub"], (why, argv)
+        code, why, argv, _ = through_door(folder, "predicted")
+        assert code == 0 and argv[0] == "-c" and len(argv) == 2, (why, argv)
         code, why, argv, env = through_door(folder, "stop-batch 'the run holds 13 idle machines'")
         assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
         assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+
+
+def test_predicted_prints_the_takes_that_may_not_stand():
+    with tempfile.TemporaryDirectory() as home:
+        record = pathlib.Path(home) / "work" / "checks" / "prepare" / "remake.json"
+        record.parent.mkdir(parents=True)
+        take = {"place": "street", "rows": ["street_lamp"], "route": "model", "size": [0.3, 0.3, 6], "inputs": [],
+                "status": "bought", "prediction": {"outcome": "predicted gap", "mode": "close-up: every rod failed"}}
+        record.write_text(json.dumps({"takes": [
+            take, {**take, "rows": ["bench"], "prediction": {"outcome": "pass", "mode": None}},
+            {**take, "rows": ["sign"], "status": "input gap", "inputs": ["no box or size"],
+             "prediction": {"outcome": "pass", "mode": None}}]}))
+        from agent_door import PREDICTED_CODE
+        done = subprocess.run([sys.executable, "-c", PREDICTED_CODE], cwd=REPO, capture_output=True, text=True,
+                              env={**os.environ, "PROPS_HOME": home}, timeout=60)
+        assert done.returncode == 0, done.stderr
+        lines = done.stdout.splitlines()
+        assert "3 takes, 2 predicted gap" in lines[0] and len(lines) == 3, lines
+        assert lines[1] == "street | street_lamp | model | [0.3, 0.3, 6] | predicted gap | close-up: every rod failed"
+        assert lines[2].endswith("| input gap | no box or size"), lines
 
 
 def test_the_move_switches_off_the_pcs_store_units_it_has():
