@@ -5,11 +5,18 @@
 job.json: {"loose": [object name, ...], "lift": {object name: metres}, "ignore": [object name, ...], "start": {object
 name: 4 x 4}, "under": {object name: [object name, ...]}} (ignore: glowing parts, left out of the statics; start: the
 motion, stage frame, row by row, that stands an object upright before its drop, tools/usd/settle.py's upright_start;
-under: the loose objects it is stacked on, which it meets as it meets a static: a crate on a crate). The stage is brought in whole; its ground
+under: the loose objects it is stacked on, which it meets as it meets a static: a crate on a crate). Beside the stage,
+PARTS_FILE (when the settle stage wrote one, tools/usd/convex_parts.py): {object name: [[corner, ...], ...]}, a
+hollow object's convex parts in its drawn mesh's own frame. The stage is brought in whole; its ground
 (`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision), but the sky (NOT_SOLID) and what lies past every
 loose object's reach (NEAR).
 Each loose object is lifted by its `lift` (just clear of the ground, from tools/usd/settle.py), given its convex hull
-as collision and its weight at the middle of its surface (the resting check's weight), and dropped. Loose objects
+as collision and its weight at the middle of its surface (the resting check's weight), and dropped. A hollow object
+(a crate, a tray, a bin, a shelf: one with parts) collides by its convex parts instead, so what is stacked in it
+meets its floor, not its hull's top: each part a light body of its own (PART_MASS) glued to the object by a fixed
+joint, the parts kept from meeting each other by a joint that holds nothing (glued_parts). Blender 5.0.1's own
+compound body was tried first and walks: an open crate of five box children with its weight at its middle slid 21 cm
+and turned 0.3 rad in 10 s on a triangle ground while one hull stood still (2026-10-26). Loose objects
 collide with the ground and the static objects, not with each other: a convex hull spans a hollow, so one hull section
 lying on a panel rested on its hull while the drawn hull stood 4 cm clear (2026-10-08), and Bullet's own triangle
 collision for moving bodies dropped pieces through the ground. Two loose objects that come to rest inside each other
@@ -39,6 +46,10 @@ DAMPING_ANGULAR = 0.95
 # static one.
 GROUPS = 20
 MARGIN = 0.004
+# A hollow object's convex part weighs this (the object 1): light, so its weight stays at the middle of its surface.
+PART_MASS = 0.01
+# Beside the stage: its hollow objects' convex parts (tools/usd/convex_parts.py's FILE).
+PARTS_FILE = "convex-parts.json"
 # What a stage draws that nothing stands on or against: its sky (the haze round the place, the stars, the moon's and
 # the halo's squares), whose meshes would otherwise be static and enclose every object (2026-10-10: every object of
 # usd-r3 started "inside" the haze and was dropped on the bare ground alone).
@@ -182,6 +193,46 @@ def rigid(item, kind, shape, groups):
         body.mass = 1.0
 
 
+def hollow_parts(stage):
+    """{object name: its convex parts} from PARTS_FILE beside the stage; none when there is no such file."""
+    found = stage.parent / PARTS_FILE
+    return json.loads(found.read_text()) if found.exists() else {}
+
+
+def convex_pieces(name, laid, parts, scene):
+    """The object's convex parts (the job's `parts`: corners in its drawn mesh's own frame, laid at `laid`) as meshes of
+    their own in the world where it is laid, never drawn. None for an object the job gives no parts."""
+    pieces = []
+    for number, corners in enumerate(parts):
+        mesh = bpy.data.meshes.new(f"{name}_part_{number}")
+        mesh.from_pydata([laid @ Vector(corner) for corner in corners], [], [])
+        piece = bpy.data.objects.new(mesh.name, mesh)
+        scene.collection.objects.link(piece)
+        piece.hide_render = True
+        pieces.append(piece)
+    return pieces
+
+
+def joint(first, second, kind):
+    """A rigid body joint of `kind` between two bodies, which keeps them from meeting each other."""
+    holder = bpy.data.objects.new(f"joint_{first.name}_{second.name}", None)
+    bpy.context.scene.collection.objects.link(holder)
+    bpy.context.view_layer.objects.active = holder
+    bpy.ops.rigidbody.constraint_add(type=kind)
+    holder.rigid_body_constraint.object1 = first
+    holder.rigid_body_constraint.object2 = second
+    holder.rigid_body_constraint.disable_collisions = True
+
+
+def glued_parts(item, pieces):
+    """Each part glued to the object (a fixed joint) and kept from meeting every other part (a joint that holds
+    nothing): the parts overlap where they meet, and parts that met would throw the object apart."""
+    for number, piece in enumerate(pieces):
+        joint(item, piece, "FIXED")
+        for other in pieces[number + 1:]:
+            joint(piece, other, "GENERIC")
+
+
 def own_group(number):
     """A loose object's own collision group (1 to GROUPS - 1, shared again past that many)."""
     return 1 + number % (GROUPS - 1)
@@ -219,6 +270,7 @@ def flat_ground(scene):
 
 def main():
     stage, job, out = arguments()
+    parts = hollow_parts(stage)
     import_stage(stage)
     scene = bpy.context.scene
     world(scene)
@@ -251,10 +303,17 @@ def main():
     groups = {name: own_group(number) for number, name in enumerate(moving)}
     for name, item in moving.items():
         inside[name] = inside_statics(item, statics, lows, middles)
+        pieces = convex_pieces(name, item.matrix_world, parts.get(name, []), scene)
         weight_at_middle(item)
         item.matrix_world = lifts[name] @ item.matrix_world
         stacked = [groups[other] for other in job.get("under", {}).get(name, []) if other in groups]
-        rigid(item, "ACTIVE", "CONVEX_HULL", [0] if inside[name] else [groups[name], *stacked])
+        meets = [0] if inside[name] else [groups[name], *stacked]
+        rigid(item, "ACTIVE", "CONVEX_HULL", [] if pieces else meets)
+        for piece in pieces:
+            piece.matrix_world = lifts[name]
+            rigid(piece, "ACTIVE", "CONVEX_HULL", meets)
+            piece.rigid_body.mass = PART_MASS
+        glued_parts(item, pieces)
     starts = {name: item.matrix_world.copy() for name, item in moving.items()}
     last = {}
     for frame in range(1, FPS * SECONDS + 1):
