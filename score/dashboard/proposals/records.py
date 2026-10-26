@@ -29,7 +29,7 @@ DETAILS = "details.json"
 DECLARED = "declared.json"
 ANSWERS = "answers.json"
 ENVIRONMENT = "environment"
-# How the free after took each node (assemble.py names the same three; tests/proposals_test.py holds them equal).
+# How the free after took each node (assemble.py names the same three; the package's test file holds them equal).
 AS_NOW, MADE, PAID = "as now", "made", "needs the paid batch"
 
 
