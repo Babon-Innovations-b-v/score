@@ -611,15 +611,18 @@ def test_predicted_prints_the_takes_that_may_not_stand():
         record.write_text(json.dumps({"takes": [
             take, {**take, "rows": ["bench"], "prediction": {"outcome": "pass", "mode": None}},
             {**take, "rows": ["sign"], "status": "input gap", "inputs": ["no box or size"],
-             "prediction": {"outcome": "pass", "mode": None}}]}))
+             "prediction": {"outcome": "pass", "mode": None}},
+            {**take, "rows": ["city_skyline"], "route": "skyline", "status": "no maker",
+             "prediction": {"outcome": "pass", "mode": None, "measured": "its own route"}}]}))
         from agent_door import PREDICTED_CODE
         done = subprocess.run([sys.executable, "-c", PREDICTED_CODE], cwd=REPO, capture_output=True, text=True,
                               env={**os.environ, "PROPS_HOME": home}, timeout=60)
         assert done.returncode == 0, done.stderr
         lines = done.stdout.splitlines()
-        assert "3 takes, 2 predicted gap" in lines[0] and len(lines) == 3, lines
+        assert "4 takes, 3 predicted gap" in lines[0] and len(lines) == 4, lines
         assert lines[1] == "street | street_lamp | model | [0.3, 0.3, 6] | predicted gap | close-up: every rod failed"
         assert lines[2].endswith("| input gap | no box or size"), lines
+        assert lines[3].startswith("street | city_skyline | skyline |") and "| no maker |" in lines[3], lines
 
 
 def test_the_move_switches_off_the_pcs_store_units_it_has():
