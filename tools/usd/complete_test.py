@@ -35,6 +35,8 @@ complete.stored_outputs = lambda place: dict(contents_test.NONE)
 sys.path.insert(0, str(HERE.parents[1]))
 from score.stages import gaps  # noqa: E402
 gaps.FOLDER = HERE / "no gaps folder"
+# Nor the home's hand-ins (the real home, linked into the sandbox, holds wreck's): a test that wants one writes it.
+complete.HOME = HERE / "no home folder"
 
 
 def laid(folder, rows=(("crate", "floor"), ("lamp", "floor"))):
