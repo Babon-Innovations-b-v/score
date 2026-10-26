@@ -81,15 +81,12 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   pass runs the same update first (its ExecStartPre, rendered by `install-sync --no-pull`; two calls take turns on
   `.git/score-update.lock`): a pass outlasts its 5-minute timer, so with score-update's timer alone a pass was always
   running and the live conductor's checkout sat on an old commit for hours (2026-10-24); the timer stays for an idle
-  conductor. **Hand fix to undo:** the live conductor's user-data carries a hand-written `bootcmd` (2026-10-24/25:
-  fetch and check out origin/main, the prop environment's `uv sync`, and `boot.sh system` then `user`, which died there
-  for want of D-Bus). After a batch ends: `python3 tools/cloud/conductor/machine.py user-data --agent-key
-  ~/.ssh/score_conductor_agents.pub` (from this PC with the owner's scw profile; `--dry` first), then a reboot; check
-  the boot logs through the door, then delete this note. Unless done already, the sync unit's own fix still needs, as
-  score: `systemctl --user stop score-sync.timer`, wait for `systemctl --user is-active score-sync.service` to say
-  inactive, `/usr/bin/python3 -I ~/projects/score/tools/cloud/conductor/update.py --repo ~/projects/score`, then
-  `cd ~/projects/score && .venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env
-  --no-pull`, and `grep ExecStartPre ~/.config/systemd/user/score-sync.service` names update.py. Other areas add their own units here;
+  conductor. `boot.sh user` installs the sync's units every boot once machine.json is there (`sync_units`:
+  score-update first, then `install-sync --no-pull`), so a changed sync unit reaches the live machine at its next boot
+  with no hand step (2026-10-26: a sync unit installed before its ExecStartPre held the checkout off the pin from
+  ~12:00 to 14:35 UTC). update.py notes its every line in `conductor/pin.json` (`said`), and the health record's
+  `code.why` gives it while the checkout is off the pin; a uv.lock move held by a pass names a sync unit with no
+  update before its pass. Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
 - Tests (free, no cloud; each file well under 120 s): `test_owner_gates_and_safe_moves.py` (the owner's gates and
   the door, `up --dry` and the move, cloud-init schema and `systemd-analyze --user verify`, boot.sh against a temp

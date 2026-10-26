@@ -17,13 +17,15 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
    /healthz: the hosting proxy answers that with a body of its own. A pin that cannot be read moves nothing; only a
    cockpit that answers with no commit (an image built without SCORE_COMMIT), or no SCORE_SYNC_URL, falls back to
    origin/main, moved only forward (as the PC's sync pulls with --ff-only).
-   The pin read is kept in $PROPS_HOME/conductor/pin.json, so the Machine card shows a checkout off it.
+   The pin read is kept in $PROPS_HOME/conductor/pin.json with this call's line (`said`), so the health record shows a
+   checkout off the pin and why.
 3. `git fetch origin main`; a pin origin/main does not hold is refused (never a commit off main).
 4. Nothing moves while a process works in a frozen copy under $PROPS_HOME/frozen (a live run): every run's copy links
    this checkout's .venv in (graph/frozen.py) and its rows run the prop environment, and its own steps reach the
    checkout's tools, so the move waits and goes on at the first tick after the run ends. A sync pass from the checkout
    holds back only a move that changes uv.lock or pyproject.toml; the pass's own ExecStartPre makes that move before
-   its sync process starts.
+   its sync process starts. The line says when the installed sync unit has no such ExecStartPre (2026-10-26: the
+   checkout lagged the pin 2.5 hours on a unit installed before it; boot.sh now installs it every boot).
 5. `git checkout --detach <commit>`, then `uv sync --frozen --group dashboard` when uv.lock or pyproject.toml changed,
    and the prop environment ($PROPS_HOME/env, boot.sh props_env) synced the same way once the move made machine.json,
    on that change or whenever it is missing (left out of every backup; nothing runs boot.sh at a reboot).
@@ -49,6 +51,8 @@ PROC = pathlib.Path(os.environ.get("SCORE_PROC", "/proc"))
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 SECRET = "score-cockpit-sync-token"  # score/dashboard/sync/timer.py SECRET
 PIN_PATH = "/api/sync/pin"  # score/dashboard/sync/endpoints.py pin
+SYNC_UNIT = (pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home() / ".config") / "systemd" / "user"
+             / "score-sync.service")  # score/dashboard/sync/timer.py install, --no-pull: UPDATE before each pass
 
 
 def git(repo, *args, check=True):
@@ -112,6 +116,25 @@ def pin_noted(home, pin):
     os.replace(partial, path)
 
 
+def said_noted(home, line):
+    """Add this call's line to home/conductor/pin.json as `said`, so the health record says why a checkout is off."""
+    path = home / "conductor" / "pin.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    noted = json.loads(path.read_text()) if path.is_file() else {}
+    partial = path.with_name(f"pin.json.{os.getpid()}.partial")
+    partial.write_text(json.dumps({**noted, "said": line}))
+    os.replace(partial, path)
+
+
+def pass_updates_first(sync_unit=SYNC_UNIT):
+    """Whether the installed sync unit runs this update before each pass (its ExecStartPre names update.py)."""
+    try:
+        lines = sync_unit.read_text().splitlines()
+    except OSError:
+        return False
+    return any(line.startswith("ExecStartPre=") and "conductor/update.py" in line for line in lines)
+
+
 def frozen_users(home=HOME, proc=PROC):
     """The pids working in a frozen copy under home/frozen: live runs, each on this checkout's .venv."""
     folder = home / "frozen"
@@ -163,7 +186,15 @@ def props_env(repo, home, uv, changed):
     return ", the prop environment synced"
 
 
-def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, token=sync_token, home=HOME):
+def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, token=sync_token, home=HOME,
+           sync_unit=SYNC_UNIT):
+    """Move the checkout as the module says; the one line of what happened, also noted for the health record."""
+    line = moved(repo, sync_url, uv, opener, proc, token, home, sync_unit)
+    said_noted(home, line)
+    return line
+
+
+def moved(repo, sync_url, uv, opener, proc, token, home, sync_unit):
     """Move the checkout as the module says; the one line of what happened."""
     busy = starting(repo, proc)
     if busy:
@@ -189,7 +220,11 @@ def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, toke
                 f"{commit[:12]} moves after it ends")
     passes = starting(repo, proc, SYNCING) if lock_changed(repo, old, commit) else []
     if passes:
-        return f"update: not now, {commit[:12]} changes uv.lock and a sync pass uses .venv (pid {', '.join(map(str, passes))})"
+        unit = "" if pass_updates_first(sync_unit) else (
+            f"; {sync_unit} runs no update before its pass, so passes back to back hold it: boot.sh installs it "
+            f"(install-sync --no-pull) at the next boot")
+        return (f"update: not now, {commit[:12]} changes uv.lock and a sync pass uses .venv "
+                f"(pid {', '.join(map(str, passes))}){unit}")
     git(repo, "checkout", "-q", "--detach", commit)
     synced = ""
     if lock_changed(repo, old, commit):
