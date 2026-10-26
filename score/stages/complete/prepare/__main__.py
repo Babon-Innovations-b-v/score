@@ -72,13 +72,15 @@ def status_of(match, is_made, inputs):
     return "bought"
 
 
-def take_entry(group, record, index, rates, work):
-    """One take of the batch: its group with its library match, prediction, input faults, crop upscale, status and
-    key-diff status."""
+def take_entry(group, record, index, rates, work, measures=None):
+    """One take of the batch: its group with its library match, prediction (its own measured outcome on this
+    environment's outputs, `measures` by place, else its shape's), input faults, crop upscale, status and key-diff
+    status."""
     match = library.match(group, index)
     model = group["route"] in groups.MODEL_ROUTES
     first = next((row for row in record.get("rows", []) if row["id"] == group["rows"][0]), None)
-    prediction = predict.predicted(group["size"], rates, first) if model else OWN_ROUTE
+    prediction = (predict.own_outcome(group, first, (measures or {}).get(group["place"]))
+                  or predict.predicted(group["size"], rates, first)) if model else OWN_ROUTE
     is_made = made(group["take"])
     inputs = contract.faults(record, group, work) if model else [contract.PART_UNREAD] * (group["route"] is None)
     status = {"ground": TERRAIN, "plan": PLAN, None: "input gap"}.get(group["route"]) or (
@@ -187,7 +189,8 @@ def remake(runner, data, root, work, stock=None, moved=None):
     by_place = {place: groups.place_groups(place, record) for place, record in inventories.items()}
     index, library_entry = read_library(root, groups.inventories(plans.KEPT_INVENTORY))
     rates = predict.hub_rates()
-    takes = [take_entry(group, inventories[place], index, rates, work)
+    measures = predict.environment_measures(runner.store, by_place)
+    takes = [take_entry(group, inventories[place], index, rates, work, measures)
              for place, found in by_place.items() for group in found if not group["reuse"]]
     route = design_route(runner)
     fixed = fixed_machines(route, stock)
