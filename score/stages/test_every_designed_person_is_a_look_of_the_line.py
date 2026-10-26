@@ -1,8 +1,20 @@
-"""The picked designs' people (data/people/rows.json, #26): every people row maps to looks of the shared line, the
-crowd to one far look read off its words, its palettes library surfaces or undecided with why; one look (one body)
-for the people the rows say are and wear the same, written from its largest standing row alone (its spec and take); a crowd stands on the plan items its row makes; the tube's
-cast names the player and the square's the crowd look; the line's data holds exactly the mapped looks, each baked at
-its person row's size; a refresh keeps the hand-made choices of a row read from the same concept."""
+"""Every person a picked design shows is a look of the shared people line, written from the design alone
+(people_rows.py, data/people/rows.json, #26): every people row maps to looks the line holds, one look (one body) for
+the people the rows say are and wear the same, written from its largest standing row (its spec and take); a crowd to
+one far look read off its words, standing on the plan items its row makes, in a few variants of its body; each person
+stood on the plan's people spots, each of a look its own variant; the line's data is exactly what rows.json maps,
+each look baked at its person row's size and drawn from the person that maps it; a refresh keeps a hand-made choice
+only while its concept stands; a row wears the fabric its words name nearest its measured torso.
+
+Breaks that turn it red (each applied once and seen red, then reverted):
+- `look_of`: the pose and colour words kept in the look's name  -> the grouping test.
+- `crowd_ground`: every plan item taken, not only the row's  -> the crowd ground test (the bench is crowd ground).
+- `persons`: every person given variant 0  -> the cast test ("each its own variant").
+- `placed_spots`: a spot's two plan coordinates swapped  -> the cast test (the spot (1, 1) of a 20 x 10 plan
+  stands at (-9, 0, -4)).
+- `refreshed_place`: a kept pick taken with no `why`  -> the refresh test.
+- `crowd_look`: `needed = 0` (the crowd word alone decides)  -> the crowd look test ("crowd of aliens").
+"""
 import json
 import pathlib
 import sys
@@ -122,19 +134,20 @@ def test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own():
     assert set(people_rows.refreshed_place("deck", inventory, plan, None)["rows"]) == {"pilot", "man"}
 
 
-def test_the_tube_casts_its_people_and_the_square_its_crowd():
-    tube = people_rows.cast_record("tube")
-    person = next(person for person in tube["people"] if person["name"] == "person_right")
-    assert (person["character"], person["look"]) == ("person_uniform", "person_uniform_made"), person
-    assert {person["look"] for person in tube["people"]} == {"person_uniform_made"}  # its three people, one look
-    assert sorted(person["variant"] for person in tube["people"]) == [0, 1, 2], "each its own variant of the body"
-    assert all(person["at"] in people_rows.place_entry("tube")["spots"] for person in tube["people"])
-    assert "concept 3059819b" in tube["from"] and "crowd" not in tube
-    square = people_rows.cast_record("square")
-    assert square["crowd"]["look"] == "crowd_made" and square["crowd"]["count"] is None
-    assert square["crowd"]["palettes"] == list(range(people_rows.CROWD_VARIANTS))
-    assert {("crowd-made", None, variant) for variant in range(people_rows.CROWD_VARIANTS)} <= \
-        people_rows.dressed_looks("square"), "each variant of the crowd's body a dress row of its own"
+def test_each_person_stands_on_a_plan_spot_each_its_own_variant_of_the_look():
+    """Each person of a row is dealt the plan's people spots in turn (a plan unframed: its middle at 0, so the spot
+    (1, 1) of a 20 x 10 m plan stands at (-9, 0, -4)), and each person of one look wears its own variant of the body
+    (owner, 2026-10-25: "Each one looks different")."""
+    inventory = {"concept_pick": {"sha256": "one"}, "rows": [
+        {"id": "pilot", "name": "person in uniform", "noun": "person", "count": 3, "size": [0.5, 0.3, 1.8],
+         "route": "people"}]}
+    plan = {"w": 20.0, "d": 10.0, "items": [], "rows": {},
+            "people": [[1.0, 1.0, 0, "pilot"], [3.0, 2.0, 0, "pilot"], [5.0, 3.0, 0, "pilot"]]}
+    entry = people_rows.refreshed_place("deck", inventory, plan, None)
+    people = people_rows.cast_record("deck", {"places": {"deck": {**entry, "concept": "one"}}})["people"]
+    assert [person["at"] for person in people] == [[-9.0, 0.0, -4.0], [-7.0, 0.0, -3.0], [-5.0, 0.0, -2.0]]
+    assert {person["look"] for person in people} == {"person_uniform_made"}
+    assert sorted(person["variant"] for person in people) == [0, 1, 2]
 
 
 def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
@@ -237,7 +250,8 @@ def test_a_crowds_look_is_read_off_its_words():
         assert look("crowd of shoppers in grey coats", "crowd") == "citizen-coat"
         # a look drawn from another scene's crowd row is that row's own, however its words match
         drawn = pathlib.Path(held) / "crowd.json"
-        drawn.write_text(json.dumps({"description": "one person of the crowd of people, as drawn in the square concept"}))
+        drawn.write_text(json.dumps({"description": "one person of the crowd of people, as drawn in the square "
+                                                    "concept"}))
         square = {"square_crowd-drawn": {"object": "one person of the crowd of people", "far_only": True,
                                          "spec": str(people_rows.SPECS / "square_crowd.json")},
                   "people-made": {"object": "one person of the crowd of people", "far_only": True,
@@ -298,11 +312,3 @@ def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
     assert {person["name"]: person["surface"] for person in people_rows.cast_record("deck", found)["people"]} == {
         "worker": "jacket_blue", "pilot": None}
 
-
-if __name__ == "__main__":
-    import runpy
-    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-    print("people rows checks pass")
