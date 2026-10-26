@@ -8,6 +8,7 @@ import datetime
 import io
 import json
 import pathlib
+import re
 
 from score import graph, review, stages
 from score.dashboard.launch.backend import GroupPlan, LaunchHandle, LaunchState
@@ -363,3 +364,14 @@ def exported(world, folder, cap_mb=50):
     """The fixture environment's export built into `folder` at MADE: its manifest."""
     from score.dashboard.sync import building
     return building.build(world.source, folder, MADE, cap_mb, SPEND, world.root)
+
+
+NODE = re.compile(r"\b[a-z][a-z-]+@(alpha|beta)\b")  # a node id of the fixture's places
+
+
+def outside_details(html):
+    """A page's visible text outside <details class="ids">, its tags and scripts dropped (owner rule: node ids only
+    inside that fold)."""
+    html = re.sub(r'<details class="ids">.*?</details>', "", html, flags=re.S)
+    html = re.sub(r"<script.*?</script>", "", html, flags=re.S)
+    return re.sub(r"<[^>]+>", " ", html)

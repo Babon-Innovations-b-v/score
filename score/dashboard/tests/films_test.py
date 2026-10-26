@@ -131,7 +131,7 @@ def test_the_film_pages_render_with_the_preview_data(world, tmp_path, monkeypatc
                                    "layer-split", "step-card", "before-after", "title", "text"}
     assert [item["how"] for item in editor["answer"]["items"]] == ["free", "reuse", "new"]
     assert editor["answer"]["totals"]["unmeasured"] == ["layer-split"]
-    from score.dashboard.tests.pages_test import NODE, outside_details
+    from score.dashboard.tests.fixture import NODE, outside_details
     assert NODE.search(outside_details(html)) is None  # owner rule (#42): node ids only inside the ids fold
     assert client.get("/film/nothing/").status_code == 404
 
