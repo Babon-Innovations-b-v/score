@@ -5,10 +5,13 @@ stage (score/stages/settling) writes a drop's hollow objects' parts beside the s
 change here moves the settle row alone.
 
     hollow_parts(stage, place, loose, cache)
-                                  {name: parts} for the loose objects whose mesh is not as good as one hull
-    convex_parts(meshes, cache)   {name: [part corners, ...]} for {name: (points, triangles)}, each part a convex
+                                  ({name: parts} for the loose objects whose mesh is not as good as one hull,
+                                  {name: why} for those CoACD failed on, which drop as their one hull)
+    convex_parts(meshes, cache)   ({name: [part corners, ...]} for {name: (points, triangles)}, each part a convex
                                   hull's corners in the mesh's own frame: CoACD's parts, or the mesh's one hull when
-                                  they are as good as it; worked out once per mesh and kept in `cache`
+                                  they are as good as it; worked out once per mesh and kept in `cache`; {name: why}
+                                  for a mesh CoACD failed on or ran past DECOMPOSE_SECONDS for, given its one hull
+                                  and kept nowhere, so the next run tries it again)
 
 CoACD (Wei, Liu, Lin, Sun, Wang and Lin, "Approximate Convex Decomposition for 3D Meshes with Collision-Aware Concavity
 and Tree Search", SIGGRAPH 2022; MIT, pip coacd) is called as SimFoundry's _coacd_runner calls it: each part a hull of
@@ -20,6 +23,7 @@ caller), one hull when the parts hold ONE_HULL of the hull's volume. About 13 s 
 import concurrent.futures
 import hashlib
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -45,14 +49,15 @@ METHOD = f"coacd 1.0.14 max_ch_vertex={PART_CORNERS} decimate seed={SEED} one_hu
 def hollow_parts(stage, place, loose, cache):
     """{name: [part corners, ...]} for each loose object (names under /<place>/Objects) whose drawn mesh is not as good
     as one convex hull (a crate, a tray, a bin, a shelf): its convex parts in the mesh's own frame, which the drop
-    glues to it as bodies of their own, so what drops into its hollow meets its floor, not its hull's top."""
+    glues to it as bodies of their own, so what drops into its hollow meets its floor, not its hull's top; and
+    {name: why} for each one CoACD failed on, which drops as its one hull (as before parts)."""
     meshes = {}
     for name in loose:
         mesh = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{place}/Objects/{name}/geo"))
         meshes[name] = (np.asarray(mesh.GetPointsAttr().Get(), dtype=np.float64),
                         np.asarray(mesh.GetFaceVertexIndicesAttr().Get(), dtype=np.int64).reshape(-1, 3))
-    found = convex_parts(meshes, cache)
-    return {name: parts for name, parts in sorted(found.items()) if len(parts) > 1}
+    found, unsplit = convex_parts(meshes, cache)
+    return {name: parts for name, parts in sorted(found.items()) if len(parts) > 1}, unsplit
 
 
 def mesh_key(points, triangles):
@@ -64,17 +69,42 @@ def mesh_key(points, triangles):
 
 
 def convex_parts(meshes, cache):
-    """{name: [part corners, ...]} for {name: (points, triangles)}, each part a convex hull's corners in the mesh's own
-    frame: the mesh's one hull when CoACD's parts are as good as it (ONE_HULL), else the parts. A mesh's parts are
-    read from `cache` (a folder, by mesh_key) once worked out; the meshes not yet kept are worked out side by side,
-    one process each, and the same mesh (a library model laid many times) once."""
+    """({name: [part corners, ...]}, {name: why}) for {name: (points, triangles)}, each part a convex hull's corners
+    in the mesh's own frame: the mesh's one hull when CoACD's parts are as good as it (ONE_HULL), else the parts. A
+    mesh's parts are read from `cache` (a folder, by mesh_key) once worked out; the meshes not yet kept are worked out
+    side by side, one process each and at most one a core, and the same mesh (a library model laid many times) once.
+    A mesh CoACD fails on or runs past DECOMPOSE_SECONDS for gets its one hull, kept nowhere, and its why: one model
+    never fails the drop (a convex 82k-triangle sphere took 335 s of one core, 2026-10-26)."""
     cache = pathlib.Path(cache)
     keys = {name: mesh_key(points, triangles) for name, (points, triangles) in meshes.items()}
     missing = {key: meshes[name] for name, key in keys.items() if not (cache / f"{key}.json").exists()}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(missing))) as pool:
-        for key, parts in zip(missing, pool.map(lambda mesh: decomposed(*mesh), missing.values())):
-            kept(cache / f"{key}.json", parts)
-    return {name: json.loads((cache / f"{key}.json").read_text()) for name, key in keys.items()}
+    failed = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(len(missing), os.cpu_count() or 1))) as pool:
+        for key, (parts, why) in zip(missing, pool.map(lambda mesh: tried(*mesh), missing.values())):
+            if why is None:
+                kept(cache / f"{key}.json", parts)
+            else:
+                failed[key] = (parts, why)
+    found = {name: failed[key][0] if key in failed else json.loads((cache / f"{key}.json").read_text())
+             for name, key in keys.items()}
+    return found, {name: failed[key][1] for name, key in keys.items() if key in failed}
+
+
+def tried(points, triangles):
+    """(the mesh's parts, None), or (its one hull, why) when CoACD failed on it or ran past DECOMPOSE_SECONDS."""
+    try:
+        return decomposed(points, triangles), None
+    except subprocess.TimeoutExpired:
+        why = f"CoACD ran past {DECOMPOSE_SECONDS} s"
+    except subprocess.CalledProcessError as error:
+        why = f"CoACD failed (exit {error.returncode})"
+    return [one_hull(points)], f"{why}: dropped as its one hull"
+
+
+def one_hull(points):
+    """The corners of the mesh's one convex hull, rounded as kept parts are."""
+    corners = trimesh.convex.convex_hull(np.asarray(points, dtype=np.float64)).vertices
+    return np.round(np.asarray(corners, dtype=np.float64), 6).tolist()
 
 
 def kept(path, parts):
