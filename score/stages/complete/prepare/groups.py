@@ -120,7 +120,8 @@ def sized_rows(store, place, record):
     edit sized its item) and its `read_size`, the object's own metres as its reading gave them (None where it gave
     none): the close-up's request and shape check hold the object to its own size (owner, 2026-10-24). A row the
     reading and the plan give no size has none (a gap: its take waits on "no size"). A shell piece whose part the
-    place's plan lays itself (plan_parts), or that it names its own shell (plan_structure), has route "plan"."""
+    place's plan lays itself (plan_parts), that it names its own shell (plan_structure), or that is arched structure
+    at its plan items (plan_arches), has route "plan"."""
     from score.review import plans
     rows = record["inventory"]["rows"]
     laid, made = plan_sizes(store, place, rows), plan_sizes(store, place, rows, made=True)
@@ -132,7 +133,15 @@ def sized_rows(store, place, record):
                                                          run_pieces(shown and shown["plan"], row)),
               "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
              for row in rows]
-    return [routed(row, own, beyond, shell) for row in found]
+    return [routed(row, own, beyond, shell | plan_arches(shown and shown["plan"], found)) for row in found]
+
+
+def plan_arches(plan, rows):
+    """The ids of the arched structure rows (a tube's ribs) the plan's shell lays at their plan items
+    (score/stages/earth_seed/design_shell.arches, as the scene record lays them): the plan's own, never a close-up
+    (Batch 1's retry: the tube's ribs, their box the whole picture, framed none)."""
+    from score.stages.earth_seed import design_shell
+    return {row["id"] for row, _, _ in design_shell.arches(plan or {}, rows)}
 
 
 def stood_beyond(rows, beyond):

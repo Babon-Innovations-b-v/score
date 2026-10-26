@@ -276,6 +276,33 @@ def slab(points, low, high, surface):
     return joined(faces)
 
 
+def arch(feet, low, rise, thick, deep, surface, segments=24):
+    """A closed arched band (a tube's rib, a hoop): a half ellipse standing on its two `feet` ([[x, z], [x, z]], its
+    span between them) at `low`, its crown `rise` over them, `thick` metres from its outside in and `deep` metres
+    across the plane it stands in; uvs its own metres."""
+    (one, two) = np.asarray(feet, dtype=np.float64)
+    middle, half = (one + two) / 2, (two - one) / 2
+    reach = float(np.linalg.norm(half))
+    way, across = half / reach, np.array([-half[1], half[0]]) / reach * deep / 2
+
+    def at(angle, inset, side):
+        flat = middle + way * (reach - inset) * math.cos(angle) + across * side
+        return [flat[0], low + (rise - inset) * math.sin(angle), flat[1]]
+
+    angles = [math.pi * step / segments for step in range(segments + 1)]
+    faces = []
+    for start, end in zip(angles, angles[1:]):
+        for inset in (0.0, thick):
+            faces.append(quad([at(start, inset, -1), at(end, inset, -1), at(end, inset, 1), at(start, inset, 1)],
+                              surface))
+        for side in (-1, 1):
+            faces.append(quad([at(start, 0.0, side), at(end, 0.0, side), at(end, thick, side), at(start, thick, side)],
+                              surface))
+    for angle in (0.0, math.pi):
+        faces.append(quad([at(angle, 0.0, -1), at(angle, thick, -1), at(angle, thick, 1), at(angle, 0.0, 1)], surface))
+    return joined(faces)
+
+
 def gable(points, eave, top, surface):
     """A gable roof over an outline's box seen from above (`points` [[x, z]]) from its `eave` up to a ridge at `top`
     along the box's longer side, its two ends closed."""

@@ -35,6 +35,12 @@ placeholder gate reads it as the scene's own shell.
     entries = design_shell.shell(plan)      # [(name, triangles in plan metres, from)]: what the earth seed lays
     design_shell.lay(base_layer, place, plan, tools, library)   # under /<place>/Shell (tools: tools/usd's export
                                                                 # module; library: the materials.json or None)
+    design_shell.arches(plan, rows)         # [(row, item, shape)]: the arched structure the scene record lays
+
+An arched structure row (`arched`: a rib, an arch or a hoop of the place, a band thin across the plane it stands in) is
+the shell's too, laid by the scene record at each plan item tied to it as a builders' `arch` at the row's size
+(scene_record.writer `arch_entry`; the owner, 2026-10-26, lets the framework build structure pieces as the earth seed
+builds shells; Batch 1's retry: the tube's ribs, its box the whole picture, framed no close-up).
 """
 import json
 import pathlib
@@ -59,6 +65,10 @@ LEVEL_OFF = 0.05  # metres a level stands off the ground before it is drawn as a
 CEILING = re.compile(r"\bceiling[^0-9;,]*?(\d+(?:\.\d+)?) ?m\b")
 DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a data door's words "(0.9 x 2.0 m)": its height
 ROOT = "Shell"
+# The kinds of an arched structure row (`arched`), by a word of its name or noun, a plural's s dropped.
+ARCHED = frozenset(("rib", "arch", "hoop"))
+# An arched row is a band: its deep under this share of its wide and of its tall.
+BAND_SHARE = 0.25
 # The scene library's kinds each part takes its surface from, the first it names a variant for: one answer with the
 # paint's (palette_library.SHELL_KINDS), so a prop's finish can take the shell's own surface.
 PART_KINDS = palette_library.SHELL_KINDS
@@ -407,6 +417,24 @@ def shell(plan):
     if laid_for(plan):
         return room(plan)
     return [] if encloses(plan) else levels(plan)
+
+
+def arched(row):
+    """Whether an inventory row is arched structure the shell lays (module docstring): a structure part, named a
+    rib, arch or hoop, its size a band (its deep under BAND_SHARE of its wide and of its tall)."""
+    words = {word.removesuffix("s") for word in re.findall(r"[a-z]+", f"{row.get('name')} {row.get('noun')}".lower())}
+    size = row.get("size") or []
+    return (row.get("part") == "structure" and bool(words & ARCHED) and len(size) == 3 and
+            all(isinstance(side, (int, float)) and side > 0 for side in size) and
+            size[1] < BAND_SHARE * min(size[0], size[2]))
+
+
+def arches(plan, rows):
+    """[(row, plan item, its shape)] of every plan item tied to an arched row of `rows` (inventory rows)."""
+    by_id = {row["id"]: row for row in rows if arched(row)}
+    tied, shapes = plan.get("rows") or {}, plan.get("shapes") or {}
+    return [(by_id[row_id], item, shapes.get(item[0]) or {}) for item in plan.get("items") or []
+            if len(item) <= 6 or item[6] == "item" for row_id in tied.get(item[0]) or [] if row_id in by_id]
 
 
 def part_kind(name):

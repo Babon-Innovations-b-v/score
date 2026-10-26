@@ -11,7 +11,8 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  outline's walls with every opening cut, the roofs), stood in the place's frame as builders' `slab` and
                  `gable` entries BACKING behind the plan's inside line; none where the place's base already lays it
                  (design_shell.laid_for: a room whose plan says its kit holds its walls); and each stair or ramp the
-                 plan draws as a flight of steps; each entry's surface the scene's surface library's for its kind
+                 plan draws as a flight of steps; an `arch` at each plan item of an arched structure row of the
+                 hand-in (design_shell.arched: a tube's ribs), at the row's size, named its row; each entry's surface the scene's surface library's for its kind
                  (surface-library@<place>, read as an `after`: design_shell.PART_KINDS), else none and
                  `surface_missing` says why (the scene builder names it on the mesh, never paints another way)
     lights       one at each plan item of a glowing row (its row kind, score/stages/row_kinds.py, or its concept
@@ -184,6 +185,27 @@ def structure(plan, design, library=None, rows=None):
     return shelled + [painted(stair(number, entry, design), "stair", plan["place"], library)
                       for number, entry in enumerate(design.get("stairs") or [], 1)
                       if len(entry.get("points") or []) >= 3]
+
+
+def arch_entry(row, item, shape, design, number):
+    """An arched row's band at its plan item (design_shell.arches): standing on the item's middle at its shape's base,
+    spanning the row's wide along the item's longer side, rising its tall, its deep both its thickness and its depth."""
+    x, y, wide, deep = (float(value) for value in item[1:5])
+    span, band, rise = (float(value) for value in row["size"])
+    way = np.array([1.0, 0.0]) if wide >= deep else np.array([0.0, 1.0])
+    middle = np.array([x + wide / 2, y + deep / 2])
+    feet, floor = in_frame(design, [middle - way * span / 2, middle + way * span / 2])
+    return {"name": f"{row['id']}_{number}", "builder": "arch", "feet": feet,
+            "low": round(floor + float(shape.get("base") or 0.0), 4), "rise": rise, "thick": band, "deep": band,
+            "plain": "shell", "row": row["id"],
+            "from": f"plan item {item[0]!r}, inventory row {row['id']}: an arch {span:g} m across and {rise:g} m "
+                    f"high, {band:g} m thick (earth_seed/design_shell.arched)"}
+
+
+def arch_entries(design, place, library, handin):
+    """The arched rows' bands (arch_entry) at their plan items, each painted as a wall of the shell it carries."""
+    return [painted(arch_entry(row, item, shape, design, number), "wall", place, library)
+            for number, (row, item, shape) in enumerate(design_shell.arches(design, handin.get("rows", [])), 1)]
 
 
 # --- lights -------------------------------------------------------------------------------------------------------
@@ -562,7 +584,8 @@ def record_of(plan, design, inputs):
                        "its scene inventory's row kinds, the library's lamp and the environment concept's physics at "
                        "its site. Frame: the plan's (x east, z south, y up over its floor).",
               "floor": plan["floor"], "inside": inside(design),
-              "structure": structure(plan, design, library_of(inputs), plan_rows(handin)),
+              "structure": structure(plan, design, library_of(inputs), plan_rows(handin)) +
+              arch_entries(design, plan["place"], library_of(inputs), handin),
               "objects": design_objects(design, handin),
               "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
