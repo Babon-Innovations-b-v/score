@@ -66,9 +66,9 @@ serve: skill `make-scene`, bible "How a scene is designed".
   redraw (the owner, 2026-10-02: "the low-res ones look shit"). `redraw.py` draws such an object
   afresh as a close-up when the target was drawn here, else leaves it off the build list;
   `redraw/report.json` lists every object with its cut-out size and the way it took.
-- `inventory_test.py` checks the inventory's shape, the refusals and the place file;
-  `match_test.py` runs the match over the real tree on every change to game/, sim/ or data/.
-- `cutsize_test.py` is the gate's check of the cut-out limit.
+- The module's one test file, `test_a_scene_is_made_from_its_concept.py`, pins its invariant: the boxes, the
+  inventory's shape and refusals, the duplicates, the cut-out limit, the close-up cameras, a scene's style, the lamps,
+  Marble's refusal outside a cleared run and the ship's floor plan.
 - The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
   window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.
 - **The per-place kit scripts are retired** (owner, 2026-10-21: "remove all old, all old stuff is retired"): the
@@ -89,4 +89,4 @@ serve: skill `make-scene`, bible "How a scene is designed".
   (0.9 x 2.0 m doors, a 2.6 m ceiling), and its faults (overlaps, a floor under the keel, a door to nowhere, a room
   naming no place of data/definitions/place.json) exit 1.
   It draws the plan (`ship-floor.png`) and, with `--views`, each room's concept request in concept_views.json's form.
-  `ship_floor_test.py` checks it.
+  The module's test checks it.
