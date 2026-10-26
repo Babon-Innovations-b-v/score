@@ -19,8 +19,8 @@ from score.dashboard.pages.models import SyncRequest
 from score.dashboard.state import machine, versions
 from score.dashboard.state.exported import ExportedSource
 from score.dashboard.sync import applying, building, client, one_store
-from score.dashboard.tests.api_test import api
-from score.dashboard.tests.sync_test import MADE, SPEND, TOKEN, hosted_client, opener_of
+from score.dashboard.tests.fixture import api
+from score.dashboard.tests.fixture import MADE, SPEND, TOKEN, hosted_client, opener_of
 
 pytestmark = pytest.mark.django_db(transaction=True)
 THEN = datetime.datetime.fromisoformat(MADE) + datetime.timedelta(hours=1)  # an hour after the exports

@@ -280,3 +280,86 @@ class FakeBackend:
 
     def ledgered(self, nodes, since):
         return [line for line in self.bill if line.node in nodes and line.started >= since]
+
+
+# The clients the tests sign in and sync with.
+ORIGIN = "http://127.0.0.1:8780"
+TOKEN = "t" * 40
+MADE = "2026-10-18T12:00:00+00:00"
+SPEND = Spend(spent=100.0, reserved=10.0, ceiling=250.0, as_of=MADE)
+
+
+def api(name="joey"):
+    """A FastAPI test client carrying a signed-in Django session and its CSRF cookie."""
+    from django.contrib.auth import get_user_model
+    from django.test import Client
+    from fastapi.testclient import TestClient
+
+    from score.dashboard.site.asgi import app
+    user = get_user_model().objects.create_user(name, password="a long enough password")
+    pages = Client()
+    pages.force_login(user)
+    pages.get("/login/")  # sets the csrftoken cookie
+    signed_in = TestClient(app, base_url=ORIGIN, client=("127.0.0.1", 50000))
+    for cookie in pages.cookies.values():
+        signed_in.cookies.set(cookie.key, cookie.value)
+    token = pages.cookies["csrftoken"].value if "csrftoken" in pages.cookies else ""
+    signed_in.headers.update({"X-CSRFToken": token, "Origin": ORIGIN})
+    return signed_in
+
+
+def hosted_client():
+    """The app as the hosted side runs it, reached from loopback, signed in as no one."""
+    from fastapi.testclient import TestClient
+
+    from score.dashboard.site.asgi import app
+    return TestClient(app, base_url=ORIGIN, client=("127.0.0.1", 50000))
+
+
+class Answer:
+    """A urlopen answer from a TestClient response."""
+
+    def __init__(self, body):
+        self.body = body
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def opener_of(web):
+    """A urlopen stand-in that sends client.Remote's requests to the hosted app in this process, one at a time: the
+    test database is SQLite in memory with a shared cache, where a second writer is refused at once ("database table
+    is locked") instead of waiting out the busy timeout as the hosted side's file database does, so the listener's
+    side-by-side answers (listen.round_once) write to it in turn."""
+    import threading
+    import urllib.error
+    one_at_a_time = threading.Lock()
+
+    def opened(request, timeout):
+        path = request.full_url.removeprefix("http://hosted")
+        with one_at_a_time:
+            answer = web.request(request.get_method(), path, content=request.data,
+                                 headers=dict(request.header_items()))
+        if answer.status_code >= 400:
+            raise urllib.error.HTTPError(request.full_url, answer.status_code, answer.text, {},
+                                         io.BytesIO(answer.content))
+        return Answer(answer.content)
+    return opened
+
+
+def remote_of(web):
+    """The store side's client.Remote speaking to the hosted app `web` with the sync token."""
+    from score.dashboard.sync import client
+    return client.Remote("http://hosted", TOKEN, opener_of(web))
+
+
+def exported(world, folder, cap_mb=50):
+    """The fixture environment's export built into `folder` at MADE: its manifest."""
+    from score.dashboard.sync import building
+    return building.build(world.source, folder, MADE, cap_mb, SPEND, world.root)

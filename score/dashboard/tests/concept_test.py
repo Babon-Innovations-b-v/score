@@ -16,7 +16,7 @@ from score.dashboard.pages import concepts
 from score.dashboard.pages.models import SyncRequest
 from score.dashboard.sync import listen
 from score.dashboard.tests.pages_test import signed_in
-from score.dashboard.tests.sync_test import TOKEN, hosted_client, remote_of
+from score.dashboard.tests.fixture import TOKEN, hosted_client, remote_of
 from score.review import concepts as drawing
 from score.review import environment_concept, web
 from score.store import runtime_store
