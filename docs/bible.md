@@ -263,8 +263,9 @@ lock, reading and plan, parent before child, then the film.
    layer adapter's after-steps. **Thin straight things are built in code** (owner, 2026-10-25, asked whether the
    framework may build "straight thin things, swept along their path" in code with a library finish: "Yes,
    code-build thin straight things"): a row slender by the model gate's rule whose name names a straight kind (pipe,
-   cable, conduit, post, pole, rail, rod, beam, pillar, mast, ...), or a lamp on its own stem by its metres (its post
-   built so, its head the library's lamp lit at the head mount), and whose every close-up take failed is swept in
+   cable, conduit, post, pole, rail, rod, beam, pillar, mast, ...), or a row whose kind glows (a lamp on its own stem: its post
+   built so, its head the library's lamp lit at the head mount; a light bar, strip light or string of lights: its body
+   built so, its light the library's lamp for its mount), and whose every close-up take failed is swept in
    code by the Pixal3D row (`score/stages/props/thin_straight.py`: round or rectangular profile from its size, along
    its longest side), written as its take, then painted by the finish route and held by the likeness gate to its
    concept crop cut out by its own SAM 3 mask on the concept (never its box) like any take; its close-up gap closes only when the free checks pass it.

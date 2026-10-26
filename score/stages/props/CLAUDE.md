@@ -34,7 +34,8 @@ gate passes it), else
   none, so it has no calibration row: its DINOv2 scores are measured and shown, never judged (`measured_only`), and
   `outline` holds its likeness (#10). Change a threshold only by measuring the accepted set again.
 - **Thin straight things are built in code** (`thin_straight.py`; owner, 2026-10-25: "Yes, code-build thin straight
-  things"): `pixal` sweeps a row slender by `gates/model.py`'s rule and named for a straight kind, whose every Pro take
+  things"): `pixal` sweeps a row slender by `gates/model.py`'s rule and named for a straight kind or of a kind that glows (a stem lamp's post, a light
+  bar, a strip or string of lights: its light the library's lamp, laid by the light layer), whose every Pro take
   failed, as its take's files (raw, slimmed, final stood by the finish's own turn, `input.png` its concept crop cut by the row's own SAM 3 mask, never its box,
   `code.json`), so the finish route paints it and `likeness` holds it to that crop. `pixal` drops its close-up
   gap (the finish route skips a gapped take); `likeness` carries it again only while a free check fails the build. A

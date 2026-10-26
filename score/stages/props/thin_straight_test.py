@@ -53,7 +53,10 @@ def test_only_thin_rows_of_a_straight_kind_are_taken():
     assert not thin_straight.thin_straight({"name": "coiled hose", "size": [0.4, 0.4, 0.2]})  # not slender
     assert not thin_straight.thin_straight({"name": "wall poster", "size": [0.4, 0.01, 0.6]})  # post is not poster
     assert not thin_straight.thin_straight({"name": "metal railing", "size": [50.0, 0.1, 1.0]})  # posts and rails
-    assert not thin_straight.thin_straight({"name": "strip floor light", "size": [0.8, 0.1, 0.05]})  # no such kind
+    assert thin_straight.thin_straight({"name": "strip floor light", "noun": "light", "size": [0.8, 0.1, 0.05]})  # glows
+    assert thin_straight.thin_straight({"name": "string lights", "noun": "lights", "size": [3.0, 0.05, 0.05]})
+    assert thin_straight.profile({"name": "lantern string", "noun": "lanterns"}) == "round"  # its cable
+    assert not thin_straight.thin_straight({"name": "wall poster", "noun": "poster", "size": [3.0, 0.05, 0.05]})
     assert thin_straight.thin_straight({"name": "street lamp", "noun": "lamp", "size": [0.5, 0.5, 6.0]})  # a stem lamp
     assert not thin_straight.thin_straight({"name": "desk lamp", "noun": "lamp", "size": [0.2, 0.2, 0.5]})  # no stem
 
