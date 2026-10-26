@@ -187,9 +187,15 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   In the settle stage's drop a hollow loose piece (a crate, a tray, a bin, a shelf) drops as its convex parts
   (`convex_parts.py`: CoACD, MIT, at most 60 corners a part, its own process, one hull when the parts hold 95 to 105%
   of the hull's volume, kept per mesh in `store/cache/convex-parts` so a library model is worked out once, about 13 s
-  of one core for an open crate; written beside the dropped stage as `convex-parts.json`), each part a light body
-  glued to the piece by a fixed joint (settle_stage's `glued_parts`): a box laid at an open crate's rim came to rest
-  on its floor at 0.07 m, not on its hull's top at 0.62 (Blender 5.0.1, 2026-10-26). Blender's own COMPOUND body
+  of one core for an open crate; written beside the dropped stage as `convex-parts.json`; at most one mesh a core at
+  once, and a mesh CoACD fails on or runs past 900 s for drops as its one hull, kept nowhere and named in the settle
+  record's `one hull`), each part a light body weighed at its own middle and glued to the piece by a fixed joint
+  pivoting there (settle_stage's `glued_parts`; weighed at the world's origin, a crate laid 36 m out was thrown
+  298 m), and only parts whose bounds meet kept apart by a joint (a joint between every pair grew with the square of
+  the parts: four 59-part bowls ran past 25 minutes; four 51-part bowls now drop in 69 s, but each creeps 13 cm and 2.4 degrees on flat ground where its one hull
+  moves 1 cm, and stiffer fixed joints, 200 iterations, made it 19 cm: open): a box laid at an open
+  crate's rim came to rest on its floor at 0.07 m, not on its hull's top at 0.62 (Blender 5.0.1, 2026-10-26).
+  `convex_parts_test.py` drops it in Blender (skipped where none is set up). Blender's own COMPOUND body
   walks on a triangle ground (21 cm and 0.3 rad in 10 s), so it is not used. Kept out of settle.py and colliders.py:
   both sit in the code of about 90 rows (triage imports settle), so an edit there moves them all. The assembly's own
   drop (`--dry-run`) writes no parts file and drops hulls as before. Loose to loose collision stays off: not yet
@@ -214,7 +220,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   is read back from a cache (`simulate(cache=...)`, `drop_key`), never bought twice.
 - `export_test.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
   test itself; `resting_test.py` the resting check and the planned ground; `settle_test.py` the settle's write-back
-  (a pose round-trips through the layout and the export) and the levelled yard, without Blender.
+  (a pose round-trips through the layout and the export) and the levelled yard, without Blender. The one check here
+  that runs Blender is `convex_parts_test.py`'s hollow crate drop, through `session.py batch`.
 - **The scene record** (the scene-record row's output, `record/<place>.json`, read by `scene.py`; the game-transcribed
   `data/scene/<place>.json` records were retired with the old concepts on 2026-10-21) is what the game drew in its own code and no kit
   piece covers: room shells and the building round a room, stairs and stepped floors, the gameplay objects it places

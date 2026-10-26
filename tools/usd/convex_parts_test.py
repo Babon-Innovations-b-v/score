@@ -1,9 +1,14 @@
 """Check a moving body's convex parts (tools/usd/convex_parts.py) on shapes made here: an open crate is split round its
-hollow, a box is its one hull, both are read back from the cache without CoACD, and a laid crate gets its parts in its
-own frame.
+hollow, a box is its one hull, both are read back from the cache without CoACD, a laid crate gets its parts in its
+own frame, a mesh CoACD fails on drops as its one hull, and the drop of an open crate laid far from the origin in
+Blender 5.0.1 (tools/blender/inside/settle_stage.py, through tools/blender/session.py's batch: 17 s fixed, 71 s and
+red broken, 2026-10-26) keeps it where it is laid with a box on its floor; with no Blender 5.0.1 set up under
+PROPS_HOME or no Xvfb (bash tools/blender/setup.sh) that one check prints `skipped` and passes nothing.
 
 Run: .venv/bin/python tools/usd/convex_parts_test.py   (make tests runs it with the framework's environment)
 """
+import json
+import math
 import pathlib
 import sys
 import tempfile
@@ -100,8 +105,90 @@ def a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again():
     return problems
 
 
+# Where the dropped crate is laid (stage frame, y up): far from the origin, where a part weighed at the origin is thrown.
+FAR = (30.0, 0.0, 20.0)
+# The crate may settle this much as it beds onto the ground (metres, degrees); thrown, it moved 298 m and 164 degrees.
+CRATE_DRIFT, CRATE_TURN = 0.05, 1.0
+# The box's middle at rest over the ground (metres): on the crate's floor (4 cm) it is 0.14; on the hull's top, 0.72.
+BOX_MIDDLE_MOST = 0.2
+# Speed at the end (metres a second).
+STILL = 0.01
+
+
+def small_box():
+    """A 0.2 m box standing on its foot."""
+    box = trimesh.creation.box(extents=(0.2, 0.2, 0.2))
+    box.apply_translation((0.0, 0.1, 0.0))
+    return box
+
+
+def dropped(folder):
+    """The open crate laid FAR, a box laid at its rim and stacked on it, their parts written beside the stage, dropped:
+    the drop's record, the laid stage and who got parts."""
+    import resting_test
+    import settle
+    from pxr import Usd
+    resting_test.made_models(folder)
+    resting_test.export_test.box_gltf(folder / "models", "crate", open_crate())
+    resting_test.export_test.box_gltf(folder / "models", "small", small_box())
+    path = resting_test.laid_place(folder, [("crate", "crate", FAR), ("block", "small", (FAR[0], 0.62, FAR[2]))],
+                                   [("crate", "floor"), ("block", "floor")])
+    stage = Usd.Stage.Open(str(path))
+    hollow, _ = convex_parts.hollow_parts(stage, resting_test.PLACE, ["crate_1", "block_1"], folder / "cache")
+    (path.parent / convex_parts.FILE).write_text(json.dumps(hollow))
+    found = settle.simulate(path, {"crate_1": 0.0, "block_1": 0.0}, folder / "drop", under={"block_1": ["crate_1"]})
+    return found, stage, sorted(hollow)
+
+
+def rest_of(found, stage, name):
+    """An object's middle as laid and at rest (stage frame) and how far it turned (degrees)."""
+    import resting_test
+    import settle
+    from pxr import Usd, UsdGeom
+    laid = np.asarray(UsdGeom.Xformable(stage.GetPrimAtPath(f"/{resting_test.PLACE}/Objects/{name}"))
+                      .ComputeLocalToWorldTransform(Usd.TimeCode.Default())).T
+    motion = np.asarray(found["objects"][name]["motion"])
+    middle = np.append(settle.object_middle(stage, resting_test.PLACE, name), 1.0)
+    turned = math.degrees(math.acos(max(-1.0, min(1.0, (np.trace(motion[:3, :3]) - 1.0) / 2.0))))
+    return (laid @ middle)[:3], (motion @ laid @ middle)[:3], turned
+
+
+def blender_missing():
+    """Why the drop cannot run here (no Blender 5.0.1 under PROPS_HOME, or no Xvfb), or None."""
+    import shutil
+    sys.path.insert(0, str(HERE.parent / "blender"))
+    import session
+    if not (session.RUNTIME / f"blender-{session.DEFAULT_VERSION}" / "blender").exists() or not shutil.which("Xvfb"):
+        return f"no Blender {session.DEFAULT_VERSION} under {session.RUNTIME}, or no Xvfb (bash tools/blender/setup.sh)"
+    return None
+
+
+def a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor():
+    """In Blender, an open crate laid 36 m from the origin stays where it is laid, and a box laid at its rim rests on
+    its floor, both still at the end. Breaks, each seen red: weigh each part at the world's origin (convex_pieces'
+    meshes in world corners, no matrix_world: the crate thrown 298 m), or drop the crate as one hull (an empty parts
+    file: the box rests on the hull's top at 0.72)."""
+    missing = blender_missing()
+    if missing:
+        print(f"skipped: {a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor.__name__}: {missing}")
+        return []
+    with tempfile.TemporaryDirectory() as temporary:
+        found, stage, hollow = dropped(pathlib.Path(temporary))
+        problems = [] if hollow == ["crate_1"] else [f"parts were given to {hollow}, not the crate alone"]
+        laid, rest, turned = rest_of(found, stage, "crate_1")
+        drift = float(np.linalg.norm(rest - laid))
+        if drift > CRATE_DRIFT or turned > CRATE_TURN:
+            problems.append(f"the crate moved {drift:.3f} m and turned {turned:.2f} degrees from where it was laid")
+        _, box, _ = rest_of(found, stage, "block_1")
+        if box[1] > BOX_MIDDLE_MOST or abs(box[0] - FAR[0]) > 0.5 or abs(box[2] - FAR[2]) > 0.5:
+            problems.append(f"the box rests with its middle at {box.round(3).tolist()}, not on the crate's floor")
+        moving = {name: item["moving"] for name, item in found["objects"].items() if item["moving"] > STILL}
+        return problems + ([f"still moving at the end: {moving}"] if moving else [])
+
+
 CHECKS = (a_hollow_keeps_its_hollow_and_a_box_is_one_hull, a_laid_hollow_object_gets_its_parts_in_its_own_frame,
-          a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again)
+          a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again,
+          a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor)
 
 
 if __name__ == "__main__":
