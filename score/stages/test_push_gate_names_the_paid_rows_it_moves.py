@@ -1,8 +1,29 @@
-"""The moved-rows check reads every row's declared files, not only its code version: on 8b402226 (blender_cloud.py,
-outside every code version but declared by the turntables) it names the turntable rows in every place.
+"""The push gate (moved.py, `score moved`, .githooks/pre-push-moved) names exactly the paid rows a change would buy
+again, each with its price and why, and refuses a push to main only for the rows that push moves and no Moved-rows
+trailer names with a reason; drift already on main is a warning, a move no file explains (a params, contract or
+model change) is refused like any other, and the hook leaves no process or checkout behind.
 
-Run: .venv/bin/python -m pytest score/stages/moved_test.py (the push gate's toy tests alone: .venv/bin/python
-score/stages/moved_test.py)
+A toy git repository stands in for this one (moved.REPO, _code.REPO): a paid render whose make sits in it and imports
+a framework file, a paid bake, each reading a data file of its own, and a paid film reading an unpaid drawing of a
+third data file. The hook itself is run against a toy repository whose score package only records what it was given.
+
+Faults it guards (2026-10-17): about EUR 65 of re-buys (view maps, turntables, the cockpit library push) came from
+code and data changes nobody saw would move a paid row's key before they were pushed (8b402226: blender_cloud.py,
+outside every code version but declared by the turntables; 1f90a0fe: new gap files a paid row declares). The first
+hook refused every push over drift already on main, refused branch deletions and took any trailer as leave for every
+row; its second form let a framework-only push through unchecked and only warned of a move no file explains. The two
+tests that worked out the real commits 8b402226 and 1f90a0fe took two minutes (and the first no longer held on
+today's table): the toy's declared data files hold the same rule, a file a row declares moves it.
+
+Breaks that turn it red (each applied once and seen red, then reverted):
+- `total`: `sum(row.euros ...)` read as `sum(0 * row.euros ...)`  -> the price-and-why test ("about EUR 3.00").
+- `main_pushes`: `ref == MAIN and` dropped  -> test_only_pushes_to_main_are_checked.
+- `trailer_nodes`: `and why.strip()` dropped  -> test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason.
+- `split`: the pushed rows' `if base is None or row.node not in known...` dropped  -> the drift tests (drift refused).
+- `unexplained`: `not named_in(...)` read as `named_in(...)`  -> test_a_trailer_lets_only_the_rows_it_names_go.
+- `edited_into_framework`: `after - before` read as `before - after`  -> the framework-move test.
+- .githooks/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the changed-tree hook test
+  (the checkout is left behind).
 """
 import contextlib
 import importlib
@@ -24,22 +45,6 @@ from score.adapters import compute  # noqa: E402
 from score.graph import _code  # noqa: E402
 from score.stages import moved  # noqa: E402
 from score.store import Store  # noqa: E402
-
-
-def test_8b402226_moves_the_turntables_by_the_file_they_declare():
-    found = moved.moved("8b402226^", "8b402226")
-    assert {"surfaces-turntable", "people-turntable"} <= set(found), sorted(found)
-    turntable = found["surfaces-turntable"]
-    assert not turntable["code"] and len(turntable["files"]["tools/cloud/blender_cloud.py"]) >= 17
-
-
-def test_1f90a0fe_moves_the_rows_its_new_gap_files_reach():
-    """A new data file a row declares: the gap files of 1f90a0fe re-keyed the paid paint at three places, which a check
-    of changed paths alone missed in the working tree."""
-    found = moved.moved("1f90a0fe^", "1f90a0fe")
-    assert sorted(found["surfaces-paint"]["files"]) == [f"data/checks/gaps/{place}.json"
-                                                        for place in ("launch", "square", "street")], found
-    assert "demo-film" not in found
 
 
 def test_a_file_moved_into_framework_and_edited_in_the_same_change_is_named():
@@ -68,21 +73,6 @@ def test_a_file_moved_into_framework_and_edited_in_the_same_change_is_named():
     finally:
         _code.REPO = saved
 
-
-# --- the push gate -------------------------------------------------------------------------------------------------
-# It lists exactly the paid rows a tree would buy again, with their price and why, and at push time refuses the paid
-# rows the pushed commit would buy again that main's commit would not, unless a Moved-rows trailer names them. A toy
-# git repository stands in for this one (moved.REPO, _code.REPO): a paid render whose make sits in it and imports a
-# framework file, a paid bake, each reading a data file of its own, and a paid film reading an unpaid drawing of a
-# third data file. The .githooks/pre-push-moved script itself is run against a toy repository whose score package only
-# records what it was given.
-#
-# Faults (2026-10-17): about EUR 65 of re-buys (view maps, turntables, the cockpit library push) came from code and
-# data changes nobody saw would move a paid row's key before they were pushed. The first hook went live for every
-# worktree once merged, refused every push over drift already on main, refused branch deletions and took any trailer
-# as leave for every row. Its second form (review, 2026-10-17) let a push of framework files only (the stage table
-# among them, which sets every row's params, contract, models and after) pass unchecked, and warned of any move it
-# could not trace to a file (a contract bump, a place's params, a new model) instead of refusing it.
 
 TEXT = contracts.Contract("toy-text", 1, lambda folder: [])
 RENDER_MAKE = """import toy_frame
@@ -203,14 +193,6 @@ def pushed(repo, message, files):
         (repo / name).write_text(text)
     tip = committed(repo, message)
     return f"refs/heads/main {tip} refs/heads/main {base}", tip
-
-
-def test_a_toy_leaves_the_framework_as_it_found_it():
-    command()  # its first import puts the repository on the path, once
-    before = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal)
-    with toy():
-        pass
-    assert (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal) == before
 
 
 def test_nothing_changed_lists_nothing_and_passes():
@@ -528,13 +510,3 @@ def test_a_worktree_hook_uses_the_main_checkouts_python():
     assert code == 0 and record["cwd"] == str(tree) and record["python"] == str(repo / ".venv/bin/python")
     shutil.rmtree(tree)
 
-
-if __name__ == "__main__":  # the push gate's tests; the two on real commits run under pytest
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, check in list(globals().items()):
-        if name.startswith("test_") and name not in ("test_8b402226_moves_the_turntables_by_the_file_they_declare",
-                                                     "test_1f90a0fe_moves_the_rows_its_new_gap_files_reach"):
-            check()
-            print(f"ok {name}")
