@@ -37,7 +37,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
 - **Views** from inside each doorway and from each person spot; an inside place's view whose eye stands outside its
   outline is left out with why (`views_left_out`), never written to see the walls from behind.
 - **Places** are the design's: each place a door or opening leads to that its holder's plan holds beside it, stood
-  where the holder holds it. A top place has none (its children are its scene tree's).
+  where the holder holds it, and each place of its scene a backdrop row of its hand-in is `shown` from
+  (prepare's groups.shown_from: the holder at its own plan's corner, a place it holds beside where it holds it).
+  A top place has none (its children are its scene tree's).
 - **Gates**: `game-free` (no game file or name: a date of the year 2099 is a scene time, not the game), `plan-matched`
   (every wall of the outline in the shell, every opening cut through it, every stair laid, every lamp over its
   item), `openings` (each doorway leads to a place of the design, outside, sealed, a row of the inventory or into its

@@ -439,6 +439,14 @@ def laid_rows(stage, place):
             and not str(prim.GetPath()).startswith(f"/{place}/Places/")}
 
 
+def shown_laid(stage, place, shown):
+    """The backdrop rows (`shown`: {row: {place, row}}, prepare's groups.shown_from) whose object stands on the stage
+    in the place it is shown from: an object of that place's row under /<place>/Places/<that place>."""
+    stood = {(str(prim.GetPath()).split("/")[3], prim.GetAttribute("score:row").Get()) for prim in stage.Traverse()
+             if prim.HasAttribute("score:row") and str(prim.GetPath()).startswith(f"/{place}/Places/")}
+    return {row for row, source in shown.items() if (source["place"], source["row"]) in stood}
+
+
 # The assembly's record beside a stage (origin.json): a ship place's "made pieces" ({row: model}) are laid straight from
 # their painting place's bake (score/stages/assembly/ship_made.py) on a kit base with no seed paint to repaint.
 ASSEMBLY_ORIGIN = "origin.json"

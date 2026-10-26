@@ -180,6 +180,21 @@ def test_the_record_is_written_from_the_design():
         assert verdict.answer == checks.FAIL and "'moon_city'" in " ".join(verdict.findings), verdict.findings
 
 
+def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_holder_holds_it():
+    """The stairwell's palm seen through its window is the square's (prepare's groups.shown_from: `shown`): the record
+    stands the holder at its own plan's middle, a place it holds beside where it holds it, each once."""
+    from score.stages.scene_record import writer
+    with tempfile.TemporaryDirectory() as folder:
+        output, inputs = written(folder, WRITTEN)
+        plan_record = json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text())
+        handin = {"rows": [{"id": "palm_tree", "route": "skyline", "shown": {"place": "site", "row": "palm_tree"}},
+                           {"id": "far_shed", "route": "skyline", "shown": {"place": "yard", "row": "shed"}}]}
+        found = writer.places_of("shed", plan_record, WRITTEN, inputs["plans"], handin)
+        by_name = {entry["name"]: entry for entry in found}
+        assert [entry["name"] for entry in found] == ["yard", "site"], found  # the yard already stood by its door
+        assert by_name["site"]["at"] == [14.0, 0.0, 5.0] and "palm_tree" in by_name["site"]["from"], by_name["site"]
+
+
 def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model():
     """Fault (2026-10-25): the record laid no object of a designed place, so the assembly placed none of its models.
     Each prop row's plan item gets its object `<row>_<n>` over its middle at its shape's base, waiting on its take's

@@ -296,6 +296,30 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert record["counts"]["input_gaps"] == 1 and record["input_gaps_if_bought"]["likely_euros"] > 0
 
 
+def test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_with_no_take_or_euros(tmp=None):
+    """Batch 1 try 4: the stairwell's palms, lamps and lanterns seen through its window and the street's far rocket
+    are the square's and the street's own objects; the skyline shows them from there, never a second take."""
+    folder = pathlib.Path(tmp or tempfile.mkdtemp())
+    (folder / "square.json").write_text(json.dumps({"holds": [{"place": "stairwell"}, {"place": "street"}]}))
+    assert groups.scene_places("stairwell", folder) == ["square", "street"] and groups.scene_places("square", folder) == []
+    sky = "skyline"
+    read = {"square": {"rows": [{"id": "palm_tree", "route": "prop"}, {"id": "rocket", "route": "prop"},
+                                {"id": "city_skyline", "route": sky}]},
+            "street": {"rows": [{"id": "red_paper_lantern", "route": "prop"}, {"id": "palm_tree_2", "route": sky}]}}
+    rows = [{"id": "palm_tree", "route": sky}, {"id": "distant_rocket", "route": sky},
+            {"id": "red_lanterns", "route": sky}, {"id": "person_man", "route": sky}, {"id": "city_skyline", "route": sky},
+            {"id": "stage", "route": "prop"}]
+    found = {row["id"]: row.get("shown") for row in groups.shown_from("stairwell", rows, read, folder)}
+    assert found == {"palm_tree": {"place": "square", "row": "palm_tree"},
+                     "distant_rocket": {"place": "square", "row": "rocket"},
+                     "red_lanterns": {"place": "street", "row": "red_paper_lantern"},
+                     "person_man": None, "city_skyline": None, "stage": None}  # no place makes it: still the skyline's
+    group = groups.group_of("stairwell", {"rows": rows}, {**rows[0], "shown": found["palm_tree"]}, ("palm_tree", None, None))
+    take = prepare.take_entry(group, {"rows": rows}, {}, predict.hub_rates(), folder)
+    assert take["status"] == prepare.SHOWN  # bought and priced in the square: never bought here, so no skyline euros
+    assert prepare.take_counts([take])["shown_from_its_place"] == 1 and prepare.take_counts([take])["bought"] == 0
+
+
 def test_a_row_is_routed_by_its_part_and_the_plan_lays_only_the_shell_it_draws():
     """Owner, 2026-10-25 ("no hax tho ... framework remember"): a person row goes to the people line by the row-kind
     rules, every other row by the part of the place its reading says it is, whatever its noun; a floor, wall, roof or

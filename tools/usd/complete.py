@@ -23,7 +23,8 @@ agent finishing while validations are stale). The requirements:
     stage         the stage was exported after the last change to its inputs (the inventory, the kit, the scene record,
                   the cast and the made models, as export.py recorded them in <stage folder>/inputs.json)
     rows          every inventory row has its made model on the stage (an object of that row), or a written drop reason
-                  (the row's `dropped`, or the row listed in the inventory's `held_back`)
+                  (the row's `dropped`, or the row listed in the inventory's `held_back`); a backdrop row its hand-in
+                  shows from another place of its scene (`shown`) has that place's object stood under its Places
     made_only     every visible mesh on the stage was made by the framework: a made model, a code builder's mesh or a
                   world's own model, each saying so (score:model, score:builder or score:kind), and every object's model
                   loaded
@@ -178,16 +179,26 @@ def unlaid_rows(inventory, laid):
             if row["id"] not in laid and not str(row.get("dropped", "")).strip() and row["id"] not in held_back]
 
 
-def rows_faults(stage_file, inventory, place):
+def rows_faults(stage_file, inventory, place, shown=None):
     """Each inventory row with no object of the place's own on the stage (a shown place's never counts) and no
-    written drop reason: [{row, why}]."""
+    written drop reason: [{row, why}]. A backdrop row shown from another place of its scene (`shown`, shown_rows) is
+    made by the skyline when an object of that place's row stands in the place's Places (contents.shown_laid)."""
     from pxr import Usd
-    return unlaid_rows(inventory, contents.laid_rows(Usd.Stage.Open(str(stage_file)), place))
+    opened = Usd.Stage.Open(str(stage_file))
+    return unlaid_rows(inventory, contents.laid_rows(opened, place) | contents.shown_laid(opened, place, shown or {}))
+
+
+def shown_rows(place):
+    """{row: {place, row}} of a designed place's backdrop rows shown from another place of its scene (its hand-in's
+    rows' `shown`, prepare/groups.shown_from); {} without a hand-in."""
+    handin = handin_path(place)
+    rows = json.loads(handin.read_text()).get("rows", []) if handin.is_file() else []
+    return {row["id"]: row["shown"] for row in rows if row.get("shown")}
 
 
 def rows_check(place, stage):
     """Every inventory row made or dropped with a reason."""
-    faults = rows_faults(stage, json.loads(recorded_inventory(place, stage).read_text()), place)
+    faults = rows_faults(stage, json.loads(recorded_inventory(place, stage).read_text()), place, shown_rows(place))
     return result("rows", FAIL if faults else PASS, stage, faults)
 
 

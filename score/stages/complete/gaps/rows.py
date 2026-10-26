@@ -82,7 +82,8 @@ def missing(stage, place, written):
     in its order."""
     if written is None:
         return []
-    unlaid = {fault["row"] for fault in complete.unlaid_rows(written, set(made_objects(stage, place)))}
+    shown = complete.contents.shown_laid(stage, place, complete.shown_rows(place)) if stage is not None else set()
+    unlaid = {fault["row"] for fault in complete.unlaid_rows(written, set(made_objects(stage, place)) | shown)}
     return [row for row in written["rows"] if row["id"] in unlaid]
 
 

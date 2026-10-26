@@ -369,29 +369,59 @@ def quaternion(axes):
     return [round(value, 6) for value in (*quat.GetImaginary(), quat.GetReal())]
 
 
-def sibling(place, design, holder, name, plans):
+def sibling(place, design, holder, name, plans, why=None):
     """A place the holder's plan holds beside this one, stood in this place's frame where the holder holds it."""
     holds = {hold["place"]: hold for hold in holder.get("holds") or []}
     other = read(pathlib.Path(plans) / f"{name}.json")
-    here, floor = origin_on_holder(design, holds[place])
-    there, other_floor = origin_on_holder(other, holds[name])
+    return stood(place, design, holds[place], name, other, holds[name],
+                 why or f"a door of {place} leads to {name}: where its holder's plan holds both (holds)")
+
+
+def stood(place, design, hold, name, other, other_hold, why):
+    """Another place stood in this place's frame, both plans laid unturned on the holder's plan: this one in `hold`,
+    the other in `other_hold` (the holder itself at its own plan's corner)."""
+    here, floor = origin_on_holder(design, hold)
+    there, other_floor = origin_on_holder(other, other_hold)
     _, east, south = place_plan.frame_of(design)
     offset = there - here
     at = east * offset[0] + south * offset[1]
     return {"name": name, "stage": name, "at": [round(float(at[0]), 4), round(floor - other_floor, 4),
                                                 round(float(at[2]), 4)],
-            "rotation": quaternion(axes_in(design, other)),
-            "from": f"a door of {place} leads to {name}: where its holder's plan holds both (holds)"}
+            "rotation": quaternion(axes_in(design, other)), "from": why}
 
 
-def places_of(place, plan, design, plans):
-    """Each place a door or opening of this one leads to that its holder's plan holds beside it."""
-    _, holder = holder_of(place, plans)
+def places_of(place, plan, design, plans, handin=None):
+    """Each place a door or opening of this one leads to that its holder's plan holds beside it, and each place of
+    its scene a backdrop row is shown from (the hand-in's rows' `shown`, prepare/groups.shown_from): the holder
+    itself, or a place it holds beside this one."""
+    holder_name, holder = holder_of(place, plans)
     if holder is None:
         return []
     held = {hold["place"] for hold in holder.get("holds") or []}
-    return [sibling(place, design, holder, name, plans) for name in leads_of(plan, design)
-            if name in held and name != place and (pathlib.Path(plans) / f"{name}.json").is_file()]
+    found = [sibling(place, design, holder, name, plans) for name in leads_of(plan, design)
+             if name in held and name != place and (pathlib.Path(plans) / f"{name}.json").is_file()]
+    return found + shown_places(place, design, holder_name, holder, plans, handin or {}, {entry["name"]
+                                                                                          for entry in found})
+
+
+def shown_places(place, design, holder_name, holder, plans, handin, stood_already):
+    """The places of the scene the hand-in's backdrop rows are shown from (`shown`), not stood already: its holder
+    at its own plan's corner, a place the holder holds beside this one where it holds it."""
+    held = {hold["place"]: hold for hold in holder.get("holds") or []}
+    rows = {}
+    for row in handin.get("rows", []):
+        if row.get("shown"):
+            rows.setdefault(row["shown"]["place"], []).append(row["id"])
+    found = []
+    for name, ids in sorted(rows.items()):
+        why = f"{place} shows {', '.join(ids)} beyond it, made in {name} (its backdrop rows' `shown`)"
+        if name in stood_already or name == place:
+            continue
+        if name == holder_name:
+            found.append(stood(place, design, held[place], name, holder, {"x": 0.0, "y": 0.0}, why))
+        elif name in held and (pathlib.Path(plans) / f"{name}.json").is_file():
+            found.append(sibling(place, design, holder, name, plans, why))
+    return found
 
 
 # --- the design's objects -----------------------------------------------------------------------------------------
@@ -535,7 +565,7 @@ def record_of(plan, design, inputs):
               "structure": structure(plan, design, library_of(inputs), plan_rows(handin)),
               "objects": design_objects(design, handin),
               "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
-              "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"])}
+              "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
     record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye),
                                              design, record["inside"])
     if left_out:
