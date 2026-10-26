@@ -14,7 +14,10 @@ still counts as an order. It does not follow words across modules, through other
 attributes (self.cmd), lists indexed or sliced, an .insert at an index it cannot read (read as the end), or built
 with % or .format.
 
-Run: python3 tools/costs/paid_calls_test.py
+A wording check by design, guarding the owner's rule (tools/cloud/CLAUDE.md, "Paid calls only through the ledgered
+clients"); the lint's own reading is pinned on fixtures whose paid lines are counted by hand.
+
+Break that turns it red: drop "insert" from GROW_ARGUMENTS (an order put together with .insert passes).
 """
 import ast
 import pathlib
@@ -46,8 +49,8 @@ ALLOWED = {
                                          {"address", "data_volume", "make_server"}),
     "score/conductor/logs.py": ("the log scrubber names the Google key header to blank it, calls nothing",
                                 {"SECRET_WORDS"}),
-    "tools/costs/paid_calls_test.py": ("this lint's pattern and its fixtures",
-                                       {"PAID_TEXT", "test_a_module_calling_gemini_directly_fails",
+    "tools/costs/test_paid_calls_go_through_the_ledgered_clients.py": (
+        "this lint's pattern and its fixtures", {"PAID_TEXT", "test_a_module_calling_gemini_directly_fails",
                                         "test_a_module_ordering_a_scaleway_machine_or_disk_fails",
                                         "test_an_address_built_in_an_f_string_fails",
                                         "test_a_shell_order_broken_over_lines_fails",
@@ -527,12 +530,3 @@ def test_the_repository_makes_paid_calls_only_through_the_ledgered_clients():
     assert not found, ("call Gemini through google_spend.generate and rent through batch.rent, not directly: "
                        f"{found}")
 
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, check in list(globals().items()):
-        if name.startswith("test_"):
-            check()
-    print("paid_calls: all checks pass")

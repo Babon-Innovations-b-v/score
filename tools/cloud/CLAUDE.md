@@ -384,7 +384,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   error answer or a send cut off is Unanswered, never asked again (the finish route's list and recheck, and
   since 2026-10-24 every Pro close-up, `../closeup/pro.py`: a step's close-ups one job, the owner's choice of the batch
   rate they are priced at).
-- **Paid calls only through the ledgered clients** (2026-10-17): `tools/costs/paid_calls_test.py` reads every tracked
+- **Paid calls only through the ledgered clients** (2026-10-17): `tools/costs/test_paid_calls_go_through_the_ledgered_clients.py` reads every tracked
   file's syntax tree and fails on a Gemini host, key header or client, or an scw order of a machine, disk, address or
   cluster pool (words read through variables as their own function set them, joined and starred lists, `.append`,
   `.extend` and `.insert`, each setting checked; strings joined with `+` and f-strings; an unread word, as a

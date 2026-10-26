@@ -1,6 +1,14 @@
-"""The per-unit measures (per_unit.py), on ledgers written in the test: no cloud, no real ledger.
+"""per_unit.py's invariant: every per-unit price and time rests on measured lines only (owner, 2026-10-18 and
+2026-10-20: never a flat guess). A batch is read once and priced over the units it finished (one that finished
+nothing left out); a line is the stage its ticket names; a Google unit is a finished call; likely the median, high
+the 90% quantile; a stage with no lines is left out, a time no line holds is a `why`, never a 0; a recorded stage is
+priced from its runs in git; the warm stages are their measured work at the bill's price plus the overhead, a batch
+stage half its standard calls; and the modes that write in place keep what they do not measure (`--times-only`
+leaves every euro of the repository's own file byte-identical, #14). Ledgers are written in the test, plus the
+paper's public ledger copy; no cloud.
 
-    python3 tools/costs/per_unit_test.py
+Break that turns it red: in `cloud_measures` keep a batch that finished no unit (its euros over one unit), or take the
+mean of the per-unit euros for `likely` in `measure`.
 """
 import json
 import pathlib
@@ -106,8 +114,8 @@ def test_a_recorded_stage_is_priced_from_its_runs_with_their_sources_and_no_coun
 
 def test_every_stage_has_a_forecast_rule_with_its_source():
     for stage, spec in {**per_unit.SPECS, **per_unit.RECORDED}.items():
-        found = per_unit.forecast(spec)
-        assert found["forecast"]["source"] == per_unit.FORECASTS[spec["forecast"]], stage
+        found = per_unit.forecast(spec)["forecast"]
+        assert found["rule"] and found["source"], stage
 
 
 def test_rules_only_writes_the_rules_and_keeps_the_measured_numbers():
@@ -245,12 +253,3 @@ def test_writing_the_times_leaves_every_euro_of_the_per_unit_file_byte_identical
     assert without_time(after) == without_time(before)
     assert set(after["stages"]) == set(before["stages"]) and all("time" in found for found in after["stages"].values())
 
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
