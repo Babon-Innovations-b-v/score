@@ -14,7 +14,7 @@ Each loose object is lifted by its `lift` (just clear of the ground, from tools/
 as collision and its weight at the middle of its surface (the resting check's weight), and dropped. A hollow object
 (a crate, a tray, a bin, a shelf: one with parts) collides by its convex parts instead, so what is stacked in it
 meets its floor, not its hull's top: each part a light body of its own (PART_MASS) glued to the object by a fixed
-joint, the parts kept from meeting each other by a joint that holds nothing (glued_parts). Blender 5.0.1's own
+joint, the parts that lie against each other kept from meeting by a joint that holds nothing (glued_parts). Blender 5.0.1's own
 compound body was tried first and walks: an open crate of five box children with its weight at its middle slid 21 cm
 and turned 0.3 rad in 10 s on a triangle ground while one hull stood still (2026-10-26). Loose objects
 collide with the ground and the static objects, not with each other: a convex hull spans a hollow, so one hull section
@@ -48,6 +48,8 @@ GROUPS = 20
 MARGIN = 0.004
 # A hollow object's convex part weighs this (the object 1): light, so its weight stays at the middle of its surface.
 PART_MASS = 0.01
+# How far apart two of an object's parts may lie and still be kept from meeting (metres): both margins and a centimetre.
+TOUCH = 2 * MARGIN + 0.01
 # Beside the stage: its hollow objects' convex parts (tools/usd/convex_parts.py's FILE).
 PARTS_FILE = "convex-parts.json"
 # What a stage draws that nothing stands on or against: its sky (the haze round the place, the stars, the moon's and
@@ -201,13 +203,18 @@ def hollow_parts(stage):
 
 def convex_pieces(name, laid, parts, scene):
     """The object's convex parts (the job's `parts`: corners in its drawn mesh's own frame, laid at `laid`) as meshes of
-    their own in the world where it is laid, never drawn. None for an object the job gives no parts."""
+    their own in the world where it is laid, never drawn, each with its origin at its own middle: Blender takes the
+    origin as the centre of mass, and parts weighed at the world's origin threw a crate laid 36 m from it 276 m
+    (2026-10-26). None for an object the job gives no parts."""
     pieces = []
     for number, corners in enumerate(parts):
+        placed = [laid @ Vector(corner) for corner in corners]
+        centre = sum(placed, Vector()) / len(placed)
         mesh = bpy.data.meshes.new(f"{name}_part_{number}")
-        mesh.from_pydata([laid @ Vector(corner) for corner in corners], [], [])
+        mesh.from_pydata([corner - centre for corner in placed], [], [])
         piece = bpy.data.objects.new(mesh.name, mesh)
         scene.collection.objects.link(piece)
+        piece.matrix_world = Matrix.Translation(centre)  # its origin, its centre of mass, at the part itself
         piece.hide_render = True
         pieces.append(piece)
     return pieces
@@ -217,6 +224,7 @@ def joint(first, second, kind):
     """A rigid body joint of `kind` between two bodies, which keeps them from meeting each other."""
     holder = bpy.data.objects.new(f"joint_{first.name}_{second.name}", None)
     bpy.context.scene.collection.objects.link(holder)
+    holder.matrix_world = Matrix.Translation(first.matrix_world.translation)  # the pivot at the body, not the origin
     bpy.context.view_layer.objects.active = holder
     bpy.ops.rigidbody.constraint_add(type=kind)
     holder.rigid_body_constraint.object1 = first
@@ -224,13 +232,25 @@ def joint(first, second, kind):
     holder.rigid_body_constraint.disable_collisions = True
 
 
+def part_box(piece):
+    """A part's world bounds grown by TOUCH (from its corners: a mesh made here has no bounds until it is drawn)."""
+    corners = [piece.matrix_world @ vertex.co for vertex in piece.data.vertices]
+    return (Vector([min(corner[axis] for corner in corners) - TOUCH for axis in range(3)]),
+            Vector([max(corner[axis] for corner in corners) + TOUCH for axis in range(3)]))
+
+
 def glued_parts(item, pieces):
-    """Each part glued to the object (a fixed joint) and kept from meeting every other part (a joint that holds
-    nothing): the parts overlap where they meet, and parts that met would throw the object apart."""
+    """Each part glued to the object (a fixed joint) and kept from meeting each part it lies against (a joint that
+    holds nothing): the parts overlap where they meet, and parts that met would throw the object apart. Glued, the
+    parts never move against each other, so two parts whose bounds lie apart never meet and get no joint: a joint
+    between every pair grew with the square of the parts, and four 59-part bowls (about 7,100 joints) ran past 25
+    minutes (2026-10-26)."""
+    boxes = [part_box(piece) for piece in pieces]
     for number, piece in enumerate(pieces):
         joint(item, piece, "FIXED")
-        for other in pieces[number + 1:]:
-            joint(piece, other, "GENERIC")
+        for other in range(number + 1, len(pieces)):
+            if boxes_meet(boxes[number], boxes[other]):
+                joint(piece, pieces[other], "GENERIC")
 
 
 def own_group(number):
@@ -310,7 +330,7 @@ def main():
         meets = [0] if inside[name] else [groups[name], *stacked]
         rigid(item, "ACTIVE", "CONVEX_HULL", [] if pieces else meets)
         for piece in pieces:
-            piece.matrix_world = lifts[name]
+            piece.matrix_world = lifts[name] @ piece.matrix_world
             rigid(piece, "ACTIVE", "CONVEX_HULL", meets)
             piece.rigid_body.mass = PART_MASS
         glued_parts(item, pieces)
