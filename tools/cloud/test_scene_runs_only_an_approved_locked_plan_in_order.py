@@ -13,6 +13,7 @@ import json
 import pathlib
 import shlex
 import sys
+import tempfile
 
 import pytest
 
@@ -30,8 +31,10 @@ _PICKS = _SANDBOX / "store" / "objects" / "concepts" / "labscene" / "picks"
 _PICKS.mkdir(parents=True)
 (_PICKS / "0001.json").write_text(json.dumps({"place": "labscene", "sha": LOCK, "by": "owner", "at": "2026-10-21",
                                               "environment": None}))
-(_SANDBOX / "design" / "looks" / "labscene").mkdir(parents=True)
-(_SANDBOX / "design" / "looks" / "labscene" / f"{LOCK}.json").write_text(json.dumps(
+# The sandbox's design/ is the real home's, linked read-only: the look goes in a folder of the test's own.
+scene.place.LOOKS = pathlib.Path(tempfile.mkdtemp()) / "looks"
+(scene.place.LOOKS / "labscene").mkdir(parents=True)
+(scene.place.LOOKS / "labscene" / f"{LOCK}.json").write_text(json.dumps(
     {"scene": "labscene", "concept": LOCK, "look": LOOK, "model": "m", "euros": 0.03, "at": "2026-10-21"}))
 INVENTORY = _SANDBOX / "lab.json"
 INVENTORY.write_text(json.dumps({
