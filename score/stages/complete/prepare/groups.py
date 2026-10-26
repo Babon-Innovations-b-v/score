@@ -109,12 +109,26 @@ def sized_rows(store, place, record):
     laid, made = plan_sizes(store, place, rows), plan_sizes(store, place, rows, made=True)
     shown = plans.current(store, place)
     own = plan_parts(shown and shown["plan"])
-    beyond = set((shown and shown["plan"] or {}).get("beyond") or [])
+    beyond = stood_beyond(rows, set((shown and shown["plan"] or {}).get("beyond") or []))
     found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"]),
                                                          run_pieces(shown and shown["plan"], row)),
               "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
              for row in rows]
     return [routed(row, own, beyond) for row in found]
+
+
+def stood_beyond(rows, beyond):
+    """The plan's `beyond` ids less each row standing on a row of the place laid here (its anchor "on:<id>", that row
+    itself not beyond): an object on the place's own staircase is the place's, whatever the plan said (2026-10-26: the
+    stairwell's man and woman on its stairs were listed beyond, and nothing made them)."""
+    anchors = {row["id"]: str(row.get("anchor") or "").partition("on:")[2] for row in rows}
+    found = set(beyond)
+    moved = True
+    while moved:
+        here = {row_id for row_id in found if anchors.get(row_id) in anchors and anchors[row_id] not in found}
+        found -= here
+        moved = bool(here)
+    return found
 
 
 def routed(row, own, beyond):

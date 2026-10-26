@@ -102,11 +102,24 @@ def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
 
 
 def test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own():
-    plan = {"w": 20.0, "d": 10.0, "items": [], "rows": {}, "beyond": ["far_crowd"]}
-    inventory = {"concept_pick": {"sha256": "0badcafe"}, "rows": [
-        {"id": "far_crowd", "name": "crowd of people", "noun": "crowd", "count": 3, "route": "people"},
-        {"id": "pilot", "name": "pilot in a red suit", "noun": "pilot", "count": 1, "route": "people"}]}
-    assert set(people_rows.refreshed_place("deck", inventory, plan, None)["rows"]) == {"pilot"}
+    """groups.current routes a people row the plan shows beyond the place to the backdrop, unless it stands on a row
+    laid here (2026-10-26: the stairwell's man and woman on its own stairs, listed beyond, were made by nothing)."""
+    from score.stages.complete.prepare import groups
+    plan = {"w": 20.0, "d": 10.0, "items": [], "rows": {}, "beyond": ["far_crowd", "man", "far_stage", "singer"]}
+    rows = [{"id": "far_crowd", "name": "crowd of people", "noun": "crowd", "count": 3, "route": "people",
+             "anchor": "ground"},
+            {"id": "pilot", "name": "pilot in a red suit", "noun": "pilot", "count": 1, "route": "people",
+             "anchor": "floor"},
+            {"id": "stairs", "route": "prop", "anchor": "floor"},
+            {"id": "man", "name": "man on the stairs", "noun": "man", "count": 1, "route": "people",
+             "anchor": "on:stairs"},
+            {"id": "far_stage", "route": "prop", "anchor": "ground"},
+            {"id": "singer", "name": "singer on the far stage", "noun": "singer", "count": 1, "route": "people",
+             "anchor": "on:far_stage"}]
+    beyond = groups.stood_beyond(rows, set(plan["beyond"]))
+    assert beyond == {"far_crowd", "far_stage", "singer"}, beyond  # the man stands on the place's own stairs
+    inventory = {"concept_pick": {"sha256": "0badcafe"}, "rows": [groups.routed(row, set(), beyond) for row in rows]}
+    assert set(people_rows.refreshed_place("deck", inventory, plan, None)["rows"]) == {"pilot", "man"}
 
 
 def test_the_tube_casts_its_people_and_the_square_its_crowd():
