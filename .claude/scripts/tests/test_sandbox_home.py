@@ -4,9 +4,11 @@ cloud ledger, 2026-10-17). Driven from outside, as `make tests` runs pytest."""
 import importlib.util
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 TARGET = ".claude/scripts/tests/test_gate_scope.py"  # any test file of this repository: only collected here
@@ -98,6 +100,40 @@ def test_what_a_test_leaves_in_the_temp_folder_goes_with_its_home():
     said = pathlib.Path(tempfile.mkdtemp()) / "left.txt"
     assert module.run([sys.executable, "-c", script, str(said)], real) == 0
     assert not pathlib.Path(said.read_text()).exists()
+
+
+def test_a_stopped_sandbox_still_removes_its_temp_folder_and_home():
+    """A stopped make or a closed terminal (SIGTERM, SIGHUP) left the run's temp folder with its stores."""
+    said = pathlib.Path(tempfile.mkdtemp()) / "temp.txt"
+    script = "import os, pathlib, sys, time; pathlib.Path(sys.argv[1]).write_text(os.environ['TMPDIR']); time.sleep(60)"
+    sandbox = subprocess.Popen([sys.executable, str(REPO / ".claude/scripts/sandbox-home.py"), "--", sys.executable,
+                                "-c", script, str(said)], env={**os.environ, "SCORE_REAL_HOME": str(fake_home())})
+    try:
+        deadline = time.time() + 20
+        while not (said.exists() and said.read_text()) and time.time() < deadline:
+            time.sleep(0.05)
+        sandbox.terminate()
+        assert sandbox.wait(20) != 0 and not pathlib.Path(said.read_text()).exists()
+    finally:
+        sandbox.kill()
+        shutil.rmtree(said.parent)
+
+
+def test_a_test_run_by_hand_removes_its_temp_stores_and_the_empty_home_it_was_given():
+    """2026-10-26: 529 stores left in /tmp by test files run by hand with PROPS_HOME=$(mktemp -d)."""
+    home, given = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
+    said = given / "left.txt"
+    script = ("import pathlib, runpy, sys, tempfile;"
+              f"runpy.run_path({str(REPO / 'conftest.py')!r})['refuse_outside_sandbox']();"
+              "left = pathlib.Path(tempfile.mkdtemp()) / 'store'; left.mkdir(); (left / 'object').write_text('x');"
+              "(left / 'object').chmod(0o444); left.chmod(0o555); pathlib.Path(sys.argv[1]).write_text(str(left))")
+    try:
+        subprocess.run([sys.executable, "-c", script, str(said)], check=True,
+                       env={**os.environ, "PROPS_HOME": str(home)})
+        assert not pathlib.Path(said.read_text()).exists() and not home.exists()
+    finally:
+        shutil.rmtree(given)
+        shutil.rmtree(home, ignore_errors=True)
 
 
 def test_a_write_through_a_link_fails_and_the_real_home_stands():

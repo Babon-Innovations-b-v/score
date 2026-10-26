@@ -6,10 +6,15 @@ home, unlinked the real cloud ledger). `make tests` and `make check` give each r
     PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest <test file>
 
 Plain-script tests (a `__main__` block) get the same fresh home from `make tests`, and run by hand each refuses first
-(refuse_outside_sandbox, the first step of its `__main__` block).
+(refuse_outside_sandbox, the first step of its `__main__` block). Past the refusal every run gets a temp folder of its
+own, removed at its exit (own_temp): run by hand, the tests' mkdtemp stores were never removed (2026-10-26: 529 of
+them, 51k files each, took /tmp's inodes to 98%).
 """
+import atexit
 import os
 import pathlib
+import shutil
+import stat
 import tempfile
 
 import pytest
@@ -47,13 +52,40 @@ def sandbox_refusal(environ):
     return refusal
 
 
+def writable_again(function, path, _error):
+    """rmtree's retry for a read-only file a test left (the store keeps its files read-only): its folder and it made
+    writable, then removed; a link is removed, never followed or changed."""
+    for target in [os.path.dirname(path)] + ([] if os.path.islink(path) else [path]):
+        os.chmod(target, os.stat(target).st_mode | stat.S_IWUSR | stat.S_IXUSR)
+    function(path)
+
+
+def own_temp():
+    """Point this process's temp folder, and its children's (TMPDIR), at a fresh folder of its own inside the current
+    one, removed with everything in it when this process exits (never by a forked child), and with it PROPS_HOME when
+    it was empty as the run started (a hand run's `mktemp -d`; make tests' sandbox removes its own); its path."""
+    folder = tempfile.mkdtemp(prefix="score-test-own-")
+    tempfile.tempdir = os.environ["TMPDIR"] = folder
+    home = pathlib.Path(os.environ["PROPS_HOME"])
+    removed = [folder] + ([home] if home.is_dir() and not any(home.iterdir()) else [])
+    owner = os.getpid()
+
+    def remove():
+        for path in removed if os.getpid() == owner else ():
+            if os.path.isdir(path):
+                shutil.rmtree(path, onerror=writable_again)
+    atexit.register(remove)
+    return folder
+
+
 def refuse_outside_sandbox():
     """A plain-script test's first step (its `__main__` block runs it): exit before any test runs without a sandbox
-    home, as pytest_configure does for a pytest run."""
+    home, as pytest_configure does for a pytest run; then the run's own temp folder (own_temp)."""
     refusal = sandbox_refusal(os.environ)
     if refusal:
         raise SystemExit(f"refused: {refusal}. Tests run in a sandbox home: make tests TESTS=<test file>, or "
                          "PROPS_HOME=$(mktemp -d) .venv/bin/python <test file>")
+    own_temp()
 
 
 def pytest_configure(config):
@@ -62,3 +94,4 @@ def pytest_configure(config):
     if refusal:
         pytest.exit(f"refused: {refusal}. Tests run in a sandbox home: PROPS_HOME=$(mktemp -d) (make tests gives "
                     f"each run one)", returncode=4)
+    own_temp()
