@@ -214,7 +214,7 @@ def test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_
             "box": [450, 100, 550, 150], "far": {"pieces": 2, "length": 200.0}}
     inventory = {"picture": [1000, 1000], "rows": [*rows, city]}
     assert far.far_object(city, set()) and not far.far_object({**city, "terrain": True}, set())
-    focal = 500 / math.tan(math.radians(writer.VIEW_FOV / 2))
+    focal = 500 / math.tan(math.radians(far.VIEW_FOV / 2))
     spot = far.spot(plan, inventory, city)
     assert abs(spot["distance"] - 50 * focal / 50) < 0.1 and np.allclose(spot["at"], [10.0, 10.0 - spot["distance"]],
                                                                           atol=0.1), spot

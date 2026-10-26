@@ -61,9 +61,8 @@ DECK_BELOW = design_shell.DECK_BELOW
 LIBRARY_ROW = "surface-library"
 # A ramp is laid as a flight of steps this high each (metres), fine enough to walk as a slope.
 RAMP_STEP = 0.05
-# A view stands this far inside its doorway, and every view sees this wide (degrees).
+# A view stands this far inside its doorway (every view sees far.VIEW_FOV wide).
 VIEW_IN = 1.0
-VIEW_FOV = 80
 AIM_HEIGHT = 1.0
 # What a door may lead to that is no place.
 NOT_PLACES = ("outside", "sealed")
@@ -318,7 +317,7 @@ def views(plan, eye_height):
         aim = 2 * middle - at[[0, 2]]
         found.append({"name": f"from-{door['name']}", "eye": [round(eye[0], 3), round(at[1] + eye_height, 3),
                                                              round(eye[2], 3)],
-                      "aim": [round(aim[0], 3), round(at[1] + AIM_HEIGHT, 3), round(aim[1], 3)], "fov": VIEW_FOV,
+                      "aim": [round(aim[0], 3), round(at[1] + AIM_HEIGHT, 3), round(aim[1], 3)], "fov": far.VIEW_FOV,
                       "from": f"plan {door['name']} ({door['wide']:g} m wide, to {door['to']}), looking across"})
     for number, spot in enumerate(plan["standing"], 1):
         aim = item_middle(plan, spot["looks_at"]) if spot["looks_at"] else middle
@@ -326,7 +325,7 @@ def views(plan, eye_height):
         found.append({"name": f"spot-{number}",
                       "eye": [round(spot["at"][0], 3), round(spot["level"] + eye_height, 3), round(spot["at"][1], 3)],
                       "aim": [round(aim[0], 3), round(aim_level + AIM_HEIGHT, 3), round(aim[1], 3)],
-                      "fov": VIEW_FOV, "from": f"plan standing spot {number}, looking to " +
+                      "fov": far.VIEW_FOV, "from": f"plan standing spot {number}, looking to " +
                                               (f"plan item {spot['looks_at']!r}" if spot["looks_at"] else "the middle")})
     return found
 

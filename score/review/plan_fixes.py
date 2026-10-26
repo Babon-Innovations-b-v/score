@@ -54,42 +54,10 @@ WHY = {  # what a gap left after the fixes says: why no fix of it took
 
 # --- the projection from the concept onto the plan ---------------------------------------------------------------
 
-def anchors(plan, inventory):
-    """[(across, foot), (x, y)] of each row on the floor (or on a row of the place's shell: its floor plates) boxed on
-    the concept as many times as it is laid on the plan (plan_checks.concept_spots' rows, and the rows of several
-    things too): the mean of its boxes' middles across and
-    feet as shares of the picture, and the mean of its things' middles on the plan."""
-    from score.review.plans import anchor_of, whole
-    picture, laid, shell = inventory.get("picture"), plan_checks.laid_boxes(plan), set(plan.get("structure", []))
-    if not picture:
-        return []
-    left_out = plan_checks.people(inventory) | plan_checks.afar(inventory) | plan_checks.beyond(plan, inventory)
-    found = []
-    for row in inventory.get("rows", []):
-        boxes, things = boxes_of(row), laid.get(row["id"], [])
-        if anchor_of(row) in {*plan_checks.FLOOR_ANCHORS, *shell} and boxes and len(things) == len(boxes) \
-                and row["id"] not in left_out and not whole(row, picture):
-            found.append((numpy.mean([[(box[0] + box[2]) / 2 / picture[0], box[3] / picture[1]] for box in boxes],
-                                     axis=0),
-                          numpy.mean([[(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] for box in things], axis=0)))
-    return found
-
-
-def projection(plan, inventory):
-    """The fitted map (a 3 x 2 matrix) from [a box's middle across, its foot, 1] as shares of the concept to its spot
-    [x, y] on the plan, fitted on the rows boxed and laid alike (`anchors`); None with fewer than three such rows."""
-    fitted = anchors(plan, inventory)
-    if len(fitted) < 3:
-        return None
-    source = numpy.array([[seen[0], seen[1], 1.0] for seen, _ in fitted])
-    target = numpy.array([spot for _, spot in fitted], dtype=float)
-    return numpy.linalg.lstsq(source, target, rcond=None)[0]
-
-
 def projector(plan, inventory):
     """A function from a SAM box (pixels of the concept) to its spot [x, y] on the plan, inside its outline box
     (`projection`); None with fewer than three rows to fit it on."""
-    matrix = projection(plan, inventory)
+    matrix = plan_checks.projection(plan, inventory)
     if matrix is None:
         return None
     wide, high = inventory["picture"]
@@ -98,11 +66,6 @@ def projector(plan, inventory):
         spot = numpy.array([(box[0] + box[2]) / 2 / wide, box[3] / high, 1.0]) @ matrix
         return [round(min(max(float(spot[0]), 0.0), plan["w"]), 3), round(min(max(float(spot[1]), 0.0), plan["d"]), 3)]
     return project
-
-
-def boxes_of(row):
-    """A row's SAM boxes on the concept (its instances')."""
-    return [box for box in row.get("boxes") or ([row["box"]] if row.get("box") else []) if box]
 
 
 # --- the free fixes ------------------------------------------------------------------------------------------------
@@ -143,7 +106,7 @@ def stood_people(plan, inventory, project):
     stood, fixes = [], []
     for row in rows:
         laid = [item for item, row_id, _ in plan_checks.placed_items(plan) if row_id == row["id"]]
-        spots = ([project(box) for box in boxes_of(row)] if project else []) or [
+        spots = ([project(box) for box in plan_checks.boxes_of(row)] if project else []) or [
             [round(item[1] + item[3] / 2, 3), round(item[2] + item[4] / 2, 3)] for item in laid]
         for item in laid:
             dropped_item(plan, item)
@@ -191,7 +154,7 @@ def split_runs(plan, inventory, project):
         shape = plan.get("shapes", {}).get(item[0]) or {}
         count, row = int(shape.get("count") or 1), by_id[gap["row"]]
         size = [min(float(row["size"][0]), item[3]), min(float(row["size"][1]), item[4])]
-        boxes = boxes_of(row)
+        boxes = plan_checks.boxes_of(row)
         spots = ([project(box) for box in boxes] if project and len(boxes) == count else
                  spread_spots(item[1:5], count, size))
         dropped_item(plan, item)
@@ -212,7 +175,7 @@ def placed_missing(plan, inventory, project):
             continue
         laid = [(item, shape) for item, row_id, shape in plan_checks.placed_items(plan) if row_id == row["id"]]
         placed = sum(int((shape or {}).get("count") or 1) for _, shape in laid)
-        spots = [project(box) for box in boxes_of(row)]
+        spots = [project(box) for box in plan_checks.boxes_of(row)]
         for item, shape in laid:  # each laid thing takes the spots nearest it, as many as it counts
             middle = [item[1] + item[3] / 2, item[2] + item[4] / 2]
             for _ in range(int((shape or {}).get("count") or 1)):

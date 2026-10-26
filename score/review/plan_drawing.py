@@ -59,7 +59,7 @@ def parts_of(store, place):
     sized = {planned[0]: PLANNED_SIZE.format(long=planned[1]["length"], wide=planned[1]["wide"])} if planned else {}
     said = [(f"{int(row.get('count', 1) or 1)} {row.get('name') or row['id']}" if int(row.get("count", 1) or 1) > 1
              else str(row.get("name") or row["id"])) + sized.get(row["id"], "") for row in inventory.get("rows", [])
-            if row["id"] not in left_out and not plans.whole(row, inventory.get("picture"))]
+            if row["id"] not in left_out and not plan_checks.whole(row, inventory.get("picture"))]
     return ", ".join(said).replace("_", " ")
 
 

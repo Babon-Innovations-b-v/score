@@ -34,7 +34,7 @@ FADE_PAST = 1.3
 # (the campgrounds' distant hills), raised round it over the bearings its concept box spans (as water's, water_span;
 # all round without a heading), fading to nothing its breadth past them, at the horizon a person's eye (EYE metres up)
 # sees on a body (FAR_SHARE of the far ground's reach on a plot, which has none), as tall as its box rises in the
-# concept seen with the framework's view (scene_record.writer.VIEW_FOV across), as broad as its read size is to its
+# concept seen with the framework's view (scene_record.far.VIEW_FOV across), as broad as its read size is to its
 # height, never broader than FAR_BROAD of its distance; its height along the ring varies by FAR_WAVES seeded waves of
 # its id.
 FAR_PARTS = ("ground", "backdrop")
@@ -314,10 +314,9 @@ def far_size(row, picture, distance):
     """(height, half breadth) in metres of a far row standing `distance` metres off: its box's rise over its foot in
     the concept seen with the framework's view, its breadth its read size's wide to tall times that (FAR_BROAD of
     its distance at most)."""
-    from score.stages.scene_record.writer import VIEW_FOV
+    from score.stages.scene_record import far
     box = (row.get("boxes") or [row.get("box")])[0]
-    focal = picture[0] / 2 / math.tan(math.radians(VIEW_FOV) / 2)
-    height = distance * (box[3] - box[1]) / focal
+    height = distance * (box[3] - box[1]) / far.focal(picture)
     size = row.get("size") if isinstance(row.get("size"), list) and len(row["size"]) >= 3 else [1.0, 1.0, 1.0]
     return height, min(FAR_BROAD * distance, height * float(size[0]) / max(float(size[2]), 1e-3) / 2)
 
