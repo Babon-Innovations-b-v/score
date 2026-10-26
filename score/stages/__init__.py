@@ -622,7 +622,7 @@ def ship_seen(row):
 
 
 STAGES = tuple(ship_seen(row) if row.name == "surfaces-check" else row for row in STAGES)
-# The assembly reading the round-three seed itself, before earth_seeded below: the worked example's (stages_test.py).
+# The assembly reading the round-three seed itself, before earth_seeded below.
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
@@ -645,8 +645,8 @@ EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed
 SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}
 # Every row that read a place's round-three seed (`{seeds}/usd-r3/<place>`) or its old kit (`{data}/kit/<place>.json`,
 # retired with the old concepts on 2026-10-21), each now reading earth-seed instead (earth_seeded: its stage folder
-# and its design's kit); stages_test.py holds the list to the declared files. terrain-look, the last reader of a seed
-# alone, is retired (#27).
+# and its design's kit); test_rows_key_and_wait_only_on_what_they_read.py holds the cast to it. terrain-look, the last
+# reader of a seed alone, is retired (#27).
 EARTH_SEEDED = ("assembly", "settle", "effects-layer", "cast", "motion",
                 "light-layer", "light-passes", "light", "scene-record")
 
