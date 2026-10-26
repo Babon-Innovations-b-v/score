@@ -318,6 +318,24 @@ def test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_with_no_t
     take = prepare.take_entry(group, {"rows": rows}, {}, predict.hub_rates(), folder)
     assert take["status"] == prepare.SHOWN  # bought and priced in the square: never bought here, so no skyline euros
     assert prepare.take_counts([take])["shown_from_its_place"] == 1 and prepare.take_counts([take])["bought"] == 0
+    alone = groups.group_of("stairwell", {"rows": rows}, rows[4], ("city_skyline", None, None))
+    assert prepare.take_entry(alone, {"rows": rows}, {}, predict.hub_rates(), folder)["status"] == prepare.NO_MAKER
+
+
+def test_a_backdrop_part_of_a_structure_is_shown_by_a_neighbours_structure_else_has_no_maker(tmp=None):
+    """Batch 1: the stairwell's lit and dark windows, on the walls of the buildings seen through its window, are the
+    square's buildings' (their finish lights them); a part no neighbour's structure holds has no maker."""
+    folder = pathlib.Path(tmp or tempfile.mkdtemp())
+    (folder / "square.json").write_text(json.dumps({"holds": [{"place": "stairwell"}]}))
+    read = {"square": {"rows": [{"id": "floodlight_tower", "route": "prop", "anchor": "on:plaza", "size": [2, 2, 18]},
+                                {"id": "kiosk", "route": "shell", "anchor": "ground", "size": [2, 2, 1]},
+                                {"id": "left_building", "route": "shell", "anchor": "ground", "size": [6, 2, 24]}]}}
+    window = {"id": "window_lit", "route": "skyline", "anchor": "wall", "size": [1.5, 0.1, 2.0]}
+    rocket = {"id": "rocket_launch", "route": "skyline", "anchor": "ground", "size": [5, 5, 60]}
+    found = {row["id"]: row.get("shown") for row in groups.shown_from("stairwell", [window, rocket], read, folder)}
+    assert found == {"window_lit": {"place": "square", "row": "left_building"}, "rocket_launch": None}
+    assert groups.shown_from("stairwell", [window], {"square": {"rows": read["square"]["rows"][:2]}}, folder)[0].get(
+        "shown") is None  # no structure taller than the window: no maker
 
 
 def test_a_row_is_routed_by_its_part_and_the_plan_lays_only_the_shell_it_draws():

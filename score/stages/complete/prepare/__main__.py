@@ -82,7 +82,8 @@ def take_entry(group, record, index, rates, work):
     is_made = made(group["take"])
     inputs = contract.faults(record, group, work) if model else [contract.PART_UNREAD] * (group["route"] is None)
     status = {"ground": TERRAIN, "plan": PLAN, None: "input gap"}.get(group["route"]) or (
-        SHOWN if group.get("shown") else status_of(match, is_made, inputs))
+        SHOWN if group.get("shown") else NO_MAKER if group["route"] == groups.ROUTES["backdrop"] else
+        status_of(match, is_made, inputs))
     return {**group, "library": match, "prediction": prediction, "inputs": inputs,
             "upscale": contract.upscale(group["box"]), "status": status,
             "key_diff": "made: its take stands, not bought again" if is_made else "new: no take of it stands"}
@@ -98,6 +99,9 @@ PLAN = "laid from the plan"
 # A backdrop row a place of its scene makes (groups.shown_from): made, bought and priced in that place, stood in this
 # place's stage with it (the scene record's `places`, the neighbours stage); no take, no euros here.
 SHOWN = "shown from its place"
+# A backdrop row no place of its scene makes (the far city retired, 29de1b39): nothing makes it, so it is reported as
+# a missing maker in the figure, never bought or silently dropped.
+NO_MAKER = "no maker"
 OWN_ROUTE = {"outcome": "pass", "shape": None, "pass_share": None, "mode": None,
              "measured": "its own route: no close-up, so no close-up failure is measured against it"}
 
@@ -115,6 +119,7 @@ def take_counts(takes):
             "terrain": sum(take["status"] == TERRAIN for take in takes),
             "laid_from_the_plan": sum(take["status"] == PLAN for take in takes),
             "shown_from_its_place": sum(take["status"] == SHOWN for take in takes),
+            "no_maker": sum(take["status"] == NO_MAKER for take in takes),
             "at_risk": sum(take["prediction"]["outcome"] == "at risk" for take in bought)}
 
 
