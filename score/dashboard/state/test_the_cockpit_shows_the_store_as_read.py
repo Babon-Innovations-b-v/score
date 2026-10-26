@@ -12,6 +12,15 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - groups.short_name: `len(style.places) == 1` -> `>= 1` -> test_a_place_is_said_by_its_short_name_once
 - money.total: `whole=not gaps` -> `whole=True` -> test_a_partial_line_is_never_the_total
 - money.with_bill_days: `{**days.get(today, {}), **read}` -> `read` -> test_each_read_of_the_month_keeps_its_day
+- groups.LAYER_OF_INPUT: surfaces-bake as "base" -> test_the_real_table_maps_every_place_stage_to_a_known_layer
+- money.view: `stop=None` -> test_the_runners_whole_lines_make_the_month_whole_against_the_last_batchs_stop
+- api/routes.place_detail: the unknown-place 404 dropped -> test_reads_answer_from_the_fixture_and_unknowns_are_404
+- api/routes.healthz: `"commit": None` -> test_healthz_reports_the_commit_the_image_was_built_at
+- api/routes: a `/money/stop` route added -> test_no_stop_or_cost_is_set_from_the_cockpit
+- api/routes.basket_remove: nothing deleted -> test_a_change_request_and_the_basket_round_trip
+- api/routes.decision: a missing worse_reason filled in -> test_a_worse_output_is_accepted_only_with_a_reason
+- api/routes.advance: a refused advance answered 200 -> test_an_advance_is_kept_only_for_a_known_node_and_output
+- api/routes.on_its_way: without `no-store` -> test_a_hosted_picture_not_yet_up_is_a_stand_in_never_a_broken_image
 - costs.hours: `{minutes % 60:02d}` -> `{minutes % 60}` -> test_minutes_are_said_in_hours_and_minutes
 - api/deps.py: the session check (401) dropped -> test_without_a_session_every_route_is_401
 - api/deps.py: the owner check dropped -> test_owner_routes_refuse_a_non_owner
