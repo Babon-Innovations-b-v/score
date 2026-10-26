@@ -100,8 +100,9 @@ def make(inputs, out, seed, params):
         loose, ignore, starts, under = settle.drop_job(stage, place, inventory, upright=True, kit_path=inputs["kit"])
         found = judged(root, inputs)
         laid = faulty(found, place)
+        unsplit = {}  # the hollow objects CoACD failed on, dropped as their one hull
         if starts or under or laid & set(loose):
-            hollow = convex_parts.hollow_parts(stage, place, loose, PARTS)
+            hollow, unsplit = convex_parts.hollow_parts(stage, place, loose, PARTS)
             (root.parent / convex_parts.FILE).write_text(json.dumps(hollow, indent=1))
             simulated = settle.simulate(root, loose, out / DROP, cloud=True, ignore=ignore, start=starts, under=under,
                                         cache=DROPS)
@@ -128,7 +129,7 @@ def make(inputs, out, seed, params):
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     (out / RECORD).write_text(json.dumps({
-        "place": place, "overlaps": simulated["overlaps"],
+        "place": place, "overlaps": simulated["overlaps"], "one hull": unsplit,
         "objects": {name: {"rested": pose["rested"], "said": pose["said"], "matrix": pose["after"].tolist()}
                     for name, pose in sorted(poses.items())}}, indent=1))
 
