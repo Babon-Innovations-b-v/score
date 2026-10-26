@@ -6,7 +6,8 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
              job: an object an old settle left tipped onto uneven feet stood upright first, one stacked on another
              meeting it, a hollow one (a crate, a tray, a bin, a shelf) by its convex parts so what is stacked in it
              meets its floor: tools/usd/convex_parts.py, written beside the dropped stage), and each one's rest (settle.rest_poses: a small correction written, a large one left as laid,
-             a tip onto uneven feet stood upright for the paint to level); then each fixed one the triage finds
+             a tip onto uneven feet stood upright for the paint to level; one that fell into the hollow piece it
+             lay on and rests inside it laid where it lands, landed_in_hollows); then each fixed one the triage finds
              floating as laid let down onto what is under it (held.fixed_let_down); then each held object stood
              upright and snapped down onto its holder as it rests (held.held_rests); and each object that then rests
              worse than as laid kept as laid with what it holds (kept_where_worse; one stood flush on its slope that
@@ -62,6 +63,8 @@ SCRATCH = PROPS_HOME / "store/cache"
 SUPPORT_REACH = 0.1
 # A rest the paint finishes: the faults the triage raises of an object stood upright on uneven feet.
 FOR_THE_PAINT = ("foot off", "leans", "tips")
+# How settle.dropped_pose says an object it keeps as laid past its limits (a turn or a drift).
+PAST_LIMITS = "would not rest as laid:"
 
 
 def files(place):
@@ -100,7 +103,7 @@ def make(inputs, out, seed, params):
         loose, ignore, starts, under = settle.drop_job(stage, place, inventory, upright=True, kit_path=inputs["kit"])
         found = judged(root, inputs)
         laid = faulty(found, place)
-        unsplit = {}  # the hollow objects CoACD failed on, dropped as their one hull
+        hollow, unsplit = {}, {}  # the objects dropped as convex parts; those CoACD failed on, as their one hull
         if starts or under or laid & set(loose):
             hollow, unsplit = convex_parts.hollow_parts(stage, place, loose, PARTS)
             (root.parent / convex_parts.FILE).write_text(json.dumps(hollow, indent=1))
@@ -110,6 +113,7 @@ def make(inputs, out, seed, params):
             simulated = still(loose, out / DROP)
         poses = settle.rest_poses(stage, place, inventory, simulated, starts,
                                   room="room" in read_json(inputs["kit"]))
+        poses = landed_in_hollows(stage, place, poses, simulated, under, hollow)
         laid_over(root, seed, place, poses, scratch / "dropped.usda")
         poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
         poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
@@ -132,6 +136,42 @@ def make(inputs, out, seed, params):
         "place": place, "overlaps": simulated["overlaps"], "one hull": unsplit,
         "objects": {name: {"rested": pose["rested"], "said": pose["said"], "matrix": pose["after"].tolist()}
                     for name, pose in sorted(poses.items())}}, indent=1))
+
+
+def landed_in_hollows(stage, place, poses, simulated, under, hollow):
+    """The poses with each object the drop would have kept as laid (past the settle's limits) that fell into the
+    hollow piece it is stacked on and came to rest inside it laid where it lands (laid_where_it_lands), read off the
+    stage and the drop."""
+    import numpy as np
+    for name, pose in list(poses.items()):
+        support = (under.get(name) or [None])[0]
+        if support not in poses or name not in simulated["objects"]:
+            continue
+        rest = np.asarray(simulated["objects"][name]["motion"]) @ pose["before"]
+        middle = (rest @ np.append(settle.object_middle(stage, place, name), 1.0))[:3]
+        moved_support = poses[support]["after"] @ np.linalg.inv(poses[support]["before"])
+        corners = np.c_[settle.box_corners(stage, place, support), np.ones(8)] @ moved_support.T
+        poses[name] = laid_where_it_lands(pose, rest, middle, under.get(name, []), hollow, poses[support],
+                                          corners[:, :3])
+    return poses
+
+
+def laid_where_it_lands(pose, rest, middle, supports, hollow, support_pose, corners):
+    """An object's pose, laid where the drop leaves it (`rest`, rested) when it would not rest as laid only because it
+    fell into a hollow piece: its one support (`supports`) is dropped as its convex parts (named in `hollow`), rests
+    itself (`support_pose`), and the object's middle at rest (`middle`, stage frame) lies inside that support's box as
+    it rests (`corners`, its 8 corners in the stage's frame, settle.box_corners' order). Falling straight into an open
+    crate is where it belongs, not a drift (owner's rule, 2026-10-26); anything else keeps the limits."""
+    if pose["rested"] or not pose["said"].startswith(PAST_LIMITS) or len(supports) != 1 \
+            or supports[0] not in hollow or not support_pose["rested"]:
+        return pose
+    frame = settle.upright_frame(corners)
+    low, high = settle.box_in(frame, corners)
+    if not ((low <= frame @ middle) & (frame @ middle <= high)).all():
+        return pose
+    return {**pose, "after": rest, "rested": True,
+            "said": f"fell into {supports[0]}, a hollow piece, and rests inside it: laid where it lands "
+                    f"({pose['said'].removeprefix(PAST_LIMITS).strip()})"}
 
 
 def judged(root, inputs):

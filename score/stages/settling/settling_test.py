@@ -1,6 +1,10 @@
 """Check the settle stage without a drop: its layer lays each written object where its matrix says over the seed (the
 assembly takes it the same way), and its drop gate fails a broken drop while one kept as laid or stood upright for
-the paint is named.
+the paint is named; one fallen into the hollow piece it lay on is laid where it lands, anything else past the limits
+kept as laid.
+
+Break that turns it red (applied once, seen red, reverted, 2026-10-26): laid_where_it_lands without its
+`supports[0] not in hollow` test (a one-hull support's faller laid where it lands).
 
 Run: .venv/bin/python score/stages/settling/settling_test.py   (make tests runs it with the framework's environment)
 """
@@ -118,9 +122,65 @@ def a_flush_pose_resting_worse_falls_back_to_the_drops_rest():
         problems.append("a flush pose resting no worse, or a worse one with no flush, was changed")
     return problems
 
+def one_fallen_into_a_hollow_piece_is_laid_where_it_lands():
+    """Both ways (owner, 2026-10-26: a box laid on an open crate falls 55 cm onto its floor): one past the limits whose
+    one support was dropped as convex parts and rests, its middle at rest inside that crate's box, is laid at the
+    drop's rest; with its support one hull, or its middle outside the box, or the crate itself kept as laid, it keeps
+    the limits."""
+    eye, rest = np.eye(4), np.eye(4)
+    rest[1, 3] = -0.55
+    said = "would not rest as laid: turns 0 degrees and drifts 55 cm to rest"
+    pose = {"before": eye, "after": eye, "rested": False, "said": said}
+    crate = {"before": eye, "after": eye, "rested": True, "said": "turns 0 degrees and drifts 0 cm to rest"}
+    corners = np.array([[x, y, z] for x in (-0.5, 0.5) for y in (0.0, 0.6) for z in (-0.4, 0.4)])
+    inside, outside = np.array([0.0, 0.17, 0.0]), np.array([0.0, 0.17, 0.9])
+    landed = settle.laid_where_it_lands(pose, rest, inside, ["crate_1"], {"crate_1": []}, crate, corners)
+    problems = []
+    if not landed["rested"] or landed["after"] is not rest or "laid where it lands" not in landed["said"]:
+        problems.append(f"the box in the crate was not laid where it landed: {landed}")
+    for why, kept in (
+            ("one hull", settle.laid_where_it_lands(pose, rest, inside, ["crate_1"], {}, crate, corners)),
+            ("outside", settle.laid_where_it_lands(pose, rest, outside, ["crate_1"], {"crate_1": []}, crate,
+                                                   corners)),
+            ("crate kept", settle.laid_where_it_lands(pose, rest, inside, ["crate_1"], {"crate_1": []},
+                                                      {**crate, "rested": False}, corners)),
+            ("tipped", settle.laid_where_it_lands({**pose, "said": "still moving 0.40 m/s at the end; left as laid"},
+                                                  rest, inside, ["crate_1"], {"crate_1": []}, crate, corners))):
+        if kept["rested"]:
+            problems.append(f"{why}: laid where it landed, not kept by the limits: {kept}")
+    return problems
+
+
+def a_box_fallen_into_its_crate_on_the_stage_is_laid_there():
+    """The same read off a stage: a box laid on a 1 m crate that the drop puts 0.8 m lower, inside the crate, is laid
+    there; one the drop throws 2 m aside keeps its laid pose."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("crate", "box", (0, 0, 0)), ("box", "box", (0, 1.0, 0))],
+                                       [("crate", "floor"), ("box", "on:crate")])
+        stage = Usd.Stage.Open(str(path))
+        problems = []
+        for shift, landed in (((0.0, -0.8, 0.0), True), ((2.0, -0.8, 0.0), False)):
+            motion = np.eye(4)
+            motion[:3, 3] = shift
+            poses = {"crate_1": {"before": laid(stage, "crate_1"), "after": laid(stage, "crate_1"), "rested": True,
+                                 "said": "turns 0 degrees and drifts 0 cm to rest"},
+                     "box_1": {"before": laid(stage, "box_1"), "after": laid(stage, "box_1"), "rested": False,
+                               "said": "would not rest as laid: turns 0 degrees and drifts 80 cm to rest"}}
+            simulated = {"objects": {"crate_1": {"motion": np.eye(4).tolist()}, "box_1": {"motion": motion.tolist()}}}
+            found = settle.landed_in_hollows(stage, PLACE, poses, simulated, {"box_1": ["crate_1"]},
+                                             {"crate_1": []})["box_1"]
+            if found["rested"] is not landed or (landed and not np.allclose(found["after"],
+                                                                            motion @ laid(stage, "box_1"))):
+                problems.append(f"moved by {shift}: laid where it lands {found['rested']}, wanted {landed}")
+        return problems
+
+
 CHECKS = (the_layer_lays_each_object_at_its_rest, the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
           only_what_lies_on_the_object_resting_worse_is_kept_with_it,
-          a_flush_pose_resting_worse_falls_back_to_the_drops_rest)
+          a_flush_pose_resting_worse_falls_back_to_the_drops_rest,
+          one_fallen_into_a_hollow_piece_is_laid_where_it_lands, a_box_fallen_into_its_crate_on_the_stage_is_laid_there)
 
 
 if __name__ == "__main__":
