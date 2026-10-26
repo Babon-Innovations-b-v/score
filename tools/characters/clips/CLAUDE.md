@@ -18,4 +18,5 @@ the people's rig. They are run by the row `video-clip-<clip>` (`score/stages/vid
   imports torch and the gate runs without it. If one of them changes, change both.
 - Never edit `../maker/` or `../people/` for this route. Both folders are declared inputs of the paid people rows, so
   an edit there re-keys every body.
-- Tests: `retarget_test.py` runs a synthetic BVH through the seam (read, retarget, smoothing, resampling, on the spot).
+- Tests: `test_motion_lands_on_the_rigs_rest.py` runs a synthetic BVH through the seam (read, retarget, smoothing,
+  resampling, on the spot).

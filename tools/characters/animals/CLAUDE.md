@@ -31,6 +31,6 @@ moves in a place's stage and the owner has seen it there.
   standing on it, at the spec's `length_m` from snout to tail.
 - **Look at the frames before claiming a clip works.** The review frames are rendered from the
   exported file read back, on a floor with a grid that shows a sliding foot.
-- `animals_test.py` checks the plain-Python pieces (spine weights, leg chains, the foot's path).
-  Everything a make writes lives in `~/.farm-factory-motion/made/<name>/`; nothing generated is
+- `test_rig_follows_the_body.py` checks the plain-Python pieces (spine weights, leg chains, the foot's
+  path). Everything a make writes lives in `~/.farm-factory-motion/made/<name>/`; nothing generated is
   committed.
