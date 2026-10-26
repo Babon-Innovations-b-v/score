@@ -14,7 +14,10 @@ import tempfile
 import numpy as np
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
+# Run as a script, this folder leads the path; the runner (python -m score) never has it there, and the code walk would
+# take its compare.py for thin_straight's bare `import compare` (tools/usd's) into the paid rows' code versions.
+sys.path[:] = [str(REPO)] + [entry for entry in sys.path
+                             if pathlib.Path(entry or ".").resolve() != REPO / "score/stages/props"]
 
 from score import graph, stages  # noqa: E402
 from score.graph import _code  # noqa: E402
