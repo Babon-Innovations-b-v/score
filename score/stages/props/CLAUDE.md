@@ -42,6 +42,13 @@ gate passes it), else
   gap (the finish route skips a gapped take); `likeness` carries it again only while a free check fails the build. A
   close-up that passes later removes the build and Pixal3D makes the take. Keep `likeness_row` out of its imports:
   the paid rows' code must not hash the checks (`props_test.py`), so the shared cut-out (`cut_out`) lives there.
+- **Flat sheets are built in code when their take made no model** (`flat_sheet.py`): a row lying flat (its close-up
+  drawn from straight above) under `SHEET_SHARE` of its longest side tall (a poster, rug, note, paper, mat) whose
+  Pixal3D take or its finish made no model is laid as its own close-up's outline (convex hull, cut out) at the row's
+  size, its take's files thin_straight's with `code.json` naming the rule, so the finish route paints it with a library
+  surface and `likeness` holds it to that close-up. The prop route first: only a failed take is built, and the build is
+  kept (no close-up removes it). The finish's own fault for such sheets was `glb_file.upright_turn --flat` giving a
+  side square to up no sign (a NaN turn); fixed 2026-10-26, so this route is the net, not the way.
 - **A take a paid step failed is a batch gap, never a stop** (`../batch_gaps.py`, score's overlay): `closeup` names
   each object no Pro take passed, `pixal` each take its batch brought no model back for (carrying the close-up's), in
   `batch-gaps.json`; their gates still fail them by name and the table moves those faults. `likeness` reads the rows

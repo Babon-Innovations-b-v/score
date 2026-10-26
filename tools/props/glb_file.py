@@ -216,15 +216,19 @@ def upright_turn(points, long=False, feet=False, tube=False, flat=False):
 
     By default the box side pointing nearest to up becomes straight up. `long` stands it on its
     longest side instead (a tall rocket, whose splayed legs can make another side look more
-    upright). `flat` lays it on its face, its shortest side up (a rug drawn from straight above,
-    which Pixal3D builds standing in the picture's plane). `feet` then sets it down on the face it would settle on (`resting_face`), so a model
+    upright). `flat` lays it on its face, its shortest side up, the face toward the picture's camera
+    (-Z) on top (a rug drawn from straight above, which Pixal3D builds standing in the picture's
+    plane). A side square to up turns either way (its pick is up or down, never none: a sheet whose
+    faces are exact planes square to Z, as the remesh leaves one, gave a zero side and a NaN turn,
+    and every such take's finish failed, quarters' poster, rug and sticky note, 2026-10-26). `feet` then sets it down on the face it would settle on (`resting_face`), so a model
     on legs stands on its footpads. `tube` then stands a round body's own axis straight up
     (`tube_axis`), for a rocket section, whose fins and side boxes fool the other two. Last, it is
     squared to the ground (`squared`).
     """
     sides = box_sides(points)
     side = sides[0] if long else sides[2] if flat else sides[np.argmax(np.abs(sides[:, 1]))]
-    turn = rotation_between(side * np.sign(side[1]), np.array([0.0, 1.0, 0.0]))
+    up = -np.sign(side[2]) if flat else np.sign(side[1])
+    turn = rotation_between(side * (up or 1.0), np.array([0.0, 1.0, 0.0]))
     if feet:
         turn = rotation_between(-resting_face(points @ turn.T), np.array([0.0, 1.0, 0.0])) @ turn
     if tube:
