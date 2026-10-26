@@ -1,6 +1,10 @@
 """The flat sheet code route (flat_sheet.py): which rows it takes, the model it lays, the take it writes where the
 finish route and the likeness row read one, and the Pixal3D row building it for a sheet whose finish made no model.
 
+Breaks (applied once, seen red, reverted): write_take cutting with thin_straight.cut_out instead of flat_sheet.cut_out
+turns test_a_light_sheet_on_a_light_backdrop_is_cut_as_itself_not_its_shadow red (its hull the shadow L's, half the
+square).
+
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/flat_sheet_test.py
 """
 import json
@@ -55,6 +59,31 @@ def test_the_sheet_is_its_close_up_s_outline_at_the_row_s_size(tmp_path):
     mesh = flat_sheet.build({"size": [1.5, 1.5, 0.02]}, cut)
     top = mesh.area_faces[mesh.face_normals[:, 1] > 0.9].sum()
     assert abs(top / (np.pi * 0.75 ** 2) - 1) < 0.02  # round, not its box
+
+
+def light_note(path):
+    """quarters' sticky note seen from above (2026-10-26): a cream sheet (22, 15, 6) off a light grey backdrop that
+    darkens downwards, with a dark drop shadow along its right and bottom edges, and ink on it."""
+    down, _ = np.mgrid[0:600, 0:440]
+    pixels = np.repeat((222 - 25 * down / 600)[..., None], 3, axis=2)
+    pixels[150:470, 110:330] += (22, 15, 6)
+    pixels[470:478, 116:338] = pixels[156:478, 330:338] = (130, 127, 122)  # the shadow, an L along two edges
+    pixels[200:440:40, 140:300] = (90, 60, 50)  # lines of ink
+    Image.fromarray(pixels.astype(np.uint8)).save(path)
+    return path
+
+
+def test_a_light_sheet_on_a_light_backdrop_is_cut_as_itself_not_its_shadow(tmp_path):
+    note = {**NOTE, "size": [0.08, 0.08, 0.001]}
+    views = flat_sheet.write_take("q_note", note, light_note(tmp_path / "note.png"), 200, tmp_path / "pixal",
+                                  tmp_path / "cut")
+    import trimesh
+    extents = trimesh.load(tmp_path / "pixal/q_note.glb", force="mesh").extents
+    assert np.allclose(extents, [0.08, 0.001, 0.08], atol=0.001), extents
+    hull = trimesh.load(tmp_path / "pixal/q_note.glb", force="mesh")
+    assert abs(hull.area / 2 / 0.08 ** 2 - 1) < 0.05, hull.area  # a square, not the hull of its shadow's L
+    outline = likeness.best_way(tmp_path / "pixal/q_note-final.glb", views / "input.png", note["size"])["outline"]
+    assert outline >= likeness.OUTLINE_LEAST, outline
 
 
 def test_the_take_replaces_the_pixal3d_one_where_the_finish_route_and_the_likeness_row_read_it(tmp_path, monkeypatch):
