@@ -23,5 +23,5 @@ film's cameras. Each file's docstring has its command.
   of the game's rule. Judge framing and layout here, the look on the films and the review page.
 - three.js is loaded pinned (core from cdnjs, its add-ons and three-mesh-bvh from jsdelivr, where cdnjs has none);
   move a pin only to a release at least two weeks old.
-- `viewer_test.py` exports a stage made in the test (gltfpack through npx), checks the copy and the sidecar, saves
+- `test_the_web_copy_is_the_stage_whole_and_the_picks_are_kept.py` exports a stage made in the test (gltfpack through npx), checks the copy and the sidecar, saves
   and reads back viewpoints and drives the server.
