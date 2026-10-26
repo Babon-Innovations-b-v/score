@@ -17,8 +17,9 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
   Break: `have_secret` in prepare.sh answers no -> secrets are created again.
 - The agents' door refuses a shell, a paid run, the owner's commands and anything under the free-only latch, and runs
   the allowed ones marked as an agent's (`--free` added to a run; a benchmark only under its grant).
-  Break: drop `--free` from the door's `run` rewrite in agent_door.py. Break: drop `env.pop("SCORE_BENCHMARK_GRANT")` in the
-  door's `environment` -> a smuggled grant passes. Break: drop the latch refusal of a benchmark.
+  Break: drop `--free` from the door's `run` rewrite in agent_door.py.
+  Break: drop `env.pop("SCORE_BENCHMARK_GRANT")` in the door's `environment` -> a smuggled grant passes.
+  Break: drop the latch refusal of a benchmark.
 - The env file carries no secret. Break: let SCORE_SYNC_TOKEN through `env_text`.
 - The move: this PC's store units off first (a failed disable is said), its home backed up before the conductor
   restores it, the sync installed after; the PC's home set aside and made read-only last, after the yes is marked.

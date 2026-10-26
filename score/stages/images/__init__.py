@@ -154,8 +154,8 @@ def sandboxed(home):
 def judge_build_test(output, inputs, evidence):
     """Pass when the images module's test passes, run in a sandbox home of its own (tests never touch the real one)."""
     with tempfile.TemporaryDirectory() as home:
-        done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(IMAGES / BUILD_TEST)],
-                              capture_output=True, text=True, cwd=REPO, env=sandboxed(home))
+        done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
+                               str(IMAGES / BUILD_TEST)], capture_output=True, text=True, cwd=REPO, env=sandboxed(home))
     if done.returncode:
         return checks.Verdict("build test", checks.FAIL, f"images/{BUILD_TEST} failed",
                               findings=tuple((done.stdout + done.stderr).strip().splitlines()[-8:]))
