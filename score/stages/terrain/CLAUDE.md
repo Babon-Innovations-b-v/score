@@ -34,8 +34,10 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   least 1.5 km), static colliders; the place's old `Ground`, `Terrain` and `Water` made inactive.
 - **The far ground follows the concept** (2026-10-26: the campgrounds' distant hills had no maker). A landform of the
   far ground (`design.far_row`: a terrain row whose part is the ground or the backdrop, that the plan marks beyond)
-  is raised by `design.far_reliefs` as a ring round its place at the horizon a person's eye sees (FAR_SHARE of the
-  far reach on a plot), as tall as its SAM 3 box rises in the concept at the framework's view (VIEW_FOV), as broad as
+  is raised by `design.far_reliefs` round its place over the bearings its concept box spans, as water's
+  (`design.water_span`; fading to nothing its breadth past them, open ground beyond; all round only when no heading
+  fits or the span is the whole circle), at the horizon a person's eye sees (FAR_SHARE of the far reach on a plot),
+  as tall as its SAM 3 box rises in the concept at the framework's view (VIEW_FOV), as broad as
   its read size is to its height; listed in ground.json `far`, and prepare routes it to this node (`groups.routed`).
   It fades to nothing before the far edge, so `curve` still measures the body.
 - **Water is the ground's** (2026-10-26: the square's sea had no maker). A body of water (`design.water_row`: a terrain

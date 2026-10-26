@@ -155,7 +155,7 @@ def test_a_small_worlds_horizon_dips():
     assert sight.horizon([0.0, 1.7, 0.0], (0.0, 1.0, 0.0), None)[1] == 0.0
 
 
-def test_a_far_landform_beyond_the_place_is_raised_round_it_and_its_curve_still_holds():
+def test_a_far_landform_beyond_the_place_is_raised_over_its_bearings_and_its_curve_still_holds():
     """2026-10-26: the campgrounds' distant hills had no maker. A terrain row of the ground the plan marks beyond is
     a ring of landforms at the horizon, as tall as its box rises in the concept; the near ground and the far edge
     stay as they were."""
@@ -182,6 +182,16 @@ def test_a_far_landform_beyond_the_place_is_raised_round_it_and_its_curve_still_
                             for turn in np.linspace(0, 2 * math.pi, 90)])
         assert out_there.min() >= 0.4 * height - 1e-6 and out_there.max() <= height + 1e-6 and np.ptp(out_there) > 1.0
         assert relief([[20.0, 20.0], [20.0 + distance + far[0]["broad"] + 1.0, 20.0]]).max() == 0.0
+        assert far[0]["bearings"] is None  # no heading to place its bearings: all round
+        ways = (np.array([0.0, -1.0]), np.array([1.0, 0.0]))  # the concept looks north
+        ahead, behind = [20.0, 20.0 - distance], [20.0, 20.0 + distance]
+        shown = design.far_ring([20.0, 20.0], distance, height, 100.0, 7, (-0.3, 0.3, ways))
+        assert shown([ahead])[0] >= 0.4 * height - 1e-6 and shown([behind])[0] == 0.0
+        assert shown([[20.0 + distance * math.sin(0.3 + 101.0 / distance), 20.0 - distance * math.cos(
+            0.3 + 101.0 / distance)]])[0] == 0.0  # faded out a breadth past its bearings
+        whole = design.far_ring([20.0, 20.0], distance, height, 100.0, 7, (-math.pi, math.pi, ways))
+        assert np.allclose(whole([ahead, behind]), design.far_ring([20.0, 20.0], distance, height, 100.0, 7)(
+            [ahead, behind]))  # a concept that shows it all round: the full ring
         for check in terrain.CHECKS:
             verdict = check.judge(out, inputs, {})
             assert verdict.answer == "pass", (verdict.check, verdict.reason)
