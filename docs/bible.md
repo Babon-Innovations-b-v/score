@@ -333,7 +333,10 @@ branch names a scene or a world.
   gated on `layers`, placeholders, resting and `collision` (`tools/usd/colliders.py`: every wall, floor, stair and
   ground has a collider, every model its own; a body in the sky none).
 - **Neighbours** (`neighbours.py`): the scenes a scene shows, each as its own accepted assembly; one no stage makes is a
-  gap.
+  gap. A row the plan shows beyond the scene (`beyond`) is the backdrop's: when a scene of its scene tree (its parent
+  scene, or a child scene beside it) makes that object, it is shown from there (prepare's `groups.shown_from`), that
+  scene stood here where the parent's plan holds it, and the `rows` check counts it made once its object stands
+  under Places; one no scene makes stays the skyline's, unpriced until a stage makes it.
 - **The scene tree** (`scene_tree.py`, `scene-tree@<scene>`, free): a parent scene holds its children in OpenUSD,
   `/<scene>/Scenes/<child>` referencing each child's own tree at the child's outline on the parent's plan; a child's
   tree is made before its parent's. Opening a top scene opens everything within it, each child still its own layer

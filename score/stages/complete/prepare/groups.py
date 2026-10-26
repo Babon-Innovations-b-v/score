@@ -49,12 +49,53 @@ def current(store, places):
     """({place: its scene inventory}, [place waiting on inventory]) of `places`: each place's current reading
     (score/review/reading.reading_of: read from its picked draw by today's method), its rows as read_row gives them;
     a place with none waits, with no rows and no euros (the old data/inventory files count for nothing here)."""
-    from score.review import reading
+    from score.review import plans, reading
     found = {place: reading.reading_of(store, place) for place in places}
-    return ({place: {**record["inventory"], "rows": sized_rows(store, place, record), "size": record.get("size"),
-                     "plan": {"views": [{"id": "v1", "picture": str(blob_path(store, record["concept"]))}]}}
-             for place, record in found.items() if record},
+    read = {place: {**record["inventory"], "rows": sized_rows(store, place, record), "size": record.get("size"),
+                    "plan": {"views": [{"id": "v1", "picture": str(blob_path(store, record["concept"]))}]}}
+            for place, record in found.items() if record}
+    return ({place: {**record, "rows": shown_from(place, record["rows"], read, plans.KEPT)}
+             for place, record in read.items()},
             sorted(place for place, record in found.items() if not record))
+
+
+def shown_from(place, rows, read, folder):
+    """The place's rows, each backdrop row (route "skyline") that a place of its scene makes as a model marked
+    `shown`: {place, row} of that place's row (source_of), the object made, bought and laid where it stands and stood
+    in this place's stage with that place (the scene record's `places`, the neighbours stage), never a second take.
+    A backdrop row no place of its scene makes keeps its route and no `shown`."""
+    others = [(other, read[other]["rows"]) for other in scene_places(place, folder) if other in read]
+    found = []
+    for row in rows:
+        source = source_of(row, others) if row["route"] == ROUTES["backdrop"] else None
+        found.append({**row, "shown": {"place": source[0], "row": source[1]}} if source else row)
+    return found
+
+
+def scene_places(place, folder):
+    """The other places of the scene the place stands in, nearest first: the scene holding it, then the places that
+    scene's plan lays out beside it (the kept plans' `holds`), the ones the scene record can stand in this place's
+    stage where its holder's plan holds them (score/stages/scene_record/writer.places_of)."""
+    for path in sorted(pathlib.Path(folder).glob("*.json")):
+        held = [hold["place"] for hold in json.loads(path.read_text()).get("holds") or []]
+        if place in held:
+            return [path.stem, *sorted(name for name in set(held) if name != place)]
+    return []
+
+
+def source_of(row, others):
+    """(place, row id) of the model row of `others` ([(place, rows)], nearest first) that a backdrop row is: one of the
+    same object kind, else the nearest whose kind's words hold the row's or are held in them (kind_words: the
+    stairwell's palm_tree is the square's palm_tree, the street's distant_rocket the square's rocket); None."""
+    made = [(other, found["id"]) for other, rows in others for found in rows if found["route"] in MODEL_ROUTES]
+    words = kind_words(row["id"])
+    return next((source for source in made if object_kind(source[1]) == object_kind(row["id"])), None) or next(
+        (source for source in made if words <= kind_words(source[1]) or kind_words(source[1]) <= words), None)
+
+
+def kind_words(row_id):
+    """The words of a row's object kind, each singular (a trailing s off, never off ss)."""
+    return frozenset(re.sub(r"(?<!s)s$", "", word) for word in object_kind(row_id).split("_") if word)
 
 
 def sized_rows(store, place, record):
@@ -317,7 +358,7 @@ def group_of(place, record, row, key):
             "take": row.get("thing", "").partition(":")[2] or row["id"], "instances": row.get("count", 1),
             "route": row.get("route", "prop"), "shell": is_shell(row) or row.get("route") == "shell",
             "crop": crop_hash(record, row), "size": row.get("size"), "view": row.get("view"),
-            "box": row.get("box"), "reuse": row.get("reuse")}
+            "box": row.get("box"), "reuse": row.get("reuse"), "shown": row.get("shown")}
 
 
 def counts(groups_by_place):

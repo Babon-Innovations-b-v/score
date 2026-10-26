@@ -408,10 +408,35 @@ def a_designed_place_s_boxes_are_judged_on_its_hand_in():
         return [] if found == [complete.PASS, complete.FAIL] else [f"a grounded box and a whole-picture box read {found}"]
 
 
+def a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object():
+    """A backdrop row its hand-in shows from another place of its scene (`shown`: the rocket seen past the street is
+    the square's) counts as made when that place's object of the row stands under the place's Places, never before."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = laid(folder, rows=(("crate", "floor"), ("lamp", "floor"), ("distant_rocket", "floor")))
+        held, complete.HOME = complete.HOME, folder
+        problems = []
+        try:
+            (folder / "design/props").mkdir(parents=True)
+            shown = {"id": "distant_rocket", "route": "skyline", "shown": {"place": "square", "row": "rocket"}}
+            (folder / f"design/props/{resting_test.PLACE}.json").write_text(json.dumps({"rows": [shown]}))
+            if complete.rows_check(resting_test.PLACE, stage)["result"] != complete.FAIL:
+                problems.append("a shown row whose place stands no object of it passed")
+            opened = Usd.Stage.Open(str(stage))
+            rocket = opened.DefinePrim(f"/{resting_test.PLACE}/Places/square/Objects/rocket_1")
+            rocket.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("rocket")
+            opened.Save()
+            if complete.rows_check(resting_test.PLACE, stage)["result"] != complete.PASS:
+                problems.append("a shown row whose place stands its object still fails")
+        finally:
+            complete.HOME = held
+        return problems
+
+
 CHECKS = (loose_objects_with_no_drop_are_not_known_to_rest, a_finished_place_passes, an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
           a_store_copy_takes_resting_from_its_assembly_gate, a_ship_place_reads_the_runners_beside_likeness,
           a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
-          a_row_with_no_object_needs_a_drop_reason,
+          a_row_with_no_object_needs_a_drop_reason, a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
           a_check_that_cannot_run_is_unknown,
           the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key, a_designed_place_s_boxes_are_judged_on_its_hand_in)
