@@ -149,6 +149,40 @@ def test_a_take_its_environment_measured_is_predicted_by_that_not_by_its_shape()
     assert own("pipe", pipe)["outcome"] == "predicted gap"
 
 
+def a_closeup_picture(folder, name, box):
+    """A close-up of one brown object (`box`, pixels left, top, right, bottom) on a white studio backdrop."""
+    from PIL import Image, ImageDraw
+    picture = Image.new("RGB", (512, 512), (255, 255, 255))
+    ImageDraw.Draw(picture).rectangle(box, fill=(90, 70, 60))
+    (folder / "closeups").mkdir(parents=True, exist_ok=True)
+    picture.save(folder / "closeups" / f"{name}.png")
+
+
+def test_a_flat_sheet_pixal3d_made_no_model_of_is_predicted_by_its_code_build_measured_free():
+    from score.store import Store
+    store = Store.in_folder(tempfile.mkdtemp())
+    rug, note, crate = [2.0, 3.0, 0.02], [0.08, 0.08, 0.001], [0.5, 0.5, 0.4]
+    closeups = {name: {"size": size, "drawn_by": "pro", "takes": {"pro": []}}
+                for name, size in (("rug", rug), ("note", note), ("crate", crate))}
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "closeups.json").write_text(json.dumps({"objects": closeups}))
+    a_closeup_picture(folder, "rug", (156, 56, 356, 456))  # 2 by 3, seen from straight above
+    a_closeup_picture(folder, "note", (156, 156, 356, 356))
+    at = predict.LATER_TAKES_SINCE
+    store.write_accept("closeup@lab", {"output": store.put_tree(folder), "at": at})
+    store.write_accept("pixal@lab", {"output": a_stored_output(store, {"batch-gaps.json": {"gaps": [
+        {"row": "pixal", "objects": [name, f"lab_{name}"]} for name in ("rug", "note", "crate")]}}), "at": at})
+    measures = predict.environment_measures(store, ["lab"])["lab"]
+
+    def own(name, size):
+        take = {"place": "lab", "rows": [name], "take": f"lab_{name}", "size": size}
+        return predict.own_outcome(take, {"id": name, "name": name, "noun": name, "size": size}, measures)
+    assert own("rug", rug)["outcome"] == "pass", own("rug", rug)  # built from its close-up, its outline matches
+    noted = own("note", note)  # 1 mm: under the model gate's thinnest wall at its row's size, whatever it is built of
+    assert noted["outcome"] == "predicted gap" and "thinnest" in noted["mode"], noted
+    assert own("crate", crate)["outcome"] == "at risk"  # no sheet: no code build after Pixal3D
+
+
 def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_box():
     work = pathlib.Path(tempfile.mkdtemp())
     (work / "scene").mkdir()

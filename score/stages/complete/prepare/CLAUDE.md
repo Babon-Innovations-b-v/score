@@ -6,7 +6,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 
 - **Free, local, never a row.** Reads the scene inventory readings, the library's index (read only: score never imports the
   library), `data/costs/per-unit.json`, the cloud ledgers and the store; nothing in the stage table imports it, so no
-  key moves. No Blender, no model, nothing judged or bought. `--stock` is the provider's free listing; `--moved` is
+  key moves. No Blender, nothing rented, judged or bought; the one model it makes is a flat sheet's code build,
+  in a temporary folder, to predict it (below). `--stock` is the provider's free listing; `--moved` is
   `score moved`'s dry run (minutes).
 - **The rows are the scene inventory readings** (owner, 2026-10-21; `groups.current`): each place's and outside
   shell's current reading (`score/review/reading.reading_of`: read from its locked draw by today's method), never
@@ -49,7 +50,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   A take this environment already measured is predicted by that, not by its shape (`predict.own_outcome`, from each
   place's accepted close-up, Pixal3D and likeness outputs, `environment_measures`; only at today's object size and
   request, 2026-10-26; one that passed at an older request, a flat row's view or a far row's whole painting, is at risk,
-  never its shape's hub rate: the square's 60 m rocket): its close-up passed is a pass (at risk when Pixal3D made no model), every take failed is a
+  never its shape's hub rate: the square's 60 m rocket): its close-up passed is a pass (at risk when Pixal3D made no model, unless it is a flat sheet: its code build,
+  score/stages/props/flat_sheet.py, is made from the stored close-up and held free to the likeness row's `outline` and
+  `thin and in proportion`, `predict.sheet_faults`, so it is a pass or a predicted gap; a thin straight build needs its
+  SAM 3 mask, rented, so it stays at risk), every take failed is a
   predicted gap unless a code build passed the likeness (not judged yet: at risk), or its close-up was accepted before
   `LATER_TAKES_SINCE` (its next takes a new request: from the crop alone, upright; measured by shape again).
   The crop's upscale is said, never a prediction (no failure was measured against it).
