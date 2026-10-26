@@ -10,10 +10,14 @@
     <a class="button primary" href="/buy/">Buy</a>
   </section>
 {% else %}
-  <section class="rm-head" aria-label="the batch now">
+  <section class="rm-head{% if ended %} rm-ended{% endif %}" aria-label="the batch now">
     <div class="rm-title">
-      <span class="rm-chip tone-{{ tone }}" title="{{ tip }}{% if run.why %}: {{ run.why }}{% endif %}"><i class="dot tone-{{ tone }}"></i><span data-v>{{ label }}</span></span>
-      <h1 data-v title="{% if run.tries > 1 %}a Buy while the batch was unfinished and its design unchanged tries it again: rows, spend and problems count every try, the time left and the stop this try's{% endif %}">Batch {{ run.batch|default:run.checkout }}{% if run.tries > 1 %}, try {{ run.tries }}{% endif %}</h1>
+      {% if ended %}<h1 data-v>Batch {{ run.batch|default:run.checkout }}</h1>
+      <a class="rm-chip tone-idle" href="/buy/" title="no try of this batch runs now; the next Buy tries it again"><i class="dot tone-idle"></i><span data-v>{{ ended.next }}</span></a>
+      <span class="rm-fresh soft rm-ended-line" title="{{ tip }}{% if run.why %}: {{ run.why }}{% endif %}" data-v>Try {{ run.tries }} ended{% if run.ended %} <time data-local="{{ run.ended }}" data-day>{{ run.ended|slice:':16' }}</time>{% endif %}, {{ ended.words }}</span>
+      {% if prepared %}<span class="rm-fresh soft" title="prepare's prediction for the next try{% if prepared.stale %}; it no longer prices this checkout: {{ prepared.stale }}{% endif %}" data-v>Prepared <time data-local="{{ prepared.at }}" data-day>{{ prepared.at|slice:':16' }}</time>: {{ prepared.gaps }} predicted gap{{ prepared.gaps|pluralize }}</span>{% endif %}
+      {% else %}<span class="rm-chip tone-{{ tone }}" title="{{ tip }}{% if run.why %}: {{ run.why }}{% endif %}"><i class="dot tone-{{ tone }}"></i><span data-v>{{ label }}</span></span>
+      <h1 data-v title="{% if run.tries > 1 %}a Buy while the batch was unfinished and its design unchanged tries it again: rows, spend and problems count every try, the time left and the stop this try's{% endif %}">Batch {{ run.batch|default:run.checkout }}{% if run.tries > 1 %}, try {{ run.tries }}{% endif %}</h1>{% endif %}
       {% if run.yes %}<span class="rm-fresh soft" title="your answer in a Claude Code session to: {{ run.yes.question }}" data-v>approved in chat <time data-local="{{ run.yes.at }}">{{ run.yes.at|slice:':16' }}</time>, high EUR {{ run.yes.high|floatformat:2 }}, stop EUR {{ run.yes.stop|floatformat:2 }}: &ldquo;{{ run.yes.answer }}&rdquo;</span>{% endif %}
       <span class="rm-fresh soft" title="{% if fresh_minutes is None %}read live from the store{% else %}the state the store's machine sent last; it sends one about every minute while the batch lives{% endif %}" data-v>{% if fresh_minutes is None %}live, {% endif %}as of <time data-local="{{ run.read_at }}">{{ fresh_at }}</time>{% if fresh_minutes is not None %}, {{ fresh_minutes }} min ago{% endif %}</span>
     </div>
@@ -36,10 +40,10 @@
     </details></div>{% endif %}
   </section>
 
-  <section class="rm-money" aria-label="money" title="spent: the cloud ledger's euros for this batch's rows, as of the runner's last heartbeat{% if run.money.open is not None %}; {{ run.money.open }} paid run{{ run.money.open|pluralize }} open{% endif %}{% if run.money.closed %}; its stop was taken back when it ended{% endif %}">
+  <section class="rm-money" aria-label="money" title="spent: the cloud ledger's euros for this batch's rows, every try, as of the runner's last heartbeat{% if run.money.open is not None %}; {{ run.money.open }} paid run{{ run.money.open|pluralize }} open{% endif %}{% if run.money.closed %}; its stop was taken back when it ended{% endif %}">
     <div class="rm-money-top">
-      <div><div class="num-label">Spent</div>{% if run.money.spent is None %}<div class="rm-big unknown" data-v>unknown</div>{% else %}<div class="rm-big" data-v><small>EUR</small> {{ run.money.spent|floatformat:2 }}</div>{% endif %}</div>
-      <dl class="rm-legend">
+      <div><div class="num-label">{% if run.tries > 1 %}Spent, all {{ run.tries }} tries{% else %}Spent{% endif %}</div>{% if run.money.spent is None %}<div class="rm-big unknown" data-v>unknown</div>{% else %}<div class="rm-big" data-v><small>EUR</small> {{ run.money.spent|floatformat:2 }}</div>{% if run.tries > 1 and run.money.try_spent is not None %}<div class="num-sub" data-v title="what try {{ run.tries }}'s own runs spent; the bar below is this try's against its own likely, high and stop">try {{ run.tries }}: EUR {{ run.money.try_spent|floatformat:2 }}</div>{% endif %}{% endif %}</div>
+      <dl class="rm-legend">{% if run.tries > 1 %}<div class="num-label" title="the likely, high and stop of this try's Buy">Try {{ run.tries }}</div>{% endif %}
         <div title="the runner's likely price of what Buy bought"><dt><i class="rm-key rm-key-likely"></i>Likely</dt><dd data-v>{{ run.money.likely|floatformat:2|default:"–" }}</dd></div>
         <div title="the runner's high price, the guessed steps in it (EUR {{ run.money.guessed|floatformat:2 }}): what it clears"><dt><i class="rm-key rm-key-high"></i>High</dt><dd data-v>{{ run.money.high|floatformat:2|default:"–" }}</dd></div>
         <div title="this batch's room under the stop line: its high plus 10%; nothing more is cleared past it{% if run.money.line is not None %} (the environment's stop line, EUR {{ run.money.line|floatformat:2 }}, counts the spend before the batch too){% endif %}"><dt><i class="rm-key rm-key-stop"></i>Stop</dt><dd data-v>{{ run.money.stop|floatformat:2|default:"–" }}</dd></div>
@@ -53,8 +57,8 @@
   </section>
 
   <div class="rm-grid">
-    <section class="rm-panel rm-scenes" aria-label="scenes">
-      <h2 class="eyebrow">Scenes <span data-v>{{ scenes|length }}</span></h2>
+    <section class="rm-panel rm-scenes{% if ended %} rm-ended{% endif %}" aria-label="scenes">
+      <h2 class="eyebrow">{% if ended %}Scenes when try {{ run.tries }} ended{% else %}Scenes{% endif %} <span data-v>{{ scenes|length }}</span></h2>
       <ul class="rm-list">
         {% for row in scenes %}<li class="rm-scene{% if not row.depth %} rm-top{% endif %}" style="--depth: {{ row.depth }}">
           <span class="rm-name" title="{{ row.done }} of {{ row.total }} rows done{% if row.failed %}, {{ row.failed }} failed{% endif %}{% if row.not_run %}, {{ row.not_run }} not run{% endif %}">{% if row.href %}<a href="{{ row.href }}" data-v>{{ row.name }}</a>{% else %}<span data-v>{{ row.name }}</span>{% endif %}</span>
@@ -77,13 +81,15 @@
         </div>{% endfor %}
         {% if run.pool.stock %}<p class="rm-stock" data-v>{% include "pages/c/dot.html" with tone="review" tip=None %} waiting for stock</p>{% endif %}{% endif %}
       </section>
-      <section class="rm-panel" aria-label="problems">
-        <h2 class="eyebrow">Problems <span data-v>{{ problems|length }}</span></h2>
+      <section class="rm-panel{% if ended %} rm-ended{% endif %}" aria-label="problems">
+        {% if ended %}<details class="rm-history"><summary class="eyebrow" title="what stood when the try ended; the next try makes their rows again">Problems when try {{ run.tries }} ended <span data-v>{{ problems|length }}</span></summary>
+        {% else %}<h2 class="eyebrow">Problems <span data-v>{{ problems|length }}</span></h2>{% endif %}
         {% if run.retried %}<p class="soft" data-v title="this try makes their steps again; a step that fails again shows here once more">{{ run.retried }} problem{{ run.retried|pluralize }} from earlier tries {{ run.retried|pluralize:"is,are" }} being retried</p>{% endif %}
         {% for problem in problems %}<div class="rm-problem" title="{{ problem.tip }}">
           <i class="dot tone-{% if problem.kind == 'gaps' %}review{% else %}bad{% endif %}"></i>
           <div><div class="rm-problem-head"><span data-v>{{ problem.name }}</span>{% if problem.at %}<time class="soft" data-local="{{ problem.at_iso }}">{{ problem.at }}</time>{% endif %}</div><div class="soft" data-v>{{ problem.words }}</div>{% if problem.raw %}<details class="rm-raw"><summary>what the run said</summary>{% for said in problem.raw %}<div>{{ said }}</div>{% endfor %}</details>{% endif %}</div>
         </div>{% empty %}<p class="soft" data-v>none</p>{% endfor %}
+        {% if ended %}</details>{% endif %}
       </section>
     </aside>
   </div>

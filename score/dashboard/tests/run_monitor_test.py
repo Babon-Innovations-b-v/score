@@ -167,7 +167,7 @@ def test_the_money_is_this_batchs_high_and_room_on_its_own_spends_scale(world):
     money = world.source.batch_run()["money"]
     assert money["high"] == round(327.24 + 33.16, 2) == 360.40
     assert money["stop"] == round(516.44 - 120.0, 2) == round(360.40 * 1.1, 2)
-    assert not run_monitor.money_bar({**money, "spent": 340.0})["over"]  # inside the high he approved
+    assert not run_monitor.money_bar({**money, "try_spent": 340.0})["over"]  # inside the high he approved
     assert batch_run.own_stop({"euros": 396.44}) is None  # a line without what it was written over: no room shown
 
 
@@ -191,7 +191,7 @@ def test_a_refused_run_shows_stopped_with_its_problem(world):
     run = world.source.batch_run()
     assert run["state"] == "stopped" and run["problems"][0]["kind"] == "run"
     html = signed_in().get("/buy/run/").content.decode()
-    assert "Stopped" in html and "Finished" not in html
+    assert "stopped before every scene was done" in html and "every line driven" not in html
 
 
 def test_no_warm_card_while_stock_is_short_is_waiting_for_machines():
@@ -404,3 +404,35 @@ def test_the_monitor_and_buy_show_the_batchs_spend_of_its_one_budget(world):
     assert money["budget"] == 740.0 and money["left"] == round(740.0 - money["spent"], 2)
     html = signed_in().get("/buy/run/").content.decode()
     assert re.search(r"Batch 1: EUR [\d.]+ spent of EUR 740.00 budget, EUR [\d.]+ left", html), html
+
+
+def test_an_ended_try_is_history_under_the_batch_now(world):
+    """Owner, 2026-10-26, no try running: "the cockpit is still just a bunch of red". The batch now on top (its next
+    try not started), the try's end as one muted line, its scenes muted and its problems collapsed under a count."""
+    a_batch(world, log=LOG + "detached: stopped by signal 15 exit=143 minutes=0.0 log=x outputs=y\n", pool=False)
+    Launch.objects.update(state="failed")
+    html = signed_in().get("/buy/run/").content.decode()
+    assert "Next try not started" in html and "Try 1 ended" in html
+    assert re.search(r'<details class="rm-history"><summary[^>]*>Problems when try 1 ended <span data-v>\d+', html)
+    assert html.count("rm-ended") >= 3 and "tone-bad" not in html.split("rm-head", 1)[1].split("</section>", 1)[0]
+    assert "data-rm-reload=" not in html and "/api/machine/stop-batch" not in html
+
+
+def test_the_batchs_spend_and_this_trys_are_told_apart(tmp_path):
+    """Owner, 2026-10-26: is "Spent EUR 221.51" try 4 or the batch? Spent counts every try; the try's own is apart,
+    and the bar sets the try's own against the try's stop."""
+    beat = "heartbeat 2026-10-25T09:30:00+00:00: rows done 0, running 1, queued 0; this run's rows: paid runs open 0, " \
+        "EUR 5.00 in the ledger since the run started\ndetached: failed\nexit: stopped, 1 line\n"
+    money = batch_run.gathered(two_tries(tmp_path, beat), tmp_path, tmp_path)["money"]
+    assert (money["spent"], money["try_spent"]) == (7.0, 5.0)
+    assert run_monitor.money_bar({**money, "high": 8.0, "stop": 10.0})["spent"] == 50.0
+
+
+def test_what_prepare_predicts_for_the_next_try_shows_once_made_since_the_try():
+    """The prepare record's predicted gaps, only when it was made after the try was bought."""
+    remake = type("Remake", (), {"made_at": "2026-10-26T08:00:00+00:00", "counts": {"predicted_gaps": 12},
+                                 "stale": None})
+    world = type("World", (), {"remake": remake})
+    assert run_monitor.prepared(world, {"at": "2026-10-25T16:00:00+00:00"}) == {
+        "at": "2026-10-26T08:00:00+00:00", "gaps": 12, "stale": None}
+    assert run_monitor.prepared(world, {"at": "2026-10-26T09:00:00+00:00"}) is None
