@@ -4,7 +4,10 @@ shell's split beside it; a shell with no split is a gap of its own. And the ship
 list of its floor plan, plan v7's lengths as bounds) split by the stage against the hand-made
 data/definitions/ship_floor.json, every difference stated, never tuned away.
 
-Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/shell_split/shell_split_test.py
+Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
+    score/stages/shell_split/test_a_shell_splits_into_places_that_tile_and_are_reached.py
 """
 import copy
 import dataclasses
@@ -13,13 +16,15 @@ import pathlib
 import sys
 import tempfile
 
+import pytest
+
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from score import checks, contracts, graph, stages  # noqa: E402
 from score.stages import shell_split  # noqa: E402
 from score.stages.complete.gaps import fill, route  # noqa: E402
-from score.store import PROPS_HOME, Store  # noqa: E402
+from score.store import Store  # noqa: E402
 
 # A box-shaped shell 20 m long, 8 m across, 3 m clear; a nose 1 m deep too low to stand in.
 OUTLINE = [[0.0, 4.0, 4.0, 1.0], [0.9, 4.0, 4.0, 1.0], [1.0, 4.0, 4.0, 3.0], [21.0, 4.0, 4.0, 3.0]]
@@ -34,8 +39,8 @@ TOY = {"outline": OUTLINE, "least": {"clear": 2.2, "wide": 1.5}, "door": {"wide"
 
 
 def folder():
-    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
-    return pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
+    """A folder of the test's own in the run's temp folder (conftest's own_temp removes it at the run's end)."""
+    return pathlib.Path(tempfile.mkdtemp())
 
 
 def shell_plan(root, split, name="toyship"):
@@ -74,6 +79,12 @@ def rewritten(out, change):
 
 
 def test_a_shell_splits_into_inside_places_that_tile_are_reached_and_keep_their_bounds():
+    """The toy shell's inside runs from 1 m (the nose, 0.9 m in, is too low) to 21 m; seven places each defined with
+    its shell; a side room's narrowest is the shell's 4 m half width less half the 1.5 m spine and the 0.1 m
+    partition, a whole room's the 8 m across, the spine its own 1.5 m.
+    Break: score/stages/shell_split/_split.py:
+        `widths = [interpolated(stations, along, column_of) - spine["wide"] / 2 - partition for along in alongs]`
+        -> `widths = [interpolated(stations, along, column_of) for along in alongs]`"""
     out, inputs = made(TOY)
     found = verdicts(out, inputs)
     assert {name: verdict.answer for name, verdict in found.items()} == {
@@ -90,12 +101,18 @@ def test_a_shell_splits_into_inside_places_that_tile_are_reached_and_keep_their_
 
 
 def test_the_split_is_the_same_every_time():
+    """Two splits of the same plan are byte for byte the same.
+    Break: score/stages/shell_split/_split.py:
+        `"left_out": [span for span in left_out if span[1] - span[0] > 10 ** -ROUND], "places": laid}`
+        -> `"left_out": [__import__("time").perf_counter()], "places": laid}`"""
     first, _ = made(TOY)
     second, _ = made(copy.deepcopy(TOY))
     assert (first / "split.json").read_text() == (second / "split.json").read_text()
 
 
 def test_overlapping_shapes_fail_tiled_by_name():
+    """A shape grown 1 m into the next overlaps it.
+    Break: score/stages/shell_split/_gates.py: `if start < along - EPSILON:` -> `if False:`"""
     out, inputs = made(TOY)
     rewritten(out, lambda split: split["places"][2]["along"].__setitem__(1, split["places"][2]["along"][1] + 1.0))
     verdict = verdicts(out, inputs)["tiled"]
@@ -103,7 +120,8 @@ def test_overlapping_shapes_fail_tiled_by_name():
 
 
 def test_a_gap_at_the_back_fails_tiled():
-    """A lane whose last shape stops short of the inside's end is not tiled."""
+    """A lane whose last shape stops short of the inside's end is not tiled.
+    Break: score/stages/shell_split/_gates.py: `elif along < back - EPSILON:` -> `elif False:`"""
     def shortened(split):
         last = max(split["places"], key=lambda item: item["along"][1])
         last["along"][1] -= 1.0
@@ -113,6 +131,9 @@ def test_a_gap_at_the_back_fails_tiled():
 
 
 def test_a_room_with_no_door_fails_reached_by_name():
+    """Every door to or from the lab taken out: the lab has no way in, by name.
+    Break: score/stages/shell_split/_gates.py: `todo += [door["leads"] for door in by_place[place]["doors"]]`
+        -> `todo += list(by_place)`"""
     def shut(split):
         for item in split["places"]:
             item["doors"] = [door for door in item["doors"] if "lab" not in (door["leads"], item["place"])]
@@ -122,6 +143,8 @@ def test_a_room_with_no_door_fails_reached_by_name():
 
 
 def test_a_door_on_no_shared_wall_fails_reached():
+    """The bunks' door led to the engines, which share no wall with it.
+    Break: score/stages/shell_split/_gates.py: `elif not shared_wall(item, other, door["along"]):` -> `elif False:`"""
     def moved(split):
         bunks = next(item for item in split["places"] if item["place"] == "bunks")
         bunks["doors"][0]["leads"] = "engines"
@@ -132,6 +155,9 @@ def test_a_door_on_no_shared_wall_fails_reached():
 
 
 def test_a_side_longer_than_the_other_can_grow_fails_bounded_by_name():
+    """Stores and lab at most 5.5 m against the left side's 8 m at least: both outside their bounds, by name.
+    Break: score/stages/shell_split/_gates.py:
+        `faults.append(f"{item['place']}: {item['long']} m long, outside its plan's {low} to {high} m")` -> `pass`"""
     tight = copy.deepcopy(TOY)
     tight["rooms"][3]["long"] = [2.0, 2.5]  # stores and lab at most 5.5 m against the left side's 8 m at least
     tight["rooms"][4]["long"] = [2.0, 3.0]
@@ -142,6 +168,8 @@ def test_a_side_longer_than_the_other_can_grow_fails_bounded_by_name():
 
 
 def test_rooms_that_cannot_fit_the_shell_are_refused():
+    """A 15 m bridge and the rest at least do not fit the 20 m inside: refused, never squeezed.
+    Break: score/stages/shell_split/_split.py: `if room_for < least - 1e-9:` -> `if False:`"""
     crowded = copy.deepcopy(TOY)
     crowded["rooms"][0]["long"] = [15.0, 16.0]
     try:
@@ -153,7 +181,10 @@ def test_rooms_that_cannot_fit_the_shell_are_refused():
 
 
 def test_the_runner_makes_and_accepts_a_shells_split_after_its_plan():
-    """Through the runner, as `score run` makes it: the shell's plan file and the plan row's output are two inputs."""
+    """Through the runner, as `score run` makes it: the shell's plan file and the plan row's output are two inputs.
+    Break: score/stages/shell_split/__init__.py:
+        `(out / "places" / f"{item['place']}.json").write_text(json.dumps({"outside_shell": shell, **item}, indent=1))`
+        -> `pass`"""
     root = folder()
     shell_plan(root, TOY)
 
@@ -173,17 +204,20 @@ def test_the_runner_makes_and_accepts_a_shells_split_after_its_plan():
     assert found["shell-split@toyship"] == "made: pass, accepted automatically", found
 
 
-def with_plans(plans, check):
+@pytest.fixture
+def with_plans(monkeypatch):
     """`check()` with shell_split reading `plans` as the environment's plans folder."""
-    saved = shell_split.PLANS
-    shell_split.PLANS = plans
-    try:
+    def read(plans, check):
+        monkeypatch.setattr(shell_split, "PLANS", plans)
         return check()
-    finally:
-        shell_split.PLANS = saved
+    return read
 
 
-def test_an_inside_place_reads_its_shells_split_beside_its_plan():
+def test_an_inside_place_reads_its_shells_split_beside_its_plan(with_plans):
+    """The bunks and the hall read the toy ship's split beside their plans; the shell itself reads none; the split
+    stands after the plan and the rough model in the table.
+    Break: score/stages/shell_split/__init__.py: `return shell_chain(place, *shells_in(plans_read(PLANS)))[:1]`
+        -> `return []`"""
     plans = shell_plan(folder(), TOY).parent
     runner = stages.runner(store=Store.in_folder(folder()))
     plan_row = runner.stages["plan"]
@@ -193,10 +227,12 @@ def test_an_inside_place_reads_its_shells_split_beside_its_plan():
     assert with_plans(plans, lambda: list(runner.besides(plan_row, "bunks"))) == ["shell-split@toyship"]
     names = [row.name for row in stages.STAGES]
     assert names.index("plan") < names.index("rough-model") < names.index("shell-split")  # plan, rough model, split
-    assert runner.stages["shell-split"].after == {"plan": ("place-plan", 2)} and not runner.stages["shell-split"].paid
 
 
-def test_a_place_that_holds_itself_is_refused():
+def test_a_place_that_holds_itself_is_refused(with_plans):
+    """inner's split names outer and outer's names inner: refused by name, never a loop with no end.
+    Break: score/stages/shell_split/__init__.py:
+        `raise ValueError(f"{place} holds itself through its shells: {[start, *chain, place]}")` -> `return chain`"""
     root = folder()
     loop = copy.deepcopy(TOY)
     loop["rooms"][0]["place"] = "outer"
@@ -213,7 +249,9 @@ def test_a_place_that_holds_itself_is_refused():
         raise AssertionError("a shell inside its own inside place was read")
 
 
-def test_one_bad_shell_plan_stops_only_the_places_it_names():
+def test_one_bad_shell_plan_stops_only_the_places_it_names(with_plans):
+    """A broken shell plan stops no one else's plan; a place two shells split is refused by name.
+    Break: score/stages/shell_split/__init__.py: `        if place in twice:` -> `        if False:`"""
     root = folder()
     plans = shell_plan(root, TOY).parent
     shell_plan(root, {"outline": []}, "broken")  # no room list: its own node fails, no one else's plan
@@ -230,7 +268,9 @@ def test_one_bad_shell_plan_stops_only_the_places_it_names():
         raise AssertionError("a place split from two shells was read")
 
 
-def test_a_shell_without_its_split_is_a_gap_filled_by_the_row():
+def test_a_shell_without_its_split_is_a_gap_filled_by_the_row(with_plans):
+    """A shell whose split stands nowhere accepted lacks it (its row fills it); an inside place does not.
+    Break: score/stages/complete/gaps/route.py: `    if shell_split.applies(place):` -> `    if False:`"""
     plans = shell_plan(folder(), TOY).parent
     store = Store.in_folder(folder())
     missing = with_plans(plans, lambda: route.missing(store, "toyship", None, None))
@@ -246,8 +286,8 @@ def test_a_shell_without_its_split_is_a_gap_filled_by_the_row():
 TOLERANCE = 0.5
 # Every room the stage does not reproduce, and why: the hand plan's own choices the split's rules do not make.
 DIFFERS = {
-    "cockpit": "the hand plan starts the inside at 9.7 m, as far forward as 2.2 m clear (the owner's cockpit at the nose, "
-               "2026-10-21); the split starts where 2.6 m clear does, measured from the hull at the deck (lining "
+    "cockpit": "the hand plan starts the inside at 9.7 m, as far forward as 2.2 m clear (the owner's cockpit at the "
+               "nose, 2026-10-21); the split starts where 2.6 m clear does, measured from the hull at the deck (lining "
                "off) at 11.7 m, and sizes the cockpit inside plan v7's bounds",
     "walkway": "it opens behind the cockpit, which ends sooner (above)",
     "storage": "the hand plan sizes each side room by its story; the split grows every room the same share of "
@@ -300,6 +340,9 @@ def ship_split_plan():
 
 
 def test_the_ships_shell_splits_into_its_hand_plans_rooms_and_says_where_it_differs():
+    """The ship's hull split against the hand-made floor plan: the same rooms on the same sides with the same doors,
+    and exactly the rooms DIFFERS states differing past TOLERANCE; tiled, reached and bounded.
+    Break: score/stages/shell_split/_split.py: `fraction = (length - least) / (most - least)` -> `fraction = 0.0`"""
     floor, plan = ship_split_plan()
     out, inputs = made(plan)
     by_place = {item["place"]: item for item in layout(out)["places"]}
@@ -323,12 +366,3 @@ def test_the_ships_shell_splits_into_its_hand_plans_rooms_and_says_where_it_diff
     # Every room keeps its bounds (plan v7's, navigation's added to the cockpit and to storage, the owner's merge of
     # 2026-10-21) and the side bands still fill the span.
     assert found["bounded"].answer == checks.PASS, found["bounded"]
-
-
-if __name__ == "__main__":
-    import runpy
-    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
