@@ -28,5 +28,5 @@ Rules:
   or cannot stand (after the store's loss, 2026-10-19, every place's assembly fails at its first unmade paid node).
 - **records.py stays light**: plain files only, read by the hosted process too (no store, no stages, no numpy). The
   three ways a node is taken are named in both `assemble.py` and `records.py`; a test holds them equal.
-- Tests: `score/dashboard/tests/proposals_test.py` (a toy stage table over a temp store; the real store is never
+- Tests: `proposals/test_a_basket_shows_what_a_run_on_main_would_buy.py` (a toy stage table over a temp store; the real store is never
   touched) and `score/dashboard/tests/basket_test.py` (the pages, the choices, the answers, the checkout's queue).
