@@ -19,7 +19,7 @@ import math
 import pathlib
 import re
 
-from score.review.plan_checks import AFAR, afar, at_foot
+from score.review.plan_checks import AFAR, WALLS_ITEM, afar, at_foot, gemini_box
 from score.stages.complete.prepare import contract
 
 SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
@@ -329,7 +329,7 @@ def plan_sizes(store, place, rows, made=False):
     found = {}
     for name, _, _, wide, deep, facing, kind in plan.get("items", []):
         tied = (plan.get("rows") or {}).get(name) or []
-        if kind != "item" or name == plans.WALLS_ITEM or name in unsized or not tied or tied[0] in found:
+        if kind != "item" or name == WALLS_ITEM or name in unsized or not tied or tied[0] in found:
             continue
         if facing in ("E", "W"):
             wide, deep = deep, wide
@@ -372,14 +372,6 @@ def boxed_by(record, row):
         box = gemini_box(row["region"], record["size"])
         return {"box": box, "boxes": [box], "boxed_by": "Gemini"}
     return {}
-
-
-def gemini_box(region, size):
-    """A 0 to 1000 [ymin, xmin, ymax, xmax] region (score/review/reading.py) as a pixel box [left, top, right,
-    bottom] on a picture of `size` [wide, tall]."""
-    wide, tall = size
-    return [round(region[1] * wide / 1000), round(region[0] * tall / 1000), round(region[3] * wide / 1000),
-            round(region[2] * tall / 1000)]
 
 
 def route_of(row):

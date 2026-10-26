@@ -6,6 +6,7 @@ overlap. Measured on a grid of the plan (`Grid`): an item's footprint is its sha
 their openings do not."""
 import collections
 import math
+import re
 
 import numpy
 
@@ -19,6 +20,7 @@ LOW = 0.5  # metres: an item standing higher than this (its base) does not block
 FLAT = 0.15  # metres: an item no taller than this lies flat on the floor, under the rest
 ROUND = 24  # sides of a circle's polygon
 FLOOR_ANCHORS = ("floor", "ground")
+WALLS_ITEM = "ON THE WALLS AND CEILING"
 PEOPLE = {"person", "people", "crowd", "man", "woman", "child", "figure", "pedestrian", "astronaut", "worker"}
 AFAR = {"distant", "far", "background", "faraway"}
 CROWD = {"crowd", "crowds", "audience", "spectators"}  # a people row the cast stands as a far crowd, no spots
@@ -205,7 +207,6 @@ def beyond(plan, inventory):
 
 def placed_items(plan):
     """[(item, its row id or None, its shape)] of the plan's items that are things (no zone, no walls item)."""
-    from score.review.plans import WALLS_ITEM
     return [(item, (plan.get("rows", {}).get(item[0]) or [None])[0], plan.get("shapes", {}).get(item[0]))
             for item in plan.get("items", []) if item[6] == "item" and item[0] != WALLS_ITEM]
 
@@ -421,7 +422,6 @@ def concept_spots(plan, inventory):
     picture, placed = inventory.get("picture"), set(laid_boxes(plan))
     if not picture:
         return {}
-    from score.review.plans import whole
     left_out = people(inventory) | afar(inventory) | beyond(plan, inventory) | (set(plan.get(
         "structure", [])) - placed)
     found = {}
@@ -606,8 +606,7 @@ def join_gaps(plan, inventory):
 def checked(plan, inventory, structure=()):
     """Every free check's gaps on `plan` against its scene inventory (`structure`: the rows that are the place's own
     shell, walls, floor, roof or ground, drawn as the plan's walls and levels, never items: an item of one, a backdrop
-    the writer placed, is left out of the checks), and the rows that are the place itself (plans.whole) counted so."""
-    from score.review.plans import whole
+    the writer placed, is left out of the checks), and the rows that are the place itself (whole) counted so."""
     structure = set(structure) | {row["id"] for row in inventory.get("rows", [])
                                   if whole(row, inventory.get("picture"))}
     plan = {**plan, "items": [item for item in plan.get("items", [])
@@ -618,3 +617,75 @@ def checked(plan, inventory, structure=()):
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
             + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + frame_gaps(plan, inventory)
             + facing_gaps(plan, inventory) + run_gaps(plan, inventory) + join_gaps(plan, inventory))
+
+
+# --- the rows the place itself is, and the projection from the concept onto the plan -------------------------------
+
+def anchor_of(row):
+    """A row's anchor: floor, wall, ... or the id of the row it stands on (a reading's `on:<id>`)."""
+    anchor = row.get("anchor") or "floor"
+    return anchor[3:] if anchor.startswith("on:") else anchor
+
+
+WHOLE = 0.6  # a row whose surest box spans this share of the picture both ways is the place itself (its ground, sky)
+
+
+GROUND = {"sea", "ocean", "water", "lake", "pool", "river", "harbour", "plaza", "square", "ground", "terrain", "sky",
+          "floor", "road", "street", "pavement", "grass", "sand", "dust", "regolith", "soil", "skyline", "backdrop",
+          "horizon", "mountains", "hills"}
+
+
+def whole(row, picture):
+    """Whether a row is the place itself rather than a thing in it: its surest box spans most of the picture, or it
+    is the place's ground, water or sky (`GROUND`: the plan's ground and terrain, never a sized object; owner,
+    2026-10-21)."""
+    box = (row.get("boxes") or [None])[0]
+    # what it is, the last word of its id or noun ("harbour_water", not "floor_lamp")
+    words = {re.split(r"[_\s]+", str(said).strip().lower())[-1] for said in (row["id"], row.get("noun") or "")}
+    return bool(box and picture and (box[2] - box[0]) >= WHOLE * picture[0] and (box[3] - box[1]) >= WHOLE * picture[1]
+                or row.get("anchor") == "sky" or (anchor_of(row) in ("floor", "ground") and words & GROUND))
+
+
+def boxes_of(row):
+    """A row's SAM boxes on the concept (its instances')."""
+    return [box for box in row.get("boxes") or ([row["box"]] if row.get("box") else []) if box]
+
+
+def gemini_box(region, size):
+    """A 0 to 1000 [ymin, xmin, ymax, xmax] region (score/review/reading.py) as a pixel box [left, top, right,
+    bottom] on a picture of `size` [wide, tall]."""
+    wide, tall = size
+    return [round(region[1] * wide / 1000), round(region[0] * tall / 1000), round(region[3] * wide / 1000),
+            round(region[2] * tall / 1000)]
+
+
+def projection_anchors(plan, inventory):
+    """[(across, foot), (x, y)] of each row on the floor (or on a row of the place's shell: its floor plates) boxed on
+    the concept as many times as it is laid on the plan (concept_spots' rows, and the rows of several things too): the
+    mean of its boxes' middles across and feet as shares of the picture, and the mean of its things' middles on the
+    plan."""
+    picture, laid, shell = inventory.get("picture"), laid_boxes(plan), set(plan.get("structure", []))
+    if not picture:
+        return []
+    left_out = people(inventory) | afar(inventory) | beyond(plan, inventory)
+    found = []
+    for row in inventory.get("rows", []):
+        boxes, things = boxes_of(row), laid.get(row["id"], [])
+        if anchor_of(row) in {*FLOOR_ANCHORS, *shell} and boxes and len(things) == len(boxes) \
+                and row["id"] not in left_out and not whole(row, picture):
+            found.append((numpy.mean([[(box[0] + box[2]) / 2 / picture[0], box[3] / picture[1]] for box in boxes],
+                                     axis=0),
+                          numpy.mean([[(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] for box in things], axis=0)))
+    return found
+
+
+def projection(plan, inventory):
+    """The fitted map (a 3 x 2 matrix) from [a box's middle across, its foot, 1] as shares of the concept to its spot
+    [x, y] on the plan, fitted on the rows boxed and laid alike (`projection_anchors`); None with fewer than three
+    such rows."""
+    fitted = projection_anchors(plan, inventory)
+    if len(fitted) < 3:
+        return None
+    source = numpy.array([[seen[0], seen[1], 1.0] for seen, _ in fitted])
+    target = numpy.array([spot for _, spot in fitted], dtype=float)
+    return numpy.linalg.lstsq(source, target, rcond=None)[0]

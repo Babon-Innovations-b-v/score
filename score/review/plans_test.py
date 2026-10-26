@@ -11,7 +11,7 @@ from PIL import Image
 
 from score import graph, review, stages
 from score.adapters import compute
-from score.review import concepts, plans, web
+from score.review import concepts, plan_checks, plans, web
 from score.store import Store
 
 PICK = "a" * 64
@@ -86,7 +86,7 @@ def test_no_plan_before_the_inventory_counts_then_each_item_tied_to_its_row(stor
     names = {item[0]: item for item in plan["items"]}
     assert plan["rows"]["BENCH 1"] == ["bench", "vice"] and plan["rows"]["CRATE 2"] == ["crate"]
     assert names["BENCH 1"][1:5] == [2.0, 1.7, 2.0, 0.6]  # laid at its spot: its middle 1 m south of the room's
-    assert plan["rows"][plans.WALLS_ITEM] == ["lamp"]
+    assert plan["rows"][plan_checks.WALLS_ITEM] == ["lamp"]
     assert plan["people"] == [[3.0, 3.0]]
     assert plan["elements"][0] == {"element": "a bench", "rows": ["bench"]}
 

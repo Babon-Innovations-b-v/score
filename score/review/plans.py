@@ -41,6 +41,7 @@ import re
 import sys
 
 from score.review import concepts
+from score.review.plan_checks import WALLS_ITEM, anchor_of, whole
 from score.store import PROPS_HOME, stamp_key
 
 AREA = "plans"
@@ -51,7 +52,6 @@ KEPT_CONCEPT = PROPS_HOME / "design" / "concepts"  # and the picked concept both
 KEPT_LIGHT = PROPS_HOME / "design" / "light"  # and that concept's light (reading.concept_light), once read
 SIDES = ("N", "S", "E", "W")
 FACINGS = {0: "N", 90: "E", 180: "S", 270: "W"}
-WALLS_ITEM = "ON THE WALLS AND CEILING"
 GAP = 0.3  # metres between items laid along the walls, and round inside places laid in their holder
 CLEAR = 1.2  # metres a door's keep-clear zone reaches into the room
 BIGGEST = 2000.0  # metres: no plan is wider or deeper
@@ -314,31 +314,6 @@ def facing_of(spot):
     """A spot's facing in degrees as a side (N, E, S, W), None when it names none."""
     degrees = spot.get("facing")
     return None if degrees is None else FACINGS[int(round(float(degrees) / 90.0)) % 4 * 90]
-
-
-def anchor_of(row):
-    """A row's anchor: floor, wall, ... or the id of the row it stands on (a reading's `on:<id>`)."""
-    anchor = row.get("anchor") or "floor"
-    return anchor[3:] if anchor.startswith("on:") else anchor
-
-
-WHOLE = 0.6  # a row whose surest box spans this share of the picture both ways is the place itself (its ground, sky)
-
-
-GROUND = {"sea", "ocean", "water", "lake", "pool", "river", "harbour", "plaza", "square", "ground", "terrain", "sky",
-          "floor", "road", "street", "pavement", "grass", "sand", "dust", "regolith", "soil", "skyline", "backdrop",
-          "horizon", "mountains", "hills"}
-
-
-def whole(row, picture):
-    """Whether a row is the place itself rather than a thing in it: its surest box spans most of the picture, or it
-    is the place's ground, water or sky (`GROUND`: the plan's ground and terrain, never a sized object; owner,
-    2026-10-21)."""
-    box = (row.get("boxes") or [None])[0]
-    # what it is, the last word of its id or noun ("harbour_water", not "floor_lamp")
-    words = {re.split(r"[_\s]+", str(said).strip().lower())[-1] for said in (row["id"], row.get("noun") or "")}
-    return bool(box and picture and (box[2] - box[0]) >= WHOLE * picture[0] and (box[3] - box[1]) >= WHOLE * picture[1]
-                or row.get("anchor") == "sky" or (anchor_of(row) in ("floor", "ground") and words & GROUND))
 
 
 def row_items(rows):

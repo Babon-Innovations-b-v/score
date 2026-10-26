@@ -428,10 +428,10 @@ def counted_seen(item):
 
 def structure_of(answer, inventory):
     """The ids of the rows that are the place's own shell or ground: those the answer names so, and every row that is
-    the place itself (plans.whole: its ground, water, sky), never a sized item."""
+    the place itself (plan_checks.whole: its ground, water, sky), never a sized item."""
     said = answer.get("structure") if isinstance(answer.get("structure"), list) else []
     return [row["id"] for row in inventory.get("rows", [])
-            if row["id"] in said or plans.whole(row, inventory.get("picture"))]
+            if row["id"] in said or plan_checks.whole(row, inventory.get("picture"))]
 
 
 def items_of(answer, inventory, wide, deep):
@@ -460,14 +460,14 @@ def items_of(answer, inventory, wide, deep):
                         "base": number(item.get("base"), 0.0), **counted_seen(item)}
     placed = set(numbered)
     for row_id, row in by_id.items():
-        parent = plans.anchor_of(row)
+        parent = plan_checks.anchor_of(row)
         if row_id not in placed and parent in placed:
             rows[f"{parent.replace('_', ' ').upper()} 1"].append(row_id)
     on_walls = [row_id for row_id, row in by_id.items() if row_id not in placed and (
-        row_id in structure or plans.anchor_of(row) not in ("floor", "ground", *placed))]
+        row_id in structure or plan_checks.anchor_of(row) not in ("floor", "ground", *placed))]
     if on_walls:
-        items.append([plans.WALLS_ITEM, 0.0, 0.0, wide, deep, None, "item"])
-        rows[plans.WALLS_ITEM] = on_walls
+        items.append([plan_checks.WALLS_ITEM, 0.0, 0.0, wide, deep, None, "item"])
+        rows[plan_checks.WALLS_ITEM] = on_walls
     return items, rows, shapes, dropped
 
 
@@ -521,7 +521,7 @@ def rows_scale(answer, inventory):
     polygon (turned off the grid: its box is not its footprint) tells nothing."""
     sizes = {row["id"]: row["size"] for row in inventory.get("rows", []) if isinstance(row.get("size"), list)
              and len(row["size"]) >= 2 and all(number(part) for part in row["size"][:2])
-             and not plans.whole(row, inventory.get("picture")) and not plan_checks.connector(row)}
+             and not plan_checks.whole(row, inventory.get("picture")) and not plan_checks.connector(row)}
     found = []
     for item in answer.get("items") or []:
         box = footprint_of(item) if isinstance(item, dict) and item.get("row") in sizes \
