@@ -495,7 +495,7 @@ Rules:
   the colours are `design/tokens/colours.css`, type, space and radii `scale.css`, the font Poppins
   `design/fonts/poppins/` (OFL), all served at `/static/design/` and linked by `pages/tokens.html` before
   `dash.css`, whose short names only alias them; the 3D views read them through `static/pages/tokens.js`. No template
-  or static file writes a colour, every token named is defined, text holds WCAG AA (`tests/theme_test.py`). A hosted
+  or static file writes a colour, every token named is defined, text holds WCAG AA (`tests/test_cockpit_is_the_owners_true_view.py`). A hosted
   build may replace `colours.css` whole with its own colours on the same names (babon's does).
 - **No provider here.** Nothing in this package imports `tools.*` or `score.adapters` or names a provider
   (`tests/test_no_provider_is_named_here.py`). Hosted mode never imports `score.stages`, `score.store`, numpy or usd-core
@@ -503,7 +503,7 @@ Rules:
 - **Numbers, not prose** (owner, 2026-10-20, #42): the runner gives numbers and states; a screen shows numbers,
   colours, pictures, progress and buttons, at most one short line of text a block, explanations only as hover text,
   never a raw error or traceback (a red state and a short label; the detail to the log). Mark data (a number, a
-  name, a state) with `data-v`: `tests/pages_test.py` (`prose`, `WORD_BUDGET`) fails a screen with more than 40
+  name, a state) with `data-v`: `tests/test_cockpit_is_the_owners_true_view.py` (`prose`, `WORD_BUDGET`) fails a screen with more than 40
   words of anything else. Node ids only inside a `details class="ids"` fold. Money is the total against the one stop
   line, never per-piece prices alone; a provider is named only by its cost line's label (`tests/test_no_provider_is_named_here.py`).
 - Tests: `make tests TESTS="score/dashboard/tests/*_test.py score/review/test_the_owners_word_stands.py"` (temp `PROPS_HOME` and
@@ -511,5 +511,5 @@ Rules:
   `tests/viewer_look.py` runs by hand too, free: the 3D viewer in headless Chromium from each film shot's and light
   look's camera beside that picture (difference, structure, brightness, pink and black, its `THRESHOLDS`); run it on
   new web copies, or `--hosted <export>` on the export the hosted site serves, before calling the viewer fixed.
-  The Place screen's click test (`pages_test`, `tests/screens_click.mjs`) drives the same Chromium; it is skipped
+  The Place screen's click test (`tests/test_cockpit_is_the_owners_true_view.py`, `tests/screens_click.mjs`) drives the same Chromium; it is skipped
   where that Chromium cannot load its libraries (`ldd`; point `LD_LIBRARY_PATH` at them to run it).
