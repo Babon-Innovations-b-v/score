@@ -65,7 +65,7 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
 - **Only scenes whose design shows a row that moves have the row** (the table's `designed("motion")`). The assembly takes the
   accepted layer (`assembly.LAYERS`) in place of the seed's `layers/motion.usda`.
 - Effects tied to motion (dust, exhaust) are the effects stage's (`follows`, `on`).
-- `motion_test.py` makes a small scene itself and its moves from its design (a door swung on its own edge, a fan's
-  whole turns, a rover parked), passes every gate, keeps the door shut with nobody in the scene and fails `designed`
-  on a row with no object; `check_test.py` makes a small place of its own, writes a path, a swing and a slide as the
-  output's record, and breaks the motion check's rules and `clear` once each.
+- `test_a_thing_moves_as_its_design_says.py` makes a small scene itself and its moves from its design (a door swung
+  on its own edge, a fan's whole turns, a rover parked), passes every gate, keeps the door shut with nobody in the
+  scene and fails `designed` on a row with no object; then a small place of its own with a path, a swing and a slide
+  written as the output's record, breaking the motion check's rules and `clear` once each.
