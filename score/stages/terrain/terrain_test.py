@@ -155,6 +155,40 @@ def test_a_small_worlds_horizon_dips():
     assert sight.horizon([0.0, 1.7, 0.0], (0.0, 1.0, 0.0), None)[1] == 0.0
 
 
+def test_a_far_landform_beyond_the_place_is_raised_round_it_and_its_curve_still_holds():
+    """2026-10-26: the campgrounds' distant hills had no maker. A terrain row of the ground the plan marks beyond is
+    a ring of landforms at the horizon, as tall as its box rises in the concept; the near ground and the far edge
+    stay as they were."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        inputs = design_folder(root / "design")
+        (inputs["plans"] / "site.json").write_text(json.dumps({**SITE, "beyond": ["hills"]}))
+        hills = {"id": "hills", "terrain": True, "part": "ground", "size": [40.0, 10.0, 5.0],
+                 "box": [0, 300, 2000, 400]}
+        (inputs["inventories"] / "site.json").write_text(json.dumps({"picture": [2000, 1000], "rows": [
+            {"id": "regolith", "terrain": True}, hills]}))
+        assert design.far_row(hills, {"hills"}) and not design.far_row(hills, set())
+        out = root / "out"
+        terrain.make({key: str(value) for key, value in inputs.items()}, out, 0, {})
+        far = json.loads((out / "moon/ground.json").read_text())["far"]
+        distance = math.sqrt(2 * 1737400.0 * design.EYE)  # the Moon's horizon from a person's eye
+        height = distance * 100 / (1000 / math.tan(math.radians(40)))  # its 100 px rise in an 80 degree view
+        assert [row["row"] for row in far] == ["hills"] and abs(far[0]["distance"] - distance) < 0.1
+        assert abs(far[0]["height"] - height) < 0.1 and far[0]["broad"] == round(height * 4, 1), far
+        ground = design.layout(design.kept(inputs["plans"]), design.kept(inputs["skies"]))["moon"]
+        shaped, _ = design.far_reliefs(ground, design.kept(inputs["plans"]), inputs["inventories"], 6000.0)
+        relief = shaped[0][1]
+        out_there = relief([[20.0 + distance * math.cos(turn), 20.0 + distance * math.sin(turn)]
+                            for turn in np.linspace(0, 2 * math.pi, 90)])
+        assert out_there.min() >= 0.4 * height - 1e-6 and out_there.max() <= height + 1e-6 and np.ptp(out_there) > 1.0
+        assert relief([[20.0, 20.0], [20.0 + distance + far[0]["broad"] + 1.0, 20.0]]).max() == 0.0
+        for check in terrain.CHECKS:
+            verdict = check.judge(out, inputs, {})
+            assert verdict.answer == "pass", (verdict.check, verdict.reason)
+    finally:
+        shutil.rmtree(root)
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()

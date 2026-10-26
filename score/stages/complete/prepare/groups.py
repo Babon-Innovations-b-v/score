@@ -174,7 +174,12 @@ def routed(row, own, beyond, shell=frozenset()):
     box is the whole picture, Batch 1's retry), is the plan's, never a close-up; a model
     row the plan says the painting shows beyond the place (`beyond`: through a window, past its edge, far off; never
     placed here, plan_writing) is the backdrop's (route "skyline"), never a close-up of a far speck (Batch 1 try 4:
-    the stairwell's palms, street lamps and lanterns seen through its window, the street's far rocket)."""
+    the stairwell's palms, street lamps and lanterns seen through its window, the street's far rocket); a landform of
+    the far ground beyond it (terrain.design.far_row: the campgrounds' distant hills) is the terrain node's (route
+    "ground"), raised on the far ground round the place."""
+    from score.stages.terrain import design
+    if design.far_row(row, beyond):
+        return {**row, "route": ROUTES["ground"]}
     if row["route"] == "shell" and (row.get("part") in own or row["id"] in shell):
         return {**row, "route": "plan"}
     if row["route"] in MODEL_ROUTES and row["id"] in beyond:

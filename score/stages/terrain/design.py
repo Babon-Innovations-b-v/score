@@ -15,6 +15,7 @@ corner height). World: a body's middle at the origin, its pole along +z (east, n
 latitude and longitude); a plot's plane z = 0, x east and y north. A scene its top holds is laid unturned in its hold's
 box on the top's plan, its floor on the top's floor.
 """
+import hashlib
 import json
 import math
 import pathlib
@@ -28,6 +29,16 @@ KEPT_PLANS = PROPS_HOME / "design" / "plans"
 KEPT_SKIES = PROPS_HOME / "design" / "sky"
 # A source's relief is faded out between its farthest spot's distance from its plan's middle and this many times it.
 FADE_PAST = 1.3
+# The far ground's landforms (far_row): a terrain row of the ground or the backdrop the plan marks beyond the place
+# (the campgrounds' distant hills), raised as a ring round it at the horizon a person's eye (EYE metres up) sees on a
+# body (FAR_SHARE of the far ground's reach on a plot, which has none), as tall as its box rises in the concept seen
+# with the framework's view (scene_record.writer.VIEW_FOV across), as broad as its read size is to its height, never
+# broader than FAR_BROAD of its distance; its height along the ring varies by FAR_WAVES seeded waves of its id.
+FAR_PARTS = ("ground", "backdrop")
+EYE = 1.7
+FAR_SHARE = 0.6
+FAR_BROAD = 0.5
+FAR_WAVES = 6
 
 
 def read(path):
@@ -177,6 +188,71 @@ def flat_relief(source):
 def reliefs(ground):
     """[(source, its relief in its plan metres)] of a ground."""
     return [(source, spline(source) or flat_relief(source)) for source in ground["sources"]]
+
+
+def far_row(row, beyond):
+    """Whether a scene inventory row is a landform of the far ground (FAR_PARTS): the terrain's to make, no model."""
+    return bool(row.get("terrain")) and row.get("part") in FAR_PARTS and row["id"] in beyond
+
+
+def far_size(row, picture, distance):
+    """(height, half breadth) in metres of a far row standing `distance` metres off: its box's rise over its foot in
+    the concept seen with the framework's view, its breadth its read size's wide to tall times that (FAR_BROAD of
+    its distance at most)."""
+    from score.stages.scene_record.writer import VIEW_FOV
+    box = (row.get("boxes") or [row.get("box")])[0]
+    focal = picture[0] / 2 / math.tan(math.radians(VIEW_FOV) / 2)
+    height = distance * (box[3] - box[1]) / focal
+    size = row.get("size") if isinstance(row.get("size"), list) and len(row["size"]) >= 3 else [1.0, 1.0, 1.0]
+    return height, min(FAR_BROAD * distance, height * float(size[0]) / max(float(size[2]), 1e-3) / 2)
+
+
+def far_ring(middle, distance, height, broad, seed):
+    """The relief of a ring of landforms round `middle` (plan metres): `height` at `distance`, falling as a cosine to
+    nothing `broad` metres either side, its height along the ring between 0.4 and 1 of it by FAR_WAVES seeded waves."""
+    draws = np.random.default_rng(seed)
+    turns = draws.integers(1, max(2, int(math.pi * distance / max(broad, 1.0))) + 1, FAR_WAVES)
+    phases = draws.uniform(0.0, 2 * math.pi, FAR_WAVES)
+
+    def relief(points):
+        apart = np.atleast_2d(points) - np.asarray(middle)
+        far, bearing = np.hypot(*apart.T), np.arctan2(apart[:, 1], apart[:, 0])
+        along = 0.7 + 0.3 * np.mean([np.cos(turn * bearing + phase) for turn, phase in zip(turns, phases)], axis=0)
+        apart_by = (far - distance) / broad
+        across = np.where(np.abs(apart_by) < 1.0, np.cos(np.clip(apart_by, -1.0, 1.0) * math.pi / 2) ** 2, 0.0)
+        return height * along * across
+    return relief
+
+
+def far_distance(ground, reach):
+    """How far off the far ground's landforms stand: the horizon a person's eye sees on a body, FAR_SHARE of the far
+    ground's `reach` on a plot (and on a body never past it)."""
+    if ground["kind"] != "body":
+        return FAR_SHARE * reach
+    return min(math.sqrt(2.0 * ground["radius"] * EYE), FAR_SHARE * reach)
+
+
+def far_reliefs(ground, plans, inventories, reach):
+    """[(source, its relief)] of every far row (far_row) of the places standing on the ground, each a ring round its
+    place (far_ring), and [{place, row, distance, height, broad}] of what was raised."""
+    distance, found, made = far_distance(ground, reach), [], []
+    for place, entry in sorted(ground["places"].items()):
+        path = pathlib.Path(inventories) / f"{place}.json"
+        inventory = read(path) if path.is_file() else {}
+        plan, picture = plans[place], inventory.get("picture")
+        hold = holder_of(place, plans)[1]
+        offset = [hold["x"], hold["y"]] if hold else [0.0, 0.0]
+        for row in inventory.get("rows", []):
+            if not (picture and far_row(row, set(plan.get("beyond") or [])) and (row.get("boxes") or row.get("box"))):
+                continue
+            height, broad = far_size(row, picture, distance)
+            middle = [float(plan["w"]) / 2, float(plan["d"]) / 2]
+            seed = int(hashlib.sha256(f"{place}/{row['id']}".encode()).hexdigest()[:8], 16)
+            found.append(({"place": place, "top": entry["top"], "offset": offset, "middle": middle},
+                          far_ring(middle, distance, height, broad, seed)))
+            made.append({"place": place, "row": row["id"], "distance": round(distance, 1), "height": round(height, 1),
+                         "broad": round(broad, 1)})
+    return found, made
 
 
 def relief_at(ground, world, shaped=None):
