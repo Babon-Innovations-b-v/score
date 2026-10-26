@@ -11,4 +11,4 @@ The one reader of the creator's library (score_lib's `entries/` and `index/`) on
   (`Unread`). A new score_lib schema is a change here first, then in the callers.
 - **Pure.** json, os and pathlib only: the hosted cockpit imports it (`score/dashboard/tests/hosted_light_test.py`).
   Never import score_lib's own code.
-- `library_test.py`: a plain script, a temp library.
+- `test_read_only_at_known_schema.py`: pytest, a temp library.
