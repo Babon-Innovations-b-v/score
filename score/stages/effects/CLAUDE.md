@@ -54,6 +54,6 @@ design.
   `effects` branch's stage (be73bb0: other checks, `timed` and `seen`), which a new output cannot be compared with. Its
   records for the airlock, garage, hangar, greenhouse and habitat are ported into this schema (2026-10-12) and the
   branch is gone.
-- `effects_test.py` makes a small kitchen stage itself, makes its effects from its design (the stove's and the
-  kettle's steam at their measured spots), passes every gate, fails `designed` on a row with no object and leaves a
-  scene with nothing that emits out.
+- `test_effects_ride_their_design.py` makes a small kitchen stage itself, makes its effects from its design (the
+  stove's and the kettle's steam at their measured spots), passes every gate and fails `designed` on a row with no
+  object.
