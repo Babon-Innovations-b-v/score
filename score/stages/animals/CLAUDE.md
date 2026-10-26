@@ -16,4 +16,4 @@ animal, then Blender on one held cloud machine.
   design shows an animal today. Both wait for the first animal row a design shows.
 - **Look at the frames.** The clips gate only checks that every clip has review frames. Whether a clip works is
   decided by looking at those frames (the route's overlay).
-- Tests: `animals_test.py` covers a toy design and a toy table only. Nothing paid runs.
+- Tests: `test_animal_rows_follow_the_design.py` covers a toy design and a toy table only. Nothing paid runs.
