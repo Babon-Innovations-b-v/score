@@ -12,8 +12,11 @@ PYTHON := $(CURDIR)/.venv/bin/python
 # file; a heavy one runs under a memory cap so it can never take the machine down. Each runs in a fresh sandbox home
 # (.claude/scripts/sandbox-home.py: PROPS_HOME in the temp folder, the real home read-only), so no test touches the
 # real one; conftest.py refuses a pytest run without one (a test unlinked the real cloud ledger, 2026-10-17).
+# First the test rule's guard (tools/test_rule/check.py: one test file a module, named test_<invariant>.py, its
+# docstring naming its break): over every module, or over the named files' modules when TESTS is given.
 SANDBOX := python3 $(CURDIR)/.claude/scripts/sandbox-home.py --
 TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py' 'tools/*/test_*.py' 'score/*/test_*.py')
+RULE_FILES := $(if $(filter file,$(origin TESTS)),,$(TESTS))
 MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 # The files run side by side, at most JOBS at once (JOBS=1: one after another), each its own sandbox and memory cap;
 # a file's line prints as it ends, a failure's tail with it in one write.
@@ -37,6 +40,7 @@ env:
 
 tests: env
 	@FAILED=$$(mktemp); export FAILED; \
+	$(PYTHON) $(CURDIR)/tools/test_rule/check.py $(RULE_FILES) || echo tools/test_rule/check.py >> $$FAILED; \
 	printf '%s\n' $(TESTS) | xargs -P $(JOBS) -n 1 sh -c "$$ONE_TEST" one; \
 	failed=$$(paste -sd ' ' $$FAILED); rm -f $$FAILED; \
 	if [ -n "$$failed" ]; then echo "failed: $$failed"; exit 1; fi

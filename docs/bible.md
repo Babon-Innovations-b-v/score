@@ -549,7 +549,8 @@ GitHub Actions; every command runs locally.
   functions and no `__main__`), `JOBS` files side by side (default 6), each under a 16 GB memory cap, in a sandbox home
   (`.claude/scripts/sandbox-home.py`: a fresh `PROPS_HOME` linking the real home's environment data, the real home
   read-only; the root `conftest.py` refuses any other home). A file over `TEST_SECONDS` (120) fails: the 2-minute
-  budget is a hard rule (`workflow/module-standard`). `TESTS="..."` runs only the files named.
+  budget is a hard rule (`workflow/module-standard`). `TESTS="..."` runs only the files named. First the test rule's
+  guard (`tools/test_rule/check.py`, `workflow/module-standard`) over every module, or the named files' modules.
 - `make check`: the gate. `.claude/scripts/gate-scope.py` prints `MODE none` for a change that touches only documents
   and working notes, else `full`; unknown paths, a change to the gate itself, `--full` or `GATE_FULL=1` run everything.
   Then `docs/adr/tools/check_index.py`.
@@ -640,7 +641,14 @@ The house standard for a module, so a reader can predict the shape of code they 
     page that answers 200).
   - No shape tests (a file or page read as text for some words), except a wording check guarding an owner rule, which
     says which. No echo tests (an expectation computed by the code under test, or an assert of what was just set up).
-  - Every test can fail: there is a break in the code that turns it red, else it goes.
+  - Every test can fail: there is a break in the code that turns it red, else it goes. The file's docstring names each
+    break, applied once, seen red and reverted.
+- **The guard enforces this** (owner, 2026-10-26: the rule had drifted). `tools/test_rule/check.py`, run first by `make
+  tests`, fails on a module with more than one test file, a test file not named `test_<invariant>.py`, or one whose
+  docstring names no break. A module is the directory a test file sits in, a `tests/` folder counting as its parent's;
+  in the flat tool folders (`tools/cloud`, `tools/props`, `tools/review`) each tool script is a module and a top-level
+  test belongs to the script its docstring names first. Its dated allowlist holds only the modules a sweep was still
+  reworking on 2026-10-26, and only shrinks.
 - **A test file runs in under 2 minutes (hard rule, owner 2026-10-21).** A small fixture world built once per file,
   never the real store or home, no machine, no network, no whole-store walk, no sleeps. `make tests` fails a file at
   `TEST_SECONDS` (120).
