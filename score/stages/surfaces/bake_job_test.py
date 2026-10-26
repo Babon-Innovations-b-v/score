@@ -89,6 +89,21 @@ def test_a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_
         shutil.rmtree(folder)
 
 
+def test_a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s():
+    """A thin run's row is its thickness on two sides (a sagging string 8 by 0.01 by 0.01) while its take hangs 1 m:
+    the bake lays it as one scale, its longest side the row's, never fitted side by side to the box."""
+    folder = a_folder()
+    try:
+        labelled = a_box_take(folder, "string-t1", (0.05, 1.0, 8.0))
+        design = {"size": [8.0, 0.01, 0.01], "faces": 19000, "foot": 0.0}
+        surfaces = written(folder, "surfaces", {"place": "street", "library": "street", "bake": {
+            "models": {"string_1": "string-t1"}, "entries": {"string_1": design}}})
+        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"string-t1": labelled})
+        assert entry["base"] == bake_job.TURNS[90] and entry["size"] == [8.0, 1.0, 0.05], entry
+    finally:
+        shutil.rmtree(folder)
+
+
 def test_every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry():
     """Every place's bake declares no file under the work folder; a model no entry can be written for is declared
     as a file that is never there, naming it (the old kinds' details retired on 2026-10-21, so an old place's laid
