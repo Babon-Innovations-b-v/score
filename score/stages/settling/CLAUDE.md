@@ -12,7 +12,10 @@ settle.py, whose readers a snap edit would otherwise move) and the drop's Blende
 - **Three steps, one method each.** Loose floor objects are dropped (physics: stood upright first, meeting what they
   are stacked on, a hollow one by its convex parts, `convex_parts.py`, written beside the dropped stage); held objects are snapped down onto their holders as they rest, onto a level spot within 30 cm when
   the straight snap leaves them leaning (a convex hull of a shelf unit spans its shelves, so they are not dropped);
-  fixed objects the triage finds floating are let straight down. Nothing turns or moves past the settle's limits.
+  fixed objects the triage finds floating are let straight down. Nothing turns or moves past the settle's limits,
+  but for one that falls into a hollow piece (owner's rule, 2026-10-26): when its one support is dropped as convex
+  parts and rests, and its middle comes to rest inside that support's box, it is laid where it lands
+  (`landed_in_hollows`, here: settle.py sits in about 90 rows' code), not kept as "would not rest as laid".
 - **The seed's models are dropped, not the bakes**, so the row does not wait on the paint. A tip onto uneven feet is
   stood upright on its lowest foot and named for the paint, which levels a take's feet before its bake; the
   assembly's own drop and triage judge the baked model. A model whose base is one sloping or uneven piece (the
