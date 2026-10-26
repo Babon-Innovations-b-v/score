@@ -50,5 +50,5 @@ is in an environment shows up in the library by construction, never by an agent'
   with no real example (a withdrawn entry's included: the old places' layers, 2026-10-21), or that fails, is named in
   its line and on its page, never stops the others. Never a row.
   By hand: `.venv/bin/python -m score.stages.library.demos [--only <algorithm id> ...]`.
-- `library_test.py` drives the runner over a toy table with a fake library command; `invariant_test.py` each
-  mismatch on small fixed sets.
+- `test_everything_handed_to_library.py` drives the runner over a toy table with a fake library command, and the
+  invariant's every mismatch, the pictures and the demos on small fixed sets.
