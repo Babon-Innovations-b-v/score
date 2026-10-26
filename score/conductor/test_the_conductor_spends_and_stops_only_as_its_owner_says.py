@@ -413,8 +413,10 @@ def test_the_health_has_every_field_the_machine_card_reads_and_is_written_whole(
     here = found["code"]["checkout"]
     (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": here[:12]}))
     assert health.code(pin_path=tmp_path / "pin.json")["matches"] is True
-    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": "0" * 40}))
-    assert health.code(pin_path=tmp_path / "pin.json")["matches"] is False
+    said = "update: not now, 0000 changes uv.lock and a sync pass uses .venv (pid 7)"
+    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": "0" * 40, "said": said}))
+    lagging = health.code(pin_path=tmp_path / "pin.json")
+    assert lagging["matches"] is False and lagging["why"] == said  # the checkout lags the pin, and why
     path = health.write(found, tmp_path / "health.json")
     assert json.loads(path.read_text()) == found and not list(tmp_path.glob("*.partial"))
 
