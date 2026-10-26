@@ -890,6 +890,24 @@ def test_a_hung_collector_is_killed_once_the_release_has_waited_its_bound():
     assert sorted(calls.deleted) == sorted(calls.rented) and not park.pool_records(run_id)
 
 
+def test_an_open_pool_whose_collector_is_gone_gets_a_new_one_and_a_closed_pool_none():
+    """Fault of 2026-10-26: with its collector gone and the pool open, nothing rents its places and every claim waits
+    on it; the run's heartbeat starts a collector again (revive), never for a pool closed or one whose collector
+    lives."""
+    _, run_id = fresh(stock=1)
+    kept = pool.spawn_collector
+    pool.spawn_collector = lambda run_id, folder: os.getpid()
+    try:
+        assert pool.revive(run_id) and pool.plan_of(run_id)["collector"] == os.getpid()
+        assert not pool.revive(run_id)  # it lives
+        with pool.locked(run_id):
+            pool.write_plan(run_id, {**pool.plan_of(run_id), "collector": GONE_PID})
+        pool.close(run_id)
+        assert not pool.revive(run_id) and pool.plan_of(run_id)["collector"] == GONE_PID
+    finally:
+        pool.spawn_collector = kept
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()

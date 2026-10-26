@@ -251,6 +251,48 @@ def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
     assert rounds == [2, 2, 2] and fleet.offers == found
 
 
+def test_a_fleet_waits_out_an_open_pool_but_never_a_closed_one():
+    """Fault of 2026-10-26: a Pixal3D fleet with no card paused its deadline on its run's pool for as long as the pool
+    had ever been opened; a pool closed (released, past its end) holds no card for it again, so the fleet runs out its
+    own time and ends, never waits on."""
+    import threading
+    import time
+
+    class Fleet:
+        def __init__(self, deadline):
+            self.stop, self.renting, self.deadline = threading.Event(), threading.Lock(), deadline
+            self.machines, self.offers, self.lost_cards = [], [], 0
+
+        def no_more_work(self):
+            return False
+
+        def woke(self, since):
+            return False
+    rounds = []
+
+    def rent_fleet(fleet, cards):
+        rounds.append(cards)
+        if len(rounds) >= 6:  # a fleet left waiting is stopped here
+            fleet.stop.set()
+        return 0
+    kept = (batch.rent_fleet, batch.pool_open, batch.pool_closed, batch.ask_every, batch.fresh_offers,
+            batch.time.sleep)
+    batch.rent_fleet, batch.pool_open, batch.ask_every = rent_fleet, lambda: True, lambda rounds: 0
+    batch.fresh_offers, batch.time.sleep = lambda run, found: [], lambda seconds: kept[-1](0.02)
+    try:
+        batch.pool_closed = lambda: False  # open, no card yet: the wait is not the batch's time
+        open_fleet = Fleet(time.time() + 0.05)
+        batch.keep_the_fleet(open_fleet, [], 1)
+        assert len(rounds) == 6  # rounds past its 0.05 s: its deadline held while it waited
+        batch.pool_closed, batch.ask_every = lambda: True, lambda rounds: 3600
+        closed_fleet, deadline = Fleet(time.time() + 0.1), time.time() + 0.1
+        batch.keep_the_fleet(closed_fleet, [], 1)
+        assert closed_fleet.deadline <= deadline + 0.01 and time.time() >= deadline
+    finally:
+        (batch.rent_fleet, batch.pool_open, batch.pool_closed, batch.ask_every, batch.fresh_offers,
+         batch.time.sleep) = kept
+
+
 def test_nothing_is_ordered_while_the_backend_says_there_is_no_stock():
     """pixal@people, 2026-10-22: the fleet ordered at Scaleway's shortage every round for over an hour, each order a
     machine that never started and billed its disk and address (EUR 2.19 in all)."""

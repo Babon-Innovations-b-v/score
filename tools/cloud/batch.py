@@ -952,6 +952,14 @@ def pool_open():
     return pool.opened()
 
 
+def pool_closed():
+    """Whether this process's run's pool is closed (released or past its end): no card comes from it any more, so a
+    fleet waiting on it runs out its own time and ends with gaps, never waits on (fault of 2026-10-26: a fleet paused
+    its deadline on a pool that held no card)."""
+    import pool
+    return pool.current() is None
+
+
 def pool_want(found):
     """Make sure the run's pool collects a card Pixal3D can take from the offers `found`."""
     import pool
@@ -979,9 +987,9 @@ def keep_the_fleet(fleet, found, cards):
             return
         looked = time.time()
         alive = [machine for machine in list(fleet.machines) if not machine["deleted"]]
-        if alive or not pool_open():
+        if alive or not pool_open() or pool_closed():
             left = fleet.deadline - time.time()
-        else:  # waiting on the run's pool with no card is not the batch's time (pool.paused)
+        else:  # waiting on the run's open pool with no card is not the batch's time (pool.paused)
             fleet.deadline = max(fleet.deadline, time.time() + left)
         if not alive and fleet.no_more_work():
             return
