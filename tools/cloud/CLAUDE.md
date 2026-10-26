@@ -214,7 +214,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   2026-10-25: "cant u just do the start up earlier then when u need them again"): each machine, card or processor,
   only for the rows whose first job is due within its class's lead (`pool.leads`: the median minutes its class's last
   30 pool machines took to answer, and `LEAD_MARGIN_MINUTES`), on a forecast of each row's due time (`due_rows`,
-  `due_in`: the rows it reads still to run at their likely minutes), so a machine is rented its start-up before its
+  `due_in`: the rows it reads still to run at their likely minutes, a running one at what is left of them and,
+  once it has run past them, as long again as it has overrun: `still_to_run`; Batch 1 try 5 of 2026-10-26 parked 13
+  machines idle 30 min while finish lists forecast at 3.7 min waited 18 to 43 min on Google's Batch API queue), so a machine is rented its start-up before its
   first job and let go while its next job is further away; it opens at what is due then (`pool.sized`), and an
   idle machine billed by the started hour stays till its paid hour ends (`pool.paid_ahead`) (`pool_tender`,
   `pool.resize`: never above its reserved size; Batch 1 of 2026-10-24 and 2026-10-25 held three processor machines
