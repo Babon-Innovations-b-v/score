@@ -104,6 +104,14 @@ FIRMER = (" Again the picture failed. Exactly one copy of the object, never two 
 # on its own seed, its number. Every take stays cached, so without them a gap's step asked again read its four rejected
 # pictures back and drew nothing new: every close-up gap of Batch 1 try 4 (43 objects) could only come back as it was
 # (owner, 2026-10-25: "a place needs every object"). A run draws at most len(PRO_TAKES) new takes a row, as priced.
+# A take past PRO_TAKES (a gap's step bought again, retry-4 on) is asked from the crop alone, never the room, and told to
+# stand the object upright (UPRIGHT; not a row that lies flat, drawn from above, nor a person, posed by PERSON). Batch 1
+# try 4's close-up gaps were "room" rows (the crop under SHORTEST_CROP) whose four takes drew the corridor behind the
+# keypad (the room reference), a cast floor shadow the outline took for object (the corner shelves, the spacesuit
+# locker: "mild shadow"), or the wall keypad lying on its back (2026-10-26). Only takes no row has drawn change, so
+# every kept picture still reads back from the cache.
+UPRIGHT = (" Stand it upright as it stands or hangs in its room, its {tall:.2f} m height upright in the picture: never "
+           "laid down, tipped over or lying on its back; lit evenly from the front so it casts no shadow at all.")
 MARGIN = 0.2
 SHORTEST_CROP = 512
 
@@ -263,13 +271,19 @@ def take_at(index):
 
 
 def pro_ask(row, out, take):
-    """A row's Pro request for `take` (pro.draw's ask): worded as its `pro_wording` says, RETRY on top for a take after
-    the first and FIRMER for one after the second; its crop, the whole concept for the "room" wording, and the take's
-    seed (its number from "retry-2" on; None for the first two)."""
+    """A row's Pro request for `take` (pro.draw's ask): worded as its `pro_wording` says (a take past PRO_TAKES: the
+    crop alone and UPRIGHT, a person's still PERSON), RETRY on top for a take after the first and FIRMER for one after
+    the second; its crop, the whole concept for the "room" wording, and the take's seed (its number from "retry-2" on;
+    None for the first two)."""
     index = take_index(take)
-    text = wording(row, PRO_WORDINGS[row["pro_wording"]]) + (RETRY if index else "") + (FIRMER if index > 1 else "")
+    named = row["pro_wording"]
+    later = index >= len(PRO_TAKES) and named != "person"
+    size = object_size(row)
+    upright = UPRIGHT if later and size and not check.lies_flat(size) else ""
+    named = "crop" if later else named
+    text = wording(row, PRO_WORDINGS[named] + upright) + (RETRY if index else "") + (FIRMER if index > 1 else "")
     return (text, Image.open(out / "crops" / f"{row['id']}.jpg"),
-            Image.open(row["concept"]) if row["pro_wording"] == "room" else None, index if index > 1 else None)
+            Image.open(row["concept"]) if named == "room" else None, index if index > 1 else None)
 
 
 def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):

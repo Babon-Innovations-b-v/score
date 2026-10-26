@@ -133,6 +133,8 @@ def test_a_take_its_environment_measured_is_predicted_by_that_not_by_its_shape()
     assert own("door", [1.0, 0.1, 2.4], read_size=door)["outcome"] == "pass"  # its own metres as measured
     assert own("rug", rug) is None  # a flat row drawn before the view from above: another request
     assert own("crate", tile)["outcome"] == "at risk"  # passed, but Pixal3D made no model of it
+    assert own("tile", tile) is None  # every take failed before its next takes' request (LATER_TAKES_SINCE)
+    measures["lab"]["at"] = predict.LATER_TAKES_SINCE
     assert own("tile", tile)["outcome"] == "predicted gap"  # no route builds it after
     assert own("lamp", tile) is None
     measures["lab"]["built"] = {}

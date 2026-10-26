@@ -113,7 +113,19 @@ def test_pro_draws_a_take_and_strict_retries_worded_before_it_is_drawn():
     assert [stage.take_at(index) for index in range(6)] == [*stage.PRO_TAKES, "retry-4", "retry-5"]
     assert all(stage.take_index(stage.take_at(index)) == index for index in range(9))
     later = stage.pro_ask(row, out, "retry-4")
-    assert later[0] == asks[3][0] and later[3] == 4
+    upright = stage.UPRIGHT.format(tall=stage.object_size(row)[2])
+    assert later[0] == stage.wording(row, stage.CROP_ONLY + stage.UPRIGHT) + stage.RETRY + stage.FIRMER
+    assert upright in later[0] and later[3] == 4
+    # a take past PRO_TAKES of a "room" row is asked from the crop alone; its first four stay as they were
+    room = dict(row, pro_wording="room")
+    assert stage.pro_ask(room, out, "retry-3")[2] is not None and stage.pro_ask(room, out, "retry-4")[2] is None
+    assert stage.pro_ask(room, out, "retry-4")[0] == later[0]
+    # a row that lies flat is drawn from above, never told to stand; a person keeps the rig's pose
+    rug = dict(row, read_size=[2.0, 3.0, 0.02])
+    assert "upright" not in stage.pro_ask(rug, out, "retry-4")[0]
+    person = dict(row, pro_wording="person")
+    assert stage.pro_ask(person, out, "retry-4")[0].startswith(stage.wording(person, stage.PERSON))
+    assert "upright as it stands" not in stage.pro_ask(person, out, "retry-4")[0]
 
 
 def test_the_close_up_is_asked_for_and_checked_at_the_objects_own_size_from_the_checks_view():
