@@ -578,6 +578,8 @@ def test_door_runs_the_allowed_commands_marked_as_an_agents():
         assert code == 0 and argv == ["-m", "score", "run", "world1", "--stage", "x", "--detach"], (why, argv)
         assert env["SCORE_BENCHMARK_GRANT"] == "g-1" and "SCORE_FREE_ONLY" not in env
         assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+        code, why, argv, env = through_door(folder, "benchmark 20261026T074845.442617+0000 world1 --detach")
+        assert code == 0 and env["SCORE_BENCHMARK_GRANT"] == "20261026T074845.442617+0000", why
         code, why, argv, _ = through_door(folder, "grant-benchmark 12 'yes, go' 'may I spend EUR 12 on x?'")
         assert code == 0 and argv[0] == "-c" and argv[2:] == ["12", "yes, go", "may I spend EUR 12 on x?"], argv
         code, why, argv, env = through_door(folder, "buy-yes 33 30 'Yes, buy it' 'Buy at high EUR 30, stop EUR 33?'")

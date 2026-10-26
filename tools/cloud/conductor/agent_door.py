@@ -89,7 +89,9 @@ PREDICTED_CODE = (
     "' ; '.join(take['inputs']) or take['prediction'].get('mode') or take['prediction'].get('measured')) "
     "for take in shown]")
 NODE = re.compile(r"^[a-z0-9][a-z0-9_.-]*(@[a-z0-9_.-]+)?$")
-GRANT_ID = re.compile(r"^[A-Za-z0-9._:-]+$")
+# A grant id is score.store.stamp_key of its UTC time, "+0000" and all (20261026T074845.442617+0000): without the
+# plus the door refused every grant the session had written (2026-10-26).
+GRANT_ID = re.compile(r"^[A-Za-z0-9._:+-]+$")
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
 REFUSED_EXIT = 126
