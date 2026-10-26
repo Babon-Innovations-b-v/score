@@ -194,6 +194,35 @@ def test_expire_deletes_a_machine_nobody_took_and_spares_one_that_was_taken():
     assert calls.deleted == ["m4"]
 
 
+def test_an_expirer_ends_once_its_machine_is_no_longer_parked_under_its_token():
+    """2026-10-26: a pool card's expirer slept to the pool's end after its card was taken or released, working on in
+    its stopped run's frozen copy and holding the checkout."""
+    calls = fresh()
+    batch.delete_machine(machine(20, server_id="m7"))
+    token = (park.PARKED / "m7.json").read_text().split('"token": "')[1].split('"')[0]
+    expirer = threading.Thread(target=park.expire, args=("m7", "zone-a", token, time.time() + 3600, 0.02))
+    expirer.start()
+    time.sleep(0.1)
+    assert expirer.is_alive()
+    (park.PARKED / "m7.json").unlink()  # taken, or released by a pool's close
+    expirer.join(2)
+    assert not expirer.is_alive() and calls.deleted == []
+
+
+def test_a_watchdog_deletes_its_machine_at_once_when_its_renter_is_gone():
+    """Killed before its own delete, the renter left the machine billing and its watchdog asleep to the deadline."""
+    calls = fresh()
+    real = os.getppid
+    parents = iter([4242, 4242, 1])
+    os.getppid = lambda: next(parents)
+    try:
+        started = time.time()
+        batch.watchdog("m8", "zone-a", time.time() + 3600, poll=0.01)
+    finally:
+        os.getppid = real
+    assert calls.deleted == ["m8"] and time.time() - started < 5
+
+
 def test_a_parked_machine_that_does_not_answer_is_deleted_and_none_taken():
     calls = fresh()
     batch.delete_machine(machine(20, server_id="m6"))

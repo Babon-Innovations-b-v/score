@@ -10,6 +10,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -81,6 +82,28 @@ def test_only_the_owner_removes_the_copy_and_never_after_handing_it_on():
     finally:
         os.environ.pop(frozen.FROZEN)
         frozen.OWNED.update(path=None, handed_on=False)
+
+
+def test_removing_the_copy_ends_every_process_still_working_in_it_and_no_other():
+    """2026-10-26: six processes of a stopped run worked on in its copy for an hour and held the checkout."""
+    repo = a_repo()
+    copy = frozen.make(repo, frozen.git(repo, "rev-parse", "HEAD"), tempfile.mkdtemp())
+    other = copy.parent / "another-run"
+    other.mkdir()
+    sleep = [sys.executable, "-c", "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)"]
+    left, elsewhere = subprocess.Popen(sleep, cwd=copy), subprocess.Popen(sleep, cwd=other)
+    try:
+        time.sleep(0.3)
+        assert frozen.users(copy.parent) == {left.pid: copy.name, elsewhere.pid: other.name}  # this one left out
+        frozen.OWNED.update(path=copy, handed_on=False)
+        frozen.END_GRACE_SECONDS = 0.5
+        frozen.remove_owned()
+        assert left.wait(5) == -9 and not copy.exists()  # one deaf to SIGTERM gets SIGKILL
+        assert elsewhere.poll() is None  # another run's copy is not this one's
+    finally:
+        frozen.OWNED.update(path=None, handed_on=False)
+        elsewhere.kill()
+        left.kill()
 
 
 def test_resume_gives_a_frozen_run_its_copy_back_and_another_worktree_nothing():

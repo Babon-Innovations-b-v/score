@@ -12,8 +12,12 @@ live run (each claim in runs/active.json, and every running entry whose process 
 registers itself `stopped` and is never resumed unasked, and passes the stop to its group, so each batch deletes its
 own machines; then every waiting run is marked stopped and its process ended; then every open warm pool is closed and
 its collector ended (pool.close_all), so none orders a card in place of the ones released next; then every parked
-machine, a pool's idle cards with them, is deleted through park.py's release (its ledger line with it). Its report is kept in $PROPS_HOME/conductor/kill-<time>.json and
-returned. Both are refused in an agent's process: the barrier the store's owner areas use.
+machine, a pool's idle cards with them, is deleted through park.py's release (its ledger line with it); then every
+process still working in the frozen copy of a run that is no longer live is ended (leftovers: 2026-10-26, six
+processes of a stopped benchmark run worked on in its copy for an hour, held the checkout from score-update, and a
+second stop found no run to stop); a run just signalled ends its own copy's processes as it removes it
+(frozen.remove_owned). Its report is kept in $PROPS_HOME/conductor/kill-<time>.json and returned. Both are refused in
+an agent's process: the barrier the store's owner areas use.
 """
 import datetime
 import json
@@ -24,7 +28,7 @@ import sys
 
 from score import conductor
 from score.conductor import size
-from score.graph import runs
+from score.graph import frozen, runs
 from score.store import running_under_agent
 
 CLOUD_TOOLS = pathlib.Path(__file__).resolve().parents[2] / "tools/cloud"
@@ -117,17 +121,19 @@ def agent_stop_batch(words):
 
 
 def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None, pools=None,
-                    close_pools=None, latched=True):
+                    close_pools=None, latched=True, frozen_folder=None):
     """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch (unless not
-    `latched`: Stop this batch), every live run, every waiting run, every open warm pool, every parked machine; its
-    report."""
+    `latched`: Stop this batch), every live run, every waiting run, every open warm pool, every parked machine, every
+    process left in the copy of a run gone; its report."""
     folder = pathlib.Path(folder or runs.RUNS)
     at = now()
     report = {"at": at, "by": asked_by, "words": words,
               "free_only": str(latch(asked_by, words, at)) if latched else None,
               "runs": [], "waiting": [], "pools": [], "parked": [], "errors": []}
     conductor.RESIZING.unlink(missing_ok=True)  # the SIGTERMs below are the owner's stop, never a resize's
-    for pid in live_runs(folder):
+    live, working = live_runs(folder), frozen.users(frozen_folder)
+    stopping = {working[pid] for pid in live if pid in working}  # each ends its own copy's processes (remove_owned)
+    for pid in live:
         try:
             os.kill(pid, signal.SIGTERM)
             report["runs"].append(pid)
@@ -150,6 +156,7 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
             report["parked"].append(record["id"])
         except Exception as error:  # noqa: BLE001 - each machine is tried; the report names what failed
             report["errors"].append(f"parked {record['id']}: {type(error).__name__}: {error}")
+    report["leftovers"] = frozen.end([pid for pid, copy in frozen.users(frozen_folder).items() if copy not in stopping])
     keep(report, f"{'kill' if latched else 'batch-stop'}-{at.replace(':', '')}.json", report_folder)
     return report
 

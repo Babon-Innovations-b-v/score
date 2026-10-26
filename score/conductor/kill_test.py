@@ -108,6 +108,35 @@ def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed
     in_home(walk)
 
 
+def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_stopping_runs_to_it():
+    """2026-10-26: after Stop this batch six processes of the stopped run worked on in its frozen copy for an hour and
+    held the checkout; a second stop found no run and ended none."""
+    def walk(home):
+        (home / "runs").mkdir()
+        gone, stopping = home / "frozen" / "20261026-081445-1", home / "frozen" / "20261026-091445-2"
+        gone.mkdir(parents=True)
+        (home / "frozen" / "20261026-081445-1.home").mkdir()
+        stopping.mkdir()
+        sleep = [sys.executable, "-c", "import time; time.sleep(60)"]
+        left = [subprocess.Popen(sleep, cwd=gone), subprocess.Popen(sleep, cwd=f"{gone}.home")]
+        run = subprocess.Popen(sleep, cwd=stopping)
+        node = subprocess.Popen(sleep, cwd=stopping)
+        runs.claim("c0ffee", ["draw@hangar"], run.pid, folder=home / "runs")
+        time.sleep(0.3)
+        try:
+            report = kill.stop_everything("agent", "the batch", folder=home / "runs", parked=home / "empty",
+                                          close_pools=lambda: [], latched=False, frozen_folder=home / "frozen")
+            assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(process.pid for process in left)
+            assert all("time.sleep(60)" in entry["command"] for entry in report["leftovers"])
+            assert all(process.wait(5) == -15 for process in left)
+            assert report["runs"] == [run.pid] and node.poll() is None  # the stopping run ends its own (remove_owned)
+        finally:
+            for process in (*left, run, node):
+                process.kill()
+                process.wait()
+    in_home(walk)
+
+
 def test_every_score_command_runs_free_only_while_the_latch_holds():
     def walk(home):
         (home / "conductor").mkdir()

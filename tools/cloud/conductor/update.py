@@ -128,6 +128,15 @@ def frozen_users(home=HOME, proc=PROC):
     return found
 
 
+def named(proc, pid):
+    """`pid <n>: <its command line>`, cut to 120 characters, so the line says which process holds the checkout."""
+    try:
+        words = (proc / str(pid) / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
+    except OSError:
+        words = "gone"
+    return f"pid {pid}: {words[:120]}"
+
+
 def target(repo, pin):
     """(commit to check out, how it was chosen); RuntimeError when the pin is off origin/main."""
     if pin:
@@ -176,7 +185,7 @@ def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, toke
         return f"update: at {commit[:12]}, {why}{props_env(repo, home, uv, False)}"
     runs = frozen_users(home, proc)
     if runs:
-        return (f"update: not now, a live run works from the checkout (pid {', '.join(map(str, runs))}); "
+        return (f"update: not now, a live run works from the checkout ({'; '.join(named(proc, pid) for pid in runs)}); "
                 f"{commit[:12]} moves after it ends")
     passes = starting(repo, proc, SYNCING) if lock_changed(repo, old, commit) else []
     if passes:

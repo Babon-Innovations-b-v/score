@@ -183,8 +183,8 @@ def test_any_move_waits_while_a_run_works_in_its_frozen_copy():
         (running / "cwd").symlink_to(copy)
         with cockpit({"commit": commits[2]}) as url:
             line = moved(checkout, url, uv, proc)
-        assert "not now" in line and "5151" in line and git(checkout, "rev-parse", "HEAD") == commits[0]
-        assert not log.exists()
+        assert "not now" in line and "pid 5151: /x/.venv/bin/python -m score run world1" in line  # which one holds it
+        assert git(checkout, "rev-parse", "HEAD") == commits[0] and not log.exists()
         with cockpit({"commit": commits[1]}) as url:
             line = moved(checkout, url, uv, proc)  # a.txt only: still held
         assert "not now" in line and "5151" in line and git(checkout, "rev-parse", "HEAD") == commits[0]
