@@ -14,7 +14,11 @@ its surface library gives the shell laid from its locked plan); one no surface f
 proposed surface, and the paint's gate "colour against the close-up" fails it by name. The bake check holds each
 baked part against the same close-up colour (bake_check.close_up_faults, its `measured_lab`). Each part takes its finish's
 checked surface (finish_parts.part_rows), and the list's settings where its finish kept the surface the list named
-(route_settings.applied: the bake paints and bakes the surface with them).
+(route_settings.applied: the bake paints and bakes the surface with them). A light built in code (`lit_take`: a
+light bar, strip or string the thin straight route built, score/stages/props/thin_straight.py) is its light: every
+finish takes the scene library's glowing surface (the library's `glowing` recipe) nearest the colour its concept crop
+shows (`lit_finishes`; owner, 2026-10-25: "the engines themself should be a source of light and there are lights in
+the concept"); with none in the scene library it is marked off its colour, and the paint's gate names it.
 
 Output: parts.json (per take its method, parts (each with its finish's `settings` or None), finishes with the list's
 settings and the check's measure; the takes left out and why), <take>/parts.npy (one part per face of the raw take,
@@ -39,6 +43,8 @@ import route_settings  # noqa: E402
 import route_split  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
+import score.stages.props.prop_data as prop_data  # noqa: E402
+import score.stages.props.thin_straight as thin_straight  # noqa: E402
 
 METHOD = "finish-route"
 # The close-up's camera is Pixal3D's (transforms.json beside its input picture: its distance and camera_angle_x),
@@ -138,6 +144,48 @@ def part_finish(mesh, part_of, finish_of, part):
     return int(np.bincount(finish_of[members], weights=mesh.area_faces[members]).argmax())
 
 
+def files(place):
+    """route_data.parts_files and each code-built take's mark (thin_straight.MARK beside its close-up), named
+    `code <take>`."""
+    found = route_data.parts_files(place)
+    for name in [name for name in found if name.startswith("close-up ")]:
+        mark = pathlib.Path(found[name]).parent / thin_straight.MARK
+        if mark.is_file():
+            found[f"code {name.removeprefix('close-up ')}"] = str(mark)
+    return found
+
+
+def lit_take(entry, mark):
+    """Whether a code-built take (its `mark`, thin_straight's code.json) is a light's body: its kind glows
+    (thin_straight.slender_light, by the row's noun and name the take carries) and it is no stem lamp (lamps.on_stem
+    on its built size: a stem lamp's post is a post, its head the library's lamp)."""
+    with prop_data.tools("props/scene"):
+        import lamps
+    built = json.loads(pathlib.Path(mark).read_text())
+    return thin_straight.slender_light({"noun": entry.get("kind"), "name": entry.get("object")}) \
+        and not lamps.on_stem({"size": built.get("size")})
+
+
+def lit_finishes(checked, every):
+    """A code-built light's checked finishes, each given the glowing surface of `every` (one made with the library's
+    `glowing` recipe) nearest its measured colour, else the first; each marked off its colour when `every` has none."""
+    glowing = sorted(name for name, spec in every.items() if spec.get("recipe") == "glowing" and "colour" in spec)
+    found = []
+    for finish in checked:
+        if not glowing:
+            found.append(dict(finish, by="off its colour", fits=False, new_surface={
+                "name": f"{finish['finish']} (glowing)", "description": f"{finish['finish']}, a light built in code",
+                "why": "the scene library has no glowing surface for a light built in code",
+                "lab": finish.get("measured_lab")}))
+            continue
+        colour = finish.get("measured_lab")
+        nearest = min(glowing, key=lambda name: float(np.linalg.norm(finish_parts.library_lab(every[name]) - colour))
+                      ) if colour is not None else glowing[0]
+        found.append({**{key: value for key, value in finish.items() if key != "new_surface"},
+                      "surface": nearest, "fits": True, "by": "its light, built in code"})
+    return found
+
+
 def parts_take(folders, entry, finishes, surfaces):
     """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record. `surfaces`: the take's
     library surfaces (palette_library.take_surfaces) and the scene's shell surfaces (palette_library.shell_surfaces)."""
@@ -147,6 +195,8 @@ def parts_take(folders, entry, finishes, surfaces):
     every, kit = surfaces
     colours, colour_from = finish_colours(folders, finish_of, len(finishes))
     checked = finish_parts.checked_finishes(entry, finishes, colours, every, kit)
+    if folders.get("code") and lit_take(entry, folders["code"]):
+        checked = lit_finishes(checked, every)
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
@@ -175,7 +225,8 @@ def make_parts(inputs, out, seed, params):
             continue
         finishes = json.loads((listed / f"{take}.json").read_text())["finishes"]
         folders = {"views": views / take, "split": split / take, "out": out / take, "model": inputs.get(f"model {take}"),
-                   "close_up": inputs.get(f"close-up {take}"), "camera": inputs.get(f"camera {take}")}
+                   "close_up": inputs.get(f"close-up {take}"), "camera": inputs.get(f"camera {take}"),
+                   "code": inputs.get(f"code {take}")}
         found[take] = parts_take(folders, takes[take], finishes, (palette_library.take_surfaces(takes[take], palette), kit))
     (out / "parts.json").write_text(json.dumps({"takes": found, "left_out": left}, indent=1))
 
