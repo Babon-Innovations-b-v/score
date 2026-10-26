@@ -33,6 +33,7 @@ def offline(monkeypatch):
     """Prepare, the library's pictures, the parts and light read and the plans kept as lines, so no test pass reads
     the real library, fetches a picture, asks a model or writes a plan where the plan stage reads it."""
     monkeypatch.setattr(client, "plans_kept", lambda: "plans for the plan stage: test")
+    monkeypatch.setattr(client, "readings_fixed", lambda store_root: "readings: test")
     monkeypatch.setattr(client, "parts_read", lambda store_root: "parts: test")
     monkeypatch.setattr(client, "light_read", lambda store_root: "light: test")
     monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
@@ -562,6 +563,11 @@ def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, sett
         assert "state from 2026-10-18 12:00" in html, page
     pages.post("/place/alpha/step/closeup/decide/", {"decision": "reject", "output": "x", "reason": "no"})
     assert SyncRequest.objects.filter(kind="decision").exists()
+
+
+def test_a_pass_fixes_no_reading_that_holds_no_part_of_another_rows_thing(world):
+    """client.readings_fixed: the fixture's readings hold no row inside another row's thing, so none is fixed."""
+    assert client.readings_fixed(world.source.store_root) == "readings: none to fix"
 
 
 def test_a_pass_asks_the_parts_of_a_locked_place_read_before_parts_once_and_never_under_stop_everything(
