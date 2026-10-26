@@ -6,8 +6,9 @@ the likeness row checks it like any take.
 
 Thin and straight (`thin_straight`): the row's size is slender by the model gate's own rule (tools/props/gates/model.py
 shape_class: its middle side under SLENDER_SHARE of its longest), and its name or noun names a straight kind
-(STRAIGHT), or it is a lamp on its own stem (`stem_lamp`: its post built here, its head the library's lamp at the
-head mount). Its profile is swept along its longest side, the row's straight length: round (an ellipse filling the two
+(STRAIGHT), or its row kind glows (`slender_light`: a lamp on its own stem, its post built here and its head the
+library's lamp at the head mount; a light bar, a strip light or a string of lights along its cable, its body built here
+and its light the library's lamp for its mount, laid by the light layer). Its profile is swept along its longest side, the row's straight length: round (an ellipse filling the two
 short sides) for the kinds in ROUND, a rectangle of the two short sides for the rest (posts, beams, pillars).
 
 Its take (`write_take`), in WORK/pixal where the batch would bring one: `<take>.glb` (raw) and the slimmed
@@ -36,7 +37,8 @@ import score.stages.props.prop_data as prop_data
 # a coil are not one straight thing, so neither is here.
 STRAIGHT = frozenset(("pipe", "cable", "conduit", "post", "pole", "rail", "handrail", "rod", "beam", "pillar", "girder",
                       "strut", "mast", "hose", "wire", "duct", "tube", "bar"))
-ROUND = frozenset(("pipe", "cable", "conduit", "pole", "rail", "handrail", "rod", "mast", "hose", "wire", "tube"))
+ROUND = frozenset(("pipe", "cable", "conduit", "pole", "rail", "handrail", "rod", "mast", "hose", "wire", "tube",
+                   "string"))
 SEGMENTS = 32
 # The raw take's tilt off the axes (write_take): radians about one level axis between x and z, so every side of the
 # box leans and the finish's stand (the shortest turn back up) undoes it exactly.
@@ -67,17 +69,18 @@ def slender(size):
 
 def thin_straight(row):
     """Whether an inventory row is a thin straight thing (module docstring)."""
-    return (bool(kind_words(row) & STRAIGHT) or stem_lamp(row)) and slender(row["size"])
+    return (bool(kind_words(row) & STRAIGHT) or slender_light(row)) and slender(row["size"])
 
 
-def stem_lamp(row):
-    """Whether a row is a lamp on its own stem (a street lamp, a floodlight mast): its row kind glows and its own metres
-    are a stem's (tools/props/scene/lamps.py on_stem), so its post is built here and its head is the library's lamp,
-    lit at the head mount (data/library/lamps.json) by the light layer (Batch 1 try 4: every street lamp's close-up
-    failed)."""
+def slender_light(row):
+    """Whether a row's kind glows (tools/props/scene/lamps.py glows): slender, it is a lamp on its own stem (a street
+    lamp, a floodlight mast: its post built here, its head the library's lamp at the head mount) or a straight light
+    (a wall light bar, a strip floor light, string lights: its body built here, its light the library's lamp for its
+    mount, data/library/lamps.json), lit by the light layer. Batch 1 try 4: every street lamp's close-up failed, and
+    the conductor's prediction of 2026-10-26 01:52 left every light bar and string a rod's gap."""
     with prop_data.tools("props/scene"):
         import lamps
-    return lamps.on_stem(row) and lamps.glows(row)
+    return lamps.glows(row)
 
 
 def profile(row):
