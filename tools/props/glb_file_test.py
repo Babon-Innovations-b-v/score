@@ -97,6 +97,20 @@ def a_flat_take_is_laid_on_its_face():
     return [] if abs(height - 0.02) < 0.01 else [f"a rug 0.02 thick laid {height:.2f} tall"]
 
 
+def a_sheet_square_to_the_picture_is_laid_its_picture_side_up():
+    """A sheet whose faces are exact planes square to Z (the finish's remesh of a rug standing in the picture's
+    plane) is laid, the face toward the picture's camera (-Z) on top; its side had no up at all (2026-10-26)."""
+    points = box(0.13, 0.28, 0.002)
+    points[:, 2] = np.where(points[:, 2] < 0, -0.001, 0.001)
+    points[:, 2][:4] = -0.001  # its picture face, marked
+    turned = points @ glb_file.upright_turn(points, flat=True).T
+    if not np.isfinite(turned).all():
+        return ["a sheet square to the picture was given no turn"]
+    height = np.ptp(turned, axis=0)[1]
+    on_top = turned[0, 1] > turned[:, 1].mean()
+    return [] if abs(height - 0.002) < 0.001 and on_top else [f"a sheet laid {height:.3f} tall, picture side up {on_top}"]
+
+
 def a_model_on_legs_is_levelled_on_its_feet():
     """Four thin legs under a body that leans in the model's own box: the feet decide level."""
     rng = np.random.default_rng(1)
@@ -229,6 +243,7 @@ CHECKS = (
     a_tilted_crate_stands_back_up,
     a_tall_rocket_stands_on_its_long_side,
     a_flat_take_is_laid_on_its_face,
+    a_sheet_square_to_the_picture_is_laid_its_picture_side_up,
     a_model_on_legs_is_levelled_on_its_feet,
     a_long_model_faces_along_an_axis,
     a_rocket_section_stands_on_its_own_axis,

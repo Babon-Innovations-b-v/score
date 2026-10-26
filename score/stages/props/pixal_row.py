@@ -15,6 +15,8 @@ the gate still fails it by name, the table moves those faults to complete, and t
 A batch that fails as a whole (its command exits other than 0: a set-up fault) still stops the row. An object whose
 close-up failed and whose row is thin and straight is built in code instead (thin_straight.py, owner 2026-10-25), its
 take's files written here from its concept crop cut out by its SAM 3 mask, so it is made and no gap; a close-up that passes later replaces it.
+An object that lies flat as a sheet whose take Pixal3D or its finish made no model of is built in code from its own
+top-down close-up (flat_sheet.py), so it is made and no gap; that build is kept.
 """
 import hashlib
 import json
@@ -23,6 +25,7 @@ import re
 import subprocess
 
 import score.stages.batch_gaps as batch_gaps
+import score.stages.props.flat_sheet as flat_sheet
 import score.stages.props.prop_data as prop_data
 import score.stages.props.thin_straight as thin_straight
 from score.stages.surfaces.prop_env import PROPS_PYTHON
@@ -171,7 +174,8 @@ def make_pixal(inputs, out, seed, params):
     every = prop_data.prop_objects(prop_data.record_at(inputs["props"]))
     pixal = take_files("-")[0].parent
     for row, entry in every.items():  # the picture route first: a close-up that passed since replaces a code build
-        if (closeups / f"{row}.png").exists() and thin_straight.code_built(entry["take"], pixal):
+        if ((closeups / f"{row}.png").exists() and thin_straight.code_built(entry["take"], pixal)
+                and not flat_sheet.built(entry["take"], pixal)):
             thin_straight.unbuild(entry["take"], pixal)
     built = code_builds({row: entry for row, entry in every.items() if not (closeups / f"{row}.png").exists()},
                         rows, inputs, out)
@@ -191,6 +195,8 @@ def make_pixal(inputs, out, seed, params):
     if unfinished:
         finish_all([finish_job(entry["take"], closeups / f"{row}.png", faces[row], lies_flat(rows[row]))
                     for row, entry in unfinished.items()], prop_data.record_at(inputs["props"])["place"], out)
+    sheet_builds({row: entry for row, entry in objects.items() if not finished(entry["take"], faces[row])}, rows,
+                 closeups, faces, out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in {**objects, **built}.items()}
@@ -217,6 +223,15 @@ def code_builds(failed, rows, inputs, out):
                                                             mask):
             built[row] = thin[row]
     return dict(sorted(built.items()))
+
+
+def sheet_builds(unmade, rows, closeups, faces, out):
+    """Each object of `unmade` (its take has no finished model) that lies flat as a sheet, built in code from its
+    close-up (flat_sheet.py) in place of its Pixal3D take."""
+    pixal = take_files("-")[0].parent
+    for row, entry in sorted(unmade.items()):
+        if row in rows and flat_sheet.sheet(rows[row]):
+            flat_sheet.write_take(entry["take"], rows[row], closeups / f"{row}.png", faces[row], pixal, out / "cut")
 
 
 def finish_gaps(unfinished, faces):
