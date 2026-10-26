@@ -16,4 +16,4 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   declare it, so an edit re-keys them.
 - trimesh with embree (`embreex`, `rtree` in the prop environment). Every run goes under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
-- Checks: `gates_test.py` (hands itself to the prop environment).
+- Checks: `test_model_gate_judges_real_meshes.py` (pytest, the framework's environment, `make tests`).
