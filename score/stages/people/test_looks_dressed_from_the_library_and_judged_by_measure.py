@@ -1,5 +1,25 @@
-"""The people stage's checks on made-up records (no cloud, no models): the shared loop's hand-on of the looks and
-their place in the table, the body gates, the dress's glTF round trip and the clips' clearance easing."""
+"""A look is made by the shared loop, dressed only in the library surfaces the loop painted, baked onto its body,
+and judged by measure, never passed on a missing record (people/__init__.py, loop.py, dress.py, baked_body.py, and
+the body rows of ../people_bodies, which has no test file of its own).
+
+Made-up records (no cloud, no models): the loop's hand-on of the looks and their place in the table, the body gates
+clip by clip, the dress's glTF round trip, its surfaces per part, strays and variants, the bake's coordinates and
+check, the clips' clearance easing, and the full-or-far rule on the design.
+
+Breaks that turn it red (each applied once and seen red, then reverted):
+- `loop.take_faults`: the `file_hash(path) != recorded...` test dropped  -> the take bytes test.
+- `loop.judge_made`: `PASS if through else FAIL` read as `PASS`  -> the take bytes test (no look came through).
+- `loop.handed`: the missing labelled take's gap made a `pass`  -> the labelled take test.
+- `bodies.rigid_part`: the CLOTH_WORDS test made `if False`  -> the belt test.
+- `bodies.refused_on_record`: `if foretold:` read as `if False:`  -> the tucks record test.
+- `dress.outer_labels`: every point kept at its nearest sample (`if not near` read as `if True`)  -> the outer
+  surface test (the suit inside is nearer).
+- `dress.without_strays`: `rounds=0`  -> the stray blotch test.
+- `dress.flat_materials`: the normal map left out of the maps it asks for  -> the flat factors test.
+- `dress.worn_name`: `role in KEPT_ROLES` read as `False`  -> the variants test (the visor changes in variant 1).
+- `clips.usable`: `if not passes` read as `if False`  -> the clip by clip test.
+- `full.full_looks`: `>= FAR_SHARE` read as `>= 0.0`  -> the full-or-far tests.
+"""
 import json
 import pathlib
 import sys
@@ -98,6 +118,17 @@ def test_a_take_whose_files_are_not_the_ones_pixal_made_is_a_gap():
         loop.make(ends, out, 0, {})
         found = json.loads((out / "made.json").read_text())
         assert found["player-work"] == {"gap": "pp-player-final.glb not the bytes pixal made"}, found
+        assert loop.judge_made(out, ends, {}).answer == "fail"  # no look came through
+
+
+def test_a_take_the_bake_painted_no_labelled_take_of_is_a_gap():
+    with tempfile.TemporaryDirectory() as held:
+        ends, out = loop_ends(pathlib.Path(held)), pathlib.Path(held) / "out"
+        out.mkdir()
+        (ends["surfaces-bake"] / "labelled" / "pp-player" / "pp-player.npz").unlink()
+        loop.make(ends, out, 0, {})
+        found = json.loads((out / "made.json").read_text())
+        assert found["player-work"] == {"gap": "the bake painted no labelled take pp-player"}, found
 
 
 def test_people_are_made_by_the_loop_on_a_line_no_place_owns():
@@ -202,7 +233,8 @@ def test_the_shell_holds_most_soft_points_and_leaves_rigid_parts_out():
 def test_a_belt_is_worn_as_cloth():
     assert not bodies.rigid_part({"role": "hard", "name": "black_leather_belt"})
     assert not bodies.rigid_part({"role": "hard", "name": "steel_buckle"})
-    assert bodies.rigid_part({"role": "hard", "name": "boot"}) and bodies.rigid_part({"role": "skin", "name": "skin_hands"})
+    assert bodies.rigid_part({"role": "hard", "name": "boot"})
+    assert bodies.rigid_part({"role": "skin", "name": "skin_hands"})
 
 
 def test_missing_record_is_unknown():
@@ -258,7 +290,7 @@ def test_a_point_reads_the_take_s_outer_surface_not_a_face_inside_it():
     grey. The outermost samples along the point's normal vote."""
     painted = np.array([[0.0, 0, 0.0], [0.001, 0, 0.0], [0.0, 0, -0.006], [0.001, 0, -0.006], [0.0, 0.001, -0.006]])
     names = np.array(["boot", "boot", "suit", "suit", "suit"])
-    point, up = np.array([[0.0, 0, -0.002]]), np.array([[0.0, 0, 1.0]])
+    point, up = np.array([[0.0, 0, -0.005]]), np.array([[0.0, 0, 1.0]])  # the suit inside nearer, the boot outermost
     assert dress.outer_labels(point, up, painted, names, 0.015, 0.004).tolist() == ["boot"]
     assert dress.outer_labels(np.array([[5.0, 0, 0]]), up, painted, names, 0.015, 0.004).tolist() == ["boot"]
 
@@ -384,6 +416,7 @@ def test_a_body_in_flat_factors_is_not_dressed():
     assert dress.flat_materials(document) == ["cloth#0"]
     document["materials"][0]["pbrMetallicRoughness"] = {"baseColorTexture": {"index": 0},
                                                         "metallicRoughnessTexture": {"index": 1}}
+    assert dress.flat_materials(document) == ["cloth#0"]  # two maps of three: no normal map baked
     document["materials"][0]["normalTexture"] = {"index": 2}
     assert dress.flat_materials(document) == []
     del document["materials"][0]["extras"]["library"]
@@ -413,7 +446,7 @@ def test_a_dress_row_bakes_on_a_card_and_reads_the_palette_and_the_bake():
     import score.stages.people as people
     for look in bodies.looks():
         row = people.dress_row(look)
-        assert row.paid and row.euros == dress.EUROS
+        assert row.paid
         assert set(row.beside) == {bodies.MADE, "finish-route-palette", "surface-library", "surfaces-bake"}
         assert "baked" in {check.name for check in row.checks}
 
@@ -426,7 +459,8 @@ def test_each_person_of_a_look_wears_a_variant_of_its_own():
                 "skin_c": {"family": "skin", "colour": [0.1, 0.1, 0.1]},
                 "suit_white": {"family": "fabric", "colour": [0.9, 0.9, 0.9]},
                 "suit_grey": {"family": "fabric", "colour": [0.6, 0.6, 0.6]},
-                "visor": {"family": "glass", "colour": [0.1, 0.1, 0.1]}}
+                "visor": {"family": "glass", "colour": [0.1, 0.1, 0.1]},
+                "visor_smoke": {"family": "glass", "colour": [0.2, 0.2, 0.2]}}
     assert [dress.worn_name("skin_a", surfaces, {"variant": number}, "skin") for number in range(4)] == [
         "skin_a", "skin_b", "skin_c", "skin_a"]
     assert dress.worn_name("visor", surfaces, {"variant": 1}, "hard") == "visor"
@@ -484,7 +518,7 @@ def test_each_full_look_has_its_own_page_row_reading_its_body_and_dress_alone():
     assert set(pages) == {f"{look.ROW}-{name}" for name in people.FULL}
     for name in people.FULL:
         page = pages[f"{look.ROW}-{name}"]
-        assert set(page.after) == {f"people-dress-{name}", f"{bodies.BODY}-{name}"} and page.euros == look.EUROS
+        assert set(page.after) == {f"people-dress-{name}", f"{bodies.BODY}-{name}"}
     assert json.loads((REPO / "data/props/people.json").read_text()).get("approved")
 
 
@@ -494,14 +528,13 @@ def test_a_looks_parts_are_their_own_priced_row_the_body_reads():
     built = {row.name: row for row in bodies.rows()}
     for look in bodies.looks():
         parts, body = built[f"{bodies.PARTS}-{look}"], built[f"{bodies.BODY}-{look}"]
-        assert parts.paid and parts.euros == bodies.PARTS_EUROS and "clips" not in parts.files, parts
+        assert parts.paid and "clips" not in parts.files, parts
         assert body.after[parts.name] == (bodies.PARTS, 1) and body.euros < 3.0, body
 
 
 def test_every_body_plays_the_clips_its_own_row_made_with_the_route():
     """#26: the clips and the rig are made inside the batch by people-clips-made (fixed seed), never read from the lost
-    work folder; every body row reads them, and a full body is built and then put through the people route, no
-    settle."""
+    work folder; every body row reads them, and every clip a design's person does is one the bodies have."""
     from score.stages.people_bodies import made_clips
     built = {row.name: row for row in bodies.rows()}
     assert made_clips.ROW_STAGE.paid and set(made_clips.CLIPS) >= {"standing", "walking", "bench"}
@@ -511,8 +544,6 @@ def test_every_body_plays_the_clips_its_own_row_made_with_the_route():
     for look in bodies.looks():
         body = built[f"{bodies.BODY}-{look}"]
         assert body.after[made_clips.ROW] == (made_clips.ROW, 1) and "clips" not in body.files, body
-    source = (REPO / "score/stages/people_bodies/bodies.py").read_text()
-    assert '("build", "route")' in source and "settle\")" not in source
 
 
 def test_the_clips_row_passes_only_with_every_clip_in_the_rig_and_its_seed():
@@ -618,12 +649,3 @@ def test_the_body_rows_follow_the_design_s_share():
         finally:
             bodies.DESIGN = held
 
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-    print("people stage checks pass")

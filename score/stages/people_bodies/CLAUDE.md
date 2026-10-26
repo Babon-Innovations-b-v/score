@@ -13,7 +13,7 @@ rules.
 - **Keep this package's `__init__.py` empty of imports.** A body row's code version takes in its package's
   `__init__`; in the people package that pulled in the whole surface stage, so every surface edit re-keyed (and
   re-bought) every body (2026-10-13). Import nothing here from `score.stages.people`.
-- Tests: `../people/people_test.py`.
+- Tests: `../people/test_looks_dressed_from_the_library_and_judged_by_measure.py`.
 - **One batch a body, no buy on a known failure (#21).** The build, route and checks run once. When the paid
   checks find a tuck over the gate in every clip of the route's body (`pokes.json`), the look's record
   (`checks/failed_tucks.json`, `prop_person.tucks_record`) carries the hash of its inputs (`prop_person.tucks_inputs`:
