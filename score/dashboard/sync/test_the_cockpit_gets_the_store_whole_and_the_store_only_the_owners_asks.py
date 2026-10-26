@@ -69,6 +69,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import time
 import types
 
 import pytest
@@ -679,7 +680,17 @@ def test_a_step_leaves_nothing_running_after_it(settings, tmp_path):
     done = client.step_run([sys.executable, "-c", left], grace=2)
     assert done.returncode == 0
     stat = pathlib.Path(f"/proc/{int(done.stdout)}/stat")
-    assert not stat.exists() or stat.read_text().rpartition(")")[2].split()[0] == "Z"
+
+    def ended():
+        try:
+            return stat.read_text().rpartition(")")[2].split()[0] == "Z"
+        except FileNotFoundError:
+            return True
+    # a kill lands a moment after it is sent: wait at most 2 s for it, never the leftover's minute
+    deadline = time.monotonic() + 2
+    while not ended() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert ended()
 
 
 # --- the listener --------------------------------------------------------------------------------------------------
