@@ -1,6 +1,8 @@
 """The sync pass's plans keep made fast (score/review/plans_pass.py): the narrow key walk answers exactly as the whole
 store's walk, the keep runs inside one moment, and a done place with no kept plan gets one first. A folder store of
 the test's own."""
+import contextlib
+import io
 import pathlib
 import sys
 import tempfile
@@ -8,8 +10,8 @@ import tempfile
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from score import stages  # noqa: E402
-from score.review import plans, plans_pass  # noqa: E402
-from score.store import runtime_store  # noqa: E402
+from score.review import plan_fixes, plans, plans_pass  # noqa: E402
+from score.store import Store, runtime_store  # noqa: E402
 
 KEYS = ["outputs/a.json", "outputs/ab/c.json", "outputs/b.json", "plans/x/edits/1.json", "plans/xy/edits/2.json",
         "blobs/abc", "top.json"]
@@ -29,19 +31,50 @@ def test_the_narrow_walk_answers_as_the_whole_walk():
 
 def test_the_keep_runs_inside_one_moment():
     seen = {}
-    before_keys, before_main, before_restored = runtime_store.FolderStore.keys, plans.main, plans_pass.restored
+    before = runtime_store.FolderStore.keys, plans.main, plans_pass.restored, plans_pass.to_fix, stages.places
 
     def main(argv):
         seen["argv"], seen["moment"] = argv, plans.HELD.get() is not None
         seen["narrow"] = runtime_store.FolderStore.keys is plans_pass.narrow_keys
+        print("plans for the plan stage: 1 kept")
         return 0
     plans.main = main
     plans_pass.restored = lambda store: seen.setdefault("restored", plans.HELD.get() is not None)
+    plans_pass.to_fix = lambda store, places: seen.setdefault("fix asked", places) and []
+    stages.places = lambda world, store: ["shed"]
+    said = io.StringIO()
     try:
-        assert plans_pass.main() == 0
+        with contextlib.redirect_stdout(said):
+            assert plans_pass.main() == 0
     finally:
-        runtime_store.FolderStore.keys, plans.main, plans_pass.restored = before_keys, before_main, before_restored
-    assert seen == {"argv": ["keep"], "moment": True, "narrow": True, "restored": True}, seen
+        (runtime_store.FolderStore.keys, plans.main, plans_pass.restored, plans_pass.to_fix,
+         stages.places) = before
+    assert seen == {"argv": ["keep"], "moment": True, "narrow": True, "restored": True, "fix asked": ["shed"]}, seen
+    assert said.getvalue() == "plans for the plan stage: 1 kept\n", said.getvalue()
+
+
+def test_a_plan_fixed_before_a_fix_it_needs_is_fixed_again_in_a_process_of_its_own():
+    """2026-10-26: the airlock's plan was fixed before rows at the concept's foot were brought in from beyond, so its
+    sandbags stayed unplaced; once fixed again, it is settled."""
+    cube = [1.0, 1.0, 1.0]
+    rows = [{"id": "plates", "anchor": "ground", "count": 1, "boxes": [[0, 500, 1000, 1000]]},
+            {"id": "barrel", "count": 2, "size": cube, "boxes": [[150, 400, 250, 500], [750, 400, 850, 500]]},
+            {"id": "pallet", "anchor": "on:plates", "count": 1, "size": cube, "boxes": [[450, 700, 550, 800]]},
+            {"id": "desk", "count": 1, "size": cube, "boxes": [[750, 200, 850, 300]]},
+            {"id": "sandbags", "anchor": "ground", "count": 1, "size": cube, "boxes": [[450, 900, 550, 1000]]}]
+    items = [["BARREL 1", 1.5, 4.5, 1.0, 1.0, None, "item"], ["BARREL 2", 7.5, 4.5, 1.0, 1.0, None, "item"],
+             ["PALLET 1", 4.5, 7.5, 1.0, 1.0, None, "item"], ["DESK 1", 7.5, 2.5, 1.0, 1.0, None, "item"]]
+    plan = {"w": 10.0, "d": 10.0, "doors": [], "people": [], "items": items, "structure": ["plates"], "fixes": [],
+            "beyond": ["sandbags"], "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in items}}
+    inventory = {"picture": [1000, 1000], "rows": rows}
+    assert plans_pass.unsettled(plan, inventory)
+    fixed, fixes = plan_fixes.fixed(plan, inventory)
+    assert not plans_pass.unsettled({**fixed, "fixes": fixes}, inventory)
+    started = []
+    with tempfile.TemporaryDirectory() as folder:
+        store = Store.in_folder(folder)
+        plans_pass.fixing(store, ["airlock"], lambda command, **options: started.append(command))
+    assert started and started[0][-3:] == ["score.review.plans_pass", "fix", "airlock"], started
 
 
 def test_a_done_place_with_no_kept_plan_gets_one():
@@ -68,4 +101,5 @@ if __name__ == "__main__":
     test_the_narrow_walk_answers_as_the_whole_walk()
     test_the_keep_runs_inside_one_moment()
     test_a_done_place_with_no_kept_plan_gets_one()
+    test_a_plan_fixed_before_a_fix_it_needs_is_fixed_again_in_a_process_of_its_own()
     print("plans_pass_test: ok")
