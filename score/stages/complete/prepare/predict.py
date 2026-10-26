@@ -167,9 +167,11 @@ def far_since(row):
     return SKY_BEYOND_SINCE if row.get("anchor") == "sky" else FAR_CROP_SINCE
 
 
-def own_outcome(take, row, measures):
+def own_outcome(take, row, measures, rows=None):
     """The take's outcome as this environment measured it (module docstring), or None when it is not measured at
-    today's size and request; `row` its first inventory row, `measures` its place's environment_measures."""
+    today's size and request; `row` its first inventory row, `measures` its place's environment_measures, `rows` its
+    place's inventory rows by id (a thin straight row whose close-up passed takes the code route with a row of its
+    kind whose close-up failed: thin_straight.kin, as the Pixal3D row builds it)."""
     first = take["rows"][0]
     record = (measures or {}).get("closeups", {}).get(first)
     size = (row or {}).get("read_size") or take["size"]
@@ -190,7 +192,10 @@ def own_outcome(take, row, measures):
         # predicted gap as a hub "rod" once laid far off); its failures at the old request are not measured
         return {**outcome, "outcome": "at risk", "measured": f"its close-up passed ({node})",
                 "mode": f"its close-up was {asked}: not measured at today's request"} if record["drawn_by"] else None
-    if record["drawn_by"]:
+    drawn = {name: rows[name] for name in measures.get("closeups", {}) if name in (rows or {})}
+    failed = {name for name, entry in measures.get("closeups", {}).items() if not entry["drawn_by"]}
+    coded = record["drawn_by"] and first in thin_straight.kin(failed, drawn)
+    if record["drawn_by"] and not coded:
         if {first, take["take"]} & measures["unmade"]:
             sheet = sheet_outcome(take, row, measures)
             if sheet is not None:
@@ -199,7 +204,9 @@ def own_outcome(take, row, measures):
             return {**outcome, "outcome": "at risk", "mode": f"Pixal3D made no model of it (pixal@{take['place']})",
                     "measured": f"its close-up passed ({node})"}
         return {**outcome, "outcome": "pass", "pass_share": 1.0, "measured": f"its close-up passed ({node})"}
-    said = f"every one of its {len(record['takes'])} Pro takes failed the close-up ({node})"
+    said = (f"its close-up passed ({node}); a row of its kind failed its own, so it is built in code with it "
+            f"(thin_straight.kin)" if coded
+            else f"every one of its {len(record['takes'])} Pro takes failed the close-up ({node})")
     if first in measures["built"]:
         passed = measures["built"][first]
         return {**outcome, "outcome": "pass" if passed else "predicted gap", "measured": said,
@@ -287,7 +294,8 @@ def build_faults(model, picture, place, name, row, folder, straight=False):
     renderer, no model, nothing rented."""
     import score.stages.props.likeness as likeness
     import score.stages.props.likeness_row as likeness_row
-    cut = (likeness_row.straight_cut(picture, folder / "pixal-cut", name, row["size"]) if straight
+    cut = (likeness_row.straight_cut(picture, folder / "pixal-cut", name, row["size"],
+                                     pathlib.Path(picture).parent / thin_straight.MARK) if straight
            else likeness_row.pixal_cut(picture, folder / "pixal-cut", name))
     found = {**likeness.best_way(model, cut, row.get("read_size") or row["size"]),
              **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False)}

@@ -200,9 +200,13 @@ def test_a_thin_straight_row_is_predicted_by_its_code_build_against_its_stored_m
     pixels[20:280, 140:160] = (90, 90, 90, 255)  # a post upright in its crop, cut out by its mask
     Image.fromarray(pixels).save(folder / "cuts" / "post.png")
     pixels[:] = 0
-    pixels[140:160, 20:280] = (90, 90, 90, 255)  # the mask found a lying beam where the row stands upright
+    pixels[100:200, 100:200] = (90, 90, 90, 255)  # the mask found a box, no rod: its straight build's outline fails
     Image.fromarray(pixels).save(folder / "cuts" / "rod.png")
-    (folder / "masks.json").write_text(json.dumps({"asked": ["post", "rod", "pipe"], "cut": ["post", "rod"]}))
+    pixels[:] = 0
+    pixels[140:160, 20:280] = (90, 90, 90, 255)  # a lying beam where the reading's box stands it upright
+    Image.fromarray(pixels).save(folder / "cuts" / "beam.png")
+    (folder / "masks.json").write_text(json.dumps({"asked": ["post", "rod", "pipe", "beam"],
+                                                   "cut": ["post", "rod", "beam"]}))
     store.write_accept("straight-masks@lab", {"output": store.put_tree(folder), "at": predict.LATER_TAKES_SINCE})
     measures = predict.environment_measures(store, ["lab", "hub"])
     assert set(measures) == {"lab"}, measures  # a place with masks and no close-up is measured
@@ -216,7 +220,43 @@ def test_a_thin_straight_row_is_predicted_by_its_code_build_against_its_stored_m
     assert guess("post")["outcome"] == "pass", guess("post")
     assert guess("rod")["outcome"] == "predicted gap" and "outline" in guess("rod")["mode"], guess("rod")
     assert guess("pipe")["outcome"] == "predicted gap" and "SAM 3" in guess("pipe")["mode"]
-    assert guess("beam")["outcome"] == "at risk"  # not asked: its likeness is not measured yet
+    assert guess("beam")["outcome"] == "pass", guess("beam")  # built lying: the direction is the picture's
+    assert guess("strut")["outcome"] == "at risk"  # not asked: its likeness is not measured yet
+
+
+def test_a_pipe_whose_close_up_passed_is_predicted_built_in_code_with_its_place_s_failed_pipe():
+    """One route a kind in a place (thin_straight.kin): a pipe whose close-up passed is predicted by its code build
+    when another pipe of its place failed its close-up, as the Pixal3D row builds them both; a crate is not."""
+    import numpy as np
+    from PIL import Image
+    from score.store import Store
+    store = Store.in_folder(tempfile.mkdtemp())
+    at, pipe = predict.LATER_TAKES_SINCE, [3.0, 0.1, 0.1]
+    store.write_accept("closeup@lab", {"output": a_stored_output(store, {"closeups.json": {"objects": {
+        "pipe": {"size": pipe, "drawn_by": None, "takes": {"pro": ["x"]}},
+        "pipe_2": {"size": pipe, "drawn_by": "pro", "takes": {"pro": []}},
+        "crate": {"size": [0.5, 0.5, 0.4], "drawn_by": "pro", "takes": {"pro": []}}}}}), "at": at})
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "cuts").mkdir()
+    pixels = np.zeros((300, 300, 4), dtype=np.uint8)
+    pixels[146:155, 20:280] = (90, 90, 90, 255)  # a 3 m pipe 0.1 m thick, lying
+    for name in ("pipe", "pipe_2"):
+        Image.fromarray(pixels).save(folder / "cuts" / f"{name}.png")
+    (folder / "masks.json").write_text(json.dumps({"asked": ["pipe", "pipe_2"], "cut": ["pipe", "pipe_2"]}))
+    store.write_accept("straight-masks@lab", {"output": store.put_tree(folder), "at": at})
+    measures = predict.environment_measures(store, ["lab"])["lab"]
+    rows = {name: {"id": name, "name": "wall pipe", "noun": "pipe", "size": pipe, "box": [0, 0, 300, 20]}
+            for name in ("pipe", "pipe_2")}
+    rows["crate"] = {"id": "crate", "name": "crate", "noun": "crate", "size": [0.5, 0.5, 0.4], "box": [0, 0, 9, 9]}
+
+    def own(name, place_rows):
+        take = {"place": "lab", "rows": [name], "take": f"lab_{name}", "size": rows[name]["size"]}
+        return predict.own_outcome(take, rows[name], measures, place_rows)
+    found = own("pipe_2", rows)
+    assert found["outcome"] == "pass" and "thin_straight.kin" in found["measured"], found
+    assert "thin_straight.kin" not in own("pipe_2", {})["measured"]  # alone: its passed close-up's Pixal3D take
+    assert own("pipe", rows)["outcome"] == "pass" and "kin" not in own("pipe", rows)["measured"]
+    assert "kin" not in own("crate", rows)["measured"]
 
 
 def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_box():
