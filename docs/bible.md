@@ -336,7 +336,7 @@ branch names a scene or a world.
   gap. A row the plan shows beyond the scene (`beyond`) is the backdrop's: when a scene of its scene tree (its parent
   scene, or a child scene beside it) makes that object, it is shown from there (prepare's `groups.shown_from`), that
   scene stood here where the parent's plan holds it, and the `rows` check counts it made once its object stands
-  under Places; one no scene makes stays the skyline's, unpriced until a stage makes it.
+  under Places; a part of a structure (anchored on a wall: a window, a sign) is shown by the nearest neighbour's structure standing on the ground (its finish lights it); one no scene makes is `no maker` in the figure, never bought or dropped.
 - **The scene tree** (`scene_tree.py`, `scene-tree@<scene>`, free): a parent scene holds its children in OpenUSD,
   `/<scene>/Scenes/<child>` referencing each child's own tree at the child's outline on the parent's plan; a child's
   tree is made before its parent's. Opening a top scene opens everything within it, each child still its own layer

@@ -86,11 +86,27 @@ def scene_places(place, folder):
 def source_of(row, others):
     """(place, row id) of the model row of `others` ([(place, rows)], nearest first) that a backdrop row is: one of the
     same object kind, else the nearest whose kind's words hold the row's or are held in them (kind_words: the
-    stairwell's palm_tree is the square's palm_tree, the street's distant_rocket the square's rocket); None."""
+    stairwell's palm_tree is the square's palm_tree, the street's distant_rocket the square's rocket), else, for a
+    part of a structure, the structure holding it (structure_of); None."""
     made = [(other, found["id"]) for other, rows in others for found in rows if found["route"] in MODEL_ROUTES]
     words = kind_words(row["id"])
     return next((source for source in made if object_kind(source[1]) == object_kind(row["id"])), None) or next(
-        (source for source in made if words <= kind_words(source[1]) or kind_words(source[1]) <= words), None)
+        (source for source in made if words <= kind_words(source[1]) or kind_words(source[1]) <= words), None) or (
+        structure_of(row, others))
+
+
+def structure_of(row, others):
+    """(place, row id) of the nearest structure of `others` that shows a backdrop row which is a part of a structure,
+    its reading's anchor a wall (a window, door, sign, balcony or facade light): a shell row standing on the ground
+    taller than the part (a building, tower, facade, wall), whose finish gives the part its look, a lit window its
+    glow (the glow reading); None for any other row, or with no such structure (Batch 1: the stairwell's lit and dark
+    windows of the buildings seen through its window are the square's buildings')."""
+    if row.get("anchor") != "wall":
+        return None
+    tall = max(row.get("size") or [0])
+    return next(((other, found["id"]) for other, rows in others for found in rows
+                 if found["route"] == "shell" and found.get("anchor") == "ground"
+                 and max(found.get("size") or [0]) > tall), None)
 
 
 def kind_words(row_id):

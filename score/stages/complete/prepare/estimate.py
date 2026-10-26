@@ -199,4 +199,5 @@ def line(record):
             f"{counts['predicted_gaps']} predicted to fail, bought and judged), "
             f"EUR {money['likely_euros']:.2f} likely, {money['high_euros']:.2f} high, every job once{unpriced}; "
             f"ETA {minutes}; about {record['expected_gaps']} gaps expected after; "
-            f"{counts['input_gaps']} input gaps (no box or size) priced apart, not bought")
+            f"{counts['input_gaps']} input gaps (no box or size) priced apart, not bought; "
+            f"{counts['no_maker']} backdrop rows no place makes (no maker)")
