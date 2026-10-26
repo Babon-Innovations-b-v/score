@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from score import checks, contracts, graph
 from score.dashboard.proposals import assemble, details, exporting, make, records
 from score.dashboard.site.asgi import app
-from score.dashboard.tests.api_test import api
+from score.dashboard.tests.fixture import api
 from score.store import Store, tree_listing
 
 

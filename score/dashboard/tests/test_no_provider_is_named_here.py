@@ -1,7 +1,15 @@
 """The dashboard names no provider and imports none: no module under score/dashboard imports tools.*,
 score.adapters or a cloud module, and no file names a provider; the list of names is built here from the
 repository's own cloud backends and API kinds, so this test names none. The deploy templates hold only
-<placeholders> for hosts and names."""
+<placeholders> for hosts and names. The invariant is the whole package's (the dashboard overlay's "No provider
+here", owner rule), so this file sits in the package's tests/: wording checks, each guarding that owner rule.
+
+Breaks that turn this red (each applied once and seen red, then reverted):
+- add `import tools.cloud.ledger` to score/dashboard/state/money.py -> test_no_module_imports_tools_...
+- add a comment naming the cloud provider (a stem of tools/cloud/backends) to score/dashboard/state/money.py
+  -> test_no_file_names_a_provider
+- set a real host (`HOST=cockpit.example.com`) in a score/dashboard/deploy template -> test_deploy_templates_...
+"""
 import ast
 import pathlib
 import re
@@ -13,9 +21,9 @@ TEXT = (".py", ".html", ".css", ".js", ".yml", ".example", ".env", ".md", "")
 
 def provider_words():
     """The stems of the cloud backends and cluster modules, and the words of the providers the models adapter's
-    paid APIs name (score/adapters/models API)."""
+    paid APIs name (score/adapters/models API); a test file beside them (test_<invariant>.py) names none."""
     stems = {path.stem.split("_")[0] for folder in ("tools/cloud/backends", "tools/cloud/k8s/clusters")
-             for path in (REPO / folder).glob("*.py") if not path.stem.startswith("_")}
+             for path in (REPO / folder).glob("*.py") if not path.stem.startswith(("_", "test_"))}
     models = (REPO / "score/adapters/models/__init__.py").read_text()
     for provider in re.findall(r'"provider":\s*"([^"]+)"', models):
         stems |= {word for word in re.split(r"[^a-z]+", provider.lower()) if word not in ("api",)}
@@ -28,7 +36,7 @@ def cloud_modules():
 
 def files():
     return [path for path in PACKAGE.rglob("*") if path.is_file() and "__pycache__" not in path.parts
-            and path.suffix in TEXT and path.name != "no_provider_test.py"]
+            and path.suffix in TEXT and path.name != "test_no_provider_is_named_here.py"]
 
 
 def imported(path):

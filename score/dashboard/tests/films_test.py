@@ -263,7 +263,7 @@ def test_the_setting_is_drawn_from_its_own_physics_to_the_pictures_scale():
 
 @pytest.mark.django_db(transaction=True)
 def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_path, monkeypatch):
-    from score.dashboard.tests.api_test import api
+    from score.dashboard.tests.fixture import api
     monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
     film = a_script([{"cut": "title"}, {"cut": "screen-take", "shows": {"page": "/"}, "seconds": 2}])
     script.save(settings.SCORE_HOME, film)
