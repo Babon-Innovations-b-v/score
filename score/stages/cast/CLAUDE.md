@@ -29,7 +29,7 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
 - **Do not import tools/characters at load.** Its `cast_check` on the path or in `sys.modules` joins the assembly's
   code version through `tools/usd/reach.py` and moves every place's assembly key: `measure.characters()` imports
   `cast` and `cast_check` inside the make and the gates, and the stage declares both files as inputs. Constants
-  copied from them (body sizes) are checked in `cast_test.py`.
+  copied from them (body sizes) are checked in `test_people_stand_clear_or_are_named.py`.
 - **`made` reads the SOMA-shell route's dress rows.** A look is made when its dress row (`people-dress-<look>`,
   `-in-<surface>` where the person's design row wears a fabric of its own: `../people_clothes.py`) stands usable; the cast reads them as optional
   inputs (`Stage.optional`), so a look with none stays not made, named: `made` passes with it as a finding (an accepted gap carried
@@ -44,5 +44,6 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   their own look's accepted dressed body (`people-dress-<look>`); a person whose cast names no look, or whose look has
   no usable body (its dress rows are optional reads, `Stage.optional`), is left out, named in `characters.json`,
   and the row passes with the gaps as findings, so the place assembles and complete's people check fails each gap
-  by name (overseer, 2026-10-13). Never lay a stand-in body. `layer_test.py` holds it.
-- `cast_test.py` runs the make and gates on a one-person design on the hub's seed (skipped without it).
+  by name (overseer, 2026-10-13). Never lay a stand-in body.
+- `test_people_stand_clear_or_are_named.py` stands people on a toy place of its own (a floor and a crate), runs the
+  crowd rules on small crowds and plans, and makes the characters layer with no dressed body (every gap named).

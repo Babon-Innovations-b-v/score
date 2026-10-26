@@ -15,7 +15,7 @@ from pxr import Usd, UsdGeom
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 CHARACTERS = REPO / "tools/characters"
-# tools/characters/cast_check.py's body sizes (cast_test.py checks they agree), metres.
+# tools/characters/cast_check.py's body sizes (test_people_stand_clear_or_are_named.py checks they agree), metres.
 BODY_RADIUS, KNEE, HEAD = 0.25, 0.3, 1.7
 # A body's top by its clip where it is not a head's height (top_of).
 TOPS = {"sitting": 1.0, "lying": None}
