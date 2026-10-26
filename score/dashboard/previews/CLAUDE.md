@@ -18,7 +18,7 @@ frame that shows them best (their points carried through that frame's camera fro
 Rules:
 
 - **Local only.** `state/local.py` imports this package inside its methods; the hosted process never does
-  (`tests/hosted_light_test.py` fails on `score.dashboard.previews` or matplotlib in a hosted process). Previews
+  (`sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py` `test_hosted_renders_every_page_light` fails on `score.dashboard.previews` or matplotlib in a hosted process). Previews
   reach the hosted cockpit as exported pictures, never as code.
 - **Pick by file, never by stage name.** A new kind of output gets a drawer keyed on what its files hold.
 - **Made once, kept.** `<home>/previews/<VERSION>/<output>.png`, one at a time, one thread. `VERSION` carries the
