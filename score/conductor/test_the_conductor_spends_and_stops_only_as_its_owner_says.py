@@ -1,0 +1,455 @@
+"""score.conductor's invariant: the conductor spends and stops only as its owner says. It grows only for the owner's
+run that asks for more cores than it has (never an agent's, never under the kill switch's latch, never while a run is
+live) and shrinks only after 30 idle minutes with nothing busy (a claim, a waiting run, a parked machine, a frozen copy
+in use, a hold); its ask carries the token read by name and only grow or shrink, and a failed ask takes its resize
+mark back. Its own bill never enters the batch's spend, and every paid point refuses while the batch project is the
+conductor's. Only the owner's process pulls the kill switch, which stops every run (and the processes left in a gone
+run's frozen copy), closes the pools before it releases every parked machine, and latches every `score` command free
+only; Stop this batch does the same without the latch. A detached run is capped in score-runs.slice at the memory
+less 6 GB, a step's own scope inherits it, and off a conductor nothing changes. Its health names what the Machine card
+reads and its log tails carry no secret. The free end-to-end check (`dry`) passes every step in one line.
+
+Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
+release the parked machines before closing the pools; or in logs drop the secret-shape test (an AIza key reaches the
+tails).
+"""
+import datetime
+import io
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+
+import pytest
+
+REPO = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+
+from score import conductor  # noqa: E402
+from score.adapters import compute  # noqa: E402
+from score.adapters.compute import guard  # noqa: E402
+from score.conductor import health, kill, logs, size, slices  # noqa: E402
+from score.graph import runs  # noqa: E402
+
+RECORD = {"name": "conductor", "idle_type": "POP2-HM-2C-16G", "batch_type": "POP2-HM-16C-128G", "idle_cores": 2,
+          "batch_cores": 16, "project": "score-conductor"}
+IDLE = {"claims": 0, "running": 0, "waiting": 0, "wanted": 0, "parked": 0, "frozen": 0, "working": 0}
+SLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    """The conductor's own folder in the test's home."""
+    monkeypatch.setattr(conductor, "HOME", tmp_path / "conductor")
+    monkeypatch.setattr(conductor, "FREE_ONLY_LATCH", tmp_path / "conductor" / "free-only")
+    monkeypatch.setattr(conductor, "RESIZING", tmp_path / "conductor" / "resizing.json")
+    return tmp_path
+
+
+@pytest.fixture
+def as_conductor(tmp_path, monkeypatch):
+    """A function making this process a fake conductor of `cores` cores (machine.json and the size function's url)."""
+    def make(cores=2):
+        (tmp_path / "machine.json").write_text(json.dumps(RECORD))
+        monkeypatch.setattr(conductor, "MACHINE", tmp_path / "machine.json")
+        monkeypatch.setattr(os, "cpu_count", lambda: cores)
+        monkeypatch.setenv(conductor.SIZE_URL, "https://size.invalid/")
+    return make
+
+
+# --- size: grow for the owner's run, shrink when idle ------------------------------------------------------------------
+
+def test_a_run_waits_for_size_only_on_a_conductor_for_the_owner_within_the_batch_cores(as_conductor):
+    assert size.waits(16, False, agent=False) is None  # not a conductor: refused as on the PC
+    assert conductor.default_jobs(8) == 8
+    as_conductor(2)
+    assert size.waits(16, False, agent=False).startswith("16 jobs on 2 cores: waiting")
+    assert size.waits(2, False, agent=False) is None  # fits
+    assert size.waits(16, True, agent=False) is None  # --oversubscribe runs as asked
+    assert size.waits(16, False, agent=True) is None  # an agent's run never grows the machine
+    assert size.waits(17, False, agent=False) is None  # more than the batch size has
+    as_conductor(16)
+    assert conductor.default_jobs(8) == 16
+
+
+def test_a_grow_is_asked_for_a_waiting_run_once_no_run_is_live_and_no_latch_holds():
+    waiting = {**IDLE, "waiting": 1, "wanted": 16}
+    assert size.decide(waiting, 2, RECORD, 0, 100, False)[0] == size.GROW
+    assert size.decide({**waiting, "claims": 1}, 2, RECORD, 0, 100, False)[0] is None
+    assert size.decide({**waiting, "running": 1}, 2, RECORD, 0, 100, False)[0] is None
+    assert "free-only latch" in size.decide(waiting, 2, RECORD, 0, 100, True)[1]
+
+
+def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size():
+    now = 10_000_000
+    assert size.decide(IDLE, 16, RECORD, now - 29 * 60, now, False)[0] is None
+    assert size.decide(IDLE, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
+    assert size.decide(IDLE, 2, RECORD, 0, now, False)[0] is None  # already at the idle size
+    for busy in ("claims", "running", "waiting", "parked", "frozen", "working"):
+        found = size.decide({**IDLE, busy: 1}, 16, RECORD, 0, now, False)
+        assert found[0] is None and busy in found[1], (busy, found)
+
+
+def test_the_idle_time_counts_from_the_last_busy_pass_and_marks_its_resize(home, as_conductor):
+    asks = []
+    start = max(time.time(), runs.boot_time()) + 3600
+
+    def tick(view, now):
+        return size.tick(say=lambda line: None, now=now, asker=asks.append, state_path=home / "size.json", view=view)
+    as_conductor(16)
+    found = [tick({**IDLE, "claims": 1}, start), tick(IDLE, start + 29 * 60), tick(IDLE, start + 31 * 60)]
+    assert [each["action"] for each in found] == [None, None, size.SHRINK] and asks == [size.SHRINK]
+    assert json.loads(conductor.RESIZING.read_text())["action"] == size.SHRINK  # its power-off is a resize's
+
+
+def test_off_a_conductor_the_size_timer_asks_nothing(monkeypatch):
+    monkeypatch.delenv(conductor.SIZE_URL, raising=False)
+    assert size.tick(say=lambda line: None, asker=lambda action: 1 / 0)["action"] is None
+
+
+def test_the_ask_carries_the_token_read_by_name_and_only_grow_or_shrink(tmp_path, monkeypatch):
+    reader = tmp_path / "reader"
+    reader.write_text("#!/bin/sh\n[ \"$1\" = score-conductor-size-token ] && echo the-token\n")
+    reader.chmod(0o700)
+    sent = []
+
+    class Answer(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def opener(request, timeout):
+        sent.append((request.full_url, request.get_header("X-score-size-token"), json.loads(request.data)))
+        return Answer(b"powering off")
+    monkeypatch.setenv(size.READER, str(reader))
+    assert size.ask(size.GROW, url="https://size.invalid/", opener=opener) == "powering off"
+    assert sent == [("https://size.invalid/", "the-token", {"action": "grow"})]
+    with pytest.raises(ValueError):
+        size.ask("delete", url="https://size.invalid/", opener=opener)
+
+
+def test_a_failed_ask_takes_its_resize_mark_back(home):
+    def refused(action):
+        raise RuntimeError("the size function is down")
+    with pytest.raises(RuntimeError):
+        size.asked(size.GROW, refused)
+    assert not conductor.RESIZING.exists()
+
+
+def test_a_running_entry_is_live_only_while_its_own_process_is():
+    """An out-of-memory kill leaves an entry `running`; a later process given its pid is not the run."""
+    late = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=5)
+    early = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=400)
+    entry = {"pid": os.getpid(), "state": runs.RUNNING}
+    assert size.entry_alive({**entry, "started": late.isoformat(timespec="seconds")})
+    assert not size.entry_alive({**entry, "started": early.isoformat(timespec="seconds")})  # its pid, not its run
+    assert not size.entry_alive(entry)  # registered when, unknown: not counted as its run
+
+
+def test_busy_counts_claims_waiting_runs_parked_machines_and_frozen_copies_in_use(tmp_path, monkeypatch):
+    (tmp_path / "runs").mkdir()
+    (tmp_path / "parked").mkdir()
+    (tmp_path / "frozen" / "live-copy").mkdir(parents=True)
+    (tmp_path / "frozen" / "left-over").mkdir()
+    runs.claim("c0ffee", ["a@b"], os.getpid(), folder=tmp_path / "runs")
+    runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=tmp_path / "runs")
+    (tmp_path / "parked" / "machine.json").write_text("{}")
+    monkeypatch.chdir(tmp_path / "frozen" / "live-copy")
+    view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds")
+    assert view == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1, "working": 0}
+
+
+def test_a_hold_keeps_the_machine_busy_until_its_process_lets_go(tmp_path, monkeypatch):
+    """2026-10-25: a shrink cut the first sync pass after a boot. A holder killed mid-way holds nothing."""
+    with conductor.holding("sync-pass", tmp_path):
+        assert conductor.holds(tmp_path) == [f"sync-pass-{os.getpid()}"]
+        assert size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path)["working"] == 1
+    assert conductor.holds(tmp_path) == [] and not list(tmp_path.glob("*.lock"))
+    code = (f"import os, sys, pathlib; sys.path.insert(0, {str(REPO)!r}); from score import conductor; "
+            f"h = conductor.holding('film-preview', pathlib.Path({str(tmp_path)!r})); h.__enter__(); "
+            "print('held', flush=True); os.kill(os.getpid(), 9)")
+    child = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
+    assert child.stdout.readline().strip() == "held"
+    child.wait()
+    assert conductor.holds(tmp_path) == [] and not list(tmp_path.glob("*.lock"))  # the dead holder's file is gone
+    monkeypatch.setattr(conductor, "HOLDS", tmp_path / "holds")
+    monkeypatch.delenv(conductor.SIZE_URL, raising=False)
+    with conductor.holding("sync-pass"):
+        assert not conductor.HOLDS.exists()  # off a conductor a hold writes nothing
+
+
+# --- money: the conductor's bill stays out of the batch's ---------------------------------------------------------------
+
+def test_the_bill_the_stop_line_counts_is_the_batch_projects_alone(monkeypatch):
+    compute.ledger()  # puts tools/cloud on the path
+    import provider
+    projects = [{"id": "batch-id", "name": "farm-factory"}, {"id": "conductor-id", "name": "score-conductor"}]
+    lines = [{"project_id": "batch-id", "product_name": "Instances", "value": {"units": 40, "nanos": 0}},
+             {"project_id": "conductor-id", "product_name": "Instances", "value": {"units": 75, "nanos": 0}}]
+    asked = []
+
+    def scw(*arguments):
+        asked.append(arguments)
+        if arguments[:3] == ("account", "project", "list"):
+            return [project for project in projects if project["name"] == arguments[3].partition("=")[2]]
+        if arguments[:3] == ("billing", "consumption", "list"):
+            return lines  # the API's answer may hold lines of other projects: each is checked to be the project's
+        raise AssertionError(arguments)
+    monkeypatch.setattr(provider.cloud, "scw", scw)
+    monkeypatch.delenv("SCORE_SCALEWAY_PROJECT", raising=False)
+    assert compute.cloud_bill() == 40.0
+    assert not any("conductor-id" in word for arguments in asked for word in arguments)
+
+
+def test_every_paid_point_refuses_while_the_batch_project_is_the_conductors(tmp_path, monkeypatch):
+    line = {"world": "world1", "euros": 100.0, "at": "2026-10-22T09:00:00+00:00"}
+    for name in ("SCORE_SCALEWAY_PROJECT", conductor.FREE_ONLY, conductor.SIZE_URL):
+        monkeypatch.delenv(name, raising=False)
+    assert guard.refusal(line, 0.0, {}, 1.0) is None
+    monkeypatch.setenv("SCORE_SCALEWAY_PROJECT", conductor.CONDUCTOR_PROJECT)
+    assert "the conductor's own project" in guard.refusal(line, 0.0, {}, 1.0)
+    assert "the conductor's own project" in compute.books_refusal()
+    with pytest.raises(compute.Refused, match="the conductor's own project"):
+        compute.require_books("a card")  # every rent point, the owner's override included
+    record = tmp_path / "machine.json"
+    monkeypatch.setenv("SCORE_SCALEWAY_PROJECT", "batch-of-another-name")
+    record.write_text(json.dumps({"project": "batch-of-another-name"}))
+    assert conductor.machine(record) is None  # not a conductor by the size function's name...
+    assert "the conductor's own project" in conductor.project_refusal(record)  # ...yet its own project
+    record.write_text(json.dumps({"project": "score-conductor-elsewhere"}))
+    assert conductor.project_refusal(record) is None
+
+
+# --- the kill switch ---------------------------------------------------------------------------------------------------
+
+def test_only_the_owners_process_pulls_the_switch_or_clears_the_latch(monkeypatch):
+    monkeypatch.setattr(kill, "running_under_agent", lambda: True)
+    for call in (lambda: kill.stop_all("owner", "stop"), lambda: kill.allow_paid("owner", "go on"),
+                 lambda: kill.stop_batch("owner", "stop")):
+        with pytest.raises(PermissionError, match="only the owner's click"):
+            call()
+
+
+def test_the_switch_stops_every_run_releases_every_parked_machine_and_latches_free_only(home):
+    (home / "runs").mkdir()
+    (home / "parked").mkdir()
+    live, waiter = subprocess.Popen(SLEEP), subprocess.Popen(SLEEP)
+    runs.claim("c0ffee", ["draw@hangar"], live.pid, folder=home / "runs")
+    waiting = runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=home / "runs")
+    entry = json.loads(waiting.read_text())
+    waiting.write_text(json.dumps({**entry, "pid": waiter.pid}))
+    for number in (1, 2):
+        (home / "parked" / f"m{number}.json").write_text(json.dumps({"id": f"m{number}", "zone": "fr-par-2",
+                                                                      "token": f"t{number}"}))
+    conductor.RESIZING.parent.mkdir(parents=True)
+    conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": time.time()}))
+    released, order = [], []
+
+    def release(server, zone, token):
+        order.append("parked")
+        if server == "m2":
+            raise RuntimeError("the provider said no")
+        released.append((server, zone, token))
+    try:
+        report = kill.stop_everything("owner", "stop it\nall", folder=home / "runs", parked=home / "parked",
+                                      release=release, close_pools=lambda: order.append("pools") or ["run-1"])
+        assert live.wait(10) == -15 and waiter.wait(10) == -15
+    finally:
+        for process in (live, waiter):
+            process.kill()
+            process.wait()
+    assert order[0] == "pools" and report["pools"] == ["run-1"]  # no collector replaces the cards released next
+    assert report["runs"] == [live.pid] and report["waiting"] == [entry["id"]]
+    assert released == [("m1", "fr-par-2", "t1")] and report["errors"][0].startswith("parked m2: RuntimeError")
+    assert json.loads(waiting.read_text())["state"] == runs.STOPPED
+    assert conductor.FREE_ONLY_LATCH.read_text().splitlines()[-1] == "SCORE_FREE_ONLY=1"
+    assert "stop it all" in conductor.FREE_ONLY_LATCH.read_text()  # his words on one line
+    assert not conductor.RESIZING.exists()  # its SIGTERMs are his stop, never a resize's
+    assert list(conductor.HOME.glob("kill-*.json"))  # his stop kept on record
+    assert kill.unlatch("owner", "go on")["was_held"] and not conductor.free_only()
+    assert list(conductor.HOME.glob("free-only-cleared-*.json"))
+
+
+def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed(home):
+    """Owner, 2026-10-25: the next Buy after a stopped batch needs no Allow paid work again."""
+    (home / "runs").mkdir()
+    (home / "parked").mkdir()
+    live = subprocess.Popen(SLEEP)
+    runs.claim("c0ffee", ["draw@hangar"], live.pid, folder=home / "runs")
+    (home / "parked" / "m1.json").write_text(json.dumps({"id": "m1", "zone": "fr-par-2", "token": "t1"}))
+    released = []
+    try:
+        report = kill.stop_everything("owner", "this batch", folder=home / "runs", parked=home / "parked",
+                                      release=lambda *machine: released.append(machine),
+                                      close_pools=lambda: ["run-1"], latched=False)
+        live.wait(10)
+    finally:
+        live.kill()
+        live.wait()
+    assert report["runs"] == [live.pid] and released == [("m1", "fr-par-2", "t1")] and report["pools"] == ["run-1"]
+    assert report["free_only"] is None and not conductor.free_only()
+    assert list(conductor.HOME.glob("batch-stop-*.json")) and not list(conductor.HOME.glob("kill-*.json"))
+
+
+def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_stopping_runs_to_it(home):
+    """2026-10-26: after Stop this batch six processes of the stopped run worked on in its frozen copy for an hour and
+    held the checkout; a second stop found no run and ended none."""
+    (home / "runs").mkdir()
+    gone, stopping = home / "frozen" / "20261026-081445-1", home / "frozen" / "20261026-091445-2"
+    gone.mkdir(parents=True)
+    (home / "frozen" / "20261026-081445-1.home").mkdir()
+    stopping.mkdir()
+    left = [subprocess.Popen(SLEEP, cwd=gone), subprocess.Popen(SLEEP, cwd=f"{gone}.home")]
+    run, node = subprocess.Popen(SLEEP, cwd=stopping), subprocess.Popen(SLEEP, cwd=stopping)
+    runs.claim("c0ffee", ["draw@hangar"], run.pid, folder=home / "runs")
+    time.sleep(0.3)  # the children are in their folders before the stop looks
+    try:
+        report = kill.stop_everything("agent", "the batch", folder=home / "runs", parked=home / "empty",
+                                      close_pools=lambda: [], latched=False, frozen_folder=home / "frozen")
+        assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(process.pid for process in left)
+        assert all(process.wait(5) == -15 for process in left)
+        assert report["runs"] == [run.pid] and node.poll() is None  # the stopping run ends its own (remove_owned)
+    finally:
+        for process in (*left, run, node):
+            process.kill()
+            process.wait()
+
+
+def test_every_score_command_runs_free_only_while_the_latch_holds(tmp_path):
+    (tmp_path / "conductor").mkdir()
+    (tmp_path / "conductor" / "free-only").write_text("SCORE_FREE_ONLY=1\n")
+    done = subprocess.run([sys.executable, "-c", "import os\nfrom score import __main__ as command\n"
+                           "command.main(['resume', '--dry'])\nprint(os.environ.get('SCORE_FREE_ONLY'))"],
+                          cwd=REPO, capture_output=True, text=True,
+                          env={**os.environ, "PROPS_HOME": str(tmp_path), "SCORE_FREE_ONLY": ""})
+    assert done.stdout.strip().splitlines()[-1] == "1", done.stdout + done.stderr[-800:]
+
+
+# --- slices: a run's memory capped, nothing changed off a conductor -----------------------------------------------------
+
+def test_the_cap_is_the_memory_less_six_gigabytes_at_both_sizes_and_the_slice_file_no_more():
+    assert slices.cap_bytes(16) == 10 * 1024 ** 3
+    assert slices.cap_bytes(128) == 122 * 1024 ** 3
+    assert slices.cap_bytes(4) == 1024 ** 3  # never below one
+    lines = (REPO / "tools/cloud/conductor/units/score-runs.slice").read_text().splitlines()
+    percent = int(next(line for line in lines if line.startswith("MemoryMax=")).partition("=")[2].rstrip("%"))
+    assert 16 * percent / 100 <= 16 - slices.HEADROOM_GB  # the unit file's own cap within the idle size's
+
+
+def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_none():
+    from score import __main__ as command
+    prefix = slices.scope_prefix("score-run-x")
+    assert prefix[:3] == ["systemd-run", "--user", "--scope"] and "--slice=score-runs.slice" in prefix
+    assert "--unit=score-run-x" in prefix and prefix[-1] == "--"
+    assert not slices.usable() and command.run_scope(pathlib.Path("/tmp/score-run-x.log")) == []
+
+
+def test_the_shim_is_used_only_inside_the_slice(tmp_path):
+    (tmp_path / "cgroup").write_text("0::/user.slice/user@1000.service/app.slice/run-p1.scope\n")
+    assert not slices.in_slice(tmp_path / "cgroup")
+    (tmp_path / "cgroup").write_text("0::/user.slice/user@1000.service/score.slice/score-runs.slice/run-p1.scope\n")
+    assert slices.in_slice(tmp_path / "cgroup")
+    kept = os.environ.get("PATH")
+    assert not slices.apply_shim() and os.environ.get("PATH") == kept  # this test runs outside the slice
+
+
+def test_the_shim_adds_slice_inherit_to_a_user_unit_without_a_slice_of_its_own(tmp_path):
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "systemd-run").write_text("#!/bin/sh\necho \"$@\"\n")
+    (real / "systemd-run").chmod(0o755)
+    path = f"{slices.SHIM}:{real}:/usr/bin:/bin"
+
+    def shimmed(*words):
+        return subprocess.run(["systemd-run", *words], env={**os.environ, "PATH": path}, capture_output=True,
+                              text=True, check=True).stdout.strip()
+    assert shimmed("--user", "--scope", "-q", "-p", "MemoryMax=16G", "nice", "x") == \
+        "--slice-inherit --user --scope -q -p MemoryMax=16G nice x"
+    assert shimmed("--user", "--slice=other.slice", "x") == "--user --slice=other.slice x"
+    assert shimmed("--scope", "x") == "--scope x"  # not a user unit: left alone
+    assert shimmed("--user", "--", "x", "--slice") == "--slice-inherit --user -- x --slice"
+
+
+# --- health and logs ---------------------------------------------------------------------------------------------------
+
+SHOWN = {"score-sync.timer": ("active", ""), "score-sync.service": ("inactive", "success"),
+         "score-listen.service": ("failed", "exit-code"), "score-resume.service": ("inactive", "success"),
+         "score-backup.timer": ("inactive", ""), "score-backup.service": ("inactive", "")}
+
+
+def properties(unit):
+    state, result = SHOWN[unit]
+    return {"ActiveState": state, "Result": result,
+            "ExecMainExitTimestamp": "@1792656000" if unit == "score-sync.service" else ""}
+
+
+def test_each_unit_family_reads_active_failed_or_inactive():
+    assert {name: health.unit_state(units, properties) for name, units in health.UNITS.items()} == {
+        "sync": "active", "listen": "failed", "resume": "inactive", "backup": "inactive"}
+    assert health.last_sync(properties) == {"at": "2026-10-22T08:00:00+00:00", "ok": True}  # @1792656000
+
+
+def test_the_health_has_every_field_the_machine_card_reads_and_is_written_whole(tmp_path, monkeypatch):
+    monkeypatch.setattr(health, "BACKUPS", tmp_path)
+    for stamp, kind, ok in (("0900", "backup", False), ("0930", "backup", True), ("0945", "check-data", False)):
+        (tmp_path / f"backup-20261022T{stamp}.json").write_text(json.dumps(
+            {"at": f"2026-10-22T{stamp[:2]}:{stamp[2:]}:00+00:00", "kind": kind, "ok": ok}))
+    found = health.read(properties)
+    assert set(found) == {"at", "machine", "size", "state", "cores", "memory_total", "memory_available", "memory",
+                          "disk_free", "disk", "load", "units", "runs_active", "runs_waiting", "parked_machines",
+                          "last_backup", "backup", "last_sync", "sync", "free_only", "notes", "code"}
+    assert found["last_backup"] == found["backup"] == {"at": "2026-10-22T09:30:00+00:00", "ok": True}
+    assert found["memory_total"] >= found["memory_available"] > 0 and len(found["load"]) == 3
+    assert found["disk"]["total_gb"] >= found["disk"]["free_gb"] == found["disk_free"]
+    (tmp_path / "secrets").mkdir()
+    (tmp_path / "secrets" / "google-billing-reader.note").write_text("no google-billing-reader secret\n")
+    assert health.notes(tmp_path / "secrets") == ["no google-billing-reader secret"]
+    assert health.notes(tmp_path / "none") == []
+    assert health.code(pin_path=tmp_path / "none.json")["matches"] is None  # no pin read yet
+    here = found["code"]["checkout"]
+    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": here[:12]}))
+    assert health.code(pin_path=tmp_path / "pin.json")["matches"] is True
+    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": "0" * 40}))
+    assert health.code(pin_path=tmp_path / "pin.json")["matches"] is False
+    path = health.write(found, tmp_path / "health.json")
+    assert json.loads(path.read_text()) == found and not list(tmp_path.glob("*.partial"))
+
+
+def test_the_log_tails_leave_out_every_line_naming_or_holding_a_secret(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCORE_SYNC_TOKEN", "s3cr3t-sync-value")
+    (tmp_path / "logs").mkdir()
+    (tmp_path / "faults").mkdir()
+    (tmp_path / "logs" / "score-run-1.log").write_text(
+        "brief@north: made\nreading gemini-api-key by name\nsent s3cr3t-sync-value along\n"
+        "header X-Auth-Token: abc\nGET /v1beta/models?key=AIzaSyA0123456789abcdefghijklmnopqrstuv\n"
+        "token hf_abcdefghijklmnopqrstuvwxyz0123456789\n-----BEGIN OPENSSH PRIVATE KEY-----\n"
+        "asked with X-Score-Size-Token set\nexit: ok\n")
+    (tmp_path / "faults" / "brief@south.txt").write_text("cause: the brief is empty\n")
+    (tmp_path / "score-boot-system.log").write_text("boot: node 24.21.0 installed\nsent s3cr3t-sync-value along\n")
+    found = logs.tails(10, logs=tmp_path / "logs", faults=tmp_path / "faults",
+                       read_journal=lambda unit, limit: [f"{unit}: fine"],
+                       boot_logs=(tmp_path / "score-boot-system.log", tmp_path / "score-boot-user.log"))
+    assert found["run score-run-1.log"] == ["brief@north: made", "exit: ok"]
+    assert found["fault brief@south"] == ["cause: the brief is empty"]
+    assert found["journal score-listen.service"] == ["score-listen.service: fine"]
+    assert found["boot score-boot-system.log"] == ["boot: node 24.21.0 installed"]
+    assert "boot score-boot-user.log" not in found  # a boot log not written is not listed
+    assert logs.tail(tmp_path / "logs" / "score-run-1.log", 1) == ["exit: ok"]
+
+
+# --- the free end-to-end check -----------------------------------------------------------------------------------------
+
+def test_the_dry_check_passes_every_step_in_one_line():
+    done = subprocess.run([sys.executable, "-m", "score.conductor", "dry"], cwd=REPO, capture_output=True, text=True,
+                          timeout=90)
+    lines = done.stdout.strip().splitlines()
+    assert len(lines) == 1 and lines[0].startswith("conductor dry: 7 of 7 steps passed; detail "), \
+        done.stdout + done.stderr[-2000:]
+    results = json.loads(pathlib.Path(lines[0].rpartition("detail ")[2]).read_text())
+    assert [result["step"] for result in results] == ["plan", "waiting for size", "resume", "memory guard",
+                                                      "health and logs", "shrink", "kill switch"]
+    assert all(result["ok"] for result in results) and done.returncode == 0

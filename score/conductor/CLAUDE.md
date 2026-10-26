@@ -45,4 +45,4 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
 
 Rules: nothing here rents, and nothing routes around `compute.require_cleared`, `books_refusal` or the stop line;
 growing the machine is spend, so only a run the owner started (his Buy click's checkout) grows it. Tests:
-`score/conductor/*_test.py`, each under 120 s in `make tests`' sandbox home.
+`score/conductor/test_the_conductor_spends_and_stops_only_as_its_owner_says.py`, under 120 s in `make tests`' sandbox home.
