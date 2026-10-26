@@ -18,7 +18,10 @@ numpy: the airlock's sandbags, 7 pairs in each other after the nudge, none after
 a process of its own (`fixing`, `python -m score.review.plans_pass fix <place> ...`: `settled_again`,
 plan_fixes.settled's free fixes and at most its automatic Corrects under the plan-writing allowance when the free
 fixes place more, then the solver, free; kept as a new writing). Each re-fix leaves fewer missing or fewer in each other, so a plan is fixed
-again only while that improves it. Here, not in plan_fixes.py, which is in the code version of every stage that
+again only while that improves it. The solver parts only a place whose plan row (plan@<place>) stands unaccepted
+(`parting`: a parted writing would re-key an accepted row and every row after it, review of 2026-10-26), and a plan
+it alone re-fixes (free) is parted before the keep in the pass itself (`parted_first`), so its plan row is made
+once, from the parted writing, never from the unparted one a pass earlier. Here, not in plan_fixes.py, which is in the code version of every stage that
 reads plans.py (an edit to it re-keyed 74 paid rows, `score.stages.moved`, 2026-10-26).
 
 Before it, every place of the environment (stages.places: each scene whose design is done) with no kept plan gets one
@@ -70,19 +73,27 @@ def placing_more(plan, inventory):
     return bool(lacking) and len(missing(plan_fixes.fixed(plan, inventory)[0], inventory)) < lacking
 
 
-def unsettled(plan, inventory):
-    """Whether a written plan wants fixing again: `placing_more`, or the relation solver parts things the fixes left
-    in each other (relation_solver.parted)."""
-    return placing_more(plan, inventory) or bool(relation_solver.parted(plan, inventory)[1])
+def parting(store, place):
+    """Whether the relation solver may part the place's writing: its plan row (plan@<place>) stands unaccepted. An
+    accepted plan row is never moved for overlaps alone (a parted writing would re-key it and every row after it)."""
+    return store.accepted(f"plan@{place}") is None
 
 
-def settled_again(store, place, plan, inventory, ask):
+def unsettled(plan, inventory, parts=True):
+    """Whether a written plan wants fixing again: `placing_more`, or (when it `parts`) the relation solver parts
+    things the fixes left in each other (relation_solver.parted)."""
+    return placing_more(plan, inventory) or (parts and bool(relation_solver.parted(plan, inventory)[1]))
+
+
+def settled_again(store, place, plan, inventory, ask, parts=True):
     """(the plan fixed again, the Correct calls made): plan_fixes.settled when it is `placing_more`, else as written
-    (no Correct asked again for overlaps alone); then the things still in each other parted by the relation solver,
-    its fixes added and its gaps checked again, each left saying why."""
+    (no Correct asked again for overlaps alone); then, when it `parts`, the things still in each other parted by the
+    relation solver, its fixes added and its gaps checked again, each left saying why."""
     calls = []
     if placing_more(plan, inventory):
         plan, calls = plan_fixes.settled(store, place, plan, inventory, ask)
+    if not parts:
+        return plan, calls
     answer, more = relation_solver.parted(plan, inventory)
     if more:
         plan = {**answer, "fixes": [*plan.get("fixes", []), *more]}
@@ -91,11 +102,30 @@ def settled_again(store, place, plan, inventory, ask):
 
 
 def to_fix(store, places):
-    """The places of `places` whose writing in force is `unsettled`."""
+    """The places of `places` whose writing in force is `unsettled` (parted only where `parting`)."""
     found = []
     for place in places:
         writing = plan_writing.written_of(store, place)
-        if writing and unsettled(writing["plan"], plans.inventory_of(store, place)):
+        if writing and unsettled(writing["plan"], plans.inventory_of(store, place), parting(store, place)):
+            found.append(place)
+    return found
+
+
+def unasked(body):
+    """The Correct call of a free re-fix: refused (it may not be paid for)."""
+    raise RuntimeError("a free re-fix asks no Correct")
+
+
+def parted_first(store, places):
+    """The places of `places` whose writing only the relation solver re-fixes (`parting`, `unsettled`, not
+    `placing_more`: free), fixed again here and now, so the keep after it makes their plan rows from the parted
+    writing in the same pass (a re-fix in a process of its own reached them a pass later); the places fixed."""
+    found = []
+    for place in places:
+        writing = plan_writing.written_of(store, place)
+        if not writing or not parting(store, place) or placing_more(writing["plan"], plans.inventory_of(store, place)):
+            continue
+        if refixed(store, place, "the relation solver", unasked, free=True):
             found.append(place)
     return found
 
@@ -109,16 +139,19 @@ def fixing(store, places, start=subprocess.Popen):
     return plan_writing.started(store, places, started)
 
 
-def refixed(store, place, by, ask):
-    """The place's writing in force fixed again (`settled_again`) and kept as a new writing of the same lock,
-    reading and method with its fixes and the cost of its Correct calls, under the place's writing lock (a second
-    process waits and finds it settled: nothing is paid twice); None when it is not `unsettled`."""
+def refixed(store, place, by, ask, free=False):
+    """The place's writing in force fixed again (`settled_again`, parted only where `parting`) and kept as a new
+    writing of the same lock, reading and method with its fixes and the cost of its Correct calls, under the place's
+    writing lock (a second process waits and finds it settled: nothing is paid twice); None when it is not
+    `unsettled`, or when `free` and it is `placing_more` (that re-fix may ask Corrects: `fixing` makes it)."""
     with locked(store.cache / plan_writing.AREA / "locks" / f"{place}.lock"):
         writing = plan_writing.written_of(store, place)
         inventory = plans.inventory_of(store, place)
-        if not writing or not unsettled(writing["plan"], inventory):
+        parts = parting(store, place)
+        if (not writing or not unsettled(writing["plan"], inventory, parts)
+                or (free and placing_more(writing["plan"], inventory))):
             return None
-        plan, calls = settled_again(store, place, writing["plan"], inventory, ask)
+        plan, calls = settled_again(store, place, writing["plan"], inventory, ask, parts)
         return plan_writing.kept(store, {
             **{key: writing[key] for key in ("place", "concept", "reading", "method", "drawing", "measured")
                if key in writing}, "by": by, "at": concepts.now(), "drawing_euros": 0.0, "fixed_from": writing["at"],
@@ -142,19 +175,21 @@ def fix_main(places):
 
 
 def main():
-    """plans.main(["keep"]) with narrow_keys, inside one moment, after `restored`, then the `unsettled` plans started
-    being fixed; its exit code, keep's line with what is being fixed."""
+    """The plans only the relation solver re-fixes parted first (`parted_first`, outside the moment: it writes), then
+    plans.main(["keep"]) with narrow_keys inside one moment, after `restored`, then the other `unsettled` plans
+    started being fixed; its exit code, keep's line with what was parted and what is being fixed."""
     from score import stages
     from score.adapters.compute import STORE
     install()
     store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
+    parted = parted_first(store, stages.places(stages.world1(), store)) if plan_writing.AUTOMATIC else []
     said = io.StringIO()
     with plans.one_moment():
         restored(store)
         with contextlib.redirect_stdout(said):
             code = plans.main(["keep"])
         refix = to_fix(store, stages.places(stages.world1(), store)) if plan_writing.AUTOMATIC else []
-    line = said.getvalue().strip()
+    line = said.getvalue().strip() + (f"; plans of {', '.join(parted)} parted" if parted else "")
     print(line + (f"; plans of {', '.join(refix)} being fixed: {fixing(store, refix)}" if refix else ""))
     return code
 

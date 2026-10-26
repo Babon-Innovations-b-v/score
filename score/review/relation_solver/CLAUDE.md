@@ -2,7 +2,8 @@
 
 The plan fixes' fallback for crowded plans: `parted(plan, inventory)` parts the floor things the free fixes
 (`plan_fixes.nudged`) left in each other, with IsaacLab-Arena's relation solver ported to numpy (`_solver.py`).
-Called by `plans_pass.settled_again` after `plan_fixes.settled`; `plans_pass.unsettled` re-fixes a plan it would part.
+Called by `plans_pass.settled_again` after `plan_fixes.settled`; `plans_pass.unsettled` re-fixes a plan it would part,
+only where its plan row stands unaccepted (`plans_pass.parting`), a free one before the keep (`parted_first`).
 
 Rules:
 
