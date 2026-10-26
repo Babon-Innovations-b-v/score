@@ -1,0 +1,170 @@
+"""Invariant of blender_cloud.py: a Blender job runs on the rented machine (or the cluster) exactly as written: its
+arguments reach the script unchanged (its files lie at the same paths up there), the script runs from the machine's
+copy of the repo with its folder and tools/blender/inside sent up, Cycles runs on the card on a card machine and on
+the cores otherwise; one machine class is fixed for the call at price time; a held machine runs a chain in order and
+raises on a failed job; and a rerun of a cut-off run buys only the jobs it lacks (audit, 2026-10-22).
+
+No machine is rented: each test reads the command, job or offers the module builds. The break that turns each red
+(applied once, seen red, reverted):
+
+- test_the_arguments_and_script_reach_the_machine_as_written: in `run_line`, `"FARM_CYCLES_GPU=1" if card else
+  "FARM_CYCLES_CPU=1"` -> `"FARM_CYCLES_GPU=1"`; or `str(REMOTE / "repo" / job["script"])` -> `job["script"]`.
+- test_a_scripts_folder_and_the_blender_helpers_go_up: in `shipped`, `{*ALWAYS_SHIPPED, *(` -> `{*(`.
+- test_a_held_machine_runs_a_chain_in_order_and_raises_on_a_failed_job: in `Machine.run`, the `.failed` branch's
+  `raise RuntimeError(...)` -> `return`; or in `Machine.__exit__`, `(self.queue / "close").write_text("")` -> `pass`.
+- test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class: in `cluster_job`, `card = any(provider.cards(name)
+  for name in classes)` -> `card = True`.
+- test_the_runner_python_follows_props_home: `CLOUD_PYTHON = HOME / "env/bin/python"` -> `CLOUD_PYTHON =
+  pathlib.Path.home() / ".farm-factory-props/env/bin/python"`.
+- test_one_class_is_fixed_at_price_time_and_no_stock_keeps_the_first: in batch.py `one_class_in_stock`, `next(iter(stocked
+  + sold), None)` -> `next(iter(sold), None)` (the first class asked though another is in stock).
+- test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks: in `one_job`, `    kept.keep(job)` -> `    pass`.
+"""
+import os
+import pathlib
+import shlex
+import subprocess
+import sys
+import threading
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import blender_cloud  # noqa: E402
+import kept  # noqa: E402
+import provider  # noqa: E402
+
+
+def test_the_arguments_and_script_reach_the_machine_as_written(tmp_path):
+    job = {"script": "tools/blender/inside/settle_stage.py", "inputs": [str(tmp_path / "stage")],
+           "outputs": [str(tmp_path / "out.json")],
+           "args": [str(tmp_path / "stage/place.usda"), str(tmp_path / "out.json"), "--fast", "12"]}
+    processor = shlex.split(blender_cloud.run_line(job, card=False))
+    assert processor[processor.index("--") + 1:] == [f"{tmp_path}/stage/place.usda", f"{tmp_path}/out.json",
+                                                     "--fast", "12"]
+    assert processor[processor.index("--python") + 1] == "/root/lib/repo/tools/blender/inside/settle_stage.py"
+    assert "FARM_CYCLES_CPU=1" in processor and "FARM_CYCLES_GPU=1" not in processor
+    on_card = shlex.split(blender_cloud.run_line(job, card=True))
+    assert "FARM_CYCLES_GPU=1" in on_card and "FARM_CYCLES_CPU=1" not in on_card
+
+
+def test_a_scripts_folder_and_the_blender_helpers_go_up():
+    found = blender_cloud.shipped([{"script": "tools/props/library/inside/show.py"}])
+    assert found == ["tools/blender/inside", "tools/props/library/inside"]
+
+
+class Answering:
+    """A stand-in for the --serve process: it answers each job file in the queue as told, without renting."""
+
+    def __init__(self, queue, answer):
+        self.queue, self.answer, self.stop = queue, answer, threading.Event()
+        threading.Thread(target=self.watch, daemon=True).start()
+
+    def watch(self):
+        while not self.stop.wait(0.05):
+            for job in self.queue.glob("*.json"):
+                if not job.with_suffix(".done").exists() and not job.with_suffix(".failed").exists():
+                    job.with_suffix(f".{self.answer}").write_text("answered")
+
+    def poll(self):
+        return None
+
+    def wait(self):
+        self.stop.set()
+
+
+def held(queue, answer, monkeypatch):
+    """A Machine whose --serve process is an Answering stand-in on `queue`."""
+    monkeypatch.setattr(blender_cloud.time, "sleep", lambda seconds: threading.Event().wait(0.02))
+    machine = blender_cloud.Machine(["cpu-32c-128gb"], "test")
+    machine.queue = queue
+    queue.mkdir()
+    machine.process = Answering(queue, answer)
+    return machine
+
+
+def test_a_held_machine_runs_a_chain_in_order_and_raises_on_a_failed_job(tmp_path, monkeypatch):
+    script = blender_cloud.REPO / "tools/blender/inside/usd_views.py"
+    done = held(tmp_path / "done", "done", monkeypatch)
+    done.run(script, ["a"], [], [])
+    done.run(script, ["b"], [], [])
+    done.__exit__(None, None, None)
+    assert sorted(path.name for path in done.queue.glob("*.json")) == ["1.json", "2.json"]
+    assert (done.queue / "close").exists()
+    failed = held(tmp_path / "failed", "failed", monkeypatch)
+    try:
+        failed.run(script, ["a"], [], [])
+        raise AssertionError("a failed job did not raise")
+    except RuntimeError as error:
+        assert "failed" in str(error)
+    failed.__exit__(None, None, None)
+    assert (failed.queue / "close").exists()
+
+
+def test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class():
+    """Under SCORE_CLOUD=k8s: the same arguments, the script from the job's code, its output folders made first."""
+    job = {"script": "tools/blender/inside/settle_stage.py", "args": ["/w/stage.usda", "/w/out/x.json"],
+           "inputs": ["/w/stage.usda"], "outputs": ["/w/out/x.json"], "minutes": 4}
+    card = blender_cloud.cluster_job(job, ["gpu-24gb"])
+    words = shlex.split(card["command"][2])
+    assert words[:3] == ["mkdir", "-p", "/w/out"] and words[words.index("--") + 1:] == ["/w/stage.usda",
+                                                                                         "/w/out/x.json"]
+    assert words[words.index("--python") + 1] == "tools/blender/inside/settle_stage.py"
+    assert card["code"] == ["tools/blender/inside"]
+    assert card["env"] == {"FARM_CYCLES_GPU": "1"} and card["kernel_cache"] == "blender-5.0.1"
+    processor = blender_cloud.cluster_job(job, ["cpu-32c-128gb"])
+    assert processor["env"] == {"FARM_CYCLES_CPU": "1"} and "kernel_cache" not in processor
+    assert (card["inputs"], card["outputs"], card["minutes"]) == (job["inputs"], job["outputs"], 4)
+
+
+def runner_python_under(props_home):
+    """CLOUD_PYTHON as a fresh import sees it with PROPS_HOME set to `props_home` (None: unset)."""
+    environment = {key: value for key, value in os.environ.items() if key != "PROPS_HOME"}
+    if props_home is not None:
+        environment["PROPS_HOME"] = str(props_home)
+    return subprocess.run([sys.executable, "-c", "import blender_cloud; print(blender_cloud.CLOUD_PYTHON)"],
+                          cwd=pathlib.Path(__file__).resolve().parent, env=environment, capture_output=True,
+                          text=True, check=True).stdout.strip()
+
+
+def test_the_runner_python_follows_props_home(tmp_path):
+    assert runner_python_under(tmp_path) == f"{tmp_path}/env/bin/python"
+    assert runner_python_under(None) == str(pathlib.Path.home() / ".farm-factory-props/env/bin/python")
+
+
+def test_one_class_is_fixed_at_price_time_and_no_stock_keeps_the_first(monkeypatch):
+    """A call runs every job on the class fixed before it (CONTEXT.md, owner 2026-10-20): with cards short a 32-core
+    machine was rented instead and claims moved between classes as stock moved. No stock keeps the first class
+    asked, its claims waiting: no stock never makes a gap (owner, 2026-10-23)."""
+    stock = {"cpu-32c-128gb": "available"}
+    monkeypatch.delenv("SCORE_RUN_ID", raising=False)  # no warm pool
+    monkeypatch.setattr(blender_cloud.batch, "offers", lambda classes: [
+        provider.Offer(0.01, 0, f"{name}-type", "zone-a", 0.01, name, 0, stock.get(name, "shortage"))
+        for name in classes])
+    monkeypatch.setattr(blender_cloud.batch, "month_spent", lambda account: 0.0)
+    monkeypatch.setattr(blender_cloud.batch, "say", lambda line: None)
+    cards = ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
+    found, _, _ = blender_cloud.price([{"minutes": 5}], "account", cards)
+    assert [offer.machine_class for offer in found] == ["gpu-24gb"]
+    stock.update({"gpu-48gb": "available", "gpu-80gb": "available"})
+    found, _, _ = blender_cloud.price([{"minutes": 5}], "account", cards)
+    assert [offer.machine_class for offer in found] == ["gpu-48gb"]
+
+
+def test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks(tmp_path, monkeypatch):
+    """Audit (2026-10-22): kept.py was never called here, so a cut-off run paid again for every finished job."""
+    making = tmp_path / "making"
+    making.mkdir()
+    jobs = [{"script": "tools/blender/inside/usd_views.py", "args": [str(number)], "inputs": [],
+             "outputs": [str(making / f"shot{number}.png")], "minutes": 1} for number in range(2)]
+    monkeypatch.setenv(kept.TICKET, "turntable@hub 0123abcd")
+    monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
+    monkeypatch.setenv(kept.MAKING, str(making))
+    monkeypatch.setattr(blender_cloud.batch, "say", lambda line: None)
+
+    def run_job(log_folder, host, number, job, card):
+        pathlib.Path(job["outputs"][0]).write_text(f"shot {number}")
+        return 1.0
+    monkeypatch.setattr(blender_cloud, "run_job", run_job)
+    blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (0, jobs[0]), None)  # cut off before job 1
+    (making / "shot0.png").unlink()  # the next attempt's folder starts empty
+    assert blender_cloud.still_to_run(jobs) == [jobs[1]]
+    assert (making / "shot0.png").read_text() == "shot 0"
