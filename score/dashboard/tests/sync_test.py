@@ -30,8 +30,9 @@ PRICED = "priced by the runner: EUR 1.00 to 2.00 measured, 3 paid steps with no 
 
 
 def offline(monkeypatch):
-    """Prepare, the library's pictures, the parts and light read and the plans kept as lines, so no test pass reads
-    the real library, fetches a picture, asks a model or writes a plan where the plan stage reads it."""
+    """Prepare, the library's pictures, the parts and light read, the USD check and the plans kept as lines, so no
+    test pass reads the real library, fetches a picture, asks a model or writes a plan where the plan stage reads
+    it."""
     monkeypatch.setattr(client, "plans_kept", lambda: "plans for the plan stage: test")
     monkeypatch.setattr(client, "readings_fixed", lambda store_root: "readings: test")
     monkeypatch.setattr(client, "parts_read", lambda store_root: "parts: test")
@@ -40,6 +41,7 @@ def offline(monkeypatch):
     monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
     monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
     monkeypatch.setattr(client, "film_previews", lambda: "film previews: test")
+    monkeypatch.setattr(client, "usd_sweep", lambda: "usd check: test")
 
 
 def fed(monkeypatch):
