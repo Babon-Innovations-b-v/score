@@ -38,6 +38,7 @@ KITS = {"floor": "kit: floor", "wall": "kit: wall", "roof": "kit: ceiling"}
 PIECE_PARTS = {"deck": "floor", "level": "floor", "wall": "wall", "roof": "roof"}
 MODEL_ROUTES = ("prop", "shell", "people")  # the routes whose models the prop pipeline makes
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
+RUN_SLENDER = 0.25  # tools/props/gates/model.py SLENDER_SHARE: a run's footprint is a line (overruns)
 
 
 def inventories(folder):
@@ -119,18 +120,19 @@ def sized_rows(store, place, record):
     edit sized its item) and its `read_size`, the object's own metres as its reading gave them (None where it gave
     none): the close-up's request and shape check hold the object to its own size (owner, 2026-10-24). A row the
     reading and the plan give no size has none (a gap: its take waits on "no size"). A shell piece whose part the
-    place's plan lays itself has route "plan" (plan_parts)."""
+    place's plan lays itself (plan_parts), or that it names its own shell (plan_structure), has route "plan"."""
     from score.review import plans
     rows = record["inventory"]["rows"]
     laid, made = plan_sizes(store, place, rows), plan_sizes(store, place, rows, made=True)
     shown = plans.current(store, place)
     own = plan_parts(shown and shown["plan"])
+    shell = plan_structure(shown and shown["plan"], own)
     beyond = stood_beyond(rows, set((shown and shown["plan"] or {}).get("beyond") or []))
     found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"]),
                                                          run_pieces(shown and shown["plan"], row)),
               "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
              for row in rows]
-    return [routed(row, own, beyond) for row in found]
+    return [routed(row, own, beyond, shell) for row in found]
 
 
 def stood_beyond(rows, beyond):
@@ -147,12 +149,20 @@ def stood_beyond(rows, beyond):
     return found
 
 
-def routed(row, own, beyond):
-    """A sized row with its plan's route: a shell piece whose part the plan lays itself (`own`) is the plan's; a model
+def plan_structure(plan, own):
+    """The ids of the rows a plan that lays its place's walls (`own`, plan_parts) names its place's own shell
+    (its `structure`: drawn as walls, levels and roofs, never an item; score/review/plan_writing.py), none else."""
+    return set((plan or {}).get("structure") or []) if "wall" in own else set()
+
+
+def routed(row, own, beyond, shell=frozenset()):
+    """A sized row with its plan's route: a shell piece whose part the plan lays itself (`own`), or that the plan
+    names its own shell where it lays its walls (`shell`, plan_structure: the stairwell's 12 m building shell, whose
+    box is the whole picture, Batch 1's retry), is the plan's, never a close-up; a model
     row the plan says the painting shows beyond the place (`beyond`: through a window, past its edge, far off; never
     placed here, plan_writing) is the backdrop's (route "skyline"), never a close-up of a far speck (Batch 1 try 4:
     the stairwell's palms, street lamps and lanterns seen through its window, the street's far rocket)."""
-    if row["route"] == "shell" and row.get("part") in own:
+    if row["route"] == "shell" and (row.get("part") in own or row["id"] in shell):
         return {**row, "route": "plan"}
     if row["route"] in MODEL_ROUTES and row["id"] in beyond:
         return {**row, "route": ROUTES["backdrop"]}
@@ -164,9 +174,10 @@ def row_size(own, laid, made, pieces=None):
     `made`: his edits count, owner 2026-10-21), else the object's own metres from its reading (`own`), else its item's
     (an item he sized whose row the reading gave none). A plan's item is the footprint the object is laid in (a run
     of things, room round it: the airlock's porch post laid 0.48 by 1.7 m, a 0.1 by 0.1 m post), so it only places
-    the object, never sizes its model (coordinator, 2026-10-25). A row the plan lays as a run or path (`pieces`,
-    run_pieces) whose own metres do not fit its item measured the whole run (a railing round a floor, pipes along a
-    wall): it is made as one repeating piece laid along the item (run_piece), never as one object the run's length."""
+    the object, never sizes its model (coordinator, 2026-10-25). A row the plan lays as a run (`pieces`, run_pieces)
+    whose own metres overrun its item by a piece measured the whole run (a railing round a floor, pipes along a wall:
+    overruns): it is made as one repeating piece laid along the item (run_piece), never as one object the run's
+    length."""
     if laid and laid != made:
         return laid
     return own_size(own, laid, pieces) or laid
@@ -174,9 +185,9 @@ def row_size(own, laid, made, pieces=None):
 
 def own_size(own, laid, pieces=None):
     """The object's own metres, the size its close-up is drawn and checked at (`read_size`): its reading's (`own`),
-    but one repeating piece (run_piece) of a run the reading measured whole, so the close-up draws the piece, never
-    the 50 m railing (Batch 1 try 4: the greenhouse's railing)."""
-    if own and laid and pieces and not within(own, laid):
+    but one repeating piece (run_piece) of a run the reading measured whole (overruns), so the close-up draws the
+    piece, never the 50 m railing (Batch 1 try 4: the greenhouse's railing)."""
+    if own and laid and pieces and overruns(own, laid, pieces):
         return run_piece(own, laid, pieces)
     return own
 
@@ -206,9 +217,14 @@ def one_each(plan, names, shapes, own):
     return max(own[:2]) <= sum(long_sides[name] for name in names)
 
 
-def within(size, laid):
-    """Whether a size's wide and deep fit a laid footprint's, turned or not."""
-    return all(side <= room for side, room in zip(sorted(size[:2]), sorted(laid[:2])))
+def overruns(size, laid, pieces):
+    """Whether a reading measured a whole run of `pieces`, not one object: a line along the ground (its footprint's
+    short side under RUN_SLENDER of its long side: a railing, pipes, a string of lanterns) whose long side holds the
+    laid item's long side and one more of its pieces. An object a little longer or deeper than the footprint it is
+    laid in, or one no line, is that object at its own size (2026-10-26: the cockpit's four 1.2 m rear doors on a
+    1.16 m item were cut to 0.3 m)."""
+    short, long = sorted(size[:2])
+    return short < RUN_SLENDER * long and long * (1 - 1 / pieces) >= max(laid[:2])
 
 
 def run_piece(own, laid, pieces):
