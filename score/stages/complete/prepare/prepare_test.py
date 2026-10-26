@@ -318,6 +318,8 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert groups.own_size(post, footprint, 3) == post and groups.own_size(None, footprint) is None
     lamp = {"id": "street_lamp", "route": "prop", "part": "object"}
     assert groups.routed(lamp, set(), {"street_lamp"})["route"] == "skyline"  # beyond the place: the backdrop's
+    sea = {"id": "sea", "name": "sea", "noun": "sea", "terrain": True, "part": "backdrop", "route": "skyline"}
+    assert groups.routed(sea, set(), set())["route"] == "ground"  # 2026-10-26: no maker; the terrain's water now
     assert groups.routed(lamp, set(), set()) == lamp
     assert groups.routed({**lamp, "route": "sky"}, set(), {"street_lamp"})["route"] == "sky"
     hills = {"id": "distant_hills", "part": "ground", "terrain": True, "route": "ground"}  # 2026-10-26: no maker
@@ -379,22 +381,28 @@ def test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_with_no_t
     rows = [{"id": "palm_tree", "route": sky}, {"id": "distant_rocket", "route": sky},
             {"id": "red_lanterns", "route": sky}, {"id": "person_man", "route": sky}, {"id": "city_skyline", "route": sky},
             {"id": "stage", "route": "prop"}]
-    found = {row["id"]: row.get("shown") for row in groups.shown_from("stairwell", rows, read, folder)}
+    shown = {row["id"]: row for row in groups.shown_from("stairwell", rows, read, folder)}
+    found = {name: row.get("shown") for name, row in shown.items()}
     assert found == {"palm_tree": {"place": "square", "row": "palm_tree"},
                      "distant_rocket": {"place": "square", "row": "rocket"},
                      "red_lanterns": {"place": "street", "row": "red_paper_lantern"},
-                     "person_man": None, "city_skyline": None, "stage": None}  # no place makes it: still the skyline's
+                     "person_man": None, "city_skyline": {"place": "square", "row": "city_skyline"},
+                     "stage": None}  # the square, a top scene, makes its own skyline: the stairwell shows it
+    assert shown["person_man"]["route"] == "prop" and shown["person_man"]["far"] == {"pieces": 1, "length": 0.0}
     group = groups.group_of("stairwell", {"rows": rows}, {**rows[0], "shown": found["palm_tree"]}, ("palm_tree", None, None))
     take = prepare.take_entry(group, {"rows": rows}, {}, predict.hub_rates(), folder)
     assert take["status"] == prepare.SHOWN  # bought and priced in the square: never bought here, so no skyline euros
     assert prepare.take_counts([take])["shown_from_its_place"] == 1 and prepare.take_counts([take])["bought"] == 0
-    alone = groups.group_of("stairwell", {"rows": rows}, rows[4], ("city_skyline", None, None))
-    assert prepare.take_entry(alone, {"rows": rows}, {}, predict.hub_rates(), folder)["status"] == prepare.NO_MAKER
+    skyline = {"id": "city_skyline", "route": sky, "size": [1000.0, 100.0, 100.0]}  # the square's: no scene there
+    made = groups.shown_from("square", [skyline], read, folder)[0]  # 2026-10-26: no maker; now ordinary objects
+    assert made["route"] == "prop" and "shown" not in made and made["far"] == {"pieces": 10, "length": 1000.0}
+    assert made["size"] == made["read_size"] == [100.0, 100.0, 100.0]  # its close-up: one piece of the run
+    assert predict.predicted(made["size"], predict.hub_rates())["outcome"] == "pass"  # a solid, no longer a rod
 
 
-def test_a_backdrop_part_of_a_structure_is_shown_by_a_neighbours_structure_else_has_no_maker(tmp=None):
+def test_a_backdrop_part_of_a_structure_is_shown_by_a_neighbours_structure_else_made_far_here(tmp=None):
     """Batch 1: the stairwell's lit and dark windows, on the walls of the buildings seen through its window, are the
-    square's buildings' (their finish lights them); a part no neighbour's structure holds has no maker."""
+    square's buildings' (their finish lights them); a part no neighbour's structure holds is made here, far off."""
     folder = pathlib.Path(tmp or tempfile.mkdtemp())
     (folder / "square.json").write_text(json.dumps({"holds": [{"place": "stairwell"}]}))
     read = {"square": {"rows": [{"id": "floodlight_tower", "route": "prop", "anchor": "on:plaza", "size": [2, 2, 18]},
@@ -404,8 +412,8 @@ def test_a_backdrop_part_of_a_structure_is_shown_by_a_neighbours_structure_else_
     rocket = {"id": "rocket_launch", "route": "skyline", "anchor": "ground", "size": [5, 5, 60]}
     found = {row["id"]: row.get("shown") for row in groups.shown_from("stairwell", [window, rocket], read, folder)}
     assert found == {"window_lit": {"place": "square", "row": "left_building"}, "rocket_launch": None}
-    assert groups.shown_from("stairwell", [window], {"square": {"rows": read["square"]["rows"][:2]}}, folder)[0].get(
-        "shown") is None  # no structure taller than the window: no maker
+    alone = groups.shown_from("stairwell", [window], {"square": {"rows": read["square"]["rows"][:2]}}, folder)[0]
+    assert alone.get("shown") is None and alone["route"] == "prop"  # no structure taller: made far off here
     wall = {"id": "exterior_wall", "route": "skyline", "part": "structure", "anchor": "on:lunar_surface",
             "size": [20.0, 1.0, 3.0]}  # a building's wall seen through the tube's glass: the base's building's
     assert groups.shown_from("tube", [wall], read, folder)[0].get("shown") is None  # the tube is no place of it
