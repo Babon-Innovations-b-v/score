@@ -13,4 +13,4 @@ form as the rig's own Kimodo `clip_<name>`. The video is copied into the output,
   demo-film, so editing it re-keys all of them. Two steps are still to do: a row's `clip` naming
   `video-clip-<clip>`, and the clip's frames added to the rig as `clip_<clip>`. That re-keying is the owner's call
   (#52).
-- Tests: `video_clips_test.py` covers the rows and the gates on a toy clip.
+- Tests: `test_a_row_per_upload_and_gates_refuse_flips.py` covers the rows and the gates on a toy clip.
