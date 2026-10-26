@@ -17,6 +17,11 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-26):
   pick and a NaN turn, 2026-10-26), and, apart, `-np.sign(side[2])` made `np.sign(side[2])` (laid picture side down).
 - test_a_model_on_legs_is_levelled_on_its_feet: upright_turn's `if feet:` made `if False:`.
 - test_a_long_model_faces_along_an_axis: upright_turn's `return squared(points @ turn.T) @ turn` made `return turn`.
+- test_a_square_sheet_lines_its_edges_up_with_the_axes: squared's `if max(sides) >= SQUARE_ASPECT * min(sides):` made
+  `if True:` (the long-side way only, as before 2026-10-26: the sheet stays about 45 degrees off).
+- test_a_long_plank_lies_along_z: squared's `>= SQUARE_ASPECT * min(sides)` made `>= 1e9 * min(sides)` (the tightest
+  rectangle's way only: a plank 60 degrees off is squared the short way, its long side along X).
+- test_a_round_footprint_is_left_as_it_is: squared's `angle = 0.0` made `pass`.
 - test_a_rocket_section_stands_on_its_own_axis: upright_turn's `if tube:` made `if False:`.
 - test_the_file_keeps_its_shape_and_turns_its_normals: turned's `("POSITION", "NORMAL", "TANGENT")` made
   `("POSITION", "TANGENT")`.
@@ -169,6 +174,26 @@ def test_a_long_model_faces_along_an_axis():
     points = tilted(box(0.4, 0.3, 2.0), 40, (0.0, 1.0, 0.0))
     extents = np.ptp(points @ glb_file.upright_turn(points).T, axis=0)
     assert extents[2] > 1.9, extents
+
+
+def test_a_square_sheet_lines_its_edges_up_with_the_axes():
+    """An 8 cm square note lying flat, turned 45 degrees about up: squared, it spans 8 cm along X and Z (11.3 cm turned)."""
+    points = tilted(box(0.08, 0.001, 0.08), 45, (0.0, 1.0, 0.0))
+    extents = np.ptp(points @ glb_file.upright_turn(points, flat=True).T, axis=0)
+    assert np.allclose(extents[[0, 2]], 0.08, atol=0.002), extents
+
+
+def test_a_long_plank_lies_along_z():
+    points = tilted(box(0.2, 0.05, 2.0), 60, (0.0, 1.0, 0.0))
+    extents = np.ptp(points @ glb_file.squared(points).T, axis=0)
+    assert extents[2] > 1.98 and extents[0] < 0.22, extents
+
+
+def test_a_round_footprint_is_left_as_it_is():
+    rng = np.random.default_rng(1)
+    angle, radius = rng.random(4000) * 2 * np.pi, 0.5 * np.sqrt(rng.random(4000))
+    points = np.c_[radius * np.cos(angle), rng.random(4000) * 0.4, radius * np.sin(angle)]
+    assert np.allclose(glb_file.squared(points), np.eye(3))
 
 
 def test_a_rocket_section_stands_on_its_own_axis():
