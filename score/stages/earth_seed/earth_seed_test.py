@@ -167,6 +167,26 @@ def test_a_room_shell_stands_round_its_plan():
     assert abs(volume(pitched["roof_1"]) - 4.3 * 3.3 * 1.0 / 2) < 1e-6, volume(pitched["roof_1"])
 
 
+def test_a_door_or_window_row_cuts_its_opening_where_its_plan_item_stands_on_a_wall():
+    """2026-10-26: Batch 1's doors and windows stood at plan items the plan's openings missed, against uncut walls. A
+    row filling an opening (a door, window, gate, hatch or shutter, a panel) cuts one at its item on a wall, its own
+    wide, from its shape's base to its top; one at the plan's own opening cuts none more, and a box is no panel."""
+    rows = [{"id": "window", "name": "porthole window", "noun": "window", "size": [1.0, 0.1, 1.0]},
+            {"id": "door", "name": "door", "noun": "door", "size": [1.0, 0.1, 2.0]},
+            {"id": "door_control_box", "name": "door control box", "noun": "box", "size": [0.2, 0.1, 0.3]}]
+    plan = dict(ROOM, items=[["WINDOW 1", 3.95, 1.0, 0.1, 1.0, None, "item"], ["DOOR 1", 1.5, -0.05, 1.0, 0.1, None,
+                                                                                "item"],
+                             ["BOX 1", 0.0, 1.0, 0.1, 0.2, None, "item"]],
+                rows={"WINDOW 1": ["window"], "DOOR 1": ["door"], "BOX 1": ["door_control_box"]},
+                shapes={"WINDOW 1": {"base": 1.0, "tall": 1.0}, "DOOR 1": {"base": 0.0, "tall": 2.0}})
+    assert design_shell.row_openings(plan, rows) == [{"at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0,
+                                                     "row": "window"}]
+    cut = {name: triangles for name, triangles, _ in design_shell.shell(design_shell.cut_for(plan, rows))}
+    whole = {name: triangles for name, triangles, _ in design_shell.shell(plan)}
+    assert abs(volume(whole["wall_2"]) - volume(cut["wall_2"]) - 1.0 * 0.2 * 1.0) < 1e-6  # the window's hole
+    assert abs(volume(whole["wall_1"]) - volume(cut["wall_1"])) < 1e-9  # the door's is the plan's own
+
+
 def test_a_room_is_a_kit_shell_inside_or_one_that_writes_walls():
     """A scene added in the app says neither inside nor out: it is a room the earth seed lays when its plan writes walls
     (the docking airlock), an open place when it writes none (the Moon base); a domed shell is the scene record's."""

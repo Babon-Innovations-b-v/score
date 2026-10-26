@@ -166,7 +166,9 @@ def make_seed(inputs, out, seed, params):
     gaps = []
     export.export(place, [], out / place, kit_path=kit_path, inventory_path=pathlib.Path(inputs["design inventory"]),
                   gaps=gaps)
-    shell = design_shell.lay(out / place / "layers/base.usda", place, plan, export, library_path(inputs))
+    rows = read(inputs["design inventory"]).get("rows", [])  # its door and window rows cut their openings
+    shell = design_shell.lay(out / place / "layers/base.usda", place, design_shell.cut_for(plan, rows), export,
+                             library_path(inputs))
     kit_path.write_text(json.dumps({**kit, "shell": shell}, indent=1))
     (out / GAPS).write_text(json.dumps({"models": [], "picks": [gap for gap in gaps if "row" in gap]}, indent=1))
 
