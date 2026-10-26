@@ -1,12 +1,20 @@
-"""Batch gaps (batch_gaps.py): a take whose paid step failed inside the batch is a gap carried down its place's line,
-never a stop, and never a loosened gate. The Pixal3D row names the take its batch brought nothing back for, its gate
-still fails it and the table moves that fault; the views leave the take out; a fixture line runs on to complete apart
-from accepted gaps, which lists the gap with the batch run that decided it; a fault no batch gap names still stops.
+"""A take whose paid step failed inside the batch is a gap carried down its place's line, never a stop and never a
+loosened gate (batch_gaps.py, the table's `accepted_gaps` mover): the row whose step failed names the take in its
+batch-gaps.json, its gate still fails it and the table moves exactly that fault; the rows after it leave the take out
+and carry its gap on; the line runs on to complete, which lists the gap with the batch run that decided it; a fault
+no batch gap names still stops the line. The Pixal3D batch and the check's step are faked at their subprocess and
+hand-over; the takes are written under the sandbox home.
 
 Fault (#10, 2026-10-21): a failed close-up or Pixal3D job failed the next free gate, and the place's line waited for
 the owner, though his yes to the batch had already decided that a failure is a gap.
 
-Run: make tests TESTS=score/stages/batch_gaps_test.py (a sandbox PROPS_HOME: the takes are written under it)
+Breaks that turn it red (each applied once and seen red, then reverted):
+- `batch_gaps.read`: `found.setdefault(...)` read as `found[entry["name"]] = ...` with `decided` dropped  -> the
+  Pixal3D test (no `decided`).
+- `batch_gaps.of`: the inputs' folders left out (only `output`)  -> the views tests and the fixture line (the gap is
+  not carried, so complete has nothing to list).
+- `batch_gaps.objects`: returns an empty set  -> the Pixal3D test (the table no longer moves the hatch's fault).
+- `batch_gaps.write`: writes `{"gaps": []}`  -> every test reading a written gap.
 """
 import json
 import pathlib
