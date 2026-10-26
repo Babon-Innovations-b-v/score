@@ -266,7 +266,9 @@ stage as each stage is built; nothing moves before.
   (`stages/complete/complete_test.py` holds them equal). The library check (`stages/complete/library`, its overlay) is
   not one of its gates: a standalone check of the accepted assembly against the library, its findings the cockpit's
   problems. Nor is the visual check (`stages/complete/visual`, its overlay): it reads the films, made only once
-  complete passes, and writes its findings, with their pictures, the same way. (The old ship kit's made pieces laid on
+  complete passes, and writes its findings, with their pictures, the same way. Nor is the USD check
+  (`stages/complete/usd`, its overlay): SCORE's curated usd-validation-nvidia rules on each place's composed stage,
+  its errors the cockpit's problems, run by the sync pass. (The old ship kit's made pieces laid on
   its base, `ship_made.py`, and `complete-boxes`, which measured the old inventories' boxes, were retired with the old
   kits and inventories on 2026-10-21: a design's every box is its reading's.) The materials checks (`stages/complete/materials`, its overlay: texture detail
   near cameras, finish-border raggedness) are not gates either: standalone and

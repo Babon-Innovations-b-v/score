@@ -30,6 +30,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import ground as grounds  # noqa: E402
 import scene  # noqa: E402
+import whole_layer  # noqa: E402
 
 from score.stages.light import sky  # noqa: E402
 
@@ -278,7 +279,7 @@ def write(place, record, seed_folder, out, kept=None, faces=None, library=None):
         scene.write_glow(stage.GetPrimAtPath(f"/{place}/Environment"), glow)
         sky_written["glow"] = True
     pictures_moved(out, layer)
-    layer.Save()
+    whole_layer.stamped(layer, place).Save()
     lamps = [{"path": path, "spot": [round(float(value), 4) for value in spot], "shaped": shaped,
               "intensity": float(stage.GetPrimAtPath(path).GetAttribute("inputs:intensity").Get())}
              for path, spot, shaped in own_lamps(stage, place)]

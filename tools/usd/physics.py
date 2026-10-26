@@ -36,6 +36,8 @@ import pathlib
 import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
 
+import whole_layer
+
 
 LAYERS = ("./layers/physics_motion.usda", "./layers/trial.usda", "./layers/physics.usda")
 EDIT = "./layers/edit.usda"
@@ -341,7 +343,7 @@ def write(folder, record, materials):
     write_scene(working, record)
     meshes = collide_by_triangles(working, record["material"])
     masses = write_masses(working, materials["materials"][record["material"]])
-    layer.Save()
+    whole_layer.stamped(layer, record["place"]).Save()
     trial = new_layer(folder, "trial.usda", "The place's physics trial (tools/usd/physics.py).")
     working = layer_stage(root_path, trial, [layer.identifier, *layer_ids(root_path, LAYERS)])
     tops = {drop["object"]: landing(working, drop) for drop in record["drops"]}
@@ -353,7 +355,7 @@ def write(folder, record, materials):
         write_hinge(working, hinge, rate)
     for push in record["pushes"]:
         write_push(working, push, rate)
-    trial.Save()
+    whole_layer.stamped(trial, record["place"]).Save()
     held(root_path)
     return {"faults": [], "meshes": meshes, "masses": masses, "bodies": {name: masses[name] for name in
                                                                          bodies_of(record)}, "tops": tops}
@@ -375,7 +377,7 @@ def write_motion(folder, motions):
             op.Set(start * Gf.Matrix4d(np.asarray(motion).T.tolist()) * parent.GetInverse(), code)
         frames = max(frames, len(steps))
     layer.startTimeCode, layer.endTimeCode = 0.0, float(frames - 1)
-    layer.Save()
+    whole_layer.stamped(layer, stage.GetDefaultPrim().GetName()).Save()
     held(root_path)
     return frames
 

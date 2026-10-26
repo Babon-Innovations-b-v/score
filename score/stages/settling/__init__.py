@@ -41,6 +41,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import settle  # noqa: E402
 import triage  # noqa: E402
+import whole_layer  # noqa: E402
 from score.stages.settling import held as snapped  # noqa: E402
 from score.stages.assembly.grounded import grounded_seed  # noqa: E402
 
@@ -267,7 +268,7 @@ def write_layer(stage, place, matrices, path):
         order = Sdf.AttributeSpec(spec, "xformOpOrder", Sdf.ValueTypeNames.TokenArray,
                                   variability=Sdf.VariabilityUniform)
         order.default = ["xformOp:transform"]
-    layer.Save()
+    whole_layer.stamped(layer, place).Save()
 
 
 def layer_faults(folder):

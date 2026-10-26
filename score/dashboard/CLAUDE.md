@@ -399,7 +399,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   Each pass first runs the library sweep (`score.stages.library.sweep`, the environment against its library), so its
   problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
   The gaps (`score.stages.complete.gaps`, in a process of its own: it reads OpenUSD) are written right after it,
-  the same way, then prepare's remake figure (`score.stages.complete.prepare`, `remake_prepared`), its benchmarks as
+  the same way, then the USD check's findings (`score.stages.complete.usd`, `usd_sweep`, its overlay), then prepare's remake figure (`score.stages.complete.prepare`, `remake_prepared`), its benchmarks as
   the basket's one Benchmarks item (`proposals/benchmarks.py`, `basket_benchmarks`) and the library's
   place pictures into the library cache (`score.stages.library.pictures`, `library_pictures`), each a line. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
   does not hold (`tree_refusal`), or when the runner's price after the gaps (`score price <environment> --gaps`,
