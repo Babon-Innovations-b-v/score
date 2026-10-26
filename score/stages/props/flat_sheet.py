@@ -7,11 +7,11 @@ likeness row holds it to its close-up like any take. The prop route first (owner
 picture route failed is built.
 
 A sheet has no relief a picture could add: its model is its outline laid flat at its thickness. Its outline is its own
-close-up's object, cut out (thin_straight.cut_out, the likeness row's cut), since that close-up looks straight down on
-its face; its convex hull (every sheet the readings name is a rectangle or a round) is stretched to the row's ground
-sides, the longer along z, and given the row's height up y: the finish's own frame (glb_file.squared), so its stand
-leaves it as built. Its one colour is the cut-out's median (the model's own texture, which the finish route measures
-and replaces with a library surface). Its take's files are thin_straight's (raw, slimmed, final, `input.png` the cut
+close-up's object, cut out (`cut_out`), since that close-up looks straight down on its face; its convex hull (every
+sheet the readings name is a rectangle or a round) is stretched to the row's ground sides, the longer along z, and
+given the row's height up y: the finish's own frame (glb_file.squared), so its stand leaves it as built. Its one
+colour is the cut-out's median (the model's own texture, which the finish route measures and replaces with a library
+surface). Its take's files are thin_straight's (raw, slimmed, final, `input.png` the cut
 close-up, `code.json` naming this rule), so the finish route and the likeness row read it as a code take; the Pixal3D
 take it replaces is removed first, and the row keeps the build (no close-up removes it: the close-up passed).
 """
@@ -61,13 +61,40 @@ def build(row, picture):
     return mesh
 
 
+def cut_out(closeup, folder):
+    """The close-up with its sheet as alpha: every pixel off the backdrop (thin_straight.shading, fitted to the border)
+    by the close-up check's figure step (tools/props/closeup/check.py BACKGROUND_STEP, an RGB distance), closed, its
+    largest piece with its holes filled. The likeness row's cut (thin_straight.cut_out: one channel at a time, by
+    compare's larger step, opened) lost a light sheet on a light backdrop (quarters' sticky note, 2026-10-26: a cream
+    note 24 to 26 off the grey backdrop in its reddest channel, so its largest piece was its drop shadow, an L along
+    two edges, and its build's outline 0.288); the backdrop is fitted to the border only, as a backdrop refitted to
+    every pixel near it (check.figure_of) takes in a large sheet that near. A sheet's contact shadow seen from above
+    is a thin rim, which its hull carries. A close-up already cut out is kept."""
+    from scipy import ndimage
+    picture = Image.open(closeup)
+    if picture.mode == "RGBA" and np.asarray(picture)[..., 3].min() < 128:
+        return closeup
+    with prop_data.tools("props/closeup", "props"):
+        import check
+    pixels = np.asarray(picture.convert("RGB"), dtype=np.float64)
+    apart = np.linalg.norm(pixels - thin_straight.shading(pixels), axis=2) > check.BACKGROUND_STEP
+    labels, count = ndimage.label(ndimage.binary_closing(apart, np.ones((3, 3))))
+    if count == 0:
+        raise ValueError(f"{closeup}: no sheet off its backdrop")
+    mask = ndimage.binary_fill_holes(labels == np.bincount(labels.ravel())[1:].argmax() + 1)
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{closeup.stem}.png"  # a concept crop is a .jpg
+    Image.fromarray(np.dstack([pixels.astype(np.uint8), np.where(mask, 255, 0).astype(np.uint8)])).save(path)
+    return path
+
+
 def write_take(take, row, closeup, faces, pixal, cuts):
     """The take's files (module docstring) in `pixal` from its passed `closeup`, cut out into `cuts`; the Pixal3D
     take's files there are removed first."""
     import trimesh
     if (pixal / f"{take}.svviews").exists():
         thin_straight.unbuild(take, pixal)
-    picture = Image.open(thin_straight.cut_out(closeup, cuts)).convert("RGBA")
+    picture = Image.open(cut_out(closeup, cuts)).convert("RGBA")
     mesh = build(row, picture)
     mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
         baseColorFactor=[*(thin_straight.colour(picture) / 255.0), 1.0]))
