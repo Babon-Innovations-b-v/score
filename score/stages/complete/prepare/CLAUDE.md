@@ -48,7 +48,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   row from the Buy (2026-10-24: street's palms, 0.4 x 1.16 x 8 m, were "rods" by size alone and left out).
   A take this environment already measured is predicted by that, not by its shape (`predict.own_outcome`, from each
   place's accepted close-up, Pixal3D and likeness outputs, `environment_measures`; only at today's object size and
-  request, 2026-10-26): its close-up passed is a pass (at risk when Pixal3D made no model), every take failed is a
+  request, 2026-10-26; one that passed at an older request, a flat row's view or a far row's whole painting, is at risk,
+  never its shape's hub rate: the square's 60 m rocket): its close-up passed is a pass (at risk when Pixal3D made no model), every take failed is a
   predicted gap unless a code build passed the likeness (not judged yet: at risk), or its close-up was accepted before
   `LATER_TAKES_SINCE` (its next takes a new request: from the crop alone, upright; measured by shape again).
   The crop's upscale is said, never a prediction (no failure was measured against it).

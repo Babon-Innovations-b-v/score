@@ -139,6 +139,9 @@ def test_a_take_its_environment_measured_is_predicted_by_that_not_by_its_shape()
     far = {"id": "tile", "name": "tile", "noun": "tile", "size": tile, "far": {"pieces": 1, "length": 0.0}}
     assert predict.own_outcome({"place": "lab", "rows": ["tile"], "take": "lab_tile", "size": tile}, far,
                                measures["lab"]) is None  # laid far off: drawn from the whole painting before
+    rocket = {**far, "id": "crate", "name": "crate", "noun": "crate"}  # passed from the whole painting, now far
+    assert predict.own_outcome({"place": "lab", "rows": ["crate"], "take": "lab_crate", "size": tile}, rocket,
+                               measures["lab"])["outcome"] == "at risk"
     assert own("lamp", tile) is None
     measures["lab"]["built"] = {}
     assert own("pipe", pipe)["outcome"] == "at risk"  # built in code, its likeness not judged yet
