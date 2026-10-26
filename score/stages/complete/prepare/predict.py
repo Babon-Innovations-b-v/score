@@ -17,7 +17,7 @@ A take measured here (`environment_measures`, `own_outcome`; 2026-10-26: 85 rows
 objects while Batch 1 try 4 had drawn and judged most of them): its place's accepted close-up output names its first
 row at the object size it is asked at today (tools/props/closeup/stage.py object_size), under today's request (a row
 that lies flat measured before FLAT_VIEW_SINCE was drawn at another view, one laid far off before FAR_CROP_SINCE from
-the whole painting; a row every take failed before
+the whole painting: one that passed there is `at risk`, never its shape's hub rate; a row every take failed before
 LATER_TAKES_SINCE is asked anew, its next takes from the crop alone and upright). Its close-up passed: `pass`, unless the
 accepted Pixal3D output's gaps say no model came back (`at risk`). Every Pro take failed: a code build the accepted
 likeness output judged passes or is a `predicted gap`; one not judged yet is `at risk`; a row no route builds after is
@@ -152,12 +152,18 @@ def own_outcome(take, row, measures):
         return None
     with prop_data.tools("props/closeup"):
         import check
-    if check.lies_flat(size) and measures["at"] < FLAT_VIEW_SINCE:
-        return None
-    if (row or {}).get("far") and measures["at"] < FAR_CROP_SINCE:
-        return None
     node = f"closeup@{take['place']}"
     outcome = {"shape": shape_of(take["size"]), "pass_share": None, "mode": None}
+    asked = None
+    if check.lies_flat(size) and measures["at"] < FLAT_VIEW_SINCE:
+        asked = "drawn at the three-quarter view, today from above"
+    elif (row or {}).get("far") and measures["at"] < FAR_CROP_SINCE:
+        asked = "drawn from the whole painting, today from its crop alone"
+    if asked:
+        # its own pass outweighs its shape's hub rate (2026-10-26: the square's 60 m rocket passed, yet was a
+        # predicted gap as a hub "rod" once laid far off); its failures at the old request are not measured
+        return {**outcome, "outcome": "at risk", "measured": f"its close-up passed ({node})",
+                "mode": f"its close-up was {asked}: not measured at today's request"} if record["drawn_by"] else None
     if record["drawn_by"]:
         if {first, take["take"]} & measures["unmade"]:
             return {**outcome, "outcome": "at risk", "mode": f"Pixal3D made no model of it (pixal@{take['place']})",
