@@ -660,7 +660,8 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder()
         folder = pathlib.Path(temporary)
         read_only_toy(folder / "store" / TOY)
         root = grounded_seed({"seed": folder / "store" / TOY, **a_record(folder)}, folder / "settle")
-        assert Usd.Stage.Open(str(root)).GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
+        stage = Usd.Stage.Open(str(root))  # held: a prim of a stage already let go reads false
+        assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
 
 
 if __name__ == "__main__":
