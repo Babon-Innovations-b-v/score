@@ -45,6 +45,7 @@
         <div title="this batch's room under the stop line: its high plus 10%; nothing more is cleared past it{% if run.money.line is not None %} (the environment's stop line, EUR {{ run.money.line|floatformat:2 }}, counts the spend before the batch too){% endif %}"><dt><i class="rm-key rm-key-stop"></i>Stop</dt><dd data-v>{{ run.money.stop|floatformat:2|default:"–" }}</dd></div>
       </dl>
     </div>
+    {% if run.money and run.money.budget is not None %}<p class="buy-since" data-v title="one budget for the whole batch, every try drawing from it (owner, 2026-10-26): spent counts every try, its warm pool's time in it; a retry inside what is left needs no new yes">Batch {{ run.batch }}: EUR {{ run.money.spent|default:0|floatformat:2 }} spent of EUR {{ run.money.budget|floatformat:2 }} budget, EUR {{ run.money.left|floatformat:2 }} left</p>{% endif %}
     {% if bar %}<div class="rm-money-bar{% if bar.over %} rm-money-over{% endif %}" aria-hidden="true">
       <span class="rm-money-spent" style="width: {{ bar.spent }}%"></span>
       <i class="rm-mark rm-key-likely" style="left: {{ bar.likely }}%"></i><i class="rm-mark rm-key-high" style="left: {{ bar.high }}%"></i><i class="rm-mark rm-key-stop" style="left: 100%"></i>

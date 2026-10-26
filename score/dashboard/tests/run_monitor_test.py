@@ -392,3 +392,15 @@ def test_a_try_shows_what_it_makes_again_as_waiting_not_as_an_earlier_tries_fail
     assert ended["state"] == "finished" and ended["retried"] == 0
     assert {problem["node"] for problem in ended["problems"]} == {"light@alpha", "closeup@beta"}
     assert "no card again" in next(problem["tip"] for problem in ended["problems"] if problem["node"] == "closeup@beta")
+
+
+def test_the_monitor_and_buy_show_the_batchs_spend_of_its_one_budget(world):
+    """Batch N: what every try spent of the batch's one budget and what is left (owner, 2026-10-26: "i have no idea
+    how far the previours even got filled"), from the newest try's line (flow.batch_budget)."""
+    record = a_batch(world)
+    record.stop_line = {**record.stop_line, "batch_from": 120.0, "batch_budget": 740.0, "batch_used": 410.0}
+    record.save()
+    money = world.source.batch_run()["money"]
+    assert money["budget"] == 740.0 and money["left"] == round(740.0 - money["spent"], 2)
+    html = signed_in().get("/buy/run/").content.decode()
+    assert re.search(r"Batch 1: EUR [\d.]+ spent of EUR 740.00 budget, EUR [\d.]+ left", html), html

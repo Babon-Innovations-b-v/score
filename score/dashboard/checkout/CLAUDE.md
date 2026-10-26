@@ -33,6 +33,16 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   score.review.web); `buy <id>` runs `flow.start` as his click, once (grants/buy-used/<id>.json written before it),
   refused on another basket, a high or stop above his (`flow.yes_refusals`, again in `write_line`), code off the
   pin, the latch or a live run. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
+  `buy <id>` again under a yes that launched a checkout is a retry of its batch (`chat-<id>-retry-N`), no new ask,
+  held to the batch's budget.
+- **One budget a batch, across its tries** (root CLAUDE.md, owner 2026-10-26: "those budget asks should become per
+  batch tho, not per try"). `flow.batch_budget` (in `write_line`): the batch's start is what its first try's line was
+  written over (`batch_from`, else that line's spent plus reserved); its budget the newest try's, raised by a click or
+  a new yes to what the batch spent so far plus what he approved (the yes's stop, else the try's high plus BUFFER)
+  when that is more; the line is start plus budget, so the guard (score.adapters.compute) stops at the budget less
+  what earlier tries spent. A retry under a used yes keeps the budget and is refused when its high plus BUFFER does
+  not fit what is left. Each line records `batch_from`, `batch_budget` and `batch_used`; `watched.newest` gives the
+  budget, and the monitor and Buy page show what the batch spent, every try and its pool time, of it and what is left.
 - **Tests never launch.** `tests/checkout_test.py` uses `FakeBackend`, a temp basket and a temp store.
 - One function, one purpose; no provider names; no imports of `tools.*` or `score.adapters` (`score.review.web` reaches
   the guard for us).

@@ -413,9 +413,10 @@ def pools_of(runs, newest_pool, planned):
     return {pool for pool in found | {newest_pool} if pool}
 
 
-def money_of(totals, stop_line, beat, spent, launching=False):
+def money_of(totals, stop_line, beat, spent, launching=False, budget=None):
     """The batch's money: its spend, this try's likely, high and stop (its own room under the stop line; while it
-    launches and has written no line yet, the stop its Buy writes: its high plus BUFFER)."""
+    launches and has written no line yet, the stop its Buy writes: its high plus BUFFER), the batch's one budget
+    across its tries (flow.batch_budget, None before a try wrote one) and what is left of it."""
     high = pricing.cleared_high(totals) if totals.get("high_euros") is not None else None
     stop = own_stop(stop_line)
     if stop is None and launching and high is not None:
@@ -423,7 +424,8 @@ def money_of(totals, stop_line, beat, spent, launching=False):
     return {"spent": spent, "open": beat["open"] if beat else None,
             "likely": totals.get("likely_euros"), "high": high,
             "guessed": totals.get("guessed_euros"), "stop": stop, "line": stop_line.get("euros"),
-            "closed": bool(stop_line.get("closed"))}
+            "closed": bool(stop_line.get("closed")), "budget": budget,
+            "left": None if budget is None or spent is None else round(budget - spent, 2)}
 
 
 def tried_rows(runs, newest_rows, planned):
@@ -490,6 +492,7 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
             "rows": counted(states, len(planned), found["beat"]),
             "eta": eta_of(batch.get("totals") or {}, this_try, ended, now),
             "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"],
-                              0.0 if spent is None and state in LIVE else spent, batch["state"] == "launching"),
+                              0.0 if spent is None and state in LIVE else spent, batch["state"] == "launching",
+                              batch.get("budget")),
             "scenes": scenes_of(planned, states, running, state in LIVE), "pool": pool,
             "problems": newest_first(problems), "retried": retried, "nodes": nodes_of(planned, states)}
