@@ -60,4 +60,5 @@ for the creator.
   arms and legs clear) and measured by `check.person_faults` (framed, arms apart: `arm_gap_share`, which the maker's
   `prop_person.py` reads from here), never by a box's proportions.
 - **Print does not matter** on a close-up: labels and print go on the model as decals later.
-- Checks are plain scripts (`*_test.py`) run by `make tests`.
+- Checks: `test_only_a_clean_closeup_goes_on.py` (pytest, `make tests`): check, stage and pro through their own
+  functions, pictures drawn in the test, Google's batch faked at its send and status.
