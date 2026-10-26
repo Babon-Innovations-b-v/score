@@ -1,13 +1,16 @@
-"""The crops stage's free parts on a design of its own: the crop kinds and beds read off a scene inventory and plan,
-the concept's tiles and measures on a known grid of plants, the gates, and the look's camera round trip.
+"""Crops grow as the locked concept grows them: the crop kinds and beds are read off the design alone (its inventory
+and plan), the concept's plants are counted and spaced in plant widths on a known grid, laid on every bed at that
+spacing, and gated (measured, on beds, spacing, boxed); a kind the prop route left out is a gap with its beds bare,
+never a raise. No spend: a design of its own (a greenhouse of 25 beds, four crop kinds), SAM 3's boxes written here.
 
-    .venv/bin/python score/stages/crops/crops_test.py
+Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/crops/test_crops_grow_as_the_concept_grows_them.py
 """
 import json
 import math
 import pathlib
 import sys
-import tempfile
 
 import numpy as np
 
@@ -69,7 +72,10 @@ def projected(view, point, size):
 def test_crop_kinds_and_beds_come_from_the_design():
     """The rows that grow on the planter are the kinds, each asked by its name (a noun two kinds share is left out),
     the planter is the plot; the beds are the plan items the planter makes, in the place's frame on the lower floor;
-    a design with no row growing on a bed has no crops."""
+    a design with no row growing on a bed has no crops. The first bed, plan item (0.3, 7.3) 0.6 m square on the 12 m
+    plan, is at (-5.4, 1.6) in the place's frame, 0.06 m tall on the 0.4 m lower floor: its middle 0.43 up.
+    Break: score/stages/crops/crop_data.py: `shared = any(row_kinds.words(other.get("noun")) == noun for other in crops if other is not row)` -> `shared = False`
+    Break: score/stages/crops/crop_data.py: `round(floor + tall / 2, 4)` -> `round(tall / 2, 4)`"""
     assert list(RECORD["kinds"]) == ["lettuce", "potato", "herb", "greens"], RECORD["kinds"]
     assert RECORD["kinds"]["lettuce"] == {"row": "lettuce", "nouns": ["lettuce"], "bed": "planter_bed"}
     assert RECORD["kinds"]["greens"]["nouns"] == ["leafy bush", "plants"], RECORD["kinds"]["greens"]
@@ -96,6 +102,10 @@ def grid(kind, noun, origin, count, spacing, width=8):
 
 
 def test_tiles_cover_the_picture_and_map_back():
+    """The 3 x 2 tiles reach every edge of the picture; a plant found on a tile's picture (drawn UPSCALE larger) maps
+    back to the whole picture at the tile's corner plus its box over UPSCALE.
+    Break: score/stages/crops/concept.py: `min(size[0], round(left + wide * (1 + OVERLAP)))` -> `min(size[0], round(left + wide))`
+    Break: score/stages/crops/concept.py: `dict(instance, box=[left + instance["box"][0] / UPSCALE` -> `dict(instance, box=[left + instance["box"][0]`"""
     size = [2752, 1536]
     tiles = concept.tile_boxes(size)
     assert len(tiles) == concept.TILES[0] * concept.TILES[1]
@@ -113,7 +123,10 @@ def test_tiles_cover_the_picture_and_map_back():
 
 def test_spacing_and_share_of_a_grid():
     """On a square plot seen square (no slant): 6 x 6 plants 100 px apart and 50 px wide are two widths apart; a
-    plant found twice (two nouns, or two tiles) is kept once; a stray far off is left out."""
+    plant found twice (two nouns, or two tiles) is kept once; a stray far off is left out. The lettuce's 36 plants in a
+    6 x 6 grid 100 px apart cover 600 x 600 px of the 2000 px plot: 0.09 of it.
+    Break: score/stages/crops/concept.py: `"strays": len(own) - len(members)` -> `"strays": 0`
+    Break: score/stages/crops/concept.py: `if not any(same_plant(instance["box"], other["box"])` -> `if True or not any(same_plant(instance["box"], other["box"])`"""
     instances = dict(SQUARE_PLOT)
     instances.update(grid("lettuce", "lettuce", (550, 550), 6, 100, 50))
     instances.update(grid("potato", "potato", (1300, 1300), 3, 40, 20))
@@ -127,25 +140,26 @@ def test_spacing_and_share_of_a_grid():
     assert found["herb"]["count"] == 0 and found["herb"]["strays"] == 1, found["herb"]
 
 
-def test_measured_gate():
+def test_measured_gate(tmp_path):
     """Every kind found in a patch passes; a kind found in none, or no plot, is unknown; a merged mass (a box over
-    MERGED widths) is left out of its kind."""
+    MERGED widths) is left out of its kind, not even counted a stray.
+    Break: score/stages/crops/concept.py: `found["kinds"][kind]["count"] < FOUND_LEAST or found` -> `found`
+    Break: score/stages/crops/concept.py: `return width(instance["box"]) > MERGED * statistics.median(` -> `return False and statistics.median(`"""
     instances = dict(SQUARE_PLOT)
     for number, kind in enumerate(RECORD["kinds"]):
         instances.update(grid(kind, RECORD["kinds"][kind]["nouns"][0], (100 + 350 * number, 100), 3, 30))
     instances["greens:leafy bush"].append({"box": [1150, 600, 1450, 800], "score": 0.9})
-    with tempfile.TemporaryDirectory() as folder:
-        output = pathlib.Path(folder)
-        inputs = design_inputs(output)
-        found = concept.measures(RECORD, instances, [2000, 2000])
-        (output / "concept.json").write_text(json.dumps(found))
-        assert concept.judge_measured(output, inputs, None).answer == "pass"
-        assert found["kinds"]["greens"]["count"] == 9, found["kinds"]["greens"]
-        missing = dict(found, kinds=dict(found["kinds"], potato=dict(found["kinds"]["potato"], count=0)))
-        (output / "concept.json").write_text(json.dumps(missing))
-        assert concept.judge_measured(output, inputs, None).answer == "unknown"
-        (output / "concept.json").write_text(json.dumps(dict(found, plot=None)))
-        assert concept.judge_measured(output, inputs, None).answer == "unknown"
+    output = tmp_path
+    inputs = design_inputs(output)
+    found = concept.measures(RECORD, instances, [2000, 2000])
+    (output / "concept.json").write_text(json.dumps(found))
+    assert concept.judge_measured(output, inputs, None).answer == "pass"
+    assert found["kinds"]["greens"]["count"] == 9 and found["kinds"]["greens"]["strays"] == 0, found["kinds"]["greens"]
+    missing = dict(found, kinds=dict(found["kinds"], potato=dict(found["kinds"]["potato"], count=0)))
+    (output / "concept.json").write_text(json.dumps(missing))
+    assert concept.judge_measured(output, inputs, None).answer == "unknown"
+    (output / "concept.json").write_text(json.dumps(dict(found, plot=None)))
+    assert concept.judge_measured(output, inputs, None).answer == "unknown"
 
 
 def laid_on_greenhouse(folder, spacing_widths):
@@ -163,93 +177,97 @@ def laid_on_greenhouse(folder, spacing_widths):
     return {**design_inputs(folder), "crops-concept": concept_folder}, beds, shared, spots
 
 
-def test_layer_gates():
+def test_layer_gates(tmp_path):
     """Laid at the concept's 1.5 widths every bed carries plants and both gates pass; laid at 3 widths spacing fails;
-    a plant moved off its bed fails `on beds`."""
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
-        assert sum(len(names) for names in shared.values()) == len(beds) == 25, shared
-        assert layer.judge_on_beds(folder, inputs, None).answer == "pass"
-        verdict = layer.judge_spacing(folder, inputs, None)
-        assert verdict.answer == "pass", verdict
-        laid_on_greenhouse(folder, 3.0)
-        assert layer.judge_spacing(folder, inputs, None).answer == "fail"
-        record = json.loads((folder / "spots.json").read_text())
-        record["spots"][0]["at"][0] += 1.0
-        (folder / "spots.json").write_text(json.dumps(record))
-        assert layer.judge_on_beds(folder, inputs, None).answer == "fail"
+    a plant moved off its bed fails `on beds`.
+    Break: score/stages/crops/layer.py: `elif abs(got - wanted) > LAID_WITHIN * wanted:` -> `elif False:`
+    Break: score/stages/crops/layer.py: `if max(off_x, off_z) > 0:` -> `if False:`"""
+    folder = tmp_path
+    inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
+    assert sum(len(names) for names in shared.values()) == len(beds) == 25, shared
+    assert layer.judge_on_beds(folder, inputs, None).answer == "pass"
+    verdict = layer.judge_spacing(folder, inputs, None)
+    assert verdict.answer == "pass", verdict
+    laid_on_greenhouse(folder, 3.0)
+    assert layer.judge_spacing(folder, inputs, None).answer == "fail"
+    record = json.loads((folder / "spots.json").read_text())
+    record["spots"][0]["at"][0] += 1.0
+    (folder / "spots.json").write_text(json.dumps(record))
+    assert layer.judge_on_beds(folder, inputs, None).answer == "fail"
 
 
-def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare():
+def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
     """crops-layer, try 4 of 2026-10-25: a kind whose take the prop route made a batch gap has no baked model, and the
     layer raised instead of carrying the gap. Now the kind is left out, its beds bare and named in a gap, and the
-    table's `on beds` and `spacing` move its faults to that gap; a model missing with no gap naming it is no gap."""
+    table's `on beds` and `spacing` move its faults to that gap; a model missing with no gap naming it is no gap.
+    Break: score/stages/crops/layer.py: `if model_of(entry) not in baked and named:` -> `if model_of(entry) not in baked:`
+    Break: score/stages/crops/layer.py: `(kind, model_of(record["kinds"][kind]), *shared[kind]),` -> `(kind, model_of(record["kinds"][kind])),`"""
     from score import stages
     from score.stages import batch_gaps
     gated = {check.name: check for row in stages.STAGES if row.name == "crops-layer" for check in row.checks}
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        bake, pixal = folder / "bake", folder / "pixal"
-        bake.mkdir(), pixal.mkdir()
-        (bake / "baked.json").write_text(json.dumps({layer.model_of(entry): {} for kind, entry in RECORD["kinds"].items()
-                                                     if kind != "potato"}))
-        assert layer.left_out(RECORD, bake, []) == {}  # no gap names it: make_layer's write_assets still raises
-        batch_gaps.write(pixal, [batch_gaps.gap("potato: Pixal3D made no model", "pixal", "takes", ("potato",),
-                                                ["potato: no model"], "the job ran once")])
-        left = layer.left_out(RECORD, bake, batch_gaps.read([pixal]))
-        assert left == {"potato": ["potato: Pixal3D made no model"]}, left
-        inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
-        laid = [spot for spot in spots if spot["kind"] != "potato"]
-        (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
-                                                       "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
-        assert layer.judge_on_beds(folder, inputs, None).answer == "fail"  # the gate's own answer stands
-        assert layer.judge_spacing(folder, inputs, None).answer == "fail"
-        batch_gaps.write(folder, [*batch_gaps.read([pixal]), *layer.bare_gaps(RECORD, left, shared)])
-        for name in ("on beds", "spacing"):
-            moved = gated[name].judge(folder, {**inputs, "pixal": pixal}, None)
-            assert moved.answer == "pass" and "moved to complete as accepted gaps" in moved.reason, moved
-        laid[0]["at"][0] += 1.0  # a laid kind's own fault is no gap's
-        (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
-                                                       "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
-        assert gated["on beds"].judge(folder, {**inputs, "pixal": pixal}, None).answer == "fail"
+    folder = tmp_path
+    bake, pixal = folder / "bake", folder / "pixal"
+    bake.mkdir(), pixal.mkdir()
+    (bake / "baked.json").write_text(json.dumps({layer.model_of(entry): {} for kind, entry in RECORD["kinds"].items()
+                                                 if kind != "potato"}))
+    assert layer.left_out(RECORD, bake, []) == {}  # no gap names it: make_layer's write_assets still raises
+    batch_gaps.write(pixal, [batch_gaps.gap("potato: Pixal3D made no model", "pixal", "takes", ("potato",),
+                                            ["potato: no model"], "the job ran once")])
+    left = layer.left_out(RECORD, bake, batch_gaps.read([pixal]))
+    assert left == {"potato": ["potato: Pixal3D made no model"]}, left
+    inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
+    laid = [spot for spot in spots if spot["kind"] != "potato"]
+    (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
+                                                   "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
+    assert layer.judge_on_beds(folder, inputs, None).answer == "fail"  # the gate's own answer stands
+    assert layer.judge_spacing(folder, inputs, None).answer == "fail"
+    batch_gaps.write(folder, [*batch_gaps.read([pixal]), *layer.bare_gaps(RECORD, left, shared)])
+    for name in ("on beds", "spacing"):
+        moved = gated[name].judge(folder, {**inputs, "pixal": pixal}, None)
+        assert moved.answer == "pass" and "moved to complete as accepted gaps" in moved.reason, moved
+    laid[0]["at"][0] += 1.0  # a laid kind's own fault is no gap's
+    (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
+                                                   "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
+    assert gated["on beds"].judge(folder, {**inputs, "pixal": pixal}, None).answer == "fail"
 
 
-def test_layer_says_what_made_its_crops():
+def test_layer_says_what_made_its_crops(tmp_path):
     """Each kind's prototype says what made it (score:kind), so the made-only check passes the laid crop meshes;
-    without the mark it fails them, as it did on complete@greenhouse of 2026-10-17."""
+    without the mark it fails them, as it did on complete@greenhouse of 2026-10-17.
+    Break: score/stages/crops/layer.py: `prototype.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(KIND)` -> `pass`"""
     from pxr import Sdf, Usd, UsdGeom
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        (folder / "assets").mkdir()
-        (folder / "layers").mkdir()
-        assets = {}
-        for kind, entry in RECORD["kinds"].items():
-            model = layer.model_of(entry)
-            asset = Usd.Stage.CreateNew(str(folder / "assets" / f"{model}.usdc"))
-            asset.SetDefaultPrim(UsdGeom.Xform.Define(asset, f"/{model}").GetPrim())
-            UsdGeom.Mesh.Define(asset, f"/{model}/geo")
-            asset.GetRootLayer().Save()
-            assets[kind] = {"model": model, "lowest": 0.0}
-        spot = {"at": [0.0, 0.0, 0.0], "turn": 0.0, "size": 1.0}
-        layer.write_layer("greenhouse", RECORD, assets, [dict(spot, kind=kind) for kind in RECORD["kinds"]],
-                          folder / layer.LAYER)
-        stage = Usd.Stage.CreateInMemory()
-        stage.GetRootLayer().subLayerPaths.append(str(folder / layer.LAYER))
-        stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/greenhouse").GetPrim())
-        with crop_data.tools("usd"):
-            import made_only
-        assert made_only.unmade_meshes(stage) == [], made_only.unmade_meshes(stage)
-        stage.SetEditTarget(Usd.EditTarget(Sdf.Layer.Find(str(folder / layer.LAYER))))
-        for kind in RECORD["kinds"]:
-            prototype = stage.GetPrimAtPath(f"/greenhouse/Crops/{kind}/Prototypes/{assets[kind]['model']}")
-            assert prototype.GetChild("geo").IsValid(), kind
-            prototype.RemoveProperty("score:kind")
-        assert len(made_only.unmade_meshes(stage)) == len(RECORD["kinds"])
+    folder = tmp_path
+    (folder / "assets").mkdir()
+    (folder / "layers").mkdir()
+    assets = {}
+    for kind, entry in RECORD["kinds"].items():
+        model = layer.model_of(entry)
+        asset = Usd.Stage.CreateNew(str(folder / "assets" / f"{model}.usdc"))
+        asset.SetDefaultPrim(UsdGeom.Xform.Define(asset, f"/{model}").GetPrim())
+        UsdGeom.Mesh.Define(asset, f"/{model}/geo")
+        asset.GetRootLayer().Save()
+        assets[kind] = {"model": model, "lowest": 0.0}
+    spot = {"at": [0.0, 0.0, 0.0], "turn": 0.0, "size": 1.0}
+    layer.write_layer("greenhouse", RECORD, assets, [dict(spot, kind=kind) for kind in RECORD["kinds"]],
+                      folder / layer.LAYER)
+    stage = Usd.Stage.CreateInMemory()
+    stage.GetRootLayer().subLayerPaths.append(str(folder / layer.LAYER))
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/greenhouse").GetPrim())
+    with crop_data.tools("usd"):
+        import made_only
+    assert made_only.unmade_meshes(stage) == [], made_only.unmade_meshes(stage)
+    stage.SetEditTarget(Usd.EditTarget(Sdf.Layer.Find(str(folder / layer.LAYER))))
+    for kind in RECORD["kinds"]:
+        prototype = stage.GetPrimAtPath(f"/greenhouse/Crops/{kind}/Prototypes/{assets[kind]['model']}")
+        assert prototype.GetChild("geo").IsValid(), kind
+        prototype.RemoveProperty("score:kind")
+    assert len(made_only.unmade_meshes(stage)) == len(RECORD["kinds"])
 
 
 def test_look_finds_the_floor_again():
-    """A point of the beds' top drawn by a look camera is taken back onto it."""
+    """A point of the beds' top drawn by a look camera (projected here by the camera's own geometry) is taken back
+    onto it, and it falls inside the picture.
+    Break: score/stages/crops/look.py: `rise = (size[1] / 2 - pixel[1]) / (size[0] / 2) * half_wide` -> `rise = (size[1] / 2 - pixel[1]) / (size[1] / 2) * half_wide`"""
     for view in look.views_of(BEDS):
         for point in ((-5.4, 0.46, 1.6), (-3.0, 0.46, -0.8), (-4.2, 0.46, 0.4)):
             pixel = projected(view, point, look.SIZE)
@@ -258,25 +276,27 @@ def test_look_finds_the_floor_again():
             assert 0 <= pixel[0] < look.SIZE[0] and 0 <= pixel[1] < look.SIZE[1], (view["name"], point, pixel)
 
 
-def test_look_stage_takes_beds_named_with_spaces():
+def test_look_stage_takes_beds_named_with_spaces(tmp_path):
     """crops-look@greenhouse, try 4 of 2026-10-25: its beds are plan items named 'PLANTER BED 1', no prim name, so the
-    stage build raised before the card was rented. Each bed's prim is a valid identifier, its name kept."""
+    stage build raised before the card was rented. Each bed's prim is a valid identifier, its name kept.
+    Break: score/stages/crops/look.py: `prims = [Tf.MakeValidIdentifier(bed["name"]) for bed in beds]` -> `prims = [bed["name"] for bed in beds]`"""
     from pxr import Usd
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        crops = folder / "crops"
-        (crops / "assets").mkdir(parents=True)
-        (crops / layer.LAYER).parent.mkdir(parents=True)
-        empty = Usd.Stage.CreateNew(str(crops / layer.LAYER))
-        empty.GetRootLayer().Save()
-        path = look.beds_stage("greenhouse", BEDS, crops, folder / "look")
-        stage = Usd.Stage.Open(str(path))
-        named = sorted(prim.GetAttribute("score:name").Get() for prim in stage.Traverse() if prim.GetTypeName() == "Cube")
-        assert named == sorted(bed["name"] for bed in BEDS) and " " in named[0], named
+    folder = tmp_path
+    crops = folder / "crops"
+    (crops / "assets").mkdir(parents=True)
+    (crops / layer.LAYER).parent.mkdir(parents=True)
+    empty = Usd.Stage.CreateNew(str(crops / layer.LAYER))
+    empty.GetRootLayer().Save()
+    path = look.beds_stage("greenhouse", BEDS, crops, folder / "look")
+    stage = Usd.Stage.Open(str(path))
+    named = sorted(prim.GetAttribute("score:name").Get() for prim in stage.Traverse() if prim.GetTypeName() == "Cube")
+    assert named == sorted(bed["name"] for bed in BEDS) and " " in named[0], named
 
 
 def test_look_counts_a_plant_the_kind_of_its_bed():
-    """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on."""
+    """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on (the herb's
+    bed here, though one box was found as 'leafy bush').
+    Break: score/stages/crops/look.py: `any(on_bed(spot, beds[name]) for name in shared[kind])` -> `any(on_bed(spot, bed) for bed in beds.values())`"""
     beds = {bed["name"]: bed for bed in BEDS}
     view = look.views_of(BEDS)[0]
     foot_x, foot_y = projected(view, (-5.4, 0.46, 1.6), look.SIZE)
@@ -299,10 +319,11 @@ def boxed_inputs(folder, gemini=()):
     return {**inputs, "concept": folder / "concept.png"}
 
 
-def test_crop_boxes_the_reading_placed_pass_and_rent_nothing():
+def test_crop_boxes_the_reading_placed_pass_and_rent_nothing(tmp_path):
     """2026-10-22 benchmark: crops-boxes read the retired page-A inventory, found nothing to mask and still rented a
-    card. Off the design, a crop row SAM 3 boxed in the reading passes as it stands, with no mask job and no rent."""
-    folder = pathlib.Path(tempfile.mkdtemp(prefix="crops-boxes-"))
+    card. Off the design, a crop row SAM 3 boxed in the reading passes as it stands, with no mask job and no rent.
+    Break: score/stages/crops/boxes.py: `if rows[name].get("box") and rows[name].get("boxed_by") == GEMINI]` -> `if rows[name].get("box")]`"""
+    folder = tmp_path
     inputs = boxed_inputs(folder)
     assert boxes.to_mask(inputs) == []
     out = folder / "out"
@@ -313,10 +334,11 @@ def test_crop_boxes_the_reading_placed_pass_and_rent_nothing():
     assert verdict.answer == checks.PASS, verdict
 
 
-def test_only_a_crop_row_the_reading_framed_by_gemini_is_masked():
+def test_only_a_crop_row_the_reading_framed_by_gemini_is_masked(tmp_path):
     """A crop row whose reading box is Gemini's region is SAM 3's job again, on the locked concept; until decided the
-    gate is unknown, never a pass."""
-    folder = pathlib.Path(tempfile.mkdtemp(prefix="crops-boxes-"))
+    gate is unknown, never a pass.
+    Break: score/stages/crops/boxes.py: `else checks.UNKNOWN if failing else checks.PASS)` -> `else checks.PASS)`"""
+    folder = tmp_path
     inputs = boxed_inputs(folder, gemini=("potato",))
     [job] = boxes.to_mask(inputs)
     assert job["picture"] == str(folder / "concept.png") and [row["key"] for row in job["rows"]] == ["potato"]
@@ -330,14 +352,7 @@ def test_only_a_crop_row_the_reading_framed_by_gemini_is_masked():
 
 
 def test_look_rents_one_card_class():
-    """A batch job runs on its one priced class; no stock is a gap, never a larger card (#21)."""
+    """A batch job runs on its one priced class; no stock is a gap, never a larger card (#21). A wording check guarding
+    that owner rule: the class list names one class.
+    Break: score/stages/crops/look.py: `CARDS = "gpu-24gb"` -> `CARDS = "gpu-24gb,gpu-48gb"`"""
     assert "," not in look.CARDS, look.CARDS
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-    print("crops_test: ok")

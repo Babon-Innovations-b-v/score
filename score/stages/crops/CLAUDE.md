@@ -41,5 +41,5 @@ prop and grown on its plan's beds as its concept grows them, as a layer of point
   outside it and is refused). Nothing to mask rents nothing (2026-10-22: the old page-A read rented a card for none).
 - **The concept decides how the beds look**: the crops grow on every bed the plan lays, as its locked concept
   draws them (its kinds' patches and spacing).
-- Tests: `crops_test.py` (kinds and beds read off a design, tiles, measures, the gates, the look's camera round
+- Tests: `test_crops_grow_as_the_concept_grows_them.py` (kinds and beds read off a design, tiles, measures, the gates, the look's camera round
   trip), free.
