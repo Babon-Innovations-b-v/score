@@ -13,7 +13,10 @@ placed, the same way for a generated model and a code-built one.
                  the 5th percentile of how far each goes before leaving the mesh
 
 A kind fails at a spread over 0.2 or a thinnest wall under 3 mm; a failing kind is remade, never stretched and never
-placed while flagged. A kind of leaves (data/library/details.json `leaves`: a palm's fronds, world
+placed while flagged. The 3 mm wall is a hollow image-to-3D shell's floor: a kind laid thinner than it (a 1 mm paper,
+a sticky note) can never meet it, so it is held instead to being solid through its own thickness, its thinnest wall at
+least SOLID_SHARE of its thinnest laid side (`least_wall`): a solid sheet is, a hollow shell scaled to that thickness
+is not (its walls a fraction of it; quarters' paper, poster and sticky note, 2026-10-26). A kind of leaves (data/library/details.json `leaves`: a palm's fronds, world
 1's square, 2026-10-07) is held to its spread only: a frond is thinner than any wall, and nothing is walked into there.
 """
 import argparse
@@ -33,6 +36,10 @@ DETAILS = HERE.parents[2] / "data/library/details.json"
 SPREAD_LIMIT = 0.2
 THINNEST_LIMIT = 0.003
 SAMPLES = 300
+# A kind laid thinner than THINNEST_LIMIT is solid through when its thinnest wall is at least this share of its
+# thinnest side; RAY_START is how far inside the surface `thinnest` starts each ray, so a solid sheet reads that less.
+SOLID_SHARE = 0.9
+RAY_START = 1e-4
 # A kind's shape class (shape_class): a fact about its name and box that says how its model is judged, never whether
 # it is made (job robust-exp, 2026-10-06).
 OPENING_WORDS = ("frame", "surround", "porthole", "doorway", "hatch_leaf", "window")
@@ -95,7 +102,7 @@ def thinnest(mesh, laid):
     fitted.vertices = (fitted.vertices - fitted.bounds[0]) / np.maximum(fitted.extents, 1e-6) * np.array(laid)
     points, faces = trimesh.sample.sample_surface(fitted, SAMPLES, seed=0)
     inward = -fitted.face_normals[faces]
-    starts = points + inward * 1e-4
+    starts = points + inward * RAY_START
     where, index, _ = fitted.ray.intersects_location(starts, inward, multiple_hits=False)
     if len(index) == 0:
         return 0.0
@@ -109,8 +116,17 @@ def check(kind, mesh, laid):
     found = {"class": shape, "faces": int(len(mesh.faces)), "watertight": bool(mesh.is_watertight),
              "pieces": len(parts), "biggest_share": round(float(areas[0] / sum(areas)), 3),
              "spread": round(spread(mesh.extents, laid), 3), "thinnest": round(thinnest(mesh, laid), 4)}
-    found["pass"] = found["spread"] <= SPREAD_LIMIT and (found["thinnest"] >= THINNEST_LIMIT or leaves(kind))
+    found["pass"] = found["spread"] <= SPREAD_LIMIT and (found["thinnest"] >= least_wall(laid) or leaves(kind))
     return found
+
+
+def least_wall(laid):
+    """The thinnest wall a kind laid at `laid` may have: THINNEST_LIMIT, or for a kind laid thinner than that, SOLID_SHARE
+    of its thinnest side less the rays' start (the module docstring)."""
+    thinnest_side = min(float(value) for value in laid)
+    if thinnest_side >= THINNEST_LIMIT:
+        return THINNEST_LIMIT
+    return SOLID_SHARE * thinnest_side - RAY_START
 
 
 def leaves(kind):

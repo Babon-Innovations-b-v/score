@@ -39,6 +39,17 @@ def test_a_model_in_its_laid_proportions_passes_and_a_cube_laid_as_a_panel_fails
     assert cube["spread"] > 0.2 and not cube["pass"]
 
 
+def test_a_kind_laid_thinner_than_the_least_wall_passes_solid_through_and_fails_hollow():
+    note = (0.129, 0.001, 0.281)  # a 1 mm sticky note, wide, tall, deep
+    solid = trimesh.creation.box(extents=note)
+    hollow = trimesh.util.concatenate([solid, trimesh.creation.box(extents=(0.12, 0.0006, 0.27))])
+    hollow.faces[len(solid.faces):] = hollow.faces[len(solid.faces):, ::-1]  # the inner box faces in: 0.2 mm walls
+    assert model.check("note", solid, note)["pass"]
+    assert not model.check("note", hollow, note)["pass"]
+    assert not model.check("note", hollow, (0.129, 0.01, 0.281))["pass"]  # laid 10 mm: its 2 mm walls under 3 mm
+    assert model.least_wall((1.2, 2.0, 0.06)) == model.THINNEST_LIMIT
+
+
 def test_a_kind_s_shape_class_comes_from_its_name_and_box():
     assert model.shape_class("hub_lattice_hip_rib", (0.12, 4.6, 0.12)) == "slender"
     assert model.shape_class("hub_porthole_panel", (1.2, 1.2, 0.1)) == "opening"
