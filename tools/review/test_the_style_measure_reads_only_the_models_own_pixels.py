@@ -1,6 +1,18 @@
-"""The style measure's checks (style.py), on renders drawn in the test: no Blender, no cloud, no review pages.
+"""The style measure (style.py) reads only the models' own pixels and its numbers come out as worked by hand, on
+renders drawn in the test: no Blender, no cloud, no review pages. Each case is a check returning its problems; the
+test_ wrappers at the end fail on any.
 
-    .venv/bin/python tools/review/style_test.py
+Breaks (each applied once, seen red, reverted), in tools/review/style.py:
+- told from the grey: foreground takes every pixel (`distance >= 0`).
+- Lab back to linear: lab_to_linear's white point X is 0.95, not 0.9505.
+- a palette colour at any brightness: shaded lights the palette at full brightness only.
+- pairs within and across: pair_names adds no pair within a place.
+- the style gap: place_features drops the silhouettes' part of the gap.
+- renders by place: model_renders globs every png, the parts renders too.
+- a model shown twice: without_copies keeps every pair.
+- stains read as marks: marks reads every tile's spread as 0.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_the_style_measure_reads_only_the_models_own_pixels.py
 """
 import pathlib
 import sys
@@ -135,17 +147,42 @@ def stains_read_as_marks():
     return problems
 
 
-CHECKS = (stains_read_as_marks, a_model_shown_twice_is_left_out, the_model_is_told_from_the_grey,
-          lab_goes_back_to_linear, a_palette_colour_fits_at_any_brightness,
-          pairs_cover_within_and_draw_across, the_style_gap_takes_the_shapes_away, the_renders_are_found_by_place)
+def test_stains_read_as_marks():
+    assert stains_read_as_marks() == []
+
+
+def test_a_model_shown_twice_is_left_out():
+    assert a_model_shown_twice_is_left_out() == []
+
+
+def test_the_model_is_told_from_the_grey():
+    assert the_model_is_told_from_the_grey() == []
+
+
+def test_lab_goes_back_to_linear():
+    assert lab_goes_back_to_linear() == []
+
+
+def test_a_palette_colour_fits_at_any_brightness():
+    assert a_palette_colour_fits_at_any_brightness() == []
+
+
+def test_pairs_cover_within_and_draw_across():
+    assert pairs_cover_within_and_draw_across() == []
+
+
+def test_the_style_gap_takes_the_shapes_away():
+    assert the_style_gap_takes_the_shapes_away() == []
+
+
+def test_the_renders_are_found_by_place():
+    assert the_renders_are_found_by_place() == []
 
 
 if __name__ == "__main__":
-    import pathlib
     import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
-    for failure in failures:
-        print(failure)
-    print("ok" if not failures else f"{len(failures)} failed")
-    sys.exit(1 if failures else 0)
+    runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
+    for name, test in list(globals().items()):
+        if name.startswith("test_"):
+            test()
+            print("ok", name)

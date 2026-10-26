@@ -33,7 +33,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   under a room. `--game-shots <folder>` lays each view beside the game's shot it names, with both pictures' mean
   brightness: a scene view under half the game's is caught. The "scene vs game" line says what the record and the cast carry
   and what it lists as game only.
-- **The style measure** (`style.py`, `style_test.py`; the paper's style-coherence gap): per place, from the review
+- **The style measure** (`style.py`, `test_the_style_measure_reads_only_the_models_own_pixels.py`; the paper's style-coherence gap): per place, from the review
   pages' made-model renders only, the coloured pixels' fit to the place's library palette, the spread of the models'
   lightness, how blotchy their surfaces look (surface marks), and DINOv2's likeness within the place against across
   places, with the same pairs as silhouettes subtracted so what an object is does not count as its style. DINOv2
@@ -67,7 +67,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   store (score_lib is not built; never say it is); `test_each_layer_counts_the_prims_it_specifies.py` checks the layer and prim counts. `layers3d` is
   the layer stack in real geometry: `layers_lift.py` renders it in Blender on a rented card (each layer a copy of the
   prims it specifies on its own plate, lifting apart under a slow orbit; the roof and haze left out), and `ending.py
-  layers3d` draws the labels on and appends the diagram's last 2 s. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
+  layers3d` draws the labels on and appends the diagram's last 2 s. `demo_test.py`, `test_a_film_is_shown_only_when_its_measures_pass.py` and `showcase_test.py` check them without Blender.
 - **A place's review from the store** (`store_page.py`, no Blender, no cloud): one command per place copies the
   accepted assembled stage (`neighbours@<place>` where the place shows others, so the shown places resolve, else
   `assembly@<place>`: what the runner's complete row judges) out of the framework's store, runs `../usd/complete.py check` and `done` on the
