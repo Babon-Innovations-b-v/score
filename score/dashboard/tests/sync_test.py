@@ -462,6 +462,29 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
 
+def test_the_usd_check_runs_outside_the_pricing_lock(world, monkeypatch):
+    """The USD check prices nothing, so a pass runs it after the pricing lock: a Buy is never judged by its basket's
+    commit alone while a long check runs (review 2026-10-26: 500k quads took 3.9 s, a place)."""
+    from score.dashboard.tests.fixture import FakeBackend
+    fed(monkeypatch)
+    held = []
+    monkeypatch.setattr(client, "usd_sweep", lambda: held.append(client.pass_pricing()) or "usd check: test")
+    monkeypatch.setattr(client, "gaps_sweep", lambda: held.append(client.pass_pricing()) or "gaps: test")
+    said = client.sync_pass(Hosted([]), world.source, FakeBackend())
+    assert held == [True, False] and "usd check: test" in said, said
+
+
+def test_a_step_out_of_time_is_ended_and_says_so(settings, tmp_path):
+    """A pass step given a limit (the USD check) is ended with its group when the limit runs out, its exit nonzero
+    and its last error line saying so, so the pass goes on."""
+    import sys
+    settings.SCORE_REPO = tmp_path
+    done = client.step_run([sys.executable, "-c", "import time; print('began', flush=True); time.sleep(60)"],
+                           grace=2, limit=1)
+    assert done.returncode != 0 and done.stdout.strip() == "began"
+    assert done.stderr.strip().splitlines()[-1] == "out of time after 1 s"
+
+
 def test_a_pass_says_the_design_moved_when_a_live_runs_copy_differs(world, monkeypatch, settings):
     """A live run reads its own design copy (graph/frozen.py): a pass whose design differs from it says so."""
     from score.dashboard.tests.fixture import FakeBackend
