@@ -35,6 +35,8 @@ JOIN_SEEN = 0.01  # share of the picture two boxes may stand apart and still mee
 JOIN_LAID = 1.0  # metres a connector may stand from a part and still meet it on the plan
 SPREAD = 4.0  # times its things' footprints side by side a run's box may cover before it is things drawn apart
 SPREAD_SLACK = 4.0  # square metres more than its things a run's box may always cover (a small run's loose box)
+# A box whose foot is within this share of the picture's height of its bottom edge reaches the picture's foot.
+FOOT_SHARE = 0.01
 
 
 def polygon_of(item, shape):
@@ -183,6 +185,24 @@ def afar(inventory):
     return {row["id"] for row in inventory.get("rows", []) if set(row["id"].split("_")) & AFAR}
 
 
+def at_foot(rows, picture):
+    """The ids of the rows a SAM 3 box of which reaches the picture's foot (within FOOT_SHARE of its height): they
+    stand on the place's own floor or ground before the viewer, so none is beyond it, whatever the plan said
+    (2026-10-26: the airlock's sandbags piled at the picture's bottom edges were listed beyond, and nothing made
+    them)."""
+    if not picture:
+        return set()
+    foot = picture[1] * (1 - FOOT_SHARE)
+    return {row["id"] for row in rows
+            if any(box and len(box) == 4 and box[3] >= foot for box in row.get("boxes") or [row.get("box")])}
+
+
+def beyond(plan, inventory):
+    """The ids of the rows the plan marks beyond the place, but for those at the picture's foot (`at_foot`): those
+    stand on its own floor or ground and are placed like any other."""
+    return set(plan.get("beyond", [])) - at_foot(inventory.get("rows", []), inventory.get("picture"))
+
+
 def placed_items(plan):
     """[(item, its row id or None, its shape)] of the plan's items that are things (no zone, no walls item)."""
     from score.review.plans import WALLS_ITEM
@@ -197,9 +217,9 @@ def count_gaps(plan, inventory, structure):
     placed = collections.Counter()
     for _, row, shape in placed_items(plan):
         placed[row] += int((shape or {}).get("count") or 1)
-    gaps, beyond = [], set(plan.get("beyond", [])) | people(inventory)  # people stand on person spots
+    gaps, left_out = [], beyond(plan, inventory) | people(inventory)  # people stand on person spots
     for row in inventory.get("rows", []):
-        if row["id"] in structure | beyond or (row.get("anchor") or "floor") not in FLOOR_ANCHORS:
+        if row["id"] in structure | left_out or (row.get("anchor") or "floor") not in FLOOR_ANCHORS:
             continue
         count = int(row.get("count", 1) or 1)
         if placed[row["id"]] != count:
@@ -215,7 +235,7 @@ def people_gaps(plan, inventory):
     return [{"kind": "people", "item": row["id"], "row": row["id"],
              "words": f"{said_name(row['id'])}: {int(row.get('count', 1) or 1)} in the concept, "
                       f"{stood[row['id']]} person spots on the plan"}
-            for row in person_rows(inventory) if row["id"] not in set(plan.get("beyond", []))
+            for row in person_rows(inventory) if row["id"] not in beyond(plan, inventory)
             and stood[row["id"]] < int(row.get("count", 1) or 1)]
 
 
@@ -402,7 +422,7 @@ def concept_spots(plan, inventory):
     if not picture:
         return {}
     from score.review.plans import whole
-    left_out = people(inventory) | afar(inventory) | set(plan.get("beyond", [])) | (set(plan.get(
+    left_out = people(inventory) | afar(inventory) | beyond(plan, inventory) | (set(plan.get(
         "structure", [])) - placed)
     found = {}
     for row in inventory.get("rows", []):

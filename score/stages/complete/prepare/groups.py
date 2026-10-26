@@ -19,6 +19,7 @@ import math
 import pathlib
 import re
 
+from score.review.plan_checks import at_foot
 from score.stages.complete.prepare import contract
 
 SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
@@ -38,8 +39,6 @@ KITS = {"floor": "kit: floor", "wall": "kit: wall", "roof": "kit: ceiling"}
 PIECE_PARTS = {"deck": "floor", "level": "floor", "wall": "wall", "roof": "roof"}
 MODEL_ROUTES = ("prop", "shell", "people")  # the routes whose models the prop pipeline makes
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
-# A box whose foot is within this share of the picture's height of its bottom edge reaches the picture's foot.
-FOOT_SHARE = 0.01
 RUN_SLENDER = 0.25  # tools/props/gates/model.py SLENDER_SHARE: a run's footprint is a line (overruns)
 
 
@@ -161,18 +160,6 @@ def stood_beyond(rows, beyond):
         found -= here
         moved = bool(here)
     return found
-
-
-def at_foot(rows, picture):
-    """The ids of the rows a SAM 3 box of which reaches the picture's foot (within FOOT_SHARE of its height): they
-    stand on the place's own floor or ground before the viewer, so none is beyond it, whatever the plan said
-    (2026-10-26: the airlock's sandbags piled at the picture's bottom edges were listed beyond, and nothing made
-    them)."""
-    if not picture:
-        return set()
-    foot = picture[1] * (1 - FOOT_SHARE)
-    return {row["id"] for row in rows
-            if any(box and len(box) == 4 and box[3] >= foot for box in row.get("boxes") or [row.get("box")])}
 
 
 def plan_structure(plan, own):
