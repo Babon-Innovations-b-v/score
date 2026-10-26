@@ -21,6 +21,7 @@ STATES = {"starting": ("Starting", "idle", "the runner plans the batch it bought
           "waiting": ("Waiting for machines", "review", "the batch runs, but no graphics card is warm yet"),
           "stopped": ("Stopped", "bad", "the batch stopped before every scene was done"),
           "finished": ("Finished", "done", "the runner drove every line to its end")}
+ENDED = {"stopped": "stopped before every scene was done", "finished": "every line driven to its end"}
 SCENE_STATES = {"done": ("done", "done"), "failed": ("failed", "bad"), "working": ("working", "new"),
                 "waiting": ("waiting", "idle"), "left": ("not done", "idle")}
 RELOAD_SECONDS = {False: 20, True: 60}  # while a batch lives: local reads live, hosted follows the sync passes
@@ -80,12 +81,14 @@ def scene_rows(source, run, world):
 
 
 def money_bar(money):
-    """The money as one bar to the stop: the spent share, the likely and high marks, in percent of the scale (the
-    stop, else the high); None without a scale."""
-    scale = max(value for value in (money["stop"], money["high"], money["spent"], 0) if value is not None)
+    """This try's money as one bar to its stop: what the try spent, the likely and high marks, in percent of the scale
+    (the stop, else the high); None without a scale. The stop, likely and high are the try's, so the try's own spend
+    is set against them, the batch's only before a record carries it."""
+    own = money.get("try_spent")
+    spent = (money["spent"] if own is None else own) or 0
+    scale = max(value for value in (money["stop"], money["high"], spent, 0) if value is not None)
     if not scale:
         return None
-    spent = money["spent"] or 0
     return {"spent": percent(spent, scale), "likely": percent(money["likely"] or 0, scale),
             "high": percent(money["high"] or 0, scale), "over": money["high"] is not None and spent > money["high"]}
 
@@ -169,12 +172,31 @@ def problem_rows(run, world):
             for problem in run["problems"]]
 
 
+def prepared(world, run):
+    """What prepare predicts for the next try once the try `run` was bought: {at (ISO), gaps (its predicted gaps),
+    stale (why it no longer prices this checkout, None)}; None without a record made since."""
+    remake = world.remake
+    if remake is None or moment(remake.made_at) <= moment(run["at"]):
+        return None
+    return {"at": remake.made_at, "gaps": remake.counts.get("predicted_gaps", 0), "stale": remake.stale}
+
+
+def ended(run):
+    """A try that no longer runs, as history (owner, 2026-10-26: "the cockpit is still just a bunch of red"): {words,
+    next (the batch now: its next try not started, or every row made)}; None while the batch lives."""
+    if run["state"] in batch_run.LIVE:
+        return None
+    unmade = run["rows"]["done"] < run["rows"]["total"]
+    return {"words": ENDED[run["state"]], "next": "Next try not started" if unmade else "Every row made"}
+
+
 def shown(source, run):
-    """The page's context of a batch record."""
+    """The page's context of a batch record; an ended try's chip muted, its scenes and problems history."""
     world = source.world_state()
     label, tone, tip = STATES[run["state"]]
     live = run["state"] in batch_run.LIVE
-    return {"run": run, "label": label, "tone": tone, "tip": tip, "live": live, "clock": clock(run),
+    return {"run": run, "label": label, "tone": tone if live else "idle", "tip": tip, "live": live,
+            "ended": ended(run), "prepared": None if live else prepared(world, run), "clock": clock(run),
             "bar": money_bar(run["money"]), "scenes": scene_rows(source, run, world),
             "machines": machines(run["pool"]), "problems": problem_rows(run, world),
             "rows_bar": percent(run["rows"]["done"], run["rows"]["total"]),

@@ -16,8 +16,9 @@ the files the batch writes, read live locally and carried in the export as batch
       eta       {likely_minutes, high_minutes} the checkout's runner times; untimed the bought steps with no
                 measured price (the ETA is then at least); elapsed since the checkout's first run started (a relaunch
                 goes on the batch's clock)
-      money     {spent (the checkout's: the last heartbeat of each of its runs, each the euros its rows, its warm pool
-                (every minute of its machines) and its model calls cost; None before any), open
+      money     {spent (the batch's, every try: the last heartbeat of each of its runs, each the euros its rows, its
+                warm pool (every minute of its machines) and its model calls cost; None before any), try_spent
+                (the same of this try's runs alone), open
                 (paid runs open), likely, high (pricing.cleared_high: the high with the guessed steps, what the
                 runner clears), guessed, stop (this batch's own room under the stop line the Buy wrote: the line
                 less the spend and the reservations it was written over, on the same scale as spent; None for a
@@ -413,15 +414,16 @@ def pools_of(runs, newest_pool, planned):
     return {pool for pool in found | {newest_pool} if pool}
 
 
-def money_of(totals, stop_line, beat, spent, launching=False, budget=None):
-    """The batch's money: its spend, this try's likely, high and stop (its own room under the stop line; while it
-    launches and has written no line yet, the stop its Buy writes: its high plus BUFFER), the batch's one budget
-    across its tries (flow.batch_budget, None before a try wrote one) and what is left of it."""
+def money_of(totals, stop_line, beat, spent, launching=False, budget=None, try_spent=None):
+    """The batch's money: what every try spent and what this try alone spent (`try_spent`), this try's likely, high
+    and stop (its own room under the stop line; while it launches and has written no line yet, the stop its Buy
+    writes: its high plus BUFFER), the batch's one budget across its tries (flow.batch_budget, None before a try
+    wrote one) and what is left of it."""
     high = pricing.cleared_high(totals) if totals.get("high_euros") is not None else None
     stop = own_stop(stop_line)
     if stop is None and launching and high is not None:
         stop = round(high * BUFFER, 2)
-    return {"spent": spent, "open": beat["open"] if beat else None,
+    return {"spent": spent, "try_spent": try_spent, "open": beat["open"] if beat else None,
             "likely": totals.get("likely_euros"), "high": high,
             "guessed": totals.get("guessed_euros"), "stop": stop, "line": stop_line.get("euros"),
             "closed": bool(stop_line.get("closed")), "budget": budget,
@@ -484,6 +486,7 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
                          "words": f"{who} stopped after {round(ran)} min, before every scene was done.",
                          "tip": why})
     spent = checkout_spent(spent_before(runs, launch.get("logs") or [], set(planned)), found["beat"])
+    try_spent = checkout_spent(spent_before(tried, launch.get("logs") or [], set(planned)), found["beat"])
     return {"read_at": stamp(now), "checkout": batch["checkout"], "at": batch["at"], "by": batch.get("by"),
             "yes": batch.get("yes"),
             "batch": batch.get("batch") or batch["checkout"], "tries": batch.get("tries") or 1,
@@ -493,6 +496,6 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
             "eta": eta_of(batch.get("totals") or {}, this_try, ended, now),
             "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"],
                               0.0 if spent is None and state in LIVE else spent, batch["state"] == "launching",
-                              batch.get("budget")),
+                              batch.get("budget"), try_spent),
             "scenes": scenes_of(planned, states, running, state in LIVE), "pool": pool,
             "problems": newest_first(problems), "retried": retried, "nodes": nodes_of(planned, states)}
