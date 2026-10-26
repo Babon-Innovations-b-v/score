@@ -21,7 +21,7 @@ partition.
 
 Writes <out>/cameras.json. Rendering the splats and segmenting run on a rented card (closeups_gpu.py through
 cloud/closeups_cloud.py); this file is plain numpy and trimesh and holds the geometry both sides share, so it is
-tested on its own (closeups_test.py).
+tested on its own (test_a_scene_is_made_from_its_concept.py).
 """
 import argparse
 import json

@@ -1,6 +1,6 @@
 """How big an object's cut-out is in the target's own pixels, and which way it is drawn from that.
 
-Plain python (no numpy), so the gate checks the limit on any box (cutsize_test.py).
+Plain python (no numpy), so the gate checks the limit on any box (test_a_scene_is_made_from_its_concept.py).
 
   redraw    the cut-out is big enough: redraw.py redraws the object from it.
   close-up  it is too small, but the target was drawn here (target.py's takes are beside it), so
