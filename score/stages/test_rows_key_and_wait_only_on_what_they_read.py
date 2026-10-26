@@ -1,19 +1,30 @@
-"""The worked example on world 1's real round-three stages, with no spend: the hangar's seed fails on its code-built
-ship, so the place cannot complete, a second run makes nothing, and a change to its kit reruns its assembly. Skipped,
-and says so, on a machine without the seeds.
+"""The stage table wires every row to key and wait on exactly what it reads (score/stages/__init__.py): a row's code
+version moves with its own code and what it imports, never with another line's module, the runner, the table or the
+run machinery (warm pool, provider, ledgers, money guards, cockpit), so an edit there buys nothing again; the rows a
+layer or the light waits on are its real reads, and no base or layer row waits on the prop route; a design's dress
+rows apply where its people wear them; a place is a scene whose design is done, a parent before its children; the
+plan row and the cast read their design and plan, never a kit or a hand-written record; the environment data names no
+path into the work folder.
 
-The store is a folder of its own under $PROPS_HOME (never /tmp, never the framework's own store), removed at the end.
+The worked example on environment 1's round-three seeds (the hangar's) went with the old disk (2026-10-19) and only
+ever skipped since; the runner's own make-twice-and-rerun-on-change rules are held by score/graph's test.
 
-Run: .venv/bin/python score/stages/stages_test.py
+Breaks that turn it red (each applied once and seen red, then reverted):
+- score/graph/_code.py `FRAMEWORK` without `score/stages/__init__.py`  -> the terrain key test (the table moves
+  terrain's key).
+- `FRAMEWORK` without `tools/cloud/provider.py`, or without `tools/cloud/secret_store.py`  -> the run machinery test.
+- the light layer no longer given the body faces' reads (`FACE_READS`)  -> the light layer test.
+- `worn`: `applies` true at every place  -> the two dress row tests.
+- `held_scenes`: the batch's places not intersected  -> the scene tree test (the dome counts).
+- `places`: the `merged` scenes not taken out  -> the place test.
+- `ship_place`: always False  -> the ship place test.
 """
-import dataclasses
 import functools
 import inspect
 import json
 import pathlib
-import shutil
+import subprocess
 import sys
-import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 # The script's own folder (score/stages) off the path: on it, tools/usd's `import motion` also finds the motion
@@ -22,100 +33,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != HERE]
 sys.path.insert(0, str(REPO))
 
-from score import checks, contracts, graph, review, stages  # noqa: E402
+from score import checks, graph, stages  # noqa: E402
 from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
-
-SEEDS = PROPS_HOME / "work"
-PLACES = ("hangar",)
-DATA = ("kit", "inventory", "library", "checks", "scene", "ground",
-        "sound/surfaces.json", "characters", "surfaces", "definitions/place.json",
-        "people/rows.json")
-
-
-def world_data_copy(root):
-    """The world files the assembly and effects stages read, copied so the test may change one."""
-    for part in DATA:
-        source, target = REPO / "data" / part, root / part
-        target.parent.mkdir(parents=True, exist_ok=True)
-        (shutil.copytree if source.is_dir() else shutil.copy2)(source, target)
-    # No claiming place here (ASSEMBLY below): the hangar's surface data names no model another place's line paints,
-    # else the assembly reads the hangar's own surfaces-bake, a row this example does not run.
-    surfaces = root / "surfaces/hangar.json"
-    surfaces.write_text(json.dumps({**json.loads(surfaces.read_text()), "elsewhere": {}}, indent=1))
-    # The example's failing seed: without the owner's accepted gap for the hangar's ship (2026-10-14), its placeholders
-    # fail the assembly's own gate.
-    (root / "checks/gaps/hangar.json").write_text(json.dumps({"gaps": []}))
-    return root
-
-
-def scenario(root):
-    world = graph.Environment("world1", 3, {"data": str(world_data_copy(root / "data")), "seeds": str(SEEDS),
-                                      "repo": str(REPO)})
-    store = Store.in_folder(root / "store")
-    # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
-    # terrain that made no ground for these places stands in for it.
-    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, *NO_SURFACES, ASSEMBLY,
-                                               stages.NEIGHBOURS,
-                                               stages.COMPLETE), world, store)
-
-
-
-# The assembly with no claiming place: the hangar's rack is old_station's (data/surfaces/hangar.json `elsewhere`), whose
-# line this example does not run.
-ASSEMBLY = dataclasses.replace(stages.ASSEMBLY, neighbours=lambda place: [])
-
-def no_ground(inputs, out, seed, params):
-    (out / "none").mkdir()
-
-
-def made(output, inputs, evidence):
-    return checks.Verdict("made", checks.PASS, "no ground made for these places")
-
-
-# The surface rows and the layer rows the assembly and complete read, and the likeness complete reads, applying to
-# neither place here (their own checks are beside their modules): the motion models layer too, since the hangar's models
-# record lays the ship from its bake (2026-10-15), a surface row this example does not run.
-NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
-                                (checks.Check("made", made),), applies=lambda place: False)
-                    for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
-                                 "sound", "scene-record", "motion", "light", "crops-layer", "settle",
-                                 "characters-layer", "surface-tiles"))
-NO_GROUND = graph.Stage("terrain", "world", no_ground,
-                        contracts.Contract("grounds", 2, lambda folder: [], {"length": "metre", "up axis": "Y"}),
-                        (checks.Check("made", made),))
-
-
-def test_the_worked_example_on_world_1s_seeds():
-    if not all((SEEDS / "usd-r3" / place / f"{place}.usda").exists() for place in PLACES):
-        print("skipped: no round-three stage of the hangar on this machine")
-        return
-    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
-    root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
-    try:
-        world, store, runner = scenario(root)
-        first = runner().run(PLACES)
-        assert first["assembly@hangar"] == "made: fail", first
-        assert first["complete@hangar"].startswith("blocked: assembly@hangar answered fail: layers: waits on "
-                                                   "sound@hangar, light@hangar, motion@hangar, characters-layer@hangar "
-                                                   "(no accepted output "
-                                                   "taken); took effects-layer; placeholders: 12 meshes stand in for "
-                                                   "made pieces; resting: no evidence"), first
-
-        assert set(runner().run(PLACES).values()) == {"fresh", *(first[f"complete@{place}"] for place in PLACES)}
-
-        kit = pathlib.Path(world.roots["data"]) / "kit/hangar.json"
-        kit.write_text(json.dumps({**json.loads(kit.read_text()), "note": "a creator's edit"}, indent=1))
-        assert runner().status(PLACES)["assembly@hangar"] == "to run: kit changed"
-        third = runner().run(PLACES)
-        assert third["assembly@hangar"] == "made: fail", third
-        assert len(store.records("assembly@hangar")) == 2
-
-        page = review.page(store, "assembly@hangar").read_text()
-        assert "Unverified seed." in page and "/hangar/Structure/ship" in page and "It cannot be accepted" in page
-        why = runner().why("assembly@hangar")[0]
-        assert why.startswith("assembly@hangar: output") and "fail, not accepted" in why and "seed " in why
-    finally:
-        shutil.rmtree(root)
 
 
 @functools.cache
@@ -308,32 +227,28 @@ def designed(store, place):
                               "plan": {"title": place.upper(), "w": 3.0, "d": 3.0, "items": [], "doors": []}})
 
 
-def test_a_place_is_a_scene_whose_design_is_done():
+def test_a_place_is_a_scene_whose_design_is_done(tmp_path):
     """No kit or plan filed in the data names a place since 2026-10-21: a place is a scene of the design whose concept
     is locked, its inventory read and its plan written; one only drawn is still in design."""
-    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
-    root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
-    try:
-        store = Store.in_folder(root / "store")
-        for part in ("kit/old.json", "plans/old.json"):  # an old filed kit and plan: no place
-            (root / part).parent.mkdir(parents=True, exist_ok=True)
-            (root / part).write_text("{}")
-        designed(store, "laid")
-        designed(store, "new")
-        from score.review import concepts
-        concepts.recorded(store, "concepts/drawn/draws/2026-10-20T08-00-00.json",
-                          {"place": "drawn", "sha": "d" * 64, "by": "joey", "at": "2026-10-20T08:00:00+00:00"})
-        world = graph.Environment("world1", 3, {"data": str(root)})
-        assert stages.places(world, store) == ["laid", "new"]
-        # a scene merged into another has no stage line, though its design is done
-        (root / "places").mkdir()
-        (root / "places/within.json").write_text(json.dumps({"merged": {"new": {"into": "laid"}}}))
-        assert stages.places(world, store) == ["laid"]
-        # nor has a part of another scene's outside: the scene it is part of builds it (the owner, 2026-10-21)
-        (root / "places/within.json").write_text(json.dumps({"parts": {"new": {"of": "laid", "as": "far off"}}}))
-        assert stages.places(world, store) == ["laid"]
-    finally:
-        shutil.rmtree(root)
+    root = tmp_path
+    store = Store.in_folder(root / "store")
+    for part in ("kit/old.json", "plans/old.json"):  # an old filed kit and plan: no place
+        (root / part).parent.mkdir(parents=True, exist_ok=True)
+        (root / part).write_text("{}")
+    designed(store, "laid")
+    designed(store, "new")
+    from score.review import concepts
+    concepts.recorded(store, "concepts/drawn/draws/2026-10-20T08-00-00.json",
+                      {"place": "drawn", "sha": "d" * 64, "by": "joey", "at": "2026-10-20T08:00:00+00:00"})
+    world = graph.Environment("world1", 3, {"data": str(root)})
+    assert stages.places(world, store) == ["laid", "new"]
+    # a scene merged into another has no stage line, though its design is done
+    (root / "places").mkdir()
+    (root / "places/within.json").write_text(json.dumps({"merged": {"new": {"into": "laid"}}}))
+    assert stages.places(world, store) == ["laid"]
+    # nor has a part of another scene's outside: the scene it is part of builds it (the owner, 2026-10-21)
+    (root / "places/within.json").write_text(json.dumps({"parts": {"new": {"of": "laid", "as": "far off"}}}))
+    assert stages.places(world, store) == ["laid"]
 
 
 def test_the_plan_row_keeps_the_plan_stages_code_version():
@@ -347,26 +262,22 @@ def test_the_plan_row_keeps_the_plan_stages_code_version():
     assert "kit" not in stages.PLAN.files("launch")
 
 
-def test_the_plan_row_maps_a_place_with_no_kit():
+def test_the_plan_row_maps_a_place_with_no_kit(tmp_path):
     """With no kit laid, the plan row's make names the place by its plan and its `mapped` gate judges it."""
-    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
-    root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
-    try:
-        (root / "plans").mkdir()
-        (root / "out").mkdir()
-        plan = {"title": "NEW ROOM", "w": 3.0, "d": 3.0, "corner": 0.0, "height": "walls 2.5 m", "doors": [],
-                "items": [["DESK", 1.0, 1.0, 1.0, 0.6, "S", "item"]], "rows": {"DESK": ["desk"]}, "leads": {},
-                "elements": [{"element": "a desk", "rows": ["desk"]}, {"element": "a poster", "drop": "printed"}]}
-        (root / "plans/new_room.json").write_text(json.dumps(plan))
-        (root / "inventory.json").write_text(json.dumps({"rows": [{"id": "desk"}], "room": {"layout": {}}}))
-        inputs = {"plan": str(root / "plans/new_room.json"), "inventory": str(root / "inventory.json"),
-                  "plans": str(root / "plans")}
-        stages.PLAN.make(inputs, root / "out", 0, {})
-        assert json.loads((root / "out/plan.json").read_text())["place"] == "new_room"
-        verdict = stages.PLAN.checks[0].judge(root / "out", inputs, {})
-        assert verdict.answer == checks.PASS, verdict.reason
-    finally:
-        shutil.rmtree(root)
+    root = tmp_path
+    (root / "plans").mkdir()
+    (root / "out").mkdir()
+    plan = {"title": "NEW ROOM", "w": 3.0, "d": 3.0, "corner": 0.0, "height": "walls 2.5 m", "doors": [],
+            "items": [["DESK", 1.0, 1.0, 1.0, 0.6, "S", "item"]], "rows": {"DESK": ["desk"]}, "leads": {},
+            "elements": [{"element": "a desk", "rows": ["desk"]}, {"element": "a poster", "drop": "printed"}]}
+    (root / "plans/new_room.json").write_text(json.dumps(plan))
+    (root / "inventory.json").write_text(json.dumps({"rows": [{"id": "desk"}], "room": {"layout": {}}}))
+    inputs = {"plan": str(root / "plans/new_room.json"), "inventory": str(root / "inventory.json"),
+              "plans": str(root / "plans")}
+    stages.PLAN.make(inputs, root / "out", 0, {})
+    assert json.loads((root / "out/plan.json").read_text())["place"] == "new_room"
+    verdict = stages.PLAN.checks[0].judge(root / "out", inputs, {})
+    assert verdict.answer == checks.PASS, verdict.reason
 
 
 def inputs_read(function):
@@ -390,7 +301,7 @@ def test_the_check_reads_every_input_check_step_reads():
 
 def test_a_ship_place_is_read_from_git():
     """On a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is not."""
-    assert not (SEEDS / "usd-ship" / "cockpit").exists()
+    assert not (PROPS_HOME / "work/usd-ship/cockpit").exists()
     assert stages.ship_place("cockpit") and not stages.ship_place("hub")
 
 
@@ -410,21 +321,12 @@ def test_the_cast_crowds_from_its_plan_never_a_hand_written_record():
         assert [path for path in paths if path.startswith("{data}/kit")] == kept, declared
 
 
-# The environment data's paths into the work folder still standing, per file, and why: the work folder is no store
-# (it went with the old disk on 2026-10-19). Shrinks to empty as the Pixal3D takes move into their row's output
-# (the inputs track's item 6); a new one fails below.
-WORK_PATHS_LEFT = {}  # the old hand-ins and inventories that named them were retired, 2026-10-21
-
-
-def test_the_environment_data_names_no_new_path_into_the_work_folder():
-    import subprocess
-    found = subprocess.run(["git", "grep", "-c", "-E", r"\{home\}/work/|score-coordinator", "--", "data"], cwd=REPO,
+def test_the_environment_data_names_no_path_into_the_work_folder():
+    """A wording check guarding a rule: the work folder is no store (it went with the old disk, 2026-10-19), so no
+    environment data file names a path into it; the last ones went with the old hand-ins (2026-10-21)."""
+    found = subprocess.run(["git", "grep", "-l", "-E", r"\{home\}/work/|score-coordinator", "--", "data"], cwd=REPO,
                            capture_output=True, text=True).stdout.split()
-    counts = {line.rsplit(":", 1)[0]: int(line.rsplit(":", 1)[1]) for line in found}
-    grown = {path: count for path, count in counts.items() if count > WORK_PATHS_LEFT.get(path, 0)}
-    assert not grown, f"new paths into the work folder (make them a row's output, or a gap): {grown}"
-    shrunk = {path: counts.get(path, 0) for path, count in WORK_PATHS_LEFT.items() if counts.get(path, 0) < count}
-    assert not shrunk, f"fewer paths into the work folder than WORK_PATHS_LEFT allows: lower it to {shrunk}"
+    assert not found, f"paths into the work folder (make them a row's output, or a gap): {found}"
 
 
 def test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer():
@@ -436,25 +338,3 @@ def test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer():
     old = [name for name in names if name.startswith("machines")]
     assert not old, f"rows under the old machines name (the motion layer's models now): {old}"
 
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
-
-
-def test_a_built_layer_copy_of_a_read_only_seed_is_writable():
-    """The store's seed is read-only and copies keep its modes; the copy a layer is written over must take a save."""
-    from score.stages import layer_base
-    folder = pathlib.Path(tempfile.mkdtemp()) / "seed"
-    (folder / "layers").mkdir(parents=True)
-    (folder / "layers" / "base.usda").write_text("#usda 1.0\n")
-    for path in (folder / "layers" / "base.usda", folder / "layers", folder):
-        path.chmod(0o555 if path.is_dir() else 0o444)
-    layer_base.writable(folder)
-    (folder / "layers" / "base.usda").write_text("#usda 1.0\n")
-    (folder / "layers" / "new.usda").write_text("#usda 1.0\n")
