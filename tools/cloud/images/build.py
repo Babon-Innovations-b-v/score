@@ -103,11 +103,12 @@ def has_parent(kind):
 
 
 def context_files(kind):
-    """The build context: {path in the context: file here}, the image folder's files and the runtime's (tests and
-    caches aside)."""
+    """The build context: {path in the context: file here}, the image folder's files and the runtime's (tests, either
+    name, and caches aside: a test file is never in an image, so it moves no tag)."""
     files = {str(path.relative_to(HERE / kind)): path for path in (HERE / kind).rglob("*")
              if path.is_file() and "__pycache__" not in path.parts}
-    files.update({f"runtime/{path.name}": path for path in RUNTIME.glob("*.py") if not path.name.endswith("_test.py")})
+    files.update({f"runtime/{path.name}": path for path in RUNTIME.glob("*.py")
+                  if not path.name.endswith("_test.py") and not path.name.startswith("test_")})
     return dict(sorted(files.items()))
 
 

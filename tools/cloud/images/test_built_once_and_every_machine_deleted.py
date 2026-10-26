@@ -7,7 +7,7 @@ with the break that turns it red (each applied once and seen red):
 - The tag is IMAGE_VERSION and a hash of the build context with each file's mode, the runtime's files (its tests
   left out), and the parent's digest; models.json (the weights list, fetched at run time) is not in it.
   Break: drop `if name != "models.json"` in `tag`. Break: drop the mode from `tag`'s hash.
-  Break: drop the parent digest from `tag`. Break: drop the `_test.py` filter in `context_files`.
+  Break: drop the parent digest from `tag`. Break: drop either test-name filter in `context_files`.
 - Only what changed is built: a kind at its tag is skipped, a child is built with its new parent, `force` builds all;
   the parent comes first. Break: drop `parent_new` in `stale`. Break: `image_kinds` returns plain `sorted(kinds)`.
 - The staged context keeps each file's mode (a script the Dockerfile copies stays executable).
@@ -47,6 +47,7 @@ def images(tmp_path, monkeypatch):
     (tmp_path / "runtime").mkdir()
     (tmp_path / "runtime/job.py").write_text("print()")
     (tmp_path / "runtime/job_test.py").write_text("print()")
+    (tmp_path / "runtime/test_job.py").write_text("print()")
     monkeypatch.setattr(build, "HERE", tmp_path)
     monkeypatch.setattr(build, "RUNTIME", tmp_path / "runtime")
     return tmp_path
@@ -61,6 +62,7 @@ def test_the_tag_follows_the_context_its_modes_and_the_parent_but_not_the_weight
     (images / "base/models.json").write_text('[{"name": "x"}]')
     assert build.tag("base", {}) == first
     (images / "runtime/job_test.py").write_text("print(2)")
+    (images / "runtime/test_job.py").write_text("print(2)")
     assert build.tag("base", {}) == first  # the runtime's tests are not in the image
     (images / "runtime/job.py").write_text("print(1)")
     assert build.tag("base", {}) != first

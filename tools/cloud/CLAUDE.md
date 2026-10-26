@@ -482,4 +482,5 @@ path); it proves itself when a stage's paid node runs through it end to end. `k8
   images` checks the pins for free, then builds and proves the kind cleared like any paid row, and `python -m score
   images publish <kind>` writes the accepted record into images.json (`score/stages/images`). No hand build.py run
   needs the owner's override.
-- Tests run against a folder store, no cloud: `.venv/bin/python tools/cloud/runtime/job_test.py` and its siblings.
+- Tests run against a folder store, no cloud: `runtime/test_a_job_runs_once_on_checked_weights.py` (pytest, in a
+  sandbox home); a test file in `runtime/` is never copied into an image (`images/build.py` `context_files`).
