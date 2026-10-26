@@ -503,6 +503,14 @@ def gaps_sweep():
 USD_LIMIT = 900  # seconds: about a second a place measured; a stage of millions of faces must not hold the pass
 
 
+def copies_swept():
+    """Every frozen copy no run needs removed (`python -m score.conductor clean-frozen`, score/conductor/disk.py;
+    2026-10-26: the conductor's disk filled with the copies of ended runs); its summary line. One it cannot tell
+    about, or a failure, is said in the pass's words, and the pass goes on."""
+    done = step_run([sys.executable, "-m", "score.conductor", "clean-frozen"])
+    return (done.stdout.strip().splitlines() or [f"clean-frozen wrote nothing, exit {done.returncode}"])[-1]
+
+
 def usd_sweep(limit=USD_LIMIT):
     """Every place's composed stage judged by SCORE's USD rule set and its findings written where the place pages
     read their problems (score.stages.complete.usd, free, in a process of its own: it reads OpenUSD), ended after
@@ -725,12 +733,13 @@ def sync_pass(remote, source, chosen=None):
             f" (the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass: its remake and price "
             "show as stale, Buy waits for the next pass)"))
     tidy = checkouts_tidied(chosen)
+    copies = copies_swept()
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
     usd = usd_sweep()  # outside the pricing lock: nothing priced reads it; its findings export with the next pass
     previews = film_previews()  # minutes of Chromium: after the requests, outside the pricing lock
     refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
-    return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {swept}; "
+    return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {copies}; {swept}; "
             f"{readings}; {parts}; {lights}; {gaps}; {usd}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; "
             f"{previews}"
             f"{design_moved()}")

@@ -128,13 +128,19 @@ def writable(folder):
 
 def remove(path, home=None):
     """Remove a frozen copy and its worktree entry, and close its run's home (home_closed) against `home` (the home
-    whose frozen folder holds the copy)."""
-    common = git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    whose frozen folder holds the copy). One git cannot remove (a full disk, its .git link broken) is deleted and its
+    entry pruned, so a run's end never leaves its copy on the disk (2026-10-26: the conductor's disk filled)."""
+    path = pathlib.Path(path)
+    common = subprocess.run(["git", "-C", str(path), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                            capture_output=True, text=True).stdout.strip()
     done = subprocess.run(["git", "--git-dir", common, "worktree", "remove", "--force", str(path)],
-                          capture_output=True, text=True)
-    if done.returncode:
-        raise RuntimeError(f"frozen copy {path} not removed: {done.stderr.strip()}")
-    home_closed(path, home or pathlib.Path(path).parent.parent)
+                          capture_output=True, text=True) if common else None
+    if (done is None or done.returncode) and path.exists():
+        writable(path)
+        shutil.rmtree(path)
+        if common:
+            subprocess.run(["git", "--git-dir", common, "worktree", "prune"], capture_output=True)
+    home_closed(path, home or path.parent.parent)
 
 
 def enter(argv, repo):

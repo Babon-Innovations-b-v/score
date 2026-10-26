@@ -35,6 +35,16 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   Then it ends every process still working in the frozen copy of a run no longer live (`frozen.users`/`frozen.end`,
   the report's `leftovers` with each command line; 2026-10-26: six processes of a stopped run held the checkout for an
   hour), and a stopped run ends its own copy's processes as it removes the copy (`frozen.remove_owned`).
+- **`disk.py`** (2026-10-26: the data disk filled to 0.24 GB free and Batch 1 died with ENOSPC, the copies of the
+  day's ended runs still on it): `FLOOR_GB` (10): `score run` is refused before it makes its copy while PROPS_HOME's
+  disk has less free (`launch_refusal`), and health's `disk.floor_gb` and a note on the Machine card say it.
+  `python -m score.conductor disk` (the door's `disk`) prints one summary line and the biggest folders, every folder in
+  `conductor/disk.json`. `clean-frozen` (the door's, `score resume` at boot and every sync pass) removes each frozen
+  copy and its home that no registered run needs (waiting, running and alive, or of an earlier boot resume may take; a
+  live claim), no process works in (folder, `SCORE_FROZEN`, command line) and is over 15 minutes old, through
+  `frozen.remove` (the checkout's `git worktree remove --force`, else deleted and pruned); it refuses everything while
+  a run entry does not parse or a process's command line cannot be read. Never the store or the design: a home holds
+  links only once closed, and only links are unlinked.
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.

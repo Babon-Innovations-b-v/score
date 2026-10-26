@@ -9,7 +9,8 @@ logs/backup-*.json, score.store.backup's: {at, ok}), last_sync (score-sync.servi
 (the kill switch's latch), notes (each `*.note` the secrets unit left in $XDG_RUNTIME_DIR/score, one line each: an
 optional secret it skipped, tools/cloud/conductor/secrets.sh), code {checkout: the checkout's commit, pin: the
 cockpit's pinned commit score-update last read (conductor/pin.json), pin_at, matches: whether they agree, why: score-update's last line while they differ}}, with the Machine card's own shapes beside them (score/dashboard/state/machine.py): state
-(idle, growing, batch or shrinking), disk {free_gb, total_gb}, memory {available_gb, total_gb}, backup and sync (the
+(idle, growing, batch or shrinking), disk {free_gb, total_gb, floor_gb} (under the floor, disk.warning
+is one of the notes), memory {available_gb, total_gb}, backup and sync (the
 same as last_backup and last_sync). A unit is failed when any of its units failed or its service's last run did not
 succeed, active when one of them is active. The conductor's own bill is not read here (a cloud call every minute).
 """
@@ -21,7 +22,7 @@ import shutil
 import subprocess
 
 from score import conductor
-from score.conductor import size
+from score.conductor import disk as data_disk, size
 from score.store import PROPS_HOME
 
 # Each unit family the cockpit's Machine card shows, its timer (when it has one) first.
@@ -100,17 +101,19 @@ def read(properties=unit_properties):
     memory = {"available_gb": round(conductor.meminfo_gb("MemAvailable"), 2),
               "total_gb": round(conductor.meminfo_gb("MemTotal"), 2)}
     backup, sync = last_backup(), last_sync(properties)
+    low = data_disk.warning(disk.free / 1024 ** 3)
     return {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
             "machine": (record or {}).get("name"), "size": machine_size(record),
             "state": machine_state(record, conductor.cores()), "cores": conductor.cores(),
             "memory_total": memory["total_gb"], "memory_available": memory["available_gb"], "memory": memory,
             "disk_free": round(disk.free / 1024 ** 3, 2),
-            "disk": {"free_gb": round(disk.free / 1024 ** 3, 2), "total_gb": round(disk.total / 1024 ** 3, 2)},
+            "disk": {"free_gb": round(disk.free / 1024 ** 3, 2), "total_gb": round(disk.total / 1024 ** 3, 2),
+                     "floor_gb": data_disk.FLOOR_GB},
             "load": [round(value, 2) for value in os.getloadavg()],
             "units": {name: unit_state(units, properties) for name, units in UNITS.items()},
             "runs_active": view["claims"], "runs_waiting": view["waiting"], "parked_machines": view["parked"],
             "last_backup": backup, "backup": backup, "last_sync": sync, "sync": sync,
-            "free_only": conductor.free_only(), "notes": notes(), "code": code()}
+            "free_only": conductor.free_only(), "notes": notes() + ([low] if low else []), "code": code()}
 
 
 def code(repo=REPO, pin_path=PIN):

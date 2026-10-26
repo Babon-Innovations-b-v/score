@@ -64,7 +64,10 @@ stage as each stage is built; nothing moves before.
   (`graph/frozen.py`, #45): a git worktree under `$PROPS_HOME/frozen` at one commit (HEAD when clean, else one commit
   of the whole working tree; the run still registers as uncommitted), the running venv linked in as `.venv`, made
   as it starts (the command starts itself again inside it) and removed once it ends, after the machines it parked
-  are gone (`park.outlive`); a pull or push in the checkout it came from never reaches it. Never point a run at a
+  are gone (`park.outlive`), or kept for resume when a shutdown's SIGTERM leaves it `running`; one git cannot remove is
+  deleted, and the copies a run never removed (a SIGKILL, a refused resume) go at boot and every sync pass
+  (`score/conductor/disk.py` clean-frozen); a run is refused while PROPS_HOME's disk has under 10 GB free; a pull or
+  push in the checkout it came from never reaches it. Never point a run at a
   checkout to "pick up" a fix mid-run: start a new run.
   `run --free` (every run under `SCORE_FREE_ONLY=1` by default: the agents' door, the kill latch) is a free-only run, said in its log's first line: every free node whose inputs stand runs for real, a
   paid node not standing accepted is `not run: paid, left for the Buy` (its line waits there, no fault report) and

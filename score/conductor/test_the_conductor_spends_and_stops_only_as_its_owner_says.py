@@ -7,11 +7,13 @@ conductor's. Only the owner's process pulls the kill switch, which stops every r
 run's frozen copy), closes the pools before it releases every parked machine, and latches every `score` command free
 only; Stop this batch does the same without the latch. A detached run is capped in score-runs.slice at the memory
 less 6 GB, a step's own scope inherits it, and off a conductor nothing changes. Its health names what the Machine card
-reads and its log tails carry no secret. The free end-to-end check (`dry`) passes every step in one line.
+reads and its log tails carry no secret. The free end-to-end check (`dry`) passes every step in one line. No run
+starts under the data disk's floor, the health warns there, and clean-frozen removes only the frozen copies no run
+needs and no process works in, never what their homes link to, and nothing while it cannot tell.
 
 Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
 release the parked machines before closing the pools; or in logs drop the secret-shape test (an AIza key reaches the
-tails).
+tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed).
 """
 import datetime
 import io
@@ -30,8 +32,8 @@ sys.path.insert(0, str(REPO))
 from score import conductor  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.adapters.compute import guard  # noqa: E402
-from score.conductor import health, kill, logs, size, slices  # noqa: E402
-from score.graph import runs  # noqa: E402
+from score.conductor import disk, health, kill, logs, size, slices  # noqa: E402
+from score.graph import frozen, runs  # noqa: E402
 
 RECORD = {"name": "conductor", "idle_type": "POP2-HM-2C-16G", "batch_type": "POP2-HM-16C-128G", "idle_cores": 2,
           "batch_cores": 16, "project": "score-conductor"}
@@ -455,3 +457,79 @@ def test_the_dry_check_passes_every_step_in_one_line():
     assert [result["step"] for result in results] == ["plan", "waiting for size", "resume", "memory guard",
                                                       "health and logs", "shrink", "kill switch"]
     assert all(result["ok"] for result in results) and done.returncode == 0
+
+
+# --- disk: the floor, what fills it, the copies no run needs ---------------------------------------------------------
+
+def test_no_run_starts_under_the_disk_floor_and_the_health_warns_there(tmp_path, monkeypatch):
+    """2026-10-26: 0.24 GB free of 91 GB and Batch 1 died with "No space left on device"."""
+    assert disk.launch_refusal(tmp_path, floor=0) is None
+    refused = disk.launch_refusal(tmp_path / "not-yet", floor=10 ** 6)
+    assert refused.startswith("refused: ") and "GB floor" in refused
+    monkeypatch.setattr(disk, "FLOOR_GB", 10 ** 6)
+    found = health.read(properties)
+    assert found["disk"]["floor_gb"] == 10 ** 6 and any(note.startswith("disk: ") for note in found["notes"])
+    monkeypatch.setattr(disk, "FLOOR_GB", 0)
+    assert not any(note.startswith("disk: ") for note in health.read(properties)["notes"])
+
+
+def test_disk_names_the_biggest_folders_in_one_line_and_a_file(tmp_path):
+    (tmp_path / "frozen" / "20261026-081445-1").mkdir(parents=True)
+    (tmp_path / "frozen" / "20261026-081445-1" / "big").write_bytes(b"x" * 300_000)
+    summary, biggest = disk.report(tmp_path, tmp_path / "conductor" / "disk.json")
+    assert summary.startswith("disk: ") and "1 frozen copies" in summary and str(tmp_path / "conductor") in summary
+    written = json.loads((tmp_path / "conductor" / "disk.json").read_text())
+    copy = str(tmp_path / "frozen" / "20261026-081445-1")
+    assert written["folders"] and any(line.endswith(f"  {copy}") for line in biggest)
+
+
+def a_copy(repo, folder, name, home):
+    """A frozen copy `name` of `repo` under `folder` with its home: the design copied read-only, the rest linked."""
+    path = folder / name
+    frozen.git(repo, "worktree", "add", "-q", "--detach", str(path), "HEAD")
+    frozen.home_copy(path, home)
+    (frozen.home_of(path) / "design" / "plan.json").chmod(0o444)
+    (frozen.home_of(path) / "design").chmod(0o555)
+    old = time.time() - 2 * disk.YOUNG_SECONDS
+    os.utime(path, (old, old))
+    os.utime(frozen.home_of(path), (old, old))
+    return path
+
+
+def test_clean_frozen_removes_only_the_copies_no_run_needs_and_never_what_they_link_to(tmp_path):
+    repo, home = tmp_path / "checkout", tmp_path / "home"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                    "--allow-empty", "-m", "one"], check=True)
+    (home / "store").mkdir(parents=True)
+    (home / "store" / "object").write_text("kept")
+    (home / "design").mkdir()
+    (home / "design" / "plan.json").write_text("{}")
+    (home / "runs").mkdir()
+    folder = home / "frozen"
+    folder.mkdir()
+    dead, waiting, worked = (a_copy(repo, folder, name, home) for name in ("1-dead", "2-waiting", "3-worked"))
+    young = folder / "4-young"
+    young.mkdir()
+    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(waiting)}))
+    (home / "runs" / "e.json").write_text(json.dumps({"state": "ended", "worktree": str(dead)}))
+    process = subprocess.Popen(SLEEP, cwd=frozen.home_of(worked))
+    try:
+        time.sleep(0.3)
+        said = []
+        done = disk.clean(home, say=said.append)
+        assert done["removed"] == ["1-dead"] and done["failed"] == [], said
+        assert sorted(done["kept"]) == ["2-waiting", "3-worked", "4-young"]
+        assert not dead.exists() and not frozen.home_of(dead).exists() and waiting.exists() and worked.exists()
+        assert (home / "store" / "object").read_text() == "kept" and (home / "design" / "plan.json").exists()
+        assert str(dead) not in frozen.git(repo, "worktree", "list")
+        (home / "runs" / "broken.json").write_text("{")
+        with pytest.raises(disk.Unprovable):
+            disk.clean(home, say=said.append)
+        assert waiting.exists()
+    finally:
+        process.kill()
+        process.wait()
+        for path in folder.rglob("*"):
+            if path.is_dir() and not path.is_symlink():
+                path.chmod(0o755)
