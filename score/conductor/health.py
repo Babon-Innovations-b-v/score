@@ -8,7 +8,7 @@ PROPS_HOME), load (1, 5 and 15 minutes), units {sync, listen, resume, backup: ac
 logs/backup-*.json, score.store.backup's: {at, ok}), last_sync (score-sync.service's last end: {at, ok}), free_only
 (the kill switch's latch), notes (each `*.note` the secrets unit left in $XDG_RUNTIME_DIR/score, one line each: an
 optional secret it skipped, tools/cloud/conductor/secrets.sh), code {checkout: the checkout's commit, pin: the
-cockpit's pinned commit score-update last read (conductor/pin.json), pin_at, matches: whether they agree}}, with the Machine card's own shapes beside them (score/dashboard/state/machine.py): state
+cockpit's pinned commit score-update last read (conductor/pin.json), pin_at, matches: whether they agree, why: score-update's last line while they differ}}, with the Machine card's own shapes beside them (score/dashboard/state/machine.py): state
 (idle, growing, batch or shrinking), disk {free_gb, total_gb}, memory {available_gb, total_gb}, backup and sync (the
 same as last_backup and last_sync). A unit is failed when any of its units failed or its service's last run did not
 succeed, active when one of them is active. The conductor's own bill is not read here (a cloud call every minute).
@@ -114,14 +114,16 @@ def read(properties=unit_properties):
 
 
 def code(repo=REPO, pin_path=PIN):
-    """{checkout, pin, pin_at, matches}: the checkout's commit beside the cockpit's pin score-update last read; matches
-    None while either is unknown (no pin read yet, or a cockpit reporting none)."""
+    """{checkout, pin, pin_at, matches, why}: the checkout's commit beside the cockpit's pin score-update last read;
+    matches None while either is unknown (no pin read yet, or a cockpit reporting none); why, while they differ,
+    score-update's last line (why it did not move)."""
     done = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True)
     here = done.stdout.strip() or None
     noted = json.loads(pin_path.read_text()) if pin_path.is_file() else {}
     pin = noted.get("pin")
-    return {"checkout": here, "pin": pin, "pin_at": noted.get("at"),
-            "matches": None if not (here and pin) else here.startswith(pin) or pin.startswith(here)}
+    matches = None if not (here and pin) else here.startswith(pin) or pin.startswith(here)
+    return {"checkout": here, "pin": pin, "pin_at": noted.get("at"), "matches": matches,
+            "why": noted.get("said") if matches is False else None}
 
 
 def notes(folder=None):
