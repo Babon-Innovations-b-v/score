@@ -43,6 +43,6 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   what earlier tries spent. A retry under a used yes keeps the budget and is refused when its high plus BUFFER does
   not fit what is left. Each line records `batch_from`, `batch_budget` and `batch_used`; `watched.newest` gives the
   budget, and the monitor and Buy page show what the batch spent, every try and its pool time, of it and what is left.
-- **Tests never launch.** `tests/checkout_test.py` uses `FakeBackend`, a temp basket and a temp store.
+- **Tests never launch.** `checkout/test_a_batch_buys_only_what_the_owner_approved.py` uses `FakeBackend`, a temp basket and a temp store.
 - One function, one purpose; no provider names; no imports of `tools.*` or `score.adapters` (`score.review.web` reaches
   the guard for us).
