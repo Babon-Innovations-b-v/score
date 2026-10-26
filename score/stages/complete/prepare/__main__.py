@@ -77,7 +77,8 @@ def take_entry(group, record, index, rates, work):
     key-diff status."""
     match = library.match(group, index)
     model = group["route"] in groups.MODEL_ROUTES
-    prediction = predict.predicted(group["size"], rates) if model else OWN_ROUTE
+    first = next((row for row in record.get("rows", []) if row["id"] == group["rows"][0]), None)
+    prediction = predict.predicted(group["size"], rates, first) if model else OWN_ROUTE
     is_made = made(group["take"])
     inputs = contract.faults(record, group, work) if model else [contract.PART_UNREAD] * (group["route"] is None)
     status = {"ground": TERRAIN, "plan": PLAN, None: "input gap"}.get(group["route"]) or status_of(match, is_made,

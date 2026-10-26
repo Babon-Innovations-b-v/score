@@ -44,7 +44,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   (`gaps/price.py` `BILL_SHARE`); Google calls do not.
 - **A prediction comes from a measured failure mode, never a guess.** `predict.py` counts the hub's prop-route table
   against the hub's sizes every run: a shape every one of at least `MIN_MEASURED` measured rows failed is a predicted
-  gap; fewer measured rows is `at risk`. Both are bought and judged by the real gates: a prediction never drops a
+  gap, unless a route builds it after the close-up fails (a thin straight row, built in code:
+  `predict.code_built`, score/stages/props/thin_straight.py), which is `at risk`; fewer measured rows is `at risk`. Both are bought and judged by the real gates: a prediction never drops a
   row from the Buy (2026-10-24: street's palms, 0.4 x 1.16 x 8 m, were "rods" by size alone and left out).
   The crop's upscale is said, never a prediction (no failure was measured against it).
 - **Once-a-scene rows** (`estimate.once_a_scene`: the scene palette and the surface-library row, which makes every
