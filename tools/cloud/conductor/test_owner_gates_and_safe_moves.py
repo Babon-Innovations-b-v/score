@@ -255,7 +255,8 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "benchmark world1 --detach", "benchmark 'g 1' world1 --detach", "scw instance server list",
                   "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
                   "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
-                  "buy-yes 30 33 'yes'"):
+                  "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
+                  "batch-money 1"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000"):
@@ -279,10 +280,12 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     assert code == 0 and env["SCORE_BENCHMARK_GRANT"] == "20261026T074845.442617+0000", why
     code, why, argv, _ = door("grant-benchmark 12 'yes, go' 'may I spend EUR 12 on x?'")
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["12", "yes, go", "may I spend EUR 12 on x?"], argv
-    code, why, argv, env = door("buy-yes 33 30 'Yes, buy it' 'Buy at high EUR 30, stop EUR 33?'")
-    assert code == 0 and argv == ["-m", "score.dashboard", "buy-yes", "33", "30", "Yes, buy it",
-                                  "Buy at high EUR 30, stop EUR 33?"], (why, argv)
+    code, why, argv, env = door("buy-yes --batch-total 333 30 'Yes, buy it' 'Batch 1 total EUR 333?'")
+    assert code == 0 and argv == ["-m", "score.dashboard", "buy-yes", "--batch-total", "333", "30", "Yes, buy it",
+                                  "Batch 1 total EUR 333?"], (why, argv)
     assert env["SCORE_FREE_ONLY"] == "1"  # recording a yes spends nothing
+    code, why, argv, env = door("batch-money")
+    assert code == 0 and argv == ["-m", "score.dashboard", "batch-money"] and env["SCORE_FREE_ONLY"] == "1", why
     code, why, argv, env = door("buy 20261025T170000Z")
     assert code == 0 and argv == ["-m", "score.dashboard", "buy", "20261025T170000Z"], (why, argv)
     assert "SCORE_FREE_ONLY" not in env and all(env.get(marker) == "1" for marker in AGENT_MARKERS)

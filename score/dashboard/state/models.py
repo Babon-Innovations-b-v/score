@@ -39,6 +39,7 @@ class Spend(BaseModel):
     bill_days: list[dict] = []  # [{day, cloud, models}] the month so far as last read each day (money.with_bill_days)
     credit_note: str = ""  # the shared cloud account's credit, a note only, never SCORE's budget
     paid_refused: str | None = None  # why paid work is refused while the month's books are not known (score spend)
+    parts: dict = {}  # `spent` by book since the first line: {cloud (bill or ledger, the higher), ledger, models}
 
 
 class MonthTotal(BaseModel):

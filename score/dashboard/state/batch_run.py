@@ -16,9 +16,12 @@ the files the batch writes, read live locally and carried in the export as batch
       eta       {likely_minutes, high_minutes} the checkout's runner times; untimed the bought steps with no
                 measured price (the ETA is then at least); elapsed since the checkout's first run started (a relaunch
                 goes on the batch's clock)
-      money     {spent (the batch's, every try: the last heartbeat of each of its runs, each the euros its rows, its
-                warm pool (every minute of its machines) and its model calls cost; None before any), try_spent
-                (the same of this try's runs alone), open
+      money     {spent (the batch's by the money guard's own measure, checkout/watched.batch_money: the spend since
+                its first try's line, every try and whatever else was billed meanwhile; None while unread), runs
+                (its runs' own: the last heartbeat of each of its runs, each the euros its rows, its warm pool (every
+                minute of its machines) and its model calls cost; None before any), other (spent less runs:
+                benchmarks, design calls and what the bill holds over the ledger meanwhile), in_flight, parts,
+                try_spent (this try's runs' heartbeats alone), open
                 (paid runs open), likely, high (pricing.cleared_high: the high with the guessed steps, what the
                 runner clears), guessed, stop (this batch's own room under the stop line the Buy wrote: the line
                 less the spend and the reservations it was written over, on the same scale as spent; None for a
@@ -414,20 +417,33 @@ def pools_of(runs, newest_pool, planned):
     return {pool for pool in found | {newest_pool} if pool}
 
 
-def money_of(totals, stop_line, beat, spent, launching=False, budget=None, try_spent=None):
-    """The batch's money: what every try spent and what this try alone spent (`try_spent`), this try's likely, high
-    and stop (its own room under the stop line; while it launches and has written no line yet, the stop its Buy
-    writes: its high plus BUFFER), the batch's one budget across its tries (flow.batch_budget, None before a try
-    wrote one) and what is left of it."""
+def money_of(totals, stop_line, beat, runs, launching=False, guarded=None, try_spent=None):
+    """The batch's money: what it spent by the money guard's measure (`guarded`, checkout/watched.batch_money, the
+    one spent figure) beside what its runs alone spent (`runs`, their heartbeats) and the difference named, what this
+    try alone spent (`try_spent`), this try's likely, high and stop (its own room under the stop line; while it
+    launches and has written no line yet, the stop its Buy writes: its high plus BUFFER), the batch's one budget
+    across its tries (flow.batch_budget) and what is left of it, all None while the guard's figure is unread."""
     high = pricing.cleared_high(totals) if totals.get("high_euros") is not None else None
     stop = own_stop(stop_line)
     if stop is None and launching and high is not None:
         stop = round(high * BUFFER, 2)
-    return {"spent": spent, "try_spent": try_spent, "open": beat["open"] if beat else None,
+    guarded = guarded or {}
+    spent = guarded.get("spent")
+    return {"spent": spent, "runs": runs, "other": None if spent is None or runs is None else round(spent - runs, 2),
+            "in_flight": guarded.get("in_flight"), "parts": guarded.get("parts"), "try_spent": try_spent,
+            "open": beat["open"] if beat else None,
             "likely": totals.get("likely_euros"), "high": high,
             "guessed": totals.get("guessed_euros"), "stop": stop, "line": stop_line.get("euros"),
-            "closed": bool(stop_line.get("closed")), "budget": budget,
-            "left": None if budget is None or spent is None else round(budget - spent, 2)}
+            "closed": bool(stop_line.get("closed")), "budget": guarded.get("budget"), "left": guarded.get("left")}
+
+
+def batch_total(money, need):
+    """The batch total a click on Buy sets for a retry needing `need` (its high plus BUFFER): the batch's budget, or
+    its spend with what is in flight plus `need` when that is more (checkout/flow.batch_budget); None without `money`
+    (checkout/watched.batch_money)."""
+    if money is None:
+        return None
+    return round(max(money["budget"], money["spent"] + money["in_flight"] + need), 2)
 
 
 def tried_rows(runs, newest_rows, planned):
@@ -496,6 +512,6 @@ def gathered(batch, props_home, store_root, gaps_of=lambda node: [], now=None, a
             "eta": eta_of(batch.get("totals") or {}, this_try, ended, now),
             "money": money_of(batch.get("totals") or {}, batch.get("stop_line") or {}, found["beat"],
                               0.0 if spent is None and state in LIVE else spent, batch["state"] == "launching",
-                              batch.get("budget"), try_spent),
+                              batch.get("money"), try_spent),
             "scenes": scenes_of(planned, states, running, state in LIVE), "pool": pool,
             "problems": newest_first(problems), "retried": retried, "nodes": nodes_of(planned, states)}

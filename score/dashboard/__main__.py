@@ -16,8 +16,11 @@
     .venv/bin/python -m score.dashboard install-sync --env-file F [--host REPO --dockerfile PATH] [--secret NAME]
         [--no-pull]  # the owner's one command: the sync's systemd user units, once the cockpit runs this dashboard
                      # (sync/timer.py); on the conductor without --host (the cockpit's /api/sync/pin) and with --no-pull
-    .venv/bin/python -m score.dashboard buy-yes <stop euros> <high euros> <answer> <question>
-        # the owner's Buy approved in a session, his answer and the question quoted (checkout/chat_yes.py); its id
+    .venv/bin/python -m score.dashboard batch-money   # what a Buy question names, read only: the batch's spend so
+        # far by the money guard's measure and its parts, this try's likely, high and stop, the batch total it sets
+    .venv/bin/python -m score.dashboard buy-yes --batch-total <euros> <high euros> <answer> <question>
+        # the owner's Buy approved in a session: the batch total he approved, this try's high, his answer and the
+        # question quoted (checkout/chat_yes.py); its id
     .venv/bin/python -m score.dashboard buy <yes id>   # his Buy under that yes, once, as his click (checkout/chat_yes.py)
 """
 import argparse
@@ -73,8 +76,10 @@ def parse(argv):
     words.add_argument("--says", help="one plain sentence: the fault in the place this fixes, as the owner sees it")
     words.add_argument("--ask", action="append", default=[], help="a decision only the owner can make (repeat)")
     words.add_argument("--recommend", action="append", default=[], help="the answer you recommend, one an --ask")
+    commands.add_parser("batch-money", help="the batch's money a Buy question names, read only (checkout/chat_yes.py)")
     yes = commands.add_parser("buy-yes", help="the owner's Buy approved in a session, quoted (checkout/chat_yes.py)")
-    for name in ("stop", "high", "answer", "question"):
+    yes.add_argument("--batch-total", required=True, help="the batch's whole stop he approved, every try in it")
+    for name in ("high", "answer", "question"):
         yes.add_argument(name)
     commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)").add_argument("yes")
     return parser.parse_args(argv)
@@ -84,11 +89,38 @@ def buy_yes(options):
     from score.dashboard.checkout import chat_yes
     migrate()
     try:
-        yes = chat_yes.record(options.stop, options.high, options.answer, options.question)
+        yes = chat_yes.record(options.batch_total, options.high, options.answer, options.question)
     except chat_yes.Refused as refused:
         sys.exit(f"buy-yes: refused: {refused}")
-    print(f"buy-yes {yes['id']}: high EUR {yes['high_euros']:.2f}, stop EUR {yes['stop_euros']:.2f}, "
+    print(f"buy-yes {yes['id']}: high EUR {yes['high_euros']:.2f}, batch total EUR {yes['batch_total_euros']:.2f}, "
           f"{len(yes['basket']['items'])} items of the basket made at {yes['basket']['made_at']}")
+
+
+def batch_money():
+    """Print what a Buy question names (chat_yes.figures), read only, in words; the figures as JSON last."""
+    from score.dashboard.checkout import chat_yes
+    from score.dashboard.launch import guard
+    found = chat_yes.figures(guard.backend().spend)
+    money, now = found["money"], found["try"]
+    if money is None:
+        print(f"Batch {found['batch']}: a new batch, nothing spent of it yet")
+    else:
+        parts = money["parts"] or {}
+        print(f"Batch {found['batch']} ({found['tries']} tries so far): EUR {money['spent']:.2f} spent since its first "
+              f"try's line (the money guard's measure, as of {money['as_of']}), EUR {money['in_flight']:.2f} in "
+              f"flight; budget EUR {money['budget']:.2f}, EUR {money['left']:.2f} left")
+        if found["runs"] is not None:
+            print(f"  its runs' own (rows, warm pools, model calls): EUR {found['runs']:.2f}; other spend meanwhile "
+                  f"(benchmarks, design calls, the bill over the ledger): EUR {money['spent'] - found['runs']:.2f}")
+        if parts:
+            print(f"  the environment's books since its first stop line (the batch counts from EUR "
+                  f"{money['start']:.2f} of it): cloud EUR {parts['cloud']:.2f} (the higher of bill and ledger; "
+                  f"ledger EUR {parts['ledger']:.2f}), model calls EUR {parts['models']:.2f}")
+    print(f"This try (the Buy screen's basket now): likely EUR {now['likely']:.2f}, high EUR {now['high']:.2f}, "
+          f"its stop (high plus 10%) EUR {now['stop']:.2f}")
+    print(f"Batch {found['batch']} total: at least EUR {found['fits']:.2f} holds this try; a Buy click would set "
+          f"EUR {found['click']:.2f}. Ask, then: buy-yes --batch-total <the total he approves> {now['high']:.2f} ...")
+    print(json.dumps(found))
 
 
 def buy(options):
@@ -312,6 +344,8 @@ def main(argv=None):
         film_preview(options)
     elif options.command == "install-sync":
         install_sync(options)
+    elif options.command == "batch-money":
+        batch_money()
     elif options.command == "buy-yes":
         buy_yes(options)
     elif options.command == "buy":

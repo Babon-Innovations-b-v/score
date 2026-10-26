@@ -682,6 +682,8 @@ def test_spend_counts_from_the_worlds_start_across_months():
     months = {"2026-10": {"bill": None, "ledger": 300.0, "google": 5.0}, "2026-11": later}
     start = {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 1.0}
     assert guard.spent_since(start, months) == (200.0 + 4.0) + (30.0 + 2.0)
+    # its parts, which the cockpit names: the bill over the ledger is cloud less ledger
+    assert guard.spent_parts(start, months) == {"cloud": 230.0, "ledger": 225.0, "google": 6.0}
 
 
 def test_the_framework_store_refuses_a_world_with_no_line():
