@@ -16,6 +16,7 @@ linked, and a test that needs environment data fails rather than reach the real 
 import os
 import pathlib
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -85,12 +86,19 @@ def remove(sandbox):
     shutil.rmtree(sandbox, onerror=writable_again)
 
 
+def stopped(number, _frame):
+    """A stopping signal as an exit: subprocess.run kills the test, and run's cleanup still removes the sandbox."""
+    raise SystemExit(128 + number)
+
+
 def run(argv, real=REAL_HOME):
     """Run `argv` in a sandbox home; its exit status."""
     command = read_only_command(real, argv)
     # the run's own temp folder (TMPDIR), its home inside it, removed with it: the tests' mkdtemp stores were never
     # removed and took every inode of /tmp (2026-10-25: 6,000 folders), so nothing else could write there
     temp = pathlib.Path(tempfile.mkdtemp(prefix="score-test-tmp-"))
+    for number in (signal.SIGTERM, signal.SIGHUP):  # a stopped make or a closed terminal still removes both
+        signal.signal(number, stopped)
     sandbox = make_sandbox(real, link=command is not None, temp=temp)
     environ = {name: value for name, value in os.environ.items() if name != "PROPS_WORK"}
     try:
