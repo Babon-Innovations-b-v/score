@@ -1,5 +1,12 @@
 """film_preview.py without Blender or the store: the frames it picks of each shot, a work stage that never writes the
-stage it was made from, and the before-and-after picture laid out from pictures made here."""
+stage it was made from, and the before-and-after picture laid out from pictures made here.
+
+Breaks (each applied once, seen red, reverted), in tools/review/film_preview.py:
+- first and last frame: shot_moments keeps only each shot's first frame.
+- a one-frame shot once: shot_moments lists first and last as a list, not a set.
+- the stage left alone: work_stage links every entry, the root layer and scene record too.
+- rows one under the other: sheet makes the canvas one row tall.
+"""
 import pathlib
 import sys
 

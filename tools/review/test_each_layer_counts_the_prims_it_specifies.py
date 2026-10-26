@@ -1,4 +1,8 @@
-"""ending.py's counts: a stage's layer stack read bottom first, and each layer's prims counted, on a stage made here."""
+"""ending.py's counts: a stage's layer stack read bottom first, and each layer's prims counted, on a stage made here.
+
+Break (applied once, seen red, reverted), in tools/review/ending.py: layer_stack reads the sublayers strongest first
+(no `reversed`).
+"""
 import pathlib
 import sys
 

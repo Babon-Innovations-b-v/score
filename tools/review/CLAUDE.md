@@ -44,7 +44,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   city behind the lit square), so a part is measured on its own: the objects whose prim path holds the `--match` words,
   from the annotate step's ids (`../usd/annotate.py`), and horizontal bands, in linear light against the game's shot
   from the same camera. A knob tuned to the game's brightness (the far city's lit windows) is set from these numbers,
-  never by eye. `brightness_test.py` checks it on pictures made in the test.
+  never by eye. `test_a_region_is_judged_against_the_games_own_light.py` checks it on pictures made in the test.
 - **The demo's films** (`demo.py`, PRD #1's environment demo): a walk-through film of each place from its stage, rendered on
   the cloud, every frame with the game's ink lines (usd_views.py's `ink`, or its `lines_only` laid over looks rendered
   before: the cheap pass, never a re-render for ink alone) and the night glow where the stage carries it. Every shot
@@ -64,7 +64,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   whole within 4 minutes and its sound never dropping (cards and ending on a bed of the nearest film's sound).
   `ending.py` makes K9's two closing clips locally (no Blender, no cloud): one place's accepted assembly as its layer
   stack lifting off with every place's layer count, and "ready for score_lib" from a counts file counted from the
-  store (score_lib is not built; never say it is); `ending_test.py` checks the layer and prim counts. `layers3d` is
+  store (score_lib is not built; never say it is); `test_each_layer_counts_the_prims_it_specifies.py` checks the layer and prim counts. `layers3d` is
   the layer stack in real geometry: `layers_lift.py` renders it in Blender on a rented card (each layer a copy of the
   prims it specifies on its own plate, lifting apart under a slow orbit; the roof and haze left out), and `ending.py
   layers3d` draws the labels on and appends the diagram's last 2 s. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
@@ -74,7 +74,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   copy, exports it for the viewer, and writes one self-contained page (every gate of the place's line, each painted
   take's close-up and parts front and back, the library surfaces waiting for the owner's review, the completion
   gate, `--audit`'s open items for the place). Use it for any place whose assembly the runner accepted;
-  `store_page_test.py` checks the audit reader.
+  `test_a_place_page_reads_its_own_audit_and_status.py` checks the audit reader and the status words.
 - **The viewer** (`viewer/`, its own overlay): a place's stage as a compressed web copy to walk through in the
   browser before any film is made, and the owner's picked viewpoints, which `demo.py` takes as a film's cameras before
   its own spread of the record's.

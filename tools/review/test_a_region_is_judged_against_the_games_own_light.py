@@ -2,7 +2,13 @@
 bright is lit, the game's black sky is never judged, and the bands split the picture top to bottom. No Blender: the
 render, the annotation and the game's shot are written by the test.
 
-Run: .venv/bin/python tools/review/brightness_test.py   (make tests runs it with the framework's environment)
+Breaks (each applied once, seen red, reverted), in tools/review/brightness.py:
+- half as bright is dark: region calls dark only under a tenth of the game (`0.1 * game`).
+- as bright is lit: region counts the whole picture's pixels (`pixels.size`).
+- the game's black sky: region drops its LIT_FLOOR test.
+- the bands: bands spreads the rows over twice the picture's height.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_a_region_is_judged_against_the_games_own_light.py
 """
 import json
 import pathlib
