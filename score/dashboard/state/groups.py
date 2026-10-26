@@ -12,6 +12,9 @@ LAYER_OF_INPUT = {"scene-record": "base", "terrain": "ground", "surfaces-bake": 
                   "sound": "sound", "effects-layer": "effects", "motion": "motion", "light": "light",
                   "motion-models": "motion", "crops-layer": "crops", "settle": "settle",
                   "characters-layer": "characters"}
+# Reads that carry only a row's batch gaps, never its output, so they lay nothing in the reader's layer (the crops
+# read the prop route's rows for the takes it left out, crops/layer.left_out: pixal is still a piece).
+GAP_READS = {"crops-layer": ("pixal", "finish-route-split", "finish-route-recheck")}
 LAYER_ORDER = ("base", "ground", "pieces", "settle", "light", "motion", "effects", "sound", "crops",
                "characters", STAGE_AND_FILMS)
 # Display words for a stage; any other stage shows its own name.
@@ -129,7 +132,8 @@ def layers(rows):
     """{stage: layer} of every place stage: the assembly and what reads it is STAGE_AND_FILMS; else the first
     assembly input its readers reach; else the first one it reads; else STAGE_AND_FILMS."""
     by_name = {row.name: row for row in rows}
-    readers = readers_of(rows)
+    readers = {name: [reader for reader in found if name not in GAP_READS.get(reader, ())]
+               for name, found in readers_of(rows).items()}
     found = {}
     for row in rows:
         if row.grain != "place":
