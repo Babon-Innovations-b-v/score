@@ -3,7 +3,15 @@ exports to a meshopt-compressed binary with every triangle, its surfaces named a
 sidecar with the lamp, the sky and the boxes; picked viewpoints are saved, checked and read back; the server lists the
 place, serves its viewer and copy, and saves a viewpoint sent to it. Runs gltfpack through npx; no Blender, no cloud.
 
-Run: .venv/bin/python tools/review/viewer/viewer_test.py   (make tests runs it with the framework's environment)
+Breaks (each applied once, seen red, reverted), in tools/review/viewer/ (export.py unless named):
+- polygons as fans: fan starts each triangle one corner late (`first + step`).
+- the export whole: drawn takes every mesh, the guide purpose too (`shown = True`).
+- a web-size picture: web_picture never keeps a see-through picture's alpha (`see_through = False`).
+- a tile's repeat: repeat_scale finds no scale (`return None`).
+- picks saved and checked: viewpoints.checked keeps a name already taken.
+- the server: serve.py's handler serves any file under a place's copy, its gltfpack.log too.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/viewer/test_the_web_copy_is_the_stage_whole_and_the_picks_are_kept.py
 """
 import json
 import math
@@ -48,7 +56,7 @@ def surface(stage, path, picture=None, colour=(0.5, 0.2, 0.1)):
     return material
 
 
-def test_stage(folder):
+def a_stage(folder):
     """A place: one mesh (a square and a pentagon, the pentagon a `trim` part), moved 2 m up, a lamp and a sky."""
     picture = folder / "paint.png"
     Image.new("RGB", (2048, 1024), (200, 120, 40)).save(picture)
@@ -89,6 +97,19 @@ def test_stage(folder):
     return folder / f"{PLACE}.usda"
 
 
+EXPORTED = []  # (the stage made here, the web folder its copy was exported into), made once for the file
+
+
+def exported():
+    """The test's stage exported once (gltfpack through npx): (stage, web folder)."""
+    if not EXPORTED:
+        folder = pathlib.Path(tempfile.mkdtemp())
+        stage = a_stage(folder)
+        export.export(PLACE, stage, folder / "web")
+        EXPORTED.append((stage, folder / "web"))
+    return EXPORTED[0]
+
+
 def glb_document(path):
     """The JSON chunk of a glTF binary."""
     data = path.read_bytes()
@@ -97,14 +118,15 @@ def glb_document(path):
     return json.loads(data[20:20 + length])
 
 
-def check_fan():
+def test_each_polygon_is_a_triangle_fan():
     triangles, faces = export.fan([3, 5, 4])
     assert triangles.tolist() == [[0, 1, 2], [3, 4, 5], [3, 5, 6], [3, 6, 7], [8, 9, 10], [8, 10, 11]]
     assert faces.tolist() == [0, 1, 1, 1, 2, 2]
 
 
-def check_export(stage, out):
-    sidecar = json.loads(export.export(PLACE, stage, out).read_text())
+def test_the_web_copy_holds_every_drawn_triangle_its_surfaces_lamp_and_sky():
+    stage, out = exported()
+    sidecar = json.loads((out / PLACE / f"{PLACE}.json").read_text())
     document = glb_document(out / PLACE / f"{PLACE}.glb")
     assert sidecar["triangles"] == 2 + 3, "every triangle of the square and the pentagon, nothing of the guide"
     assert "EXT_meshopt_compression" in document["extensionsRequired"]
@@ -124,7 +146,8 @@ def check_export(stage, out):
     assert sidecar["cameras"] == [] and sidecar["left_out"] == {}
 
 
-def check_web_picture(folder):
+def test_a_picture_goes_in_at_web_size_keeping_its_alpha():
+    folder = pathlib.Path(tempfile.mkdtemp())
     wide, see_through = folder / "wide.png", folder / "cut.png"
     Image.new("RGB", (4096, 2048), (10, 20, 30)).save(wide)
     picture = Image.new("RGBA", (64, 64), (10, 20, 30, 255))
@@ -135,7 +158,8 @@ def check_web_picture(folder):
     assert export.web_picture(str(see_through), folder / "b") == "b.png", "a see-through picture keeps its alpha"
 
 
-def check_tile_repeat(folder):
+def test_a_library_tile_keeps_its_repeat():
+    folder = pathlib.Path(tempfile.mkdtemp())
     """A room shell's library tile (tools/usd/shaders.py tile_look) reaches glTF with its repeat on every picture, as
     KHR_texture_transform."""
     import shaders
@@ -154,7 +178,8 @@ def check_tile_repeat(folder):
     assert gltf.document["extensionsUsed"] == [export.TRANSFORM]
 
 
-def check_viewpoints(root):
+def test_picked_viewpoints_are_saved_checked_and_read_back():
+    root = pathlib.Path(tempfile.mkdtemp())
     view = {"eye": [1, 1.6, 2], "aim": [0, 1.2, -3], "fov": 80}
     assert viewpoints.read(PLACE, root) == []
     first = viewpoints.append(PLACE, dict(view, name="  by  the door "), root)
@@ -187,7 +212,8 @@ def fetch(url, body=None):
         return error.code, error.read()
 
 
-def check_server(web, picks):
+def test_the_server_serves_only_the_copy_and_saves_a_pick():
+    web, picks = exported()[1], pathlib.Path(tempfile.mkdtemp())
     server = ThreadingHTTPServer(("127.0.0.1", 0), serve.handler(web, picks))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{server.server_address[1]}"
@@ -212,15 +238,9 @@ def check_server(web, picks):
 
 
 if __name__ == "__main__":
-    import pathlib
     import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    check_fan()
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        check_web_picture(folder)
-        check_tile_repeat(folder)
-        check_export(test_stage(folder), folder / "web")
-        check_viewpoints(folder / "picks")
-        check_server(folder / "web", folder / "served-picks")
-    print("viewer_test: ok")
+    runpy.run_path(str(HERE.parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
+    for name, test in list(globals().items()):
+        if name.startswith("test_"):
+            test()
+            print("ok", name)
