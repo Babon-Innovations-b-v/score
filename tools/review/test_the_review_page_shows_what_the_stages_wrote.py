@@ -1,9 +1,25 @@
 """Check the review page on two runs made here: a stage that was rerun shows before and after, a check that caught
 something says what it caught, a stage that wrote nothing reads as not recorded, and the scene's cameras all stand
 outside the place looking at it. No Blender: the renders' record is written by the test and the page built with
---no-render.
+--no-render. The page is the module's one output, so its cases read the built page for what it must show, each worked
+out apart from the page code (a run's numbers, the files the test drew); "Not recorded" is a wording check guarding
+the overlay's rule that a stage that wrote nothing reads as not recorded, never as a stand-in. Each case is a check
+returning its problems; the test_ wrappers at the end fail on any.
 
-Run: .venv/bin/python tools/review/review_test.py   (make tests runs it with the framework's environment)
+Breaks (each applied once, seen red, reverted), in tools/review/ (page.py unless named):
+- a rerun before and after: shot_cell never pairs two runs' shots (`if False:`).
+- a check says what it caught: label_rows never names an unregistered split.
+- not recorded: missing drops its "Not recorded:" words.
+- cameras outside looking in: renders.fixed_views stands each side view 1 m from the middle.
+- a room seen from inside: renders.cutaway leaves no layer out (`hide_layers=[]`).
+- every view inked: renders.record_views marks no view `ink`.
+- an overlap in the resting table: resting_rows keeps the objects that passed too.
+- the plans shown: dimensioned_block reads a plan that is gone as found.
+- a before stage beside the game: game_beside never lays the before stage's view.
+- only the places drawn: renders.places_shown lists a place each time it is named.
+- owner and coordinator apart: rejected_sentence reads the owner's list under the coordinator's name.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_the_review_page_shows_what_the_stages_wrote.py
 """
 import json
 import pathlib
@@ -121,52 +137,49 @@ def cut_covers(over, entry):
                 and high[2] > over["low"][1] and low[2] < over["high"][1])
 
 
-def box_contains(entry, point):
-    """Whether a point lies inside a structure box."""
-    offset = np.abs(np.array(point) - np.array(entry["centre"]))
-    return bool(np.all(offset < np.array(entry["size"]) / 2))
+# A closed room's scene record as data/scene/<place>.json held them (that folder is retired; the renders still read
+# the record's shape): a 6 x 8 m floor, a 3 m ceiling, a roof slab over it, two of the player's spots inside.
+ROOM = {"inside": True, "floor": [[-3.0, -4.0], [3.0, 4.0]], "ceiling": 3.0,
+        "views": [{"name": "door", "eye": [-2.5, 1.6, 3.5], "aim": [0.0, 1.2, 0.0], "game": "door.png"},
+                  {"name": "desk", "eye": [2.0, 1.6, -3.0], "aim": [0.0, 1.2, 0.0]}],
+        "structure": [{"builder": "box", "name": "roof", "centre": [0.0, 3.1, 0.0], "size": [6.0, 0.2, 8.0]},
+                      {"builder": "box", "name": "desk", "centre": [2.0, 0.4, -3.5], "size": [1.2, 0.8, 0.6]}]}
+ROOF_LAYER = 2  # a roof's draw layer (tools/review/CLAUDE.md: "a room with a roof (draw layer 2)")
+STANDING = 1.6  # a person's eye height, metres
 
 
 def a_room_is_seen_from_inside():
-    """Every room's scene record puts its cameras inside its floor (never outside a closed room), its walk at
-    standing height inside it, and its cutaway over it with the roof left out."""
-    import scene
-    problems = []
-    for path in sorted(scene.SCENES.glob("*.json")):
-        record = scene.record(path.stem)
-        if not record.get("inside"):
-            continue
-        low, high = np.array(record["floor"][0]), np.array(record["floor"][1])
-        for view in renders.record_views(record):
-            eye = np.array(view["eye"])[[0, 2]]
-            if not (np.all(eye >= low - 0.5) and np.all(eye <= high + 0.5)):
-                problems.append(f"{path.stem}: {view['name']} stands outside the room")
-        cut = renders.cutaway(record)
-        if cut["hide_layers"] != [renders.ROOF_LAYER] or cut["eye"][1] <= record.get("ceiling", 3.0):
-            problems.append(f"{path.stem}: the cutaway is not over the room with its roof left out")
-        for entry in record.get("structure", []):
-            if entry["builder"] == "box" and cut_covers(cut["hide_over"], entry):
-                continue
-            if entry["builder"] == "box" and box_contains(entry, cut["eye"]):
-                problems.append(f"{path.stem}: the cutaway's eye is inside {entry['name']}, which it does not leave out")
-        walk = renders.record_walk(record)
-        if any(frame["eye"][1] != renders.STANDING for frame in walk):
-            problems.append(f"{path.stem}: the walk is not at standing height")
+    """A room's scene record puts its cameras inside its floor (never outside a closed room), its walk at standing
+    height inside it, and its cutaway over it with the roof left out."""
+    record, problems = ROOM, []
+    low, high = np.array(record["floor"][0]), np.array(record["floor"][1])
+    for view in renders.record_views(record):
+        eye = np.array(view["eye"])[[0, 2]]
+        if not (np.all(eye >= low - 0.5) and np.all(eye <= high + 0.5)):
+            problems.append(f"{view['name']} stands outside the room")
+    cut = renders.cutaway(record)
+    if cut["hide_layers"] != [ROOF_LAYER] or cut["eye"][1] <= record["ceiling"]:
+        problems.append("the cutaway is not over the room with its roof left out")
+    if not cut_covers(cut["hide_over"], record["structure"][0]):
+        problems.append("the cutaway does not leave the roof slab out")
+    if cut_covers(cut["hide_over"], record["structure"][1]):
+        problems.append("the cutaway leaves out the desk under the ceiling")
+    walk = renders.record_walk(record)
+    if not walk or any(frame["eye"][1] != STANDING for frame in walk):
+        problems.append("the walk is not at standing height")
+    for frame in walk:
+        eye = np.array(frame["eye"])[[0, 2]]
+        if not (np.all(eye >= low) and np.all(eye <= high)):
+            problems.append(f"the walk's {frame['name']} leaves the room")
     return problems
 
 
 def every_view_a_place_is_inked():
     """Every one of a place's own cameras is also drawn with the game's ink lines, as the game draws them over every
-    frame, no scene record still lists them as drawn only by the game, and the page lays each inked view beside its
-    look (and none it was not given)."""
-    import scene
+    frame, and the page lays each inked view beside its look (and none it was not given)."""
     problems = []
-    for path in sorted(scene.SCENES.glob("*.json")):
-        record = scene.record(path.stem)
-        if not all(view.get("ink") for view in renders.record_views(record)):
-            problems.append(f"{path.stem}: not every view is inked")
-        if any("ink lines" in entry for entry in record.get("game_only", [])):
-            problems.append(f"{path.stem}: game_only still lists the ink lines")
+    if not all(view.get("ink") for view in renders.record_views(ROOM)):
+        problems.append("not every view is inked")
     with tempfile.TemporaryDirectory() as folder:
         out = pathlib.Path(folder)
         (out / "scene/now").mkdir(parents=True)
@@ -180,11 +193,15 @@ def every_view_a_place_is_inked():
 
 
 def an_overlap_reads_in_the_resting_table():
-    """An object caught only for lying inside another (a hung one: no gap, no depth) reads as its overlap."""
+    """An object caught only for lying inside another (a hung one: no gap, no depth) reads as its overlap, its gap
+    and depth cells empty; an object that passed has no row."""
     rows = page.resting_rows("now", [{"object": "lamp_1", "passed": False, "result": "hung, not checked; overlaps "
-                                      "cable_1 by 4 cm"}])
-    if len(rows) != 1 or "overlaps cable_1 by 4 cm" not in rows[0]:
-        return ["a hung object's overlap does not read in the resting table"]
+                                      "cable_1 by 4 cm"},
+                                     {"object": "crate_1", "passed": True, "gap": 0.001, "depth": 0.0, "result": "ok"}])
+    if len(rows) != 1 or "overlaps cable_1 by 4 cm" not in rows[0] or "crate_1" in rows[0]:
+        return ["only the hung object's overlap should read in the resting table"]
+    if rows[0].count('<td class="num"></td>') != 2:
+        return ["a hung object's gap and depth are not left empty"]
     return []
 
 
@@ -248,19 +265,54 @@ def the_owner_and_the_coordinator_are_told_apart():
     return []
 
 
-CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
-          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, every_view_a_place_is_inked,
-          an_overlap_reads_in_the_resting_table, the_plans_an_inventory_names_are_shown,
-          a_before_stage_stands_beside_the_game, only_the_places_drawn_are_sent,
-          the_owner_and_the_coordinator_are_told_apart)
+def test_a_rerun_shows_before_and_after():
+    assert a_rerun_shows_before_and_after() == []
+
+
+def test_a_check_says_what_it_caught():
+    assert a_check_says_what_it_caught() == []
+
+
+def test_a_stage_that_wrote_nothing_is_not_recorded():
+    assert a_stage_that_wrote_nothing_is_not_recorded() == []
+
+
+def test_the_cameras_stand_outside_looking_in():
+    assert the_cameras_stand_outside_looking_in() == []
+
+
+def test_a_room_is_seen_from_inside():
+    assert a_room_is_seen_from_inside() == []
+
+
+def test_every_view_a_place_is_inked():
+    assert every_view_a_place_is_inked() == []
+
+
+def test_an_overlap_reads_in_the_resting_table():
+    assert an_overlap_reads_in_the_resting_table() == []
+
+
+def test_the_plans_an_inventory_names_are_shown():
+    assert the_plans_an_inventory_names_are_shown() == []
+
+
+def test_a_before_stage_stands_beside_the_game():
+    assert a_before_stage_stands_beside_the_game() == []
+
+
+def test_only_the_places_drawn_are_sent():
+    assert only_the_places_drawn_are_sent() == []
+
+
+def test_the_owner_and_the_coordinator_are_told_apart():
+    assert the_owner_and_the_coordinator_are_told_apart() == []
 
 
 if __name__ == "__main__":
-    import pathlib
     import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
-    for failure in failures:
-        print(failure)
-    print("ok" if not failures else f"{len(failures)} failed")
-    sys.exit(1 if failures else 0)
+    runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
+    for name, test in list(globals().items()):
+        if name.startswith("test_"):
+            test()
+            print("ok", name)
