@@ -298,6 +298,11 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     building = {"id": "building_shell", "route": "shell", "part": "structure"}
     assert groups.routed(building, {"wall"}, set(), {"building_shell"})["route"] == "plan"  # never a close-up
     assert groups.routed(building, {"wall"}, set(), set()) == building
+    ribs = {"id": "ribs", "name": "arched structural ribs", "noun": "ribs", "part": "structure", "route": "shell",
+            "size": [3.2, 0.2, 3.2]}  # the tube's: its box the whole picture, laid by the shell at its plan items
+    tube = {"items": [["RIBS 1", 0, 0, 9.3, 0.22, None, "item"]], "rows": {"RIBS 1": ["ribs"]}}
+    assert groups.plan_arches(tube, [ribs]) == {"ribs"} and groups.plan_arches({}, [ribs]) == set()
+    assert groups.routed(ribs, set(), set(), groups.plan_arches(tube, [ribs]))["route"] == "plan"
     assert [by_id[name]["route"] for name in ("fuel_drum", "astronaut", "wall_lamp", "night_sky")] == [
         "prop", "people", "prop", "sky"]
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())

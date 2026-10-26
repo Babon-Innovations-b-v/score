@@ -16,7 +16,8 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   `slab` and `gable` entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
   inside place (walls or roofs drawn, no terrain spots) whose base does not lay it already (`design_shell.laid_for`: a
   room whose plan says its kit holds its walls, laid by earth-seed); an open place has none. Every stair or ramp the
-  plan draws is a flight of `stairs`. Each entry's surface is the scene's surface library's for its kind
+  plan draws is a flight of `stairs`; each plan item of an arched structure row of the hand-in
+  (`design_shell.arched`: a tube's ribs) an `arch` at the row's size, painted as a wall, named its row. Each entry's surface is the scene's surface library's for its kind
   (surface-library@<place>, an `after`; `design_shell.PART_KINDS`, as earth-seed paints), else none and its
   `surface_missing` says why; tools/usd/scene.py names that on the mesh and binds nothing (no fixed surface name).
 - **Objects from the plan's items** (2026-10-25: the record laid none, so no designed place's model was placed): one

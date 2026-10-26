@@ -12,6 +12,7 @@ import json
 import pathlib
 import sys
 import tempfile
+import numpy as np
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
@@ -227,6 +228,40 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
     unsized = {**handin, "rows": [{**row, "size": None} if row["id"] == "rail" else row for row in handin["rows"]]}
     [rail] = [entry for entry in writer.design_objects(design, unsized) if entry["name"] == "rail_1"]
     assert "row rail has no size" in rail["waiting"], rail
+
+
+def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():
+    """Batch 1's retry: the tube's ribs, their box the whole picture, framed no close-up. The shell lays an arched
+    structure row (design_shell.arched) as an `arch` at each plan item tied to it, at the row's size, named its row,
+    painted as a wall; a block of no band, or a row of no structure, is not arched."""
+    from pxr import Usd
+    from score.stages.earth_seed import design_shell
+    from score.stages.scene_record import writer
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene
+    rib = {"id": "structural_ribs", "name": "arched structural ribs", "noun": "ribs", "part": "structure",
+           "route": "plan", "size": [3.2, 0.2, 3.2], "count": 2}
+    assert design_shell.arched(rib) and not design_shell.arched({**rib, "size": [3.2, 2.0, 3.2]})
+    assert not design_shell.arched({**rib, "part": "object"})
+    design = {**WRITTEN, "items": [*WRITTEN["items"], ["RIBS 1", 0.0, 1.0, 8.0, 0.2, None, "item"],
+                                   ["RIBS 2", 0.0, 4.0, 8.0, 0.2, None, "item"]],
+              "rows": {**WRITTEN["rows"], "RIBS 1": ["structural_ribs"], "RIBS 2": ["structural_ribs"]}}
+    with tempfile.TemporaryDirectory() as folder:
+        output, inputs = written(folder, design)
+        (pathlib.Path(folder) / "hand-in.json").write_text(json.dumps({**HANDIN, "rows": [*HANDIN["rows"], rib]}))
+        record = writer.record_of(json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text()), design,
+                                  inputs)
+    ribs = [entry for entry in record["structure"] if entry["builder"] == "arch"]
+    assert [entry["name"] for entry in ribs] == ["structural_ribs_1", "structural_ribs_2"], ribs
+    assert all(entry["row"] == "structural_ribs" and entry["plain"] == "shell" for entry in ribs), ribs
+    assert ribs[0]["feet"] == [[-1.6, -1.9], [1.6, -1.9]] and ribs[0]["low"] == 0.0, ribs[0]  # the item's middle
+    assert "structural_ribs" not in {entry["row"] for entry in record["objects"]}  # no model take waits for it
+    stage = Usd.Stage.CreateInMemory()
+    scene.write_structure(stage, "tube", ribs)
+    built = scene.built_meshes(ribs[0])[0]["points"]
+    assert np.allclose(built.min(0), [-1.6, 0.0, -2.0]) and np.allclose(built.max(0), [1.6, 3.2, -1.8]), built
+    mesh = stage.GetPrimAtPath("/tube/Structure/structural_ribs_1")
+    assert mesh.GetAttribute("score:row").Get() == "structural_ribs", mesh
 
 
 def test_a_floodlight_tower_read_as_a_tower_gets_a_light_at_its_head():
