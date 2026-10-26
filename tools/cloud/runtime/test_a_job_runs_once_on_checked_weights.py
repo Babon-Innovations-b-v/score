@@ -42,8 +42,6 @@ import urllib.request
 import pytest
 
 ROOT = pathlib.Path(tempfile.mkdtemp())
-os.environ["SCORE_WORK"] = str(ROOT / "work")
-os.environ["SCORE_CACHE"] = str(ROOT / "cache")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import hf_cache  # noqa: E402
@@ -58,9 +56,15 @@ MEGABYTE = 1024 * 1024
 
 
 @pytest.fixture(autouse=True)
-def roomy_disk(monkeypatch):
-    """The tests' own disk always has room, so this machine's free space cannot fail them (the eviction test passes
-    its own); each test's holds on its models end with it."""
+def roomy_disk(monkeypatch, tmp_path):
+    """The job's work folder and the node cache in the test's own folder, never /work or /cache; the tests' own disk
+    always has room, so this machine's free space cannot fail them (the eviction test passes its own); each test's
+    holds on its models end with it."""
+    monkeypatch.setattr(jobs, "WORK", tmp_path / "work")
+    monkeypatch.setattr(weights, "CACHE", tmp_path / "cache")
+    real_all_ready = weights.all_ready  # its cache's default was bound at import
+    monkeypatch.setattr(weights, "all_ready", lambda store, names, models, tool_only, cache=None: real_all_ready(
+        store, names, models, tool_only, cache or weights.CACHE))
     real = weights.make_room
     monkeypatch.setattr(weights, "make_room", lambda cache, needed, free=lambda: 1 << 50: real(cache, needed, free))
     weights.real_make_room = real
