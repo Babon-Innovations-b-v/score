@@ -54,7 +54,8 @@ def test_only_thin_rows_of_a_straight_kind_are_taken():
     assert thin_straight.thin_straight({"name": "communications tower", "noun": "tower", "size": [2.0, 2.0, 15.0]})
     assert not thin_straight.thin_straight({"name": "computer tower", "noun": "computer", "size": [0.2, 0.4, 0.5]})
     assert not thin_straight.thin_straight({"name": "wall poster", "size": [0.4, 0.01, 0.6]})  # post is not poster
-    assert not thin_straight.thin_straight({"name": "metal railing", "size": [50.0, 0.1, 1.0]})  # posts and rails
+    assert thin_straight.thin_straight({"name": "metal railings", "size": [9.435, 0.1, 1.0]})  # posts and rails
+    assert thin_straight.profile({"name": "glass balustrade"}) == "railing"
     assert thin_straight.thin_straight({"name": "strip floor light", "noun": "light", "size": [0.8, 0.1, 0.05]})  # glows
     assert thin_straight.thin_straight({"name": "string lights", "noun": "lights", "size": [3.0, 0.05, 0.05]})
     assert thin_straight.profile({"name": "lantern string", "noun": "lanterns"}) == "round"  # its cable
@@ -71,6 +72,25 @@ def test_the_profile_is_swept_along_the_longest_side_at_the_row_s_size():
     post = thin_straight.build(POST)  # size is wide, deep, tall: the post stands 2.5 m up y
     assert np.allclose(post.extents, [0.1, 2.5, 0.1]) and thin_straight.profile(POST) == "rect"
     assert len(post.vertices) == 8
+
+
+def test_a_railing_is_posts_at_most_a_post_gap_apart_under_a_top_and_a_mid_rail(tmp_path):
+    row = {"id": "railing", "name": "metal railing", "noun": "railing", "size": [9.435, 0.1, 1.0], "view": "v1"}
+    built = thin_straight.build(row)
+    assert np.allclose(built.extents, [0.1, 1.0, 9.435]) and np.allclose(built.bounds.mean(0), 0.0)
+    parts = thin_straight.railing(*built.extents)
+    posts = [part for part in parts if np.allclose(part.extents, [0.1, 1.0, 0.1])]
+    rails = [part for part in parts if part.extents[2] > 9.4]
+    assert len(posts) == 8 and len(rails) == 2  # 9.435 m in bays of at most 1.5 m: 7 bays
+    gaps = np.diff(sorted(post.bounds.mean(0)[2] for post in posts))
+    assert gaps.max() <= thin_straight.POST_GAP and np.allclose(gaps, gaps[0])
+    assert sorted(round(rail.bounds[1][1], 3) for rail in rails) == [0.025, 0.5]  # the mid rail, the top rail
+    pixal = tmp_path / "pixal"
+    pixal.mkdir()
+    picture = Image.new("RGBA", (40, 10), (90, 90, 90, 255))
+    assert thin_straight.write_take("railing_1", row, picture, 4000, pixal, tmp_path / "railing.png")
+    import trimesh
+    assert np.allclose(trimesh.load(pixal / "railing_1-final.glb", force="mesh").extents, [0.1, 1.0, 9.435], atol=0.01)
 
 
 def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it(tmp_path, monkeypatch):
