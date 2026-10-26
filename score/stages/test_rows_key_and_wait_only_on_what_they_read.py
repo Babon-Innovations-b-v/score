@@ -69,7 +69,8 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
                       "score/adapters/compute/__init__.py", "score/stages/effects/__init__.py",
                       "score/stages/assembly/__init__.py", "score/stages/surfaces/__init__.py"):
         assert terrain_code_after_editing(unrelated) == before, unrelated
-    for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/design.py", "score/stages/terrain/outside.py"):
+    for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/design.py",
+                "score/stages/terrain/outside.py"):
         assert terrain_code_after_editing(own) != before, own
 
 
@@ -223,7 +224,8 @@ def designed(store, place):
     reading.kept(store, {"place": place, "concept": sha, "at": "2026-10-20T09:10:00+00:00", "method": reading.METHOD,
                          "inventory": {"rows": [{"id": "desk", "name": "desk", "count": 1}]}})
     plan_writing.kept(store, {"place": place, "concept": sha, "reading": "2026-10-20T09:10:00+00:00",
-                              "method": plan_writing.METHOD, "at": "2026-10-20T09:30:00+00:00", "by": "test", "euros": 0.0,
+                              "method": plan_writing.METHOD, "at": "2026-10-20T09:30:00+00:00", "by": "test",
+                              "euros": 0.0,
                               "plan": {"title": place.upper(), "w": 3.0, "d": 3.0, "items": [], "doors": []}})
 
 
