@@ -5,7 +5,18 @@ the hero's film and the store's other films made here in the order given, stops 
 names it; world 1's timeline stays within its cap. The whole cut needs the films and their stills; no
 Blender, no cloud.
 
-Run: .venv/bin/python tools/review/showcase_test.py   (make tests runs it with the framework's environment)
+Breaks (each applied once, seen red, reverted), in tools/review/showcase.py:
+- the legend: surfaces_legend gives every part an even share.
+- the figure: shown_shot always takes the second shot.
+- the chain: chain_cards lets steps out of order through.
+- the credit: credited never draws a credit.
+- the timeline: timeline leaves the ending out.
+- the world: world keeps the films' given order, the hero not first.
+- many clips in groups: joined_in_groups counts each group as long as its clips without their cross-fades.
+- picture outlasting sound: joined_apart lays the picture down without its sound (no `-map 1:a`). (Joining them all
+  in one graph, the 2026-10-18 stall, does not stall on clips this small, so this test cannot show that one.)
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_the_showcase_cuts_every_film_in_order_within_its_cap.py
 """
 import json
 import pathlib
@@ -22,7 +33,13 @@ sys.path.insert(0, str(HERE))
 import showcase  # noqa: E402
 
 
-def check_legend(folder):
+def a_folder():
+    """A fresh folder in the run's own temp folder (removed with it)."""
+    return pathlib.Path(tempfile.mkdtemp())
+
+
+def test_each_surfaces_share_is_its_share_of_the_area():
+    folder = a_folder()
     """Two parts, one three times the other's area: 75% and 25%, each with its library colour in sRGB."""
     big, small = trimesh.creation.box(extents=(3.0, 1.0, 1.0)), trimesh.creation.box(extents=(1.0, 1.0, 1.0))
     files = []
@@ -48,7 +65,8 @@ def films_folder(folder):
         Image.new("RGBA", (64, 36), (10, 9, 8, 255)).save(frames / f"{name}-lines.png")
 
 
-def check_figure(folder):
+def test_the_figure_lays_one_inked_frame_of_every_film_in_story_order():
+    folder = a_folder()
     films_folder(folder)
     assert showcase.shown_shot(folder, "flat") == 2 and showcase.shown_shot(folder, "stairwell") == 1
     showcase.figure(folder, folder / "figure.jpg")
@@ -68,7 +86,7 @@ def store_film(path, shade):
     return path
 
 
-def check_chain():
+def test_the_chain_keeps_its_order_and_stops_on_a_wrong_step():
     """The chain's cards keep its order (a step may take two cards), and a step it does not have, steps out of order or
     more than CHAIN_MOST cards stop the cut."""
     steps = [{"step": "References and style", "pictures": ["r.png"]}, {"step": "Concept", "pictures": ["c.png"]},
@@ -85,7 +103,7 @@ def check_chain():
             pass
 
 
-def check_credit():
+def test_a_credited_picture_carries_its_credit():
     """A credited picture carries its credit at the bottom right; an uncredited one is left as it was."""
     plain = Image.new("RGB", (showcase.W, showcase.H), (200, 200, 200))
     assert np.array_equal(np.asarray(showcase.credited(plain.copy(), None)), np.asarray(plain))
@@ -93,7 +111,7 @@ def check_credit():
     assert (marked[-60, -60] != 200).any() and (marked[60, 60] == 200).all()
 
 
-def check_timeline():
+def test_world_ones_timeline_stays_within_its_cap():
     """World 1 as cut on 18 Oct (four chain cards, 27 films, the two ending clips joined): every place PLACE_MOST, the
     places most of the time, and the whole within WORLD_MOST."""
     shown = [(film, showcase.PLACE_MOST) for film, *_ in showcase.PLACES] + [("hull", showcase.PLACE_MOST)]
@@ -104,7 +122,8 @@ def check_timeline():
     assert sum(seconds for _, seconds in shown) / whole > 0.75, whole
 
 
-def check_world(folder):
+def test_the_world_video_shows_the_hero_first_and_names_a_missing_film():
+    folder = a_folder()
     """The hero's film comes right after the chain whatever its story place, a missing film stops the cut but not a
     draft, the video is as long as its timeline, and its sound never drops below a whisper."""
     films = [("stairwell", "Stairwell", store_film(folder / "a/film.mp4", 40), "a"), ("street", "Street", None, None),
@@ -137,25 +156,10 @@ def check_world(folder):
         assert sheet.size == (4 * showcase.TILE[0] + 24, showcase.TILE[1]), sheet.size
 
 
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    with tempfile.TemporaryDirectory() as temporary:
-        check_chain()
-        check_credit()
-        check_timeline()
-        for check in (check_legend, check_figure, check_world):
-            place = pathlib.Path(temporary) / check.__name__
-            place.mkdir()
-            check(place)
-    print("showcase_test: ok")
-
-
-def test_many_clips_join_in_groups_as_long_as_one_join(tmp_path):
+def test_many_clips_join_in_groups_as_long_as_one_join():
+    tmp_path = a_folder()
     """57 clips in one ffmpeg graph stalled (2026-10-18): the world joins in groups of JOIN_GROUP, every cross-fade
     kept, so 10 one-second clips still come out 10 - 9 x FADE_SECONDS long."""
-    import subprocess
     clips = []
     for index in range(10):
         clip = tmp_path / f"c{index}.mp4"
@@ -169,10 +173,10 @@ def test_many_clips_join_in_groups_as_long_as_one_join(tmp_path):
     assert abs(seconds - (10 - 9 * showcase.demo.FADE_SECONDS)) < 0.1
 
 
-def test_clips_whose_picture_outlasts_their_sound_join_with_both(tmp_path):
+def test_clips_whose_picture_outlasts_their_sound_join_with_both():
+    tmp_path = a_folder()
     """A film clip's picture runs 3.54 s, its sound 3.5 s; 8 such clips in one graph wrote nothing (2026-10-18). Joined
     apart, the picture is as long as one join and the sound is there."""
-    import subprocess
     clips = []
     for index in range(8):
         clip = tmp_path / f"s{index}.mp4"
@@ -188,3 +192,12 @@ def test_clips_whose_picture_outlasts_their_sound_join_with_both(tmp_path):
                                     str(out)], capture_output=True, text=True, check=True).stdout)
     assert sorted(kinds) == ["audio", "video"]
     assert abs(seconds - (8 * 3.5417 - 7 * showcase.demo.FADE_SECONDS)) < 0.2
+
+
+if __name__ == "__main__":
+    import runpy
+    runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
+    for name, test in list(globals().items()):
+        if name.startswith("test_"):
+            test()
+            print("ok", name)
