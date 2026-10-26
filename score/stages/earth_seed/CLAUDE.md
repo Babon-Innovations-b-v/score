@@ -20,7 +20,10 @@ the gates.
   the ground, a balcony a slab); the scene record lays every other enclosed place's shell from the same pieces and
   every stair and ramp (scene_record.writer), and each arched structure row's band at its plan items
   (`arched`, `arches`: a rib, arch or hoop, thin across; owner, 2026-10-26: the framework may build structure pieces
-  as the earth seed builds shells). No special case by place name.
+  as the earth seed builds shells). Each wall cuts the plan's openings and those its door and window rows fill at
+  their plan items (`cut_for`, `row_openings`: the earth seed's from the design inventory, the scene record's from
+  the hand-in; the library holds no door or window, so their models come by the prop route). No special case by
+  place name.
 - **Each part's surface is the scene's own surface library's** (surface-library@<place>, its `materials.json`, read
   as an `after`; a place with no surface line reads without it): the first variant its `kinds` gives the part's kind
   (`PART_KINDS`, palette_library.SHELL_KINDS: a deck the floor's, a wall the wall's, a roof the roof's else the

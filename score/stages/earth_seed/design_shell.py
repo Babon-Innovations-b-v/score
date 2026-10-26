@@ -67,6 +67,8 @@ DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a data door's
 ROOT = "Shell"
 # The kinds of an arched structure row (`arched`), by a word of its name or noun, a plural's s dropped.
 ARCHED = frozenset(("rib", "arch", "hoop"))
+# The kinds of a row filling an opening of its wall (fills_opening).
+OPENING_KINDS = frozenset(("door", "window", "gate", "hatch", "shutter"))
 # An arched row is a band: its deep under this share of its wide and of its tall.
 BAND_SHARE = 0.25
 # The scene library's kinds each part takes its surface from, the first it names a variant for: one answer with the
@@ -193,6 +195,12 @@ def written_wall(plan, start, end):
 
 def openings_of(plan):
     """Every opening of the plan as {at [x, y], wide, sill, head}: a written plan's `openings`, else a data plan's
+    `doors`; and the openings its door and window rows fill (`row_openings`, cut_for)."""
+    return plan_openings(plan) + list(plan.get("row_openings") or [])
+
+
+def plan_openings(plan):
+    """The plan's own openings as {at [x, y], wide, sill, head}: a written plan's `openings`, else a data plan's
     `doors` ([side, along, wide, words]: N and S along x, E and W along y; its head from its words)."""
     if plan.get("openings"):
         return [{"at": list(map(float, opening["at"])), "wide": float(opening["wide"]),
@@ -207,6 +215,42 @@ def openings_of(plan):
         found.append({"at": at, "wide": float(door[2]), "sill": 0.0,
                       "head": float(sized.group(1)) if sized else DOOR_HEAD})
     return found
+
+
+def fills_opening(row):
+    """Whether an inventory row fills an opening of its wall (a door, window, gate, hatch or shutter by a word of its
+    id, name or noun, a plural's s dropped), its size a panel (its deep under BAND_SHARE of its wide and its tall)."""
+    words = {word.removesuffix("s") for word in
+             re.findall(r"[a-z]+", f"{row.get('id')} {row.get('name')} {row.get('noun')}".replace("_", " ").lower())}
+    size = row.get("size") or []
+    return (bool(words & OPENING_KINDS) and len(size) == 3 and
+            all(isinstance(side, (int, float)) and side > 0 for side in size) and
+            size[1] < BAND_SHARE * min(size[0], size[2]))
+
+
+def row_openings(plan, rows):
+    """The opening each plan item of a row filling one (fills_opening) cuts: at the item's middle (walls cut only an
+    opening standing on them, on_edge), the row's wide, from its shape's base to its top (its shape's tall, else the
+    row's); none where one of the plan's own openings already stands within their half widths (2026-10-26: Batch 1's
+    doors and windows stood at items the plan's openings missed, against uncut walls)."""
+    by_id = {row["id"]: row for row in rows if fills_opening(row)}
+    tied, shapes, own = plan.get("rows") or {}, plan.get("shapes") or {}, plan_openings(plan)
+    found = []
+    for item in plan.get("items") or []:
+        for row_id in [row_id for row_id in tied.get(item[0]) or [] if row_id in by_id]:
+            row, shape = by_id[row_id], shapes.get(item[0]) or {}
+            at = [float(item[1]) + float(item[3]) / 2, float(item[2]) + float(item[4]) / 2]
+            wide, base = float(row["size"][0]), float(shape.get("base") or 0.0)
+            if any(np.linalg.norm(np.subtract(at, other["at"])) < (wide + other["wide"]) / 2 for other in own):
+                continue
+            found.append({"at": at, "wide": wide, "sill": base,
+                          "head": base + float(shape.get("tall") or row["size"][2]), "row": row_id})
+    return found
+
+
+def cut_for(plan, rows):
+    """The plan with the openings its door and window rows fill (row_openings) for its walls to cut."""
+    return {**plan, "row_openings": row_openings(plan, rows)}
 
 
 def on_edge(openings, start, end, thick):

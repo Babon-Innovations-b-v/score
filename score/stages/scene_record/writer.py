@@ -579,6 +579,7 @@ def record_of(plan, design, inputs):
     place = plan["place"]
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     handin = read(inputs["hand-in"])
+    design = design_shell.cut_for(design, handin.get("rows", []))
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its design: its locked plan, "
                        "its scene inventory's row kinds, the library's lamp and the environment concept's physics at "
