@@ -29,10 +29,15 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 python -m score run ... --detach tagged
                                                 SCORE_BENCHMARK_GRANT=<grant id>; refused while the
                                                 owner's free-only latch (SCORE_FREE_ONLY) is set
-    buy-yes <stop euros> <high euros> <answer> <question>
+    batch-money                                 python -m score.dashboard batch-money: what a Buy question names,
+                                                read only: the batch's spend so far by the money guard's measure with
+                                                its parts, this try's likely, high and stop, the batch total it sets
+    buy-yes --batch-total <euros> <high euros> <answer> <question>
                                                 python -m score.dashboard buy-yes: the owner's quoted yes, asked in a
-                                                Claude Code session, to the basket the Buy screen buys now at that high
-                                                and stop (score/dashboard/checkout/chat_yes.py); prints its id
+                                                Claude Code session, to the basket the Buy screen buys now at that
+                                                high within that batch total, every try's spend in it (owner,
+                                                2026-10-26: "the stop should be a total of the batch, not per try")
+                                                (score/dashboard/checkout/chat_yes.py); prints its id
     buy <yes id>                                python -m score.dashboard buy: his Buy under that yes, once, as his
                                                 click (the same checkout, stop line and refusals); again, a retry
                                                 of its batch inside the batch's budget, no new ask (owner,
@@ -57,7 +62,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, checkouts, gaps <node>, predicted, "
-         "grant-benchmark, benchmark, buy-yes, buy <yes id>, stop-batch <reason>")
+         "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
 # Stop this batch from an agent (owner, 2026-10-25: "this is also something u should just do urself"): its runs,
@@ -181,9 +186,13 @@ def decide(words, latch):
         return ["-c", GRANT_CODE, *args], {}
     if verb == "benchmark":
         return benchmark(args, latch)
+    if verb == "batch-money":
+        if args:
+            raise Refused("batch-money takes no arguments")
+        return ["-m", "score.dashboard", "batch-money"], {}
     if verb == "buy-yes":
-        if len(args) != 4:
-            raise Refused("buy-yes <stop euros> <high euros> <the owner's answer> <the question he answered>")
+        if len(args) != 5 or args[0] != "--batch-total":
+            raise Refused("buy-yes --batch-total <euros> <high euros> <the owner's answer> <the question he answered>")
         return ["-m", "score.dashboard", "buy-yes", *args], {}
     if verb == "buy":
         if len(args) != 1 or not GRANT_ID.match(args[0]):

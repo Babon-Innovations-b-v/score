@@ -1,17 +1,26 @@
 """The owner's Buy approved in a Claude Code session (root CLAUDE.md, owner 2026-10-25: "i should be able to confirm my
 buy with u aswell, u just click the button"). The session asks him with its question tool, naming the basket's price
-(likely, high) and its stop; his yes is recorded here, quoted, and launches the checkout his Buy button makes
-(flow.start, every refusal of his click), once.
+(likely, high) and the batch's total stop, with what the batch spent so far (owner, 2026-10-26: "the stop should be
+a total of the batch, not per try, i have no clue now"); his yes is recorded here, quoted, and launches the checkout
+his Buy button makes (flow.start, every refusal of his click), once.
 
-    record(stop, high, answer, question)  his yes {id, purpose, stop_euros, high_euros, answer, question, at, by,
+    figures()                             what the question names, read only (the door's `batch-money`): {batch,
+                                          tries, retry (the next Buy tries this batch again), money (watched.
+                                          batch_money: spent so far by the money guard's measure, in flight, its
+                                          budget, left, the books' parts), runs (its runs' own heartbeats), try
+                                          {likely, high, stop: high with guesses plus 10%}, fits (the smallest batch
+                                          total holding this try), click (the total his Buy click would set)}
+    record(total, high, answer, question) his yes {id, purpose, batch_total_euros, high_euros, answer, question, at, by,
                                           basket {commit, made_at, items [{id, version}]}}, the basket the Buy screen
                                           buys now; kept once in the store, grants/buy/<id>.json (score.review.web)
     buy(yes id)                           his Buy under that yes, refused when: no quoted yes, used already (one yes
                                           launches at most one checkout: grants/buy-used/<id>.json, written once
                                           before the checkout, so a checkout refused after that needs a new yes),
-                                          the basket differs from the one he approved, its high above his high or
-                                          its stop (the high with the guesses plus 10%, flow.BUFFER) above his stop
-                                          (flow.yes_refusals, checked again where the line is written), this
+                                          the basket differs from the one he approved, its high above his high, a
+                                          yes naming a try's stop rather than a batch total (flow.yes_refusals), or
+                                          the batch's spend so far plus this try's stop over his total
+                                          (flow.batch_budget, where the line is written: the line is the batch's
+                                          start plus his total), this
                                           machine's code off the cockpit's pin, paid work latched off, or a run
                                           active; then flow.start as his click, by "<owner>, approved in chat at
                                           <time>", the yes on the checkout (Checkout.chat_yes); again under a yes
@@ -36,6 +45,7 @@ from score.dashboard.checkout import flow, pricing
 from score.dashboard.pages import basket
 from score.dashboard.pages.models import Checkout
 from score.dashboard.proposals import records
+from score.dashboard.state import batch_run
 from score.graph import runs
 
 PIN_MINUTES = 30  # score-update reads the pin every 5 minutes and before every sync pass; older is not known now
@@ -68,9 +78,10 @@ def current_basket():
             "items": sorted(basket.batch_items(records.items(root), "now"), key=lambda item: item["id"])}
 
 
-def record(stop, high, answer, question, store=None):
-    """Write his quoted yes to the current basket at his `high` and `stop` euros; the yes. Refused without an owner
-    here, an answer and a question both, figures above 0, or a basket to buy."""
+def record(total, high, answer, question, store=None):
+    """Write his quoted yes to the current basket at this try's `high` and the batch `total` he approved (the batch's
+    whole stop, every try's spend in it); the yes. Refused without an owner here, an answer and a question both,
+    figures above 0, or a basket to buy."""
     from score.review import web
     if not str(answer or "").strip() or not str(question or "").strip():
         raise Refused("a Buy approved in chat quotes the owner's answer and the question he answered, both")
@@ -81,9 +92,39 @@ def record(stop, high, answer, question, store=None):
         raise Refused("the Buy screen buys nothing now: no basket to approve")
     moment = datetime.datetime.now(datetime.timezone.utc)
     return web.buy_yes_written(store or state.source().store, {
-        "id": moment.strftime("%Y%m%dT%H%M%S%fZ"), "at": moment.isoformat(timespec="seconds"), "purpose": "buy", "stop_euros": euros_of(stop, "stop"),
+        "id": moment.strftime("%Y%m%dT%H%M%S%fZ"), "at": moment.isoformat(timespec="seconds"), "purpose": "buy",
+        "batch_total_euros": euros_of(total, "batch total"),
         "high_euros": euros_of(high, "high"), "answer": str(answer), "question": str(question),
         "by": settings.SCORE_OWNER, "basket": approved})
+
+
+def basket_totals(now_basket):
+    """pricing.totals of the basket `now_basket` (current_basket) at the runner's prices now."""
+    items, _ = flow.bought_items(now_basket["items"])
+    return pricing.totals(pricing.basket_prices(flow.snapshot(items)))
+
+
+def figures(reading):
+    """What his question names, read only (module docstring), at the Spend `reading()` gives (the backend's now)."""
+    from score.dashboard.checkout import watched
+    spend = reading()
+    records = list(Checkout.objects.order_by("at"))
+    number, tries = watched.batch_of(records, accepted_at) if records else (0, [])
+    ahead = Checkout(at=datetime.datetime.now(datetime.timezone.utc), design_at=flow.design_now())
+    retry = bool(tries) and not watched.batch_ended(tries, ahead, accepted_at)
+    money = watched.batch_money(tries, spend) if retry else None
+    totals = basket_totals(current_basket())
+    need = round(pricing.cleared_high(totals) * flow.BUFFER, 2)
+    run = state.source().batch_run(reading=lambda: spend) if retry else None
+    return {"batch": number if retry else number + 1, "tries": len(tries) if retry else 0, "retry": retry,
+            "money": money, "runs": ((run or {}).get("money") or {}).get("runs") if retry else None,
+            "try": {"likely": totals["likely_euros"], "high": pricing.cleared_high(totals), "stop": need},
+            "fits": need if money is None else round(money["spent"] + money["in_flight"] + need, 2),
+            "click": need if money is None else batch_run.batch_total(money, need)}
+
+
+def accepted_at(node):
+    return (state.source().store.current_accept(node) or {}).get("at")
 
 
 # --- the Buy under a yes ------------------------------------------------------------------------------------------
@@ -153,8 +194,7 @@ def buy(yes_id, store=None):
     store = store or state.source().store
     yes = yes_found(store, yes_id)
     now_basket = current_basket()
-    items, _ = flow.bought_items(now_basket["items"])
-    totals = pricing.totals(pricing.basket_prices(flow.snapshot(items)))  # flow.start checks it again, under its lock
+    totals = basket_totals(now_basket)  # flow.start checks it again, under its lock
     refused = (([] if yes.get("retry") else basket_refusals(yes, now_basket)) + flow.yes_refusals(yes, totals)
                + latch_refusals() + pin_refusals(health.code()) + run_refusals())
     if refused:

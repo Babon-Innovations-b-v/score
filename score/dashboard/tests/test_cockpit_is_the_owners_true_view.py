@@ -1294,7 +1294,7 @@ def a_batch(world, log=LOG, state="launched", pool=True, key="a"):
         {"command": ["score", "run"], "pid": None, "log": str(path), "refused": None}])
     record = Checkout.objects.create(key=key * 32, by="joey", state=state, totals=TOTALS, launch=launch,
                                      items=[{"nodes": {"closeup@alpha": {}, "closeup@beta": {}}}],
-                                     stop_line={"euros": 516.44, "spent": 120.0, "reserved": 0.0,
+                                     stop_line={"euros": 516.44, "spent": 120.0, "reserved": 0.0, "batch_from": 90.0,
                                                 "at": "2026-10-24T11:08:38+00:00"})
     (store / "logs").mkdir(parents=True, exist_ok=True)
     row_log = store / "logs" / "closeup@alpha.log"
@@ -1319,7 +1319,9 @@ def test_the_batch_is_read_from_its_log_its_rows_and_its_pool(world):
     run = world.source.batch_run()
     assert run["state"] == "running" and run["checkout"] == Checkout.objects.get().pk
     assert run["rows"] == {"total": 6, "done": 2, "failed": 1, "not_run": 1, "running": 1, "queued": 1}
-    assert run["money"]["spent"] == 3.21 and run["money"]["line"] == 516.44
+    assert run["money"]["runs"] == 3.21 and run["money"]["line"] == 516.44
+    # spent is the money guard's: the environment's 100 since its first line less the 90 the batch began at
+    assert (run["money"]["spent"], run["money"]["other"]) == (10.0, 6.79)
     assert run["eta"]["likely_minutes"] == 121.5 and run["eta"]["untimed"] == 1
     scenes = {scene["place"]: scene for scene in run["scenes"]}
     assert scenes[""]["state"] == "done" and scenes["alpha"]["running"] == ["close-ups"]
@@ -1372,7 +1374,7 @@ def test_a_relaunch_adds_the_first_runs_money_and_clock_and_parked_machines_show
         (parked / f"m-{number}.json").write_text(json.dumps({"id": f"m-{number}", "pool": pool}))
     (world.source.props_home / "cloud" / "pools" / RUN / "closed").write_text("")
     found = batch_run.gathered(newest(), world.source.props_home, world.source.store_root)
-    assert found["money"]["spent"] == 4.39
+    assert found["money"]["runs"] == 4.39
     assert found["started"] == began.isoformat(timespec="seconds") and found["eta"]["elapsed"] >= 45
     assert not found["pool"]["open"] and found["pool"]["renting"] == 3
     html = signed_in().get("/buy/run/").content.decode()
@@ -1430,7 +1432,7 @@ def test_the_money_is_this_batchs_high_with_its_guesses_and_its_room_the_line_le
     record.save()
     (world.source.props_home / "logs" / "score-run-1.log").write_text("paid rows this run would buy: 2\n")
     money = world.source.batch_run()["money"]
-    assert money["spent"] == 0.0 and money["stop"] == round(money["high"] * batch_run.BUFFER, 2)
+    assert money["runs"] == 0.0 and money["stop"] == round(money["high"] * batch_run.BUFFER, 2)
 
 
 def test_a_finished_rows_batch_gaps_are_problems(world):
@@ -1488,7 +1490,7 @@ def test_the_export_carries_the_batch_and_the_hosted_page_says_how_fresh(world, 
     building.build(world.source, tmp_path / "one", MADE, 50, SPEND, world.root)
     exported = ExportedSource(tmp_path / "one")
     run = exported.batch_run()
-    assert run["read_at"] == MADE and run["money"]["spent"] == 3.21 and run["rows"]["done"] == 2
+    assert run["read_at"] == MADE and run["money"]["runs"] == 3.21 and run["rows"]["done"] == 2
     from score.dashboard import state
     monkeypatch.setattr(state, "source", lambda: exported)
     with override_settings(SCORE_MODE="hosted"):
@@ -1604,20 +1606,27 @@ def test_a_try_shows_what_it_makes_again_as_waiting_and_the_batchs_spend_apart_f
     assert {problem["node"] for problem in ended["problems"]} == {"light@alpha", "closeup@beta"}
     beat = heartbeat("2026-10-25T09:30:00+00:00", 0, 1, 0, 0, "5.00") + "\ndetached: failed\nexit: stopped, 1 line\n"
     money = batch_run.gathered(two_tries(tmp_path, beat), tmp_path, tmp_path)["money"]
-    assert (money["spent"], money["try_spent"]) == (7.0, 5.0)
+    assert (money["runs"], money["try_spent"]) == (7.0, 5.0)
     assert run_monitor.money_bar({**money, "high": 8.0, "stop": 10.0})["spent"] == 50.0
 
 
 def test_the_monitor_shows_the_batchs_spend_of_its_one_budget(world):
-    """Owner, 2026-10-26: "i have no idea how far the previours even got filled". Break: state/batch_run.py `money_of`
-    gives `left` as the whole budget."""
+    """Owner, 2026-10-26: "i have no idea how far the previours even got filled", then "the stop should be a total of
+    the batch, not per try": spent is the money guard's measure since the batch's first line, the next Buy's figure
+    the batch total. Break: state/batch_run.py `money_of` gives `left` as the whole budget; checkout/watched.py
+    `batch_money` counts spent from 0, not the batch's start; state/batch_run.py `batch_total` drops `need`."""
     record = a_batch(world)
-    record.stop_line = {**record.stop_line, "batch_from": 120.0, "batch_budget": 740.0, "batch_used": 410.0}
+    record.stop_line = {**record.stop_line, "batch_from": 80.0, "batch_budget": 740.0, "batch_used": 410.0}
     record.save()
     money = world.source.batch_run()["money"]
-    assert money["budget"] == 740.0 and money["left"] == round(740.0 - money["spent"], 2)
-    assert re.search(r"Batch 1: EUR [\d.]+ spent of EUR 740.00 budget, EUR [\d.]+ left",
+    assert money["budget"] == 740.0 and money["left"] == round(740.0 - money["spent"] - money["in_flight"], 2)
+    assert money["spent"] == 20.0 and re.search(r"Batch 1: EUR 20.00 spent of EUR 740.00 budget, EUR [\d.]+ left",
                      signed_in().get("/buy/run/").content.decode())
+    from score.dashboard.pages import views  # what the next Buy sets: the batch's total, never a try's stop alone
+    run = world.source.batch_run()
+    assert views.next_total(run, 33.0) is None and views.next_total({**run, "state": "stopped"}, 33.0) == 740.0
+    raised = {**run, "state": "stopped", "money": {**money, "budget": 10.0}}
+    assert views.next_total(raised, 33.0) == round(20.0 + money["in_flight"] + 33.0, 2)
 
 
 def test_what_prepare_predicts_for_the_next_try_shows_once_made_since_the_try():

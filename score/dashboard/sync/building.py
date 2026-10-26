@@ -220,10 +220,10 @@ def pictures_by_node(bundles):
     return found
 
 
-def batch_run_file(source, out, filler, made_at):
-    """batch-run.json (state/batch_run.py: the newest Buy's batch, read at the export's time) into the export right
-    after the machine, so the run monitor follows each pass; nothing before a batch."""
-    found = source.batch_run(made_at)
+def batch_run_file(source, out, filler, made_at, spend):
+    """batch-run.json (state/batch_run.py: the newest Buy's batch, read at the export's time, its money at the pass's
+    `spend`) into the export right after the machine, so the run monitor follows each pass; nothing before a batch."""
+    found = source.batch_run(made_at, reading=lambda: spend)
     if found is None:
         return
     path = out / batch_run.RUN_FILE
@@ -240,7 +240,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
     world.made_at, world.source = made_at, f"export {made_at}"
     filler.wrote(out / "state.json", write_json(out / "state.json", world))
     found_machine = machine_file(source, out, filler, made_at)
-    batch_run_file(source, out, filler, made_at)
+    batch_run_file(source, out, filler, made_at, spend)
     bundles =[place_bundle((None, step_details(source, None, source.world_rows())))]
     world_file = out / "places" / f"{WORLD_FILE}.json"
     filler.wrote(world_file, write_json(world_file, bundles[0]))

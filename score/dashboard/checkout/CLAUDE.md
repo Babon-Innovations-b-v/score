@@ -29,20 +29,27 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   it as a guess, and the stop line holds it beside the high (`pricing.cleared_high`, the launch guard's high too), since the runner's clearance
   reserves that estimate.
 - **A Buy approved in a session** (`chat_yes.py`, root CLAUDE.md, owner 2026-10-25): `buy-yes` records his quoted
-  answer and question, the high and stop he approved and the Buy screen's basket (grants/buy/<id>.json, written by
-  score.review.web); `buy <id>` runs `flow.start` as his click, once (grants/buy-used/<id>.json written before it),
-  refused on another basket, a high or stop above his (`flow.yes_refusals`, again in `write_line`), code off the
-  pin, the latch or a live run. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
+  answer and question, this try's high and the batch total he approved (`--batch-total`, owner 2026-10-26: "the
+  stop should be a total of the batch, not per try"; asked with the door's `batch-money` figures, `chat_yes.figures`)
+  and the Buy screen's basket (grants/buy/<id>.json, written by score.review.web); `buy <id>` runs `flow.start` as
+  his click, once (grants/buy-used/<id>.json written before it), refused on another basket, a high above his, a yes
+  naming a try's stop (`flow.yes_refusals`, again in `write_line`), the batch's spend so far plus this try's stop
+  over his total (`flow.batch_budget`), code off the pin, the latch or a live run. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
   `buy <id>` again under a yes that launched a checkout is a retry of its batch (`chat-<id>-retry-N`), no new ask,
   held to the batch's budget.
 - **One budget a batch, across its tries** (root CLAUDE.md, owner 2026-10-26: "those budget asks should become per
   batch tho, not per try"). `flow.batch_budget` (in `write_line`): the batch's start is what its first try's line was
-  written over (`batch_from`, else that line's spent plus reserved); its budget the newest try's, raised by a click or
-  a new yes to what the batch spent so far plus what he approved (the yes's stop, else the try's high plus BUFFER)
-  when that is more; the line is start plus budget, so the guard (score.adapters.compute) stops at the budget less
-  what earlier tries spent. A retry under a used yes keeps the budget and is refused when its high plus BUFFER does
-  not fit what is left. Each line records `batch_from`, `batch_budget` and `batch_used`; `watched.newest` gives the
-  budget, and the monitor and Buy page show what the batch spent, every try and its pool time, of it and what is left.
+  written over (`watched.batch_start`: `batch_from`, else that line's spent plus reserved); its budget the newest
+  try's, raised by a click to what the batch spent so far plus the try's high plus BUFFER when that is more; a new
+  yes in chat sets it to the batch total he approved, refused when the batch's spend so far plus this try's high
+  plus BUFFER does not fit; the line is start plus budget, so the guard (score.adapters.compute) stops at the budget
+  less what earlier tries spent. A retry under a used yes keeps the budget and is refused when its high plus BUFFER
+  does not fit what is left. Each line records `batch_from`, `batch_budget` and `batch_used`. **One spent figure**:
+  `watched.batch_money` reads the batch's spend by the guard's own measure (the environment's spend since its first
+  line less the batch's start, each month the higher of bill and ledger, plus model calls; in flight apart, the books'
+  parts beside it) and the door's `batch-money`, the monitor and the Buy page all show it, the runs' own heartbeats
+  beside it as `runs` with the difference as `other` (benchmarks, design calls and the bill over the ledger
+  meanwhile). The Buy page names the batch total its Buy sets (`views.next_total`).
 - **Tests never launch.** `checkout/test_a_batch_buys_only_what_the_owner_approved.py` uses `FakeBackend`, a temp basket and a temp store.
 - One function, one purpose; no provider names; no imports of `tools.*` or `score.adapters` (`score.review.web` reaches
   the guard for us).

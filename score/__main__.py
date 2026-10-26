@@ -977,12 +977,14 @@ def world_spend(world, held, books):
     store = Store.default()
     line = guard.current(store, world)
     if line is None:
-        return {"spent": None, "reserved": None, "ceiling": None, "world": world, "stop_at": None,
+        return {"spent": None, "reserved": None, "ceiling": None, "world": world, "stop_at": None, "parts": {},
                 "note": f"{world}: no batch said yes to yet, so no stop: paid work is refused until a checkout"}
-    spent = guard.spent_since(line["baseline"], compute.months_since(line["baseline"], books))
+    parts = guard.spent_parts(line["baseline"], compute.months_since(line["baseline"], books))
     flight = guard.in_flight({**compute.open_overrides(store), **held}, compute.ledger().entries())
-    return {"spent": round(spent, 2), "reserved": round(sum(flight.values()), 2), "ceiling": line["euros"],
-            "world": world, "stop_at": line["at"], "note": ""}
+    return {"spent": round(parts["cloud"] + parts["google"], 2), "reserved": round(sum(flight.values()), 2),
+            "ceiling": line["euros"], "world": world, "stop_at": line["at"], "note": "",
+            "parts": {"cloud": round(parts["cloud"], 2), "ledger": round(parts["ledger"], 2),
+                      "models": round(parts["google"], 2)}}  # the cockpit names no provider
 
 
 def cost_lines(books, read_at):

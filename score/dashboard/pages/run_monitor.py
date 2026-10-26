@@ -85,7 +85,7 @@ def money_bar(money):
     (the stop, else the high); None without a scale. The stop, likely and high are the try's, so the try's own spend
     is set against them, the batch's only before a record carries it."""
     own = money.get("try_spent")
-    spent = (money["spent"] if own is None else own) or 0
+    spent = (money.get("runs", money.get("spent")) if own is None else own) or 0
     scale = max(value for value in (money["stop"], money["high"], spent, 0) if value is not None)
     if not scale:
         return None

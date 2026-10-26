@@ -77,17 +77,25 @@ def months_from(first, last):
     return found
 
 
-def spent_since(baseline, months):
-    """The euros spent since `baseline`, from `months` ({month: {bill (None for a month whose bill is not read),
-    ledger, google}}): in each month the higher of the bill's and the ledger's growth, and Google's growth."""
-    total = 0.0
+def spent_parts(baseline, months):
+    """{cloud, ledger, google}: the euros spent since `baseline` by book, from `months` ({month: {bill (None for a
+    month whose bill is not read), ledger, google}}): cloud in each month the higher of the bill's and the ledger's
+    growth, ledger the cloud ledger's growth alone (cloud less it is what the bill holds and the ledger missed), google
+    Google's growth."""
+    parts = {"cloud": 0.0, "ledger": 0.0, "google": 0.0}
     for month, books in months.items():
         start = baseline if month == baseline["month"] else NOTHING
-        cloud = books["ledger"] - start["ledger"]
-        if books["bill"] is not None:
-            cloud = max(cloud, books["bill"] - start["bill"])
-        total += cloud + books["google"] - start["google"]
-    return total
+        ledger = books["ledger"] - start["ledger"]
+        parts["ledger"] += ledger
+        parts["cloud"] += ledger if books["bill"] is None else max(ledger, books["bill"] - start["bill"])
+        parts["google"] += books["google"] - start["google"]
+    return parts
+
+
+def spent_since(baseline, months):
+    """The euros spent since `baseline` (spent_parts): the cloud's, the higher of bill and ledger, and Google's."""
+    parts = spent_parts(baseline, months)
+    return parts["cloud"] + parts["google"]
 
 
 def ledgered(entries, held):

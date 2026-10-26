@@ -157,7 +157,20 @@ def buy(request):
         "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex, "film_waits": screens.film_waits(),
         "since": batch_run.next_buy(run, batch["nodes"]) if design["approved"] else None,
-        "chat_yes": (run or {}).get("yes"), "live": run_monitor.live_batch(run), "run": run or {}})
+        "chat_yes": (run or {}).get("yes"), "live": run_monitor.live_batch(run), "run": run or {},
+        "total": next_total(run, batch["now"]["stop"])})
+
+
+def next_total(run, need):
+    """The batch total a Buy now sets (batch_run.batch_total): the batch's budget, raised to its spend so far plus
+    this try's stop `need` when that is more, for a retry of the last batch; `need` alone for a new batch; None while
+    the batch lives or its money is unread."""
+    if not run or run["state"] in batch_run.LIVE or need is None:
+        return None
+    if not batch_run.retries(run):
+        return need
+    money = run.get("money") or {}
+    return batch_run.batch_total(money if money.get("budget") is not None else None, need)
 
 
 def place_page(request, place):
