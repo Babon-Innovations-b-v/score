@@ -287,6 +287,17 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     rug = {"id": "rug", "count": 3, "size": [2.0, 1.5, 0.02]}  # one rug an item, a little over it: one of it, no run
     assert groups.run_pieces(rugs, rug) is None and groups.row_size(rug["size"], *[[1.433, 1.444, 0.02]] * 2) == rug["size"]
     assert groups.run_pieces(rugs, {**rug, "size": [9.0, 0.1, 0.1]}) == 3  # longer than its items end to end: a run
+    door = [1.2, 0.2, 2.1]  # four doors read, one 1.16 m item laid: the door a little wider than its footprint
+    assert groups.row_size(door, [1.159, 0.706, 2.1], [1.159, 0.706, 2.1], 4) == door
+    assert groups.own_size(door, [1.159, 0.706, 2.1], 4) == door
+    rug = [2.0, 1.5, 0.02]  # ten rugs read on a smaller item: no line along the ground, so no run
+    assert groups.own_size(rug, [1.433, 0.4, 0.02], 10) == rug
+    shell = {"structure": ["building_shell", "sky"]}
+    assert groups.plan_structure(shell, {"floor", "wall", "roof"}) == {"building_shell", "sky"}
+    assert groups.plan_structure(shell, {"floor"}) == set()  # an open place's plan lays no walls: none is laid
+    building = {"id": "building_shell", "route": "shell", "part": "structure"}
+    assert groups.routed(building, {"wall"}, set(), {"building_shell"})["route"] == "plan"  # never a close-up
+    assert groups.routed(building, {"wall"}, set(), set()) == building
     assert [by_id[name]["route"] for name in ("fuel_drum", "astronaut", "wall_lamp", "night_sky")] == [
         "prop", "people", "prop", "sky"]
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
