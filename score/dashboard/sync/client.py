@@ -500,25 +500,36 @@ def gaps_sweep():
     return (done.stdout.strip().splitlines() or ["gaps wrote nothing"])[-1]
 
 
-def usd_sweep():
+USD_LIMIT = 900  # seconds: about a second a place measured; a stage of millions of faces must not hold the pass
+
+
+def usd_sweep(limit=USD_LIMIT):
     """Every place's composed stage judged by SCORE's USD rule set and its findings written where the place pages
-    read their problems (score.stages.complete.usd, free, seconds, in a process of its own: it reads OpenUSD); its
-    summary line. One that fails is said in the pass's words, and the pass goes on."""
-    done = step_run([sys.executable, "-m", "score.stages.complete.usd"])
+    read their problems (score.stages.complete.usd, free, in a process of its own: it reads OpenUSD), ended after
+    `limit` seconds; its summary line. Run after the pricing lock: nothing priced reads its findings, and a long
+    check must not keep a Buy judged by its basket's commit alone. One that fails or runs out of time is said in the
+    pass's words, and the pass goes on."""
+    done = step_run([sys.executable, "-m", "score.stages.complete.usd"], limit=limit)
     if done.returncode != 0:
         return f"usd check failed: exit {done.returncode}: {(done.stderr.strip().splitlines() or ['no output'])[-1]}"
     return (done.stdout.strip().splitlines() or ["usd check wrote nothing"])[-1]
 
 
-def step_run(command, grace=10):
-    """A pass step's command run to its end in a process group of its own, its output kept; whatever it left running
-    (a film preview's Chromium) ended with it, and the whole group ended when the pass is stopped (2026-10-25: a shrink
-    left the preview's chrome-headless running after the unit stopped). A `score run --detach` it starts has a session
+def step_run(command, grace=10, limit=None):
+    """A pass step's command run to its end, or for at most `limit` seconds, in a process group of its own, its output
+    kept; whatever it left running (a film preview's Chromium) ended with it, and the whole group ended when the pass
+    is stopped (2026-10-25: a shrink left the preview's chrome-headless running after the unit stopped). A step out of
+    time ends with a nonzero exit and says so as its last error line. A `score run --detach` it starts has a session
     of its own and is never ended here."""
     process = subprocess.Popen(command, cwd=settings.SCORE_REPO, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                text=True, start_new_session=True)
     try:
+        out, err = process.communicate(timeout=limit)
+    except subprocess.TimeoutExpired:
+        group_ended(process, grace)
         out, err = process.communicate()
+        return subprocess.CompletedProcess(command, process.returncode or -1, out,
+                                           f"{err}\nout of time after {limit} s")
     finally:
         group_ended(process, grace)
     return subprocess.CompletedProcess(command, process.returncode, out, err)
@@ -701,13 +712,12 @@ def sync_pass(remote, source, chosen=None):
         parts = parts_read(source.store_root)  # before the gaps, plans, prepare and price: each routes rows by part
         lights = light_read(source.store_root)  # before the plans kept: they carry it to the lamps and scene times
         gaps = gaps_sweep()
-        usd = usd_sweep()
         planned = plans_kept()  # before prepare and the price: both read the plans the plan stage reads
         prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
         demos = library_demos()
         priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
         if failed:
-            return refused_words(f"{failed}; {swept}; {readings}; {parts}; {lights}; {gaps}; {usd}; {planned}; {prepared}; "
+            return refused_words(f"{failed}; {swept}; {readings}; {parts}; {lights}; {gaps}; {planned}; {prepared}; "
                                  f"{benched}; {pictured}; {demos}")
         basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
         now = head(settings.SCORE_REPO)
@@ -717,6 +727,7 @@ def sync_pass(remote, source, chosen=None):
     tidy = checkouts_tidied(chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
+    usd = usd_sweep()  # outside the pricing lock: nothing priced reads it; its findings export with the next pass
     previews = film_previews()  # minutes of Chromium: after the requests, outside the pricing lock
     refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
     return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {swept}; "
