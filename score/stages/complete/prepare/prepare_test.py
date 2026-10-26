@@ -136,6 +136,9 @@ def test_a_take_its_environment_measured_is_predicted_by_that_not_by_its_shape()
     assert own("tile", tile) is None  # every take failed before its next takes' request (LATER_TAKES_SINCE)
     measures["lab"]["at"] = predict.LATER_TAKES_SINCE
     assert own("tile", tile)["outcome"] == "predicted gap"  # no route builds it after
+    far = {"id": "tile", "name": "tile", "noun": "tile", "size": tile, "far": {"pieces": 1, "length": 0.0}}
+    assert predict.own_outcome({"place": "lab", "rows": ["tile"], "take": "lab_tile", "size": tile}, far,
+                               measures["lab"]) is None  # laid far off: drawn from the whole painting before
     assert own("lamp", tile) is None
     measures["lab"]["built"] = {}
     assert own("pipe", pipe)["outcome"] == "at risk"  # built in code, its likeness not judged yet

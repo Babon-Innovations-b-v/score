@@ -58,9 +58,11 @@ def layer_of(entry):
 def inventory_rows(inventory, wanted):
     """The close-up stage's rows of `wanted` objects: name, size, its reading's own size where it has one (the
     close-up is asked for and checked at it, stage.object_size), concept view and box from the inventory (the view's
-    picture is filled in by make_inputs, from the row's declared file)."""
+    picture is filled in by make_inputs, from the row's declared file), and `far` on a row laid far off (prepare's
+    groups.far_made: its close-up is drawn from its crop alone, stage.pro_wording)."""
     return [{"id": row["id"], "scene": inventory["scene"], "words": row["name"], "size": row["size"],
-             "read_size": row.get("read_size"), "view": row.get("view"), "box": row.get("box")}
+             "read_size": row.get("read_size"), "view": row.get("view"), "box": row.get("box"),
+             **({"far": row["far"]} if row.get("far") else {})}
             for row in inventory["rows"] if row["id"] in wanted]
 
 
