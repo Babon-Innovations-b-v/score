@@ -47,6 +47,7 @@ import fcntl
 import json
 import os
 import pathlib
+import re
 import shutil
 import signal
 import subprocess
@@ -71,6 +72,7 @@ DETACH = "--detach"
 BOOT_ID = pathlib.Path("/proc/sys/kernel/random/boot_id")
 PARTIAL = "*.partial"
 ACTIVE, ACTIVE_LOCK = "active.json", "active.lock"  # the claims (C10), not run entries
+STARTED = re.compile(r"^detached: started pid=(\d+) log=(.+)$", re.MULTILINE)  # score.__main__.detach's own line
 
 
 def log_path(name):
@@ -258,8 +260,10 @@ def refusal(path, entry):
 
 
 def restart(path, entry, say):
-    """Start one stranded run again from its own worktree and mark it resumed; one it must not start (refusal), or
-    whose start fails, is marked unresumable with why, so the owner sees it (score status) and no boot tries again."""
+    """Start one stranded run again from its own worktree and mark it resumed, the new run's {pid, log} under
+    `resumed` (the cockpit follows a launch handed on so: score.dashboard.launch.localrun); one it must not start
+    (refusal), or whose start fails, is marked unresumable with why, so the owner sees it (score status) and no boot
+    tries again."""
     why = refusal(path, entry)
     if why:
         mark(path, UNRESUMABLE, why)
@@ -272,7 +276,9 @@ def restart(path, entry, say):
         mark(path, UNRESUMABLE, why)
         say(f"failed {describe(entry)}: {why}")
         return
-    mark(path, RESUMED)
+    started = STARTED.search(done.stdout)
+    resumed = {"pid": int(started.group(1)), "log": started.group(2)} if started else None
+    written(pathlib.Path(path), {**json.loads(pathlib.Path(path).read_text()), "state": RESUMED, "resumed": resumed})
     say(f"resumed {describe(entry)}: {done.stdout.strip()}")
 
 

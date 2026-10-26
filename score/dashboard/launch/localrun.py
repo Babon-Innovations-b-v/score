@@ -13,10 +13,13 @@ from django.conf import settings
 from score.dashboard.launch.backend import Billed, GroupPlan, LaunchHandle, LaunchState, RunGroup
 from score.dashboard.state import money
 from score.dashboard.state.models import Spend
+from score.graph import runs
 
 STARTED = re.compile(r"^detached: started pid=(\d+) log=(.+)$", re.MULTILINE)  # `score run --detach`'s own line
 RESULT = re.compile(r"^detached: (ok|failed|stopped|refused)\b")
 RESULT_STATES = {"ok": "done", "failed": "failed", "stopped": "stopped", "refused": "refused"}
+WAITED = re.compile(r"^score run: waiting for size: .*; registered as (\S+);", re.MULTILINE)  # conductor/size.py
+GROWN = "while waiting for size"  # its stop line when a signal ended the wait (the grow's shutdown, or the owner's)
 SECRETS = ("SCORE_DASHBOARD_SECRET_KEY", "SCORE_SYNC_TOKEN")
 # One run's own tags, never inherited by a launch: a benchmark grant would clear the owner's batch against the grant
 # instead of his stop line, a machine cap would shrink it, a run id would fold it into another run's machine count.
@@ -128,11 +131,28 @@ class LocalBackend:
         text = log_tail(handle.log)
         last = text.splitlines()[-1] if text else ""
         ended = RESULT.match(last)
+        if ended and ended.group(1) == "stopped" and GROWN in text:
+            return self.handed_on(handle, last, text)
         if ended:
             return LaunchState(RESULT_STATES[ended.group(1)], last, text)
         if handle.pid and pid_alive(handle.pid):
             return LaunchState("running", "", text)
         return LaunchState("failed", "the run ended without its result line", text)
+
+    def handed_on(self, handle, last, text):
+        """A run stopped by a signal while waiting for size, by its registry entry (runs.RUNS): still waiting (the
+        grow's shutdown leaves it so) is running, resumed is the resumed run's own state (a resumed run is the same
+        batch: its end is the launch's end, so its checkout's stop line stands till then), else stopped (the
+        owner's stop, or a resume that started nothing)."""
+        registered = WAITED.search(pathlib.Path(handle.log).read_text(errors="replace"))
+        path = pathlib.Path(runs.RUNS) / f"{registered.group(1)}.json" if registered else None
+        entry = json.loads(path.read_text()) if path and path.is_file() else {}
+        if entry.get("state") == runs.WAITING:
+            return LaunchState("running", "", text)
+        if entry.get("state") == runs.RESUMED and entry.get("resumed"):
+            resumed = entry["resumed"]
+            return self.poll(LaunchHandle(command=handle.command, pid=resumed["pid"], log=resumed["log"]))
+        return LaunchState("stopped", last, text)
 
     def price(self, world, nodes):
         """{node: price} from `score price` (the runner's measured numbers, C19)."""

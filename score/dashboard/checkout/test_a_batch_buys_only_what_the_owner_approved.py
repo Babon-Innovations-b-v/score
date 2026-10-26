@@ -24,6 +24,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.spend_now: `if books and spend.paid_refused:` -> `if False:` -> test_the_months_books_unknown_refuse_...
 - flow.abandoned: `if record.pid is not None and pid_alive(...)` -> `if True:` -> test_a_checkout_left_launching_...
 - flow.batches_ended: its skip -> `if True:` -> test_an_ended_batch_takes_its_line_back_once
+- localrun.LocalBackend.poll: the handed-on branch -> `if False:` -> test_a_batch_stopped_by_the_grow_and_resumed_keeps_...
 - flow.launch: drop `record.launch = started` -> test_a_hosted_checkout_is_followed_to_its_run_with_its_stop_line
 - results.billed_by_node: `(euros + line.euros, ...)` -> `(line.euros, ...)` -> test_results_show_real_cost_...
 - flow.batch_groups: the Benchmarks group -> `if False:` -> test_the_benchmarks_are_one_item_on_the_buy_screen_...
@@ -352,6 +353,39 @@ def test_an_ended_batch_takes_its_line_back_once(shop, tmp_path, monkeypatch):
     line = stop_line(shop)
     assert line["euros"] == 110.0 and f"checkout {record['id']} closed: its batch ended done" in line["reason"]
     assert flow.tidied(FakeBackend()).endswith("0 ended batches' lines taken back")
+
+
+def test_a_batch_stopped_by_the_grow_and_resumed_keeps_its_stop_line_till_the_resumed_run_ends(shop, tmp_path,
+                                                                                                 monkeypatch):
+    """2026-10-26, checkout 5: its run waited for size, the grow's shutdown stopped it (signal 15), score resume
+    started it again; the pass read the launch stopped and took the line back to the spend, so the resumed run was
+    refused every paid row. A launch whose run waits or was resumed is running, followed to the resumed run's end;
+    only then (or for the owner's stop) is its line taken back."""
+    from score.graph import runs
+
+    class Resuming(FakeBackend):
+        poll, handed_on = localrun.LocalBackend.poll, localrun.LocalBackend.handed_on
+
+    monkeypatch.setattr(FakeBackend, "log_folder", tmp_path)
+    monkeypatch.setattr(runs, "RUNS", tmp_path / "runs")
+    bought(shop, "alpha-pieces")
+    record = checked_out(api(), "t")["checkout"]
+    log = pathlib.Path(Checkout.objects.get(pk=record["id"]).launch.handles[0]["log"])
+    log.write_text("score run: waiting for size: 16 jobs, 2 cores; registered as w1; score resume starts it at the "
+                   "boot on the batch size\nscore run: stopped by signal 15 while waiting for size\n"
+                   "detached: stopped by signal 15 exit=143 minutes=8.8 log=x outputs=y\n")
+    entry = runs.written(runs.RUNS / "w1.json", {"id": "w1", "state": runs.WAITING, "jobs": 16})
+    assert flow.tidied(Resuming()).endswith("0 ended batches' lines taken back")  # waiting for the boot
+    resumed = tmp_path / "resumed.log"
+    resumed.write_text("score run: started\n")
+    runs.written(entry, {"id": "w1", "state": runs.RESUMED, "resumed": {"pid": os.getpid(), "log": str(resumed)}})
+    assert flow.tidied(Resuming()).endswith("0 ended batches' lines taken back")  # the resumed run goes on
+    assert stop_line(shop)["euros"] == 126.5
+    resumed.write_text("score run: started\ndetached: ok exit=0 minutes=40 log=x outputs=y\n")
+    assert flow.tidied(Resuming()).endswith("1 ended batches' lines taken back")
+    assert "its batch ended done" in stop_line(shop)["reason"]
+    runs.written(entry, {"id": "w1", "state": runs.STOPPED})  # the owner's stop while it waited: ended
+    assert Resuming().poll(LaunchHandle(command=[], log=str(log))).state == "stopped"
 
 
 def test_a_hosted_checkout_is_followed_to_its_run_with_its_stop_line(shop, monkeypatch):

@@ -2281,10 +2281,12 @@ def test_score_run_stopped_as_it_registers_or_while_it_drives_registers_as_stopp
 
 
 def test_a_run_waiting_for_size_is_left_on_too_few_cores_and_resumed_on_the_batch_size(monkeypatch):
-    """The conductor: a run asking for 16 jobs waits for the grow; a boot on 2 cores leaves it, one on 16 starts it.
-    Break: score/graph/runs.py: '    if entry.get("state") == WAITING and entry.get("jobs", 0) > (os.cpu_count() or 1):' -> '    if False:'"""
+    """The conductor: a run asking for 16 jobs waits for the grow; a boot on 2 cores leaves it, one on 16 starts it
+    and keeps the resumed run's pid and log on the entry, so the cockpit follows its launch to the resumed run's end.
+    Break: score/graph/runs.py: '    if entry.get("state") == WAITING and entry.get("jobs", 0) > (os.cpu_count() or 1):' -> '    if False:'
+    Break: score/graph/runs.py: '    started = STARTED.search(done.stdout)' -> '    started = None'"""
     folder = pathlib.Path(tempfile.mkdtemp())
-    worktree, commit = a_worktree('#!/bin/sh\necho "detached: started with $*"\n')
+    worktree, commit = a_worktree('#!/bin/sh\necho "detached: started pid=4242 log=/logs/$*"\n')
     an_entry(folder, "waiting", worktree=str(worktree), commit=commit, state=runs.WAITING, jobs=16,
              argv=["run", "world1", "--jobs", "16"])
     an_entry(folder, "waiting-this-boot", state=runs.WAITING, jobs=16, boot=runs.boot_id())
@@ -2298,7 +2300,9 @@ def test_a_run_waiting_for_size_is_left_on_too_few_cores_and_resumed_on_the_batc
     said.clear()
     runs.resume(False, said.append, folder=folder, swept=())
     assert said[0].startswith("resumed waiting") and "--jobs 16 --detach" in said[0], said
-    assert runs.entries(folder)[folder / "waiting.json"]["state"] == runs.RESUMED
+    resumed = runs.entries(folder)[folder / "waiting.json"]
+    assert resumed["state"] == runs.RESUMED and resumed["jobs"] == 16, resumed
+    assert resumed["resumed"] == {"pid": 4242, "log": "/logs/-m score run world1 --jobs 16 --detach"}, resumed
     assert [entry["id"] for entry in runs.waiting(folder).values()] == ["waiting-this-boot"]
 
 
