@@ -63,7 +63,8 @@ def failed(check, findings):
 RESTING = entry("fragments: resting in the regolith", "assembly", "resting",
                 [f"/wreck/Objects/fragment_{number}" for number in (1, 2)],
                 [f"/wreck/Objects/fragment_{number}: sunk 0.05 under its contact points" for number in (1, 2)])
-SHIP = entry("ship: no made model", "assembly", "placeholders", ["/hangar/Structure/ship", "/hangar/Structure/ship_legs"],
+SHIP = entry("ship: no made model", "assembly", "placeholders",
+             ["/hangar/Structure/ship", "/hangar/Structure/ship_legs"],
              [f"/hangar/Structure/{name}: plain: drawn by the record's {name} builder (a made piece's stand-in)"
               for name in ("ship", "ship_legs")])
 ORDER = entry("fluid shelves: order", "surfaces-check", "baked matches its surfaces", ["fluid_shelves_1"],
@@ -77,7 +78,8 @@ GAME = entry("launch: layout taken from the source game", "complete", "game", ["
              ["data/scene/launch.json: 12 entries take their numbers from the game (source), 4 positions placed"])
 CASES = {  # gap, another fault of the same gate no gap names
     "plain objects": (RESTING, "/wreck/Objects/fragment_3: floats 0.04: nothing under it"),
-    "placeholders": (SHIP, "/hangar/Structure/crate: plain: drawn by the record's box builder (a made piece's stand-in)"),
+    "placeholders": (SHIP, "/hangar/Structure/crate: plain: drawn by the record's box builder (a made piece's "
+                           "stand-in)"),
     "of its kind only": (ORDER, "fluid_shelves_1: crane_yellow_paint baked [70.1, 5.0, 60.2] against [74.0, 4.1, "
                                 "70.3] (dE 36.4)"),
     "rows by row": (ROWS_GAP, json.dumps({"row": "far_tower", "why": "no object of this row"})),
