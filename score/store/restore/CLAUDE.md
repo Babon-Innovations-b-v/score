@@ -29,5 +29,5 @@ with `FreeRunner`, the runner made unable to spend, and prints one summary line;
   pushes score_lib, puts blobs in the bucket and runs hooks in processes the free-only guard does not reach.
 - **Never downloaded:** `runs/`, `weights/`, `code/`, `kernels/`, library blobs, view sets, `.glb` files and place USD:
   no key proves any of them is today's. An old-route output stays a gap (#12, `score/stages/complete/gaps`).
-- Tests: `restore_test.py` drives a toy table on `Store.in_folder` with a folder bucket; every paid point fails the
+- Tests: `test_the_restore_spends_nothing_and_accepts_nothing_old_by_hand.py` drives a toy table on `Store.in_folder` with a folder bucket; every paid point fails the
   node that reaches it. Never against the real bucket.

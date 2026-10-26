@@ -5,7 +5,30 @@ node with nothing written. A toy table in a store of its own, the bucket a folde
 Fault (2026-10-19): the store, the spend ledgers and the runner's keys were lost with the old WSL disk; the prop
 route and the method were hardened a lot since most outputs were made, so nothing old may look current.
 
-Run: .venv/bin/python score/store/restore/restore_test.py
+Each test's break (applied once, seen red, reverted), in score/store/restore/ (__init__.py unless named):
+- paid row blocked: FreeRunner.make sends a paid stage to the plain make (`if False:` for `if stage.paid:`).
+- paid gatherer never called: FreeRunner.gatherable keeps the paid gatherers.
+- Blender blocks its node: guard_free_only leaves subprocess.Popen as it is.
+- re-attached, judged today: reattached_record keeps today's commit.
+- older key stays blocked: paid_make takes the library's first output whatever its key.
+- a checkout that does not rebuild: rebuilt's hash check becomes `if False:`.
+- a second checkout tried: reattached tries only the first tar.
+- past the run's budget: _bucket.Fetch.reserve never refuses.
+- a disk without room: _bucket.Fetch.room_for never refuses.
+- counting downloads nothing: paid_make's `if self.fetch is None:` becomes `if False:`.
+- the index takes only outputs: _bucket.index_checkouts drops the OUTPUT_NAME match.
+- the run's summary: __main__.category files a paid refusal under "other".
+- a spend line says so: __main__.summary_line always says "EUR 0".
+- an accept not by the runner: __main__.strays returns [].
+- a free gatherer reaching Blender: FreeRunner.gather_one catches KeyError instead of ledger.FreeOnly.
+- library rows never made: FreeRunner.make's library check becomes `if False:`.
+- main guards first: __main__.main skips guard_free_only().
+- main refuses while paid work is open: __main__.main's `if refused:` becomes `if False:`.
+- Blender however started: heavy_program takes a shell string as one word.
+- start refused while paid work is open: __main__.start_refusal's books check becomes `if False:`.
+- re-attach is the owner's: __main__.start_refusal's agent check becomes `if False:`.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/store/restore/test_the_restore_spends_nothing_and_accepts_nothing_old_by_hand.py
 """
 import io
 import json
