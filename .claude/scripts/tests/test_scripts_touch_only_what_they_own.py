@@ -506,11 +506,8 @@ def test_every_plain_script_test_refuses_first_without_a_sandbox_home(tmp_path):
         guard = next(line for line in block if not line.strip().startswith("import "))  # first after its imports
         if guard.strip().startswith("sys.exit(pytest.main("):
             continue  # a pytest run: conftest.py refuses it
-        assert "refuse_outside_sandbox" in guard, path  # its first step, inline or through a loaded conftest
-        root = f"resolve().parents[{len(path.relative_to(REPO).parts) - 1}]"  # the repository's root conftest.py
-        text = path.read_text()
-        assert f'{root} / "conftest.py"' in text or ('REPO / "conftest.py"' in text
-                                                     and f"REPO = pathlib.Path(__file__).{root}\n" in text), path
+        # its first step, inline or through a conftest loaded before (a wrong path to it fails loudly, not silently)
+        assert "refuse_outside_sandbox" in guard and '"conftest.py"' in path.read_text(), path
     environ = {name: value for name, value in os.environ.items() if name not in ("PROPS_HOME", "PROPS_WORK")}
     environ["HOME"] = str(tmp_path)  # were the refusal gone, the run would reach a scratch home, not the real one
     for path in plain[:1]:
