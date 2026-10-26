@@ -3,6 +3,9 @@ likeness gate's silhouettes and routes, and the comparison's prepare and free fi
 
 The comparison's folder is one of its own under $PROPS_HOME/store-tests (never /tmp, never the framework's store),
 removed at the end. Run: .venv/bin/python score/stages/props/props_test.py
+
+Breaks (applied once, seen red, reverted): model_checks laying the row's size x wide, z deep (`[size[0], size[2],
+size[1]]`) turns test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint red.
 """
 import importlib.util
 import json
@@ -117,6 +120,21 @@ def test_a_retake_asks_pixal3d_for_its_own_seed():
         assert pixal_row.seed_of("cairn") == 1
     finally:
         shutil.rmtree(folder)
+
+
+def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint(tmp_path):
+    """likeness_row.model_checks lays a row's wide and deep on the model's own ground sides, longer to longer (the
+    finish lays a long footprint along z: glb_file.squared; the scene turns it about up to its place). A 2 by 1 by
+    0.5 m crate made right passes and one made square fails its spread; a 0.6 by 0.6 by 2 m locker passes. Laid x wide,
+    z deep, as before f2ccd22c, the right crate read spread 1.0 and failed."""
+    import trimesh
+    rows = {"crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 2.0], True), "square crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 1.0], False),
+            "locker": ([0.6, 0.6, 2.0], [0.6, 2.0, 0.6], True), "crate across": ([1.0, 2.0, 0.5], [1.0, 0.5, 2.0], True)}
+    for name, (size, extents, passes) in rows.items():
+        path = tmp_path / f"{name}.glb"
+        trimesh.creation.box(extents=extents).export(path)
+        found = likeness_row.model_checks(path, size, f"p_{name}", False)["model_check"]
+        assert found["pass"] is passes, (name, found)
 
 
 def test_the_likeness_pairs_are_read_from_the_stored_output():

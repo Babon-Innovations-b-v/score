@@ -16,7 +16,8 @@ network, a sagging string, a railing's ladder of posts and rails, a bundle of pa
 as round tubes, so the outline holds the build to the thing's own path.
 
 Its take (`write_take`), in WORK/pixal where the batch would bring one: `<take>.glb` (raw) and the slimmed
-`<take>-<faces>.glb` (the same model), `<take>-final.glb` (it stood by the finish's own turn, which the paint replays),
+`<take>-<faces>.glb` and `<take>-final.glb`, all three the same model in the pose it is built in (it knows its up and
+its lie, so nothing stands it again: the paint's replay of the finish's turn, labels.finish_turn, finds none),
 and `<take>.svviews/` with `input.png`, the row's
 concept crop (the close-up stage's crop of its box, tools/props/closeup/stage.py) cut out by the row's own SAM 3 mask
 on its concept (`concept_masks`: box_masks.py's instance that best matches the row's box, on one rented card for every
@@ -50,20 +51,11 @@ RAILING = frozenset(("railing", "balustrade", "guardrail", "banister"))
 # length has ceil(length / POST_GAP) bays.
 POST_GAP = 1.5
 SEGMENTS = 32
-# The raw take's tilt off the axes (write_take): radians about one level axis between x and z, so every side of the
-# box leans and the finish's stand (the shortest turn back up) undoes it exactly.
-RAW_TILT = (0.2, (1.0, 0.0, 1.0))
-# The turns about up tried first (write_take keeps the one the stand undoes best): a square section's ground spread has
-# no long side; glb_file.squared lines its tightest rectangle up with the axes (since 2026-10-26), so either comes out square.
-RAW_YAWS = (0.0, np.pi / 4)
 # A mask is one straight run (one_run) while it lies across its long axis within twice its line's width plus this share
 # of its length: a lantern string sagging 13% of its span is not; a pipe drawn 2% off true is.
 RUN_BEND = 0.05
 # A mask's piece under this share of its largest piece's area is a speck SAM 3 left, not a run of the thing (pieces).
 PIECE_SHARE = 0.1
-# Degrees of the finish's in-plane turn of a path build (stand_tilt) the likeness row turns its cut by, so the outline
-# holds the build's shape: at most this, a turn no one sees in the scene; a larger one stays in the outline and fails.
-STAND_EXCUSE = 2.0
 # Grid cells across a path build's tube (tubes): enough for a round section, few enough faces for the model gate.
 TUBE_CELLS = 6
 # Faces a path build is slimmed to at most (a 4 m railing's grid made 54,000), as Pixal3D's takes are slimmed.
@@ -135,7 +127,7 @@ def profile(row):
 
 
 def build(row, alpha=None):
-    """The row's model at its size, in a raw take's frame as the finish leaves it (y up, the longer ground side along
+    """The row's model at its size, in a final take's frame (y up, the longer ground side along
     z: glb_file.squared; the inventory's size is wide, deep, tall), centred on the origin: its profile swept straight
     along its longest side, upright only when it `stands` (its mask, `alpha`, its cut's, says so too), or, when its
     mask is not one straight run, its mask's own path (`path_build`)."""
@@ -410,19 +402,6 @@ def colour(picture):
     return np.median(pixels[pixels[..., 3] > 127][:, :3], axis=0)
 
 
-def raw_take(row, yaw, factor, path, alpha):
-    """(how far the finish's stand leaves its box from the built one's, the raw take): the build (from its mask
-    `alpha`) turned by `yaw` about up and tilted (RAW_TILT), coloured `factor`, written to `path` to be stood."""
-    import trimesh
-    mesh = build(row, alpha)
-    built = mesh.extents.copy()
-    mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(baseColorFactor=factor))
-    mesh.apply_transform(trimesh.transformations.rotation_matrix(yaw, (0.0, 1.0, 0.0)))
-    mesh.apply_transform(trimesh.transformations.rotation_matrix(*RAW_TILT))
-    mesh.export(path)
-    return float(np.abs(mesh.copy().apply_transform(finish_turn(path)).extents - built).max()), mesh
-
-
 def write_take(take, row, picture, faces, pixal, mask):
     """The take's files (module docstring) in `pixal` from `picture`, its concept crop cut out by its SAM 3 `mask`."""
     import trimesh
@@ -431,30 +410,15 @@ def write_take(take, row, picture, faces, pixal, mask):
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
     alpha = np.asarray(picture.convert("RGBA"))[..., 3] > 127
-    raw = min((raw_take(row, yaw, factor, pixal / f"{take}.glb", alpha) for yaw in RAW_YAWS),
-              key=lambda found: found[0])[1]
-    raw.export(pixal / f"{take}.glb")
-    raw.export(pixal / f"{take}-{faces}.glb")  # the slimmed one the paint replays the finish's turn from
-    raw.apply_transform(finish_turn(pixal / f"{take}.glb"))
-    raw.export(pixal / f"{take}-final.glb")
-    mark = {"route": "code", "rule": "thin straight (owner, 2026-10-25)", "profile": profile(row), "size": row["size"],
-            "mask": str(mask)}
-    if alpha.any() and not one_run(alpha):
-        mark.update(profile="path", stand_tilt=stand_tilt(build(row, alpha).vertices, raw.vertices))
+    mesh = build(row, alpha)
+    mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(baseColorFactor=factor))
+    for name in (f"{take}.glb", f"{take}-{faces}.glb", f"{take}-final.glb"):  # raw, slimmed, final: never stood
+        mesh.export(pixal / name)
+    path = alpha.any() and not one_run(alpha)
+    mark = {"route": "code", "rule": "thin straight (owner, 2026-10-25)", "profile": "path" if path else profile(row),
+            "size": row["size"], "mask": str(mask)}
     (views / MARK).write_text(json.dumps(mark, indent=1))
     return views
-
-
-def stand_tilt(built, final):
-    """The degrees the finish's stand left a wall-plane path build (`built`, its points as built; `final`, the same
-    points stood) turned in its own plane: how far its along axis (z) rises toward up, whichever side it faces. The
-    stand finds a model's up from its box and walls, every pose of it alike, so a planar network of tubes comes out of
-    it a little turned (an elbow 0.75 degrees, 2026-10-26), and its outline, two pixels thick, falls under the bar."""
-    start, end = built - built.mean(0), final - final.mean(0)
-    left, _, right = np.linalg.svd(start.T @ end)
-    turn = (left @ np.diag([1.0, 1.0, np.sign(np.linalg.det(left @ right))]) @ right).T
-    along = turn @ np.array([0.0, 0.0, 1.0])
-    return round(float(np.degrees(np.arctan2(along[1], abs(along[2])))), 3)
 
 
 def code_built(take, pixal):

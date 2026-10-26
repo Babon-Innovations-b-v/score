@@ -549,11 +549,15 @@ def allowed_materials(place, kind, without):
 def finish_turn(take):
     """The turn pixal.py's finish gave the take (stand_and_pad: glb_file.upright_turn, then glb_file.level_turn, on the
     finished model's own positions, in the raw model's frame), replayed exactly: of the take's finished files and the
-    finish's options, the one whose turned box matches the final model's. A fit by registration instead turned the comms
+    finish's options, the one whose turned box matches the final model's; no turn when a finished file is the final
+    model itself (a code build, made in its own pose and never stood). A fit by registration instead turned the comms
     desk's parts 6 cm off and, on a near-symmetric piece, landed end for end at random (2026-10-07)."""
     final = trimesh.load(PIXAL / f"{take}-final.glb", force="mesh")
+    stood = glb_file.positions(*glb_file.read(PIXAL / f"{take}-final.glb"))
     best = None
     for path in sorted(PIXAL.glob(f"{take}-[0-9]*.glb")):
+        if np.array_equal(glb_file.positions(*glb_file.read(path)), stood):
+            return np.eye(3)  # never stood: a code build is made in its own pose (score/stages/props/thin_straight.py)
         for long, feet, flat in ((False, False, False), (True, False, False), (False, True, False), (True, True, False),
                                  (False, False, True)):
             document, views = glb_file.read(path)
