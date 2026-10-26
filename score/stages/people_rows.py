@@ -37,7 +37,8 @@ that maps it (`size_of`).
 
     .venv/bin/python -m score.stages.people_rows      # refresh from the store's current readings and plans
 
-A refresh copies each reading's people rows again, but those its plan shows beyond the place (`beyond`), and keeps
+A refresh copies each reading's people rows again, but those its plan shows beyond the place (`beyond`, as
+groups.current routes them), and keeps
 every hand-made choice (looks, crowd: a row's fields recorded with its `why`) of a row read from the same concept; any
 other row is read again from its design (its drawn looks, the crowd's look by its words). A crowd's ground is taken
 from the plan again on every refresh. Then it writes the people line's data for its mapped looks (`write_line`).
@@ -356,15 +357,15 @@ def refreshed_place(place, inventory, plan, old, picture=None, fabrics=None):
     words and the concept (`picture` H x W x 3, 0..255, or None; `fabrics` {fabric: CIELAB}, people_clothes.fabrics()
     by default). A people row the plan says the painting shows beyond the place (its `beyond`: through a window, past
     its edge, far off) is left out: it belongs to the place it stands in, never stood here (the stairwell's and the
-    street's crowds are the square's, seen in the background: Batch 1, 2026-10-25)."""
+    street's crowds are the square's, seen in the background: Batch 1, 2026-10-25). groups.current routes it so
+    (route "skyline"), unless it stands on a row laid here (groups.stood_beyond: the stairwell's man on its stairs)."""
     from score.stages import people_clothes
     fabrics = people_clothes.fabrics() if fabrics is None else fabrics
     concept = inventory["concept_pick"]["sha256"]
     kept = old["rows"] if old and old["concept"] == concept else {}
-    beyond = set((plan or {}).get("beyond") or [])
     rows = {}
     for row in inventory["rows"]:
-        if row["route"] != "people" or row["id"] in beyond:
+        if row["route"] != "people":
             continue
         copied = {**{key: row.get(key) for key in ("name", "noun", "count", "size", "where")},
                   "share": concept_share(row, inventory.get("picture") or inventory.get("size"))}
