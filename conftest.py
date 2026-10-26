@@ -20,8 +20,14 @@ import tempfile
 import pytest
 
 
+SYSTEM_TEMP = []  # the temp folder own_temp made this run's own one in, once it has
+
+
 def system_temp():
-    """The system's temp folder, also when a test has pointed tempfile.tempdir elsewhere (into its home's tmp/)."""
+    """The system's temp folder, also when a test has pointed tempfile.tempdir elsewhere (into its home's tmp/) or
+    own_temp has pointed TMPDIR at the run's own one inside it."""
+    if SYSTEM_TEMP:
+        return SYSTEM_TEMP[0]
     saved, tempfile.tempdir = tempfile.tempdir, None
     try:
         return pathlib.Path(tempfile.gettempdir()).resolve()
@@ -64,6 +70,7 @@ def own_temp():
     """Point this process's temp folder, and its children's (TMPDIR), at a fresh folder of its own inside the current
     one, removed with everything in it when this process exits (never by a forked child), and with it PROPS_HOME when
     it was empty as the run started (a hand run's `mktemp -d`; make tests' sandbox removes its own); its path."""
+    SYSTEM_TEMP[:] = [system_temp()]
     folder = tempfile.mkdtemp(prefix="score-test-own-")
     tempfile.tempdir = os.environ["TMPDIR"] = folder
     home = pathlib.Path(os.environ["PROPS_HOME"])
