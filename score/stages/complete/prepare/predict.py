@@ -22,12 +22,16 @@ LATER_TAKES_SINCE is asked anew, its next takes from the crop alone and upright)
 accepted Pixal3D output's gaps say no model came back (`at risk`), unless it is a flat sheet the code builds then
 (score/stages/props/flat_sheet.py): that build is made here, free, from its stored close-up and held to the likeness
 row's free checks that need no paint (`sheet_faults`), so it is a `pass` or a `predicted gap`. Every Pro take failed: a code build the accepted
-likeness output judged passes or is a `predicted gap`; one not judged yet is `at risk`; a row no route builds after is
-a `predicted gap` (its next step draws new takes, judged by the real gate: bought all the same).
+likeness output judged passes or is a `predicted gap`; one not judged yet is measured free like a sheet's when its
+SAM 3 mask is stored (straight-masks@<place>, score/stages/props/masks_row.py: `straight_outcome`, its cut the build's
+input), else `at risk`; so is a thin straight row the hub's rate gives a failed close-up; a row no route builds after
+is a `predicted gap` (its next step draws new takes, judged by the real gate: bought all the same).
 """
 import json
 import pathlib
 import tempfile
+
+from PIL import Image
 
 import score.stages.props.prop_data as prop_data
 from score.stages.complete.prepare import groups
@@ -85,11 +89,13 @@ def hub_rates():
     return measured(rows, json.loads(SIZES.read_text())["sizes"])
 
 
-def predicted(size, rates, row=None):
+def predicted(size, rates, row=None, take=None, measures=None):
     """{outcome, shape, pass_share, mode, measured} of a take of this size (its first inventory row `row`, by its
     name and noun): `predicted gap` when every one of at least MIN_MEASURED measured rows of its shape failed the
-    close-up and no route builds it after (code_built), `at risk` when its shape has fewer measured rows and some
-    failed, else `pass` (pass_share its shape's measured close-up pass share, None unmeasured)."""
+    close-up and no route builds it after (code_built; one that is built is its build's measured outcome where its
+    mask is stored, `straight_outcome` of the take and its place's `measures`, else `at risk`), `at risk` when its
+    shape has fewer measured rows and some failed, else `pass` (pass_share its shape's measured close-up pass share,
+    None unmeasured)."""
     shape = shape_of(size)
     counted = rates.get(shape)
     if counted is None:
@@ -99,6 +105,9 @@ def predicted(size, rates, row=None):
     share = round(1 - counted["failed"] / counted["of"], 3)
     if counted["failed"] == counted["of"] and counted["of"] >= MIN_MEASURED:
         if code_built(row, size):
+            built = straight_outcome(take, row, measures) if take else None
+            if built is not None:
+                return {"shape": shape, **built, "measured": f"{said}; {BUILD_MEASURED}"}
             return {"outcome": "at risk", "shape": shape, "pass_share": None, "measured": said,
                     "mode": "close-up fails; built in code after (thin_straight), its likeness not measured yet"}
         return {"outcome": "predicted gap", "shape": shape, "pass_share": share,
@@ -113,20 +122,23 @@ def code_built(row, size):
 
 
 def environment_measures(store, places):
-    """{place: {at, closeups, unmade, built}} from each place's accepted outputs: the close-up row's objects
+    """{place: {at, closeups, unmade, built, masks}} from each place's accepted outputs: the close-up row's objects
     (closeups.json, by a take's first row) and when it was accepted, the takes Pixal3D made no model of (its batch
-    gaps), and {row: passed} of the code builds the likeness row judged (likeness.json `made` code; passed when no
-    batch gap of it is carried)."""
+    gaps), {row: passed} of the code builds the likeness row judged (likeness.json `made` code; passed when no
+    batch gap of it is carried), and the thin straight rows' masks (straight-masks@<place>'s output, or None)."""
     found = {}
     for place in places:
         standing = store.current_accept(f"closeup@{place}")
-        if standing is None:
+        masks = store.accepted(f"straight-masks@{place}")
+        if standing is None and masks is None:
             continue
-        found[place] = {"at": standing["at"],
-                        "closeups": (store.read_file(standing["output"], "closeups.json") or {}).get("objects", {}),
-                        "unmade": gap_objects(store, store.accepted(f"pixal@{place}"), "pixal"),
-                        "built": code_builds(store, store.accepted(f"likeness@{place}")),
-                        "store": store, "closeup_output": standing["output"]}
+        found[place] = {"store": store, "masks": masks}
+        if standing is not None:
+            found[place].update(
+                at=standing["at"],
+                closeups=(store.read_file(standing["output"], "closeups.json") or {}).get("objects", {}),
+                unmade=gap_objects(store, store.accepted(f"pixal@{place}"), "pixal"),
+                built=code_builds(store, store.accepted(f"likeness@{place}")), closeup_output=standing["output"])
     return found
 
 
@@ -184,6 +196,9 @@ def own_outcome(take, row, measures):
         return {**outcome, "outcome": "pass" if passed else "predicted gap", "measured": said,
                 "mode": None if passed else f"its code build failed the likeness (likeness@{take['place']})"}
     if code_built(row, take["size"]):
+        built = straight_outcome(take, row, measures)
+        if built is not None:
+            return {**outcome, **built, "measured": f"{said}; {BUILD_MEASURED}"}
         return {**outcome, "outcome": "at risk", "measured": said,
                 "mode": "close-up failed; built in code after (thin_straight), its likeness not measured yet"}
     if measures["at"] < LATER_TAKES_SINCE:
@@ -199,12 +214,44 @@ def sheet_outcome(take, row, measures):
     if row is None or "store" not in measures or not flat_sheet.sheet(sized):
         return None
     faults = sheet_faults(measures["store"], measures["closeup_output"], take["place"], take["rows"][0], sized)
-    if faults is None:
-        return None
+    return None if faults is None else judged_build(faults, "flat sheet code build (flat_sheet.py)")
+
+
+def judged_build(faults, build):
+    """{outcome, pass_share, mode} of a code build by its free faults."""
     if faults:
         return {"outcome": "predicted gap", "pass_share": 0.0,
-                "mode": f"its flat sheet code build (flat_sheet.py) fails the likeness: {'; '.join(faults)}"}
+                "mode": f"its {build} fails the likeness: {'; '.join(faults)}"}
     return {"outcome": "pass", "pass_share": 1.0, "mode": None}
+
+
+BUILD_MEASURED = "its thin straight code build measured free against its SAM 3 mask (straight-masks)"
+
+
+def straight_outcome(take, row, measures):
+    """{outcome, pass_share, mode} of a thin straight take by its code build (thin_straight.write_take, from its
+    concept crop cut by its SAM 3 mask as straight-masks@<place> stored it), held to the likeness row's free checks
+    (build_faults); a `predicted gap` when SAM 3 found nothing of it (the Pixal3D row leaves it a gap); None when its
+    row was not asked there."""
+    output = (measures or {}).get("masks")
+    if output is None or row is None:
+        return None
+    store, name = measures["store"], take["rows"][0]
+    if name not in (store.read_file(output, "masks.json") or {}).get("asked", []):
+        return None
+    sha = store.listing(output).get(f"cuts/{name}.png")
+    if sha is None:
+        return {"outcome": "predicted gap", "pass_share": 0.0,
+                "mode": "SAM 3 found nothing in its box (straight-masks): no code build"}
+    sized = {**row, "size": take["size"]}
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        store.place_blob(sha, folder / "cut.png")
+        views = thin_straight.write_take(name, sized, Image.open(folder / "cut.png"), "built", folder / "pixal",
+                                         folder / "cut.png")
+        faults = build_faults(folder / "pixal" / f"{name}-final.glb", views / "input.png", take["place"], name, sized,
+                              folder)
+    return judged_build(faults, "thin straight code build (thin_straight.py)")
 
 
 def sheet_faults(store, closeup_output, place, name, row):
@@ -213,8 +260,6 @@ def sheet_faults(store, closeup_output, place, name, row):
     `outline`, at likeness.OUTLINE_LEAST on the close-up as its take's input cut it, and `thin and in proportion`;
     `close-up parts present` needs the finish route's parts, so the likeness row judges it); None when the close-up
     is not stored. CPU only: no renderer, no model, nothing rented."""
-    import score.stages.props.likeness as likeness
-    import score.stages.props.likeness_row as likeness_row
     sha = store.listing(closeup_output).get(f"closeups/{name}.png")
     if sha is None:
         return None
@@ -222,8 +267,17 @@ def sheet_faults(store, closeup_output, place, name, row):
         folder = pathlib.Path(folder)
         store.place_blob(sha, folder / "closeup.png")
         views = flat_sheet.write_take(name, row, folder / "closeup.png", "built", folder / "pixal", folder / "cut")
-        model = folder / "pixal" / f"{name}-final.glb"
-        cut = likeness_row.pixal_cut(views / "input.png", folder / "pixal-cut", name)
-        found = {**likeness.best_way(model, cut, row.get("read_size") or row["size"]),
-                 **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False)}
+        return build_faults(folder / "pixal" / f"{name}-final.glb", views / "input.png", place, name, row, folder)
+
+
+def build_faults(model, picture, place, name, row, folder):
+    """The faults of a code build `model` held to `picture` (its take's input.png) as the likeness row holds a code
+    take (likeness_row.object_record): `outline` at likeness.OUTLINE_LEAST on that picture as Pixal3D's cut makes it,
+    and `thin and in proportion`; `close-up parts present` needs the finish route's parts, so the likeness row judges
+    it. CPU only: no renderer, no model, nothing rented."""
+    import score.stages.props.likeness as likeness
+    import score.stages.props.likeness_row as likeness_row
+    cut = likeness_row.pixal_cut(picture, folder / "pixal-cut", name)
+    found = {**likeness.best_way(model, cut, row.get("read_size") or row["size"]),
+             **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False)}
     return likeness_row.outline_faults(name, found) + likeness_row.model_faults(name, found)

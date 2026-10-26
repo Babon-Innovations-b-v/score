@@ -220,6 +220,7 @@ MAKES_NO_MODEL = {
     "physics-trial": "a physics trial",
     "light-passes": "renders", "surface-tiles": "surface tile pictures",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
+    "straight-masks": "SAM 3 masks of the thin straight rows, read by prepare's prediction alone",
     "body-face-*": "a body's face palette and recipe variant", "people-clips-made": "Kimodo clips and the mean rig", "people-look-*": "renders of a made body (its review page)",
     "people-dress-*": "the loop's library surfaces baked onto a made body's own model, every variant (c3a5a275)",
 }

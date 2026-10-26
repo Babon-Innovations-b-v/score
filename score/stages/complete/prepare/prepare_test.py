@@ -178,9 +178,39 @@ def test_a_flat_sheet_pixal3d_made_no_model_of_is_predicted_by_its_code_build_me
         take = {"place": "lab", "rows": [name], "take": f"lab_{name}", "size": size}
         return predict.own_outcome(take, {"id": name, "name": name, "noun": name, "size": size}, measures)
     assert own("rug", rug)["outcome"] == "pass", own("rug", rug)  # built from its close-up, its outline matches
-    noted = own("note", note)  # 1 mm: under the model gate's thinnest wall at its row's size, whatever it is built of
-    assert noted["outcome"] == "predicted gap" and "thinnest" in noted["mode"], noted
+    # 1 mm: under the model gate's 3 mm wall, held as a solid of its own thickness (gates/model.py least_wall)
+    assert own("note", note)["outcome"] == "pass", own("note", note)
     assert own("crate", crate)["outcome"] == "at risk"  # no sheet: no code build after Pixal3D
+
+
+def test_a_thin_straight_row_is_predicted_by_its_code_build_against_its_stored_mask():
+    import numpy as np
+    from PIL import Image
+    from score.store import Store
+    store = Store.in_folder(tempfile.mkdtemp())
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "cuts").mkdir()
+    pixels = np.zeros((300, 300, 4), dtype=np.uint8)
+    pixels[20:280, 140:160] = (90, 90, 90, 255)  # a post upright in its crop, cut out by its mask
+    Image.fromarray(pixels).save(folder / "cuts" / "post.png")
+    pixels[:] = 0
+    pixels[140:160, 20:280] = (90, 90, 90, 255)  # the mask found a lying beam where the row stands upright
+    Image.fromarray(pixels).save(folder / "cuts" / "rod.png")
+    (folder / "masks.json").write_text(json.dumps({"asked": ["post", "rod", "pipe"], "cut": ["post", "rod"]}))
+    store.write_accept("straight-masks@lab", {"output": store.put_tree(folder), "at": predict.LATER_TAKES_SINCE})
+    measures = predict.environment_measures(store, ["lab", "hub"])
+    assert set(measures) == {"lab"}, measures  # a place with masks and no close-up is measured
+    rates, size = predict.hub_rates(), [0.1, 0.1, 2.0]
+
+    def guess(name):
+        take = {"place": "lab", "rows": [name], "take": f"lab_{name}", "size": size}
+        row = {"id": name, "name": name, "noun": "post", "size": size}
+        return predict.own_outcome(take, row, measures["lab"]) or predict.predicted(size, rates, row, take,
+                                                                                    measures["lab"])
+    assert guess("post")["outcome"] == "pass", guess("post")
+    assert guess("rod")["outcome"] == "predicted gap" and "outline" in guess("rod")["mode"], guess("rod")
+    assert guess("pipe")["outcome"] == "predicted gap" and "SAM 3" in guess("pipe")["mode"]
+    assert guess("beam")["outcome"] == "at risk"  # not asked: its likeness is not measured yet
 
 
 def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_box():

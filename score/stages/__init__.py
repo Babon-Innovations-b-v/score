@@ -37,6 +37,7 @@ import score.stages.demo_film.final as demo_film_final
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 from score.stages.assembly import scene_tree
+import score.stages.props.masks_row as masks_row
 import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.floor_fit as floor_fit
 from score.stages.terrain import fit as ground_fit
@@ -758,6 +759,9 @@ STAGES = (*(dataclasses.replace(row, after={**row.after, **FACE_READS})
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).
 STAGES = (*STAGES, *library.rows(STAGES, REPO / "data"))
+# The thin straight rows' SAM 3 masks (score/stages/props/masks_row.py), read by prepare's prediction alone: after the
+# library rows, so library@<place> does not read it, and here, not in the prop route's table, so no row's code moves.
+STAGES = (*STAGES, masks_row.STAGE)
 # A place's own rows, which apply to every place, kept off a line of models no place owns (the people's, #41:
 # shapes_first.no_place): it has no stage to assemble, complete or hand over, only the shared loop's rows.
 PLACE_ONLY = ("assembly", "scene-tree", "complete", "library")
