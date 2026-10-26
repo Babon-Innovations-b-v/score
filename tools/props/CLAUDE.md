@@ -40,5 +40,9 @@ that brings it into a place. The heavy runtime lives outside the repo, under `~/
 - **`vendor/image-to-3dlab` stays as released.** Change how it is called from here, never the copy.
 - **Edit a finished model's file directly** (`glb_file.py`): a round trip through trimesh or
   Blender drops its maps or its smooth normals.
-- Checks are plain scripts run by the gate with the system python (`*_test.py`); one that needs
-  numpy hands itself to the prop environment, and says it skipped on a box without one.
+- Checks: one pytest file a module, named for its invariant (`test_<invariant>.py`, docs/bible.md
+  `workflow/module-standard`), run by `make tests` in the framework's environment (numpy, trimesh and Pillow are
+  in it) in a sandbox home; each file's docstring names the break that turns each test red. Here: `card.py`
+  `test_one_run_on_the_card.py`, `local_models.py` and `heavy.py` `test_refused_on_this_pc.py`, `pixal.py`
+  `test_raw_model_faces_minus_z.py`, `clean_finish.py` `test_crop_as_pixal3d_does.py`, `glb_file.py`
+  `test_stood_up_and_kept_intact.py`.
