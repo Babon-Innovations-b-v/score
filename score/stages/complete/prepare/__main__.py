@@ -80,7 +80,7 @@ def take_entry(group, record, index, rates, work, measures=None):
     model = group["route"] in groups.MODEL_ROUTES
     first = next((row for row in record.get("rows", []) if row["id"] == group["rows"][0]), None)
     measured = (measures or {}).get(group["place"])
-    prediction = (predict.own_outcome(group, first, measured)
+    prediction = (predict.own_outcome(group, first, measured, {row["id"]: row for row in record.get("rows", [])})
                   or predict.predicted(group["size"], rates, first, group, measured)) if model else OWN_ROUTE
     is_made = made(group["take"])
     inputs = contract.faults(record, group, work) if model else [contract.PART_UNREAD] * (group["route"] is None)

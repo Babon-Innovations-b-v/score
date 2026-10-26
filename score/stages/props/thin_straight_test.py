@@ -1,6 +1,9 @@
 """The thin straight code route (thin_straight.py): which rows it takes, the model it sweeps, the take it writes where
 the finish route and the likeness row read one, and the Pixal3D row building it for a row whose close-up failed.
 
+Breaks (applied once, seen red, reverted): build ignoring its mask (always the one straight sweep) turns
+test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red (the elbow's outline 0.04).
+
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
 import json
@@ -175,6 +178,37 @@ def test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap(tmp_p
     assert asked == [["pipe"]]
 
 
+def test_a_pipe_whose_close_up_passed_is_built_in_code_with_its_place_s_failed_pipe(tmp_path, monkeypatch):
+    """One route a kind in a place (thin_straight.kin): a pipe whose close-up failed and a pipe whose close-up passed
+    both come out of the Pixal3D row built in code, and nothing goes to the batch."""
+    pixal = tmp_path / "pixal"
+    pixal.mkdir()
+    monkeypatch.setattr(pixal_row, "take_files",
+                        lambda take: [pixal / f"{take}{suffix}" for suffix in pixal_row.SUFFIXES])
+    closeup = tmp_path / "closeup"
+    (closeup / "closeups").mkdir(parents=True)
+    Image.new("RGB", (8, 8)).save(closeup / "closeups" / "pipe_2.png")  # its close-up passed
+    monkeypatch.setattr(thin_straight, "concept_masks", lambda rows, concepts, folder: {
+        row: bar_mask(tmp_path / f"{row}.png", PIPE["box"]) for row in rows})
+    batch_gaps.write(closeup, [batch_gaps.gap("pipe: no close-up passed", "closeup", "close-up", ("pipe", "g_pipe"),
+                                              [], "every Pro take failed")])
+    objects = {"pipe": {"route": "prop", "take": "g_pipe"}, "pipe_2": {"route": "prop", "take": "g_pipe_2"}}
+    (tmp_path / "props.json").write_text(json.dumps({"place": "garage", "objects": objects}))
+    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [PIPE, {**PIPE, "id": "pipe_2"}]}))
+    (tmp_path / "surfaces.json").write_text(json.dumps({"takes": {"g_pipe": {}, "g_pipe_2": {}}, "bake": {
+        "models": {"garage_pipe": "g_pipe", "garage_pipe_2": "g_pipe_2"},
+        "entries": {"garage_pipe": {"faces": 4000}, "garage_pipe_2": {"faces": 4000}}}}))
+    inputs = {"props": tmp_path / "props.json", "inventory": tmp_path / "inventory.json",
+              "surfaces": tmp_path / "surfaces.json", "closeup": closeup, "view v1": concept(tmp_path / "concept.png")}
+    out = tmp_path / "out"
+    out.mkdir()
+    pixal_row.make_pixal(inputs, out, 0, {})  # a batch would need a cloud run: none is made
+    assert not (out / "list.txt").exists()
+    assert all(thin_straight.code_built(take, pixal) for take in ("g_pipe", "g_pipe_2"))
+    assert sorted(json.loads((out / "takes.json").read_text())) == ["pipe", "pipe_2"]
+    assert thin_straight.kin(set(), {"pipe": PIPE}) == set()  # no row of its kind failed: the picture route
+
+
 def test_the_likeness_row_holds_a_code_take_to_its_crop_and_closes_its_gap_only_when_it_passes(tmp_path):
     import score.stages.props.likeness_row as likeness_row
     pixal = tmp_path / "pixal"
@@ -193,33 +227,69 @@ def test_the_likeness_row_holds_a_code_take_to_its_crop_and_closes_its_gap_only_
     assert not likeness_row.free_passed({"pipe": {**found["pipe"], "outline": 0.1}}, "pipe")
 
 
-def test_a_straight_thing_slanted_by_the_concept_s_view_passes_and_a_bent_one_fails_as_prepare_predicts(tmp_path):
-    """The concept draws a straight thing at its camera's slant: the likeness row turns its cut upright or level
-    (likeness_row.straight_cut) before the outline, and prepare's prediction holds the build the same way."""
+def held(tmp_path, row, lines, width=9):
+    """(the likeness row's record, prepare's predicted faults) of the code build from a concept whose SAM 3 mask is
+    `lines` (each a list of (x, y) points) drawn `width` pixels wide on a 600 by 200 picture."""
     import score.stages.complete.prepare.predict as predict
     import score.stages.props.likeness_row as likeness_row
     from PIL import ImageDraw
-    for row, path, passes in ((POST, [(250, 190), (350, 10)], True), (PIPE, [(60, 160), (540, 40)], True),
-                              (POST, [(200, 190), (300, 10), (560, 10)], False)):
-        folder = tmp_path / f"{row['id']}-{passes}"
-        folder.mkdir()
-        mask = Image.new("L", (600, 200), 0)
-        ImageDraw.Draw(mask).line(path, fill=255, width=9)
-        mask.save(folder / "mask.png")
-        Image.merge("RGB", [mask.point(lambda value: 140 + value // 4)] * 3).save(folder / "concept.png")
-        box = list(mask.getbbox())
-        picture = thin_straight.cut_by_mask(folder / "concept.png", box, folder / "mask.png")
-        pixal = folder / "pixal"
-        views = thin_straight.write_take("take", row, picture, 4000, pixal, folder / "mask.png")
-        inputs = {"closeup": folder / "closeup", "pixal input it": views / "input.png",
-                  "code take it": views / thin_straight.MARK}
-        found = likeness_row.object_record("it", {"place": "p", "objects": {"it": {"route": "prop", "take": "take"}}},
-                                           inputs, {"take": pixal / "take-final.glb"}, {"takes": {}},
-                                           {"it": {**row, "box": box}}, set(), folder / "cuts")
-        assert (found["outline"] >= likeness.OUTLINE_LEAST) == passes, (row["id"], found["outline"])
-        faults = predict.build_faults(pixal / "take-final.glb", views / "input.png", "p", "it", row, folder,
-                                      straight=True)
-        assert any(fault.startswith("outline") for fault in faults) != passes, faults
+    folder = tmp_path / row["id"]
+    folder.mkdir()
+    mask = Image.new("L", (600, 200), 0)
+    for line in lines:
+        ImageDraw.Draw(mask).line(line, fill=255, width=width, joint="curve")
+    mask.save(folder / "mask.png")
+    Image.merge("RGB", [mask.point(lambda value: 140 + value // 4)] * 3).save(folder / "concept.png")
+    box = list(mask.getbbox())
+    picture = thin_straight.cut_by_mask(folder / "concept.png", box, folder / "mask.png")
+    pixal = folder / "pixal"
+    views = thin_straight.write_take("take", row, picture, 4000, pixal, folder / "mask.png")
+    inputs = {"closeup": folder / "closeup", "pixal input it": views / "input.png",
+              "code take it": views / thin_straight.MARK}
+    found = likeness_row.object_record("it", {"place": "p", "objects": {"it": {"route": "prop", "take": "take"}}},
+                                       inputs, {"take": pixal / "take-final.glb"}, {"takes": {}},
+                                       {"it": {**row, "box": box}}, set(), folder / "cuts")
+    found["code"] = json.loads((views / thin_straight.MARK).read_text())
+    return found, predict.build_faults(pixal / "take-final.glb", views / "input.png", "p", "it", row, folder,
+                                       straight=True)
+
+
+def test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predicts(tmp_path):
+    """The concept draws a straight thing at its camera's slant: the likeness row turns its cut upright or level
+    (likeness_row.straight_cut) before the outline, and prepare's prediction holds the build the same way; it is
+    still the one straight sweep, not a path build. A box the reading stood upright over a pipe its picture shows
+    lying is built lying: the direction is the picture's, the metres the box's."""
+    lying = {"id": "lying", "name": "wall pipe", "noun": "pipe", "size": [0.1, 0.1, 3.0], "view": "v1"}
+    for row, line in ((POST, [(250, 190), (350, 10)]), (PIPE, [(60, 160), (540, 40)]), (lying, [(60, 120), (540, 90)])):
+        found, faults = held(tmp_path, row, [line])
+        assert found["outline"] >= likeness.OUTLINE_LEAST and found["code"]["profile"] != "path", (row["id"], found)
+        assert not any(fault.startswith("outline") for fault in faults), faults
+    import trimesh
+    assert np.allclose(trimesh.load(tmp_path / "lying/pixal/take-final.glb", force="mesh").extents, [0.1, 0.1, 3.0],
+                       atol=0.01)
+
+
+def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path(tmp_path):
+    """A bent pipe, a sagging string, a bundle of two cables and a railing's ladder (world 1's straight-masks,
+    2026-10-26) each failed as one straight sweep: their build follows the mask's own path, its longest reach the
+    row's longest side (a slender box's other sides need not agree with the picture), and the likeness row's outline and
+    prepare's prediction both pass it."""
+    import trimesh
+    sag = [(x, 50 + 120 * (1 - ((x - 300) / 260) ** 2)) for x in range(40, 561, 10)]
+    posts = [[(x, 30), (x, 170)] for x in np.linspace(40, 560, 7)]
+    shapes = {"elbow": ({"name": "wall pipe", "noun": "pipe", "size": [4.0, 0.1, 0.8]},
+                        [[(40, 60), (40, 170), (560, 170)]]),
+              "sag": ({"name": "lantern string", "noun": "lanterns", "size": [6.0, 0.1, 1.0]}, [sag]),
+              "bundle": ({"name": "pipe bundle", "noun": "pipes", "size": [4.0, 0.1, 0.4]},
+                         [[(40, 80), (560, 80)], [(40, 120), (560, 120)]]),
+              "ladder": ({"name": "metal railing", "noun": "railing", "size": [4.2, 0.1, 1.0]},
+                         [[(40, 30), (560, 30)], [(40, 170), (560, 170)], *posts])}
+    for name, (row, lines) in shapes.items():
+        found, faults = held(tmp_path, {"id": name, "view": "v1", **row}, lines)
+        assert found["code"]["profile"] == "path", name
+        assert found["outline"] >= likeness.OUTLINE_LEAST and not faults, (name, found["outline"], faults)
+        made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
+        assert np.isclose(made.extents.max(), row["size"][0], rtol=0.02), (name, made.extents)
 
 
 def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):

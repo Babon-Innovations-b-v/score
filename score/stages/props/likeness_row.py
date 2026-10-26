@@ -92,15 +92,19 @@ def finishes_missing(take, parts):
 
 
 def model_checks(path, size, kind, square):
-    """model.py's check at the row's size (x wide, y tall, z deep), straight.py's for a square generated kind, and
-    whether the mesh is closed."""
+    """model.py's check at the row's size (y tall; its wide and deep sides on x and z as the model's own ground sides
+    lie, longer to longer: the finish's stand lays a long model's longest ground side along z, glb_file.squared, and
+    model.py fits the mesh to the laid size axis by axis, so a 4 m wall pipe's elbow laid crosswise read 0.6 mm thick),
+    straight.py's for a square generated kind, and whether the mesh is closed."""
     import trimesh
     with prop_data.tools("props/gates", "props/library", "props"):
         import model as model_gate
         import straight
     points, triangles = likeness.gltf_mesh(path)
     mesh = trimesh.Trimesh(points, triangles, process=True)
-    found = {"model_check": model_gate.check(kind, mesh, [size[0], size[2], size[1]]),
+    wide, deep, tall = (float(value) for value in size)
+    ground = sorted((wide, deep), reverse=mesh.extents[0] >= mesh.extents[2])
+    found = {"model_check": model_gate.check(kind, mesh, [ground[0], tall, ground[1]]),
              "closed": bool(mesh.is_watertight)}
     if square:
         found["straight"] = straight.straightness(mesh)
@@ -124,24 +128,35 @@ def pixal_cut(path, folder, row):
     return out
 
 
-def straight_cut(path, folder, row, size):
+def straight_cut(path, folder, row, size, mark=None):
     """A thin straight code build's concept crop as pixal_cut cuts it, turned in the picture's plane so its long axis
-    stands upright when the row's longest side (`size`: wide, deep, tall) is its height, else lies level: as the
-    build's best way round shows it. The crop is the concept's view, not a close-up drawn at the ring's look-down, so
-    a straight thing stands in it at the concept camera's slant, and a thin line's outline falls with any slant (a 3 m
-    pipe matched upright at 0.80, at 10 degrees 0.12, at 30 degrees 0.02; the conductor's prediction of 2026-10-26
-    scored 13 of 15 thin straight builds 0.02 to 0.21). Turned once by its own mask's long axis (second moments),
-    never searched per model, so the outline then holds it to its straightness and proportions. A level thing may
-    show at any slant (one running away from the camera stands steep); an upright one is turned at most 45 degrees."""
+    stands upright when the build stands (thin_straight.stands: the row's longest side is its height and its mask
+    rises within 45 degrees of upright), else lies level: as the build's best way round shows it. The crop is the
+    concept's view, not a close-up drawn at the ring's look-down, so a straight thing stands in it at the concept
+    camera's slant, and a thin line's outline falls with any slant (a 3 m pipe matched upright at 0.80, at 10 degrees
+    0.12, at 30 degrees 0.02; the conductor's prediction of 2026-10-26 scored 13 of 15 thin straight builds 0.02 to
+    0.21). Turned once by its own mask's long axis (second moments), never searched per model, so the outline then
+    holds it to its straightness and proportions.
+    A mask that is not one straight run (thin_straight.one_run) had its path build follow it in the picture's frame:
+    its cut is its mask as it is (thin_straight.pieces: specks dropped, no hole filled, so a ladder stays posts and
+    rails and a bundle its lines), turned only by the finish's stand's in-plane turn of the build its take's
+    code.json (`mark`) records, when that is at most thin_straight.STAND_EXCUSE degrees."""
+    picture = np.asarray(Image.open(path).convert("RGBA"))
+    alpha = picture[..., 3] > 127
+    folder.mkdir(parents=True, exist_ok=True)
+    if alpha.any() and not thin_straight.one_run(alpha):
+        tilt = json.loads(pathlib.Path(mark).read_text()).get("stand_tilt", 0.0) if mark else 0.0
+        kept = np.where(thin_straight.pieces(alpha), 255, 0).astype(np.uint8)
+        out = folder / f"{row}.png"
+        turn = tilt if abs(tilt) <= thin_straight.STAND_EXCUSE else 0.0
+        Image.fromarray(np.dstack([picture[..., :3], kept])).rotate(turn, resample=Image.NEAREST, expand=True).save(out)
+        return out
     cut = pixal_cut(path, folder, row)
     picture = Image.open(cut)
-    down, across = np.nonzero(np.asarray(picture)[..., 3] > 127)
-    down, across = down - down.mean(), across - across.mean()
-    slant = 0.5 * np.degrees(np.arctan2(2 * (across * down).mean(), (across ** 2).mean() - (down ** 2).mean()))
-    if float(size[2]) >= max(float(value) for value in size):
-        # a view tilts an upright thing, never lays it down: one lying in the picture stays lying, and fails
-        slant = slant - np.copysign(90.0, slant) if abs(slant) >= 45.0 else 0.0
-    picture.rotate(slant, resample=Image.NEAREST, expand=True).save(cut)
+    turn = thin_straight.slant(np.asarray(picture)[..., 3] > 127)
+    if thin_straight.stands({"size": size}, alpha):
+        turn -= np.copysign(90.0, turn)
+    picture.rotate(turn, resample=Image.NEAREST, expand=True).save(cut)
     return cut
 
 
@@ -168,7 +183,8 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     if cut is None or not pathlib.Path(cut).exists():
         closeup = thin_straight.cut_out(closeup, cuts)
     else:
-        closeup = straight_cut(cut, cuts, row, rows[row]["size"]) if thin_built(inputs, row) else pixal_cut(cut, cuts, row)
+        closeup = (straight_cut(cut, cuts, row, rows[row]["size"], inputs[f"code take {row}"])
+                   if thin_built(inputs, row) else pixal_cut(cut, cuts, row))
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),

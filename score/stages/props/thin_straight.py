@@ -10,6 +10,10 @@ shape_class: its middle side under SLENDER_SHARE of its longest), and its name o
 lamp on its own stem, its post built here and its head the library's lamp at the head mount; a light bar, a strip light or a string of lights along its cable, its body built here
 and its light the library's lamp for its mount, laid by the light layer). Its profile is swept along its longest side, the row's straight length: round (an ellipse filling the two
 short sides) for the kinds in ROUND, a rectangle of the two short sides for the rest (posts, beams, pillars).
+That straight sweep is for a row whose SAM 3 mask is one straight run (`one_run`); any other mask (a bent pipe
+network, a sagging string, a railing's ladder of posts and rails, a bundle of parallel cables: world 1's masks,
+2026-10-26) is followed instead (`path_build`): skeletonised, traced, laid in the row's plane at its metres and swept
+as round tubes, so the outline holds the build to the thing's own path.
 
 Its take (`write_take`), in WORK/pixal where the batch would bring one: `<take>.glb` (raw) and the slimmed
 `<take>-<faces>.glb` (the same model), `<take>-final.glb` (it stood by the finish's own turn, which the paint replays),
@@ -52,17 +56,52 @@ RAW_TILT = (0.2, (1.0, 0.0, 1.0))
 # The turns about up tried first (write_take keeps the one the stand undoes best): a square section's ground spread has
 # no long side; glb_file.squared lines its tightest rectangle up with the axes (since 2026-10-26), so either comes out square.
 RAW_YAWS = (0.0, np.pi / 4)
+# A mask is one straight run (one_run) while it lies across its long axis within twice its line's width plus this share
+# of its length: a lantern string sagging 13% of its span is not; a pipe drawn 2% off true is.
+RUN_BEND = 0.05
+# A mask's piece under this share of its largest piece's area is a speck SAM 3 left, not a run of the thing (pieces).
+PIECE_SHARE = 0.1
+# Degrees of the finish's in-plane turn of a path build (stand_tilt) the likeness row turns its cut by, so the outline
+# holds the build's shape: at most this, a turn no one sees in the scene; a larger one stays in the outline and fails.
+STAND_EXCUSE = 2.0
+# Grid cells across a path build's tube (tubes): enough for a round section, few enough faces for the model gate.
+TUBE_CELLS = 6
+# Faces a path build is slimmed to at most (a 4 m railing's grid made 54,000), as Pixal3D's takes are slimmed.
+PATH_FACES = 20000
 MARK = "code.json"
-# The tool files it runs, declared by the Pixal3D row (pixal_row.files): SAM 3's masks, the crop and the slender rule.
+# The tool files it runs, declared by the Pixal3D row (pixal_row.files): SAM 3's masks, the crop, the close-up's view
+# (a path build is seen back from its look-down) and the slender rule.
 TOOLS = {"masks": "{repo}/tools/props/scene/box_masks.py", "masks runner": "{repo}/tools/cloud/box_masks_cloud.py",
-         "close-up crop": "{repo}/tools/props/closeup/stage.py", "model gate": "{repo}/tools/props/gates/model.py",
-         "glb file": "{repo}/tools/props/glb_file.py"}
+         "close-up crop": "{repo}/tools/props/closeup/stage.py", "close-up view": "{repo}/tools/props/closeup/check.py",
+         "model gate": "{repo}/tools/props/gates/model.py", "glb file": "{repo}/tools/props/glb_file.py"}
 
 
 def kind_words(row):
     """The row's name's and noun's words, each without a plural's s."""
     words = re.findall(r"[a-z]+", f"{row['name']} {row.get('noun') or ''}".lower())
     return {word[:-1] if word.endswith("s") and word[:-1] in STRAIGHT | RAILING else word for word in words}
+
+
+def family(row):
+    """The words naming a thin straight row's kind for `kin`: its straight and railing words, else "light" for a
+    slender light."""
+    return frozenset(kind_words(row) & (STRAIGHT | RAILING)) or frozenset({"light"} if slender_light(row) else ())
+
+
+def kin(failed, rows):
+    """The ids of `rows` ({id: inventory row}: one place's prop objects) that take the code route: each thin straight
+    one with a box of `failed` (its close-up failed) and every other such row sharing a kind word (`family`) with one
+    that does, so a place never mixes code-built and Pixal3D-made runs of one kind (owner, 2026-10-26: "mixing code
+    build and prop pipeline made pipes and cables will prob look bad"). The Pixal3D row builds them; prepare's
+    prediction holds them the same way."""
+    thin = {row for row, entry in rows.items() if entry.get("box") and thin_straight(entry)}
+    coded = set(failed) & thin
+    while True:
+        words = set().union(*(family(rows[row]) for row in coded))
+        more = {row for row in thin if family(rows[row]) & words} - coded
+        if not more:
+            return coded
+        coded |= more
 
 
 def slender(size):
@@ -95,13 +134,18 @@ def profile(row):
     return "railing" if words & RAILING else "round" if words & ROUND else "rect"
 
 
-def build(row):
+def build(row, alpha=None):
     """The row's model at its size, in a raw take's frame as the finish leaves it (y up, the longer ground side along
     z: glb_file.squared; the inventory's size is wide, deep, tall), centred on the origin: its profile swept straight
-    along its longest side."""
+    along its longest side, upright only when it `stands` (its mask, `alpha`, its cut's, says so too), or, when its
+    mask is not one straight run, its mask's own path (`path_build`)."""
     import trimesh
+    if alpha is not None and alpha.any() and not one_run(alpha):
+        return path_build(row, alpha)
     wide, deep, tall = (float(value) for value in row["size"])
     extents = np.array([min(wide, deep), tall, max(wide, deep)])
+    if tall >= max(wide, deep) and not stands(row, alpha):  # the reading's box stood a run its picture shows lying
+        extents = np.array([min(wide, deep), max(wide, deep), tall])
     along = int(np.argmax(extents))
     if profile(row) == "round":
         mesh = trimesh.creation.cylinder(radius=0.5, height=1.0, sections=SEGMENTS)  # along z, centred
@@ -111,6 +155,163 @@ def build(row):
     mesh.apply_scale(extents / mesh.extents)
     mesh.apply_translation(-mesh.bounds.mean(0))
     return mesh
+
+
+def slant(alpha):
+    """The degrees a mask's long axis (second moments) rises from level in the picture, -90 to 90."""
+    down, across = np.nonzero(alpha)
+    down, across = down - down.mean(), across - across.mean()
+    return float(0.5 * np.degrees(np.arctan2(2 * (across * down).mean(), (across ** 2).mean() - (down ** 2).mean())))
+
+
+def stands(row, alpha):
+    """Whether a straight run stands upright: its box's longest side is its height and its mask (when there is one)
+    rises within 45 degrees of upright. The direction is the picture's, the metres the box's: a reading's box stood
+    pipes its picture shows lying (the greenhouse's and the quarters' pipes, outlines 0.02 and 0.03 on 2026-10-26),
+    and a view tilts an upright thing, never lays it down; a level thing may show at any slant (one running away from
+    the camera stands steep), so a level box stays level."""
+    upright = float(row["size"][2]) >= max(float(value) for value in row["size"])
+    return upright and (alpha is None or not alpha.any() or abs(slant(alpha)) >= 45.0)
+
+
+def pieces(alpha):
+    """The mask but its specks: its pieces at least PIECE_SHARE of its largest's area."""
+    from scipy import ndimage
+    labels, count = ndimage.label(alpha, structure=np.ones((3, 3)))
+    if count == 0:
+        return alpha
+    areas = ndimage.sum(alpha, labels, range(1, count + 1))
+    return np.isin(labels, 1 + np.flatnonzero(areas >= PIECE_SHARE * areas.max()))
+
+
+def one_run(alpha):
+    """Whether a mask is one straight run: one piece lying across its long axis within twice its line's width (its
+    area over its length) plus RUN_BEND of its length. A sag, an elbow, a ladder of posts and rails or a band of
+    parallel lines is not: path_build follows it."""
+    from scipy import ndimage
+    kept = pieces(alpha)
+    if ndimage.label(kept, structure=np.ones((3, 3)))[1] != 1:
+        return False
+    down, across = np.nonzero(kept)
+    points = np.c_[across, down].astype(float)
+    points -= points.mean(0)
+    axes = np.linalg.svd(points, full_matrices=False)[2]
+    length = np.ptp(points @ axes[0]) + 1
+    return np.ptp(points @ axes[1]) + 1 <= 2 * len(points) / length + RUN_BEND * length
+
+
+def traces(skeleton):
+    """The skeleton's runs, each a list of (x, y) pixels from an end or a fork to the next one (a loop with neither
+    from any of its pixels round to it)."""
+    points = {(int(across), int(down)) for down, across in zip(*np.nonzero(skeleton))}
+    steps = [(across, down) for across in (-1, 0, 1) for down in (-1, 0, 1) if across or down]
+
+    def around(point):
+        return [(point[0] + across, point[1] + down) for across, down in steps
+                if (point[0] + across, point[1] + down) in points]
+
+    nodes = {point for point in points if len(around(point)) != 2}
+    walked, runs = set(), []
+
+    def walk(start, step):
+        run = [start, step]
+        walked.update({(start, step), (step, start)})
+        while run[-1] not in nodes:
+            ahead = [point for point in around(run[-1]) if point != run[-2] and (run[-1], point) not in walked]
+            if not ahead:
+                break
+            walked.update({(run[-1], ahead[0]), (ahead[0], run[-1])})
+            run.append(ahead[0])
+        return run
+
+    for start in sorted(nodes):
+        runs.extend(walk(start, step) for step in around(start) if (start, step) not in walked)
+    left = points - {point for run in runs for point in run}
+    while left:  # a closed loop: no end or fork on it
+        start = min(left)
+        nodes.add(start)
+        runs.append(walk(start, around(start)[0]))
+        left -= {start, *runs[-1]}
+    return runs
+
+
+def lifted(runs, row, width):
+    """(the runs' points in the build's frame, metres; the tube's thickness): the picture's runs, their direction and
+    path the picture's own, laid in a wall's plane (across the picture z, up it y) or, for a row whose height is its
+    thinnest side, the ground's (up the picture x), seen back from the close-up's look-down (the outline's view,
+    tools/props/closeup/check.py look_down: its height foreshortened by its cosine, a ground run by its sine); one
+    scale for the picture, so the run's longest reach is the row's longest side; the tube `width` picture pixels
+    thick at that scale, at most the row's middle side (the box's metres: its length along the run, its thickness)."""
+    with prop_data.tools("props/closeup", "props", "cloud"):
+        import check
+    sides = sorted(float(value) for value in row["size"])
+    upward = 0 if float(row["size"][2]) <= sides[0] else 1
+    down = np.radians(check.look_down(row["size"]))
+    seen = np.cos(down) if upward == 1 else np.sin(down)
+    flat = np.concatenate(runs) * [1.0, 1.0 / seen]
+    low, span = flat.min(0), np.maximum(np.ptp(flat, axis=0), 1.0)
+    scale = sides[2] / (span.max() + width)
+    thick = min(width * scale, sides[1])
+    scale = (sides[2] - thick) / span.max()
+    laid = []
+    for run in runs:
+        point = np.zeros((len(run), 3))
+        point[:, 2] = (run[:, 0] - low[0] - span[0] / 2) * scale
+        point[:, upward] = -(run[:, 1] / seen - low[1] - span[1] / 2) * scale  # the picture's down is the world's up
+        laid.append(point)
+    return laid, thick
+
+
+def path_build(row, alpha):
+    """The row's model following its mask's own path (owner's ask, 2026-10-26: bent pipe networks, a sagging lantern
+    string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and failed
+    their outline): the mask skeletonised and traced into its runs (`traces`, forks kept), each run's bends kept to
+    within half its line's width, laid in the row's plane at its metres (`lifted`), and a round tube of the line's
+    thickness swept along them all as one closed surface (`tubes`), so a sag stays a sag, an elbow a bend, a ladder
+    its posts and rails and a band of lines its tubes."""
+    from skimage.measure import approximate_polygon
+    from skimage.morphology import skeletonize
+    kept = pieces(alpha)
+    skeleton = skeletonize(kept)
+    width = kept.sum() / skeleton.sum()
+    runs = [approximate_polygon(np.asarray(run, dtype=float), tolerance=1.0)
+            for run in traces(skeleton) if len(run) > 1]
+    mesh = tubes(*lifted(runs, row, width))
+    return mesh.apply_translation(-mesh.bounds.mean(0))
+
+
+def tubes(laid, thick):
+    """One closed surface round the runs `laid` (points in the build's frame, all in one axis plane), `thick` across:
+    the plane's distance to the nearest run, drawn on a grid TUBE_CELLS cells across the tube, made round through the
+    third axis and cut at the tube's radius (marching cubes), so joints and forks are one surface with no shell inside
+    another (the model gate's wall rays read overlapping tubes 0.3 mm thick)."""
+    import trimesh
+    from PIL import ImageDraw
+    from scipy import ndimage
+    from skimage.measure import marching_cubes
+    flat = np.concatenate(laid)
+    plane = [axis for axis in range(3) if np.ptp(flat[:, axis]) > 0 or axis == 2][:2]
+    if len(plane) < 2:
+        plane = [1, 2]
+    across = 3 - sum(plane)
+    cell, radius = thick / TUBE_CELLS, thick / 2
+    low = flat[:, plane].min(0) - radius - 2 * cell
+    shape = np.ceil((np.ptp(flat[:, plane], axis=0) + thick + 4 * cell) / cell).astype(int) + 1
+    centre = Image.new("1", (int(shape[0]), int(shape[1])), 1)
+    draw = ImageDraw.Draw(centre)
+    for points in laid:
+        draw.line([tuple(point) for point in (points[:, plane] - low) / cell], fill=0)
+    reach = ndimage.distance_transform_edt(np.asarray(centre).T) * cell  # [first plane axis, second]
+    depth = np.arange(-(TUBE_CELLS // 2 + 2), TUBE_CELLS // 2 + 3) * cell
+    field = np.sqrt(reach[:, :, None] ** 2 + depth[None, None, :] ** 2) - radius
+    vertices, faces = marching_cubes(field, 0.0, spacing=(cell, cell, cell), allow_degenerate=False)[:2]
+    points = np.zeros_like(vertices)
+    points[:, plane[0]], points[:, plane[1]] = vertices[:, 0] + low[0], vertices[:, 1] + low[1]
+    points[:, across] = vertices[:, 2] + depth[0]
+    mesh = trimesh.Trimesh(points, faces, process=True)
+    if np.linalg.det(np.eye(3)[[plane[0], plane[1], across]]) < 0:
+        mesh.invert()
+    return mesh.simplify_quadric_decimation(face_count=PATH_FACES) if len(mesh.faces) > PATH_FACES else mesh
 
 
 def railing(thick, tall, length):
@@ -209,11 +410,11 @@ def colour(picture):
     return np.median(pixels[pixels[..., 3] > 127][:, :3], axis=0)
 
 
-def raw_take(row, yaw, factor, path):
-    """(how far the finish's stand leaves its box from the built one's, the raw take): the build turned by `yaw` about
-    up and tilted (RAW_TILT), coloured `factor`, written to `path` to be stood."""
+def raw_take(row, yaw, factor, path, alpha):
+    """(how far the finish's stand leaves its box from the built one's, the raw take): the build (from its mask
+    `alpha`) turned by `yaw` about up and tilted (RAW_TILT), coloured `factor`, written to `path` to be stood."""
     import trimesh
-    mesh = build(row)
+    mesh = build(row, alpha)
     built = mesh.extents.copy()
     mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(baseColorFactor=factor))
     mesh.apply_transform(trimesh.transformations.rotation_matrix(yaw, (0.0, 1.0, 0.0)))
@@ -229,14 +430,31 @@ def write_take(take, row, picture, faces, pixal, mask):
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
-    raw = min((raw_take(row, yaw, factor, pixal / f"{take}.glb") for yaw in RAW_YAWS), key=lambda found: found[0])[1]
+    alpha = np.asarray(picture.convert("RGBA"))[..., 3] > 127
+    raw = min((raw_take(row, yaw, factor, pixal / f"{take}.glb", alpha) for yaw in RAW_YAWS),
+              key=lambda found: found[0])[1]
     raw.export(pixal / f"{take}.glb")
     raw.export(pixal / f"{take}-{faces}.glb")  # the slimmed one the paint replays the finish's turn from
     raw.apply_transform(finish_turn(pixal / f"{take}.glb"))
     raw.export(pixal / f"{take}-final.glb")
-    (views / MARK).write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)",
-                                          "profile": profile(row), "size": row["size"], "mask": str(mask)}, indent=1))
+    mark = {"route": "code", "rule": "thin straight (owner, 2026-10-25)", "profile": profile(row), "size": row["size"],
+            "mask": str(mask)}
+    if alpha.any() and not one_run(alpha):
+        mark.update(profile="path", stand_tilt=stand_tilt(build(row, alpha).vertices, raw.vertices))
+    (views / MARK).write_text(json.dumps(mark, indent=1))
     return views
+
+
+def stand_tilt(built, final):
+    """The degrees the finish's stand left a wall-plane path build (`built`, its points as built; `final`, the same
+    points stood) turned in its own plane: how far its along axis (z) rises toward up, whichever side it faces. The
+    stand finds a model's up from its box and walls, every pose of it alike, so a planar network of tubes comes out of
+    it a little turned (an elbow 0.75 degrees, 2026-10-26), and its outline, two pixels thick, falls under the bar."""
+    start, end = built - built.mean(0), final - final.mean(0)
+    left, _, right = np.linalg.svd(start.T @ end)
+    turn = (left @ np.diag([1.0, 1.0, np.sign(np.linalg.det(left @ right))]) @ right).T
+    along = turn @ np.array([0.0, 0.0, 1.0])
+    return round(float(np.degrees(np.arctan2(along[1], abs(along[2])))), 3)
 
 
 def code_built(take, pixal):

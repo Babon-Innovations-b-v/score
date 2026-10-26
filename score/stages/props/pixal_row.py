@@ -15,6 +15,8 @@ the gate still fails it by name, the table moves those faults to complete, and t
 A batch that fails as a whole (its command exits other than 0: a set-up fault) still stops the row. An object whose
 close-up failed and whose row is thin and straight is built in code instead (thin_straight.py, owner 2026-10-25), its
 take's files written here from its concept crop cut out by its SAM 3 mask, so it is made and no gap; a close-up that passes later replaces it.
+So is every other thin straight row of its kind in the place, its close-up passed or not (thin_straight.kin: a room
+never mixes code-built and Pixal3D-made pipes or cables), and none of them goes to Pixal3D.
 An object that lies flat as a sheet whose take Pixal3D or its finish made no model of is built in code from its own
 top-down close-up (flat_sheet.py), so it is made and no gap; that build is kept.
 """
@@ -173,14 +175,15 @@ def make_pixal(inputs, out, seed, params):
     rows = {row["id"]: row for row in json.loads(inputs["inventory"].read_text())["rows"]}
     every = prop_data.prop_objects(prop_data.record_at(inputs["props"]))
     pixal = take_files("-")[0].parent
+    failed = {row for row in every if not (closeups / f"{row}.png").exists()}
+    coded = thin_straight.kin(failed, {row: rows[row] for row in every if row in rows})
     for row, entry in every.items():  # the picture route first: a close-up that passed since replaces a code build
-        if ((closeups / f"{row}.png").exists() and thin_straight.code_built(entry["take"], pixal)
+        if (row not in failed | coded and thin_straight.code_built(entry["take"], pixal)
                 and not flat_sheet.built(entry["take"], pixal)):
             thin_straight.unbuild(entry["take"], pixal)
-    built = code_builds({row: entry for row, entry in every.items() if not (closeups / f"{row}.png").exists()},
-                        rows, inputs, out)
-    objects = {row: entry for row, entry in every.items()
-               if (closeups / f"{row}.png").exists()}  # one with no close-up failed the prop route there
+    built = code_builds({row: entry for row, entry in every.items() if row in failed | coded}, rows, inputs, out)
+    objects = {row: entry for row, entry in every.items()  # one with no close-up failed the prop route there
+               if (closeups / f"{row}.png").exists() and row not in built}
     listing = batch_list(objects, closeups, inputs["surfaces"], out)
     if listing:
         done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/batch.py"), str(listing), "--who",
@@ -206,9 +209,9 @@ def make_pixal(inputs, out, seed, params):
 
 
 def code_builds(failed, rows, inputs, out):
-    """{row: entry} of the objects whose close-up failed that the thin straight route built (thin_straight.py), each
-    from its concept crop cut out by its SAM 3 mask (one rented card for every row not built yet); one already built
-    is kept."""
+    """{row: entry} of the objects (`failed`: each close-up failed, or a row of its kind's did) that the thin straight
+    route built (thin_straight.py), each from its concept crop cut out by its SAM 3 mask (one rented card for every
+    row not built yet); one already built is kept."""
     pixal = take_files("-")[0].parent
     thin = {row: entry for row, entry in sorted(failed.items())
             if row in rows and rows[row].get("box") and thin_straight.thin_straight(rows[row])}
