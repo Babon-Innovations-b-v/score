@@ -10,7 +10,7 @@ command.
   on 2026-10-05. Every Blender starts through `session.py`, which starts it through `launch.sh`:
   its own Xvfb on `:99` up, `DISPLAY` pointed there, a Wayland name with no socket behind it in an
   empty runtime folder, and the Xvfb stopped when Blender ends. A display under `:99` is refused by
-  both (`session_test.py` checks it), and a started Blender found connected to WSLg's X0 or
+  both (`test_blender_stays_off_the_owners_screen.py` checks it), and a started Blender found connected to WSLg's X0 or
   Wayland is stopped at once. Never run `blender` by hand, with `xvfb-run`, or from another
   script; a job that needs no window is `session.py batch` (`blender -b`).
 - **Drawing is on the processor.** System Mesa's llvmpipe on the Xvfb screen and Cycles on the CPU.
@@ -38,6 +38,6 @@ command.
   no visible geometry, which their scorer marks invalid.
 - **Versions**: 5.0.1 by default (LEGO's scorer; a newer `.blend` is not promised to open there),
   `--version 5.2.2` for the latest stable. `smoke.py` runs the whole route in seconds; it is not in
-  the gate because it starts a Blender. `session_test.py` is, with the system python.
+  the gate because it starts a Blender. `test_blender_stays_off_the_owners_screen.py` is.
 - Heavy model steps (Pixal3D, MoGe-2, SAM 3) stay in the cloud (`tools/cloud/`); nothing here
   loads a model.
