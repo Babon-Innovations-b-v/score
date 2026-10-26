@@ -18,7 +18,7 @@ from score.dashboard.state import batch_run, plain
 from score.dashboard.state.exported import ExportedSource
 from score.dashboard.sync import building
 from score.dashboard.tests.pages_test import prose, signed_in
-from score.dashboard.tests.sync_test import MADE, SPEND
+from score.dashboard.tests.fixture import MADE, SPEND
 
 pytestmark = pytest.mark.django_db
 RUN = "joey-1-1792840013"

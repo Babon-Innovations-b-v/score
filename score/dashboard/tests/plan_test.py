@@ -149,7 +149,7 @@ def hosted_page(world, tmp_path, monkeypatch, settings, page):
     """(`page` as the hosted cockpit serves it from an export of the fixture's store, the export's WorldState)."""
     from score.dashboard import state
     from score.dashboard.state.exported import ExportedSource
-    from score.dashboard.tests.sync_test import exported
+    from score.dashboard.tests.fixture import exported
     world.source.refresh()
     exported(world, tmp_path / "export")
     source = ExportedSource(tmp_path / "export")
