@@ -37,6 +37,7 @@ from PIL import Image
 from score import checks
 import score.stages.batch_gaps as batch_gaps
 import score.stages.props.calibration_row as calibration_row
+import score.stages.props.flat_sheet as flat_sheet
 import score.stages.props.likeness as likeness
 import score.stages.props.prop_data as prop_data
 import score.stages.props.thin_straight as thin_straight
@@ -123,6 +124,33 @@ def pixal_cut(path, folder, row):
     return out
 
 
+def straight_cut(path, folder, row, size):
+    """A thin straight code build's concept crop as pixal_cut cuts it, turned in the picture's plane so its long axis
+    stands upright when the row's longest side (`size`: wide, deep, tall) is its height, else lies level: as the
+    build's best way round shows it. The crop is the concept's view, not a close-up drawn at the ring's look-down, so
+    a straight thing stands in it at the concept camera's slant, and a thin line's outline falls with any slant (a 3 m
+    pipe matched upright at 0.80, at 10 degrees 0.12, at 30 degrees 0.02; the conductor's prediction of 2026-10-26
+    scored 13 of 15 thin straight builds 0.02 to 0.21). Turned once by its own mask's long axis (second moments),
+    never searched per model, so the outline then holds it to its straightness and proportions. A level thing may
+    show at any slant (one running away from the camera stands steep); an upright one is turned at most 45 degrees."""
+    cut = pixal_cut(path, folder, row)
+    picture = Image.open(cut)
+    down, across = np.nonzero(np.asarray(picture)[..., 3] > 127)
+    down, across = down - down.mean(), across - across.mean()
+    slant = 0.5 * np.degrees(np.arctan2(2 * (across * down).mean(), (across ** 2).mean() - (down ** 2).mean()))
+    if float(size[2]) >= max(float(value) for value in size):
+        # a view tilts an upright thing, never lays it down: one lying in the picture stays lying, and fails
+        slant = slant - np.copysign(90.0, slant) if abs(slant) >= 45.0 else 0.0
+    picture.rotate(slant, resample=Image.NEAREST, expand=True).save(cut)
+    return cut
+
+
+def thin_built(inputs, row):
+    """Whether the object's take is the thin straight route's code build (its code.json not a flat sheet's)."""
+    mark = inputs.get(f"code take {row}")
+    return mark is not None and json.loads(pathlib.Path(mark).read_text()).get("rule") != flat_sheet.RULE
+
+
 def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     """One object's route, model, outline (at the look-down its close-up was drawn at, for the size it was drawn at:
     tools/props/closeup/stage.py object_size), checks and missing parts; `rows`: the inventory's rows by id."""
@@ -137,7 +165,10 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     if model is None or not pathlib.Path(model).exists() or not closeup.exists():
         return {**found, "missing": "no model" if closeup.exists() else "no close-up"}
     cut = inputs.get(f"pixal input {row}") if route == "prop" else None
-    closeup = pixal_cut(cut, cuts, row) if cut is not None and pathlib.Path(cut).exists() else thin_straight.cut_out(closeup, cuts)
+    if cut is None or not pathlib.Path(cut).exists():
+        closeup = thin_straight.cut_out(closeup, cuts)
+    else:
+        closeup = straight_cut(cut, cuts, row, rows[row]["size"]) if thin_built(inputs, row) else pixal_cut(cut, cuts, row)
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),

@@ -38,7 +38,7 @@ gate passes it), else
   most `POST_GAP` apart under a top and a mid rail) or of a kind that glows (a stem lamp's post, a light
   bar, a strip or string of lights: its light the library's lamp, laid by the light layer), whose every Pro take
   failed, as its take's files (raw, slimmed, final stood by the finish's own turn, `input.png` its concept crop cut by the row's own SAM 3 mask, never its box,
-  `code.json`), so the finish route paints it and `likeness` holds it to that crop. `pixal` drops its close-up
+  `code.json`), so the finish route paints it and `likeness` holds it to that crop, turned upright or level first by its mask's long axis (`likeness_row.straight_cut`: the crop is the concept's slanted view, and a thin line's outline fell to 0.02 at 30 degrees; an upright one turned at most 45). `pixal` drops its close-up
   gap (the finish route skips a gapped take); `likeness` carries it again only while a free check fails the build. A
   close-up that passes later removes the build and Pixal3D makes the take. Keep `likeness_row` out of its imports:
   the paid rows' code must not hash the checks (`props_test.py`), so the shared cut-out (`cut_out`) lives there.

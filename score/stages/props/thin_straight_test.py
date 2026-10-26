@@ -193,6 +193,35 @@ def test_the_likeness_row_holds_a_code_take_to_its_crop_and_closes_its_gap_only_
     assert not likeness_row.free_passed({"pipe": {**found["pipe"], "outline": 0.1}}, "pipe")
 
 
+def test_a_straight_thing_slanted_by_the_concept_s_view_passes_and_a_bent_one_fails_as_prepare_predicts(tmp_path):
+    """The concept draws a straight thing at its camera's slant: the likeness row turns its cut upright or level
+    (likeness_row.straight_cut) before the outline, and prepare's prediction holds the build the same way."""
+    import score.stages.complete.prepare.predict as predict
+    import score.stages.props.likeness_row as likeness_row
+    from PIL import ImageDraw
+    for row, path, passes in ((POST, [(250, 190), (350, 10)], True), (PIPE, [(60, 160), (540, 40)], True),
+                              (POST, [(200, 190), (300, 10), (560, 10)], False)):
+        folder = tmp_path / f"{row['id']}-{passes}"
+        folder.mkdir()
+        mask = Image.new("L", (600, 200), 0)
+        ImageDraw.Draw(mask).line(path, fill=255, width=9)
+        mask.save(folder / "mask.png")
+        Image.merge("RGB", [mask.point(lambda value: 140 + value // 4)] * 3).save(folder / "concept.png")
+        box = list(mask.getbbox())
+        picture = thin_straight.cut_by_mask(folder / "concept.png", box, folder / "mask.png")
+        pixal = folder / "pixal"
+        views = thin_straight.write_take("take", row, picture, 4000, pixal, folder / "mask.png")
+        inputs = {"closeup": folder / "closeup", "pixal input it": views / "input.png",
+                  "code take it": views / thin_straight.MARK}
+        found = likeness_row.object_record("it", {"place": "p", "objects": {"it": {"route": "prop", "take": "take"}}},
+                                           inputs, {"take": pixal / "take-final.glb"}, {"takes": {}},
+                                           {"it": {**row, "box": box}}, set(), folder / "cuts")
+        assert (found["outline"] >= likeness.OUTLINE_LEAST) == passes, (row["id"], found["outline"])
+        faults = predict.build_faults(pixal / "take-final.glb", views / "input.png", "p", "it", row, folder,
+                                      straight=True)
+        assert any(fault.startswith("outline") for fault in faults) != passes, faults
+
+
 def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):
     import score.stages.props.masks_row as masks_row
     asked = []
