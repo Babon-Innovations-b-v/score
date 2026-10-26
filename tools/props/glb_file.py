@@ -19,6 +19,7 @@ import numpy as np
 import trimesh
 from PIL import Image, ImageDraw
 from scipy.ndimage import binary_erosion, distance_transform_edt
+from scipy.spatial import ConvexHull
 
 # Texels at each piece's edge, already darkened by the bake, that get refilled too.
 EDGE_RING = 1
@@ -271,14 +272,39 @@ def tube_axis(points):
     return direction * np.sign(direction[1])
 
 
+# A footprint whose tightest rectangle is under SQUARE_ASPECT times as long as wide has no long side to lay along Z (a
+# square sticky note's long side came out at 45 degrees, 0.110 x 0.101 for 0.08 x 0.08, 2026-10-26): that rectangle's
+# edges are squared to the axes instead. One whose box on the axes is within ROUND_SLACK of that rectangle (a round
+# footprint, or one already square) is left as it is.
+SQUARE_ASPECT = 1.2
+ROUND_SLACK = 0.02
+
+
 def squared(points):
-    """The turn about up that lays the model's longest side across the ground along Z, so it
-    faces along an axis rather than at whatever angle the picture's camera left it."""
+    """The turn about up that faces the model along an axis rather than at whatever angle the picture's camera left
+    it: a long footprint's longest side laid along Z, a square one's edges along X and Z, a round one left as it is."""
     ground = points[:, [0, 2]] - points[:, [0, 2]].mean(0)
-    along = np.linalg.svd(ground, full_matrices=False)[2][0]
-    angle = np.arctan2(along[0], along[1])
+    angle, sides = tightest_rectangle(ground)
+    if max(sides) >= SQUARE_ASPECT * min(sides):
+        along = np.linalg.svd(ground, full_matrices=False)[2][0]
+        angle = np.arctan2(along[0], along[1])
+    elif np.prod(np.ptp(ground, axis=0)) <= (1 + ROUND_SLACK) * np.prod(sides):
+        angle = 0.0
     cosine, sine = np.cos(angle), np.sin(angle)
     return np.array([[cosine, 0.0, -sine], [0.0, 1.0, 0.0], [sine, 0.0, cosine]])
+
+
+def tightest_rectangle(ground):
+    """The least-area rectangle around (x, z) points: the turn about up (radians, within 45 degrees either way) that
+    lays its edges on the axes, as `squared` measures it, and its two sides. It lies along an edge of their hull."""
+    hull = ground[ConvexHull(ground, qhull_options="QJ").vertices]
+    edges = np.roll(hull, -1, axis=0) - hull
+    angles = (np.arctan2(edges[:, 0], edges[:, 1]) + np.pi / 4) % (np.pi / 2) - np.pi / 4
+    cosines, sines = np.cos(angles)[:, None], np.sin(angles)[:, None]
+    across, along = cosines * hull[:, 0] - sines * hull[:, 1], sines * hull[:, 0] + cosines * hull[:, 1]
+    sides = np.c_[np.ptp(across, axis=1), np.ptp(along, axis=1)]
+    best = np.argmin(sides.prod(axis=1))
+    return angles[best], sides[best]
 
 
 def uv_corners(document, views):
