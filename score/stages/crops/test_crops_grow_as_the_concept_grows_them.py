@@ -66,7 +66,8 @@ def projected(view, point, size):
     way = np.asarray(point, dtype=float) - eye
     depth = float(way @ ahead)
     half_wide = math.tan(math.radians(view["fov"]) / 2)
-    return size[0] / 2 * (1 + float(way @ right) / depth / half_wide), size[1] / 2 - float(way @ up) / depth / half_wide * size[0] / 2
+    return (size[0] / 2 * (1 + float(way @ right) / depth / half_wide),
+            size[1] / 2 - float(way @ up) / depth / half_wide * size[0] / 2)
 
 
 def test_crop_kinds_and_beds_come_from_the_design():
@@ -74,7 +75,8 @@ def test_crop_kinds_and_beds_come_from_the_design():
     the planter is the plot; the beds are the plan items the planter makes, in the place's frame on the lower floor;
     a design with no row growing on a bed has no crops. The first bed, plan item (0.3, 7.3) 0.6 m square on the 12 m
     plan, is at (-5.4, 1.6) in the place's frame, 0.06 m tall on the 0.4 m lower floor: its middle 0.43 up.
-    Break: score/stages/crops/crop_data.py: `shared = any(row_kinds.words(other.get("noun")) == noun for other in crops if other is not row)` -> `shared = False`
+    Break: score/stages/crops/crop_data.py: `shared = any(row_kinds.words(other.get("noun")) == noun for other in crops
+        if other is not row)` -> `shared = False`
     Break: score/stages/crops/crop_data.py: `round(floor + tall / 2, 4)` -> `round(tall / 2, 4)`"""
     assert list(RECORD["kinds"]) == ["lettuce", "potato", "herb", "greens"], RECORD["kinds"]
     assert RECORD["kinds"]["lettuce"] == {"row": "lettuce", "nouns": ["lettuce"], "bed": "planter_bed"}
@@ -104,8 +106,10 @@ def grid(kind, noun, origin, count, spacing, width=8):
 def test_tiles_cover_the_picture_and_map_back():
     """The 3 x 2 tiles reach every edge of the picture; a plant found on a tile's picture (drawn UPSCALE larger) maps
     back to the whole picture at the tile's corner plus its box over UPSCALE.
-    Break: score/stages/crops/concept.py: `min(size[0], round(left + wide * (1 + OVERLAP)))` -> `min(size[0], round(left + wide))`
-    Break: score/stages/crops/concept.py: `dict(instance, box=[left + instance["box"][0] / UPSCALE` -> `dict(instance, box=[left + instance["box"][0]`"""
+    Break: score/stages/crops/concept.py: `min(size[0], round(left + wide * (1 + OVERLAP)))` -> `min(size[0], round(left
+        + wide))`
+    Break: score/stages/crops/concept.py: `dict(instance, box=[left + instance["box"][0] / UPSCALE` -> `dict(instance,
+        box=[left + instance["box"][0]`"""
     size = [2752, 1536]
     tiles = concept.tile_boxes(size)
     assert len(tiles) == concept.TILES[0] * concept.TILES[1]
@@ -126,7 +130,8 @@ def test_spacing_and_share_of_a_grid():
     plant found twice (two nouns, or two tiles) is kept once; a stray far off is left out. The lettuce's 36 plants in a
     6 x 6 grid 100 px apart cover 600 x 600 px of the 2000 px plot: 0.09 of it.
     Break: score/stages/crops/concept.py: `"strays": len(own) - len(members)` -> `"strays": 0`
-    Break: score/stages/crops/concept.py: `if not any(same_plant(instance["box"], other["box"])` -> `if True or not any(same_plant(instance["box"], other["box"])`"""
+    Break: score/stages/crops/concept.py: `if not any(same_plant(instance["box"], other["box"])` -> `if True or not
+        any(same_plant(instance["box"], other["box"])`"""
     instances = dict(SQUARE_PLOT)
     instances.update(grid("lettuce", "lettuce", (550, 550), 6, 100, 50))
     instances.update(grid("potato", "potato", (1300, 1300), 3, 40, 20))
@@ -144,7 +149,8 @@ def test_measured_gate(tmp_path):
     """Every kind found in a patch passes; a kind found in none, or no plot, is unknown; a merged mass (a box over
     MERGED widths) is left out of its kind, not even counted a stray.
     Break: score/stages/crops/concept.py: `found["kinds"][kind]["count"] < FOUND_LEAST or found` -> `found`
-    Break: score/stages/crops/concept.py: `return width(instance["box"]) > MERGED * statistics.median(` -> `return False and statistics.median(`"""
+    Break: score/stages/crops/concept.py: `return width(instance["box"]) > MERGED * statistics.median(` -> `return False
+        and statistics.median(`"""
     instances = dict(SQUARE_PLOT)
     for number, kind in enumerate(RECORD["kinds"]):
         instances.update(grid(kind, RECORD["kinds"][kind]["nouns"][0], (100 + 350 * number, 100), 3, 30))
@@ -200,8 +206,10 @@ def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
     """crops-layer, try 4 of 2026-10-25: a kind whose take the prop route made a batch gap has no baked model, and the
     layer raised instead of carrying the gap. Now the kind is left out, its beds bare and named in a gap, and the
     table's `on beds` and `spacing` move its faults to that gap; a model missing with no gap naming it is no gap.
-    Break: score/stages/crops/layer.py: `if model_of(entry) not in baked and named:` -> `if model_of(entry) not in baked:`
-    Break: score/stages/crops/layer.py: `(kind, model_of(record["kinds"][kind]), *shared[kind]),` -> `(kind, model_of(record["kinds"][kind])),`"""
+    Break: score/stages/crops/layer.py: `if model_of(entry) not in baked and named:` -> `if model_of(entry) not in
+        baked:`
+    Break: score/stages/crops/layer.py: `(kind, model_of(record["kinds"][kind]), *shared[kind]),` -> `(kind,
+        model_of(record["kinds"][kind])),`"""
     from score import stages
     from score.stages import batch_gaps
     gated = {check.name: check for row in stages.STAGES if row.name == "crops-layer" for check in row.checks}
@@ -234,7 +242,8 @@ def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
 def test_layer_says_what_made_its_crops(tmp_path):
     """Each kind's prototype says what made it (score:kind), so the made-only check passes the laid crop meshes;
     without the mark it fails them, as it did on complete@greenhouse of 2026-10-17.
-    Break: score/stages/crops/layer.py: `prototype.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(KIND)` -> `pass`"""
+    Break: score/stages/crops/layer.py: `prototype.GetPrim().CreateAttribute("score:kind",
+        Sdf.ValueTypeNames.String).Set(KIND)` -> `pass`"""
     from pxr import Sdf, Usd, UsdGeom
     folder = tmp_path
     (folder / "assets").mkdir()
@@ -267,7 +276,8 @@ def test_layer_says_what_made_its_crops(tmp_path):
 def test_look_finds_the_floor_again():
     """A point of the beds' top drawn by a look camera (projected here by the camera's own geometry) is taken back
     onto it, and it falls inside the picture.
-    Break: score/stages/crops/look.py: `rise = (size[1] / 2 - pixel[1]) / (size[0] / 2) * half_wide` -> `rise = (size[1] / 2 - pixel[1]) / (size[1] / 2) * half_wide`"""
+    Break: score/stages/crops/look.py: `rise = (size[1] / 2 - pixel[1]) / (size[0] / 2) * half_wide` -> `rise = (size[1]
+        / 2 - pixel[1]) / (size[1] / 2) * half_wide`"""
     for view in look.views_of(BEDS):
         for point in ((-5.4, 0.46, 1.6), (-3.0, 0.46, -0.8), (-4.2, 0.46, 0.4)):
             pixel = projected(view, point, look.SIZE)
@@ -279,7 +289,8 @@ def test_look_finds_the_floor_again():
 def test_look_stage_takes_beds_named_with_spaces(tmp_path):
     """crops-look@greenhouse, try 4 of 2026-10-25: its beds are plan items named 'PLANTER BED 1', no prim name, so the
     stage build raised before the card was rented. Each bed's prim is a valid identifier, its name kept.
-    Break: score/stages/crops/look.py: `prims = [Tf.MakeValidIdentifier(bed["name"]) for bed in beds]` -> `prims = [bed["name"] for bed in beds]`"""
+    Break: score/stages/crops/look.py: `prims = [Tf.MakeValidIdentifier(bed["name"]) for bed in beds]` -> `prims =
+        [bed["name"] for bed in beds]`"""
     from pxr import Usd
     folder = tmp_path
     crops = folder / "crops"
@@ -296,7 +307,8 @@ def test_look_stage_takes_beds_named_with_spaces(tmp_path):
 def test_look_counts_a_plant_the_kind_of_its_bed():
     """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on (the herb's
     bed here, though one box was found as 'leafy bush').
-    Break: score/stages/crops/look.py: `any(on_bed(spot, beds[name]) for name in shared[kind])` -> `any(on_bed(spot, bed) for bed in beds.values())`"""
+    Break: score/stages/crops/look.py: `any(on_bed(spot, beds[name]) for name in shared[kind])` -> `any(on_bed(spot,
+        bed) for bed in beds.values())`"""
     beds = {bed["name"]: bed for bed in BEDS}
     view = look.views_of(BEDS)[0]
     foot_x, foot_y = projected(view, (-5.4, 0.46, 1.6), look.SIZE)
@@ -322,7 +334,8 @@ def boxed_inputs(folder, gemini=()):
 def test_crop_boxes_the_reading_placed_pass_and_rent_nothing(tmp_path):
     """2026-10-22 benchmark: crops-boxes read the retired page-A inventory, found nothing to mask and still rented a
     card. Off the design, a crop row SAM 3 boxed in the reading passes as it stands, with no mask job and no rent.
-    Break: score/stages/crops/boxes.py: `if rows[name].get("box") and rows[name].get("boxed_by") == GEMINI]` -> `if rows[name].get("box")]`"""
+    Break: score/stages/crops/boxes.py: `if rows[name].get("box") and rows[name].get("boxed_by") == GEMINI]` -> `if
+        rows[name].get("box")]`"""
     folder = tmp_path
     inputs = boxed_inputs(folder)
     assert boxes.to_mask(inputs) == []

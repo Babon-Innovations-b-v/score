@@ -7,7 +7,8 @@ placeholder gate and the collision gate. Volumes and corners are worked out by h
 
 Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
 
-Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/earth_seed/test_a_scene_s_base_stands_from_its_design.py
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
+score/stages/earth_seed/test_a_scene_s_base_stands_from_its_design.py
 """
 import json
 import pathlib
@@ -36,7 +37,8 @@ def write(folder, name, record):
 def test_no_row_reads_an_earth_place_s_round_three_seed_or_old_kit():
     """#27: the round-three seeds were lost (2026-10-19) and the old kits retired (2026-10-21): no row of an earth place
     declares one, and every row that read one reads earth-seed instead (stages.EARTH_SEEDED, every reader).
-    Break: score/stages/__init__.py: `return {name: path for name, path in found.items() if read_from_seed(path, place) is None}` -> `return found`"""
+    Break: score/stages/__init__.py: `return {name: path for name, path in found.items() if read_from_seed(path, place)
+        is None}` -> `return found`"""
     readers = set()
     for row in stages.STAGES:
         for place in PLACES:
@@ -53,7 +55,8 @@ def test_no_row_reads_an_earth_place_s_round_three_seed_or_old_kit():
 def test_a_reader_gets_its_seeds_and_design_kits_under_their_old_names():
     """A reader's old names point into earth-seed's outputs: its own seed and design kit from its own row, a shown
     place's from beside; a place with no earth-seed row (no design locked) stays a declared file, named lost.
-    Break: score/stages/__init__.py: `taken[name] = output / named if seed_named(pattern, place) else earth_seed.kit_in(output)` -> `taken[name] = output / named`"""
+    Break: score/stages/__init__.py: `taken[name] = output / named if seed_named(pattern, place) else
+        earth_seed.kit_in(output)` -> `taken[name] = output / named`"""
     root = pathlib.Path(tempfile.mkdtemp())
     kept = earth_seed.DESIGN
     with_designs({"airlock": {}, "hub": {}}, root / "design")
@@ -79,7 +82,8 @@ def test_a_reader_gets_its_seeds_and_design_kits_under_their_old_names():
 def test_a_piece_no_row_made_is_left_out_and_named():
     """The export the seed runs leaves out a piece whose model no row made (the lamp) and names it once, however often
     it is asked.
-    Break: tools/usd/export.py: `gaps.extend({"model": model} for model in sorted(missing) if {"model": model} not in gaps)` -> `gaps.extend({"model": model} for model in sorted(missing))`"""
+    Break: tools/usd/export.py: `gaps.extend({"model": model} for model in sorted(missing) if {"model": model} not in
+        gaps)` -> `gaps.extend({"model": model} for model in sorted(missing))`"""
     sys.path.insert(0, str(REPO / "tools/usd"))
     import export
     root = pathlib.Path(tempfile.mkdtemp())
@@ -97,8 +101,10 @@ def test_a_piece_no_row_made_is_left_out_and_named():
 def test_the_seed_gates_fail_by_name():
     """An output with no design kit is no seed; one with it is; a model no row made fails `laid` by name and a pick not
     shown fails `picks` by its row.
-    Break: score/stages/earth_seed/__init__.py: `return faults + [f"no {name}" for name in (GAPS, KIT_FILE) if not (folder / name).exists()]` -> `return faults`
-    Break: score/stages/earth_seed/__init__.py: `checks.FAIL if missing else checks.PASS, reason, {"missing"` -> `checks.PASS, reason, {"missing"`"""
+    Break: score/stages/earth_seed/__init__.py: `return faults + [f"no {name}" for name in (GAPS, KIT_FILE) if not
+        (folder / name).exists()]` -> `return faults`
+    Break: score/stages/earth_seed/__init__.py: `checks.FAIL if missing else checks.PASS, reason, {"missing"` ->
+        `checks.PASS, reason, {"missing"`"""
     root = pathlib.Path(tempfile.mkdtemp())
     try:
         (root / "wreck").mkdir()
@@ -176,15 +182,18 @@ def test_a_door_or_window_row_cuts_its_opening_where_its_plan_item_stands_on_a_w
     row filling an opening (a door, window, gate, hatch or shutter, a panel) cuts one at its item on a wall, its own
     wide, from its shape's base to its top; one at the plan's own opening cuts none more; a box is no panel, and a
     panel-shaped lid fills no opening.
-    Break: score/stages/earth_seed/design_shell.py: `if any(np.linalg.norm(np.subtract(at, other["at"])) < (wide + other["wide"]) / 2 for other in own):` -> `if False:`
-    Break: score/stages/earth_seed/design_shell.py: `return (bool(words & OPENING_KINDS) and` -> `return (bool(words) and`"""
+    Break: score/stages/earth_seed/design_shell.py: `if any(np.linalg.norm(np.subtract(at, other["at"])) < (wide +
+        other["wide"]) / 2 for other in own):` -> `if False:`
+    Break: score/stages/earth_seed/design_shell.py: `return (bool(words & OPENING_KINDS) and` -> `return (bool(words)
+        and`"""
     rows = [{"id": "window", "name": "porthole window", "noun": "window", "size": [1.0, 0.1, 1.0]},
             {"id": "door", "name": "door", "noun": "door", "size": [1.0, 0.1, 2.0]},
             {"id": "door_control_box", "name": "door control box", "noun": "box", "size": [0.2, 0.1, 0.3]},
             {"id": "lid", "name": "crate lid", "noun": "lid", "size": [1.0, 0.1, 1.0]}]
     plan = dict(ROOM, items=[["WINDOW 1", 3.95, 1.0, 0.1, 1.0, None, "item"], ["DOOR 1", 1.5, -0.05, 1.0, 0.1, None,
                                                                                 "item"],
-                             ["BOX 1", 0.0, 1.0, 0.1, 0.2, None, "item"], ["LID 1", -0.05, 2.0, 0.1, 1.0, None, "item"]],
+                             ["BOX 1", 0.0, 1.0, 0.1, 0.2, None, "item"],
+                             ["LID 1", -0.05, 2.0, 0.1, 1.0, None, "item"]],
                 rows={"WINDOW 1": ["window"], "DOOR 1": ["door"], "BOX 1": ["door_control_box"], "LID 1": ["lid"]},
                 shapes={"WINDOW 1": {"base": 1.0, "tall": 1.0}, "DOOR 1": {"base": 0.0, "tall": 2.0}})
     assert design_shell.row_openings(plan, rows) == [{"at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0,
@@ -198,7 +207,8 @@ def test_a_door_or_window_row_cuts_its_opening_where_its_plan_item_stands_on_a_w
 def test_a_room_is_a_kit_shell_inside_or_one_that_writes_walls():
     """A scene added in the app says neither inside nor out: it is a room the earth seed lays when its plan writes walls
     (the docking airlock), an open place when it writes none (the Moon base); a domed shell is the scene record's.
-    Break: score/stages/earth_seed/design_shell.py: `return plan.get("shell") == "kit" and (bool(inside) if inside is not None else bool(plan.get("walls")))` -> `return plan.get("shell") == "kit"`"""
+    Break: score/stages/earth_seed/design_shell.py: `return plan.get("shell") == "kit" and (bool(inside) if inside is
+        not None else bool(plan.get("walls")))` -> `return plan.get("shell") == "kit"`"""
     unsaid = {key: value for key, value in ROOM.items() if key != "inside"}
     assert design_shell.laid_for(ROOM) and design_shell.laid_for(unsaid)
     assert not design_shell.laid_for(dict(unsaid, walls=[])) and not design_shell.laid_for(OPEN)
@@ -210,7 +220,8 @@ def test_the_earth_seed_and_the_scene_record_lay_each_shell_once():
     every enclosed place the earth seed does not (laid_for), and every stair; the earth seed lays a room's shell and an
     open place's raised levels, never a stair. Worked by hand on OPEN: the plaza (0 m) is the ground's, no part; the
     stage deck stands solid from the ground (2 x 2 x 1 m), the balcony is a slab (2 x 2 x 0.2 m).
-    Break: score/stages/earth_seed/design_shell.py: `return bool(plan.get("walls") or plan.get("roofs")) and not (plan.get("terrain") or {}).get("spots")` -> `return bool(plan.get("walls"))`
+    Break: score/stages/earth_seed/design_shell.py: `return bool(plan.get("walls") or plan.get("roofs")) and not
+        (plan.get("terrain") or {}).get("spots")` -> `return bool(plan.get("walls"))`
     Break: score/stages/earth_seed/design_shell.py: `standing = 0.0 < height <= STOREY` -> `standing = False`"""
     from score.stages.scene_record import writer
     domed = dict(OPEN, shell=None, walls=ROOM["walls"])
@@ -229,7 +240,8 @@ def test_the_earth_seed_and_the_scene_record_lay_each_shell_once():
 def test_each_part_takes_its_surface_from_the_scene_library():
     """A part's surface is the first variant the scene library's `kinds` gives one of its kinds; none, and the part
     names why.
-    Break: score/stages/surfaces/palette_library.py: `for wanted in SHELL_KINDS[part] if kinds.get(wanted)), None)` -> `for wanted in SHELL_KINDS[part][:1] if kinds.get(wanted)), None)`
+    Break: score/stages/surfaces/palette_library.py: `for wanted in SHELL_KINDS[part] if kinds.get(wanted)), None)` ->
+        `for wanted in SHELL_KINDS[part][:1] if kinds.get(wanted)), None)`
     Break: score/stages/earth_seed/design_shell.py: `    if library is None:` -> `    if False:`"""
     library = {"kinds": {"floor": ["deck_plate", "rubber_mat"], "ceiling": ["ceiling_panel"], "wall": []}}
     assert design_shell.surface_for("deck", library) == "deck_plate"
@@ -274,8 +286,8 @@ def test_a_designed_base_takes_its_style_from_its_own_entry_else_the_scene_holdi
         assert earth_seed.style_of("docking_bay", inputs) == "hangar"
         assert earth_seed.holders("outpost") == {} and earth_seed.style_of("outpost", inputs) == "outpost"
         assert earth_seed.holders("yard_shed") == {"outpost": "{home}/design/plans/outpost.json"}
-        assert earth_seed.style_of("yard_shed", {**inputs, "holder outpost": earth_seed.DESIGN / "plans/outpost.json"}) \
-            == "outpost"
+        outpost = {**inputs, "holder outpost": earth_seed.DESIGN / "plans/outpost.json"}
+        assert earth_seed.style_of("yard_shed", outpost) == "outpost"
         ring = {"places": inputs["places"], "holder ring_b": earth_seed.DESIGN / "plans/ring_b.json",
                 "holder ring_a": earth_seed.DESIGN / "plans/ring_a.json"}
         try:  # plans holding each other round in a ring: refused by name, never a loop with no end
@@ -294,7 +306,8 @@ def test_the_seed_reads_the_design_s_surface_data():
     """A place's earth seed declares its design's surface data where it has one (surface_data.pattern, the one its
     finish route paints), the places it claims models from are that data's `elsewhere`, through the registered row
     too, and it declares no old scene record or kit.
-    Break: score/stages/earth_seed/__init__.py: `return sorted({claim["place"] for claim in surface_data.record(place).get("elsewhere", {}).values()})` -> `return []`
+    Break: score/stages/earth_seed/__init__.py: `return sorted({claim["place"] for claim in
+        surface_data.record(place).get("elsewhere", {}).values()})` -> `return []`
     Break: score/stages/earth_seed/__init__.py: `found["surfaces"] = surface_data.pattern(place)` -> `pass`"""
     from score.stages.surfaces import surface_data
     kept_surfaces, kept = surface_data.DESIGN, earth_seed.DESIGN
@@ -332,8 +345,10 @@ def test_a_design_base_passes_the_seed_gates_the_placeholder_gate_and_collides()
     collision gate holds the shell), the placeholder gate failing only the unpainted roof; its style the hangar's (the
     scene holding it), its kit the design's (no piece, the plan's box). The same plan as an open place gets no room;
     with no library every part is named missing.
-    Break: score/stages/earth_seed/design_shell.py: `tools.colliders.solid(prim.GetPrim(), mesh["points"], mesh["triangles"])` -> `pass`
-    Break: score/stages/earth_seed/design_shell.py: `paint(stage, prim, place, part_kind(name), library, scene)` -> `pass`"""
+    Break: score/stages/earth_seed/design_shell.py: `tools.colliders.solid(prim.GetPrim(), mesh["points"],
+        mesh["triangles"])` -> `pass`
+    Break: score/stages/earth_seed/design_shell.py: `paint(stage, prim, place, part_kind(name), library, scene)` ->
+        `pass`"""
     from pxr import Usd, UsdShade
     sys.path.insert(0, str(REPO / "tools/usd"))
     import colliders

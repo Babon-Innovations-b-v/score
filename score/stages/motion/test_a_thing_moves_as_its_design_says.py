@@ -117,7 +117,8 @@ def test_the_door_swings_the_fan_turns_the_rover_stands_and_every_gate_passes(tm
     is 400 to 1080: the middle 740 is 41.1 turns in the 20 s round, so 41 turns, 738 a second. Shut, the leaf's middle
     stands at its own spot (3, 1, 1); its hinge is its left edge, (2.55, 1, 1); a quarter turn about the upright there
     (rotateY +90: x to -z) carries the middle 0.45 m from +x of the hinge to -z of it: (2.55, 1, 0.55).
-    Break: score/stages/motion/from_design.py: `turns = max(1, round(middle_speed(motion_kind, "angular") * ROUND / 360.0))` -> `turns = middle_speed(motion_kind, "angular") * ROUND / 360.0`"""
+    Break: score/stages/motion/from_design.py: `turns = max(1, round(middle_speed(motion_kind, "angular") * ROUND /
+        360.0))` -> `turns = middle_speed(motion_kind, "angular") * ROUND / 360.0`"""
     inputs = toy_inputs(tmp_path)
     out, record = made(inputs, tmp_path)
     found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
@@ -161,7 +162,8 @@ MIRROR = ("wall_3", (3.0, 0.0, 1.6), (-0.2, 0.0, -0.2), (0.2, 1.0, 0.2))
 def test_a_door_that_strikes_its_rule_s_way_is_fitted_to_swing_the_other_way(tmp_path):
     """The post in its rule's way: swung -90 instead, said fitted, clear passes; a quarter turn the other way (rotateY
     -90: x to +z) carries the middle 0.45 m from +x of the hinge to +z of it: (2.55, 1, 1.45).
-    Break: score/stages/motion/__init__.py: `kept.append(turned_to(first[prim], left[prim].pop(0)))` -> `still[prim] = "struck"`"""
+    Break: score/stages/motion/__init__.py: `kept.append(turned_to(first[prim], left[prim].pop(0)))` -> `still[prim] =
+        "struck"`"""
     inputs = toy_inputs(tmp_path, extra=(POST,))
     out, record = made(inputs, tmp_path)
     clear = judge("clear", out, inputs)
@@ -175,7 +177,8 @@ def test_a_door_that_strikes_its_rule_s_way_is_fitted_to_swing_the_other_way(tmp
 def test_a_door_that_strikes_every_way_stands_with_its_strike(tmp_path):
     """Posts both ways: at 60 degrees, the least tried, the leaf still sweeps a post's corner (48 degrees round, 0.67 m
     out) either way, so it stands with its strike as the reason and clear passes.
-    Break: score/stages/motion/__init__.py: `still[prim] = f"it strikes at every way it was tried, so it stands: {struck[prim]}"` -> `still[prim] = "struck"`"""
+    Break: score/stages/motion/__init__.py: `still[prim] = f"it strikes at every way it was tried, so it stands:
+        {struck[prim]}"` -> `still[prim] = "struck"`"""
     inputs = toy_inputs(tmp_path, extra=(POST, MIRROR))
     out, record = made(inputs, tmp_path)
     clear = judge("clear", out, inputs)
@@ -187,7 +190,8 @@ def test_a_door_that_strikes_every_way_stands_with_its_strike(tmp_path):
 
 def test_a_hatch_lying_flat_stands(tmp_path):
     """A floor hatch 0.6 m across and 0.1 m tall would turn about a level line: it stands, said so.
-    Break: score/stages/motion/from_design.py: `elif rule["move"] == "swing" and not upright(stage, path):` -> `elif False:`"""
+    Break: score/stages/motion/from_design.py: `elif rule["move"] == "swing" and not upright(stage, path):` -> `elif
+        False:`"""
     flat = ("hatch_1", (-1.0, 0.0, -1.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
     _, record = made(toy_inputs(tmp_path, ROWS + [{"id": "hatch", "name": "floor hatch", "noun": "hatch"}],
                                 extra=(flat,)), tmp_path)
@@ -198,7 +202,8 @@ def test_a_hatch_lying_flat_stands(tmp_path):
 def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     """A rocket named as an old record's moving kind, on no moving row, is not asked for (3 moving kinds: door, fan,
     rover); the design's door taken out of the record (neither moved nor standing with a reason) fails by name.
-    Break: score/stages/motion/__init__.py: `if path not in moved and path not in still and path.rsplit("/", 1)[-1] not in still]` -> `if False]`"""
+    Break: score/stages/motion/__init__.py: `if path not in moved and path not in still and path.rsplit("/", 1)[-1] not
+        in still]` -> `if False]`"""
     rocket = ("rocket_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "rocket", "name": "rocket", "noun": "rocket"}], extra=(rocket,))
     out, record = made(inputs, tmp_path)
@@ -212,7 +217,8 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
 
 def test_a_swing_is_tried_its_rule_s_way_and_the_other_down_to_sixty_degrees():
     """90 either way, then 10 less each time, down to 60 included.
-    Break: score/stages/motion/__init__.py: `sizes = np.arange(abs(float(angle)), FIT_LEAST - 1e-9, -FIT_STEP)` -> `sizes = np.arange(abs(float(angle)), FIT_LEAST, -FIT_STEP)`"""
+    Break: score/stages/motion/__init__.py: `sizes = np.arange(abs(float(angle)), FIT_LEAST - 1e-9, -FIT_STEP)` ->
+        `sizes = np.arange(abs(float(angle)), FIT_LEAST, -FIT_STEP)`"""
     assert motion.swing_angles(90.0) == [90.0, -90.0, 80.0, -80.0, 70.0, -70.0, 60.0, -60.0]
 
 
@@ -281,7 +287,8 @@ def test_the_check_passes_a_true_motion(tmp_path):
 def test_follows_fails_a_move_off_its_record(tmp_path):
     """The cart judged against a path its layer does not drive (its third corner moved to (4, 4)) is off its curve;
     the door judged against a 60 degree swing it does not make swings 90.
-    Break: score/stages/motion/check.py: `faults.append(f"{name}: {off.max():.2f} m off its path's curve at its frame {int(off.argmax())}")` -> `pass`
+    Break: score/stages/motion/check.py: `faults.append(f"{name}: {off.max():.2f} m off its path's curve at its frame
+        {int(off.argmax())}")` -> `pass`
     Break: score/stages/motion/check.py: `if abs(reached - wanted) > ANGLE_MOST:` -> `if False:`"""
     seed, out = checked_place(tmp_path)
     elsewhere = copy.deepcopy(RECORD)
@@ -312,8 +319,10 @@ def test_steps_fails_a_frame_thrown_aside(tmp_path):
 
 def test_moving_area_fails_a_stray_mover_and_a_named_one_standing_still(tmp_path):
     """A crate the layer moves that no record names, and the door's turn taken out of the layer, each fail by name.
-    Break: score/stages/motion/check.py: `stray = [path for path in varying_prims(stage, place, scopes) if not under_any(path, named)]` -> `stray = []`
-    Break: score/stages/motion/check.py: `still = [path for path in named if frame_steps(shapes[path], codes).sum() <= STILL_MOST]` -> `still = []`"""
+    Break: score/stages/motion/check.py: `stray = [path for path in varying_prims(stage, place, scopes) if not
+        under_any(path, named)]` -> `stray = []`
+    Break: score/stages/motion/check.py: `still = [path for path in named if frame_steps(shapes[path], codes).sum() <=
+        STILL_MOST]` -> `still = []`"""
     seed, out = checked_place(tmp_path)
     layer = motion_layer(out)
     crate = Sdf.CreatePrimInLayer(layer, f"/{PLACE}/Objects/crate_1")
@@ -333,7 +342,8 @@ def test_moving_area_fails_a_stray_mover_and_a_named_one_standing_still(tmp_path
 
 def test_clear_fails_a_path_laid_through_the_wall(tmp_path):
     """The cart's path laid out to x = 9 runs through the wall at x = 8: clear fails naming the wall.
-    Break: score/stages/motion/__init__.py: `faults.append((path, f"{path}: reaches {worst:.2f} m into {where[0]} at {where[1] / rate:.2f} s"))` -> `pass`"""
+    Break: score/stages/motion/__init__.py: `faults.append((path, f"{path}: reaches {worst:.2f} m into {where[0]} at
+        {where[1] / rate:.2f} s"))` -> `pass`"""
     through = copy.deepcopy(RECORD)
     through["moves"][0]["path"]["points"] = [[0, 0], [9, 0], [9, 3], [0, 3]]
     seed, out = checked_place(tmp_path, through)

@@ -7,7 +7,8 @@ below. No spend, no machine: toy stages made here, a drop run in which nothing m
 
 Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
 
-Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
+score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py
 """
 import hashlib
 import json
@@ -218,7 +219,8 @@ def test_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
     """Fault (review of step 0, 2026-10-11): the judge read the repository's resting.json, so a world whose rules were
     elsewhere was judged on files its key did not cover. The sunk plate passes where the world's rules name its kit
     group, fails by name where they name none, and a seed naming no inventory in the folder is unknown.
-    Break: score/stages/assembly/__init__.py: `rules_file=inputs["resting rules"]` -> `rules_file=REPO / "data/checks/resting.json"`"""
+    Break: score/stages/assembly/__init__.py: `rules_file=inputs["resting rules"]` -> `rules_file=REPO /
+        "data/checks/resting.json"`"""
     output, place = a_sunk_plate(tmp_path)
     kit_floor = world_data(tmp_path / "kept", place, ["kit: floor"])
     assert resting(output, kit_floor).answer == checks.PASS
@@ -234,8 +236,10 @@ def test_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path)
     """Fault (Buy of 2026-10-24): the assembly declared {data}/inventory while every designed seed is laid from
     {home}/design/inventory and records that full path, so no resting gate was judged and every drop run raised after
     its clearance. The seed's recorded file is found by name in the declared folder; a seed naming none has none.
-    Break: score/stages/assembly/__init__.py: `"inventories": "{home}/design/inventory"` -> `"inventories": "{data}/inventory"`
-    Break: score/stages/assembly/__init__.py: `return pathlib.Path(inventories) / pathlib.Path(named).name if named else None` -> `return pathlib.Path(named) if named else None`"""
+    Break: score/stages/assembly/__init__.py: `"inventories": "{home}/design/inventory"` -> `"inventories":
+        "{data}/inventory"`
+    Break: score/stages/assembly/__init__.py: `return pathlib.Path(inventories) / pathlib.Path(named).name if named else
+        None` -> `return pathlib.Path(named) if named else None`"""
     from score.stages import earth_seed
     laid_from = pathlib.Path(earth_seed.design_files("hub")["design inventory"])
     assert str(laid_from.parent) == assembly.FILES["inventories"], (laid_from, assembly.FILES["inventories"])
@@ -251,7 +255,8 @@ def test_a_baked_model_carries_its_hash_and_keeps_the_owner_s_pick(tmp_path):
     """After the assembly takes a bake, the object carries the baked file's hash (sha256 of its .gltf and its buffer's
     hex digest, worked out here) and the seed's as `repaint_of`, so the owner's pick of the seed's model still holds;
     the same hash without the seed's beside it breaks the pick (the greenhouse's water tank, 2026-10-12).
-    Break: score/stages/assembly/baked.py: `before.get("score:repaint_of") or before.get("score:model_sha256")` -> `None`"""
+    Break: score/stages/assembly/baked.py: `before.get("score:repaint_of") or before.get("score:model_sha256")` ->
+        `None`"""
     import picks
     from pxr import Sdf
     (tmp_path / "models").mkdir()
@@ -359,7 +364,8 @@ def test_a_claimed_model_its_place_bakes_under_its_own_name_is_laid_from_its_own
 def test_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data(tmp_path, monkeypatch):
     """claiming_places reads the scene's design surface data (`elsewhere`): the yard lays models the barn and the shed
     bake; a place with no surface data claims none.
-    Break: score/stages/assembly/baked.py: `return sorted({claim["place"] for claim in elsewhere.values()})` -> `return sorted({claim["take"] for claim in elsewhere.values()})`"""
+    Break: score/stages/assembly/baked.py: `return sorted({claim["place"] for claim in elsewhere.values()})` -> `return
+        sorted({claim["take"] for claim in elsewhere.values()})`"""
     monkeypatch.setattr(baked, "DESIGN_SURFACES", tmp_path)
     (tmp_path / "yard.json").write_text(json.dumps({"elsewhere": {"rack_1": {"place": "shed", "take": "rack"},
                                                                   "lamp_1": {"place": "barn", "take": "lamp"}}}))
@@ -373,8 +379,10 @@ def test_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it(tmp_path)
     """A layer stage's layer goes between the others in record.ORDER (light over motion over effects), replacing the
     seed's of the same name, and the root's range grows to the layer's 480 frames; the light stage's live lamps (a
     layer and no assets, 2026-10-13) leave no stale assets/light behind.
-    Break: score/stages/assembly/record.py: `return ORDER.index(stem) if stem in ORDER else ORDER.index("base") - 0.5` -> `return 0`
-    Break: score/stages/assembly/__init__.py: `stage_root.endTimeCode = max(taken.endTimeCode, stage_root.endTimeCode if stage_root.HasEndTimeCode() else 0)` -> `pass`
+    Break: score/stages/assembly/record.py: `return ORDER.index(stem) if stem in ORDER else ORDER.index("base") - 0.5`
+        -> `return 0`
+    Break: score/stages/assembly/__init__.py: `stage_root.endTimeCode = max(taken.endTimeCode, stage_root.endTimeCode if
+        stage_root.HasEndTimeCode() else 0)` -> `pass`
     Break: score/stages/assembly/__init__.py: `shutil.rmtree(root.parent / assets, ignore_errors=True)` -> `pass`"""
     from pxr import Sdf
     root = a_toy(tmp_path / "out")
@@ -404,7 +412,8 @@ def test_a_light_the_motion_layer_animates_plays_its_keyframes(tmp_path):
     """A lamp whose strength the motion layer keys (0 then 50 at frame 12) and the light layer sets (20) plays the
     motion's keys on the assembled stage (the airlock's cycle light, 2026-10-16); a lamp the motion leaves alone keeps
     20. Both taken layers come in read-only and neither file changes (the store's files are never edited).
-    Break: score/stages/assembly/__init__.py: `held.insert(held.index(f"./{LAYERS['light'][1]}"), f"./{MOTION_KEYS}")` -> `held.append(f"./{MOTION_KEYS}")`"""
+    Break: score/stages/assembly/__init__.py: `held.insert(held.index(f"./{LAYERS['light'][1]}"), f"./{MOTION_KEYS}")`
+        -> `held.append(f"./{MOTION_KEYS}")`"""
     from pxr import Usd, UsdLux
     root = a_toy(tmp_path / "out")
     sums = {}
@@ -458,7 +467,8 @@ def test_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_i
 def test_the_collision_gate_fails_a_seed_s_bare_wall_and_passes_the_record_written_again(tmp_path):
     """A seed's floor drawn with no collision (as round three wrote every wall, floor and stair) fails the collision
     gate by name, one uncolliding; the accepted record written over it (a wall and a flight of stairs) collides.
-    Break: score/stages/assembly/__init__.py: `solid = sum(fault["what"] != "model" for fault in faults)` -> `solid = 0`"""
+    Break: score/stages/assembly/__init__.py: `solid = sum(fault["what"] != "model" for fault in faults)` -> `solid =
+        0`"""
     from pxr import Sdf, Usd, UsdGeom, UsdShade
     root = a_toy(tmp_path / "out")
     base = Usd.Stage.Open(str(root.parent / "layers/base.usda"))
@@ -509,7 +519,8 @@ def test_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_long
     """The camp grounds' cairn (2026-10-13): once the surface line has baked its row, the assembly lays that model
     where the entry stands. The baked cairn spans 2 x 2 x 0.5 m; turned 90 degrees about y it spans 0.5 x 2 x 2, its
     foot at the spot's 0.5, its middle over (3, -2).
-    Break: score/stages/assembly/made_waiting.py: `move = Gf.Vec3d(at[0] - (least[0] + most[0]) / 2, at[1] - least[1], at[2] - (least[2] + most[2]) / 2)` -> `move = Gf.Vec3d(*at)`
+    Break: score/stages/assembly/made_waiting.py: `move = Gf.Vec3d(at[0] - (least[0] + most[0]) / 2, at[1] - least[1],
+        at[2] - (least[2] + most[2]) / 2)` -> `move = Gf.Vec3d(*at)`
     Break: score/stages/assembly/made_waiting.py: `root.RemoveProperty(WAITING)` -> `pass`"""
     from pxr import Gf, UsdGeom
     root = a_toy(tmp_path / "out")
@@ -535,7 +546,8 @@ def test_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_r
     """Fault (2026-10-25): a designed place's record laid no object, so settle, physics and motion found none. A
     design's object (`bake` its take's model, `row` its inventory row) is laid with the baked model at
     /<place>/Objects/<name>, its score:row the inventory row; one whose model the bake has not made stays named.
-    Break: score/stages/assembly/made_waiting.py: `scope = f"/{place}/Objects" if "bake" in entry else f"/{place}/Fixtures"` -> `scope = f"/{place}/Fixtures"`"""
+    Break: score/stages/assembly/made_waiting.py: `scope = f"/{place}/Objects" if "bake" in entry else
+        f"/{place}/Fixtures"` -> `scope = f"/{place}/Fixtures"`"""
     root = a_toy(tmp_path / "out")
     entries = [{"name": name, "row": row_id, "bake": bake, "at": [1.0, 0.0, 1.0], "rotation": [0.0, 0.0, 0.0, 1.0],
                 "kind": "object", "waiting": "its model comes from the bake"}
@@ -558,7 +570,8 @@ def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monke
     """Fault (2026-10-12): the garage's fourth pressure gauge moved off the big door's track in its kit, yet the
     assembly kept the seed's object where the old kit put it. The second crate's kit spot moved to (5, 0, 2): it
     stands there; the first, unmoved, keeps its transform, and a second run moves nothing.
-    Break: score/stages/assembly/record.py: `if all(abs(now[row][column] - then[row][column]) <= SAME for row in range(4) for column in range(4)):` -> `if True:`"""
+    Break: score/stages/assembly/record.py: `if all(abs(now[row][column] - then[row][column]) <= SAME for row in
+        range(4) for column in range(4)):` -> `if True:`"""
     import ground
     from pxr import UsdGeom
     monkeypatch.setattr(ground, "place_ground", lambda place, seat: None)  # laid flat, as export.py --flat lays it
@@ -591,7 +604,8 @@ def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said
     door's sound at its own second (2.5 s, 2.5 x the stage's rate in frames), each file under its world name, the layer
     in the sound's slot of ORDER; a hum on a row the stage lacks is named.
     Break: score/stages/assembly/sounds.py: `start=float(use["at"]) * rate` -> `start=float(use["at"])`
-    Break: score/stages/assembly/sounds.py: `unplaced.append(f"{use['sound']} (object): no prim of the row or name {use['on']} on the stage")` -> `pass`"""
+    Break: score/stages/assembly/sounds.py: `unplaced.append(f"{use['sound']} (object): no prim of the row or name
+        {use['on']} on the stage")` -> `pass`"""
     from pxr import UsdMedia
     root = a_toy(tmp_path / "out")
     uses = [{"sound": "tone", "role": "room", "on": None, "from": "places.json"},
@@ -614,7 +628,8 @@ def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said
 def test_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read_only_layer(tmp_path):
     """A seed from the store is read-only; its copy takes the record's save over the base and a layer stage's
     read-only layer in place of the seed's (Batch 1, 2026-10-25: every assembly refused the save).
-    Break: score/stages/assembly/__init__.py: `shutil.copytree(source, out / part, copy_function=shutil.copyfile)` -> `shutil.copytree(source, out / part)`"""
+    Break: score/stages/assembly/__init__.py: `shutil.copytree(source, out / part, copy_function=shutil.copyfile)` ->
+        `shutil.copytree(source, out / part)`"""
     read_only_toy(tmp_path / "store" / TOY)
     effects = tmp_path / "effects"
     (effects / "layers").mkdir(parents=True)
@@ -673,7 +688,8 @@ def test_a_place_needs_the_layers_its_design_shows():
 def test_a_place_waits_on_every_layer_it_needs(tmp_path):
     """The layers gate: unknown while a layer the design needs has no accepted output taken (the person's and the
     plants' here), naming each; pass once all are; fail on a sound placed nowhere; unknown for a place with no design.
-    Break: score/stages/assembly/__init__.py: `waiting = [f"{name}@{place}" for name in needed if name not in origin["layers"]]` -> `waiting = []`
+    Break: score/stages/assembly/__init__.py: `waiting = [f"{name}@{place}" for name in needed if name not in
+        origin["layers"]]` -> `waiting = []`
     Break: score/stages/assembly/__init__.py: `if origin["unplaced sounds"]:` -> `if False:`"""
     output = tmp_path
     (output / f"{TOY}.usda").write_text("#usda 1.0\n")
@@ -738,8 +754,10 @@ def test_a_place_shows_its_neighbours_from_their_own_outputs(tmp_path, monkeypat
     on both shown places (no file, no children: four faults); made, each stands from its own copied output after the
     originals are gone. A shown place no stage makes is a gap, and a part of another scene's outside (the launch,
     data/places/within.json) is no neighbour.
-    Break: score/stages/assembly/neighbours.py: `layer.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda", f"../{PLACES}/{other}/{other}.usda")` -> `pass`
-    Break: score/stages/assembly/neighbours.py: `if scene_record.written(other) and other not in parts()]` -> `if scene_record.written(other)]`"""
+    Break: score/stages/assembly/neighbours.py: `layer.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda",
+        f"../{PLACES}/{other}/{other}.usda")` -> `pass`
+    Break: score/stages/assembly/neighbours.py: `if scene_record.written(other) and other not in parts()]` -> `if
+        scene_record.written(other)]`"""
     records = {"launch": {"places": [{"name": "square", "stage": "square"}, {"name": "far_city", "stage": "far_city"}]},
                "square": {"places": [{"name": "launch", "stage": "launch"}]}}
     assert neighbours.record_of("nowhere") == {}
@@ -917,7 +935,8 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
     The hut's crate at (-1, 0, 2) is plan (2, 1) on the turned hut, (12, 6) on the yard: (2, 0, 0). The gate passes
     and a scene holding none says so.
     Break: score/stages/assembly/scene_tree.py: `matrix[:3, :3] = turn.T` -> `matrix[:3, :3] = turn`
-    Break: score/stages/assembly/scene_tree.py: `shift = corner + east * across + south * along - turn @ child_corner` -> `shift = corner + east * across + south * along`"""
+    Break: score/stages/assembly/scene_tree.py: `shift = corner + east * across + south * along - turn @ child_corner`
+        -> `shift = corner + east * across + south * along`"""
     yard, inputs = the_yard(tmp_path)
     stage = opened(yard / "yard.usda")
     assert crate_at(stage, "/yard/Scenes/shed/Objects/crate_1") == [-7.0, 0.0, -2.0]
@@ -932,7 +951,8 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
 
 def test_a_child_laid_out_and_not_stood_fails_by_name(tmp_path):
     """The yard's plan lays out the hut; a run with no hut read stands the shed alone and fails on the hut.
-    Break: score/stages/assembly/scene_tree.py: `children = sorted(set(holds(plan)) | read | standing)` -> `children = sorted(read | standing)`"""
+    Break: score/stages/assembly/scene_tree.py: `children = sorted(set(holds(plan)) | read | standing)` -> `children =
+        sorted(read | standing)`"""
     yard, inputs = the_yard(tmp_path, children=("shed",))
     verdict = scene_tree.judge_children(yard, inputs, None)
     assert verdict.answer == checks.FAIL
@@ -951,7 +971,8 @@ def test_a_child_whose_plan_is_not_its_hold_s_size_fails(tmp_path):
 
 def test_a_child_standing_where_the_plan_lays_out_nothing_fails(tmp_path):
     """The yard's plan edited to hold the shed only, its tree still standing the hut: the hut fails by name.
-    Break: score/stages/assembly/scene_tree.py: `return [f"/{scene}/{SCENES}/{child}: read as a child scene, laid out nowhere on {scene}'s plan"]` -> `return []`"""
+    Break: score/stages/assembly/scene_tree.py: `return [f"/{scene}/{SCENES}/{child}: read as a child scene, laid out
+        nowhere on {scene}'s plan"]` -> `return []`"""
     yard, inputs = the_yard(tmp_path)
     inputs["plan"].write_text(json.dumps({**YARD, "holds": YARD["holds"][:1]}))
     verdict = scene_tree.judge_children(yard, inputs, None)
@@ -971,7 +992,8 @@ def test_the_plans_read_are_the_creator_s_kept_ones_and_a_scene_holding_itself_i
     """The plan read is the creator's kept one, none without it; each child's plan is declared; a plan laying out a
     scene above it (the nook holding the yard) is refused.
     Break: score/stages/assembly/scene_tree.py: `if above:` -> `if False:`
-    Break: score/stages/assembly/scene_tree.py: `named.update({f"plan {child}": plan_pattern(child) for child in held(place)})` -> `pass`"""
+    Break: score/stages/assembly/scene_tree.py: `named.update({f"plan {child}": plan_pattern(child) for child in
+        held(place)})` -> `pass`"""
     monkeypatch.setattr(scene_tree, "KEPT", tmp_path)
     for scene, plan in (("yard", YARD), ("shed", SHED), ("hut", HUT), ("nook", NOOK)):
         (tmp_path / f"{scene}.json").write_text(json.dumps(plan))

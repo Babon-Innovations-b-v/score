@@ -7,7 +7,8 @@ stages and scripts made here, one small local ffmpeg cut.
 
 Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
 
-Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
+score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py
 """
 import json
 import pathlib
@@ -85,7 +86,8 @@ def test_only_the_places_a_locked_script_shows_have_the_row_and_it_declares_its_
     locked script shows has the row, keyed on that script and the people its design stands, and makes its own film
     from it at the script's camera; any other has none.
     Break: score/stages/demo_film/__init__.py: `return films().get(place, {}).get("place") == place` -> `return True`
-    Break: score/stages/demo_film/__init__.py: `found["people"] = ("{data}/people/rows.json", people_rows.place_part(place))` -> `pass`"""
+    Break: score/stages/demo_film/__init__.py: `found["people"] = ("{data}/people/rows.json",
+        people_rows.place_part(place))` -> `pass`"""
     script = scripted({"place": "yard", "camera": "gate"})
     (tmp_path / "k9.json").write_text(json.dumps(script))
     monkeypatch.setattr(final, "scripts", lambda: {"k9": script})
@@ -107,7 +109,8 @@ def test_only_the_places_a_locked_script_shows_have_the_row_and_it_declares_its_
 def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alone(tmp_path, monkeypatch):
     """The hangar's script shows its own film and the hull: the hull is the extra row's (demo-film-extra@hangar), the
     hub has none, and an extra row's output with no film folder fails its contract.
-    Break: score/stages/demo_film/__init__.py: `if film["place"] == place and name != place]` -> `if film["place"] == place]`"""
+    Break: score/stages/demo_film/__init__.py: `if film["place"] == place and name != place]` -> `if film["place"] ==
+        place]`"""
     script = scripted({"place": "hangar", "camera": "across"}, {"place": "hangar", "film": "hull", "camera": "ship"})
     (tmp_path / "k9.json").write_text(json.dumps(script))
     monkeypatch.setattr(final, "scripts", lambda: {"k9": script})
@@ -126,7 +129,8 @@ def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alon
 
 def test_a_film_with_no_camera_starts_at_its_scene_record_s_first(tmp_path):
     """No camera named: the record's first is the first shot, the other the second; a record with none refuses.
-    Break: score/stages/demo_film/__init__.py: `return record["views"][0]["name"]` -> `return record["views"][-1]["name"]`"""
+    Break: score/stages/demo_film/__init__.py: `return record["views"][0]["name"]` -> `return
+        record["views"][-1]["name"]`"""
     record = tmp_path / "scene.json"
     record.write_text(json.dumps({"views": [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
                                             {"name": "spot-2", "eye": [3, 1.6, 2], "aim": [0, 1, 0], "fov": 75}]}))
@@ -140,8 +144,10 @@ def test_a_film_s_own_spots_are_added_to_the_record_s_copy(tmp_path):
     """The second shot is the record camera standing furthest from the first (spot-3, 3.6 m off; spot-2 is 0.5 m),
     none looking up at a roof; record cameras add nothing. A spot of its own (`eye`/`aim`, or `across` the floor from
     (-2, -1) to (2, 3): shares (0, 1) are (-2, 3), (1, 0) is (2, -1)) is added as a camera of its name.
-    Break: score/stages/demo_film/__init__.py: `return max(others, key=lambda view: float(np.linalg.norm(np.subtract(view["eye"], first["eye"]))))` -> `return others[0]`
-    Break: score/stages/demo_film/__init__.py: `flat = low + np.asarray(share, dtype=float) * (high - low)` -> `flat = np.asarray(share, dtype=float) * (high - low)`"""
+    Break: score/stages/demo_film/__init__.py: `return max(others, key=lambda view:
+        float(np.linalg.norm(np.subtract(view["eye"], first["eye"]))))` -> `return others[0]`
+    Break: score/stages/demo_film/__init__.py: `flat = low + np.asarray(share, dtype=float) * (high - low)` -> `flat =
+        np.asarray(share, dtype=float) * (high - low)`"""
     record = tmp_path / "scene.json"
     spots = [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
              {"name": "spot-2", "eye": [0.5, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
@@ -185,8 +191,10 @@ def test_a_frame_blurs_by_how_fast_its_picture_moves_towards_the_next_frame_of_i
     """The camera's motion blur: half a frame open (180 degrees), shorter where the picture would streak further than
     MOST_STREAK of its width, none for a camera standing still or a shot's last frame, never across a cut; the jobs
     drawn by film_frames.
-    Break: score/stages/demo_film/__init__.py: `return 0.0 if speed < STILL_PIXELS else round(min(SHUTTER, MOST_STREAK * wide / speed), 3)` -> `return 0.0 if speed < STILL_PIXELS else SHUTTER`
-    Break: score/stages/demo_film/__init__.py: `(later if demo.shot_of(later) == demo.shot_of(view) else None)` -> `later`"""
+    Break: score/stages/demo_film/__init__.py: `return 0.0 if speed < STILL_PIXELS else round(min(SHUTTER, MOST_STREAK *
+        wide / speed), 3)` -> `return 0.0 if speed < STILL_PIXELS else SHUTTER`
+    Break: score/stages/demo_film/__init__.py: `(later if demo.shot_of(later) == demo.shot_of(view) else None)` ->
+        `later`"""
     wide = demo_film.SIZE[0]
     first = {"name": "shot0-000", "eye": [0, 1.6, 5], "aim": [0, 1.2, 0], "up": [0, 1, 0], "fov": 75, "frame": 0}
     walked = dict(first, name="shot0-001", eye=[0.02, 1.6, 4.98], frame=1)
@@ -215,8 +223,10 @@ def test_the_forecast_prices_fog_and_glass_high_and_a_plain_stage_at_the_measure
     """#21: two shots of 4 s at 24 frames are 192 frames; the free scan finds a plain-card puff (fog) and a see-through
     pane, never the opaque wall; a stage with either is priced high at FOG_FRAME_MINUTES a frame (over 20 times its
     likely euros), a plain one at FRAME_SPREAD over the measured frame time, its high the row's estimate.
-    Break: score/stages/demo_film/__init__.py: `high = FOG_FRAME_MINUTES if any(slow.values()) else likely * FRAME_SPREAD` -> `high = likely * FRAME_SPREAD`
-    Break: score/stages/demo_film/__init__.py: `if opacity and opacity.Get() is not None and float(opacity.Get()) < 1.0:` -> `if opacity and opacity.Get() is not None:`"""
+    Break: score/stages/demo_film/__init__.py: `high = FOG_FRAME_MINUTES if any(slow.values()) else likely *
+        FRAME_SPREAD` -> `high = likely * FRAME_SPREAD`
+    Break: score/stages/demo_film/__init__.py: `if opacity and opacity.Get() is not None and float(opacity.Get()) <
+        1.0:` -> `if opacity and opacity.Get() is not None:`"""
     demo, _ = demo_film.film_tools()
     for name, text in (("plain", PLAIN), ("fog", FOGGED), ("glass", GLASSED)):
         (tmp_path / f"{name}.usda").write_text(text)
@@ -253,7 +263,8 @@ def test_the_forecast_counts_the_shots_film_one_makes_and_leaves_the_stage_alone
 def test_a_film_whose_forecast_high_passes_its_clearance_is_blocked_before_its_frames_are_bought(tmp_path):
     """#21: a plain film's high is the row's estimate and passes; a fogged one's passes it and is a new ask; outside a
     cleared run nothing is compared.
-    Break: score/stages/demo_film/__init__.py: `if cleared is not None and planned["high_euros"] > cleared + 1e-6:` -> `if False:`"""
+    Break: score/stages/demo_film/__init__.py: `if cleared is not None and planned["high_euros"] > cleared + 1e-6:` ->
+        `if False:`"""
     (tmp_path / "plain.usda").write_text(PLAIN)
     (tmp_path / "fog.usda").write_text(FOGGED)
     plain, fog = (demo_film.forecast(tmp_path / f"{name}.usda", demo_film.SHOTS) for name in ("plain", "fog"))
@@ -267,7 +278,8 @@ def test_the_clearance_reserves_the_forecast_the_make_checks_against(tmp_path):
     """Fault 2026-10-25: the clearance reserved the row's EUR 3.50 while the make held the film to its own forecast,
     so a fogged film Blocked itself after it was cleared. The rows clear at their films' forecast high, the figure
     film_one refuses over, and that figure holds the film.
-    Break: score/stages/demo_film/__init__.py: `round(sum(film["high_euros"] for film in planned), 2)` -> `round(sum(film["euros"] for film in planned), 2)`"""
+    Break: score/stages/demo_film/__init__.py: `round(sum(film["high_euros"] for film in planned), 2)` ->
+        `round(sum(film["euros"] for film in planned), 2)`"""
     from score import stages
     (tmp_path / "stage").mkdir()
     (tmp_path / "stage/hall.usda").write_text(FOGGED)
@@ -292,7 +304,8 @@ def test_a_film_too_short_for_the_walk_through_that_shows_it_fails_before_its_fr
     """Fault 2026-10-25: a one-shot film (3.5 s) passed its own gate and Blocked the environment film's 7 s
     walk-through after everything was bought. A film's record keeps the longest walk-through showing it, and a plan
     whose shots show less is refused; a film shown only as a hero still keeps one shot.
-    Break: score/stages/demo_film/__init__.py: `film["walk_seconds"] = max(film["walk_seconds"], float(segment.get("seconds") or 0.0))` -> `pass`
+    Break: score/stages/demo_film/__init__.py: `film["walk_seconds"] = max(film["walk_seconds"],
+        float(segment.get("seconds") or 0.0))` -> `pass`
     Break: score/stages/demo_film/__init__.py: `if shown < film.get("walk_seconds", 0.0) - 1e-3:` -> `if False:`"""
     script = {"segments": [{"cut": "walk-through", "seconds": 7, "shows": {"place": "hall"}},
                            {"cut": "hero-still", "seconds": 3, "shows": {"place": "hall", "film": "porch"}}]}
@@ -319,7 +332,8 @@ def test_a_film_is_one_batch_dealt_over_the_forecast_s_cards_with_its_high_deadl
     """#21: the frames are planned at SIZE over the jobs the forecast sizes, no review frames, each job's deadline its
     frames at the forecast's high: the fogged hall's 2 frames a job at 17 minutes plus 10 to set up, 44; its first
     frame kept as concept.png.
-    Break: score/stages/demo_film/__init__.py: `job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))` -> `job["minutes"] = JOB_LEAD_MINUTES`"""
+    Break: score/stages/demo_film/__init__.py: `job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))`
+        -> `job["minutes"] = JOB_LEAD_MINUTES`"""
     demo, _ = demo_film.film_tools()
     planned, deadlines = [], []
 
@@ -386,7 +400,8 @@ def still_film(tmp_path_factory):
 def test_a_look_only_plan_is_held_to_its_planned_length_and_size(still_film, tmp_path, monkeypatch):
     """A two-shot film is a 2 s title and two 4 s shots joined by half-second fades: 9 s, within LENGTH_SLACK; the gate
     holds a film to the size its views planned (SMALL here), never the row's default.
-    Break: score/stages/demo_film/__init__.py: `return demo.TITLE_SECONDS + shots * (SECONDS - demo.FADE_SECONDS)` -> `return shots * SECONDS`
+    Break: score/stages/demo_film/__init__.py: `return demo.TITLE_SECONDS + shots * (SECONDS - demo.FADE_SECONDS)` ->
+        `return shots * SECONDS`
     Break: score/stages/demo_film/__init__.py: `size = tuple(planned.get("size", SIZE))` -> `size = SIZE`"""
     _, film_checks = demo_film.film_tools()
     assert demo_film.planned_seconds(2) == 9.0
@@ -403,7 +418,8 @@ def test_a_look_only_plan_is_held_to_its_planned_length_and_size(still_film, tmp
 
 def test_the_gate_fails_a_silent_still_film_by_name(still_film, tmp_path, monkeypatch):
     """A film of one still colour with no sound fails `film`, naming both.
-    Break: score/stages/demo_film/__init__.py: `faults = [fault for _, _, _, found in measured.values() for fault in found]` -> `faults = []`"""
+    Break: score/stages/demo_film/__init__.py: `faults = [fault for _, _, _, found in measured.values() for fault in
+        found]` -> `faults = []`"""
     _, film_checks = demo_film.film_tools()
     out = tmp_path / "out"
     out.mkdir()
@@ -455,7 +471,8 @@ def a_stage(folder, person_at=None, door_sound=False):
 def test_a_view_sees_what_stands_in_front_within_its_angle_and_reach():
     """Looking north from the origin at 75 degrees: 5 m ahead is seen, 5 m behind is not, 9 m aside at 5 m ahead is
     outside the angle, 40 m ahead is past the 25 m reach, a point 3 m ahead and a little low is seen.
-    Break: score/stages/demo_film/shots.py: `(np.linalg.norm(offsets, axis=1) <= reach)` -> `(np.linalg.norm(offsets, axis=1) <= 100 * reach)`"""
+    Break: score/stages/demo_film/shots.py: `(np.linalg.norm(offsets, axis=1) <= reach)` -> `(np.linalg.norm(offsets,
+        axis=1) <= 100 * reach)`"""
     seen = shots.in_view(LOOKING_NORTH, [[0, 1.6, -5], [0, 1.6, 5], [9, 1.6, -5], [0, 1.6, -40], [0, 1.0, -3]])
     assert seen.tolist() == [True, False, False, False, True]
 
@@ -483,7 +500,8 @@ def test_a_design_that_stands_people_fails_a_stage_that_holds_none(tmp_path):
 def test_a_design_s_people_and_crowd_count_its_people(tmp_path):
     """The square stands one speaker and a far crowd of 10000: 10001 people; a crowd SAM 3 could not part counts one
     at least (2); a place with no rows, or no rows read, none.
-    Break: score/stages/demo_film/__init__.py: `((people_rows.crowd_count(crowd[1]) or 1) if crowd else 0)` -> `(1 if crowd else 0)`"""
+    Break: score/stages/demo_film/__init__.py: `((people_rows.crowd_count(crowd[1]) or 1) if crowd else 0)` -> `(1 if
+        crowd else 0)`"""
     rows = tmp_path / "rows.json"
     square = {"rows": {"leader": {"looks": ["leader-drawn"]}, "crowd": {"crowd": "far-coat", "count": 10000}}}
     rows.write_text(json.dumps({"places": {"square": square}}))
@@ -498,8 +516,10 @@ def test_a_design_s_people_and_crowd_count_its_people(tmp_path):
 def test_a_thing_seen_moving_needs_a_sound_of_its_own(tmp_path):
     """The owner's review of 2026-10-18: no event sounds. The door seen sliding with no sound under it is named; with
     its sound, looked away from, or seen in one frame only (nothing seen moving) it is not.
-    Break: score/stages/demo_film/shots.py: `quiet = [not sounded(prim) for prim in things]` -> `quiet = [True for prim in things]`
-    Break: score/stages/demo_film/shots.py: `moving & in_view(view, now) & np.asarray(quiet)` -> `moving & np.asarray(quiet)`"""
+    Break: score/stages/demo_film/shots.py: `quiet = [not sounded(prim) for prim in things]` -> `quiet = [True for prim
+        in things]`
+    Break: score/stages/demo_film/shots.py: `moving & in_view(view, now) & np.asarray(quiet)` -> `moving &
+        np.asarray(quiet)`"""
     assert shots.silent_moving(a_stage(tmp_path), views()) == {"shot0": ["/hall/Objects/door"]}
     assert shots.silent_moving(a_stage(tmp_path, door_sound=True), views()) == {}
     assert shots.silent_moving(a_stage(tmp_path), views(aim_z=10.0)) == {}
@@ -533,7 +553,8 @@ def test_nothing_is_cut_before_the_creator_s_yes_and_a_sound_plan():
     """No locked script: Blocked. A script is cut only when every segment names its seconds, is a cut a row makes, and
     a walk-through plays its place's own sound; a script showing no film needs a bed.
     Break: score/stages/demo_film/final.py: `if not named:` -> `if False:`
-    Break: score/stages/demo_film/final.py: `elif cut == WALK and segment.get("sound", "place") != "place":` -> `elif False:`"""
+    Break: score/stages/demo_film/final.py: `elif cut == WALK and segment.get("sound", "place") != "place":` -> `elif
+        False:`"""
     with pytest.raises(graph.Blocked, match="no film script locked"):
         final.require_yes({})
     final.require_yes({"toy": a_script(WALKS)})
@@ -550,20 +571,25 @@ def test_nothing_is_cut_before_the_creator_s_yes_and_a_sound_plan():
 def test_the_owner_s_pacing_fails_a_place_cut_at_three_and_a_half_seconds():
     """The owner's review of 2026-10-18: about 3.5 s a place, far too fast; about 7 s, two steady shots. Two 3.5 s
     walk-throughs of one place add to its 7 s.
-    Break: score/stages/demo_film/final.py: `for place, seconds in shown_for.items() if seconds < PLACE_SECONDS - 1e-6]` -> `for place, seconds in shown_for.items() if False]`
-    Break: score/stages/demo_film/final.py: `for segment in walks if segment["seconds"] < SHOT_SECONDS]` -> `for segment in walks if False]`"""
+    Break: score/stages/demo_film/final.py: `for place, seconds in shown_for.items() if seconds < PLACE_SECONDS - 1e-6]`
+        -> `for place, seconds in shown_for.items() if False]`
+    Break: score/stages/demo_film/final.py: `for segment in walks if segment["seconds"] < SHOT_SECONDS]` -> `for segment
+        in walks if False]`"""
     assert final.pacing_faults(final.script_segments(a_script(WALKS))) == []
     fast = [dict(WALKS[1], seconds=3.5), dict(WALKS[2], seconds=3.0)]
     assert final.pacing_faults(final.script_segments(a_script(fast))) == [
-        "beta: a walk-through of 3 s, under 3.5 s", "alpha: on screen 3.5 s, under 7 s", "beta: on screen 3 s, under 7 s"]
+        "beta: a walk-through of 3 s, under 3.5 s", "alpha: on screen 3.5 s, under 7 s",
+        "beta: on screen 3 s, under 7 s"]
     two_shots = [dict(WALKS[1], seconds=3.5), dict(WALKS[1], seconds=3.5)]
     assert final.pacing_faults(final.script_segments(a_script(two_shots))) == []
 
 
 def test_world1_s_script_is_paced_and_names_the_cuts_no_row_makes_yet(tmp_path, monkeypatch):
     """data/films/k9.json, the house's script: paced, and every plan fault a cut no row makes yet; locked, the places
-    it shows are its walk-throughs' and stills' (read off the script here), and a segment naming a film is the extra row's.
-    Break: score/stages/demo_film/final.py: `return f"{EXTRA}@{shows['place']}", shows["film"]` -> `return f"{OWN}@{shows['place']}", shows["film"]`"""
+    it shows are its walk-throughs' and stills' (read off the script here), and a segment naming a film is the extra
+    row's.
+    Break: score/stages/demo_film/final.py: `return f"{EXTRA}@{shows['place']}", shows["film"]` -> `return
+        f"{OWN}@{shows['place']}", shows["film"]`"""
     k9 = json.loads((REPO / "data/films/k9.json").read_text())
     assert final.pacing_faults(final.script_segments(k9)) == []
     faults = final.plan_faults(k9)
@@ -578,7 +604,8 @@ def test_world1_s_script_is_paced_and_names_the_cuts_no_row_makes_yet(tmp_path, 
 def test_the_locked_script_is_the_row_s_input_and_a_new_lock_moves_its_key(tmp_path, monkeypatch):
     """The Film step's seam: the environment-film row reads only the locked scripts in the cockpit's home, so a lock,
     a changed lock and an unlock each move the files part of its key.
-    Break: score/stages/demo_film/final.py: `found[f"script {film}"] = "{dashboard}/" + f"{LOCKED}/{film}.json"` -> `pass`"""
+    Break: score/stages/demo_film/final.py: `found[f"script {film}"] = "{dashboard}/" + f"{LOCKED}/{film}.json"` ->
+        `pass`"""
     from score import stages
     from score.store import Store
     world = graph.Environment("world1", 0, {**stages.world1().roots, "dashboard": str(tmp_path)})
@@ -597,13 +624,15 @@ def test_the_locked_script_is_the_row_s_input_and_a_new_lock_moves_its_key(tmp_p
 def test_a_film_a_script_shows_waits_on_its_lock(tmp_path, monkeypatch):
     """The film layer's gaps (needs.py): a film a starter shows that no locked script shows waits on his lock, its
     node named; a locked one is no gap, and the lock is the yes.
-    Break: score/stages/demo_film/needs.py: `for film in wanted(place, data) if film not in locked]` -> `for film in wanted(place, data)]`"""
+    Break: score/stages/demo_film/needs.py: `for film in wanted(place, data) if film not in locked]` -> `for film in
+        wanted(place, data)]`"""
     (tmp_path / "films").mkdir()
     walk = {"cut": "walk-through", "seconds": 4.0}
     script = {"segments": [dict(walk, shows={"place": "alpha"}), dict(walk, shows={"place": "beta"})]}
     (tmp_path / "films/env.json").write_text(json.dumps(script))
     monkeypatch.setattr(final, "scripts", lambda: {"env": {"segments": [dict(walk, shows={"place": "beta"})]}})
-    assert [(gap["id"], gap["node"]) for gap in needs.gaps("alpha", tmp_path)] == [("film:yes:alpha", "demo-film@alpha")]
+    found = [(gap["id"], gap["node"]) for gap in needs.gaps("alpha", tmp_path)]
+    assert found == [("film:yes:alpha", "demo-film@alpha")], found
     assert needs.gaps("beta", tmp_path) == [] and needs.gaps("gamma", tmp_path) == []
     assert demo_film.films()["beta"]["final"] is True
 
@@ -647,7 +676,8 @@ def test_a_recorded_segment_is_cut_from_the_preview_s_take_of_that_very_segment(
     keeps gain 1, a dark one is brought up at most GAIN_RANGE's top); the cut is 2 + 3 + 7 + 3 less three half-second
     transitions, 13.5 s.
     Break: score/stages/demo_film/final.py: `    if stale:` -> `    if False:`
-    Break: score/stages/demo_film/final.py: `return round(min(GAIN_RANGE[1], max(GAIN_RANGE[0], (middle - 16.0) / max(luma - 16.0, 1.0))), 3)` -> `return 1.0`"""
+    Break: score/stages/demo_film/final.py: `return round(min(GAIN_RANGE[1], max(GAIN_RANGE[0], (middle - 16.0) /
+        max(luma - 16.0, 1.0))), 3)` -> `return 1.0`"""
     take = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
     script = a_script([WALKS[0], take, WALKS[1]])
     (tmp_path / "toy.json").write_text(json.dumps({"script": script}))
@@ -678,7 +708,8 @@ def test_a_locked_script_with_recorded_segments_wants_its_preview_until_it_is_ma
                                                                                                     monkeypatch):
     """A lock with a recorded segment and no preview wants it; a preview of the very lock, or a script with no
     recorded segment, does not; a preview recorded from another script (the take now 4 s) wants it again.
-    Break: score/stages/demo_film/final.py: `if recorded(script) and (made is None or stale_segments(script, made)):` -> `if recorded(script) and made is None:`"""
+    Break: score/stages/demo_film/final.py: `if recorded(script) and (made is None or stale_segments(script, made)):` ->
+        `if recorded(script) and made is None:`"""
     take = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
     script = a_script([WALKS[0], take, WALKS[1]])
     locked_in(tmp_path, monkeypatch, ("toy", script), ("plain", a_script(WALKS)))
