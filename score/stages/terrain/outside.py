@@ -2,7 +2,8 @@
 and a coarse ground out past its horizon, written as OpenUSD under /<place>/Outside (`near`, `far`), over any old
 ground the place drew (/<place>/Ground, /Terrain and /Water made inactive). Each mesh is a static collider and names
 the ground's row (its top scene's inventory row the ground is) and its finish as missing until the surface line makes
-it: never painted another way.
+it: never painted another way. The ground's bodies of water (design.waters) are one sheet, `water`, on the same spots
+at each water line, kept where the ground lies under it: no collider, named its row and the ocean recipe the same way.
 
     meshes = outside.meshes(ground, place, shaped)     # {"near": (points, triangles), "far": ...} in the place's frame
     outside.write(stage, place, meshes, row, recipe)
@@ -31,6 +32,8 @@ HORIZON_EYE = 12.0
 FAR_LEAST = 1500.0
 # What the old ground of a place was drawn as, made inactive under the made ground.
 OLD_GROUND = ("Ground", "Terrain", "Water")
+# A water sheet's triangle shows where a corner of the ground lies this far under it (metres).
+UNDER = 0.01
 
 
 def reach(ground):
@@ -57,25 +60,47 @@ def near_box(entry):
     return low, high, max(NEAR_STEP, float((high - low).max()) / NEAR_MOST)
 
 
-def meshes(ground, place, shaped=None):
-    """The ground's meshes for one place, {name: (points, triangles)} in its frame: `near` over its fine patch, `far`
-    a grid finest at the place's middle out to `reach`, less what lies wholly inside the patch."""
-    entry = ground["places"][place]
-    low, high, step = near_box(entry)
-    spots, triangles = grid(np.arange(low[0], high[0] + step / 2, step), np.arange(low[1], high[1] + step / 2, step))
-    found = {"near": (design.ground_points(ground, place, spots, shaped), triangles)}
+def grids(ground, place):
+    """The spots [[x, z]] and triangles of a place's ground, in its frame: `near` over its fine patch, `far` a grid
+    finest at the place's middle out to `reach`, less what lies wholly inside the patch."""
+    low, high, step = near_box(ground["places"][place])
+    found = {"near": grid(np.arange(low[0], high[0] + step / 2, step), np.arange(low[1], high[1] + step / 2, step))}
     middle = (low + high) / 2
     stretch = np.linspace(-1.0, 1.0, FAR_POINTS + 1)
     stretch = stretch * np.abs(stretch) * reach(ground)
     spots, triangles = grid(middle[0] + stretch, middle[1] + stretch)
     inside = np.all((spots > low + step) & (spots < high - step), axis=1)
-    found["far"] = (design.ground_points(ground, place, spots, shaped), triangles[~inside[triangles].all(axis=1)])
+    found["far"] = (spots, triangles[~inside[triangles].all(axis=1)])
     return found
 
 
-def write_mesh(stage, path, points, triangles, row, recipe):
+def meshes(ground, place, shaped=None):
+    """The ground's meshes for one place, {name: (points, triangles)} in its frame (grids)."""
+    return {name: (design.ground_points(ground, place, spots, shaped), triangles)
+            for name, (spots, triangles) in grids(ground, place).items()}
+
+
+def water(ground, place, found, sheets):
+    """The ground's water in a place's frame (sheets: design.waters' [(source, seabed, level, row)]): each water line
+    a sheet on the body's curve (or the plot's plane) at its level, over the same spots as the ground (`found`,
+    meshes'), kept where any corner of the ground lies under it; (points, triangles), or None where none shows."""
+    points, triangles = [], []
+    for source, _, level, _ in sheets:
+        for name, (spots, kept) in grids(ground, place).items():
+            sheet = design.ground_points(ground, place, spots, [(source, lambda plan, level=level: np.full(
+                len(np.atleast_2d(plan)), level))])
+            under = found[name][0][:, 1] < sheet[:, 1] - UNDER
+            shown = kept[np.any(under[kept], axis=1)]
+            if len(shown):
+                triangles.append(shown + sum(len(part) for part in points))
+                points.append(sheet)
+    return (np.concatenate(points), np.concatenate(triangles)) if triangles else None
+
+
+def write_mesh(stage, path, points, triangles, row, recipe, kind="ground"):
     """One ground mesh, a static collider, naming its row, the natural ground recipe its finish is made with by rule
-    (`recipe`: [recipe, why], natural_grounds) and its finish missing until the surface line makes it."""
+    (`recipe`: [recipe, why], natural_grounds) and its finish missing until the surface line makes it; a `water`
+    sheet the same, no collider (water is not solid: colliders.NOT_SOLID_PLAINS)."""
     mesh = UsdGeom.Mesh.Define(stage, path)
     mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points.astype(np.float32)))
     mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(triangles), 3, dtype=np.int32)))
@@ -84,23 +109,28 @@ def write_mesh(stage, path, points, triangles, row, recipe):
     used = points[np.unique(triangles)]
     mesh.CreateExtentAttr([Gf.Vec3f(*used.min(axis=0).tolist()), Gf.Vec3f(*used.max(axis=0).tolist())])
     prim = mesh.GetPrim()
-    prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
+    prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)
     prim.CreateAttribute("score:surface:missing", Sdf.ValueTypeNames.String).Set(
-        f"the ground's finish ({row or 'no ground row in its top scene inventory'}, {recipe[0] or 'no'} recipe: "
+        f"the {kind}'s finish ({row or 'no ground row in its top scene inventory'}, {recipe[0] or 'no'} recipe: "
         f"{recipe[1]}) is not in the library yet: the surface line makes it")
     if recipe[0]:
         prim.CreateAttribute("score:ground:recipe", Sdf.ValueTypeNames.String).Set(recipe[0])
     if row:
         prim.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(row)
-    colliders.solid(prim, points, triangles)
+    if kind == "ground":
+        colliders.solid(prim, points, triangles)
     return mesh
 
 
-def write(stage, place, found, row, recipe):
+def write(stage, place, found, row, recipe, sheet=None):
     """The made ground into the stage (its edit target) under /<place>/Outside, over the place's old ground; its
-    natural ground recipe `recipe` ([recipe, why]) on each mesh."""
+    natural ground recipe `recipe` ([recipe, why]) on each mesh; its water (`sheet`: (points, triangles, its row, its
+    recipe), else None) as /<place>/Outside/water."""
     for old in OLD_GROUND:
         stage.OverridePrim(f"/{place}/{old}").SetActive(False)
     UsdGeom.Scope.Define(stage, f"/{place}/Outside")
     for name, (points, triangles) in found.items():
         write_mesh(stage, f"/{place}/Outside/{name}", points, triangles, row, recipe)
+    if sheet is not None:
+        write_mesh(stage, f"/{place}/Outside/water", *sheet, kind="water")
+

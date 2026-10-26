@@ -189,6 +189,47 @@ def test_a_far_landform_beyond_the_place_is_raised_round_it_and_its_curve_still_
         shutil.rmtree(root)
 
 
+def test_a_body_of_water_lies_at_its_level_over_the_ground_lowered_under_it():
+    """2026-10-26: the square's sea had no maker. A terrain row whose words name water is laid at its plan level as a
+    sheet on the body's curve where the ground, lowered SEABED under that line inside its level, lies under it; out
+    past the outline it runs along its concept box's bearings to its shore; the gates still pass."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        inputs = design_folder(root / "design")
+        sea_level = {"name": "sea", "height": -1.0, "points": [[32, 0], [40, 0], [40, 40], [32, 40]]}
+        (inputs["plans"] / "site.json").write_text(json.dumps({**SITE, "levels": [sea_level]}))
+        sea = {"id": "sea", "name": "sea", "noun": "sea", "terrain": True, "part": "backdrop"}
+        (inputs["inventories"] / "site.json").write_text(json.dumps({"rows": [{"id": "regolith", "terrain": True},
+                                                                             sea]}))
+        assert design.water_row(sea) and not design.water_row({**sea, "terrain": False})
+        assert design.water_level(json.loads((inputs["plans"] / "site.json").read_text()), sea) == \
+            (-1.0, sea_level["points"])
+        out = root / "out"
+        terrain.make({key: str(value) for key, value in inputs.items()}, out, 0, {})
+        laid = json.loads((out / "moon/ground.json").read_text())["water"]
+        assert [(entry["place"], entry["row"], entry["level"]) for entry in laid] == [("site", "sea", -1.0)], laid
+        from pxr import Usd, UsdPhysics
+        stage = Usd.Stage.Open(str(out / "moon/places/site.usdc"))
+        water = stage.GetPrimAtPath("/site/Outside/water")
+        assert water.GetAttribute("score:kind").Get() == "water" and water.GetAttribute("score:row").Get() == "sea"
+        assert water.GetAttribute("score:ground:recipe").Get() == "ocean" and not water.HasAPI(UsdPhysics.CollisionAPI)
+        ground = design.layout(design.kept(inputs["plans"]), design.kept(inputs["skies"]))["moon"]
+        spot = gates.spot_in_frame(ground, "site", 36.0, 20.0)
+        sheets, _ = design.waters(ground, design.kept(inputs["plans"]), inputs["inventories"], 6000.0)
+        lowered = design.ground_points(ground, "site", [spot], design.reliefs(ground) + [sheets[0][:2]])[0, 1]
+        points = np.asarray(water.GetAttribute("points").Get())
+        assert lowered < -1.0 and abs(points[np.argmin(np.hypot(*(points[:, [0, 2]] - spot).T)), 1] + 1.0) < 0.05
+        for check in terrain.CHECKS:
+            verdict = check.judge(out, inputs, {})
+            assert verdict.answer == "pass", (verdict.check, verdict.reason)
+        region = design.water_region({"w": 40.0, "d": 40.0}, None, (-0.2, 0.2, (np.array([0.0, -1.0]),
+                                                                              np.array([1.0, 0.0]))), 100.0)
+        assert list(region([[20.0, -30.0], [20.0, 10.0], [20.0, -90.0], [60.0, -30.0]])) == [True, False, False,
+                                                                                           False]
+    finally:
+        shutil.rmtree(root)
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()

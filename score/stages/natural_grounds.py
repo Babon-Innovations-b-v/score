@@ -85,13 +85,23 @@ def of_body(body, bodies, table):
     return "regolith", f"{said}: airless, its dust ground by impacts"
 
 
+def words_of(row):
+    """A row's words: its name's and noun's."""
+    return set(re.findall(r"[a-z]+", f"{row.get('name') or ''} {row.get('noun') or ''}".lower()))
+
+
+def named(row):
+    """The recipe a row's own words name (WORDS: the sea's ocean), else None."""
+    words = words_of(row)
+    return next((recipe for recipe, said in WORDS.items() if words & set(said)), None)
+
+
 def of_row(row, body, bodies, table):
     """(the recipe a ground row is made with, why): one its own words name, else its body's (of_body); None for a
     ground its words say people made (MADE) and on a plot, which has no physics of a body."""
-    words = set(re.findall(r"[a-z]+", f"{row.get('name') or ''} {row.get('noun') or ''}".lower()))
-    named = next((recipe for recipe, said in WORDS.items() if words & set(said)), None)
-    if named:
-        return named, f"the row {row.get('id')} says {sorted(words & set(WORDS[named]))[0]}"
+    words, recipe = words_of(row), named(row)
+    if recipe:
+        return recipe, f"the row {row.get('id')} says {sorted(words & set(WORDS[recipe]))[0]}"
     if words & set(MADE):
         return None, f"the row {row.get('id')} says {sorted(words & set(MADE))[0]}: a made ground, no natural one"
     if body is None:

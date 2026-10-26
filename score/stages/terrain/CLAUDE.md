@@ -38,6 +38,14 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   far reach on a plot), as tall as its SAM 3 box rises in the concept at the framework's view (VIEW_FOV), as broad as
   its read size is to its height; listed in ground.json `far`, and prepare routes it to this node (`groups.routed`).
   It fades to nothing before the far edge, so `curve` still measures the body.
+- **Water is the ground's** (2026-10-26: the square's sea had no maker). A body of water (`design.water_row`: a terrain
+  row whose words name the ocean recipe) lies at its plan level's height (a level named for it), else FREEBOARD under
+  the floor, over its level's points and, out past the outline, the bearings its concept box spans
+  (scene_record/far.py) out to the nearest far object standing there (its far shore), else the far landforms'
+  horizon; the ground is lowered SEABED under the line there (`design.waters`, listed in ground.json `water`), and each
+  place's layer draws the sheet where the ground lies under it as `/<place>/Outside/water`: no collider, its row the
+  place's own water row (the stairwell's water is the square's sea), its ocean recipe and finish named missing as the
+  ground's. A water row beyond a held place is its holder's, laid there; prepare routes every water row here.
 - **Gates**: `spots` (the drawn ground passes through every plan's terrain spot) and `curve` (the far ground has
   fallen by the body's true sagitta from the top scene's site). The place gates measure the place's own stage, not
   pictures (`ground-fit`, free): `under` (the ground under every object standing on it level enough), `floating`,
