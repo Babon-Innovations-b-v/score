@@ -10,7 +10,7 @@ yeses): that raises UnreadableOwnerObject and stays where it is, since a decisio
 It lives here, not in score/store/__init__.py, and only the framework installs it (score.graph's Runner and
 score/review's commands), so it is in no row's key: the store's module is in every stage's code version that calls
 the store, and an edit there re-keyed 44 paid rows (C9 review, 2026-10-17). Nothing a stage runs imports this module,
-which durable_test checks; how a record is written and read back never changes what a make makes. A stage's own
+which test_an_output_is_kept_whole_once_and_never_overwritten.py checks; how a record is written and read back never changes what a make makes. A stage's own
 Store in a process the framework did not start writes and reads as score/store/__init__.py says.
 """
 import json
