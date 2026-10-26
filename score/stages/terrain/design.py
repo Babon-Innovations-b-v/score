@@ -31,10 +31,12 @@ KEPT_SKIES = PROPS_HOME / "design" / "sky"
 # A source's relief is faded out between its farthest spot's distance from its plan's middle and this many times it.
 FADE_PAST = 1.3
 # The far ground's landforms (far_row): a terrain row of the ground or the backdrop the plan marks beyond the place
-# (the campgrounds' distant hills), raised as a ring round it at the horizon a person's eye (EYE metres up) sees on a
-# body (FAR_SHARE of the far ground's reach on a plot, which has none), as tall as its box rises in the concept seen
-# with the framework's view (scene_record.writer.VIEW_FOV across), as broad as its read size is to its height, never
-# broader than FAR_BROAD of its distance; its height along the ring varies by FAR_WAVES seeded waves of its id.
+# (the campgrounds' distant hills), raised round it over the bearings its concept box spans (as water's, water_span;
+# all round without a heading), fading to nothing its breadth past them, at the horizon a person's eye (EYE metres up)
+# sees on a body (FAR_SHARE of the far ground's reach on a plot, which has none), as tall as its box rises in the
+# concept seen with the framework's view (scene_record.writer.VIEW_FOV across), as broad as its read size is to its
+# height, never broader than FAR_BROAD of its distance; its height along the ring varies by FAR_WAVES seeded waves of
+# its id.
 FAR_PARTS = ("ground", "backdrop")
 EYE = 1.7
 FAR_SHARE = 0.6
@@ -245,8 +247,8 @@ def angle_of(direction, ways):
 
 
 def water_span(plan, inventory, row):
-    """(least angle, most angle, heading) of the bearings a water row's concept box spans; None without a heading or
-    a box."""
+    """(least angle, most angle, heading) of the bearings a water or far row's concept box spans; None without a
+    heading or a box."""
     from score.stages.scene_record import far
     picture, ways = inventory.get("picture"), far.heading(plan, inventory)
     box = far.box_of(row, picture)
@@ -320,9 +322,10 @@ def far_size(row, picture, distance):
     return height, min(FAR_BROAD * distance, height * float(size[0]) / max(float(size[2]), 1e-3) / 2)
 
 
-def far_ring(middle, distance, height, broad, seed):
+def far_ring(middle, distance, height, broad, seed, span=None):
     """The relief of a ring of landforms round `middle` (plan metres): `height` at `distance`, falling as a cosine to
-    nothing `broad` metres either side, its height along the ring between 0.4 and 1 of it by FAR_WAVES seeded waves."""
+    nothing `broad` metres either side, its height along the ring between 0.4 and 1 of it by FAR_WAVES seeded waves;
+    with a `span` (water_span's) only over its bearings, falling to nothing `broad` metres along the ring past them."""
     draws = np.random.default_rng(seed)
     turns = draws.integers(1, max(2, int(math.pi * distance / max(broad, 1.0))) + 1, FAR_WAVES)
     phases = draws.uniform(0.0, 2 * math.pi, FAR_WAVES)
@@ -333,7 +336,15 @@ def far_ring(middle, distance, height, broad, seed):
         along = 0.7 + 0.3 * np.mean([np.cos(turn * bearing + phase) for turn, phase in zip(turns, phases)], axis=0)
         apart_by = (far - distance) / broad
         across = np.where(np.abs(apart_by) < 1.0, np.cos(np.clip(apart_by, -1.0, 1.0) * math.pi / 2) ** 2, 0.0)
-        return height * along * across
+        return height * along * across * shown(apart)
+
+    def shown(apart):
+        if span is None:
+            return 1.0
+        away, right = span[2]
+        angle = np.arctan2(apart @ right, apart @ away)
+        past = (np.maximum(span[0] - angle, 0.0) + np.maximum(angle - span[1], 0.0)) * distance / broad
+        return np.where(past < 1.0, np.cos(np.clip(past, 0.0, 1.0) * math.pi / 2) ** 2, 0.0)
     return relief
 
 
@@ -346,8 +357,10 @@ def far_distance(ground, reach):
 
 
 def far_reliefs(ground, plans, inventories, reach):
-    """[(source, its relief)] of every far row (far_row) of the places standing on the ground, each a ring round its
-    place (far_ring), and [{place, row, distance, height, broad}] of what was raised."""
+    """[(source, its relief)] of every far row (far_row) of the places standing on the ground, each round its place
+    over the bearings its concept box spans (far_ring, water_span; all round without a heading), and [{place, row,
+    distance, height, broad, bearings}] of what was raised (bearings: [least, most] degrees right of the concept's
+    view, None all round)."""
     distance, found, made = far_distance(ground, reach), [], []
     for place, entry in sorted(ground["places"].items()):
         path = pathlib.Path(inventories) / f"{place}.json"
@@ -361,10 +374,12 @@ def far_reliefs(ground, plans, inventories, reach):
             height, broad = far_size(row, picture, distance)
             middle = [float(plan["w"]) / 2, float(plan["d"]) / 2]
             seed = int(hashlib.sha256(f"{place}/{row['id']}".encode()).hexdigest()[:8], 16)
+            span = water_span(plan, inventory, row)
             found.append(({"place": place, "top": entry["top"], "offset": offset, "middle": middle},
-                          far_ring(middle, distance, height, broad, seed)))
+                          far_ring(middle, distance, height, broad, seed, span)))
             made.append({"place": place, "row": row["id"], "distance": round(distance, 1), "height": round(height, 1),
-                         "broad": round(broad, 1)})
+                         "broad": round(broad, 1),
+                         "bearings": [round(math.degrees(angle), 1) for angle in span[:2]] if span else None})
     return found, made
 
 
