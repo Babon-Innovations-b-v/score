@@ -916,8 +916,8 @@ def test_an_answer_that_does_not_parse_is_a_gap_dropped_from_the_cache():
     """Fault (2026-10-25, surface-library@camp): a malformed JSON answer was kept in the cache, so every later try read
     the same broken answer back."""
     from score.adapters import compute
-    broken = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": [{,}]}'}]}}]}
-    good = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": []}'}]}}]}
+    broken = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": [{,}]}'}]}, "finishReason": "STOP"}]}
+    good = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": []}'}]}, "finishReason": "STOP"}]}
     bodies = {"broken": {"ask": 1}, "good": {"ask": 2}}
     kept = compute.require_cleared, route_ask.google_batch.generate, route_ask.finish_ask.secret_key
     compute.require_cleared = lambda what, store=None: {"node": "test"}
