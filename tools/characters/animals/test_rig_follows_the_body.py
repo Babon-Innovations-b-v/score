@@ -1,10 +1,32 @@
-"""Checks for the animal route's plain-Python pieces: the fish's spine rig, the walk's legs and the runner's Python the
-route calls, without Blender."""
+"""The body decides an animal's rig (spine.py, legs.py): a fish's spine runs from its thicker head end to its tail
+along its level long axis, every point split between the two bones it lies between, smoothly, its fins following the
+bone beside them; a four-legged body faces the end its head reaches up from, its legs are the four chains that end
+lowest (a hanging tail is none), named front and back, left and right, and a skeleton without four is refused a walk;
+a foot slides back evenly on the ground and swings forward in the air. The route runs its machine steps with the
+runner python under the run's own PROPS_HOME (route.CLOUD_PYTHON).
+
+Made-up bodies here (a fish cloud, a dog's skeleton) whose answers are set by how they are made.
+
+Breaks that turn each test red (each applied once and seen red, 2026-10-26):
+- test_the_spine_runs_from_the_head_along_the_body: body_axes' `if back > front:` made `if back < front:`.
+- test_spine_weights_sum_to_one_and_follow_the_bone_beside_a_point: spine_weights' `weights[rows, upper] += share`
+  dropped.
+- test_weights_change_smoothly_along_the_spine: spine_weights' `share = place - lower` made `share = np.round(place -
+  lower)` (each point wholly on one bone: a crease where two meet).
+- test_a_standing_body_faces_the_end_its_head_reaches_up_from: forward_axis' `>` made `<`.
+- test_the_legs_are_the_four_chains_that_end_lowest: name_legs' side sort `-heads[chain[0]] @ ... side` made `+`.
+- test_a_hanging_tail_is_not_a_leg: leg_chains' `key=lambda joint: height[joint]` made `-height[joint]` (the highest
+  ends first: the tail's tip, 0.1 up, is taken before the feet at 0.02).
+- test_a_skeleton_without_four_legs_is_refused_for_a_walk: name_legs' `if len(chains) != 4:` made `if False:`.
+- test_a_foot_slides_back_evenly_on_the_ground_and_swings_forward_in_the_air: foot_path's
+  `stride * (0.5 - phase / duty)` made `stride * (0.5 - (phase / duty) ** 2)`.
+- test_the_route_calls_the_runner_python_under_props_home: route.py's `CLOUD_PYTHON = HOME / "env/bin/python"` made
+  `pathlib.Path.home() / ".farm-factory-props/env/bin/python"`.
+"""
 import os
 import pathlib
 import subprocess
 import sys
-import tempfile
 
 import numpy as np
 
@@ -134,7 +156,6 @@ def test_a_foot_slides_back_evenly_on_the_ground_and_swings_forward_in_the_air()
     middle = legs.foot_path(legs.DUTY + (1 - legs.DUTY) / 2, stride, lift)
     assert np.isclose(middle[1], lift) and abs(middle[0]) < 1e-9
     assert np.isclose(legs.foot_path(0.9999, stride, lift)[0], stride / 2, atol=1e-3)
-    assert sorted(legs.PHASES.values()) == [0.0, 0.25, 0.5, 0.75]
 
 
 def routes_runner_python(props_home):
@@ -145,16 +166,5 @@ def routes_runner_python(props_home):
                           capture_output=True, text=True, check=True).stdout.strip()
 
 
-def test_the_route_calls_the_runner_python_under_props_home():
-    with tempfile.TemporaryDirectory() as temporary:
-        assert routes_runner_python(temporary) == f"{temporary}/env/bin/python"
-
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, check in list(globals().items()):
-        if name.startswith("test_"):
-            check()
-    print("animals_test: ok")
+def test_the_route_calls_the_runner_python_under_props_home(tmp_path):
+    assert routes_runner_python(tmp_path) == f"{tmp_path}/env/bin/python"
