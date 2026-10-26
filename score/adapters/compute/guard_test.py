@@ -10,6 +10,7 @@ import json
 import multiprocessing
 import os
 import pathlib
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -23,6 +24,8 @@ from score.adapters import compute  # noqa: E402
 from score.adapters.compute import compute_test, guard  # noqa: E402
 from score.store import AGENT_MARKERS, Store  # noqa: E402
 
+# the root conftest's sandbox test (its system temp folder, not this run's own temp folder inside it: own_temp)
+SANDBOX = runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))
 BOOKS = compute.ledger()
 MONTH = BOOKS.this_month()
 BILL = compute_test.BILL  # the fake bill compute_test put in compute.cloud_bill
@@ -186,8 +189,7 @@ def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads():
     """C22: his money yes and the guard line are one step: `score.review stop` writes the line, and the very next
     clearance is held to it. Without a terminal, or in an agent's process, it writes nothing."""
     from score.review import __main__ as review_command
-    home = pathlib.Path(os.environ["PROPS_HOME"]).resolve()
-    assert home.is_relative_to(pathlib.Path(tempfile.gettempdir()).resolve()), "run in a sandbox home"
+    assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
     world = "toy-stop"
     try:
         review_command.main(["stop", world, "5", "--reason", "films"])  # no terminal here
@@ -226,8 +228,7 @@ def test_spend_counts_from_the_worlds_start_across_months():
 
 def test_the_framework_store_refuses_a_world_with_no_line():
     """In the framework's store an environment must carry the owner's money figure before any paid job starts."""
-    home = pathlib.Path(os.environ["PROPS_HOME"]).resolve()
-    assert home.is_relative_to(pathlib.Path(tempfile.gettempdir()).resolve()), "run in a sandbox home"
+    assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
     store = Store.default()
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
@@ -613,9 +614,7 @@ def test_a_grant_used_up_under_the_single_use_rule_holds_its_balance_once_restor
 
 
 if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
+    SANDBOX["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()
