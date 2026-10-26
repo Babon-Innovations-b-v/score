@@ -23,4 +23,4 @@ Bible: `architecture/lifecycles` (shapes first).
   test's `DIFFERS`), not cut away by bending a rule to match it.
 - **Limits today:** one spine (one run of side rooms) per shell; one deck (no stepped floors); doors only inside the
   shell (a way out through the shell's wall is the inside place's plan's).
-- Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/shell_split/shell_split_test.py` (seconds).
+- Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/shell_split/test_a_shell_splits_into_places_that_tile_and_are_reached.py` (seconds).
