@@ -54,6 +54,6 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   holder; a door to a neighbour has it stood; every view of an inside place inside its outline). Whether the made
   ground fits round the doorways is ground-fit's.
 - Run the proof with `python -m score run world1 --place <place> --stage scene-record --detach`; the test is
-  `scene_record_test.py` (a shed of its own: its plan maps, its record is written from a written plan, and a filled
+  `test_a_scene_record_is_written_from_its_design.py` (a shed of its own: its plan maps, its record is written from a written plan, and a filled
   door, a moved lamp and a door to no place fail by name; its shell and stairs take the scene library's surfaces, or
   name why not).

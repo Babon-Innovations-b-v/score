@@ -1,12 +1,15 @@
-"""The scene-record stage's plan row on a plan of its own (a small domed shed beside a yard): its plan maps, and an item
-with no rows, a door that says nowhere it leads and a sealed door the layout leaves open each fail `mapped`; a written
-plan with no corner takes its outline, and one with neither is refused by name.
+"""A scene record is written from its design alone, on a plan of its own (a small shed beside a yard on a site): its
+plan maps, and an item with no rows, a door that says nowhere it leads and a sealed door the layout leaves open each
+fail `mapped`; a written plan with no corner takes its outline; the record holds the shell cut round its door, its
+stair, a light over its lamp, the sky from the physics, the places its doors lead to and its backdrop rows are shown
+from, every object at its plan item waiting on its model, a far row far off, an arched rib as a band, a light where a
+tower or a glowing row stands, and each part the scene library's surface; its gates fail a filled door, a moved lamp
+and a door to no place. Every spot is worked out by hand from the plans below.
 
-The tests on the old concepts' places (the garage's, stairwell's and wreck's records over their round-three seeds,
-the hub's, tube's, greenhouse's and hangar's shells, the flat's and camp's kits) went with those places' filed plans,
-kits and records, retired on 2026-10-21.
+Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
 
-Run: .venv/bin/python score/stages/scene_record/scene_record_test.py
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
+    score/stages/scene_record/test_a_scene_record_is_written_from_its_design.py
 """
 import json
 import math
@@ -51,6 +54,11 @@ def made(folder, record):
 
 
 def test_a_plan_maps_and_faults_fail():
+    """The shed's plan maps, its doors leading to the yard and outside; an item with no rows, a door that says nowhere
+    it leads and a sealed door the layout leaves open each fail `mapped` by name.
+    Break: score/stages/scene_record/plan.py: `return [f"{name} says nowhere it leads, or not why"]` -> `return []`
+    Break: score/stages/scene_record/plan.py:
+        `found.append(f"{name} is sealed but the room layout leaves it open (no leaf shuts it)")` -> `pass`"""
     with tempfile.TemporaryDirectory() as folder:
         out, inputs = made(folder, SHED)
         found = plan.judge_mapped(out, inputs, None)
@@ -69,7 +77,11 @@ def test_a_plan_maps_and_faults_fail():
 
 def test_a_written_plan_with_no_corner_takes_its_outline():
     """A written plan (plan_writing's: an outline, no corner) makes its plan with square corners, its outline drawing
-    every corner; a plan with neither is refused by name."""
+    every corner; a plan with neither is refused by name.
+    Break: score/stages/scene_record/plan.py: `    if plan.get("outline"):` -> `    if False:`
+    Break: score/stages/scene_record/plan.py: `raise ValueError(f"{plan['title']}: the plan gives no corner and no
+        outline")`
+        -> `return 0.0`"""
     record = {key: value for key, value in SHED.items() if key != "corner"}
     with tempfile.TemporaryDirectory() as folder:
         out, _ = made(folder, {**record, "outline": [[0.0, 0.0], [8.0, 0.0], [8.0, 6.0], [0.0, 6.0]]})
@@ -128,7 +140,8 @@ def written(folder, design):
     (folder / "inventory.json").write_text(json.dumps({**INVENTORY, "rows": [*INVENTORY["rows"], LAMP_ROW]}))
     (folder / "sky.json").write_text(json.dumps({**SKY, "place": "shed", "top": "site", "setting": setting.now()}))
     (folder / "hand-in.json").write_text(json.dumps(HANDIN))
-    inputs = {**inputs, "plan": out, "sky": folder / "sky.json", "hand-in": folder / "hand-in.json", "row kinds": REPO / "data/checks/row-kinds.json",
+    inputs = {**inputs, "plan": out, "sky": folder / "sky.json", "hand-in": folder / "hand-in.json",
+              "row kinds": REPO / "data/checks/row-kinds.json",
               "lamp library": REPO / "data/library/lamps.json", "places": REPO / "data/definitions/place.json"}
     record = folder / "record"
     record.mkdir()
@@ -140,7 +153,16 @@ def written(folder, design):
 def test_the_record_is_written_from_the_design():
     """The shed's record holds its shell with the north door cut, its stair, a light over its lamp, its sky from the
     physics, the yard its door leads to where the site holds it, and only the view standing inside its walls; its
-    gates pass, and a door filled, a lamp moved off its item and a door to no place each fail by name."""
+    gates pass, and a door filled, a lamp moved off its item and a door to no place each fail by name. The lamp item
+    (3.5, 2.5) 1 m square on the 8 x 6 m shed is at the shed's middle, its base 2.7 m, the light 5% up its 0.2 m.
+    Break: score/stages/scene_record/gates.py:
+        `found.append(f"opening {number} ({opening.get('kind')}) at {opening['at']} is filled by {filled}")` -> `pass`
+    Break: score/stages/scene_record/gates.py: `found.append(f"the light of plan item {name!r} stands off its
+        footprint")`
+        -> `pass`
+    Break: score/stages/scene_record/gates.py:
+        `found.append(f"opening {number} leads to {to!r}, no place of the design nor a row of its inventory")`
+        -> `pass`"""
     from score.review import overhead
     from score.stages.scene_record import gates, writer
     with tempfile.TemporaryDirectory() as folder:
@@ -184,7 +206,8 @@ def test_the_record_is_written_from_the_design():
 
 def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_holder_holds_it():
     """The stairwell's palm seen through its window is the square's (prepare's groups.shown_from: `shown`): the record
-    stands the holder at its own plan's middle, a place it holds beside where it holds it, each once."""
+    stands the holder at its own plan's middle, a place it holds beside where it holds it, each once.
+    Break: score/stages/scene_record/writer.py: `if name in stood_already or name == place:` -> `if name == place:`"""
     from score.stages.scene_record import writer
     with tempfile.TemporaryDirectory() as folder:
         output, inputs = written(folder, WRITTEN)
@@ -201,7 +224,14 @@ def test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_
     """2026-10-26: the square's city skyline had no maker; no scene of the environment stands there, so it is ordinary
     objects (prepare's groups.far_made): laid along the bearing its box is seen at (the plan fixes' projection: up
     the picture is away), at the distance its read tall rises to its box's height in the framework's view, its
-    pieces square to that bearing; one with no projection to stand it by is named, never placed by guess."""
+    pieces square to that bearing; one with no projection to stand it by is named, never placed by guess. The city's
+    50 m read tall over its 50 px box at the view's focal length is its distance; its two pieces 100 m apart on its
+    200 m.
+    Break: score/stages/scene_record/far.py: `distance = max(float(size[2]) * focal(picture) / (box[3] - box[1]),`
+        -> `distance = max(0.0,`
+    Break: score/stages/scene_record/writer.py:
+        `spot = np.asarray(placed["at"]) + way * length * ((number - 0.5) / pieces - 0.5)`
+        -> `spot = np.asarray(placed["at"])`"""
     from score.stages.scene_record import far, writer
     rows = [{"id": name, "anchor": "floor", "noun": name, "count": 1, "size": [1, 1, 1], "boxes": [box]}
             for name, box in (("crate", [240, 700, 260, 750]), ("drum", [740, 700, 760, 750]),
@@ -238,7 +268,13 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
     """Fault (2026-10-25): the record laid no object of a designed place, so the assembly placed none of its models.
     Each prop row's plan item gets its object `<row>_<n>` over its middle at its shape's base, waiting on its take's
     model (`<first row>_1`); a run the plan draws once as a polygon counting three lays three pieces along it, each
-    its long side along the path; a row with no size waits named; the plan's own floor is named on its deck."""
+    its long side along the path; a row with no size waits named; the plan's own floor is named on its deck. The
+    bench item (1, 1) 2 x 0.6 m is at (-2, -1.7) on the shed centred on its 8 x 6 m; the lamp's at its 2.7 m base.
+    Break: score/stages/scene_record/writer.py: `            base = float(shape.get("base") or 0.0)` ->
+        `            base = 0.0`
+    Break: score/stages/scene_record/writer.py: `return [along(path, (number + 0.5) / pieces) for number in
+        range(pieces)]`
+        -> `return [along(path, 0.5) for number in range(pieces)]`"""
     from score.stages.scene_record import writer
     design = {**WRITTEN, "items": [*WRITTEN["items"], ["RAIL", 1.0, 4.0, 3.0, 1.0, None, "item"]],
               "rows": {**WRITTEN["rows"], "RAIL": ["rail"]},
@@ -271,7 +307,10 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
 def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():
     """Batch 1's retry: the tube's ribs, their box the whole picture, framed no close-up. The shell lays an arched
     structure row (design_shell.arched) as an `arch` at each plan item tied to it, at the row's size, named its row,
-    painted as a wall; a block of no band, or a row of no structure, is not arched."""
+    painted as a wall; a block of no band, or a row of no structure, is not arched. The first rib's item (0, 1) 8 x
+    0.2 m lies east-west across the shed: its 3.2 m span centred at plan x 4, its feet at -1.6 and 1.6, z -1.9.
+    Break: score/stages/scene_record/writer.py: `way = np.array([1.0, 0.0]) if wide >= deep else np.array([0.0, 1.0])`
+        -> `way = np.array([0.0, 1.0])`"""
     from pxr import Usd
     from score.stages.earth_seed import design_shell
     from score.stages.scene_record import writer
@@ -303,8 +342,10 @@ def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():
 
 
 def test_a_floodlight_tower_read_as_a_tower_gets_a_light_at_its_head():
-    """A yard with a 1 by 1 by 10 m floodlight tower (a stem by its metres) read as a tower (the reading's noun) and a light switch: the tower's plan
-    item gets one library lamp near its top over its middle, the switch none (score/stages/row_kinds.py held_by)."""
+    """A yard with a 1 by 1 by 10 m floodlight tower (a stem by its metres) read as a tower (the reading's noun) and a
+    light switch: the tower's plan
+    item gets one library lamp near its top over its middle, the switch none (score/stages/row_kinds.py held_by).
+    Break: score/stages/scene_record/writer.py: `high = base + tall * share` -> `high = base + share`"""
     from score.stages.scene_record import writer
     design = {**WRITTEN, "items": [["TOWER", 3.0, 2.0, 1.0, 1.0, None, "item"], ["SWITCH", 1.0, 1.0, 0.1, 0.1, None,
                                                                                     "item"]],
@@ -325,7 +366,13 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
     """An engine room's core (a machine: its row kind does not glow) its concept shows glowing blue at half the
     brightest light gets the library's lamp over its plan item in that blue at half the lamp's strength; the engine
     its concept shows dark and the starry sky (the physics') get none (reading.concept_light, kept as
-    {home}/design/light/<place>.json)."""
+    {home}/design/light/<place>.json).
+    Break: score/stages/scene_record/writer.py:
+        `"energy": round(energy * light["strength"] * (float(glow["brightness"]) if glow else 1.0), 4),`
+        -> `"energy": round(energy * light["strength"], 4),`
+    Break: score/stages/scene_record/writer.py:
+        `for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}`
+        -> `for row in inventory["rows"] if row["id"] in shown}`"""
     from score.stages.scene_record import writer
     design = {**WRITTEN, "items": [["CORE", 3.0, 2.0, 1.0, 1.0, None, "item"], ["ENGINE", 1.0, 1.0, 2.0, 1.0, None,
                                                                                   "item"],
@@ -357,7 +404,12 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
 def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
     """Each shell part and stair takes the variant the scene's surface library gives its kind (a stair the floor's
     when the library names no stair), and a part it gives none, or every part while no library is made, carries no
-    surface and says why; the scene builder names that on the mesh and binds nothing."""
+    surface and says why; the scene builder names that on the mesh and binds nothing.
+    Break: score/stages/scene_record/writer.py: `    return dict(entry, surface=surface)` -> `    return dict(entry,
+        surface="deck_plate")`
+    Break: score/stages/earth_seed/design_shell.py: `return f"{place}: the scene's surface library is not made (run
+        surface-library first): its {kind} has none"`
+        -> `return f"{place}: no surface"`"""
     from pxr import Usd
     from score.stages.scene_record import writer
     sys.path.insert(0, str(REPO / "tools/usd"))
@@ -384,15 +436,3 @@ def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
     mesh = stage.GetPrimAtPath("/shed/Structure/roof_1")
     assert "roof takes" in mesh.GetAttribute("score:surface:missing").Get(), mesh
     assert not mesh.HasRelationship("material:binding"), mesh
-
-
-if __name__ == "__main__":
-    import runpy
-    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
-    test_a_plan_maps_and_faults_fail()
-    test_a_written_plan_with_no_corner_takes_its_outline()
-    test_the_record_is_written_from_the_design()
-    test_the_shell_and_stairs_take_the_scene_librarys_surfaces()
-    test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model()
-    test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_pieces()
-    print("scene_record_test: ok")
