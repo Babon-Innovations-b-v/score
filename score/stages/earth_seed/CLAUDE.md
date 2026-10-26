@@ -42,5 +42,5 @@ the gates.
 - **Readers are rewired in the table, not here.** `stages.earth_seeded` turns every declared `{seeds}/usd-r3/<place>`
   and `{data}/kit/<place>.json` of an earth place into a read of `earth-seed` (the place's own as an `after`, another's
   beside): the seed's stage folder, the design's kit (`kit_in`), under their old names; `stages.EARTH_SEEDED` lists
-  the rows and `earth_seed_test.py` holds it to the declared files.
-- `earth-seed` is free. Test: `earth_seed_test.py` (no spend).
+  the rows and `test_a_scene_s_base_stands_from_its_design.py` holds it to the declared files.
+- `earth-seed` is free. Test: `test_a_scene_s_base_stands_from_its_design.py` (no spend).
