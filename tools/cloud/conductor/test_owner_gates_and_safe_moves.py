@@ -33,9 +33,11 @@ Boot (cloud-init, boot.sh, units):
   bus is up. Break: drop `no-pty` from `authorized_keys`.
 - Every unit passes `systemd-analyze --user verify`; the sync pass runs the update first, on the system python.
 - boot.sh runs against a temp root and again: the data volume formatted once, its mountpoint immutable before the
-  mount, the units installed as rendered, the prop environment built only after the move; a download that misses its
+  mount, the units installed as rendered, the prop environment and the sync's units (install-sync --no-pull, after
+  score-update) only after the move; a download that misses its
   pin stops it, as does a missing system bus or any failing command (named by its line).
   Break: drop `chattr +i` before the mount in boot.sh. Break: skip the SHA-256 check in boot.sh's download.
+  Break: drop `sync_units "$repo"` from boot.sh's user part.
 - Wording checks guarding owner rules (they read text on purpose): no unit names a path of the owner's PC; boot.sh's
   gltfpack pin is the one tools/review/viewer/export.py runs. Break: change `GLTFPACK_PIN` in boot.sh.
 
@@ -53,8 +55,9 @@ The checkout moves (update.py):
 - `.venv` (and after the move the prop environment) syncs only when uv.lock moved; a missing prop environment is built.
   Break: `lock_changed` always True.
 - It waits while score starts from the checkout, while a run works in its frozen copy, while the checkout has changes;
-  a sync pass holds back only a uv.lock move; two updates take turns on the checkout's lock.
-  Break: `frozen_users` returns []. Break: drop the lock in `main`.
+  a sync pass holds back only a uv.lock move, and the line (noted for the health record) names a sync unit with no
+  update before its pass; two updates take turns on the checkout's lock.
+  Break: `frozen_users` returns []. Break: drop the lock in `main`. Break: `pass_updates_first` always True.
 """
 import base64
 import contextlib
@@ -529,6 +532,9 @@ def boot_root(folder, installed=True):
     checkout = home / "projects" / "score"
     (checkout / ".git").mkdir(parents=True)
     (checkout / "tools").symlink_to(REPO / "tools")
+    executable(checkout / ".venv" / "bin" / "python", SHIM)
+    (home / ".config" / "score").mkdir(parents=True)
+    (home / ".config" / "score" / "dashboard.env").write_text("SCORE_SYNC_URL=http://cockpit.test\n")
     (home / ".config" / "scw").mkdir(parents=True)
     (home / ".config" / "scw" / "config.yaml").write_text("access_key: test\n")
     (home / "projects" / "score_lib" / ".git").mkdir(parents=True)
@@ -579,6 +585,7 @@ def test_boot_runs_against_a_temp_root_and_again_the_same(short_path):
     sshd = (root / "etc" / "ssh" / "sshd_config.d" / "50-score-conductor.conf").read_text()
     assert "PasswordAuthentication no" in sshd and "PermitRootLogin no" in sshd
     assert not any("--no-dev" in call for call in calls), "the prop environment was built before the move"
+    assert not any("install-sync" in call for call in calls), "the sync's units came before the move"
     units = root / "home" / "score" / ".config" / "systemd" / "user"
     for unit in machine.unit_files():
         installed = (units / unit.name).read_text()
@@ -596,6 +603,10 @@ def test_boot_runs_against_a_temp_root_and_again_the_same(short_path):
     again, calls_again = run_boot(tmp_path, root, shims)
     assert again.returncode == 0, again.stderr
     assert f"uv sync -q --frozen --no-dev --project {root}/home/score/projects/score" in calls_again
+    # and installs the sync's units with the update before each pass, the checkout moved to the pin first
+    env_file = f"{root}/home/score/.config/score/dashboard.env"
+    install = f"python -m score.dashboard install-sync --env-file {env_file} --no-pull"
+    assert calls_again.index("systemctl --user start score-update.service") < calls_again.index(install)
     assert calls_again.count("mkfs.ext4 -q -L score-data /dev/disk/by-id/scsi-0SCW_sbs_volume-test") == 1
     assert (root / "etc" / "fstab").read_text().count("UUID=1111-uuid") == 1
 
@@ -809,9 +820,11 @@ def world(tmp_path):
     proc = tmp_path / "proc"
     proc.mkdir()
     home = tmp_path / "home"
+    sync_unit = tmp_path / "score-sync.service"
 
     def move(url, token=TOKEN):
-        return update.update(checkout, url, uv=str(uv), proc=proc, token=lambda: token, home=home)
+        return update.update(checkout, url, uv=str(uv), proc=proc, token=lambda: token, home=home,
+                             sync_unit=sync_unit)
 
     def at():
         return git(checkout, "rev-parse", "HEAD")
@@ -824,7 +837,7 @@ def world(tmp_path):
             (entry / "cwd").unlink()
         (entry / "cwd").symlink_to(cwd)
     return types.SimpleNamespace(origin=origin, checkout=checkout, commits=commits, log=log, proc=proc, home=home,
-                                 move=move, at=at, process=process, folder=tmp_path)
+                                 move=move, at=at, process=process, folder=tmp_path, sync_unit=sync_unit)
 
 
 def test_the_checkout_follows_the_pin_and_syncs_only_when_the_lock_moved(world):
@@ -898,7 +911,13 @@ def test_a_sync_pass_holds_back_only_a_lock_move(world):
         assert "->" in world.move(url) and world.at() == world.commits[1]
     with cockpit({"commit": world.commits[2]}) as url:
         line = world.move(url)
-    assert "not now" in line and "6161" in line and world.at() == world.commits[1]
+        assert "not now" in line and "6161" in line and world.at() == world.commits[1]
+        # the health record says why the checkout lags; a unit with no update before its pass is named (2026-10-26)
+        noted = json.loads((world.home / "conductor" / "pin.json").read_text())
+        assert noted["pin"] == world.commits[2] and noted["said"] == line and "runs no update" in line
+        world.sync_unit.write_text(f"[Service]\nExecStartPre=/usr/bin/python3 -I /r/tools/cloud/conductor/update.py "
+                                   f"--repo /r\n")
+        assert "runs no update" not in world.move(url)
 
 
 def test_a_checkout_with_changes_waits_and_two_updates_take_turns(world, monkeypatch):

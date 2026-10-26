@@ -16,6 +16,7 @@
 #   installed as a user unit and enabled; once the move wrote machine.json, the prop environment ($PROPS_HOME/env,
 #   the rows' PROPS_PYTHON, never backed up) synced from uv.lock; once ~/.config/scw/config.yaml is there (machine.py up
 #   pipes it over ssh), the tmpfs secrets written and score_lib cloned with its deploy key from tmpfs, its .venv synced.
+#   Last, once machine.json is there: the checkout to the pin (score-update) and the sync's units (install-sync --no-pull).
 # env: the prop environment alone (the move runs it right after its restore).
 #
 # SCORE_BOOT_ROOT puts every path under another root (the dry check, machine_test.py, runs it against a temp root
@@ -346,6 +347,20 @@ clone_library() {
   say "score-lib at $HOME/.local/bin/score-lib"
 }
 
+# The sync's units (score/dashboard install-sync --no-pull: score-sync.service runs update.py before each pass), every
+# boot once the move made machine.json, so a live machine gets a changed unit without a hand step (2026-10-26: a unit
+# installed before that ExecStartPre held the checkout off the pin 2.5 hours). The checkout goes to the pin first
+# (score-update.service): install-sync refuses a checkout whose dashboard the cockpit does not run.
+sync_units() {
+  local repo="$1" env="$HOME/.config/score/dashboard.env"
+  if [ ! -f "$HOME/.farm-factory-props/machine.json" ]; then
+    say "no machine.json yet: the sync's units wait for the move"
+    return
+  fi
+  systemctl --user start score-update.service
+  (set -a && . "$env" && set +a && cd "$repo" && .venv/bin/python -m score.dashboard install-sync --env-file "$env" --no-pull)
+}
+
 user_part() {
   local repo="$HOME/projects/score"
   checkout "$repo"
@@ -360,6 +375,7 @@ user_part() {
   systemctl --user start score-secrets.service
   clone_library
   say "secrets on tmpfs, score_lib ready"
+  sync_units "$repo"
 }
 
 case "${1:-}" in
