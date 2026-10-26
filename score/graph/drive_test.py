@@ -144,6 +144,18 @@ def test_a_failing_gate_stops_its_own_line_only_with_a_fault_report():
     assert not report_of(runner, "clean@hangar").exists()
 
 
+def test_a_fault_on_an_input_moved_under_the_run_names_what_moved():
+    """Batch 1 try 4, 2026-10-25: a sync pass rewrote the design under the run, and twenty lines stopped on
+    "finish-route-palette@<place> has not run on its current inputs" with nothing saying which input moved."""
+    runner = a_runner({"hangar": "a hub"})
+    runner.drive(["hangar"], say=quiet)
+    (runner.world.roots["data"] / "hangar" / "brief.txt").write_text("a ship")  # moved after clean@hangar stood
+    cause = runner.standing(COUNT, "hangar")
+    assert cause == "clean@hangar has not run on its current inputs", cause
+    report = runner.fault_report(COUNT, "hangar", f"blocked: {cause}", cause).read_text()
+    assert "what moved its key since its last record: brief changed" in report, report
+
+
 def test_nothing_is_gathered_for_an_output_another_gate_fails():
     runner = a_runner({"hangar": "a ship!"})
     found = runner.drive(["hangar"], say=quiet)

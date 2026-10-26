@@ -43,7 +43,8 @@ stage as each stage is built; nothing moves before.
   gathers a gate's missing evidence itself (`Stage.gatherers`; a paid one cleared like a paid stage, and only when
   nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
   own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
-  cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`). A free node
+  cause (an earlier node that "has not run on its current inputs" with what moved its key since its last record),
+  every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`). A free node
   that errors on a transient fault (HTTP 5xx, a timeout, a dropped connection: `graph.transient`) runs again up to
   `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line; a paid node never runs again
   inside the batch, its failure is a gap (ADR-0005). Once a node stops its line,

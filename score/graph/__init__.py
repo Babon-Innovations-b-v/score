@@ -72,6 +72,7 @@ from score.store import durable, file_hash, listing_hash, text_hash, tree_files,
 GRAINS = ("world", "place")
 WORLD_LINE = "world"
 LOG_TAIL = 40
+NOT_RUN = " has not run on its current inputs"  # usable's cause; a fault report names what moved its key
 # Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
 JOBS = 8
 # How often a node's process checks that its runner is still there (watch_runner).
@@ -662,7 +663,7 @@ class Runner:
         key = self.key(stage, place)["key"]
         record = self.store.record(node, key)
         if record is None:
-            raise Blocked(f"{node} has not run on its current inputs")
+            raise Blocked(f"{node}{NOT_RUN}")
         judgement = self.store.judgement(node, key, self.evidence_state(stage, record["output"]))
         if judgement is None:
             raise Blocked(f"{node} is not judged on its current evidence")
@@ -1310,6 +1311,7 @@ class Runner:
         line = place or WORLD_LINE
         lines = [f"fault: {node} (line {line}, world {self.world.name}, {now()})", f"what the runner did: {did}",
                  f"why its line stopped: {cause}", ""]
+        lines += self.moved_inputs(cause)
         lines += self.blocking_checks(stage, place)
         log = self.desk("logs", node, ".log")
         tail = log.read_text(errors="replace").splitlines()[-LOG_TAIL:] if log.exists() else []
@@ -1321,6 +1323,19 @@ class Runner:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines) + "\n")
         return path
+
+    def moved_inputs(self, cause):
+        """Report lines naming what moved an earlier node's key since its last record, when that is why the line stopped
+        (Batch 1 try 4, 2026-10-25: twenty lines stopped on "finish-route-palette@<place> has not run on its current
+        inputs" and nothing said a sync pass had rewritten the design under the run)."""
+        if not cause.endswith(NOT_RUN):
+            return []
+        stage, place = next(self.nodes_named([cause[:-len(NOT_RUN)]]))
+        try:
+            keyed = self.key(stage, place)
+        except Blocked as block:
+            return [f"its key cannot be worked out: {block}", ""]
+        return [f"what moved its key since its last record: {', '.join(self.stale_reasons(stage, place, keyed))}", ""]
 
     def blocking_checks(self, stage, place):
         """The node's newest judgement's blocking checks as report lines: answer, reason, measures, findings."""
