@@ -109,4 +109,6 @@ def newest(accepted_at=lambda node: None):
             "first_at": tries[0].at.isoformat(),
             "runs": [run for one in tries if one.launch for run in checkout_runs(one)],
             "try_runs": checkout_runs(record) if record.launch else [], "nodes": list(nodes),
-            "try_nodes": record_nodes(record)}
+            "try_nodes": record_nodes(record),
+            "budget": next((one.stop_line["batch_budget"] for one in reversed(tries)
+                            if "batch_budget" in (one.stop_line or {})), None)}

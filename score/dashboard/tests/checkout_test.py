@@ -481,7 +481,8 @@ def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, monkeypatch):
     assert len(launches()) == 1 and all(os.getenv(name) == "1" for name in AGENT_MARKERS)  # back once launched
     from score.dashboard.checkout import watched
     assert watched.newest()["yes"]["answer"] == "Yes, buy it"
-    assert "used already" in chat_buy(yes["id"])[1] and len(launches()) == 1 and Checkout.objects.count() == 1
+    # the same yes again is a retry of its batch (test_a_batch_has_one_budget_across_its_tries), never while it runs
+    assert "still running" in chat_buy(yes["id"])[1] and len(launches()) == 1 and Checkout.objects.count() == 1
 
 
 def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settings, monkeypatch, tmp_path):
@@ -520,3 +521,35 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     chat.items = a_basket(settings, ["closeup@alpha"])
     refused(changed, "the basket changed since he approved it")
     assert not Checkout.objects.exists() and not launches() and stop_line(chat) is None
+
+
+def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):
+    """His yes is the batch's budget (owner, 2026-10-26: "those budget asks should become per batch tho, not per
+    try"): the stop line is the batch's start plus it, a retry under the same yes that fits what is left needs no
+    new ask and keeps the budget, one that does not fit is refused; a click over it raises it."""
+    monkeypatch.setattr(FakeBackend, "log_folder", tmp_path)  # each run writes its result line: done
+    yes = a_yes(stop=100.0)
+    first, said = chat_buy(yes["id"])
+    assert first is not None and first.state == "launched", said
+    assert stop_line(chat)["euros"] == 110.0 + 100.0  # the batch's start, spent and in flight, plus his budget
+    assert (first.stop_line["batch_budget"], first.stop_line["batch_used"]) == (100.0, 0.0)
+    monkeypatch.setattr(FakeBackend, "spent", 120.0)  # the first try spent 20
+    again, said = chat_buy(yes["id"])
+    assert again is not None and again.state == "launched" and again.key.endswith("-retry-1"), said
+    assert stop_line(chat)["euros"] == 210.0  # the same budget: 80 left, not a new 100 on top
+    assert (again.stop_line["batch_budget"], again.stop_line["batch_used"]) == (100.0, 20.0)
+    from score.dashboard.checkout import watched
+    assert watched.newest()["budget"] == 100.0 and watched.newest()["tries"] == 2
+    monkeypatch.setattr(FakeBackend, "spent", 190.0)  # 90 spent with what is in flight: 10 left, a try needs 33
+    record, said = chat_buy(yes["id"])
+    assert "over the batch budget: EUR 90.00 spent of EUR 100.00" in said and record.state == "refused", said
+    assert flow.batch_budget([first, again, record], 200.0, 33.0, None) == (110.0, 123.0)  # a click raises it
+
+
+def test_a_batch_budget_counts_from_an_older_first_try_line():
+    """A batch whose first try wrote its line before budgets (Batch 1) counts from what that line was written over;
+    his new yes makes the budget the batch's spend so far plus his stop."""
+    older = Checkout(stop_line={"euros": 596.76, "spent": 300.0, "reserved": 0.0, "high": 100.0})
+    this = Checkout(stop_line={})
+    assert flow.batch_budget([older, this], 710.0, 250.0, {"stop_euros": 330.0}) == (300.0, 740.0)
+    assert flow.batch_budget([this], 710.0, 33.0, None) == (710.0, 33.0)  # a new batch: its own stop

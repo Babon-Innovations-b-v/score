@@ -21,7 +21,7 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 
 from score.dashboard import state
-from score.dashboard.checkout import WORLD, pricing
+from score.dashboard.checkout import WORLD, pricing, watched
 from score.dashboard.films import script
 from score.dashboard.launch import guard
 from score.dashboard.launch.backend import GroupPlan, RunGroup
@@ -166,7 +166,7 @@ def yes_refusals(yes, totals):
     """Why his Buy approved in a session (`yes`, checkout/chat_yes.py) does not cover a basket at `totals`, in words:
     its high above the high he approved, or its stop (the high with the guesses, plus BUFFER: what write_line adds to
     the spend) above the stop he approved; none without a yes."""
-    if not yes:
+    if not yes or yes.get("retry"):  # a retry under a used yes is held to the batch's budget (batch_budget)
         return []
     found, stop = [], round(pricing.cleared_high(totals) * BUFFER, 2)
     if round(totals["high_euros"], 2) > round(yes["high_euros"], 2):
@@ -344,12 +344,51 @@ def write_line(record, chosen):
     if refused:  # start checked it already; kept beside the one line a yes in chat may write
         raise Refused("; ".join(refused))
     spent, reserved = spend_now(chosen, books=True)
-    euros = round(spent + reserved + pricing.cleared_high(record.totals) * BUFFER, 2)
+    start, budget = batch_budget(batch_tries(record), spent + reserved,
+                                 round(pricing.cleared_high(record.totals) * BUFFER, 2), record.chat_yes)
     bought = ", ".join(label(item) for item in record.items)
-    line = web.stop(state.source().store, WORLD, euros, f"checkout {record.pk}: {bought}", by=record.by)
+    line = web.stop(state.source().store, WORLD, round(start + budget, 2), f"checkout {record.pk}: {bought}",
+                    by=record.by)
     record.stop_line = {"euros": line["euros"], "before": line["before"], "at": line["at"], "spent": spent,
-                        "reserved": reserved, "high": pricing.cleared_high(record.totals)}
+                        "reserved": reserved, "high": pricing.cleared_high(record.totals), "batch_from": start,
+                        "batch_budget": budget, "batch_used": round(spent + reserved - start, 2)}
     record.save()
+
+
+def batch_tries(record):
+    """The checkouts of the batch `record` tries, oldest first, `record` last (watched.batch_of)."""
+    store = state.source().store
+    records = list(Checkout.objects.filter(at__lte=record.at).order_by("at"))
+    return watched.batch_of(records, lambda node: (store.current_accept(node) or {}).get("at"))[1]
+
+
+def batch_start(line):
+    """The spend a batch counts from, by its first try's line: what it was written over; None for a line without."""
+    if "batch_from" in line:
+        return line["batch_from"]
+    return None if line.get("spent") is None else line["spent"] + (line.get("reserved") or 0.0)
+
+
+def batch_budget(tries, spent, need, yes):
+    """(start, budget): the spend the batch counts from and its one budget across its tries (owner, 2026-10-26: "i
+    feel like those budget asks should become per batch tho, not per try"), so the stop line is start + budget and
+    every try draws from it. `tries` its checkouts, this try last; `spent` the spend now with what is in flight;
+    `need` this try's high plus BUFFER; `yes` his yes in chat, if any. His click or a new yes raises the budget to
+    what the batch spent plus what he approved (the yes's stop, else `need`) when that is more; a retry under a yes
+    already used (`retry`) asks nothing new and must fit what is left. Refused otherwise."""
+    lined = [one.stop_line for one in tries[:-1] if "euros" in one.stop_line]
+    start = batch_start(lined[0]) if lined and batch_start(lined[0]) is not None else spent
+    before = next((line["batch_budget"] for line in reversed(lined) if "batch_budget" in line), None)
+    used = round(spent - start, 2)
+    if yes and yes.get("retry"):
+        if before is None or not any((one.chat_yes or {}).get("id") == yes["id"] for one in tries[:-1]):
+            raise Refused(f"the yes {yes['id']} set no budget of this batch: ask him again")
+        if used + need > before:
+            raise Refused(f"over the batch budget: EUR {used:.2f} spent of EUR {before:.2f}, EUR {before - used:.2f} "
+                          f"left, this try needs EUR {need:.2f}: ask him again")
+        return start, before
+    approved = round(yes["stop_euros"], 2) if yes else need
+    return start, round(max(before or 0.0, used + approved), 2)
 
 
 def room_refusals(record, chosen):

@@ -14,7 +14,9 @@ buy with u aswell, u just click the button"). The session asks him with its ques
                                           (flow.yes_refusals, checked again where the line is written), this
                                           machine's code off the cockpit's pin, paid work latched off, or a run
                                           active; then flow.start as his click, by "<owner>, approved in chat at
-                                          <time>", the yes on the checkout (Checkout.chat_yes)
+                                          <time>", the yes on the checkout (Checkout.chat_yes); again under a yes
+                                          that launched one, a retry of its batch held to the batch's budget
+                                          (flow.batch_budget), no new ask
 
 Reached from the agents' door (tools/cloud/conductor/agent_door.py `buy-yes`, `buy`). Agents never invent a yes: it is
 written only from the answer the session's question tool got from him. A barrier, not a lock: every yes quotes who
@@ -86,18 +88,23 @@ def record(stop, high, answer, question, store=None):
 
 # --- the Buy under a yes ------------------------------------------------------------------------------------------
 
-def key_of(yes_id):
-    return f"chat-{yes_id}"
+def key_of(yes_id, retry=0):
+    return f"chat-{yes_id}" + (f"-retry-{retry}" if retry else "")
 
 
 def yes_found(store, yes_id):
-    """The quoted yes `yes_id`; Refused when there is none or it was used."""
+    """The quoted yes `yes_id`; one that launched a checkout already as a retry (`retry`: a later try of its batch,
+    held to the batch's budget, flow.batch_budget; owner, 2026-10-26: "those budget asks should become per batch tho,
+    not per try"); Refused when there is none, or it was used and launched nothing."""
     from score.review import web
     yes = web.buy_yes(store, yes_id)
     if not yes or yes.get("purpose") != "buy" or not yes.get("answer") or not yes.get("question"):
         raise Refused(f"{yes_id} is no quoted Buy yes: ask him with the question tool and record his answer first")
-    if web.buy_yes_used(store, yes_id) or Checkout.objects.filter(key=key_of(yes_id)).exists():
-        raise Refused(f"the yes {yes_id} was used already: one yes launches one checkout; ask him again")
+    launched = Checkout.objects.filter(key__startswith=key_of(yes_id)).count()
+    if launched:
+        return {**yes, "retry": launched}
+    if web.buy_yes_used(store, yes_id):
+        raise Refused(f"the yes {yes_id} was used already and launched nothing: ask him again")
     return yes
 
 
@@ -148,14 +155,16 @@ def buy(yes_id, store=None):
     now_basket = current_basket()
     items, _ = flow.bought_items(now_basket["items"])
     totals = pricing.totals(pricing.basket_prices(flow.snapshot(items)))  # flow.start checks it again, under its lock
-    refused = (basket_refusals(yes, now_basket) + flow.yes_refusals(yes, totals) + latch_refusals()
-               + pin_refusals(health.code()) + run_refusals())
+    refused = (([] if yes.get("retry") else basket_refusals(yes, now_basket)) + flow.yes_refusals(yes, totals)
+               + latch_refusals() + pin_refusals(health.code()) + run_refusals())
     if refused:
         raise Refused("; ".join(refused))
-    try:
-        web.buy_yes_spent(store, yes_id, {"at": now(), "basket": now_basket})
-    except FileExistsError:
-        raise Refused(f"the yes {yes_id} was used already: one yes launches one checkout; ask him again") from None
+    if not yes.get("retry"):
+        try:
+            web.buy_yes_spent(store, yes_id, {"at": now(), "basket": now_basket})
+        except FileExistsError:
+            raise Refused(f"the yes {yes_id} was used already: one yes launches one checkout; ask him again") from None
     owner, _ = get_user_model().objects.get_or_create(username=yes["by"])
     with web.as_owner_under(store, yes_id):
-        return flow.start(owner, key_of(yes_id), True, now_basket["items"], at_once=True, yes=yes)
+        return flow.start(owner, key_of(yes_id, yes.get("retry", 0)), True, now_basket["items"], at_once=True,
+                          yes=yes)

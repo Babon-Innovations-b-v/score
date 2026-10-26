@@ -33,8 +33,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 Claude Code session, to the basket the Buy screen buys now at that high
                                                 and stop (score/dashboard/checkout/chat_yes.py); prints its id
     buy <yes id>                                python -m score.dashboard buy: his Buy under that yes, once, as his
-                                                click (the same checkout, stop line and refusals); refused while the
-                                                free-only latch is set
+                                                click (the same checkout, stop line and refusals); again, a retry
+                                                of its batch inside the batch's budget, no new ask (owner,
+                                                2026-10-26); refused while the free-only latch is set
 
 Every command runs with each of the store's agent markers set (score/store AGENT_MARKERS), so the owner-only barrier
 (the store refusing owner areas in an agent's process) holds over ssh; `buy` lifts them in its own process only for

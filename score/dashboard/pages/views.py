@@ -157,7 +157,7 @@ def buy(request):
         "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex, "film_waits": screens.film_waits(),
         "since": batch_run.next_buy(run, batch["nodes"]) if design["approved"] else None,
-        "chat_yes": (run or {}).get("yes"), "live": run_monitor.live_batch(run)})
+        "chat_yes": (run or {}).get("yes"), "live": run_monitor.live_batch(run), "run": run or {}})
 
 
 def place_page(request, place):
