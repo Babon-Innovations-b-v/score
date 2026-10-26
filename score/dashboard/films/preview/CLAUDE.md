@@ -28,4 +28,4 @@ film script's rules are `../CLAUDE.md`'s).
 - Node.js 20 or newer (the pin's `engines`; older stops with "Please update your version of Node.js"): the
   conductor's `tools/cloud/conductor/boot.sh` installs `NODE_VERSION`, a PC brings its own.
 - Chromium: `npx -p playwright@1.62.1` (viewer_look.py's pin), its libraries on `LD_LIBRARY_PATH` where the machine
-  lacks them. Tests: `../../tests/films_test.py` (the join's clock, the setting's scale; no browser).
+  lacks them. Tests: `../test_a_film_is_timed_checked_and_priced_from_its_script.py` (the join's clock, the setting's scale; no browser).
