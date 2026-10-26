@@ -469,7 +469,7 @@ def light_read(store_root, ask=None):
 
 
 def asked_of_readings(store_root, noun, missing_of, asked, ask=None):
-    """One reading question asked of every locked place `missing_of` names (one Gemini call a place under the
+    """One reading question asked of every locked place `missing_of` names (one model call a place under the
     reading's clearance, the owner's standing allowance of 2026-10-21, its cost kept where the cockpit's running total
     reads it); its words. The store at `store_root` (the pass's source's). Refused while Stop everything holds; one
     that fails is said, and the pass goes on."""

@@ -575,12 +575,11 @@ def test_a_pass_asks_the_parts_of_a_locked_place_read_before_parts_once_and_neve
     """client.parts_read: the fixture's readings have no parts, so the first pass asks them (one call a place, under
     the reading's clearance, the owner's standing allowance) before the gaps, plans, prepare and price; a second pass
     asks nothing; while Stop everything holds nothing is asked and the pass's words say why."""
-    from score.adapters import compute
     from score.review import reading
     from score.store import Store
-    monkeypatch.setattr(compute, "require_books", lambda what: None)
-    monkeypatch.setattr(compute, "books_refusal", lambda: None)
-    monkeypatch.delenv(compute.GRANT, raising=False)
+    monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
+    monkeypatch.setattr("score.adapters.compute.books_refusal", lambda: None)
+    monkeypatch.delenv("SCORE_BENCHMARK_GRANT", raising=False)
     store = Store.in_folder(world.source.store_root)
     places = reading.unparted(store, ["alpha", "beta"])
     assert places
@@ -604,12 +603,11 @@ def test_a_pass_asks_the_light_of_a_locked_place_read_before_it_once_and_never_u
     """client.light_read: the fixture's readings have no concept light, so the first pass asks it (one call a place,
     under the reading's clearance) before the plans are kept; a second pass asks nothing; while Stop everything holds
     nothing is asked and the pass's words say why."""
-    from score.adapters import compute
     from score.review import reading
     from score.store import Store
-    monkeypatch.setattr(compute, "require_books", lambda what: None)
-    monkeypatch.setattr(compute, "books_refusal", lambda: None)
-    monkeypatch.delenv(compute.GRANT, raising=False)
+    monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
+    monkeypatch.setattr("score.adapters.compute.books_refusal", lambda: None)
+    monkeypatch.delenv("SCORE_BENCHMARK_GRANT", raising=False)
     store = Store.in_folder(world.source.store_root)
     places = reading.unlit(store, ["alpha", "beta"])
     assert places
