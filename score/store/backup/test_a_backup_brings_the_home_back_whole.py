@@ -1,6 +1,27 @@
 """The store's backups and the move: a fixture home made with the real Store API, backed up to a local restic
 repository (a folder, no cloud), restored and compared; the move's refusals. The restic tests skip only when restic is
-not installed (bootstrap.sh reports it)."""
+not installed (bootstrap.sh reports it).
+
+Each test's break (applied once, seen red, reverted), in score/store/backup/:
+- restores every kept file: _core.excludes drops REBUILT from its patterns.
+- passes over lost+found: _core.excludes drops EMPTY_ENOUGH.
+- live database whole: _core.excludes leaves the live database and its side files in.
+- refused before machine.json: backup's machine.json check becomes `if False:`.
+- the move names the machine: _migrate.write_identity drops the sizes record.
+- each difference named: _manifest.differences never reports a changed file.
+- a file not back stops the move: _migrate.onto_conductor's Mismatch check becomes `if False:`.
+- a unit active: _migrate.pc_refusal's `if units:` becomes `if False:`.
+- a run alive: _migrate.pc_refusal's `if alive:` becomes `if False:`.
+- no sizes record: _migrate.onto_refusal's record check becomes `if False:`.
+- home not empty: _core.emptiness_refusal's `if held:` becomes `if False:`.
+- an agent never moves the store: _migrate.agent_refusal's check becomes `if False:`.
+- test home read-only: _migrate.pc_test_home skips read_only.
+- data read due: __init__.data_read_due answers False when none passed.
+- unforeseen failure: __main__.main re-raises without log_failure.
+- password from the reader only: _restic.environment keeps RESTIC_PASSWORD_FILE and _COMMAND.
+- the owner's open yes: conductor_yes.move_allowed is true for any named yes.
+- one content hash: _staging.content_hash hashes the file's bytes.
+"""
 import json
 import os
 import shutil
@@ -311,16 +332,23 @@ def _migrate_refusal():
 
 
 def test_two_copies_of_one_database_have_one_content_hash(tmp_path):
-    """The move's manifest compares a database by its content: a restored copy differs in header bytes (2026-10-24)."""
-    import sqlite3
+    """The move's manifest compares a database by its content: a restored copy differs in header bytes (2026-10-24).
+    A live file with a write history and its online-backup copy hold the same rows in different bytes."""
     from score.store.backup import _staging
     source = tmp_path / "live.sqlite3"
     connection = sqlite3.connect(source)
     connection.execute("create table t (x)")
-    connection.execute("insert into t values (1)")
+    connection.executemany("insert into t values (?)", [(str(n) * 500,) for n in range(200)])
+    connection.commit()
+    connection.execute("delete from t where rowid > 1")
     connection.commit()
     connection.close()
-    first, second = tmp_path / "a" / "copy.sqlite3", tmp_path / "b" / "copy.sqlite3"
-    _staging.copy_database(source, first)
-    _staging.copy_database(first, second)
-    assert _staging.content_hash(first) == _staging.content_hash(second)
+    copy = tmp_path / "a" / "copy.sqlite3"
+    _staging.copy_database(source, copy)
+    assert source.read_bytes() != copy.read_bytes()  # the case the incident was: same rows, other bytes
+    assert _staging.content_hash(source) == _staging.content_hash(copy)
+    changed = sqlite3.connect(copy)
+    changed.execute("insert into t values ('another')")
+    changed.commit()
+    changed.close()
+    assert _staging.content_hash(source) != _staging.content_hash(copy)  # a changed row is a changed hash

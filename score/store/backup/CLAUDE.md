@@ -28,5 +28,5 @@ nl-ams, made by `tools/cloud/conductor/machine.py up`); its units are `tools/clo
   `--onto-conductor` refuses a home not empty, restores the newest `pc-final`, compares the manifests and stops on any
   difference, listed in the log, nothing put back by hand; `--pc-test-home` restores work/ and design/ read-only into
   an empty PC home (env/ is bootstrap.sh's). `forget` always keeps `pc-final`.
-- **Never against the cloud from a test or an agent**: `backup_test.py` uses a folder repository, a shim secret reader
+- **Never against the cloud from a test or an agent**: `test_a_backup_brings_the_home_back_whole.py` uses a folder repository, a shim secret reader
   and a shim systemctl; its restic tests skip only where restic is not installed.
