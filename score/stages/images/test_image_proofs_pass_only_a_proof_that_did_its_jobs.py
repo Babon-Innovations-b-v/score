@@ -1,23 +1,28 @@
-"""The images environment's table and gates: each kind with a plan has its pins and proof nodes on an environment without places;
-loose pins fail `pins hashed`; the moss takes pass at length and heard and fail when silent, short or scoring under
-the build before; the walking clip passes and fails when it stands still; `jobs ran` fails a job of the plan that did
-not reach its first result; `publish` refuses a proof that does not stand accepted.
+"""The images environment proves each job image on its own table and its gates pass only a proof that did its jobs
+(images/__init__.py): each kind with a plan has its free pins row and its paid proof row on an environment with no
+places and none on environment 1's table; loose pins fail `pins hashed`; the moss takes pass only at their length,
+heard, and scoring no more than CLAP_SLACK under the build before; the walking clip fails standing still; `jobs ran`
+fails a planned job that never reached its first result; `publish` refuses a proof that does not stand accepted.
+Synthetic takes and clips in a temp folder; no cloud.
 
-Run: .venv/bin/python score/stages/images/images_test.py   (no cloud: synthetic takes and clips in a temp folder)
+Breaks that turn it red (each applied once and seen red, then reverted):
+- `judge_hashed`: `not version or not hashes` read as `not version`  -> test_loose_pins_fail.
+- `take_faults`: the `dbfs < SILENT_DBFS` fault, the length fault, or the CLAP fault left out  -> the moss test.
+- `clip_faults`: the travel range left out of the checked pair  -> the walking clip test.
+- `judge_jobs_ran`: `"first_result" not in ...marks` read as `False`  -> the jobs test.
+- `publish`: `runner.usable(...)` read as `runner.store.records(...)`, any record  -> the publish test.
 """
 import json
 import pathlib
-import sys
 import tempfile
 import wave
 
 import numpy as np
+import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
-
-from score import checks, graph, stages  # noqa: E402
-from score.stages import images  # noqa: E402
-from score.store import Store  # noqa: E402
+from score import checks, graph, stages
+from score.stages import images
+from score.store import Store
 
 RATE = 48000
 
@@ -60,9 +65,9 @@ def test_the_images_world_has_its_own_table_and_no_places():
 def test_loose_pins_fail():
     with tempfile.TemporaryDirectory() as temp:
         output = pathlib.Path(temp)
-        (output / "requirements.txt").write_text("numpy==1.26.4 \\\n    --hash=sha256:00\nscipy>=1.0\n")
+        (output / "requirements.txt").write_text("numpy==1.26.4 \\\n    --hash=sha256:00\nscipy>=1.0\npillow==10.0.0\n")
         verdict = images.judge_hashed(output, {}, None)
-        assert verdict.answer == checks.FAIL and verdict.findings == ("scipy",)
+        assert verdict.answer == checks.FAIL and verdict.findings == ("pillow", "scipy")
         (output / "requirements.txt").write_text("numpy==1.26.4 \\\n    --hash=sha256:00\n")
         assert images.judge_hashed(output, {}, None).answer == checks.PASS
 
@@ -104,21 +109,10 @@ def test_a_job_that_did_not_finish_fails_jobs_ran():
         assert images.judge_jobs_ran(output, {}, None).answer == checks.PASS
 
 
-def test_publish_refuses_a_proof_not_accepted():
-    with tempfile.TemporaryDirectory() as temp:
-        runner = stages.runner(store=Store.in_folder(temp), world=images.image_world())
-        try:
-            images.publish(runner, "moss", pathlib.Path(temp) / "images.json")
-        except graph.Blocked:
-            return
-        raise AssertionError("published a proof that never ran")
+def test_publish_refuses_a_proof_not_accepted(tmp_path):
+    runner = stages.runner(store=Store.in_folder(tmp_path / "store"), world=images.image_world())
+    (tmp_path / "images.json").write_text("{}")
+    with pytest.raises(graph.Blocked):
+        images.publish(runner, "moss", tmp_path / "images.json")
+    assert json.loads((tmp_path / "images.json").read_text()) == {}  # nothing written
 
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
