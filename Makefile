@@ -13,7 +13,7 @@ PYTHON := $(CURDIR)/.venv/bin/python
 # (.claude/scripts/sandbox-home.py: PROPS_HOME in the temp folder, the real home read-only), so no test touches the
 # real one; conftest.py refuses a pytest run without one (a test unlinked the real cloud ledger, 2026-10-17).
 SANDBOX := python3 $(CURDIR)/.claude/scripts/sandbox-home.py --
-TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py')
+TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py' 'tools/*/test_*.py' 'score/*/test_*.py')
 MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 # The files run side by side, at most JOBS at once (JOBS=1: one after another), each its own sandbox and memory cap;
 # a file's line prints as it ends, a failure's tail with it in one write.
