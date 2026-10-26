@@ -37,6 +37,11 @@ for the creator.
   2026-10-25): never a best fit over a range, whose free angle absorbs a wrong size. No documented camera of the
   picture model backs a range and Batch 1's flat close-ups fit 6 to 60 degrees, so a picture off the stated view is a
   retry. The likeness gate draws the model at the same look-down (`score/stages/props/likeness.look_down`).
+- **A gap's later takes are asked from the crop alone, upright, casting no shadow** (`stage.UPRIGHT`, the takes past
+  `PRO_TAKES`, retry-4 on; Batch 1 try 4, 2026-10-26): the "room" rows' four takes drew the corridor behind the object
+  (the room reference), a cast floor shadow the outline counts as object (the corner shelves and the right dome door:
+  without it 3 and 2 of their 4 takes were inside the limit), or the wall keypad lying on its back. The first four
+  takes' requests are unchanged, so their kept pictures still read back free.
 - **A row that lies flat is drawn and checked from straight above** (`check.lies_flat`, the model gate's flat class
   with its height its thinnest side; Batch 1 try 4, 2026-10-25: the rug, poster and sticky note failed the proportion
   check on all four takes, their outline at the stated look-down nearly all view): worded `stage.VIEW_ABOVE`, its

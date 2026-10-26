@@ -16,7 +16,8 @@ every close-up failed, so it is `at risk`, its code build's likeness on today's 
 A take measured here (`environment_measures`, `own_outcome`; 2026-10-26: 85 rows were `at risk` by the hub's 13
 objects while Batch 1 try 4 had drawn and judged most of them): its place's accepted close-up output names its first
 row at the object size it is asked at today (tools/props/closeup/stage.py object_size), under today's request (a row
-that lies flat measured before FLAT_VIEW_SINCE was drawn at another view). Its close-up passed: `pass`, unless the
+that lies flat measured before FLAT_VIEW_SINCE was drawn at another view; a row every take failed before
+LATER_TAKES_SINCE is asked anew, its next takes from the crop alone and upright). Its close-up passed: `pass`, unless the
 accepted Pixal3D output's gaps say no model came back (`at risk`). Every Pro take failed: a code build the accepted
 likeness output judged passes or is a `predicted gap`; one not judged yet is `at risk`; a row no route builds after is
 a `predicted gap` (its next step draws new takes, judged by the real gate: bought all the same).
@@ -38,6 +39,10 @@ CLOSEUP_FAILED = "fail: close-up"
 # When a close-up of a row that lies flat was first asked from straight above (tools/props/closeup b256f79c, commit
 # time in UTC): a flat row's close-up accepted before it was drawn and judged at the three-quarter view.
 FLAT_VIEW_SINCE = "2026-10-25T19:52:27+00:00"
+# When a gap's later takes (past stage.PRO_TAKES, retry-4 on) were first asked from the crop alone and upright
+# (tools/props/closeup/stage.py UPRIGHT, commit time in UTC): a row every take of which failed in a close-up accepted
+# before is asked anew when its step is bought again, so its failures are not measured at today's request.
+LATER_TAKES_SINCE = "2026-10-26T08:30:50+00:00"
 
 
 def shape_of(size):
@@ -160,5 +165,7 @@ def own_outcome(take, row, measures):
     if code_built(row, take["size"]):
         return {**outcome, "outcome": "at risk", "measured": said,
                 "mode": "close-up failed; built in code after (thin_straight), its likeness not measured yet"}
+    if measures["at"] < LATER_TAKES_SINCE:
+        return None
     return {**outcome, "outcome": "predicted gap", "pass_share": 0.0, "measured": said,
             "mode": "close-up: every Pro take of it failed the shape check"}
