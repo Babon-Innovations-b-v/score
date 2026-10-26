@@ -389,10 +389,23 @@ def put_back(record):
         (PARKED / f"{record['id']}.json").write_text(json.dumps(record))
 
 
-def expire(server_id, zone, token, until):
-    """Sleep until `until`, then release the machine if it is still parked under `token`."""
-    time.sleep(max(0.0, until - time.time()))
-    release(server_id, zone, token)
+def expire(server_id, zone, token, until, poll=PARKED_POLL_SECONDS):
+    """Release the machine at `until` if it is still parked under `token`; end as soon as it is not (taken, or released
+    by a pool's close or the kill switch): an expirer asleep to its time after that worked on in its run's frozen copy
+    and held the checkout (2026-10-26: a pool card's sleeps to the pool's end, an hour after its run was stopped)."""
+    while listed(server_id, token):
+        left = until - time.time()
+        if left <= 0:
+            release(server_id, zone, token)
+            return
+        time.sleep(min(poll, left))
+
+
+def listed(server_id, token):
+    """Whether the machine is parked under `token` now."""
+    path = PARKED / f"{server_id}.json"
+    with locked():
+        return path.exists() and json.loads(path.read_text()).get("token") == token
 
 
 def pool_records(run_id):

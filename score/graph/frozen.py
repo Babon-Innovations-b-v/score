@@ -6,7 +6,9 @@ jobs on 3 L4s, EUR 0.53, thrown away when the main checkout was pulled under its
     frozen.enter(argv)    # a run not frozen yet: make its copy and start the run again inside it (never returns)
     frozen.claim()        # at a run's start: the copy this process must remove, or None
     frozen.hand_on()      # another process removes it now (the detached run, the run's releaser)
-    frozen.remove_owned() # remove it, once
+    frozen.remove_owned() # end every process still working in it (end_users), then remove it, once
+    frozen.users(folder)  # {pid: copy name} of every process working in a copy under `folder`
+    frozen.end(pids)      # SIGTERM, then SIGKILL after END_GRACE_SECONDS; [{pid, command}] of those it ended
     frozen.home_copy(path)  # the run's own home beside its copy: the design copied, the rest linked (enter does it)
 
 A clean tree is frozen at HEAD. A tree with changes (a --uncommitted run; untracked files count) is frozen at one commit
@@ -29,6 +31,7 @@ and linked the same way.
 import os
 import pathlib
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -39,6 +42,8 @@ from score.store import PROPS_HOME
 FOLDER = PROPS_HOME / "frozen"
 FROZEN, OWNER, CHANGES = "SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_FROZEN_CHANGES"
 OWNED = {"path": None, "handed_on": False}
+# How long a process left working in a copy has to end on SIGTERM before SIGKILL (end).
+END_GRACE_SECONDS = 10
 
 
 def git(repo, *words, env=None):
@@ -172,13 +177,82 @@ def hand_on():
 
 
 def remove_owned():
-    """Remove the copy this process owns, unless it handed it on or removed it already."""
+    """Remove the copy this process owns, unless it handed it on or removed it already: first every process still
+    working in it ended (a run's leftovers never hold the checkout, score-update), then the copy."""
     path = OWNED["path"]
     if path is None or OWNED["handed_on"]:
         return
     OWNED["path"] = None
+    end([pid for pid, name in users(path.parent).items() if name == path.name])
     if path.exists():
         remove(path)
+
+
+def ancestors():
+    """This process and every process above it."""
+    found, pid = set(), os.getpid()
+    while pid > 1 and pid not in found:
+        found.add(pid)
+        try:
+            pid = int((pathlib.Path(f"/proc/{pid}/stat").read_text().rpartition(")")[2].split())[1])
+        except (OSError, IndexError, ValueError):
+            break
+    return found
+
+
+def users(folder=None):
+    """{pid: copy name} of every process whose working folder is in a copy under `folder` (FOLDER) or its home, a
+    copy removed under it too, this process and its ancestors left out (2026-10-26: six processes of a stopped run
+    worked on in its copy for an hour and held the checkout, score-update)."""
+    folder, spare, found = pathlib.Path(folder or FOLDER), ancestors(), {}
+    for entry in pathlib.Path("/proc").iterdir():
+        if not entry.name.isdigit() or int(entry.name) in spare:
+            continue
+        try:
+            cwd = pathlib.Path(os.readlink(entry / "cwd").removesuffix(" (deleted)"))
+        except OSError:
+            continue
+        if cwd.is_relative_to(folder) and cwd != folder:
+            found[int(entry.name)] = cwd.relative_to(folder).parts[0].removesuffix(".home")
+    return found
+
+
+def command(pid):
+    """A process's command line as one line, \"\" when it is gone."""
+    try:
+        return pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
+    except OSError:
+        return ""
+
+
+def alive(pid):
+    """Whether a process is there and not a zombie."""
+    try:
+        return pathlib.Path(f"/proc/{pid}/stat").read_text().rpartition(")")[2].split()[0] != "Z"
+    except (OSError, IndexError):
+        return False
+
+
+def end(pids, grace=None):
+    """End `pids`: SIGTERM, then SIGKILL to those left after `grace` seconds (END_GRACE_SECONDS); [{pid, command}] of
+    those signalled."""
+    ended = [{"pid": pid, "command": command(pid)} for pid in pids]
+    for pid in pids:
+        signalled(pid, signal.SIGTERM)
+    deadline = time.time() + (END_GRACE_SECONDS if grace is None else grace)
+    while any(map(alive, pids)) and time.time() < deadline:
+        time.sleep(0.1)
+    for pid in filter(alive, pids):
+        signalled(pid, signal.SIGKILL)
+    return ended
+
+
+def signalled(pid, number):
+    """Send a signal to a process that may have ended meanwhile."""
+    try:
+        os.kill(pid, number)
+    except ProcessLookupError:
+        pass
 
 
 def resumed_env(worktree):

@@ -32,6 +32,9 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   switch, and `stop_batch` (the run monitor's Stop this batch: the same stop, no latch), refused in an agent's process; the latch is `conductor/free-only` (`SCORE_FREE_ONLY=1`, an env file), read
   by every `score` command at its start (`conductor.apply_free_only`). It closes every open warm pool and ends its
   collector (`pool.close_all`) before it releases the parked machines, so no collector orders cards in their place.
+  Then it ends every process still working in the frozen copy of a run no longer live (`frozen.users`/`frozen.end`,
+  the report's `leftovers` with each command line; 2026-10-26: six processes of a stopped run held the checkout for an
+  hour), and a stopped run ends its own copy's processes as it removes the copy (`frozen.remove_owned`).
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.

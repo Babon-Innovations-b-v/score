@@ -130,6 +130,8 @@ START_CHECK_SECONDS = 5
 # answering in about 2 min).
 REFUSED_MINUTES = 3
 WATCHDOG_GRACE_MINUTES = 5
+# How often a machine's watchdog looks whether the process that rented it is still there (watchdog).
+WATCHDOG_POLL_SECONDS = 10
 # How long a machine whose job or set-up failed has to answer before it counts as dead (batch.answers).
 ANSWER_SECONDS = 60
 # The processor's share: two finishes at once (Blender), within FINISH_SLOTS.
@@ -1161,11 +1163,16 @@ def start_watchdog(server_id, zone, deadline, folder):
     return watchdog.pid
 
 
-def watchdog(server_id, zone, deadline):
-    """Sleep until the deadline, then delete the machine if the runner has not."""
-    time.sleep(max(0.0, deadline - time.time()))
+def watchdog(server_id, zone, deadline, poll=WATCHDOG_POLL_SECONDS):
+    """Delete the machine at the deadline if the runner has not, or at once when the process that rented it is gone
+    without stopping this one (its delete_machine does): killed before its own delete, it left the machine billing and
+    this process asleep to the deadline in its run's frozen copy, holding the checkout (2026-10-26)."""
+    holder = os.getppid()
+    while time.time() < deadline and os.getppid() == holder:
+        time.sleep(min(poll, max(0.0, deadline - time.time())))
     if cloud.delete(server_id, zone):
-        print(f"watchdog deleted {server_id} at the time limit", flush=True)
+        print(f"watchdog deleted {server_id} {'at the time limit' if time.time() >= deadline else 'its renter gone'}",
+              flush=True)
 
 
 def stop_on_signals():
