@@ -191,3 +191,32 @@ def test_the_likeness_row_holds_a_code_take_to_its_crop_and_closes_its_gap_only_
     assert found["pipe"]["made"] == "code" and found["pipe"]["outline"] >= likeness.OUTLINE_LEAST, found
     assert likeness_row.free_passed(found, "pipe")
     assert not likeness_row.free_passed({"pipe": {**found["pipe"], "outline": 0.1}}, "pipe")
+
+
+def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):
+    import score.stages.props.masks_row as masks_row
+    asked = []
+
+    def masks(rows, concepts, folder):  # SAM 3 on its card, faked: the pipe's mask, nothing for the post
+        asked.append(sorted(rows))
+        return {"pipe": bar_mask(tmp_path / "pipe.png", PIPE["box"])}
+
+    monkeypatch.setattr(thin_straight, "concept_masks", masks)
+    objects = {row: {"route": "prop", "take": f"g_{row}"} for row in ("pipe", "porch_post", "hose")}
+    (tmp_path / "props.json").write_text(json.dumps({"place": "garage", "objects": objects}))
+    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [
+        PIPE, POST, {"id": "hose", "name": "coiled hose", "size": [0.4, 0.4, 0.2], "view": "v1", "box": [0, 0, 9, 9]}]}))
+    inputs = {"props": tmp_path / "props.json", "inventory": tmp_path / "inventory.json",
+              "view v1": concept(tmp_path / "concept.png")}
+    out = tmp_path / "out"
+    out.mkdir()
+    masks_row.make_masks(inputs, out, 0, {})
+    assert asked == [["pipe", "porch_post"]]  # the coiled hose is no straight thing
+    assert json.loads((out / "masks.json").read_text()) == {"asked": ["pipe", "porch_post"], "cut": ["pipe"]}
+    assert Image.open(out / "cuts/pipe.png").mode == "RGBA"
+    verdict = masks_row.judge_masks(out, inputs, None)
+    assert verdict.answer == "pass" and "porch_post" in verdict.findings[0], verdict
+    other = tmp_path / "other"
+    other.mkdir()
+    masks_row.make_masks(inputs, other, 0, {"objects": ["g_pipe"]})  # the object filter keeps the pipe alone
+    assert asked[-1] == ["pipe"]

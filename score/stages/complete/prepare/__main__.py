@@ -79,8 +79,9 @@ def take_entry(group, record, index, rates, work, measures=None):
     match = library.match(group, index)
     model = group["route"] in groups.MODEL_ROUTES
     first = next((row for row in record.get("rows", []) if row["id"] == group["rows"][0]), None)
-    prediction = (predict.own_outcome(group, first, (measures or {}).get(group["place"]))
-                  or predict.predicted(group["size"], rates, first)) if model else OWN_ROUTE
+    measured = (measures or {}).get(group["place"])
+    prediction = (predict.own_outcome(group, first, measured)
+                  or predict.predicted(group["size"], rates, first, group, measured)) if model else OWN_ROUTE
     is_made = made(group["take"])
     inputs = contract.faults(record, group, work) if model else [contract.PART_UNREAD] * (group["route"] is None)
     status = {"ground": TERRAIN, "plan": PLAN, None: "input gap"}.get(group["route"]) or (

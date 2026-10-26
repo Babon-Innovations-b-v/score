@@ -283,7 +283,8 @@ def test_no_object_is_code_built():
 
 
 def test_the_paid_rows_code_leaves_the_checks_and_the_comparison_out():
-    for row in (props.CLOSEUP, props.PIXAL):
+    import score.stages.props.masks_row as masks_row
+    for row in (props.CLOSEUP, masks_row.STAGE, props.PIXAL):
         files = {path.relative_to(REPO).as_posix() for path in _code.source_files(
             [row.make, row.contract.faults, *(check.judge for check in row.checks), row.files])}
         here = "score/stages/props/"
