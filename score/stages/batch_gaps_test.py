@@ -69,7 +69,9 @@ def pixal_made(made):
               "surfaces": written(folder, "surfaces.json", {
                   "place": "toy", "takes": {entry["take"]: {} for entry in OBJECTS.values()},
                   "bake": {"models": {row: entry["take"] for row, entry in OBJECTS.items()}, "entries": entries}}),
-              "inventory": written(folder, "inventory.json", {"rows": []})}
+              # each object's reading row: its size says how its close-up was drawn (pixal_row.lies_flat)
+              "inventory": written(folder, "inventory.json", {"rows": [{"id": row, "size": [0.6, 0.6, 0.6]}
+                                                                       for row in OBJECTS]})}
     out = folder / "pixal"
     out.mkdir()
     running, pixal_row.subprocess.run = pixal_row.subprocess.run, fake_batch(made)
