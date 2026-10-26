@@ -18,7 +18,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   from cameras set from the newest stage. Keep it so, or before and after stop being comparable.
 - The page is generated outside the repo (a folder with `index.html`, `img/`, `models/`, `scene/`); nothing it makes
   is committed. It opens from disk and can be published as it is.
-- `review_test.py` builds a page from two runs made in the test (no Blender) and checks the cameras' geometry.
+- `test_the_review_page_shows_what_the_stages_wrote.py` builds a page from two runs made in the test (no Blender) and checks the cameras' geometry.
 - **A kit room** (route.py's run: its plan.json holds models and pieces) shows its generated models one by one and
   counts its code ones; a room with a roof (draw layer 2) is drawn from inside by its own lamps, with a cutaway from
   above. A room of a place of another name (the prologue's street, place `prologue_street`) reads its place from its
