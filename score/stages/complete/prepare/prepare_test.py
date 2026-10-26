@@ -424,6 +424,24 @@ def test_a_backdrop_part_of_a_structure_is_shown_by_a_neighbours_structure_else_
         "place": "base", "row": "left_building"}
 
 
+def test_a_row_the_reading_names_far_off_is_beyond_and_shown_by_its_kind():
+    """Batch 1 try 4: the street's distant floodlights, flags and palms stand in the square past its end; its plan laid
+    them in the street, not beyond, and their close-ups were drawn from a speck (the room behind, proportions off).
+    The rows the plan checks leave outside on purpose (plan_checks.afar) are beyond, shown by the square's own."""
+    rows = [{"id": "distant_floodlight", "box": [2055, 117, 2137, 319]}, {"id": "police_car", "box": [10, 900, 300, 1100]},
+            {"id": "distant_crowd", "box": [1841, 407, 2303, 1536]}, {"id": "pram", "anchor": "on:police_car"}]
+    assert groups.beyond_of({"beyond": ["pram"]}, rows, [2752, 1536]) == {"distant_floodlight"}  # at the foot: here
+    assert groups.beyond_of(None, rows[:2], None) == {"distant_floodlight"}
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "square.json").write_text(json.dumps({"holds": [{"place": "street"}]}))
+    read = {"square": {"rows": [{"id": "floodlight_tower_left", "route": "shell"}, {"id": "red_flag", "route": "prop"}]}}
+    sky = [{"id": "distant_floodlight", "route": "skyline"}, {"id": "distant_red_flag", "route": "skyline"},
+           {"id": "distant", "route": "skyline", "size": [1.0, 1.0, 1.0]}]
+    found = {row["id"]: row.get("shown") for row in groups.shown_from("street", sky, read, folder)}
+    assert found == {"distant_floodlight": {"place": "square", "row": "floodlight_tower_left"},
+                     "distant_red_flag": {"place": "square", "row": "red_flag"}, "distant": None}  # no kind: no match
+
+
 def test_a_row_at_the_picture_s_foot_is_never_beyond():
     """2026-10-26: the airlock's sandbags, piled at its picture's bottom edges, were listed beyond and nothing made
     them: a row a SAM 3 box of which reaches the picture's foot stands before the viewer, on the place's own ground."""
