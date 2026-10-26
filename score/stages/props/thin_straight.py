@@ -6,8 +6,8 @@ the likeness row checks it like any take.
 
 Thin and straight (`thin_straight`): the row's size is slender by the model gate's own rule (tools/props/gates/model.py
 shape_class: its middle side under SLENDER_SHARE of its longest), and its name or noun names a straight kind
-(STRAIGHT), or its row kind glows (`slender_light`: a lamp on its own stem, its post built here and its head the
-library's lamp at the head mount; a light bar, a strip light or a string of lights along its cable, its body built here
+(STRAIGHT) or a railing (RAILING: its posts and rails built, `railing`), or its row kind glows (`slender_light`: a
+lamp on its own stem, its post built here and its head the library's lamp at the head mount; a light bar, a strip light or a string of lights along its cable, its body built here
 and its light the library's lamp for its mount, laid by the light layer). Its profile is swept along its longest side, the row's straight length: round (an ellipse filling the two
 short sides) for the kinds in ROUND, a rectangle of the two short sides for the rest (posts, beams, pillars).
 
@@ -33,12 +33,18 @@ from PIL import Image
 
 import score.stages.props.prop_data as prop_data
 
-# The straight kinds, by a word of the row's name or its noun (a plural's s dropped): a railing (posts and rails) and
-# a coil are not one straight thing, so neither is here.
+# The straight kinds, by a word of the row's name or its noun (a plural's s dropped): a coil is not one straight thing,
+# so it is not here; a railing is posts and rails (RAILING).
 STRAIGHT = frozenset(("pipe", "cable", "conduit", "post", "pole", "rail", "handrail", "rod", "beam", "pillar", "girder",
                       "strut", "mast", "tower", "hose", "wire", "duct", "tube", "bar"))
 ROUND = frozenset(("pipe", "cable", "conduit", "pole", "rail", "handrail", "rod", "mast", "hose", "wire", "tube",
                    "string"))
+# A railing's kinds: posts standing along its length under a top rail and a mid rail (`railing`; Batch 1's retry: the
+# greenhouse's 9.4 m railing piece, every close-up of it failed as a rod).
+RAILING = frozenset(("railing", "balustrade", "guardrail", "banister"))
+# Metres between a railing's posts at most: a guard's usual post spacing (no library row gives one), so a run of its
+# length has ceil(length / POST_GAP) bays.
+POST_GAP = 1.5
 SEGMENTS = 32
 # The raw take's tilt off the axes (write_take): radians about one level axis between x and z, so every side of the
 # box leans and the finish's stand (the shortest turn back up) undoes it exactly.
@@ -56,7 +62,7 @@ TOOLS = {"masks": "{repo}/tools/props/scene/box_masks.py", "masks runner": "{rep
 def kind_words(row):
     """The row's name's and noun's words, each without a plural's s."""
     words = re.findall(r"[a-z]+", f"{row['name']} {row.get('noun') or ''}".lower())
-    return {word[:-1] if word.endswith("s") and word[:-1] in STRAIGHT else word for word in words}
+    return {word[:-1] if word.endswith("s") and word[:-1] in STRAIGHT | RAILING else word for word in words}
 
 
 def slender(size):
@@ -69,7 +75,7 @@ def slender(size):
 
 def thin_straight(row):
     """Whether an inventory row is a thin straight thing (module docstring)."""
-    return (bool(kind_words(row) & STRAIGHT) or slender_light(row)) and slender(row["size"])
+    return (bool(kind_words(row) & (STRAIGHT | RAILING)) or slender_light(row)) and slender(row["size"])
 
 
 def slender_light(row):
@@ -84,8 +90,9 @@ def slender_light(row):
 
 
 def profile(row):
-    """"round" or "rect": the profile its kind sweeps."""
-    return "round" if kind_words(row) & ROUND else "rect"
+    """"railing", "round" or "rect": what its kind builds (a railing's posts and rails, else the profile it sweeps)."""
+    words = kind_words(row)
+    return "railing" if words & RAILING else "round" if words & ROUND else "rect"
 
 
 def build(row):
@@ -104,6 +111,19 @@ def build(row):
     mesh.apply_scale(extents / mesh.extents)
     mesh.apply_translation(-mesh.bounds.mean(0))
     return mesh
+
+
+def railing(thick, tall, length):
+    """The boxes of a railing `length` metres along z, `tall` up y, `thick` across x, centred on the origin: square posts `thick`
+    across at both ends and at most POST_GAP apart between, a top rail of the same section along their tops and a mid
+    rail of half of it at half the height."""
+    import trimesh
+    bays = max(1, int(np.ceil(length / POST_GAP)))
+    posts = [trimesh.creation.box(extents=[thick, tall, thick]).apply_translation([0.0, 0.0, along])
+             for along in np.linspace(-(length - thick) / 2, (length - thick) / 2, bays + 1)]
+    top = trimesh.creation.box(extents=[thick, thick, length]).apply_translation([0.0, (tall - thick) / 2, 0.0])
+    middle = trimesh.creation.box(extents=[thick / 2, thick / 2, length])
+    return [*posts, top, middle]
 
 
 def finish_turn(raw):
