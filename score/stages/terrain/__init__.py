@@ -10,7 +10,8 @@ says so (`made_by`, MADE_BY): the ground the design gives, standing wherever no 
     make     for each body or plot a top scene stands on (design.layout: its kept sky's site, the setting's body at its
              true radius or the plot's plane), the ground under every scene standing on it (the top scene and each
              scene its plan holds) raised by the relief of each kept plan's terrain spots and by its far landforms (the
-             far hills its places' plans mark beyond, design.far_reliefs); for every such scene the
+             far hills its places' plans mark beyond, design.far_reliefs), lowered under its bodies of water and
+             their water laid over it (design.waters: the square's sea); for every such scene the
              layer that draws the ground in its frame (outside.py); the ground's record (ground.json) and measures
     gates    spots      the ground drawn passes through every terrain spot of the plans standing on it
              curve      the ground falls away with its body's true radius (level on a plot)
@@ -77,7 +78,25 @@ def recipe_of(ground, row, inventories, skies, table):
     return list(natural_grounds.of_row(entry, body, bodies, table))
 
 
-def write_layer(folder, place, found, row, recipe):
+def own_water_row(place, inventories, fallback):
+    """The place's own water row (design.water_row) of its inventory, so its rows check counts the water it sees
+    (the stairwell's water is the square's sea), else `fallback`."""
+    path = pathlib.Path(inventories) / f"{place}.json"
+    rows = json.loads(path.read_text())["rows"] if path.is_file() else []
+    return next((row for row in rows if design.water_row(row)), fallback)
+
+
+def sheet_of(ground, place, found, sheets, inventories):
+    """The place's water layer entry (outside.write's `sheet`): its water's points and triangles, its row and the
+    natural ground recipe its row's words name; None with no water showing."""
+    shown = outside.water(ground, place, found, sheets)
+    if shown is None:
+        return None
+    row = own_water_row(place, inventories, sheets[0][3])
+    return (*shown, row["id"], list(natural_grounds.of_row(row, None, [], {})))
+
+
+def write_layer(folder, place, found, row, recipe, sheet=None):
     """The layer that draws the ground in the place's frame: places/<place>.usdc."""
     path = folder / "places" / f"{place}.usdc"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -86,7 +105,7 @@ def write_layer(folder, place, found, row, recipe):
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     stage.DefinePrim(f"/{place}")
-    outside.write(stage, place, found, row, recipe)
+    outside.write(stage, place, found, row, recipe, sheet)
     layer.Save()
 
 
@@ -97,12 +116,14 @@ def make_ground(name, ground, row, recipe, out, plans, inventories):
     folder = out / name
     folder.mkdir(parents=True)
     far, raised = design.far_reliefs(ground, plans, inventories, outside.reach(ground))
-    shaped = design.reliefs(ground) + far
+    sheets, waters = design.waters(ground, plans, inventories, outside.reach(ground))
+    shaped = design.reliefs(ground) + far + [(source, relief) for source, relief, _, _ in sheets]
     laid = {place: outside.meshes(ground, place, shaped) for place in ground["places"]}
     for place, found in laid.items():
-        write_layer(folder, place, found, row, recipe)
+        write_layer(folder, place, found, row, recipe, sheet_of(ground, place, found, sheets, inventories))
     (folder / "ground.json").write_text(json.dumps({**ground, "ground": name, "row": row, "recipe": recipe[0],
-                                                    "recipe_by": recipe[1], "far": raised}, indent=1))
+                                                    "recipe_by": recipe[1], "far": raised, "water": waters},
+                                                   indent=1))
     (folder / "measures.json").write_text(json.dumps({**MADE_BY, **gates.measured(ground, laid)}, indent=1))
 
 

@@ -22,6 +22,7 @@ import pathlib
 
 import numpy as np
 
+from score.stages import natural_grounds
 from score.stages.scene_record import plan as place_plan
 from score.store import PROPS_HOME
 
@@ -39,6 +40,12 @@ EYE = 1.7
 FAR_SHARE = 0.6
 FAR_BROAD = 0.5
 FAR_WAVES = 6
+# A body of water (water_row: a terrain row whose words name the ocean recipe, the square's sea) lies at its plan
+# level's height, else FREEBOARD under the place's floor (a quay's edge), over the ground lowered SEABED under that
+# line wherever it lies: its level's points on the plan and, out past the place's outline, the bearings its concept
+# box spans (scene_record/far.py) out to the far shore its far objects stand on, else the far landforms' horizon.
+SEABED = 2.0
+FREEBOARD = 1.0
 
 
 def read(path):
@@ -193,6 +200,112 @@ def reliefs(ground):
 def far_row(row, beyond):
     """Whether a scene inventory row is a landform of the far ground (FAR_PARTS): the terrain's to make, no model."""
     return bool(row.get("terrain")) and row.get("part") in FAR_PARTS and row["id"] in beyond
+
+
+def water_row(row):
+    """Whether a scene inventory row is a body of water (its words name the ocean recipe, natural_grounds.named) on
+    the ground (a terrain row): the terrain's to lay, no model."""
+    return bool(row.get("terrain")) and natural_grounds.named(row) == "ocean"
+
+
+def water_level(plan, row):
+    """(height over the floor, points or None) of a water row's level on its plan: the first level whose name names
+    water or shares a word with the row's id; else FREEBOARD under the floor, no points."""
+    words = set(row["id"].split("_"))
+    for level in plan.get("levels") or []:
+        name = str(level.get("name") or "")
+        if natural_grounds.named({"name": name}) == "ocean" or words & set(name.lower().split()):
+            if len(level.get("points") or []) >= 3:
+                return float(level.get("height") or 0.0), level["points"]
+    return -FREEBOARD, None
+
+
+def inside_points(points, polygon):
+    """Whether each plan point lies inside a polygon [[x, y], ...]."""
+    from matplotlib.path import Path
+    return Path(np.asarray(polygon, dtype=float)).contains_points(np.atleast_2d(points))
+
+
+def shore_of(plan, inventory, span, horizon):
+    """How far out a water's span reaches: to the nearest far object (far.far_object) standing in it, less its deep,
+    else to `horizon`."""
+    from score.stages.scene_record import far
+    beyond, found = set(plan.get("beyond") or []), []
+    for row in inventory.get("rows", []):
+        placed = far.far_object(row, beyond) and far.spot(plan, inventory, row)
+        if placed and span[0] <= angle_of(placed["bearing"], span[2]) <= span[1]:
+            found.append(placed["distance"] - max(float(side) for side in row["size"][:2]) / 2)
+    return max(min(found), 0.0) if found else horizon
+
+
+def angle_of(direction, ways):
+    """The angle (radians, right positive) of a plan direction off the heading `ways` (far.heading's)."""
+    away, right = ways
+    return math.atan2(float(np.asarray(direction) @ right), float(np.asarray(direction) @ away))
+
+
+def water_span(plan, inventory, row):
+    """(least angle, most angle, heading) of the bearings a water row's concept box spans; None without a heading or
+    a box."""
+    from score.stages.scene_record import far
+    picture, ways = inventory.get("picture"), far.heading(plan, inventory)
+    box = far.box_of(row, picture)
+    if ways is None or not box:
+        return None
+    return far.angle_at(box[0], picture), far.angle_at(box[2], picture), ways
+
+
+def water_region(plan, points, span, shore):
+    """A function of plan points [[x, y]]: inside the water's level points (`points`), or, out past the plan's
+    outline, within its concept box's bearings (`span`) and nearer than its `shore`."""
+    from score.stages.scene_record import far
+    middle = far.middle_of(plan)
+    outline = plan.get("outline") or [[0, 0], [plan["w"], 0], [plan["w"], plan["d"]], [0, plan["d"]]]
+
+    def region(spots):
+        spots = np.atleast_2d(spots)
+        found = inside_points(spots, points) if points else np.zeros(len(spots), bool)
+        if span is not None:
+            apart = spots - middle
+            away, right = span[2]
+            angles = np.arctan2(apart @ right, apart @ away)
+            found |= (angles >= span[0]) & (angles <= span[1]) & (np.hypot(*apart.T) < shore) & \
+                ~inside_points(spots, outline)
+        return found
+    return region
+
+
+def waters(ground, plans, inventories, reach):
+    """[(source, the seabed's relief, its water line)] of every body of water of the places standing on the ground
+    (water_row; one beyond a place that a scene holds is its holder's, laid there) and [{place, row, level, shore,
+    from}] of what was laid."""
+    horizon, found, laid = far_distance(ground, reach), [], []
+    for place, entry in sorted(ground["places"].items()):
+        path = pathlib.Path(inventories) / f"{place}.json"
+        inventory, plan = (read(path) if path.is_file() else {}), plans[place]
+        hold = holder_of(place, plans)[1]
+        for row in inventory.get("rows", []):
+            if not water_row(row) or (hold and row["id"] in set(plan.get("beyond") or [])):
+                continue
+            level, points = water_level(plan, row)
+            span = water_span(plan, inventory, row)
+            shore = shore_of(plan, inventory, span, horizon) if span else horizon
+            region = water_region(plan, points, span, shore)
+            source = {"place": place, "top": entry["top"], "offset": [hold["x"], hold["y"]] if hold else [0.0, 0.0],
+                      "middle": [float(plan["w"]) / 2, float(plan["d"]) / 2]}
+            found.append((source, seabed(region, level), level, row))
+            laid.append({"place": place, "row": row["id"], "level": level, "shore": round(shore, 1) if span else None,
+                         "from": ("its plan's level" if points else f"{FREEBOARD:g} m under the floor (no level of it "
+                                  "on the plan)") + (", out to its far shore along its concept box's bearings"
+                                                     if span else "")})
+    return found, laid
+
+
+def seabed(region, level):
+    """The relief that lowers the ground SEABED under a water line `level` wherever `region` holds."""
+    def relief(points):
+        return np.where(region(points), level - SEABED, 0.0)
+    return relief
 
 
 def far_size(row, picture, distance):
