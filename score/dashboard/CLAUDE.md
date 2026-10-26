@@ -507,7 +507,7 @@ Rules:
   words of anything else. Node ids only inside a `details class="ids"` fold. Money is the total against the one stop
   line, never per-piece prices alone; a provider is named only by its cost line's label (`no_provider_test.py`).
 - Tests: `make tests TESTS="score/dashboard/tests/*_test.py score/review/web_test.py"` (temp `PROPS_HOME` and
-  dashboard home, `tests/conftest.py`). `tests/real_store_smoke.py` runs by hand against the real store, read-only.
+  dashboard home, `conftest.py`). `tests/real_store_smoke.py` runs by hand against the real store, read-only.
   `tests/viewer_look.py` runs by hand too, free: the 3D viewer in headless Chromium from each film shot's and light
   look's camera beside that picture (difference, structure, brightness, pink and black, its `THRESHOLDS`); run it on
   new web copies, or `--hosted <export>` on the export the hosted site serves, before calling the viewer fixed.
