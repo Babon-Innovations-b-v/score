@@ -13,7 +13,6 @@ from django.conf import settings
 from score.dashboard.launch.backend import Billed, GroupPlan, LaunchHandle, LaunchState, RunGroup
 from score.dashboard.state import money
 from score.dashboard.state.models import Spend
-from score.graph import runs
 
 STARTED = re.compile(r"^detached: started pid=(\d+) log=(.+)$", re.MULTILINE)  # `score run --detach`'s own line
 RESULT = re.compile(r"^detached: (ok|failed|stopped|refused)\b")
@@ -144,6 +143,7 @@ class LocalBackend:
         grow's shutdown leaves it so) is running, resumed is the resumed run's own state (a resumed run is the same
         batch: its end is the launch's end, so its checkout's stop line stands till then), else stopped (the
         owner's stop, or a resume that started nothing)."""
+        from score.graph import runs  # noqa: PLC0415  only the store's machine resumes runs; the hosted image has no score.graph
         registered = WAITED.search(pathlib.Path(handle.log).read_text(errors="replace"))
         path = pathlib.Path(runs.RUNS) / f"{registered.group(1)}.json" if registered else None
         entry = json.loads(path.read_text()) if path and path.is_file() else {}
