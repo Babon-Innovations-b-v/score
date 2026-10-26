@@ -16,10 +16,10 @@ every close-up failed, so it is `at risk`, its code build's likeness on today's 
 A take measured here (`environment_measures`, `own_outcome`; 2026-10-26: 85 rows were `at risk` by the hub's 13
 objects while Batch 1 try 4 had drawn and judged most of them): its place's accepted close-up output names its first
 row at the object size it is asked at today (tools/props/closeup/stage.py object_size), under today's request (a row
-that lies flat measured before FLAT_VIEW_SINCE was drawn at another view, one laid far off before FAR_CROP_SINCE from
-the whole painting: one that passed there is `at risk`, never its shape's hub rate; a row every take failed before
-LATER_TAKES_SINCE is asked anew, its next takes from the crop alone and upright). Its close-up passed: `pass`, unless the
-accepted Pixal3D output's gaps say no model came back (`at risk`), unless it is a flat sheet the code builds then
+that lies flat measured before FLAT_VIEW_SINCE was drawn at another view, one laid far off before FAR_CROP_SINCE
+(one anchored in the sky: SKY_BEYOND_SINCE) from the whole painting: one that passed there is `at risk`, never its
+shape's hub rate; a row every take failed before LATER_TAKES_SINCE is asked anew, its next takes from the crop
+alone and upright). Its close-up passed: `pass`, unless the accepted Pixal3D output's gaps say no model came back (`at risk`), unless it is a flat sheet the code builds then
 (score/stages/props/flat_sheet.py): that build is made here, free, from its stored close-up and held to the likeness
 row's free checks that need no paint (`sheet_faults`), so it is a `pass` or a `predicted gap`. Every Pro take failed: a code build the accepted
 likeness output judged passes or is a `predicted gap`; one not judged yet is measured free like a sheet's when its
@@ -55,6 +55,9 @@ LATER_TAKES_SINCE = "2026-10-26T08:30:50+00:00"
 # When a row laid far off (groups.far_made, `far`) was first asked from its crop alone, never the room (tools/props/
 # closeup/stage.py pro_wording): its close-up accepted before was drawn from the whole painting.
 FAR_CROP_SINCE = "2026-10-26T10:10:22+00:00"
+# When a row anchored in the sky was first counted beyond its place (groups.beyond_of), so laid far off and asked from
+# its crop alone: its close-up accepted before was drawn from the whole painting (the square's rocket, 2026-10-26).
+SKY_BEYOND_SINCE = "2026-10-26T13:10:03+00:00"
 
 
 def shape_of(size):
@@ -158,6 +161,12 @@ def code_builds(store, output):
     return {row: row not in gapped for row, entry in found.items() if entry.get("made") == "code"}
 
 
+def far_since(row):
+    """When a far row was first asked from its crop alone: SKY_BEYOND_SINCE for one anchored in the sky, else
+    FAR_CROP_SINCE."""
+    return SKY_BEYOND_SINCE if row.get("anchor") == "sky" else FAR_CROP_SINCE
+
+
 def own_outcome(take, row, measures):
     """The take's outcome as this environment measured it (module docstring), or None when it is not measured at
     today's size and request; `row` its first inventory row, `measures` its place's environment_measures."""
@@ -174,7 +183,7 @@ def own_outcome(take, row, measures):
     asked = None
     if check.lies_flat(size) and measures["at"] < FLAT_VIEW_SINCE:
         asked = "drawn at the three-quarter view, today from above"
-    elif (row or {}).get("far") and measures["at"] < FAR_CROP_SINCE:
+    elif (row or {}).get("far") and measures["at"] < far_since(row):
         asked = "drawn from the whole painting, today from its crop alone"
     if asked:
         # its own pass outweighs its shape's hub rate (2026-10-26: the square's 60 m rocket passed, yet was a
