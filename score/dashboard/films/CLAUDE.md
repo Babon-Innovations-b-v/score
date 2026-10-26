@@ -65,4 +65,4 @@ Rules:
   segment's `why`, never staged.
 - **What waits is marked.** A segment showing a stand-in (a plan's masses for a finished place, a concept for a finished
   room, a waiting inventory) names what it waits on in `waiting`, and says so on screen (a scale zoom leg's `tag`).
-- Tests: `score/dashboard/tests/films_test.py` (the fixture environment, temp homes).
+- Tests: `films/test_a_film_is_timed_checked_and_priced_from_its_script.py` (the fixture environment, temp homes).

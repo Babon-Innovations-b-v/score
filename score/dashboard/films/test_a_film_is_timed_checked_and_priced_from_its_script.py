@@ -1,6 +1,35 @@
-"""The FILM pages and the film script (score/dashboard/films): a script's clock and checks, its render items priced
-from measured frames only, the page with its free preview's data, saving to the cockpit's home only, the basket taking
-only rows that exist, and environment 1's starter script."""
+"""Invariant: a film is its script: timed on the script's own clock, checked in words, its render items priced from
+measured frames only (reused, free, the basket's place film row, or new), saved and locked in the cockpit's home by the
+owner only, its lock what the film rows and Buy wait for; the free preview cut on the same clock with the design's
+sound bed and the setting drawn from its own physics; environment 1's starters sound and complete, and every other
+environment's default built from its own scenes.
+
+Breaks that turn this red (each applied once and seen red, then reverted):
+- script.OVERLAPPING without "push" -> test_the_clock_overlaps_cross_fades_and_pushes_only
+- script.segment_faults: the step-card check -> `if False:` -> test_a_script_says_what_is_wrong_in_words
+- render.walk_item: reuse without the film shot's length check -> test_render_items_reuse_films_...
+- render.FILM_FRAMES = 120 -> test_the_film_shot_matches_the_demo_film_rows
+- script.faults: every named place counted unknown -> test_world1_starter_is_sound_..., test_environment_1_demo_...
+- render.segment_item: an unrendered cut priced as "film" -> test_the_film_pages_render_with_the_preview_data
+- pages/films.film_save: the owner check -> `if False:` -> test_saving_writes_the_cockpit_home_only_...
+- render.walk_item: the basket row for any place film -> test_the_basket_takes_only_a_place_film_row_...
+- pages/films.film_new: `script.blank(film, film)` -> test_a_new_film_starts_with_its_title_card
+- takes.step_faults: the spending-click check -> `if False:` -> test_a_screen_take_never_clicks_what_spends_...
+- render.FILMED_LAYERS without "room" -> test_recorded_cuts_are_free_but_a_zoom_into_finished_places_...
+- preview/make.XFADES push -> "slideright" -> test_the_preview_joins_on_the_scripts_own_clock
+- preview/make.bed_sound: `if beds.get(place)` -> `if place in beds` -> test_the_bed_is_the_sound_stages_...
+- preview/scenes.scales: a moon's ring `+ 22.0` -> `+ 30.0` -> test_the_setting_is_drawn_from_its_own_physics_...
+- api/routes.film_preview: a plain Response in place of the FileResponse (no ranges) -> test_the_film_page_plays_...
+- pages/films.bought_since: `return ""` -> test_a_lock_is_kept_where_the_film_row_reads_it_and_stands_...
+- script.films_node: `return False` -> test_buy_leaves_out_the_film_rows_until_a_film_script_is_locked
+- default.walks: Outside and Inside swapped -> test_an_environments_default_film_is_the_owners_structure_...
+- script.default_name: the saved scripts read before the starters -> test_the_film_step_opens_on_the_environments_...
+- preview/make.beat_offset: rounded to 1 place -> test_the_bed_starts_where_its_beats_fall_on_the_cuts_...
+- preview/scenes.LIT_DEGREES = -90 -> test_a_scale_zoom_arrives_where_its_site_is_lit_...
+- preview/scenes.face_colour: hex pairs read (3, 1, 5) -> test_a_body_is_drawn_in_the_face_its_row_made_...
+- state/local.DESIGNED_BED: "the scene's design" -> test_the_state_knows_a_designed_bed_by_the_sound_stages_...
+- preview/make.node_used: without the version -> test_a_recorder_failure_names_the_node_the_path_found
+"""
 import json
 import math
 import re
@@ -12,6 +41,7 @@ from django.test import Client
 
 from score.dashboard.films import render, script, takes
 from score.dashboard.pages.models import BasketItem
+from score.dashboard.tests.fixture import api
 
 pytestmark = pytest.mark.django_db
 
@@ -25,6 +55,13 @@ def signed_in(name="joey"):
 
 def a_script(segments, **more):
     return {**script.blank("trailer", "A trailer"), "segments": segments, **more}
+
+
+def outside_ids_fold(html):
+    """The page's visible text outside <details class=\"ids\">, its tags and scripts dropped."""
+    html = re.sub(r'<details class="ids">.*?</details>', "", html, flags=re.S)
+    html = re.sub(r"<script.*?</script>", "", html, flags=re.S)
+    return re.sub(r"<[^>]+>", " ", html)
 
 
 def editor_of(html):
@@ -131,8 +168,8 @@ def test_the_film_pages_render_with_the_preview_data(world, tmp_path, monkeypatc
                                    "layer-split", "step-card", "before-after", "title", "text"}
     assert [item["how"] for item in editor["answer"]["items"]] == ["free", "reuse", "new"]
     assert editor["answer"]["totals"]["unmeasured"] == ["layer-split"]
-    from score.dashboard.tests.fixture import NODE, outside_details
-    assert NODE.search(outside_details(html)) is None  # owner rule (#42): node ids only inside the ids fold
+    # owner rule (#42, wording): node ids only inside the ids fold
+    assert re.search(r"\b[a-z][a-z-]+@(alpha|beta)\b", outside_ids_fold(html)) is None
     assert client.get("/film/nothing/").status_code == 404
 
 
@@ -263,7 +300,6 @@ def test_the_setting_is_drawn_from_its_own_physics_to_the_pictures_scale():
 
 @pytest.mark.django_db(transaction=True)
 def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_path, monkeypatch):
-    from score.dashboard.tests.fixture import api
     monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
     film = a_script([{"cut": "title"}, {"cut": "screen-take", "shows": {"page": "/"}, "seconds": 2}])
     script.save(settings.SCORE_HOME, film)
@@ -457,10 +493,19 @@ def test_a_body_is_drawn_in_the_face_its_row_made_else_a_plain_colour_said_waiti
     assert world_leg["tag"] == "Plan" and world_leg["color"] == [0.2, 0.4, 0.6]
 
 
-def test_the_state_knows_a_designed_bed_by_the_sound_stages_own_words():
-    """local.DESIGNED_BED is the word the sound stage writes on a bed its design decided (an older bed is none)."""
+def test_the_state_knows_a_designed_bed_by_the_sound_stages_own_words(monkeypatch):
+    """local.DESIGNED_BED is the word the sound stage writes on a bed its design decided (an older bed is none): the
+    stage's own uses of a place whose design names one bed, every other use left out."""
+    import types
     from score.dashboard.state import local
-    assert f'"from": "{local.DESIGNED_BED}"' in (settings.SCORE_REPO / "score/stages/sound/__init__.py").read_text()
+    from score.stages import sound
+    monkeypatch.setattr(sound, "beds", types.SimpleNamespace(of_place=lambda place, inputs: {"sounds": ["hum"]}))
+    for name in ("object_uses", "moving_uses", "bank_uses"):
+        monkeypatch.setattr(sound, name, lambda *_: [])
+    monkeypatch.setattr(sound, "voice_uses", lambda *_: [])
+    monkeypatch.setattr(sound, "read_json", lambda path: {})
+    (bed,) = sound.uses_of("alpha", {"surfaces": None})
+    assert (bed["sound"], bed["role"], bed["from"]) == ("hum", "room", local.DESIGNED_BED)
 
 
 def test_a_recorder_failure_names_the_node_the_path_found(tmp_path):
