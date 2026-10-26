@@ -282,6 +282,11 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
             "rows": {"PIPES 1": ["pipes"], "RAIL 1": ["rail"]}, "shapes": {"RAIL 1": {"shape": "polygon"}}}
     assert groups.run_pieces(plan, {"id": "pipes", "count": 4}) == 4 and groups.run_pieces(plan, {"id": "rail"}) == 1
     assert groups.run_pieces(plan, {"id": "pipes", "count": 1}) is None  # one item of one: a single object
+    rugs = {"items": [[f"RUG {n}", 0, 0, 1.433, 1.444, None, "item"] for n in (1, 2, 3)],
+            "rows": {f"RUG {n}": ["rug"] for n in (1, 2, 3)}}
+    rug = {"id": "rug", "count": 3, "size": [2.0, 1.5, 0.02]}  # one rug an item, a little over it: one of it, no run
+    assert groups.run_pieces(rugs, rug) is None and groups.row_size(rug["size"], *[[1.433, 1.444, 0.02]] * 2) == rug["size"]
+    assert groups.run_pieces(rugs, {**rug, "size": [9.0, 0.1, 0.1]}) == 3  # longer than its items end to end: a run
     assert [by_id[name]["route"] for name in ("fuel_drum", "astronaut", "wall_lamp", "night_sky")] == [
         "prop", "people", "prop", "sky"]
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())

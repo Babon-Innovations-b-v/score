@@ -184,12 +184,26 @@ def own_size(own, laid, pieces=None):
 def run_pieces(plan, row):
     """How many pieces a row the plan lays as a run or path is made of: its reading's count, or its items' on the
     plan (several items, an item counting several), whichever is more; at least 1 for one laid as a path (a polygon
-    round a floor's edge). None for a row laid as one object (one item of one, a rect)."""
+    round a floor's edge). None for a row laid as one object (one item of one, a rect), or as one of it an item
+    (one_each)."""
     tied = (plan or {}).get("rows") or {}
     names = [name for name, *_ in (plan or {}).get("items", []) if row["id"] in (tied.get(name) or [])]
     shapes = [(plan.get("shapes") or {}).get(name) or {} for name in names]
+    if one_each(plan, names, shapes, reading_size(row)):
+        return None
     pieces = max(row.get("count") or 1, sum(shape.get("count", 1) for shape in shapes))
     return pieces if pieces > 1 or any(shape.get("shape") == "polygon" for shape in shapes) else None
+
+
+def one_each(plan, names, shapes, own):
+    """Whether a row's several items (`names`, their `shapes`) each lay one of it, its reading's metres (`own`) one
+    object's (score/review/reading.py: "of one of it"): no item counts several, and its long side is within their long
+    sides end to end, so it never measured a run longer than all of them (2026-10-26: habitat's 10 rugs of 2 m, each
+    laid in its own 1.4 m item, were cut to 0.2 m strips, its 6 curtains and square's flags and street's palms so too)."""
+    if len(names) < 2 or own is None or any(shape.get("count", 1) > 1 for shape in shapes):
+        return False
+    long_sides = {name: max(wide, deep) for name, _, _, wide, deep, *_ in plan["items"]}
+    return max(own[:2]) <= sum(long_sides[name] for name in names)
 
 
 def within(size, laid):
