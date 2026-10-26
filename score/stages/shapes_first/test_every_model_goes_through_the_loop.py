@@ -1,13 +1,19 @@
-"""The shared loop (#41): its rows in the table in order, an adapter's after-steps held to its ends and its layer, the
-rough model's registration to the plan, the parts split read against it, and what the loop hands an after-step.
-No spend, no model made. Run: .venv/bin/python -m pytest score/stages/shapes_first
+"""Every model goes through the shared loop (#41): its rows stand in the table in order, every model layer reaches its
+models only through the loop's ends and every paid row outside it makes no model but a named exception, an adapter's
+after-steps are held to those ends and its layer; the rough model is registered to the plan (scaled, turned and
+stood on its floor, worked out by hand from the boxes below), the parts split is read against it, and an after-step
+gets the made models or their gaps. No spend, no model made.
+
+Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
+score/stages/shapes_first/test_every_model_goes_through_the_loop.py
 """
 import fnmatch
 import json
 import pathlib
 import re
 import struct
-import tempfile
 
 import pytest
 
@@ -20,11 +26,16 @@ import score.stages.shapes_first.floor_fit as floor_fit
 import score.stages.shapes_first.made as made
 from score.stages.surfaces import surface_data
 
-# These tests hold the data/props and data/surfaces places; a designed place's hand-in (the home's design/, which
-# the sandbox links) is prepare_test.py's, so none is read here.
 import score.stages.surfaces  # noqa: E402
-prop_data.DESIGN = surface_data.DESIGN = pathlib.Path(tempfile.mkdtemp()) / "no design"
-score.stages.surfaces.data.DESIGN = surface_data.DESIGN  # the table's own import of it (bare `surface_data`)
+
+
+@pytest.fixture(autouse=True)
+def no_design(tmp_path, monkeypatch):
+    """No designed place's hand-in is read unless a test writes one (the home's design/, which the sandbox links)."""
+    nowhere = tmp_path / "no design"
+    monkeypatch.setattr(prop_data, "DESIGN", nowhere)
+    monkeypatch.setattr(surface_data, "DESIGN", nowhere)
+    monkeypatch.setattr(score.stages.surfaces.data, "DESIGN", nowhere)  # the table's own import of it
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 LOOP = ("rough-model", "rough-align", "props-inputs", "closeup", "pixal", "finish-route-views", "likeness")
@@ -68,13 +79,17 @@ def corners_placed(record, low, high):
 
 
 def test_the_rough_model_is_scaled_to_the_plan_s_metres_and_stood_on_its_floor(tmp_path):
+    """A box 2 wide, 3 high, 1 deep onto the plan's 8 by 4 floor: four times, unturned, spanning -4 to 4 and -2 to 2,
+    its foot on the floor's 0.5 m.
+    Break: score/stages/shapes_first/align.py: `floor - scale * least[1],` -> `floor,`"""
     low, high = (-1.0, -0.2, 0.0), (1.0, 2.8, 1.0)  # 2 wide, 3 high, 1 deep: the plan's 8 by 4 at four times
     out, _ = aligned(tmp_path, low, high)
     record = json.loads((out / "align.json").read_text())
     assert record["turn_degrees"] == 0 and record["scale"] == pytest.approx(4.0)
     placed = corners_placed(record, low, high)
-    assert min(point[0] for point in placed) == pytest.approx(-4) and max(point[0] for point in placed) == pytest.approx(4)
-    assert min(point[2] for point in placed) == pytest.approx(-2) and max(point[2] for point in placed) == pytest.approx(2)
+    across, deep = [point[0] for point in placed], [point[2] for point in placed]
+    assert (min(across), max(across)) == (pytest.approx(-4), pytest.approx(4))
+    assert (min(deep), max(deep)) == (pytest.approx(-2), pytest.approx(2))
     assert min(point[1] for point in placed) == pytest.approx(0.5)  # on the floor's height
     assert record["misfit"] == {"wide": 1.0, "deep": 1.0, "high": 4.0}
     gltf = align.glb_json(out / "aligned.glb")
@@ -84,6 +99,8 @@ def test_the_rough_model_is_scaled_to_the_plan_s_metres_and_stood_on_its_floor(t
 
 
 def test_a_model_drawn_turned_is_turned_to_the_plan(tmp_path):
+    """1 wide and 2 deep onto 8 wide and 4 deep: a quarter turn fits, four times, 8 across.
+    Break: score/stages/shapes_first/align.py: `return min(TURNS, key=misfit)` -> `return 0`"""
     low, high = (0.0, 0.0, 0.0), (1.0, 1.0, 2.0)  # 1 wide, 2 deep onto 8 wide, 4 deep: a quarter turn fits
     out, _ = aligned(tmp_path, low, high)
     record = json.loads((out / "align.json").read_text())
@@ -93,6 +110,10 @@ def test_a_model_drawn_turned_is_turned_to_the_plan(tmp_path):
 
 
 def test_a_model_whose_nodes_carry_a_transform_is_not_registered_and_says_why(tmp_path):
+    """A node scaled twice: its extent in the mesh frame is not its size, so no registration, said by name.
+    Break: score/stages/shapes_first/align.py:
+        `for index, node in enumerate(gltf.get("nodes", [])) for key in NODE_TRANSFORMS if key in node]`
+        -> `for index, node in enumerate(gltf.get("nodes", [])) for key in NODE_TRANSFORMS if False]`"""
     out, _ = aligned(tmp_path, (0, 0, 0), (1, 1, 1), node={"scale": [2, 2, 2]})
     assert not (out / "aligned.glb").exists()
     verdict = align.CHECKS[0].judge(out, {}, {})
@@ -100,6 +121,10 @@ def test_a_model_whose_nodes_carry_a_transform_is_not_registered_and_says_why(tm
 
 
 def test_the_parts_split_is_held_to_the_registered_floor(tmp_path):
+    """On the 8 by 4 floor a 9 m beam fits no way, a crate does; a terrain detail area round the floor is counted,
+    not held; without a registration unknown; a line no place owns is held to no plan.
+    Break: score/stages/shapes_first/align.py: `rows = [row for row in split if row.get("layer") not in ROUND]`
+        -> `rows = split`"""
     out, inputs = aligned(tmp_path, (-1.0, 0.0, 0.0), (1.0, 3.0, 1.0))
     split = tmp_path / "split"
     split.mkdir()
@@ -119,6 +144,11 @@ def test_the_parts_split_is_held_to_the_registered_floor(tmp_path):
 
 
 def test_the_plan_s_structure_and_what_stands_beyond_it_are_counted_not_held_to_its_floor(tmp_path):
+    """The kept plan's structure (its floor) and beyond (the rocket) are counted, never held to the floor; a rug as
+    wide as the floor, rounded, fits; with no kept plan all three oversized rows fail.
+    Break: score/stages/shapes_first/floor_fit.py: `wide, deep = wide + ROUNDING, deep + ROUNDING` -> `pass`
+    Break: score/stages/shapes_first/floor_fit.py:
+        `**{f"rows of the plan's {name}": ids for name, ids in off_floor(inputs).items()}}` -> `}`"""
     out, _ = aligned(tmp_path, (-1.0, 0.0, 0.0), (1.0, 3.0, 1.0))
     split = tmp_path / "split"
     split.mkdir()
@@ -135,16 +165,27 @@ def test_the_plan_s_structure_and_what_stands_beyond_it_are_counted_not_held_to_
 
 
 def test_the_table_s_split_reads_the_kept_plan_with_floor_fit_s_gate():
+    """Fault 2026-10-24 (eight places' shells failed the floor): the table's parts split gates on floor_fit's judge,
+    which reads the kept plan, not align's.
+    Break: score/stages/__init__.py: `checks=tuple(fit if check.name == fit.name else check for check in row.checks))`
+        -> `checks=row.checks)`"""
     split = {stage.name: stage for stage in stages.STAGES}["props-inputs"]
     fit = next(check for check in split.checks if check.name == "fits the plan")
     assert fit.judge.__wrapped__ is floor_fit.judge_rows_fit
 
 
 def test_an_after_step_gets_the_made_models_with_their_finishes_or_the_gaps(tmp_path):
+    """The seat's take baked as seat_1 hands its baked model and its parts' finishes; the lamp's missing close-up is
+    its gap; the code rock its own model; a layer whose rows never reached the likeness is a gap each.
+    Break: score/stages/shapes_first/made.py: `found.setdefault(entry["parts"], pathlib.Path(bake) / "made" /
+        f"{model}.gltf")`
+        -> `found.setdefault(model, pathlib.Path(bake) / "made" / f"{model}.gltf")`
+    Break: score/stages/shapes_first/made.py: `    if "missing" in entry:` -> `    if False:`"""
     split, likeness, bake, parts = (tmp_path / name for name in ("split", "likeness", "bake", "parts"))
     for folder in (split, likeness, bake, parts):
         folder.mkdir()
-    rows = [{"id": "seat", "take": "seat-s1", "layer": "objects"}, {"id": "lamp", "take": "lamp-s1", "layer": "objects"},
+    rows = [{"id": "seat", "take": "seat-s1", "layer": "objects"},
+            {"id": "lamp", "take": "lamp-s1", "layer": "objects"},
             {"id": "rock", "take": None, "layer": "objects"}, {"id": "path", "take": "path-t1", "layer": "terrain"}]
     (split / "rows.json").write_text(json.dumps({"rows": rows}))
     (likeness / "likeness.json").write_text(json.dumps({"objects": {
@@ -166,25 +207,34 @@ def row(name, after):
                        after=after)
 
 
-def test_an_after_step_must_read_the_loop_s_ends_and_runs_only_where_its_layer_handed_rows():
+def test_an_after_step_must_read_the_loop_s_ends_and_runs_only_where_its_layer_handed_rows(tmp_path, monkeypatch):
+    """An after-step lacking the ends is refused, two adapters on one layer are refused, and an after-step applies
+    only where the place handed rows of its layer (the campgrounds' cairn is on the objects layer, the hub hands none).
+    Break: score/stages/shapes_first/__init__.py: `if step.grain != "place" or missing:` -> `if step.grain != "place":`
+    Break: score/stages/shapes_first/__init__.py: `if len(set(layers)) != len(layers):` -> `if False:`
+    Break: score/stages/shapes_first/__init__.py: `return handed(place, layer) and (applies is None or applies(place))`
+        -> `return applies is None or applies(place)`"""
     with pytest.raises(ValueError, match="lacks"):
-        shapes_first.rows((shapes_first.OBJECTS, shapes_first.Adapter("terrain", (row("join", {"terrain": ("g", 1)}),))))
+        lacking = shapes_first.Adapter("terrain", (row("join", {"terrain": ("g", 1)}),))
+        shapes_first.rows((shapes_first.OBJECTS, lacking))
     with pytest.raises(ValueError, match="share a layer"):
         shapes_first.rows((shapes_first.OBJECTS, shapes_first.Adapter("objects")))
     found = shapes_first.rows((shapes_first.Adapter("terrain", (row("join", dict(made.ENDS)),)),))
     join = found[-1]
-    kept, prop_data.DESIGN = prop_data.DESIGN, pathlib.Path(tempfile.mkdtemp())  # a hand-in of the test's own
+    monkeypatch.setattr(prop_data, "DESIGN", tmp_path / "design")  # a hand-in of the test's own
+    prop_data.DESIGN.mkdir()
     (prop_data.DESIGN / "campgrounds.json").write_text(json.dumps({"objects": {"cairn": {"route": "prop",
                                                                                          "take": "cairn-p1"}}}))
-    try:
-        assert join.name == "join" and not join.applies("campgrounds")  # its rows are all on the objects layer
-        objects = shapes_first.rows((shapes_first.Adapter("objects", (row("lay", dict(made.ENDS)),)),))[-1]
-        assert objects.applies("campgrounds") and not objects.applies("hub")
-    finally:
-        prop_data.DESIGN = kept
+    assert join.name == "join" and not join.applies("campgrounds")  # its rows are all on the objects layer
+    objects = shapes_first.rows((shapes_first.Adapter("objects", (row("lay", dict(made.ENDS)),)),))[-1]
+    assert objects.applies("campgrounds") and not objects.applies("hub")
 
 
 def test_the_table_runs_the_loop_in_its_order():
+    """Each loop row reads the one before it (the likeness reads the bake), and the split gates on the plan.
+    Break: score/stages/shapes_first/__init__.py:
+        `SPLIT = dataclasses.replace(props.INPUTS, after={**props.INPUTS.after, "rough-align": ("rough-align", 1)},`
+        -> `SPLIT = dataclasses.replace(props.INPUTS, after={**props.INPUTS.after},`"""
     table = {stage.name: stage for stage in stages.STAGES}
     assert [stage.name for stage in stages.STAGES].count("rough-model") == 1
     for earlier, later in zip(LOOP, LOOP[1:]):
@@ -195,6 +245,10 @@ def test_the_table_runs_the_loop_in_its_order():
 
 
 def test_the_terrain_adapter_only_joins_its_rows_into_the_ground_after_the_model():
+    """ground-join is the terrain layer's one after-step, reads the loop's ends, the assembly reads it, and it runs
+    nowhere a place handed no terrain rows (the wreck).
+    Break: score/stages/shapes_first/__init__.py: `return handed(place, layer) and (applies is None or applies(place))`
+        -> `return applies is None or applies(place)`"""
     table = {stage.name: stage for stage in stages.STAGES}
     assert [stage.name for stage in stages.STAGES].count("ground-join") == 1
     assert made.ENDS.keys() <= table["ground-join"].after.keys() and "ground-join" in table["assembly"].after
@@ -209,7 +263,8 @@ READS_THE_LOOP = {
     "library": "the hand-over: every accepted output of the line to the creator's library, lays no model",
     "assembly": "the object layer laid (OBJECTS: nothing after the model), its baked models and their paint",
     "earth-seed": "the scene's base: its shell from its locked plan painted from its surface library, lays no model",
-    "scene-record": "the scene's record: its shell and stairs named with surfaces from its surface library, lays no model",
+    "scene-record": "the scene's record: its shell and stairs named with surfaces from its surface library, lays no "
+                    "model",
     "surface-tiles": "tile pictures of the scene's library surfaces for its shell, lays no model",
     "settle": "the motion layer's physics: not on an adapter yet (#41's motion track)",
     "crops-layer": "the motion layer's growth: not on an adapter yet (#41's motion track)",
@@ -221,7 +276,8 @@ MAKES_NO_MODEL = {
     "light-passes": "renders", "surface-tiles": "surface tile pictures",
     "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
     "straight-masks": "SAM 3 masks of the thin straight rows, read by prepare's prediction alone",
-    "body-face-*": "a body's face palette and recipe variant", "people-clips-made": "Kimodo clips and the mean rig", "people-look-*": "renders of a made body (its review page)",
+    "body-face-*": "a body's face palette and recipe variant", "people-clips-made": "Kimodo clips and the mean rig",
+    "people-look-*": "renders of a made body (its review page)",
     "people-dress-*": "the loop's library surfaces baked onto a made body's own model, every variant (c3a5a275)",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
@@ -236,6 +292,9 @@ def matched(name, patterns):
 
 
 def test_every_model_layer_reaches_its_models_only_through_the_loop():
+    """#41: a row outside the loop reading a loop row is an after-step reading its ends, or named with its reason.
+    Break: score/stages/__init__.py: `models=(sound.moss_takes.KIND,), after={"motion": ("motion-layer", 2)},`
+        -> `models=(sound.moss_takes.KIND,), after={"motion": ("motion-layer", 2), "pixal": ("props-pixal", 1)},`"""
     loop = {row.name for row in shapes_first.rows(())}
     after_steps = {step.name for adapter in shapes_first.ADAPTERS for step in adapter.after}
     around, reading = [], set()
@@ -251,6 +310,11 @@ def test_every_model_layer_reaches_its_models_only_through_the_loop():
 
 
 def test_a_paid_row_outside_the_loop_makes_no_model_but_a_named_exception():
+    """Every paid row outside the loop says what it makes (no model) or is a named exception its record names.
+    Break: score/stages/__init__.py: `beside={"scene-tree": ("openusd-stage", 1)}, downward=True,
+        neighbours=held_scenes)`
+        -> `beside={"scene-tree": ("openusd-stage", 1)}, downward=True, neighbours=held_scenes, paid=True,
+        euros=1.0)`"""
     loop = {row.name for row in shapes_first.rows(())}
     records = json.loads((prop_data.FOLDER / "people.json").read_text())["objects"].values()
     named = {row for entry in records for text in (entry.get("failures") or {}).values()
@@ -269,6 +333,9 @@ def test_a_paid_row_outside_the_loop_makes_no_model_but_a_named_exception():
 
 
 def test_every_layer_the_hand_in_names_is_an_adapter_s():
+    """Every layer a prop data file hands the loop has an adapter.
+    Break: score/stages/props/closeup_row.py: `return entry.get("layer", "objects")` -> `return entry.get("layer",
+        "objects") + "-x"`"""
     registered = {adapter.layer for adapter in shapes_first.ADAPTERS}
     for path in sorted(prop_data.FOLDER.glob("*.json")):
         layers = {closeup_row.layer_of(entry) for entry in json.loads(path.read_text())["objects"].values()}
