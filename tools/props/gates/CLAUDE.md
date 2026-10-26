@@ -11,7 +11,9 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   (`score/stages/earth_seed/design_shell.py`).
 - **Real meshes, never boxes.** `room.py` places every kit piece's own model exactly as `HubKit` does (its model
   file, its fit into its laid box, its turn); `model.py` and the visual check (`score/stages/complete/visual`) read it.
-- `model.py` (G5): watertight, pieces, proportion spread on the sides the shape class can be judged on, thinnest wall.
+- `model.py` (G5): watertight, pieces, proportion spread on the sides the shape class can be judged on, thinnest wall
+  (3 mm, or solid through its own thickness for a kind laid thinner: `least_wall`). The pixal and likeness rows
+  declare it, so an edit re-keys them.
 - trimesh with embree (`embreex`, `rtree` in the prop environment). Every run goes under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
 - Checks: `gates_test.py` (hands itself to the prop environment).
