@@ -16,7 +16,8 @@ every close-up failed, so it is `at risk`, its code build's likeness on today's 
 A take measured here (`environment_measures`, `own_outcome`; 2026-10-26: 85 rows were `at risk` by the hub's 13
 objects while Batch 1 try 4 had drawn and judged most of them): its place's accepted close-up output names its first
 row at the object size it is asked at today (tools/props/closeup/stage.py object_size), under today's request (a row
-that lies flat measured before FLAT_VIEW_SINCE was drawn at another view; a row every take failed before
+that lies flat measured before FLAT_VIEW_SINCE was drawn at another view, one laid far off before FAR_CROP_SINCE from
+the whole painting; a row every take failed before
 LATER_TAKES_SINCE is asked anew, its next takes from the crop alone and upright). Its close-up passed: `pass`, unless the
 accepted Pixal3D output's gaps say no model came back (`at risk`). Every Pro take failed: a code build the accepted
 likeness output judged passes or is a `predicted gap`; one not judged yet is `at risk`; a row no route builds after is
@@ -43,6 +44,9 @@ FLAT_VIEW_SINCE = "2026-10-25T19:52:27+00:00"
 # (tools/props/closeup/stage.py UPRIGHT, commit time in UTC): a row every take of which failed in a close-up accepted
 # before is asked anew when its step is bought again, so its failures are not measured at today's request.
 LATER_TAKES_SINCE = "2026-10-26T08:30:50+00:00"
+# When a row laid far off (groups.far_made, `far`) was first asked from its crop alone, never the room (tools/props/
+# closeup/stage.py pro_wording): its close-up accepted before was drawn from the whole painting.
+FAR_CROP_SINCE = "2026-10-26T10:10:22+00:00"
 
 
 def shape_of(size):
@@ -149,6 +153,8 @@ def own_outcome(take, row, measures):
     with prop_data.tools("props/closeup"):
         import check
     if check.lies_flat(size) and measures["at"] < FLAT_VIEW_SINCE:
+        return None
+    if (row or {}).get("far") and measures["at"] < FAR_CROP_SINCE:
         return None
     node = f"closeup@{take['place']}"
     outcome = {"shape": shape_of(take["size"]), "pass_share": None, "mode": None}

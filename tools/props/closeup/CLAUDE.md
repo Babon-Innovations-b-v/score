@@ -42,6 +42,9 @@ for the creator.
   (the room reference), a cast floor shadow the outline counts as object (the corner shelves and the right dome door:
   without it 3 and 2 of their 4 takes were inside the limit), or the wall keypad lying on its back. The first four
   takes' requests are unchanged, so their kept pictures still read back free.
+- **A row laid far off is drawn from its crop alone** (`far`, prepare's groups.far_made; `stage.pro_wording`): its crop
+  is a speck of the whole painting, and given the room as well Pro drew the room (Batch 1 try 4: the street's distant
+  rocket's and floodlight's first takes were the whole street). Every other row's request is unchanged.
 - **A row that lies flat is drawn and checked from straight above** (`check.lies_flat`, the model gate's flat class
   with its height its thinnest side; Batch 1 try 4, 2026-10-25: the rug, poster and sticky note failed the proportion
   check on all four takes, their outline at the stated look-down nearly all view): worded `stage.VIEW_ABOVE`, its

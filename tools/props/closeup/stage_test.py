@@ -152,6 +152,7 @@ def test_the_close_up_is_asked_for_and_checked_at_the_objects_own_size_from_the_
     row, _ = a_place()
     assert stage.pro_wording(row) == "room"  # a 100 by 50 box: 140 pixels with its margin, under SHORTEST_CROP
     assert stage.pro_wording(dict(row, box=[100, 100, 600, 400])) == "crop"
+    assert stage.pro_wording(dict(row, far={"pieces": 1, "length": 0.0})) == "crop"  # a speck far off: never the room
     assert stage.with_pro_wordings([dict(row, pro_wording="crop")])[0]["pro_wording"] == "crop"  # chosen once
 
 

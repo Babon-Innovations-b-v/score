@@ -151,9 +151,13 @@ def crop(concept, box):
 def pro_wording(row):
     """The row's Pro wording, chosen free before anything is drawn: "person" for a row the people layer handed, else
     "room" when its crop is under SHORTEST_CROP on its long side before it is scaled up (too small to make the object
-    clear alone), else "crop". Reads only the concept's size."""
+    clear alone), else "crop". A row laid far off (`far`) is always "crop": its crop is a speck of the whole painting,
+    and given the room Pro drew the room (Batch 1 try 4: the street's distant rocket's and floodlight's first takes
+    were the whole street). Reads only the concept's size."""
     if row.get("layer") == "people":
         return "person"
+    if row.get("far"):
+        return "crop"
     with Image.open(row["concept"]) as concept:
         left, top, right, bottom = crop_bounds(concept.size, row["box"])
     return "room" if max(right - left, bottom - top) < SHORTEST_CROP else "crop"
