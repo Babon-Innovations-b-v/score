@@ -2,9 +2,9 @@
 plan maps, and an item with no rows, a door that says nowhere it leads and a sealed door the layout leaves open each
 fail `mapped`; a written plan with no corner takes its outline; the record holds the shell cut round its door, its
 stair, a light over its lamp, the sky from the physics, the places its doors lead to and its backdrop rows are shown
-from, every object at its plan item waiting on its model, a far row far off, an arched rib as a band, a light where a
-tower or a glowing row stands, and each part the scene library's surface; its gates fail a filled door, a moved lamp
-and a door to no place. Every spot is worked out by hand from the plans below.
+from, every object at its plan item waiting on its model, a row the plan lays only against its edge past it, a far
+row far off, an arched rib as a band, a light where a tower or a glowing row stands, and each part the scene
+library's surface; its gates fail a filled door, a moved lamp and a door to no place. Every spot is worked out by hand from the plans below.
 
 Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
 
@@ -302,6 +302,30 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
     unsized = {**handin, "rows": [{**row, "size": None} if row["id"] == "rail" else row for row in handin["rows"]]}
     [rail] = [entry for entry in writer.design_objects(design, unsized) if entry["name"] == "rail_1"]
     assert "row rail has no size" in rail["waiting"], rail
+
+
+def test_a_row_the_plan_lays_only_against_its_edge_stands_past_it_facing_in():
+    """2026-10-26: the square's 30 by 30 m buildings, laid by its plan only as 2 to 7 m strips at its edges
+    (floor_fit.past_edge), stood centred on those strips over the plaza. Such a row stands with its face on the
+    edge's line and its body out past it, facing in. On a 20 by 20 m plan (centred: plan (x, y) is place (x - 10,
+    y - 10)): the 30 x 30 m building's strip at the right edge, (18, 0) 2 x 10 m (a corner: it runs along the right
+    edge), stands at plan (35, 5), its body 20 to 50 m east, facing west; the 40 x 20 m one's strip at the foot,
+    (5, 18) 10 x 2 m, at plan (10, 30), 20 to 40 m south, facing north; a kiosk on the ground off the edge stays
+    centred on its item.
+    Break: score/stages/scene_record/writer.py: `spot, way = past_edge_spot(item, design, spot, size)` -> `pass`"""
+    from score.stages.scene_record import writer
+    design = {"w": 20.0, "d": 20.0, "items": [["RIGHT 1", 18.0, 0.0, 2.0, 10.0, "W", "item"],
+                                              ["FRONT 1", 5.0, 18.0, 10.0, 2.0, "N", "item"],
+                                              ["KIOSK 1", 9.0, 9.0, 2.0, 2.0, "N", "item"]],
+              "rows": {"RIGHT 1": ["right"], "FRONT 1": ["front"], "KIOSK 1": ["kiosk"]}}
+    rows = [{"id": name, "anchor": "ground", "route": "shell", "size": size}
+            for name, size in (("right", [30.0, 30.0, 20.0]), ("front", [40.0, 20.0, 15.0]), ("kiosk", [2, 2, 3]))]
+    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}})}
+    assert found["right"]["at"] == [25.0, 0.0, -5.0], found["right"]
+    assert found["right"]["rotation"] == writer.yaw_turn(design, writer.FACING_WAY["W"], rows[0]["size"])
+    assert found["front"]["at"] == [0.0, 0.0, 20.0], found["front"]
+    assert found["front"]["rotation"] == writer.yaw_turn(design, writer.FACING_WAY["N"], rows[1]["size"])
+    assert found["kiosk"]["at"] == [0.0, 0.0, 0.0], found["kiosk"]
 
 
 def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():

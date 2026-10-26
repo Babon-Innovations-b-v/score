@@ -50,6 +50,7 @@ from score.stages import row_kinds
 from score.stages.earth_seed import design_shell
 from score.stages.scene_record import far
 from score.stages.scene_record import plan as place_plan
+import score.stages.shapes_first.floor_fit as floor_fit
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 # The shell's backing: it stands this far behind the plan's inside line, its deck this far under the floor
@@ -509,6 +510,29 @@ def yaw_turn(design, way, size):
     return [0.0, round(math.sin(angle / 2), 6), 0.0, round(math.cos(angle / 2), 6)]
 
 
+def outward(item, wide, deep):
+    """The plan way out of a `wide` by `deep` plan across the edge an item touches (floor_fit.at_edge), and that edge's
+    line ([axis, at]); at a corner, the edge the item runs furthest along."""
+    x, y, across, along_edge = (float(value) for value in item[1:5])
+    edges = [(along_edge, (-1.0, 0.0), (0, 0.0), x <= floor_fit.ROUNDING),
+             (across, (0.0, -1.0), (1, 0.0), y <= floor_fit.ROUNDING),
+             (along_edge, (1.0, 0.0), (0, wide), x + across >= wide - floor_fit.ROUNDING),
+             (across, (0.0, 1.0), (1, deep), y + along_edge >= deep - floor_fit.ROUNDING)]
+    _, way, line, _ = max((edge for edge in edges if edge[3]), key=lambda edge: edge[0])
+    return np.asarray(way), line
+
+
+def past_edge_spot(item, design, spot, size):
+    """(plan point, x way) of a piece of a row the plan lays only against its edge (floor_fit.past_edge: a building
+    round a square, its face the item): its face on the edge's line, its body (its narrower side across: yaw_turn lays
+    the longer along the edge) out past it, off the floor, facing in."""
+    way, (axis, at) = outward(item, float(design["w"]), float(design["d"]))
+    depth = min(float(size[0]), float(size[1])) if isinstance(size, list) and len(size) == 3 else 0.0
+    point = np.array(spot, dtype=float)
+    point[axis] = at + way[axis] * depth / 2
+    return point, np.array([way[1], -way[0]])  # facing in (-way), as FACING_WAY turns a facing into its x way
+
+
 def pieces_of(row, items):
     """How many pieces an item of the row lays: its shape's count; the row's own count on its only item (a run the
     plan draws once, laid as the pieces prepare's groups.run_pieces makes it of)."""
@@ -538,7 +562,9 @@ def design_objects(design, handin):
     draws once) for each prop or shell row the item names, `<row>_<n>` the n-th of its row, standing on its plan spot
     as high as its shape's base, turned along its item, waiting on the bake's model of its row (made_waiting lays it
     once baked; one the bake never makes stays named on the stage's root). A row marked `far` is laid far off by
-    far_objects alone, never at an item its plan laid it at too (the street's distant floodlights, laid at its end)."""
+    far_objects alone, never at an item its plan laid it at too (the street's distant floodlights, laid at its end). A
+    row on the ground the plan lays only against its edge (floor_fit.past_edge) stands past it (past_edge_spot), never
+    centred on its edge strip over the floor (2026-10-26: the square's 30 m buildings on 2 to 7 m strips)."""
     by_id = {row["id"]: row for row in handin.get("rows", [])}
     models, shapes, tied = models_of(handin), design.get("shapes") or {}, design.get("rows") or {}
     items = {}
@@ -548,7 +574,7 @@ def design_objects(design, handin):
         for row_id in tied.get(item[0]) or []:
             if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES and not by_id[row_id].get("far"):
                 items.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
-    found = []
+    found, edged = [], floor_fit.past_edge(design, handin)
     for row_id, laid in items.items():
         row, model = by_id[row_id], models.get(row_id)
         size = by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
@@ -556,6 +582,8 @@ def design_objects(design, handin):
         for (item, shape), pieces in zip(laid, pieces_of(row, laid)):
             base = float(shape.get("base") or 0.0)
             for spot, way in spots_of(item, shape, pieces):
+                if row_id in edged:
+                    spot, way = past_edge_spot(item, design, spot, size)
                 number += 1
                 (point,), floor = in_frame(design, [spot], base)
                 found.append({"name": f"{row_id}_{number}", "row": row_id, "bake": model, "kind": "object",
