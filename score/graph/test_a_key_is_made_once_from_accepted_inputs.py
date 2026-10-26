@@ -2035,6 +2035,31 @@ def test_the_watchdog_stops_a_run_whose_drive_has_not_moved():
         signal.signal(signal.SIGTERM, before)
 
 
+def test_a_row_running_past_its_minutes_keeps_its_readers_off_the_pool(monkeypatch):
+    """Batch 1 try 5 (2026-10-26): finish lists forecast at 3.7 min waited 18 to 43 min on Google's Batch API queue,
+    and counted at their whole 3.7 min kept every bake reading them due: 13 machines parked idle 30 min. The list's
+    likely 4 min, the bake's lead 8: started 1 min ago it has 3 left, the bake due; run 20 min it has overrun 16, as
+    long again is past the lead, the bake not due; not started it counts its whole 4.
+    Break: score/__main__.py: '    return abs(likely - ran)' -> '    return likely'"""
+    from score import __main__ as command
+    reads = {"list@a": [], "bake@a": ["list@a"]}
+    runner = types.SimpleNamespace(
+        store=types.SimpleNamespace(current_accept=lambda node: None),
+        nodes_named=lambda names: iter([(name, None) for name in names]),
+        earlier=lambda node, _place: reads[node],
+        desk=lambda area, node, ending: pathlib.Path(tempfile.gettempdir()) / "no-such-fault" / f"{node}{ending}",
+        began={})
+    leads = {False: 8.0, True: 8.0}
+    monkeypatch.setattr(command, "POOLED_ROWS", [("bake@a", "a", 1, False)])
+    monkeypatch.setattr(command, "PAID_MINUTES", {"list@a": 4.0, "bake@a": 7.0})
+    started = time.time() - 3600
+    assert command.due_rows(runner, started, leads) == [("a", 1, False)]
+    runner.began["list@a"] = time.time() - 60
+    assert command.due_rows(runner, started, leads) == [("a", 1, False)]
+    runner.began["list@a"] = time.time() - 20 * 60
+    assert command.due_rows(runner, started, leads) == []
+
+
 def test_the_pool_rents_each_machine_its_start_up_before_its_first_job_and_says_an_empty_one(monkeypatch):
     """Owner, 2026-10-25: "cant u just do the start up earlier then when u need them again" (Batch 1: machines idle an
     hour). Close-ups 150 min ahead: nothing due; ended: Pixal3D due now, the bake 30 min on (model 30) is not within
@@ -2053,7 +2078,8 @@ def test_the_pool_rents_each_machine_its_start_up_before_its_first_job_and_says_
         store=types.SimpleNamespace(current_accept=standing.get),
         nodes_named=lambda names: iter([(name, None) for name in names]),
         earlier=lambda node, _place: reads[node],
-        desk=lambda area, node, ending: pathlib.Path(tempfile.gettempdir()) / "no-such-fault" / f"{node}{ending}")
+        desk=lambda area, node, ending: pathlib.Path(tempfile.gettempdir()) / "no-such-fault" / f"{node}{ending}",
+        began={})
     leads = {False: 8.0, True: 8.0}
     monkeypatch.setattr(command, "POOLED_ROWS", [("bake@a", "a", 2, True), ("pixal@a", "a", 3, False),
                                                  ("judge@a", "j", 1, False)])

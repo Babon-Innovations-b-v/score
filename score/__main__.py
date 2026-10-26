@@ -681,15 +681,18 @@ def due_rows(runner, started, leads):
 def row_due(runner, started):
     """A forecast of the minutes until a row can start (due_in): the rows it reads, a row accepted since `started`
     (or standing accepted and not one of the run's paid rows) done, one with a fault since then stopped, each other
-    at its likely minutes (a paid row's price, PAID_MINUTES; a free row's stage's timed makes; untimed none)."""
+    at its likely minutes (a paid row's price, PAID_MINUTES; a free row's stage's timed makes; untimed none), a
+    running one at what is left of them (still_to_run, from when its process started: runner.began)."""
     from score.adapters import compute
-    made, memo = compute.node_minutes(), {}
+    made, memo, now = compute.node_minutes(), {}, time.time()
 
     def reads(node):
         return runner.earlier(*next(runner.nodes_named([node])))
 
     def minutes(node):
-        return PAID_MINUTES.get(node) or made.get(node.partition("@")[0], {}).get("likely") or 0.0
+        likely = PAID_MINUTES.get(node) or made.get(node.partition("@")[0], {}).get("likely") or 0.0
+        began = runner.began.get(node)
+        return likely if began is None else still_to_run(likely, (now - began) / 60)
 
     def state(node):
         accept = runner.store.current_accept(node)
@@ -702,11 +705,18 @@ def row_due(runner, started):
     return lambda node: due_in(node, reads, minutes, state, memo)
 
 
+def still_to_run(likely, ran):
+    """The minutes a row running `ran` minutes has left on its `likely` ones: what is left of them, and once it has
+    run past them, as long again as it has overrun, its forecast shown short (Batch 1 try 5, 2026-10-26: each
+    finish-route-list forecast at 3.7 min waited 18 to 43 min on Google's Batch API queue, and counted at its whole
+    3.7 min it kept every surfaces-bake reading it due, 10 L4s and 3 processor machines parked idle 30 min)."""
+    return abs(likely - ran)
+
+
 def due_in(node, reads, minutes, state, memo):
     """The minutes until `node` can start: the longest chain of the rows it reads still to run (`state` "todo"), each
-    at its `minutes`; a read row "done" adds none, one "stopped" makes it never (inf: its line stopped). A row running
-    counts its whole minutes, so the forecast is late by the time it has run (pool.LEAD_MARGIN_MINUTES covers a
-    heartbeat of it). `memo` keeps each row's."""
+    at its `minutes` (a running one's what it has left: row_due); a read row "done" adds none, one "stopped" makes it
+    never (inf: its line stopped). `memo` keeps each row's."""
     if node not in memo:
         waits = [0.0]
         for before in reads(node):

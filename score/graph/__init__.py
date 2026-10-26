@@ -543,6 +543,7 @@ class Runner:
         self.code_versions = {}
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
         self.driving = None  # (nodes running, monotonic time) at the end of drive's last pass: score run's watchdog
+        self.began = {}  # {node: epoch seconds its process started} (start): score run's pool forecast (row_due)
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
         self.free_only = False  # a free-only run (PAID_LEFT): nothing cleared, paid nodes left for the Buy
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
@@ -1366,6 +1367,7 @@ class Runner:
         process = FORK.Process(target=self.node_process, args=(stage, place, sending, os.getpid(), threads),
                                name=node_name(stage, place))
         process.start()
+        self.began[node_name(stage, place)] = time.time()
         sending.close()
         return {receiving: (stage, place, process)}
 
