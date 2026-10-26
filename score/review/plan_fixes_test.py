@@ -62,3 +62,25 @@ def test_a_correction_is_kept_only_when_it_leaves_fewer_gaps_and_what_is_left_sa
     plan, calls = plan_fixes.settled(None, "shed", stand_in(), inventory, ask=None)
     assert len(calls) == 1 and [gap["words"] for gap in plan["gaps"]] == [
         f"stool: 1 in the concept, 0 on the plan: {plan_fixes.WHY['placed']}"]
+
+
+def test_a_row_at_the_concept_s_foot_marked_beyond_is_placed_where_its_box_projects():
+    """2026-10-26: the airlock's sandbags at its picture's foot were marked beyond and had no plan item, and its rows
+    of several things and its rows on the floor plates fitted no projection: now they fit it, and the row is placed."""
+    cube = [1.0, 1.0, 1.0]
+    rows = [{"id": "plates", "anchor": "ground", "count": 1, "boxes": [[0, 500, 1000, 1000]]},
+            {"id": "barrel", "count": 2, "size": cube, "boxes": [[150, 400, 250, 500], [750, 400, 850, 500]]},
+            {"id": "pallet", "anchor": "on:plates", "count": 1, "size": cube, "boxes": [[450, 700, 550, 800]]},
+            {"id": "desk", "count": 1, "size": cube, "boxes": [[750, 200, 850, 300]]},
+            {"id": "sandbags", "anchor": "ground", "count": 1, "size": cube, "boxes": [[450, 900, 550, 1000]]}]
+    items = [["BARREL 1", 1.5, 4.5, 1.0, 1.0, None, "item"], ["BARREL 2", 7.5, 4.5, 1.0, 1.0, None, "item"],
+             ["PALLET 1", 4.5, 7.5, 1.0, 1.0, None, "item"], ["DESK 1", 7.5, 2.5, 1.0, 1.0, None, "item"]]
+    plan = {"w": 10.0, "d": 10.0, "doors": [], "people": [], "items": items, "structure": ["plates"],
+            "beyond": ["sandbags"], "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in items}}
+    inventory = {"picture": [1000, 1000], "rows": rows}
+    assert [gap["row"] for gap in plan_checks.checked(plan, inventory, ["plates"]) if gap["kind"] == "placed"] == [
+        "sandbags"]  # the check lists it, its plan's beyond notwithstanding
+    plan, fixes = plan_fixes.fixed(plan, inventory)
+    assert plan["beyond"] == [] and fixes[0].startswith("sandbags: at the concept's foot")
+    sandbags = [item for item in plan["items"] if item[0] == "SANDBAGS 1"]
+    assert sandbags and (sandbags[0][1], sandbags[0][2]) == (4.5, 9.5)  # its box's foot projects to y = 10

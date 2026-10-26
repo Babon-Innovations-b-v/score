@@ -3,13 +3,15 @@ gaps should only show things that cant be fixed auto"), run after every plan wri
 before it is shown; his own edits are never touched, and no inside place's room moves (a locked scene's room stays
 where its draw was drawn: plans.locked_rooms_kept).
 
-First the free fixes (`fixed`), each a check of plan_checks with one answer: every people row stood as person spots
+First the free fixes (`fixed`), each a check of plan_checks with one answer: a row marked beyond that stands at the
+concept's foot brought in (plan_checks.beyond: the airlock's sandbags); every people row stood as person spots
 (plan["people"], [x, y, None, row], first: the cast stands on them), where its SAM boxes project onto the plan; a
 counted box of things drawn apart split into its things along the drawing's spread; a row placed fewer times than the
 concept counts given its missing things where their boxes project; a thing facing another way than the concept shows
 turned to the concept's way; two floor things standing in each other nudged apart the shortest way out, inside the
-walls. The projection is the arrangement check's (plan_checks.viewed): the rows boxed once on the concept and laid
-on the plan, their box's middle across and its foot fitted to their middle on the plan.
+walls. The projection (`projector`) is fitted on the rows boxed on the concept as many times as they are laid on the
+plan (`anchors`, on the floor or on the shell's floor rows), their boxes' middle across and foot to their middle on
+the plan.
 
 Then what is still open goes to the prompt model as the notes of one automatic Correct (`corrected`, as the plan
 page's, under the plan-writing allowance, its cost kept with the writing), the free fixes run again on its answer, and
@@ -52,15 +54,36 @@ WHY = {  # what a gap left after the fixes says: why no fix of it took
 
 # --- the projection from the concept onto the plan ---------------------------------------------------------------
 
+def anchors(plan, inventory):
+    """[(across, foot), (x, y)] of each row on the floor (or on a row of the place's shell: its floor plates) boxed on
+    the concept as many times as it is laid on the plan (plan_checks.concept_spots' rows, and the rows of several
+    things too): the mean of its boxes' middles across and
+    feet as shares of the picture, and the mean of its things' middles on the plan."""
+    from score.review.plans import anchor_of, whole
+    picture, laid, shell = inventory.get("picture"), plan_checks.laid_boxes(plan), set(plan.get("structure", []))
+    if not picture:
+        return []
+    left_out = plan_checks.people(inventory) | plan_checks.afar(inventory) | plan_checks.beyond(plan, inventory)
+    found = []
+    for row in inventory.get("rows", []):
+        boxes, things = boxes_of(row), laid.get(row["id"], [])
+        if anchor_of(row) in {*plan_checks.FLOOR_ANCHORS, *shell} and boxes and len(things) == len(boxes) \
+                and row["id"] not in left_out and not whole(row, picture):
+            found.append((numpy.mean([[(box[0] + box[2]) / 2 / picture[0], box[3] / picture[1]] for box in boxes],
+                                     axis=0),
+                          numpy.mean([[(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] for box in things], axis=0)))
+    return found
+
+
 def projector(plan, inventory):
     """A function from a SAM box (pixels of the concept) to its spot [x, y] on the plan, inside its outline box, fitted
-    on the rows boxed once and laid (plan_checks.viewed: the box's middle across and its foot); None with fewer than
-    three such rows."""
-    seen, laid, _ = plan_checks.viewed(plan, inventory)
-    if len(seen) < 3:
+    on the rows boxed and laid alike (`anchors`: the box's middle across and its foot); None with fewer than three
+    such rows."""
+    fitted = anchors(plan, inventory)
+    if len(fitted) < 3:
         return None
-    source = numpy.array([[spot[0], spot[2], 1.0] for spot in seen.values()])
-    target = numpy.array([laid[row] for row in seen], dtype=float)
+    source = numpy.array([[seen[0], seen[1], 1.0] for seen, _ in fitted])
+    target = numpy.array([spot for _, spot in fitted], dtype=float)
     matrix = numpy.linalg.lstsq(source, target, rcond=None)[0]
     wide, high = inventory["picture"]
 
@@ -260,12 +283,24 @@ def nudged(plan, inventory):
     return fixes
 
 
+def brought_in(plan, inventory):
+    """The rows the plan marks beyond that stand at the picture's foot (plan_checks.beyond) taken off its `beyond`,
+    so the free fixes place them where their boxes project; the fixes said."""
+    kept = plan_checks.beyond(plan, inventory)
+    moved = [row for row in plan.get("beyond", []) if row not in kept]
+    plan["beyond"] = [row for row in plan.get("beyond", []) if row in kept]
+    return [f"{plan_checks.said_name(row)}: at the concept's foot, so on this place's ground, not beyond it"
+            for row in moved]
+
+
 def fixed(plan, inventory):
-    """(the plan with every free fix made, the fixes said): people stood, runs split, missing things placed, facings
-    turned, overlaps parted, in that order (each later one on the earlier's plan)."""
+    """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
+    stood, runs split, missing things placed, facings turned, overlaps parted, in that order (each later one on the
+    earlier's plan)."""
     plan = copy.deepcopy(plan)
+    fixes = brought_in(plan, inventory)
     project = projector(plan, inventory)
-    fixes = stood_people(plan, inventory, project) + split_runs(plan, inventory, project)
+    fixes += stood_people(plan, inventory, project) + split_runs(plan, inventory, project)
     fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + nudged(plan, inventory)
     return plan, fixes
 
