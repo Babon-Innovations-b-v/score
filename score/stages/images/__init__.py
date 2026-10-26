@@ -9,7 +9,7 @@ the folder and its outputs' `to` relative to the proof) has two world nodes:
 
     image-pins-<kind>    (free)  the folder's requirements.txt, Dockerfile and models.json. Gates: every pin exact
                          and hashed; the pins resolve (uv, for the Dockerfile's Python and package indexes);
-                         images/build_test.py passes; models.json (the models and their licences) and the
+                         the images module's test passes; models.json (the models and their licences) and the
                          Dockerfile's instructions are those of the build images.json holds (the folder at the commit
                          that first named its tag), so only the packages moved.
     image-proof-<kind>   (PAID, the plan's `euros`, cleared against the stop) reads the accepted pins:
@@ -22,6 +22,7 @@ the folder and its outputs' `to` relative to the proof) has two world nodes:
 score.adapters.models and the keys of the nodes that pin a kind) sees the build before.
 """
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -140,13 +141,25 @@ def judge_resolves(output, inputs, evidence):
     return checks.Verdict("pins resolve", checks.PASS, f"the pins resolve together for Python {python}")
 
 
+BUILD_TEST = "test_built_once_and_every_machine_deleted.py"
+
+
+def sandboxed(home):
+    """This process's environment with `home` as PROPS_HOME and no other store named (conftest refuses a test run
+    that could reach the real one)."""
+    return {**{name: value for name, value in os.environ.items() if name not in ("PROPS_WORK", "SCORE_SPEND_STORE")},
+            "PROPS_HOME": home}
+
+
 def judge_build_test(output, inputs, evidence):
-    """Pass when images/build_test.py passes."""
-    done = subprocess.run([sys.executable, str(IMAGES / "build_test.py")], capture_output=True, text=True, cwd=REPO)
+    """Pass when the images module's test passes, run in a sandbox home of its own (tests never touch the real one)."""
+    with tempfile.TemporaryDirectory() as home:
+        done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(IMAGES / BUILD_TEST)],
+                              capture_output=True, text=True, cwd=REPO, env=sandboxed(home))
     if done.returncode:
-        return checks.Verdict("build test", checks.FAIL, "images/build_test.py failed",
+        return checks.Verdict("build test", checks.FAIL, f"images/{BUILD_TEST} failed",
                               findings=tuple((done.stdout + done.stderr).strip().splitlines()[-8:]))
-    return checks.Verdict("build test", checks.PASS, "images/build_test.py passes")
+    return checks.Verdict("build test", checks.PASS, f"images/{BUILD_TEST} passes")
 
 
 def published_tag(kind, images_json):

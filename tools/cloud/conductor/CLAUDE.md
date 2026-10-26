@@ -23,7 +23,7 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `/dev/shm`, never shown. The conductor's own key goes into `score-conductor-key` in score-conductor itself, which
   no key but the owner's may read (the conductor's reads secrets in the batch project only, the size key and the
   runtime key none); `up` reads it by name and pipes it over ssh, else asks as before. `--dry` prints every call;
-  `machine_test.py` checks it and a second run against an scw holding everything (no create).
+  `test_owner_gates_and_safe_moves.py` checks it and a second run against an scw holding everything (no create).
 - **`google-billing-reader` is optional**: `secrets.sh` reads it `--if-present` (`secret_reader.sh`); without it,
   it leaves `google-billing-reader.note` on the tmpfs, `score.conductor.health` carries every note to the Machine
   card (the Machine link's hover text), and the books' Google read-back stays unread. A failed read still fails.
@@ -91,6 +91,7 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `cd ~/projects/score && .venv/bin/python -m score.dashboard install-sync --env-file ~/.config/score/dashboard.env
   --no-pull`, and `grep ExecStartPre ~/.config/systemd/user/score-sync.service` names update.py. Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
-- Tests (free, no cloud; each file well under 120 s): `machine_test.py` (cloud-init schema, `systemd-analyze --user
-  verify`, `up --dry`, boot.sh against a temp root, the door), `update_test.py`, `health_push_test.py`,
-  `size_function/handler_test.py` (with AWS's SigV4 example).
+- Tests (free, no cloud; each file well under 120 s): `test_owner_gates_and_safe_moves.py` (the owner's gates and
+  the door, `up --dry` and the move, cloud-init schema and `systemd-analyze --user verify`, boot.sh against a temp
+  root, the health record, the secrets, score-update) and `size_function/test_never_powered_off_under_work.py` (with
+  AWS's SigV4 example).

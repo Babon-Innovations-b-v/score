@@ -4,7 +4,7 @@ The images environment (2026-10-12): each job image of `tools/cloud/images` with
 and proved by the runner, as an environment of its own with its own stage table (`stages.TABLES`), so maintenance builds are
 cleared against the stop like any paid row, with no owner override. The module docstring is the contract.
 
-- `image-pins-<kind>` is free: pins exact and hashed, they resolve (uv), `build_test.py` passes, and `models.json` and
+- `image-pins-<kind>` is free: pins exact and hashed, they resolve (uv), `test_built_once_and_every_machine_deleted.py` passes, and `models.json` and
   the Dockerfile's instructions match the published build's (the folder at the commit that first named its tag).
 - `image-proof-<kind>` is paid (the plan's `euros`): `build.py` and `prove.py` write into a copy of images.json in the
   output, never the repository's. Its gates: every planned job ran, and the kind's own output check (`PROOF_CHECKS`;
