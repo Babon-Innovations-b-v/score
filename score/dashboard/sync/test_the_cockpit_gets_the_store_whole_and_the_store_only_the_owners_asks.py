@@ -59,6 +59,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - timer.unit_text: the pull never replaced -> test_the_units_render_for_the_conductors_user_and_no_pull_...
 - timer.dashboard_refusal: the dashboard diff -> `if False:` -> test_without_a_host_the_install_checks_the_commit_...
 - state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
+- launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
+  test_every_module_the_hosted_image_holds_imports_from_it_alone
 """
 import gzip
 import hashlib
@@ -66,6 +68,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -1070,8 +1073,13 @@ def test_without_a_host_the_install_checks_the_commit_the_cockpits_pin_reports(r
 # --- a hosted process stays light ----------------------------------------------------------------------------------
 
 MOST_MB = 200
+# the store-side modules: the hosted image holds them but its process never loads them (they need score.graph,
+# score.conductor, score.review or the store); a page that loads one fails in the hosted tree below
+STORE_SIDE = {"checkout.chat_yes", "films.preview.make", "films.preview.scenes", "proposals.assemble", "proposals.make",
+              "state.local", "sync.listen"}
 CHILD = """
 import json, os, sys
+sys.path.insert(0, sys.argv[1])  # run with -I: the hosted tree alone, as the image holds it
 import django
 django.setup()
 from django.core.management import call_command
@@ -1085,7 +1093,8 @@ pages = ["/", "/places/", "/environments/world1/", "/place/alpha/", "/place/beta
          "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/healthz"]
 codes = {page: client.get(page, HTTP_HOST="127.0.0.1").status_code for page in pages[:-1]}
 import score.dashboard.site.asgi  # what the hosted image serves
-heavy = [name for name in ("numpy", "pxr", "score.stages", "score.store", "score.dashboard.previews", "matplotlib")
+heavy = [name for name in ("numpy", "pxr", "score.stages", "score.store", "score.graph", "score.conductor",
+                          "score.dashboard.previews", "matplotlib")
          if name in sys.modules]
 # the hosted image holds score/__init__.py and score/dashboard alone
 heavy += [name for name in sys.modules if name.startswith("score.") and not name.startswith("score.dashboard")]
@@ -1095,16 +1104,71 @@ print(json.dumps({"codes": codes, "heavy": heavy, "rss_mb": rss}))
 """
 
 
-# owner rule: hosted mode never imports score.stages, score.store, numpy or usd-core (dashboard overlay)
+WALK = """
+import importlib, json, pkgutil, sys
+sys.path.insert(0, sys.argv[1])
+import django
+django.setup()
+import score.dashboard
+store_side = set(json.loads(sys.argv[2]))
+missing = {}
+for found in pkgutil.walk_packages(score.dashboard.__path__, "score.dashboard."):
+    short = found.name.removeprefix("score.dashboard.")
+    test = short.split(".")[0] == "tests" or short.rsplit(".", 1)[-1].startswith(("test_", "conftest"))
+    if test or short in store_side:
+        continue
+    try:
+        importlib.import_module(found.name)
+    except ImportError as error:
+        missing[found.name] = str(error)
+print(json.dumps(missing))
+"""
+
+
+def hosted_tree(tmp_path):
+    """The files the Dockerfile's hosted target copies, read from its COPY lines, laid out as the image holds them."""
+    text = (REPO / "score/dashboard/Dockerfile").read_text()
+    stage = re.search(r"^FROM \S+ AS hosted$(.*?)(?=^FROM |\Z)", text, re.M | re.S).group(1)
+    tree = tmp_path / "app"
+    for line in re.findall(r"^COPY (.+)$", stage, re.M):
+        *sources, dest = line.split()
+        for source in sources:
+            target = tree / dest / pathlib.Path(source).name if dest.endswith("/") else tree / dest
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if (REPO / source).is_dir():
+                shutil.copytree(REPO / source, target, ignore=shutil.ignore_patterns("__pycache__"))
+            else:
+                shutil.copy2(REPO / source, target)
+    assert (tree / "score/dashboard/site/asgi.py").is_file(), "the hosted target copies no score/dashboard"
+    return tree
+
+
+def hosted_env(home):
+    return {**os.environ, "SCORE_DASHBOARD_MODE": "hosted", "SCORE_STORE_WRITABLE": "0",
+            "SCORE_DASHBOARD_HOME": str(home), "DJANGO_SETTINGS_MODULE": "score.dashboard.site.settings"}
+
+
+# owner rule: hosted mode never imports score.stages, score.store, numpy or usd-core (dashboard overlay); the pages
+# render from the hosted image's files alone (2026-10-26: a top-level score.graph import crash-looped the image)
 def test_hosted_renders_every_page_light(world, tmp_path):
     home = tmp_path / "hosted"
     exported(world, home / "export" / "one")
     (home / "export" / "current").symlink_to("one")
-    env = {**os.environ, "SCORE_DASHBOARD_MODE": "hosted", "SCORE_DASHBOARD_HOME": str(home),
-           "DJANGO_SETTINGS_MODULE": "score.dashboard.site.settings", "PYTHONPATH": str(REPO)}
-    done = subprocess.run([sys.executable, "-c", CHILD], env=env, cwd=tmp_path, capture_output=True, text=True)
+    done = subprocess.run([sys.executable, "-I", "-c", CHILD, str(hosted_tree(tmp_path))], env=hosted_env(home),
+                          cwd=tmp_path, capture_output=True, text=True)
     assert done.returncode == 0, done.stderr[-3000:]
     found = json.loads(done.stdout.strip().splitlines()[-1])
     assert set(found["codes"].values()) == {200}, found["codes"]
     assert found["heavy"] == [], found["heavy"]
     assert found["rss_mb"] < MOST_MB, found["rss_mb"]
+
+
+def test_every_module_the_hosted_image_holds_imports_from_it_alone(tmp_path):
+    """Every dashboard module but the store-side ones imports in the hosted tree alone, so none the hosted process
+    may load reaches score.graph, score.conductor or anything else the image lacks."""
+    tree, home = hosted_tree(tmp_path), tmp_path / "hosted"
+    home.mkdir()
+    done = subprocess.run([sys.executable, "-I", "-c", WALK, str(tree), json.dumps(sorted(STORE_SIDE))],
+                          env=hosted_env(home), cwd=tmp_path, capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr[-3000:]
+    assert json.loads(done.stdout.strip().splitlines()[-1]) == {}
