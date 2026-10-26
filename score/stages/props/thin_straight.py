@@ -36,7 +36,7 @@ import score.stages.props.prop_data as prop_data
 # The straight kinds, by a word of the row's name or its noun (a plural's s dropped): a railing (posts and rails) and
 # a coil are not one straight thing, so neither is here.
 STRAIGHT = frozenset(("pipe", "cable", "conduit", "post", "pole", "rail", "handrail", "rod", "beam", "pillar", "girder",
-                      "strut", "mast", "hose", "wire", "duct", "tube", "bar"))
+                      "strut", "mast", "tower", "hose", "wire", "duct", "tube", "bar"))
 ROUND = frozenset(("pipe", "cable", "conduit", "pole", "rail", "handrail", "rod", "mast", "hose", "wire", "tube",
                    "string"))
 SEGMENTS = 32

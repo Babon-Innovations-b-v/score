@@ -51,6 +51,8 @@ def test_only_thin_rows_of_a_straight_kind_are_taken():
     assert thin_straight.thin_straight(PIPE) and thin_straight.thin_straight(POST)
     assert thin_straight.thin_straight({"name": "bundles of cables", "size": [0.2, 0.1, 4.35]})
     assert not thin_straight.thin_straight({"name": "coiled hose", "size": [0.4, 0.4, 0.2]})  # not slender
+    assert thin_straight.thin_straight({"name": "communications tower", "noun": "tower", "size": [2.0, 2.0, 15.0]})
+    assert not thin_straight.thin_straight({"name": "computer tower", "noun": "computer", "size": [0.2, 0.4, 0.5]})
     assert not thin_straight.thin_straight({"name": "wall poster", "size": [0.4, 0.01, 0.6]})  # post is not poster
     assert not thin_straight.thin_straight({"name": "metal railing", "size": [50.0, 0.1, 1.0]})  # posts and rails
     assert thin_straight.thin_straight({"name": "strip floor light", "noun": "light", "size": [0.8, 0.1, 0.05]})  # glows
