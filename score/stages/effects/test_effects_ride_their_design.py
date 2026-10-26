@@ -1,18 +1,19 @@
-"""The effects stage made from a scene's design on a small stage made here (no record written for the scene): the stove
-and the kettle of its inventory carry the measured steam of their kinds, each at the spot its effect names on the
-object's own box, and every gate passes; a row that emits with no object on the stage fails `designed`.
+"""A scene's effects are made from its design, ride their objects at their measured spots, and pass every gate;
+a row that emits with no object on the stage fails `designed` (effects/__init__.py, from_design.py). The stage is a
+small kitchen made here; no record is written for the scene.
 
-Run: .venv/bin/python score/stages/effects/effects_test.py
+Breaks that turn it red (each applied once and seen red, then reverted):
+- `from_design.spot_on`: `middle + at * half` read as `middle`  -> the first test (the kettle's spout at its box's
+  middle, not its front).
+- `from_design.record`: the `missing.append(...)` line left out  -> the second test (`designed` passes).
+- `from_design.checks_of`: `emitters=[name]` read as `emitters=[]`  -> the first test (`footage` is no longer measured
+  on each emitter, so it does not pass).
 """
 import json
 import pathlib
-import sys
-import tempfile
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
-
-from score import checks  # noqa: E402
-from score.stages import effects  # noqa: E402
+from score import checks
+from score.stages import effects
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACE = "toy"
@@ -70,16 +71,15 @@ def answers(inputs, folder):
     return out, {check.name: check.judge(out, inputs, None) for check in effects.CHECKS}
 
 
-def test_the_stove_and_the_kettle_carry_their_steam_and_pass():
-    with tempfile.TemporaryDirectory() as folder:
-        out, found = answers(toy_inputs(folder), folder)
-        record = json.loads((out / "record.json").read_text())
-        from pxr import Usd, UsdGeom
-        stage = Usd.Stage.Open(str(pathlib.Path(folder) / "seeds" / PLACE / f"{PLACE}.usda"))
-        stage.GetRootLayer().subLayerPaths.append(str(out / "layers/effects.usda"))
-        where = {name: UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Objects/{name.split('_')[0]}_1/{name}"))
-                 .ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
-                 for name in ("stove_1_steam_rise", "kettle_1_steam_jet")}
+def test_the_stove_and_the_kettle_carry_their_steam_at_their_spots_and_pass(tmp_path):
+    from pxr import Usd, UsdGeom
+    out, found = answers(toy_inputs(tmp_path), tmp_path)
+    record = json.loads((out / "record.json").read_text())
+    stage = Usd.Stage.Open(str(tmp_path / "seeds" / PLACE / f"{PLACE}.usda"))
+    stage.GetRootLayer().subLayerPaths.append(str(out / "layers/effects.usda"))
+    where = {name: UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Objects/{name.split('_')[0]}_1/{name}"))
+             .ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
+             for name in ("stove_1_steam_rise", "kettle_1_steam_jet")}
     assert all(verdict.answer == checks.PASS for verdict in found.values()), {
         name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
     assert {entry["name"]: entry["row"] for entry in record["effects"]} == {"stove_1_steam_rise": "stove",
@@ -88,21 +88,13 @@ def test_the_stove_and_the_kettle_carry_their_steam_and_pass():
     # six tenths of the way up from its middle: (-1.0, 0.9 + 0.125 + 0.6 * 0.125, 0.0 + 0.08)
     assert max(abs(a - b) for a, b in zip(where["stove_1_steam_rise"], (2.0, 0.9, 1.0))) < 1e-6, where
     assert max(abs(a - b) for a, b in zip(where["kettle_1_steam_jet"], (-1.0, 1.1, 0.08))) < 1e-6, where
-    assert len(record["footage"]["checks"]) == 6 and found["footage"].measures
+    # every footage check is measured on its own emitter
+    assert {check["anchor"] for check in record["footage"]["checks"]} == set(where), record["footage"]["checks"]
 
 
-def test_a_row_that_emits_with_no_object_fails_designed():
+def test_a_row_that_emits_with_no_object_on_the_stage_fails_designed(tmp_path):
     rows = INVENTORY["rows"] + [{"id": "humidifier", "name": "humidifier", "noun": "humidifier"}]
-    with tempfile.TemporaryDirectory() as folder:
-        _, found = answers(toy_inputs(folder, inventory={"rows": rows}), folder)
+    _, found = answers(toy_inputs(tmp_path, inventory={"rows": rows}), tmp_path)
     assert found["designed"].answer == checks.FAIL, found["designed"].reason
     assert found["designed"].findings == ("humidifier emits humidifier_mist, and no object of it stands on the stage",)
 
-
-if __name__ == "__main__":
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
