@@ -38,6 +38,8 @@ KITS = {"floor": "kit: floor", "wall": "kit: wall", "roof": "kit: ceiling"}
 PIECE_PARTS = {"deck": "floor", "level": "floor", "wall": "wall", "roof": "roof"}
 MODEL_ROUTES = ("prop", "shell", "people")  # the routes whose models the prop pipeline makes
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
+# A box whose foot is within this share of the picture's height of its bottom edge reaches the picture's foot.
+FOOT_SHARE = 0.01
 RUN_SLENDER = 0.25  # tools/props/gates/model.py SLENDER_SHARE: a run's footprint is a line (overruns)
 
 
@@ -98,16 +100,18 @@ def source_of(row, others):
 
 def structure_of(row, others):
     """(place, row id) of the nearest structure of `others` that shows a backdrop row which is a part of a structure,
-    its reading's anchor a wall (a window, door, sign, balcony or facade light): a shell row standing on the ground
-    taller than the part (a building, tower, facade, wall), whose finish gives the part its look, a lit window its
-    glow (the glow reading); None for any other row, or with no such structure (Batch 1: the stairwell's lit and dark
-    windows of the buildings seen through its window are the square's buildings')."""
-    if row.get("anchor") != "wall":
+    its reading's anchor a wall (a window, door, sign, balcony or facade light) or its part a shell's (a wall, roof,
+    opening or other structure of a building seen beyond): a shell row standing on the ground taller than the part
+    (a building, tower, facade, wall), whose finish gives the part its look, a lit window its glow (the glow
+    reading); None for any other row, or with no such structure (Batch 1: the stairwell's lit and dark windows of the
+    buildings seen through its window are the square's buildings'; 2026-10-26: the white exterior wall seen through
+    the tube's glass is the base's buildings')."""
+    if row.get("anchor") != "wall" and ROUTES.get(row.get("part")) != "shell":
         return None
-    tall = max(row.get("size") or [0])
+    tall = (row.get("size") or [0, 0, 0])[2]
     return next(((other, found["id"]) for other, rows in others for found in rows
                  if found["route"] == "shell" and found.get("anchor") == "ground"
-                 and max(found.get("size") or [0]) > tall), None)
+                 and (found.get("size") or [0, 0, 0])[2] > tall), None)
 
 
 def kind_words(row_id):
@@ -128,7 +132,8 @@ def sized_rows(store, place, record):
     shown = plans.current(store, place)
     own = plan_parts(shown and shown["plan"])
     shell = plan_structure(shown and shown["plan"], own)
-    beyond = stood_beyond(rows, set((shown and shown["plan"] or {}).get("beyond") or []))
+    beyond = stood_beyond(rows, set((shown and shown["plan"] or {}).get("beyond") or [])) - at_foot(rows,
+                                                                                                record.get("size"))
     found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"]),
                                                          run_pieces(shown and shown["plan"], row)),
               "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
@@ -156,6 +161,18 @@ def stood_beyond(rows, beyond):
         found -= here
         moved = bool(here)
     return found
+
+
+def at_foot(rows, picture):
+    """The ids of the rows a SAM 3 box of which reaches the picture's foot (within FOOT_SHARE of its height): they
+    stand on the place's own floor or ground before the viewer, so none is beyond it, whatever the plan said
+    (2026-10-26: the airlock's sandbags piled at the picture's bottom edges were listed beyond, and nothing made
+    them)."""
+    if not picture:
+        return set()
+    foot = picture[1] * (1 - FOOT_SHARE)
+    return {row["id"] for row in rows
+            if any(box and len(box) == 4 and box[3] >= foot for box in row.get("boxes") or [row.get("box")])}
 
 
 def plan_structure(plan, own):
