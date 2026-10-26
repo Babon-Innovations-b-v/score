@@ -24,5 +24,5 @@ Rules:
 - **Made once, kept.** `<home>/previews/<VERSION>/<output>.png`, one at a time, one thread. `VERSION` carries the
   drawers' code version (`state/versions.py`), so a change to any drawer draws every kept picture again. Served and exported under `preview.png` with
   `preview_id(output)`, 64 hex, so `/files` and `/thumbs` serve it like any listed picture.
-- **Never write the store**, never name a provider (`tests/no_provider_test.py`), never move a paid row: nothing
+- **Never write the store**, never name a provider (`tests/test_no_provider_is_named_here.py`), never move a paid row: nothing
   here is in a stage's code key (`python -m score.stages.moved origin/main`).
