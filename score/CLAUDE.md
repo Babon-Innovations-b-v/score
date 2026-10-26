@@ -361,4 +361,4 @@ Rules:
 - **No `/tmp`, no hand-named folders** for outputs: a stage writes into the folder the runner gives it, and the
   store keeps the result. Tests use their own store (`Store.in_folder`); the worked example's test keeps it under
   `$PROPS_HOME/store-tests` and removes it.
-- Tests are plain scripts beside each module (`make tests` runs `score/**/*_test.py`), driving the public interface.
+- Tests sit beside each module, one file a module named for its invariant (`make tests` runs `score/**/test_*.py` and the older `score/**/*_test.py`), driving the public interface.
