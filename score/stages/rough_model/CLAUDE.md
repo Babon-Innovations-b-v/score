@@ -27,5 +27,5 @@ the output and the gates. Bible: `architecture/components`.
   overwrite one); a finished one is only copied.
 - Gaps: a place whose `rough-model@<place>` does not stand accepted has the route gap `place:rough-model` with that
   node (`score/stages/complete/gaps`: `fill.py`, `route.py`).
-- Run: `python -m score run <world> --stage rough-model --detach` (it spends). Test: `rough_model_test.py` (a stand-in
+- Run: `python -m score run <world> --stage rough-model --detach` (it spends). Test: `test_a_rough_model_is_bought_once_from_its_concept.py` (a stand-in
   batch, no spend).
