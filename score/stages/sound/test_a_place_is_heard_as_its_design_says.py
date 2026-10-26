@@ -1,12 +1,19 @@
-"""The sound stage's make and gates, nothing rented: a new scene's objects and people sound from its design alone (its
-inventory rows' kinds, the people its design stands); a silent moving thing fails `events` and people with no voice
-fail `voices`; a sound with no file fails `sources`, as does an object sound at a row the place does not hold; a file
-made too loud fails `level`; a MOSS sound under the CLAP floor fails `likeness`; a Freesound recording the owner did
-not choose fails `no freesound`. Every old pick retired with the old library sounds (owner, 2026-10-21), so the gates
-run on toy records and every sound a place plays is a brief the row makes.
+"""A place is heard as its design says, and its sound row is held to it, nothing rented. Its bed comes from its design
+alone (beds.py, on toy scenes over the environment's own briefs, reference bodies and row kinds): a room in a Moon base
+hears the base's tone over its hum; a greenhouse, a garage, a tube, a craft's room and a shelter alone in the open
+each their own tone; outside on the Moon and Mars only the suit, on Earth the open air and its crowd; what the design
+lacks is named, never guessed, and the `bed` gate fails on it. Its objects and people sound from its design (its rows'
+kinds, the people it stands); a moving thing sounds off its own moves by its row kind, never its name. Its gates: a
+silent moving thing fails `events`, people with no voice `voices`, a sound with no file or a lost row `sources`, a
+file too loud `level`, a MOSS take under the CLAP floor `likeness`, a Freesound recording the owner did not choose
+`no freesound`. Its takes: one a brief, one card a batch, a shared take made once, a lost take a gap on every place
+that plays it, never asked again.
 
-Run: .venv/bin/python -m pytest score/stages/sound/sound_test.py   (reads the sounds' bytes from the library; a
-test that plays them is skipped where no library is configured: SCORE_LIB_*, or no score_lib checkout beside score)
+Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/sound/test_a_place_is_heard_as_its_design_says.py
+    (reads the sounds' bytes from the library; the one test that plays them is skipped where no library is
+    configured: SCORE_LIB_*, or no score_lib checkout beside score)
 """
 import json
 import pathlib
@@ -23,15 +30,135 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks  # noqa: E402
 from score.stages import sound  # noqa: E402
-from score.stages.sound import beds, gates  # noqa: E402
+from score.stages.sound import beds, gates, needs  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+
+
+# --- the bed, from the design alone (beds.py) -------------------------------------------------------------------------
+
+SETTING = {"bodies": [{"body": "moon", "reference": "moon"}, {"body": "mars", "reference": "mars"},
+                      {"body": "earth", "reference": "earth"}, {"body": "rock", "name": "Rock", "radius_km": 10.0,
+                                                                "mass_kg": 1e15}],
+           "plots": [], "sites": [{"place": "base", "on": "moon"}, {"place": "crater", "on": "moon"},
+                                  {"place": "dunes", "on": "mars"}, {"place": "plaza", "on": "earth"},
+                                  {"place": "cave", "on": "rock"}]}
+HOLDERS = {"within": {name: {"within": "base"} for name in ("room", "farm", "bay", "link", "cabin")} |
+           {"hut": {"within": "dunes"}, "flatlet": {"within": "plaza"}},
+           "parts": {"pier": {"of": "plaza"}}, "merged": {}}
+PLANS = {"base": {"shell": "kit", "holds": [{"place": "dock"}]}, "dock": {"ground_free": "in the ship"}, "room": {},
+         "farm": {}, "bay": {}, "link": {"shape": "tube"}, "cabin": {"ground_free": "in the ship"},
+         "hut": {"shell": "outdoor", "inside": True}, "crater": {"shell": "outdoor"}, "dunes": {"shell": "outdoor"},
+         "plaza": {"shell": "kit", "inside": False}, "pier": {"shell": "kit", "inside": False},
+         "flatlet": {"shell": "kit", "inside": True}, "cave": {"shell": "outdoor"}, "lost": {}}
+ROWS = {"farm": ["planter", "lamp"], "bay": ["rover", "workbench"], "plaza": ["crowd", "the stage's speaker"],
+        "pier": ["the launch pad's concrete apron"], "room": ["plant", "chair"]}
+
+
+@pytest.fixture(scope="module")
+def toy():
+    """A data folder (the environment's sounds, bodies and row kinds; the toy setting and holders) and a
+    design folder holding the toy scenes' plans and inventories."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    data, design = folder / "data", folder / "design"
+    for name in ("sound/sounds.json", "physics/bodies.json", "checks/row-kinds.json"):
+        (data / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(REPO / "data" / name, data / name)
+    (data / "physics/setting.json").write_text(json.dumps(SETTING))
+    (data / "places").mkdir()
+    (data / "places/within.json").write_text(json.dumps(HOLDERS))
+    (design / "plans").mkdir(parents=True)
+    for place, plan in PLANS.items():
+        (design / "plans" / f"{place}.json").write_text(json.dumps(plan))
+    (design / "inventory").mkdir(parents=True)
+    for place, nouns in ROWS.items():
+        rows = [{"id": f"{noun.split()[-1]}_{at}", "noun": noun} for at, noun in enumerate(nouns)]
+        (design / "inventory" / f"{place}.json").write_text(json.dumps({"rows": rows}))
+    yield data, design
+    shutil.rmtree(folder)
+
+
+def bed(toy, place):
+    data, design = toy
+    return beds.of_place(place, beds.paths(place, data, design))
+
+
+def test_rooms_hear_their_own_tone(toy):
+    """Each room hears its own tone by what its design shows (one potted plant makes no greenhouse); a craft's room
+    no base hum through its hull; a scene added in the app is held by the plan that holds it.
+    Break: score/stages/sound/beds.py: `found["shape"] = plan.get("shape")` -> `found["shape"] = None`
+    Break: score/stages/sound/beds.py: `found["grounded"] = not plan.get("ground_free")` -> `found["grounded"] =
+        True`"""
+    assert bed(toy, "room")["sounds"] == ["habitat", "base_hum"]  # one potted plant makes no greenhouse
+    assert bed(toy, "farm")["sounds"] == ["greenhouse", "base_hum"]
+    assert bed(toy, "bay")["sounds"] == ["garage", "base_hum"]
+    assert bed(toy, "link")["sounds"] == ["link_tube", "base_hum"]
+    assert bed(toy, "cabin")["sounds"] == ["ship_inside"]  # a craft's room: no base hum through its hull
+    # added in the app: within.json lacks it, the base's plan holds it
+    assert bed(toy, "dock")["sounds"] == ["ship_inside"]
+    assert bed(toy, "hut")["sounds"] == ["camp_room"]  # a shelter alone in the open on Mars
+    assert bed(toy, "flatlet")["sounds"] == ["earth_flat"]  # a room where the air outside is breathed
+
+
+def test_outside_hears_the_suit_or_the_open_air(toy):
+    """The Moon's vacuum and Mars's 0.636 kPa are under the Armstrong limit: the suit; Earth's open air, its crowd.
+    Break: score/stages/sound/beds.py: `None if kpa is None else "suit" if kpa < ARMSTRONG_KPA else "open")`
+        -> `None if kpa is None else "open")`"""
+    for place in ("crater", "dunes"):  # the Moon's vacuum and Mars's 0.636 kPa, both under the Armstrong limit
+        found = bed(toy, place)
+        assert found["facts"]["heard"] == "suit" and found["sounds"] == ["suit_fans", "suit_breathing_calm"], found
+    assert bed(toy, "plaza")["sounds"] == ["street_night", "prologue_crowd", "square_pa"]
+    assert bed(toy, "pier")["sounds"] == ["launch_pad"]  # a part of the plaza, its site the plaza's
+    found = bed(toy, "base")  # a top scene round its rooms stands on its site: outside, though its shell is a kit
+    assert found["facts"]["heard"] == "suit" and found["sounds"] == ["suit_fans", "suit_breathing_calm"], found
+
+
+def test_what_the_design_lacks_is_named_never_guessed(toy):
+    """A body with no surface pressure and a scene no site holds hear nothing, each named, and a gap says so.
+    Break: score/stages/sound/beds.py: `found["missing"].append(f"{ground} has no surface pressure")` -> `pass`
+    Break: score/stages/sound/beds.py: `found["missing"].append("no site in the setting holds it")` -> `pass`"""
+    cave, lost = bed(toy, "cave"), bed(toy, "lost")
+    assert cave["sounds"] == [] and cave["facts"]["missing"] == ["rock has no surface pressure"], cave
+    assert lost["sounds"] == [] and lost["facts"]["missing"] == ["no site in the setting holds it"], lost
+    data, design = toy
+    gaps = {gap["id"]: gap for gap in needs.gaps("cave", data, design)}
+    assert "rock has no surface pressure" in gaps["sound:bed:room"]["work"], gaps
+    room = {gap["id"]: gap for gap in needs.gaps("room", data, design)}  # decided: a bed still to make, no old pick
+    assert "cave" in beds.places(design) and "still to make" in room["sound:bed:room"]["sentence"], room
+
+
+def test_the_bed_gate_fails_a_scene_whose_design_leaves_its_bed_undecided(toy):
+    """The farm's bed is decided: pass; the cave's and the lost scene's undecided: fail, naming what lacks.
+    Break: score/stages/sound/gates.py: `    if bed["sounds"]:` -> `    if True:`"""
+    data, design = toy
+    judged = {place: gates.judge_bed(None, beds.paths(place, data, design), None) for place in ("farm", "cave", "lost")}
+    assert judged["farm"].answer == checks.PASS, judged["farm"]
+    assert judged["cave"].answer == checks.FAIL and judged["cave"].findings == ("rock has no surface pressure",)
+    assert judged["lost"].answer == checks.FAIL and judged["lost"].findings == ("no site in the setting holds it",)
+
+
+def test_a_bed_still_to_make_is_the_sound_row_s_only_where_the_design_has_one(toy):
+    """The plaza (a kept design) and the hut (a plan alone) both hear a bed still to make: the plaza's gap is its sound
+    row's to make, the hut has no sound row, so its gap names the work, never a node the table lacks.
+    Break: score/stages/sound/needs.py: `"node": f"sound@{place}" if made_here else None,` -> `"node":
+        f"sound@{place}",`"""
+    data, design = toy
+    plaza, hut = (next(gap for gap in needs.gaps(place, data, design) if gap["id"] == "sound:bed:room")
+                  for place in ("plaza", "hut"))
+    assert "still to make" in plaza["sentence"] and "still to make" in hut["sentence"], (plaza, hut)
+    assert plaza["node"] == "sound@plaza" and plaza["work"] is None, plaza
+    assert hut["node"] is None and hut["work"], hut
+    assert needs.sounded("plaza", design) and not needs.sounded("hut", design)
+
+
+# --- the sound row's make, gates and takes ----------------------------------------------------------------------------
 
 
 def inputs_for(place, folder, changes=None):
     """The place's inputs, with each changed record ({input name: document}) written into `folder`."""
     inputs = {name: pathlib.Path((pattern[0] if isinstance(pattern, tuple) else pattern).format(
-        place=place, data=str(REPO / "data"), home=str(beds.DESIGN.parent))) for name, pattern in sound.files(place).items()}
+        place=place, data=str(REPO / "data"), home=str(beds.DESIGN.parent)))
+        for name, pattern in sound.files(place).items()}
     for name, document in (changes or {}).items():
         inputs[name] = pathlib.Path(folder) / f"{name}.json"
         inputs[name].write_text(json.dumps(document))
@@ -92,7 +219,9 @@ def toy_recorded(folder, drop_on=()):
 
 def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices():
     """#29: the motion row's swinging door and the person the design stands; the door silent fails events, the
-    person's voice left out fails voices; with no voice named, none plays."""
+    person's voice left out fails voices; with no voice named, none plays.
+    Break: score/stages/sound/gates.py: `if not sounding & set(event["prims"])]` -> `if False]`
+    Break: score/stages/sound/__init__.py: `if not people or not voice:` -> `if not people:`"""
     with tempfile.TemporaryDirectory() as folder:
         inputs, out = toy_recorded(folder)
         assert gates.judge_events(out, inputs, None).answer == checks.PASS
@@ -138,7 +267,10 @@ def needs_of_toy(folder, named):
 def test_needs_name_what_the_library_does_not_answer():
     """#29: free, from the design: a door row the design moves, with no sound named for its kind's move, and the
     people it stands, with no voice named, are each a gap naming its work; the environment's own tables name a brief
-    for each, which the sound row's batch makes."""
+    for each, which the sound row's batch makes.
+    Break: score/stages/sound/needs.py: `if not names or any(not has_file(name) and not briefed(name) for name in
+        names):`
+        -> `if any(not has_file(name) and not briefed(name) for name in names):`"""
     from score.stages.sound import needs
     with tempfile.TemporaryDirectory() as folder:
         found, gaps = needs_of_toy(folder, named=False)
@@ -152,6 +284,8 @@ def test_needs_name_what_the_library_does_not_answer():
 
 
 def test_a_missing_sound_and_a_lost_row_fail_sources():
+    """A use of a sound the record lacks and an object sound at a row the place does not hold: two faults.
+    Break: score/stages/sound/gates.py: `if not record["sounds"].get(use["sound"], {}).get("files")]` -> `if False]`"""
     with tempfile.TemporaryDirectory() as folder:
         inputs, out = toy_recorded(folder)
         record = gates.record_of(out)
@@ -172,7 +306,8 @@ def toy_record(folder, sounds):
 
 
 def test_a_loud_file_fails_level():
-    """A room tone made 18 dB too loud (a full-scale sine of its brief's length) is off its category's target."""
+    """A room tone made 18 dB too loud (a full-scale sine of its brief's length) is off its category's target.
+    Break: score/stages/sound/gates.py: `            faults += found` -> `            pass`"""
     with tempfile.TemporaryDirectory() as folder:
         files = pathlib.Path(folder) / "out/files"
         files.mkdir(parents=True)
@@ -189,6 +324,11 @@ FETCHED = {"file": "sound/roar@1/roar.ogg", "source": "https://freesound.org/peo
 
 
 def test_a_low_match_fails_likeness_and_a_fetched_pick_fails_no_freesound():
+    """A MOSS take a hundredth under the CLAP floor fails likeness; a Freesound recording chosen by scoring, with no
+    licence row, fails no freesound.
+    Break: score/stages/sound/gates.py: `if sound.get("clap") is not None and sound["clap"] < CLAP_FLOOR]` -> `if
+        False]`
+    Break: score/stages/sound/gates.py: `    if left:` -> `    if False:`"""
     with tempfile.TemporaryDirectory() as folder:
         out = toy_record(folder, {"hum": {"files": [], "made_by": "moss", "clap": gates.CLAP_FLOOR - 0.01,
                                           "credits": [], "chosen_by": "scoring"},
@@ -202,7 +342,13 @@ def test_a_low_match_fails_likeness_and_a_fetched_pick_fails_no_freesound():
 
 def test_a_cc0_freesound_file_passes_with_its_licence_row_and_fails_without_or_under_another_licence():
     """The owner's exception (2026-10-20, #29): a Freesound recording under CC0 with its row in
-    data/sound/licences.json passes `no freesound`; with no row, or a row of another licence, it fails."""
+    data/sound/licences.json passes `no freesound`; with no row, or a row of another licence, it fails.
+    Break: score/stages/sound/gates.py:
+        `if FREESOUND in row.get("source", "") and row.get("licence", "").startswith("CC0")}`
+        -> `if FREESOUND in row.get("source", "")}`
+    Break: score/stages/sound/gates.py:
+        `all(credit["file"] in rows for credit in sound["credits"] if FREESOUND in credit.get("source", ""))}`
+        -> `True}`"""
     row = FETCHED
     record = {"place": "toy", "uses": [], "sounds": {"roar": {"credits": [row], "chosen_by": "scoring"}}}
     with tempfile.TemporaryDirectory() as folder:
@@ -236,7 +382,8 @@ def voiced_data(folder):
 def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
     """#29: crew_talk, played in several places (the voice of every place whose design stands people), is one take of
     the environment's plan, counted once by the price's forecast rule; two places' lines side by side make it on one
-    card, the second waiting and reading it."""
+    card, the second waiting for it and reading its score.
+    Break: score/stages/sound/takes.py: `for name in sorted({job["file"] for job in jobs}):` -> `for name in []:`"""
     import threading
     from score.stages.complete.gaps import price
     from score.stages.sound import takes
@@ -262,8 +409,11 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
         places = beds.places()
         assert sum(price.rule_units("sound_takes", [], data, place) for place in places) == len(plan)
         brief = sound.brief_of("crew_talk", {"sounds": REPO / "data/sound/sounds.json"})
-        lines = [threading.Thread(target=takes.made, args=(takes.jobs_for("crew_talk", brief, "rev"),
-                                                            kept_folder / f"work-{place}")) for place in shared[0][:2]]
+        heard = {}
+
+        def line_of(place):
+            heard[place] = takes.made(takes.jobs_for("crew_talk", brief, "rev"), kept_folder / f"work-{place}")
+        lines = [threading.Thread(target=line_of, args=(place,)) for place in shared[0][:2]]
         for line in lines:
             line.start()
         for line in lines:
@@ -272,10 +422,13 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
         takes.TAKES, takes.on_card = real_takes, real_on_card
         shutil.rmtree(kept_folder)
     assert asked == ["crew_talk"], asked
+    assert [list(scored.values()) for scored in heard.values()] == [[0.4], [0.4]], heard  # the second read it
 
 
 def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again():
-    """#29: two places' lines wait on one take whose card job fails: one card asked for, both lines get the gap."""
+    """#29: two places' lines wait on one take whose card job fails: one card asked for, both lines get the gap.
+    Break: score/stages/sound/takes.py: `lost_before = [job for job in wanted if asked_here(job)]` -> `lost_before =
+        []`"""
     import threading
     from score.stages.sound import takes
     kept_folder = pathlib.Path(tempfile.mkdtemp())
@@ -307,7 +460,13 @@ def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again(
 def test_moving_things_sound_off_their_own_moves():
     """A door the motion row swings plays its latch as it starts to open and its bolts as it is shut tight (its
     swing's angle over its speed later), in the stage's seconds, round after round; and moving.py's rounds are the
-    assembly's (tools/usd/sound.rounds_of)."""
+    assembly's (tools/usd/sound.rounds_of). The door opens at 2 s and shuts at 10 s, its 90 degrees at 30 a second
+    taking 3 s: latch at 2, bolts at 13, and the next 20 s round's latch at 22.
+    Break: score/stages/sound/moving.py: `return [(end, None) for _, end in moves_of(motion, entry["when"])]`
+        -> `return [(start, None) for start, _ in moves_of(motion, entry["when"])]`
+    Break: score/stages/sound/moving.py:
+        `return [start + length * number for number in range(max(1, math.ceil(SOUND_SPAN_SECONDS / length)))]`
+        -> `return [start]`"""
     with tempfile.TemporaryDirectory() as folder:
         uses = sound.uses_of("toy", toy_design(folder))
     door = [(use["sound"], use["at"]) for use in uses if use["on"] == "/toy/Objects/hatch_1"]
@@ -326,7 +485,9 @@ def test_a_new_scene_sounds_from_its_design_alone():
     """A scene no sound table names (its plan, scene inventory and people only, read from a new concept): each row whose
     kind sounds plays its kind's library sound at that row (a console its hum, a duct the vent's air, a rover its idle,
     a ceiling light its buzz; a lantern, a noun its kind leaves silent, nothing), its first person the people's voice;
-    every target stands in its design, and its voice need reads the same records."""
+    every target stands in its design, and its voice need reads the same records.
+    Break: score/stages/sound/__init__.py: `return [{"sound": voice, "role": "object", "on": people[0],`
+        -> `return [{"sound": voice, "role": "object", "on": people[-1],`"""
     from score.stages.sound import needs
     rows = [{"id": "main_desk", "name": "main desk", "noun": "console"}, {"id": "roof_duct", "noun": "duct"},
             {"id": "buggy", "noun": "rover"}, {"id": "panel_light", "noun": "light"},
@@ -366,7 +527,12 @@ def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():
     """A place written here, its names unlike any place's: a gate row (a door) sliding in a game motion plays the
     library's door slide in its round's seconds; a cart row (a vehicle) on a path plays its drive; a thing whose record
     names only its motion kind (a hatch) swings as a door; a boom row, no kind, plays nothing and is a gap with its
-    work. The same table answers any place."""
+    work. The same table answers any place.
+    Break: score/stages/sound/moving.py:
+        `return next((kind for kind, rule in kinds.items() if rule.get("motion", {}).get("kind") == entry["kind"]),
+        None)`
+        -> `return None`
+    Break: score/stages/sound/needs.py: `return pivots[0] if pivots else entry["prim"]` -> `return entry["prim"]`"""
     from score.stages import row_kinds
     from score.stages.sound import moving, needs
     kinds = row_kinds.table(REPO / "data/checks/row-kinds.json")
@@ -399,7 +565,8 @@ def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():
     assert "data/checks/row-kinds.json" in needs.WORK["event"], needs.WORK
     # Two gates of one row, swung alike each about its own side (as the motion stage writes a row's objects), are two
     # events, each sounding at its own prim; a gate's bar turning about that gate's named hinge rides it, one event.
-    swing = {"about": {"side": [-1.0, 0.0, 0.0]}, "angle": 90.0, "speed": 30.0, "moves": [[4.0, "open"], [12.0, "shut"]]}
+    swing = {"about": {"side": [-1.0, 0.0, 0.0]}, "angle": 90.0, "speed": 30.0,
+             "moves": [[4.0, "open"], [12.0, "shut"]]}
     alike = [{"name": f"yard_gate_{number}", "prim": f"/toy/Objects/yard_gate_{number}", "row": "yard_gate",
               "start": 0.0, "length": 20.0, "loop": False, "swing": swing} for number in (1, 2)]
     hinged = dict(swing, about="Objects/gate_hinge_1")
@@ -407,13 +574,17 @@ def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():
                "loop": False, "swing": hinged} for name in ("yard_gate_3", "yard_gate_3_bar")]
     sounded = [sorted({use["on"] for use in moving.event_uses(event, rows, kinds, table, {})})
                for event in needs.events([], alike + riding, {})]
-    assert sounded == [["/toy/Objects/yard_gate_1"], ["/toy/Objects/yard_gate_2"], ["/toy/Objects/yard_gate_3"]], sounded
+    assert sounded == [[f"/toy/Objects/yard_gate_{number}"] for number in (1, 2, 3)], sounded
 
 
 def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
     """#21, #29: one take a sound, its brief's first prompt at seed 1, made once; the card's deadline is its takes'
     minutes, not twice them; a take that did not come back is left out of the scores (its sound a gap), never asked
-    again."""
+    again.
+    Break: score/stages/sound/takes.py: `round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted))`
+        -> `round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted) * 2)`
+    Break: score/stages/sound/takes.py:
+        `shutil.copy2(back / "timings-0.json", TAKES / TIMINGS / f"{time.strftime('%Y%m%dT%H%M%S')}.json")` -> `pass`"""
     from score.stages.sound import takes
     jobs = [job for name in ("pump", "fan") for job in
             takes.jobs_for(name, {"prompts": [f"a {name}", f"a {name}, closer"], "seconds": 6, "seeds": 4}, "rev")]
@@ -443,7 +614,12 @@ def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
 
 
 def test_the_moss_job_runs_the_repos_run_script_and_every_path_it_names_is_sent():
-    """The image's baked moss-run named a moved script and every take failed (Batch 1, 2026-10-24)."""
+    """The image's baked moss-run named a moved script and every take failed (Batch 1, 2026-10-24): the job runs the
+    repo's run script, and every repo path the script names is sent with the code.
+    Break: score/stages/sound/takes.py: `"command": ["bash", f"/work/repo/{RUN_SCRIPT}", f"{REMOTE}/jobs-0.json", "0"],`
+        -> `"command": ["moss-run", f"{REMOTE}/jobs-0.json", "0"],`
+    Break: score/stages/sound/takes.py: `"code": ["tools/cloud/moss_generate.py", RUN_SCRIPT],` -> `"code":
+        [RUN_SCRIPT],`"""
     from score.stages.sound import takes
     plan = takes.plan_for(pathlib.Path("jobs.json"), pathlib.Path("back"), 10, 1)
     run = plan["runs"][0]
@@ -456,7 +632,9 @@ def test_the_moss_job_runs_the_repos_run_script_and_every_path_it_names_is_sent(
 
 def test_no_card_had_by_the_deadline_is_a_gap_asked_once():
     """#21: the card is asked for once (its claim waits for a pool card or stock up to its deadline); none had blocks
-    the row (its takes gaps), never asked again."""
+    the row (its takes gaps), never asked again.
+    Break: score/stages/sound/takes.py: `if not prove.one_attempt(plan, account, registry, store_spec, WHO, results):`
+        -> `if False:`"""
     import types
     from score import graph
     from score.stages.sound import takes
@@ -487,7 +665,9 @@ def test_a_take_the_batch_brought_under_the_floor_or_not_at_all_is_a_gap_and_lik
     """sound@square, 2026-10-20: two MOSS takes of the batch came back under the CLAP floor (square_pa 0.12,
     leader_speech 0.26) and failed `likeness`, stopping the line though the batch rule makes each a gap. Each take made
     here under the floor, or not back, is a named batch gap; the table's likeness moves the first; a picked sound under
-    the floor is no take of this batch and still fails."""
+    the floor is no take of this batch and still fails.
+    Break: score/stages/sound/__init__.py:
+        `elif sounds[name].get("clap") is not None and sounds[name]["clap"] < gates.CLAP_FLOOR:` -> `elif False:`"""
     from score import stages
     from score.stages import batch_gaps
     likeness = next(check for row in stages.STAGES if row.name == "sound" for check in row.checks
@@ -514,7 +694,9 @@ def test_a_take_the_batch_brought_under_the_floor_or_not_at_all_is_a_gap_and_lik
 def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap():
     """Every sound the garage plays is made here (no old pick is left, 2026-10-21); its batch brings nothing back: the
     record leaves every use out, names each a gap, and `sources` has nothing to judge (nothing rented: the take step
-    answers nothing)."""
+    answers nothing).
+    Break: score/stages/sound/__init__.py:
+        `kept = [use for use in uses if use["sound"] in sounds or use["sound"] not in made_here]` -> `kept = uses`"""
     from score.stages import batch_gaps
     with tempfile.TemporaryDirectory() as folder:
         inputs = inputs_for("garage", folder)
@@ -536,7 +718,10 @@ def test_a_moving_thing_or_a_voice_left_silent_by_a_lost_take_is_its_gap_and_eve
     """try 4, 2026-10-25: moving.json and voices.json named no sound, so every place with motion or people failed
     `events` or `voices` and stopped its line. Their briefs are named now and made in the batch: a take that does not
     come back leaves its door and its person silent, a gap that names each, and the table's events and voices gates
-    move those faults to it; a moving thing no part names a sound for still fails."""
+    move those faults to it; a moving thing no part names a sound for still fails.
+    Break: score/stages/sound/__init__.py: `return [use.get("event") if use["role"] == "motion" else use["on"] for use
+        in uses`
+        -> `return [use["on"] for use in uses`"""
     from score import stages
     from score.stages import batch_gaps
     table = {row.name: row for row in stages.STAGES}["sound"]
@@ -562,7 +747,8 @@ def test_a_moving_thing_or_a_voice_left_silent_by_a_lost_take_is_its_gap_and_eve
 
 def test_the_environment_names_a_brief_for_every_moving_part_it_plays_and_for_the_voice():
     """Every sound moving.json and voices.json name is a library brief the batch can make (data/sound/sounds.json,
-    with prompts): a name with no brief would be silent with no take to ask."""
+    with prompts): a name with no brief would be silent with no take to ask. A check of the environment's data.
+    Break: data/sound/voices.json: `"people": "crew_talk"` -> `"people": "no_such_brief"`"""
     briefs = json.loads((REPO / "data/sound/sounds.json").read_text())["sounds"]
     table = json.loads((REPO / "data/sound/moving.json").read_text())
     named = [part["name"] for moves in table["kinds"].values() for move in moves.values()
@@ -571,17 +757,3 @@ def test_the_environment_names_a_brief_for_every_moving_part_it_plays_and_for_th
     assert all(briefs.get(name, {}).get("pick", {}).get("prompts") for name in named), named
     assert all(any(part.get("name") for part in move["sounds"]) for moves in table["kinds"].values()
                for move in moves.values()), "a kind's move with no sound named fails events wherever it moves"
-
-
-if __name__ == "__main__":
-    import pathlib
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            try:
-                test()
-            except pytest.skip.Exception as skipped:
-                print(f"skipped {name}: {skipped.msg}")
-                continue
-            print(f"ok {name}")
