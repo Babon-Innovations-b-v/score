@@ -65,4 +65,4 @@ own sound; paid and cleared by the runner like any paid row.
   segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
   on 2026-10-22 (it had no definitions and so no node).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film the creator said yes to starts by
-  itself once its place passes complete, or fails it only on its accepted gaps, in any environment run). Test: `demo_film_test.py`, `shots_test.py` and `final_test.py` (no Blender, no spend; one small local ffmpeg cut).
+  itself once its place passes complete, or fails it only on its accepted gaps, in any environment run). Test: `test_a_film_shows_its_locked_script_within_its_forecast.py` (no Blender, no spend; one small local ffmpeg cut).
