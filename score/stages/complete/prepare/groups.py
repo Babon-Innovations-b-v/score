@@ -19,7 +19,7 @@ import math
 import pathlib
 import re
 
-from score.review.plan_checks import at_foot
+from score.review.plan_checks import AFAR, afar, at_foot
 from score.stages.complete.prepare import contract
 
 SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
@@ -116,7 +116,8 @@ def source_of(row, others):
     made = [(other, found["id"]) for other, rows in others for found in rows if found["route"] in MODEL_ROUTES]
     words = kind_words(row["id"])
     return next((source for source in made if object_kind(source[1]) == object_kind(row["id"])), None) or next(
-        (source for source in made if words <= kind_words(source[1]) or kind_words(source[1]) <= words), None) or (
+        (source for source in made if words and kind_words(source[1])
+         and (words <= kind_words(source[1]) or kind_words(source[1]) <= words)), None) or (
         structure_of(row, others))
 
 
@@ -137,8 +138,10 @@ def structure_of(row, others):
 
 
 def kind_words(row_id):
-    """The words of a row's object kind, each singular (a trailing s off, never off ss)."""
-    return frozenset(re.sub(r"(?<!s)s$", "", word) for word in object_kind(row_id).split("_") if word)
+    """The words of a row's object kind, each singular (a trailing s off, never off ss), less the words saying it is
+    seen far off (plan_checks.AFAR: where it is, not what: the street's distant_floodlight is the square's floodlight
+    tower)."""
+    return frozenset(re.sub(r"(?<!s)s$", "", word) for word in object_kind(row_id).split("_") if word) - AFAR
 
 
 def sized_rows(store, place, record):
@@ -154,8 +157,7 @@ def sized_rows(store, place, record):
     shown = plans.current(store, place)
     own = plan_parts(shown and shown["plan"])
     shell = plan_structure(shown and shown["plan"], own)
-    beyond = stood_beyond(rows, set((shown and shown["plan"] or {}).get("beyond") or [])) - at_foot(rows,
-                                                                                                record.get("size"))
+    beyond = beyond_of(shown and shown["plan"], rows, record.get("size"))
     found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"]),
                                                          run_pieces(shown and shown["plan"], row)),
               "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
@@ -169,6 +171,15 @@ def plan_arches(plan, rows):
     (Batch 1's retry: the tube's ribs, their box the whole picture, framed none)."""
     from score.stages.earth_seed import design_shell
     return {row["id"] for row, _, _ in design_shell.arches(plan or {}, rows)}
+
+
+def beyond_of(plan, rows, picture):
+    """The ids of a reading's rows the place shows beyond it: the plan's `beyond`, and every row the reading names
+    seen far off (plan_checks.afar, the rows the plan checks leave outside the place on purpose: the street's distant
+    floodlights, flags and palms in the square past its end, which its plan laid in the street and Batch 1 try 4 drew
+    close-ups of from a speck), less each standing on a row laid here (stood_beyond) or at the picture's foot
+    (at_foot)."""
+    return stood_beyond(rows, set((plan or {}).get("beyond") or []) | afar({"rows": rows})) - at_foot(rows, picture)
 
 
 def stood_beyond(rows, beyond):

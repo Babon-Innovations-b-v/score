@@ -228,6 +228,10 @@ def test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_
         assert all(entry["bake"] == "city_1" and "far off" in entry["from"] for entry in laid)
         path.write_text(json.dumps({**inventory, "rows": [city]}))  # no rows to fit the projection on
         assert writer.far_objects(plan, {"rows": [city]}, path)[1][0]["row"] == "city"
+    laid_too = {**plan, "corner": [0.0, 0.0, 0.0], "items": [*plan["items"], ["CITY 1", 9.5, 1.0, 2, 2, None, "item"]],
+                "rows": {**plan["rows"], "CITY 1": ["city"]}}  # its plan laid it here too: laid far off alone
+    assert {entry["row"] for entry in writer.design_objects(laid_too, {"rows": [*rows, city], "objects": {}})} == {
+        "crate", "drum", "bench"}
 
 
 def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model():

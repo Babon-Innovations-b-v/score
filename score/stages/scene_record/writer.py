@@ -538,7 +538,8 @@ def design_objects(design, handin):
     """Every object of the design: one at each plan item (more where the item counts several, or a run the plan
     draws once) for each prop or shell row the item names, `<row>_<n>` the n-th of its row, standing on its plan spot
     as high as its shape's base, turned along its item, waiting on the bake's model of its row (made_waiting lays it
-    once baked; one the bake never makes stays named on the stage's root)."""
+    once baked; one the bake never makes stays named on the stage's root). A row marked `far` is laid far off by
+    far_objects alone, never at an item its plan laid it at too (the street's distant floodlights, laid at its end)."""
     by_id = {row["id"]: row for row in handin.get("rows", [])}
     models, shapes, tied = models_of(handin), design.get("shapes") or {}, design.get("rows") or {}
     items = {}
@@ -546,7 +547,7 @@ def design_objects(design, handin):
         if len(item) > 6 and item[6] != "item":
             continue
         for row_id in tied.get(item[0]) or []:
-            if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES:
+            if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES and not by_id[row_id].get("far"):
                 items.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
     found = []
     for row_id, laid in items.items():
