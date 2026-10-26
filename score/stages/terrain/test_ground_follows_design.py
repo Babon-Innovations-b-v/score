@@ -17,6 +17,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - sight.horizon: `arccos` -> `arcsin`.
 - design.far_row: drop `and row["id"] in beyond`.
 - design.water_level: the level's height -> 0.0.
+- outside.write_mesh: `points` written whole, its extent the used ones' (the far grid's middle: ExtentsChecker).
+- terrain.write_layer: `layer.Save()` unstamped (StageMetadataChecker, DefaultPrimChecker).
+- outside.write: an inactive over of /<place>/Ground again (DanglingOverPrimChecker: no base drawn from a design has
+  it, 9c7466b1).
 """
 import json
 import math
@@ -80,6 +84,11 @@ def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots(tm
     near = layer.GetPrimAtPath("/shed/Outside/near")
     assert near.GetAttribute("score:row").Get() == "regolith" and near.GetAttribute("score:surface:missing").Get()
     assert near.GetAttribute("score:ground:recipe").Get() == "regolith"  # the Moon's physics: airless
+    from score.stages.complete.usd import judged
+    for name in ("shed", "site"):  # each layer a whole asset alone, as the library takes it (the USD check's rules)
+        errors = [issue for issue in judged.issues(judged.opened(out / f"moon/places/{name}.usdc"))
+                  if issue["severity"] == "error"]
+        assert errors == [], errors
 
 
 def test_a_ground_on_the_wrong_radius_or_without_its_spots_fails(tmp_path):

@@ -37,7 +37,8 @@ from pxr import Sdf, Usd, UsdGeom, UsdPhysics, Vt
 
 from score import checks, contracts
 from score.stages.surfaces import route_settings
-from score.stages.terrain import gates, sight
+import score.stages.terrain.gates as gates  # by module: terrain's make (its __init__) stays out of this key
+import score.stages.terrain.sight as sight
 import score.stages.shapes_first.made as made
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
