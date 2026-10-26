@@ -25,8 +25,8 @@ OpenUSD stage as skinned characters (UsdSkel) playing their clips. Bible chapter
   edit layer never. Characters keep their names (`<entry>` or `<group>_<n>`), so an edit to one survives.
 - **A crowd is one PointInstancer.** Thousands of copies of the distant body, a prototype per clip, phase and palette;
   never thousands of skinned prims. Blender 5.0.1 imports it with every prototype animated (checked 2026-10-08).
-- **Check skinning against the file.** `characters_test.py` skins a body made in the test both ways (UsdSkel and the
-  glTF's own joints) and compares; the real bodies agreed to about a micrometre (the leader's walk, 2026-10-08). A
+- **Check skinning against the file.** `test_characters_play_as_their_file_and_cast_say.py` skins a body made in the
+  test both ways (UsdSkel and the glTF's own joints) and compares; the real bodies agreed to about a micrometre (the leader's walk, 2026-10-08). A
   converter change that passes the numbers still needs a picture: render it (`../review/page.py`, the characters
   section) and look.
 - Generated assets and layers live in the stage folder outside the repo; nothing generated is committed.
