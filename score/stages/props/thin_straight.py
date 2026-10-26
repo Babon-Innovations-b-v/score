@@ -25,8 +25,10 @@ row built at once), which the finish route reads as the take's close-up and the 
 `code.json` naming the build. The cut is by the thing's shape, never its box: the close-up mask's border colour
 (`cut_out`) on a busy concept crop kept wall and neighbours: 3 of world 1's 26 builds passed their outline on it
 (2026-10-25). The model's one colour is the cut-out's median (the model's own texture, which the finish route measures
-and replaces with a library surface). A row SAM 3 finds no instance of is no build: it stays a gap. Joints and
-brackets are not built: no world 1 row names any (2026-10-25).
+and replaces with a library surface). A row SAM 3 finds no instance of is no build: it stays a gap. A path build of a
+rigid run (FITTED) carries its fittings made here on its one surface (`fittings`: an elbow at each bend, a tee at
+each fork, a clamp every BRACKET_GAP on a wall), finished by the finish route like the rest; score_lib's own pipe
+pieces, made by today's library methods, are to replace them (#55: every older piece is withdrawn since 2026-10-21).
 """
 import json
 import pathlib
@@ -60,6 +62,22 @@ PIECE_SHARE = 0.1
 TUBE_CELLS = 6
 # Faces a path build is slimmed to at most (a 4 m railing's grid made 54,000), as Pixal3D's takes are slimmed.
 PATH_FACES = 20000
+# The anchors (score/review/reading.py) of a row lying on a level face: a path build whose box gives no plane
+# (its height tied for its thinnest side: a 10 m cable 0.1 by 0.1) is laid in the ground's plane only on one of these,
+# else in a wall's (a lantern string 8 by 0.01 by 0.01 hangs: laid on the ground, its 13% sag read 2 to 4 times deeper).
+LYING = frozenset(("floor", "ground", "ceiling", "roof"))
+# The rigid run kinds that carry fittings (`fittings`): a pipe, conduit, duct or tube is joined by an elbow at a bend
+# and a tee at a fork, and held by a clamp on a wall, as a handrail by its brackets; a cable, wire, hose or string bends
+# on its own and hangs free.
+FITTED = frozenset(("pipe", "conduit", "duct", "tube", "handrail"))
+# A bend over this many degrees takes an elbow; a slighter one is the run's own curve (a sag's polygon turns by less).
+ELBOW_TURN = 30.0
+# A fitting's thickness over its tube's: a socket elbow, tee or clamp stands proud of its pipe by about a wall's
+# thickness each side (a DN25 steel pipe 33.7 mm across, its fittings about 42).
+FITTING_SHARE = 1.25
+# Metres between a wall run's clamps: a usual support spacing for a small pipe or a handrail's brackets (no library
+# row gives one), the first half a gap in.
+BRACKET_GAP = 1.5
 MARK = "code.json"
 # The tool files it runs, declared by the Pixal3D row (pixal_row.files): SAM 3's masks, the crop, the close-up's view
 # (a path build is seen back from its look-down) and the slender rule.
@@ -227,31 +245,100 @@ def traces(skeleton):
     return runs
 
 
+def least_tube():
+    """The thinnest tube a path build is made: the model gate's wall (tools/props/gates/model.py THINNEST_LIMIT) over
+    the share of its thickness a solid one reads through (SOLID_SHARE: its inward rays cross it whole), so a solid
+    tube is judged as solid, as a flat sheet is, and a 1 mm wire is never laid thinner than the gate can pass."""
+    with prop_data.tools("props/gates", "props/library", "props"):
+        import model as model_gate
+    return model_gate.THINNEST_LIMIT / model_gate.SOLID_SHARE
+
+
+def upward(row):
+    """The build axis the picture's up is laid along: 1, a wall's plane, or 0, the ground's for a row whose height is
+    its one thinnest side, or tied for it on a level face (LYING: a tie alone names no plane)."""
+    wide, deep, tall = (float(value) for value in row["size"])
+    if tall > min(wide, deep):
+        return 1
+    return 0 if tall < min(wide, deep) or row.get("anchor") in LYING else 1
+
+
 def lifted(runs, row, width):
     """(the runs' points in the build's frame, metres; the tube's thickness): the picture's runs, their direction and
-    path the picture's own, laid in a wall's plane (across the picture z, up it y) or, for a row whose height is its
-    thinnest side, the ground's (up the picture x), seen back from the close-up's look-down (the outline's view,
-    tools/props/closeup/check.py look_down: its height foreshortened by its cosine, a ground run by its sine); one
-    scale for the picture, so the run's longest reach is the row's longest side; the tube `width` picture pixels
-    thick at that scale, at most the row's middle side (the box's metres: its length along the run, its thickness)."""
+    path the picture's own, laid in a wall's plane (across the picture z, up it y) or the ground's (up the picture x:
+    `upward`), seen back from the close-up's look-down (the outline's view, tools/props/closeup/check.py look_down:
+    its height foreshortened by its cosine, a ground run by its sine); one scale for the picture, so the run's longest
+    reach is the row's longest side and its other reach the path's own, never the box's (a thin run's box is its
+    thickness on its two short sides: a sagging string 8 by 0.01 by 0.01); the tube `width` picture pixels thick at
+    that scale, at most the row's thinnest side (its thickness: a 5 m drape's box 1 m deep is no 1 m tube) and at
+    least `least_tube`."""
     with prop_data.tools("props/closeup", "props", "cloud"):
         import check
     sides = sorted(float(value) for value in row["size"])
-    upward = 0 if float(row["size"][2]) <= sides[0] else 1
+    up = upward(row)
     down = np.radians(check.look_down(row["size"]))
-    seen = np.cos(down) if upward == 1 else np.sin(down)
+    seen = np.cos(down) if up == 1 else np.sin(down)
     flat = np.concatenate(runs) * [1.0, 1.0 / seen]
     low, span = flat.min(0), np.maximum(np.ptp(flat, axis=0), 1.0)
     scale = sides[2] / (span.max() + width)
-    thick = min(width * scale, sides[1])
+    thick = max(min(width * scale, sides[0]), least_tube())
     scale = (sides[2] - thick) / span.max()
     laid = []
     for run in runs:
         point = np.zeros((len(run), 3))
         point[:, 2] = (run[:, 0] - low[0] - span[0] / 2) * scale
-        point[:, upward] = -(run[:, 1] / seen - low[1] - span[1] / 2) * scale  # the picture's down is the world's up
+        point[:, up] = -(run[:, 1] / seen - low[1] - span[1] / 2) * scale  # the picture's down is the world's up
         laid.append(point)
     return laid, thick
+
+
+def on_wall(row):
+    """Whether a row hangs on a wall: anchored to one, or on a row its id names a wall or facade (reading.py's
+    anchors: `wall`, `on:<id>`)."""
+    anchor = str(row.get("anchor") or "")
+    return anchor == "wall" or anchor.startswith("on:") and bool({"wall", "facade"} & set(re.findall(r"[a-z]+",
+                                                                                                    anchor[3:])))
+
+
+def leg(start, toward, length):
+    """The point `length` metres from `start` toward `toward`, at most halfway there."""
+    step = toward - start
+    reach = float(np.linalg.norm(step))
+    return start + step / reach * min(length, reach / 2) if reach > 0 else start
+
+
+def fittings(laid, row, thick):
+    """{"elbows", "tees", "clamps"}: the short segments (point pairs) each fitting of a FITTED kind is swept along,
+    FITTING_SHARE of the tube thick: an elbow's two legs, a thickness long, at each bend of a run over ELBOW_TURN; a
+    tee's legs at each fork (three runs or more meeting); a clamp half a thickness long every BRACKET_GAP metres along
+    each run of a row on a wall (`on_wall`) laid in a wall's plane. None for any other kind: what the mask does not
+    show (a valve) is never added."""
+    found = {"elbows": [], "tees": [], "clamps": []}
+    if not kind_words(row) & FITTED:
+        return found
+    for run in laid:
+        for before, point, after in zip(run, run[1:], run[2:]):
+            ahead, back = after - point, point - before
+            cosine = ahead @ back / max(np.linalg.norm(ahead) * np.linalg.norm(back), 1e-12)
+            if np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0))) > ELBOW_TURN:
+                found["elbows"] += [(leg(point, before, thick), point), (point, leg(point, after, thick))]
+    ends = {}
+    for run in laid:
+        for end, next_point in ((run[0], run[1]), (run[-1], run[-2])):
+            ends.setdefault(tuple(np.round(end, 6)), []).append((end, next_point))
+    for meeting in ends.values():
+        if len(meeting) >= 3:
+            found["tees"] += [(end, leg(end, next_point, thick)) for end, next_point in meeting]
+    if on_wall(row) and upward(row) == 1:
+        for run in laid:
+            lengths = np.linalg.norm(np.diff(run, axis=0), axis=1)
+            along = np.concatenate([[0.0], np.cumsum(lengths)])
+            for at in np.arange(BRACKET_GAP / 2, along[-1], BRACKET_GAP):
+                piece = min(int(np.searchsorted(along, at, side="right")) - 1, len(lengths) - 1)
+                way = (run[piece + 1] - run[piece]) / max(lengths[piece], 1e-12)
+                middle = run[piece] + way * (at - along[piece])
+                found["clamps"].append((middle - way * thick / 4, middle + way * thick / 4))
+    return found
 
 
 def path_build(row, alpha):
@@ -260,7 +347,8 @@ def path_build(row, alpha):
     their outline): the mask skeletonised and traced into its runs (`traces`, forks kept), each run's bends kept to
     within half its line's width, laid in the row's plane at its metres (`lifted`), and a round tube of the line's
     thickness swept along them all as one closed surface (`tubes`), so a sag stays a sag, an elbow a bend, a ladder
-    its posts and rails and a band of lines its tubes."""
+    its posts and rails and a band of lines its tubes; a rigid run's fittings (`fittings`: elbows, tees, wall clamps)
+    made in code on the same surface, its finish the finish route's like the rest."""
     from skimage.measure import approximate_polygon
     from skimage.morphology import skeletonize
     kept = pieces(alpha)
@@ -268,17 +356,18 @@ def path_build(row, alpha):
     width = kept.sum() / skeleton.sum()
     runs = [approximate_polygon(np.asarray(run, dtype=float), tolerance=1.0)
             for run in traces(skeleton) if len(run) > 1]
-    mesh = tubes(*lifted(runs, row, width))
+    laid, thick = lifted(runs, row, width)
+    mesh = tubes(laid, thick, [pair for pairs in fittings(laid, row, thick).values() for pair in pairs])
     return mesh.apply_translation(-mesh.bounds.mean(0))
 
 
-def tubes(laid, thick):
-    """One closed surface round the runs `laid` (points in the build's frame, all in one axis plane), `thick` across:
-    the plane's distance to the nearest run, drawn on a grid TUBE_CELLS cells across the tube, made round through the
-    third axis and cut at the tube's radius (marching cubes), so joints and forks are one surface with no shell inside
-    another (the model gate's wall rays read overlapping tubes 0.3 mm thick)."""
+def tubes(laid, thick, fitted=()):
+    """One closed surface round the runs `laid` (points in the build's frame, all in one axis plane), `thick` across,
+    and round the `fitted` segments (point pairs in that plane), FITTING_SHARE of it across: the plane's distance to
+    the nearest run and to the nearest fitting, drawn on a grid TUBE_CELLS cells across the tube, made round through
+    the third axis and cut at each one's radius (marching cubes), so joints, forks and fittings are one surface with no
+    shell inside another (the model gate's wall rays read overlapping tubes 0.3 mm thick)."""
     import trimesh
-    from PIL import ImageDraw
     from scipy import ndimage
     from skimage.measure import marching_cubes
     flat = np.concatenate(laid)
@@ -287,15 +376,25 @@ def tubes(laid, thick):
         plane = [1, 2]
     across = 3 - sum(plane)
     cell, radius = thick / TUBE_CELLS, thick / 2
-    low = flat[:, plane].min(0) - radius - 2 * cell
-    shape = np.ceil((np.ptp(flat[:, plane], axis=0) + thick + 4 * cell) / cell).astype(int) + 1
-    centre = Image.new("1", (int(shape[0]), int(shape[1])), 1)
-    draw = ImageDraw.Draw(centre)
-    for points in laid:
-        draw.line([tuple(point) for point in (points[:, plane] - low) / cell], fill=0)
-    reach = ndimage.distance_transform_edt(np.asarray(centre).T) * cell  # [first plane axis, second]
-    depth = np.arange(-(TUBE_CELLS // 2 + 2), TUBE_CELLS // 2 + 3) * cell
-    field = np.sqrt(reach[:, :, None] ** 2 + depth[None, None, :] ** 2) - radius
+    outer = radius * FITTING_SHARE if fitted else radius
+    low = flat[:, plane].min(0) - outer - 2 * cell
+    shape = np.ceil((np.ptp(flat[:, plane], axis=0) + 2 * outer + 4 * cell) / cell).astype(int) + 1
+    steps = int(np.ceil(outer / cell)) + 2
+    depth = np.arange(-steps, steps + 1) * cell
+
+    def round_of(lines, reach_radius):
+        """The signed distance to tubes `reach_radius` round `lines` (each a list of points) on the grid."""
+        from PIL import ImageDraw
+        centre = Image.new("1", (int(shape[0]), int(shape[1])), 1)
+        draw = ImageDraw.Draw(centre)
+        for points in lines:
+            draw.line([tuple(point) for point in (np.asarray(points)[:, plane] - low) / cell], fill=0)
+        reach = ndimage.distance_transform_edt(np.asarray(centre).T) * cell  # [first plane axis, second]
+        return np.sqrt(reach[:, :, None] ** 2 + depth[None, None, :] ** 2) - reach_radius
+
+    field = round_of(laid, radius)
+    if fitted:
+        field = np.minimum(field, round_of(fitted, outer))
     vertices, faces = marching_cubes(field, 0.0, spacing=(cell, cell, cell), allow_degenerate=False)[:2]
     points = np.zeros_like(vertices)
     points[:, plane[0]], points[:, plane[1]] = vertices[:, 0] + low[0], vertices[:, 1] + low[1]

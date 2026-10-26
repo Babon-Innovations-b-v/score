@@ -95,7 +95,10 @@ def model_checks(path, size, kind, square):
     """model.py's check at the row's size (y tall; its wide and deep sides on x and z as the model's own ground sides
     lie, longer to longer: the finish's stand lays a long model's longest ground side along z, glb_file.squared, and
     model.py fits the mesh to the laid size axis by axis, so a 4 m wall pipe's elbow laid crosswise read 0.6 mm thick),
-    straight.py's for a square generated kind, and whether the mesh is closed."""
+    straight.py's for a square generated kind, and whether the mesh is closed. A slender row (model.py's own rule:
+    thin_straight.slender) is laid as one scale, its longest side the row's, never fitted side by side: its box's two
+    short sides are its thickness, not its reach, so a sagging string's 1 m sag fitted to its 8 by 0.01 by 0.01 box
+    read its 1 cm tube 0.0 m thick (2026-10-26); its proportions are the outline's to hold."""
     import trimesh
     with prop_data.tools("props/gates", "props/library", "props"):
         import model as model_gate
@@ -104,8 +107,10 @@ def model_checks(path, size, kind, square):
     mesh = trimesh.Trimesh(points, triangles, process=True)
     wide, deep, tall = (float(value) for value in size)
     ground = sorted((wide, deep), reverse=mesh.extents[0] >= mesh.extents[2])
-    found = {"model_check": model_gate.check(kind, mesh, [ground[0], tall, ground[1]]),
-             "closed": bool(mesh.is_watertight)}
+    laid = [ground[0], tall, ground[1]]
+    if thin_straight.slender(size):
+        laid = (mesh.extents * max(laid) / mesh.extents.max()).tolist()
+    found = {"model_check": model_gate.check(kind, mesh, laid), "closed": bool(mesh.is_watertight)}
     if square:
         found["straight"] = straight.straightness(mesh)
     return found

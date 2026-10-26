@@ -4,7 +4,11 @@ the finish route and the likeness row read one, and the Pixal3D row building it 
 Breaks (applied once, seen red, reverted): build ignoring its mask (always the one straight sweep) turns
 test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red (the elbow's outline 0.04);
 write_take standing its final again (`mesh.apply_transform(finish_turn(pixal / f"{take}.glb"))` before the final's
-export) turns it red too (the elbow turned off its mask).
+export) turns it red too (the elbow turned off its mask). likeness_row.model_checks fitting a slender model to its box
+side by side again (`if thin_straight.slender(size):` -> `if False:`) turns
+test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box red (the sag's tube read 2 mm thick); so do
+thin_straight.upward laying a tie on the ground (`return 0`: the sag's outline 0.155) and fittings returning none
+(`if not kind_words(row) & FITTED:` -> `if True:`: the bend no thicker at its elbow).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -295,6 +299,57 @@ def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s
         built = thin_straight.build({"view": "v1", **row}, np.asarray(Image.open(
             tmp_path / name / "pixal" / "take.svviews" / "input.png"))[..., 3] > 127)
         assert np.allclose(made.bounds, built.bounds, atol=1e-5), name  # the final keeps the pose it was built in
+
+
+def test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box(tmp_path):
+    """A thin run's box is its thickness on its two short sides (world 1's lantern string 8 by 0.01 by 0.01, cables 10
+    by 0.1 by 0.1, 2026-10-26), while its path is wider: the build keeps its path's reach (its longest the row's), its
+    tube the line's drawn width at most the row's thinnest side (never under thin_straight.least_tube), a tie laid in
+    a wall's plane unless it lies;
+    the model check lays it as one scale, so its tube is measured whole; a wall pipe's L bend carries an elbow and
+    clamps, a bundle of cables none."""
+    import trimesh
+    import score.stages.props.likeness_row as likeness_row
+    sag = [(x, 40 + 100 * (1 - ((x - 300) / 260) ** 2)) for x in range(40, 561, 10)]
+    shapes = {"sag": ({"name": "string lights", "noun": "lights", "size": [8.0, 0.1, 0.1],
+                       "anchor": "on:left_building_facade"}, [sag], 0.1),
+              "bend": ({"name": "wall pipe", "noun": "pipe", "size": [4.0, 0.05, 0.05], "anchor": "wall"},
+                       [[(40, 40), (40, 170), (560, 170)]], 0.05),
+              "bundle": ({"name": "power cables", "noun": "cables", "size": [6.0, 0.08, 0.08], "anchor": "wall"},
+                         [[(40, 70), (560, 70)], [(40, 100), (560, 100)], [(40, 130), (560, 130)]], 0.08)}
+    for name, (row, lines, tube) in shapes.items():
+        found, faults = held(tmp_path, {"id": name, "view": "v1", **row}, lines)
+        assert found["code"]["profile"] == "path" and not faults, (name, faults)
+        assert found["outline"] >= likeness.OUTLINE_LEAST and found["model_check"]["pass"], (name, found)
+        made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
+        across = sorted(made.extents)
+        assert np.isclose(across[2], row["size"][0], rtol=0.02), (name, made.extents)
+        assert across[1] > 10 * tube, (name, made.extents)  # its path's reach, not its box's thickness
+        assert np.isclose(across[0], tube * (thin_straight.FITTING_SHARE if name == "bend" else 1.0), rtol=0.1), \
+            (name, made.extents)
+        assert found["model_check"]["thinnest"] >= 0.5 * tube, (name, found["model_check"])
+    assert np.argmax(trimesh.load(tmp_path / "sag/pixal/take-final.glb", force="mesh").extents) == 2
+    assert np.ptp(trimesh.load(tmp_path / "sag/pixal/take-final.glb", force="mesh").vertices[:, 1]) > 1.0  # it hangs
+    wire = {"name": "wire", "noun": "wire", "size": [3.0, 0.001, 0.001]}
+    assert thin_straight.lifted([np.array([[0.0, 0.0], [100.0, 20.0]])], wire, 3.0)[1] == thin_straight.least_tube()
+    bend = {"view": "v1", **shapes["bend"][0]}
+    laid, thick = thin_straight.lifted([np.array([[40.0, 40.0], [40.0, 170.0], [560.0, 170.0]])], bend, 9.0)
+    fitted = thin_straight.fittings(laid, bend, thick)
+    assert len(fitted["elbows"]) == 2 and not fitted["tees"]  # one elbow, its two legs
+    assert len(fitted["clamps"]) == int(sum(np.linalg.norm(np.diff(run, axis=0), axis=1).sum()
+                                            for run in laid) // thin_straight.BRACKET_GAP + 0.5)
+    assert not any(thin_straight.fittings(laid, {**bend, "anchor": "floor"}, thick)["clamps"])  # off a wall: none
+    assert not any(thin_straight.fittings(laid, {**bend, "noun": "cables", "name": "cables"}, thick).values())
+    fork = [np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]]), np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+            np.array([[0.0, 0.0, 0.0], [0.0, 0.0, -1.0]])]
+    assert len(thin_straight.fittings(fork, {"name": "pipe", "size": [2.0, 0.1, 1.0]}, 0.1)["tees"]) == 3
+    # the model check fitting the sag's mesh to its box side by side read its tube crushed (the old way)
+    sag_mesh = trimesh.load(tmp_path / "sag/pixal/take-final.glb", force="mesh")
+    with prop_data.tools("props/gates", "props/library", "props"):
+        import model as model_gate
+    assert model_gate.thinnest(sag_mesh, [0.1, 0.1, 8.0]) < 0.02
+    assert likeness_row.model_checks(tmp_path / "sag/pixal/take-final.glb", [8.0, 0.1, 0.1], "p_sag",
+                                     False)["model_check"]["thinnest"] >= 0.05
 
 
 def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):
