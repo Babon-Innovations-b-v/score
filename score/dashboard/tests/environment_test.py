@@ -74,8 +74,11 @@ def test_environment_1s_concept_is_todays_data_shown_locked(world):
 
 def test_a_house_setting_is_its_plot_from_above_with_its_suns_path_and_no_bodies():
     from score.review import overhead, setting
-    from score.review.setting_test import HOUSE
-    house = setting.checked(HOUSE)
+    sun = {"name": "Sun", "kelvin": 5800, "lux": 100000, "latitude": 52.0, "tilt_deg": 23.44, "day_hours": 24,
+           "year_days": 365.2422, "equinox": "2024-03-20T12:00:00Z"}
+    house = setting.checked({"bodies": [], "plots": [{"name": "Meadow", "gravity": 9.81}], "lights": [sun],
+                             "backdrops": [{"name": "Sky", "lux": 10000}],
+                             "sites": [{"place": "house", "on": "meadow", "x": 0, "y": "0", "height_m": 0}]})
     found = setting_picture.view_of(house, {"house": "2024-03-20T12:00:00Z"}, {"house": "House"})
     assert len(found["pictures"]) == 1 and "sp-path" in found["pictures"][0]["svg"]  # no system, one plot
     svg = found["pictures"][0]["svg"]
