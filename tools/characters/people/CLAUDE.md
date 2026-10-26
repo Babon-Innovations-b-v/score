@@ -51,5 +51,5 @@ Recorded here because the repo is public and the body file ships:
 
 ## What the gate can run
 
-`regions_test.py`, `glb_test.py`, `joins_test.py` and `stance_test.py`. The gate runs the tools' checks on a box with
+`test_body_pieces_hold_together.py` (the writer, the regions, the joins and the stance). The gate runs the tools' checks on a box with
 no graphics card and no tool chain built, so nothing it runs may import torch or soma.

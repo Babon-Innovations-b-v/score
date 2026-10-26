@@ -424,7 +424,7 @@ def tucks_inputs(spec, folder, take):
     out): a failed tucks record on the same hash predicts the same failure (#21)."""
     digest = hashlib.sha256(json.dumps([take, spec], sort_keys=True).encode())
     code = sorted(path for path in (*HERE.glob("*.py"), *(HERE.parent / "people").glob("*.py"))
-                  if not path.name.endswith("_test.py"))
+                  if not (path.name.endswith("_test.py") or path.name.startswith("test_")))
     for path in (folder / "parts" / take / "parts.npz", *code):
         digest.update(path.read_bytes())
     return digest.hexdigest()
