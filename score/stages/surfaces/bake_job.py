@@ -69,7 +69,27 @@ def entry_of(model, inline, labelled):
         return dict(inline, name=model)
     if labelled is None:
         raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
-    return dict(inline, name=model, base=measured_turn(labelled, inline["size"]))
+    base = measured_turn(labelled, inline["size"])
+    return dict(inline, name=model, base=base, size=laid_size(labelled, inline["size"], base))
+
+
+def slender(size):
+    """The model gate's slender rule on a kit size (tools/props/gates/model.py shape_class: its middle side under
+    SLENDER_SHARE of its longest)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("model_gate", place_route.HERE.parent / "gates" / "model.py")
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    smallest, middle, largest = sorted(float(side) for side in size)
+    return largest > 0 and middle / largest < gate.SLENDER_SHARE
+
+
+def laid_size(labelled, size, base):
+    """A design entry's size in the kit frame: its row's, or for a slender row its labelled take's own proportions
+    turned by `base`, scaled as one so its longest side is the row's (place_route.made_size): a thin run's box is its
+    thickness on its two short sides, so fitting a sagging string side by side to its 8 by 0.01 by 0.01 crushed its
+    sag flat (2026-10-26)."""
+    return place_route.made_size(labelled, size, 90 if base == TURNS[90] else 0) if slender(size) else size
 
 
 def refusal(model, inline):
