@@ -7,6 +7,7 @@ from django.db.models import Q
 
 from score.dashboard.launch import guard
 from score.dashboard.pages.models import Checkout, Launch, Plan
+from score.dashboard.state import batch_run
 
 
 def planned_nodes(plan_body):
@@ -58,12 +59,30 @@ def record_nodes(record):
 
 def batch_ended(tries, record, accepted_at):
     """Whether `record` begins a new batch after the checkouts `tries` (owner, 2026-10-25: "its the same batch, ur
-    just retrying a failed part of it"): every row they planned made since the first of them by the time it was made,
-    or the design changed since the last of them (its `design_at`)."""
+    just retrying a failed part of it; it will become a mess if we split after fail"): every row they planned made
+    since the first of them by the time it was made. A design edit between tries ends nothing: the fixes made to
+    finish a batch are part of it (2026-10-26, Batch 1's readings and plans fixed before its fifth try)."""
     start = tries[0].at
     nodes = {node for one in tries if one.launch for node in checkout_nodes(one)}
-    made = bool(nodes) and all(start < (moment(accepted_at(node)) or start) <= record.at for node in nodes)
-    return made or bool(record.design_at) and moment(record.design_at) > tries[-1].at
+    return bool(nodes) and all(start < (moment(accepted_at(node)) or start) <= record.at for node in nodes)
+
+
+def started(record):
+    """Whether a checkout counts as a try (owner, 2026-10-26: "Batch 1, try 5" after six checkouts): it launched and
+    its run began. A launch stopped or refused before any of its logs said a heartbeat never began its drive (checkout
+    5, stopped while waiting for size): a relaunch, no try."""
+    if record.launch is None:
+        return False
+    if record.launch.state not in ("stopped", "refused"):
+        return True
+    return any(batch_run.HEARTBEAT.match(line) for run in checkout_runs(record) for path in run["logs"]
+               for line in batch_run.log_lines(path))
+
+
+def try_count(tries):
+    """The newest try's number among the batch's checkouts `tries` (oldest first): the earlier ones that started,
+    and the newest, the try shown."""
+    return sum(1 for one in tries[:-1] if started(one)) + 1
 
 
 def moment(text):
@@ -111,8 +130,7 @@ def batch_money(tries, spend):
     start = batch_start(lined[0]) if lined else None
     if start is None or spend is None or spend.spent is None or spend.reserved is None:
         return None
-    budget = next((line["batch_budget"] for line in reversed(lined) if "batch_budget" in line),
-                  round(lined[-1]["euros"] - start, 2))
+    budget = round(lined[-1]["euros"] - start, 2)  # the newest line less the batch's start: what the guard holds
     spent = round(spend.spent - start, 2)
     return {"start": round(start, 2), "spent": spent, "in_flight": round(spend.reserved, 2), "budget": budget,
             "left": round(budget - spent - spend.reserved, 2), "parts": spend.parts, "as_of": spend.as_of}
@@ -134,7 +152,7 @@ def newest(accepted_at=lambda node: None, reading=lambda: None):
     return {"checkout": record.pk, "at": record.at.isoformat(), "by": record.by, "yes": chat_words(record.chat_yes),
             "state": record.state,
             "detail": record.detail, "totals": record.totals, "stop_line": record.stop_line,
-            "launch": launch_of(record.launch), "batch": number, "tries": len(tries),
+            "launch": launch_of(record.launch), "batch": number, "tries": try_count(tries),
             "first_at": tries[0].at.isoformat(),
             "runs": [run for one in tries if one.launch for run in checkout_runs(one)],
             "try_runs": checkout_runs(record) if record.launch else [], "nodes": list(nodes),

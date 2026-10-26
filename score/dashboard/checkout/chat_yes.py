@@ -110,13 +110,13 @@ def figures(reading):
     spend = reading()
     records = list(Checkout.objects.order_by("at"))
     number, tries = watched.batch_of(records, accepted_at) if records else (0, [])
-    ahead = Checkout(at=datetime.datetime.now(datetime.timezone.utc), design_at=flow.design_now())
+    ahead = Checkout(at=datetime.datetime.now(datetime.timezone.utc))
     retry = bool(tries) and not watched.batch_ended(tries, ahead, accepted_at)
     money = watched.batch_money(tries, spend) if retry else None
     totals = basket_totals(current_basket())
     need = round(pricing.cleared_high(totals) * flow.BUFFER, 2)
     run = state.source().batch_run(reading=lambda: spend) if retry else None
-    return {"batch": number if retry else number + 1, "tries": len(tries) if retry else 0, "retry": retry,
+    return {"batch": number if retry else number + 1, "tries": watched.try_count(tries) if retry else 0, "retry": retry,
             "money": money, "runs": ((run or {}).get("money") or {}).get("runs") if retry else None,
             "try": {"likely": totals["likely_euros"], "high": pricing.cleared_high(totals), "stop": need},
             "fits": need if money is None else round(money["spent"] + money["in_flight"] + need, 2),

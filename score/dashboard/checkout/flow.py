@@ -376,7 +376,9 @@ def batch_budget(tries, spent, need, yes):
     already used (`retry`) asks nothing new and must fit what is left. Refused otherwise."""
     lined = [one.stop_line for one in tries[:-1] if "euros" in one.stop_line]
     start = watched.batch_start(lined[0]) if lined and watched.batch_start(lined[0]) is not None else spent
-    before = next((line["batch_budget"] for line in reversed(lined) if "batch_budget" in line), None)
+    # the newest budget as the line holds it from this batch's start (a try once counted as its own batch's kept
+    # another start: checkouts 5 and 6, 2026-10-26)
+    before = next((round(line["euros"] - start, 2) for line in reversed(lined) if "batch_budget" in line), None)
     used = round(spent - start, 2)
     if yes and yes.get("retry"):
         if before is None or not any((one.chat_yes or {}).get("id") == yes["id"] for one in tries[:-1]):

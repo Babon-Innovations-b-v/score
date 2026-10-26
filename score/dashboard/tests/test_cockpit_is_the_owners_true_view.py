@@ -1287,7 +1287,7 @@ def a_batch(world, log=LOG, state="launched", pool=True, key="a"):
     """A checkout launched one run whose log is `log`; closeup@alpha's own log written since (it runs now)."""
     props, store = world.source.props_home, world.source.store_root
     (props / "logs").mkdir(parents=True, exist_ok=True)
-    path = props / "logs" / "score-run-1.log"
+    path = props / "logs" / f"score-run-{key}.log"
     path.write_text(log.format(run=RUN))
     plan = Plan.objects.create(basket_hash=f"checkout-{key}", made_by="joey", state="ready", body=PLAN)
     launch = Launch.objects.create(plan=plan, by="joey", state="running", handles=[
@@ -1430,7 +1430,7 @@ def test_the_money_is_this_batchs_high_with_its_guesses_and_its_room_the_line_le
     assert batch_run.own_stop({"euros": 396.44}) is None  # a line without what it was written over
     record.state, record.stop_line = "launching", {}
     record.save()
-    (world.source.props_home / "logs" / "score-run-1.log").write_text("paid rows this run would buy: 2\n")
+    (world.source.props_home / "logs" / "score-run-a.log").write_text("paid rows this run would buy: 2\n")
     money = world.source.batch_run()["money"]
     assert money["runs"] == 0.0 and money["stop"] == round(money["high"] * batch_run.BUFFER, 2)
 
@@ -1530,33 +1530,48 @@ def test_a_fault_is_said_as_a_short_plain_cause_and_rows_sharing_one_are_one_pro
 
 def test_the_next_buy_says_what_it_makes_again_first_and_keeps():
     """Of a, b, c, d planned: a, b made, c failed, d never ran; the next buys c, d, e. Break: state/batch_run.py
-    `next_buy` counts a failed step as never run too (`unrun = planned - made`)."""
-    run = {"checkout": 3, "batch": 1, "at": "2026-10-25T09:10:00+00:00", "state": "finished", "design_at": None,
+    `next_buy` counts a failed step as never run too (`unrun = planned - made`); `retries` ends the batch on a design
+    edit since (owner, 2026-10-26: the fixes made to finish a batch are part of it)."""
+    run = {"checkout": 3, "batch": 1, "at": "2026-10-25T09:10:00+00:00", "state": "finished",
            "nodes": {"planned": ["a", "b", "c", "d"], "made": ["a", "b"], "failed": ["c"]}}
     assert batch_run.next_buy(run, ["c", "d", "e"]) == (
         "Retry Batch 1: makes again the 1 step that failed and the 1 that never ran; makes 1 step for the "
         "first time; keeps the 2 already made.")
-    assert batch_run.next_buy({**run, "design_at": "2026-10-25T10:00:00Z"}, ["c"]).startswith(
-        "Batch 2, after Batch 1: makes again the 1 step")
+    assert batch_run.next_buy({**run, "design_at": "2026-10-25T10:00:00Z"}, ["c"]).startswith("Retry Batch 1:")
+    made = {"planned": ["a", "b"], "made": ["a", "b"], "failed": []}
+    assert batch_run.next_buy({**run, "nodes": made}, ["a"]).startswith("Batch 2, after Batch 1: makes again the 1")
     assert batch_run.next_buy({**run, "state": "running"}, ["c"]) is None
     assert batch_run.next_buy({"checkout": 1, "state": "finished"}, ["c"]) is None
 
 
-def test_a_buy_while_the_batch_is_unfinished_is_its_next_try_and_a_changed_design_a_new_batch(world):
-    """Owner, 2026-10-25: "its the same batch, ur just retrying a failed part of it". Break: checkout/watched.py
-    `batch_of` starts a new batch on every checkout."""
+def test_a_buy_while_the_batch_is_unfinished_is_its_next_try_whatever_the_design_edits(world):
+    """Owner, 2026-10-25: "its the same batch, ur just retrying a failed part of it; it will become a mess if we split
+    after fail"; 2026-10-26: Batch 1's fifth Buy, after a day of design fixes, was called Batch 2. A design edit ends no
+    batch; a relaunch whose run never began (stopped while waiting for size) is no try; a batch ends once every row
+    it planned was made. Break: checkout/watched.py `batch_ended` ends a batch when `design_at` is past its last try;
+    `started` counts a launch stopped before its first heartbeat."""
     first = a_batch(world)
     retry = a_batch(world, key="b")
     retry.at = first.at + datetime.timedelta(hours=1)
     retry.save()
     found = world.source.batch_run()
     assert (found["batch"], found["tries"], found["checkout"]) == (1, 2, retry.pk)
-    redesigned = a_batch(world, key="c")
-    redesigned.at, redesigned.design_at = retry.at + datetime.timedelta(hours=1), \
+    unstarted = a_batch(world, key="c", log="score run: waiting for size: 16 jobs, 2 cores; registered as w1; x\n"
+                        "score run: stopped by signal 15 while waiting for size\ndetached: stopped by signal 15\n")
+    unstarted.at, unstarted.design_at = retry.at + datetime.timedelta(hours=1), \
         (retry.at + datetime.timedelta(minutes=5)).isoformat()
-    redesigned.save()
-    found = world.source.batch_run()
-    assert (found["batch"], found["tries"]) == (2, 1)
+    unstarted.save()
+    assert (world.source.batch_run()["batch"], world.source.batch_run()["tries"]) == (1, 3)  # the newest is shown
+    relaunch = a_batch(world, key="d")
+    relaunch.at = unstarted.at + datetime.timedelta(minutes=20)
+    relaunch.save()
+    Launch.objects.filter(pk=unstarted.launch_id).update(state="stopped")  # as polling left it
+    assert (world.source.batch_run()["batch"], world.source.batch_run()["tries"]) == (1, 3)
+    from score.dashboard.checkout import watched
+    every = list(Checkout.objects.order_by("at"))
+    made = lambda node: (relaunch.at - datetime.timedelta(minutes=1)).isoformat()  # noqa: E731
+    after = Checkout(at=relaunch.at + datetime.timedelta(hours=1))
+    assert watched.batch_ended(every, after, made) and not watched.batch_ended(every, after, lambda node: None)
 
 
 TRY_ONE = "\n".join([
@@ -1616,7 +1631,8 @@ def test_the_monitor_shows_the_batchs_spend_of_its_one_budget(world):
     the batch total. Break: state/batch_run.py `money_of` gives `left` as the whole budget; checkout/watched.py
     `batch_money` counts spent from 0, not the batch's start; state/batch_run.py `batch_total` drops `need`."""
     record = a_batch(world)
-    record.stop_line = {**record.stop_line, "batch_from": 80.0, "batch_budget": 740.0, "batch_used": 410.0}
+    record.stop_line = {**record.stop_line, "euros": 820.0, "batch_from": 80.0, "batch_budget": 740.0,
+                        "batch_used": 410.0}
     record.save()
     money = world.source.batch_run()["money"]
     assert money["budget"] == 740.0 and money["left"] == round(740.0 - money["spent"] - money["in_flight"], 2)

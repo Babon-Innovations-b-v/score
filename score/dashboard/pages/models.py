@@ -123,7 +123,7 @@ class Checkout(models.Model):
     launch = models.ForeignKey(Launch, null=True, blank=True, on_delete=models.PROTECT, related_name="checkouts")
     detail = models.TextField(blank=True)
     pid = models.IntegerField(null=True, blank=True)  # the process running it while launching: gone, it failed
-    design_at = models.CharField(max_length=32, blank=True)  # when the design last changed as it was made: a new batch
+    design_at = models.CharField(max_length=32, blank=True)  # when the design last changed as it was made (kept; it no longer ends a batch, CONTEXT.md "try")
     chat_yes = models.JSONField(default=dict, blank=True)  # his Buy approved in a session (checkout/chat_yes.py)
 
     class Meta:

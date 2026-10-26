@@ -106,7 +106,7 @@ def batch_money():
         print(f"Batch {found['batch']}: a new batch, nothing spent of it yet")
     else:
         parts = money["parts"] or {}
-        print(f"Batch {found['batch']} ({found['tries']} tries so far): EUR {money['spent']:.2f} spent since its first "
+        print(f"Batch {found['batch']}, try {found['tries']} the newest: EUR {money['spent']:.2f} spent since its first "
               f"try's line (the money guard's measure, as of {money['as_of']}), EUR {money['in_flight']:.2f} in "
               f"flight; budget EUR {money['budget']:.2f}, EUR {money['left']:.2f} left")
         if found["runs"] is not None:
