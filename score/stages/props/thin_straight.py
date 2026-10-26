@@ -6,7 +6,8 @@ the likeness row checks it like any take.
 
 Thin and straight (`thin_straight`): the row's size is slender by the model gate's own rule (tools/props/gates/model.py
 shape_class: its middle side under SLENDER_SHARE of its longest), and its name or noun names a straight kind
-(STRAIGHT). Its profile is swept along its longest side, the row's straight length: round (an ellipse filling the two
+(STRAIGHT), or it is a lamp on its own stem (`stem_lamp`: its post built here, its head the library's lamp at the
+head mount). Its profile is swept along its longest side, the row's straight length: round (an ellipse filling the two
 short sides) for the kinds in ROUND, a rectangle of the two short sides for the rest (posts, beams, pillars).
 
 Its take (`write_take`), in WORK/pixal where the batch would bring one: `<take>.glb` (raw) and the slimmed
@@ -66,7 +67,17 @@ def slender(size):
 
 def thin_straight(row):
     """Whether an inventory row is a thin straight thing (module docstring)."""
-    return bool(kind_words(row) & STRAIGHT) and slender(row["size"])
+    return (bool(kind_words(row) & STRAIGHT) or stem_lamp(row)) and slender(row["size"])
+
+
+def stem_lamp(row):
+    """Whether a row is a lamp on its own stem (a street lamp, a floodlight mast): its row kind glows and its own metres
+    are a stem's (tools/props/scene/lamps.py on_stem), so its post is built here and its head is the library's lamp,
+    lit at the head mount (data/library/lamps.json) by the light layer (Batch 1 try 4: every street lamp's close-up
+    failed)."""
+    with prop_data.tools("props/scene"):
+        import lamps
+    return lamps.on_stem(row) and lamps.glows(row)
 
 
 def profile(row):

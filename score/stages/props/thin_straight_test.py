@@ -54,6 +54,8 @@ def test_only_thin_rows_of_a_straight_kind_are_taken():
     assert not thin_straight.thin_straight({"name": "wall poster", "size": [0.4, 0.01, 0.6]})  # post is not poster
     assert not thin_straight.thin_straight({"name": "metal railing", "size": [50.0, 0.1, 1.0]})  # posts and rails
     assert not thin_straight.thin_straight({"name": "strip floor light", "size": [0.8, 0.1, 0.05]})  # no such kind
+    assert thin_straight.thin_straight({"name": "street lamp", "noun": "lamp", "size": [0.5, 0.5, 6.0]})  # a stem lamp
+    assert not thin_straight.thin_straight({"name": "desk lamp", "noun": "lamp", "size": [0.2, 0.2, 0.5]})  # no stem
 
 
 def test_the_profile_is_swept_along_the_longest_side_at_the_row_s_size():
