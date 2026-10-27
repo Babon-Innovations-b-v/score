@@ -512,14 +512,15 @@ template. Joint centres are to be derived from bony landmarks on the
 SOMA mesh, followed by segment masses, muscles, joint ranges of motion,
 the spine and bone geometry, with each input that SOMA does not provide
 marked as assumed and given a plausible range. A full-body
-musculoskeletal model with 416 muscles already runs in Newton but still
-drifts 1.5 cm from plain MuJoCo after 300 steps, so Newton is first to
-be validated for such bodies. The body's joint angles, and then its net
-joint moments and ground reaction forces, are to be validated against
-OpenCap's LabValidation data.
+musculoskeletal model with 416 muscles, MyoSuite's MyoFullBody {[}41{]},
+whose arm and hand derive from the MoBL-ARMS model {[}42{]}, {[}43{]},
+already runs in Newton but still drifts 1.5 cm from plain MuJoCo after
+300 steps, so Newton is first to be validated for such bodies. The
+body's joint angles, and then its net joint moments and ground reaction
+forces, are to be validated against OpenCap's LabValidation data.
 
 \textbf{Scenes from motion.} Motion is to come from the SOMA ecosystem,
-either estimated from video with GEM-X {[}41{]} or generated from text
+either estimated from video with GEM-X {[}44{]} or generated from text
 and constraints with Kimodo {[}39{]}, in practically unlimited quantity.
 The terrain a motion implies becomes a SCORE scene, so the movement is
 kept in its setting without the source video or any information that
@@ -532,7 +533,7 @@ supply remains as the residual at the pelvis. It is recorded for every
 frame and never applied to the body, so it quantifies how dynamically
 consistent the movement is, and only movements with a small residual are
 kept. Biomechanics reduces and reports the same residual to assess
-recorded motion {[}42{]}, {[}43{]}, and PhysibleMDM {[}44{]} minimises
+recorded motion {[}45{]}, {[}46{]}, and PhysibleMDM {[}47{]} minimises
 an inverse-dynamics residual to make generated motion feasible for a
 torque-driven robot; we apply the criterion to generated motion in a
 muscle-driven body.
@@ -551,7 +552,7 @@ forces cannot be measured non-invasively and force plates and
 electromyography confine measurement to a laboratory, whereas the
 simulation can generate the bodies, movements and settings an estimator
 has to cover, including those of a specific population, so that
-domain-specific estimators can be trained for it. BioHuman10M {[}45{]}
+domain-specific estimators can be trained for it. BioHuman10M {[}48{]}
 already pairs video, part of it rendered, with the activations of a
 112-muscle model and with ground reaction forces predicted by a learned
 model from recorded motion. Our sets would differ in scenes generated
@@ -568,8 +569,8 @@ with the muscle forces that produce them, it is placed in SCORE's
 synthesised worlds under their own gravity and terrain, where it is to
 adapt to structures no recording contains, and each run it drives adds
 movement to the training sets. Muscle-driven controllers such as KINESIS
-{[}46{]} and MuscleMimic {[}47{]} are trained on motion capture, as are
-torque-driven ones such as PHC {[}48{]}. To our knowledge, no
+{[}49{]} and MuscleMimic {[}50{]} are trained on motion capture, as are
+torque-driven ones such as PHC {[}51{]}. To our knowledge, no
 muscle-driven controller has yet been trained on generated motion
 selected by its residual, and the claim holds only once such a
 controller is compared with one trained on motion capture and with one
@@ -853,53 +854,76 @@ generation,''} \emph{arXiv preprint arXiv:2603.15546}, 2026.}
 movement dynamics from smartphone videos,''} \emph{PLOS Computational
 Biology}, vol. 19, no. 10, p. e1011462, 2023.}
 
-\bibitem[\citeproctext]{ref-gemx}
+\bibitem[\citeproctext]{ref-caggiano2022myosuite}
 \CSLLeftMargin{{[}41{]} }%
+\CSLRightInline{V. Caggiano, H. Wang, G. Durandau, M. Sartori, and V.
+Kumar, {``{MyoSuite}: A contact-rich simulation suite for
+musculoskeletal motor control,''} \emph{arXiv preprint
+arXiv:2205.13600}, 2022.}
+
+\bibitem[\citeproctext]{ref-holzbaur2005upper}
+\CSLLeftMargin{{[}42{]} }%
+\CSLRightInline{K. R. S. Holzbaur, W. M. Murray, and S. L. Delp, {``A
+model of the upper extremity for simulating musculoskeletal surgery and
+analyzing neuromuscular control,''} \emph{Annals of Biomedical
+Engineering}, vol. 33, no. 6, pp. 829--840, 2005, doi:
+\href{https://doi.org/10.1007/s10439-005-3320-7}{10.1007/s10439-005-3320-7}.}
+
+\bibitem[\citeproctext]{ref-saul2015benchmarking}
+\CSLLeftMargin{{[}43{]} }%
+\CSLRightInline{K. R. Saul \emph{et al.}, {``Benchmarking of dynamic
+simulation predictions in two software platforms using an upper limb
+musculoskeletal model,''} \emph{Computer Methods in Biomechanics and
+Biomedical Engineering}, vol. 18, no. 13, pp. 1445--1458, 2015, doi:
+\href{https://doi.org/10.1080/10255842.2014.916698}{10.1080/10255842.2014.916698}.}
+
+\bibitem[\citeproctext]{ref-gemx}
+\CSLLeftMargin{{[}44{]} }%
 \CSLRightInline{NVIDIA, {``{GEM-X}: Monocular whole-body {3D} human pose
 estimation using the {SOMA} body model.''} 2026. Available:
 \url{https://github.com/NVlabs/GEM-X}}
 
 \bibitem[\citeproctext]{ref-delp2007opensim}
-\CSLLeftMargin{{[}42{]} }%
+\CSLLeftMargin{{[}45{]} }%
 \CSLRightInline{S. L. Delp \emph{et al.}, {``{OpenSim}: Open-source
 software to create and analyze dynamic simulations of movement,''}
 \emph{IEEE Transactions on Biomedical Engineering}, vol. 54, no. 11, pp.
 1940--1950, 2007.}
 
 \bibitem[\citeproctext]{ref-werling2023addbiomechanics}
-\CSLLeftMargin{{[}43{]} }%
+\CSLLeftMargin{{[}46{]} }%
 \CSLRightInline{K. Werling \emph{et al.}, {``{AddBiomechanics}:
 Automating model scaling, inverse kinematics, and inverse dynamics from
 human motion data through sequential optimization,''} \emph{PLOS ONE},
 vol. 18, no. 11, p. e0295152, 2023.}
 
 \bibitem[\citeproctext]{ref-stolzle2026physiblemdm}
-\CSLLeftMargin{{[}44{]} }%
+\CSLLeftMargin{{[}47{]} }%
 \CSLRightInline{M. Stölzle, D. Müller, A. Serifi, R. Grandia, E. Knoop,
 and M. Bächer, {``{PhysibleMDM}: Enforcing inference-time physical
 feasibility constraints on motion diffusion models via noise
 optimization,''} \emph{arXiv preprint arXiv:2610.30500}, 2026.}
 
 \bibitem[\citeproctext]{ref-huo2026biohuman}
-\CSLLeftMargin{{[}45{]} }%
+\CSLLeftMargin{{[}48{]} }%
 \CSLRightInline{Y. Huo, H. Zhang, C. Song, H. Song, Z. Zuo, and T. Yu,
 {``{BioHuman}: Learning biomechanical human representations from
 video,''} \emph{arXiv preprint arXiv:2605.14772}, 2026.}
 
 \bibitem[\citeproctext]{ref-simos2025kinesis}
-\CSLLeftMargin{{[}46{]} }%
+\CSLLeftMargin{{[}49{]} }%
 \CSLRightInline{M. Simos, A. S. Chiappa, and A. Mathis, {``{KINESIS}:
 Motion imitation for human musculoskeletal locomotion,''} \emph{arXiv
 preprint arXiv:2503.14637}, 2025.}
 
 \bibitem[\citeproctext]{ref-li2026musclemimic}
-\CSLLeftMargin{{[}47{]} }%
+\CSLLeftMargin{{[}50{]} }%
 \CSLRightInline{C. Li \emph{et al.}, {``Towards embodied {AI} with
 {MuscleMimic}: Unlocking full-body musculoskeletal motor learning at
 scale,''} \emph{arXiv preprint arXiv:2603.25544}, 2026.}
 
 \bibitem[\citeproctext]{ref-luo2023phc}
-\CSLLeftMargin{{[}48{]} }%
+\CSLLeftMargin{{[}51{]} }%
 \CSLRightInline{Z. Luo, J. Cao, A. Winkler, K. Kitani, and W. Xu,
 {``Perpetual humanoid control for real-time simulated avatars,''}
 \emph{arXiv preprint arXiv:2305.06456}, 2023.}
