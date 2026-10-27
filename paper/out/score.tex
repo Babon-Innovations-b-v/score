@@ -100,32 +100,39 @@ Simulation}
 \begin{document}
 \maketitle
 \begin{abstract}
-Games, film, robotics and embodied AI all need 3D environments that can
-be simulated, in which every object is its own body with collision, mass
-and joints under the gravity of its ground, editable afterwards and
-owned by whoever made it. World models give frames no simulator opens,
-and one-shot 3D generators give one fused scene without separate bodies
-or clear rights. SCORE is a framework that synthesises such
-environments. It builds them as studios build scenes in OpenUSD, each
-scene inside its parent scene and each kind of work on it (layout,
-surfaces, physics, light, motion, effects, sound and people) in a layer
-of its own, checked and changed apart from the rest. A creator locks the
-design from the top down, first an environment concept with its style
-and physics, then a concept for each scene. Open vision foundation
-models, procedural tools and coding agents make every layer below, each
-checked by measured gates before the next is made, and every model
-allows commercial use of its output, so the creator stays the author.
-Every step is keyed on its inputs, so an edit reruns only the steps
-behind it. The result is one OpenUSD environment whose physics a
-simulator reads as written and Newton steps with MuJoCo's solver. We
-describe the framework and its method, with a first environment as the
-evidence, whose four demonstrations remain gaps until its batch has run.
-Each character also gets a sim body on Newton, driven by its SOMA
-segment rotations. We close with the route toward bodies true to the
-person, a data loop in which generated movement, kept only when
-physically possible, trains models that drive a body's muscles, and
-layered training sets from which a fast model can learn to detect muscle
-metrics from video. Code and paper are at
+Games, film, robotics and embodied AI all require 3D environments that
+can be physically simulated, in which every object is a separate body
+with its own collision geometry, mass and joints under the gravity of
+the ground it stands on, and which remain editable afterwards and owned
+by whoever made them. World models generate video frames that no physics
+simulator can open, and one-shot 3D generators produce a single fused
+scene without separate bodies or clear usage rights. SCORE is a
+framework that synthesises such environments. It builds them as film and
+game studios build scenes in OpenUSD, the open scene description
+standard, with each scene composed inside its parent scene and each kind
+of work on it (layout, surfaces, physics, lighting, motion, effects,
+sound and people) held in a layer of its own that is checked and changed
+independently of the others. A creator fixes the design from the top
+down, first an environment concept that sets its visual style and
+physical setting, then a concept image for each scene. Open vision
+foundation models, procedural generation tools and coding agents produce
+every layer below, each output passing measured acceptance tests, called
+gates, before the next is made, and every model licenses its output for
+commercial use, so the creator remains the author. Every step is
+identified by a hash of its inputs, so an edit reruns only the steps
+that depend on it. The result is a single OpenUSD environment whose
+physics description a simulator reads as written and which Newton steps
+with the MuJoCo solver. We describe the framework and its method, with a
+first environment as the evidence, whose four demonstrations remain open
+until its paid production run, called a batch, has completed. Each
+character also receives a simulated body in Newton, driven by the
+segment rotations of its SOMA body model. We close with the route
+towards subject-specific musculoskeletal bodies, a data loop in which
+generated movement, retained only when it is dynamically consistent,
+trains controllers that actuate a body's muscles, and layered training
+sets with physics-derived ground truth, on which estimators can learn to
+infer muscle activations, joint moments and ground reaction forces from
+monocular video. Code and paper are at
 https://github.com/Babon-Innovations-b-v/score (MIT licence).
 \end{abstract}
 
@@ -144,236 +151,277 @@ motion, effects, sound, people). It waits on environment 1's batch.
 \section{Introduction}\label{introduction}
 
 Simulated 3D environments serve games, film, robot learning and embodied
-AI {[}1{]}. They share a structure of separate objects with collision,
-mass and joints, ground with a gravity, light and sound that come from
-somewhere, and scenes that can be opened, changed and simulated again.
-Building one by hand is expensive, and a generator that takes the work
-over must leave the result in its maker's hands, since in GDC's 2026
-survey 52 percent of game workers thought generative AI was hurting the
-industry {[}2{]}.
+AI {[}1{]}. Across these uses they share a common structure of separate
+objects with collision geometry, mass and joints, a ground surface with
+its gravity, light and sound emitted by identifiable sources, and scenes
+that can be reopened, modified and simulated again. Authoring such an
+environment by hand is expensive, and a generative system that takes
+over this work must leave the result in the hands of its author, since
+in the Game Developers Conference's 2026 survey 52 percent of game
+workers considered generative AI to be harming the industry {[}2{]}.
 
-World models generate an environment as frames {[}3{]}, {[}4{]} that no
-simulator can step. 3D environment generators {[}5{]}, {[}6{]} produce
-geometry, mostly as one fused asset from which separate objects are
-recovered afterwards {[}7{]}, {[}8{]}. Both work in one shot, so a fault
-cannot be traced to its step. Procedural systems {[}9{]}, {[}10{]} and
-coding agents that write scenes as programs {[}11{]}, {[}12{]},
-{[}13{]}, {[}14{]}, {[}15{]}, {[}16{]} keep the environment explicit but
-rebuild a scene that already exists or draw from a fixed library. Their
-models often float or come apart {[}17{]}, such agents judge their own
-geometry unreliably {[}18{]}, and on scenes rebuilt from video the best
-model scores 0.91 on static scenes but 0.67 on dynamic ones {[}19{]}.
-Open vision foundation models {[}20{]} now read shapes {[}21{]}, masks
-{[}22{]} and depth {[}23{]} from pictures, and a coding agent can
-connect them as tools, yet none gives one style across objects that
-different models made {[}24{]}, {[}25{]}, and none gives physics.
+World models generate an environment as a sequence of video frames
+{[}3{]}, {[}4{]} that no physics simulator can step forward in time. 3D
+environment generators {[}5{]}, {[}6{]} produce geometry, mostly as a
+single fused asset from which separate objects have to be recovered
+afterwards {[}7{]}, {[}8{]}. Both operate in a single pass, so a fault
+in the output cannot be traced to the step that caused it. Procedural
+content generation systems {[}9{]}, {[}10{]} and coding agents, language
+models that write scenes as executable programs {[}11{]}, {[}12{]},
+{[}13{]}, {[}14{]}, {[}15{]}, {[}16{]}, keep the environment explicit
+and inspectable, but they either reconstruct a scene that already exists
+or assemble it from a fixed asset library. The models they produce often
+float above their supports or come apart {[}17{]}, such agents assess
+their own geometry unreliably {[}18{]}, and on scenes reconstructed from
+video the strongest model scores 0.91 on static scenes but only 0.67 on
+dynamic ones {[}19{]}. Open vision foundation models {[}20{]}, large
+models pretrained on broad image data and reused across tasks, now
+recover 3D shape {[}21{]}, segmentation masks {[}22{]} and depth
+{[}23{]} from images, and a coding agent can call them as tools, yet
+none of them gives a consistent visual style across objects that
+different models produced {[}24{]}, {[}25{]}, and none gives physical
+properties.
 
-The pieces for the physics exist. OpenUSD {[}26{]}, the scene
-description Pixar made for its films, keeps each department's work in
-its own layer file and assembles scenes from smaller ones by reference,
-and its physics schema states bodies, colliders, mass and joints in the
-same stage. MuJoCo {[}27{]} is a widely used solver for articulated
-bodies with contact, and Newton {[}28{]}, built on Warp {[}29{]}, runs
-MuJoCo's solver on the GPU {[}30{]} and reads OpenUSD directly. What is
-missing is a route from what a creator wants to a complete environment
-in this form.
+The components needed for the physics already exist. OpenUSD {[}26{]},
+the scene description that Pixar developed for its film production,
+stores each department's work in its own layer file and composes scenes
+from smaller ones by reference, and its physics schema describes rigid
+bodies, colliders, mass and joints within the same stage, the composed
+scene. MuJoCo {[}27{]} is a widely used physics engine for articulated
+bodies in contact, and Newton {[}28{]}, built on the Warp GPU
+programming framework {[}29{]}, runs MuJoCo's solver on the GPU {[}30{]}
+and loads OpenUSD scenes directly. What is missing is a route from what
+a creator intends to a complete environment in this form.
 
 SCORE is that framework. Its environments are complete, since every
 object, surface, light and sound a scene shows exists wherever the
 viewer looks. They are owned, because every model in the framework
-allows commercial use of its output, so the creator holds the full
-rights. They are responsive, because every object has its collider, mass
-and material and what moves has its joints, so a simulator steps the
-environment as written. They are editable, since each scene is a stack
-of layers made by keyed steps and a change reruns only what it touches.
-An environment can be a house on a plot of ground or a system of worlds
-that move one another.
+permits commercial use of its output, so the creator holds the full
+rights. They are responsive, because every object carries its collider,
+mass and material and every moving part its joints, so a simulator steps
+the environment as written. They are editable, since each scene is a
+stack of layers produced by steps that are each identified by a key
+derived from their inputs, and a change reruns only the steps it
+affects. An environment can range from a house on a plot of ground to a
+system of worlds that move one another by gravitation.
 
 We contribute the SCORE framework (Section 2), which turns a creator's
-locked design into one OpenUSD environment that is physically simulable
-and opens unchanged in a game engine, a robot simulator or a film
-renderer. Its method (Section 3) builds a scene top down and layer by
-layer, each stage behind measured gates. The evidence plan (Section 4)
-comprises four demonstrations on a first environment, left as gaps until
-its batch has run. Section 5 sets out where the framework goes next,
-toward simulated people true to the person.
+locked design into a single OpenUSD environment that is physically
+simulable and opens unchanged in a game engine, a robot simulator or a
+film renderer. Its method (Section 3) builds a scene from the top down
+and layer by layer, with each stage passing measured acceptance tests
+before the next begins. The evidence plan (Section 4) comprises four
+demonstrations on a first environment, left as gaps until its batch has
+run. Section 5 sets out where the framework goes next, towards simulated
+people whose bodies are true to the individual person.
 
 \section{The framework}\label{the-framework}
 
-An environment is one OpenUSD record. Each scene is one stage that sits
-within its parent scene and holds its child scenes, referenced at the
-rooms its plan gives them, so opening a top scene opens everything below
-it. Each scene's layers stack in a fixed order, from a slot for the
-creator's edit layer on top through people, sound, light, motion,
-effects, crops, machines, physics, settle, ground and the base laid from
-the locked plan. Each object, one per real-world object, carries its
-kind, transform, collider and each part's library surface. The
-environment's physics is decided in its environment concept (EC) as a
-plot of ground with a gravity and a sun path, one world, or a system of
-bodies that move one another, where a real body takes its values from a
-cited table and an invented one is given by its radius, mass, orbit and
-spin. The physics layer writes a scene's bodies, mass, joints and the
-gravity of the body it stands on in OpenUSD's physics schema, so any
-reader of that schema gets the same scene.
+An environment is stored as a single OpenUSD record. Each scene is one
+stage, a composed OpenUSD scene, that sits within its parent scene and
+holds its child scenes, each referenced at the room that the parent's
+plan, a dimensioned drawing in metres, assigns to it, so that opening a
+top scene opens everything below it. Each scene's layers are stacked in
+a fixed order of precedence, from a slot reserved for the creator's own
+edit layer at the top, through people, sound, light, motion, effects,
+crops, machines, physics, settle and ground, down to the base layer laid
+out from the locked plan. Each object corresponds to one real-world
+object and carries its kind, transform, collider and, for each of its
+parts, a surface from the library. The environment's physical setting is
+decided in its environment concept (EC), the top-level design the
+creator locks, as a plot of ground with its gravity and the path of its
+sun, as a single world, or as a system of bodies that move one another
+by gravitation. A real celestial body takes its values from a cited
+table, and an invented one is specified by its radius, mass, orbit and
+spin. The physics layer writes a scene's rigid bodies, masses, joints
+and the gravity of the body it stands on in OpenUSD's physics schema, so
+that any reader of that schema obtains the same scene.
 
-The creator works in the creator cockpit, one signed-in web page where
-he locks the design, buys paid work and reviews what the framework
-reports. An environment is a table of stages read off its designs, and
-environment 1's has 261 rows. A node is one stage for one scene
-(\texttt{assembly@hangar}) or for the environment, and one runner makes,
-judges and accepts every node. An approved design then runs without
-further approval.
+The creator works in the creator cockpit, a single authenticated web
+page in which he locks the design, purchases paid computation and
+reviews what the framework reports. The work on an environment is
+represented as a table of stages derived from its designs, and the table
+for environment 1 has 261 rows. A node is one stage applied to one scene
+(written \texttt{assembly@hangar} for the assembly stage of the hangar
+scene) or to the environment as a whole, and a single runner produces,
+evaluates and accepts every node. Once the creator has approved a
+design, it runs without further approval.
 
-\textbf{Keys.} A node is made only when its key has no finish record.
-The key hashes the stage and scene, its code version, contracts,
-parameters and seed, the pinned model images, every file it reads and
-the accepted output of every node it reads. The code version counts only
-code that can shape the output. Code deciding where and how a job runs
-changes what a run costs, never what it makes, and is in no key. An edit
-or a fixed fault moves only its own key and those after it, so only
-those steps run again. Outputs are kept by content hash and never
-overwritten.
+\textbf{Keys.} A node is computed only when its key has no completion
+record, as in a content-addressed build system. The key is a hash over
+the stage and scene, the version of its code, its contracts, parameters
+and random seed, the pinned container images of its models, every file
+it reads and the accepted output of every node it reads. The code
+version covers only code that can shape the output. Code that decides
+where and how a job runs changes what a run costs but never what it
+produces, and is therefore excluded from every key. An edit or a fixed
+fault changes only its own node's key and the keys of the nodes
+downstream of it, so only those steps run again. Outputs are stored
+under their content hash and never overwritten.
 
-\textbf{Gates and accepts.} Each gate answers pass, fail or unknown,
-with measures and a reason. Missing evidence is unknown, and unknown
-blocks like fail. The runner accepts an output by itself when every gate
-passed and it is no worse than the last accepted one, and later nodes
-read only accepted outputs. The creator keeps four actions. He may
-reject an accepted output (every node that read it is then stale),
-accept a worse one with a reason, waive one gate for one key, and
-override the runner for one paid run. Agents are kept from these by a
-store that refuses such records from an agent's process and by a hook.
+\textbf{Gates and accepts.} Each gate is an automated acceptance test
+that returns pass, fail or unknown, together with its measurements and a
+reason. Missing evidence counts as unknown, and unknown blocks
+acceptance just as fail does. The runner accepts an output automatically
+when every gate has passed and the output is no worse than the last
+accepted one, and downstream nodes read only accepted outputs. Four
+actions are reserved for the creator. He may reject an accepted output,
+which marks every node that read it as stale, accept a worse output with
+a stated reason, waive one gate for one key, and override the runner for
+one paid run. Coding agents are prevented from taking these actions by a
+store that refuses such records when they come from an agent's process,
+and by a hook in the agent's harness.
 
-\textbf{Batches.} Paid work is bought as a batch with one estimate. The
-creator's approval sets the batch's budget across all its tries, and the
-money guards stop it there. Inside a batch every paid job runs once, and
-a failed output becomes a batch gap that the completion gate lists.
-Every paid stage is priced from a unit cost measured on the ledgers. A
-stage with no measured run has no price, and its estimate is shown apart
-as a guess.
+\textbf{Batches.} Paid computation is purchased as a batch, a production
+run with a single cost estimate. The creator's approval sets the batch's
+budget across all of its attempts, and spending guards stop the batch
+when that budget is reached. Within a batch every paid job runs once,
+and a failed output becomes a batch gap, which the completion gate
+lists. Every paid stage is priced from a unit cost measured on the cloud
+billing ledgers. A stage that has not yet been measured in a run has no
+price, and its estimate is shown separately as a guess.
 
 \section{Method: building an
 environment}\label{method-building-an-environment}
 
 \subsection{From concept to plan}\label{from-concept-to-plan}
 
-\textbf{The environment concept.} The creator first locks the EC, its
-style and physics together with his reference pictures and the scenes it
-holds, in a short interview with Gemini 3.1 Pro {[}31{]}. An environment
-plan then places each top scene's site on that ground and works out the
-sky it sees.
+\textbf{The environment concept.} The creator first locks the EC, which
+fixes the environment's visual style and physical setting together with
+his reference images and the scenes it contains, in a short structured
+interview conducted with the vision-language model Gemini 3.1 Pro
+{[}31{]}. An environment plan then places the site of each top scene on
+that ground and computes the sky visible from it.
 
-\textbf{A concept for each scene, top down.} A concept is then locked
-for each scene, parents before their child scenes. Each draw is one Nano
-Banana Pro {[}32{]} call, on a concept review page where he marks areas
-and asks for a new draw. A child scene is drawn only once its parent is
-locked and planned, on a crop of the parent's concept, so that it fits
-the parent it stands in.
+\textbf{A concept for each scene, top down.} A concept image is then
+locked for each scene, parents before their child scenes. Each candidate
+image is one call to the image generation model Nano Banana Pro
+{[}32{]}, made on a concept review page where the creator marks regions
+and requests a new image. A child scene is drawn only once its parent
+has been locked and planned, from a crop of the parent's concept, so
+that it fits the parent it stands in.
 
 \textbf{Inventory and plan.} Gemini 3.1 Pro lists each object of the
-locked concept as a scene inventory row, with its kind, count, anchor
-and size in metres, and SAM 3 {[}22{]} boxes each row. Nothing outside
-the rows is made or placed. Nano Banana Pro then draws the scene from
-straight above and Gemini 3.1 Pro writes the plan in metres from that
-drawing, the concept and the inventory. It gives the outline, walls,
-openings, levels, stairs, roofs and terrain, each item with its facing,
-people as the spots they stand on, and the child scenes' rooms. Free
-checks test that every row is placed as often as it counts, inside the
-outline and clear of other floor items, that every door and standing
-spot is reached on foot, and that the child scenes tile their parent.
-What remains goes back as notes at most twice, and only what is left is
-a gap. The creator's edits on the plan review page always win and redo
-what follows.
+locked concept as a row of the scene inventory, giving its kind, count,
+anchor and size in metres, and the segmentation model SAM 3 {[}22{]}
+localises each row with a bounding box. Nothing outside the inventory is
+generated or placed. Nano Banana Pro then draws the scene from directly
+above, and Gemini 3.1 Pro writes the plan in metres from that drawing,
+the concept and the inventory. The plan gives the outline, walls,
+openings, levels, stairs, roofs and terrain, each item with its
+orientation, people as the spots on which they stand, and the rooms of
+the child scenes. Free checks, which make no paid model call, test that
+every row is placed as many times as its count, inside the outline and
+clear of other floor items, that every door and standing spot can be
+reached on foot, and that the child scenes tile their parent. Any
+remaining violations are returned to the model as notes at most twice,
+and only what still fails is recorded as a gap. The creator's edits on
+the plan review page always take precedence and cause everything that
+follows to be recomputed.
 
-\textbf{Shapes first.} The route is one loop at every scale. A parent
-scene gets its concept, plan and a rough model, and its plan is split
-into the shapes of its child scenes. Once those shapes are fixed, every
-child scene is made in parallel and repeats the loop. The rows
-\texttt{rough-model} and \texttt{shell-split} are built and have not
-run.
+\textbf{Shapes first.} The route follows one coarse-to-fine loop at
+every scale. A parent scene receives its concept, plan and a rough block
+model, and its plan is divided into the shapes of its child scenes. Once
+those shapes are fixed, all child scenes are produced in parallel, each
+repeating the loop. The stages \texttt{rough-model} and
+\texttt{shell-split} are implemented but have not yet run.
 
 \subsection{Layers from row kinds}\label{layers-from-row-kinds}
 
-A scene's layers are read off its design alone. Each inventory row's
-kind, found from the reading's noun by one table of rules, says what its
-objects do (emit, move, lie loose, glow, grow, act or sound). A scene
-gets an effects, motion, physics, crops or people layer only for rows
-that do so, and always a light and a sound layer. Each layer is made
-from its rows by their kind's rule, so a new environment needs no
-hand-written list. The scene record holds what no made piece covers
-(shells, stairs, ground and water, backdrop, lamps and neighbours),
-gated on the shell lying within 5 cm of the plan and every doorway
-opening onto a floor.
+A scene's layers are derived from its design alone. Each inventory row's
+kind, determined from the noun in the inventory reading by a single
+table of rules, states what its objects do, whether they emit, move, lie
+loose, glow, grow, act or sound. A scene receives an effects, motion,
+physics, crops or people layer only for rows that do so, and always a
+light and a sound layer. Each layer is generated from its rows by the
+rule of their kind, so a new environment needs no hand-written list of
+layers. The scene record holds what no generated object covers (building
+shells, stairs, ground and water, the distant backdrop, lamps and the
+neighbouring scenes its doorways lead to), and its gate requires the
+shell to lie within 5 cm of the plan and every doorway to open onto a
+floor.
 
-\textbf{Models.} Objects take the prop route first. Nano Banana Pro
-draws its close-up from its crop of the concept and redraws it at most
-three times when the shape check rejects it. Pixal3D {[}21{]} builds the
-model, and a likeness gate compares its outline from eight sides with
-the close-up. Only an object whose checks fail is built by a code
-builder a coding agent writes, and a thin straight thing (a pipe, post
-or beam) whose every close-up failed is swept along its length in code.
+\textbf{Models.} Objects follow the prop route first, which turns a
+single image of an object into a 3D model. Nano Banana Pro draws a
+close-up of the object from its crop of the concept and redraws it at
+most three times when the shape check rejects it. The image-to-3D model
+Pixal3D {[}21{]} then reconstructs the mesh, and a likeness gate
+compares its silhouettes from eight viewpoints with the close-up. Only
+an object whose checks fail is built instead by a procedural builder, a
+program that a coding agent writes, and a thin straight object (a pipe,
+post or beam) whose every close-up failed is generated in code by
+sweeping its cross-section along its length.
 
 \textbf{Surfaces.} Everything a scene shows comes from the creator's
-library, score\_lib, or is a written exception. A model gives shape
-only, and each part takes one surface from a library of rule-based
-surfaces, written as ProcFunc functions {[}33{]} on Infinigen's shaders
-{[}9{]} and coloured from the scene's palette. The finish route labels
-each face from free renders of the model, matches each finish to a
-library surface, bakes it and checks the bake against the close-up, with
-each finish within ΔE 32 of its colour there. A free library check
-traces every material, model, light, sound and character of an accepted
-assembly to the library or an exception.
+asset library, score\_lib, or is recorded as a written exception. A
+generated model contributes geometry only, and each of its parts takes
+one material from a library of procedural materials, written as ProcFunc
+functions {[}33{]} on Infinigen's shaders {[}9{]} and coloured from the
+scene's palette. The finish route labels each face of the model from
+free renders, matches each finish to a library material, bakes it into
+textures and checks the bake against the close-up, requiring each finish
+to lie within a colour difference of ΔE 32 of its colour there. A free
+library check traces every material, model, light, sound and character
+of an accepted assembly back to the library or to an exception.
 
-\textbf{Settle and physics.} Loose objects are dropped onto the made
-ground, and one that would turn more than 15 degrees or drift more than
-30 cm is a resting fault and keeps its laid pose. The settle writes
-where each object rests as a layer. The physics trial then steps the
-composed scene on Newton, with MuJoCo's solver on Newton's contacts
-under the gravity of the body the scene stands on, and judges it by the
-gates \texttt{reacted}, \texttt{at\ rest}, \texttt{energy} (no rise in
-undriven energy) and \texttt{hinge} (a hinged leaf swings to its limit).
-The trial moved from Blender's Bullet {[}34{]} to Newton on 27 October
-2026. On a toy scene at Moon gravity (two crate drops, a driven door
-with a wheel fixed to it, a pushed stool), both engines gave the same
-answers on every gate, and Newton landed the crates on their targets
-where Bullet left its contact margins of 8 mm. Newton's deterministic
-mode, bitwise equal over six runs on that toy, cannot hold scenes with
-many loose bodies (its buffers pass the 32-bit limit), so the trial and
-the settle run without it. Two runs of a 25-body toy then agree within
-5e-7 m on every body but one that falls off the floor's edge. The settle
-moves to Newton the same way, so one engine steps what comes to rest and
-what is tried, and one effect is stepped on Newton as a first case for
-the effects layer.
+\textbf{Settle and physics.} Loose objects are dropped onto the
+generated ground in a rigid-body simulation, the settle, and an object
+that would rotate by more than 15 degrees or drift by more than 30 cm is
+recorded as a resting fault and keeps its laid-out pose. The settle
+writes the pose in which each object comes to rest as a layer. The
+physics trial then steps the composed scene in Newton, using MuJoCo's
+solver with Newton's contact handling under the gravity of the body the
+scene stands on, and evaluates it with the gates \texttt{reacted},
+\texttt{at\ rest}, \texttt{energy} (no increase in the energy of
+undriven bodies) and \texttt{hinge} (a hinged door leaf swings to its
+joint limit). The trial moved from Blender's Bullet engine {[}34{]} to
+Newton on 27 October 2026. On a test scene at lunar gravity (two dropped
+crates, a driven door with a wheel fixed to it and a pushed stool), both
+engines gave the same result on every gate, and Newton brought the
+crates to rest on their targets where Bullet left them standing off by
+its contact margin of 8 mm. Newton's deterministic mode, which
+reproduced bitwise-identical results over six runs of that test scene,
+cannot handle scenes with many loose bodies, because its buffers exceed
+the 32-bit limit, so the trial and the settle run without it. Two runs
+of a 25-body test scene then agree within 5e-7 m for every body except
+one that falls off the edge of the floor. The settle moves to Newton in
+the same way, so that one engine steps both what comes to rest and what
+is tested, and one effect is simulated in Newton as a first case for the
+effects layer.
 
-\textbf{Light, motion, effects and sound.} The sky is worked out from
-the EC's physics, never drawn, with each body at its true direction,
-size and phase as seen from the scene's site. The lamps are the
-inventory's glowing rows. One render per scene gives each lamp its own
-light group, and a free sweep mixes their strengths to bring the scene
-within 1.5 times its concept's brightness. Every object of a moving row
-moves by its kind's rule at a speed cited from real machines, gated on
-nothing coming within 3 cm of another thing. Emitters are measured
-against real footage. Each sound source gets a library file or one
-MOSS-SoundEffect {[}35{]} take, gated on a CLAP {[}36{]} score of at
-least 0.30.
+\textbf{Light, motion, effects and sound.} The sky is computed from the
+physical setting in the EC, never drawn, with each celestial body at its
+true direction, apparent size and phase as seen from the scene's site.
+The lamps are the inventory's glowing rows. One render per scene places
+each lamp in its own light group, and a free sweep mixes their
+intensities to bring the scene's brightness within a factor of 1.5 of
+its concept's. Every object of a moving row moves by the rule of its
+kind at a speed taken from cited real machines, and is gated on nothing
+coming within 3 cm of anything else. Emitters are measured against real
+footage. Each sound source receives a library file or one take generated
+by the text-to-audio model MOSS-SoundEffect {[}35{]}, gated on an
+audio-text similarity score from CLAP {[}36{]} of at least 0.30.
 
 \textbf{People.} People are models like any other, each made from a
-close-up per person row, built by Pixal3D and painted by the finish
-route. SOMA's body {[}37{]}, read from the close-up by SAM 3D Body
-{[}38{]}, is fitted under it as its rig and moved by Kimodo's clips
-{[}39{]}. A shell gate passes a look when 99 percent of its soft points
-lie within 5 cm of the body. Each person stands on a person spot of its
-scene's plan.
+close-up per person row, reconstructed by Pixal3D and given its
+materials by the finish route. The SOMA parametric body model {[}37{]},
+estimated from the close-up by SAM 3D Body {[}38{]}, is fitted beneath
+the model as its skeletal rig and animated with motion clips from Kimodo
+{[}39{]}. A shell gate accepts a clothed appearance when 99 percent of
+the points of its non-rigid parts lie within 5 cm of the body. Each
+person stands on a person spot of its scene's plan.
 
-\textbf{Sim bodies.} Each character also gets a sim body, its physical
-twin on Newton, so people in an environment are simulated as well as
-animated. The minimal body is built straight from SOMA's 23 segments
+\textbf{Sim bodies.} Each character also receives a sim body, its
+physical twin in Newton, so that the people in an environment are
+physically simulated as well as animated. The minimal body is an
+articulated rigid-body model built directly from SOMA's 23 segments,
 with a ball joint at each SOMA joint frame. It is driven by the
 character's SOMA segment rotations without scaling or per-person setup,
-its mass spread by its segment volumes, and stands on a SCORE floor so
-its ground forces come from contact. Muscles enter as a minimal first
-step. Built this way, the body follows SOMA's rotations to within 6.9e-9
-m, and on Newton it matches plain MuJoCo to 3.4e-8 after 200 steps.
+its mass is distributed according to its segment volumes, and it stands
+on a SCORE floor so that its ground reaction forces arise from contact.
+Muscles are added as a minimal first step. Built this way, the body
+follows SOMA's rotations to within 6.9e-9 m, and in Newton it matches
+plain MuJoCo to within 3.4e-8 after 200 steps.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
@@ -387,22 +435,23 @@ cloud card.
 
 \end{minipage}}\end{center}
 
-\textbf{Completion.} A scene is complete when its gate passes on its
-final assembly, with every row made or dropped with a reason, nothing
-unmade, no resting fault, and every layer and shown scene present. A
-fault the creator ships with is an accepted gap, written with who
-decided, when and why. The gate lists every gap by name and is never
-loosened. A hook stops an agent claiming a scene is done while its gate
-fails, as agents judging their own scenes agree with a measured geometry
-score only 45.8 percent of the time {[}18{]}. A complete scene's films
-are made from scripts the creator locked.
+\textbf{Completion.} A scene is complete when its completion gate passes
+on its final assembly, with every inventory row made or dropped with a
+reason, nothing left unmade, no resting fault, and every layer and every
+visible scene present. A fault the creator chooses to ship with is an
+accepted gap, recorded with who decided, when and why. The gate lists
+every gap by name and is never relaxed. A hook prevents a coding agent
+from claiming that a scene is done while its gate fails, because agents
+judging their own scenes agree with a measured geometry score only 45.8
+percent of the time {[}18{]}. The films of a complete scene are rendered
+from scripts the creator has locked.
 
 \section{Evidence: environment 1}\label{evidence-environment-1}
 
-Environment 1 is the evidence. The creator did not accept its first run
-and its store was lost on 19 October 2026, so this draft shows none of
-its outputs, and each demonstration below is made on its new batch.
-Figure 1 is the first.
+Environment 1 serves as the evidence. The creator did not accept its
+first run, and its store of outputs was lost on 19 October 2026, so this
+draft shows none of its outputs, and each demonstration below will be
+produced by its new batch. Figure 1 is the first.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
@@ -444,80 +493,113 @@ batch, time, euros and the creator's verdict. It waits on environment
 \end{minipage}}\end{center}
 
 \textbf{Disclosure.} The creator's locks, picks, accepts and waivers are
-his own clicks, and everything between them is automatic. Coding agents
-wrote most of the framework's code under the author's direction, and
-2,413 of its 2,436 commits carry a coding agent as co-author. Hand fixes
-to a scene are recorded as the creator's edits.
+his own actions in the cockpit, and everything between them is
+automatic. Coding agents wrote most of the framework's code under the
+author's direction, and 2,413 of its 2,436 commits list a coding agent
+as co-author. Manual fixes to a scene are recorded as the creator's
+edits.
 
 \section{Future work: people true to the
 person}\label{future-work-people-true-to-the-person}
 
-The minimal sim body is a start, and what follows are goals rather than
-results.
+The minimal sim body is a starting point, and what follows describes
+goals rather than results.
 
-\textbf{Bodies true to the person.} The sim body is to become fully
-musculoskeletal and true to the person, older people and a curved spine
-included, instead of a resized template. Joint centres are to come from
-bone landmarks on its SOMA mesh, then mass, muscles, joint ranges, spine
-and bone shape, each input SOMA lacks marked as assumed with a range. A
-full musculoskeletal body with 416 muscles already runs on Newton but
-still drifts 1.5 cm from plain MuJoCo after 300 steps, so Newton is to
-be validated for bodies first. Its joint angles, then its joint moments
-and ground forces, are to be held to OpenCap's LabValidation data.
+\textbf{Bodies true to the person.} The sim body is to become a full
+musculoskeletal model that is specific to the individual, older people
+and people with a curved spine included, rather than a scaled generic
+template. Joint centres are to be derived from bony landmarks on the
+SOMA mesh, followed by segment masses, muscles, joint ranges of motion,
+the spine and bone geometry, with each input that SOMA does not provide
+marked as assumed and given a plausible range. A full-body
+musculoskeletal model with 416 muscles already runs in Newton but still
+drifts 1.5 cm from plain MuJoCo after 300 steps, so Newton is first to
+be validated for such bodies. The body's joint angles, and then its net
+joint moments and ground reaction forces, are to be validated against
+OpenCap's LabValidation data.
 
-\textbf{Scenes from motion.} Motion comes from the SOMA ecosystem, read
-from video by GEM-X {[}41{]} or made from sentences by Kimodo {[}39{]},
-without limit. The ground a motion implies becomes a SCORE scene, with
-no video and nothing that identifies a person. A sim body follows the
-motion on that ground, and physics computes the ground contact, the
-joint torques and the forces of its 416 muscles. The force that neither
-the ground nor the muscles can supply is the residual. It is recorded
-and never applied, and only motion with a small residual is kept.
-Biomechanics uses the same residual to judge recorded motion {[}42{]},
-{[}43{]}, and PhysibleMDM {[}44{]} lowers it for generated robot motion;
-we use it on generated motion in a muscle-driven body.
+\textbf{Scenes from motion.} Motion is to come from the SOMA ecosystem,
+either estimated from video with GEM-X {[}41{]} or generated from text
+and constraints with Kimodo {[}39{]}, in practically unlimited quantity.
+The terrain a motion implies becomes a SCORE scene, so the movement is
+kept in its setting without the source video or any information that
+identifies a person. The sim body then follows each movement as a
+prescribed trajectory on the scene's ground, and the simulation solves
+for the ground reaction forces from contact, the net joint moments, and
+the activations and forces of a 416-muscle model that reproduce it. Any
+force and moment that neither the ground contact nor the muscles can
+supply remains as the residual at the pelvis. It is recorded for every
+frame and never applied to the body, so it quantifies how dynamically
+consistent the movement is, and only movements with a small residual are
+kept. Biomechanics reduces and reports the same residual to assess
+recorded motion {[}42{]}, {[}43{]}, and PhysibleMDM {[}44{]} minimises
+an inverse-dynamics residual to make generated motion feasible for a
+torque-driven robot; we apply the criterion to generated motion in a
+muscle-driven body.
 
-\textbf{Layered training sets.} Each run also yields layered training
-sets, in which a rendered picture of a clothed person in a scene is
-paired with the exact body, joint angles, ground forces, muscle
-activations and forces, and residual beneath it. From these a fast model
-can be trained to detect muscle metrics from video, and specialised, for
-example for clinical use, because its training data comes from the
-simulation. BioHuman10M {[}45{]} pairs rendered video with 112-muscle
-activations and estimated ground forces; our sets add scenes made for
-the purpose, ground forces from simulated contact, a 416-muscle body and
-a residual per sample. Whether such a model carries over to real
-force-plate and muscle recordings remains to be shown.
+\textbf{Layered training sets.} The same simulations yield layered
+training sets. Each sample pairs a rendered image of a clothed person in
+a complete scene with physics-derived ground truth for every layer
+beneath it, namely the SOMA body and its joint angles, the ground
+reaction force under each foot from simulated contact, the muscle
+activations and forces, the residual, and the depth, segmentation and
+layout of the scene. Their main purpose is to train estimators that
+infer muscle activations, joint moments and ground reaction forces
+directly from monocular video, quickly enough for routine clinical use.
+Recorded data cannot provide this supervision at scale, because muscle
+forces cannot be measured non-invasively and force plates and
+electromyography confine measurement to a laboratory, whereas the
+simulation can generate the bodies, movements and settings an estimator
+has to cover, including those of a specific population, so that
+domain-specific estimators can be trained for it. BioHuman10M {[}45{]}
+already pairs video, part of it rendered, with the activations of a
+112-muscle model and with ground reaction forces predicted by a learned
+model from recorded motion. Our sets would differ in scenes generated
+for the purpose under varied lighting, terrain and clothing, in ground
+reaction forces from contact with each scene's own ground, in a
+416-muscle model and in a residual for every sample, and their value
+depends on whether estimators trained on them transfer to real
+force-plate and electromyography recordings.
 
-\textbf{Brains.} A brain is a trained model that drives a sim body's
-muscles. Trained on low-residual motion and placed in new worlds, it
-adds movement no recording holds. KINESIS {[}46{]} and MuscleMimic
-{[}47{]} train muscle-driven controllers on motion capture; to our
-knowledge none has been trained on generated motion filtered by its
-residual, a claim that still needs a comparison with both.
+\textbf{Brains.} A brain is a trained controller that actuates a sim
+body's muscles, and its role is to extend the training data beyond what
+a motion generator produces. Trained on the retained movements together
+with the muscle forces that produce them, it is placed in SCORE's
+synthesised worlds under their own gravity and terrain, where it is to
+adapt to structures no recording contains, and each run it drives adds
+movement to the training sets. Muscle-driven controllers such as KINESIS
+{[}46{]} and MuscleMimic {[}47{]} are trained on motion capture, as are
+torque-driven ones such as PHC {[}48{]}. To our knowledge, no
+muscle-driven controller has yet been trained on generated motion
+selected by its residual, and the claim holds only once such a
+controller is compared with one trained on motion capture and with one
+trained on the same generated motion unfiltered.
 
-\textbf{The data loop.} The more compute behind the loop, the more data
-it makes, which is why SCORE is open, so others can add their compute
-and share the sets back. Models for clinical use are trained outside
-SCORE, on data that never enters it.
+\textbf{The data loop.} The amount of data the loop produces scales with
+the compute put behind it, since every scene, movement and run adds
+samples. This is why SCORE is open, so that others can apply their own
+compute to the same framework and share the resulting datasets.
+Estimators specialised for clinical use would be trained outside SCORE,
+on data that never enters it.
 
 \section{Limitations and conclusion}\label{limitations-and-conclusion}
 
-One creator judges, and he has not yet accepted a run. Closed models
-(Nano Banana Pro, Gemini 3.1 Pro) draw the concepts and close-ups and
-read and plan every scene, and may change or be withdrawn. The design
-step, the layers from row kinds, the finish route, the shapes-first loop
-and the scene tree have not yet carried a scene through a batch. The
-edit layer is a slot. The settle, the effects and the sim body are not
-yet on Newton, and no game engine or robot simulator has yet opened the
-result. Next come environment 1's batch with its four demonstrations, an
-engine adapter, the edit layer carried across assemblies, more
-environments, open models replacing the closed ones, and the data loop,
-in which residual-filtered generated movement trains brains whose worth
-a comparison with motion capture has yet to show. SCORE synthesises an
-environment as studios build one, scene by scene and layer by layer, in
-a form a simulator steps as written, and an accepted environment will
-show whether it holds.
+A single creator judges the results, and he has not yet accepted a run.
+Closed models (Nano Banana Pro, Gemini 3.1 Pro) draw the concepts and
+close-ups and read and plan every scene, and may change or be withdrawn.
+The design step, the layers derived from row kinds, the finish route,
+the shapes-first loop and the scene tree have not yet carried a scene
+through a batch. The edit layer is so far only a reserved slot. The
+settle, the effects and the sim body do not yet run in Newton as stages,
+and no game engine or robot simulator has yet opened the result. Next
+come environment 1's batch with its four demonstrations, an engine
+adapter, the edit layer carried across assemblies, further environments,
+open models replacing the closed ones, and the data loop, in which
+residual-filtered generated movement trains muscle-driven controllers
+whose value a comparison with motion capture has yet to show. SCORE
+synthesises an environment as studios build one, scene by scene and
+layer by layer, in a form a simulator steps as written, and an accepted
+environment will show whether the approach holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -815,6 +897,12 @@ preprint arXiv:2503.14637}, 2025.}
 \CSLRightInline{C. Li \emph{et al.}, {``Towards embodied {AI} with
 {MuscleMimic}: Unlocking full-body musculoskeletal motor learning at
 scale,''} \emph{arXiv preprint arXiv:2603.25544}, 2026.}
+
+\bibitem[\citeproctext]{ref-luo2023phc}
+\CSLLeftMargin{{[}48{]} }%
+\CSLRightInline{Z. Luo, J. Cao, A. Winkler, K. Kitani, and W. Xu,
+{``Perpetual humanoid control for real-time simulated avatars,''}
+\emph{arXiv preprint arXiv:2305.06456}, 2023.}
 
 \end{CSLReferences}
 
