@@ -1,10 +1,29 @@
-"""Check the resting triage, the collision queries and the annotate step's arithmetic on places made here: a box on
-the floor rests and a lifted one floats for real; a kit piece out of the ground is a false alarm; a cable sunk a few
-centimetres may bed in; two boxes deep inside each other overlap for real while two only touching clear the nudge; a
-wall piece touching nothing hangs free; a drop that moves an object 0.5 m is SAGE-unstable; the real faults group by
-cause; the collision set finds the pairs that meet; and the occlusion boundary lies where a near object hides a far one.
+"""tools/usd/triage.py keeps only the real resting faults, on places made here (with collide.py's collision queries
+and annotate.py's occlusion boundary): a box on the floor rests and a lifted one floats for real; a kit piece out of
+the ground is a false alarm; a cable sunk a few centimetres may bed in; two boxes deep inside each other overlap for
+real while two only touching do not; a wall piece touching nothing hangs free; a drop that moves an object 0.5 m is
+SAGE-unstable; the real faults group by cause; the collision set finds the pairs that meet; and the occlusion
+boundary lies where a near object hides a far one.
 
-Run: .venv/bin/python tools/usd/test_only_real_resting_faults_are_kept.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- supports_and_guards: triage.py's support_type `return "kit"` made `return "floor"` (the kit plate sunk for real).
+- overlaps_and_nudge: overlap_faults' `real, why = True, "still inside after the nudge"` made `real, why = False, ...`.
+- a_mounted_piece_is_judged_with_its_host: overlap_faults' `if (one or {}).get("host") == second or (other or
+  {}).get("host") == first:` made `if False:` (the engine set into its hull overlaps it).
+- a_long_drop_is_unstable_and_faults_group: drop_faults' `if settle.unstable(turned, moved) and found.get("inside"):`
+  made `if False:` (a box dropped on the ground alone reads unstable for real).
+- a_drop_started_inside_is_judged_by_the_overlap: overlap_faults' `if depth <= TOLERANCE:` made `if depth <= 0.06:`.
+- a_case_on_a_pallet_is_no_surface_under_the_pallet: Surfaces.gaps_below's `keep = ~np.isin(owners, list(left_out))
+  & ((gaps_found >= 0) | inside | ...)` made `keep = ~np.isin(owners, list(left_out))`.
+- a_foot_off_the_floor_and_a_lean_fail: feet_faults' `if gap > TOLERANCE:` made `if gap > 0.1:`.
+- a_block_tipped_onto_one_edge_of_its_sole_leans: feet_faults' `if found["lean"] > LEAN_MOST:` made
+  `if found["lean"] > 10.0:`.
+- the_collision_set: collide.py's intersection_test `... fcl.CollisionResult()) > 0` made `>= 0`.
+- occlusion_boundaries: annotate.py's `found[tuple(here)] |= apart & (near < far)` made `(near > far)`.
+- the_data_read_is_the_data_given: triage's `data = rules(rules_file)` made `data = rules()`.
+- footing_on_a_slope_is_read_over_the_ground: standing's `plane = ground_plane(...)` made `plane = None`.
+
+Run: .venv/bin/python tools/usd/test_only_real_resting_faults_are_kept.py   (make tests runs it in a sandbox home)
 """
 import json
 import pathlib
