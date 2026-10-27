@@ -23,6 +23,10 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
 - The door's job-log reads a cloud job's log under a frozen home's work/cloud only, its tail capped, and nothing a
   link or `..` leads out of it (2026-10-27: surfaces-bake@campgrounds' failed jobs, their logs out of reach).
   Break: in `job_log`, `and any(found.is_relative_to(folder) for folder in allowed)` -> `` (a link out of it read).
+- The door's run-log and fault read the newest launch's own run log and a node's fault report of its home only, and
+  no node name or link leads out of the faults folder (2026-10-27: motion@airlock's fault report out of reach).
+  Break: in `read_inside`, `and any(found.is_relative_to(folder) for folder in allowed)` -> `` (a link out read).
+  Break: in `fault`, drop the `NODE.match` refusal -> `../../logs/x` is read.
 - The env file carries no secret. Break: let SCORE_SYNC_TOKEN through `env_text`.
 - The move: this PC's store units off first (a failed disable is said), its home backed up before the conductor
   restores it, the sync installed after; the PC's home set aside and made read-only last, after the yes is marked.
@@ -260,7 +264,9 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
                   "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
                   "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "job-log",
-                  "job-log a b", "job-log x.home/work/cloud/../../../store/k"):
+                  "job-log a b", "job-log x.home/work/cloud/../../../store/k", "run-log 5", "run-log --lines",
+                  "run-log --lines x", "run-log --lines 0", "fault", "fault a b", "fault ../store/k",
+                  "fault 'motion@airlock/../../x'"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000"):
@@ -305,6 +311,12 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     code, why, argv, env = door("job-log x.home/work/cloud/blender-1/job3.log")
     assert code == 0 and argv[1:] == ["--job-log", "x.home/work/cloud/blender-1/job3.log"], (why, argv)
     assert argv[0].endswith("agent_door.py") and env["SCORE_FREE_ONLY"] == "1", argv
+    code, why, argv, env = door("run-log")
+    assert code == 0 and argv[1:] == ["--run-log", "200"] and argv[0].endswith("agent_door.py"), (why, argv)
+    code, why, argv, env = door("run-log --lines 99999")
+    assert code == 0 and argv[1:] == ["--run-log", "2000"], (why, argv)  # capped
+    code, why, argv, env = door("fault motion@airlock")
+    assert code == 0 and argv[1:] == ["--fault", "motion@airlock"] and env["SCORE_FREE_ONLY"] == "1", (why, argv)
     code, why, argv, env = door("stop-batch 'the run holds 13 idle machines'")
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
@@ -345,6 +357,36 @@ def test_the_doors_job_log_reads_only_a_frozen_homes_cloud_logs(tmp_path):
                   "20261027-0918.home/work/cloud/blender-1/job9.log"):
         with pytest.raises(agent_door.Refused):
             agent_door.job_log(asked, home)
+
+
+def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
+    """2026-10-27: motion@airlock failed in a live run, its fault report and run log out of every agent's reach."""
+    import agent_door
+    home = tmp_path / "home"
+    (home / "logs").mkdir(parents=True)
+    (home / "logs" / "score-run-1.log").write_text("".join(f"line {number}\n" for number in range(300)))
+    (home / "store" / "faults").mkdir(parents=True)
+    (home / "store" / "faults" / "motion@airlock.txt").write_text("motion@airlock: Traceback: no skeleton\n")
+    (home / "store" / "k.txt").write_text("not a report")
+    (home / "store" / "faults" / "escape.txt").symlink_to(home / "store" / "k.txt")
+    frozen = home / "frozen" / "20261027-111210-841490.home"
+    frozen.mkdir(parents=True)
+    for entry in ("logs", "store"):  # a frozen home links the home's entries (graph/frozen.home_copy)
+        (frozen / entry).symlink_to(home / entry)
+    log = str(frozen / "logs" / "score-run-1.log")
+    said = agent_door.run_log(log, home, 5)
+    assert said.splitlines()[1:] == [f"line {number}" for number in range(295, 300)], said
+    assert agent_door.fault(log, "motion@airlock", home).endswith("motion@airlock: Traceback: no skeleton"), log
+    shutil.rmtree(frozen)  # the run ended and its home went: both are read where they lie
+    assert agent_door.run_log(log, home, 5) == said
+    assert "no skeleton" in agent_door.fault(log, "motion@airlock", home)
+    for node in ("escape", "../k", "motion@airlock/../../k", "nothing@here"):
+        with pytest.raises(agent_door.Refused):
+            agent_door.fault(log, node, home)
+    for elsewhere in (str(home / "store" / "k.txt"), str(tmp_path / "logs" / "score-run-1.log"),
+                      str(home / "frozen" / "x" / "logs" / "score-run-1.log")):
+        with pytest.raises(agent_door.Refused):
+            agent_door.run_log(elsewhere, home, 5)
 
 
 def test_the_doors_gaps_and_predicted_print_what_the_store_holds(tmp_path, monkeypatch, capsys):

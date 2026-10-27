@@ -34,6 +34,12 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 fault report names it), only a file under a frozen home's work/cloud,
                                                 its last JOB_LOG_CHARACTERS (2026-10-27: surfaces-bake@campgrounds'
                                                 failed jobs, their logs out of reach)
+    run-log [--lines N]                         the newest launch's own run log (the log its handles record, under
+                                                $PROPS_HOME/logs or a frozen home's logs), its last N lines (default
+                                                RUN_LOG_LINES, at most RUN_LOG_LINES_MAX), secrets left out, read only
+    fault <node>                                the fault report <home>/store/faults/<node>.txt of the newest launch's
+                                                home (its frozen copy while it lives), secrets left out, read only
+                                                (2026-10-27: motion@airlock's fault report out of reach)
     predicted                                   the prepared batch's takes (work/checks/prepare/remake.json) that are
                                                 a predicted gap, at risk or an input gap: place, rows, route, size
                                                 and the reason, read only
@@ -76,7 +82,8 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, checkouts, gaps <node>, job-log <path>, predicted, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, checkouts, gaps <node>, job-log <path>, "
+         "run-log [--lines N], fault <node>, predicted, "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -124,6 +131,9 @@ GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
 REFUSED_EXIT = 126
 JOB_LOG = "--job-log"  # this file's own read of a cloud job's log (the job-log verb runs it)
 JOB_LOG_CHARACTERS = 40000
+RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (the run-log verb runs it)
+FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
+RUN_LOG_LINES, RUN_LOG_LINES_MAX = 200, 2000
 
 
 class Refused(Exception):
@@ -201,6 +211,15 @@ def decide(words, latch):
         if len(args) != 1 or not args[0].strip() or ".." in pathlib.PurePath(args[0]).parts:
             raise Refused("job-log <path under $PROPS_HOME/frozen>, such as <copy>.home/work/cloud/<call>/job3.log")
         return [str(pathlib.Path(__file__).resolve()), JOB_LOG, args[0]], {}
+    if verb == "run-log":
+        if args and (len(args) != 2 or args[0] != "--lines" or not args[1].isdigit() or int(args[1]) < 1):
+            raise Refused("run-log [--lines N], N a whole number of lines")
+        lines = min(int(args[1]) if args else RUN_LOG_LINES, RUN_LOG_LINES_MAX)
+        return [str(pathlib.Path(__file__).resolve()), RUN_LOG, str(lines)], {}
+    if verb == "fault":
+        if len(args) != 1 or not NODE.match(args[0]):
+            raise Refused("fault <node>, one node name such as motion@airlock")
+        return [str(pathlib.Path(__file__).resolve()), FAULT, args[0]], {}
     if verb == "predicted":
         if args:
             raise Refused("predicted takes no arguments")
@@ -281,11 +300,85 @@ def job_log(asked, props_home):
     raise Refused(f"no job log at {named}")
 
 
+def newest_launch_log():
+    """The run log the newest launch that records one names (its last handle's log), from the cockpit's database,
+    where `checkouts` reads the launches; Refused for none."""
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "score.dashboard.site.settings")
+    django.setup()
+    from score.dashboard.pages.models import Launch
+    for launch in Launch.objects.order_by("-pk"):
+        logs = [handle["log"] for handle in launch.handles if handle.get("log")]
+        if logs:
+            return logs[-1]
+    raise Refused("no launch records a run log")
+
+
+def launch_home(log, props_home):
+    """(the log's path, the home it lies in) for a run log under props_home/logs or a frozen home's logs
+    (`<copy>.home/logs/score-run-*.log`); Refused for anything else."""
+    home = pathlib.Path(props_home)
+    named = pathlib.Path(os.path.normpath(log))
+    owner = named.parent.parent
+    in_frozen = owner.parent == home / "frozen" and owner.name.endswith(".home")
+    if not (named.name.startswith("score-run-") and named.suffix == ".log" and named.parent.name == "logs"
+            and (owner == home or in_frozen)):
+        raise Refused(f"a launch's run log lies only under {home}/logs or a frozen home's logs, not {log}")
+    return named, owner
+
+
+def read_inside(candidates, folders):
+    """The first candidate that is a file inside one of `folders` once links are followed, its lines with secrets
+    left out (score.conductor.logs.clean), as (path, lines); None for none."""
+    from score.conductor.logs import clean
+    allowed = [pathlib.Path(folder).resolve() for folder in folders]
+    for candidate in candidates:
+        found = pathlib.Path(candidate).resolve()
+        if found.is_file() and any(found.is_relative_to(folder) for folder in allowed):
+            return found, clean(found.read_text(errors="replace").splitlines())
+    return None
+
+
+def run_log(log, props_home, lines):
+    """The last `lines` lines of a launch's run log, read where it lies or in props_home/logs once its frozen home
+    is gone; Refused for a log outside those or missing."""
+    named, owner = launch_home(log, props_home)
+    logs = pathlib.Path(props_home) / "logs"
+    read = read_inside((named, logs / named.name), (owner / "logs", logs))
+    if read is None:
+        raise Refused(f"no run log at {named}")
+    found, text = read
+    return "\n".join([f"{found} (the last {lines} of {len(text)} lines):", *text[-lines:]])
+
+
+def fault(log, node, props_home):
+    """A node's fault report (<home>/store/faults/<node>.txt) of the launch whose run log is `log`: its home's, or
+    props_home's once the frozen home is gone; Refused for a bad node name or no report."""
+    if not NODE.match(node):
+        raise Refused(f"{node!r} is not a node name")
+    _, owner = launch_home(log, props_home)
+    folders = (owner / "store" / "faults", pathlib.Path(props_home) / "store" / "faults")
+    read = read_inside([folder / f"{node}.txt" for folder in folders], folders)
+    if read is None:
+        raise Refused(f"no fault report for {node} at {folders[0]}")
+    found, text = read
+    return "\n".join([f"{found}:", *text])
+
+
+def own_read(argv, props_home):
+    """The text of one of this file's own reads (job-log, run-log, fault), as the door's verb asked it."""
+    if argv[0] == JOB_LOG:
+        return job_log(argv[1], props_home)
+    if argv[0] == RUN_LOG:
+        return run_log(newest_launch_log(), props_home, int(argv[1]))
+    return fault(newest_launch_log(), argv[1], props_home)
+
+
 def main():
-    if sys.argv[1:2] == [JOB_LOG]:
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [FAULT]):
         from score.store import PROPS_HOME
         try:
-            print(job_log(sys.argv[2], PROPS_HOME))
+            print(own_read(sys.argv[1:], PROPS_HOME))
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
