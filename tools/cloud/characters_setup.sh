@@ -34,7 +34,8 @@ motion() {
   $UV venv --quiet --python 3.11 /root/envs/motion
   $UV pip install --quiet --python /root/envs/motion/bin/python torch --index-url https://download.pytorch.org/whl/cu128
   $UV pip install --quiet --python /root/envs/motion/bin/python cmake ninja numpy
-  PATH="/root/envs/motion/bin:$PATH" $UV pip install --quiet --python /root/envs/motion/bin/python -e "/root/kimodo[soma]"
+  PATH="/root/envs/motion/bin:$PATH" $UV pip install --quiet --python /root/envs/motion/bin/python -e /root/kimodo \
+    "py-soma-x @ git+https://github.com/NVlabs/SOMA-X.git@d6aa640f7787498009c4e3d57fcc14a243905d10"  # the image's SOMA_COMMIT: its assets are the stored v0.3.3
   $UV pip install --quiet --python /root/envs/motion/bin/python trimesh scipy pillow pyyaml usd-core rtree \
     opencv-python-headless
   /root/envs/motion/bin/python -c "import soma, kimodo, pxr; print('motion ok')"
