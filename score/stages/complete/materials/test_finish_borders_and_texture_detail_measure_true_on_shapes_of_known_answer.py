@@ -1,9 +1,17 @@
-"""The materials checks' measures on small meshes of known shape.
-(Their fixtures of real evidence, data/checks/materials/<place>.json.gz from the old concepts' places, were retired
-with those places on 2026-10-21; measure a place again with measure.gather when a rule needs a case.)
+"""Invariant: the materials checks measure true on small meshes whose answer is known by hand, and a place fails on
+any finding. (Their fixtures of real evidence, data/checks/materials/<place>.json.gz from the old concepts' places,
+were retired with those places on 2026-10-21; measure a place again with measure.gather when a rule needs a case.)
 
-    finish borders   a straight border between two finishes measures 1.00, a 45 degree staircase 1.4
-    texture detail   a metre square painted from a 512 picture holds 512 pixels a metre
+    finish borders   a straight border between two finishes measures 1.00; a 45 degree staircase of square cells
+                     walks two cell sides for every diagonal, so about sqrt(2), and is ragged
+    texture detail   a metre square painted from a 512 picture holds 512 pixels a metre, 256 laid at four times
+                     its area
+
+Breaks that turn this red (each applied once and seen red, then reverted):
+- judge.verdict: `return "pass"` -> test_a_place_fails_on_any_finding_and_passes_with_none
+- borders.lengths: no smoothing (`return length, length` always) -> test_a_straight_border_is_clean_and_a_staircase_is_ragged
+- borders.RAGGED: 1.07 -> 1.5 -> test_a_straight_border_is_clean_and_a_staircase_is_ragged
+- texel.density: the square root dropped -> test_a_metre_square_painted_from_a_512_picture_holds_512_pixels_a_metre
 """
 import numpy as np
 from PIL import Image
@@ -34,9 +42,9 @@ def plane_mesh(border):
 
 def test_a_straight_border_is_clean_and_a_staircase_is_ragged():
     straight = borders.measured_parts([plane_mesh(lambda row: 20)])
-    stairs = borders.measured_parts([plane_mesh(lambda row: 5 + row // 2)])
-    assert all(part["ragged"] == 1.0 for part in straight)
-    assert all(part["ragged"] > 1.3 for part in stairs) and all(part["smooth_m"] > 1.5 for part in stairs)
+    stairs = borders.measured_parts([plane_mesh(lambda row: 5 + row)])
+    assert [part["ragged"] for part in straight] == [1.0, 1.0]
+    assert len(stairs) == 2 and all(abs(part["ragged"] - 2 ** 0.5) < 0.03 for part in stairs)
     assert not borders.ragged_parts({"parts": straight}) and borders.ragged_parts({"parts": stairs})
 
 
