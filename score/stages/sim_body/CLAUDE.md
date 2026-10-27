@@ -26,7 +26,8 @@ make and the gates; `inside/sim_body.py` is the run, in Newton's own Python.
   person's ground sits on MuJoCo's world body, where Newton's collision groups cannot keep it from the other bodies, so
   the people stand apart in the one world (`apart_of`) and their output is in their own frame again. Heights for the
   gates are measured on the drawn triangles, never on the heightfield.
-- **Only people-cloth reads its output** (and imports `segments_of`), so an edit here moves people-cloth's key too;
-  wiring it into the assembly is a change of its own (it re-keys every people place's assembly).
+- **People-cloth and the characters layer read its output** (people-cloth imports `segments_of`, so an edit here moves
+  its key too): the characters layer (`../cast/driven.py`) plays each person's skeleton from `measures/<name>.json`'s
+  poses and references `layers/sim_bodies.usda` beside it, in the dressed body's Turned frame.
 - Tests: `test_a_body_built_from_its_segments_carries_its_weight_and_follows_its_clip.py` (a toy rig and seed, written
   runs; Newton itself is not run there: its numbers are on #65).

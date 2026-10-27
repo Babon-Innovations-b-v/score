@@ -32,6 +32,7 @@ from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, li
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
+import score.stages.cast.driven as characters_driven
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.final as demo_film_final
 from score.stages.surfaces.surface_gates import guarded
@@ -195,18 +196,10 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
                    after={"plan": ("place-plan", 2), "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                           **{name: ("people-dress", 1) for name in DRESS_ROWS}},
                    optional=DRESS_ROWS, applies=designed("people"))
-# Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
-# dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look
-# whose body is not usable is left out by name (the overseer's 14:00 rule: assemble with what passed; complete fails
-# the gap), never a stand-in.
-CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, characters_layer.CONTRACT,
-                         characters_layer.CHECKS, files=characters_layer.files,
-                         after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
-                         optional=DRESS_ROWS, applies=designed("people"))
 # Experimental (#65, PRD #56): each character of the place's accepted cast as a sim body on Newton, built from SOMA's
 # segments in the rig its clips play (people-clips-made), driven by its clip and standing on the scene's own ground
 # by contact: the stage the cast is measured on, its scene record on its made ground (score/stages/sim_body).
-# people-cloth reads it.
+# people-cloth and the characters layer read it: its people move by it.
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
                        after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1),
                               "scene-record": ("scene-record", 1), "terrain": ("grounds", 2)},
@@ -232,6 +225,16 @@ SCENE_CLIPS = graph.Stage(scene_clips.ROW, "place", scene_clips.make, scene_clip
                           files=scene_clips.files, after={"cast": ("cast", 1), "scene-record": ("scene-record", 1),
                                                           "terrain": ("grounds", 2)},
                           paid=True, euros=scene_clips.EUROS, applies=designed("people"))
+# Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
+# dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look
+# whose body is not usable is left out by name (the overseer's 14:00 rule: assemble with what passed; complete fails
+# the gap), never a stand-in. Each person's skeleton plays its sim body's simulated motion where the place's sim-body
+# row stands (score/stages/cast/driven.py; an optional read with the rig it reads: without them each keeps its clip).
+CHARACTERS = graph.Stage("characters-layer", "place", characters_driven.make, characters_layer.CONTRACT,
+                         characters_driven.CHECKS, files=characters_layer.files,
+                         after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS},
+                                "sim-body": ("sim-body", 1), "people-clips-made": ("people-clips-made", 1)},
+                         optional=(*DRESS_ROWS, "sim-body", "people-clips-made"), applies=designed("people"))
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
@@ -451,7 +454,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(code_marked, map(
               boxed_split, map(designed_rough, shapes_first.rows()))))))),
-          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, SIM_BODY,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,
