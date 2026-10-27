@@ -36,6 +36,9 @@ NAME = "local"
 MACHINE = "score-this-pc"  # the container's name, and the machine type the offers name
 ZONE = "this-pc"
 IMAGE = "score-this-pc:1"
+# Memory the container never gets: 8 GB WSL keeps free, 8 GB for the run's processor steps beside the container
+# (score run --jobs; owner, 2026-10-27: a WSL out of memory is the worst outcome, the sum stays under RAM less 8 GB).
+HOST_RESERVE_GB = 16
 CARD_GB = 16  # the RTX 5080 (the desktop holds part of it while Windows runs)
 CARD_CLASS = f"gpu-{CARD_GB}gb"
 # The kinds that need more card than CARD_GB, in GB (tools/cloud/capacity.py KINDS' notes): cloud-only unless a run
@@ -164,9 +167,10 @@ def card_arguments():
 
 
 def memory_cap():
-    """The container's memory: this PC's less 8 GB (at least 8 GB), so WSL keeps room when a job runs out."""
+    """The container's memory: this PC's less HOST_RESERVE_GB (at least 8 GB), so the container, the run's own steps
+    beside it and WSL never add up past this PC's memory."""
     total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") // 2**30
-    return f"{max(8, total - 8)}g"
+    return f"{max(8, total - HOST_RESERVE_GB)}g"
 
 
 def answering():
