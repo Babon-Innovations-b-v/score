@@ -71,11 +71,13 @@ ENV = HOME / "envs/newton_env"
 # MyoFullBody as MuscleMimic publishes it (Apache-2.0; its NOTICE: MyoSuite and myo_sim, Apache-2.0, from OpenSim's
 # Rajagopal 2016, lumbar spine and hand models, MIT, and MoBL-ARMS, whose model definition was released for
 # non-commercial use only): fetched by its pinned wheel and sha256, never kept in this repository.
-MODEL = ("https://files.pythonhosted.org/packages/23/2b/ab89ceca9f1d99b8a4d5525aa96918c91a20c094e6f8b22e4f7daa816a3a/"
-         "musclemimic_models-1.0.5-py3-none-any.whl",
-         "32b11b363d104f35e6db5331ef89be9df14e3a2189428f471cbc217377ecf436")
+# 1.0.6 (amathislab/musclemimic_models 001b723): the left knee's tibia couplings with their signs right (#10; 1.0.5
+# turned and slid the left tibia the wrong way as the knee bent) and the deltoid and back wraps whose paths jumped (#9).
+MODEL = ("https://files.pythonhosted.org/packages/c2/bf/deaa309a8af26e759c6ff49340707279b1c814eb4fd2916fb0636bce3d7e/"
+         "musclemimic_models-1.0.6-py3-none-any.whl",
+         "88b096fe072bd5d2cfcc88ec43ffef27a73bc5a54e6699d3bda0e92a76a03bea")
 # Kept under MyoHub's Apache-2.0 (owner, 2026-10-27, #65); written into every body record.
-ATTRIBUTION = ("MyoFullBody: MyoSuite and myo_sim (MyoHub, Apache-2.0), as MuscleMimic Models 1.0.5 publishes it; "
+ATTRIBUTION = ("MyoFullBody: MyoSuite and myo_sim (MyoHub, Apache-2.0), as MuscleMimic Models 1.0.6 publishes it; "
                "its arm and hand derived from MoBL-ARMS: Holzbaur, Murray and Delp 2005, "
                "doi:10.1007/s10439-005-3320-7, and Saul et al. 2015, doi:10.1080/10255842.2014.916698")
 CLIPS_ROW = "people-clips-made"
