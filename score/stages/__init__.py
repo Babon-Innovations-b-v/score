@@ -72,11 +72,14 @@ GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT,
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
                       after={"scene-record": ("scene-record", 1)}, applies=designed("effects"))
 # Experimental (PRD #6) until the owner reviews it: each scene's motion layer made from its design (its design shows a
-# row whose kind moves), over its seed with its accepted scene record written in (the seed alone where the place has
-# no scene-record row); the final assembly takes it.
+# row whose kind moves), over its seed with its accepted scene record written in and the surface line's bakes laid
+# (the design's objects wait on them: without, every moving row had no object, Batch 1, 2026-10-27), the seed alone
+# where the place has no scene-record row; the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
-                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 2)},
-                     applies=designed("motion"))
+                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
+                            "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                     beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                     neighbours=assembly.claiming_places, applies=designed("motion"))
 # Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
 # which its assembly takes (assembly.LAYERS): a place whose design shows a loose object (physics).
 SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, settling.CHECKS, files=settling.files,
