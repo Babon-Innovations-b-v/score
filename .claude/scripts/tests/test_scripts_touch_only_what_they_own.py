@@ -20,7 +20,8 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_setup_github_needs_a_login_and_a_dry_run_changes_nothing: sync_labels creates a label even on a dry run.
 - test_setup_github_resets_a_template_config_and_syncs_labels: main keeps the template's backlog_prd.
 - test_setup_github_gives_the_board_its_columns_and_fields: "Review" taken out of STATUS_OPTIONS.
-- test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree: is_clean returns True at once.
+- test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree: is_clean returns True at once; or reap's
+  `idle_hours(...) >= IDLE_HOURS` made `True` (a recent unlocked worktree is reaped).
 - test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something: main prints the report also when empty.
 - test_the_guard_names_every_home_outside_a_sandbox: outside_temp's `folder == temp` test dropped.
 - test_a_pytest_run_without_a_sandbox_home_stops_before_collecting: pytest_configure's refusal skipped.
@@ -322,12 +323,21 @@ def test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree(tmp_path
     unmerged = add_worktree(main, "unmerged", dead_pid())
     git(unmerged, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "local")
     live = add_worktree(main, "live", os.getpid())
-    kept = add_worktree(main, "kept")
+    kept = add_worktree(main, "kept")  # unlocked but touched just now: a finished agent's, kept for IDLE_HOURS
+    idle = add_worktree(main, "idle")  # unlocked, clean, merged and untouched for a day: reaped
+    idle_dirty = add_worktree(main, "idle_dirty")  # unlocked and old but holding work: never touched
+    (idle_dirty / "work.txt").write_text("unsaved")
+    admin = pathlib.Path(git(main, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "worktrees"
+    for name in ("idle", "idle_dirty"):
+        for path in (admin / name).rglob("*"):
+            if path.is_file():
+                os.utime(path, (time.time() - 86400, time.time() - 86400))
     run = reap(main)
     assert run.returncode == 0
-    assert run.stdout == ("Reaped 1 orphaned worktree(s): gone. Left 2 stale-locked worktree(s) with uncommitted "
-                          "work: dirty, unmerged. Recover or discard by hand.\n")
-    assert not gone.exists() and all(path.exists() for path in (dirty, unmerged, live, kept))
+    assert run.stdout == ("Reaped 2 orphaned worktree(s): gone, idle. Left 2 stale-locked worktree(s) with "
+                          "uncommitted work: dirty, unmerged. Recover or discard by hand.\n")
+    assert not gone.exists() and not idle.exists()
+    assert all(path.exists() for path in (dirty, unmerged, live, kept, idle_dirty))
     branches = git(main, "branch", "--format=%(refname:short)").split()
     assert "worktree-gone" not in branches
     assert {"worktree-dirty", "worktree-unmerged", "worktree-live", "worktree-kept"} <= set(branches)

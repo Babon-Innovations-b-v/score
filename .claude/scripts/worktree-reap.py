@@ -6,8 +6,10 @@ reason carries the session pid. A crash leaves the lock behind, and every later 
 worktree as "in use by another live session" forever.
 
 A worktree is reaped only when its lock pid is dead AND it is clean (no uncommitted changes, HEAD
-already on origin/main). Dirty orphans are reported, never deleted, so no work is lost. Unlocked
-worktrees (kept on purpose, or made by hand) are never touched.
+already on origin/main). Dirty orphans are reported, never deleted, so no work is lost. An unlocked
+worktree (a finished agent's, or one made by hand) is reaped only when it is clean and merged AND
+untouched for IDLE_HOURS: agents left 306 such worktrees, 49 GB, by 2026-10-27; a dirty or unmerged
+unlocked one is never touched.
 
 Run standalone (`python3 .claude/scripts/worktree-reap.py`) or via the SessionStart hook. Exit
 status is always 0 so it never blocks a session.
@@ -16,9 +18,11 @@ import json
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 
 LOCK_PID_RE = re.compile(r"pid (\d+)")
+IDLE_HOURS = 6
 
 
 def git_out(args, cwd=None):
@@ -52,6 +56,14 @@ def lock_pid(common_dir, worktree_name):
         return None
     match = LOCK_PID_RE.search(lock_file.read_text())
     return int(match.group(1)) if match else None
+
+
+def idle_hours(common_dir, worktree_name):
+    """Hours since this worktree's HEAD or index last changed, from git's own admin files (not its reflog, which
+    repository-wide housekeeping rewrites)."""
+    admin = common_dir / "worktrees" / worktree_name
+    stamps = [path.stat().st_mtime for path in (admin / "HEAD", admin / "index") if path.exists()]
+    return (time.time() - max(stamps)) / 3600 if stamps else 0.0
 
 
 def is_clean(worktree_path):
@@ -95,7 +107,12 @@ def reap():
         if not entry.is_dir() or entry == self_root:
             continue
         pid = lock_pid(common_dir, entry.name)
-        if pid is None or pid_alive(pid):
+        if pid is None:
+            if idle_hours(common_dir, entry.name) >= IDLE_HOURS and is_clean(entry) \
+                    and remove_worktree(entry, worktrees_dir):
+                reaped.append(entry.name)
+            continue
+        if pid_alive(pid):
             continue
         if is_clean(entry) and remove_worktree(entry, worktrees_dir):
             reaped.append(entry.name)
