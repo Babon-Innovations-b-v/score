@@ -24,10 +24,23 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   an optional read, `person_rig`), recorded as `size`. MyoFullBody is sized to it per segment: thigh, shin, foot, upper
   arm and forearm by the person's joint distances, the rest by its standing height (#64: SOMA's hip and shoulder widths
   carry no signal); each muscle's length range with its path (OpenSim's scaling), its peak force kept.
-- **Its muscles pull at rest**: MyoFullBody's own muscles carry large passive forces at its zero pose (middle deltoid
-  561 N, rectus femoris 555 N, rectus abdominis 308 N; 5.3 kN in all, the same in myo_sim's MyoLegs and MyoTorso), so
-  static optimisation holds the lumbar extensors near full activation standing. It is the published model's, not the
-  sizing's (the sized file gives the same forces); changing it is changing MyoSuite's muscles, not a set-up here.
+- **Its muscles pull at rest**: at its standing pose (the zero pose with the knee and patella couplings applied, which
+  is MyoSuite's own `stand` keyframe) MyoFullBody's muscles pull 4.2 kN passively: middle deltoid 561 N each (its path
+  at the hanging arm is longer than its own length range's top), rectus abdominis 308 N, short biceps femoris 204 N,
+  so static optimisation holds the lumbar extensors near full activation standing. The raw qpos0 breaks the couplings
+  (the patella 1 cm off) and reads 5.3 kN with rectus femoris 555 N; never measure there. It is the published
+  model's, not the sizing's (the sized file gives the same forces), and neither MyoSuite, MuscleMimic nor KINESIS
+  changes it (2026-10-27): changing it is changing MyoSuite's muscles, not a set-up here.
+- **Set up as its makers do, and where not** (2026-10-27, sources and numbers on #65): MuscleMimic's own fixes are
+  taken (1.0.6, below `MODEL`); its retargeting (GMR with a fitted SMPL-H shape; site welds) and KINESIS' (SMPL joint
+  positions, SLSQP for the first pose) track joint-centre places first and turns second, on a source body fitted to
+  the model; ours fits turns first with the pelvis' and feet's places. The model's hip joints stand 8.7 cm behind
+  SOMA's at the bind when the pelvis rides the Hips (`RIDES`); placing them on SOMA's hip joints and reading the
+  places off the model posed at the bind took the rig's walking clip from 8.3 to 7.4 degrees off but lifted the
+  Kimodo walker's feet 2 to 3 cm off its ground in stance (residual 12 to 37 N median, 0 push on some frames), so it
+  is not kept: the frame-0 `shift` would have to change with it. Their simulation settings (timestep, iterations,
+  friction 1, joint damping and armature) are the model's for stepping; nothing is stepped here, and the damping and
+  armature Newton builds match MuJoCo's own compile, as do every muscle's parameters and coupling.
 - **Mass by #64's rule**: the cast's stated `weight` (kg), else `height` (m, else the body's own) squared times the
   reference BMI of `sex` (NCD-RisC 2016, the mean of both unstated), marked `estimated`, spread over the model's bodies
   as the model's masses times their scale cubed. Never tune a mass, a weight in the solve or a gate to pass: fix the

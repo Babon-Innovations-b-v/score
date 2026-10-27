@@ -1,7 +1,7 @@
 """MyoFullBody (MyoSuite's musculoskeletal body: its bones, 123 joints, 416 muscles and their tendons) made ready for
 Newton and sized to one person (#65). Runs in Newton's own Python beside sim_body.py, which imports it.
 
-The model is the pinned wheel the stage fetched (musclemimic_models 1.0.5, `SOURCE` in it). Each person's file is the
+The model is the pinned wheel the stage fetched (musclemimic_models 1.0.6, `SOURCE` in it). Each person's file is the
 model with:
 - its floor gone (the person stands on the scene's own ground);
 - each body sized by its segment's scale (`scales_of`): a limb by the person's own SOMA joint distance over the
