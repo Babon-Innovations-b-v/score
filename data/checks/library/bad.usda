@@ -3,7 +3,7 @@
     defaultPrim = "fixture"
     metersPerUnit = 1
     upAxis = "Y"
-    doc = "Known bad (score/stages/complete/library/library_test.py): a crate whose finish is a picture's own texture file, a part with no material (a default grey), and a model no library entry holds."
+    doc = "Known bad (score/stages/complete/library/test_everything_a_place_shows_traces_to_the_library_or_an_exception.py): a crate whose finish is a picture's own texture file, a part with no material (a default grey), and a model no library entry holds."
 )
 
 def Xform "fixture"

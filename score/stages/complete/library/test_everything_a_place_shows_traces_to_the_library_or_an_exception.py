@@ -1,8 +1,25 @@
-"""The library check: the known-bad fixture (a picture's own texture, a default grey, a model no entry holds) fails,
-the known-good one passes; each way of tracing (score:library, a surface by name, the gltf, the prim an entry names
-through a variant, the content hash, the finish record); exceptions refuse without a reason or an owner and end at
-their expiry; a withdrawn entry traces nothing. The library is a temp folder written here (no entry data is kept in
-this repository)."""
+"""Invariant: everything a place shows traces to the library or to a written exception. The known-bad fixture (a
+picture's own texture, a default grey, a model no entry holds) fails on exactly those three, the known-good one passes;
+each way of tracing holds (score:library, a surface by name, the gltf, the prim an entry names through a variant, an
+effect's placements, the content hash, the finish record); a withdrawn entry traces nothing; the library comes only
+from SCORE_LIB_ROOT; exceptions refuse without a reason or an owner and end at their expiry; findings group one kind
+of piece into one problem. The library is a temp folder written here (no entry data is kept in this repository).
+
+Breaks that turn this red (each applied once and seen red, then reverted):
+- trace.judged: an untraced row answers LIBRARY -> test_the_known_bad_fixture_fails_on_its_texture_its_grey_and_its_model
+- trace.traced_finish: the surface-by-name branch dropped -> test_the_known_good_fixture_passes_and_a_guide_mesh_is_not_a_finish
+- trace.traced_finish: the finish record not read (`node = None`) -> test_a_finish_record_traces_a_baked_models_finish
+- trace.traced_source: the content-hash loop dropped -> test_a_model_traces_by_the_content_hash_of_its_file
+- entries.unvarianted: the variant selection kept -> test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant
+- entries.prim_paths: the placements not read -> test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements
+- entries.read: withdrawn entries shelved too -> test_a_withdrawn_entry_traces_nothing
+- entries.from_environment: the repository's default library when unset -> test_the_library_comes_only_from_score_lib_root
+- exceptions.checked: `missing = []` -> test_an_exception_without_its_reason_or_owner_is_refused
+- exceptions.in_force: always True -> test_an_exception_covers_its_prims_until_it_expires
+- data/checks/library-exceptions.json: an entry with no `why` -> test_the_repositorys_exceptions_file_reads (a check
+  on the owner's data, not the code)
+- findings.grouped: grouped by prim, not by group -> test_findings_group_one_kind_of_piece_into_one_problem
+"""
 import datetime
 import hashlib
 import json
@@ -156,7 +173,13 @@ def test_the_repositorys_exceptions_file_reads():
 
 
 def test_findings_group_one_kind_of_piece_into_one_problem(tmp_path):
-    rows = judged_fixture("bad.usda", library(tmp_path))
-    grouped = findings.grouped(rows)
-    assert len(grouped) == len({(row["aspect"], row["group"]) for row in neither(rows)})
-    assert all(item["sentence"] and item["prims"] for item in grouped)
+    crate = ('        def Xform "crate_{n}"\n        {{\n            custom string score:kind = "fixture_crate"\n'
+             '            custom string score:model = "crate"\n            def Mesh "geo"\n            {{\n                int[] faceVertexCounts = [3]\n'
+             '                int[] faceVertexIndices = [0, 1, 2]\n'
+             '                point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]\n            }}\n        }}\n')
+    stage = stage_with(tmp_path, 'def Xform "fixture"\n{\n    def Xform "Objects"\n    {\n'
+                       + crate.format(n=1) + crate.format(n=2) + '    }\n}\n')
+    rows = trace.rows(stage, trace.Context(place="fixture", shelf=library(tmp_path / "lib"), today=TODAY))
+    # two grey crates of one kind: two problems (their source, their finish), each counting both crates
+    assert sorted((item["aspect"], item["group"], item["count"]) for item in findings.grouped(rows)) == [
+        ("finish", "fixture_crate: no material", 2), ("source", "fixture_crate", 2)]
