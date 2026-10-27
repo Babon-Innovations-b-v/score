@@ -61,6 +61,8 @@ own sound; paid and cleared by the runner like any paid row.
   matched in exposure, the whole graded as the preview is (`GRADE`), cards and takes over the script's bed. The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
   (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps
   check's film gaps: a film a script shows that no locked script shows waits on his lock.
+  A locked script that peels no place whose design shows people (design_layers.has_layer, every kept design an input)
+  is Blocked naming each (`plan_faults`, owner 2026-10-27), so it cannot drift from the designs.
 - **A layer peel** (`peel.py`, the script's `body-peel` cut, CONTEXT.md "layer peel"; owner 2026-10-27) is drawn free on
   this machine's card by `blender/body_peel.py` in Blender `-b` (no display needed): every person of the cast clothed
   (its dressed body posed by the sim body's clip, its rest fitted to the clip rig's bind), as its bare SOMA mesh and as
