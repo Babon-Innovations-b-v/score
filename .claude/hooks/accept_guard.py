@@ -21,6 +21,16 @@ Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
    (``tee``, ``cp``, ``mv``, ``ln``, ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``, ``sed -i``, ``find -delete``, Python) that names one.
 5. Writing an artifact database collection or document of those names (``Artifact`` with ``write_db``, a batch's
    writes included).
+6. His concept and film locks and the chat route's own steps by any other route (owner, 2026-10-27: "i hate the rule
+   that i cant make discisions in chat aswell"): a shell command that runs Python, or writes a script outside the
+   framework, holding a call to ``concept_pick(``, ``film_locked(``, ``concepts.pick(``, ``script.lock(``,
+   ``chat_decisions.apply(``, ``applying.apply(``, ``as_owner_deciding(``, ``as_owner_under(``, ``markers_lifted(``,
+   ``decision_yes_spent(`` or ``buy_yes_spent(`` (a code file outside the framework and ``score/dashboard/`` too); a
+   hand write into the store's concept ``picks/`` or the cockpit's ``films/locked/`` (rule 4); and the apply command
+   (``python -m score.dashboard decide``, ``this_pc.py decide``, the agents' door's ``decide``) without the id of his
+   yes. That command with its yes id is the one route an agent applies his decision by: decide-yes records his
+   quoted answer and the question, and the apply refuses a yes used already or a target changed since the question
+   (score/dashboard/sync/chat_decisions.py). Like the Buy's yes, the id is checked by the code, not here.
 
 Running the stages stays allowed, and with it the runner's own automatic accept and clearance (score/graph,
 score.adapters.compute), which this guard does not see: they are written by the framework's code, only when every
@@ -56,15 +66,28 @@ _REVIEW_RUN = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?((ba)?sh\s+-\S*c\s+['\"]?|
                          r"(accept|reject|spend|waive|stop)\b")
 _OWNER_CALL = re.compile(r"\b(accept|reject|spend|waive|write_once|write_accept|write_reject|write_spend_yes|"
                          r"write_waiver|write_clearance|set_line)\s*\(")
+# His concept and film locks and the chat route's own steps (owner, 2026-10-27): his decision made in chat is applied
+# only as `decide <yes id>`, never by calling what that command calls.
+_LOCK_CALL = re.compile(r"\b(concept_pick|film_locked|as_owner_deciding|as_owner_under|markers_lifted|"
+                        r"decision_yes_spent|buy_yes_spent)\s*\(|\b(concepts\.pick|script\.lock|chat_decisions\.apply|"
+                        r"applying\.apply)\s*\(")
+_DASHBOARD = re.compile(r"(^|/)score/dashboard/")
+# The apply command of a decision he made in chat, by the cockpit's command, this PC's or the agents' door; its id.
+_DECIDE_RUN = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?((uv\s+run\s+)?\S*python3?(\.\d+)?\s+(-\S+\s+)*"
+                         r"(-m\s+score\.dashboard|\S*score/dashboard(/__main__\.py)?|\S*this_pc\.py)|ssh\s.*?score@\S+)"
+                         r"\s+['\"]?decide['\"]?(?=\s|$)(\s+['\"]?(?P<id>[^\s'\"]+))?")
+_YES_ID = re.compile(r"^\d{8}T\d{6}\d*Z$")
 _AGENT_MARK = re.compile(r"\b(CLAUDECODE|CLAUDE_CODE_ENTRYPOINT|AI_AGENT)\b")
 _UNMARK = re.compile(r"\bunset\b|\benv\s+(-\S+\s+)*(-u|--unset|-i|--ignore-environment)\b|\b(CLAUDECODE|"
                      r"CLAUDE_CODE_ENTRYPOINT|AI_AGENT)=|environ|\bpop\b|\bdel\b")
 _CLEARED_ENV = re.compile(r"\benv\s+(-\S+\s+)*(-i|--ignore-environment|-)\s")
 _FAKE_TERMINAL = re.compile(r"(^|[\s;&|(])(script\s+-\S*c|unbuffer\s)")
-_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|rejects|waivers|spend-yes|clearances|stops|grants)/")
-_OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances|stops|grants)(/|$)")
+_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|rejects|waivers|spend-yes|clearances|stops|grants|picks|"
+                         r"films/locked)/")
+_OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances|stops|grants|picks|films/locked)(/|$)")
 _SEGMENTS = re.compile(r"\|\||&&|[;|\n]")
-_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances|stops|grants)/")
+_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances|"
+                                  r"stops|grants|picks|films/locked)/")
 _WRITER = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
                      r"truncate|python3?(\.\d+)?|uv)\b|\bsed\s+(-\S+\s+)*-i|\bfind\b.*\s-(delete|exec)\b")
 _WRITE_TARGET = re.compile(r"(?:(?:^|[^<>&0-9])>>?|\btee\s+(?:-\S+\s+)*)\s*['\"]?([^\s'\";|&<>]+)")
@@ -78,16 +101,22 @@ _MESSAGE = (
     "  {what}\n"
     "Run the stages (.venv/bin/python -m score.stages run <place>): the runner accepts a passing output that got no\n"
     "worse and clears a paid run whose inputs passed. An agent's verdict never stands in for the gates or the owner\n"
-    "(docs/bible.md, the layered framework)."
+    "(docs/bible.md, the layered framework). A decision he made in chat is recorded by decide-yes and applied only\n"
+    "as `decide <yes id>` (the agents' door, or tools/cloud/this_pc.py for a run on his PC)."
 )
 
 
 def _owner_command(command):
-    """Why a shell command runs or calls the owner's accept, reject, spend or waive, or None."""
-    if any(_REVIEW_RUN.search(segment) for segment in _SEGMENTS.split(_QUOTED.sub(_blank_separators, command))):
+    """Why a shell command runs or calls the owner's accept, reject, spend, waive or lock, or None."""
+    segments = _SEGMENTS.split(_QUOTED.sub(_blank_separators, command))
+    if any(_REVIEW_RUN.search(segment) for segment in segments):
         return "runs the owner's accept, reject, spend or waive command"
+    if any(not _YES_ID.match(found.group("id") or "") for found in map(_DECIDE_RUN.search, segments) if found):
+        return "applies a decision without the id of his yes recorded by decide-yes"
     if _OWNER_CALL.search(command) and (_PYTHON.search(command) or _script_write(command)):
         return "calls the owner's accept, reject, spend or waive from Python, or writes a script that does"
+    if _LOCK_CALL.search(command) and (_PYTHON.search(command) or _script_write(command)):
+        return "calls the owner's lock or the chat route's own steps from Python, or writes a script that does"
     return None
 
 
@@ -133,6 +162,8 @@ def _file_offence(path, content):
         return None
     if _OWNER_CALL.search(content) and not _TEXT_FILE.search(path):
         return f"writes a call to the owner's accept, reject, spend or waive into {path}"
+    if _LOCK_CALL.search(content) and not _TEXT_FILE.search(path) and not _DASHBOARD.search(path):
+        return f"writes a call to the owner's lock or the chat route's own steps into {path}"
     if _AGENT_MARK.search(content):
         return f"writes code that touches Claude Code's mark into {path}"
     return None

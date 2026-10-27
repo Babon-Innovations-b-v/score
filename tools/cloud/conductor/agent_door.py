@@ -8,7 +8,9 @@ as an argument list, never through a shell, and only when it is one of these:
     status|plan|price [args]                    python -m score status|plan|price ...
     resume --dry                                python -m score resume --dry
     run <environment> [args] --detach           python -m score run ... --detach --free, with SCORE_FREE_ONLY=1:
-                                                a free-only run, every free row for real, paid rows left for the Buy
+                                                a free-only run, every free row for real, paid rows left for the Buy;
+                                                `--go <go id>` tags it SCORE_OWNERS_GO, his go recorded by
+                                                decide-yes go: a bought batch for review.IN_BATCH (owner, 2026-10-27)
     logs [--lines N]                            python -m score.conductor logs: the newest run logs, fault reports
                                                 and the sync, listener, resume and backup journals, secrets left out
     health                                      python -m score.conductor health: the Machine card's health, read
@@ -63,6 +65,15 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 click (the same checkout, stop line and refusals); again, a retry
                                                 of its batch inside the batch's budget, no new ask (owner,
                                                 2026-10-26); refused while the free-only latch is set
+    decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] [--worse-reason W] <answer>
+               <question>                       python -m score.dashboard decide-yes: the owner's quoted yes, asked in
+                                                a Claude Code session, to one accept, reject, waive, lock-concept,
+                                                lock-film or go, its target as it stands now (owner, 2026-10-27: "i
+                                                hate the rule that i cant make discisions in chat aswell")
+                                                (score/dashboard/sync/chat_decisions.py); prints its id
+    decide <yes id>                             python -m score.dashboard decide: that decision, once, through the
+                                                cockpit's own request code as his click; refused when its target
+                                                changed since the question
     store-pull                                  a tar stream on stdout of what a run reads (PULLED: the store's
                                                 objects, the design, the work folder, the Google answer cache,
                                                 score_lib's file cache), leaving out every file whose path, size
@@ -78,7 +89,7 @@ as an argument list, never through a shell, and only when it is one of these:
 Every command runs with each of the store's agent markers set (score/store AGENT_MARKERS), so the owner-only barrier
 (the store refusing owner areas in an agent's process) holds over ssh; `buy` lifts them in its own process only for
 the one checkout his yes covers, once that yes passed every check and is marked used (score.review.web
-as_owner_under). Anything else is refused with the reason, exit
+as_owner_under), and `decide` likewise for the one decision his yes covers (as_owner_deciding). Anything else is refused with the reason, exit
 126. The env file (~/.config/score/dashboard.env) is read as data, NAME=value lines, never run.
 """
 import os
@@ -97,7 +108,8 @@ from score.store import AGENT_MARKERS  # noqa: E402
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, checkouts, gaps <node>, job-log <path>, "
          "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing], "
-         "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, stop-batch <reason>")
+         "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, decide-yes, decide <yes id>, "
+         "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
 # Stop this batch from an agent (owner, 2026-10-25: "this is also something u should just do urself"): its runs,
@@ -205,7 +217,7 @@ def decide(words, latch):
         if not args or args[0].startswith("-"):
             raise Refused("run names an environment first")
         detached(args, verb)
-        return ["-m", "score", "run", *args, "--free"], {}
+        return go_tagged(args)
     if verb == "logs":
         return ["-m", "score.conductor", "logs", *args], {}
     if verb == "health":
@@ -261,6 +273,15 @@ def decide(words, latch):
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
         return ["-m", "score.dashboard", "buy", args[0]], {"SCORE_FREE_ONLY": None}
+    if verb == "decide-yes":
+        if len(args) < 4 or args[0].startswith("-"):
+            raise Refused("decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] "
+                          "[--worse-reason W] <the owner's answer> <the question he answered>")
+        return ["-m", "score.dashboard", "decide-yes", *args], {}
+    if verb == "decide":
+        if len(args) != 1 or not GRANT_ID.match(args[0]):
+            raise Refused("decide <yes id>, the id decide-yes printed")
+        return ["-m", "score.dashboard", "decide", args[0]], {}
     if verb == "store-pull":
         if args:
             raise Refused("store-pull takes no arguments: the manifest of what you hold comes on stdin")
@@ -274,6 +295,17 @@ def decide(words, latch):
             raise Refused("stop-batch <reason>, one quoted reason")
         return ["-c", STOP_CODE, args[0]], {}
     raise Refused(f"{verb} is not a door command; name one of: {VERBS}")
+
+
+def go_tagged(args):
+    """A free-only run's argv and environment, `--go <go id>` taken out as SCORE_OWNERS_GO (the runner checks the go
+    is his, score.review.web.owners_go)."""
+    if "--go" not in args:
+        return ["-m", "score", "run", *args, "--free"], {}
+    at = args.index("--go")
+    if at + 1 >= len(args) or not GRANT_ID.match(args[at + 1]):
+        raise Refused("run ... --go <go id>, the id decide-yes go printed")
+    return ["-m", "score", "run", *args[:at], *args[at + 2:], "--free"], {"SCORE_OWNERS_GO": args[at + 1]}
 
 
 def benchmark(args, latch):
@@ -290,9 +322,10 @@ def benchmark(args, latch):
 
 def environment(values, extra):
     """The command's environment: this one, the env file's values, every agent marker set, the run free unless the
-    command lifts it (a benchmark), and no grant unless the command names one."""
+    command lifts it (a benchmark), and no grant or go unless the command names one."""
     env = {**os.environ, **values}
     env.pop("SCORE_BENCHMARK_GRANT", None)
+    env.pop("SCORE_OWNERS_GO", None)
     env["SCORE_FREE_ONLY"] = "1"
     for name, value in extra.items():
         if value is None:

@@ -2,7 +2,8 @@
 state, places, pictures and films in its upload order and under its cap, the same twice; it goes up content-addressed
 behind the sync token (bad names, paths, offsets and hashes refused) and is swapped in only whole; a pass syncs
 nothing from a checkout not clean and pushed or when the runner's price fails, and says what moved. A request comes
-back once; a decision, figure or waiver applies only for the store's owner and never in an agent's process; the
+back once; a decision, figure or waiver applies only for the store's owner and never in an agent's process, but for
+his decision made in chat, applied once by its quoted yes through the same request code while its target stands; the
 listener answers a Buy at once unless its price needs a pass, never lets a slow request hold back the next, and sends
 the batch record while it lives and once as it ends; a moved or reset store shows no old batch. The release pins a
 pushed commit in the host's style; the timer's install refuses what cannot feed it. A hosted process stays light.
@@ -58,6 +59,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - timer.unquoted: `return value` -> test_a_quoted_reader_is_read_as_systemd_reads_it_...
 - timer.unit_text: the pull never replaced -> test_the_units_render_for_the_conductors_user_and_no_pull_...
 - timer.dashboard_refusal: the dashboard diff -> `if False:` -> test_without_a_host_the_install_checks_the_commit_...
+- review/web.as_owner_deciding: `with markers_lifted():` -> `with contextlib.nullcontext():` ->
+  test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+- chat_decisions.refusal: the `now != yes["target"]` check -> `if False:` ->
+  test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
 - state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
 - launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
   test_every_module_the_hosted_image_holds_imports_from_it_alone
@@ -1077,7 +1082,7 @@ MOST_MB = 200
 # the store-side modules: the hosted image holds them but its process never loads them (they need score.graph,
 # score.conductor, score.review or the store); a page that loads one fails in the hosted tree below
 STORE_SIDE = {"checkout.chat_yes", "films.preview.make", "films.preview.scenes", "proposals.assemble", "proposals.make",
-              "state.local", "sync.listen"}
+              "state.local", "sync.chat_decisions", "sync.listen"}
 CHILD = """
 import json, os, sys
 sys.path.insert(0, sys.argv[1])  # run with -I: the hosted tree alone, as the image holds it
@@ -1173,3 +1178,70 @@ def test_every_module_the_hosted_image_holds_imports_from_it_alone(tmp_path):
                           env=hosted_env(home), cwd=tmp_path, capture_output=True, text=True)
     assert done.returncode == 0, done.stderr[-3000:]
     assert json.loads(done.stdout.strip().splitlines()[-1]) == {}
+
+
+# --- the owner's decisions made in chat (sync/chat_decisions.py, owner 2026-10-27) ---------------------------------
+
+QUESTION = "Accept closeup@alpha's new output (one more fault than the accepted one)?"
+
+
+def test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside(world,
+                                                                                                    monkeypatch):
+    """His quoted yes is applied through the cockpit's own request (applying.apply) by his name, the agent marks off
+    only while it runs; a second apply, an unquoted yes or someone's id with no yes is refused."""
+    from score.dashboard.sync import chat_decisions
+    from score.store import AGENT_MARKERS
+    mark = AGENT_MARKERS[0]
+    output = world.outputs["closeup@alpha waiting"]
+    yes = chat_decisions.record("accept", "closeup@alpha", "Yes, accept it", QUESTION, output=output,
+                                worse_reason="one fault is fine")
+    assert yes["target"]["output"] == output and yes["by"] == "joey" and yes["question"] == QUESTION
+    seen = []
+    real = applying.apply
+    monkeypatch.setenv(mark, "1")
+    monkeypatch.setattr(applying, "apply", lambda item, source: seen.append(
+        (item, mark in os.environ)) or real(item, source))
+    applied = chat_decisions.apply(yes["id"])
+    assert applied.state == "done", applied.detail
+    assert seen == [({"kind": "decision", "user": "joey", "payload": {
+        "node": "closeup@alpha", "output": output, "decision": "accept", "reason": "",
+        "worse_reason": "one fault is fine"}}, False)] and os.environ[mark] == "1"
+    assert world.store.accepted("closeup@alpha") == output
+    assert world.store.current_accept("closeup@alpha")["by"] == "joey"
+    for refused in (yes["id"], "20261027T000000000000Z"):
+        pytest.raises(chat_decisions.Refused, chat_decisions.apply, refused)
+    for answer, question in (("", QUESTION), ("Yes", "")):
+        pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", answer, question,
+                      output=output)
+    pytest.raises(chat_decisions.Refused, chat_decisions.record, "reject", "closeup@alpha", "Yes", QUESTION,
+                  output=output)  # a reject says why, in his words
+    pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
+                  output="0" * 64)  # no such output
+
+
+def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question(world, settings):
+    """Another accept since the question, or the film's script edited since, refuses it like a changed basket refuses
+    a Buy, nothing marked used; a go is carried by its run and never applied here."""
+    from score.dashboard.films import script
+    from score.dashboard.sync import chat_decisions
+    from score.review import web
+    output = world.outputs["closeup@alpha waiting"]
+    yes = chat_decisions.record("reject", "closeup@alpha", "Yes, reject it", QUESTION, output=output, reason="red")
+    applying.apply({"kind": "decision", "user": "joey", "payload": {
+        "node": "closeup@alpha", "output": output, "decision": "accept", "worse_reason": "fine"}}, world.source)
+    assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
+                                                            yes["id"]).value)
+    assert not web.decision_yes_used(world.store, yes["id"])
+    script.save(settings.SCORE_HOME, script.blank("chat-film", "Chat"))
+    film = chat_decisions.record("lock-film", "chat-film", "Yes, lock it", "Lock chat-film as shown?")
+    script.save(settings.SCORE_HOME, script.blank("chat-film", "Chat, edited"))
+    assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
+                                                            film["id"]).value)
+    assert script.locked(settings.SCORE_HOME, "chat-film") is None
+    film = chat_decisions.record("lock-film", "chat-film", "Yes, lock it", "Lock chat-film as shown?")
+    assert chat_decisions.apply(film["id"]).state == "done"
+    assert script.locked(settings.SCORE_HOME, "chat-film")["title"] == "Chat, edited"
+    go = chat_decisions.record("go", "world1", "sure", "Let the run accept passing results on its own?")
+    assert web.owners_go(world.store, go["id"], "world1") == go and web.owners_go(world.store, go["id"], "w2") is None
+    assert web.owners_go(world.store, yes["id"], "world1") is None  # only a go
+    pytest.raises(chat_decisions.Refused, chat_decisions.apply, go["id"])
