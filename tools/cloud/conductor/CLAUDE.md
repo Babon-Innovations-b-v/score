@@ -65,7 +65,8 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `/run/user/1100/score` (`secrets.sh`, `score-secrets.timer`), gcloud's config with them.
 - **The agents' door** (`agent_door.sh` -> `agent_door.py`): the forced command of the agents' authorized_keys
   line. It runs only status, plan, price, resume --dry, a detached free-only run (`score run ... --free`: every free row for real, paid rows left for the Buy), logs (`score.conductor logs`: the run
-  logs, fault reports, unit journals and the boot logs /var/log/score-boot-{system,user}.log, secrets left out), health (read only), disk (free room and the biggest folders, read only), clean-frozen (removes the frozen copies no run needs, `score/conductor/disk.py`), checkouts, gaps <node> (a node's batch gaps, read only), batch-money (what a Buy question names, read only), buy-yes --batch-total and buy <yes id> (the owner's Buy
+  logs, fault reports, unit journals and the boot logs /var/log/score-boot-{system,user}.log, secrets left out), health (read only), disk (free room and the biggest folders, read only), clean-frozen (removes the frozen copies no run needs, `score/conductor/disk.py`), checkouts, gaps <node> (a node's batch gaps, read only), job-log <path> (a cloud job's log under a frozen home's
+  `work/cloud`, as a fault report names it, its tail capped, read only), batch-money (what a Buy question names, read only), buy-yes --batch-total and buy <yes id> (the owner's Buy
   approved in a session, score/dashboard/checkout/chat_yes.py), grant_benchmark and a benchmark
   run tagged with its grant, as an argument list (never a shell), every agent marker set; anything else is refused
   with the reason. The owner's key must have a passphrase (`up` refuses one without), so an agent on his PC cannot

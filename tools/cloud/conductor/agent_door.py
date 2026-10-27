@@ -29,6 +29,11 @@ as an argument list, never through a shell, and only when it is one of these:
     gaps <node>                                 the batch gaps the node's accepted output names (batch-gaps.json):
                                                 each gap's name, check and faults, and its batch.log and
                                                 finish.log lines saying why a model was not made, read only
+    job-log <path>                              a cloud job's log of a run, read only: the path under
+                                                $PROPS_HOME/frozen (<copy>.home/work/cloud/<call>/job<n>.log, as a
+                                                fault report names it), only a file under a frozen home's work/cloud,
+                                                its last JOB_LOG_CHARACTERS (2026-10-27: surfaces-bake@campgrounds'
+                                                failed jobs, their logs out of reach)
     predicted                                   the prepared batch's takes (work/checks/prepare/remake.json) that are
                                                 a predicted gap, at risk or an input gap: place, rows, route, size
                                                 and the reason, read only
@@ -71,7 +76,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, checkouts, gaps <node>, predicted, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, checkouts, gaps <node>, job-log <path>, predicted, "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -117,6 +122,8 @@ GRANT_ID = re.compile(r"^[A-Za-z0-9._:+-]+$")
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
 REFUSED_EXIT = 126
+JOB_LOG = "--job-log"  # this file's own read of a cloud job's log (the job-log verb runs it)
+JOB_LOG_CHARACTERS = 40000
 
 
 class Refused(Exception):
@@ -190,6 +197,10 @@ def decide(words, latch):
         if len(args) != 1 or not NODE.match(args[0]):
             raise Refused("gaps <node>, one node name such as closeup@hub")
         return ["-c", GAPS_CODE, args[0]], {}
+    if verb == "job-log":
+        if len(args) != 1 or not args[0].strip() or ".." in pathlib.PurePath(args[0]).parts:
+            raise Refused("job-log <path under $PROPS_HOME/frozen>, such as <copy>.home/work/cloud/<call>/job3.log")
+        return [str(pathlib.Path(__file__).resolve()), JOB_LOG, args[0]], {}
     if verb == "predicted":
         if args:
             raise Refused("predicted takes no arguments")
@@ -249,7 +260,36 @@ def environment(values, extra):
     return env
 
 
+def job_log(asked, props_home):
+    """The tail of a cloud job's log of a run (`asked` under props_home/frozen, or that path whole): only a file
+    under a frozen home's work/cloud (`<copy>.home/work/cloud/...`, a link to the home's own work/cloud), read from
+    the home's own work/cloud once the frozen home is gone (clean-frozen removes it, the logs stay), at most
+    JOB_LOG_CHARACTERS; Refused for anything else."""
+    home = pathlib.Path(props_home)
+    frozen = home / "frozen"
+    named = pathlib.Path(os.path.normpath(frozen / asked))
+    parts = named.relative_to(frozen).parts if named.is_relative_to(frozen) else ()
+    if len(parts) < 5 or not parts[0].endswith(".home") or parts[1:3] != ("work", "cloud"):
+        raise Refused(f"job-log reads only <copy>.home/work/cloud/... under {frozen}, not {asked}")
+    allowed = [(frozen / parts[0] / "work" / "cloud").resolve(), (home / "work" / "cloud").resolve()]
+    for candidate in (named, home.joinpath("work", "cloud", *parts[3:])):
+        found = candidate.resolve()
+        if found.is_file() and any(found.is_relative_to(folder) for folder in allowed):
+            text = found.read_text(errors="replace")
+            return (f"{found} ({len(text)} characters, the last {JOB_LOG_CHARACTERS}):\n"
+                    if len(text) > JOB_LOG_CHARACTERS else f"{found}:\n") + text[-JOB_LOG_CHARACTERS:]
+    raise Refused(f"no job log at {named}")
+
+
 def main():
+    if sys.argv[1:2] == [JOB_LOG]:
+        from score.store import PROPS_HOME
+        try:
+            print(job_log(sys.argv[2], PROPS_HOME))
+        except Refused as refused:
+            print(f"score-agent-door: refused: {refused}", file=sys.stderr)
+            return REFUSED_EXIT
+        return 0
     try:
         values = env_file_values(ENV_FILE)
         argv, extra = decide(words_of(os.environ.get("SSH_ORIGINAL_COMMAND")), latched(values))

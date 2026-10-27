@@ -19,13 +19,19 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_one_class_is_fixed_at_price_time_and_no_stock_keeps_the_first: in batch.py `one_class_in_stock`, `next(iter(stocked
   + sold), None)` -> `next(iter(sold), None)` (the first class asked though another is in stock).
 - test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks: in `one_job`, `    kept.keep(job)` -> `    pass`.
+- test_a_job_that_brought_none_of_its_outputs_back_failed_and_its_report_says_why: in `one_job`, `if
+  job.get("outputs") and not came:` -> `if False:`; or in `run_job`, drop `inputs.link_named(log_folder, host,
+  job.get("outputs", ()))`.
 """
+import json
 import os
 import pathlib
 import shlex
 import subprocess
 import sys
 import threading
+
+import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import blender_cloud  # noqa: E402
@@ -162,9 +168,38 @@ def test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks(tmp_path, monkeypa
 
     def run_job(log_folder, host, number, job, card):
         pathlib.Path(job["outputs"][0]).write_text(f"shot {number}")
-        return 1.0
+        return 1.0, 1
     monkeypatch.setattr(blender_cloud, "run_job", run_job)
     blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (0, jobs[0]), None)  # cut off before job 1
     (making / "shot0.png").unlink()  # the next attempt's folder starts empty
     assert blender_cloud.still_to_run(jobs) == [jobs[1]]
     assert (making / "shot0.png").read_text() == "shot 0"
+
+
+def test_a_job_that_brought_none_of_its_outputs_back_failed_and_its_report_says_why(tmp_path, monkeypatch):
+    """surfaces-bake@campgrounds (2026-10-27): twelve paint and bake jobs ended well, wrote their outputs through a
+    path the machine did not link as this side does, and counted done with nothing back; the row raised for all."""
+    import spread
+    making = tmp_path / "making"
+    making.mkdir()
+    job = {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [], "inputs": [],
+           "outputs": [str(making / "labelled" / "crate"), str(making / "made")], "minutes": 1}
+    monkeypatch.setenv(kept.TICKET, "surfaces-bake@campgrounds 0123abcd")
+    monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
+    monkeypatch.setenv(kept.MAKING, str(making))
+    said, linked = [], []
+    monkeypatch.setattr(blender_cloud.batch, "say", said.append)
+    monkeypatch.setattr(blender_cloud.batch, "remote", lambda *args, **keywords: None)
+    monkeypatch.setattr(blender_cloud, "send_inputs", lambda *args: None)
+    monkeypatch.setattr(blender_cloud.inputs, "link_named", lambda folder, host, paths: linked.extend(paths))
+
+    def nothing_back(folder, sources, destination, *extra):
+        raise subprocess.CalledProcessError(23, "rsync")
+    monkeypatch.setattr(blender_cloud.batch, "copy", nothing_back)
+    with pytest.raises(spread.JobFailed):
+        blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (3, job), None)
+    assert linked == job["outputs"], linked  # its outputs reached through the links its paths are named through
+    assert blender_cloud.kept.missing([job]) == [job]  # nothing kept as done
+    blender_cloud.report(tmp_path / "report.json", [{}, {}, {}, job], [3], tmp_path)
+    (reported,) = [entry for entry in json.loads((tmp_path / "report.json").read_text())["jobs"] if entry["error"]]
+    assert reported["outputs"] == job["outputs"] and "none of its outputs came back" in reported["error"], reported

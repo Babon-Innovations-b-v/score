@@ -141,6 +141,8 @@ tests it turned red:
 - route_bake.py: `surface=route_settings.settings_name(record["surface"], record["settings"])` ->
   `surface=record["surface"]`  ->
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- route_bake.py: in `job_errors`, `and job.get("error")` -> `and False`  ->
+  a_bake_job_that_brought_nothing_back_is_named_with_its_error
 - route_check.py: `library.by_library = lambda name: {**palette_library.specs(palette), **baked}` -> `library.by_library
   = lambda name: {**palette_library.specs(palette)}`  -> the_check_holds_each_surface_against_the_spec_the_bake_baked
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
@@ -1857,9 +1859,10 @@ def test_a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour():
     assert unlit["fits"] is False and "no glowing surface" in unlit["new_surface"]["why"], unlit
 
 
-def baked(folder, rows):
+def baked(folder, rows, error=None):
     """The bake made through the rows, the cloud call faked: each take's job writes back its labelled take, its
-    models' entries and a baked model. The bake's inputs, its output and the calls made (with the jobs' files)."""
+    models' entries and a baked model, or with `error` none of them and the call's report says that error. The bake's
+    inputs, its output and the calls made (with the jobs' files)."""
     data = json.loads(rows["surfaces"].read_text())
     rows["surfaces"].write_text(json.dumps(dict(data, library="cockpit", bake={"models": {"two_boxes": TAKE}})))
     inputs = {"surfaces": rows["surfaces"], "surfaces-parts": rows["surfaces-parts"],
@@ -1873,6 +1876,11 @@ def baked(folder, rows):
         jobs = [json.loads(pathlib.Path(path).read_text()) for path in command if str(path).endswith("-job.json")]
         calls.append({"command": command, "jobs": jobs,
                       "files": {path.name: json.loads(path.read_text()) for path in out.glob(".bake-*.json")}})
+        if error:
+            report = pathlib.Path(command[command.index("--report") + 1])
+            report.write_text(json.dumps({"jobs": [{"number": number, "outputs": job["outputs"], "error": error}
+                                                   for number, job in enumerate(jobs)]}))
+            return subprocess.CompletedProcess(command, 1, "", "Blender jobs 0 failed or never ran")
         for job in jobs:
             take = json.loads(pathlib.Path(job["args"][0]).read_text())[route_bake.place_line.TAKE]
             labelled = out / "labelled" / take
@@ -1933,6 +1941,26 @@ def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_sett
         route_paint.make_paint({"surfaces-bake": out}, paint, 7, {})
         assert (paint / "painted.json").read_text() == (out / "painted.json").read_text()
         assert (paint / "labelled" / TAKE / "labels.json").exists()
+
+
+def test_a_bake_job_that_brought_nothing_back_is_named_with_its_error():
+    """surfaces-bake@campgrounds (2026-10-27): every job came back empty and the row said only the call's last lines;
+    a take's gap, or the row's stop when no take came back, names each job's own error and log."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
+        error = "its command exited with 1 (log /w/cloud/blender-1/job0.log)"
+        try:
+            baked(folder, rows, error)
+        except RuntimeError as stopped:
+            assert "a set-up fault" in str(stopped) and f"{TAKE}: {error}" in str(stopped), stopped
+        else:
+            raise AssertionError("a bake that brought no take back did not stop its row")
+        out = folder / "bake"
+        report = out / "report.json"
+        report.write_text(json.dumps({"jobs": [{"number": 0, "outputs": [str(out / "labelled" / TAKE)], "error": error},
+                                               {"number": 1, "outputs": [str(out / "labelled" / "b")], "error": None}]}))
+        assert route_bake.job_errors(report, out, [TAKE, "c"]) == {TAKE: error, "c": "no error reported (bake.log)"}
 
 
 def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():

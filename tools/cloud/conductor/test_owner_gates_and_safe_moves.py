@@ -20,6 +20,9 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
   Break: drop `--free` from the door's `run` rewrite in agent_door.py.
   Break: drop `env.pop("SCORE_BENCHMARK_GRANT")` in the door's `environment` -> a smuggled grant passes.
   Break: drop the latch refusal of a benchmark.
+- The door's job-log reads a cloud job's log under a frozen home's work/cloud only, its tail capped, and nothing a
+  link or `..` leads out of it (2026-10-27: surfaces-bake@campgrounds' failed jobs, their logs out of reach).
+  Break: in `job_log`, `and any(found.is_relative_to(folder) for folder in allowed)` -> `` (a link out of it read).
 - The env file carries no secret. Break: let SCORE_SYNC_TOKEN through `env_text`.
 - The move: this PC's store units off first (a failed disable is said), its home backed up before the conductor
   restores it, the sync installed after; the PC's home set aside and made read-only last, after the yes is marked.
@@ -256,7 +259,8 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
                   "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
                   "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
-                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only"):
+                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "job-log",
+                  "job-log a b", "job-log x.home/work/cloud/../../../store/k"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000"):
@@ -298,9 +302,49 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     for verb in ("disk", "clean-frozen", "clean-cache"):  # 2026-10-26: the data disk full, the copies of ended runs on it
         code, why, argv, env = door(verb)
         assert code == 0 and argv == ["-m", "score.conductor", verb] and env["SCORE_FREE_ONLY"] == "1", (why, argv)
+    code, why, argv, env = door("job-log x.home/work/cloud/blender-1/job3.log")
+    assert code == 0 and argv[1:] == ["--job-log", "x.home/work/cloud/blender-1/job3.log"], (why, argv)
+    assert argv[0].endswith("agent_door.py") and env["SCORE_FREE_ONLY"] == "1", argv
     code, why, argv, env = door("stop-batch 'the run holds 13 idle machines'")
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+
+
+def test_the_doors_job_log_reads_only_a_frozen_homes_cloud_logs(tmp_path):
+    """2026-10-27: surfaces-bake@campgrounds' eight failed jobs, their logs under the frozen home out of reach."""
+    import agent_door
+    home = tmp_path / "home"
+    logs = home / "work" / "cloud" / "blender-1"
+    logs.mkdir(parents=True)
+    (logs / "job3.log").write_text("x" * 10 + "Traceback: the paint of crane failed")
+    (home / "store").mkdir()
+    (home / "store" / "secret.txt").write_text("not a log")
+    frozen = home / "frozen" / "20261027-0918.home"
+    frozen.mkdir(parents=True)
+    (frozen / "work").symlink_to(home / "work")  # a frozen home links the home's work (graph/frozen.home_copy)
+    (frozen / "design").mkdir()
+    (frozen / "design" / "x.log").write_text("design")
+    (logs / "escape.log").symlink_to(home / "store" / "secret.txt")
+    said = agent_door.job_log("20261027-0918.home/work/cloud/blender-1/job3.log", home)
+    assert said.endswith("Traceback: the paint of crane failed"), said
+    assert agent_door.job_log(str(frozen / "work/cloud/blender-1/job3.log"), home) == said  # as a fault report names it
+    agent_door.JOB_LOG_CHARACTERS, kept = 12, agent_door.JOB_LOG_CHARACTERS
+    try:
+        assert agent_door.job_log("20261027-0918.home/work/cloud/blender-1/job3.log", home).endswith(
+            "\ncrane failed")
+    finally:
+        agent_door.JOB_LOG_CHARACTERS = kept
+    shutil.rmtree(frozen)  # clean-frozen removed the run's home: its logs are read where they lie
+    assert agent_door.job_log("20261027-0918.home/work/cloud/blender-1/job3.log", home) == said
+    frozen.mkdir()
+    (frozen / "work").symlink_to(home / "work")
+    (frozen / "design").mkdir()
+    (frozen / "design" / "x.log").write_text("design")
+    for asked in ("20261027-0918.home/design/x.log", "20261027-0918.home/work/cloud/blender-1/escape.log",
+                  "20261027-0918.home/work/cloud/../../../store/secret.txt", str(home / "store/secret.txt"),
+                  "20261027-0918.home/work/cloud/blender-1/job9.log"):
+        with pytest.raises(agent_door.Refused):
+            agent_door.job_log(asked, home)
 
 
 def test_the_doors_gaps_and_predicted_print_what_the_store_holds(tmp_path, monkeypatch, capsys):
