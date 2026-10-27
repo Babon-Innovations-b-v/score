@@ -856,10 +856,17 @@ def test_each_person_stands_on_a_plan_spot_each_its_own_variant_of_the_look():
     assert sorted(person["variant"] for person in people) == [0, 1, 2]
 
 
-def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size():
+def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size(tmp_path):
     records = {name: json.loads(path.read_text()) for name, path in people_rows.LINE_FILES.items()}
+    # the kept inventories are the home's, never read by a test: each holds the box the line already draws from
+    for row in records["inventory"]["rows"]:
+        if row.get("view"):
+            place, row_id = people_rows.size_of(row["id"])[1].split("/", 1)
+            path = tmp_path / f"{place}.json"
+            held = json.loads(path.read_text()) if path.exists() else {"rows": []}
+            path.write_text(json.dumps({"rows": held["rows"] + [{"id": row_id, "box": row["box"]}]}))
     props, inventory, surfaces = people_rows.line_rows(people_rows.read(), records["props"], records["inventory"],
-                                                       records["surfaces"])
+                                                       records["surfaces"], tmp_path)
     assert (props, inventory, surfaces) == (records["props"], records["inventory"], records["surfaces"]), \
         "the line's data is not written from rows.json: run python -m score.stages.people_rows"
     assert set(props["objects"]) == people_rows.every_look()  # every look the designs map, each on the line
