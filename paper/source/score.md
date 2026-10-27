@@ -1,5 +1,5 @@
 ---
-title: "SCORE: Synthesizing Complete, Owned, Responsive Environments for Simulation"
+title: "SCORE: Synthesising Complete, Owned, Responsive Environments for Simulation"
 author:
   - "J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands"
 date: "Working draft, 27 October 2026"
@@ -204,11 +204,11 @@ Simulable environments have been expensive to make because each object, surface,
 
 # Author Contributions {-}
 
-[J.P. Kardolus conceived the framework, directed its development, made every design lock, pick and accept, and wrote the paper. Coding agents wrote most of the code and drafted the text under his direction, as disclosed in Section 4.]{.todo}
+J.P. Kardolus is the sole author. He conceived the framework, directed its development, made every design lock, pick and accept, and wrote the paper. Coding agents wrote most of the code and drafted the text under his direction, as disclosed in Section 4.
 
 # Competing Interests {-}
 
-The author is affiliated with Babon Innovations B.V., in whose GitHub organisation SCORE is published under the MIT licence. [The author declares no other competing interests.]{.todo}
+The author is affiliated with Babon Innovations B.V., in whose GitHub organisation SCORE is published under the MIT licence. The author declares no competing interests.
 
 # Acknowledgments {-}
 
