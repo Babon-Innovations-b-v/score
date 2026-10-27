@@ -1,8 +1,26 @@
-"""Check the resting check, and the ground objects are stood on, on places made here: a box on the ground rests, one
-lifted floats, one laid into the ground is sunk however its layout lifted it, a plank held up at one end tips, a hung
-object is not checked, and a box laid on a sloping planned ground stands on it.
+"""tools/usd/resting.py tells floating, sunk, tipping and overlapping objects from resting ones, on places made here,
+and ground.py lays them on the planned ground: a box on the ground rests, one lifted floats, one laid into the ground
+is sunk however its layout lifted it, a plank held up at one end tips, a hung object is not checked, a box on a
+structure deck or on the game's furniture rests, two boxes inside each other overlap, a box laid on a sloping planned
+ground stands on it, the made ground is read where it turns the old one off, and a room laid flat on its seat has the
+ground dug out under its pit.
 
-Run: .venv/bin/python tools/usd/test_floating_sunk_and_tipping_objects_are_told_apart.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- floating_sunk_and_hung_are_told_apart: resting.py's judged `if anchor in HUNG:` made `if False:`.
+- a_crate_on_a_structure_deck_rests: check's `supports = {**meshes, **structure_of(stage, place), **fixtures_of(...)}`
+  without `**structure_of(stage, place)`.
+- a_box_on_the_game_s_furniture_rests_on_it: the same `supports` without `**fixtures_of(stage, place)`.
+- a_plank_held_at_one_end_tips: judged's `elif outside > BALANCE and not fixed:` made `elif outside > 1.5 ...`.
+- a_box_stands_on_the_planned_ground: ground_height's `stage.GetPrimAtPath(f"/{place}/Ground")` made
+  `f"/{place}/NoGround"`.
+- the_made_ground_is_read_where_the_old_one_is_off: ground_height's `if not (prim and prim.IsActive()):` before the
+  MADE_GROUND read made `if False:`.
+- two_boxes_inside_each_other_overlap: overlaps' `if depth > TOLERANCE:` made `if depth > 1.0:`.
+- a_room_lies_flat_on_its_seat_over_a_dug_pit: ground.py's `dug = -(float(self.dug["deep"]) + DUG_PAST)` made
+  `dug = -(float(self.dug["deep"]))`.
+
+Run: .venv/bin/python tools/usd/test_floating_sunk_and_tipping_objects_are_told_apart.py   (make tests runs it in a
+sandbox home)
 """
 import json
 import math
