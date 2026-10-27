@@ -125,7 +125,8 @@ segment rotations. We close with the route toward bodies true to the
 person, a data loop in which generated movement, kept only when
 physically possible, trains models that drive a body's muscles, and
 layered training sets that pair rendered people with their forces and
-muscle activity. Code and paper are at
+muscle activity, from which fast models can learn to read muscle metrics
+from ordinary video. Code and paper are at
 https://github.com/Babon-Innovations-b-v/score (MIT licence).
 \end{abstract}
 
@@ -481,40 +482,47 @@ this residual as a measure of the quality of recorded motion {[}42{]},
 to make generated motion feasible for a torque-driven robot. We apply
 the same check to generated motion played through a muscle-driven body.
 
-\textbf{Brains.} A brain is a trained model that drives a sim body's
-muscles so it moves on its own. Trained on the kept movements together
-with the muscle forces that produce them, it is placed in SCORE's
-synthesised worlds under their own gravity and ground, where it is to
-adapt to structures no recording holds, and every run it drives makes
-data for the next brain. Muscle-driven controllers such as KINESIS
-{[}45{]} and MuscleMimic {[}46{]} learn from motion capture, as
-torque-driven ones such as PHC {[}47{]} do. To our knowledge, no
-muscle-driven controller has yet been trained on generated motion
-filtered by its residual, and the claim holds only once such a brain is
-compared with one trained on motion capture and with one trained on the
-same generated motion unfiltered.
-
 \textbf{Layered training sets.} The same runs can yield layered training
 sets. Each sample is a rendered picture of a clothed person in a full
 scene, paired with exact values for every layer beneath it, from the
 SOMA body and joint angles, the ground force under each foot from
 simulated contact and the muscle activations and forces to the residual,
-depth, segmentation and the scene's layout. Such sets are meant for
-models that go from video to forces or muscle activity. BioHuman10M
-{[}48{]} already pairs video, rendered clips among it, with the
-activations of a 112-muscle body and with ground forces estimated by a
-learned model from recorded motion. Our sets would differ in scenes made
-for the purpose in any light, ground and clothing, in forces from
-contact with each scene's own ground, in a 416-muscle body and in a
-residual for every sample, and their worth rests on a model trained on
-them carrying over to real force-plate and muscle recordings.
+depth, segmentation and the scene's layout. Their main use is to train
+fast models that read muscle activity, joint moments and ground forces
+from ordinary video. No recorded dataset can teach this at scale, since
+muscle forces cannot be measured directly in people and force plates and
+muscle sensors confine recording to a laboratory, whereas the simulation
+can generate the bodies, movements and settings a model must cover,
+including those of a particular group, so that a model can be
+specialised to it. BioHuman10M {[}45{]} already pairs video, rendered
+clips among it, with the activations of a 112-muscle body and with
+ground forces estimated by a learned model from recorded motion. Our
+sets would differ in scenes made for the purpose in any light, ground
+and clothing, in forces from contact with each scene's own ground, in a
+416-muscle body and in a residual for every sample, and their worth
+rests on a model trained on them carrying over to real force-plate and
+muscle recordings.
 
-\textbf{The data loop.} Specialised brains, for example for clinical
-groups, would be trained outside SCORE on data that never enters it. The
-value of the loop grows with the compute put behind it, since every
-scene, movement and run adds data, which is why SCORE is open, so that
-others can put their own compute behind the same framework and share the
-sets they make back.
+\textbf{Brains.} A brain is a trained model that drives a sim body's
+muscles so it moves on its own, and its role here is to widen the data
+beyond what a motion generator offers. Trained on the kept movements
+together with the muscle forces that produce them, it is placed in
+SCORE's synthesised worlds under their own gravity and ground, where it
+is to adapt to structures no recording holds, and every run it drives
+adds movement for the training sets. Muscle-driven controllers such as
+KINESIS {[}46{]} and MuscleMimic {[}47{]} learn from motion capture, as
+torque-driven ones such as PHC {[}48{]} do. To our knowledge, no
+muscle-driven controller has yet been trained on generated motion
+filtered by its residual, and the claim holds only once such a brain is
+compared with one trained on motion capture and with one trained on the
+same generated motion unfiltered.
+
+\textbf{The data loop.} Models specialised for clinical use would be
+trained outside SCORE on data that never enters it. The value of the
+loop grows with the compute put behind it, since every scene, movement
+and run adds data, which is why SCORE is open, so that others can put
+their own compute behind the same framework and share the sets they make
+back.
 
 \section{Limitations and conclusion}\label{limitations-and-conclusion}
 
@@ -813,29 +821,29 @@ and M. Bächer, {``{PhysibleMDM}: Enforcing inference-time physical
 feasibility constraints on motion diffusion models via noise
 optimization,''} \emph{arXiv preprint arXiv:2610.30500}, 2026.}
 
-\bibitem[\citeproctext]{ref-simos2025kinesis}
+\bibitem[\citeproctext]{ref-huo2026biohuman}
 \CSLLeftMargin{{[}45{]} }%
+\CSLRightInline{Y. Huo, H. Zhang, C. Song, H. Song, Z. Zuo, and T. Yu,
+{``{BioHuman}: Learning biomechanical human representations from
+video,''} \emph{arXiv preprint arXiv:2605.14772}, 2026.}
+
+\bibitem[\citeproctext]{ref-simos2025kinesis}
+\CSLLeftMargin{{[}46{]} }%
 \CSLRightInline{M. Simos, A. S. Chiappa, and A. Mathis, {``{KINESIS}:
 Motion imitation for human musculoskeletal locomotion,''} \emph{arXiv
 preprint arXiv:2503.14637}, 2025.}
 
 \bibitem[\citeproctext]{ref-li2026musclemimic}
-\CSLLeftMargin{{[}46{]} }%
+\CSLLeftMargin{{[}47{]} }%
 \CSLRightInline{C. Li \emph{et al.}, {``Towards embodied {AI} with
 {MuscleMimic}: Unlocking full-body musculoskeletal motor learning at
 scale,''} \emph{arXiv preprint arXiv:2603.25544}, 2026.}
 
 \bibitem[\citeproctext]{ref-luo2023phc}
-\CSLLeftMargin{{[}47{]} }%
+\CSLLeftMargin{{[}48{]} }%
 \CSLRightInline{Z. Luo, J. Cao, A. Winkler, K. Kitani, and W. Xu,
 {``Perpetual humanoid control for real-time simulated avatars,''}
 \emph{arXiv preprint arXiv:2305.06456}, 2023.}
-
-\bibitem[\citeproctext]{ref-huo2026biohuman}
-\CSLLeftMargin{{[}48{]} }%
-\CSLRightInline{Y. Huo, H. Zhang, C. Song, H. Song, Z. Zuo, and T. Yu,
-{``{BioHuman}: Learning biomechanical human representations from
-video,''} \emph{arXiv preprint arXiv:2605.14772}, 2026.}
 
 \end{CSLReferences}
 
