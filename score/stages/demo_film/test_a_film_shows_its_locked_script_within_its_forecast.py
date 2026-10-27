@@ -719,3 +719,78 @@ def test_a_locked_script_with_recorded_segments_wants_its_preview_until_it_is_ma
     assert final.previews_wanted() == []
     locked_in(tmp_path, monkeypatch, ("toy", dict(script, segments=[WALKS[0], dict(take, seconds=4.0), WALKS[1]])))
     assert final.previews_wanted() == ["toy"]
+
+
+def toy_rig():
+    """Two joints (a root at the floor, a hip 1 m over it) and three points: one on each joint, one shared half and
+    half; a clip `still` at the bind and `step` with the root moved 1 m along z."""
+    import numpy as np
+    bind = np.tile(np.eye(4), (2, 1, 1))
+    bind[1, 1, 3] = 1.0
+    local = np.tile(np.eye(4), (1, 2, 1, 1))
+    local[0, 1, 1, 3] = 1.0
+    step = local.copy()
+    step[0, 0, 2, 3] = 1.0
+    return {"names": np.array(["Root", "Hips"]), "parents": np.array([-1, 0]), "bind": bind,
+            "points": np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.5, 0.0]]),
+            "weights": np.array([[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]]), "clip_still": local, "clip_step": step}
+
+
+def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
+    """The bare mesh is the rig's points carried by its clip and skin weights (at the bind, the points themselves);
+    each foot's arrow stands on the ground under it (its box's bottom less its recorded height over the ground), its
+    length the record's push on that foot, so the same body's arrow on the Moon is a sixth of Earth's; a foot the
+    ground does not push has none.
+    Break: score/stages/demo_film/peel.py: `@ np.linalg.inv(np.asarray(rig["bind"], dtype=float))` -> `` (in skinned)
+    Break: score/stages/demo_film/peel.py: `bottom[1] - height` -> `bottom[1]`"""
+    import numpy as np
+    from score.stages.demo_film import peel
+    rig = toy_rig()
+    assert np.allclose(peel.skinned(rig, "still")[0], rig["points"])
+    assert np.allclose(peel.skinned(rig, "step")[0], rig["points"] + [0.0, 0.0, 1.0])
+    box = np.diag([0.1, 0.05, 0.1, 1.0])
+    raised = [0.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0]  # the box's bottom 0.30 up: 0.25 over a 0.05 step
+    frame = {"poses": [raised, raised], "feet": {"LeftFoot": [0.25, 750.0], "RightFoot": [0.4, 0.0]}}
+    earth = peel.pushes(np.array([box, box]), ["LeftFoot", "RightFoot"], [frame])
+    moon = peel.pushes(np.array([box, box]), ["LeftFoot", "RightFoot"],
+                       [dict(frame, feet={"LeftFoot": [0.25, 125.0], "RightFoot": [None, 0.0]})])
+    assert np.allclose(earth[0, 0], [0.0, 0.05, 0.0, 0.0, 0.75, 0.0]) and np.isnan(earth[0, 1]).all()
+    assert np.isclose(moon[0, 0, 4] * 6, earth[0, 0, 4]) and np.isnan(moon[0, 1]).all()
+
+
+def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third():
+    """A shot is the record's own frames, refused when longer; it shows clothed, mesh and sim body in thirds, each
+    next one rising from the bottom over the wipe; the environment's film names it as a cut no row makes yet.
+    Break: score/stages/demo_film/peel.py: `if found[-1] >= record_frames:` -> `if False:`
+    Break: score/stages/demo_film/peel.py: `edge = round(tall * (1 - share))` -> `edge = round(tall * share)`"""
+    from score.stages.demo_film import peel
+    assert peel.source_frames(5.0, 30.0, 150)[-1] == 149
+    with pytest.raises(ValueError, match="outlasts"):
+        peel.source_frames(5.5, 30.0, 150)
+    count = 120
+    assert peel.stage_of(0, count) == (0, 0, 0.0) and peel.stage_of(60, count) == (1, 1, 0.0)
+    assert peel.stage_of(119, count) == (2, 2, 0.0)
+    shown, coming, share = peel.stage_of(40, count)
+    assert (shown, coming) == (0, 1) and 0.4 < share < 0.6
+    pictures = [Image.new("RGB", SMALL, colour) for colour in ((255, 0, 0), (0, 255, 0), (0, 0, 255))]
+    frame = peel.wiped(pictures, 36, count)  # a fifth of the way up: the mesh below, the clothed above
+    assert frame.getpixel((5, SMALL[1] - 2)) == (0, 255, 0) and frame.getpixel((5, SMALL[1] // 2)) == (255, 0, 0)
+    peeled = a_script([{"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 5.0}])
+    assert "segment 1: no row makes body-peel frames yet" in final.plan_faults(peeled)
+
+
+def test_a_close_up_follows_the_walker_on_the_most_uneven_ground():
+    """The close-up's walker by rule, never by hand: the cast's walker whose scene-made clip crosses the most relief,
+    the first on a tie; one walker needs no record, several do, none is refused.
+    Break: score/stages/demo_film/peel.py: `relief.get(name, -1.0)` -> `-relief.get(name, -1.0)`"""
+    from score.stages.demo_film import peel
+    walker = {"doing": "walking"}
+    cast = {"place": "street", "characters": [dict(walker, name="ann"), {"name": "bo", "doing": "standing"},
+                                              dict(walker, name="cy"), dict(walker, name="di")]}
+    clips = {"clips": [{"name": "ann", "relief": 0.02}, {"name": "cy", "relief": 0.31}, {"name": "di", "relief": 0.31}]}
+    assert peel.close_walker(cast, clips) == "cy"
+    assert peel.close_walker(dict(cast, characters=cast["characters"][:2])) == "ann"
+    with pytest.raises(ValueError, match="no scene-made clips"):
+        peel.close_walker(cast)
+    with pytest.raises(ValueError, match="no walker"):
+        peel.close_walker(dict(cast, characters=[cast["characters"][1]]))

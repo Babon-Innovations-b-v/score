@@ -22,6 +22,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - api/routes.film_preview: a plain Response in place of the FileResponse (no ranges) -> test_the_film_page_plays_...
 - pages/films.bought_since: `return ""` -> test_a_lock_is_kept_where_the_film_row_reads_it_and_stands_...
 - script.films_node: `return False` -> test_buy_leaves_out_the_film_rows_until_a_film_script_is_locked
+- default.sim_bodies: the CLIPS_TRUE_ON scenes not put first -> test_every_scene_whose_design_has_people_is_peeled_...
 - default.walks: Outside and Inside swapped -> test_an_environments_default_film_is_the_owners_structure_...
 - script.default_name: the saved scripts read before the starters -> test_the_film_step_opens_on_the_environments_...
 - preview/make.beat_offset: rounded to 1 place -> test_the_bed_starts_where_its_beats_fall_on_the_cuts_...
@@ -32,6 +33,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 """
 import json
 import math
+import pathlib
 import re
 
 import pytest
@@ -403,7 +405,7 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     from score.dashboard.films import default
     within = {"dock": "port", "bar": "port", "bunk": "deck", "hold": "port", "deck": "port", "tent": "camp"}
     facts = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
-                             {"tess": "tess_dust"})
+                             {"tess": "tess_dust"}, {})
     assert facts["top"] == "port" and [room for room, _ in facts["rooms"]] == ["dock", "bar", "hold"]
     assert [stop["place"] for stop in facts["stops"]] == ["port", "pier", "camp"]
     film = default.built("world7-film", facts)
@@ -430,7 +432,42 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     assert "Kepler, 100,000 km away" in json.dumps(camp) and camp["legs"][-1]["rooms"] == ["tent"]
     assert camp["pip"]["to"] - camp["pip"]["from"] >= 3 and all(3 <= shown["seconds"] <= 20 for shown in (pier, camp))
     assert ".sp-card:nth-child(3)" in json.dumps(film["segments"][1]) and "world1" not in json.dumps(film)
-    assert default.facts_of("world7", "E", {"bodies": []}, {"maps": []}, within, {}, {}) is None
+    assert default.facts_of("world7", "E", {"bodies": []}, {"maps": []}, within, {}, {}, {}) is None
+
+
+def test_every_scene_whose_design_has_people_is_peeled_earth_first_the_rest_noted():
+    """The sim bodies part (owner, 2026-10-27): every scene the film shows whose design has people, peeled the same
+    way, a close-up after it where one walks, those on the body the clips were recorded on first, every other one
+    carrying the low-gravity note; the hosted side's walking rule is the people rows' own."""
+    from score.dashboard.films import default
+    from score.stages import people_rows
+    shown = [("base", "Base", "moon"), ("hub", "Hub", "moon"), ("square", "Square", "earth"),
+             ("street", "Street", "earth"), ("camp", "Camp", "mars")]
+    part = default.sim_bodies(shown, {"street": True, "hub": False, "camp": True, "square": False, "nowhere": True})
+    assert [segment["cut"] for segment in part] == ["text", *["body-peel"] * 6]
+    assert [(segment["shows"]["place"], segment.get("close")) for segment in part[1:]] == [
+        ("square", None), ("street", None), ("street", "walker"), ("hub", None), ("camp", None), ("camp", "walker")]
+    notes = [segment["captions"][0]["text"] == default.LOW_GRAVITY_NOTE for segment in part[1:]]
+    assert notes == [False, False, False, True, True, True] and part[4]["captions"][0]["line"] == "Moon · Hub"
+    assert script.faults(a_script(part), {"square", "street", "hub", "camp"}) == []
+    assert script.faults(a_script([dict(part[1], close="sitter")])) == [
+        "segment 1: a layer peel follows only a walker, not 'sitter'"]
+    assert all(segment["seconds"] == default.PEEL_SECONDS for segment in part[1:])
+    assert default.sim_bodies(shown, {}) == []
+    peeled = render.items(a_script(part), {})[1]
+    assert peeled["how"] == render.NEW and peeled["euros"] is None  # no row draws a peel yet: not measured
+    rows = json.loads((pathlib.Path(__file__).resolve().parents[3] / "data/people/rows.json").read_text())
+    assert [default.row_walks(row) for entry in rows["places"].values() for row in entry["rows"].values()] == [
+        people_rows.doing_of(row) == "walking" for entry in rows["places"].values() for row in entry["rows"].values()]
+    within = {"dock": "port", "bar": "port", "bunk": "deck", "hold": "port", "deck": "port", "tent": "camp"}
+    people = default.people_of({"places": {"tent": {"rows": {"a": {"where": "walking"}}}, "bar": {"rows": {"b": {}}},
+                                           "deck": {"rows": {}}}})
+    assert people == {"bar": False, "tent": True}
+    facts = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
+                             {"tess": "tess_dust"}, people)
+    film = default.built("world7-film", facts)
+    assert [(segment["shows"].get("place"), segment.get("close")) for segment in film["segments"][-4:]] == [
+        (None, None), ("bar", None), ("tent", None), ("tent", "walker")]
 
 
 def test_the_film_step_opens_on_the_environments_own_film(world, tmp_path, monkeypatch):
