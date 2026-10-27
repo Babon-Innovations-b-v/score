@@ -5,10 +5,14 @@ its kind emits (data/checks/effects.json), made into the scene's OpenUSD effects
 into its stage.
 
     make     the record made from the design over the scene's stage (from_design.py: record.json), then tools/usd/
-             effects.py's write_layer on it: layers/effects.usda and each emitter's baked particles under
-             assets/effects/; an effect Newton makes (its kind's `newton` block: the drill's cuttings, a granular
-             pile by implicit MPM) is simulated first in the physics trial's own Python (inside/newton_pile.py)
-             under the gravity of the scene's body, and its particles baked as they fell
+             effects.py's write_layer on it: layers/effects.usda and each emitter's clip under assets/effects/.
+             How an effect is made is one rule, by what it is made of (effects.json `methods`, each kind's
+             `matter`): grains Newton has a solver for (the drill's cuttings, a granular pile by implicit MPM) are
+             simulated in the physics trial's own Python (inside/newton_pile.py) under the gravity of the scene's
+             body and drawn as one surface built from every grain; a cloud or a flame, which Newton has no solver
+             for, is baked particles. A parameter a row needs that neither the design nor a rule gives (a kind's
+             `asked`: the drill's bore and how much it brings up) is read off the locked concept by one recorded
+             model call for the scene (asked.py)
     gates    attached  every emitter and light on a prim of the base (`on`) is that prim's child and keeps its place on
                        it through the prim's motion, and every emitter that follows a motion lets each particle out
                        where the moving prim stands at its birth (read off the composed stage, the seed's own layers
@@ -48,7 +52,7 @@ import numpy as np
 from score import checks, contracts, store
 from score.stages import layer_base, row_kinds
 from score.stages.physics import design as physics_design
-from score.stages.effects import from_design
+from score.stages.effects import asked, from_design
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
@@ -92,11 +96,13 @@ NEWTON_FOLDER = "envs/newton_env"
 
 
 def files(place):
-    """What the stage reads: the scene's design inventory, the row-kind rules and the library of measured effects,
+    """What the stage reads: the scene's design inventory and locked concept (what a row's effect asks is read off
+    it), the row-kind rules and the library of measured effects,
     its seed stage with its kit (the record is made and the gates judge the layer over it), its design's surface
     data (which bakes of other places it lays, as the settle) and the setting whose body's gravity a Newton pile falls
     under."""
     return {**row_kinds.DESIGNED, "effect kinds": "{data}/checks/effects.json", "seed": "{seeds}/usd-r3/{place}",
+            "concept": "{home}/design/concepts/{place}.png",
             "surfaces": "{home}/design/surfaces/{place}.json", "physics": "{data}/physics/setting.json",
             "bodies": "{data}/physics/bodies.json", "within": "{data}/places/within.json", **layer_base.files(place)}
 
@@ -124,17 +130,39 @@ def record_of(inputs):
 def make(inputs, out, seed, params):
     """The scene's effects record made from its design over its stage, its effects layer and baked particles."""
     place = pathlib.Path(inputs["seed"]).name
+    effects = read_json(inputs["effect kinds"])
     with layer_base.built(inputs) as source:
         stage = layer_base.opened(source)
-        record = from_design.record(place, read_json(inputs["design"]), row_kinds.table(inputs["row kinds"]),
-                                    read_json(inputs["effect kinds"]), stage)
+        design = read_json(inputs["design"])
+        record = from_design.record(place, design, row_kinds.table(inputs["row kinds"]), effects, stage)
+        record = dict(record, effects=with_asked(record["effects"], place, inputs, design, effects))
         with tempfile.TemporaryDirectory() as baking:
-            record = dict(record, effects=[poured(entry, inputs, place, pathlib.Path(baking)) if "newton" in entry
-                                           else entry for entry in record["effects"]])
+            record = dict(record, effects=[made(entry, inputs, place, pathlib.Path(baking))
+                                           for entry in record["effects"]])
             kept = [{key: value for key, value in entry.items() if key != "baked"} for entry in record["effects"]]
             (out / RECORD).write_text(json.dumps(dict(record, effects=kept), indent=1))
             held = effect_layer.write_layer(place, record, out, base=stage)
     (out / "held.json").write_text(json.dumps({"place": place, "particles": held}, indent=1))
+
+
+def with_asked(entries, place, inputs, design, effects):
+    """The entries with what their kind asks (its `asked`), read off the scene's locked concept for each row by the
+    scene's one model call (asked.py), its numbers and reasons as each entry's `asked`."""
+    rows = {row["id"]: row for row in design["rows"]}
+    pairs = list({(entry["row"], entry["kind"]): (rows[entry["row"]], entry["kind"]) for entry in entries}.values())
+    found = asked.values(place, inputs.get("concept"), pairs, effects)
+    return [dict(entry, asked=found[(entry["row"], entry["kind"])]) if (entry["row"], entry["kind"]) in found
+            else entry for entry in entries]
+
+
+def made(entry, inputs, place, baking):
+    """The entry made by its method (from_design: its matter's, effects.json `methods`): baked particles as the
+    layer bakes them, or Newton's pile; a method with no maker here stops the row."""
+    if entry["made_by"] == "particles":
+        return entry
+    if entry["made_by"] == "newton-mpm":
+        return poured(entry, inputs, place, baking)
+    raise ValueError(f"{entry['name']}: no maker for {entry['made_by']} yet (effects.json `methods`)")
 
 
 def body_gravity(inputs, place):
@@ -152,18 +180,18 @@ def newton_python():
 
 
 def poured(entry, inputs, place, baking):
-    """An emitter whose kind Newton makes (its `newton` block: a granular pile poured over its `once` span), made in
-    the physics trial's Python under the scene's body's gravity at the emitter's samples a second and its count: the
-    entry with its gravity and its `baked` file (in `baking`, gone once the layer is written)."""
+    """A granular pile Newton makes (its `newton` block and what its row was asked: the bore and how much it brings
+    up), poured over its `once` span in the physics trial's Python under the scene's body's gravity at the emitter's
+    samples a second: the entry with its gravity, how many grains it holds (its `count`) and its `baked` surface
+    file (in `baking`, gone once the layer is written)."""
     gravity = body_gravity(inputs, place)
     first, last = (float(value) for value in entry["once"])
-    pile = dict(entry["newton"], pour=last - first, seconds=effect_layer.loop_of(entry),
-                samples=effect_layer.samples_of(entry), count=int(entry["count"]), seed=int(entry["seed"]),
-                gravity=gravity)
-    asked, baked = baking / f"{entry['name']}.json", baking / f"{entry['name']}.npz"
-    asked.write_text(json.dumps(pile))
-    newton_pile(asked, baked)
-    return dict(entry, gravity=[0.0, -gravity, 0.0], baked=baked)
+    pile = dict(entry["newton"], **entry["asked"]["values"], pour=last - first, seconds=effect_layer.loop_of(entry),
+                samples=effect_layer.samples_of(entry), seed=int(entry["seed"]), gravity=gravity)
+    wanted, baked = baking / f"{entry['name']}.json", baking / f"{entry['name']}.npz"
+    wanted.write_text(json.dumps(pile))
+    newton_pile(wanted, baked)
+    return dict(entry, gravity=[0.0, -gravity, 0.0], count=int(np.load(baked)["grains"]), baked=baked)
 
 
 def newton_pile(asked, baked):
@@ -258,6 +286,8 @@ def seen(stage, path, seconds, thickest):
     SEEN_SHARE of `thickest`, its particles' own thickest, for one as thin as a fog; one just born or dying between
     two samples is nearly nothing): their world spots and widths."""
     from pxr import UsdGeom
+    if stage.GetPrimAtPath(path).IsA(UsdGeom.Mesh):
+        return surface_spots(stage, path, seconds)
     grains = UsdGeom.Points(stage.GetPrimAtPath(path))
     code = seconds * effect_layer.RATE
     widths = np.asarray(grains.GetWidthsAttr().Get(code), dtype=float)
@@ -267,11 +297,24 @@ def seen(stage, path, seconds, thickest):
     return spots[shows], sizes[shows]
 
 
+def surface_spots(stage, path, seconds):
+    """A surface's vertices at a second of the stage (a Newton pile, drawn from every grain): their world spots, and
+    widths of 0 (the surface is their edge)."""
+    from pxr import UsdGeom
+    mesh = UsdGeom.Mesh(stage.GetPrimAtPath(path))
+    code = seconds * effect_layer.RATE
+    spots = np.asarray(mesh.GetPointsAttr().Get(code) or [], dtype=float).reshape(-1, 3)
+    matrix = np.asarray(UsdGeom.Xformable(mesh.GetPrim()).ComputeLocalToWorldTransform(code))
+    return spots @ matrix[:3, :3] + matrix[3, :3], np.zeros(len(spots))
+
+
 def points_path(place, entry):
-    """Where an emitter's points stand in the stage (tools/usd/effects.py's layout)."""
+    """Where an emitter's points (or its surface, one drawn as a surface) stand in the stage (tools/usd/effects.py's
+    layout)."""
     placement = entry["placement"]
     holder = f"/{place}/{placement['on']}" if "on" in placement else f"/{place}/Effects"
-    return f"{holder}/{entry['name']}/{entry['name']}_points"
+    drawn = "surface" if entry.get("drawn") == "surface" else "points"
+    return f"{holder}/{entry['name']}/{entry['name']}_{drawn}"
 
 
 def motion_span(motions, name):

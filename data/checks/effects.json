@@ -1,9 +1,75 @@
 {
- "about": "The effects a row kind emits (data/checks/row-kinds.json `effects`), each measured on real footage (the owner's rule: real footage first): its emitter as tools/usd/effects.py bakes it, where on its object's own box it stands (`at`: from the box's middle, each axis a share of its half size, y up, z the object's front), why it gives no light (`no_light`), and its footage sources and checks (each measured on the emitter itself at its `at` second). General for any scene: the effects stage lays one on every object of every row whose kind emits it (score/stages/effects/from_design.py).",
+ "about": "The effects a row kind emits (data/checks/row-kinds.json `effects`), each measured on real footage (the owner's rule: real footage first): its emitter as tools/usd/effects.py bakes it, where on its object's own box it stands (`at`: from the box's middle, each axis a share of its half size, y up, z the object's front), why it gives no light (`no_light`), and its footage sources and checks (each measured on the emitter itself at its `at` second). How each kind is made is the one rule `methods` (its `matter`), never a pick for a place or an object. General for any scene: the effects stage lays one on every object of every row whose kind emits it (score/stages/effects/from_design.py).",
  "how": "Measured on each photograph's pixels against a thing of known size in it (named with each source; a typical size where the maker's own was not looked up, so to roughly a third), or read off a report's text. A plume running off the frame bounds a measure on one side only (null).",
  "licence": "NASA photographs and reports are not copyrighted in the United States; the others under the licence each source names. Every source is used here only as measurements, never shown.",
+ "methods": {
+  "about": "How the framework makes an effect, by what it is made of (each kind's `matter`), read by the effects stage (score/stages/effects/__init__.py `made`): a matter Newton has a solver for is simulated by Newton, every other is drawn by the measured baked particles (tools/usd/effects.py, Godot's process material) or is light. Newton 1.7.0's solvers are rigid bodies (Featherstone, MuJoCo, Kamino, XPBD, semi-implicit), cloth and soft bodies (VBD, Style3D, XPBD) and implicit MPM for continua (sand, snow, soil, mud); none carries a gas, a flame or light. A kind's parameter that differs per row and that neither the design nor a rule gives is named in its `asked` and read off the scene's locked concept by one recorded model call per scene (score/stages/effects/asked.py).",
+  "granular": {
+   "made_by": "newton-mpm",
+   "drawn": "surface",
+   "is": [
+    "sand",
+    "dust piles",
+    "drill cuttings",
+    "spoil",
+    "gravel",
+    "snow",
+    "soil"
+   ],
+   "why": "grains that pour, heap and slide: Newton's implicit MPM solves them as a Drucker-Prager continuum, so a pile's flank comes out of the material's friction angle, and every grain is drawn as one surface built from all of them"
+  },
+  "cloth": {
+   "made_by": "newton-vbd",
+   "drawn": "surface",
+   "is": [
+    "cloth",
+    "flags",
+    "tarps",
+    "curtains",
+    "cables",
+    "ropes"
+   ],
+   "why": "sheets and strands that hang, flap and drape: Newton's VBD solves them; no effect kind is cloth yet, so the stage has no maker for it and refuses one until it is built"
+  },
+  "vapour": {
+   "made_by": "particles",
+   "drawn": "points",
+   "is": [
+    "steam",
+    "mist",
+    "fog",
+    "smoke",
+    "dust in the air",
+    "dust devils"
+   ],
+   "why": "a cloud carried by the air, which Newton has no solver for (no gas or smoke): fine baked particles measured on footage"
+  },
+  "flame": {
+   "made_by": "particles",
+   "drawn": "points",
+   "is": [
+    "fire",
+    "rocket exhaust",
+    "sparks",
+    "embers"
+   ],
+   "why": "burning gas and glowing specks, which Newton has no solver for (no combustion or jet): baked particles that give their own light, with the record's lights"
+  },
+  "light": {
+   "made_by": "lights",
+   "drawn": "lights",
+   "is": [
+    "glows",
+    "flashes",
+    "beacons",
+    "flicker"
+   ],
+   "why": "light, not matter: nothing to simulate; the record's UsdLux lights keyed over the stage's seconds"
+  }
+ },
  "kinds": {
   "steam_jet": {
+   "matter": "vapour",
    "at": [
     0.0,
     0.6,
@@ -170,6 +236,7 @@
    "measured_for": "data/effects/habitat.json's kettle_steam, copied whole (2026-10-21)"
   },
   "steam_rise": {
+   "matter": "vapour",
    "at": [
     0.0,
     1.0,
@@ -295,6 +362,7 @@
    "measured_for": "data/effects/habitat.json's pot_steam, copied whole (2026-10-21)"
   },
   "humidifier_mist": {
+   "matter": "vapour",
    "at": [
     0.0,
     1.0,
@@ -439,6 +507,7 @@
    "measured_for": "data/effects/greenhouse.json's humidifier_mist, copied whole (2026-10-21)"
   },
   "drill_cuttings": {
+   "matter": "granular",
    "at": [
     0.0,
     -1.0,
@@ -449,12 +518,11 @@
    "emitter": {
     "kind": "drill_cuttings",
     "look": "puff",
-    "card": "plain",
+    "card": "surface",
     "emitter": {
      "shape": "sphere",
      "radius": 0.1
     },
-    "count": 120000,
     "lifetime": 2.0,
     "once": [
      0.0,
@@ -473,13 +541,11 @@
     "space": "world",
     "newton": {
      "solver": "implicit MPM (Newton 1.7.0's SolverImplicitMPM, Drucker-Prager granular)",
-     "bore": 0.1,
-     "volume": 0.12,
      "angle": 33.0,
      "density": 1500.0,
      "voxel": 0.01,
      "slices": 12,
-     "why": "the cuttings of a 20 cm bore 3 m deep, loosened by a quarter (0.094 m3 drilled, 0.12 m3 on the ground): a rule for the kind, not footage; its friction angle the middle of the slip faces measured on Mars (grl-50586); the bulk density of loose dry sand; a grid of 1 cm, the coarsest whose pile settled inside the footage's range on this PC (2.5 cm gave a 24 degree flank, 1.5 cm 27, 1 cm 31 to 32); 120,000 of its 966,000 particles drawn, each as wide as the share of the pile it stands for (about 1 cm)"
+     "why": "its friction angle the middle of the slip faces measured on Mars (grl-50586); the bulk density of loose dry sand; a grid of 1 cm, the coarsest whose pile settled inside the footage's range on this PC (2.5 cm gave a 24 degree flank, 1.5 cm 27, 1 cm 31 to 32); every grain drawn into one surface on a grid as fine as their spacing (0.5 cm)"
     },
     "from": "footage: grl-50586, pia16726 (a drilling rig's cuttings poured out at its collar over six seconds, settling into a cone at the slip-face angle measured on Mars's dunes, in the grey of Curiosity's first drill tailings)"
    },
@@ -508,7 +574,11 @@
       "grl-50586"
      ]
     }
-   ]
+   ],
+   "asked": {
+    "bore": "the radius of the hole the rig drills, metres",
+    "volume": "how much loosened rock the rig has brought up onto the ground beside it by the end of its pour, cubic metres"
+   }
   }
  }
 }

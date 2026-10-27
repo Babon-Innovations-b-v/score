@@ -89,8 +89,9 @@ How the bake moves a particle repeats Godot 4's ParticleProcessMaterial (its emi
 gravity, damping, radial push, turbulence's steer toward a noise direction, size and colour over life, stepped at
 the GPUParticles3D's 30 steps a second), with this module's own seeded generator and its own smooth noise: the same
 record always gives the same particles, but not the game's own draws (Godot's particle hash is not repeated here).
-An emitter simulated elsewhere names its `baked` file instead (spots and widths at its samples a second: a Newton
-pile, score/stages/effects/inside/newton_pile.py); an event's last sample, its pile at rest, is held after it.
+An emitter drawn as a surface (`drawn`: "surface", a Newton pile, score/stages/effects/inside/newton_pile.py) names
+its `baked` file instead: a UsdGeomMesh `<emitter>_surface` built from every grain at its samples a second, played
+from its clip the same way; an event's last sample, its pile at rest, is held after it.
 """
 import argparse
 import copy
@@ -617,15 +618,6 @@ def bake(emitter):
     return points.astype(np.float32), widths, opacity
 
 
-def baked(emitter):
-    """An emitter simulated elsewhere (a Newton pile, score/stages/effects/inside/newton_pile.py): its `baked` file's
-    spots and widths at its samples a second, each shown particle at its look's opacity."""
-    found = np.load(emitter["baked"])
-    widths = found["widths"].astype(np.float32)
-    return found["points"].astype(np.float32), widths, np.where(widths > 0, look_opacity(emitter), 0.0).astype(
-        np.float32)
-
-
 # --- the stage ----------------------------------------------------------------------------------------------------
 
 def inside(spots, interiors):
@@ -650,22 +642,30 @@ def kept_out(emitter, points, widths, interiors):
     return np.where(inside(spots, interiors), 0.0, widths).astype(np.float32)
 
 
-def write_clip(emitter, out, interiors=None):
-    """The emitter's baked particles as a clip file of their own (`assets/effects/<emitter>.usdc`, the prim
-    /Effect), sampled every RATE / its samples a second, none inside the record's `interiors`; one that `starts`
-    gets one more sample after its loop, every particle dead, held before it lights; its path in the stage folder
-    and how many samples it holds."""
-    points, widths, opacity = baked(emitter) if emitter.get("baked") else bake(emitter)
-    widths = kept_out(emitter, points, widths, interiors)
-    if emitter.get("starts") is not None:
-        points = np.concatenate([points, points[:1]])
-        widths = np.concatenate([widths, np.zeros_like(widths[:1])])
-        opacity = np.concatenate([opacity, np.zeros_like(opacity[:1])])
+def clip_layer(emitter, out):
+    """The emitter's clip file (`assets/effects/<emitter>.usdc`), emptied, at the stage's time codes a second."""
     path = pathlib.Path(out) / ASSETS / f"{emitter['name']}.usdc"
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(path)) if not path.exists() else Sdf.Layer.FindOrOpen(str(path))
     layer.Clear()
     layer.timeCodesPerSecond = RATE
+    return path, layer
+
+
+def write_clip(emitter, out, interiors=None):
+    """The emitter's baked particles as a clip file of their own (`assets/effects/<emitter>.usdc`, the prim
+    /Effect), sampled every RATE / its samples a second, none inside the record's `interiors`; one that `starts`
+    gets one more sample after its loop, every particle dead, held before it lights; its path in the stage folder
+    and how many samples it holds."""
+    if emitter.get("drawn") == "surface":
+        return write_surface_clip(emitter, out)
+    points, widths, opacity = bake(emitter)
+    widths = kept_out(emitter, points, widths, interiors)
+    if emitter.get("starts") is not None:
+        points = np.concatenate([points, points[:1]])
+        widths = np.concatenate([widths, np.zeros_like(widths[:1])])
+        opacity = np.concatenate([opacity, np.zeros_like(opacity[:1])])
+    path, layer = clip_layer(emitter, out)
     clip = Usd.Stage.Open(layer)
     grains = UsdGeom.Points.Define(clip, "/Effect")
     opacity_primvar = UsdGeom.PrimvarsAPI(grains).CreatePrimvar("displayOpacity", Sdf.ValueTypeNames.FloatArray,
@@ -678,6 +678,31 @@ def write_clip(emitter, out, interiors=None):
     layer.defaultPrim = "Effect"
     layer.Save()
     return path, len(points)
+
+
+def write_surface_clip(emitter, out):
+    """A surface simulated elsewhere (its `baked` file: every sample's vertices and triangles, one after another,
+    score/stages/effects/inside/newton_pile.py) as its clip, the mesh /Effect, at its samples a second; its path and
+    how many samples it holds."""
+    found = np.load(emitter["baked"])
+    every_vertex, every_index = found["vertices"], found["indices"]
+    vertex_starts, index_starts = found["vertex_starts"], found["index_starts"]
+    path, layer = clip_layer(emitter, out)
+    clip = Usd.Stage.Open(layer)
+    mesh = UsdGeom.Mesh.Define(clip, "/Effect")
+    for sample in range(len(vertex_starts) - 1):
+        time = sample * RATE / samples_of(emitter)
+        vertices = every_vertex[vertex_starts[sample]:vertex_starts[sample + 1]]
+        indices = every_index[index_starts[sample]:index_starts[sample + 1]]
+        mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(np.ascontiguousarray(vertices, dtype=np.float32)), time)
+        mesh.GetFaceVertexCountsAttr().Set(Vt.IntArray([3] * (len(indices) // 3)), time)
+        mesh.GetFaceVertexIndicesAttr().Set(Vt.IntArray.FromNumpy(np.ascontiguousarray(indices, dtype=np.int32)),
+                                            time)
+        low, high = (vertices.min(axis=0), vertices.max(axis=0)) if len(vertices) else (np.zeros(3), np.zeros(3))
+        mesh.GetExtentAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*map(float, low)), Gf.Vec3f(*map(float, high))]), time)
+    layer.defaultPrim = "Effect"
+    layer.Save()
+    return path, len(vertex_starts) - 1
 
 
 def looped_times(loop):
@@ -834,17 +859,12 @@ def write_emitter(stage, root, emitter, out, interiors=None, base=None):
     for name, (kind, read) in SCHEMA.items():
         xform.GetPrim().CreateAttribute(f"score:effect:{name}", kind).Set(read(emitter))
     clip, samples = write_clip(emitter, out, interiors)
-    grains = UsdGeom.Points.Define(stage, f"{path}/{emitter['name']}_points")
-    prim = grains.GetPrim()
+    prim = (drawn_surface if emitter.get("drawn") == "surface" else drawn_points)(stage, path, emitter)
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("effect")
     prim.CreateAttribute("score:effect:look", Sdf.ValueTypeNames.Token).Set(emitter["look"])
-    UsdGeom.PrimvarsAPI(grains).CreatePrimvar("displayColor", Sdf.ValueTypeNames.Color3fArray,
-                                              UsdGeom.Tokens.constant).Set(Vt.Vec3fArray([Gf.Vec3f(*look_colour(
-                                                  emitter))]))
-    UsdGeom.PrimvarsAPI(grains).CreatePrimvar("displayOpacity", Sdf.ValueTypeNames.FloatArray, UsdGeom.Tokens.vertex)
-    grains.CreatePointsAttr()
-    grains.CreateWidthsAttr()
-    grains.SetWidthsInterpolation(UsdGeom.Tokens.vertex)
+    UsdGeom.PrimvarsAPI(prim).CreatePrimvar("displayColor", Sdf.ValueTypeNames.Color3fArray,
+                                            UsdGeom.Tokens.constant).Set(Vt.Vec3fArray([Gf.Vec3f(*look_colour(
+                                                emitter))]))
     clips = Usd.ClipsAPI(prim)
     relative = f"../{ASSETS}/{clip.name}"
     clips.SetClipAssetPaths([Sdf.AssetPath(relative)])
@@ -853,6 +873,29 @@ def write_emitter(stage, root, emitter, out, interiors=None, base=None):
     clips.SetClipTimes(clip_times(emitter, samples))
     UsdShade.MaterialBindingAPI.Apply(prim).Bind(effect_look(stage, root, emitter))
     return int(emitter["count"])
+
+
+def drawn_points(stage, path, emitter):
+    """The emitter's particles, `<emitter>_points`: their spots, widths and thickness each played from its clip."""
+    grains = UsdGeom.Points.Define(stage, f"{path}/{emitter['name']}_points")
+    UsdGeom.PrimvarsAPI(grains).CreatePrimvar("displayOpacity", Sdf.ValueTypeNames.FloatArray, UsdGeom.Tokens.vertex)
+    grains.CreatePointsAttr()
+    grains.CreateWidthsAttr()
+    grains.SetWidthsInterpolation(UsdGeom.Tokens.vertex)
+    return grains.GetPrim()
+
+
+def drawn_surface(stage, path, emitter):
+    """The emitter's surface, `<emitter>_surface`: its vertices and triangles played from its clip, at its own opacity
+    throughout (a solid, not a puff's thin card)."""
+    mesh = UsdGeom.Mesh.Define(stage, f"{path}/{emitter['name']}_surface")
+    UsdGeom.PrimvarsAPI(mesh).CreatePrimvar("displayOpacity", Sdf.ValueTypeNames.FloatArray,
+                                            UsdGeom.Tokens.constant).Set(Vt.FloatArray([float(emitter["opacity"])]))
+    mesh.CreatePointsAttr()
+    mesh.CreateFaceVertexCountsAttr()
+    mesh.CreateFaceVertexIndicesAttr()
+    mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
+    return mesh.GetPrim()
 
 
 def rider_scale(base, path):

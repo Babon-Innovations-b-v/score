@@ -1,19 +1,23 @@
 """Runs in the physics trial's own Python (score/stages/physics/inside/newton_env.sh: Newton 1.7.0, on this PC's card
-or a rented one; never the score venv's): a granular pile made by Newton's implicit MPM, its particles sampled for the
-effects layer.
+or a rented one; never the score venv's): a granular pile made by Newton's implicit MPM, drawn for the effects layer
+as a surface built from every one of its grains.
 
     <env>/bin/python newton_pile.py <pile.json> <out.npz>
 
-The pile's cuttings are the bore's (`bore` radius, `volume` cubic metres loosened), brought up the auger and let out
+The pile's cuttings are the bore's (`bore` radius, `volume` cubic metres loosened: the scene's own, read off its
+locked concept by the effects stage's one model call, score/stages/effects/asked.py), brought up the auger and let out
 over `pour` seconds, `slices` a second, just over the resting pile's top above the collar and falling fast enough
 to clear the slice before it (the rest wait inactive, where the solver does not see them). They fall and spread under
 `gravity` (metres a second squared, the body's) as a Drucker-Prager granular material of `angle` (its friction angle,
 degrees) and `density` (kg a cubic metre) on a ground of the same friction, for `seconds`, on a grid of `voxel`
-metres, sampled `samples` times a second (a whole share of `slices`). Of its particles `count` are drawn (seeded by `seed`), each as wide as the
-share of the pile it stands for.
+metres (its particles jittered, seeded by `seed`), sampled `samples` times a second (a whole share of `slices`). At
+each sample every grain let out is drawn into one closed surface by Newton's own particle surface (a density field
+of the grains on a grid as fine as their spacing, marched into triangles, newton.geometry.extract_particle_surface,
+with the reconstruction its implicit MPM example draws its water by), never a share of them.
 
-Writes `points` (samples x count x 3, metres, y up, the collar at the origin) and `widths` (samples x count, metres;
-0 for one not let out yet, written at the collar).
+Writes, y up, metres, the collar at the origin: `vertices` (every sample's, one after another) and `vertex_starts`
+(samples + 1), `indices` (three a triangle, each sample's counted from its own first vertex) and `index_starts`
+(samples + 1), and `grains` (how many grains the pile holds); a sample with nothing let out has no triangles.
 """
 import json
 import math
@@ -32,6 +36,15 @@ STEP_MOST = 1.0 / 96.0
 # A particle slower than this rests on the pile (metres a second), and a slice is let out this far over its top.
 RESTING = 0.1
 DROP = 0.1
+# The surface (Newton's implicit MPM water example's reconstruction, examples/mpm/example_mpm_water_dam_break.py): each
+# grain's kernel reaches this many spacings, scaled by KERNEL_SCALE, stretched along its neighbours (anisotropic), the
+# field blurred FIELD_SMOOTH passes of FIELD_RADIUS cells and cut at THRESHOLD, the mesh smoothed MESH_SMOOTH passes.
+KERNEL_SPACINGS = 3.0
+KERNEL_SCALE = 0.6
+THRESHOLD = 0.25
+FIELD_SMOOTH = 1
+FIELD_RADIUS = 2
+MESH_SMOOTH = 1
 
 
 def cone_friction(angle):
@@ -97,9 +110,23 @@ def let_out(model, solver, state, spots, out, which, pile, spacing):  # noqa: PL
     solver.notify_model_changed(newton.ModelFlags.MODEL_PROPERTIES)
 
 
+def surface(state, model, spacing):
+    """One closed surface over every grain let out (y up, metres): its vertices and its triangles' corners, each on a
+    grid as fine as the grains' spacing."""
+    mesh = newton.geometry.extract_particle_surface(
+        state.particle_q, model.particle_radius, spacing, kernel_radius=KERNEL_SPACINGS * spacing,
+        kernel_scale=KERNEL_SCALE, threshold=THRESHOLD, field_smooth_iterations=FIELD_SMOOTH,
+        field_smooth_radius=FIELD_RADIUS, mesh_smooth_iterations=MESH_SMOOTH, anisotropic=True,
+        compute_normals=False, particle_flags=model.particle_flags)
+    vertices, indices, _ = mesh.to_arrays()
+    if vertices is None:
+        return np.zeros((0, 3), np.float32), np.zeros(0, np.int32)
+    up = vertices.numpy()[:, [0, 2, 1]] * np.array([1.0, 1.0, -1.0])  # z up to y up: a turn, so faces keep their way
+    return up.astype(np.float32), indices.numpy().astype(np.int32)
+
+
 def simulated(pile):
-    """The pile's particles at every sample (samples x count x 3, z up), whether each is let out by then (samples x
-    count) and their radius."""
+    """The pile's surface at every sample (its vertices and triangles' corners, y up) and how many grains it holds."""
     spots, spacing = column(pile)
     model, solver = built(pile, spots, spacing)
     state, spare = model.state(), model.state()
@@ -110,7 +137,7 @@ def simulated(pile):
     slices = int(round(float(pile["pour"]) * rate))
     bounds = np.linspace(0, len(spots), slices + 1).astype(int)
     out = np.zeros(len(spots), dtype=bool)
-    taken, shown = [state.particle_q.numpy().copy()], [out.copy()]
+    taken = [surface(state, model, spacing)]
     for tick in range(int(round(float(pile["seconds"]) * rate))):
         if tick < slices:
             let_out(model, solver, state, spots, out, slice(bounds[tick], bounds[tick + 1]), pile, spacing)
@@ -119,29 +146,26 @@ def simulated(pile):
             solver.project_outside(spare, spare, step)
             state, spare = spare, state
         if (tick + 1) % every == 0:
-            taken.append(state.particle_q.numpy().copy())
-            shown.append(out.copy())
-    return np.stack(taken), np.stack(shown), spacing / 2
+            taken.append(surface(state, model, spacing))
+    return taken, len(spots)
 
 
-def drawn(pile, points, shown, radius):
-    """The `count` drawn particles in the effects layer's frame (y up): spots and widths, each as wide as the share
-    of the pile's particles it stands for, 0 before it is let out (at the collar)."""
-    which = np.sort(np.random.default_rng(int(pile["seed"])).choice(points.shape[1], int(pile["count"]),
-                                                                     replace=False))
-    width = 2 * radius * (points.shape[1] / len(which)) ** (1 / 3)
-    points, shown = points[:, which], shown[:, which]
-    up = np.where(shown[..., None], points, 0.0)[..., [0, 2, 1]] * np.array([1.0, 1.0, -1.0])  # z up to y up
-    return up.astype(np.float32), np.where(shown, width, 0.0).astype(np.float32)
+def packed(taken):
+    """The samples' surfaces one after another: vertices, their starts, triangles' corners, their starts."""
+    vertex_starts = np.cumsum([0] + [len(vertices) for vertices, _ in taken])
+    index_starts = np.cumsum([0] + [len(indices) for _, indices in taken])
+    return (np.concatenate([vertices for vertices, _ in taken]), vertex_starts,
+            np.concatenate([indices for _, indices in taken]), index_starts)
 
 
 def main(pile_path, out):
     pile = json.loads(pathlib.Path(pile_path).read_text())
-    points, shown, radius = simulated(pile)
-    spots, widths = drawn(pile, points, shown, radius)
-    np.savez_compressed(out, points=spots, widths=widths)
-    print(f"newton {newton.__version__}: {spots.shape[1]} of the pile's {points.shape[1]} particles drawn, "
-          f"{spots.shape[0]} samples")
+    taken, grains = simulated(pile)
+    vertices, vertex_starts, indices, index_starts = packed(taken)
+    np.savez_compressed(out, vertices=vertices, vertex_starts=vertex_starts, indices=indices,
+                        index_starts=index_starts, grains=grains)
+    print(f"newton {newton.__version__}: the pile's {grains} grains drawn as one surface, {len(taken)} samples, "
+          f"{len(indices[index_starts[-2]:]) // 3} triangles at the last")
 
 
 if __name__ == "__main__":
