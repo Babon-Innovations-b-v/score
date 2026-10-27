@@ -12,7 +12,12 @@ The stage table (score/stages/__init__.py) wraps the ROWS' makes with `asking_cl
 module, so each row's code version is its own make's (the wrapper's `__wrapped__`) plus this file and the adapter, and a
 change of the pinned model re-keys those four rows alone. The switch is not in scene_palette.py, scene_library.py or
 surfaces/__init__.py: body_faces.py (the body-face rows) and ground-join read those.
+
+A palette answer the palette's own reading refuses (its module's palette_of: env1 on the PC, 2026-10-27, Claude named
+the shiplock's and the wreck's dirt token without adding it to their palettes) is asked once more, the answer and what
+is wrong with it told (`repaired`), at EUR 0: the first answer is cached, so asking the same again gets it again.
 """
+import copy
 import functools
 import sys
 
@@ -29,9 +34,40 @@ def asking_claude(make):
     @functools.wraps(make)
     def made(inputs, out, seed, params):
         gemini = module.ask
-        module.ask = lambda bodies: claude_code.asked(bodies, module.CALLER)
+        module.ask = lambda bodies: answered(bodies, module)
         try:
             return make(inputs, out, seed, params)
         finally:
             module.ask = gemini
     return made
+
+
+PALETTE = "finish-route-palette"
+AGAIN = ("Your answer was:\n{answer}\nIt cannot be used: {why}. Answer the whole question again, in full: every token "
+         "your dirt_token or anything else names is one of your palette's tokens (add it, with its colour, when none "
+         "is), and wear is one of {levels}.")
+
+
+def answered(bodies, module):
+    """Claude's answers to `bodies` under the module's CALLER; a palette answer its module's palette_of refuses asked
+    once more (`repaired`), that answer kept whatever it is."""
+    answers = claude_code.asked(bodies, module.CALLER)
+    if module.CALLER != PALETTE:
+        return answers
+    again = {}
+    for take, answer in answers.items():
+        if isinstance(answer, Exception):
+            continue
+        levels = bodies[take]["generationConfig"]["responseSchema"]["properties"]["wear"]["enum"]
+        try:
+            module.palette_of(answer, levels)
+        except ValueError as off:
+            again[take] = repaired(bodies[take], answer, off, levels)
+    return {**answers, **claude_code.asked(again, module.CALLER)} if again else answers
+
+
+def repaired(body, answer, off, levels):
+    """`body` with the refused answer and why after its question, in its one user turn."""
+    told = copy.deepcopy(body)
+    told["contents"][0]["parts"].append({"text": AGAIN.format(answer=answer, why=off, levels=", ".join(levels))})
+    return told
