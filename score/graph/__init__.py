@@ -321,9 +321,29 @@ def bytecode(relative):
     return relative.endswith(".pyc") or "__pycache__" in relative.split("/")
 
 
+# {(device, inode, size, mtime ns, ctime ns): sha256} of the files source_hash read: a status of environment 1 hashed
+# 38,078 files for 1,065 nodes (65 of its 91 s, 2026-10-27), the same input folders again for every node reading
+# them. Any write moves a file's ctime, so a hit is the same bytes and every key is as without it; a file changed in
+# the last SETTLED_NS is never kept (its clock ticks coarser than a write: the racy-file rule of version control).
+HASHED = {}
+SETTLED_NS = 2 * 10**9
+
+
+def stamped_hash(path):
+    """file_hash of `path`, read again only when its stat stamp (HASHED) changed or it changed lately."""
+    found = os.stat(path)
+    stamp = (found.st_dev, found.st_ino, found.st_size, found.st_mtime_ns, found.st_ctime_ns)
+    if stamp in HASHED:
+        return HASHED[stamp]
+    digest = file_hash(path)
+    if time.time_ns() - max(found.st_mtime_ns, found.st_ctime_ns) > SETTLED_NS:
+        HASHED[stamp] = digest
+    return digest
+
+
 def source_hash(path):
     """An environment file's or folder's hash as a key part: the store's tree hash of it, its bytecode left out."""
-    return listing_hash({name: file_hash(found) for name, found in tree_files(path).items() if not bytecode(name)})
+    return listing_hash({name: stamped_hash(found) for name, found in tree_files(path).items() if not bytecode(name)})
 
 
 def watch_runner(runner_pid, every=None):
