@@ -160,9 +160,35 @@ def finished_frame(mesh, take):
     import labels
     np.random.seed(0)
     final = trimesh.load(labels.PIXAL / f"{take}-final.glb", force="mesh")
+    turn = recovered_turn(labels.PIXAL, take)
     matrix, gap = labels.onto_finished(mesh.sample(labels.SAMPLED, seed=1), final.sample(labels.SAMPLED, seed=2),
-                                       labels.finish_turn(take))
+                                       labels.finish_turn(take) if turn is None else turn)
     return matrix, gap, final.bounds
+
+
+# How far a recovered turn may land any vertex from the final model's own and still be the finish's turn (metres).
+RECOVERED_MISS = 1e-4
+
+
+def recovered_turn(pixal, take):
+    """The turn the finish gave the take, read off its final model: of its finished files with the final's vertex
+    count, the least-squares turn onto the final's same vertices (stand_and_pad turns them and writes them in order)
+    when it is a rotation landing every vertex within RECOVERED_MISS; else None, and labels.finish_turn's replay of
+    the finish's options decides. The replay, with today's glb_file, missed the takes stood before glb_file.squared
+    changed (48939c57, 2026-10-26: four of the airlock's by 1.2 to 5.2 cm, env1 on the PC, each one exact here). Here,
+    not in labels.py, so only the paint's rows re-key (labels.py is in 77 paid rows' code)."""
+    import numpy as np
+    import glb_file
+    stood = glb_file.positions(*glb_file.read(pixal / f"{take}-final.glb"))
+    for path in sorted(pixal.glob(f"{take}-[0-9]*.glb")):
+        points = glb_file.positions(*glb_file.read(path))
+        if len(points) != len(stood):
+            continue
+        turn, *_ = np.linalg.lstsq(points, stood, rcond=None)
+        if np.allclose(turn @ turn.T, np.eye(3), atol=1e-6) and np.linalg.det(turn) > 0 \
+                and float(np.abs(points @ turn - stood).max()) <= RECOVERED_MISS:
+            return turn.T
+    return None
 
 
 def stands_on_feet(entry, inventory, rules_file, take=None):
