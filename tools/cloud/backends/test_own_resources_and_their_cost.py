@@ -11,6 +11,8 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: drop `if line.get("project_id") != project: continue` in `consumption` -> the bill reads EUR 100.5.
   Break: drop `server.get("project") == project and` in `delete_left_by_refusal` -> srv-other is deleted.
   Break: drop `and QUARANTINED not in ...` in `leftover_addresses` -> the quarantined address is a leftover.
+- A machine whose state cannot be read is a refusal its waiter waits out and deletes, never a crash. Break: in
+  `start_if_stopped`, the `except subprocess.CalledProcessError` return -> `raise`.
 - A public registry namespace is refused. Break: drop the `is_public` refusal in `registry_namespace`.
 - A missing runtime key is made scoped to the project alone and kept only in Secret Manager, never on a command line.
   Break: pass `f"data={value}"` instead of `data=@{path}` in `make_runtime_key` -> the secret is on the command line.
@@ -377,3 +379,10 @@ def test_deleting_an_address_or_disk_already_gone_is_done_and_another_failure_ra
     monkeypatch.setattr(scaleway, "scw", refusing("permission denied"))
     with pytest.raises(subprocess.CalledProcessError):
         scaleway.delete_disk("v-1", "pl-waw-2")
+
+
+def test_a_machine_whose_state_cannot_be_read_is_refused_not_raised(monkeypatch):
+    def unreadable(*arguments):
+        raise subprocess.CalledProcessError(1, ["scw"], "", "server not found")
+    monkeypatch.setattr(scaleway, "scw", unreadable)
+    assert "server not found" in scaleway.start_if_stopped("id", "pl-waw-2")

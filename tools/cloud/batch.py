@@ -410,12 +410,7 @@ def wait_for_machine(folder, server_id, zone):
     give_up = time.time() + START_MINUTES * 60
     host, first_refused, out_of_stock = None, None, None
     while time.time() < give_up:
-        try:
-            refused = cloud.start_if_stopped(server_id, zone)
-        except subprocess.CalledProcessError as error:
-            # Its state could not be read after the backend's own retries (a Warsaw L4, 2026-10-27): a rented machine
-            # that does not answer, so the claim deletes it and records the gap, never a crashed node.
-            raise TimeoutError(f"its state could not be read: {(error.stderr or '').strip()[-300:] or error}") from error
+        refused = cloud.start_if_stopped(server_id, zone)
         if refused:
             say(f"{folder.name} is stopped and would not start yet: {refused}")
             if "out of stock" in refused.lower():
