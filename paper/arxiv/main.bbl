@@ -1,4 +1,4 @@
-\begin{thebibliography}{41}
+\begin{thebibliography}{42}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -69,46 +69,12 @@ Alexander Raistrick, Lahav Lipson, Zeyu Ma, Lingjie Mei, Mingzhe Wang, Yiming
 \newblock Infinite photorealistic worlds using procedural generation.
 \newblock \emph{arXiv preprint arXiv:2306.09310}, 2023.
 
-\bibitem[Raistrick et~al.(2024)Raistrick, Mei, Kayan, Yan, Zuo, Han, Wen,
-  Parakh, Alexandropoulos, Lipson, Ma, and Deng]{raistrick2024indoors}
-Alexander Raistrick, Lingjie Mei, Karhan Kayan, David Yan, Yiming Zuo, Beining
-  Han, Hongyu Wen, Meenal Parakh, Stamatis Alexandropoulos, Lahav Lipson, Zeyu
-  Ma, and Jia Deng.
-\newblock {Infinigen Indoors}: Photorealistic indoor scenes using procedural
-  generation.
-\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
-  and Pattern Recognition (CVPR)}, 2024.
-\newblock arXiv:2406.11824.
-
 \bibitem[Hu et~al.(2024)Hu, Iscen, Jain, Kipf, et~al.]{hu2024scenecraft}
 Ziniu Hu, Ahmet Iscen, Aashi Jain, Thomas Kipf, et~al.
 \newblock {SceneCraft}: An {LLM} agent for synthesizing {3D} scene as {Blender}
   code.
 \newblock In \emph{International Conference on Machine Learning (ICML)}, 2024.
 \newblock arXiv:2403.01248.
-
-\bibitem[Li et~al.(2026{\natexlab{a}})Li, Liao, and Zhu]{li2026rcwm}
-Zhiqi Li, Yuxuan Liao, and Bo~Zhu.
-\newblock Recursive code world models: Building complex worlds through
-  recursive scene programs.
-\newblock \emph{arXiv preprint arXiv:2609.11499}, 2026{\natexlab{a}}.
-
-\bibitem[Guo et~al.(2026)Guo, Li, Li, and Huang]{guo2026worldclaw}
-Chunchao Guo, Jinpeng Li, Yang Li, and Zilong Huang.
-\newblock {WorldClaw}: Agentic {3D} open-world generation at scale.
-\newblock \emph{arXiv preprint arXiv:2608.05248}, 2026.
-
-\bibitem[Yin et~al.(2026)Yin, Cheng, Qin, Huang, et~al.]{yin2026autoue}
-Lei Yin, Wentao Cheng, Zhida Qin, Tianyu Huang, et~al.
-\newblock {AutoUE}: Automated generation of {3D} games in {Unreal Engine} via
-  multi-agent systems.
-\newblock \emph{arXiv preprint arXiv:2603.07106}, 2026.
-
-\bibitem[He et~al.(2026)He, Luo, Ma, and Averbuch-Elor]{he2026thinking}
-Guangzhao He, Rundong Luo, Wei-Chiu Ma, and Hadar Averbuch-Elor.
-\newblock Thinking in {Blender}: Staged executable inverse graphics with
-  vision-language models.
-\newblock \emph{arXiv preprint arXiv:2606.02580}, 2026.
 
 \bibitem[Wang et~al.(2026)Wang, Cai, Chen, Chi, Sun, Dai, Hung, Guo, Ren, Yao,
   Liu, Long, Duan, Gao, Lyu, Liu, and Wu]{wang2026codeasworlds}
@@ -127,32 +93,17 @@ Yipeng Gao, Lei Shu, Genzhi Ye, Xi~Xiong, Ameesh Makadia, Meiqi Guo, Laurent
   code.
 \newblock \emph{arXiv preprint arXiv:2606.01057}, 2026.
 
-\bibitem[Li et~al.(2026{\natexlab{b}})Li, Shi, Dong, Zhang, Xu, Lee, Chang,
-  Xiang, Pan, and Jiang]{li2026lego}
-Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
-  Shuaichen Chang, Yi~Xiang, Lin Pan, and Jiarong Jiang.
-\newblock {LEGO-Anything}: Coding agents for {3D} scene reconstruction.
-\newblock \emph{arXiv preprint arXiv:2609.36380}, 2026{\natexlab{b}}.
-
-\bibitem[Shen et~al.(2026)Shen, Kova{\v{c}}i{\v{c}}, Kulits, Wang, Li,
-  Tenenbaum, Yuille, Chen, and Wu]{shen2026codebench4d}
-Ruihong Shen, {\v{Z}}iga Kova{\v{c}}i{\v{c}}, Peter Kulits, Xingrui Wang,
-  Zizhang Li, Joshua~B. Tenenbaum, Alan Yuille, Jieneng Chen, and Jiajun Wu.
-\newblock {4DCodeBench}: Benchmarking agents on inverse graphics of dynamic
-  scenes.
-\newblock \emph{arXiv preprint arXiv:2610.03715}, 2026.
-
 \bibitem[Oquab et~al.(2023)Oquab, Darcet, Moutakanni, et~al.]{oquab2023dinov2}
 Maxime Oquab, Timoth{\'e}e Darcet, Th{\'e}o Moutakanni, et~al.
 \newblock {DINOv2}: Learning robust visual features without supervision.
 \newblock \emph{arXiv preprint arXiv:2304.07193}, 2023.
 
-\bibitem[Li et~al.(2026{\natexlab{c}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
+\bibitem[Li et~al.(2026{\natexlab{a}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
   Hu]{li2026pixal3d}
 Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
   Ying Shan, and Shi-Min Hu.
 \newblock {Pixal3D}: Pixel-aligned {3D} generation from images.
-\newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{c}}.
+\newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{a}}.
 
 \bibitem[Carion et~al.(2025)]{carion2025sam3}
 Nicolas Carion et~al.
@@ -277,11 +228,66 @@ Scott~D. Uhlrich, Antoine Falisse, {\L}ukasz Kidzi{\'n}ski, Julie Muccini,
 \newblock \emph{PLOS Computational Biology}, 19\penalty0 (10):\penalty0
   e1011462, 2023.
 
+\bibitem[Li et~al.(2026{\natexlab{b}})Li, Shi, Dong, Zhang, Xu, Lee, Chang,
+  Xiang, Pan, and Jiang]{li2026lego}
+Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
+  Shuaichen Chang, Yi~Xiang, Lin Pan, and Jiarong Jiang.
+\newblock {LEGO-Anything}: Coding agents for {3D} scene reconstruction.
+\newblock \emph{arXiv preprint arXiv:2609.36380}, 2026{\natexlab{b}}.
+
+\bibitem[Raistrick et~al.(2024)Raistrick, Mei, Kayan, Yan, Zuo, Han, Wen,
+  Parakh, Alexandropoulos, Lipson, Ma, and Deng]{raistrick2024indoors}
+Alexander Raistrick, Lingjie Mei, Karhan Kayan, David Yan, Yiming Zuo, Beining
+  Han, Hongyu Wen, Meenal Parakh, Stamatis Alexandropoulos, Lahav Lipson, Zeyu
+  Ma, and Jia Deng.
+\newblock {Infinigen Indoors}: Photorealistic indoor scenes using procedural
+  generation.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition (CVPR)}, 2024.
+\newblock arXiv:2406.11824.
+
+\bibitem[Li et~al.(2026{\natexlab{c}})Li, Liao, and Zhu]{li2026rcwm}
+Zhiqi Li, Yuxuan Liao, and Bo~Zhu.
+\newblock Recursive code world models: Building complex worlds through
+  recursive scene programs.
+\newblock \emph{arXiv preprint arXiv:2609.11499}, 2026{\natexlab{c}}.
+
+\bibitem[Guo et~al.(2026)Guo, Li, Li, and Huang]{guo2026worldclaw}
+Chunchao Guo, Jinpeng Li, Yang Li, and Zilong Huang.
+\newblock {WorldClaw}: Agentic {3D} open-world generation at scale.
+\newblock \emph{arXiv preprint arXiv:2608.05248}, 2026.
+
+\bibitem[Yin et~al.(2026)Yin, Cheng, Qin, Huang, et~al.]{yin2026autoue}
+Lei Yin, Wentao Cheng, Zhida Qin, Tianyu Huang, et~al.
+\newblock {AutoUE}: Automated generation of {3D} games in {Unreal Engine} via
+  multi-agent systems.
+\newblock \emph{arXiv preprint arXiv:2603.07106}, 2026.
+
+\bibitem[He et~al.(2026)He, Luo, Ma, and Averbuch-Elor]{he2026thinking}
+Guangzhao He, Rundong Luo, Wei-Chiu Ma, and Hadar Averbuch-Elor.
+\newblock Thinking in {Blender}: Staged executable inverse graphics with
+  vision-language models.
+\newblock \emph{arXiv preprint arXiv:2606.02580}, 2026.
+
+\bibitem[Shen et~al.(2026)Shen, Kova{\v{c}}i{\v{c}}, Kulits, Wang, Li,
+  Tenenbaum, Yuille, Chen, and Wu]{shen2026codebench4d}
+Ruihong Shen, {\v{Z}}iga Kova{\v{c}}i{\v{c}}, Peter Kulits, Xingrui Wang,
+  Zizhang Li, Joshua~B. Tenenbaum, Alan Yuille, Jieneng Chen, and Jiajun Wu.
+\newblock {4DCodeBench}: Benchmarking agents on inverse graphics of dynamic
+  scenes.
+\newblock \emph{arXiv preprint arXiv:2610.03715}, 2026.
+
 \bibitem[{NVIDIA}(2026)]{gemx}
 {NVIDIA}.
 \newblock {GEM-X}: Monocular whole-body {3D} human pose estimation using the
   {SOMA} body model, 2026.
 \newblock URL \url{https://github.com/NVlabs/GEM-X}.
 \newblock Apache-2.0.
+
+\bibitem[{Blender Foundation}(2026)]{blender}
+{Blender Foundation}.
+\newblock {Blender}, 2026.
+\newblock URL \url{https://www.blender.org/}.
+\newblock Version 5.0.1 used here. GPL.
 
 \end{thebibliography}
