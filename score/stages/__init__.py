@@ -28,7 +28,7 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           gaps, images, library, light, motion, people, physics, scene_record, settling,
                           shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
-from score.stages.surfaces import bake_check, body_faces, carry, library_reads, route_check
+from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, library_reads, route_check
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -789,6 +789,11 @@ def placed(applies):
 
 STAGES = tuple(dataclasses.replace(row, applies=placed(row.applies)) if row.name in PLACE_ONLY else row
                for row in STAGES)
+# The finish route's palette, library, list and recheck asked of Claude on this PC (surfaces/claude_asks.py; coordinator
+# for the owner, 2026-10-27, after the side-by-side on #36): wired here, in the framework's table, so no row that does
+# not switch re-keys (body-face, which stays on Gemini, and ground-join read surfaces/__init__.py).
+STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)) if row.name in claude_asks.ROWS
+               else row for row in STAGES)
 
 
 def world1():

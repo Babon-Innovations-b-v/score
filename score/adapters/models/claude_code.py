@@ -13,13 +13,14 @@ temperature: an answer is asked once and kept (`CACHE`, by the hash of the model
 back rather than drawing again. Every call is written down before it starts and when it ends (`LEDGER`: model,
 caller, the body's hash, minutes, tokens, EUR 0 against the subscription, the run's id as `tag`). An ask with no
 usable answer (a time-out, an error result, no structured answer) is Unanswered and never kept, so the next try asks
-it fresh. Asks of one call run side by side, at most PARALLEL at once. With no `claude` on the machine the call
-raises FileNotFoundError: a set-up fault that stops the row, never a gap a take.
+it fresh. Asks of one call run side by side, at most PARALLEL at once. With no `claude` on the machine `asked` raises
+NotHere before anything is asked, saying the step runs on this PC: a set-up fault that stops the row, never a gap a
+take and never a fall-back to Gemini.
 
-No step asks through it yet. A step switches by its stage-table row carrying `record()` as its `model` param and its
-make passing the bodies here instead of route_ask.asked; that re-keys that step's rows alone. Paid rows run on the
-conductor, which has no Claude Code, so a switch waits on Claude Code there under the owner's subscription (the
-side-by-side of 2026-10-27, its numbers on the backlog PRD).
+The finish route's palette, library, list and recheck ask here (their `ask`, owner via the coordinator, 2026-10-27,
+after the side-by-side on the backlog PRD #36): environment 1 runs on the owner's PC (tools/cloud/this_pc.py), where
+Claude Code is installed; the conductor has none, so those rows stop there with NotHere. body-face stays on Gemini.
+This module is in those rows' code version, so a change of the pinned model re-keys them.
 """
 import concurrent.futures
 import datetime
@@ -27,15 +28,15 @@ import hashlib
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import time
 import uuid
 
 KIND = "claude-code"
-# The pinned model and how it is reached; a step that asks through this adapter carries it as its `model` param
-# (`record`), so a change re-keys that step's rows alone. Kept here, not in models.API: models/__init__.py is in the
-# sound rows' code version.
+# The pinned model and how it is reached (`record`: what a step asking here is disclosed as). Kept here, not in
+# models.API: models/__init__.py is in the sound rows' code version.
 PINNED = {"provider": "claude-code-subscription", "model": "claude-opus-5-5", "tools": "none", "euros": 0}
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 LEDGER = HOME / "cloud" / "claude-ledger.jsonl"
@@ -44,8 +45,14 @@ PARALLEL = 8
 TIMEOUT = 900  # seconds an ask may take: the side-by-side's nine asks took 0.06 to 0.8 min (2026-10-27)
 
 
-class Unanswered(Exception):
-    """An ask Claude gave no usable answer to: a time-out, an error result or no structured answer."""
+class Unanswered(ValueError):
+    """An ask Claude gave no usable answer to: a time-out, an error result or no structured answer. A ValueError, so
+    the finish route's UNANSWERED (finish_ask.py) makes it its take's gap, as a Gemini ask with no answer."""
+
+
+class NotHere(RuntimeError):
+    """This machine has no Claude Code: a step that asks through it runs on the owner's PC only. Not an Unanswered:
+    a set-up fault that stops the row, never a gap a take and never a Gemini ask in its place."""
 
 
 def record():
@@ -155,7 +162,11 @@ def ask(body, caller):
 
 def asked(bodies, caller):
     """{key: the answer's JSON text, or the Unanswered saying why there is none} of {key: generateContent body},
-    asked side by side."""
+    asked side by side; NotHere on a machine with no Claude Code."""
+    if shutil.which("claude") is None:
+        raise NotHere(f"{caller}: runs on this PC (tools/cloud/this_pc.py): this machine has no Claude Code "
+                      f"(`claude`), and the step never asks Gemini in its place")
+
     def answered(key):
         try:
             return ask(bodies[key], caller)

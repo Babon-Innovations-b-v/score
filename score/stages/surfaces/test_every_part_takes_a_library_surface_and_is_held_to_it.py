@@ -197,6 +197,8 @@ tests it turned red:
   natural_grounds.RECIPES)` deleted  -> a_face_off_its_palette_or_the_method_fails_and_no_answer_is_named
 - body_faces.py: `if recipe is None: raise ValueError` -> `if False: raise ValueError`  ->
   a_body_whose_physics_the_setting_lacks_gets_no_face
+- claude_asks.py: `"finish-route-list", ` deleted from ROWS  -> the_four_asks_go_to_claude_and_the_faces_stay
+- claude_asks.py: `module.ask = gemini` -> `pass`  -> the_four_asks_go_to_claude_and_the_faces_stay
 """
 import inspect
 import io
@@ -220,7 +222,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 from score import checks, graph, stages  # noqa: E402
 from score.review import setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
-from score.stages.surfaces import (bake_check, body_faces, carry, finish_ask, finish_parts, library_reads,  # noqa: E402
+from score.stages.surfaces import (bake_check, body_faces, carry, claude_asks, finish_ask, finish_parts, library_reads,  # noqa: E402
                                    palette_library, place_line, registry, route_ask, route_bake, route_cast,
                                    route_check, route_data, route_list, route_paint, route_parts, route_recheck,
                                    route_settings, route_split, route_views, scene_library, scene_palette,
@@ -2566,3 +2568,25 @@ def test_a_body_whose_physics_the_setting_lacks_gets_no_face(tmp_path):
         body_faces.make_face({"library": str(METHOD)}, tmp_path, 0, {
             "body": {"body": "vesta", "name": "Vesta"}, "style": "",
             "ground": [None, "Vesta: no surface pressure in the setting"]})
+
+
+def test_the_four_asks_go_to_claude_and_the_faces_stay(monkeypatch):
+    """The stage table's palette, library, list and recheck rows make through claude_asks, their module's ask sending
+    to the claude-code adapter only for the make's own call; body-face still asks route_ask (Gemini)."""
+    rows = {row.name: row for row in stages.STAGES}
+    switched = {"finish-route-palette": scene_palette, "surface-library": scene_library,
+                "finish-route-list": route_list, "finish-route-recheck": route_recheck}
+    sent = []
+    monkeypatch.setattr(claude_asks.claude_code, "asked", lambda bodies, caller: sent.append(caller) or {})
+    for name, module in switched.items():
+        own = rows[name].make.__wrapped__
+        assert own.__module__ == module.__name__, name
+        gemini = module.ask
+        def asks_once(inputs, out, seed, params, module=module):  # the make, its one batch of asks alone
+            return module.ask({"k": {}})
+        asks_once.__module__ = module.__name__
+        claude_asks.asking_claude(asks_once)({}, None, 0, {})
+        assert module.ask is gemini, name
+    assert sent == [scene_palette.CALLER, scene_library.CALLER, route_list.CALLER, route_recheck.CALLER]
+    assert not hasattr(rows["body-face-earth"].make, "__wrapped__")
+    assert "claude_code" not in inspect.getsource(body_faces) and "route_ask.asked" in inspect.getsource(body_faces)

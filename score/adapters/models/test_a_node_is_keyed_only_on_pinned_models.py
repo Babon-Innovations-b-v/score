@@ -11,6 +11,7 @@ And in score/adapters/models/claude_code.py:
 - asked once: ask's `if kept.exists():` becomes `if False:` (the second ask calls Claude again).
 - subscription only: the environment filter `if name != "ANTHROPIC_API_KEY"` becomes `if True` (the key reaches it).
 - a failed answer kept: ask's `raise Unanswered(...)` becomes `answer, result = repr(error), {}` (cached, read back).
+- runs on this PC: asked's `if shutil.which("claude") is None:` becomes `if False:` (no NotHere off the PC).
 - the schema as Gemini wrote it: json_schema's `value.lower()` becomes `value` (OBJECT reaches --json-schema).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest -q score/adapters/models/
@@ -144,6 +145,20 @@ def test_a_claude_code_ask_with_no_answer_is_unanswered_and_asked_fresh_next_tim
     assert (folder / "calls").read_text() == "2"
     assert [json.loads(line)["state"] for line in claude_code.LEDGER.read_text().splitlines()] == \
         ["started", "failed", "started", "failed"]
+
+
+def test_a_machine_with_no_claude_code_refuses_the_step_and_asks_nothing(monkeypatch):
+    home = pathlib.Path(tempfile.mkdtemp())
+    monkeypatch.setenv("PATH", str(home))  # a machine with no `claude`: the conductor
+    monkeypatch.setattr(claude_code, "LEDGER", home / "claude-ledger.jsonl")
+    try:
+        claude_code.asked({"a": a_body("what colour?")}, "finish-route-list")
+    except claude_code.NotHere as refusal:
+        assert "runs on this PC" in str(refusal) and "finish-route-list" in str(refusal)
+    else:
+        raise AssertionError("asked off the PC")
+    assert not isinstance(claude_code.NotHere("x"), ValueError)  # a set-up fault, never a take's gap
+    assert not claude_code.LEDGER.exists()
 
 
 if __name__ == "__main__":
