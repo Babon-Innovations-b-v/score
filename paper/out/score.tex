@@ -124,9 +124,8 @@ Each character also gets a sim body on Newton, driven by its SOMA
 segment rotations. We close with the route toward bodies true to the
 person, a data loop in which generated movement, kept only when
 physically possible, trains models that drive a body's muscles, and
-layered training sets that pair rendered people with their forces and
-muscle activity, from which fast models can learn to read muscle metrics
-from ordinary video. Code and paper are at
+layered training sets from which a fast model can learn to detect muscle
+metrics from video. Code and paper are at
 https://github.com/Babon-Innovations-b-v/score (MIT licence).
 \end{abstract}
 
@@ -466,63 +465,41 @@ still drifts 1.5 cm from plain MuJoCo after 300 steps, so Newton is to
 be validated for bodies first. Its joint angles, then its joint moments
 and ground forces, are to be held to OpenCap's LabValidation data.
 
-\textbf{Scenes from motion.} Motion is to come from the SOMA ecosystem,
-with GEM-X {[}41{]} reading it from video, Kimodo {[}39{]} making it
-from sentences without limit, and sequences joined from datasets of
-both. The terrain a motion implies becomes a SCORE scene, so the scene
-keeps the motion without video or anything identifying a person. A sim
-body follows each movement exactly on its scene's ground, and physics
-computes the ground contact, the joint torques and the forces of the 416
-muscles the movement needs. What neither the ground nor the muscles can
-supply is the residual, recorded for every frame and never applied, so
-it measures how physically possible the movement is, and only movement
-with a small residual is kept. Biomechanics already reduces and reports
-this residual as a measure of the quality of recorded motion {[}42{]},
-{[}43{]}, and PhysibleMDM {[}44{]} lowers an inverse-dynamics residual
-to make generated motion feasible for a torque-driven robot. We apply
-the same check to generated motion played through a muscle-driven body.
+\textbf{Scenes from motion.} Motion comes from the SOMA ecosystem, read
+from video by GEM-X {[}41{]} or made from sentences by Kimodo {[}39{]},
+without limit. The ground a motion implies becomes a SCORE scene, with
+no video and nothing that identifies a person. A sim body follows the
+motion on that ground, and physics computes the ground contact, the
+joint torques and the forces of its 416 muscles. The force that neither
+the ground nor the muscles can supply is the residual. It is recorded
+and never applied, and only motion with a small residual is kept.
+Biomechanics uses the same residual to judge recorded motion {[}42{]},
+{[}43{]}, and PhysibleMDM {[}44{]} lowers it for generated robot motion;
+we use it on generated motion in a muscle-driven body.
 
-\textbf{Layered training sets.} The same runs can yield layered training
-sets. Each sample is a rendered picture of a clothed person in a full
-scene, paired with exact values for every layer beneath it, from the
-SOMA body and joint angles, the ground force under each foot from
-simulated contact and the muscle activations and forces to the residual,
-depth, segmentation and the scene's layout. Their main use is to train
-fast models that read muscle activity, joint moments and ground forces
-from ordinary video. No recorded dataset can teach this at scale, since
-muscle forces cannot be measured directly in people and force plates and
-muscle sensors confine recording to a laboratory, whereas the simulation
-can generate the bodies, movements and settings a model must cover,
-including those of a particular group, so that a model can be
-specialised to it. BioHuman10M {[}45{]} already pairs video, rendered
-clips among it, with the activations of a 112-muscle body and with
-ground forces estimated by a learned model from recorded motion. Our
-sets would differ in scenes made for the purpose in any light, ground
-and clothing, in forces from contact with each scene's own ground, in a
-416-muscle body and in a residual for every sample, and their worth
-rests on a model trained on them carrying over to real force-plate and
-muscle recordings.
+\textbf{Layered training sets.} Each run also yields layered training
+sets, in which a rendered picture of a clothed person in a scene is
+paired with the exact body, joint angles, ground forces, muscle
+activations and forces, and residual beneath it. From these a fast model
+can be trained to detect muscle metrics from video, and specialised, for
+example for clinical use, because its training data comes from the
+simulation. BioHuman10M {[}45{]} pairs rendered video with 112-muscle
+activations and estimated ground forces; our sets add scenes made for
+the purpose, ground forces from simulated contact, a 416-muscle body and
+a residual per sample. Whether such a model carries over to real
+force-plate and muscle recordings remains to be shown.
 
 \textbf{Brains.} A brain is a trained model that drives a sim body's
-muscles so it moves on its own, and its role here is to widen the data
-beyond what a motion generator offers. Trained on the kept movements
-together with the muscle forces that produce them, it is placed in
-SCORE's synthesised worlds under their own gravity and ground, where it
-is to adapt to structures no recording holds, and every run it drives
-adds movement for the training sets. Muscle-driven controllers such as
-KINESIS {[}46{]} and MuscleMimic {[}47{]} learn from motion capture, as
-torque-driven ones such as PHC {[}48{]} do. To our knowledge, no
-muscle-driven controller has yet been trained on generated motion
-filtered by its residual, and the claim holds only once such a brain is
-compared with one trained on motion capture and with one trained on the
-same generated motion unfiltered.
+muscles. Trained on low-residual motion and placed in new worlds, it
+adds movement no recording holds. KINESIS {[}46{]} and MuscleMimic
+{[}47{]} train muscle-driven controllers on motion capture; to our
+knowledge none has been trained on generated motion filtered by its
+residual, a claim that still needs a comparison with both.
 
-\textbf{The data loop.} Models specialised for clinical use would be
-trained outside SCORE on data that never enters it. The value of the
-loop grows with the compute put behind it, since every scene, movement
-and run adds data, which is why SCORE is open, so that others can put
-their own compute behind the same framework and share the sets they make
-back.
+\textbf{The data loop.} The more compute behind the loop, the more data
+it makes, which is why SCORE is open, so others can add their compute
+and share the sets back. Models for clinical use are trained outside
+SCORE, on data that never enters it.
 
 \section{Limitations and conclusion}\label{limitations-and-conclusion}
 
@@ -838,12 +815,6 @@ preprint arXiv:2503.14637}, 2025.}
 \CSLRightInline{C. Li \emph{et al.}, {``Towards embodied {AI} with
 {MuscleMimic}: Unlocking full-body musculoskeletal motor learning at
 scale,''} \emph{arXiv preprint arXiv:2603.25544}, 2026.}
-
-\bibitem[\citeproctext]{ref-luo2023phc}
-\CSLLeftMargin{{[}48{]} }%
-\CSLRightInline{Z. Luo, J. Cao, A. Winkler, K. Kitani, and W. Xu,
-{``Perpetual humanoid control for real-time simulated avatars,''}
-\emph{arXiv preprint arXiv:2305.06456}, 2023.}
 
 \end{CSLReferences}
 
