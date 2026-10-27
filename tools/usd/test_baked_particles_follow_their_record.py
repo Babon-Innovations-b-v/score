@@ -1,10 +1,28 @@
-"""Check the effects stage without Blender: the baked particles follow their record (how many, how long each lives,
+"""tools/usd/effects.py without Blender: the baked particles follow their record (how many, how long each lives,
 where they can reach, thin at birth and death, a burst's dead ones gone), repeat exactly over their loop and from
 their seed; Godot's spread and flatness; the effects layer composes between the edit layer and the base, loops its
 clip over the stage's time, puts a variant's entries in its variant and makes a replaced prim inactive; a travelling
 emitter moves downwind; on a place's ball the wind lies along the ground at every spot.
 
-Run: .venv/bin/python tools/usd/test_baked_particles_follow_their_record.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27), all in effects.py:
+- test_bake_follows_the_record: flight's `points = points + velocity * STEP` made `+ 2 * velocity * STEP`.
+- test_bake_is_seeded: bake's `np.random.default_rng([seed, life])` made `np.random.default_rng()`.
+- test_lives_are_drawn_apart_and_still_loop: bake's `np.random.default_rng([seed, life])` made `([seed, 0])`.
+- test_a_burst_is_gone_between_breaths: bake's `else since < lifetime` made `else since < 10 * lifetime`.
+- test_spread_and_flatness_as_godot: spread_directions' `* (1.0 - flatness)` dropped from `angle_two`.
+- test_gravity_pulls_down: flight's `force = np.broadcast_to(gravity, points.shape).copy()` made
+  `force = np.zeros(points.shape)`.
+- test_layer_composes_and_loops: looped_times' `for turn in range(int(math.ceil(HORIZON / loop))):` made
+  `for turn in range(1):`.
+- test_an_event_lets_out_once_where_its_prim_climbs: bake_once's `points[..., 1] += climbed(...)` made `pass`.
+- test_a_rider_moves_with_its_prim_and_lights_when_it_starts: clip_times' `if emitter.get("starts") is None:` made
+  `if True:`.
+- test_a_rider_keeps_its_own_size_on_a_scaled_prim: unscaled's `undo.Set(Gf.Vec3f(*(1.0 / scale)))` made
+  `undo.Set(Gf.Vec3f(1.0, 1.0, 1.0))`.
+- test_a_devil_wanders_downwind: ground_emitter's `* float(travel["downwind"])` dropped from `flat`.
+- test_the_wind_lies_along_the_ground: place_wind's `wind_along(out, ...)` made `wind_along([0.0, 1.0, 0.0], ...)`.
+
+Run: .venv/bin/python tools/usd/test_baked_particles_follow_their_record.py
 """
 import math
 import pathlib
@@ -212,13 +230,32 @@ def test_a_devil_wanders_downwind():
         assert np.allclose(moved, [10.0 + 1.4 * 30.0, 0.0, 0.0], atol=1e-6)
 
 
+def ball_ground(folder):
+    """A flat planned ground on a 220 m ball, its seat leaning out of the world's y (so its up is no axis)."""
+    from PIL import Image
+    code = np.full((65, 65), round(20.0 / 40.0 * 65535), dtype=np.int64)
+    Image.fromarray(np.stack([code >> 8, code & 255, np.zeros_like(code)], axis=-1).astype(np.uint8)).save(
+        folder / "heights.png")
+    Image.new("RGB", (64, 64), (128, 128, 128)).save(folder / "skin.jpg")
+    record = {"heights": "heights.png", "skin": "skin.jpg", "side": 260.0, "low": 20.0, "span": 40.0,
+              "radius": 220.0, "plan_out": [0.3, 0.9, 0.2], "folder": str(folder)}
+    return effects.grounds.Ground(record, {"out": [0.3, 0.9, 0.2], "heading": 0.0}, [0.0, 0.0])
+
+
 def test_the_wind_lies_along_the_ground():
-    ground = effects.place_ground("camp")
+    """On a place's ball the ground's up turns from spot to spot (28 m on a 220 m ball is 7 degrees): the wind is a
+    unit way across the ground's up at every spot."""
+    with tempfile.TemporaryDirectory() as folder:
+        ground = ball_ground(pathlib.Path(folder))
     wind = {"minute": 8630, "turn_a_day": 0.9}  # a wind as an effects record gives it
+    ups = []
     for across, along in [(0.0, 0.0), (0.0, 14.0), (14.0, 0.0), (-28.0, 28.0), (28.0, -28.0)]:
         _, up = effects.on_ground(ground, across, along, 0.0)
         way = effects.place_wind(ground, across, along, wind)
+        assert math.isclose(float(np.linalg.norm(way)), 1.0, abs_tol=1e-9)
         assert abs(float(np.dot(way, up))) < 1e-6, (across, along, float(np.dot(way, up)))
+        ups.append(up)
+    assert not np.allclose(ups[3], ups[4], atol=1e-2), "the ground's up does not turn over the ball"
 
 
 def main():
