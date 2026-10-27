@@ -1417,6 +1417,9 @@ def main(argv=None):
     runner.objects = frozenset(options.object) if options.object else None
     if options.command == "run":
         options.free = runner.free_only = options.free or os.environ.get(conductor.FREE_ONLY) == "1"
+        from score.adapters import compute
+        runner.bought = not options.free and (bool(os.environ.get(compute.GRANT)) or (options.rebuy_reason or "")
+                                              .startswith("the owner's checkout "))
     places, whole = options.place or stages.places(runner.world, runner.store), not options.place
     if options.command == "plan":
         print(json.dumps(plan_json(runner, places, whole, options)))

@@ -292,6 +292,14 @@ his reason, waive one check for one key, or override with a yes for a run outsid
 yes in a Claude Code session to benchmark batches of at most EUR 20 in all (`compute.grant_benchmark`, no expiry): it holds
 its balance until spent, each run drawing its real spend, finished or failed (owner, 2026-10-22).
 
+Inside a bought batch the runner also accepts a passing output that got worse (owner, 2026-10-27, his "yes" to:
+"Inside a bought batch, a result that passes every check is accepted automatically, even when a measure is worse
+than before; the drop is written down for you to review after the batch, never as a wait. Accepts stay yours outside
+batches."). A bought batch is a run his checkout started (its re-buy reason begins "the owner's checkout ") or one under
+his benchmark grant, never a free-only run (`Runner.bought`, set in `score/__main__.py`). The accept is the runner's,
+its `worse_reason` his rule (`review.IN_BATCH`), and its worse measures stand in its status ("to review after the
+batch, worse: ...") on the step's cockpit page (`review.accept_in_batch`).
+
 ## architecture/layers
 
 A scene is a stack of OpenUSD layers, each made by its own stage, checked and changed apart. Every layer is read off
