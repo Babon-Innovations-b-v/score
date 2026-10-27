@@ -1,4 +1,4 @@
-\begin{thebibliography}{41}
+\begin{thebibliography}{48}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -283,5 +283,53 @@ Scott~D. Uhlrich, Antoine Falisse, {\L}ukasz Kidzi{\'n}ski, Julie Muccini,
   {SOMA} body model, 2026.
 \newblock URL \url{https://github.com/NVlabs/GEM-X}.
 \newblock Apache-2.0.
+
+\bibitem[Delp et~al.(2007)Delp, Anderson, Arnold, Loan, Habib, John,
+  Guendelman, and Thelen]{delp2007opensim}
+Scott~L. Delp, Frank~C. Anderson, Allison~S. Arnold, Peter Loan, Ayman Habib,
+  Chand~T. John, Eran Guendelman, and Darryl~G. Thelen.
+\newblock {OpenSim}: Open-source software to create and analyze dynamic
+  simulations of movement.
+\newblock \emph{IEEE Transactions on Biomedical Engineering}, 54\penalty0
+  (11):\penalty0 1940--1950, 2007.
+
+\bibitem[Werling et~al.(2023)Werling, Bianco, Raitor, Stingel, Hicks, Collins,
+  Delp, and Liu]{werling2023addbiomechanics}
+Keenon Werling, Nicholas~A. Bianco, Michael Raitor, Jon Stingel, Jennifer~L.
+  Hicks, Steven~H. Collins, Scott~L. Delp, and C.~Karen Liu.
+\newblock {AddBiomechanics}: Automating model scaling, inverse kinematics, and
+  inverse dynamics from human motion data through sequential optimization.
+\newblock \emph{PLOS ONE}, 18\penalty0 (11):\penalty0 e0295152, 2023.
+
+\bibitem[St{\"o}lzle et~al.(2026)St{\"o}lzle, M{\"u}ller, Serifi, Grandia,
+  Knoop, and B{\"a}cher]{stolzle2026physiblemdm}
+Maximilian St{\"o}lzle, David M{\"u}ller, Agon Serifi, Ruben Grandia, Espen
+  Knoop, and Moritz B{\"a}cher.
+\newblock {PhysibleMDM}: Enforcing inference-time physical feasibility
+  constraints on motion diffusion models via noise optimization.
+\newblock \emph{arXiv preprint arXiv:2610.30500}, 2026.
+
+\bibitem[Simos et~al.(2025)Simos, Chiappa, and Mathis]{simos2025kinesis}
+Merkourios Simos, Alberto~Silvio Chiappa, and Alexander Mathis.
+\newblock {KINESIS}: Motion imitation for human musculoskeletal locomotion.
+\newblock \emph{arXiv preprint arXiv:2503.14637}, 2025.
+
+\bibitem[Li et~al.(2026{\natexlab{d}})Li, Wang, Ziliotto, Simos, Kovecses,
+  Durandau, and Mathis]{li2026musclemimic}
+Chengkun Li, Cheryl Wang, Bianca Ziliotto, Merkourios Simos, Jozsef Kovecses,
+  Guillaume Durandau, and Alexander Mathis.
+\newblock Towards embodied {AI} with {MuscleMimic}: Unlocking full-body
+  musculoskeletal motor learning at scale.
+\newblock \emph{arXiv preprint arXiv:2603.25544}, 2026{\natexlab{d}}.
+
+\bibitem[Luo et~al.(2023)Luo, Cao, Winkler, Kitani, and Xu]{luo2023phc}
+Zhengyi Luo, Jinkun Cao, Alexander Winkler, Kris Kitani, and Weipeng Xu.
+\newblock Perpetual humanoid control for real-time simulated avatars.
+\newblock \emph{arXiv preprint arXiv:2305.06456}, 2023.
+
+\bibitem[Huo et~al.(2026)Huo, Zhang, Song, Song, Zuo, and Yu]{huo2026biohuman}
+Yujun Huo, He~Zhang, Chentao Song, Honglin Song, Zongyu Zuo, and Tao Yu.
+\newblock {BioHuman}: Learning biomechanical human representations from video.
+\newblock \emph{arXiv preprint arXiv:2605.14772}, 2026.
 
 \end{thebibliography}
