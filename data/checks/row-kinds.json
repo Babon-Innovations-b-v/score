@@ -12,6 +12,8 @@
   "cooker": {"nouns": ["stove", "stove top", "hob", "cooker", "cooktop", "pot", "saucepan"], "does": ["emits"],
              "effects": ["steam_rise"]},
   "humidifier": {"nouns": ["humidifier", "mister", "fogger"], "does": ["emits"], "effects": ["humidifier_mist"]},
+  "drill": {"nouns": ["drilling", "boring"], "held_by": ["rig", "rigs"], "does": ["emits"],
+            "effects": ["drill_cuttings"]},
   "door": {"nouns": ["door", "hatch", "gate", "doors", "hatches", "gates"], "does": ["moves"],
            "motion": {"kind": "hatch", "move": "swing", "angle": 90.0, "hinge": [-1.0, 0.0, 0.0],
                       "why": "a door swings a right angle open on the hinge at its own left edge and shuts again",

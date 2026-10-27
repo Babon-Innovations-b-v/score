@@ -42,7 +42,9 @@ design.
   the launch's records: the layer's `footage` and `light` gates measure each emitter of any scene on the baked
   particles, and the films' visual check (`../complete/visual`) sees them; a new render of its own would only repeat
   them.
-  Today's measured kinds are steam off a kettle and a hob and a humidifier's mist; the old records' pump-down fog,
+  Today's measured kinds are steam off a kettle and a hob, a humidifier's mist and a drilling rig's cuttings (the
+  first effect Newton makes: a granular pile by implicit MPM, `inside/`, its flank held to the slip faces measured on
+  Mars); the old records' pump-down fog,
   vacuum vents, Mars drift, dust devils, cigarette smoke and the launch's flame were tied to the game's cycles and
   places and wait to become kinds of their own.
 - **Indoors stays indoors.** A record lists its `interiors` (upright cylinders, `[]` for none) whenever an emitter
@@ -56,4 +58,5 @@ design.
   branch is gone.
 - `test_effects_ride_their_design.py` makes a small kitchen stage itself, makes its effects from its design (the
   stove's and the kettle's steam at their measured spots), passes every gate and fails `designed` on a row with no
-  object.
+  object; a drilling rig on Mars lays its pile (Newton's run stood in for by a cone) and fails `footage` on one too
+  flat.

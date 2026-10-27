@@ -6,7 +6,9 @@ into its stage.
 
     make     the record made from the design over the scene's stage (from_design.py: record.json), then tools/usd/
              effects.py's write_layer on it: layers/effects.usda and each emitter's baked particles under
-             assets/effects/
+             assets/effects/; an effect Newton makes (its kind's `newton` block: the drill's cuttings, a granular
+             pile by implicit MPM) is simulated first in the physics trial's own Python (inside/newton_pile.py)
+             under the gravity of the scene's body, and its particles baked as they fell
     gates    attached  every emitter and light on a prim of the base (`on`) is that prim's child and keeps its place on
                        it through the prim's motion, and every emitter that follows a motion lets each particle out
                        where the moving prim stands at its birth (read off the composed stage, the seed's own layers
@@ -14,7 +16,7 @@ into its stage.
              footage   every check of the record's `footage` block: a measure of the baked particles at a moment (how
                        far the cloud reaches out, how high it stands, how far it reaches any way and how far off its
                        way it spreads, how long the flame is, how high it stands over the ground beneath (a
-                       drift), how fine and how thick the particles are, how few lie
+                       drift), the slope of a pile's flank, how fine and how thick the particles are, how few lie
                        loose at its edge as lone blobs, what share of them shows) lies within the range measured on
                        real footage: the launch's after lift-off in the rocket's heights from its rest, any other
                        place's at its own `at` second in metres from its `anchor` emitter
@@ -37,12 +39,15 @@ first (the owner's rule): many fine particles tied to the world, never thinned t
 import functools
 import json
 import pathlib
+import subprocess
 import sys
+import tempfile
 
 import numpy as np
 
-from score import checks, contracts
+from score import checks, contracts, store
 from score.stages import layer_base, row_kinds
+from score.stages.physics import design as physics_design
 from score.stages.effects import from_design
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -74,15 +79,26 @@ OUTSIDE_SPAN = 60.0
 OUTSIDE_EVERY = 2.0
 
 
+# A pile's flank is read on this many rings across its outer half, each by this share of its grains' heights.
+FLANK_RINGS = 8
+FLANK_TOP = 98
+
 RECORD = "record.json"
+# A pile Newton makes (an effect kind's `newton` block): its script, run in the physics trial's own Python, which
+# newton_env.sh builds once in this folder under PROPS_HOME.
+NEWTON_PILE = pathlib.Path(__file__).resolve().parent / "inside/newton_pile.py"
+NEWTON_ENV = REPO / "score/stages/physics/inside/newton_env.sh"
+NEWTON_FOLDER = "envs/newton_env"
 
 
 def files(place):
     """What the stage reads: the scene's design inventory, the row-kind rules and the library of measured effects,
-    its seed stage with its kit (the record is made and the gates judge the layer over it) and its design's surface
-    data (which bakes of other places it lays, as the settle)."""
+    its seed stage with its kit (the record is made and the gates judge the layer over it), its design's surface
+    data (which bakes of other places it lays, as the settle) and the setting whose body's gravity a Newton pile falls
+    under."""
     return {**row_kinds.DESIGNED, "effect kinds": "{data}/checks/effects.json", "seed": "{seeds}/usd-r3/{place}",
-            "surfaces": "{home}/design/surfaces/{place}.json", **layer_base.files(place)}
+            "surfaces": "{home}/design/surfaces/{place}.json", "physics": "{data}/physics/setting.json",
+            "bodies": "{data}/physics/bodies.json", "within": "{data}/places/within.json", **layer_base.files(place)}
 
 
 def read_json(path):
@@ -112,9 +128,47 @@ def make(inputs, out, seed, params):
         stage = layer_base.opened(source)
         record = from_design.record(place, read_json(inputs["design"]), row_kinds.table(inputs["row kinds"]),
                                     read_json(inputs["effect kinds"]), stage)
-        (out / RECORD).write_text(json.dumps(record, indent=1))
-        held = effect_layer.write_layer(place, record, out, base=stage)
+        with tempfile.TemporaryDirectory() as baking:
+            record = dict(record, effects=[poured(entry, inputs, place, pathlib.Path(baking)) if "newton" in entry
+                                           else entry for entry in record["effects"]])
+            kept = [{key: value for key, value in entry.items() if key != "baked"} for entry in record["effects"]]
+            (out / RECORD).write_text(json.dumps(dict(record, effects=kept), indent=1))
+            held = effect_layer.write_layer(place, record, out, base=stage)
     (out / "held.json").write_text(json.dumps({"place": place, "particles": held}, indent=1))
+
+
+def body_gravity(inputs, place):
+    """The gravity of the body the scene stands on (its site's, else its holder's: the physics trial's own rule),
+    metres a second squared."""
+    within = {name: entry["within"] for name, entry in read_json(inputs["within"]).get("within", {}).items()}
+    return physics_design.ground(place, within, read_json(inputs["physics"]))[1]
+
+
+def newton_python():
+    """The physics trial's own Python (Newton 1.7.0), built once under PROPS_HOME by newton_env.sh."""
+    folder = store.PROPS_HOME / NEWTON_FOLDER
+    subprocess.run(["bash", str(NEWTON_ENV), str(folder)], check=True)
+    return folder / "bin/python"
+
+
+def poured(entry, inputs, place, baking):
+    """An emitter whose kind Newton makes (its `newton` block: a granular pile poured over its `once` span), made in
+    the physics trial's Python under the scene's body's gravity at the emitter's samples a second and its count: the
+    entry with its gravity and its `baked` file (in `baking`, gone once the layer is written)."""
+    gravity = body_gravity(inputs, place)
+    first, last = (float(value) for value in entry["once"])
+    pile = dict(entry["newton"], pour=last - first, seconds=effect_layer.loop_of(entry),
+                samples=effect_layer.samples_of(entry), count=int(entry["count"]), seed=int(entry["seed"]),
+                gravity=gravity)
+    asked, baked = baking / f"{entry['name']}.json", baking / f"{entry['name']}.npz"
+    asked.write_text(json.dumps(pile))
+    newton_pile(asked, baked)
+    return dict(entry, gravity=[0.0, -gravity, 0.0], baked=baked)
+
+
+def newton_pile(asked, baked):
+    """inside/newton_pile.py run in the physics trial's Python on the pile `asked` (a json file), into `baked`."""
+    subprocess.run([str(newton_python()), str(NEWTON_PILE), str(asked), str(baked)], check=True)
 
 
 def judged_on_design(judge):
@@ -349,6 +403,18 @@ def height(spots, widths, rest):
     return float(np.percentile(spots[:, 1] + widths / 2 - rest[1], 95))
 
 
+def flank(spots, widths):
+    """The slope of a pile's outer flank round its anchor (its frame's y up), degrees: a straight line through its
+    top (each of FLANK_RINGS rings' FLANK_TOP share of heights, the grains' tops) between half and nine tenths of its
+    reach (95th share across), as a slip face's slope is read off a terrain model."""
+    across, up = np.hypot(spots[:, 0], spots[:, 2]), spots[:, 1] + widths / 2
+    far = float(np.percentile(across, 95))
+    ring = 0.4 * far / FLANK_RINGS
+    inner = 0.5 * far + np.arange(FLANK_RINGS) * ring
+    tops = [np.percentile(up[(across >= edge) & (across < edge + ring)], FLANK_TOP) for edge in inner]
+    return float(np.degrees(np.arctan(-np.polyfit(inner + ring / 2, tops, 1)[0])))
+
+
 def flame_length(spots, nozzle):
     """How far the flame reaches under the rocket's foot (95th share), metres."""
     return float(np.percentile(nozzle[1] - spots[:, 1], 95))
@@ -466,10 +532,12 @@ def measured(check, stage, place, record, rocket):
         spots, widths = spots[near], widths[near]
     if not len(spots):
         return None
-    if check["measure"] in ("reach", "height") and rocket is None:  # across and up the anchor's own frame
+    if check["measure"] in ("reach", "height", "flank") and rocket is None:  # across and up the anchor's own frame
         spots, rest = upright(stage, anchor_holder(check, place, record), seconds, spots), np.zeros(3)
     if check["measure"] == "reach":
         return reach(spots, widths, rest) / tall
+    if check["measure"] == "flank":
+        return flank(spots, widths)
     if check["measure"] == "height":
         return height(spots, widths, rest) / tall
     if check["measure"] == "length":

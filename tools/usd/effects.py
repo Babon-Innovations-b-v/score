@@ -89,6 +89,8 @@ How the bake moves a particle repeats Godot 4's ParticleProcessMaterial (its emi
 gravity, damping, radial push, turbulence's steer toward a noise direction, size and colour over life, stepped at
 the GPUParticles3D's 30 steps a second), with this module's own seeded generator and its own smooth noise: the same
 record always gives the same particles, but not the game's own draws (Godot's particle hash is not repeated here).
+An emitter simulated elsewhere names its `baked` file instead (spots and widths at its samples a second: a Newton
+pile, score/stages/effects/inside/newton_pile.py); an event's last sample, its pile at rest, is held after it.
 """
 import argparse
 import copy
@@ -615,6 +617,15 @@ def bake(emitter):
     return points.astype(np.float32), widths, opacity
 
 
+def baked(emitter):
+    """An emitter simulated elsewhere (a Newton pile, score/stages/effects/inside/newton_pile.py): its `baked` file's
+    spots and widths at its samples a second, each shown particle at its look's opacity."""
+    found = np.load(emitter["baked"])
+    widths = found["widths"].astype(np.float32)
+    return found["points"].astype(np.float32), widths, np.where(widths > 0, look_opacity(emitter), 0.0).astype(
+        np.float32)
+
+
 # --- the stage ----------------------------------------------------------------------------------------------------
 
 def inside(spots, interiors):
@@ -644,7 +655,7 @@ def write_clip(emitter, out, interiors=None):
     /Effect), sampled every RATE / its samples a second, none inside the record's `interiors`; one that `starts`
     gets one more sample after its loop, every particle dead, held before it lights; its path in the stage folder
     and how many samples it holds."""
-    points, widths, opacity = bake(emitter)
+    points, widths, opacity = baked(emitter) if emitter.get("baked") else bake(emitter)
     widths = kept_out(emitter, points, widths, interiors)
     if emitter.get("starts") is not None:
         points = np.concatenate([points, points[:1]])

@@ -437,6 +437,78 @@
     }
    ],
    "measured_for": "data/effects/greenhouse.json's humidifier_mist, copied whole (2026-10-21)"
+  },
+  "drill_cuttings": {
+   "at": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "where": "the collar under the middle of the rig's box at its foot, where the auger brings the bore's cuttings up",
+   "no_light": "rock powder gives off no light of its own; the sky and the place's lamps light it",
+   "emitter": {
+    "kind": "drill_cuttings",
+    "look": "puff",
+    "card": "plain",
+    "emitter": {
+     "shape": "sphere",
+     "radius": 0.1
+    },
+    "count": 120000,
+    "lifetime": 2.0,
+    "once": [
+     0.0,
+     6.0
+    ],
+    "samples": 4,
+    "direction": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "size": 0.01,
+    "colour": "#a8a894",
+    "opacity": 1.0,
+    "seed": 7,
+    "space": "world",
+    "newton": {
+     "solver": "implicit MPM (Newton 1.7.0's SolverImplicitMPM, Drucker-Prager granular)",
+     "bore": 0.1,
+     "volume": 0.12,
+     "angle": 33.0,
+     "density": 1500.0,
+     "voxel": 0.01,
+     "slices": 12,
+     "why": "the cuttings of a 20 cm bore 3 m deep, loosened by a quarter (0.094 m3 drilled, 0.12 m3 on the ground): a rule for the kind, not footage; its friction angle the middle of the slip faces measured on Mars (grl-50586); the bulk density of loose dry sand; a grid of 1 cm, the coarsest whose pile settled inside the footage's range on this PC (2.5 cm gave a 24 degree flank, 1.5 cm 27, 1 cm 31 to 32); 120,000 of its 966,000 particles drawn, each as wide as the share of the pile it stands for (about 1 cm)"
+    },
+    "from": "footage: grl-50586, pia16726 (a drilling rig's cuttings poured out at its collar over six seconds, settling into a cone at the slip-face angle measured on Mars's dunes, in the grey of Curiosity's first drill tailings)"
+   },
+   "sources": {
+    "grl-50586": {
+     "what": "Atwood-Stone and McEwen (2013), Avalanche slope angles in low-gravity environments from active Martian sand dunes, Geophysical Research Letters 40(12), 2929-2934, doi:10.1002/grl.50586",
+     "url": "https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/grl.50586",
+     "measured": "read off the paper's text: the slip faces of active dunes on HiRISE terrain models (about 0.3 m a pixel) stand at 33 to 34 degrees at Nili Patera and 30 to 31 at Herschel and Gale craters, the steepest bin of each field's slope histogram; no different from Earth's 30 to 35"
+    },
+    "pia16726": {
+     "what": "Curiosity's first sample drilling, the 'John Klein' hole and its grey tailings, MAHLI, sol 182 (NASA/JPL-Caltech/MSSS, PIA16726)",
+     "url": "https://images-assets.nasa.gov/image/PIA16726/PIA16726~orig.jpg",
+     "measured": "the median colour of the tailings on its pixels in three patches clear of the holes (sRGB a5a691, afae99, a8a894): a8a894"
+    }
+   },
+   "checks": [
+    {
+     "name": "drill cuttings' flank slope",
+     "measure": "flank",
+     "at": 8.0,
+     "range": [
+      30.0,
+      34.0
+     ],
+     "from": [
+      "grl-50586"
+     ]
+    }
+   ]
   }
  }
 }

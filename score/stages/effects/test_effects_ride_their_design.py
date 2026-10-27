@@ -1,6 +1,8 @@
 """A scene's effects are made from its design, ride their objects at their measured spots, and pass every gate;
 a row that emits with no object on the stage fails `designed` (effects/__init__.py, from_design.py). The stage is a
-small kitchen made here; no record is written for the scene.
+small kitchen made here; no record is written for the scene. A drilling rig's cuttings are a pile Newton makes
+(inside/newton_pile.py, in the physics trial's own Python on a card): here its run is stood in for by a cone of the
+slope given, laid on the stage as the layer lays the run's particles, under the gravity of the body its site is on.
 
 Breaks that turn it red (each applied once and seen red, then reverted):
 - `from_design.spot_on`: `middle + at * half` read as `middle`  -> the first test (the kettle's spout at its box's
@@ -8,9 +10,17 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `from_design.record`: the `missing.append(...)` line left out  -> the second test (`designed` passes).
 - `from_design.checks_of`: `emitters=[name]` read as `emitters=[]`  -> the first test (`footage` is no longer measured
   on each emitter, so it does not pass).
+- `effects.flank`: the line through the rings' tops fitted over their inner edges with the heights' median (50, not
+  FLANK_TOP)  -> the third test (the 32 degree pile reads under 30).
+- `tools/usd/effects.write_clip`: `baked(emitter)` not read (the emitter baked as a Godot particle)  -> the third
+  test (the pile is not the one Newton made, `footage` fails).
+- `effects.poured`: the body's gravity left out of the emitter  -> the third test (no Mars pull on the emitter).
 """
 import json
+import math
 import pathlib
+
+import numpy as np
 
 from score import checks
 from score.stages import effects
@@ -63,6 +73,33 @@ def toy_inputs(folder, inventory=INVENTORY, objects=OBJECTS):
             "effect kinds": REPO / "data/checks/effects.json", "seed": toy_seed(folder / "seeds", objects)}
 
 
+def cone(asked, baked, slope):
+    """Stands in for Newton's run: the pile `asked` (its count drawn, its samples a second over its seconds) as a
+    cone of `slope` degrees on the collar, filled from its middle up as it pours, at rest once poured."""
+    pile = json.loads(pathlib.Path(asked).read_text())
+    count, samples = int(pile["count"]), int(round(float(pile["seconds"]) * float(pile["samples"]))) + 1
+    tall = (3.0 * float(pile["volume"]) * math.tan(math.radians(slope)) ** 2 / math.pi) ** (1.0 / 3.0)
+    wide = tall / math.tan(math.radians(slope))
+    draws = np.random.default_rng(int(pile["seed"])).random((count, 3))
+    out_by = np.sqrt(draws[:, 0]) * wide
+    spots = np.stack([out_by * np.cos(2 * math.pi * draws[:, 1]), draws[:, 2] * (tall - out_by * tall / wide),
+                      out_by * np.sin(2 * math.pi * draws[:, 1])], axis=1)
+    let_out = np.arange(samples)[:, None] / float(pile["samples"]) >= draws[None, :, 0] * float(pile["pour"])
+    np.savez(baked, points=np.where(let_out[..., None], spots[None], 0.0).astype(np.float32),
+             widths=np.where(let_out, 0.01, 0.0).astype(np.float32))
+
+
+def drill_inputs(folder, monkeypatch, slope):
+    """The toy place with a drilling rig on Mars (its site the Campgrounds'), Newton's run a cone of `slope`."""
+    pathlib.Path(folder).mkdir()
+    rig = (("drilling_rig_1", (-1.0, 0.0, -1.0), (1.0, 8.0, 1.0), (0.0, 0.0, 0.0)),)
+    inventory = {"rows": [{"id": "drilling_rig", "name": "drilling rig", "noun": "drill"}]}
+    inputs = toy_inputs(folder, inventory, rig)
+    (pathlib.Path(folder) / "within.json").write_text(json.dumps({"within": {PLACE: {"within": "campgrounds"}}}))
+    monkeypatch.setattr(effects, "newton_pile", lambda asked, baked: cone(asked, baked, slope))
+    return dict(inputs, physics=REPO / "data/physics/setting.json", within=pathlib.Path(folder) / "within.json")
+
+
 def answers(inputs, folder):
     out = pathlib.Path(folder) / "out"
     out.mkdir()
@@ -98,3 +135,17 @@ def test_a_row_that_emits_with_no_object_on_the_stage_fails_designed(tmp_path):
     assert found["designed"].answer == checks.FAIL, found["designed"].reason
     assert found["designed"].findings == ("humidifier emits humidifier_mist, and no object of it stands on the stage",)
 
+
+
+def test_a_drilling_rig_lays_its_newton_pile_on_mars_and_is_held_to_the_slip_faces_measured_there(tmp_path,
+                                                                                                    monkeypatch):
+    from pxr import Usd
+    out, found = answers(drill_inputs(tmp_path / "steep", monkeypatch, 32.0), tmp_path / "steep")
+    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
+        name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
+    assert 30.0 < found["footage"].measures["drilling_rig_1_drill_cuttings: drill cuttings' flank slope"] < 33.0
+    stage = Usd.Stage.Open(str(out / "layers/effects.usda"))
+    emitter = stage.GetPrimAtPath(f"/{PLACE}/Objects/drilling_rig_1/drilling_rig_1_drill_cuttings")
+    assert abs(emitter.GetAttribute("score:effect:gravity").Get()[1] + 3.71) < 0.02  # Mars's, its site's body
+    _, flat = answers(drill_inputs(tmp_path / "flat", monkeypatch, 22.0), tmp_path / "flat")
+    assert flat["footage"].answer == checks.FAIL, flat["footage"].reason

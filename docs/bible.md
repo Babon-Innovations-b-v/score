@@ -312,7 +312,8 @@ branch names a scene or a world.
   ground, none floating, no hole, doorways onto a floor, no view onto nothing.
 - **Models**: every inventory row's objects from the shared loop, laid by the assembly.
 - **Effects** (`score/stages/effects`): each object of an emitting row carries its kind's measured effects
-  (`data/checks/effects.json`). **Motion** (`score/stages/motion/from_design.py`): each moving row by its kind's rule
+  (`data/checks/effects.json`); a kind Newton makes (a drilling rig's cuttings: implicit MPM in the physics trial's
+  own Python, under the body's gravity) is simulated and baked into the same layer. **Motion** (`score/stages/motion/from_design.py`): each moving row by its kind's rule
   (a door swings only where somebody passes through it, a fan spins, a crane slews), speeds cited in
   `data/checks/motion.json`. **Settle and physics** (`score/stages/settling`, `score/stages/physics`): loose objects
   dropped where they stand under the gravity of the body under the scene's top site, written in UsdPhysics. The
