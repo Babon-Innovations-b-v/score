@@ -1584,6 +1584,20 @@ def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jo
     assert most[0] == 1, most
 
 
+
+def test_a_node_that_ended_holds_no_memory_so_light_nodes_start_as_fast_as_they_end(monkeypatch):
+    """Room for one floor only, a ramp far longer than the nodes: each next node starts once the one before ended,
+    never after the ramp (env1 on the PC, 2026-10-27: light rows of seconds ran 5 a minute, 31 GB free).
+    Break: score/graph/__init__.py: drop '                starts.pop(node, None)' -> the drive waits out the ramp."""
+    runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
+    faked(monkeypatch, [1.5 * FLOOR])
+    monkeypatch.setattr(graph, "RAMP_SECONDS", 3)
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
+    begun = time.monotonic()
+    found = runner.drive(PLACES, say=quiet, jobs=4)
+    assert set(found) == {"clean@hangar", "clean@station", "count@hangar", "count@station"}, found
+    assert time.monotonic() - begun < graph.RAMP_SECONDS, time.monotonic() - begun
+
 # --- a run's end: one result line, every process it started ended, what it held released (score/__main__.py) -------
 
 @contextlib.contextmanager

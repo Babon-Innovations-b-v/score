@@ -35,7 +35,7 @@ stage as each stage is built; nothing moves before.
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
   most `--jobs` at once (default 8; the cockpit's Buy launches 16, `checkout/pricing.DEFAULT_JOBS`), so a line waiting on a cloud step holds up no other, and an environment node every line
   reads is made once. It starts no node while this PC's available memory (`/proc/meminfo`), less `MEMORY_FLOOR`
-  (6 GB) for each node started in the last `RAMP_SECONDS`, is under `MEMORY_FLOOR`; it says so once and reads again
+  (6 GB) for each node started in the last `RAMP_SECONDS` and still running (one that ended holds none), is under `MEMORY_FLOOR`; it says so once and reads again
   every `MEMORY_POLL` seconds; each pass over the waiting nodes is one `still` pass (each key worked out once, the
   nodes it starts forked after it: Batch 1 of 2026-10-25 spent 12 min and then over an hour in one pass, its pool
   billing), and `score run`'s watchdog stops a drive whose last pass is `DRIVE_STALL_SECONDS` old (the PC has run out of memory before; local nodes measured 0.2-0.3 GB, 2026-10-22). Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and
