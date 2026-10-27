@@ -1,5 +1,16 @@
 """The relation solver's parting of crowded plans (score/review/relation_solver): a pile parted to no overlap inside
-the outline, the same answer every run, the walls kept clear, and a plan with nothing in each other given back."""
+the outline, the same answer every run, the plan given never changed, and the walls kept clear. The overlaps are
+counted apart from the checks' grid (`boxes_overlapping`) and the 66 pairs of twelve on one spot by hand.
+
+The old third test (a plan with nothing in each other given back as it is) went on 2026-10-27: no single break turns
+it red, since `parted`'s early return and its last `return plan, []` each give the plan back without the other.
+
+Breaks (each applied once, seen red, reverted), in __init__.py:
+- test_twelve_sandbags_on_one_spot_are_parted_inside_the_place_the_same_way_every_run: `moved`'s
+  `plan = copy.deepcopy(plan)` taken out (the plan given is moved in place).
+- test_things_parted_beside_a_wall_never_stand_in_it: `walls = [box for wall in plan.get("walls", []) for box in
+  wall_boxes(wall)]` made `walls = []`.
+"""
 import itertools
 
 from score.review import plan_checks, relation_solver
@@ -42,7 +53,3 @@ def test_things_parted_beside_a_wall_never_stand_in_it():
     assert fixes and boxes_overlapping(parted["items"]) == 0
     assert all(item[1] + item[3] <= 1.8 + 0.001 or item[1] >= 2.0 - 0.001 for item in parted["items"])
 
-
-def test_a_plan_with_nothing_in_each_other_is_given_back_as_it_is():
-    plan, inventory = piled(1)
-    assert relation_solver.parted(plan, inventory) == (plan, [])
