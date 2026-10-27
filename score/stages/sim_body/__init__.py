@@ -2,26 +2,29 @@
 as a physical body on Newton (CONTEXT.md "sim body"), for a place whose design shows people.
 
     make     each character of cast.json (its singles; the crowd, which is retiring, is left out by name) gets a body
-             built straight from SOMA's segments as people-clips-made's rig.npz holds them (the 23 kept joints: one
-             rigid segment a joint at SOMA's bind frame, a free root and ball joints, no template resizing): each
-             segment's share of the mass and its inertia from the rig's closed surface cut into VOXEL cubes, each
-             owned by its nearest vertex's strongest skin weight, a box collider round its own volume; its mass the
-             stated weight when the cast gives one (`weight`, kg), else its height (`height`, m, else the body's own
-             standing height) squared times the reference BMI of its sex (`sex`, else the mean of both), marked
-             estimated. It stands on the scene's own ground: every solid of the stage the cast is measured on (the
-             seed's base layer with its scene record written in, on the terrain row's made ground: layer_base.built
-             and cast/measure.solids, so steps, decks and slopes are there), the triangles within REACH of its
-             clip's path, in its own frame (its spot and turn), a static mesh only it meets; a body with none is
-             left out by name. It plays its clip (`doing`, the rig's clip_<doing>): Newton's eval_ik turns the
-             clip's segment frames into joint angles, MuJoCo position actuators drive them, the root's height is
-             free, so its weight rests on its ground by contact (inside/sim_body.py, in Newton's own Python,
-             score/stages/physics/inside/newton_env.sh, on this machine), under the gravity of the body the scene
-             stands on (physics/design.py ground). Written: sim_bodies.json (each body: its mass record, segments,
-             the solids it may touch, measures and the gates' numbers), measures/<name>.json (per frame: joint
-             angles and the clip's, joint torques, ground force, lowest point over the ground, each foot's height
-             over the ground and its push, root helper) and layers/sim_bodies.usda (each body
-             under its character's prim, /<place>/Characters/<name>/SimBody: a guide Xform a segment with its
-             UsdPhysics mass and its motion, its ball joints as UsdPhysics spherical joints)
+             built straight from SOMA's segments at the person's own build: people-clips-made's rig.npz moved onto its
+             look's built body (people-body-<look>'s rig.npz, an optional read: its bind, its moved mean surface, every
+             clip's joint offsets the built ones and the travel scaled by its Hips' height over the rig's, as
+             prop_build.py plays the clips; the rig's own size, named, with none taken) (the 23 kept joints: one rigid
+             segment a joint at its bind frame, a free root and ball joints, no template resizing): each segment's share
+             of the mass and its inertia from the closed surface cut into VOXEL cubes, each owned by its nearest
+             vertex's strongest skin weight, a box collider round its own volume; its mass the stated weight when the
+             cast gives one (`weight`, kg), else its height (`height`, m, else the body's own standing height) squared
+             times the reference BMI of its sex (`sex`, else the mean of both), marked estimated. It stands on the
+             scene's own ground: every solid of the stage the cast is measured on (the seed's base layer with its scene
+             record written in, on the terrain row's made ground: layer_base.built and cast/measure.solids, so steps,
+             decks and slopes are there), the triangles within REACH of its clip's path, in the frame its skeleton plays
+             in (its spot and turn, then the dressed body's Turned: own_frame), a ground only it meets; a body with none
+             is left out by name. It plays its clip (`doing`, the rig's clip_<doing>): Newton's eval_ik turns the clip's
+             segment frames into joint angles, MuJoCo position actuators drive them, the root's height is free, so its
+             weight rests on its ground by contact (inside/sim_body.py, in Newton's own Python,
+             score/stages/physics/inside/newton_env.sh, on this machine), under the gravity of the body the scene stands
+             on (physics/design.py ground). Written: sim_bodies.json (each body: its mass record, size, segments, the
+             solids it may touch, measures and the gates' numbers), measures/<name>.json (per frame: joint angles and
+             the clip's, joint torques, ground force, lowest point over the ground, each foot's height over the ground
+             and its push, root helper) and layers/sim_bodies.usda (each body under its character's prim,
+             /<place>/Characters/<name>/SimBody, in the Turned frame: a guide Xform a segment with its UsdPhysics mass
+             and its motion, its ball joints as UsdPhysics spherical joints)
     gates    on floor     no collider corner of any body goes into its ground by more than SUNK_MOST, any frame
              lands        past SETTLE, a foot (Foot, ToeBase) the ground pushes with at least CONTACT of the weight
                           is within LANDED of the ground under it (its lowest corner's height over the drawn
@@ -35,7 +38,7 @@ as a physical body on Newton (CONTEXT.md "sim body"), for a place whose design s
 The root helper (its horizontal path and turn, never its weight) is reported: its largest and mean force.
 
 Not here: muscles (they wait on #60), clips made for the ground (a flat-ground clip meets a step with its toe), a
-walker's cast path (the clip plays its own root path from the spot), a person's own SOMA shape.
+walker's cast path (the clip plays its own root path from the spot), the build's feet brought in (stance.narrowed).
 """
 import json
 import os
@@ -72,6 +75,10 @@ LANDED = 0.02  # metres: a foot further off its ground than this while it carrie
 CONTACT = 0.05  # share of the weight a foot's push must reach to count as landed
 REACH = 1.0  # metres round a body's clip path (its segments, across the ground) whose solids it may touch
 FEET = ("Foot", "ToeBase")
+# A dressed body's Turned, degrees about up: the people build's root node (tools/characters/maker/prop_build.py build,
+# "Person", rotation [0, 1, 0, 0]: the rig faces +z, a laid character -z). The skeleton plays the sim in that frame.
+TURNED = 180.0
+BODY = "people-body"  # a look's built body row: its rig.npz is the person's own build (prop_rig.py)
 CARRIED = 0.05  # share of the weight
 FOLLOWED = 5.0  # degrees
 
@@ -141,6 +148,30 @@ def body_of(rig):
     return segments, kept
 
 
+def body_row(single):
+    """The built body row of a character's look (people-cloth's own naming)."""
+    return f"{BODY}-{(single.get('look') or '').replace('/', '-')}"
+
+
+def person_rig(rig, built):
+    """The clips rig at a person's own build, as the people build plays its clips (prop_build.py clip_world): the
+    built body's bind and surface (rig.npz's moved mean surface), every clip's joint offsets the built ones and its
+    travel (Hips) scaled by the built Hips' height over the rig's; and that size. The rig itself, size 1, for None."""
+    if built is None:
+        return rig, 1.0
+    hips = [str(name) for name in rig["names"]].index("Hips")
+    size = float(built["bind"][hips, 1, 3] / rig["bind"][hips, 1, 3])
+    found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
+    moved = [joint for joint, parent in enumerate(rig["parents"]) if parent >= 0 and joint != hips]
+    for key in [key for key in rig if key.startswith("clip_")]:
+        local = np.array(rig[key], dtype=float)
+        for joint in moved:
+            local[:, joint, :3, 3] = built["offsets"][joint]
+        local[:, hips, :3, 3] *= size
+        found[key] = local
+    return found, size
+
+
 def standing_height(rig):
     """The rig's own standing height at its bind pose (metres, its surface's top over its lowest point)."""
     points = np.asarray(rig["points"])
@@ -199,10 +230,11 @@ def solids_of(inputs, place):
 
 
 def own_frame(at, turn):
-    """A character's frame in the place's (tools/characters/cast.py placed: its spot, then its turn about up)."""
+    """The frame a character's sim body runs in, in the place's: its spot, then its turn about up (tools/characters/
+    cast.py placed), then its dressed body's Turned (TURNED about up), the rig's frame its skeleton plays in."""
     from scipy.spatial.transform import Rotation
     frame = np.eye(4)
-    frame[:3, :3], frame[:3, 3] = Rotation.from_euler("y", turn, degrees=True).as_matrix(), at
+    frame[:3, :3], frame[:3, 3] = Rotation.from_euler("y", turn + TURNED, degrees=True).as_matrix(), at
     return frame
 
 
@@ -245,16 +277,22 @@ def make(inputs, out, seed, params):
     """Every character's sim body run on its clip: sim_bodies.json, measures/, layers/sim_bodies.usda."""
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
     place = cast["place"]
-    rig = dict(np.load(pathlib.Path(inputs[CLIPS_ROW]) / "rig.npz"))
-    segments, kept = body_of(rig)
+    clips_rig = dict(np.load(pathlib.Path(inputs[CLIPS_ROW]) / "rig.npz"))
     body, gravity = gravity_of(place, inputs)
     solids = solids_of(inputs, place)
     job, records, left_out = {"rate": RATE, "gravity": gravity, "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
+    builds = {}
     for single in cast["characters"]:
-        if f"clip_{single.get('doing')}" not in rig:
+        if f"clip_{single.get('doing')}" not in clips_rig:
             left_out.append(f"{single['name']}: its clip {single.get('doing')!r} is not in the rig")
             continue
+        row = body_row(single)
+        if row not in builds:
+            built = dict(np.load(pathlib.Path(inputs[row]) / "rig.npz")) if row in inputs else None
+            rig, size = person_rig(clips_rig, built)
+            builds[row] = (rig, size, *body_of(rig))
+        rig, size, segments, kept = builds[row]
         worlds = clip_frames(rig, single["doing"], kept)
         ground, under = ground_of(solids, worlds, own_frame(single["at"], single.get("turn", 0.0)))
         if not len(ground):
@@ -267,6 +305,8 @@ def make(inputs, out, seed, params):
         job["people"].append({"name": single["name"], "segments": mine, "targets": str(targets), "gains": gains(mine)})
         records[single["name"]] = {"clip": single["doing"], "at": single["at"], "turn": single.get("turn", 0.0),
                                    "mass": mass, "ground": {"solids": under, "triangles": len(ground)},
+                                   "size": {"of the rig": round(size, 4),
+                                            "from": row if row in inputs else f"the rig's: no {row} taken"},
                                    "segments": {segment["name"]: round(segment["mass"], 3) for segment in mine}}
     if cast.get("crowd"):
         left_out.append(f"{cast['crowd']['name']}: a crowd has no sim bodies (crowds are retiring, #56)")
@@ -385,7 +425,8 @@ CHECKS = (checks.Check("on floor", judge_on_floor), checks.Check("lands", judge_
 
 def write_layer(path, place, people, runs, records):
     """layers/sim_bodies.usda: each body under its character's prim, a guide Xform a segment (its UsdPhysics mass,
-    centre and box, its pose every frame in the character's frame) and a spherical joint at every ball joint."""
+    centre and box, its pose every frame in the rig's frame, which the dressed body's Turned turns) and a spherical
+    joint at every ball joint."""
     from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
     from scipy.spatial.transform import Rotation
     path.parent.mkdir(parents=True, exist_ok=True)

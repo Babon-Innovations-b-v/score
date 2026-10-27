@@ -4,6 +4,12 @@ The sim body stage (experimental, #65; PRD #56; CONTEXT.md "sim body"): row `sim
 design shows people, every character of its accepted cast as a body on Newton. `__init__.py`'s docstring has the
 make and the gates; `inside/sim_body.py` is the run, in Newton's own Python.
 
+- **Each body is the person's own build**: the rig moved onto its look's built body (`people-body-<look>`'s rig.npz,
+  an optional read: its bind, moved mean surface and offsets, the travel scaled by its Hips' height, `person_rig`),
+  recorded as `size`; with none taken it is the rig's size, named. The characters layer sizes the skin's Hips by the
+  skin's size over that one.
+- **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
+  up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`).
 - **The body is SOMA's segments, never a template resized.** It is built from `people-clips-made`'s `rig.npz`, the rig
   every clip plays: a segment a kept joint at its bind frame, its mass share and inertia from the rig's closed surface
   (voxels owned by strongest skin weight). Never give it a body file of its own or a hand-typed mass table.

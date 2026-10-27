@@ -5,9 +5,9 @@ unmoved by it.
 
     drive     the person's dressed body plays a SkelAnimation of its own (<person>/SimDriven) in place of its clip:
               at every clip frame the sim ran, each SOMA joint the sim body has a segment for turns as its segment did
-              against its parent's (Hips against the clip's Root), and Hips stands where the sim's stood: its path
-              over the floor as simulated, its height the sim's times the body's size against the rig's plus the
-              clip's own lift (people's prop_build: the fitted bones are the mean ones times that size); the joints
+              against its parent's (Hips against the clip's Root), and Hips stands where the sim's stood, times the
+              body's size over the size the sim body was built at (sim_bodies.json `size`: the person's own build,
+              so 1, but for a sim body built at the rig's size with no built body taken); the joints
               with no segment (SIM_LESS), every translation but Hips', the clip's blend shapes, and every frame after
               the sim's last keep the clip's values. Started where the person's clip starts.
     sim body  the sim-body row's layer, copied into the characters layer's assets and referenced under the person
@@ -71,18 +71,18 @@ def pose_matrix(pose):
     return found
 
 
-def size_and_lift(skeleton_bind, joint_names, rig, clip, clip_hips):
-    """The body's size against the rig's (Hips' bind height over the rig's) and the clip's lift (how far the body's
-    Hips stand over the rig's times that size at the clip's first frame): prop_build's scale and lift."""
+def size_over_sim(skeleton_bind, joint_names, rig, body):
+    """The body's size against the size its sim body was built at: its Hips' bind height over the rig's (prop_build's
+    scale), over the sim body's own (sim_bodies.json `size`)."""
     rig_names = [str(name) for name in rig["names"]]
     hips, rig_hips = joint_names.index(TRAVELLING), rig_names.index(TRAVELLING)
     size = float(skeleton_bind[hips][3][1]) / float(rig["bind"][rig_hips][1, 3])
-    return size, float(clip_hips[1]) - size * float(rig[f"clip_{clip}"][0, rig_hips, 1, 3])
+    return size / float(body["size"]["of the rig"])
 
 
-def driven_locals(poses, segments, parents, joint_names, root_local, size, lift):
+def driven_locals(poses, segments, parents, joint_names, root_local, size):
     """One frame's local transforms of the joints the sim body has a segment for ({joint index: 4 x 4}): each
-    segment's world against its parent segment's, Hips' against the clip's Root, its height sized and lifted."""
+    segment's world against its parent segment's, Hips' against the clip's Root, its height sized."""
     worlds = {name: pose_matrix(np.asarray(pose)) for name, pose in zip(segments, poses)}
     found = {}
     for joint, name in enumerate(joint_names):
@@ -92,7 +92,7 @@ def driven_locals(poses, segments, parents, joint_names, root_local, size, lift)
         above = worlds[parent] if parent in worlds else (root_local if parent else np.eye(4))
         local = np.linalg.inv(above) @ worlds[name]
         if name == TRAVELLING:
-            local[1, 3] = size * local[1, 3] + lift
+            local[1, 3] = size * local[1, 3]
         found[joint] = local
     return found
 
@@ -116,8 +116,7 @@ def write_driven(stage, path, source, sim, single, start_frames):
     segments = list(sim["bodies"][single["name"]]["segments"])
     frames = sim["frames"][single["name"]]
     hips = names.index(TRAVELLING)
-    size, lift = size_and_lift(bind, names, sim["rig"], single["doing"],
-                               source.GetTranslationsAttr().Get(0.0)[hips])
+    size = size_over_sim(bind, names, sim["rig"], sim["bodies"][single["name"]])
     animation = UsdSkel.Animation.Define(stage, f"{path}/SimDriven")
     animation.CreateJointsAttr(tokens)
     animation.CreateScalesAttr(source.GetScalesAttr().Get())
@@ -136,7 +135,7 @@ def write_driven(stage, path, source, sim, single, start_frames):
                 root[:3, :3] = Rotation.from_quat([*turn.GetImaginary(), turn.GetReal()]).as_matrix()
                 root[:3, 3] = translations[parents[hips]]
             for joint, local in driven_locals(frames[int(round(time))]["poses"], segments, parents, names, root,
-                                              size, lift).items():
+                                              size).items():
                 quat = Rotation.from_matrix(local[:3, :3]).as_quat()
                 rotations[joint] = Gf.Quatf(float(quat[3]), *map(float, quat[:3]))
                 if joint == hips:
