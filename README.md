@@ -1,26 +1,47 @@
 # SCORE
 
-**SCORE: A Framework for Synthesizing Complete, Owned, Responsive Environments.**
+> **Demo film: coming.** It waits on environment 1's batch; the film replaces this box once it exists.
 
-SCORE turns a creator's picks (references, a concept, a style) into a complete environment a game engine
-or simulator loads: every object its own model, rooms with collision, surfaces from one shared
-library, sound for every surface and object, and nothing in it the creator does not own. It works
-offline: coding agents and open models do the work in cloud batches, cheap checks
-run before every paid step, and the creator decides at a few fixed points.
+**SCORE: Synthesizing Complete, Owned, Responsive Environments for Simulation.**
+
+SCORE is a framework that synthesizes 3D environments a simulator can step as written: every object its own
+body with a collider, mass and material, doors on hinges, ground under its own planet's gravity, light and sound
+that come from somewhere, and nothing in it the creator does not own. One environment serves many uses: games,
+film, robotics, embodied AI. It is one OpenUSD record, a scene inside its parent scene and each kind of work on it
+(layout, surfaces, physics, light, motion, effects, sound, people) a layer of its own, so it stays editable, and
+an edit runs again only the steps behind it. Its physics trial runs on Newton with MuJoCo's solver; the settle
+and effects follow.
 
 The creator writes the score; coding agents and open tools play it.
 
-## What is here now
+## How it builds an environment
 
-- **The paper**, a first full draft: [`paper/out/score.pdf`](paper/out/score.pdf). Its one source
-  is [`paper/source/score.md`](paper/source/score.md); an arXiv-ready LaTeX tree is generated
-  from it in [`paper/arxiv/`](paper/arxiv/).
-- **The framework's code**, moved here from its first user, the game 2099, with its history:
-  `tools/props/` (prop pipeline, scene tools, surface library, gates, cloud runners), `tools/blender/`
-  (headless Blender), `tools/sound/`, the surface library's data (`data/library/`), the first environment's data
-  (`data/`, `design/tokens/`) and the vendored tools (`vendor/`). A place's output is a **scene package**:
-  every object its own glTF model and `scene.json` saying where each copy stands, for any engine. The
-  bible's `architecture/components` chapter says what is where.
+The creator locks the design from the top down: an environment concept (its style and its physics), then a
+concept for each scene, from which the framework reads a scene inventory and writes a plan in metres. Everything
+below runs offline in cloud batches: models from close-ups through the prop route, surfaces from one shared
+library, then the settle, physics, light, motion, effects, sound and people layers, each behind measured gates
+and accepted before the next step reads it. Cheap checks run before every paid step, and the creator decides
+only at fixed points: locks, accepts, waivers and the batch's budget.
+
+Environment 1 is the evidence. Its first run was not accepted and its store was lost, so the paper shows none of it yet; its new
+batch makes the demonstrations: every layer of one environment, physics that holds, the same environment in a
+game engine, a robot simulator and a film render, and an edit that stays cheap.
+
+**Next.** Every character gets a sim body on Newton, driven by its SOMA segment rotations and standing on a
+SCORE floor, starting minimal. Beyond that: bodies true to the person, motion from the SOMA ecosystem turned
+into scenes without video or identifying information, trained models (brains) that drive a sim body in invented
+worlds, and a data loop in which simulation data trains better models. The paper's last sections say what is
+done and what is a goal.
+
+## What is here
+
+- **The paper**, a working draft: [`paper/out/score.pdf`](paper/out/score.pdf). Its one source is
+  [`paper/source/score.md`](paper/source/score.md); an arXiv-ready LaTeX tree is generated from it in
+  [`paper/arxiv/`](paper/arxiv/).
+- **The framework**: `score/` (the runner, stages, gates, store, review pages and the creator cockpit),
+  `tools/` (the prop pipeline, Blender and OpenUSD tools, sound, cloud runners), `data/` (environment 1's
+  designs and the library's records) and `vendor/` (vendored tools, as released). The bible's
+  [`architecture/components`](docs/bible.md#architecturecomponents) chapter says what is where.
 
 ## Building the paper
 
@@ -38,149 +59,23 @@ stale. There is no CI: checks run locally.
 
 ## Running the framework
 
-Needs [`uv`](https://docs.astral.sh/uv/), and for the cloud steps a cloud backend's tools (see "Cloud
-capacity"). With the current backend, Scaleway, that is the [`scw`](https://github.com/scaleway/scaleway-cli)
-CLI logged in, with the project named by `SCORE_SCALEWAY_PROJECT`. Secrets are read by name, never from files
-in the repo. Every step
-that loads a model, bakes or renders runs on a rented machine that deletes itself; this machine runs plain
-Python only.
+Needs [`uv`](https://docs.astral.sh/uv/), and for the cloud steps a cloud backend's tools. With the current
+backend, Scaleway, that is the [`scw`](https://github.com/scaleway/scaleway-cli) CLI logged in, with the project
+named by `SCORE_SCALEWAY_PROJECT`. Secrets are read by name, never from files in the repo. Every step that loads
+a model, bakes or renders runs on a rented machine that deletes itself; this machine runs plain Python only.
 
 ```bash
-make env       # the Python environment (.venv) from pyproject.toml
-make tests     # every framework check; TESTS="<module>/test_<invariant>.py" for some
+make env                                       # the Python environment (.venv) from pyproject.toml
+make tests                                     # every framework check; TESTS="<module>/test_<invariant>.py" for some
+.venv/bin/python -m score plan <environment> --json   # what a run would make and buy, running nothing
+.venv/bin/python -m score run <environment>           # drive the environment's stages to their end
+.venv/bin/python -m score status <environment>        # every line's state
 ```
 
-### One place end to end: the wreck
-
-The wreck is an outdoor place of the first environment: 13 inventory rows, 22 copies. Its record is its scene
-inventory (`data/inventory/wreck.json`), each kind's turn and allowed materials (`data/library/details.json`),
-and one close-up a generated row (kept in the work folder, not in git). With `W` its run folder and
-`py=.venv/bin/python`. Every command below runs in `.venv`, the cloud runners included: they load no model
-here, and `picture.py` imports torch only where its model loads. On a checkout older than that change,
-`pictures.py`, `parts.py` and `library_bake.py` stop on a missing torch; run them with an environment that
-has it (the first environment's `~/.farm-factory-props/env/bin/python`).
-
-```bash
-# 1. Pixal3D models from the close-ups, one cloud batch (a line a row: "<row>-s1 <close-up>")
-$py tools/cloud/batch.py $W/pixal-list.txt --who me --inventory data/inventory/wreck.json
-# 2. PartCrafter parts from each model's cut-out (~/.farm-factory-props/work/pixal/<take>.svviews/input.png)
-$py tools/cloud/parts.py $W/cutouts --who me --parts 8
-# 3. Labels: every part one allowed library material, checked for patchy paint
-$py tools/props/library/labels.py <row>-s1 $W/parts/<row>-s1 --place wreck --kind wreck_<row> \
-    --parts $W/cutouts/parts/<row>-s1-8
-# the torn leg (2.4 m) is labelled into $W/parts/torn_leg-s1 and split into its two pieces
-$py tools/props/library/place_route.py split $W/parts/torn_leg-s1 $W/parts/leg_strut-s1 $W/parts/leg_foot-s1
-# 4. The plan and the bake jobs, baked in the cloud (one class fixed at price time; --classes cpu-32c-128gb for a processor)
-$py tools/props/library/place_route.py plan wreck $W --take s1
-$py tools/cloud/library_bake.py $W/job-*.json --who me
-# 5. The model gate, then the scene package and its check
-$py tools/props/library/place_route.py check wreck $W
-$py tools/props/library/package.py wreck $W $W/package
-```
-
-Measured on 2026-10-08, from the recorded close-ups: 12 Pixal3D models in 51 min on cloud cards (EUR 1.43),
-PartCrafter parts for all 12 (EUR 0.72), labels here, one bake of 16 models in 24 min on one L4 (EUR 0.33); the
-model gate passed all 16, and the package (16 objects, 22 copies, 0.36 M triangles, 218 MB) passed its check with
-every copy where the game 2099's own layout puts it. EUR 2.48 in all, about two hours, most of it waiting for cards.
-
-### A place's characters
-
-A place's people are part of its stage. Its cast, written from its picked design (`data/people/rows.json`, `score/stages/people_rows.py`), says who is there, how many, where,
-doing what and why: named people at a spot, groups mixed from the character kit by seed along a band, and a crowd of
-thousands of one cheap body. The cast stage's characters layer (`score/stages/cast`, with `tools/characters/cast.py`'s
-rules and prims) lays them into the stage as skinned UsdSkel characters, each playing its clip from its own start, in a
-layer of their own (`layers/characters.usda`, between the creator's edit layer and the framework's base); the crowd is
-one PointInstancer with a prototype per clip, phase and palette. The bodies are the people's body rows' (Pixal3D's
-mesh on SOMA-X's rig, clothes made with the body by the prop route, Kimodo clips from sentences;
-`tools/characters/skel_usd.py` converts each).
-
-The review page then has a Characters section: why each entry is there, each character close up, each group and the
-crowd from where they are seen, and short moving shots, rendered from the stage like the scene.
-
-## The environment's files
-
-An environment's made models and sounds are not in git: they are entries of the creator's library, score_lib, its
-bytes in the library's blob store. A record names a file by its library reference
-(`sound/habitat@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`);
-`tools/library/library_files.py` fetches it with the library's own command into a cache under `$PROPS_HOME` and
-checks it against the entry's sha256 (the library's settings: `SCORE_LIB_*`, else the score_lib checkout beside score and the cloud backend's object store, its key from the secret store; no settings file). A
-name the library does not hold is a gap, left out of the scene. The framework reads nothing from the game 2099's
-checkout; `tools/library/test_every_record_name_resolves_or_is_a_gap.py` fails when code or data names it.
-
-## Cloud capacity
-
-Every model step runs on machines rented from a cloud provider through one interface
-(`tools/cloud/provider.py`). The runners ask for a **capability class**, such as `gpu-24gb` (one
-card with 24 GB), `gpu-80gb-x2` (two 80 GB cards) or `cpu-32c-128gb` (a processor machine), and never name a
-provider, a machine type, a zone or a price. The backend maps each class to its own machine types, zones
-and prices. Scaleway is the current backend (`tools/cloud/backends/scaleway.py`); `SCORE_CLOUD`
-chooses another.
-
-Stock is the bottleneck: on 2026-10-08 the cheapest cards in one zone were out of stock most of the day.
-The cloud credits cover far more than an environment costs, so a job takes whatever card is in stock, in the
-order that waits least, and is never tied to one card or one zone.
-
-- **Which classes a job may use** is set per job kind in `KINDS` in `tools/cloud/capacity.py`.
-  Pixal3D may use any card of 24 GB or more, including two-card machines, because its fleet spreads
-  work over cards. Every other kind was measured on a 24 GB card, so it may use the single-card
-  classes of 24, 48 and 80 GB.
-- **Order and fallback.** Offers are taken best stocked first, then in the kind's order of classes, then
-  the zone with the fewest of the run's machines, so a big batch spreads over the zones. The default
-  order is `SPEED_ORDER` (24, 48 and 80 GB, then the two-card classes). Pixal3D takes 80 GB cards first,
-  since one runs ten takes at once. Bakes in Cycles take cards with ray-tracing cores first and an
-  80 GB card without them only after 5 minutes with nothing else to be had (`KIND_ORDER`, `LATE`). An offer that is refused, says "out of stock" for a minute, or gives a
-  machine that does not answer within `START_MINUTES` (5, in `batch.py`) is dropped and the next one
-  tried. When a round finds no machine in stock anywhere, the slot asks again every 3 minutes
-  (`STOCK_RETRY_MINUTES` in `batch.py`), with the offers read afresh across every class and zone the kind fits, until
-  its run has no work left for it or reaches its deadline; a Pixal3D fleet short of cards rents
-  more the same way as stock comes up. No slot settles for the one card it found first. In a Pixal3D fleet, a machine that never answers is replaced from the remaining offers.
-- **Several jobs on one big card.** A card runs as many Pixal3D jobs at once as its memory holds:
-  three for every 24 GB (`RUNS_PER_24GB`), so an 80 GB card runs ten. `batch.py --per-card` overrides it.
-  Other kinds run one job at a time until their memory per job is measured.
-- **Limits.** A batch's own stop is its high estimate plus 10%, set by the owner's yes; there is no month's
-  ceiling (owner, 2026-10-20). A batch is also held to 4 h and EUR 60 (`ledger.py`).
-- **Forcing a class** for a measuring run: `batch.py --classes` and `library_bake.py --classes`.
-- **Secrets** are read by name through `tools/cloud/secret_store.py`: the environment variable
-  `SCORE_SECRET_<NAME>` first (for local use; `gemini-api-key` is `SCORE_SECRET_GEMINI_API_KEY`), else
-  the backend's secret store (Scaleway Secret Manager today). No secret is written into the repo.
-- **The record.** Every run writes one row per machine to the ledger
-  (`~/.farm-factory-props/cloud/ledger.jsonl`). A row holds the job kind, class, machine type, zone,
-  wait until the machine answered, minutes worked, cost and, where the runner counts them, seconds per
-  unit of work. Failed starts are recorded too. `python3 tools/cloud/capacity.py report
-  [--since YYYY-MM-DD]` writes time and cost per job kind per card type to
-  `~/.farm-factory-props/cloud/capacity-report.txt` and prints one summary line (`--verbose` prints the table), and `capacity.py offers
-  <kind>` shows where a kind can be rented right now.
-
-The machines keep their safety on every backend: each deletes itself when the runner's heartbeat goes
-quiet or the batch's time limit passes (`self_delete.py`), every run deletes its machines when it ends,
-and nothing is deleted before its own record is checked to belong to the configured account.
-
-### Run in the cloud from container images, on Kubernetes
-
-Every kind of model job also has a pinned container image (`tools/cloud/images/<kind>/`: a Dockerfile and the
-`models.json` that lists each model's source, pinned revision, hash and licence). No weights are in an image: a job
-reads each model once per node from the backend's object storage into a cache on the node, and the first node that
-needs a model seeds the storage from its source. `python3 tools/cloud/images/build.py <kind> [...]` builds and pushes
-images on a rented processor machine, never on this PC, and writes their digests into `tools/cloud/images/images.json`.
-
-The same images run on any Kubernetes cluster whose pools label their nodes `score.dev/class=<capability class>`,
-scale from zero and expose `nvidia.com/gpu`. With the Scaleway backend:
-
-```bash
-python3 tools/cloud/k8s/clusters/scaleway.py up      # the cluster (free control plane) and a pool per class and zone, all at 0 nodes
-SCORE_CLOUD=k8s $py tools/cloud/parts.py ...   # a runner sends its jobs to the cluster instead of renting machines
-python3 tools/cloud/k8s/clusters/scaleway.py down    # delete the cluster when the work is done
-```
-
-`SCORE_CLOUD=k8s` sends the jobs of the runners that have an image (Pixal3D, PartCrafter, the part splitters, SAM 3
-and the scene steps, the judge, the picture models, MOSS, Blender renders and library bakes) to the cluster;
-`SCORE_K8S_PROVIDER` names the cluster's backend (Scaleway by default), and `SCORE_K8S_TYPE=multicloud` makes a cluster
-that also reaches Warsaw's cards. A job tries its kind's capability classes in `capacity.py`'s order and is widened to
-the next class when no pool can get a node, a node without work is removed after about 5 minutes, and the month's
-ceiling caps every pool's size. The machine runners stay the default: a cold cluster node needs about 2.5 minutes of
-NVIDIA driver setup on top of a machine's start, so one job alone finishes sooner on a rented machine, and the
-cluster pays off on runs of many jobs and on warm nodes. The character chain stays on machines until it is split by
-image. `tools/cloud/k8s/CLAUDE.md` says how AWS EKS and Google GKE plug in.
+Machines are rented by capability class (such as `gpu-24gb`), never by provider or machine type; how classes,
+stock, limits and container images work is in [`tools/cloud/CLAUDE.md`](tools/cloud/CLAUDE.md).
+An environment's made models and sounds are not in git: they are entries of the creator's library, score_lib,
+fetched by `tools/library/library_files.py` and checked against each entry's hash.
 
 ### Add a cloud backend
 
@@ -197,46 +92,6 @@ image. `tools/cloud/k8s/CLAUDE.md` says how AWS EKS and Google GKE plug in.
 AWS is the likely next backend: EC2 instance types per class (for example `g6.xlarge` for `gpu-24gb`,
 `g6e.xlarge` for `gpu-48gb`, `p5` for `gpu-80gb`), regions as zones, Secrets Manager for `secret()`, and
 instance metadata plus a narrowly scoped role for the self-delete.
-
-## Reviewing a place
-
-The review page shows one place the way the creator checks it: every stage's output side by side in the order the
-stages ran (the concept and the creator's references, the dimensioned plan, the inventory boxed on the concept, the
-close-ups, each made model with its route, its labelled parts and its baked look, the library surfaces, and the
-assembled scene), before and after from the same cameras where a stage was rerun, and every check's result with what
-it caught. It is a static folder built from the files the stages already wrote; the scene is rendered from the
-place's OpenUSD stage by Blender with no window, in its baked materials on the place's own ground, from fixed cameras
-and along a short walk round the place. Its checks include the resting check (`tools/usd/resting.py`): every object
-looked at straight down on the stage's ground, failing when it floats, tips (its weight outside what it touches) or is
-sunk into the ground below its own contact points.
-
-```bash
-.venv/bin/python tools/review/page.py wreck --run <the run's work folder> --out ~/.farm-factory-props/work/review/wreck \
-    [--before <an earlier run's work folder>] [--concept <the concept folder>] [--references <the reference pictures>] \
-    [--stage <wreck.usda>] [--before-stage <the earlier run's wreck.usda>] [--agreement <tools/usd/views.py's folder>]
-```
-
-A place with a scene record (`data/scene/<place>.json`: what the game drew in its own code, from room shells, stairs
-and gameplay objects to the ground, water, backdrop, lights and sky) is exported whole with `export.py`, which reads
-the files the record names from the environment's release (below), and its page is drawn from the record's own cameras (the player's spots; a room from inside at
-standing height and from a cutaway above) by the stage's own lights. `--game-shots <folder>` lays each view beside the
-game's own shot from about the same place, with both pictures' mean brightness, and the page says what of the game's
-place the scene carries, its people included, and what is still missing against the game's shots ("scene vs game").
-
-Open `index.html` in the out folder in a browser, or publish the folder as it is: it needs no server. A run folder is
-what `tools/props/library/place_route.py` works in; `tools/review/records.py` lists what is read from each folder.
-Rendering takes a few minutes on the processor (the wreck: about eight); `--no-render` rebuilds the page from the
-renders already in the out folder, and `--plain` draws the scene in one grey as a debug view. Needs `ffmpeg` for the
-walk's video.
-
-The stage comes from `tools/usd/export.py <place> --models <run>/made --work <run> --out <folder>`; the ground a
-place stands on is the terrain stage's layer, made from the design (`score/stages/terrain`). When the resting check finds loose objects
-that float, tip or are sunk, `tools/usd/settle.py <stage>` drops them in headless Blender onto the real ground with
-their own triangles (buildings and other rows marked `"fixed": true` stay static) and writes where each came to rest
-into the place's layout, with its turn as a `rotation`, as long as that is a small correction (at most 15° and
-30 cm); a piece that would move more keeps its laid pose and is marked for its layout to be put right. Export again
-and check. `--cloud` on settle.py and page.py runs the Blender work on rented machines
-(`tools/cloud/blender_cloud.py`).
 
 ## Licence
 
