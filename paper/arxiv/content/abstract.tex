@@ -1,29 +1,36 @@
 \begin{abstract}
-Games, film, robotics and embodied AI all need 3D environments that can
-be simulated, in which every object is its own body with collision, mass
-and joints under the gravity of its ground, editable afterwards and
-owned by whoever made it. World models give frames no simulator opens,
-and one-shot 3D generators give one fused scene without separate bodies
-or clear rights. SCORE is a framework that synthesises such
-environments. It builds them as studios build scenes in OpenUSD, each
-scene inside its parent scene and each kind of work on it (layout,
-surfaces, physics, light, motion, effects, sound and people) in a layer
-of its own, checked and changed apart from the rest. A creator locks the
-design from the top down, first an environment concept with its style
-and physics, then a concept for each scene. Open vision foundation
-models, procedural tools and coding agents make every layer below, each
-checked by measured gates before the next is made, and every model
-allows commercial use of its output, so the creator stays the author.
-Every step is keyed on its inputs, so an edit reruns only the steps
-behind it. The result is one OpenUSD environment whose physics a
-simulator reads as written and Newton steps with MuJoCo's solver. We
-describe the framework and its method, with a first environment as the
-evidence, whose four demonstrations remain gaps until its batch has run.
-Each character also gets a sim body on Newton, driven by its SOMA
-segment rotations. We close with the route toward bodies true to the
-person, a data loop in which generated movement, kept only when
-physically possible, trains models that drive a body's muscles, and
-layered training sets from which a fast model can learn to detect muscle
-metrics from video. Code and paper are at
+Games, film, robotics and embodied AI all require 3D environments that
+can be physically simulated, in which every object is a separate body
+with its own collision geometry, mass and joints under the gravity of
+the ground it stands on, and which remain editable afterwards and owned
+by whoever made them. World models generate video frames that no physics
+simulator can open, and one-shot 3D generators produce a single fused
+scene without separate bodies or clear usage rights. SCORE is a
+framework that synthesises such environments. It builds them as film and
+game studios build scenes in OpenUSD, the open scene description
+standard, with each scene composed inside its parent scene and each kind
+of work on it (layout, surfaces, physics, lighting, motion, effects,
+sound and people) held in a layer of its own that is checked and changed
+independently of the others. A creator fixes the design from the top
+down, first an environment concept that sets its visual style and
+physical setting, then a concept image for each scene. Open vision
+foundation models, procedural generation tools and coding agents produce
+every layer below, each output passing measured acceptance tests, called
+gates, before the next is made, and every model licenses its output for
+commercial use, so the creator remains the author. Every step is
+identified by a hash of its inputs, so an edit reruns only the steps
+that depend on it. The result is a single OpenUSD environment whose
+physics description a simulator reads as written and which Newton steps
+with the MuJoCo solver. We describe the framework and its method, with a
+first environment as the evidence, whose four demonstrations remain open
+until its paid production run, called a batch, has completed. Each
+character also receives a simulated body in Newton, driven by the
+segment rotations of its SOMA body model. We close with the route
+towards subject-specific musculoskeletal bodies, a data loop in which
+generated movement, retained only when it is dynamically consistent,
+trains controllers that actuate a body's muscles, and layered training
+sets with physics-derived ground truth, on which estimators can learn to
+infer muscle activations, joint moments and ground reaction forces from
+monocular video. Code and paper are at
 https://github.com/Babon-Innovations-b-v/score (MIT licence).
 \end{abstract}
