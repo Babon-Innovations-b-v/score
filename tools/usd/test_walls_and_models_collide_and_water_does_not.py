@@ -1,11 +1,20 @@
-"""Check what a place's stage collides with (tools/usd/colliders.py) on shapes and stages made here: a box square to
-its frame is an exact box and anything else (a turned box, a flight of stairs, an open box) its triangles simplified;
-the scene record's walls, stairs and ground collide and its water does not; a world model file converted for a
-fixture collides by a convex hull round each of its meshes; and the free check finds a wall without collision, a switched-off
-one, a model without a collider of its own (a model standing on it does not lend it one), and leaves a shown place
-to its own stage.
+"""What a place's stage collides with (tools/usd/colliders.py) on shapes and stages made here: a box square to its
+frame is an exact box and anything else (a turned box, a flight of stairs, an open box) its triangles simplified; the
+scene record's walls, stairs and ground collide and its water and sky do not; a world model file converted for a
+fixture (glb_asset.py) collides by a convex hull round each of its meshes; and the free check finds a wall without
+collision, a switched-off one, a model without a collider of its own (a model standing on it does not lend it one),
+and leaves a shown place to its own stage.
 
-Run: .venv/bin/python tools/usd/test_walls_and_models_collide_and_water_does_not.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- boxes_told_apart: colliders.is_square_box's `return abs(triangle_area(points, triangles) - surface) <=
+  AREA_TOLERANCE * surface` made `return True` (the lidless box read as a box).
+- the_record_s_structure_and_ground_collide_and_its_water_does_not: colliders.py's `NOT_SOLID_PLAINS = ("sky",
+  "water")` made `("water",)` (the Earth in the sky collides).
+- a_fixture_s_model_collides_by_a_hull_round_each_mesh: glb_asset.py's `colliders.hull_of(prim.GetPrim())` made `pass`.
+- the_check_finds_what_does_not_collide: colliders.has_collider's `walk.PruneChildren()` made `pass` (the lamp lends
+  the crate its collider).
+
+Run: .venv/bin/python tools/usd/test_walls_and_models_collide_and_water_does_not.py
 """
 import pathlib
 import sys
