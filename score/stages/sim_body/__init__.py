@@ -8,24 +8,34 @@ as a physical body on Newton (CONTEXT.md "sim body"), for a place whose design s
              owned by its nearest vertex's strongest skin weight, a box collider round its own volume; its mass the
              stated weight when the cast gives one (`weight`, kg), else its height (`height`, m, else the body's own
              standing height) squared times the reference BMI of its sex (`sex`, else the mean of both), marked
-             estimated. It plays its clip (`doing`, the rig's clip_<doing>): Newton's eval_ik turns the clip's segment
-             frames into joint angles, MuJoCo position actuators drive them, the root's height is free, so its
-             weight rests on the floor by contact (inside/sim_body.py, in Newton's own Python,
-             score/stages/physics/inside/newton_env.sh, on this machine's card), under the gravity of the body the
-             scene stands on (physics/design.py ground). Written: sim_bodies.json (each body: its mass record,
-             segments, measures and the gates' numbers), measures/<name>.json (per frame: joint angles and the
-             clip's, joint torques, ground force, lowest point, root helper) and layers/sim_bodies.usda (each body
+             estimated. It stands on the scene's own ground: every solid of the stage the cast is measured on (the
+             seed's base layer with its scene record written in, on the terrain row's made ground: layer_base.built
+             and cast/measure.solids, so steps, decks and slopes are there), the triangles within REACH of its
+             clip's path, in its own frame (its spot and turn), a static mesh only it meets; a body with none is
+             left out by name. It plays its clip (`doing`, the rig's clip_<doing>): Newton's eval_ik turns the
+             clip's segment frames into joint angles, MuJoCo position actuators drive them, the root's height is
+             free, so its weight rests on its ground by contact (inside/sim_body.py, in Newton's own Python,
+             score/stages/physics/inside/newton_env.sh, on this machine), under the gravity of the body the scene
+             stands on (physics/design.py ground). Written: sim_bodies.json (each body: its mass record, segments,
+             the solids it may touch, measures and the gates' numbers), measures/<name>.json (per frame: joint
+             angles and the clip's, joint torques, ground force, lowest point over the ground, each foot's height
+             over the ground and its push, root helper) and layers/sim_bodies.usda (each body
              under its character's prim, /<place>/Characters/<name>/SimBody: a guide Xform a segment with its
              UsdPhysics mass and its motion, its ball joints as UsdPhysics spherical joints)
-    gates    on floor     no collider corner of any body goes under its floor by more than SUNK_MOST, any frame
-             carries      over each run (past SETTLE seconds) the floor's mean upward push is the body's weight within
-                          CARRIED (the body ends near the height it began, so Newton's second law leaves the mean
-                          push its weight)
+    gates    on floor     no collider corner of any body goes into its ground by more than SUNK_MOST, any frame
+             lands        past SETTLE, a foot (Foot, ToeBase) the ground pushes with at least CONTACT of the weight
+                          is within LANDED of the ground under it (its lowest corner's height over the drawn
+                          triangles), every such frame; a body no foot of which ever lands fails
+             carries      over each run (past SETTLE seconds) the ground's mean upward push is the body's weight within
+                          CARRIED (the body starts and ends at rest up and down, so Newton's second law leaves the
+                          mean push its weight, on a slope too)
              follows      each body's joint angles follow its clip's: the mean angle between the sim's and the clip's
                           joint rotation, over joints and frames past SETTLE, at most FOLLOWED degrees
 
-Not here: muscles (they wait on #60), the scene's own geometry under the feet (each body stands on a flat floor at its
-spot's height), a walker's cast path (the clip plays its own root path from the spot), a person's own SOMA shape.
+The root helper (its horizontal path and turn, never its weight) is reported: its largest and mean force.
+
+Not here: muscles (they wait on #60), clips made for the ground (a flat-ground clip meets a step with its toe), a
+walker's cast path (the clip plays its own root path from the spot), a person's own SOMA shape.
 """
 import json
 import os
@@ -36,6 +46,9 @@ import subprocess
 import numpy as np
 
 from score import checks, contracts
+from score.stages import cast as cast_stage
+from score.stages import layer_base
+from score.stages.cast import measure
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 INSIDE = "score/stages/sim_body/inside/sim_body.py"
@@ -53,8 +66,12 @@ VOXEL = 0.01  # metres
 BMI = {"male": 24.5, "female": 24.8}
 # Joint drive per kilogram the joint carries (the segments below it): stiffness N m/rad, damping N m s/rad.
 DRIVE = (300.0, 30.0)
-SETTLE = 0.5  # seconds let pass before the gates read: the body settling onto the floor
+SETTLE = 0.5  # seconds let pass before the gates read: the body settling onto its ground
 SUNK_MOST = 0.02  # metres
+LANDED = 0.02  # metres: a foot further off its ground than this while it carries reads as floating or sunk
+CONTACT = 0.05  # share of the weight a foot's push must reach to count as landed
+REACH = 1.0  # metres round a body's clip path (its segments, across the ground) whose solids it may touch
+FEET = ("Foot", "ToeBase")
 CARRIED = 0.05  # share of the weight
 FOLLOWED = 5.0  # degrees
 
@@ -62,7 +79,8 @@ FOLLOWED = 5.0  # degrees
 def files(place):
     """The trial's script, the Python it runs in and the environment's physics (whose gravity the scene has)."""
     return {"sim script": "{repo}/" + INSIDE, "sim env": "{repo}/" + ENV_SCRIPT,
-            "physics": "{data}/physics/setting.json", "within": "{data}/places/within.json"}
+            "physics": "{data}/physics/setting.json", "within": "{data}/places/within.json",
+            "seed": "{seeds}/usd-r3/{place}", **layer_base.files(place)}
 
 
 # --- the body ------------------------------------------------------------------------------------------------------
@@ -170,6 +188,40 @@ def clip_frames(rig, clip, kept):
     return world[:, kept]
 
 
+# --- the ground ----------------------------------------------------------------------------------------------------
+
+def solids_of(inputs, place):
+    """{solid: its triangles in the place's frame} of the stage the cast is measured on: the seed's base layer with its
+    scene record written in, on the place's made ground (the cast's own reading, cast/measure.solids); no water."""
+    with layer_base.built(inputs) as folder:
+        found = measure.solids(pathlib.Path(folder) / "layers/base.usda", place, cast_stage.made_ground(inputs, place))
+    return {name: tris for name, tris in found.items() if not name.startswith(measure.WATER)}
+
+
+def own_frame(at, turn):
+    """A character's frame in the place's (tools/characters/cast.py placed: its spot, then its turn about up)."""
+    from scipy.spatial.transform import Rotation
+    frame = np.eye(4)
+    frame[:3, :3], frame[:3, 3] = Rotation.from_euler("y", turn, degrees=True).as_matrix(), at
+    return frame
+
+
+def ground_of(solids, worlds, frame):
+    """The triangles a body may touch, in its own frame (n x 3 x 3), and the solids they are of: those whose span
+    across the ground meets its clip's segments' span (`worlds`, its own frame) grown by REACH."""
+    path = np.asarray(worlds)[:, :, [0, 2], 3].reshape(-1, 2)
+    low, high = path.min(axis=0) - REACH, path.max(axis=0) + REACH
+    back = np.linalg.inv(frame)
+    found, names = [], []
+    for name, tris in solids.items():
+        mine = tris @ back[:3, :3].T + back[:3, 3]
+        near = mine[((mine[:, :, [0, 2]].max(axis=1) >= low) & (mine[:, :, [0, 2]].min(axis=1) <= high)).all(axis=1)]
+        if len(near):
+            found.append(near)
+            names.append(name)
+    return (np.concatenate(found) if found else np.zeros((0, 3, 3))), names
+
+
 # --- the run -------------------------------------------------------------------------------------------------------
 
 def ran(job, out):
@@ -196,20 +248,26 @@ def make(inputs, out, seed, params):
     rig = dict(np.load(pathlib.Path(inputs[CLIPS_ROW]) / "rig.npz"))
     segments, kept = body_of(rig)
     body, gravity = gravity_of(place, inputs)
+    solids = solids_of(inputs, place)
     job, records, left_out = {"rate": RATE, "gravity": gravity, "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
     for single in cast["characters"]:
         if f"clip_{single.get('doing')}" not in rig:
             left_out.append(f"{single['name']}: its clip {single.get('doing')!r} is not in the rig")
             continue
+        worlds = clip_frames(rig, single["doing"], kept)
+        ground, under = ground_of(solids, worlds, own_frame(single["at"], single.get("turn", 0.0)))
+        if not len(ground):
+            left_out.append(f"{single['name']}: no solid of the place within {REACH} m of its clip's path to stand on")
+            continue
         mass = mass_of(single, standing_height(rig))
         mine = weighed(segments, mass["kg"])
         targets = out / "clips" / f"{single['name']}.npz"
-        np.savez_compressed(targets, world=clip_frames(rig, single["doing"], kept))
+        np.savez_compressed(targets, world=worlds, ground=ground)
         job["people"].append({"name": single["name"], "segments": mine, "targets": str(targets), "gains": gains(mine)})
         records[single["name"]] = {"clip": single["doing"], "at": single["at"], "turn": single.get("turn", 0.0),
-                                   "mass": mass, "segments": {segment["name"]: round(segment["mass"], 3)
-                                                              for segment in mine}}
+                                   "mass": mass, "ground": {"solids": under, "triangles": len(ground)},
+                                   "segments": {segment["name"]: round(segment["mass"], 3) for segment in mine}}
     if cast.get("crowd"):
         left_out.append(f"{cast['crowd']['name']}: a crowd has no sim bodies (crowds are retiring, #56)")
     run = {"engine": None, "people": {}}
@@ -236,18 +294,30 @@ def angle_between(one, other):
     return np.degrees(turn.magnitude())
 
 
+def landings(frames, weight):
+    """Each landed foot's height over its ground (metres), frame by frame past SETTLE: a foot the ground pushes up with
+    at least CONTACT of the weight."""
+    return [height for frame in frames[int(SETTLE * RATE):] for height, push in frame["feet"].values()
+            if push >= CONTACT * weight and height is not None]
+
+
 def measured(frames, kg, gravity):
-    """A run's gate numbers: its deepest point under the floor, the mean upward push over its weight, the mean and
-    worst angle off the clip (frames past SETTLE), the largest joint torque and root helper force."""
+    """A run's gate numbers: its deepest point into its ground, each landed foot's height off it, the mean upward push
+    over its weight, the mean and worst angle off the clip (frames past SETTLE), the largest joint torque and the root
+    helper's largest and mean force."""
     read = frames[int(SETTLE * RATE):]
     off = np.array([angle_between(frame["angles"], frame["targets"]) for frame in read])
     push = np.mean([frame["ground"][1] for frame in read])
-    return {"deepest": round(-min(0.0, min(frame["lowest"] for frame in frames)), 4),
+    landed = np.abs(landings(frames, kg * gravity))
+    helper = [np.linalg.norm(frame["helper"][:3]) for frame in read]
+    return {"deepest": round(-min(0.0, min(frame["lowest"] for frame in frames if frame["lowest"] is not None)), 4),
+            "landings": len(landed), "mean foot off ground m": round(float(landed.mean()), 4) if len(landed) else None,
+            "worst foot off ground m": round(float(landed.max()), 4) if len(landed) else None,
             "weight N": round(kg * gravity, 2), "mean push N": round(float(push), 2),
             "push over weight": round(float(push / (kg * gravity)), 4),
             "mean off clip deg": round(float(off.mean()), 3), "worst off clip deg": round(float(off.max()), 3),
             "largest torque Nm": round(float(max(np.abs(frame["torques"]).max() for frame in read)), 2),
-            "largest helper N": round(float(max(np.linalg.norm(frame["helper"][:3]) for frame in read)), 2)}
+            "largest helper N": round(float(max(helper)), 2), "mean helper N": round(float(np.mean(helper)), 2)}
 
 
 def bodies_of(output):
@@ -260,20 +330,31 @@ def verdict(name, faults, passed, measures, findings=()):
 
 
 def judge_on_floor(output, inputs, evidence):
-    """Fail a body that went under its floor by more than SUNK_MOST in any frame."""
+    """Fail a body that went into its ground by more than SUNK_MOST in any frame."""
     bodies = bodies_of(output)
-    faults = [f"{name} went {body['measures']['deepest']:.3f} m under its floor" for name, body in bodies.items()
+    faults = [f"{name} went {body['measures']['deepest']:.3f} m into its ground" for name, body in bodies.items()
               if body["measures"]["deepest"] > SUNK_MOST]
-    return verdict("on floor", faults, f"{len(bodies)} bodies, none under the floor by over {SUNK_MOST} m",
+    return verdict("on floor", faults, f"{len(bodies)} bodies, none into its ground by over {SUNK_MOST} m",
+                   {"bodies": len(bodies)})
+
+
+def judge_lands(output, inputs, evidence):
+    """Fail a body a landed foot of which stood more than LANDED off its ground, or none of whose feet ever landed."""
+    bodies = bodies_of(output)
+    faults = [f"{name}: no foot landed on its ground" if not body["measures"]["landings"] else
+              f"{name}: a landed foot {body['measures']['worst foot off ground m']:.3f} m off its ground"
+              for name, body in bodies.items() if not body["measures"]["landings"]
+              or body["measures"]["worst foot off ground m"] > LANDED]
+    return verdict("lands", faults, f"{len(bodies)} bodies, each landed foot within {LANDED} m of its ground",
                    {"bodies": len(bodies)})
 
 
 def judge_carries(output, inputs, evidence):
-    """Fail a body whose floor's mean push is off its weight by more than CARRIED of it."""
+    """Fail a body whose ground's mean push is off its weight by more than CARRIED of it."""
     bodies = bodies_of(output)
-    faults = [f"{name}: the floor pushes {body['measures']['push over weight']:.3f} of its weight"
+    faults = [f"{name}: the ground pushes {body['measures']['push over weight']:.3f} of its weight"
               for name, body in bodies.items() if abs(body["measures"]["push over weight"] - 1.0) > CARRIED]
-    return verdict("carries", faults, f"{len(bodies)} bodies, the floor carries each one's weight within "
+    return verdict("carries", faults, f"{len(bodies)} bodies, the ground carries each one's weight within "
                    f"{CARRIED:.0%}", {"bodies": len(bodies)})
 
 
@@ -295,7 +376,8 @@ def output_faults(folder):
 
 
 CONTRACT = contracts.Contract("sim-body", 1, output_faults, {"length": "metre", "up axis": "Y"})
-CHECKS = (checks.Check("on floor", judge_on_floor), checks.Check("carries", judge_carries),
+CHECKS = (checks.Check("on floor", judge_on_floor), checks.Check("lands", judge_lands),
+          checks.Check("carries", judge_carries),
           checks.Check("follows", judge_follows))
 
 
