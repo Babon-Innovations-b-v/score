@@ -35,6 +35,12 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: drop the `delete_left_by_refusal(...)` call in `create` -> srv-made stays.
 - Deleting something another sweep already deleted is done, not an error (surfaces-bake@wreck, 2026-10-13); any other
   refusal raises. Break: `return False` -> `raise` in `delete`'s `gone_after_failure` branch; or `is_gone` always False.
+- This PC's backend (local.py) costs nothing and orders nothing: every class it serves is offered `parked` at EUR 0,
+  a class beyond its one 16 GB card is refused at once, a kind too big for the card is refused at its claim, one claim
+  holds it at a time, and a delete from another process leaves a claim still held alone.
+  Break: `return not found.group(2) and int(found.group(1)) <= 24` -> `return True` in `serves` -> gpu-80gb is offered.
+  Break: drop `| fcntl.LOCK_NB` handling (return the machine without the lock) in `take` -> a second claim gets it.
+  Break: in `delete`, drop the `except BlockingIOError: ... return False` -> another claim's container is restarted.
 """
 import json
 import pathlib
@@ -386,3 +392,24 @@ def test_a_machine_whose_state_cannot_be_read_is_refused_not_raised(monkeypatch)
         raise subprocess.CalledProcessError(1, ["scw"], "", "server not found")
     monkeypatch.setattr(scaleway, "scw", unreadable)
     assert "server not found" in scaleway.start_if_stopped("id", "pl-waw-2")
+
+
+def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, tmp_path):
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    restarted = []
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: restarted.append(arguments))
+    offers = local.offers(["gpu-80gb", "gpu-24gb", "cpu-32c-128gb", "gpu-24gb-x2"])
+    assert [offer.machine_class for offer in offers] == ["gpu-24gb", "cpu-32c-128gb"]
+    assert {(offer.price, offer.stock_word) for offer in offers} == {(0.0, "parked")}  # batch.rent orders nothing
+    with pytest.raises(SystemExit, match="cloud-only"):
+        local.offers(["gpu-48gb", "gpu-80gb"])
+    with pytest.raises(ValueError, match="30 GB"):
+        local.take("judge", "key")
+    first = local.take("blender", "key")
+    assert first["here"] and first["price"] == 0.0 and first["host"] == "172.17.0.2"
+    assert local.take("blender", "key") is None  # one claim at a time
+    assert local.delete("score-this-pc:another", "this-pc") is False and not restarted  # a watchdog's late delete
+    assert local.delete(first["id"], "this-pc") is True and restarted  # its own claim ends: the container restarted
+    assert local.take("pixal", "key") is not None

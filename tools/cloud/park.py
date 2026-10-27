@@ -243,7 +243,10 @@ def park(machine):
     way leaves it to the caller's delete. A pool card parked is back in its pool (no process holds it); one not
     parked is deleted here and struck off its pool only once that delete went through, so a card mid-delete stays in
     sight of the release and the collector's tidy (review of 2026-10-24); the caller's own delete then finds it gone.
-    Here, not in batch.delete_machine: the pixal and rough-model rows declare batch.py."""
+    Here, not in batch.delete_machine: the pixal and rough-model rows declare batch.py. This PC's machine
+    (SCORE_CLOUD=local) is never parked: its claim ends with the caller's delete."""
+    if machine.get("here"):
+        return False
     parked = park_here(machine)
     if machine.get("pool"):
         import pool
@@ -342,8 +345,10 @@ def taken_machine(run, record, number, now):
 def adopt(run, offers, number, kind, disk_gb, classes=None):
     """A parked machine of `kind` for `run`, of a type and zone `offers` name (a pool machine: of one of `classes`,
     default the offers' own), answering and tagged as the run's; None when there is none. One that does not answer is
-    deleted and the next tried."""
+    deleted and the next tried. Under SCORE_CLOUD=local, this PC's machine while no other claim holds it (`here`)."""
     import pool
+    if hasattr(cloud, "take"):
+        return here(run, number, kind)
     pool_of = os.environ.get(capacity.RUN_ID) if pool.current() else None
     if (kind not in CLEANUPS and not pool_of) or not getattr(run, "deadline", None):
         return None
@@ -376,6 +381,37 @@ def adopt(run, offers, number, kind, disk_gb, classes=None):
         batch.say(f"took the parked {machine['type']} in {machine['zone']} ({machine['folder'].name}), "
                   f"{(record['until'] - now) / 60:.0f} min left before it had to go")
         return machine
+
+
+def here(run, number, kind):
+    """This PC's machine (backends/local.py) for `run`, or None while another claim holds it, so the claim waits and
+    asks again (batch.claim_rounds). Never rented, so no clearance is asked: it costs nothing. Its set-up stays from
+    the last job but for the newest set-up mark (STALE_MARKS); a kind too big for its card is refused (compute's
+    Refused, naming the GB), never run into an out-of-memory."""
+    if not getattr(run, "deadline", None):
+        return None
+    try:
+        found = cloud.take(kind, batch.ssh_key())
+    except ValueError as too_big:
+        raise batch.compute.Refused(str(too_big)) from too_big
+    if found is None:
+        return None
+    now = time.time()
+    folder = run.folder / f"{run.folder.name}-{number}"
+    folder.mkdir(parents=True, exist_ok=True)
+    machine = {**found, "kind": kind, "created": now, "adopted": now, "ready": now, "paid_minutes": 0.0,
+               "folder": folder, "deleted": None, "generating_began": None, "status": {}}
+    machine["watchdog"] = batch.start_watchdog(machine["id"], machine["zone"],
+                                               run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60, folder)
+    try:
+        batch.remote(folder, machine["host"], STALE_MARKS, check=True, capture_output=True, timeout=60)
+    except Exception:
+        batch.delete_machine(machine)
+        raise
+    with getattr(run, "choosing", None) or contextlib.nullcontext():
+        run.machines.append(machine)
+    batch.say(f"took this PC's card ({machine['folder'].name}) for {kind}: EUR 0")
+    return machine
 
 
 def live_of(run):

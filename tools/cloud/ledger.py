@@ -291,8 +291,9 @@ def rent_fees(names):
 
 
 def minutes_allowed(euros_per_minute):
-    """The most minutes a batch may run: the time limit and the batch cap."""
-    by_money = BATCH_EUROS / euros_per_minute
+    """The most minutes a batch may run: the time limit and the batch cap (none on a machine that costs nothing,
+    this PC's card: backends/local.py)."""
+    by_money = BATCH_EUROS / euros_per_minute if euros_per_minute else BATCH_HOURS * 60.0
     return max(0.0, min(BATCH_HOURS * 60.0, by_money))
 
 

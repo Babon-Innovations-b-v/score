@@ -120,6 +120,15 @@ MAKING = "SCORE_MAKING"
 # waits on a block: not cleared, not an error. A node reading one waits on it (FREE_WAITS).
 PAID_LEFT = "not run: paid, left for the Buy"
 FREE_WAITS = "not run: waits on {node}, paid, left for the Buy"
+# A free-only run on this PC's card (SCORE_CLOUD=local, tools/cloud/backends/local.py; owner, 2026-10-27) runs its
+# paid nodes too, with no clearance: their machine work costs nothing there, and every real paid point (Google, a
+# rent, the cluster) refuses with no ticket and under SCORE_FREE_ONLY, so such a node fails, saying what it would buy.
+THIS_PC = ("SCORE_CLOUD", "local")
+
+
+def on_this_pc():
+    """Whether this run's machine work runs on this PC's own card (SCORE_CLOUD=local), where it costs nothing."""
+    return os.environ.get(THIS_PC[0]) == THIS_PC[1]
 
 
 def transient(error):
@@ -789,6 +798,8 @@ class Runner:
         """The node's clearance at `euros` (or at what `forecast()` gives, the stage's own forecast), named for the
         rent points while the block runs; Blocked when refused, and always in a free-only run (a paid gatherer of a
         free node), before the clearance is asked."""
+        if self.free_only and on_this_pc():
+            return contextlib.nullcontext()  # THIS_PC: no ticket, so only this PC's card is free to it
         if self.free_only:
             raise Blocked(f"{node}: a paid step ({euros} EUR) is not cleared in a free-only run: left for the Buy")
         from score.adapters import compute  # here: compute imports this module for its tickets
@@ -1505,7 +1516,7 @@ class Runner:
     def left_for_buy(self, stage, place):
         """In a free-only run, whether a paid node is left for the Buy: it does not already stand accepted (one that
         does is run as any, which finds its record and pays nothing)."""
-        if not (self.free_only and stage.paid):
+        if not (self.free_only and stage.paid) or on_this_pc():
             return False
         with self.still():
             return self.standing(stage, place) is not None

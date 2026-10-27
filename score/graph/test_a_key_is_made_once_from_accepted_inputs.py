@@ -2617,7 +2617,7 @@ def free_runner():
 
 def test_a_free_only_run_runs_its_free_nodes_leaves_its_paid_ones_and_ends_ok_with_its_list(monkeypatch,
                                                                                            run_registry):
-    """Break: score/graph/__init__.py: '        if not (self.free_only and stage.paid):\n            return False' -> '        if True:\n            return False'"""
+    """Break: score/graph/__init__.py: '        if not (self.free_only and stage.paid) or on_this_pc():\n            return False' -> '        if True:\n            return False'"""
     from score import __main__ as command
     monkeypatch.setattr(compute, "clearance", refused_clearance)
     monkeypatch.setattr(command, "opened_pool", refused_clearance)
@@ -2632,6 +2632,23 @@ def test_a_free_only_run_runs_its_free_nodes_leaves_its_paid_ones_and_ends_ok_wi
     said, _, status = run_printing(free_runner(), ["hangar"], free=True)
     assert status.startswith("ok, free-only, 1 free rows stand, 0 failed, 1 paid rows left for the Buy"), said
     assert "  left for the Buy: paint@hangar" in said and "  waits on a paid row: count@hangar" in said, said
+
+
+def test_a_free_only_run_on_this_pcs_card_makes_its_paid_nodes_with_no_ticket(monkeypatch, run_registry):
+    """Break: score/graph/__init__.py: '        if self.free_only and on_this_pc():\n            return contextlib.nullcontext()' -> '        if False:\n            return contextlib.nullcontext()'"""
+    monkeypatch.setattr(compute, "clearance", refused_clearance)
+    monkeypatch.setenv("SCORE_CLOUD", "local")
+    monkeypatch.delenv(compute.TICKET, raising=False)
+
+    def make_paint_here(inputs, out, seed, params):
+        (out / "paint.txt").write_text(f"ticket {os.environ.get(compute.TICKET)}")
+
+    runner = free_runner()
+    runner.stages["paint"] = dataclasses.replace(runner.stages["paint"], make=make_paint_here)
+    found = runner.drive(["hangar"], say=quiet)
+    assert found["paint@hangar"] == ACCEPTED, found  # made, not left for the Buy
+    painted = runner.store.checkout(runner.store.accepted("paint@hangar")) / "paint.txt"
+    assert painted.read_text() == "ticket None"  # no clearance: a real paid point inside it would refuse
 
 
 # --- an optional read the run makes: the people line a place's cast reads ------------------------------------------
