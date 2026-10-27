@@ -1043,6 +1043,16 @@ def test_an_error_an_exit_or_a_missing_input_stops_its_line_with_its_cause_in_th
         assert said.split(": ", 2)[-1] in report and (text is None or "Traceback" in report), report
 
 
+def test_a_make_leaves_no_folder_in_making_however_it_ends():
+    """2026-10-27: the folders of makes that failed stayed in store/cache/making and helped fill the conductor's disk.
+    Break: score/graph/__init__.py: '        finally:\n            gone(out)' -> '        finally:\n            pass'"""
+    runner = a_driven_runner({"hangar": "explode", "station": "a hub"})
+    found = runner.drive(PLACES, say=quiet)
+    assert found["clean@hangar"].startswith("error: RuntimeError") and found["count@station"] == ACCEPTED, found
+    making = runner.store.cache / "making"
+    assert not making.exists() or not list(making.iterdir()), list(making.iterdir())
+
+
 def make_echo(inputs, out, seed, params):
     (out / "echo.txt").write_text(inputs["brief"].read_text())
 

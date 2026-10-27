@@ -481,6 +481,53 @@ def test_disk_names_the_biggest_folders_in_one_line_and_a_file(tmp_path):
     written = json.loads((tmp_path / "conductor" / "disk.json").read_text())
     copy = str(tmp_path / "frozen" / "20261026-081445-1")
     assert written["folders"] and any(line.endswith(f"  {copy}") for line in biggest)
+    deep = tmp_path / "store" / "cache" / "checkouts" / "abc" / "inner"
+    deep.mkdir(parents=True)
+    (deep / "big").write_bytes(b"x" * 300_000)
+    _, biggest = disk.report(tmp_path, tmp_path / "conductor" / "disk.json")
+    assert any(line.endswith(f"  {deep}") for line in biggest[biggest.index(next(
+        line for line in biggest if line.startswith("inside "))):]), biggest  # three levels inside store/cache
+
+
+def a_cache(home):
+    """A home whose store cache holds every kind of folder, all old, and one stored object."""
+    cache = home / "store" / "cache"
+    for name in ("making/k-1", "checkouts/o1", "evidence", "pages/n", "tmpab12", "drops/d", "convex-parts",
+                 "concepts/asked"):
+        (cache / name).mkdir(parents=True)
+        (cache / name / "file").write_text(name)
+    (cache / "checkouts" / "o1" / "file").chmod(0o444)
+    (cache / "making" / "k-1").chmod(0o555)
+    (home / "store" / "objects").mkdir()
+    (home / "store" / "objects" / "blob").write_text("kept")
+    (home / "runs").mkdir()
+    old = time.time() - 2 * disk.YOUNG_SECONDS
+    for path in [*cache.rglob("*")]:
+        os.utime(path, (old, old), follow_symlinks=False)
+    return cache
+
+
+def test_clean_cache_removes_only_what_is_made_again_free_and_only_with_no_run_live(tmp_path):
+    """2026-10-27: 0.2 GB free, store/cache 37.5 GB of checkouts and makes left behind.
+    Break: score/conductor/disk.py: '    if need:\n        return f"a registered run needs' -> '    if False:\n        return f"a registered run needs'"""
+    home = tmp_path / "home"
+    cache = a_cache(home)
+    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
+    said = []
+    done = disk.clean_cache(home, say=said.append)
+    assert done["removed"] == [] and "a registered run needs" in done["refused"] and (cache / "making").exists()
+    (home / "runs" / "w.json").unlink()
+    (cache / "making" / "k-2").mkdir()  # a make started a minute ago
+    assert "a make may be in progress" in disk.clean_cache(home, say=said.append)["refused"]
+    (cache / "making" / "k-2").rmdir()
+    os.utime(cache / "making", (time.time() - 2 * disk.YOUNG_SECONDS,) * 2)
+    done = disk.clean_cache(home, names=("making",), say=said.append)
+    assert done["removed"] == ["making"] and (cache / "checkouts" / "o1").exists(), done
+    done = disk.clean_cache(home, say=said.append)
+    assert sorted(done["removed"]) == ["checkouts", "evidence", "pages", "tmpab12"] and done["refused"] is None, said
+    assert sorted(path.name for path in cache.iterdir()) == ["concepts", "convex-parts", "drops"]
+    assert (home / "store" / "objects" / "blob").read_text() == "kept"
+    assert any(line.startswith(f"kept {cache / 'drops'}: paid drops") for line in said), said
 
 
 def a_copy(repo, folder, name, home):

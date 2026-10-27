@@ -506,9 +506,13 @@ USD_LIMIT = 900  # seconds: about a second a place measured; a stage of millions
 def copies_swept():
     """Every frozen copy no run needs removed (`python -m score.conductor clean-frozen`, score/conductor/disk.py;
     2026-10-26: the conductor's disk filled with the copies of ended runs); its summary line. One it cannot tell
-    about, or a failure, is said in the pass's words, and the pass goes on."""
-    done = step_run([sys.executable, "-m", "score.conductor", "clean-frozen"])
-    return (done.stdout.strip().splitlines() or [f"clean-frozen wrote nothing, exit {done.returncode}"])[-1]
+    about, or a failure, is said in the pass's words, and the pass goes on. Then, with no run live, the makes left in
+    the store cache's making/ (`clean-cache --making-only`: a make killed before it could remove its own)."""
+    said = []
+    for command in (["clean-frozen"], ["clean-cache", "--making-only"]):
+        done = step_run([sys.executable, "-m", "score.conductor", *command])
+        said += (done.stdout.strip().splitlines() or [f"{command[0]} wrote nothing, exit {done.returncode}"])[-1:]
+    return "; ".join(said)
 
 
 def usd_sweep(limit=USD_LIMIT):

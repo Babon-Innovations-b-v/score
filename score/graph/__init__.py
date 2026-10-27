@@ -504,6 +504,17 @@ def scoped(store):
     return store
 
 
+def gone(folder):
+    """Remove a make's folder however the make ended (2026-10-27: failed makes' folders filled store/cache/making; a
+    paid run's finished jobs are kept apart, tools/cloud/kept.py). One a killed make leaves, or one not removable here,
+    the sync pass sweeps once no run is live (score/conductor/disk.py clean-cache --making-only)."""
+    for path in [folder, *pathlib.Path(folder).rglob("*")]:
+        with contextlib.suppress(OSError):  # gone meanwhile: nothing to open up
+            if path.is_dir() and not path.is_symlink():
+                path.chmod(0o755)  # a make may copy a read-only folder in
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 @contextlib.contextmanager
 def making_in(folder):
     """Name the folder a node makes into (MAKING) for its make and the processes it starts, while the block runs."""
@@ -818,14 +829,16 @@ class Runner:
         cleared = self.spending(stage, node, inputs)
         out = self.store.making(keyed["key"])
         started, clock = now(), time.monotonic()
-        with cleared, making_in(out):
-            stage.make(inputs, out, keyed["seed"], keyed["params"])
-        if self.file_keys(stage, place) != keyed["files"]:
-            raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
-        self.unchanged_checkouts(node, inputs, keyed)
-        contracts.stamp(stage.contract, out)
-        output = self.store.put_tree(out)
-        shutil.rmtree(out)
+        try:
+            with cleared, making_in(out):
+                stage.make(inputs, out, keyed["seed"], keyed["params"])
+            if self.file_keys(stage, place) != keyed["files"]:
+                raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
+            self.unchanged_checkouts(node, inputs, keyed)
+            contracts.stamp(stage.contract, out)
+            output = self.store.put_tree(out)
+        finally:
+            gone(out)
         self.drop_kept(node, keyed["key"])
         return self.write_finish(node, keyed, finish_record(node, keyed, output, stage.name, started, clock))
 
@@ -1258,11 +1271,13 @@ class Runner:
         """Make one check's evidence on the node's output and store it (another run's, stored first, stands)."""
         gather, euros = stage.gatherers[name]
         folder = self.store.making(f"evidence-{name}-{output}")
-        with self.cleared(node_name(stage, place), euros) if euros else contextlib.nullcontext():
-            found = gather(self.store.checkout(output), self.input_paths(stage, place, keyed), folder)
-        with contextlib.suppress(FileExistsError):  # another run stored it first: its evidence stands
-            self.store.put_evidence(name, output, found)
-        shutil.rmtree(folder)
+        try:
+            with self.cleared(node_name(stage, place), euros) if euros else contextlib.nullcontext():
+                found = gather(self.store.checkout(output), self.input_paths(stage, place, keyed), folder)
+            with contextlib.suppress(FileExistsError):  # another run stored it first: its evidence stands
+                self.store.put_evidence(name, output, found)
+        finally:
+            gone(folder)
 
     def drive_node(self, stage, place, threads):
         """Run one node, its thread pools capped at `threads` first, gathering the evidence it lacks and judging it

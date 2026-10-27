@@ -4,6 +4,7 @@ about twelve runs had started that day, and the copies of the ones stopped, fail
 
     python -m score.conductor disk           # one summary line, the biggest folders, the whole list in conductor/disk.json
     python -m score.conductor clean-frozen   # remove every frozen copy no run needs; what it freed, one line a copy
+    python -m score.conductor clean-cache [--making-only]   # with no run live, the store cache's free-to-remake folders
 
 launch_refusal() is `score run`'s check before it makes its copy: a run is refused while the disk has under FLOOR_GB
 free. health.read() carries FLOOR_GB and warning() (a note on the Machine card).
@@ -20,6 +21,14 @@ removes a dead copy's worktree with `git worktree remove --force` from the check
 copy git cannot remove is deleted and pruned), closes its home (frozen.home_closed: an entry the run made at its top level moves into the real
 home) and removes the home, which by then holds links only; never the store, the design or anything a link points
 at. `score resume` (boot) and the sync pass run it.
+
+clean-cache (2026-10-27: 0.2 GB free, store/cache 37.5 GB) removes the store cache's folders that are made again for
+free (CLEARED, each with why) and keeps the rest (KEPT: paid drops, the convex parts a paid drop's key reads; the
+review areas' yes tickets, logs and locks and any folder it does not know). It runs only with no run live: none
+`needed`, no process working in a frozen copy or in a folder it would clear, nothing in making/ touched for
+YOUNG_SECONDS; otherwise it refuses with the reason and removes nothing. work/pixal is never touched: it holds the paid
+Pixal3D takes (raw model, close-up and camera, finished model) that the pixal row's gate counts and the surface line
+reads as declared inputs, kept nowhere else, so a removed take is bought again. The sync pass runs it --making-only.
 """
 import datetime
 import json
@@ -37,6 +46,16 @@ from score.store import PROPS_HOME
 FLOOR_GB = 10  # under this many GB free no run starts, and the Machine card warns
 YOUNG_SECONDS = 15 * 60  # a copy younger than this may be one a run is still making
 SHOWN = 20  # folders `disk` prints; the rest are in its file
+DEEP = ("store/cache", "work/pixal")  # measured three levels down: what fills them (2026-10-27: 37.5 and 20.5 GB)
+# The store cache's folders made again for free, and why; `tmp*` is a gate's scratch (settling's TemporaryDirectory).
+CLEARED = {"making": "makes in progress, orphaned once no run lives (a make removes its own as it ends)",
+           "checkouts": "read-only copies of stored outputs, made again from store/objects on the next read",
+           "evidence": "copies of evidence kept in store/objects, fetched again on the next read",
+           "pages": "review pages, written again each time one is opened",
+           "tmp*": "a gate's scratch, removed by the gate as it ends"}
+KEPT = {"drops": "paid drops read back so a drop is never bought twice",
+        "convex-parts": "CoACD's parts are seeded, but a paid drop's key hashes them: a recompute not byte-equal buys "
+                        "the drop again"}
 REPO = pathlib.Path(__file__).resolve().parents[2]  # the checkout, measured when on the home's disk
 
 
@@ -81,20 +100,21 @@ def du(root, depth):
 
 
 def roots(home=None):
-    """{root: depth} measured: the home two levels down (frozen/<copy>, store/objects, store/cache, ...), and the
-    checkout and the user's cache (the backup's restic cache) when they are on the home's disk."""
+    """{root: depth} measured: the home two levels down (frozen/<copy>, store/objects, store/cache, ...), DEEP three
+    levels down, and the checkout and the user's cache (the backup's restic cache) when they are on the home's disk."""
     home = pathlib.Path(home or PROPS_HOME)
     device = home.stat().st_dev
     extra = [REPO, pathlib.Path.home() / ".cache"]
-    return {home: 2, **{root: 1 for root in extra if root.is_dir() and root.stat().st_dev == device
-                        and not root.is_relative_to(home)}}
+    return {home: 2, **{home / deep: 3 for deep in DEEP if (home / deep).is_dir()},
+            **{root: 1 for root in extra if root.is_dir() and root.stat().st_dev == device
+               and not root.is_relative_to(home)}}
 
 
 def report(home=None, out=None):
     """Measure the disk (roots), write every folder's size to `out` (conductor/disk.json), biggest first; (summary
     line, the SHOWN biggest lines)."""
     home = pathlib.Path(home or PROPS_HOME)
-    sizes = sorted((pair for root, depth in roots(home).items() for pair in du(root, depth)), reverse=True)
+    sizes = sorted({pair for root, depth in roots(home).items() for pair in du(root, depth)}, reverse=True)
     usage = shutil.disk_usage(home)
     out = pathlib.Path(out or conductor.HOME / "disk.json")
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -105,7 +125,11 @@ def report(home=None, out=None):
     copies = [count for count, path in sizes if pathlib.Path(path).parent == home / "frozen"]
     summary = (f"disk: {usage.free / 1024 ** 3:.1f} GB free of {usage.total / 1024 ** 3:.0f} GB; "
                f"{len(copies)} frozen copies and homes hold {sum(copies) / 1024 ** 3:.1f} GB; every folder in {out}")
-    return summary, [f"{count / 1024 ** 3:8.2f} GB  {path}" for count, path in sizes[:SHOWN]]
+    inside = [(count, path) for count, path in sizes if any(
+        pathlib.Path(path).is_relative_to(home / deep) and pathlib.Path(path) != home / deep for deep in DEEP)]
+    return summary, [f"{count / 1024 ** 3:8.2f} GB  {path}" for count, path in sizes[:SHOWN]] + \
+        [f"inside {' and '.join(DEEP)}, three levels down:"] + \
+        [f"{count / 1024 ** 3:8.2f} GB  {path}" for count, path in inside[:SHOWN]]
 
 
 # --- clean-frozen: the copies no run needs ---------------------------------------------------------------------------
@@ -232,3 +256,67 @@ def clean(home=None, runs_folder=None, say=print):
         say(f"removed {name}")
     done["freed_gb"] = round(free_gb(home) - before, 2)
     return done
+
+
+# --- clean-cache: the store cache's folders made again for free -----------------------------------------------------
+
+def newest(folder):
+    """Seconds since anything under `folder` last changed (itself included); None when it is not there."""
+    folder = pathlib.Path(folder)
+    if not folder.is_dir():
+        return None
+    return time.time() - max([folder.lstat().st_mtime, *(path.lstat().st_mtime for path in folder.rglob("*"))])
+
+
+def cleared(cache, names):
+    """[(path, why)] of the cache's top folders matching one of `names` (CLEARED's keys)."""
+    return [(path, CLEARED[name]) for name in names for path in sorted(pathlib.Path(cache).glob(name))
+            if path.is_dir() and not path.is_symlink()]
+
+
+def cache_refusal(home, runs_folder, cache, targets):
+    """Why the cache may not be cleared now (a run may be live, a make in progress), or None; Unprovable when a run
+    entry, the claims file or a process cannot be read."""
+    need = needed(runs_folder)
+    if need:
+        return f"a registered run needs {', '.join(sorted(need))}"
+    busy = working((home / "frozen").resolve())
+    if busy:
+        return f"processes work in frozen copies: {busy}"
+    names = {path.name for path, _ in targets}
+    busy = {name: pids for name, pids in working(cache.resolve()).items() if name in names}
+    if busy:
+        return f"processes work in the cache: {busy}"
+    touched = newest(cache / "making")
+    if touched is not None and touched < YOUNG_SECONDS:
+        return f"{cache / 'making'} changed {touched / 60:.0f} minutes ago: a make may be in progress"
+    return None
+
+
+def remove_tree(path):
+    """Remove a folder whatever its folders' modes (a make may copy a read-only one); links are not followed."""
+    for folder in [path, *path.rglob("*")]:
+        if folder.is_dir() and not folder.is_symlink():
+            folder.chmod(0o755)
+    shutil.rmtree(path)
+
+
+def clean_cache(home=None, runs_folder=None, names=tuple(CLEARED), say=print):
+    """With no run live (cache_refusal), remove the store cache's folders in `names` (CLEARED's), each said with why,
+    and say each one kept (KEPT's, or not known); {removed, refused, freed_gb}. Unprovable when it cannot tell."""
+    home = pathlib.Path(home or PROPS_HOME)
+    cache = home / "store" / "cache"
+    targets = cleared(cache, names)
+    refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), cache, targets)
+    if refused:
+        return {"removed": [], "refused": refused, "freed_gb": 0.0}
+    before, removed = free_gb(home), []
+    for path, why in targets:
+        remove_tree(path)
+        removed.append(path.name)
+        say(f"removed {path}: {why}")
+    known = {path.name for path, _ in cleared(cache, CLEARED)}
+    for path in sorted(cache.iterdir()) if cache.is_dir() else []:
+        if path.name not in known:
+            say(f"kept {path}: {KEPT.get(path.name, 'not known to be made again for free')}")
+    return {"removed": removed, "refused": None, "freed_gb": round(free_gb(home) - before, 2)}
