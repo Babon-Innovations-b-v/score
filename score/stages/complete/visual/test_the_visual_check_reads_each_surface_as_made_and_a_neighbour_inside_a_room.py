@@ -1,8 +1,15 @@
-"""The visual check: the surfaces it reads off a stage are the ones the stage holds, and a neighbour standing inside
-a room is found. (Its fixture of the old concepts' films, data/checks/visual, was retired with them on 2026-10-21; a
-fixture is measured again from today's films with measure.gather.)
+"""Invariant: the visual check reads each surface of a stage as it was made (textured, a texture missing, a plain
+colour, no material), and finds a neighbour standing inside a room but not one meeting its wall from outside. (Its
+fixture of the old concepts' films, data/checks/visual, was retired with them on 2026-10-21; a fixture is measured
+again from today's films with measure.gather.)
 
-Run: .venv/bin/python score/stages/complete/visual/visual_test.py
+Breaks that turn this red (each applied once and seen red, then reverted):
+- seen.material_kind: the unresolved-texture check dropped -> kinds_read_off_a_stage (lost_1 read as textured)
+- seen.material_kind: a material with no texture always the default grey -> kinds_read_off_a_stage (Outside/near)
+- room.INSET: 0.25 -> -0.1 (a point on or just outside the shell counts) -> neighbours_read_inside_a_room
+- room.intrusions: `inside = depths > INSET` -> `depths > 2.0` (only a point deep past the middle) -> neighbours_read_inside_a_room
+
+Run: .venv/bin/python score/stages/complete/visual/test_the_visual_check_reads_each_surface_as_made_and_a_neighbour_inside_a_room.py
 """
 import pathlib
 import sys

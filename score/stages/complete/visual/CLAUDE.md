@@ -19,4 +19,4 @@ trimesh, read only), no Blender, no cloud. `judge.py`'s docstring has the rules.
 - The fixture of real evidence (`data/checks/visual/<place>/`, the old concepts' films) was retired with those places
   on 2026-10-21; the test holds the surfaces read off a stage and a neighbour inside a room. Measure a place again with
   `measure.gather` when the rules need a case of real evidence.
-- Test: `visual_test.py`.
+- Test: `test_the_visual_check_reads_each_surface_as_made_and_a_neighbour_inside_a_room.py`.
