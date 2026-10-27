@@ -342,8 +342,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **A path a job names reaches the same place up there as here** (`inputs.link_named`, for a job's inputs and its
   outputs): every link on its way (a frozen run's `<copy>.home/store`, a take's `work/pixal` file link) is made a link
   on the machine, never a folder of file links; a job whose script ended well and brought none of its outputs back is
-  a failed job (`blender_cloud.one_job`), and `--report <path>` writes each job's outputs and error (fault of
-  2026-10-27: surfaces-bake@campgrounds' paint and bake wrote every take into a second making folder up there).
+  a failed job (`blender_cloud.one_job`; fault of 2026-10-27: surfaces-bake@campgrounds' paint and bake wrote every
+  take into a second making folder up there, and the jobs counted done).
 - **A Blender job's big inputs go up once, through the bucket** (`inputs.py`, `input_fetch.py`; 2026-10-10, after two
   review-page machines waited about 2 hours for inputs while ten agents sent over this PC's ~3 MB/s link, the same
   438 MB of parts to several machines): an input of 8 MB or more is tarred the same way from the same files, named
