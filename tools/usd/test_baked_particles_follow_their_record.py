@@ -4,7 +4,7 @@ their seed; Godot's spread and flatness; the effects layer composes between the 
 clip over the stage's time, puts a variant's entries in its variant and makes a replaced prim inactive; a travelling
 emitter moves downwind; on a place's ball the wind lies along the ground at every spot.
 
-Run: .venv/bin/python tools/usd/effects_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_baked_particles_follow_their_record.py   (make tests runs it with the framework's environment)
 """
 import math
 import pathlib
@@ -26,7 +26,7 @@ def box_emitter(**changes):
                "extents": [0.5, 0.5, 0.5]}, "count": 300, "lifetime": 2.0, "direction": [1.0, 0.0, 0.0],
                "spread": 0.0, "speed": [1.5, 1.5], "size": 0.03, "colour": "#e16e48", "opacity": 0.7,
                "opacity_over_life": [[0.0, 0.0], [0.2, 1.0], [0.7, 1.0], [1.0, 0.0]], "seed": 5,
-               "origin": np.zeros(3), "basis": np.eye(3), "from": "made in effects_test.py"}
+               "origin": np.zeros(3), "basis": np.eye(3), "from": "made in test_baked_particles_follow_their_record.py"}
     emitter.update(changes)
     return emitter
 
@@ -130,7 +130,7 @@ def test_layer_composes_and_loops():
         assert np.allclose(where, [1.1, 1.5, 1.8], atol=1e-6), where  # 0.2 ahead of an eye looking down -z
         assert smoke.GetAttribute("score:effect:look").Get() == "puff"
         assert smoke.GetAttribute("score:effect:count").Get() == 300
-        assert smoke.GetAttribute("score:effect:from").Get() == "made in effects_test.py"
+        assert smoke.GetAttribute("score:effect:from").Get() == "made in test_baked_particles_follow_their_record.py"
         assert (out / effects.ASSETS / "smoke.usdc").exists()
         stage.GetPrimAtPath("/spot/Effects").GetVariantSets().GetVariantSet("weather").SetVariantSelection("storm")
         assert stage.GetPrimAtPath("/spot/Effects/storm_drift/storm_drift_points")
@@ -153,7 +153,7 @@ def test_a_rider_moves_with_its_prim_and_lights_when_it_starts():
     record = {"place": "pad", "effects": [dict(box_emitter(name="flame", count=50, lifetime=0.5), starts=1.0,
                                                placement={"on": "Fixtures/rocket", "offset": [0.0, -1.0, 0.0]})],
               "lights": [{"name": "glow", "on": "Fixtures/rocket", "colour": "#ffb877", "shadows": False,
-                          "intensity": [[0.0, 0.0], [1.0, 0.0], [1.5, 1000.0]], "from": "made in effects_test.py"}]}
+                          "intensity": [[0.0, 0.0], [1.0, 0.0], [1.5, 1000.0]], "from": "made in test_baked_particles_follow_their_record.py"}]}
     with tempfile.TemporaryDirectory() as folder:
         out = stage_folder("pad", folder)
         base = Usd.Stage.Open(str(out / "layers/base.usda"))

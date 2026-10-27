@@ -1,7 +1,7 @@
 """Check the completion gate's contents checks (contents.py) both ways, on a place made here with its own world data:
 each passes on a place that holds what it should and fails (or is unknown, which blocks) on one that does not.
 
-Run: .venv/bin/python tools/usd/contents_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_each_contents_check_passes_what_holds_and_fails_what_lacks.py   (make tests runs it with the framework's environment)
 """
 import json
 import os

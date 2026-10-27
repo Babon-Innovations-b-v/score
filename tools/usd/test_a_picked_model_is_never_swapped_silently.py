@@ -6,7 +6,7 @@ locked like a laid one, standing on another object too; a neighbour seen through
 the place's own; and a close-up's mask and the outline score
 read a plain picture right.
 
-Run: .venv/bin/python tools/usd/picks_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_picked_model_is_never_swapped_silently.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -23,8 +23,8 @@ import compare  # noqa: E402
 import complete  # noqa: E402
 import export  # noqa: E402
 import picks  # noqa: E402
-import resting_test  # noqa: E402
-import triage_test  # noqa: E402
+import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # noqa: E402
+import test_only_real_resting_faults_are_kept as triage_test  # noqa: E402
 
 PLACE = resting_test.PLACE
 

@@ -8,5 +8,6 @@ rule had drifted). `check.py` is the way in; `make tests` runs it first and fail
   tool folders, the break line).
 - **The allowlist is dated and only shrinks.** It holds the modules other agents' sweeps were still reworking on
   2026-10-26; a sweep removes its own entries when it lands. Never add a module to dodge a fault: fix the tests.
-- **A flat tool folder** (`FLAT_TOOL_FOLDERS`: tools/cloud, tools/props, tools/review) counts each top-level tool script
-  as a module, and a top-level test file belongs to the script its docstring names first: name the driven script first.
+- **A flat tool folder** (`FLAT_TOOL_FOLDERS`: tools/cloud, tools/props, tools/review, tools/usd) counts each top-level
+  tool script as a module, and a top-level test file belongs to the script its docstring names first: name the driven
+  script first.

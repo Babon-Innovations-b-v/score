@@ -3,7 +3,7 @@ drops onto its top, a box slid toward a wall stops touching it without going in 
 box and stands on the floor, the same seed gives the same spot, and a snapped pose written into the layout is where
 the exported stage lays the box.
 
-Run: .venv/bin/python tools/usd/snap_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_snapped_object_rests_touching_and_never_inside.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -17,10 +17,10 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import collide  # noqa: E402
 import export  # noqa: E402
-import export_test  # noqa: E402
-import settle_test  # noqa: E402
+import test_a_creators_edit_survives_a_regenerated_base as export_test  # noqa: E402
+import test_a_settled_pose_is_written_back_within_its_limits as settle_test  # noqa: E402
 import snap  # noqa: E402
-import triage_test  # noqa: E402
+import test_only_real_resting_faults_are_kept as triage_test  # noqa: E402
 
 PLACE = triage_test.PLACE
 

@@ -6,7 +6,7 @@ kept as laid.
 Break that turns it red (applied once, seen red, reverted, 2026-10-26): laid_where_it_lands without its
 `supports[0] not in hollow` test (a one-hull support's faller laid where it lands).
 
-Run: .venv/bin/python score/stages/settling/settling_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -21,7 +21,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 from pxr import Usd, UsdGeom  # noqa: E402
 from score import checks, review  # noqa: E402
 from score.stages import assembly, settling as settle  # noqa: E402
-import resting_test  # noqa: E402
+import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # noqa: E402
 
 PLACE = resting_test.PLACE
 

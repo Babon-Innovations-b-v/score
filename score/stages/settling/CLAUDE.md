@@ -27,4 +27,4 @@ settle.py, whose readers a snap edit would otherwise move) and the drop's Blende
   it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script and stage). A drop
   is one rented processor machine, about 30 minutes for the hangar (EUR 0.59 on 2026-10-12).
 - Run the proof with `python -m score run world1 --place <place> --stage settle --detach` in the background; it reads
-  only terrain. `settling_test.py` checks the layer and the drop gate without a drop.
+  only terrain. `test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py` checks the layer and the drop gate without a drop.

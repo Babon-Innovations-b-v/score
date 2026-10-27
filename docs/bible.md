@@ -646,9 +646,9 @@ The house standard for a module, so a reader can predict the shape of code they 
 - **The guard enforces this** (owner, 2026-10-26: the rule had drifted). `tools/test_rule/check.py`, run first by `make
   tests`, fails on a module with more than one test file, a test file not named `test_<invariant>.py`, or one whose
   docstring names no break. A module is the directory a test file sits in, a `tests/` folder counting as its parent's;
-  in the flat tool folders (`tools/cloud`, `tools/props`, `tools/review`) each tool script is a module and a top-level
-  test belongs to the script its docstring names first. Its dated allowlist holds only the modules a sweep was still
-  reworking on 2026-10-26, and only shrinks.
+  in the flat tool folders (`tools/cloud`, `tools/props`, `tools/review`, `tools/usd`) each tool script is a module and
+  a top-level test belongs to the script its docstring names first. Its dated allowlist holds only the modules a sweep
+  was still reworking on 2026-10-26, and only shrinks.
 - **A test file runs in under 2 minutes (hard rule, owner 2026-10-21).** A small fixture world built once per file,
   never the real store or home, no machine, no network, no whole-store walk, no sleeps. `make tests` fails a file at
   `TEST_SECONDS` (120).

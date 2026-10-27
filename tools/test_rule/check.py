@@ -28,7 +28,7 @@ import sys
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
 # Folders of independent command-line tools: each top-level tool script is a module of its own.
-FLAT_TOOL_FOLDERS = ("tools/cloud", "tools/props", "tools/review")
+FLAT_TOOL_FOLDERS = ("tools/cloud", "tools/props", "tools/review", "tools/usd")
 
 # Modules still being swept by other agents on 2026-10-26: skipped until their sweep empties the entry.
 ALLOWLIST_DATE = "2026-10-26"

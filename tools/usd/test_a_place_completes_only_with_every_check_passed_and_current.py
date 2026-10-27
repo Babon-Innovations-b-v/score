@@ -5,7 +5,7 @@ fails the made-only check; a check that cannot run is unknown; the review page's
 place missing what its cast says fails on its contents; and a failing reach is shown, the gate counting only that it
 was recorded.
 
-Run: .venv/bin/python tools/usd/complete_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_place_completes_only_with_every_check_passed_and_current.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -22,11 +22,11 @@ import complete  # noqa: E402
 sys.path.insert(0, str(HERE.parents[1]))
 from score import checks  # noqa: E402
 import contents  # noqa: E402
-import contents_test  # noqa: E402
+import test_each_contents_check_passes_what_holds_and_fails_what_lacks as contents_test  # noqa: E402
 import made_only  # noqa: E402
 import page  # noqa: E402
-import resting_test  # noqa: E402
-import triage_test  # noqa: E402
+import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # noqa: E402
+import test_only_real_resting_faults_are_kept as triage_test  # noqa: E402
 
 # The test's places have no stage outputs in the framework's store: the contents checks read none until a test lays a
 # place (`laid` gives its finished outputs).

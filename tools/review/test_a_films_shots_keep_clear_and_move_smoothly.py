@@ -1,6 +1,6 @@
 """Check the demo's shots: the owner's picked viewpoints are a film's cameras where he picked any; a camera looking up
 at a roof is left out, the cameras kept are spread over the record's list; on two rooms made here
-(tools/usd/camera_paths_test.py) a shot whose camera looks through the wall into the other room walks towards it only as
+(tools/usd camera_paths.py's test) a shot whose camera looks through the wall into the other room walks towards it only as
 far as is clear, at eye height, every step clear, and keeps looking that way; a view held near level; a walk in a room
 keeps to its recorded floor, glides at one speed between its eased ends and rounds its corners; a camera held far over
 every floor, or one that says stand, stands; a standing shot turns in place;
@@ -41,7 +41,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import demo  # noqa: E402
 import camera_paths  # noqa: E402  (tools/usd, on the path through demo)
-import camera_paths_test  # noqa: E402
+import test_a_walk_goes_through_doorways_clear_of_everything as camera_paths_test  # noqa: E402
 
 
 def camera(name, eye, aim):
@@ -52,7 +52,7 @@ WORLD = []  # (stage, its rooms' scenes), made once for the file
 
 
 def rooms():
-    """Two rooms side by side (tools/usd/camera_paths_test.py), made once: (stage, scenes)."""
+    """Two rooms side by side (tools/usd camera_paths.py's test), made once: (stage, scenes)."""
     if not WORLD:
         stage = camera_paths_test.rooms_stage(pathlib.Path(tempfile.mkdtemp()))
         WORLD.append((stage, camera_paths.place_scenes(stage)))

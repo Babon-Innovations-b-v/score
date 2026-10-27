@@ -4,7 +4,7 @@ stage is in metres with y up and every object has a static collider; a model bak
 part on each map with that map's pictures; a kit room's pieces stand in their own frames
 as the game lays them, a glowing part named apart from its host, its parts read from its bake job.
 
-Run: .venv/bin/python tools/usd/export_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_creators_edit_survives_a_regenerated_base.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib

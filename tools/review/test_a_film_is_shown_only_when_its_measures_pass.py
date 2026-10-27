@@ -1,5 +1,5 @@
 """Check the film checks on films made here: a short video with a tone passes the video checks and fails them when too
-short or silent; on two rooms with a person standing in one (tools/usd/camera_paths_test.py) a shot whose eye walks
+short or silent; on two rooms with a person standing in one (tools/usd camera_paths.py's test) a shot whose eye walks
 through the person fails, as the square's first take walked through its crowd, and so does one that passes 0.1 m from
 a wall, while a shot clear of both passes; a frame with no ink lines fails, and so does a shot whose lines touch
 nothing in any frame, and a frame whose lines are faint or empty (a far view) fails unless the experimental
@@ -26,7 +26,7 @@ from PIL import Image
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import film_checks  # noqa: E402
-import camera_paths_test  # noqa: E402  (tools/usd, on the path through demo)
+import test_a_walk_goes_through_doorways_clear_of_everything as camera_paths_test  # noqa: E402  (tools/usd, on the path through demo)
 
 
 def a_folder():

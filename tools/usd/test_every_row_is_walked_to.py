@@ -4,7 +4,7 @@ stair of 0.2 m steps leads up to it; a place's own door leaves are walked to, th
 object is unknown, which blocks; a dropped row is not walked to;
 and the gate runs it as the `reach` check.
 
-Run: .venv/bin/python tools/usd/reach_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_every_row_is_walked_to.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -15,12 +15,12 @@ import trimesh
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import camera_paths_test  # noqa: E402
+import test_a_walk_goes_through_doorways_clear_of_everything as camera_paths_test  # noqa: E402
 import complete  # noqa: E402
-import export_test  # noqa: E402
+import test_a_creators_edit_survives_a_regenerated_base as export_test  # noqa: E402
 import reach  # noqa: E402
-import resting_test  # noqa: E402
-import triage_test  # noqa: E402
+import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # noqa: E402
+import test_only_real_resting_faults_are_kept as triage_test  # noqa: E402
 
 BLOCK_HIGH = 2.4
 RISE, TREAD = 0.2, 0.3

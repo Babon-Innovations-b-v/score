@@ -1,7 +1,7 @@
 """Check the framework's own shaders (tools/usd/shaders.py) without Blender: a shell surface with a library tile is
 drawn with it, repeated along its metres; one the tiles lack keeps the library's flat surface.
 
-Run: .venv/bin/python tools/usd/shaders_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_shell_is_drawn_with_its_library_tile.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -63,7 +63,7 @@ def check_the_tile_look(folder):
 def main():
     with tempfile.TemporaryDirectory() as folder:
         check_the_tile_look(pathlib.Path(folder))
-    print("shaders_test: ok")
+    print("test_a_shell_is_drawn_with_its_library_tile: ok")
 
 
 if __name__ == "__main__":

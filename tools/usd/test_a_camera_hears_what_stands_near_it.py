@@ -8,7 +8,7 @@ floor it lies on, and with no finish under the feet as nothing; every track is
 mixed at the one gain, so a quieter stage stays quieter, its peak under the ceiling; and a bed is what the camera hears
 standing before its first moment.
 
-Run: .venv/bin/python tools/usd/hearing_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_camera_hears_what_stands_near_it.py   (make tests runs it with the framework's environment)
 """
 import os
 import pathlib
@@ -219,7 +219,7 @@ def main():
         check_what_is_heard(sound, hearing, folder / "stage")
         check_the_footsteps(sound, hearing, folder / "stage")
         check_one_level(sound, hearing, folder / "stage")
-    print("hearing_test: ok")
+    print("test_a_camera_hears_what_stands_near_it: ok")
 
 
 if __name__ == "__main__":

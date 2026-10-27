@@ -5,7 +5,7 @@ spatial loop at the console at its level's gain, a library surface points at its
 copied into the stage and found from the layer, and the base is untouched; and the soundtrack hears a spatial sound
 louder near it and on the side it stands.
 
-Run: .venv/bin/python tools/usd/sound_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_each_sound_is_laid_where_and_how_it_plays.py   (make tests runs it with the framework's environment)
 """
 import os
 import pathlib
@@ -149,7 +149,7 @@ def main():
         check_the_layer(sound, folder / "stage")
         check_the_soundtrack(sound, folder / "stage")
         check_the_rounds(sound)
-    print("sound_test: ok")
+    print("test_each_sound_is_laid_where_and_how_it_plays: ok")
 
 
 if __name__ == "__main__":
