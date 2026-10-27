@@ -115,7 +115,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
   test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own.
 - `size_of`: `person_sized` not asked (`if origin:`)  ->
   test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size (the crowd's extent as one person).
-- `drawn_from`: the tallest box read with `min`  -> test_each_line_row_is_drawn_from_the_person_that_maps_it.
+- score/stages/people_refresh.py `drawn_from`: the tallest box read with `min`  -> test_each_line_row_is_drawn_from_the_person_that_maps_it.
 - `described`: the spec's description left out (`"name": clothes`)  ->
   test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size (the line's data no longer as rows.json writes it).
 - score/stages/props/closeup_row.py `inventory_rows`: the words the clothes alone (`row.get("clothes", row["name"])`)
@@ -276,7 +276,7 @@ from score import checks, contracts, graph, review, stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.graph import _code  # noqa: E402
 from score.stages import (batch_gaps, design_layers, gaps, layer_base, moved, natural_grounds,  # noqa: E402
-                          people_rows, row_kinds)
+                          people_refresh, people_rows, row_kinds)
 from score.stages.surfaces import route_views  # noqa: E402
 from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 import score.stages.props.pixal_row as pixal_row  # noqa: E402
@@ -865,10 +865,10 @@ def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size(tmp_path):
             path = tmp_path / f"{place}.json"
             held = json.loads(path.read_text()) if path.exists() else {"rows": []}
             path.write_text(json.dumps({"rows": held["rows"] + [{"id": row_id, "box": row["box"]}]}))
-    props, inventory, surfaces = people_rows.line_rows(people_rows.read(), records["props"], records["inventory"],
+    props, inventory, surfaces = people_refresh.line_rows(people_rows.read(), records["props"], records["inventory"],
                                                        records["surfaces"], tmp_path)
     assert (props, inventory, surfaces) == (records["props"], records["inventory"], records["surfaces"]), \
-        "the line's data is not written from rows.json: run python -m score.stages.people_rows"
+        "the line's data is not written from rows.json: run python -m score.stages.people_refresh"
     assert set(props["objects"]) == people_rows.every_look()  # every look the designs map, each on the line
     assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"]) == set(props["objects"])
     assert people_rows.size_of("person_uniform-made")[1] == "tube/person_right"  # the larger of the tube's two rows
@@ -893,7 +893,7 @@ def test_each_line_row_is_drawn_from_the_person_that_maps_it():
         boxes = [[number, 0, number + 1, 2 + number % 3] for number in range(5)]
         (kept / "garage.json").write_text(json.dumps({"rows": [{"id": "astronaut", "box": boxes[0],
                                                                  "boxes": boxes}]}))
-        props, inventory, _ = people_rows.line_rows(people_rows.read(), records["props"], records["inventory"],
+        props, inventory, _ = people_refresh.line_rows(people_rows.read(), records["props"], records["inventory"],
                                                     records["surfaces"], kept)
     rows = {row["id"]: row for row in inventory["rows"]}
     right = rows["person_uniform-made"]

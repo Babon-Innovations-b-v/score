@@ -24,6 +24,11 @@ the gates.
   their plan items (`cut_for`, `row_openings`: the earth seed's from the design inventory, the scene record's from
   the hand-in; the library holds no door or window, so their models come by the prop route). No special case by
   place name.
+- **Which parts a shell lays is named without building it** (`score/stages/shell_parts.py`: `laid_for`, `encloses`,
+  `parts`, held equal to the pieces by the test). A row that only asks which parts there are (the scene library's
+  `shell_kinds`, the surface tiles) reads that, never `design_shell`, so a change to how a part is built keys only
+  the rows that build or measure it (2026-10-27: the dome change keyed the people, sound and palette rows through
+  such imports). Keep it so: check `python -m score.stages.moved` before an import of this folder elsewhere.
 - **Each part's surface is the scene's own surface library's** (surface-library@<place>, its `materials.json`, read
   as an `after`; a place with no surface line reads without it): the first variant its `kinds` gives the part's kind
   (`PART_KINDS`, palette_library.SHELL_KINDS: a deck the floor's, a wall the wall's, a roof the roof's else the

@@ -29,7 +29,7 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   pose; its gate is `check.person_faults` (framed, arms clear of the body: Pixal3D fused Nev's), not a box's
   proportions (the rig sizes the body). **The line holds the looks the locked designs map** (`data/people/rows.json`,
   `../people_rows.py`, #26): each look's size and bake entry the metres of the person row that maps it, written by
-  `python -m score.stages.people_rows`; one body a look (owner, 2026-10-22): rows are grouped into looks by what
+  `python -m score.stages.people_refresh`; one body a look (owner, 2026-10-22): rows are grouped into looks by what
   they are and wear (`people_rows.look_of`: `astronaut-made`, `worker_jumpsuit-made`, a crowd's `crowd-made`; pose
   and colour vary a look through its clip and dress, a named person or the player is `<place>_<row>-made`), the
   outfit `made` the route's made body and face (`route_head.FACE`; `drawn` is the owner's open choice there, never

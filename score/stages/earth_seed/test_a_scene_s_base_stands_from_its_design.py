@@ -200,6 +200,19 @@ def test_a_dome_roof_stands_as_a_dome():
     assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, "the record's dome is not the seed's"
 
 
+def test_the_parts_a_shell_lays_are_named_without_building_it():
+    """2026-10-27: the scene library and the surface tiles asked which parts a shell lays by building it, so every
+    change to how a part is built keyed them (and the people, sound and palette rows behind them). shell_parts.parts
+    names them from the plan's words alone, the same kinds design_shell's pieces and levels lay.
+    Break: score/stages/shell_parts.py: `walled = len({(float(x), float(y)) for x, y in corners}) > 1` -> `walled = False`"""
+    from score.stages import shell_parts
+    domed = dict(ROOM, roofs=[{"kind": "dome", "points": BOX, "eave": 2.5, "top": 4.0}])
+    for plan in (ROOM, OPEN, domed, dict(OPEN, levels=OPEN["levels"][:1]), dict(ROOM, shell="domed", inside=None)):
+        laid = design_shell.pieces(plan) if design_shell.encloses(plan) or design_shell.laid_for(plan) else \
+            design_shell.levels(plan)
+        assert shell_parts.parts(plan) == {design_shell.part_kind(name) for name, _, _ in laid}, plan["title"]
+
+
 def test_a_door_or_window_row_cuts_its_opening_where_its_plan_item_stands_on_a_wall():
     """2026-10-26: Batch 1's doors and windows stood at plan items the plan's openings missed, against uncut walls. A
     row filling an opening (a door, window, gate, hatch or shutter, a panel) cuts one at its item on a wall, its own

@@ -33,7 +33,6 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 DESIGN = PROPS_HOME / "design"  # the locked designs, where the plan stage reads them (score/review/plans.KEPT's folder)
 KIT_FILE = "kit.json"  # a design base's kit: no piece, and why (make_seed)
 GAPS = "gaps.json"
-KIT_LAYER = "kit"  # the kit's layer at the shared loop's seam (shapes_first.KIT): its shell pieces as inventory rows
 LIBRARY_ROW = "surface-library"  # the scene's surface library (score/stages/surfaces/scene_library.py), its shell's
 LIBRARY_FILE = "materials.json"
 

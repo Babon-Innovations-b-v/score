@@ -91,10 +91,8 @@ def shell_kinds(plan):
     """{library kind: the words for it} of each part of the shell the locked plan lays (design_shell: an enclosed
     place's deck, walls and roof, whoever lays them, else an open place's raised levels; `stair` for its flights),
     each its part's first library kind (palette_library.SHELL_KINDS), the one the shell finds its surface by."""
-    from score.stages.earth_seed import design_shell
-    laid = design_shell.pieces(plan) if design_shell.encloses(plan) or design_shell.laid_for(plan) else \
-        design_shell.levels(plan)
-    parts = {design_shell.part_kind(name) for name, _, _ in laid}
+    from score.stages import shell_parts
+    parts = shell_parts.parts(plan)
     if any(len(entry.get("points") or []) >= 3 for entry in plan.get("stairs") or []):
         parts.add("stair")
     return {palette_library.SHELL_KINDS[part][0]: f"{SHELL_WORDS[part]} (the shell its locked plan lays)"
