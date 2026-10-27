@@ -4,8 +4,11 @@ The settle stage (the paper's Methods, "The canonical scene": settling and resti
 place's objects come to rest on its made ground, laid as `layers/settle.usda` (an over of each moved object's
 transform), which the assembly stage puts over the seed's base. `__init__.py`'s docstring has the make and the gates;
 the method is `tools/usd/settle.py` (drop_job, rest_poses), `held.py` (held_rests, fixed_let_down: snap.py kept out of
-settle.py, whose readers a snap edit would otherwise move) and the drop's Blender side
-`tools/blender/inside/settle_stage.py`.
+settle.py, whose readers a snap edit would otherwise move) and the drop: `tools/usd/drop.py` (simulate, drop_key: kept
+out of settle.py for the same reason) runs `inside/settle_drop.py` in Newton, in the physics trial's own pinned Python
+(`../physics/inside/newton_env.sh`, one Python for both), on the trial's card class or this PC's card.
+settle.py's own `simulate`, `drop_key` and `DROP_CLASSES` still name the deleted Blender script: dead, left until an
+edit there moves its ~90 rows anyway (2026-10-27); never call them.
 
 - **Only `SETTLED` places have the row** (`score/stages/__init__.py`): a place joins once its settle row has passed;
   any other place's assembly lays the seed's poses. A stage reading this one reads without it where it does not apply.
@@ -24,8 +27,11 @@ settle.py, whose readers a snap edit would otherwise move) and the drop's Blende
 - **The gates block only what this stage breaks**: a broken drop (`rested`) or an object resting worse with the layer
   than without it (`resting`). What is left is named on the page; the assembly's resting gate is the final judge.
 - **Spend.** A drop is bought only when something loose is to be stood up or unstacked or the triage finds a fault on
-  it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script and stage). A drop
-  is one rented processor machine, about 30 minutes for the hangar (EUR 0.59 on 2026-10-12).
+  it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script, trial script, Python
+  pins and stage). A drop is one rented card (`drop.DROP_CLASSES`, the trial's), its Python built once on it; on this
+  PC's RTX 5080 the six-object toy drops in about 31 s, still after 11.5 s of its 30 (2026-10-27). Bullet's on a
+  processor machine was about 30 minutes for the hangar (EUR 0.59 on 2026-10-12); Newton's on a real place is not yet
+  timed.
 - Run the proof with `python -m score run world1 --place <place> --stage settle --detach` in the background; it reads
   only terrain. `test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py` checks the layer and the drop gate
   without a drop.

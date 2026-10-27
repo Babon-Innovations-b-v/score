@@ -9,8 +9,8 @@ body with a collider, mass and material, doors on hinges, ground under its own p
 that come from somewhere, and nothing in it the creator does not own. One environment serves many uses: games,
 film, robotics, embodied AI. It is one OpenUSD record, a scene inside its parent scene and each kind of work on it
 (layout, surfaces, physics, light, motion, effects, sound, people) a layer of its own, so it stays editable, and
-an edit runs again only the steps behind it. Its physics trial runs on Newton with MuJoCo's solver; the settle
-and effects follow.
+an edit runs again only the steps behind it. Its physics trial and settle run on Newton with MuJoCo's solver;
+effects follow.
 
 The creator writes the score; coding agents and open tools play it.
 

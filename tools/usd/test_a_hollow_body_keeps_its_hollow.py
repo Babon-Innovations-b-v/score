@@ -1,9 +1,10 @@
 """tools/usd/convex_parts.py, a moving body's convex parts, on shapes made here: an open crate is split round its
 hollow, a box is its one hull, both are read back from the cache without CoACD, a laid crate gets its parts in its
 own frame, a mesh CoACD fails on drops as its one hull, and the drop of an open crate laid far from the origin in
-Blender 5.0.1 (tools/blender/inside/settle_stage.py, through tools/blender/session.py's batch) keeps it where it is
-laid with a box on its floor. With no Blender 5.0.1 under PROPS_HOME or no Xvfb (bash tools/blender/setup.sh), as in
-`make tests`' sandbox home, that one check prints `skipped` and passes nothing.
+Newton (score/stages/settling/inside/settle_drop.py, through tools/usd/drop.py in the physics trial's Python) keeps it
+where it is laid with a box on its floor. With no built trial Python under PROPS_HOME (bash
+score/stages/physics/inside/newton_env.sh $PROPS_HOME/envs/newton_env), as in `make tests`' sandbox home, that one
+check prints `skipped` and passes nothing.
 
 Breaks that turn each test red (each applied once and seen red):
 - a_hollow_keeps_its_hollow_and_a_box_is_one_hull (2026-10-27): convex_parts.decomposed's `chosen = [whole.vertices]
@@ -12,9 +13,9 @@ Breaks that turn each test red (each applied once and seen red):
   made `>= 1` (a box given its one hull as parts).
 - a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again (2026-10-27): convex_parts.convex_parts's `if why is
   None:` made `if True:` (a failed mesh's hull kept, never tried again).
-- a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor (2026-10-26, with Blender 5.0.1 under a real
-  PROPS_HOME: 17 s fixed, 71 s and red broken): settle_stage.convex_pieces's parts made in world corners with no
-  `matrix_world` (each part weighed at the world's origin: the crate thrown 298 m).
+- a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor (2026-10-27, with the trial's Python under a
+  real PROPS_HOME, on this PC's card: 50 s fixed, 88 s and red broken): settle_drop's `hull(piece - middle)` made
+  `hull(piece)` (each part laid on the body at its place in the world, 36 m from the body's middle).
 
 Run: .venv/bin/python tools/usd/test_a_hollow_body_keeps_its_hollow.py   (make tests runs it)
 """
@@ -136,7 +137,7 @@ def dropped(folder):
     """The open crate laid FAR, a box laid at its rim and stacked on it, their parts written beside the stage, dropped:
     the drop's record, the laid stage and who got parts."""
     import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test
-    import settle
+    import drop
     from pxr import Usd
     resting_test.made_models(folder)
     resting_test.export_test.box_gltf(folder / "models", "crate", open_crate())
@@ -146,7 +147,7 @@ def dropped(folder):
     stage = Usd.Stage.Open(str(path))
     hollow, _ = convex_parts.hollow_parts(stage, resting_test.PLACE, ["crate_1", "block_1"], folder / "cache")
     (path.parent / convex_parts.FILE).write_text(json.dumps(hollow))
-    found = settle.simulate(path, {"crate_1": 0.0, "block_1": 0.0}, folder / "drop", under={"block_1": ["crate_1"]})
+    found = drop.simulate(path, {"crate_1": 0.0, "block_1": 0.0}, folder / "drop", under={"block_1": ["crate_1"]})
     return found, stage, sorted(hollow)
 
 
@@ -163,20 +164,19 @@ def rest_of(found, stage, name):
     return (laid @ middle)[:3], (motion @ laid @ middle)[:3], turned
 
 
-def blender_missing():
-    """Why the drop cannot run here (no Blender 5.0.1 under PROPS_HOME, or no Xvfb), or None."""
-    import shutil
-    sys.path.insert(0, str(HERE.parent / "blender"))
-    import session
-    if not (session.RUNTIME / f"blender-{session.DEFAULT_VERSION}" / "blender").exists() or not shutil.which("Xvfb"):
-        return f"no Blender {session.DEFAULT_VERSION} under {session.RUNTIME}, or no Xvfb (bash tools/blender/setup.sh)"
+def newton_missing():
+    """Why the drop cannot run here (no trial Python built under PROPS_HOME: building it fetches its wheels), or
+    None."""
+    import drop
+    if not list(drop.LOCAL_ENV.glob(".built-*")):
+        return f"no trial Python built at {drop.LOCAL_ENV} (score/stages/physics/inside/newton_env.sh)"
     return None
 
 
 def a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor():
-    """In Blender, an open crate laid 36 m from the origin stays where it is laid, and a box laid at its rim rests on
+    """In Newton, an open crate laid 36 m from the origin stays where it is laid, and a box laid at its rim rests on
     its floor, both still at the end (its break is in the file's docstring)."""
-    missing = blender_missing()
+    missing = newton_missing()
     if missing:
         print(f"skipped: {a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor.__name__}: {missing}")
         return []

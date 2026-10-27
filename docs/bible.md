@@ -323,7 +323,8 @@ branch names a scene or a world.
   `data/checks/motion.json`. **Settle and physics** (`score/stages/settling`, `score/stages/physics`): loose objects
   dropped where they stand under the gravity of the body under the scene's top site, written in UsdPhysics. The
   physics trial runs it in Newton (MuJoCo's solver on Newton's contacts, in its own pinned Python; owner 2026-10-27,
-  replacing Bullet); the settle still drops on Blender's Bullet.
+  replacing Bullet), and the settle drops in the same Newton and the same Python on the same card class
+  (`tools/usd/drop.py`, `score/stages/settling/inside/settle_drop.py`; Blender's Bullet script deleted, PRD #55).
 - **Light and sky** (`score/stages/light`): lamps from the inventory's glowing rows; the sky from the EC's physics
   overhead at the top scene's site and scene time (`sky.py`: each light, every other body at its true direction, size
   and phase, each backdrop), gated on `sky bodies`. A light under the horizon lights nothing.

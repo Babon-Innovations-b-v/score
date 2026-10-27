@@ -2,9 +2,9 @@
 ground, laid as an OpenUSD settle layer that the assembly stage puts into the place's stage over the seed's base.
 
     make     the seed (world 1's round-three stage) on the terrain stage's made ground (assembly.take_ground), every
-             loose object dropped once in headless Blender on a rented processor machine (tools/usd/settle.py's drop
-             job: an object an old settle left tipped onto uneven feet stood upright first, one stacked on another
-             meeting it, a hollow one (a crate, a tray, a bin, a shelf) by its convex parts so what is stacked in it
+             loose object dropped once in Newton on a rented card (tools/usd/settle.py's drop job, run by
+             tools/usd/drop.py: an object an old settle left tipped onto uneven feet stood upright first, one stacked
+             on another meeting it, a hollow one (a crate, a tray, a bin, a shelf) by its convex parts so what is stacked in it
              meets its floor: tools/usd/convex_parts.py, written beside the dropped stage), and each one's rest (settle.rest_poses: a small correction written, a large one left as laid,
              a tip onto uneven feet stood upright for the paint to level; one that fell into the hollow piece it
              lay on and rests inside it laid where it lands, landed_in_hollows); then each fixed one the triage finds
@@ -42,6 +42,7 @@ from score.store import PROPS_HOME
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import convex_parts  # noqa: E402
+import drop  # noqa: E402
 import settle  # noqa: E402
 import triage  # noqa: E402
 import whole_layer  # noqa: E402
@@ -51,9 +52,9 @@ from score.stages.assembly.grounded import grounded_seed  # noqa: E402
 LAYER = "layers/settle.usda"
 RECORD = "settle.json"
 DROP = "drop"
-# One drop run's estimate: as the assembly's (a quarter to three quarters of an hour on a rented processor machine).
+# One drop run's estimate: as the assembly's (up to half an hour of the physics trial's card with its start).
 EUROS = 1.0
-# Drops already paid for, by their job, drop script and stage (settle.drop_key): the same drop is never bought twice.
+# Drops already paid for, by their job, drop script, its Python and stage (drop.drop_key): never bought twice.
 DROPS = PROPS_HOME / "store/cache/drops"
 # Each loose model's convex parts, once worked out (convex_parts.py, by its mesh): a library model's paid once.
 PARTS = PROPS_HOME / "store/cache/convex-parts"
@@ -69,13 +70,16 @@ PAST_LIMITS = "would not rest as laid:"
 
 def files(place):
     """What the stage reads: the place's seed stage, kit (its seat and its pieces' spots), its design's surface data
-    and scene inventory (what holds each object up), the resting rules and the drop script its machine runs."""
+    and scene inventory (what holds each object up), the resting rules, and the drop script its machine runs with
+    the trial script it borrows from and the Python both run in."""
     import stage_inputs
     found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
              "surfaces": "{home}/design/surfaces/{place}.json",
              "inventory": stage_inputs.inventory_pattern(place),
              "resting rules": "{data}/checks/resting.json",
-             "drop script": "{repo}/tools/blender/inside/settle_stage.py"}  # run by path on the machine
+             "drop script": "{repo}/score/stages/settling/inside/settle_drop.py",  # run by path on the machine
+             "trial script": "{repo}/score/stages/physics/inside/physics_trial.py",
+             "drop env": "{repo}/score/stages/physics/inside/newton_env.sh"}
     return found
 
 
@@ -107,8 +111,8 @@ def make(inputs, out, seed, params):
         if starts or under or laid & set(loose):
             hollow, unsplit = convex_parts.hollow_parts(stage, place, loose, PARTS)
             (root.parent / convex_parts.FILE).write_text(json.dumps(hollow, indent=1))
-            simulated = settle.simulate(root, loose, out / DROP, cloud=True, ignore=ignore, start=starts, under=under,
-                                        cache=DROPS)
+            simulated = drop.simulate(root, loose, out / DROP, cloud=True, ignore=ignore, start=starts, under=under,
+                                      cache=DROPS)
         else:  # nothing loose to stand up, unstack or put right: no drop is bought, each rests as laid
             simulated = still(loose, out / DROP)
         poses = settle.rest_poses(stage, place, inventory, simulated, starts,
