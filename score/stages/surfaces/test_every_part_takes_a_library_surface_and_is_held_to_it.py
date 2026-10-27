@@ -201,6 +201,8 @@ tests it turned red:
 - claude_asks.py: `module.ask = gemini` -> `pass`  -> the_four_asks_go_to_claude_and_the_faces_stay
 - claude_asks.py: `again[take] = repaired(bodies[take], answer, off, levels)` -> `pass`  ->
   a_palette_answer_off_its_own_palette_is_asked_once_more_told_why
+- place_line.py: `return turn.T` -> `return None` in `recovered_turn`  ->
+  the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_stood_it
 """
 import inspect
 import io
@@ -2622,3 +2624,25 @@ def test_a_palette_answer_off_its_own_palette_is_asked_once_more_told_why(monkey
     sent.clear()
     first[0] = off
     assert claude_asks.answered(bodies, scene_library) and len(sent) == 1, sent  # another row: never asked again
+
+
+
+def test_the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_stood_it(tmp_path):
+    """A take stood by a turn no option of today's glb_file gives (30 degrees round up here; the airlock's four, stood
+    before glb_file.squared changed, 48939c57) has that turn read back exactly off its final model's vertices; a final
+    that is not its finished file's vertices turned gets none, and the replay decides."""
+    import math
+    import trimesh
+    mesh = trimesh.creation.box([0.6, 0.3, 0.2])
+    mesh.vertices[0] += [0.05, 0.02, 0.0]  # not symmetric: one turn only fits it
+    angle = math.radians(30)
+    turn = np.array([[math.cos(angle), 0.0, math.sin(angle)], [0.0, 1.0, 0.0], [-math.sin(angle), 0.0, math.cos(angle)]])
+    mesh.export(tmp_path / "crate_1-5000.glb")
+    stood = mesh.copy()
+    stood.vertices = mesh.vertices @ turn.T
+    stood.export(tmp_path / "crate_1-final.glb")
+    with prop_data.tools("props"):
+        assert np.allclose(place_line.recovered_turn(tmp_path, "crate_1"), turn, atol=1e-6)
+        stood.vertices = stood.vertices + [0.0, 0.0, 0.05]  # moved off its finished file: no exact turn
+        stood.export(tmp_path / "crate_1-final.glb")
+        assert place_line.recovered_turn(tmp_path, "crate_1") is None
