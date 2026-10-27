@@ -1,5 +1,7 @@
 # score/stages/physics/inside/
 
-Scripts that run inside Blender on a rented machine (`blender -b`), sent by the physics trial
-(`../__init__.py`): never with the system python, never on this PC but for a toy place of seconds. They read the
-stage's UsdPhysics through Blender's bundled pxr; the rules are the parent overlay's.
+The trial that runs in its own Python, sent by the physics trial (`../__init__.py`) to a rented card
+(`tools/cloud/blender_cloud.py` runs a job naming an `env` in the Python that script builds), or run on this PC:
+`newton_env.sh <folder>` builds that Python once (Newton, MuJoCo, Warp, usd-core, python-fcl, every version pinned
+and at least two weeks old when chosen), `physics_trial.py` is the trial. Never import it from the score venv: one
+USD library a process, and Newton pins its own MuJoCo and Warp. The rules are the parent overlay's.

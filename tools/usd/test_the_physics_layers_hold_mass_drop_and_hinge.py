@@ -13,6 +13,11 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
 - the_motion_plays_back: write_motion's `start * Gf.Matrix4d(np.asarray(motion).T.tolist())` made untransposed.
 - a_blocked_fall_is_refused: the `found.append(f"{drop['object']}: {prim.GetName()} stands in its fall")` made `pass`.
 - a_record_without_gravity_is_refused: write_scene's `if "gravity" not in record:` made `if False:`.
+- masses_follow_the_area (the hull's material): make_body's `UsdShade.MaterialBindingAPI.Apply(hull).Bind(...)` line
+  dropped (a hull with no physics material: Newton gave it friction 1.0, restitution 0).
+- the_hinge_stands_at_its_pins (what Newton needs said): write_hinge's `newton:limitStiffness` line dropped (the leaf
+  swung to 148.6 degrees through its 100), or its `pairs.AddTarget(mesh.GetPath())` made `pass` (the leaf rubbed its
+  frame and opened 8.6 degrees), or its ArticulationRootAPI line dropped (Newton refused the orphan FixedJoint).
 
 Run: .venv/bin/python tools/usd/test_the_physics_layers_hold_mass_drop_and_hinge.py [<folder>]   (a folder keeps the
 toy place, for a Blender run)
@@ -124,6 +129,7 @@ def masses_follow_the_area(folder):
     assert not stage.GetPrimAtPath(f"/{PLACE}/Objects/table_1").HasAPI(UsdPhysics.RigidBodyAPI)
     hull = stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_1/collision")
     assert UsdPhysics.CollisionAPI(hull).GetCollisionEnabledAttr().Get() is True
+    assert UsdShade.MaterialBindingAPI(hull).ComputeBoundMaterial("physics")[0].GetPath() == bound.GetPath()
     scene = UsdPhysics.Scene(stage.GetPrimAtPath(f"/{PLACE}/Physics/Scene"))
     assert math.isclose(scene.GetGravityMagnitudeAttr().Get(), 1.62, rel_tol=1e-6)
 
@@ -142,6 +148,10 @@ def the_hinge_stands_at_its_pins(folder):
     frame = physics.world(stage.GetPrimAtPath(f"/{PLACE}/Objects/frame_1"))
     at = frame.Transform(Gf.Vec3d(joint.GetLocalPos0Attr().Get()))
     assert np.allclose(at, (1.19, 1.45, -2.37), atol=1e-5), at
+    assert joint.GetPrim().HasAPI(UsdPhysics.ArticulationRootAPI)
+    assert joint.GetPrim().GetAttribute("newton:limitStiffness").Get() == math.inf
+    pairs = UsdPhysics.FilteredPairsAPI(stage.GetPrimAtPath(f"/{PLACE}/Objects/leaf_1")).GetFilteredPairsRel()
+    assert pairs.GetTargets() == [Sdf.Path(f"/{PLACE}/Objects/frame_1/geo")], pairs.GetTargets()
     pin = stage.GetPrimAtPath(f"/{PLACE}/Objects/pin_1/geo")
     assert UsdPhysics.CollisionAPI(pin).GetCollisionEnabledAttr().Get() is False
     assert math.isclose(physics.world_box(stage.GetPrimAtPath(f"/{PLACE}/Objects/leaf_1"))[0][1], 0.01, abs_tol=1e-6)

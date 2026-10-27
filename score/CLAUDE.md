@@ -300,7 +300,7 @@ stage as each stage is built; nothing moves before.
   body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer (a moving row's
   models are the prop pipeline's, laid by the assembly like any other: the `motion-models` rows, which laid a record
   per place, were retired 2026-10-21). `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
-  overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place whose design shows a loose row,
+  overlay) write a place's UsdPhysics and run a trial of it in Newton, for a place whose design shows a loose row,
   the trial made from its design (`stages/physics/design.py`: its loose objects dropped where they stand, its body's
   gravity). `motion` (experimental, a place whose design shows a row that moves) writes its motion layer
   from its design (`stages/motion/from_design.py`: each object of a moving row swings, spins or stands by its kind's

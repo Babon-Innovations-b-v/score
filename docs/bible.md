@@ -315,7 +315,9 @@ branch names a scene or a world.
   (`data/checks/effects.json`). **Motion** (`score/stages/motion/from_design.py`): each moving row by its kind's rule
   (a door swings only where somebody passes through it, a fan spins, a crane slews), speeds cited in
   `data/checks/motion.json`. **Settle and physics** (`score/stages/settling`, `score/stages/physics`): loose objects
-  dropped where they stand under the gravity of the body under the scene's top site, written in UsdPhysics.
+  dropped where they stand under the gravity of the body under the scene's top site, written in UsdPhysics. The
+  physics trial runs it in Newton (MuJoCo's solver on Newton's contacts, in its own pinned Python; owner 2026-10-27,
+  replacing Bullet); the settle still drops on Blender's Bullet.
 - **Light and sky** (`score/stages/light`): lamps from the inventory's glowing rows; the sky from the EC's physics
   overhead at the top scene's site and scene time (`sky.py`: each light, every other body at its true direction, size
   and phase, each backdrop), gated on `sky bodies`. A light under the horizon lights nothing.

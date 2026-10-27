@@ -4,7 +4,8 @@ From a design (design.py) on a small place made here (tools/usd's physics test's
 objects are dropped back onto their own spots, one with a shelf over it left out, the table (no loose row) never; the
 trial's layers write with each drop landing where it stood; the gravity is the body's under the scene's top site (the
 Moon's 1.62 m/s², Mars's 3.71: the textbook values); the `designed` gate fails a body no inventory row has; a trial
-with no hinge passes only when it says why. On a run written here (no Blender): a run where the drops land, the door
+with no hinge passes only when it says why. The trial runs on the held card in its own Python (Newton's, built by
+inside/newton_env.sh) and the renders in Blender, its outputs whole. On a run written here (no engine): a run where the drops land, the door
 opens within its limits and the energy only falls passes every gate; each gate fails its own fault (a drop that ends
 under its target, a door past its limit, a rise while nothing drives, a body still moving, inside a static or under
 its own floor); the energy's rises are per undriven stretch; the trial's copy keeps the shown places, less the
@@ -28,6 +29,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_body_moving_inside_or_under_its_floor_fails_at_rest: measured's `"floor": min(body["lowest"][0], ...)` made
   `"floor": 0.0` (made ground is not at 0: the stool at -1.5 m read as under its floor).
 - the_rises_are_per_undriven_stretch: energy_rises without its `begun = None` on a driven frame.
+- the_trial_runs_in_its_own_python_on_the_held_card: make_trial's `TRIAL_MINUTES, env=REPO / TRIAL_ENV)` made
+  `TRIAL_MINUTES)` (the trial sent to the card's Blender).
 - the_trial_stands_the_shown_places_from_the_neighbours_output: trial_folder's copytree without
   `ignore=shutil.ignore_patterns("contract.json")`.
 
@@ -213,11 +216,62 @@ def the_trial_stands_the_shown_places_from_the_neighbours_output():
         shutil.rmtree(root)
 
 
+class Held:
+    """A stand-in for the held card: each job recorded (its script and the Python it runs in), the trial's run and
+    the renders' frames written as the card would."""
+    jobs = []
+
+    def __init__(self, classes, who):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        pass
+
+    def run(self, script, arguments, inputs, outputs, minutes=10, env=None):
+        Held.jobs.append((str(pathlib.Path(script).relative_to(REPO)), env and str(pathlib.Path(env).relative_to(REPO))))
+        if pathlib.Path(script).name == "physics_trial.py":
+            names = toy.physics.bodies_of(toy.RECORD)
+            still = {"mass": 1.0, "lowest": [0.5] * 3, "speed": [0.0] * 3, "motions": [motion(0.0)] * 3}
+            pathlib.Path(arguments[1]).write_text(json.dumps({
+                "rate": 24.0, "frames": 3, "gravity": 1.62, "statics": 1, "bodies": {name: still for name in names},
+                "energy": [1.0] * 3, "driven": [False] * 3, "hinges": {}, "joined": [], "inside at start": {},
+                "inside at end": {}}))
+            return
+        from PIL import Image
+        pathlib.Path(arguments[2]).mkdir(parents=True)
+        for view in json.loads(pathlib.Path(arguments[1]).read_text())["views"]:
+            Image.new("RGB", (4, 4)).save(pathlib.Path(arguments[2]) / f"{view['name']}-look.png")
+
+
+def the_trial_runs_in_its_own_python_on_the_held_card():
+    import types
+    root = pathlib.Path(tempfile.mkdtemp())
+    kept = physics.engines.machine_runner
+    try:
+        layer = toy.toy_place(root / "layer")
+        record = dict(toy.RECORD, views=[{"name": "front"}], moments=[0.0], size=[4, 4])
+        (layer / "record.json").write_text(json.dumps(record))
+        (layer / "physics.json").write_text(json.dumps(toy.physics.write(layer, record, toy.MATERIALS)))
+        physics.engines.machine_runner = lambda: types.SimpleNamespace(Machine=Held)
+        (root / "out").mkdir()
+        physics.make_trial({"physics-layer": layer}, root / "out", 0, {})
+        assert Held.jobs == [(physics.TRIAL_SCRIPT, physics.TRIAL_ENV), (physics.RENDER_SCRIPT, None)], Held.jobs
+        assert physics.trial_faults(root / "out") == [], physics.trial_faults(root / "out")
+        assert physics.TRIAL_FILES["trial env"].endswith(physics.TRIAL_ENV)
+    finally:
+        physics.engines.machine_runner = kept
+        shutil.rmtree(root)
+
+
 CHECKS = (the_loose_rows_drop_where_they_stand, the_gravity_is_the_body_s_under_the_top_site,
           a_body_no_row_has_fails_designed, a_trial_with_no_hinge_passes_only_when_it_says_why, a_good_run_passes,
           a_drop_under_its_target_fails_reacted, a_door_past_its_limit_fails_hinge, an_undriven_rise_fails_energy,
           a_body_moving_inside_or_under_its_floor_fails_at_rest, the_rises_are_per_undriven_stretch,
-          the_trial_stands_the_shown_places_from_the_neighbours_output)
+          the_trial_stands_the_shown_places_from_the_neighbours_output,
+          the_trial_runs_in_its_own_python_on_the_held_card)
 
 
 if __name__ == "__main__":
