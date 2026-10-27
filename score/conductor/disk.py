@@ -4,7 +4,7 @@ about twelve runs had started that day, and the copies of the ones stopped, fail
 
     python -m score.conductor disk           # one summary line, the biggest folders, the whole list in conductor/disk.json
     python -m score.conductor clean-frozen   # remove every frozen copy no run needs; what it freed, one line a copy
-    python -m score.conductor clean-cache [--making-only]   # with no run live, the store cache's free-to-remake folders
+    python -m score.conductor clean-cache [--making-only]   # checkouts relinked; with no run live, the cache cleared
 
 launch_refusal() is `score run`'s check before it makes its copy: a run is refused while the disk has under FLOOR_GB
 free. health.read() carries FLOOR_GB and warning() (a note on the Machine card).
@@ -29,6 +29,10 @@ review areas' yes tickets, logs and locks and any folder it does not know). It r
 YOUNG_SECONDS; otherwise it refuses with the reason and removes nothing. work/pixal is never touched: it holds the paid
 Pixal3D takes (raw model, close-up and camera, finished model) that the pixal row's gate counts and the surface line
 reads as declared inputs, kept nowhere else, so a removed take is bought again. The sync pass runs it --making-only.
+Before any of that, and with a run live too, it makes every checkout's copies of stored blobs hard links to them
+(Store.relink, 2026-10-27: checkouts grew 16 GB in an hour while a run walked its rows): the same bytes under the same
+names, so no reader can tell; a checkout is never removed while a run is live, since a node holds its input paths
+across a cloud wait with no file open, and one removed under it would fail it.
 """
 import datetime
 import json
@@ -41,7 +45,7 @@ import time
 from score import conductor
 from score.conductor import size
 from score.graph import frozen, runs
-from score.store import PROPS_HOME
+from score.store import PROPS_HOME, Store
 
 FLOOR_GB = 10  # under this many GB free no run starts, and the Machine card warns
 YOUNG_SECONDS = 15 * 60  # a copy younger than this may be one a run is still making
@@ -306,10 +310,11 @@ def clean_cache(home=None, runs_folder=None, names=tuple(CLEARED), say=print):
     and say each one kept (KEPT's, or not known); {removed, refused, freed_gb}. Unprovable when it cannot tell."""
     home = pathlib.Path(home or PROPS_HOME)
     cache = home / "store" / "cache"
+    relinked = relink_checkouts(home, say) if "checkouts" in names else 0.0
     targets = cleared(cache, names)
     refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), cache, targets)
     if refused:
-        return {"removed": [], "refused": refused, "freed_gb": 0.0}
+        return {"removed": [], "refused": refused, "freed_gb": 0.0, "relinked_gb": relinked}
     before, removed = free_gb(home), []
     for path, why in targets:
         remove_tree(path)
@@ -319,4 +324,17 @@ def clean_cache(home=None, runs_folder=None, names=tuple(CLEARED), say=print):
     for path in sorted(cache.iterdir()) if cache.is_dir() else []:
         if path.name not in known:
             say(f"kept {path}: {KEPT.get(path.name, 'not known to be made again for free')}")
-    return {"removed": removed, "refused": None, "freed_gb": round(free_gb(home) - before, 2)}
+    return {"removed": removed, "refused": None, "freed_gb": round(free_gb(home) - before, 2), "relinked_gb": relinked}
+
+
+def relink_checkouts(home, say=print):
+    """Every checkout's whole copies of stored blobs made hard links to them (Store.relink: safe while runs read
+    them, so it runs even with a run live); the GB freed, said in one line."""
+    store = Store.in_folder(pathlib.Path(home) / "store")
+    folder = store.cache / "checkouts"
+    outputs = [path.name for path in sorted(folder.iterdir()) if path.is_dir() and not path.name.endswith(".partial")
+               ] if folder.is_dir() else []
+    freed = round(sum(store.relink(output) for output in outputs if store.objects.exists(f"outputs/{output}.json"))
+                  / 1024 ** 3, 2)
+    say(f"relinked {len(outputs)} checkouts to the stored blobs: {freed} GB of copies freed")
+    return freed

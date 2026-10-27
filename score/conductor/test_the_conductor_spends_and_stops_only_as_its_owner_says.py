@@ -9,7 +9,8 @@ only; Stop this batch does the same without the latch. A detached run is capped 
 less 6 GB, a step's own scope inherits it, and off a conductor nothing changes. Its health names what the Machine card
 reads and its log tails carry no secret. The free end-to-end check (`dry`) passes every step in one line. No run
 starts under the data disk's floor, the health warns there, and clean-frozen removes only the frozen copies no run
-needs and no process works in, never what their homes link to, and nothing while it cannot tell.
+needs and no process works in, never what their homes link to, and nothing while it cannot tell; clean-cache
+makes the checkouts' copies links to the stored blobs even with a run live.
 
 Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
 release the parked machines before closing the pools; or in logs drop the secret-shape test (an AIza key reaches the
@@ -34,6 +35,7 @@ from score.adapters import compute  # noqa: E402
 from score.adapters.compute import guard  # noqa: E402
 from score.conductor import disk, health, kill, logs, size, slices  # noqa: E402
 from score.graph import frozen, runs  # noqa: E402
+from score.store import Store  # noqa: E402
 
 RECORD = {"name": "conductor", "idle_type": "POP2-HM-2C-16G", "batch_type": "POP2-HM-16C-128G", "idle_cores": 2,
           "batch_cores": 16, "project": "score-conductor"}
@@ -528,6 +530,29 @@ def test_clean_cache_removes_only_what_is_made_again_free_and_only_with_no_run_l
     assert sorted(path.name for path in cache.iterdir()) == ["concepts", "convex-parts", "drops"]
     assert (home / "store" / "objects" / "blob").read_text() == "kept"
     assert any(line.startswith(f"kept {cache / 'drops'}: paid drops") for line in said), said
+
+
+def test_clean_cache_makes_checkout_copies_links_even_with_a_run_live(tmp_path):
+    """2026-10-27: checkouts grew 16 GB in an hour while a run walked its rows, and clean-cache refused while it ran.
+    Break: score/conductor/disk.py: 'relinked = relink_checkouts(home, say) if "checkouts" in names else 0.0' ->
+    'relinked = 0.0'"""
+    home = tmp_path / "home"
+    store = Store.in_folder(home / "store")
+    made = tmp_path / "made"
+    made.mkdir()
+    (made / "big.bin").write_bytes(b"x" * 4096)
+    output = store.put_tree(made)
+    checked = store.checkout(output) / "big.bin"
+    checked.unlink()  # a checkout an earlier commit made as a copy
+    checked.write_bytes(b"x" * 4096)
+    checked.chmod(0o444)
+    (home / "runs").mkdir()
+    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
+    said = []
+    done = disk.clean_cache(home, say=said.append)
+    assert "a registered run needs" in done["refused"] and done["removed"] == [], done
+    assert checked.samefile(store.objects.path(f"blobs/{store.listing(output)['big.bin']}")), said
+    assert any(line.startswith("relinked 1 checkouts") for line in said), said
 
 
 def a_copy(repo, folder, name, home):

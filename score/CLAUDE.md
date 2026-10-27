@@ -20,8 +20,12 @@ stage as each stage is built; nothing moves before.
   evidence state, evidence per check and output, accepts (the runner's automatic ones and the owner's), the owner's
   rejects, waivers and spend yeses, the runner's clearances, the environment's finish registry (append-only). Written
   once, never overwritten, and safe for lines side by side (each write lands whole through a `.partial` file of its
-  own process; a write-once key is linked into place, so a second writer is refused); `store/durable.py`, installed by the runner and `score.review` only so it is in no row's key, syncs every write to disk before and after it lands, so a reboot leaves it whole or absent, and moves an empty or unparsable object to `quarantine/` beside the store, read as absent, except in the owner areas: an unreadable accept, reject, waiver or spend yes stops the run and stays put (a trade-off kept on purpose: a cut runner's automatic accept then stops every run until it is fixed by hand, since reading it as absent could buy a paid row again); checkouts are read-only copies (never links to the stored bytes), made again
-  when changed; an agent's process cannot write the framework
+  own process; a write-once key is linked into place, so a second writer is refused); `store/durable.py`, installed by the runner and `score.review` only so it is in no row's key, syncs every write to disk before and after it lands, so a reboot leaves it whole or absent, and moves an empty or unparsable object to `quarantine/` beside the store, read as absent, except in the owner areas: an unreadable accept, reject, waiver or spend yes stops the run and stays put (a trade-off kept on purpose: a cut runner's automatic accept then stops every run until it is fixed by hand, since reading it as absent could buy a paid row again); checkouts are hard links to the stored bytes (copies until 2026-10-27, when they grew the
+  conductor's cache 16 GB in an hour beside a 22 GB store), made again when changed: a stored blob's inode is read-only
+  (0444) and a writable one is copied, never linked, so a write through a checkout is refused and a save that
+  replaces or adds a file changes the checkout's entries only (the make then fails, nothing stored); only a
+  chmod of an input file before a write would reach the store, and no code here raises an input's mode (every
+  `chmod`/`u+w` acts on a copy); `clean-cache` makes an earlier commit's copies links, safe with a run live; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout. `store/restore/`
   (its overlay) rebuilds a lost store by today's keys and gates with a runner that spends nothing (#13).
   `store/backup/` (its overlay) backs the home up with restic every 30 minutes on the store's machine and makes the

@@ -3,7 +3,7 @@ folder or tmp.
 
     store = Store.default()                         # $PROPS_HOME/store, a folder; nothing in the cloud
     output = store.put_tree(folder)                 # the output's hash; its files go in once each
-    folder = store.checkout(output)                 # a read-only copy to read it from
+    folder = store.checkout(output)                 # a read-only folder to read it from (links to the blobs)
     store.write_record(node, key, record)           # a node's finish record, once per key
     store.accepted(node)                            # the node's accepted output (the runner's or the owner's), or None
 
@@ -31,14 +31,15 @@ framework's store `write_once` refuses those in any process an agent started (Cl
 AGENT_MARKERS), and a hook keeps agents from the other routes and from writing clearances by hand
 (.claude/hooks/accept_guard.py). On one machine under YOLO that is a barrier, not a lock: an agent set on getting
 round it can, and every accept names who gave it and when. Nothing else moves the accepted output: a new output lands
-beside it. The local cache (checkouts, copies of the stored bytes, and the folder a stage writes into before its
-output is stored) sits beside the objects.
+beside it. The local cache (checkouts, hard links to the read-only stored bytes, and the folder a stage writes into
+before its output is stored) sits beside the objects.
 
 Lines run side by side (score.graph's drive), so every write lands whole: it is written to a .partial file only its
 own process writes, then moved into place; a write-once key is linked into place, so of two processes writing one key
 the second is refused (FileExistsError), and a checkout two processes make at once is made by the first.
 """
 import contextlib
+import errno
 import fcntl
 import hashlib
 import json
@@ -126,6 +127,21 @@ def whole_file(path, data):
     return partial
 
 
+def linked_read_only(blob, destination):
+    """Whether `destination` is now a hard link to `blob`. The link shares the blob's inode, which is read-only
+    (put_blob stores every blob 0444), so a write through it is refused and nothing reaches the stored bytes; a blob
+    found writable is never linked. False on another disk, at the link limit or where links are not allowed."""
+    if blob.stat().st_mode & 0o222:
+        return False
+    try:
+        os.link(blob, destination)
+    except OSError as error:
+        if error.errno in (errno.EXDEV, errno.EMLINK, errno.EPERM):
+            return False
+        raise
+    return True
+
+
 def stamp_key(stamp):
     """A UTC time as a key part that sorts in time order."""
     return stamp.replace(":", "").replace("-", "")
@@ -183,10 +199,13 @@ class Store:
         return runtime_store.read_json(self.objects, f"outputs/{output}.json")
 
     def place_blob(self, sha, destination):
-        """One stored file at a path, read-only: a copy of the stored bytes, never a link to them, so nothing done to
-        the copy reaches the store."""
+        """One stored file at a path, read-only: a hard link to the stored blob where it can be (linked_read_only),
+        else a read-only copy (2026-10-27: copies grew the conductor's checkouts 16 GB in an hour beside a 22 GB
+        store, and filled its disk the night before)."""
         destination.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(self.objects, runtime_store.FolderStore):
+            if linked_read_only(self.objects.path(f"blobs/{sha}"), destination):
+                return
             shutil.copyfile(self.objects.path(f"blobs/{sha}"), destination)
         else:
             self.objects.download(f"blobs/{sha}", destination)
@@ -211,6 +230,26 @@ class Store:
                 self.place_blob(sha, partial / name)
             partial.rename(folder)
         return folder
+
+    def relink(self, output):
+        """Each file of the output's checkout that is a whole copy of its stored blob replaced by a hard link to it:
+        the same bytes, so a reader by path or by open file reads what it read, safe while any run reads it (the link
+        is made beside the checkout and renamed over the copy, so no reader lists an extra file). The bytes freed."""
+        folder = self.cache / "checkouts" / output
+        freed = 0
+        with locked(folder.with_name(f"{output}.lock")):  # checkout's lock: no remake under it
+            if not folder.is_dir() or not isinstance(self.objects, runtime_store.FolderStore):
+                return 0
+            for name, sha in self.listing(output).items():
+                path, blob = folder / name, self.objects.path(f"blobs/{sha}")
+                if not path.is_file() or not blob.is_file() or path.samefile(blob) or file_hash(path) != sha:
+                    continue  # gone, already a link, or changed (left for unchanged_checkouts and checkout to find)
+                spare = partial_of(folder)
+                if linked_read_only(blob, spare):
+                    size = path.stat().st_size
+                    spare.replace(path)
+                    freed += size
+        return freed
 
     def making(self, key):
         """A new empty folder of this run's own for a node to write its output into before it is stored: two runs of
