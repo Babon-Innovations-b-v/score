@@ -1,12 +1,23 @@
-"""Check the settle stage without a drop: its layer lays each written object where its matrix says over the seed (the
-assembly takes it the same way), and its drop gate fails a broken drop while one kept as laid or stood upright for
-the paint is named; one fallen into the hollow piece it lay on is laid where it lands, anything else past the limits
-kept as laid.
+"""Check the settle stage (score/stages/settling) without a drop: its layer lays each written object where its matrix
+says over the seed (the assembly takes it the same way), and its drop gate fails a broken drop while one kept as laid
+or stood upright for the paint is named; only what lies on the very object resting worse is kept with it; a flush pose
+resting worse falls back to the drop's rest; one fallen into the hollow piece it lay on is laid where it lands,
+anything else past the limits kept as laid.
 
-Break that turns it red (applied once, seen red, reverted, 2026-10-26): laid_where_it_lands without its
-`supports[0] not in hollow` test (a one-hull support's faller laid where it lands).
+Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27), in settling/__init__.py:
+- the_layer_lays_each_object_at_its_rest: write_layer's `Gf.Matrix4d(local.T.tolist())` made
+  `Gf.Matrix4d(local.tolist())` (the matrix written untransposed).
+- the_drop_gate_fails_a_broken_drop_and_names_what_was_kept: judge_rested's `if "still moving" in entry["said"]`
+  made `if False`.
+- only_what_lies_on_the_object_resting_worse_is_kept_with_it: kept_where_worse's `resting_on(name) & worse` made
+  `True` (every case of the row kept).
+- a_flush_pose_resting_worse_falls_back_to_the_drops_rest: fallen_back's `back = {...}` made `back = set()`.
+- one_fallen_into_a_hollow_piece_is_laid_where_it_lands: laid_where_it_lands without its `supports[0] not in hollow`
+  test (a one-hull support's faller laid where it lands).
+- a_box_fallen_into_its_crate_on_the_stage_is_laid_there: landed_in_hollows' `rest = np.asarray(...["motion"]) @
+  pose["before"]` made `rest = pose["before"]` (the drop's motion not applied).
 
-Run: .venv/bin/python score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py
 """
 import json
 import pathlib
