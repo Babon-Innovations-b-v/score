@@ -498,14 +498,14 @@ Rules:
   or static file writes a colour, every token named is defined, text holds WCAG AA (`tests/test_cockpit_is_the_owners_true_view.py`). A hosted
   build may replace `colours.css` whole with its own colours on the same names (babon's does).
 - **No provider here.** Nothing in this package imports `tools.*` or `score.adapters` or names a provider
-  (`tests/test_no_provider_is_named_here.py`). Hosted mode never imports `score.stages`, `score.store`, numpy or usd-core
+  (`tests/test_cockpit_is_the_owners_true_view.py`). Hosted mode never imports `score.stages`, `score.store`, numpy or usd-core
   (`sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py`, `test_hosted_renders_every_page_light`).
 - **Numbers, not prose** (owner, 2026-10-20, #42): the runner gives numbers and states; a screen shows numbers,
   colours, pictures, progress and buttons, at most one short line of text a block, explanations only as hover text,
   never a raw error or traceback (a red state and a short label; the detail to the log). Mark data (a number, a
   name, a state) with `data-v`: `tests/test_cockpit_is_the_owners_true_view.py` (`prose`, `WORD_BUDGET`) fails a screen with more than 40
   words of anything else. Node ids only inside a `details class="ids"` fold. Money is the total against the one stop
-  line, never per-piece prices alone; a provider is named only by its cost line's label (`tests/test_no_provider_is_named_here.py`).
+  line, never per-piece prices alone; a provider is named only by its cost line's label (`tests/test_cockpit_is_the_owners_true_view.py`).
 - Tests: `make tests TESTS="score/dashboard/tests/*_test.py score/dashboard/tests/test_*.py score/dashboard/*/test_*.py score/review/test_the_owners_word_stands.py"` (temp `PROPS_HOME` and
   dashboard home, `conftest.py`). `tests/real_store_smoke.py` runs by hand against the real store, read-only.
   `tests/viewer_look.py` runs by hand too, free: the 3D viewer in headless Chromium from each film shot's and light
