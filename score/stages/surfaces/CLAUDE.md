@@ -277,6 +277,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   tube) has a file with no takes and a `nothing` line; its line has no surface rows (`Stage.applies`).
 - **Gates never crash or pass on what is missing** (`surface_gates.guarded`: unknown with the missing file named).
 - Steps needing trimesh run in the prop environment through their module's command line (`prop_env.py`), each make
-  defined in its step's own module so that module is its code version. Tests: `surfaces_test.py` (the framework
-  side), `route_test.py` (the finish route, Google and the paint's step faked) and `finish_test.py` (the method's
-  steps), all on the framework's Python.
+  defined in its step's own module so that module is its code version. Tests: one file,
+  `test_every_part_takes_a_library_surface_and_is_held_to_it.py` (the framework side, the finish route with Google
+  and the paint's step faked, the method's steps, the bake job, the bodies' faces, the library keys), on the
+  framework's Python.
