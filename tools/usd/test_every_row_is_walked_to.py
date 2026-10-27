@@ -1,10 +1,23 @@
-"""Check the reach check on places made here: two rooms joined by a doorway, a row in each, are both reached; a crate
-shut in a pen with no gap is not, and fails the place; a crate on a raised block 2.4 m high is not reached until a
-stair of 0.2 m steps leads up to it; a place's own door leaves are walked to, the places it shows not; a row with no
-object is unknown, which blocks; a dropped row is not walked to;
-and the gate runs it as the `reach` check.
+"""tools/usd/reach.py walks to every row a walker can reach and fails the one it cannot, on places made here: two
+rooms joined by a doorway, a row in each, are both reached; a crate shut in a pen with no gap is not, and fails the
+place; a crate on a raised block 2.4 m high is not reached until a stair of 0.2 m steps leads up to it; a place's own
+door leaves are walked to, the places it shows not; a row with no object is unknown, which blocks; a dropped row is
+not walked to; and the gate (complete.py) runs it as the `reach` check, its fail shown, not counted.
 
-Run: .venv/bin/python tools/usd/test_every_row_is_walked_to.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- rooms_joined_by_a_doorway_are_both_reached: reach.py's room_for_body `while (steps_out + 0.5) * CELL < BODY_RADIUS:`
+  made `< 4 * BODY_RADIUS` (the eroded doorway shuts one room off).
+- a_crate_shut_in_a_pen_fails: steps_between's `climbable = np.abs(...) <= KNEE` made `<= 2.0` (the pen's walls
+  stepped over).
+- a_raised_crate_is_reached_by_its_stair_only: the same `climbable = np.abs(...) <= KNEE` made `<= 0.1`.
+- a_row_with_no_object_is_unknown_and_a_dropped_one_not_walked: walked_rows' `if not str(row.get("dropped",
+  "")).strip() and row["id"] not in held_back]` made `if row["id"] not in held_back]`.
+- the_gate_runs_it: complete.py's recorded `return (PASS, f"recorded, {verdict}: {why}") ...` made
+  `return (verdict, ...)` (the experimental fail counted).
+- a_place_s_own_door_leaves_are_walked_to_and_shown_places_not: row_targets' `if str(prim.GetParent().GetPath()) ==
+  f"/{place}/Places":` made `if False:`.
+
+Run: .venv/bin/python tools/usd/test_every_row_is_walked_to.py   (make tests runs it in a sandbox home)
 """
 import json
 import pathlib
