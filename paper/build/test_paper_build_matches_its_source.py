@@ -35,7 +35,8 @@ def paper_copy(tmp_path, monkeypatch):
     """A copy of the paper's tree, with the build module pointed at it: draft, bibliography, figures, outputs, stamp."""
     paper = tmp_path / "paper"
     for part in ("source", "figures", "out", "arxiv"):
-        shutil.copytree(build.PAPER / part, paper / part)
+        if (build.PAPER / part).exists():  # figures/ is optional, as in the build
+            shutil.copytree(build.PAPER / part, paper / part)
     shutil.copytree(build.PAPER / "build", paper / "build", ignore=shutil.ignore_patterns("test_*", "__pycache__"))
     monkeypatch.setattr(build, "__file__", str(paper / "build" / "build.py"))
     for name, path in (("PAPER", paper), ("SOURCE", paper / "source"), ("FIGURES", paper / "figures"),

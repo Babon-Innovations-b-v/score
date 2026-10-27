@@ -1,20 +1,26 @@
 \begin{abstract}
-Games, films and robot training need 3D environments that are complete,
-editable and owned by their creators; world models and one-shot
-generators give frames no engine opens, or one fused scene without
-separate objects or clear rights. Studios already build such
-environments by a standard: scenes layered in OpenUSD, each scene
-sitting within its parent scene and each department's work on it a layer
-of its own that can be checked and changed apart from the rest. SCORE
-builds environments by this convention. The creator decides from the top
-down: he locks an environment concept (EC), its style and its physics,
-which holds the scenes and their layering, and then a concept for each
-scene, in order of parent scene and child scene. The framework makes
-every layer below with open vision foundation models, procedural tools
-and coding agents, each layer checked before the next is made. Every
-model allows commercial use of its output, so the creator stays the
-author. We describe the framework with its first environment as the
-worked example; its results are marked gaps until its remake has run.
-Code and paper are available at
-https://github.com/Babon-Innovations-b-v/score (MIT license).
+Games, film, robotics and embodied AI all need 3D environments that can
+be simulated: every object its own body with collision, mass and joints,
+under the gravity of the ground it stands on, editable afterwards and
+owned by whoever made it. World models give frames no simulator opens,
+and one-shot 3D generators give one fused scene without separate bodies
+or clear rights. SCORE is a framework that synthesizes such
+environments. It builds them the way studios build scenes in OpenUSD: a
+scene sits within its parent scene, and each kind of work on it (layout,
+surfaces, physics, light, motion, effects, sound, people) is a layer of
+its own that is checked and changed apart from the rest. A creator locks
+the design from the top down, an environment concept with its style and
+its physics and then a concept for each scene; open vision foundation
+models, procedural tools and coding agents make every layer below, each
+checked by measured gates before the next is made, and every model
+allows commercial use of its output, so the creator stays the author.
+Every step is keyed on its inputs, so an edit runs again only the steps
+behind it. The result is one OpenUSD environment whose physics a
+simulator reads as written; Newton, with MuJoCo's solver, steps it. We
+describe the framework and its method, with a first environment as the
+evidence; its four demonstrations are marked gaps until its batch has
+run. Each character also gets a sim body on Newton, driven by its SOMA
+segment rotations. We close with the route toward bodies true to the
+person and trained models that drive them. Code and paper are available
+at https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}

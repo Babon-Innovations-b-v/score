@@ -83,7 +83,7 @@
 \@ifundefined{xmpquote}{\newcommand{\xmpquote}[1]{#1}}{}
 \makeatother
 \hypersetup{
-  pdftitle={SCORE: A Framework for Synthesizing Complete{,} Owned{,} Responsive Environments},
+  pdftitle={SCORE: Synthesizing Complete{,} Owned{,} Responsive Environments for Simulation},
   pdfauthor={J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands},
   colorlinks=true,
   linkcolor={Maroon},
@@ -92,462 +92,403 @@
   urlcolor={Blue},
   pdfcreator={LaTeX via pandoc}}
 
-\title{SCORE: A Framework for Synthesizing Complete, Owned, Responsive
-Environments}
+\title{SCORE: Synthesizing Complete, Owned, Responsive Environments for
+Simulation}
 \author{J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands}
-\date{Working draft, 21 October 2026}
+\date{Working draft, 27 October 2026}
 
 \begin{document}
 \maketitle
 \begin{abstract}
-Games, films and robot training need 3D environments that are complete,
-editable and owned by their creators; world models and one-shot
-generators give frames no engine opens, or one fused scene without
-separate objects or clear rights. Studios already build such
-environments by a standard: scenes layered in OpenUSD, each scene
-sitting within its parent scene and each department's work on it a layer
-of its own that can be checked and changed apart from the rest. SCORE
-builds environments by this convention. The creator decides from the top
-down: he locks an environment concept (EC), its style and its physics,
-which holds the scenes and their layering, and then a concept for each
-scene, in order of parent scene and child scene. The framework makes
-every layer below with open vision foundation models, procedural tools
-and coding agents, each layer checked before the next is made. Every
-model allows commercial use of its output, so the creator stays the
-author. We describe the framework with its first environment as the
-worked example; its results are marked gaps until its remake has run.
-Code and paper are available at
-https://github.com/Babon-Innovations-b-v/score (MIT license).
+Games, film, robotics and embodied AI all need 3D environments that can
+be simulated: every object its own body with collision, mass and joints,
+under the gravity of the ground it stands on, editable afterwards and
+owned by whoever made it. World models give frames no simulator opens,
+and one-shot 3D generators give one fused scene without separate bodies
+or clear rights. SCORE is a framework that synthesizes such
+environments. It builds them the way studios build scenes in OpenUSD: a
+scene sits within its parent scene, and each kind of work on it (layout,
+surfaces, physics, light, motion, effects, sound, people) is a layer of
+its own that is checked and changed apart from the rest. A creator locks
+the design from the top down, an environment concept with its style and
+its physics and then a concept for each scene; open vision foundation
+models, procedural tools and coding agents make every layer below, each
+checked by measured gates before the next is made, and every model
+allows commercial use of its output, so the creator stays the author.
+Every step is keyed on its inputs, so an edit runs again only the steps
+behind it. The result is one OpenUSD environment whose physics a
+simulator reads as written; Newton, with MuJoCo's solver, steps it. We
+describe the framework and its method, with a first environment as the
+evidence; its four demonstrations are marked gaps until its batch has
+run. Each character also gets a sim body on Newton, driven by its SOMA
+segment rotations. We close with the route toward bodies true to the
+person and trained models that drive them. Code and paper are available
+at https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}
 
 \makeatletter\def\fps@figure{tp}\makeatother\renewcommand{\topfraction}{0.9}\renewcommand{\textfraction}{0.1}
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: Figure 1, one environment top down.} The EC of environment
-1 (its style and its physics), a top scene on its site, a parent scene
-and its child scenes, and one scene's layers side by side. It waits on
-the remake's batch.
+\textbf{Gap: Figure 1, one environment, every layer.} Environment 1 from
+the top down: its physics (the bodies it stands on and their gravity), a
+top scene on its site, a parent scene with its child scenes, and one
+scene opened into its layers side by side (base, settle, physics, light,
+motion, effects, sound, people). It waits on environment 1's batch.
 
 \end{minipage}}\end{center}
 
 \section{Introduction}\label{introduction}
 
-Interactive 3D environments are the raw material of games, film and
-embodied AI {[}1{]}, and building one is expensive: every object is
-modelled, surfaced, placed, given collision, lit and given sound in one
-style, and the environment stays editable. Generative models promise to
-take over much of this, but in GDC's 2026 survey 52 percent of game
-workers thought generative AI was hurting the industry {[}2{]}; a tool
-for building environments has to leave the result in the creator's
-hands.
+Simulated 3D environments are raw material for games, film, robot
+learning and embodied AI {[}1{]}. What these uses share is not a look
+but a structure: separate objects with collision, mass and joints,
+ground with a gravity, light and sound that come from somewhere, and a
+scene that can be opened, changed and simulated again. Building one by
+hand is expensive, and a generator that takes the work over has to leave
+the result in its maker's hands: in GDC's 2026 survey 52 percent of game
+workers thought generative AI was hurting the industry {[}2{]}.
 
-Studios already have a standard for this: OpenUSD {[}3{]}, the scene
-description Pixar made for its films. Each artist works in a file of
-their own, a layer; the layers are stacked in a stated order, so
-departments work on one scene without editing each other's work, and
-scenes are assembled from smaller ones by reference. In this convention
-a scene sits within its parent scene and holds its child scenes, and
-each department's work on it (layout, set dressing, surfaces, light,
-effects, motion, sound) is a layer that can be checked and changed apart
-from the rest. SCORE builds environments by this convention, with the
-creator deciding and the framework doing the departments' work. The
-creator locks an environment concept (EC): its style and its physics.
-The EC holds the scenes and their layering. For each scene a concept is
-then locked, in order of parent scene and child scene, and from it the
-framework makes every layer below, each its own OpenUSD layer, checked
-before the next is made.
+World models generate an environment as frames {[}3{]}, {[}4{]} that no
+simulator can step. 3D environment generators {[}5{]}, {[}6{]} produce
+geometry, mostly as one fused asset from which separate objects are
+recovered after the fact {[}7{]}, {[}8{]}. Both work in one shot, so a
+fault cannot be traced to the step behind it. Procedural systems
+{[}9{]}, {[}10{]} and coding agents that write scenes as programs
+{[}11{]}, {[}12{]}, {[}13{]}, {[}14{]}, {[}15{]}, {[}16{]} keep the
+environment explicit, but rebuild a scene that already exists or draw
+from a fixed library; their models often float or come apart {[}17{]},
+such agents judge their own geometry unreliably {[}18{]}, and on scenes
+rebuilt from video the best model scores 0.91 on static scenes but 0.67
+on dynamic ones {[}19{]}. Open vision foundation models {[}20{]} now
+read shapes {[}21{]}, masks {[}22{]} and depth {[}23{]} out of pictures,
+and a coding agent can connect them as tools; none gives one style
+across objects that different models made {[}24{]}, {[}25{]}, and none
+gives physics.
 
-World models generate an environment as frames {[}4{]}, {[}5{]} that no
-engine can open. 3D environment generators {[}6{]}, {[}7{]} produce
-geometry, but mostly as one fused asset, from which separate objects are
-recovered after the fact {[}8{]}, {[}9{]}. Both work in one shot, so a
-creator cannot find or change the step behind a fault. Procedural
-systems {[}10{]}, {[}11{]} and coding agents that write scenes as
-programs {[}12{]}, {[}13{]}, {[}14{]}, {[}15{]}, {[}16{]}, {[}17{]} keep
-the environment explicit, but rebuild a scene that already exists or
-draw their objects from a fixed library; their models often float or
-come apart {[}18{]}, and such agents judge their own geometry unreliably
-{[}19{]}; on scenes rebuilt from video, the best model scores 0.91 on
-static scenes but 0.67 on dynamic ones {[}20{]}, which is why SCORE
-checks motion as a layer of its own. Open vision foundation models
-{[}21{]} now read shapes {[}22{]}, masks {[}23{]}, depth {[}24{]} and
-parts {[}25{]} out of pictures, and a coding agent can connect them as
-tools; none of them provides one style across objects that different
-models made, which the field names as an open problem {[}26{]},
-{[}27{]}.
+The pieces for the physics exist. OpenUSD {[}26{]}, the scene
+description Pixar made for its films, layers each department's work in a
+file of its own and assembles scenes from smaller ones by reference, and
+its physics schema states bodies, colliders, mass and joints in the same
+stage. MuJoCo {[}27{]} is a widely used solver for articulated bodies
+with contact; Newton {[}28{]}, built on Warp {[}29{]}, runs MuJoCo's
+solver on the GPU {[}30{]} and reads OpenUSD directly. What is missing
+is a way to get from what a creator wants to a complete environment in
+that form.
 
-SCORE's environments are meant to be \textbf{complete}: every object,
-surface, light and sound exists wherever the viewer looks. They are
-\textbf{owned}: every model in the framework allows commercial use of
-its output, so the creator stays the author, holding the full commercial
-rights. They are meant to be \textbf{responsive}: every object has real
-collision, mass and material. And they can be any kind of
-\textbf{environment}, from a house on a plot of ground to a system of
-worlds. To our knowledge, no other openly available environment
-generation work joins vision foundation models into engine-ready
-environments that are built from reference pictures, steered by a
-person's choices at each step, and made only with models that allow
-commercial use of their output.
+SCORE is that framework. Its environments are \textbf{complete}: every
+object, surface, light and sound a scene shows exists wherever the
+viewer looks. They are \textbf{owned}: every model in the framework
+allows commercial use of its output, so the creator holds the full
+rights. They are \textbf{responsive}: every object has its collider,
+mass and material, and what moves has its joints, so a simulator steps
+the environment as written. And they are \textbf{editable}: each scene
+is a stack of layers, each layer made by a keyed step, so a change runs
+again only what it touches. An environment can be a house on a plot of
+ground or a system of worlds that move one another.
 
-We contribute \textbf{the SCORE framework}, which builds an environment
-by the studios' convention, the creator deciding top down and the
-framework making every layer below (Section 2); \textbf{measured gates}
-for every layer of a scene and a completion gate over them (Section 3);
-and \textbf{evidence from a first environment}, left as gaps until its
-remake has run (Section 4).
+We contribute \textbf{the SCORE framework} (Section 2), which turns a
+creator's locked design into one OpenUSD environment that is physically
+simulable and opens unchanged in a game engine, a robot simulator or a
+film renderer; \textbf{its method} (Section 3), the stages that build a
+scene top down and layer by layer, each behind measured gates; and
+\textbf{the evidence plan} (Section 4), four demonstrations on a first
+environment, left as gaps until its batch has run. Section 5 sets out
+where the framework goes next, toward simulated people true to the
+person.
 
 \section{The framework}\label{the-framework}
 
-The creator works in the creator cockpit, one signed-in web page: there
-he decides the design, buys paid work and reviews what the framework
-reports. Below him, an environment is a table of stages read off its
-designs; environment 1's has 261 rows today, 201 of them the bodies of
-the 67 people its designs show. A \textbf{node} is one stage for one
-scene (\texttt{assembly@hangar}) or for the environment, and one runner
-makes, judges and accepts every node. From an approved design everything
-runs without a further yes.
+An environment is one OpenUSD record. Each \textbf{scene} is one stage;
+a scene sits within its parent scene and holds its child scenes,
+referenced at the rooms its plan gives them, so opening a top scene
+opens everything below it. Each scene's layers stack in a fixed order: a
+slot for the creator's edit layer on top, then people, sound, light,
+motion, effects, crops, machines, physics, settle, ground and the base
+laid from the locked plan. Each object, one per real-world object,
+carries its kind, transform, collider and each part's library surface.
+The environment's \textbf{physics} is decided in its environment concept
+(EC): a plot of ground with a gravity and a sun path, one world, or a
+system of bodies that move one another, a real body taking its values
+from a cited table and an invented one given by its radius, mass, orbit
+and spin. The physics layer writes a scene's bodies, mass, joints and
+the gravity of the body it stands on in OpenUSD's physics schema, so any
+reader of that schema gets the same scene.
 
-\subsection{Keys, gates and accepts}\label{keys-gates-and-accepts}
+The creator works in the creator cockpit, one signed-in web page, where
+he locks the design, buys paid work and reviews what the framework
+reports. Below him, an environment is a table of stages read off its
+designs; environment 1's has 261 rows. A \textbf{node} is one stage for
+one scene (\texttt{assembly@hangar}) or for the environment, and one
+runner makes, judges and accepts every node. From an approved design
+everything runs without a further yes.
 
 \textbf{Keys.} A node is made only when its key has no finish record.
 The key hashes the stage and scene, its code version, contracts,
 parameters and seed, the pinned model images, every file it reads and
-the accepted output of every node it reads. The code version counts the
-code that can shape the output: the stage's maker, the scripts it sends
-to a machine and every module they import; code that only decides where
-and how a job runs (renting, the pool of warm machines, the ledger,
-money guards, the cockpit) changes what a run costs, never what it
-makes, and is in no key. A fault fixed in one stage moves only its key
-and those after it. Outputs are kept by content hash, never overwritten.
+the accepted output of every node it reads. The code version counts only
+code that can shape the output; code that decides where and how a job
+runs changes what a run costs, never what it makes, and is in no key. An
+edit or a fixed fault moves only its own key and those after it, so only
+those steps run again. Outputs are kept by content hash, never
+overwritten.
 
 \textbf{Gates and accepts.} Each gate answers pass, fail or unknown,
 with measures and a reason; missing evidence is unknown, and unknown
 blocks like fail. The runner accepts an output by itself when every gate
-passed and it is no worse than the one accepted before: no answer
-dropped, no measure moved the wrong way by a step a viewer could see, no
-gate missing. Later nodes read only accepted outputs. The creator keeps
-four actions, buttons in the cockpit: reject an accepted output (it
-moves back to the one before, and every node that read it is stale),
-accept a worse one with a reason, waive one gate for one key, and
-override the runner for one paid run. A barrier keeps agents from them:
-a store that refuses the creator's records from an agent's process, and
-a hook.
+passed and it is no worse than the one accepted before. Later nodes read
+only accepted outputs. The creator keeps four actions: reject an
+accepted output (every node that read it is then stale), accept a worse
+one with a reason, waive one gate for one key, and override the runner
+for one paid run. A store that refuses these records from an agent's
+process, and a hook, keep agents from them.
 
-\textbf{Batches.} Paid work is bought as a batch, with one estimate and
-one ETA; the creator's yes to that estimate is the only spend decision,
-and the batch stops at its high estimate plus 10 percent. A scene enters
-a batch only once its design stands whole on its lock, and Buy waits
-until the film script is locked. Inside a batch every paid job runs
-once, with no retry; a failed output becomes a batch gap that the
-completion gate lists, and spending more on it is a new batch. The
-creator reviews each scene in a 3D viewer on its accepted assembly.
+\textbf{Batches.} Paid work is bought as a batch with one estimate; the
+creator's yes sets the batch's budget across all its tries, and the
+money guards stop it there. Inside a batch every paid job runs once; a
+failed output becomes a batch gap that the completion gate lists. Every
+paid stage is priced from a unit cost measured on the ledgers; a stage
+with no measured run has no price, and its estimate is shown apart as a
+guess.
 
-\subsection{From concept to scene}\label{from-concept-to-scene}
+\section{Method: building an
+environment}\label{method-building-an-environment}
 
-\textbf{The environment concept.} The creator first locks the EC, in a
-short interview with Gemini 3.1 Pro {[}28{]} in the cockpit: its style
-and its \textbf{physics}, with his reference pictures. The EC holds the
-scenes and their layering: the top scenes and the child scenes each may
-hold. Its physics is what everything stands on and in and how it moves,
-at the scale he sets: a plot of ground with a gravity and a sun path,
-one world, or a system of bodies that move one another, a real body
-taking its values from a cited table and an invented one given by its
-radius, mass, orbit and spin. A body near enough to matter moves in the
-physics simulation, a far source of light is a light, and what is too
-far to move is a backdrop. An environment plan places each top scene's
-site on that ground, shaped by that scene's own plan, and works out the
-sky each site sees.
+\subsection{From concept to plan}\label{from-concept-to-plan}
+
+\textbf{The environment concept.} The creator first locks the EC in a
+short interview with Gemini 3.1 Pro {[}31{]}: its style and its physics,
+with his reference pictures, and the scenes it holds. An environment
+plan places each top scene's site on that ground and works out the sky
+each site sees.
 
 \textbf{A concept for each scene, top down.} For each scene a concept is
 then locked, in order of parent scene and child scene. Each draw is one
-Nano Banana Pro {[}29{]} call that the creator's click pays for, on a
-concept review page where he marks areas and asks for a new draw, or
-first discusses the draw with Gemini 3.1 Pro, the thread going with his
-next draw. A child scene is drawn only once its parent scene is locked
-and planned, on a crop of the parent's concept, so it fits the parent it
-stands in.
+Nano Banana Pro {[}32{]} call, on a concept review page where he marks
+areas and asks for a new draw. A child scene is drawn only once its
+parent is locked and planned, on a crop of the parent's concept, so it
+fits the parent it stands in.
 
-\textbf{Inventory and plan.} The creator's lock is the approval. Gemini
-3.1 Pro lists every object of the locked concept as a row of the scene
-inventory, with its kind, count, anchor and size in metres, and SAM 3
-{[}23{]} boxes each row on the concept. A row counts when both find it,
-or when Gemini names one large object (at least 2 percent of the
-picture) that SAM 3 misses, boxed by Gemini's region; a row without
-metres is a gap. Nothing is made or placed that is not a row. The plan
-is made in two calls. Nano Banana Pro first draws the scene from
-straight above, from the locked concept, in the frame of the scene's own
-proportions; Gemini 3.1 Pro then writes the plan in metres from that
-drawing, the concept and the inventory, element by element: outline,
-walls, openings, levels, stairs, roofs, terrain heights, each item with
-its facing, people as the spots they stand on, and the child scenes'
-rooms. Free checks follow (every row placed as often as it counts,
-inside the outline, no two floor items in each other, each item placed
-and facing as in the concept, every door and standing spot reached on
-foot, the child scenes tiling their parent). What code can settle is
-fixed before the plan is shown, what remains goes back to Gemini 3.1 Pro
-as notes at most twice, and only what is left is a gap. A plan the
-creator drew himself wins over a written one, and his edits on the plan
-review page always win and redo what follows: he moves and resizes
-rooms, and a box he drops wholly inside a room is a thing in it, one
-dropped over another room makes the two one shared room, and one dropped
-anywhere else is a new child scene. A child scene he has locked keeps
-its room when its parent's plan is written again. Only a scene with a
-design gets the rows of a batch.
+\textbf{Inventory and plan.} Gemini 3.1 Pro lists every object of the
+locked concept as a row of the scene inventory, with its kind, count,
+anchor and size in metres, and SAM 3 {[}22{]} boxes each row; nothing is
+made or placed that is not a row. Nano Banana Pro then draws the scene
+from straight above, and Gemini 3.1 Pro writes the plan in metres from
+that drawing, the concept and the inventory: outline, walls, openings,
+levels, stairs, roofs, terrain, each item with its facing, people as the
+spots they stand on, and the child scenes' rooms. Free checks follow
+(every row placed as often as it counts, inside the outline, no two
+floor items in each other, every door and standing spot reached on foot,
+the child scenes tiling their parent); what remains goes back as notes
+at most twice, and only what is left is a gap. The creator's edits on
+the plan review page always win and redo what follows.
 
-\textbf{Shapes first.} The route is one loop, the same at every scale. A
-parent scene gets its concept, its plan and a rough model, its concept
-put through picture to 3D whole, which gives the plan its proportions.
-Its plan is then split into the shapes of its child scenes, and once
-those shapes are fixed every child scene is made in parallel, each
-repeating the loop (the creator's order of 19 October 2026). The
-runner's rows \texttt{rough-model} and \texttt{shell-split} (gated on
-\texttt{tiled}, \texttt{reached} and \texttt{bounded}) are built and
-have not run.
+\textbf{Shapes first.} The route is one loop at every scale: a parent
+scene gets its concept, plan and a rough model; its plan is split into
+the shapes of its child scenes, and once those shapes are fixed every
+child scene is made in parallel, each repeating the loop. The rows
+\texttt{rough-model} and \texttt{shell-split} are built and have not
+run.
 
-\textbf{The scene record.} The scene record holds what no made piece
-covers (shells, stairs, ground and water, backdrop, lamps, the
-neighbours a scene shows), written from the plan, inventory and made
-ground, and gated on \texttt{game-free}, \texttt{plan-matched} (the
-shell within 5 cm of the plan) and \texttt{openings} (every doorway onto
-a floor, no view into nothing).
+\subsection{Layers from row kinds}\label{layers-from-row-kinds}
 
-\textbf{The canonical scene.} Every scene is one OpenUSD stage {[}3{]};
-each object, one per real-world object, carries its kind, transform,
-collision and each part's library surface. Its layers are read off its
-design alone: each inventory row's kind, found free from the reading's
-noun, says what its objects do (emit, move, lie loose, glow, grow, act,
-sound), a scene gets an effects, motion, physics, crops or people layer
-only for rows that do so, and light and sound always. Each layer is made
-from the rows by their kind's rule, never from a record written for one
-scene, so a new environment needs no hand-written list. The layers stack
-in a fixed order: a slot for the creator's edit layer on top, then
-people, sound, light, motion, effects, crops, machines, settle, ground
-and the base, laid from the locked plan. Each scene is assembled once
-from every layer's accepted output; its \texttt{layers} gate answers
-unknown while a layer its design shows has none. Walls, floors, stairs
-and ground collide and every model has a collider (\texttt{collision});
-colliders are static, mass and interaction not yet written. \textbf{A
-parent scene holds its child scenes}: its scene tree references each
-child's own tree at the room its plan gives it, so opening a top scene
-opens all below it, each still its own layer stack
-(\texttt{child\ scenes}). Neighbours are referenced the same way; a
-shown scene no stage makes is a gap. The edit layer is still a slot: a
-test on a two-box scene shows an edit there surviving a regenerated
-base, but the assembly does not yet carry the creator's edits from one
-assembly to the next.
+A scene's layers are read off its design alone: each inventory row's
+kind, found from the reading's noun by one table of rules, says what its
+objects do (emit, move, lie loose, glow, grow, act, sound). A scene gets
+an effects, motion, physics, crops or people layer only for rows that do
+so, and light and sound always; each layer is made from the rows by
+their kind's rule, so a new environment needs no hand-written list. The
+scene record holds what no made piece covers (shells, stairs, ground and
+water, backdrop, lamps, neighbours), gated on the shell lying within 5
+cm of the plan and every doorway opening onto a floor.
 
-\textbf{Models, generation first.} Every object goes the prop route
-first: Nano Banana Pro draws its close-up from its crop of the concept
-(a picture the shape check rejects is drawn again, at most three times,
-on the creator's word of 24 October 2026), Pixal3D {[}22{]} builds it,
-the surface stage paints it, and a likeness gate compares its outline
-from eight sides with its close-up. A close-up whose every take fails
-the shape check is a batch gap, so Pixal3D is never paid for it. Only an
-object whose checks fail is built by a code builder a coding agent
-writes (the creator's choice, 12 October 2026). One kind is built in
-code by rule: a thin straight thing (a pipe, cable, post or beam, its
-longest side many times its others) whose every close-up failed is swept
-along its length with a round or rectangular profile from its size, then
-painted by the same finish route and held to its crop of the concept by
-the same likeness gate (the creator's choice, 25 October 2026: ``Yes,
-code-build thin straight things''). A big object the viewer walks up to
-gets a body built in code under the generated details its entry names
-(the creator, 18 October 2026).
+\textbf{Models.} Every object goes the prop route first: Nano Banana Pro
+draws its close-up from its crop of the concept (redrawn at most three
+times when the shape check rejects it), Pixal3D {[}21{]} builds it, and
+a likeness gate compares its outline from eight sides with the close-up.
+Only an object whose checks fail is built by a code builder a coding
+agent writes; a thin straight thing (a pipe, post or beam) whose every
+close-up failed is swept along its length in code.
+
+\textbf{Surfaces.} Everything a scene shows comes from the creator's
+library, score\_lib, or is a written exception. A model gives shape
+only: each part takes one surface from a library of rule-based surfaces,
+written as ProcFunc functions {[}33{]} on Infinigen's shaders {[}9{]}
+and coloured from the scene's palette. The finish route labels each face
+from free renders of the model, matches each finish to a library
+surface, bakes it and checks the bake against the close-up (each finish
+within ΔE 32 of its colour there). A free library check traces every
+material, model, light, sound and character of an accepted assembly to
+the library or an exception.
+
+\textbf{Settle and physics.} Loose objects are dropped onto the made
+ground; one that would turn more than 15 degrees or drift more than 30
+cm is a resting fault and keeps its laid pose. The settle lays where
+each object comes to rest as a layer. The physics trial then steps the
+composed scene on Newton with MuJoCo's solver on Newton's contacts,
+under the gravity of the body the scene stands on, and judges it by
+gates: \texttt{reacted}, \texttt{at\ rest}, \texttt{energy} (no rise in
+undriven energy) and \texttt{hinge} (a hinged leaf swings to its limit).
+The trial moved from Blender's Bullet {[}34{]} to Newton on 27 October
+2026. On a toy scene at Moon gravity (two crate drops, a driven door
+with a wheel fixed to it, a pushed stool), both engines gave the same
+answers on every gate, and Newton landed the crates on their targets
+where Bullet left its contact margins of 8 mm; with Newton 1.7.0 in its
+deterministic mode, six runs gave bitwise equal bodies in every frame.
+The settle moves to Newton the same way, so one engine steps what comes
+to rest and what is tried, and one effect is stepped on Newton as a
+first case for the effects layer.
+
+\textbf{Light, motion, effects and sound.} The sky is worked out from
+the EC's physics, never drawn: each body at its true direction, size and
+phase as seen from the scene's site. The lamps are the inventory's
+glowing rows; one render per scene gives each lamp its own light group,
+and a free sweep mixes their strengths to bring the scene within 1.5
+times its concept's brightness. Every object of a moving row moves by
+its kind's rule at a speed cited from real machines, gated on nothing
+passing within 3 cm of another thing; emitters are measured against real
+footage; each sound source gets a library file or one MOSS-SoundEffect
+{[}35{]} take, gated on a CLAP {[}36{]} score of at least 0.30.
+
+\textbf{People.} People are models like any other: a close-up per person
+row, built by Pixal3D and painted by the finish route. SOMA's body
+{[}37{]}, read from the close-up by SAM 3D Body {[}38{]}, is fitted
+under it as its rig, and Kimodo's clips {[}39{]} move it; a shell gate
+passes a look when 99 percent of its soft points lie within 5 cm of the
+body. Each person stands on a person spot of its scene's plan.
+
+\textbf{Sim bodies.} Each character also gets a \textbf{sim body}, its
+physical twin on Newton, so people in an environment are simulated, not
+only animated. The minimal body is built straight from SOMA's 23
+segments with a ball joint at each SOMA joint frame, driven by the
+character's SOMA segment rotations with no scaling and no per-person
+setup, its mass spread by its segment volumes, standing on a SCORE floor
+so its ground forces come from contact; muscles enter as a minimal first
+step. Built this way, the body follows SOMA's rotations to within 6.9e-9
+m, and on Newton it matches plain MuJoCo to 3.4e-8 after 200 steps.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: Figures 2 and 3.} (2) One scene's design top down: the EC,
-the parent scene's concept and plan, a child scene drawn on its parent's
-crop, its inventory and plan. (3) Objects of one scene from close-up to
-final model, generated and code-built. They wait on the remake's designs
-and batch.
+\textbf{Gap: Newton for the settle, one effect and the sim body.} The
+settle and the physics trial on one engine, with the resting and physics
+gates per scene against the Bullet settle; the one effect stepped on
+Newton; and a sim body walking on a SCORE floor, its joint angles and
+ground forces against OpenCap's LabValidation motion capture and force
+plates {[}40{]}. It waits on these three stages being built and run on a
+cloud card.
 
 \end{minipage}}\end{center}
 
-\section{Stages and their gates}\label{stages-and-their-gates}
+\textbf{Completion.} A scene is complete when its gate passes on its
+final assembly: every row made or dropped with a reason, nothing unmade,
+no resting fault, every layer and shown scene present. A fault the
+creator ships with is an accepted gap, written with who decided, when
+and why; the gate lists every gap by name and is never loosened. A hook
+stops an agent claiming a scene is done while its gate fails, since
+agents judging their own scenes agree with a measured geometry score
+only 45.8 percent of the time {[}18{]}. A scene's films are made from
+scripts the creator locked, once it is complete.
 
-\subsection{Surfaces: the finish route}\label{surfaces-the-finish-route}
+\section{Evidence: environment 1}\label{evidence-environment-1}
 
-Everything a scene shows comes from the creator's library, score\_lib,
-or is a written exception (the creator's rule of 18 October 2026).
-Models give shape only: a picture-made model keeps its geometry and its
-finish is replaced. Every part takes one surface from a shared library
-of rule-based surfaces, written as ProcFunc functions {[}30{]} on
-Infinigen's shaders {[}10{]}, coloured from the scene's palette and worn
-only where wear has a cause. The library starts empty for the remake:
-every surface and model of the earlier runs was retired on 21 October
-2026, so the batch makes them fresh. Each scene's palette is coined from
-its locked concept and its objects' close-ups, one Gemini 3.1 Pro batch
-answer gives its surfaces as settings of the recipes, and an entry is
-reused only when made under today's route.
-
-The finish route gives each model its finishes (the creator's choice of
-20 October 2026). Free renders cover every face of the raw model, each
-view split into colour regions; one Gemini 3.1 Pro answer a model lists
-its finishes, each matched to a library surface, and labels each region,
-and the labels vote across views into one finish a face, a face no label
-reaches or whose views disagree being a gap. A face no view can see
-takes the finish of the nearest seen one, an island of a finish under 1
-percent of the model joins the finish round it, and a model whose paint
-is still patchy, over 3 percent of it in such islands, is a gap before
-its bake. Each part is painted from its library surface and baked, and
-the bake is checked against the close-up: a finish's surface must lie
-within ΔE 32 of its colour there, a bake fails when it darkens a finish
-the close-up shows lighter or turns all surfaces into one grey, and a
-foot over 3 cm off the floor fails. A free library check traces every
-material, model, light, sound and character of a scene's accepted
-assembly to a library entry or a written exception.
-
-\subsection{Resting}\label{resting}
-
-Loose objects are dropped onto the made ground in a physics simulation;
-one that would turn more than 15 degrees or drift more than 30 cm is a
-resting fault of the layout and keeps its laid pose. The settle stage
-lays where each object comes to rest as a layer (held objects snapped
-onto their holders, a stack onto one support, an object that would rest
-worse kept as laid), gated on \texttt{rested} and \texttt{resting} (no
-fault that appears with the layer and not without it). A physics layer
-writes the scene's physics in OpenUSD, and a trial on Bullet drops the
-loose rows' objects where they stand, under the gravity of the body the
-scene stands on (\texttt{reacted}, \texttt{at\ rest}, \texttt{energy},
-\texttt{hinge}).
-
-\subsection{Light}\label{light}
-
-The sky is worked out from the EC's physics, never drawn: the light
-layer writes what the scene's top site sees overhead at its scene time,
-each body at its true direction, size and phase (\texttt{sky\ bodies}),
-and a light under the horizon lights nothing. The lamps are the
-inventory's glowing rows, and their strengths are measured. One paid
-render per scene gives every lamp its own Cycles light group on the
-scene's views; because light adds up, the look at any strengths is mixed
-from these passes without rendering again, and a free sweep chooses the
-scale that brings the scene's brightness within 1.5 times its concept's,
-halving any lamp that turns what it lights white.
-
-\subsection{Motion, effects and sound}\label{motion-effects-and-sound}
-
-\textbf{Motion.} Every object of a moving row moves by its kind's rule
-(a door swings and shuts, a crane slews, a fan spins) at the middle of
-its kind's speed range cited from real machines, gated on \texttt{clear}
-(no moving thing within 3 cm of a still thing or another moving thing,
-read every quarter second), \texttt{speeds}, \texttt{loops},
-\texttt{grounded}, \texttt{covered} and \texttt{designed}.
-\textbf{Effects:} an emitting row's objects carry their kind's emitters,
-measured against real footage, gated on \texttt{attached},
-\texttt{footage}, \texttt{light}, \texttt{outside} (no open-sky particle
-inside a room) and \texttt{designed}. \textbf{Sound:} a scene's sources
-come from its design (a bed from how the scene is heard, its sounding
-rows, its people's voices and its moving things), and each gets a
-library file or one MOSS-SoundEffect {[}31{]} take of its brief, gated
-on \texttt{sources}, \texttt{bed}, \texttt{events}, \texttt{voices},
-\texttt{level}, \texttt{likeness} (CLAP {[}32{]} score at least 0.30; a
-take under it is a gap) and \texttt{no\ freesound}.
-
-\subsection{People}\label{people}
-
-People are models like any other. The looks come from the person rows of
-the locked designs, each person from its own SAM 3 box on the concept
-and a crowd as one far look; the shared loop draws its close-up (one
-person, front on, in the rig's A-pose), Pixal3D builds it and the finish
-route paints it. The rigged body takes each part's library surface from
-that paint, its face and hair included, and the library surfaces are
-baked onto the body itself as onto any model and checked the same way;
-no picture's finish reaches it. SOMA-X's body, read from the close-up by
-SAM 3D Body {[}33{]}, is fitted under it as its rig, and Kimodo's clips
-{[}34{]}, from sentences, move it. The \textbf{shell gate} passes a look
-when 99 percent of its soft points lie within 5 cm of the body, its
-worst point recorded; each clip gets its own verdict, and casts use only
-passing clips. \textbf{Casts:} each person stands on a person spot of
-its scene's plan, gated on \texttt{counted}, \texttt{standing},
-\texttt{clear} and \texttt{made}.
-
-\subsection{Completion}\label{completion}
-
-A scene is complete when its gate passes on its final assembly: every
-row made or dropped with a reason, nothing unmade, no placeholder or
-resting fault, the creator's picks shown and every layer and shown scene
-present. A fault the creator decides to ship with is an accepted gap,
-written with who decided, when, why and its measured faults; the
-completion gate lists every gap by name and is never loosened, and a
-scene whose accepted gaps are its only fail is complete apart from
-accepted gaps. A hook stops an agent claiming a scene is done while its
-gate fails: agents judging their own scenes agree with a measured
-geometry score only 45.8 percent of the time {[}19{]}.
-
-\subsection{The film}\label{the-film}
-
-The film is a design step too: the creator locks a film script in the
-cockpit (by default the whole environment, body by body), and a scene's
-films are made from locked scripts only, once it is complete or complete
-apart from accepted gaps.
+Environment 1 is the evidence. Its first run was not accepted by the
+creator and its store was lost on 19 October 2026, so this draft shows
+none of its outputs; each demonstration below is made on its new batch.
+Figure 1 is the first.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: Figures 4 to 7.} (4) A scene's models painted from the
-library beside their close-ups; (5) a scene swept to its concept's
-light; (6) motion and effects in place; (7) its people and their cast.
-They wait on the remake's assemblies.
-
-\end{minipage}}\end{center}
-
-\subsection{Prices and ledgers}\label{prices-and-ledgers}
-
-Every paid stage is priced from a unit cost measured on the ledgers,
-times the units its forecast rule counts, times the bill's share over
-the ledger; a stage with no measured run has no price, and its estimate
-is shown apart as a guess. Today 15 of the table's 29 paid kinds of row
-have a measured unit price, four of them from two benchmark batches of
-21 October 2026 that the creator approved, one node a kind. Machines and
-Google calls write ledger lines with their node's clearance, and the
-month's spend is the higher of ledgers and bill, which caught misses:
-EUR 1,554 billed against EUR 1,387 in the cloud ledger on 12 October
-2026. A paid node runs only when every gate on its inputs passed, the
-month's books are known and its batch's stop has room for its forecast.
-
-\section{Evidence}\label{evidence}
-
-Environment 1 is the worked example. Its first run was not accepted by
-the creator and its store was lost on 19 October 2026, so this draft
-shows none of its outputs; its remake from new designs has not run.
-
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
-
-\textbf{Gap: Table 1 and the film.} Per scene of the remake: inventory
-rows, models generated and coded, layers, gaps before and after the
-batch, time, euros and the creator's verdict; and a walk through
-environment 1. They wait on the remake's batch and the creator's review.
+\textbf{Gap: Demonstration 2, physics that holds.} Environment 1's
+scenes stepped on Newton under their own body's gravity: loose objects
+come to rest, doors swing on their hinges, with the physics trial's
+gates per scene and Bullet run on the same scenes as the baseline. It
+waits on environment 1's batch and on Newton taking over the settle.
 
 \end{minipage}}\end{center}
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: Table 2, people.} Usable clips per look by the shell and
-clip gates on the remake's people. It waits on the people line's batch.
+\textbf{Gap: Demonstration 3, one environment, many uses.} The same
+OpenUSD environment opened unchanged in a game engine, in a robot
+simulator and in a film render, with what each reads of its layers and
+what it drops. It waits on environment 1's batch and on the engine
+adapter.
 
 \end{minipage}}\end{center}
 
-\textbf{Agent tools.} With them an agent used about half the output and
-cost on two of three scenes; on the third it left more faults; one run
-each.
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\section{Limitations, future work and
-conclusion}\label{limitations-future-work-and-conclusion}
+\textbf{Gap: Demonstration 4, an edit that stays cheap.} The creator
+changes one thing in a locked scene, and only the nodes whose keys it
+moves run again; the nodes rerun, time and euros against a full rebuild.
+It waits on environment 1's batch and on the edit layer being carried
+from one assembly to the next.
+
+\end{minipage}}\end{center}
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: Table 1.} Per scene of environment 1: inventory rows,
+models generated and code-built, layers, gaps before and after the
+batch, time, euros and the creator's verdict. It waits on environment
+1's batch and the creator's review.
+
+\end{minipage}}\end{center}
+
+\textbf{Disclosure.} The creator's locks, picks, accepts and waivers are
+his own clicks; everything between them runs automatically. Coding
+agents wrote most of the framework's code under the author's direction:
+2,413 of its 2,436 commits carry a coding agent as co-author. Hand fixes
+to a scene are recorded as the creator's edits.
+
+\section{Future work: people true to the
+person}\label{future-work-people-true-to-the-person}
+
+The minimal sim body is a start. This section states goals, not results.
+
+\textbf{Bodies true to the person.} The sim body is to become fully
+musculoskeletal and true to the actual person, older people and a curved
+spine included, not a template body resized: joint centres from bone
+landmarks on its SOMA mesh, then mass, muscles, joint ranges, spine and
+bone shape, each input SOMA lacks marked as assumed with a range. A full
+musculoskeletal body with 416 muscles already runs on Newton but still
+drifts 1.5 cm from plain MuJoCo after 300 steps, so Newton is to be
+validated for bodies before more is built on it. Its joint angles, then
+its joint moments and ground forces, are to be held to OpenCap's
+LabValidation data.
+
+\textbf{Scenes from motion.} Motion is to come from the SOMA ecosystem:
+GEM-X {[}41{]} from video, Kimodo from sentences, and sequences joined
+from datasets of both. The terrain a motion implies becomes a SCORE
+scene and a sim body follows the motion on it, so the scene keeps the
+motion with no video and nothing that identifies a person.
+
+\textbf{Brains.} A \textbf{brain} is a trained model that drives a sim
+body's muscles so it moves on its own, including over structures it
+never saw. Trained on sim-body data and placed in SCORE's invented
+worlds, under their own gravity and ground, it is to adapt to what no
+recording holds. Specialised models, for example for clinical groups,
+would be trained outside SCORE on data that never enters it.
+
+\textbf{The data loop.} Sim bodies moving in synthesized scenes make
+data; that data trains better and more specialised brains; a brain
+drives a sim body in new scenes, which makes more data.
+
+\section{Limitations and conclusion}\label{limitations-and-conclusion}
 
 One creator judges, and he has not yet accepted a run. Closed models
 (Nano Banana Pro, Gemini 3.1 Pro) draw the concepts and close-ups and
 read and plan every scene; they may change or go. The design step, the
-layers made from row kinds, the fresh library, the finish route, the
-shapes-first loop, the scene tree and the code bodies have not yet
-carried a scene through a batch; the edit layer is a slot, colliders are
-static and objects are not interactive, and no game engine opens the
-result yet. Next: the remake's batch, an engine adapter with physics and
-interaction, an edit layer the assembly carries, three more
-environments, open models, LEGO-Bench {[}19{]}. In short, SCORE builds
-an environment the way studios do, scene by scene and layer by layer, so
-a fault is fixed in its own layer; an accepted environment will show if
-it holds.
+layers from row kinds, the finish route, the shapes-first loop and the
+scene tree have not yet carried a scene through a batch; the edit layer
+is a slot, the settle, the effects and the sim body are not yet on
+Newton, and no game engine or robot simulator has opened the result yet.
+Next: environment 1's batch and its four demonstrations, an engine
+adapter, the edit layer carried across assemblies, more environments,
+open models in place of the closed ones. In short, SCORE synthesizes an
+environment the way studios build one, scene by scene and layer by
+layer, in a form a simulator steps as written; an accepted environment
+will show whether it holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -567,203 +508,245 @@ of the IEEE/CVF conference on computer vision and pattern recognition
 generative {AI}, but half think it's bad for the industry}.''} Game
 Developer, Feb. 2026.}
 
-\bibitem[\citeproctext]{ref-openusd}
-\CSLLeftMargin{{[}3{]} }%
-\CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
-{``{OpenUSD}: Universal scene description.''} 2026. Available:
-\url{https://openusd.org/}}
-
 \bibitem[\citeproctext]{ref-bruce2024genie}
-\CSLLeftMargin{{[}4{]} }%
+\CSLLeftMargin{{[}3{]} }%
 \CSLRightInline{{J. Bruce, M. Dennis, A. Edwards, J. Parker-Holder,
 \emph{et al.}}, {``{Genie}: Generative interactive environments,''}
 \emph{arXiv preprint arXiv:2402.15391}, 2024.}
 
 \bibitem[\citeproctext]{ref-genie3}
-\CSLLeftMargin{{[}5{]} }%
+\CSLLeftMargin{{[}4{]} }%
 \CSLRightInline{J. Parker-Holder and S. Fruchter, {``{Genie 3: A new
 frontier for world models}.''} Google DeepMind blog, Aug. 2025.
 Available:
 \url{https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/}}
 
 \bibitem[\citeproctext]{ref-wang2025worldgen}
-\CSLLeftMargin{{[}6{]} }%
+\CSLLeftMargin{{[}5{]} }%
 \CSLRightInline{{D. Wang, H. Jung, T. Monnier, K. Sohn, \emph{et al.}},
 {``{WorldGen}: From text to traversable and interactive {3D} worlds,''}
 \emph{arXiv preprint arXiv:2511.16825}, 2025.}
 
 \bibitem[\citeproctext]{ref-hyworld2}
-\CSLLeftMargin{{[}7{]} }%
+\CSLLeftMargin{{[}6{]} }%
 \CSLRightInline{Tencent Hunyuan, {``{HY-World} 2.0.''} GitHub
 repository, 2026. Available:
 \url{https://github.com/Tencent-Hunyuan/HY-World-2.0}}
 
 \bibitem[\citeproctext]{ref-hu2026worldact}
-\CSLLeftMargin{{[}8{]} }%
+\CSLLeftMargin{{[}7{]} }%
 \CSLRightInline{J. Hu, J. Guo, J. Cen, C. Yang, S. Li, and W. Shen,
 {``{WorldAct}: Activating monolithic {3D} worlds into interactive-ready
 object-centric scenes,''} \emph{arXiv preprint arXiv:2605.15843}, 2026.}
 
 \bibitem[\citeproctext]{ref-niu2026worldsculpt}
-\CSLLeftMargin{{[}9{]} }%
+\CSLLeftMargin{{[}8{]} }%
 \CSLRightInline{{M. Niu, J. He, R. Yu, L. Fu, \emph{et al.}},
 {``{WorldSculpt}: Generating compositional worlds from grounded
 videos,''} \emph{arXiv preprint arXiv:2609.05416}, 2026.}
 
 \bibitem[\citeproctext]{ref-raistrick2023infinigen}
-\CSLLeftMargin{{[}10{]} }%
+\CSLLeftMargin{{[}9{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``Infinite photorealistic
 worlds using procedural generation,''} \emph{arXiv preprint
 arXiv:2306.09310}, 2023.}
 
 \bibitem[\citeproctext]{ref-raistrick2024indoors}
-\CSLLeftMargin{{[}11{]} }%
+\CSLLeftMargin{{[}10{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``{Infinigen Indoors}:
 Photorealistic indoor scenes using procedural generation,''} in
 \emph{Proceedings of the IEEE/CVF conference on computer vision and
 pattern recognition (CVPR)}, 2024.}
 
 \bibitem[\citeproctext]{ref-hu2024scenecraft}
-\CSLLeftMargin{{[}12{]} }%
+\CSLLeftMargin{{[}11{]} }%
 \CSLRightInline{{Z. Hu, A. Iscen, A. Jain, T. Kipf, \emph{et al.}},
 {``{SceneCraft}: An {LLM} agent for synthesizing {3D} scene as {Blender}
 code,''} in \emph{International conference on machine learning (ICML)},
 2024.}
 
 \bibitem[\citeproctext]{ref-li2026rcwm}
-\CSLLeftMargin{{[}13{]} }%
+\CSLLeftMargin{{[}12{]} }%
 \CSLRightInline{Z. Li, Y. Liao, and B. Zhu, {``Recursive code world
 models: Building complex worlds through recursive scene programs,''}
 \emph{arXiv preprint arXiv:2609.11499}, 2026.}
 
 \bibitem[\citeproctext]{ref-guo2026worldclaw}
-\CSLLeftMargin{{[}14{]} }%
+\CSLLeftMargin{{[}13{]} }%
 \CSLRightInline{C. Guo, J. Li, Y. Li, and Z. Huang, {``{WorldClaw}:
 Agentic {3D} open-world generation at scale,''} \emph{arXiv preprint
 arXiv:2608.05248}, 2026.}
 
 \bibitem[\citeproctext]{ref-yin2026autoue}
-\CSLLeftMargin{{[}15{]} }%
+\CSLLeftMargin{{[}14{]} }%
 \CSLRightInline{{L. Yin, W. Cheng, Z. Qin, T. Huang, \emph{et al.}},
 {``{AutoUE}: Automated generation of {3D} games in {Unreal Engine} via
 multi-agent systems,''} \emph{arXiv preprint arXiv:2603.07106}, 2026.}
 
 \bibitem[\citeproctext]{ref-he2026thinking}
-\CSLLeftMargin{{[}16{]} }%
+\CSLLeftMargin{{[}15{]} }%
 \CSLRightInline{G. He, R. Luo, W.-C. Ma, and H. Averbuch-Elor,
 {``Thinking in {Blender}: Staged executable inverse graphics with
 vision-language models,''} \emph{arXiv preprint arXiv:2606.02580},
 2026.}
 
 \bibitem[\citeproctext]{ref-wang2026codeasworlds}
-\CSLLeftMargin{{[}17{]} }%
+\CSLLeftMargin{{[}16{]} }%
 \CSLRightInline{H. Wang \emph{et al.}, {``Code as worlds: Agentic
 discovery of executable world representations for physical reasoning,''}
 \emph{arXiv preprint arXiv:2608.27549}, 2026.}
 
 \bibitem[\citeproctext]{ref-gao2026codebench3d}
-\CSLLeftMargin{{[}18{]} }%
+\CSLLeftMargin{{[}17{]} }%
 \CSLRightInline{Y. Gao \emph{et al.}, {``{3DCodeBench}: Benchmarking
 agentic procedural {3D} modeling via code,''} \emph{arXiv preprint
 arXiv:2606.01057}, 2026.}
 
 \bibitem[\citeproctext]{ref-li2026lego}
-\CSLLeftMargin{{[}19{]} }%
+\CSLLeftMargin{{[}18{]} }%
 \CSLRightInline{X. Li \emph{et al.}, {``{LEGO-Anything}: Coding agents
 for {3D} scene reconstruction,''} \emph{arXiv preprint
 arXiv:2609.36380}, 2026.}
 
 \bibitem[\citeproctext]{ref-shen2026codebench4d}
-\CSLLeftMargin{{[}20{]} }%
+\CSLLeftMargin{{[}19{]} }%
 \CSLRightInline{R. Shen \emph{et al.}, {``{4DCodeBench}: Benchmarking
 agents on inverse graphics of dynamic scenes,''} \emph{arXiv preprint
 arXiv:2610.03715}, 2026.}
 
 \bibitem[\citeproctext]{ref-oquab2023dinov2}
-\CSLLeftMargin{{[}21{]} }%
+\CSLLeftMargin{{[}20{]} }%
 \CSLRightInline{{M. Oquab, T. Darcet, T. Moutakanni, \emph{et al.}},
 {``{DINOv2}: Learning robust visual features without supervision,''}
 \emph{arXiv preprint arXiv:2304.07193}, 2023.}
 
 \bibitem[\citeproctext]{ref-li2026pixal3d}
-\CSLLeftMargin{{[}22{]} }%
+\CSLLeftMargin{{[}21{]} }%
 \CSLRightInline{D.-Y. Li \emph{et al.}, {``{Pixal3D}: Pixel-aligned {3D}
 generation from images,''} \emph{arXiv preprint arXiv:2605.10922},
 2026.}
 
 \bibitem[\citeproctext]{ref-carion2025sam3}
-\CSLLeftMargin{{[}23{]} }%
+\CSLLeftMargin{{[}22{]} }%
 \CSLRightInline{{N. Carion \emph{et al.}}, {``{SAM 3}: {Segment
 Anything} with concepts,''} \emph{arXiv preprint arXiv:2511.16719},
 2025.}
 
 \bibitem[\citeproctext]{ref-wang2025moge2}
-\CSLLeftMargin{{[}24{]} }%
+\CSLLeftMargin{{[}23{]} }%
 \CSLRightInline{{R. Wang \emph{et al.}}, {``{MoGe-2}: Accurate monocular
 geometry with metric scale and sharp details,''} \emph{arXiv preprint
 arXiv:2507.02546}, 2025.}
 
-\bibitem[\citeproctext]{ref-lin2025partcrafter}
-\CSLLeftMargin{{[}25{]} }%
-\CSLRightInline{Y. Lin \emph{et al.}, {``{PartCrafter}: Structured {3D}
-mesh generation via compositional latent diffusion transformers,''} in
-\emph{Advances in neural information processing systems (NeurIPS)},
-2025.}
-
 \bibitem[\citeproctext]{ref-wu2026production}
-\CSLLeftMargin{{[}26{]} }%
+\CSLLeftMargin{{[}24{]} }%
 \CSLRightInline{J. Wu, Z. Lou, J. Liu, D. Du, C. Guo, and S. Guo,
 {``From visual synthesis to interactive worlds: Toward production-ready
 {3D} asset generation,''} \emph{arXiv preprint arXiv:2604.23629}, 2026.}
 
 \bibitem[\citeproctext]{ref-yang2026flowscene}
-\CSLLeftMargin{{[}27{]} }%
+\CSLLeftMargin{{[}25{]} }%
 \CSLRightInline{Z. Yang \emph{et al.}, {``{FlowScene}: Style-consistent
 indoor scene generation with multimodal graph rectified flow,''}
 \emph{arXiv preprint arXiv:2603.19598}, 2026.}
 
-\bibitem[\citeproctext]{ref-gemini31pro}
+\bibitem[\citeproctext]{ref-openusd}
+\CSLLeftMargin{{[}26{]} }%
+\CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
+{``{OpenUSD}: Universal scene description.''} 2026. Available:
+\url{https://openusd.org/}}
+
+\bibitem[\citeproctext]{ref-todorov2012mujoco}
+\CSLLeftMargin{{[}27{]} }%
+\CSLRightInline{E. Todorov, T. Erez, and Y. Tassa, {``{MuJoCo}: A
+physics engine for model-based control,''} in \emph{IEEE/RSJ
+international conference on intelligent robots and systems (IROS)},
+2012, pp. 5026--5033.}
+
+\bibitem[\citeproctext]{ref-newton}
 \CSLLeftMargin{{[}28{]} }%
+\CSLRightInline{The Newton Developers, {``{Newton}: A {GPU}-accelerated
+physics simulation engine.''} 2026. Available:
+\url{https://github.com/newton-physics/newton}}
+
+\bibitem[\citeproctext]{ref-warp}
+\CSLLeftMargin{{[}29{]} }%
+\CSLRightInline{M. Macklin, {``{Warp}: A high-performance {Python}
+framework for {GPU} simulation and graphics.''} NVIDIA, 2022. Available:
+\url{https://github.com/NVIDIA/warp}}
+
+\bibitem[\citeproctext]{ref-mujocowarp}
+\CSLLeftMargin{{[}30{]} }%
+\CSLRightInline{Google DeepMind and NVIDIA, {``{MuJoCo Warp}: A
+{GPU}-optimized version of the {MuJoCo} physics simulator.''} 2026.
+Available: \url{https://github.com/google-deepmind/mujoco_warp}}
+
+\bibitem[\citeproctext]{ref-gemini31pro}
+\CSLLeftMargin{{[}31{]} }%
 \CSLRightInline{Google, {``{Gemini 3.1 Pro} (gemini-3.1-pro-preview)
 through the gemini {API}.''} 2026. Available:
 \url{https://ai.google.dev/}}
 
 \bibitem[\citeproctext]{ref-nanobananapro}
-\CSLLeftMargin{{[}29{]} }%
+\CSLLeftMargin{{[}32{]} }%
 \CSLRightInline{Google, {``{Gemini 3 Pro Image ({`Nano Banana Pro'})
 through the Gemini {API}}.''} 2026. Available:
 \url{https://ai.google.dev/}}
 
 \bibitem[\citeproctext]{ref-raistrick2026procfunc}
-\CSLLeftMargin{{[}30{]} }%
+\CSLLeftMargin{{[}33{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``{ProcFunc}:
 Function-oriented abstractions for procedural {3D} generation in
 {Python},''} \emph{arXiv preprint arXiv:2604.26943}, 2026.}
 
+\bibitem[\citeproctext]{ref-bullet}
+\CSLLeftMargin{{[}34{]} }%
+\CSLRightInline{E. Coumans and Y. Bai, {``{Bullet} physics {SDK} and
+{PyBullet}.''} 2021. Available:
+\url{https://github.com/bulletphysics/bullet3}}
+
 \bibitem[\citeproctext]{ref-moss2026}
-\CSLLeftMargin{{[}31{]} }%
+\CSLLeftMargin{{[}35{]} }%
 \CSLRightInline{OpenMOSS-Team, {``{MOSS-SoundEffect} v2.0.''} Hugging
 Face, 2026. Available:
 \url{https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0}}
 
 \bibitem[\citeproctext]{ref-wu2022clap}
-\CSLLeftMargin{{[}32{]} }%
+\CSLLeftMargin{{[}36{]} }%
 \CSLRightInline{{Y. Wu, K. Chen, T. Zhang, \emph{et al.}},
 {``Large-scale contrastive language-audio pretraining with feature
 fusion and keyword-to-caption augmentation,''} \emph{arXiv preprint
 arXiv:2211.06687}, 2022.}
 
+\bibitem[\citeproctext]{ref-saito2026soma}
+\CSLLeftMargin{{[}37{]} }%
+\CSLRightInline{{J. Saito, J. Li, M. de Ruyter, M. Guerrero, \emph{et
+al.}}, {``{SOMA}: Unifying parametric human body models,''} \emph{arXiv
+preprint arXiv:2603.16858}, 2026.}
+
 \bibitem[\citeproctext]{ref-yang2026sam3dbody}
-\CSLLeftMargin{{[}33{]} }%
+\CSLLeftMargin{{[}38{]} }%
 \CSLRightInline{{X. Yang, D. Kukreja, D. Pinkus, others, and K. Kitani},
 {``{SAM 3D Body}: Robust full-body human mesh recovery,''} \emph{arXiv
 preprint arXiv:2602.15989}, 2026.}
 
 \bibitem[\citeproctext]{ref-rempe2026kimodo}
-\CSLLeftMargin{{[}34{]} }%
+\CSLLeftMargin{{[}39{]} }%
 \CSLRightInline{{D. Rempe, M. Petrovich, Y. Yuan, H. Zhang, X. B. Peng,
 \emph{et al.}}, {``{Kimodo}: Scaling controllable human motion
 generation,''} \emph{arXiv preprint arXiv:2603.15546}, 2026.}
+
+\bibitem[\citeproctext]{ref-uhlrich2023opencap}
+\CSLLeftMargin{{[}40{]} }%
+\CSLRightInline{S. D. Uhlrich \emph{et al.}, {``{OpenCap}: Human
+movement dynamics from smartphone videos,''} \emph{PLOS Computational
+Biology}, vol. 19, no. 10, p. e1011462, 2023.}
+
+\bibitem[\citeproctext]{ref-gemx}
+\CSLLeftMargin{{[}41{]} }%
+\CSLRightInline{NVIDIA, {``{GEM-X}: Monocular whole-body {3D} human pose
+estimation using the {SOMA} body model.''} 2026. Available:
+\url{https://github.com/NVlabs/GEM-X}}
 
 \end{CSLReferences}
 
