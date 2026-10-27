@@ -27,7 +27,6 @@ _TOOL_RUNS = r"(?:export|page|settle|complete|resting|placeholders|made_only)\.p
 _CLAIM = re.compile(r"\b(complete|completed|done|finished|ready)\b", re.IGNORECASE)
 _NEGATION = re.compile(r"\b(not|no|none|nothing|never|neither|incomplete|unfinished|blocked|fails?|failing)\b|n't\b",
                        re.IGNORECASE)
-_EVERY = re.compile(r"\b(every|all)\s+(the\s+)?places?\b", re.IGNORECASE)
 # a hand-off to another agent names places without working on them
 _DELEGATING = {"Agent", "Workflow", "SendMessage"}
 # the glossary's page, not the place named cockpit
@@ -95,10 +94,20 @@ def claimed(text, candidates):
     for sentence in re.split(r"(?<=[.!?;])\s+|\n+", text):
         if not _CLAIM.search(sentence) or _NEGATION.search(sentence):
             continue
-        if _EVERY.search(sentence):
+        if _says_all_done(sentence):
             found |= set(candidates)
         found |= {place for place in candidates if _says_done(place, sentence)}
     return found
+
+
+def _says_all_done(sentence):
+    """Whether the sentence says every place itself is done ("all places are complete", "finished every place"), not a
+    sentence that only names all places beside a done-word elsewhere ("the film comes after all places", 2026-10-27)."""
+    word = r"(?:complete|completed|done|finished|ready|built)"
+    every = r"(?:every|all)\s+(?:the\s+)?places?"
+    return bool(re.search(rf"\b{every}\s+(?:\w+\s+){{0,2}}?(?:is|are|now)\s+(?:\w+\s+){{0,2}}?{word}\b", sentence,
+                          re.IGNORECASE)
+                or re.search(rf"\b(?:completed|finished|built)\s+{every}\b", sentence, re.IGNORECASE))
 
 
 def _says_done(place, sentence):
