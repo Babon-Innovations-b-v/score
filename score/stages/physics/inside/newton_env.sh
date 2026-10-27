@@ -4,8 +4,8 @@
 #
 #   bash score/stages/physics/inside/newton_env.sh <folder>      then  <folder>/bin/python physics_trial.py ...
 #
-# Its own environment, never the score venv's: Newton pins its own MuJoCo and Warp. Every version is pinned, each at
-# least two weeks old when chosen (2026-10-27); a changed pin builds the folder again (the mark is this file's hash).
+# Its own environment, never the score venv's: Newton pins its own MuJoCo and Warp. Every version is pinned; newton 1.7.0
+# with mujoco-warp 3.15.0 is the first set that builds deterministic mode (mujoco_warp#1590); a changed pin builds the folder again (the mark is this file's hash).
 set -euo pipefail
 
 folder=${1:?usage: newton_env.sh <folder>}
@@ -20,7 +20,7 @@ if [ -z "$uv" ]; then
 fi
 "$uv" venv --clear --quiet --python 3.12 "$folder"
 "$uv" pip install --quiet --python "$folder/bin/python" \
-  "newton==1.6.1" "mujoco==3.12.0" "mujoco-warp==3.12.0" "warp-lang==1.18.0" "usd-core==26.8" \
+  "newton==1.7.0" "mujoco==3.15.0" "mujoco-warp==3.15.0" "warp-lang==1.18.0" "usd-core==26.8" \
   "newton-usd-schemas==0.5.0" "numpy==2.5.3" "scipy==1.18.1" "python-fcl==0.7.0.11"
 "$folder/bin/python" -c "import fcl, newton, mujoco, pxr; print('newton', newton.__version__, 'mujoco', mujoco.__version__)"
 touch "$mark"
