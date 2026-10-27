@@ -758,6 +758,29 @@ def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
     assert np.isclose(moon[0, 0, 4] * 6, earth[0, 0, 4]) and np.isnan(moon[0, 1]).all()
 
 
+def test_a_sim_body_is_drawn_upright_at_its_record_and_moves_with_it():
+    """The sim pass is the record's own poses frame by frame, placed as the sim body runs (spot, turn, Turned): at the
+    first frame the hips stand over the foot (up is Blender's +z), a frame later the body has moved, and every foot
+    the ground pushes has its arrow (owner, 2026-10-27: the drawn sim body must be the record's, never one frozen pose).
+    Break: score/stages/demo_film/peel.py: `"boxes": to_z(worlds[shown])` -> `"boxes": to_z(worlds[[0] * len(shown)])`
+    Break: score/stages/demo_film/peel.py: `points_to_z(starts[shown])` -> `points_to_z(starts[shown, :1])`"""
+    import numpy as np
+    from score.stages.demo_film import peel
+    rig = toy_rig()
+    rig["clip_walking"] = np.concatenate([rig["clip_still"], rig["clip_step"]])
+    still = [0.0, 0.0, 0.0, 1.0]
+    frames = [{"poses": [[0.0, 1.0, z, *still], [0.0, 0.05, z, *still], [0.2, 0.05, z, *still]],
+               "feet": {"LeftFoot": [0.0, 400.0], "RightFoot": [0.0, 350.0]}} for z in (0.0, 0.5)]
+    record = {"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "walking"}
+    boxes = np.array([np.diag([0.1, 0.1, 0.1, 1.0])] * 3)
+    drawn = peel.person_arrays(record, rig, frames, boxes, ["Hips", "LeftFoot", "RightFoot"], [0, 1])
+    hips, foot = drawn["boxes"][0, 0], drawn["boxes"][0, 1]
+    up = hips[:3, 2] / np.linalg.norm(hips[:3, 2])  # its own up, Z up as everything drawn
+    assert hips[2, 3] - foot[2, 3] > 0.9 and up[2] > 0.99
+    assert np.linalg.norm(drawn["boxes"][1, 0, :3, 3] - hips[:3, 3]) > 0.4
+    assert drawn["arrow_start"].shape == (2, 2, 3) and not np.isnan(drawn["arrow_start"]).any()
+
+
 def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third():
     """A shot is the record's own frames, refused when longer; it shows clothed, mesh and sim body in thirds, each
     next one rising from the bottom over the wipe; the environment's film names it as a cut no row makes yet.
