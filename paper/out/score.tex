@@ -122,7 +122,10 @@ describe the framework and its method, with a first environment as the
 evidence, whose four demonstrations remain gaps until its batch has run.
 Each character also gets a sim body on Newton, driven by its SOMA
 segment rotations. We close with the route toward bodies true to the
-person and trained models that drive them. Code and paper are at
+person, a data loop in which generated movement, kept only when
+physically possible, trains models that drive a body's muscles, and
+layered training sets that pair rendered people with their forces and
+muscle activity. Code and paper are at
 https://github.com/Babon-Innovations-b-v/score (MIT licence).
 \end{abstract}
 
@@ -452,32 +455,65 @@ person}\label{future-work-people-true-to-the-person}
 The minimal sim body is a start, and what follows are goals rather than
 results.
 
-\textbf{Bodies true to the person.} The sim body is to become fully
-musculoskeletal and true to the person, older people and a curved spine
-included, instead of a resized template. Joint centres are to come from
-bone landmarks on its SOMA mesh, then mass, muscles, joint ranges, spine
-and bone shape, each input SOMA lacks marked as assumed with a range. A
-full musculoskeletal body with 416 muscles already runs on Newton but
-still drifts 1.5 cm from plain MuJoCo after 300 steps, so Newton is to
-be validated for bodies first. Its joint angles, then its joint moments
-and ground forces, are to be held to OpenCap's LabValidation data.
+The sim body is to become fully musculoskeletal and true to the person,
+older people and a curved spine included, instead of a resized template.
+Joint centres are to come from bone landmarks on its SOMA mesh, then
+mass, muscles, joint ranges, spine and bone shape, each input SOMA lacks
+marked as assumed with a range. A full musculoskeletal body with 416
+muscles already runs on Newton but still drifts 1.5 cm from plain MuJoCo
+after 300 steps, so Newton is to be validated for bodies first. Its
+joint angles, then its joint moments and ground forces, are to be held
+to OpenCap's LabValidation data.
 
-\textbf{Scenes from motion.} Motion is to come from the SOMA ecosystem,
-with GEM-X {[}41{]} reading it from video, Kimodo making it from
-sentences, and sequences joined from datasets of both. The terrain a
-motion implies becomes a SCORE scene where a sim body follows it, so the
-scene keeps the motion without video or anything identifying a person.
+Motion is to come from the SOMA ecosystem, with GEM-X {[}41{]} reading
+it from video, Kimodo {[}39{]} making it from sentences without limit,
+and sequences joined from datasets of both. The terrain a motion implies
+becomes a SCORE scene, so the scene keeps the motion without video or
+anything identifying a person. A sim body follows each movement exactly
+on its scene's ground, and physics computes the ground contact, the
+joint torques and the forces of the 416 muscles the movement needs. What
+neither the ground nor the muscles can supply is the residual, recorded
+for every frame and never applied, so it measures how physically
+possible the movement is, and only movement with a small residual is
+kept. Biomechanics already reduces and reports this residual as a
+measure of the quality of recorded motion {[}42{]}, {[}43{]}, and
+PhysibleMDM {[}44{]} lowers an inverse-dynamics residual to make
+generated motion feasible for a torque-driven robot. We apply the same
+check to generated motion played through a muscle-driven body.
 
-\textbf{Brains.} A brain is a trained model that drives a sim body's
-muscles so it moves on its own, including over structures it never saw.
-Trained on sim-body data and placed in SCORE's invented worlds under
-their own gravity and ground, it is to adapt to what no recording holds.
-Specialised models, for example for clinical groups, would be trained
-outside SCORE on data that never enters it.
+A brain is a trained model that drives a sim body's muscles so it moves
+on its own. Trained on the kept movements together with the muscle
+forces that produce them, it is placed in SCORE's synthesised worlds
+under their own gravity and ground, where it is to adapt to structures
+no recording holds, and every run it drives makes data for the next
+brain. Muscle-driven controllers such as KINESIS {[}45{]} and
+MuscleMimic {[}46{]} learn from motion capture, as torque-driven ones
+such as PHC {[}47{]} do. To our knowledge, no muscle-driven controller
+has yet been trained on generated motion filtered by its residual, and
+the claim holds only once such a brain is compared with one trained on
+motion capture and with one trained on the same generated motion
+unfiltered.
 
-\textbf{The data loop.} Sim bodies moving in synthesised scenes make
-data that trains better and more specialised brains, and a brain drives
-a sim body in new scenes, which makes more data.
+The same runs can yield layered training sets. Each sample is a rendered
+picture of a clothed person in a full scene, paired with exact values
+for every layer beneath it, from the SOMA body and joint angles, the
+ground force under each foot from simulated contact and the muscle
+activations and forces to the residual, depth, segmentation and the
+scene's layout. Such sets are meant for models that go from video to
+forces or muscle activity. BioHuman10M {[}48{]} already pairs video,
+rendered clips among it, with the activations of a 112-muscle body and
+with ground forces estimated by a learned model from recorded motion.
+Our sets would differ in scenes made for the purpose in any light,
+ground and clothing, in forces from contact with each scene's own
+ground, in a 416-muscle body and in a residual for every sample, and
+their worth rests on a model trained on them carrying over to real
+force-plate and muscle recordings.
+
+Specialised brains, for example for clinical groups, would be trained
+outside SCORE on data that never enters it. The value of the loop grows
+with the compute put behind it, since every scene, movement and run adds
+data, which is why SCORE is open, so that others can put their own
+compute behind the same framework and share the sets they make back.
 
 \section{Limitations and conclusion}\label{limitations-and-conclusion}
 
@@ -490,10 +526,12 @@ edit layer is a slot. The settle, the effects and the sim body are not
 yet on Newton, and no game engine or robot simulator has yet opened the
 result. Next come environment 1's batch with its four demonstrations, an
 engine adapter, the edit layer carried across assemblies, more
-environments, and open models replacing the closed ones. SCORE
-synthesises an environment as studios build one, scene by scene and
-layer by layer, in a form a simulator steps as written, and an accepted
-environment will show whether it holds.
+environments, open models replacing the closed ones, and the data loop,
+in which residual-filtered generated movement trains brains whose worth
+a comparison with motion capture has yet to show. SCORE synthesises an
+environment as studios build one, scene by scene and layer by layer, in
+a form a simulator steps as written, and an accepted environment will
+show whether it holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -752,6 +790,51 @@ Biology}, vol. 19, no. 10, p. e1011462, 2023.}
 \CSLRightInline{NVIDIA, {``{GEM-X}: Monocular whole-body {3D} human pose
 estimation using the {SOMA} body model.''} 2026. Available:
 \url{https://github.com/NVlabs/GEM-X}}
+
+\bibitem[\citeproctext]{ref-delp2007opensim}
+\CSLLeftMargin{{[}42{]} }%
+\CSLRightInline{S. L. Delp \emph{et al.}, {``{OpenSim}: Open-source
+software to create and analyze dynamic simulations of movement,''}
+\emph{IEEE Transactions on Biomedical Engineering}, vol. 54, no. 11, pp.
+1940--1950, 2007.}
+
+\bibitem[\citeproctext]{ref-werling2023addbiomechanics}
+\CSLLeftMargin{{[}43{]} }%
+\CSLRightInline{K. Werling \emph{et al.}, {``{AddBiomechanics}:
+Automating model scaling, inverse kinematics, and inverse dynamics from
+human motion data through sequential optimization,''} \emph{PLOS ONE},
+vol. 18, no. 11, p. e0295152, 2023.}
+
+\bibitem[\citeproctext]{ref-stolzle2026physiblemdm}
+\CSLLeftMargin{{[}44{]} }%
+\CSLRightInline{M. Stölzle, D. Müller, A. Serifi, R. Grandia, E. Knoop,
+and M. Bächer, {``{PhysibleMDM}: Enforcing inference-time physical
+feasibility constraints on motion diffusion models via noise
+optimization,''} \emph{arXiv preprint arXiv:2610.30500}, 2026.}
+
+\bibitem[\citeproctext]{ref-simos2025kinesis}
+\CSLLeftMargin{{[}45{]} }%
+\CSLRightInline{M. Simos, A. S. Chiappa, and A. Mathis, {``{KINESIS}:
+Motion imitation for human musculoskeletal locomotion,''} \emph{arXiv
+preprint arXiv:2503.14637}, 2025.}
+
+\bibitem[\citeproctext]{ref-li2026musclemimic}
+\CSLLeftMargin{{[}46{]} }%
+\CSLRightInline{C. Li \emph{et al.}, {``Towards embodied {AI} with
+{MuscleMimic}: Unlocking full-body musculoskeletal motor learning at
+scale,''} \emph{arXiv preprint arXiv:2603.25544}, 2026.}
+
+\bibitem[\citeproctext]{ref-luo2023phc}
+\CSLLeftMargin{{[}47{]} }%
+\CSLRightInline{Z. Luo, J. Cao, A. Winkler, K. Kitani, and W. Xu,
+{``Perpetual humanoid control for real-time simulated avatars,''}
+\emph{arXiv preprint arXiv:2305.06456}, 2023.}
+
+\bibitem[\citeproctext]{ref-huo2026biohuman}
+\CSLLeftMargin{{[}48{]} }%
+\CSLRightInline{Y. Huo, H. Zhang, C. Song, H. Song, Z. Zuo, and T. Yu,
+{``{BioHuman}: Learning biomechanical human representations from
+video,''} \emph{arXiv preprint arXiv:2605.14772}, 2026.}
 
 \end{CSLReferences}
 
